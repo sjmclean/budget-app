@@ -11,10 +11,16 @@ export class SqliteSchemaMigrationRepository implements SchemaMigrationRepositor
   }
 
   async update(item: SchemaMigration): Promise<void> {
-    await this.db.update(schemaMigrations).set(item).where(eq(schemaMigrations.id, item.id));
+    await this.db
+      .update(schemaMigrations)
+      .set(item)
+      .where(eq(schemaMigrations.id, item.id));
   }
 
   async findByVersion(version: string): Promise<SchemaMigration[]> {
-    return await this.db.select().from(schemaMigrations).where(eq(schemaMigrations.version, version));
+    return await this.db
+      .select()
+      .from(schemaMigrations)
+      .where(eq(schemaMigrations.version, Number(version)));
   }
 }

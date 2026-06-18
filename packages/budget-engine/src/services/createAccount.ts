@@ -31,21 +31,30 @@ export function createAccount(
   name: string,
   type: AccountType,
   participation: BudgetParticipation,
-  openingBalance?: number
+  openingBalance?: number,
 ): Account;
 export function createAccount(
   inputOrBudgetId: CreateAccountInput | string,
   name?: string,
   type?: AccountType,
   participation?: BudgetParticipation,
-  openingBalance = 0
+  openingBalance = 0,
 ): Account {
-  const input = typeof inputOrBudgetId === "object"
-    ? inputOrBudgetId
-    : { budgetId: inputOrBudgetId, name, type, participation, openingBalance };
+  const input =
+    typeof inputOrBudgetId === "object"
+      ? inputOrBudgetId
+      : {
+          budgetId: inputOrBudgetId,
+          name,
+          type,
+          participation,
+          openingBalance,
+        };
 
   if (!input.budgetId || !input.name || !input.type || !input.participation) {
-    throw new Error("createAccount requires budgetId, name, type and participation");
+    throw new Error(
+      "createAccount requires budgetId, name, type and participation",
+    );
   }
 
   const startingBalance = input.openingBalance ?? 0;
@@ -57,6 +66,6 @@ export function createAccount(
     type: input.type,
     participation: input.participation,
     openingBalance: startingBalance,
-    currentBalance: startingBalance
+    currentBalance: startingBalance,
   };
 }

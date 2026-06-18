@@ -28,37 +28,52 @@ export interface ApplyOverspendingDecisionResult {
  * from a covering category now, or leave the category overspent and reduce the
  * next month's Ready To Assign.
  */
-export function applyOverspendingDecision(input: ApplyOverspendingDecisionInput): ApplyOverspendingDecisionResult {
+export function applyOverspendingDecision(
+  input: ApplyOverspendingDecisionInput,
+): ApplyOverspendingDecisionResult {
   if (input.overspentCategoryMonth.available >= 0) {
     return {
       currentBudgetMonth: input.currentBudgetMonth,
       nextBudgetMonth: input.nextBudgetMonth,
       categoryMonths: [input.overspentCategoryMonth],
-      decision: input.decision
+      decision: input.decision,
     };
   }
 
   if (input.decision === OverspendingDecisionType.Cover) {
     if (!input.coveringCategoryMonth) {
-      throw new Error("Covering category month is required when covering overspending");
+      throw new Error(
+        "Covering category month is required when covering overspending",
+      );
     }
 
-    const amount = input.amount ?? Math.abs(input.overspentCategoryMonth.available);
-    const covered = coverOverspending(input.overspentCategoryMonth, input.coveringCategoryMonth, amount);
+    const amount =
+      input.amount ?? Math.abs(input.overspentCategoryMonth.available);
+    const covered = coverOverspending(
+      input.overspentCategoryMonth,
+      input.coveringCategoryMonth,
+      amount,
+    );
 
     return {
       currentBudgetMonth: input.currentBudgetMonth,
       nextBudgetMonth: input.nextBudgetMonth,
-      categoryMonths: [covered.overspentCategoryMonth, covered.coveringCategoryMonth],
-      decision: input.decision
+      categoryMonths: [
+        covered.overspentCategoryMonth,
+        covered.coveringCategoryMonth,
+      ],
+      decision: input.decision,
     };
   }
 
-  const nextBudgetMonth = leaveOverspent(input.nextBudgetMonth, input.overspentCategoryMonth);
+  const nextBudgetMonth = leaveOverspent(
+    input.nextBudgetMonth,
+    input.overspentCategoryMonth,
+  );
   return {
     currentBudgetMonth: input.currentBudgetMonth,
     nextBudgetMonth,
     categoryMonths: [input.overspentCategoryMonth],
-    decision: input.decision
+    decision: input.decision,
   };
 }

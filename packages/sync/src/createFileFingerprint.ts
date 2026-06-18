@@ -10,7 +10,7 @@ export interface CreateFileFingerprintInput {
 }
 
 export function createFileFingerprint(
-  input: CreateFileFingerprintInput
+  input: CreateFileFingerprintInput,
 ): FileFingerprint {
   const raw = `${input.filePath}:${input.fileSize}:${input.modifiedAt}`;
 
@@ -21,6 +21,6 @@ export function createFileFingerprint(
     fileSize: input.fileSize,
     modifiedAt: input.modifiedAt,
     fingerprint: createHash("sha256").update(raw).digest("hex"),
-    createdAt: new Date()
+    createdAt: new Date(),
   };
 }

@@ -11,10 +11,16 @@ export class SqliteDeletedItemRepository implements DeletedItemRepository {
   }
 
   async update(item: DeletedItem): Promise<void> {
-    await this.db.update(deletedItems).set(item).where(eq(deletedItems.id, item.id));
+    await this.db
+      .update(deletedItems)
+      .set(item)
+      .where(eq(deletedItems.id, item.id));
   }
 
   async findByBudgetId(budgetId: string): Promise<DeletedItem[]> {
-    return await this.db.select().from(deletedItems).where(eq(deletedItems.budgetId, budgetId));
+    return await this.db
+      .select()
+      .from(deletedItems)
+      .where(eq(deletedItems.budgetId, budgetId));
   }
 }

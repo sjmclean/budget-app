@@ -13,13 +13,13 @@ async function main() {
     userId: "user",
     deviceId: "device",
     provider: SyncProvider.LocalFolder,
-    syncRootPath: "/Users/Stewart/Dropbox/BudgetApp"
+    syncRootPath: "/Users/Stewart/Dropbox/BudgetApp",
   });
 
   const dropboxFuture = createCloudStorageSettings({
     userId: "user",
     provider: SyncProvider.Dropbox,
-    syncRootPath: "/BudgetApp"
+    syncRootPath: "/BudgetApp",
   });
 
   await repo.create(local);

@@ -11,10 +11,16 @@ export class SqliteCategorySettingsRepository implements CategorySettingsReposit
   }
 
   async update(item: CategorySettings): Promise<void> {
-    await this.db.update(categorySettings).set(item).where(eq(categorySettings.id, item.id));
+    await this.db
+      .update(categorySettings)
+      .set(item)
+      .where(eq(categorySettings.id, item.id));
   }
 
   async findByCategoryId(categoryId: string): Promise<CategorySettings[]> {
-    return await this.db.select().from(categorySettings).where(eq(categorySettings.categoryId, categoryId));
+    return await this.db
+      .select()
+      .from(categorySettings)
+      .where(eq(categorySettings.categoryId, categoryId));
   }
 }

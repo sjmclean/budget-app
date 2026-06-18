@@ -1,4 +1,8 @@
-import type { AutoCategorizationSuggestion, ImportedBankTransaction, PayeeRule } from "../../types/src/index.js";
+import type {
+  AutoCategorizationSuggestion,
+  ImportedBankTransaction,
+  PayeeRule,
+} from "../../types/src/index.js";
 
 /**
  * Applies user-defined payee rules to imported transactions.
@@ -9,12 +13,19 @@ import type { AutoCategorizationSuggestion, ImportedBankTransaction, PayeeRule }
  * the matching semantics tested here.
  */
 export class PayeeRuleApplicationService {
-  applyRules(importedRows: ImportedBankTransaction[], rules: PayeeRule[]): AutoCategorizationSuggestion[] {
-    const orderedRules = rules.filter((rule) => rule.isEnabled).sort((a, b) => b.priority - a.priority);
+  applyRules(
+    importedRows: ImportedBankTransaction[],
+    rules: PayeeRule[],
+  ): AutoCategorizationSuggestion[] {
+    const orderedRules = rules
+      .filter((rule) => rule.isEnabled)
+      .sort((a, b) => b.priority - a.priority);
 
     return importedRows.map((imported) => {
       const text = `${imported.rawPayee} ${imported.memo ?? ""}`;
-      const rule = orderedRules.find((candidate) => matchesRule(text, candidate));
+      const rule = orderedRules.find((candidate) =>
+        matchesRule(text, candidate),
+      );
 
       if (!rule) {
         return {
@@ -24,7 +35,7 @@ export class PayeeRuleApplicationService {
           suggestedCategoryId: null,
           suggestedMemo: imported.memo,
           confidence: 30,
-          reason: "No rule matched; using cleaned bank payee only."
+          reason: "No rule matched; using cleaned bank payee only.",
         };
       }
 
@@ -35,7 +46,7 @@ export class PayeeRuleApplicationService {
         suggestedCategoryId: rule.categoryId,
         suggestedMemo: rule.memo ?? imported.memo,
         confidence: rule.matchMode === "regex" ? 90 : 80,
-        reason: `Matched payee rule '${rule.name}'.`
+        reason: `Matched payee rule '${rule.name}'.`,
       };
     });
   }

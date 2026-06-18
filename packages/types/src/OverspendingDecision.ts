@@ -1,6 +1,6 @@
 export enum OverspendingDecisionType {
   Cover = "Cover",
-  LeaveOverspent = "LeaveOverspent"
+  LeaveOverspent = "LeaveOverspent",
 }
 
 export interface OverspendingDecision {

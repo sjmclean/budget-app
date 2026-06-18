@@ -12,11 +12,19 @@ async function main() {
   const auth = new AuthApplicationService(
     new SqliteUserRepository(db),
     new SqliteSessionRepository(db),
-    new SqliteUserSettingsRepository(db)
+    new SqliteUserSettingsRepository(db),
   );
 
-  const stewart = await auth.signUp("Stewart", "stewart@example.com", "password123");
-  const daughter = await auth.signUp("Daughter", "daughter@example.com", "password456");
+  const stewart = await auth.signUp(
+    "Stewart",
+    "stewart@example.com",
+    "password123",
+  );
+  const daughter = await auth.signUp(
+    "Daughter",
+    "daughter@example.com",
+    "password456",
+  );
 
   console.log(stewart.displayName, daughter.displayName);
 }

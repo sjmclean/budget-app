@@ -11,7 +11,9 @@ export interface CreateChangeRecordInput {
   eventId?: string | null;
 }
 
-export function createChangeRecord(input: CreateChangeRecordInput): ChangeRecord {
+export function createChangeRecord(
+  input: CreateChangeRecordInput,
+): ChangeRecord {
   const changedAt = new Date();
   const hashInput = `${input.budgetId}:${input.deviceId}:${input.entityType}:${input.entityId}:${input.operation}:${input.eventId ?? ""}:${changedAt.toISOString()}`;
 
@@ -24,6 +26,6 @@ export function createChangeRecord(input: CreateChangeRecordInput): ChangeRecord
     operation: input.operation,
     eventId: input.eventId ?? null,
     changedAt,
-    changeHash: createHash("sha256").update(hashInput).digest("hex")
+    changeHash: createHash("sha256").update(hashInput).digest("hex"),
   };
 }

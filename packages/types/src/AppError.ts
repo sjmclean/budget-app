@@ -9,7 +9,7 @@ export class AppError extends Error {
   constructor(
     public readonly code: AppErrorCode,
     message: string,
-    public readonly details?: Record<string, unknown>
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "AppError";
@@ -24,7 +24,10 @@ export class ValidationError extends AppError {
 }
 
 export class PermissionDeniedError extends AppError {
-  constructor(message = "Permission denied", details?: Record<string, unknown>) {
+  constructor(
+    message = "Permission denied",
+    details?: Record<string, unknown>,
+  ) {
     super("PERMISSION_DENIED", message, details);
     this.name = "PermissionDeniedError";
   }

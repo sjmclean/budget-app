@@ -1,4 +1,8 @@
-import type { AutoCategorizationSuggestion, ImportedBankTransaction, PayeeRule } from "../../types/src/index.js";
+import type {
+  AutoCategorizationSuggestion,
+  ImportedBankTransaction,
+  PayeeRule,
+} from "../../types/src/index.js";
 import { PayeeRuleApplicationService } from "./PayeeRuleApplicationService.js";
 
 /**
@@ -11,7 +15,10 @@ import { PayeeRuleApplicationService } from "./PayeeRuleApplicationService.js";
 export class AutoCategorizationApplicationService {
   private readonly rules = new PayeeRuleApplicationService();
 
-  suggest(importedRows: ImportedBankTransaction[], rules: PayeeRule[]): AutoCategorizationSuggestion[] {
+  suggest(
+    importedRows: ImportedBankTransaction[],
+    rules: PayeeRule[],
+  ): AutoCategorizationSuggestion[] {
     return this.rules.applyRules(importedRows, rules);
   }
 }

@@ -15,7 +15,7 @@ export interface PayeeCleanupSuggestion {
 export class PayeeManagementApplicationService {
   constructor(
     private payees: PayeeRepository,
-    private transactionUpdater?: TransactionPayeeUpdater
+    private transactionUpdater?: TransactionPayeeUpdater,
   ) {}
 
   normalizeName(name: string): string {
@@ -23,7 +23,11 @@ export class PayeeManagementApplicationService {
   }
 
   isTransferPayeeName(name: string): boolean {
-    return /^transfer\s*:/i.test(name.trim()) || /^transfer\s+to\s+/i.test(name.trim()) || /^transfer\s+from\s+/i.test(name.trim());
+    return (
+      /^transfer\s*:/i.test(name.trim()) ||
+      /^transfer\s+to\s+/i.test(name.trim()) ||
+      /^transfer\s+from\s+/i.test(name.trim())
+    );
   }
 
   async createPayee(budgetId: string, name: string): Promise<Payee> {
@@ -31,7 +35,10 @@ export class PayeeManagementApplicationService {
     if (!displayName) throw new Error("Payee name is required");
 
     const normalizedName = this.normalizeName(displayName);
-    const existing = await this.payees.findByNormalizedName(budgetId, normalizedName);
+    const existing = await this.payees.findByNormalizedName(
+      budgetId,
+      normalizedName,
+    );
     if (existing) return existing;
 
     const payee: Payee = {
@@ -43,7 +50,7 @@ export class PayeeManagementApplicationService {
       isTransfer: this.isTransferPayeeName(displayName),
       transferAccountId: null,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     await this.payees.create(payee);
@@ -61,7 +68,7 @@ export class PayeeManagementApplicationService {
       name: displayName,
       normalizedName: this.normalizeName(displayName),
       isTransfer: existing.isTransfer || this.isTransferPayeeName(displayName),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
     await this.payees.update(updated);
     return updated;
@@ -74,28 +81,44 @@ export class PayeeManagementApplicationService {
   async deleteUnusedPayee(payeeId: string): Promise<void> {
     if (this.transactionUpdater) {
       const usageCount = await this.transactionUpdater.countByPayee(payeeId);
-      if (usageCount > 0) throw new Error("Cannot delete a payee that is used by transactions; archive or merge it instead");
+      if (usageCount > 0)
+        throw new Error(
+          "Cannot delete a payee that is used by transactions; archive or merge it instead",
+        );
     }
     await this.payees.delete(payeeId);
   }
 
-  async mergePayees(sourcePayeeId: string, targetPayeeId: string): Promise<void> {
-    if (sourcePayeeId === targetPayeeId) throw new Error("Cannot merge a payee into itself");
+  async mergePayees(
+    sourcePayeeId: string,
+    targetPayeeId: string,
+  ): Promise<void> {
+    if (sourcePayeeId === targetPayeeId)
+      throw new Error("Cannot merge a payee into itself");
     const source = await this.payees.findById(sourcePayeeId);
     const target = await this.payees.findById(targetPayeeId);
-    if (!source || !target) throw new Error("Source and target payees are required for merge");
-    if (source.budgetId !== target.budgetId) throw new Error("Cannot merge payees from different budgets");
+    if (!source || !target)
+      throw new Error("Source and target payees are required for merge");
+    if (source.budgetId !== target.budgetId)
+      throw new Error("Cannot merge payees from different budgets");
 
-    if (this.transactionUpdater) await this.transactionUpdater.replacePayee(sourcePayeeId, targetPayeeId);
+    if (this.transactionUpdater)
+      await this.transactionUpdater.replacePayee(sourcePayeeId, targetPayeeId);
     await this.payees.archive(sourcePayeeId);
   }
 
-  async findDuplicateSuggestions(budgetId: string): Promise<PayeeCleanupSuggestion[]> {
+  async findDuplicateSuggestions(
+    budgetId: string,
+  ): Promise<PayeeCleanupSuggestion[]> {
     const all = await this.payees.findActiveByBudget(budgetId);
     const groups = new Map<string, Payee[]>();
     for (const payee of all) {
-      const normalizedName = payee.normalizedName || this.normalizeName(payee.name);
-      groups.set(normalizedName, [...(groups.get(normalizedName) ?? []), payee]);
+      const normalizedName =
+        payee.normalizedName || this.normalizeName(payee.name);
+      groups.set(normalizedName, [
+        ...(groups.get(normalizedName) ?? []),
+        payee,
+      ]);
     }
     return [...groups.entries()]
       .filter(([, payees]) => payees.length > 1)

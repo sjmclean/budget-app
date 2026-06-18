@@ -11,11 +11,17 @@ export class SqliteUserSettingsRepository implements UserSettingsRepository {
   }
 
   async update(settings: UserSettings): Promise<void> {
-    await this.db.update(userSettings).set(settings).where(eq(userSettings.id, settings.id));
+    await this.db
+      .update(userSettings)
+      .set(settings)
+      .where(eq(userSettings.id, settings.id));
   }
 
   async getByUser(userId: string): Promise<UserSettings | null> {
-    const rows = await this.db.select().from(userSettings).where(eq(userSettings.userId, userId));
+    const rows = await this.db
+      .select()
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId));
     return rows[0] ?? null;
   }
 

@@ -12,7 +12,7 @@ async function main() {
   const auth = new AuthApplicationService(
     new SqliteUserRepository(db),
     new SqliteSessionRepository(db),
-    new SqliteUserSettingsRepository(db)
+    new SqliteUserSettingsRepository(db),
   );
 
   await auth.signUp("Stewart", null, "password123");

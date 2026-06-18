@@ -1,5 +1,8 @@
 import { Device } from "../../types/src/Device.js";
-import { createDevice, markDeviceSeen } from "../../budget-engine/src/services/createDevice.js";
+import {
+  createDevice,
+  markDeviceSeen,
+} from "../../budget-engine/src/services/createDevice.js";
 import { DeviceRepository } from "../../repository/src/DeviceRepository.js";
 
 export class DeviceApplicationService {

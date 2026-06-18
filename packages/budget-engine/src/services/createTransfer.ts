@@ -23,7 +23,37 @@ export function createTransfer(input: CreateTransferInput): TransferPair {
   const now = new Date();
   const transferId = randomUUID();
   return {
-    outflow: { id: `${transferId}:out`, budgetId: input.budgetId, accountId: input.fromAccountId, payeeId: null, categoryId: null, transferAccountId: input.toAccountId, type: TransactionType.Transfer, date: input.date, memo: input.memo ?? null, amount: -input.amount, clearedStatus: input.clearedStatus ?? ClearedStatus.Uncleared, isDeleted: false, createdAt: now, updatedAt: now },
-    inflow: { id: `${transferId}:in`, budgetId: input.budgetId, accountId: input.toAccountId, payeeId: null, categoryId: null, transferAccountId: input.fromAccountId, type: TransactionType.Transfer, date: input.date, memo: input.memo ?? null, amount: input.amount, clearedStatus: input.clearedStatus ?? ClearedStatus.Uncleared, isDeleted: false, createdAt: now, updatedAt: now }
+    outflow: {
+      id: `${transferId}:out`,
+      budgetId: input.budgetId,
+      accountId: input.fromAccountId,
+      payeeId: null,
+      categoryId: null,
+      transferAccountId: input.toAccountId,
+      type: TransactionType.Transfer,
+      date: input.date,
+      memo: input.memo ?? null,
+      amount: -input.amount,
+      clearedStatus: input.clearedStatus ?? ClearedStatus.Uncleared,
+      isDeleted: false,
+      createdAt: now,
+      updatedAt: now,
+    },
+    inflow: {
+      id: `${transferId}:in`,
+      budgetId: input.budgetId,
+      accountId: input.toAccountId,
+      payeeId: null,
+      categoryId: null,
+      transferAccountId: input.fromAccountId,
+      type: TransactionType.Transfer,
+      date: input.date,
+      memo: input.memo ?? null,
+      amount: input.amount,
+      clearedStatus: input.clearedStatus ?? ClearedStatus.Uncleared,
+      isDeleted: false,
+      createdAt: now,
+      updatedAt: now,
+    },
   };
 }

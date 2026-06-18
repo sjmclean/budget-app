@@ -7,7 +7,10 @@ export interface TransactionRepository {
   getById(id: string): Promise<Transaction | null>;
   findByBudget(budgetId: string): Promise<Transaction[]>;
   findByAccount(accountId: string): Promise<Transaction[]>;
-  findByStatus?(budgetId: string, status: ClearedStatus): Promise<Transaction[]>;
+  findByStatus?(
+    budgetId: string,
+    status: ClearedStatus,
+  ): Promise<Transaction[]>;
   softDelete(id: string): Promise<void>;
   restore(id: string): Promise<void>;
 }

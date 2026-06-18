@@ -36,7 +36,7 @@ async function main() {
     type: GoalType.TargetDate,
     name: "Emergency Fund",
     targetAmount: 1000000,
-    targetDate: "2026-12-01"
+    targetDate: "2026-12-01",
   });
 
   console.log(goal);

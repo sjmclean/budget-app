@@ -12,13 +12,19 @@ const packagePath = join(root, "Household.budget");
 const manager = new BudgetPackageManager();
 manager.create({ packagePath, name: "Household", currency: "AUD" });
 
-const lock = manager.locks.acquire(packagePath, { deviceId: "desktop-001", appVersion: "1.2.1" });
+const lock = manager.locks.acquire(packagePath, {
+  deviceId: "desktop-001",
+  appVersion: "1.2.1",
+});
 assert(lock.deviceId === "desktop-001", "Expected lock device id");
 assert(manager.locks.isLocked(packagePath), "Expected package to be locked");
 
 let blocked = false;
 try {
-  manager.locks.acquire(packagePath, { deviceId: "ipad-001", appVersion: "1.2.1" });
+  manager.locks.acquire(packagePath, {
+    deviceId: "ipad-001",
+    appVersion: "1.2.1",
+  });
 } catch {
   blocked = true;
 }

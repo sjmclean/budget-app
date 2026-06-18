@@ -26,17 +26,30 @@ export interface DbTransactionSearchFilters {
 export class DbBackedSearchApplicationService {
   constructor(private db: any) {}
 
-  async searchTransactions(filters: DbTransactionSearchFilters): Promise<Transaction[]> {
+  async searchTransactions(
+    filters: DbTransactionSearchFilters,
+  ): Promise<Transaction[]> {
     const clauses: any[] = [eq(transactions.budgetId, filters.budgetId)];
-    if (!filters.includeDeleted) clauses.push(eq(transactions.isDeleted, false));
-    if (filters.accountId) clauses.push(eq(transactions.accountId, filters.accountId));
-    if (filters.categoryId) clauses.push(eq(transactions.categoryId, filters.categoryId));
-    if (filters.payeeId) clauses.push(eq(transactions.payeeId, filters.payeeId));
-    if (filters.clearedStatus) clauses.push(eq(transactions.clearedStatus, filters.clearedStatus));
-    if (filters.dateFrom) clauses.push(gte(transactions.date, filters.dateFrom));
+    if (!filters.includeDeleted)
+      clauses.push(eq(transactions.isDeleted, false));
+    if (filters.accountId)
+      clauses.push(eq(transactions.accountId, filters.accountId));
+    if (filters.categoryId)
+      clauses.push(eq(transactions.categoryId, filters.categoryId));
+    if (filters.payeeId)
+      clauses.push(eq(transactions.payeeId, filters.payeeId));
+    if (filters.clearedStatus)
+      clauses.push(eq(transactions.clearedStatus, filters.clearedStatus));
+    if (filters.dateFrom)
+      clauses.push(gte(transactions.date, filters.dateFrom));
     if (filters.dateTo) clauses.push(lte(transactions.date, filters.dateTo));
-    if (filters.amountMin !== undefined) clauses.push(gte(transactions.amount, filters.amountMin));
-    if (filters.amountMax !== undefined) clauses.push(lte(transactions.amount, filters.amountMax));
-    return await this.db.select().from(transactions).where(and(...clauses));
+    if (filters.amountMin !== undefined)
+      clauses.push(gte(transactions.amount, filters.amountMin));
+    if (filters.amountMax !== undefined)
+      clauses.push(lte(transactions.amount, filters.amountMax));
+    return await this.db
+      .select()
+      .from(transactions)
+      .where(and(...clauses));
   }
 }

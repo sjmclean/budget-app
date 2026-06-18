@@ -1,3 +1,6 @@
-export function calculateReadyToBudget(income: number, assigned: number): number {
+export function calculateReadyToBudget(
+  income: number,
+  assigned: number,
+): number {
   return income - assigned;
 }

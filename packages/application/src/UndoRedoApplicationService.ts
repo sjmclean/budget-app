@@ -47,7 +47,10 @@ export interface UndoRedoResult {
 }
 
 export class UndoRedoApplicationService {
-  constructor(private historyRepo: CommandHistoryRepository, private db: any) {}
+  constructor(
+    private historyRepo: CommandHistoryRepository,
+    private db: any,
+  ) {}
 
   async recordCommand(input: RecordCommandInput): Promise<CommandHistoryEntry> {
     const now = new Date();
@@ -64,7 +67,7 @@ export class UndoRedoApplicationService {
       createdAt: now,
       executedAt: now,
       undoneAt: null,
-      redoneAt: null
+      redoneAt: null,
     };
     await this.historyRepo.create(entry);
     return entry;
@@ -81,7 +84,9 @@ export class UndoRedoApplicationService {
     const entries = await this.historyRepo.findByBudget(budgetId);
     return entries
       .filter((entry) => entry.status === "undone")
-      .sort((a, b) => (a.undoneAt?.getTime() ?? 0) - (b.undoneAt?.getTime() ?? 0));
+      .sort(
+        (a, b) => (a.undoneAt?.getTime() ?? 0) - (b.undoneAt?.getTime() ?? 0),
+      );
   }
 
   async undoLast(budgetId: string): Promise<UndoRedoResult | null> {
@@ -120,13 +125,23 @@ export class UndoRedoApplicationService {
         updateTransaction(sqlite, payload.transaction);
         return;
       case "softDeleteTransaction":
-        sqlite.prepare(`UPDATE transactions SET is_deleted = 1, updated_at = ? WHERE id = ?`).run(Date.now(), payload.transactionId);
+        sqlite
+          .prepare(
+            `UPDATE transactions SET is_deleted = 1, updated_at = ? WHERE id = ?`,
+          )
+          .run(Date.now(), payload.transactionId);
         return;
       case "restoreTransaction":
-        sqlite.prepare(`UPDATE transactions SET is_deleted = 0, updated_at = ? WHERE id = ?`).run(Date.now(), payload.transactionId);
+        sqlite
+          .prepare(
+            `UPDATE transactions SET is_deleted = 0, updated_at = ? WHERE id = ?`,
+          )
+          .run(Date.now(), payload.transactionId);
         return;
       case "deleteTransaction":
-        sqlite.prepare(`DELETE FROM transactions WHERE id = ?`).run(payload.transactionId);
+        sqlite
+          .prepare(`DELETE FROM transactions WHERE id = ?`)
+          .run(payload.transactionId);
         return;
       case "updateAccount":
         updateAccount(sqlite, payload.account);
@@ -141,7 +156,9 @@ export class UndoRedoApplicationService {
         return;
       default: {
         const exhaustive: never = payload;
-        throw new Error(`Unsupported undo/redo payload: ${JSON.stringify(exhaustive)}`);
+        throw new Error(
+          `Unsupported undo/redo payload: ${JSON.stringify(exhaustive)}`,
+        );
       }
     }
   }
@@ -150,7 +167,9 @@ export class UndoRedoApplicationService {
 function sqliteClient(db: any) {
   const client = db?.$client;
   if (!client || typeof client.prepare !== "function") {
-    throw new Error("UndoRedoApplicationService requires a Drizzle better-sqlite3 database with $client");
+    throw new Error(
+      "UndoRedoApplicationService requires a Drizzle better-sqlite3 database with $client",
+    );
   }
   return client;
 }
@@ -162,83 +181,118 @@ function toTimestamp(value: Date | number | string): number {
 }
 
 function insertTransaction(sqlite: any, transaction: any): void {
-  sqlite.prepare(`
+  sqlite
+    .prepare(
+      `
     INSERT INTO transactions (
       id, budget_id, account_id, payee_id, category_id, transfer_account_id, type, date, memo,
       amount, cleared_status, is_deleted, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    transaction.id,
-    transaction.budgetId,
-    transaction.accountId,
-    transaction.payeeId ?? null,
-    transaction.categoryId ?? null,
-    transaction.transferAccountId ?? null,
-    transaction.type,
-    transaction.date,
-    transaction.memo ?? null,
-    transaction.amount,
-    transaction.clearedStatus,
-    transaction.isDeleted ? 1 : 0,
-    toTimestamp(transaction.createdAt),
-    toTimestamp(transaction.updatedAt)
-  );
+  `,
+    )
+    .run(
+      transaction.id,
+      transaction.budgetId,
+      transaction.accountId,
+      transaction.payeeId ?? null,
+      transaction.categoryId ?? null,
+      transaction.transferAccountId ?? null,
+      transaction.type,
+      transaction.date,
+      transaction.memo ?? null,
+      transaction.amount,
+      transaction.clearedStatus,
+      transaction.isDeleted ? 1 : 0,
+      toTimestamp(transaction.createdAt),
+      toTimestamp(transaction.updatedAt),
+    );
 }
 
 function updateTransaction(sqlite: any, transaction: any): void {
-  sqlite.prepare(`
+  sqlite
+    .prepare(
+      `
     UPDATE transactions
     SET budget_id = ?, account_id = ?, payee_id = ?, category_id = ?, transfer_account_id = ?,
         type = ?, date = ?, memo = ?, amount = ?, cleared_status = ?, is_deleted = ?, created_at = ?, updated_at = ?
     WHERE id = ?
-  `).run(
-    transaction.budgetId,
-    transaction.accountId,
-    transaction.payeeId ?? null,
-    transaction.categoryId ?? null,
-    transaction.transferAccountId ?? null,
-    transaction.type,
-    transaction.date,
-    transaction.memo ?? null,
-    transaction.amount,
-    transaction.clearedStatus,
-    transaction.isDeleted ? 1 : 0,
-    toTimestamp(transaction.createdAt),
-    toTimestamp(transaction.updatedAt),
-    transaction.id
-  );
+  `,
+    )
+    .run(
+      transaction.budgetId,
+      transaction.accountId,
+      transaction.payeeId ?? null,
+      transaction.categoryId ?? null,
+      transaction.transferAccountId ?? null,
+      transaction.type,
+      transaction.date,
+      transaction.memo ?? null,
+      transaction.amount,
+      transaction.clearedStatus,
+      transaction.isDeleted ? 1 : 0,
+      toTimestamp(transaction.createdAt),
+      toTimestamp(transaction.updatedAt),
+      transaction.id,
+    );
 }
 
 function updateAccount(sqlite: any, account: any): void {
-  sqlite.prepare(`
+  sqlite
+    .prepare(
+      `
     UPDATE accounts
     SET budget_id = ?, name = ?, type = ?, participation = ?, opening_balance = ?, current_balance = ?
     WHERE id = ?
-  `).run(account.budgetId, account.name, account.type, account.participation, account.openingBalance, account.currentBalance, account.id);
+  `,
+    )
+    .run(
+      account.budgetId,
+      account.name,
+      account.type,
+      account.participation,
+      account.openingBalance,
+      account.currentBalance,
+      account.id,
+    );
 }
 
 function updateCategory(sqlite: any, category: any): void {
-  sqlite.prepare(`
+  sqlite
+    .prepare(
+      `
     UPDATE categories
     SET budget_id = ?, group_id = ?, name = ?, sort_order = ?, is_hidden = ?
     WHERE id = ?
-  `).run(category.budgetId, category.groupId, category.name, category.sortOrder, category.isHidden ? 1 : 0, category.id);
+  `,
+    )
+    .run(
+      category.budgetId,
+      category.groupId,
+      category.name,
+      category.sortOrder,
+      category.isHidden ? 1 : 0,
+      category.id,
+    );
 }
 
 function updatePayee(sqlite: any, payee: any): void {
-  sqlite.prepare(`
+  sqlite
+    .prepare(
+      `
     UPDATE payees
     SET budget_id = ?, name = ?, normalized_name = ?, is_archived = ?, is_transfer = ?, transfer_account_id = ?, created_at = ?, updated_at = ?
     WHERE id = ?
-  `).run(
-    payee.budgetId,
-    payee.name,
-    payee.normalizedName,
-    payee.isArchived ? 1 : 0,
-    payee.isTransfer ? 1 : 0,
-    payee.transferAccountId ?? null,
-    toTimestamp(payee.createdAt),
-    toTimestamp(payee.updatedAt),
-    payee.id
-  );
+  `,
+    )
+    .run(
+      payee.budgetId,
+      payee.name,
+      payee.normalizedName,
+      payee.isArchived ? 1 : 0,
+      payee.isTransfer ? 1 : 0,
+      payee.transferAccountId ?? null,
+      toTimestamp(payee.createdAt),
+      toTimestamp(payee.updatedAt),
+      payee.id,
+    );
 }

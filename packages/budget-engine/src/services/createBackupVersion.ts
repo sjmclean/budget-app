@@ -18,14 +18,16 @@ export interface CreateBackupVersionInput {
 export function calculateBackupFingerprint(
   filePath: string,
   fileSize: number,
-  versionNumber: number
+  versionNumber: number,
 ): string {
   return createHash("sha256")
     .update(`${filePath}:${fileSize}:${versionNumber}`)
     .digest("hex");
 }
 
-export function createBackupVersion(input: CreateBackupVersionInput): BackupVersion {
+export function createBackupVersion(
+  input: CreateBackupVersionInput,
+): BackupVersion {
   return {
     id: randomUUID(),
     budgetId: input.budgetId,
@@ -37,11 +39,11 @@ export function createBackupVersion(input: CreateBackupVersionInput): BackupVers
     fingerprint: calculateBackupFingerprint(
       input.filePath,
       input.fileSize,
-      input.versionNumber
+      input.versionNumber,
     ),
     note: input.note ?? null,
     appVersion: input.appVersion ?? "0.8.0",
     schemaVersion: input.schemaVersion ?? 1,
-    createdAt: new Date()
+    createdAt: new Date(),
   };
 }

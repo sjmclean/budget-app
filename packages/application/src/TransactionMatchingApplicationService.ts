@@ -1,4 +1,8 @@
-import type { ExistingTransactionForMatch, ImportedBankTransaction, TransactionMatchCandidate } from "../../types/src/index.js";
+import type {
+  ExistingTransactionForMatch,
+  ImportedBankTransaction,
+  TransactionMatchCandidate,
+} from "../../types/src/index.js";
 
 /**
  * Suggests likely matches between imported bank rows and existing manual transactions.
@@ -8,7 +12,10 @@ import type { ExistingTransactionForMatch, ImportedBankTransaction, TransactionM
  * the UI can explain why a match was suggested instead of making a hidden choice.
  */
 export class TransactionMatchingApplicationService {
-  suggestMatches(importedRows: ImportedBankTransaction[], existingRows: ExistingTransactionForMatch[]): TransactionMatchCandidate[] {
+  suggestMatches(
+    importedRows: ImportedBankTransaction[],
+    existingRows: ExistingTransactionForMatch[],
+  ): TransactionMatchCandidate[] {
     const matches: TransactionMatchCandidate[] = [];
 
     for (const imported of importedRows) {
@@ -28,11 +35,18 @@ export class TransactionMatchingApplicationService {
   }
 }
 
-function scoreMatch(imported: ImportedBankTransaction, existing: ExistingTransactionForMatch): TransactionMatchCandidate | null {
+function scoreMatch(
+  imported: ImportedBankTransaction,
+  existing: ExistingTransactionForMatch,
+): TransactionMatchCandidate | null {
   let score = 0;
   const reasons: string[] = [];
 
-  if (imported.externalId && existing.externalId && imported.externalId === existing.externalId) {
+  if (
+    imported.externalId &&
+    existing.externalId &&
+    imported.externalId === existing.externalId
+  ) {
     score += 100;
     reasons.push("same external transaction id");
   }
@@ -54,21 +68,45 @@ function scoreMatch(imported: ImportedBankTransaction, existing: ExistingTransac
   }
 
   const importedText = normalize(`${imported.rawPayee} ${imported.memo ?? ""}`);
-  const existingText = normalize(`${existing.payeeName ?? ""} ${existing.memo ?? ""}`);
-  if (importedText && existingText && (importedText.includes(existingText) || existingText.includes(importedText))) {
+  const existingText = normalize(
+    `${existing.payeeName ?? ""} ${existing.memo ?? ""}`,
+  );
+  if (
+    importedText &&
+    existingText &&
+    (importedText.includes(existingText) || existingText.includes(importedText))
+  ) {
     score += 20;
     reasons.push("similar payee or memo");
   }
 
-  return score > 0 ? { imported, existingTransactionId: existing.id, score: Math.min(score, 100), reasons } : null;
+  return score > 0
+    ? {
+        imported,
+        existingTransactionId: existing.id,
+        score: Math.min(score, 100),
+        reasons,
+      }
+    : null;
 }
 
 function normalize(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 function daysBetween(a: string, b: string): number {
-  const first = Date.UTC(Number(a.slice(0, 4)), Number(a.slice(5, 7)) - 1, Number(a.slice(8, 10)));
-  const second = Date.UTC(Number(b.slice(0, 4)), Number(b.slice(5, 7)) - 1, Number(b.slice(8, 10)));
+  const first = Date.UTC(
+    Number(a.slice(0, 4)),
+    Number(a.slice(5, 7)) - 1,
+    Number(a.slice(8, 10)),
+  );
+  const second = Date.UTC(
+    Number(b.slice(0, 4)),
+    Number(b.slice(5, 7)) - 1,
+    Number(b.slice(8, 10)),
+  );
   return Math.round((first - second) / 86_400_000);
 }

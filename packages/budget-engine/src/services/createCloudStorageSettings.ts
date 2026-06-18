@@ -1,5 +1,9 @@
 import { randomUUID } from "crypto";
-import { CloudStorageSettings, ConflictPolicy, SyncMode } from "../../../types/src/CloudStorageSettings.js";
+import {
+  CloudStorageSettings,
+  ConflictPolicy,
+  SyncMode,
+} from "../../../types/src/CloudStorageSettings.js";
 import { SyncProvider } from "../../../types/src/SyncProvider.js";
 
 export function createCloudStorageSettings(input: {
@@ -22,12 +26,13 @@ export function createCloudStorageSettings(input: {
     syncRootPath: input.syncRootPath,
     budgetFolderPath: input.budgetFolderPath ?? `${input.syncRootPath}/Budgets`,
     backupFolderPath: input.backupFolderPath ?? `${input.syncRootPath}/Backups`,
-    attachmentFolderPath: input.attachmentFolderPath ?? `${input.syncRootPath}/Attachments`,
+    attachmentFolderPath:
+      input.attachmentFolderPath ?? `${input.syncRootPath}/Attachments`,
     lastSyncAt: null,
     syncMode: SyncMode.OnAppClose,
     conflictPolicy: ConflictPolicy.AskUser,
     intervalMinutes: null,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
 }

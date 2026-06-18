@@ -31,6 +31,6 @@ export function createTransaction(input: CreateTransactionInput): Transaction {
     clearedStatus: input.clearedStatus ?? ClearedStatus.Uncleared,
     isDeleted: false,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
 }

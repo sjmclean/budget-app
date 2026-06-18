@@ -6,7 +6,10 @@ import { applyActivityToCategoryMonth } from "../packages/budget-engine/src/serv
 import { coverOverspending } from "../packages/budget-engine/src/services/coverOverspending.js";
 import { rolloverBudgetMonth } from "../packages/budget-engine/src/services/rolloverBudgetMonth.js";
 
-let month = addIncomeToBudgetMonth(createBudgetMonth("budget", "2026-06"), 100000);
+let month = addIncomeToBudgetMonth(
+  createBudgetMonth("budget", "2026-06"),
+  100000,
+);
 
 let groceries = createCategoryMonth(month.id, "groceries");
 let buffer = createCategoryMonth(month.id, "buffer");
@@ -31,4 +34,7 @@ groceries = applyActivityToCategoryMonth(groceries, -15000);
 
 console.log("Still overspent:", groceries);
 
-console.log("Rollover:", rolloverBudgetMonth(month, [groceries, buffer], "2026-07"));
+console.log(
+  "Rollover:",
+  rolloverBudgetMonth(month, [groceries, buffer], "2026-07"),
+);

@@ -14,7 +14,7 @@ try {
     mimeType: "text/plain",
     fileSize: Buffer.byteLength("hello"),
     relativePath: "Budget.attachments",
-    content: "hello"
+    content: "hello",
   });
 
   const absolutePath = join(folder, attachment.relativePath);

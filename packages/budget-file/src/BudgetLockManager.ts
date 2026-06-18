@@ -26,8 +26,12 @@ export class BudgetLockManager {
 
   heartbeat(packagePath: string, deviceId: string): BudgetPackageLock {
     const existing = this.readLock(packagePath);
-    if (!existing) throw new Error("Cannot heartbeat an unlocked budget package");
-    if (existing.deviceId !== deviceId) throw new Error(`Budget package is locked by ${existing.deviceId}, not ${deviceId}`);
+    if (!existing)
+      throw new Error("Cannot heartbeat an unlocked budget package");
+    if (existing.deviceId !== deviceId)
+      throw new Error(
+        `Budget package is locked by ${existing.deviceId}, not ${deviceId}`,
+      );
     const lock = { ...existing, openedAt: new Date().toISOString() };
     writeFileSync(this.path(packagePath), JSON.stringify(lock, null, 2));
     return lock;
@@ -35,13 +39,20 @@ export class BudgetLockManager {
 
   readLock(packagePath: string): BudgetPackageLock | undefined {
     if (!this.isLocked(packagePath)) return undefined;
-    return JSON.parse(readFileSync(this.path(packagePath), "utf8")) as BudgetPackageLock;
+    return JSON.parse(
+      readFileSync(this.path(packagePath), "utf8"),
+    ) as BudgetPackageLock;
   }
 
-  acquire(packagePath: string, input: Omit<BudgetPackageLock, "openedAt"> & { force?: boolean }): BudgetPackageLock {
+  acquire(
+    packagePath: string,
+    input: Omit<BudgetPackageLock, "openedAt"> & { force?: boolean },
+  ): BudgetPackageLock {
     if (this.isLocked(packagePath) && input.force !== true) {
       const lock = this.readLock(packagePath);
-      throw new Error(`Budget package is already locked by ${lock?.deviceId ?? "another device"}`);
+      throw new Error(
+        `Budget package is already locked by ${lock?.deviceId ?? "another device"}`,
+      );
     }
     const lock: BudgetPackageLock = {
       deviceId: input.deviceId,

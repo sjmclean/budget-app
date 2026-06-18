@@ -8,5 +8,9 @@ export function cleanPayeeDisplayName(name: string): string {
 
 export function isTransferPayeeName(name: string): boolean {
   const clean = cleanPayeeDisplayName(name);
-  return /^transfer\s*:/i.test(clean) || /^transfer\s+to\s+/i.test(clean) || /^transfer\s+from\s+/i.test(clean);
+  return (
+    /^transfer\s*:/i.test(clean) ||
+    /^transfer\s+to\s+/i.test(clean) ||
+    /^transfer\s+from\s+/i.test(clean)
+  );
 }

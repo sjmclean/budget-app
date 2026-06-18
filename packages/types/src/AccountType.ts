@@ -5,5 +5,5 @@ export enum AccountType {
   CreditCard = "CreditCard",
   Investment = "Investment",
   Asset = "Asset",
-  Liability = "Liability"
+  Liability = "Liability",
 }

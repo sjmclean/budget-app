@@ -4,14 +4,14 @@ export enum SyncMode {
   Manual = "Manual",
   OnAppStart = "OnAppStart",
   OnAppClose = "OnAppClose",
-  Interval = "Interval"
+  Interval = "Interval",
 }
 
 export enum ConflictPolicy {
   AskUser = "AskUser",
   KeepLocal = "KeepLocal",
   KeepRemote = "KeepRemote",
-  CreateConflictCopy = "CreateConflictCopy"
+  CreateConflictCopy = "CreateConflictCopy",
 }
 
 export interface CloudStorageSettings {

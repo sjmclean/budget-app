@@ -20,13 +20,15 @@ export class LocalFolderSyncAdapter implements SyncProviderAdapter {
     return existsSync(path);
   }
 
-  async stat(path: string): Promise<{ size: number; modifiedAt: number } | null> {
+  async stat(
+    path: string,
+  ): Promise<{ size: number; modifiedAt: number } | null> {
     if (!existsSync(path)) return null;
     const stats = statSync(path);
 
     return {
       size: stats.size,
-      modifiedAt: stats.mtimeMs
+      modifiedAt: stats.mtimeMs,
     };
   }
 }

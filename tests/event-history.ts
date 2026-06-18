@@ -25,14 +25,16 @@ async function main() {
     budget.id,
     DomainEventType.BudgetCreated,
     budget.id,
-    budget
+    budget,
   );
 
   await eventRepo.append(event);
 
   console.log(await history.describeHistory(budget.id));
   console.log(await undo.getLastEvent(budget.id));
-  console.log(undo.createUndoRecord(budget.id, event, { deleteBudgetId: budget.id }));
+  console.log(
+    undo.createUndoRecord(budget.id, event, { deleteBudgetId: budget.id }),
+  );
 }
 
 main();

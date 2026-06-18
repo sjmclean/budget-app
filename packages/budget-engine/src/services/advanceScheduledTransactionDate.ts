@@ -16,11 +16,15 @@ function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-export function advanceScheduledTransactionDate(dueDate: string, frequency: ScheduledFrequency): string | null {
+export function advanceScheduledTransactionDate(
+  dueDate: string,
+  frequency: ScheduledFrequency,
+): string | null {
   if (frequency === ScheduledFrequency.Once) return null;
 
   const date = new Date(`${dueDate}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime())) throw new Error(`Invalid scheduled transaction date: ${dueDate}`);
+  if (Number.isNaN(date.getTime()))
+    throw new Error(`Invalid scheduled transaction date: ${dueDate}`);
 
   switch (frequency) {
     case ScheduledFrequency.Weekly:

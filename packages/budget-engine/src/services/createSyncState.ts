@@ -12,17 +12,20 @@ export function createSyncState(budgetId: string, deviceId: string): SyncState {
     lastSyncedAt: null,
     lastChangeHash: null,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
 }
 
-export function markSynced(state: SyncState, latestChange: ChangeRecord | null): SyncState {
+export function markSynced(
+  state: SyncState,
+  latestChange: ChangeRecord | null,
+): SyncState {
   const now = new Date();
 
   return {
     ...state,
     lastSyncedAt: now,
     lastChangeHash: latestChange?.changeHash ?? state.lastChangeHash,
-    updatedAt: now
+    updatedAt: now,
   };
 }

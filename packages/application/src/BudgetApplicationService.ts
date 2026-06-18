@@ -11,11 +11,14 @@ import { CategoryMonthRepository } from "../../repository/src/CategoryMonthRepos
 export class BudgetApplicationService {
   constructor(
     private budgetMonthRepo: BudgetMonthRepository,
-    private categoryMonthRepo: CategoryMonthRepository
+    private categoryMonthRepo: CategoryMonthRepository,
   ) {}
 
   async createMonth(budgetId: string, month: string): Promise<BudgetMonth> {
-    const existing = await this.budgetMonthRepo.getByBudgetAndMonth(budgetId, month);
+    const existing = await this.budgetMonthRepo.getByBudgetAndMonth(
+      budgetId,
+      month,
+    );
     if (existing) return existing;
 
     const budgetMonth = createBudgetMonth(budgetId, month);
@@ -23,8 +26,14 @@ export class BudgetApplicationService {
     return budgetMonth;
   }
 
-  async createCategoryMonth(budgetMonthId: string, categoryId: string): Promise<CategoryMonth> {
-    const existing = await this.categoryMonthRepo.getByBudgetMonthAndCategory(budgetMonthId, categoryId);
+  async createCategoryMonth(
+    budgetMonthId: string,
+    categoryId: string,
+  ): Promise<CategoryMonth> {
+    const existing = await this.categoryMonthRepo.getByBudgetMonthAndCategory(
+      budgetMonthId,
+      categoryId,
+    );
     if (existing) return existing;
 
     const categoryMonth = createCategoryMonth(budgetMonthId, categoryId);
@@ -32,16 +41,28 @@ export class BudgetApplicationService {
     return categoryMonth;
   }
 
-  async postIncomeToReadyToBudget(budgetId: string, month: string, amount: number): Promise<BudgetMonth> {
+  async postIncomeToReadyToBudget(
+    budgetId: string,
+    month: string,
+    amount: number,
+  ): Promise<BudgetMonth> {
     const budgetMonth = await this.createMonth(budgetId, month);
     const updated = addIncomeToBudgetMonth(budgetMonth, amount);
     await this.budgetMonthRepo.update(updated);
     return updated;
   }
 
-  async assignMoney(budgetId: string, month: string, categoryId: string, amount: number): Promise<{ budgetMonth: BudgetMonth; categoryMonth: CategoryMonth }> {
+  async assignMoney(
+    budgetId: string,
+    month: string,
+    categoryId: string,
+    amount: number,
+  ): Promise<{ budgetMonth: BudgetMonth; categoryMonth: CategoryMonth }> {
     const budgetMonth = await this.createMonth(budgetId, month);
-    const categoryMonth = await this.createCategoryMonth(budgetMonth.id, categoryId);
+    const categoryMonth = await this.createCategoryMonth(
+      budgetMonth.id,
+      categoryId,
+    );
 
     const result = assignToCategoryMonth(budgetMonth, categoryMonth, amount);
 
@@ -51,12 +72,24 @@ export class BudgetApplicationService {
     return result;
   }
 
-  async rollover(budgetId: string, fromMonth: string, toMonth: string): Promise<{ budgetMonth: BudgetMonth; categoryMonths: CategoryMonth[] }> {
-    const previousMonth = await this.budgetMonthRepo.getByBudgetAndMonth(budgetId, fromMonth);
+  async rollover(
+    budgetId: string,
+    fromMonth: string,
+    toMonth: string,
+  ): Promise<{ budgetMonth: BudgetMonth; categoryMonths: CategoryMonth[] }> {
+    const previousMonth = await this.budgetMonthRepo.getByBudgetAndMonth(
+      budgetId,
+      fromMonth,
+    );
     if (!previousMonth) throw new Error("Previous budget month not found");
 
-    const previousCategoryMonths = await this.categoryMonthRepo.findByBudgetMonth(previousMonth.id);
-    const result = rolloverBudgetMonth(previousMonth, previousCategoryMonths, toMonth);
+    const previousCategoryMonths =
+      await this.categoryMonthRepo.findByBudgetMonth(previousMonth.id);
+    const result = rolloverBudgetMonth(
+      previousMonth,
+      previousCategoryMonths,
+      toMonth,
+    );
 
     await this.budgetMonthRepo.create(result.budgetMonth);
     for (const categoryMonth of result.categoryMonths) {

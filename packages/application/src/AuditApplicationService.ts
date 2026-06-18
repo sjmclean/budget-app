@@ -20,7 +20,7 @@ export class AuditApplicationService {
       type: input.type,
       entityId: input.entityId ?? null,
       occurredAt: new Date(),
-      payloadJson: JSON.stringify(input.payload ?? {})
+      payloadJson: JSON.stringify(input.payload ?? {}),
     };
     await this.eventRepo.append(event);
     return event;

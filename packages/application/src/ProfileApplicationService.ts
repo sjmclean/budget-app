@@ -4,7 +4,7 @@ import { UserSettingsRepository } from "../../repository/src/UserSettingsReposit
 export class ProfileApplicationService {
   constructor(
     private userRepo: UserRepository,
-    private settingsRepo: UserSettingsRepository
+    private settingsRepo: UserSettingsRepository,
   ) {}
 
   async softDeleteProfile(userId: string): Promise<void> {
@@ -16,7 +16,7 @@ export class ProfileApplicationService {
     await this.userRepo.update({
       ...user,
       isActive: false,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
   }
 }

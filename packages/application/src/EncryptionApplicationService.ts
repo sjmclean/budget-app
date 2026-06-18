@@ -1,4 +1,7 @@
-import { EncryptionRecords, createEncryptionRecords } from "../../budget-engine/src/services/createEncryptionRecords.js";
+import {
+  EncryptionRecords,
+  createEncryptionRecords,
+} from "../../budget-engine/src/services/createEncryptionRecords.js";
 import { UserKeyRepository } from "../../repository/src/UserKeyRepository.js";
 import { BudgetKeyRepository } from "../../repository/src/BudgetKeyRepository.js";
 import { EncryptedBudgetKeyRepository } from "../../repository/src/EncryptedBudgetKeyRepository.js";
@@ -7,13 +10,13 @@ export class EncryptionApplicationService {
   constructor(
     private userKeyRepo: UserKeyRepository,
     private budgetKeyRepo: BudgetKeyRepository,
-    private encryptedBudgetKeyRepo: EncryptedBudgetKeyRepository
+    private encryptedBudgetKeyRepo: EncryptedBudgetKeyRepository,
   ) {}
 
   async initialiseUserBudgetKeys(
     userId: string,
     budgetId: string,
-    password: string
+    password: string,
   ): Promise<EncryptionRecords> {
     const records = createEncryptionRecords(userId, budgetId, password);
 

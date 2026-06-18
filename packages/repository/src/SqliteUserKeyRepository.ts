@@ -11,7 +11,10 @@ export class SqliteUserKeyRepository implements UserKeyRepository {
   }
 
   async getByUser(userId: string): Promise<UserKey | null> {
-    const rows = await this.db.select().from(userKeys).where(eq(userKeys.userId, userId));
+    const rows = await this.db
+      .select()
+      .from(userKeys)
+      .where(eq(userKeys.userId, userId));
     return rows[0] ?? null;
   }
 }

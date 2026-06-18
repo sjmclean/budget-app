@@ -3,5 +3,5 @@ export enum BackupType {
   Automatic = "Automatic",
   BeforeImport = "BeforeImport",
   BeforeRestore = "BeforeRestore",
-  BeforeMigration = "BeforeMigration"
+  BeforeMigration = "BeforeMigration",
 }

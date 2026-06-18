@@ -1,12 +1,24 @@
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { basename, join } from "node:path";
 
 export function ensureDir(path: string): void {
   if (!existsSync(path)) mkdirSync(path, { recursive: true });
 }
 
-export function copyDirectory(source: string, destination: string, options?: { excludeNames?: string[] }): void {
+export function copyDirectory(
+  source: string,
+  destination: string,
+  options?: { excludeNames?: string[] },
+): void {
   ensureDir(destination);
   const excluded = new Set(options?.excludeNames ?? []);
   for (const entry of readdirSync(source, { withFileTypes: true })) {
@@ -26,7 +38,10 @@ export function directorySize(path: string): number {
   const stat = statSync(path);
   if (stat.isFile()) return stat.size;
   if (!stat.isDirectory()) return 0;
-  return readdirSync(path).reduce((total, child) => total + directorySize(join(path, child)), 0);
+  return readdirSync(path).reduce(
+    (total, child) => total + directorySize(join(path, child)),
+    0,
+  );
 }
 
 export function sha256File(path: string): string {

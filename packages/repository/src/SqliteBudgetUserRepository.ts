@@ -15,17 +15,25 @@ export class SqliteBudgetUserRepository implements BudgetUserRepository {
     const rows = await this.db
       .select()
       .from(budgetUsers)
-      .where(and(eq(budgetUsers.userId, userId), eq(budgetUsers.budgetId, budgetId)));
+      .where(
+        and(eq(budgetUsers.userId, userId), eq(budgetUsers.budgetId, budgetId)),
+      );
 
     return rows[0]?.role ?? null;
   }
 
   async findBudgetsForUser(userId: string): Promise<BudgetUser[]> {
-    return await this.db.select().from(budgetUsers).where(eq(budgetUsers.userId, userId));
+    return await this.db
+      .select()
+      .from(budgetUsers)
+      .where(eq(budgetUsers.userId, userId));
   }
 
   async findUsersForBudget(budgetId: string): Promise<BudgetUser[]> {
-    return await this.db.select().from(budgetUsers).where(eq(budgetUsers.budgetId, budgetId));
+    return await this.db
+      .select()
+      .from(budgetUsers)
+      .where(eq(budgetUsers.budgetId, budgetId));
   }
 
   async deleteForBudget(budgetId: string): Promise<void> {

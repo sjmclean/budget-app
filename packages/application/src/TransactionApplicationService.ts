@@ -52,7 +52,7 @@ export class TransactionApplicationService {
     private transactionRepo: TransactionRepository,
     private budgetMonthRepo: BudgetMonthRepository,
     private categoryMonthRepo: CategoryMonthRepository,
-    private budgetService: BudgetApplicationService
+    private budgetService: BudgetApplicationService,
   ) {}
 
   private async requireAccount(accountId: string): Promise<Account> {
@@ -61,15 +61,27 @@ export class TransactionApplicationService {
     return account;
   }
 
-  private async updateCategoryMonthActivity(budgetId: string, month: string, categoryId: string, activity: number): Promise<CategoryMonth> {
+  private async updateCategoryMonthActivity(
+    budgetId: string,
+    month: string,
+    categoryId: string,
+    activity: number,
+  ): Promise<CategoryMonth> {
     const budgetMonth = await this.budgetService.createMonth(budgetId, month);
-    const categoryMonth = await this.budgetService.createCategoryMonth(budgetMonth.id, categoryId);
+    const categoryMonth = await this.budgetService.createCategoryMonth(
+      budgetMonth.id,
+      categoryId,
+    );
     const updated = applyActivityToCategoryMonth(categoryMonth, activity);
     await this.categoryMonthRepo.update(updated);
     return updated;
   }
 
-  async postSpending(input: PostSpendingInput): Promise<{ transaction: Transaction; account: Account; categoryMonth: CategoryMonth }> {
+  async postSpending(input: PostSpendingInput): Promise<{
+    transaction: Transaction;
+    account: Account;
+    categoryMonth: CategoryMonth;
+  }> {
     if (input.amount >= 0) {
       throw new Error("Spending amount must be negative");
     }
@@ -83,7 +95,7 @@ export class TransactionApplicationService {
       categoryId: input.categoryId,
       date: input.date,
       amount: input.amount,
-      memo: input.memo ?? null
+      memo: input.memo ?? null,
     });
 
     await this.transactionRepo.create(transaction);
@@ -91,16 +103,23 @@ export class TransactionApplicationService {
     const updatedAccount = updateAccountBalance(account, input.amount);
     await this.accountRepo.update(updatedAccount);
 
-    const categoryMonth = await this.updateCategoryMonthActivity(input.budgetId, input.month, input.categoryId, input.amount);
+    const categoryMonth = await this.updateCategoryMonthActivity(
+      input.budgetId,
+      input.month,
+      input.categoryId,
+      input.amount,
+    );
 
     return {
       transaction,
       account: updatedAccount,
-      categoryMonth
+      categoryMonth,
     };
   }
 
-  async postIncome(input: PostIncomeInput): Promise<{ transaction: Transaction; account: Account }> {
+  async postIncome(
+    input: PostIncomeInput,
+  ): Promise<{ transaction: Transaction; account: Account }> {
     if (input.amount <= 0) {
       throw new Error("Income amount must be positive");
     }
@@ -111,11 +130,14 @@ export class TransactionApplicationService {
       budgetId: input.budgetId,
       accountId: input.accountId,
       payeeId: input.payeeId ?? null,
-      categoryId: input.destination === InflowDestination.Category ? input.categoryId ?? null : null,
+      categoryId:
+        input.destination === InflowDestination.Category
+          ? (input.categoryId ?? null)
+          : null,
       date: input.date,
       amount: input.amount,
       memo: input.memo ?? null,
-      type: TransactionType.Income
+      type: TransactionType.Income,
     });
 
     await this.transactionRepo.create(transaction);
@@ -123,24 +145,43 @@ export class TransactionApplicationService {
     const updatedAccount = updateAccountBalance(account, input.amount);
     await this.accountRepo.update(updatedAccount);
 
-    const budgetMonth = await this.budgetService.createMonth(input.budgetId, input.month);
+    const budgetMonth = await this.budgetService.createMonth(
+      input.budgetId,
+      input.month,
+    );
 
-    if (input.destination === InflowDestination.ReadyToBudget || input.destination === InflowDestination.BufferFund) {
-      const updatedBudgetMonth = addIncomeToBudgetMonth(budgetMonth, input.amount);
+    if (
+      input.destination === InflowDestination.ReadyToBudget ||
+      input.destination === InflowDestination.BufferFund
+    ) {
+      const updatedBudgetMonth = addIncomeToBudgetMonth(
+        budgetMonth,
+        input.amount,
+      );
       await this.budgetMonthRepo.update(updatedBudgetMonth);
     }
 
     if (input.destination === InflowDestination.Category && input.categoryId) {
-      await this.updateCategoryMonthActivity(input.budgetId, input.month, input.categoryId, input.amount);
+      await this.updateCategoryMonthActivity(
+        input.budgetId,
+        input.month,
+        input.categoryId,
+        input.amount,
+      );
     }
 
     return {
       transaction,
-      account: updatedAccount
+      account: updatedAccount,
     };
   }
 
-  async postTransfer(input: PostTransferInput): Promise<{ outflow: Transaction; inflow: Transaction; fromAccount: Account; toAccount: Account }> {
+  async postTransfer(input: PostTransferInput): Promise<{
+    outflow: Transaction;
+    inflow: Transaction;
+    fromAccount: Account;
+    toAccount: Account;
+  }> {
     const fromAccount = await this.requireAccount(input.fromAccountId);
     const toAccount = await this.requireAccount(input.toAccountId);
 
@@ -150,7 +191,7 @@ export class TransactionApplicationService {
       toAccountId: input.toAccountId,
       date: input.date,
       amount: input.amount,
-      memo: input.memo ?? null
+      memo: input.memo ?? null,
     });
 
     await this.transactionRepo.create(transfer.outflow);
@@ -166,7 +207,7 @@ export class TransactionApplicationService {
       outflow: transfer.outflow,
       inflow: transfer.inflow,
       fromAccount: updatedFrom,
-      toAccount: updatedTo
+      toAccount: updatedTo,
     };
   }
 }

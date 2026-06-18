@@ -8,7 +8,7 @@ export class AccountManagementApplicationService {
   constructor(
     private accountRepo: AccountRepository,
     private accountSettingsRepo: AccountSettingsRepository,
-    private transactionRepo: TransactionRepository
+    private transactionRepo: TransactionRepository,
   ) {}
 
   private async requireAccount(accountId: string): Promise<Account> {
@@ -19,7 +19,8 @@ export class AccountManagementApplicationService {
 
   private async getOrFailSettings(accountId: string): Promise<AccountSettings> {
     const settings = await this.accountSettingsRepo.findByAccountId(accountId);
-    if (!settings[0]) throw new Error(`Account settings not found: ${accountId}`);
+    if (!settings[0])
+      throw new Error(`Account settings not found: ${accountId}`);
     return settings[0];
   }
 
@@ -32,7 +33,10 @@ export class AccountManagementApplicationService {
     return updated;
   }
 
-  async setHidden(accountId: string, hidden: boolean): Promise<AccountSettings> {
+  async setHidden(
+    accountId: string,
+    hidden: boolean,
+  ): Promise<AccountSettings> {
     await this.requireAccount(accountId);
     const settings = await this.getOrFailSettings(accountId);
     const updated = { ...settings, hidden, updatedAt: new Date() };
@@ -58,6 +62,7 @@ export class AccountManagementApplicationService {
 
   async assertCanDelete(accountId: string): Promise<void> {
     const transactions = await this.transactionRepo.findByAccount(accountId);
-    if (transactions.length > 0) throw new Error("Account cannot be deleted while transactions exist");
+    if (transactions.length > 0)
+      throw new Error("Account cannot be deleted while transactions exist");
   }
 }

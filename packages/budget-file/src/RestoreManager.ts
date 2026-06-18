@@ -9,10 +9,14 @@ export class RestoreManager {
   }
 
   restoreBackup(backupPackagePath: string, targetPackagePath: string): void {
-    if (!existsSync(backupPackagePath)) throw new Error(`Backup does not exist: ${backupPackagePath}`);
-    if (!this.verifyBackup(backupPackagePath)) throw new Error("Backup package is invalid");
+    if (!existsSync(backupPackagePath))
+      throw new Error(`Backup does not exist: ${backupPackagePath}`);
+    if (!this.verifyBackup(backupPackagePath))
+      throw new Error("Backup package is invalid");
     removeIfExists(targetPackagePath);
-    copyDirectory(backupPackagePath, targetPackagePath, { excludeNames: ["budget.lock"] });
+    copyDirectory(backupPackagePath, targetPackagePath, {
+      excludeNames: ["budget.lock"],
+    });
     ensureDir(join(targetPackagePath, "Backups"));
     ensureDir(join(targetPackagePath, "Temp"));
   }

@@ -15,7 +15,7 @@ async function main() {
   const auth = new AuthApplicationService(
     new SqliteUserRepository(db),
     new SqliteSessionRepository(db),
-    settingsRepo
+    settingsRepo,
   );
 
   const settingsService = new UserSettingsApplicationService(settingsRepo);
@@ -31,8 +31,8 @@ async function main() {
     await settingsService.update({
       ...settings,
       theme: "dark",
-      sidebarCollapsed: true
-    })
+      sidebarCollapsed: true,
+    }),
   );
 }
 

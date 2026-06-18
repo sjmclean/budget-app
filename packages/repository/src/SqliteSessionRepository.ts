@@ -11,7 +11,10 @@ export class SqliteSessionRepository implements SessionRepository {
   }
 
   async getById(id: string): Promise<Session | null> {
-    const rows = await this.db.select().from(sessions).where(eq(sessions.id, id));
+    const rows = await this.db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.id, id));
     return rows[0] ?? null;
   }
 

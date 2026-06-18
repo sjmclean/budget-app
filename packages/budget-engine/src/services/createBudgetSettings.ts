@@ -4,7 +4,7 @@ import { BudgetSettings } from "../../../types/src/BudgetSettings.js";
 export function createBudgetSettings(
   budgetId: string,
   currency = "AUD",
-  currencySymbol = "$"
+  currencySymbol = "$",
 ): BudgetSettings {
   const now = new Date();
 
@@ -25,6 +25,6 @@ export function createBudgetSettings(
     attachmentFolderName: "attachments",
     cloudStorageSettingId: null,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
 }

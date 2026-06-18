@@ -19,25 +19,71 @@ async function main() {
   const accountRepo = new SqliteAccountRepository(db);
   const transactionRepo = new SqliteTransactionRepository(db);
   const reconciliationRepo = new SqliteReconciliationRepository(db);
-  const service = new ReconciliationApplicationService(accountRepo, reconciliationRepo, transactionRepo);
+  const service = new ReconciliationApplicationService(
+    accountRepo,
+    reconciliationRepo,
+    transactionRepo,
+  );
 
   const budget = createBudget("Household Budget");
   await budgetRepo.create(budget);
-  const account = createAccount(budget.id, "Checking", AccountType.Checking, BudgetParticipation.OnBudget, 10000);
+  const account = createAccount(
+    budget.id,
+    "Checking",
+    AccountType.Checking,
+    BudgetParticipation.OnBudget,
+    10000,
+  );
   await accountRepo.create(account);
 
-  await transactionRepo.create(createTransaction({ budgetId: budget.id, accountId: account.id, date: "2026-06-10", amount: -2500, memo: "Cleared groceries", clearedStatus: ClearedStatus.Cleared }));
-  await transactionRepo.create(createTransaction({ budgetId: budget.id, accountId: account.id, date: "2026-06-12", amount: -1200, memo: "Uncleared fuel", clearedStatus: ClearedStatus.Uncleared }));
+  await transactionRepo.create(
+    createTransaction({
+      budgetId: budget.id,
+      accountId: account.id,
+      date: "2026-06-10",
+      amount: -2500,
+      memo: "Cleared groceries",
+      clearedStatus: ClearedStatus.Cleared,
+    }),
+  );
+  await transactionRepo.create(
+    createTransaction({
+      budgetId: budget.id,
+      accountId: account.id,
+      date: "2026-06-12",
+      amount: -1200,
+      memo: "Uncleared fuel",
+      clearedStatus: ClearedStatus.Uncleared,
+    }),
+  );
 
-  const result = await service.complete({ budgetId: budget.id, accountId: account.id, statementDate: "2026-06-17", statementBalance: 8000, createAdjustment: true });
+  const result = await service.complete({
+    budgetId: budget.id,
+    accountId: account.id,
+    statementDate: "2026-06-17",
+    statementBalance: 8000,
+    createAdjustment: true,
+  });
 
-  if (result.reconciliation.clearedBalance !== 7500) throw new Error(`Expected cleared balance 7500, got ${result.reconciliation.clearedBalance}`);
-  if (result.reconciliation.difference !== 500) throw new Error(`Expected difference 500, got ${result.reconciliation.difference}`);
-  if (!result.adjustmentTransaction) throw new Error("Expected adjustment transaction");
-  if (result.adjustmentTransaction.amount !== 500) throw new Error(`Expected adjustment amount 500, got ${result.adjustmentTransaction.amount}`);
+  if (result.reconciliation.clearedBalance !== 7500)
+    throw new Error(
+      `Expected cleared balance 7500, got ${result.reconciliation.clearedBalance}`,
+    );
+  if (result.reconciliation.difference !== 500)
+    throw new Error(
+      `Expected difference 500, got ${result.reconciliation.difference}`,
+    );
+  if (!result.adjustmentTransaction)
+    throw new Error("Expected adjustment transaction");
+  if (result.adjustmentTransaction.amount !== 500)
+    throw new Error(
+      `Expected adjustment amount 500, got ${result.adjustmentTransaction.amount}`,
+    );
 
   console.log("PASS: reconciliation calculates cleared balance");
-  console.log("PASS: reconciliation creates adjustment transaction when requested");
+  console.log(
+    "PASS: reconciliation creates adjustment transaction when requested",
+  );
   console.log("v1.1 reconciliation workflow OK");
 }
 

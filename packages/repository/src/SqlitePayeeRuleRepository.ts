@@ -13,45 +13,53 @@ export class SqlitePayeeRuleRepository implements PayeeRuleRepository {
   constructor(private db: any) {}
 
   async create(rule: PayeeRule): Promise<void> {
-    sqlite(this.db).prepare(`
+    sqlite(this.db)
+      .prepare(
+        `
       INSERT INTO payee_rules (
         id, budget_id, name, pattern, match_mode, payee_name, category_id, memo,
         priority, is_enabled, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      rule.id,
-      rule.budgetId,
-      rule.name,
-      rule.pattern,
-      rule.matchMode,
-      rule.payeeName,
-      rule.categoryId,
-      rule.memo,
-      rule.priority,
-      rule.isEnabled ? 1 : 0,
-      Date.now(),
-      Date.now()
-    );
+    `,
+      )
+      .run(
+        rule.id,
+        rule.budgetId,
+        rule.name,
+        rule.pattern,
+        rule.matchMode,
+        rule.payeeName,
+        rule.categoryId,
+        rule.memo,
+        rule.priority,
+        rule.isEnabled ? 1 : 0,
+        Date.now(),
+        Date.now(),
+      );
   }
 
   async update(rule: PayeeRule): Promise<void> {
-    sqlite(this.db).prepare(`
+    sqlite(this.db)
+      .prepare(
+        `
       UPDATE payee_rules
       SET name = ?, pattern = ?, match_mode = ?, payee_name = ?, category_id = ?, memo = ?,
           priority = ?, is_enabled = ?, updated_at = ?
       WHERE id = ?
-    `).run(
-      rule.name,
-      rule.pattern,
-      rule.matchMode,
-      rule.payeeName,
-      rule.categoryId,
-      rule.memo,
-      rule.priority,
-      rule.isEnabled ? 1 : 0,
-      Date.now(),
-      rule.id
-    );
+    `,
+      )
+      .run(
+        rule.name,
+        rule.pattern,
+        rule.matchMode,
+        rule.payeeName,
+        rule.categoryId,
+        rule.memo,
+        rule.priority,
+        rule.isEnabled ? 1 : 0,
+        Date.now(),
+        rule.id,
+      );
   }
 
   async delete(ruleId: string): Promise<void> {
@@ -59,16 +67,30 @@ export class SqlitePayeeRuleRepository implements PayeeRuleRepository {
   }
 
   async getById(ruleId: string): Promise<PayeeRule | null> {
-    const row = sqlite(this.db).prepare(`SELECT * FROM payee_rules WHERE id = ?`).get(ruleId) as any;
+    const row = sqlite(this.db)
+      .prepare(`SELECT * FROM payee_rules WHERE id = ?`)
+      .get(ruleId) as any;
     return row ? fromRow(row) : null;
   }
 
   async findByBudget(budgetId: string): Promise<PayeeRule[]> {
-    return (sqlite(this.db).prepare(`SELECT * FROM payee_rules WHERE budget_id = ? ORDER BY priority DESC, name ASC`).all(budgetId) as any[]).map(fromRow);
+    return (
+      sqlite(this.db)
+        .prepare(
+          `SELECT * FROM payee_rules WHERE budget_id = ? ORDER BY priority DESC, name ASC`,
+        )
+        .all(budgetId) as any[]
+    ).map(fromRow);
   }
 
   async findEnabledByBudget(budgetId: string): Promise<PayeeRule[]> {
-    return (sqlite(this.db).prepare(`SELECT * FROM payee_rules WHERE budget_id = ? AND is_enabled = 1 ORDER BY priority DESC, name ASC`).all(budgetId) as any[]).map(fromRow);
+    return (
+      sqlite(this.db)
+        .prepare(
+          `SELECT * FROM payee_rules WHERE budget_id = ? AND is_enabled = 1 ORDER BY priority DESC, name ASC`,
+        )
+        .all(budgetId) as any[]
+    ).map(fromRow);
   }
 }
 
@@ -83,12 +105,15 @@ function fromRow(row: any): PayeeRule {
     categoryId: row.category_id ?? null,
     memo: row.memo ?? null,
     priority: row.priority,
-    isEnabled: Boolean(row.is_enabled)
+    isEnabled: Boolean(row.is_enabled),
   };
 }
 
 function sqlite(db: any) {
   const client = db?.$client;
-  if (!client?.prepare) throw new Error("SqlitePayeeRuleRepository requires a Drizzle better-sqlite3 database with $client");
+  if (!client?.prepare)
+    throw new Error(
+      "SqlitePayeeRuleRepository requires a Drizzle better-sqlite3 database with $client",
+    );
   return client;
 }

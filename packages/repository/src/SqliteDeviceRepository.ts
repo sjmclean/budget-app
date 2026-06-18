@@ -20,6 +20,9 @@ export class SqliteDeviceRepository implements DeviceRepository {
   }
 
   async findByUser(userId: string): Promise<Device[]> {
-    return await this.db.select().from(devices).where(eq(devices.userId, userId));
+    return await this.db
+      .select()
+      .from(devices)
+      .where(eq(devices.userId, userId));
   }
 }

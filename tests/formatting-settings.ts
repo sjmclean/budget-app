@@ -13,5 +13,5 @@ console.log({
   theme: ThemeMode.Dark,
   language: LanguageCode.EnglishAustralia,
   dateFormat: DateFormat.DD_MM_YYYY,
-  numberFormat: NumberFormat.EnAU
+  numberFormat: NumberFormat.EnAU,
 });

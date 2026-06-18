@@ -4,22 +4,31 @@ import { TransactionAttachment } from "../../types/src/TransactionAttachment.js"
 import { AttachmentIntegrityResult } from "../../types/src/AttachmentIntegrityStatus.js";
 import { createTransactionAttachment } from "../../budget-engine/src/services/createTransactionAttachment.js";
 import { checkAttachmentIntegrity } from "../../budget-engine/src/services/checkAttachmentIntegrity.js";
-import { canEditBudget, canViewBudget } from "../../budget-engine/src/services/permissions.js";
+import {
+  canEditBudget,
+  canViewBudget,
+} from "../../budget-engine/src/services/permissions.js";
 import { BudgetUserRepository } from "../../repository/src/BudgetUserRepository.js";
 import { TransactionAttachmentRepository } from "../../repository/src/TransactionAttachmentRepository.js";
 
 export class AttachmentApplicationService {
   constructor(
     private attachmentRepo: TransactionAttachmentRepository,
-    private budgetUserRepo: BudgetUserRepository
+    private budgetUserRepo: BudgetUserRepository,
   ) {}
 
-  private async requireCanView(userId: string, budgetId: string): Promise<void> {
+  private async requireCanView(
+    userId: string,
+    budgetId: string,
+  ): Promise<void> {
     const role = await this.budgetUserRepo.getRole(userId, budgetId);
     if (!canViewBudget(role)) throw new Error("Permission denied");
   }
 
-  private async requireCanEdit(userId: string, budgetId: string): Promise<void> {
+  private async requireCanEdit(
+    userId: string,
+    budgetId: string,
+  ): Promise<void> {
     const role = await this.budgetUserRepo.getRole(userId, budgetId);
     if (!canEditBudget(role)) throw new Error("Permission denied");
   }
@@ -48,7 +57,7 @@ export class AttachmentApplicationService {
       mimeType: input.mimeType,
       fileSize: size,
       relativePath: input.attachmentsFolderName,
-      content: input.content
+      content: input.content,
     });
 
     const absolutePath = join(input.budgetFolder, attachment.relativePath);
@@ -68,7 +77,7 @@ export class AttachmentApplicationService {
   async listForTransaction(
     userId: string,
     budgetId: string,
-    transactionId: string
+    transactionId: string,
   ): Promise<TransactionAttachment[]> {
     await this.requireCanView(userId, budgetId);
     return await this.attachmentRepo.findByTransaction(transactionId);
@@ -77,14 +86,14 @@ export class AttachmentApplicationService {
   async verifyBudgetAttachments(
     userId: string,
     budgetId: string,
-    budgetFolder: string
+    budgetFolder: string,
   ): Promise<AttachmentIntegrityResult[]> {
     await this.requireCanView(userId, budgetId);
 
     const attachments = await this.attachmentRepo.findByBudget(budgetId);
 
     return attachments.map((attachment) =>
-      checkAttachmentIntegrity(budgetFolder, attachment)
+      checkAttachmentIntegrity(budgetFolder, attachment),
     );
   }
 
@@ -92,7 +101,7 @@ export class AttachmentApplicationService {
     userId: string,
     budgetId: string,
     budgetFolder: string,
-    attachment: TransactionAttachment
+    attachment: TransactionAttachment,
   ): Promise<void> {
     await this.requireCanEdit(userId, budgetId);
 

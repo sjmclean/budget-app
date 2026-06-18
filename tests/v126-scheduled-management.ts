@@ -12,20 +12,41 @@ import { SqliteScheduledTransactionRepository } from "../packages/repository/src
 import { ScheduledTransactionManagementApplicationService } from "../packages/application/src/ScheduledTransactionManagementApplicationService.js";
 
 const dbPath = "/tmp/budget-v126-scheduled.sqlite";
-try { unlinkSync(dbPath); } catch {}
+try {
+  unlinkSync(dbPath);
+} catch {}
 const db = createDatabase(dbPath);
 const budgetRepo = new SqliteBudgetRepository(db);
 const accountRepo = new SqliteAccountRepository(db);
 const scheduledRepo = new SqliteScheduledTransactionRepository(db);
-const service = new ScheduledTransactionManagementApplicationService(scheduledRepo);
-const budget = createBudget("v1.2.6 Scheduled", "AUD"); await budgetRepo.create(budget);
-const account = createAccount(budget.id, "Everyday", AccountType.Checking, BudgetParticipation.OnBudget, 0); await accountRepo.create(account);
-let scheduled = createScheduledTransaction({ budgetId: budget.id, accountId: account.id, amount: -1000, nextDueDate: "2026-01-31", frequency: ScheduledFrequency.Monthly });
+const service = new ScheduledTransactionManagementApplicationService(
+  scheduledRepo,
+);
+const budget = createBudget("v1.2.6 Scheduled", "AUD");
+await budgetRepo.create(budget);
+const account = createAccount(
+  budget.id,
+  "Everyday",
+  AccountType.Checking,
+  BudgetParticipation.OnBudget,
+  0,
+);
+await accountRepo.create(account);
+let scheduled = createScheduledTransaction({
+  budgetId: budget.id,
+  accountId: account.id,
+  amount: -1000,
+  nextDueDate: "2026-01-31",
+  frequency: ScheduledFrequency.Monthly,
+});
 await scheduledRepo.create(scheduled);
 scheduled = await service.pause(scheduled);
-if (scheduled.isActive) throw new Error("Expected paused scheduled transaction");
+if (scheduled.isActive)
+  throw new Error("Expected paused scheduled transaction");
 scheduled = await service.resume(scheduled);
-if (!scheduled.isActive) throw new Error("Expected resumed scheduled transaction");
+if (!scheduled.isActive)
+  throw new Error("Expected resumed scheduled transaction");
 const skipped = await service.skipNextOccurrence(scheduled);
-if (skipped.nextDueDate === "2026-01-31") throw new Error("Expected next due date to advance");
+if (skipped.nextDueDate === "2026-01-31")
+  throw new Error("Expected next due date to advance");
 console.log("v1.2.6 scheduled transaction management OK");

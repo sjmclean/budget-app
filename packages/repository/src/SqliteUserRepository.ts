@@ -20,7 +20,10 @@ export class SqliteUserRepository implements UserRepository {
   }
 
   async findByDisplayName(displayName: string): Promise<User | null> {
-    const rows = await this.db.select().from(users).where(eq(users.displayName, displayName));
+    const rows = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.displayName, displayName));
     return rows[0] ?? null;
   }
 }

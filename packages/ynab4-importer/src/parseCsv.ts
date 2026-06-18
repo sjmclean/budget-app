@@ -43,7 +43,9 @@ export function parseCsvWithHeaders(text: string): ParsedCsv {
   const headers = parseCsvLine(lines[0]);
   const rows = lines.slice(1).map((line) => {
     const values = parseCsvLine(line);
-    return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
+    return Object.fromEntries(
+      headers.map((header, index) => [header, values[index] ?? ""]),
+    );
   });
 
   return { headers, rows };

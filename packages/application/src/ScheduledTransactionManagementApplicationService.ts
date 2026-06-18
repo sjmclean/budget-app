@@ -6,7 +6,10 @@ export class ScheduledTransactionManagementApplicationService {
   constructor(private scheduledRepo: ScheduledTransactionRepository) {}
 
   async edit(scheduled: ScheduledTransaction): Promise<ScheduledTransaction> {
-    if (!this.scheduledRepo.update) throw new Error("Scheduled transaction repository does not support update");
+    if (!this.scheduledRepo.update)
+      throw new Error(
+        "Scheduled transaction repository does not support update",
+      );
     const updated = { ...scheduled, updatedAt: new Date() };
     await this.scheduledRepo.update(updated);
     return updated;
@@ -20,13 +23,21 @@ export class ScheduledTransactionManagementApplicationService {
     return this.edit({ ...scheduled, isActive: true });
   }
 
-  async skipNextOccurrence(scheduled: ScheduledTransaction): Promise<ScheduledTransaction> {
-    const nextDueDate = advanceScheduledTransactionDate(scheduled.nextDueDate, scheduled.frequency);
+  async skipNextOccurrence(
+    scheduled: ScheduledTransaction,
+  ): Promise<ScheduledTransaction> {
+    const nextDueDate = advanceScheduledTransactionDate(
+      scheduled.nextDueDate,
+      scheduled.frequency,
+    );
     if (!nextDueDate) return this.pause(scheduled);
     return this.edit({ ...scheduled, nextDueDate });
   }
 
   previewNextDueDate(scheduled: ScheduledTransaction): string | null {
-    return advanceScheduledTransactionDate(scheduled.nextDueDate, scheduled.frequency);
+    return advanceScheduledTransactionDate(
+      scheduled.nextDueDate,
+      scheduled.frequency,
+    );
   }
 }

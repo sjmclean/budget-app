@@ -3,7 +3,12 @@ import { BudgetKey } from "../../../types/src/BudgetKey.js";
 import { EncryptedBudgetKey } from "../../../types/src/EncryptedBudgetKey.js";
 import { UserKey } from "../../../types/src/UserKey.js";
 import { createSalt } from "../../../security/src/passwords.js";
-import { createRandomBudgetKey, deriveUserKey, encryptWithKey, hashKey } from "../../../security/src/keys.js";
+import {
+  createRandomBudgetKey,
+  deriveUserKey,
+  encryptWithKey,
+  hashKey,
+} from "../../../security/src/keys.js";
 
 export interface EncryptionRecords {
   userKey: UserKey;
@@ -14,7 +19,7 @@ export interface EncryptionRecords {
 export function createEncryptionRecords(
   userId: string,
   budgetId: string,
-  password: string
+  password: string,
 ): EncryptionRecords {
   const now = new Date();
   const keySalt = createSalt();
@@ -26,7 +31,7 @@ export function createEncryptionRecords(
     userId,
     keySalt,
     keyCheckHash: hashKey(userKeyBuffer),
-    createdAt: now
+    createdAt: now,
   };
 
   const budgetKey: BudgetKey = {
@@ -34,7 +39,7 @@ export function createEncryptionRecords(
     budgetId,
     keyVersion: 1,
     encryptedKey: encryptWithKey(rawBudgetKey.toString("hex"), userKeyBuffer),
-    createdAt: now
+    createdAt: now,
   };
 
   const encryptedBudgetKey: EncryptedBudgetKey = {
@@ -43,12 +48,12 @@ export function createEncryptionRecords(
     userId,
     budgetKeyId: budgetKey.id,
     encryptedBudgetKey: budgetKey.encryptedKey,
-    createdAt: now
+    createdAt: now,
   };
 
   return {
     userKey,
     budgetKey,
-    encryptedBudgetKey
+    encryptedBudgetKey,
   };
 }

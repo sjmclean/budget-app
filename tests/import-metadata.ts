@@ -1,5 +1,9 @@
 import { createDatabase } from "../packages/database/src/db.js";
-import { createImportRun, completeImportRun, createImportMap } from "../packages/budget-engine/src/services/createImportRun.js";
+import {
+  createImportRun,
+  completeImportRun,
+  createImportMap,
+} from "../packages/budget-engine/src/services/createImportRun.js";
 import { ImportSource } from "../packages/types/src/ImportRun.js";
 import { SqliteImportRunRepository } from "../packages/repository/src/SqliteImportRunRepository.js";
 import { SqliteImportMapRepository } from "../packages/repository/src/SqliteImportMapRepository.js";
@@ -17,7 +21,7 @@ async function main() {
     userId: "user",
     source: ImportSource.YNAB4,
     sourceFileName: "Budget.yfull",
-    summary: { rows: 10 }
+    summary: { rows: 10 },
   });
 
   await runRepo.create(run);
@@ -30,7 +34,7 @@ async function main() {
     sourceEntityType: "YNAB4Account",
     sourceEntityId: "old-account-id",
     targetEntityType: "Account",
-    targetEntityId: "new-account-id"
+    targetEntityId: "new-account-id",
   });
 
   await mapRepo.create(map);

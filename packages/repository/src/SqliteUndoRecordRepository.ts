@@ -11,6 +11,9 @@ export class SqliteUndoRecordRepository implements UndoRecordRepository {
   }
 
   async findByBudget(budgetId: string): Promise<UndoRecord[]> {
-    return await this.db.select().from(undoRecords).where(eq(undoRecords.budgetId, budgetId));
+    return await this.db
+      .select()
+      .from(undoRecords)
+      .where(eq(undoRecords.budgetId, budgetId));
   }
 }

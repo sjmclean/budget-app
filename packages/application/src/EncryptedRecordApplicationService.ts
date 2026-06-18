@@ -1,5 +1,8 @@
 import { EncryptedRecord } from "../../types/src/EncryptedRecord.js";
-import { createEncryptedRecord, decryptEncryptedRecord } from "../../budget-engine/src/services/createEncryptedRecord.js";
+import {
+  createEncryptedRecord,
+  decryptEncryptedRecord,
+} from "../../budget-engine/src/services/createEncryptedRecord.js";
 import { EncryptedRecordRepository } from "../../repository/src/EncryptedRecordRepository.js";
 
 export class EncryptedRecordApplicationService {

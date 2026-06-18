@@ -9,7 +9,7 @@ export class CategoryManagementApplicationService {
   constructor(
     private categoryRepo: CategoryRepository,
     private categoryGroupRepo: CategoryGroupRepository,
-    private categorySettingsRepo: CategorySettingsRepository
+    private categorySettingsRepo: CategorySettingsRepository,
   ) {}
 
   async renameCategory(categoryId: string, name: string): Promise<Category> {
@@ -22,7 +22,11 @@ export class CategoryManagementApplicationService {
     return updated;
   }
 
-  async moveCategory(categoryId: string, groupId: string, sortOrder: number): Promise<Category> {
+  async moveCategory(
+    categoryId: string,
+    groupId: string,
+    sortOrder: number,
+  ): Promise<Category> {
     const category = await this.categoryRepo.getById(categoryId);
     if (!category) throw new Error(`Category not found: ${categoryId}`);
     const updated = { ...category, groupId, sortOrder };
@@ -40,17 +44,29 @@ export class CategoryManagementApplicationService {
     return updated;
   }
 
-  async setHidden(categoryId: string, hidden: boolean): Promise<CategorySettings> {
-    const settings = (await this.categorySettingsRepo.findByCategoryId(categoryId))[0];
-    if (!settings) throw new Error(`Category settings not found: ${categoryId}`);
+  async setHidden(
+    categoryId: string,
+    hidden: boolean,
+  ): Promise<CategorySettings> {
+    const settings = (
+      await this.categorySettingsRepo.findByCategoryId(categoryId)
+    )[0];
+    if (!settings)
+      throw new Error(`Category settings not found: ${categoryId}`);
     const updated = { ...settings, hidden, updatedAt: new Date() };
     await this.categorySettingsRepo.update?.(updated);
     return updated;
   }
 
-  async setPinned(categoryId: string, pinned: boolean): Promise<CategorySettings> {
-    const settings = (await this.categorySettingsRepo.findByCategoryId(categoryId))[0];
-    if (!settings) throw new Error(`Category settings not found: ${categoryId}`);
+  async setPinned(
+    categoryId: string,
+    pinned: boolean,
+  ): Promise<CategorySettings> {
+    const settings = (
+      await this.categorySettingsRepo.findByCategoryId(categoryId)
+    )[0];
+    if (!settings)
+      throw new Error(`Category settings not found: ${categoryId}`);
     const updated = { ...settings, pinned, updatedAt: new Date() };
     await this.categorySettingsRepo.update?.(updated);
     return updated;

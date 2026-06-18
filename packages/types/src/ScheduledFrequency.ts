@@ -4,5 +4,5 @@ export enum ScheduledFrequency {
   Fortnightly = "Fortnightly",
   Monthly = "Monthly",
   Quarterly = "Quarterly",
-  Yearly = "Yearly"
+  Yearly = "Yearly",
 }

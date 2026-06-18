@@ -29,30 +29,55 @@ export class SearchApplicationService {
     private categoryRepo: CategoryRepository,
     private payeeRepo: PayeeRepository,
     private transactionRepo: TransactionRepository,
-    private attachmentRepo: TransactionAttachmentRepository
+    private attachmentRepo: TransactionAttachmentRepository,
   ) {}
 
-  async searchBudget(budgetId: string, rawQuery: string): Promise<SearchResults> {
+  async searchBudget(
+    budgetId: string,
+    rawQuery: string,
+  ): Promise<SearchResults> {
     const query = rawQuery.trim().toLowerCase();
-    if (!query) return { accounts: [], categories: [], payees: [], transactions: [], attachments: [] };
+    if (!query)
+      return {
+        accounts: [],
+        categories: [],
+        payees: [],
+        transactions: [],
+        attachments: [],
+      };
 
-    const [accounts, groups, payees, transactions, attachments] = await Promise.all([
-      this.accountRepo.findByBudget(budgetId),
-      this.categoryGroupRepo.findByBudget(budgetId),
-      this.payeeRepo.findByBudget(budgetId),
-      this.transactionRepo.findByBudget(budgetId),
-      this.attachmentRepo.findByBudget(budgetId)
-    ]);
+    const [accounts, groups, payees, transactions, attachments] =
+      await Promise.all([
+        this.accountRepo.findByBudget(budgetId),
+        this.categoryGroupRepo.findByBudget(budgetId),
+        this.payeeRepo.findByBudget(budgetId),
+        this.transactionRepo.findByBudget(budgetId),
+        this.attachmentRepo.findByBudget(budgetId),
+      ]);
 
-    const categoryLists = await Promise.all(groups.map((group) => this.categoryRepo.findByGroup(group.id)));
+    const categoryLists = await Promise.all(
+      groups.map((group) => this.categoryRepo.findByGroup(group.id)),
+    );
     const categories = categoryLists.flat();
 
     return {
-      accounts: accounts.filter((item) => includes(item.name, query) || includes(item.type, query)),
+      accounts: accounts.filter(
+        (item) => includes(item.name, query) || includes(item.type, query),
+      ),
       categories: categories.filter((item) => includes(item.name, query)),
       payees: payees.filter((item) => includes(item.name, query)),
-      transactions: transactions.filter((item) => includes(item.memo, query) || includes(item.date, query) || String(item.amount).includes(query)),
-      attachments: attachments.filter((item) => includes(item.originalFileName, query) || includes(item.storedFileName, query) || includes(item.mimeType, query))
+      transactions: transactions.filter(
+        (item) =>
+          includes(item.memo, query) ||
+          includes(item.date, query) ||
+          String(item.amount).includes(query),
+      ),
+      attachments: attachments.filter(
+        (item) =>
+          includes(item.originalFileName, query) ||
+          includes(item.storedFileName, query) ||
+          includes(item.mimeType, query),
+      ),
     };
   }
 }

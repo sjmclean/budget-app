@@ -30,9 +30,14 @@ async function main() {
 
     await userRepo.create(user);
     await budgetRepo.create(budget);
-    await budgetUserRepo.create(createBudgetUser(budget.id, user.id, BudgetRole.Owner));
+    await budgetUserRepo.create(
+      createBudgetUser(budget.id, user.id, BudgetRole.Owner),
+    );
 
-    const service = new AttachmentApplicationService(attachmentRepo, budgetUserRepo);
+    const service = new AttachmentApplicationService(
+      attachmentRepo,
+      budgetUserRepo,
+    );
 
     const attachment = await service.attachFile({
       userId: user.id,
@@ -42,12 +47,16 @@ async function main() {
       attachmentsFolderName: "Household.attachments",
       originalFileName: "receipt.txt",
       mimeType: "text/plain",
-      content: "Receipt content"
+      content: "Receipt content",
     });
 
     console.log(attachment);
-    console.log(await service.listForTransaction(user.id, budget.id, "transaction-1"));
-    console.log(await service.verifyBudgetAttachments(user.id, budget.id, folder));
+    console.log(
+      await service.listForTransaction(user.id, budget.id, "transaction-1"),
+    );
+    console.log(
+      await service.verifyBudgetAttachments(user.id, budget.id, folder),
+    );
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }

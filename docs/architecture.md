@@ -12,16 +12,16 @@ This project is a local-first replacement for YNAB4. The core goals are:
 
 ## Technology stack
 
-| Layer | Technology |
-| --- | --- |
-| Language | TypeScript |
-| Database | SQLite |
-| ORM/query layer | Drizzle ORM |
-| SQLite driver | better-sqlite3 |
-| Package manager | pnpm |
-| Test runner | tsx scripts |
-| Future UI | React, Vite, Tailwind, shadcn/ui, Zustand, TanStack Table |
-| Future desktop shell | Tauri |
+| Layer                | Technology                                                |
+| -------------------- | --------------------------------------------------------- |
+| Language             | TypeScript                                                |
+| Database             | SQLite                                                    |
+| ORM/query layer      | Drizzle ORM                                               |
+| SQLite driver        | better-sqlite3                                            |
+| Package manager      | pnpm                                                      |
+| Test runner          | tsx scripts                                               |
+| Future UI            | React, Vite, Tailwind, shadcn/ui, Zustand, TanStack Table |
+| Future desktop shell | Tauri                                                     |
 
 ## Package responsibilities
 

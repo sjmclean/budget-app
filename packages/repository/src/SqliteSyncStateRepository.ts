@@ -11,14 +11,25 @@ export class SqliteSyncStateRepository implements SyncStateRepository {
   }
 
   async update(state: SyncState): Promise<void> {
-    await this.db.update(syncStates).set(state).where(eq(syncStates.id, state.id));
+    await this.db
+      .update(syncStates)
+      .set(state)
+      .where(eq(syncStates.id, state.id));
   }
 
-  async getByBudgetAndDevice(budgetId: string, deviceId: string): Promise<SyncState | null> {
+  async getByBudgetAndDevice(
+    budgetId: string,
+    deviceId: string,
+  ): Promise<SyncState | null> {
     const rows = await this.db
       .select()
       .from(syncStates)
-      .where(and(eq(syncStates.budgetId, budgetId), eq(syncStates.deviceId, deviceId)));
+      .where(
+        and(
+          eq(syncStates.budgetId, budgetId),
+          eq(syncStates.deviceId, deviceId),
+        ),
+      );
 
     return rows[0] ?? null;
   }

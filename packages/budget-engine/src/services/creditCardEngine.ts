@@ -13,60 +13,96 @@ export interface CreditCardPaymentCategoryResult {
 }
 
 export function isOnBudgetCreditCard(account: Account): boolean {
-  return account.type === AccountType.CreditCard && account.participation === BudgetParticipation.OnBudget;
+  return (
+    account.type === AccountType.CreditCard &&
+    account.participation === BudgetParticipation.OnBudget
+  );
 }
 
-export function isCreditCardPurchase(transaction: Transaction, account: Account): boolean {
-  return isOnBudgetCreditCard(account) && transaction.type === TransactionType.Standard && transaction.amount < 0;
+export function isCreditCardPurchase(
+  transaction: Transaction,
+  account: Account,
+): boolean {
+  return (
+    isOnBudgetCreditCard(account) &&
+    transaction.type === TransactionType.Standard &&
+    transaction.amount < 0
+  );
 }
 
 export function applyCreditCardBudgetedPurchase(
   transaction: Transaction,
   account: Account,
   sourceCategoryMonth: CategoryMonth,
-  paymentCategoryMonth: CategoryMonth
+  paymentCategoryMonth: CategoryMonth,
 ): CreditCardPaymentCategoryResult {
   if (!isCreditCardPurchase(transaction, account)) {
-    return { paymentCategoryMonth, sourceCategoryMonth, paymentAvailableDelta: 0 };
+    return {
+      paymentCategoryMonth,
+      sourceCategoryMonth,
+      paymentAvailableDelta: 0,
+    };
   }
 
-  if (!transaction.categoryId || transaction.categoryId !== sourceCategoryMonth.categoryId) {
-    throw new Error("Credit card purchase must reference the spending category month being adjusted");
+  if (
+    !transaction.categoryId ||
+    transaction.categoryId !== sourceCategoryMonth.categoryId
+  ) {
+    throw new Error(
+      "Credit card purchase must reference the spending category month being adjusted",
+    );
   }
 
   const purchaseAmount = Math.abs(transaction.amount);
-  const fundedAmount = Math.min(purchaseAmount, Math.max(0, sourceCategoryMonth.available));
-  const updatedSourceActivity = sourceCategoryMonth.activity + transaction.amount;
+  const fundedAmount = Math.min(
+    purchaseAmount,
+    Math.max(0, sourceCategoryMonth.available),
+  );
+  const updatedSourceActivity =
+    sourceCategoryMonth.activity + transaction.amount;
   const updatedPaymentAssigned = paymentCategoryMonth.assigned + fundedAmount;
 
   return {
     sourceCategoryMonth: {
       ...sourceCategoryMonth,
       activity: updatedSourceActivity,
-      available: calculateAvailable(sourceCategoryMonth.previousAvailable, sourceCategoryMonth.assigned, updatedSourceActivity),
-      updatedAt: new Date()
+      available: calculateAvailable(
+        sourceCategoryMonth.previousAvailable,
+        sourceCategoryMonth.assigned,
+        updatedSourceActivity,
+      ),
+      updatedAt: new Date(),
     },
     paymentCategoryMonth: {
       ...paymentCategoryMonth,
       assigned: updatedPaymentAssigned,
-      available: calculateAvailable(paymentCategoryMonth.previousAvailable, updatedPaymentAssigned, paymentCategoryMonth.activity),
-      updatedAt: new Date()
+      available: calculateAvailable(
+        paymentCategoryMonth.previousAvailable,
+        updatedPaymentAssigned,
+        paymentCategoryMonth.activity,
+      ),
+      updatedAt: new Date(),
     },
-    paymentAvailableDelta: fundedAmount
+    paymentAvailableDelta: fundedAmount,
   };
 }
 
 export function applyCreditCardPayment(
   transferOutflow: Transaction,
   creditCardAccount: Account,
-  paymentCategoryMonth: CategoryMonth
+  paymentCategoryMonth: CategoryMonth,
 ): CategoryMonth {
   if (!isOnBudgetCreditCard(creditCardAccount)) {
     throw new Error("Payment account must be an on-budget credit card");
   }
 
-  if (transferOutflow.type !== TransactionType.Transfer || transferOutflow.transferAccountId !== creditCardAccount.id) {
-    throw new Error("Credit card payment must be a transfer to the credit card account");
+  if (
+    transferOutflow.type !== TransactionType.Transfer ||
+    transferOutflow.transferAccountId !== creditCardAccount.id
+  ) {
+    throw new Error(
+      "Credit card payment must be a transfer to the credit card account",
+    );
   }
 
   const paymentAmount = Math.abs(transferOutflow.amount);
@@ -75,7 +111,11 @@ export function applyCreditCardPayment(
   return {
     ...paymentCategoryMonth,
     activity: updatedActivity,
-    available: calculateAvailable(paymentCategoryMonth.previousAvailable, paymentCategoryMonth.assigned, updatedActivity),
-    updatedAt: new Date()
+    available: calculateAvailable(
+      paymentCategoryMonth.previousAvailable,
+      paymentCategoryMonth.assigned,
+      updatedActivity,
+    ),
+    updatedAt: new Date(),
   };
 }

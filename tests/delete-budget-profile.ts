@@ -19,20 +19,23 @@ async function main() {
   const auth = new AuthApplicationService(
     userRepo,
     new SqliteSessionRepository(db),
-    settingsRepo
+    settingsRepo,
   );
 
   const budgetUsers = new SqliteBudgetUserRepository(db);
 
   const userBudgets = new UserBudgetApplicationService(
     new SqliteBudgetRepository(db),
-    budgetUsers
+    budgetUsers,
   );
 
   const profiles = new ProfileApplicationService(userRepo, settingsRepo);
 
   const user = await auth.signUp("Stewart", null, "password123");
-  const budget = await userBudgets.createBudgetForUser(user.id, "Household Budget");
+  const budget = await userBudgets.createBudgetForUser(
+    user.id,
+    "Household Budget",
+  );
 
   await userBudgets.deleteBudgetAccessRecords(user.id, budget.id);
   console.log(await budgetUsers.findUsersForBudget(budget.id));

@@ -27,39 +27,73 @@ export class AccountSafetyApplicationService {
     private accountRepo: AccountRepository,
     private transactionRepo: TransactionRepository,
     private scheduledRepo?: ScheduledTransactionRepository,
-    private transferPayeeRenamer?: { updateTransferPayeeNamesForAccount(accountId: string, payeeName: string): Promise<void> }
+    private transferPayeeRenamer?: {
+      updateTransferPayeeNamesForAccount(
+        accountId: string,
+        payeeName: string,
+      ): Promise<void>;
+    },
   ) {}
 
   async inspectCloseSafety(accountId: string): Promise<AccountSafetyReport> {
     const transactions = await this.transactionRepo.findByAccount(accountId);
-    const unclearedCount = transactions.filter((tx) => tx.clearedStatus !== ClearedStatus.Reconciled).length;
-    const transferCount = transactions.filter((tx) => tx.transferAccountId === accountId || tx.type === "Transfer").length;
+    const unclearedCount = transactions.filter(
+      (tx) => tx.clearedStatus !== ClearedStatus.Reconciled,
+    ).length;
+    const transferCount = transactions.filter(
+      (tx) => tx.transferAccountId === accountId || tx.type === "Transfer",
+    ).length;
     let scheduledCount = 0;
     if (this.scheduledRepo?.findActiveByBudget) {
       const account = await this.accountRepo.getById(accountId);
       if (account) {
-        const scheduled = await this.scheduledRepo.findActiveByBudget(account.budgetId);
-        scheduledCount = scheduled.filter((item) => item.accountId === accountId || item.transferAccountId === accountId).length;
+        const scheduled = await this.scheduledRepo.findActiveByBudget(
+          account.budgetId,
+        );
+        scheduledCount = scheduled.filter(
+          (item) =>
+            item.accountId === accountId ||
+            item.transferAccountId === accountId,
+        ).length;
       }
     }
     const reasons: string[] = [];
     if (transactions.length > 0) reasons.push("Account has transactions");
-    if (unclearedCount > 0) reasons.push("Account has unreconciled transactions");
+    if (unclearedCount > 0)
+      reasons.push("Account has unreconciled transactions");
     if (transferCount > 0) reasons.push("Account is used by transfers");
-    if (scheduledCount > 0) reasons.push("Account is used by scheduled transactions");
-    return { accountId, canClose: reasons.length === 0, transactionCount: transactions.length, unclearedCount, transferCount, scheduledCount, reasons };
+    if (scheduledCount > 0)
+      reasons.push("Account is used by scheduled transactions");
+    return {
+      accountId,
+      canClose: reasons.length === 0,
+      transactionCount: transactions.length,
+      unclearedCount,
+      transferCount,
+      scheduledCount,
+      reasons,
+    };
   }
 
   async assertCanDelete(accountId: string): Promise<void> {
     const report = await this.inspectCloseSafety(accountId);
-    if (!report.canClose) throw new Error(`Account cannot be deleted safely: ${report.reasons.join("; ")}`);
+    if (!report.canClose)
+      throw new Error(
+        `Account cannot be deleted safely: ${report.reasons.join("; ")}`,
+      );
   }
 
-  async renameAccountAndTransferPayees(account: Account, newName: string): Promise<Account> {
+  async renameAccountAndTransferPayees(
+    account: Account,
+    newName: string,
+  ): Promise<Account> {
     const updated = { ...account, name: newName };
     await this.accountRepo.update(updated);
     if (this.transferPayeeRenamer?.updateTransferPayeeNamesForAccount) {
-      await this.transferPayeeRenamer.updateTransferPayeeNamesForAccount(account.id, `Transfer : ${newName}`);
+      await this.transferPayeeRenamer.updateTransferPayeeNamesForAccount(
+        account.id,
+        `Transfer : ${newName}`,
+      );
     }
     return updated;
   }

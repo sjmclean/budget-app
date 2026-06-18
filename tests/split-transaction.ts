@@ -9,13 +9,13 @@ const split = createSplitTransaction({
   lines: [
     {
       categoryId: "groceries",
-      amount: -8000
+      amount: -8000,
     },
     {
       categoryId: "household",
-      amount: -4000
-    }
-  ]
+      amount: -4000,
+    },
+  ],
 });
 
 console.log(split);

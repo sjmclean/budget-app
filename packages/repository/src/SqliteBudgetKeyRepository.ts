@@ -11,6 +11,9 @@ export class SqliteBudgetKeyRepository implements BudgetKeyRepository {
   }
 
   async findByBudget(budgetId: string): Promise<BudgetKey[]> {
-    return await this.db.select().from(budgetKeys).where(eq(budgetKeys.budgetId, budgetId));
+    return await this.db
+      .select()
+      .from(budgetKeys)
+      .where(eq(budgetKeys.budgetId, budgetId));
   }
 }

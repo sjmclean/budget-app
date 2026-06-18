@@ -11,10 +11,16 @@ export class SqliteAccountSettingsRepository implements AccountSettingsRepositor
   }
 
   async update(item: AccountSettings): Promise<void> {
-    await this.db.update(accountSettings).set(item).where(eq(accountSettings.id, item.id));
+    await this.db
+      .update(accountSettings)
+      .set(item)
+      .where(eq(accountSettings.id, item.id));
   }
 
   async findByAccountId(accountId: string): Promise<AccountSettings[]> {
-    return await this.db.select().from(accountSettings).where(eq(accountSettings.accountId, accountId));
+    return await this.db
+      .select()
+      .from(accountSettings)
+      .where(eq(accountSettings.accountId, accountId));
   }
 }

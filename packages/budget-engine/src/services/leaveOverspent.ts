@@ -4,7 +4,7 @@ import { calculateReadyToBudget } from "../calculations/calculateReadyToBudget.j
 
 export function leaveOverspent(
   nextBudgetMonth: BudgetMonth,
-  overspentCategoryMonth: CategoryMonth
+  overspentCategoryMonth: CategoryMonth,
 ): BudgetMonth {
   if (overspentCategoryMonth.available >= 0) {
     return nextBudgetMonth;
@@ -16,7 +16,10 @@ export function leaveOverspent(
   return {
     ...nextBudgetMonth,
     income: updatedIncome,
-    readyToBudget: calculateReadyToBudget(updatedIncome, nextBudgetMonth.assigned),
-    updatedAt: new Date()
+    readyToBudget: calculateReadyToBudget(
+      updatedIncome,
+      nextBudgetMonth.assigned,
+    ),
+    updatedAt: new Date(),
   };
 }

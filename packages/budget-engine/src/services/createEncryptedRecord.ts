@@ -1,6 +1,9 @@
 import { randomUUID } from "crypto";
 import { EncryptedRecord } from "../../../types/src/EncryptedRecord.js";
-import { encryptPayload, decryptPayload } from "../../../security/src/encryptedPayloads.js";
+import {
+  encryptPayload,
+  decryptPayload,
+} from "../../../security/src/encryptedPayloads.js";
 
 export interface CreateEncryptedRecordInput {
   budgetId: string;
@@ -11,9 +14,14 @@ export interface CreateEncryptedRecordInput {
   key: Buffer;
 }
 
-export function createEncryptedRecord(input: CreateEncryptedRecordInput): EncryptedRecord {
+export function createEncryptedRecord(
+  input: CreateEncryptedRecordInput,
+): EncryptedRecord {
   const now = new Date();
-  const encrypted = encryptPayload(JSON.stringify(input.plainObject), input.key);
+  const encrypted = encryptPayload(
+    JSON.stringify(input.plainObject),
+    input.key,
+  );
 
   return {
     id: randomUUID(),
@@ -25,21 +33,21 @@ export function createEncryptedRecord(input: CreateEncryptedRecordInput): Encryp
     authTag: encrypted.authTag,
     cipherText: encrypted.cipherText,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
 }
 
 export function decryptEncryptedRecord<T>(
   record: EncryptedRecord,
-  key: Buffer
+  key: Buffer,
 ): T {
   const plainText = decryptPayload(
     {
       nonce: record.nonce,
       authTag: record.authTag,
-      cipherText: record.cipherText
+      cipherText: record.cipherText,
     },
-    key
+    key,
   );
 
   return JSON.parse(plainText) as T;

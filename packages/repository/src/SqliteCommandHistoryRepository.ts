@@ -22,7 +22,8 @@ export class SqliteCommandHistoryRepository implements CommandHistoryRepository 
 
   async create(entry: CommandHistoryEntry): Promise<void> {
     sqliteClient(this.db)
-      .prepare(`
+      .prepare(
+        `
         INSERT INTO command_history (
           id,
           budget_id,
@@ -38,7 +39,8 @@ export class SqliteCommandHistoryRepository implements CommandHistoryRepository 
           undone_at,
           redone_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `)
+      `,
+      )
       .run(
         entry.id,
         entry.budgetId,
@@ -52,13 +54,14 @@ export class SqliteCommandHistoryRepository implements CommandHistoryRepository 
         toTimestamp(entry.createdAt),
         toTimestamp(entry.executedAt),
         entry.undoneAt ? toTimestamp(entry.undoneAt) : null,
-        entry.redoneAt ? toTimestamp(entry.redoneAt) : null
+        entry.redoneAt ? toTimestamp(entry.redoneAt) : null,
       );
   }
 
   async update(entry: CommandHistoryEntry): Promise<void> {
     sqliteClient(this.db)
-      .prepare(`
+      .prepare(
+        `
         UPDATE command_history
         SET
           event_id = ?,
@@ -73,7 +76,8 @@ export class SqliteCommandHistoryRepository implements CommandHistoryRepository 
           undone_at = ?,
           redone_at = ?
         WHERE id = ?
-      `)
+      `,
+      )
       .run(
         entry.eventId ?? null,
         entry.commandType,
@@ -86,13 +90,14 @@ export class SqliteCommandHistoryRepository implements CommandHistoryRepository 
         toTimestamp(entry.executedAt),
         entry.undoneAt ? toTimestamp(entry.undoneAt) : null,
         entry.redoneAt ? toTimestamp(entry.redoneAt) : null,
-        entry.id
+        entry.id,
       );
   }
 
   async findByBudget(budgetId: string): Promise<CommandHistoryEntry[]> {
     const rows = sqliteClient(this.db)
-      .prepare(`
+      .prepare(
+        `
         SELECT
           id,
           budget_id,
@@ -109,7 +114,8 @@ export class SqliteCommandHistoryRepository implements CommandHistoryRepository 
           redone_at
         FROM command_history
         WHERE budget_id = ?
-      `)
+      `,
+      )
       .all(budgetId);
 
     return rows.map(fromCommandHistoryRow);
@@ -117,7 +123,8 @@ export class SqliteCommandHistoryRepository implements CommandHistoryRepository 
 
   async getById(id: string): Promise<CommandHistoryEntry | null> {
     const row = sqliteClient(this.db)
-      .prepare(`
+      .prepare(
+        `
         SELECT
           id,
           budget_id,
@@ -134,7 +141,8 @@ export class SqliteCommandHistoryRepository implements CommandHistoryRepository 
           redone_at
         FROM command_history
         WHERE id = ?
-      `)
+      `,
+      )
       .get(id);
 
     return row ? fromCommandHistoryRow(row) : null;
@@ -144,7 +152,9 @@ export class SqliteCommandHistoryRepository implements CommandHistoryRepository 
 function sqliteClient(db: any) {
   const client = db?.$client;
   if (!client || typeof client.prepare !== "function") {
-    throw new Error("SqliteCommandHistoryRepository requires a Drizzle better-sqlite3 database with $client");
+    throw new Error(
+      "SqliteCommandHistoryRepository requires a Drizzle better-sqlite3 database with $client",
+    );
   }
   return client;
 }
@@ -169,6 +179,6 @@ function fromCommandHistoryRow(row: any): CommandHistoryEntry {
     createdAt: new Date(row.created_at),
     executedAt: new Date(row.executed_at),
     undoneAt: row.undone_at == null ? null : new Date(row.undone_at),
-    redoneAt: row.redone_at == null ? null : new Date(row.redone_at)
+    redoneAt: row.redone_at == null ? null : new Date(row.redone_at),
   };
 }

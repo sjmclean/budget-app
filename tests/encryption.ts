@@ -2,7 +2,10 @@ import { createDatabase } from "../packages/database/src/db.js";
 import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
 import { createUser } from "../packages/budget-engine/src/services/createUser.js";
 import { createEncryptionRecords } from "../packages/budget-engine/src/services/createEncryptionRecords.js";
-import { deriveUserKey, decryptWithKey } from "../packages/security/src/keys.js";
+import {
+  deriveUserKey,
+  decryptWithKey,
+} from "../packages/security/src/keys.js";
 import { SqliteBudgetRepository } from "../packages/repository/src/SqliteBudgetRepository.js";
 import { SqliteUserRepository } from "../packages/repository/src/SqliteUserRepository.js";
 import { SqliteUserKeyRepository } from "../packages/repository/src/SqliteUserKeyRepository.js";
@@ -33,7 +36,10 @@ async function main() {
   await encryptedBudgetKeyRepo.create(records.encryptedBudgetKey);
 
   const userKey = deriveUserKey("password123", records.userKey.keySalt);
-  const decryptedBudgetKey = decryptWithKey(records.budgetKey.encryptedKey, userKey);
+  const decryptedBudgetKey = decryptWithKey(
+    records.budgetKey.encryptedKey,
+    userKey,
+  );
 
   console.log(records.userKey);
   console.log(records.budgetKey);

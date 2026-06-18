@@ -19,7 +19,9 @@ import { AccountManagementApplicationService } from "../packages/application/src
 import { CategoryManagementApplicationService } from "../packages/application/src/CategoryManagementApplicationService.js";
 
 const dbPath = "/tmp/budget-v125-account-category.sqlite";
-try { unlinkSync(dbPath); } catch {}
+try {
+  unlinkSync(dbPath);
+} catch {}
 const db = createDatabase(dbPath);
 const budgetRepo = new SqliteBudgetRepository(db);
 const accountRepo = new SqliteAccountRepository(db);
@@ -28,17 +30,35 @@ const transactionRepo = new SqliteTransactionRepository(db);
 const groupRepo = new SqliteCategoryGroupRepository(db);
 const categoryRepo = new SqliteCategoryRepository(db);
 const categorySettingsRepo = new SqliteCategorySettingsRepository(db);
-const accountService = new AccountManagementApplicationService(accountRepo, accountSettingsRepo, transactionRepo);
-const categoryService = new CategoryManagementApplicationService(categoryRepo, groupRepo, categorySettingsRepo);
+const accountService = new AccountManagementApplicationService(
+  accountRepo,
+  accountSettingsRepo,
+  transactionRepo,
+);
+const categoryService = new CategoryManagementApplicationService(
+  categoryRepo,
+  groupRepo,
+  categorySettingsRepo,
+);
 
 const budget = createBudget("v1.2.5 Account Category", "AUD");
 await budgetRepo.create(budget);
-const account = createAccount(budget.id, "Old Name", AccountType.Checking, BudgetParticipation.OnBudget, 0);
+const account = createAccount(
+  budget.id,
+  "Old Name",
+  AccountType.Checking,
+  BudgetParticipation.OnBudget,
+  0,
+);
 await accountRepo.create(account);
 await accountSettingsRepo.create(createAccountSettings(account.id, 1));
 
-const renamedAccount = await accountService.renameAccount(account.id, "New Name");
-if (renamedAccount.name !== "New Name") throw new Error("Expected account rename");
+const renamedAccount = await accountService.renameAccount(
+  account.id,
+  "New Name",
+);
+if (renamedAccount.name !== "New Name")
+  throw new Error("Expected account rename");
 const closed = await accountService.closeAccount(account.id);
 if (!closed.closed) throw new Error("Expected account close");
 const reopened = await accountService.reopenAccount(account.id);
@@ -54,12 +74,21 @@ const category = createCategory(group.id, "Power", 1);
 await categoryRepo.create(category);
 await categorySettingsRepo.create(createCategorySettings(category.id));
 
-const renamedCategory = await categoryService.renameCategory(category.id, "Electricity");
-if (renamedCategory.name !== "Electricity") throw new Error("Expected category rename");
+const renamedCategory = await categoryService.renameCategory(
+  category.id,
+  "Electricity",
+);
+if (renamedCategory.name !== "Electricity")
+  throw new Error("Expected category rename");
 const moved = await categoryService.moveCategory(category.id, movedGroup.id, 5);
-if (moved.groupId !== movedGroup.id || moved.sortOrder !== 5) throw new Error("Expected category move");
-const renamedGroup = await categoryService.renameGroup(group.id, "Monthly Bills");
-if (renamedGroup.name !== "Monthly Bills") throw new Error("Expected group rename");
+if (moved.groupId !== movedGroup.id || moved.sortOrder !== 5)
+  throw new Error("Expected category move");
+const renamedGroup = await categoryService.renameGroup(
+  group.id,
+  "Monthly Bills",
+);
+if (renamedGroup.name !== "Monthly Bills")
+  throw new Error("Expected group rename");
 const categoryHidden = await categoryService.setHidden(category.id, true);
 if (!categoryHidden.hidden) throw new Error("Expected category hide");
 const pinned = await categoryService.setPinned(category.id, true);

@@ -16,7 +16,9 @@ export class SqliteSplitTransactionLineRepository implements SplitTransactionLin
     }
   }
 
-  async findByTransaction(transactionId: string): Promise<SplitTransactionLine[]> {
+  async findByTransaction(
+    transactionId: string,
+  ): Promise<SplitTransactionLine[]> {
     return await this.db
       .select()
       .from(splitTransactionLines)

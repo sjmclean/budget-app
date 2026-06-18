@@ -24,21 +24,42 @@ async function main() {
 
   const budget = createBudget("Household Budget");
   await budgetRepo.create(budget);
-  const checking = createAccount(budget.id, "Checking", AccountType.Checking, BudgetParticipation.OnBudget, 0);
+  const checking = createAccount(
+    budget.id,
+    "Checking",
+    AccountType.Checking,
+    BudgetParticipation.OnBudget,
+    0,
+  );
   await accountRepo.create(checking);
 
-  const transferPayee = await service.createPayee(budget.id, "Transfer : Savings");
-  if (!transferPayee.isTransfer) throw new Error("Expected transfer-style payee to be marked as transfer");
+  const transferPayee = await service.createPayee(
+    budget.id,
+    "Transfer : Savings",
+  );
+  if (!transferPayee.isTransfer)
+    throw new Error("Expected transfer-style payee to be marked as transfer");
 
   const target = await service.createPayee(budget.id, "Woolworths");
   const source = await service.createPayee(budget.id, "Woolworths Online");
-  await txRepo.create(createTransaction({ budgetId: budget.id, accountId: checking.id, payeeId: source.id, categoryId: null, date: "2026-06-17", amount: -4500 }));
+  await txRepo.create(
+    createTransaction({
+      budgetId: budget.id,
+      accountId: checking.id,
+      payeeId: source.id,
+      categoryId: null,
+      date: "2026-06-17",
+      amount: -4500,
+    }),
+  );
 
   await service.mergePayees(source.id, target.id);
   const sourceAfterMerge = await payeeRepo.findById(source.id);
-  if (!sourceAfterMerge?.isArchived) throw new Error("Expected merged source payee to be archived");
+  if (!sourceAfterMerge?.isArchived)
+    throw new Error("Expected merged source payee to be archived");
   const txs = await txRepo.findByAccount(checking.id);
-  if (txs[0].payeeId !== target.id) throw new Error("Expected merged transactions to move to target payee");
+  if (txs[0].payeeId !== target.id)
+    throw new Error("Expected merged transactions to move to target payee");
 
   console.log("v1.2.2 transfer payee detection and payee merge OK");
 }

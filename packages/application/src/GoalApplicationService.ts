@@ -1,6 +1,9 @@
 import { Goal } from "../../types/src/Goal.js";
 import { GoalProgress } from "../../types/src/GoalProgress.js";
-import { createGoal, CreateGoalInput } from "../../budget-engine/src/services/createGoal.js";
+import {
+  createGoal,
+  CreateGoalInput,
+} from "../../budget-engine/src/services/createGoal.js";
 import { calculateGoalProgress } from "../../budget-engine/src/services/calculateGoalProgress.js";
 import { GoalRepository } from "../../repository/src/GoalRepository.js";
 

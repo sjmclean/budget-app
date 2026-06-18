@@ -20,24 +20,31 @@ async function main() {
   const auth = new AuthApplicationService(
     userRepo,
     new SqliteSessionRepository(db),
-    new SqliteUserSettingsRepository(db)
+    new SqliteUserSettingsRepository(db),
   );
 
   const userBudgets = new UserBudgetApplicationService(
     new SqliteBudgetRepository(db),
-    budgetUserRepo
+    budgetUserRepo,
   );
 
   const backups = new BackupApplicationService(
     new SqliteBackupRecordRepository(db),
-    budgetUserRepo
+    budgetUserRepo,
   );
 
   const user = await auth.signUp("Stewart", null, "password123");
-  const budget = await userBudgets.createBudgetForUser(user.id, "Household Budget");
+  const budget = await userBudgets.createBudgetForUser(
+    user.id,
+    "Household Budget",
+  );
 
-  console.log(await backups.recordBackup(user.id, budget.id, "backups/household.budget"));
-  console.log(await backups.restoreBudget(user.id, budget.id, "backups/household.budget"));
+  console.log(
+    await backups.recordBackup(user.id, budget.id, "backups/household.budget"),
+  );
+  console.log(
+    await backups.restoreBudget(user.id, budget.id, "backups/household.budget"),
+  );
 }
 
 main();

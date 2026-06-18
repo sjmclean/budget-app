@@ -4,7 +4,7 @@ import { BudgetMetadata } from "../../../types/src/BudgetMetadata.js";
 export function createBudgetMetadata(
   budgetId: string,
   schemaVersion = 1,
-  appVersion = "0.6.0"
+  appVersion = "0.6.0",
 ): BudgetMetadata {
   const now = new Date();
 
@@ -15,7 +15,7 @@ export function createBudgetMetadata(
     appVersion,
     createdAt: now,
     updatedAt: now,
-    lastOpenedAt: null
+    lastOpenedAt: null,
   };
 }
 
@@ -25,6 +25,6 @@ export function markBudgetOpened(metadata: BudgetMetadata): BudgetMetadata {
   return {
     ...metadata,
     updatedAt: now,
-    lastOpenedAt: now
+    lastOpenedAt: now,
   };
 }

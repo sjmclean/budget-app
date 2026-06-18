@@ -23,8 +23,8 @@ async function main() {
       budget.id,
       DomainEventType.BudgetCreated,
       budget.id,
-      budget
-    )
+      budget,
+    ),
   );
 
   console.log(await eventRepo.findByBudget(budget.id));

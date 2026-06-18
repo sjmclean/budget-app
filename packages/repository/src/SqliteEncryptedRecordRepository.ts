@@ -10,16 +10,27 @@ export class SqliteEncryptedRecordRepository implements EncryptedRecordRepositor
     await this.db.insert(encryptedRecords).values(record);
   }
 
-  async getByEntity(entityType: string, entityId: string): Promise<EncryptedRecord | null> {
+  async getByEntity(
+    entityType: string,
+    entityId: string,
+  ): Promise<EncryptedRecord | null> {
     const rows = await this.db
       .select()
       .from(encryptedRecords)
-      .where(and(eq(encryptedRecords.entityType, entityType), eq(encryptedRecords.entityId, entityId)));
+      .where(
+        and(
+          eq(encryptedRecords.entityType, entityType),
+          eq(encryptedRecords.entityId, entityId),
+        ),
+      );
 
     return rows[0] ?? null;
   }
 
   async findByBudget(budgetId: string): Promise<EncryptedRecord[]> {
-    return await this.db.select().from(encryptedRecords).where(eq(encryptedRecords.budgetId, budgetId));
+    return await this.db
+      .select()
+      .from(encryptedRecords)
+      .where(eq(encryptedRecords.budgetId, budgetId));
   }
 }

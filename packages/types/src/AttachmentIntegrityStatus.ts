@@ -1,7 +1,7 @@
 export enum AttachmentIntegrityStatus {
   Ok = "Ok",
   Missing = "Missing",
-  HashMismatch = "HashMismatch"
+  HashMismatch = "HashMismatch",
 }
 
 export interface AttachmentIntegrityResult {

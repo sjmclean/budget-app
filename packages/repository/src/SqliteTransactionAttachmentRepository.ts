@@ -10,7 +10,9 @@ export class SqliteTransactionAttachmentRepository implements TransactionAttachm
     await this.db.insert(transactionAttachments).values(attachment);
   }
 
-  async findByTransaction(transactionId: string): Promise<TransactionAttachment[]> {
+  async findByTransaction(
+    transactionId: string,
+  ): Promise<TransactionAttachment[]> {
     return await this.db
       .select()
       .from(transactionAttachments)
@@ -25,6 +27,8 @@ export class SqliteTransactionAttachmentRepository implements TransactionAttachm
   }
 
   async delete(id: string): Promise<void> {
-    await this.db.delete(transactionAttachments).where(eq(transactionAttachments.id, id));
+    await this.db
+      .delete(transactionAttachments)
+      .where(eq(transactionAttachments.id, id));
   }
 }

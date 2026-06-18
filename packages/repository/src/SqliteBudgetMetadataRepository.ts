@@ -11,11 +11,17 @@ export class SqliteBudgetMetadataRepository implements BudgetMetadataRepository 
   }
 
   async update(metadata: BudgetMetadata): Promise<void> {
-    await this.db.update(budgetMetadata).set(metadata).where(eq(budgetMetadata.id, metadata.id));
+    await this.db
+      .update(budgetMetadata)
+      .set(metadata)
+      .where(eq(budgetMetadata.id, metadata.id));
   }
 
   async getByBudget(budgetId: string): Promise<BudgetMetadata | null> {
-    const rows = await this.db.select().from(budgetMetadata).where(eq(budgetMetadata.budgetId, budgetId));
+    const rows = await this.db
+      .select()
+      .from(budgetMetadata)
+      .where(eq(budgetMetadata.budgetId, budgetId));
     return rows[0] ?? null;
   }
 }

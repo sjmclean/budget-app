@@ -8,8 +8,8 @@ const local = [
     deviceId: "pc",
     entityType: "Transaction",
     entityId: "tx-1",
-    operation: ChangeOperation.Update
-  })
+    operation: ChangeOperation.Update,
+  }),
 ];
 
 const remote = [
@@ -18,8 +18,8 @@ const remote = [
     deviceId: "ipad",
     entityType: "Transaction",
     entityId: "tx-1",
-    operation: ChangeOperation.Delete
-  })
+    operation: ChangeOperation.Delete,
+  }),
 ];
 
 console.log(planSync(local, remote));

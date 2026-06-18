@@ -11,7 +11,9 @@ import { UndoService } from "../packages/application/src/UndoService.js";
 import { CommandHistoryApplicationService } from "../packages/application/src/CommandHistoryApplicationService.js";
 
 const dbPath = "/tmp/budget-v128-undo-redo.sqlite";
-try { unlinkSync(dbPath); } catch {}
+try {
+  unlinkSync(dbPath);
+} catch {}
 const db = createDatabase(dbPath);
 const budgetRepo = new SqliteBudgetRepository(db);
 const eventRepo = new SqliteDomainEventRepository(db);
@@ -23,10 +25,20 @@ const history = new CommandHistoryApplicationService(undoRepo, eventRepo);
 const budget = createBudget("v1.2.8 Undo Redo", "AUD");
 await budgetRepo.create(budget);
 const transactionId = randomUUID();
-const event = await audit.record({ budgetId: budget.id, type: DomainEventType.TransactionCreated, entityId: transactionId, payload: { amount: -1000 } });
-const undoRecord = undo.createUndoRecord(budget.id, event, { action: "deleteTransaction", transactionId });
+const event = await audit.record({
+  budgetId: budget.id,
+  type: DomainEventType.TransactionCreated,
+  entityId: transactionId,
+  payload: { amount: -1000 },
+});
+const undoRecord = undo.createUndoRecord(budget.id, event, {
+  action: "deleteTransaction",
+  transactionId,
+});
 await undoRepo.create(undoRecord);
 const preview = await history.previewUndo(budget.id);
-if (!preview || preview.event?.id !== event.id) throw new Error("Expected undo preview to reference last audited event");
-if ((preview.reversePayload as any).transactionId !== transactionId) throw new Error("Expected reverse payload to be persisted");
+if (!preview || preview.event?.id !== event.id)
+  throw new Error("Expected undo preview to reference last audited event");
+if ((preview.reversePayload as any).transactionId !== transactionId)
+  throw new Error("Expected reverse payload to be persisted");
 console.log("v1.2.8 command history undo/redo foundation OK");

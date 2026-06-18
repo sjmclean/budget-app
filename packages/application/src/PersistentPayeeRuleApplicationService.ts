@@ -50,11 +50,15 @@ export class PersistentPayeeRuleApplicationService {
         const second = rules[j];
         if (!first.isEnabled || !second.isEnabled) continue;
         if (first.priority !== second.priority) continue;
-        if (normal(first.pattern) === normal(second.pattern) && first.matchMode === second.matchMode) {
+        if (
+          normal(first.pattern) === normal(second.pattern) &&
+          first.matchMode === second.matchMode
+        ) {
           conflicts.push({
             ruleId: first.id,
             conflictingRuleId: second.id,
-            reason: "Enabled rules use the same pattern and priority; import results would depend on secondary ordering."
+            reason:
+              "Enabled rules use the same pattern and priority; import results would depend on secondary ordering.",
           });
         }
       }
@@ -68,9 +72,14 @@ function validateRule(rule: PayeeRule): void {
   if (!rule.budgetId) throw new Error("Payee rule requires a budgetId");
   if (!rule.name.trim()) throw new Error("Payee rule requires a name");
   if (!rule.pattern.trim()) throw new Error("Payee rule requires a pattern");
-  if (!rule.payeeName.trim()) throw new Error("Payee rule requires a target payee name");
+  if (!rule.payeeName.trim())
+    throw new Error("Payee rule requires a target payee name");
   if (rule.matchMode === "regex") {
-    try { new RegExp(rule.pattern); } catch { throw new Error("Payee rule regex pattern is invalid"); }
+    try {
+      new RegExp(rule.pattern);
+    } catch {
+      throw new Error("Payee rule regex pattern is invalid");
+    }
   }
 }
 

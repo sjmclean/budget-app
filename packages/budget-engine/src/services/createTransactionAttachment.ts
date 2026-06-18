@@ -22,7 +22,7 @@ export function hashAttachmentContent(content: Buffer | string): string {
 }
 
 export function createTransactionAttachment(
-  input: CreateTransactionAttachmentInput
+  input: CreateTransactionAttachmentInput,
 ): TransactionAttachment {
   const id = randomUUID();
   const contentHash = hashAttachmentContent(input.content);
@@ -45,6 +45,6 @@ export function createTransactionAttachment(
     storageType: AttachmentStorageType.ExternalFile,
     relativePath: storedRelativePath,
     contentHash,
-    createdAt: new Date()
+    createdAt: new Date(),
   };
 }

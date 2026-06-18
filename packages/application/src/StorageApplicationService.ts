@@ -10,13 +10,13 @@ export class StorageApplicationService {
   constructor(
     private backupRepo: BackupVersionRepository,
     private attachmentRepo: TransactionAttachmentRepository,
-    private budgetUserRepo: BudgetUserRepository
+    private budgetUserRepo: BudgetUserRepository,
   ) {}
 
   async getUsage(
     userId: string,
     budgetId: string,
-    budgetFilePath: string
+    budgetFilePath: string,
   ): Promise<StorageUsage> {
     const role = await this.budgetUserRepo.getRole(userId, budgetId);
     if (!canViewBudget(role)) throw new Error("Permission denied");

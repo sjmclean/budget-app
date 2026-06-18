@@ -8,9 +8,14 @@ import { resolve, relative, isAbsolute, sep } from "node:path";
  * able to write outside the selected `.budget` package by using values such as
  * `../../Documents/passwords.txt` or absolute paths.
  */
-export function resolveInsidePackage(packagePath: string, requestedPath: string): string {
+export function resolveInsidePackage(
+  packagePath: string,
+  requestedPath: string,
+): string {
   if (isAbsolute(requestedPath)) {
-    throw new Error(`Absolute paths are not allowed inside a budget package: ${requestedPath}`);
+    throw new Error(
+      `Absolute paths are not allowed inside a budget package: ${requestedPath}`,
+    );
   }
 
   const packageRoot = resolve(packagePath);
@@ -30,7 +35,14 @@ export function resolveInsidePackage(packagePath: string, requestedPath: string)
  * pass a stored file name back into `getAttachmentPath`.
  */
 export function assertSafePackageFileName(fileName: string): void {
-  if (!fileName || fileName.includes("/") || fileName.includes("\\") || fileName.includes(sep) || fileName === "." || fileName === "..") {
+  if (
+    !fileName ||
+    fileName.includes("/") ||
+    fileName.includes("\\") ||
+    fileName.includes(sep) ||
+    fileName === "." ||
+    fileName === ".."
+  ) {
     throw new Error(`Unsafe package file name: ${fileName}`);
   }
 }

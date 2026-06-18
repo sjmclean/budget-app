@@ -18,7 +18,7 @@ async function main() {
     deviceId: "device",
     entityType: "Transaction",
     entityId: "tx-1",
-    operation: ChangeOperation.Create
+    operation: ChangeOperation.Create,
   });
 
   await service.markSynced("budget", "device");

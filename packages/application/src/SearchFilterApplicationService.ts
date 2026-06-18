@@ -18,7 +18,9 @@ export interface TransactionFilterInput {
 export class SearchFilterApplicationService {
   constructor(private transactionRepo: TransactionRepository) {}
 
-  async filterTransactions(input: TransactionFilterInput): Promise<Transaction[]> {
+  async filterTransactions(
+    input: TransactionFilterInput,
+  ): Promise<Transaction[]> {
     const transactions = input.accountId
       ? await this.transactionRepo.findByAccount(input.accountId)
       : await this.transactionRepo.findByBudget(input.budgetId);
@@ -26,13 +28,21 @@ export class SearchFilterApplicationService {
     return transactions.filter((tx) => {
       if (!input.includeDeleted && tx.isDeleted) return false;
       if (tx.budgetId !== input.budgetId) return false;
-      if (input.categoryId !== undefined && tx.categoryId !== input.categoryId) return false;
-      if (input.payeeId !== undefined && tx.payeeId !== input.payeeId) return false;
-      if (input.clearedStatus !== undefined && tx.clearedStatus !== input.clearedStatus) return false;
+      if (input.categoryId !== undefined && tx.categoryId !== input.categoryId)
+        return false;
+      if (input.payeeId !== undefined && tx.payeeId !== input.payeeId)
+        return false;
+      if (
+        input.clearedStatus !== undefined &&
+        tx.clearedStatus !== input.clearedStatus
+      )
+        return false;
       if (input.dateFrom && tx.date < input.dateFrom) return false;
       if (input.dateTo && tx.date > input.dateTo) return false;
-      if (input.amountMin !== undefined && tx.amount < input.amountMin) return false;
-      if (input.amountMax !== undefined && tx.amount > input.amountMax) return false;
+      if (input.amountMin !== undefined && tx.amount < input.amountMin)
+        return false;
+      if (input.amountMax !== undefined && tx.amount > input.amountMax)
+        return false;
       return true;
     });
   }

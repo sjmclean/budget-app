@@ -21,14 +21,26 @@ export interface RolloverResult {
 export function rolloverBudgetMonth(
   previousMonth: BudgetMonth,
   previousCategoryMonths: CategoryMonth[],
-  nextMonth: string
+  nextMonth: string,
 ): RolloverResult {
-  let budgetMonth = createBudgetMonth(previousMonth.budgetId, nextMonth, 0, 0, 0);
+  let budgetMonth = createBudgetMonth(
+    previousMonth.budgetId,
+    nextMonth,
+    0,
+    0,
+    0,
+  );
 
   const categoryMonths = previousCategoryMonths.map((categoryMonth) => {
     if (categoryMonth.available < 0) {
       budgetMonth = leaveOverspent(budgetMonth, categoryMonth);
-      return createCategoryMonth(budgetMonth.id, categoryMonth.categoryId, 0, 0, 0);
+      return createCategoryMonth(
+        budgetMonth.id,
+        categoryMonth.categoryId,
+        0,
+        0,
+        0,
+      );
     }
 
     return createCategoryMonth(
@@ -36,7 +48,7 @@ export function rolloverBudgetMonth(
       categoryMonth.categoryId,
       categoryMonth.available,
       0,
-      0
+      0,
     );
   });
 

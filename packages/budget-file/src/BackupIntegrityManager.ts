@@ -35,13 +35,22 @@ export class BackupIntegrityManager {
     return {
       packagePath,
       createdAt: new Date().toISOString(),
-      files: this.walk(packagePath).sort((a, b) => a.relativePath.localeCompare(b.relativePath))
+      files: this.walk(packagePath).sort((a, b) =>
+        a.relativePath.localeCompare(b.relativePath),
+      ),
     };
   }
 
-  verify(packagePath: string, manifest: BackupIntegrityManifest): BackupVerificationReport {
-    const current = new Map(this.walk(packagePath).map((file) => [file.relativePath, file]));
-    const expected = new Map(manifest.files.map((file) => [file.relativePath, file]));
+  verify(
+    packagePath: string,
+    manifest: BackupIntegrityManifest,
+  ): BackupVerificationReport {
+    const current = new Map(
+      this.walk(packagePath).map((file) => [file.relativePath, file]),
+    );
+    const expected = new Map(
+      manifest.files.map((file) => [file.relativePath, file]),
+    );
     const missingFiles: string[] = [];
     const changedFiles: string[] = [];
     const extraFiles: string[] = [];
@@ -49,7 +58,11 @@ export class BackupIntegrityManager {
     for (const file of manifest.files) {
       const actual = current.get(file.relativePath);
       if (!actual) missingFiles.push(file.relativePath);
-      else if (actual.sizeBytes !== file.sizeBytes || actual.sha256 !== file.sha256) changedFiles.push(file.relativePath);
+      else if (
+        actual.sizeBytes !== file.sizeBytes ||
+        actual.sha256 !== file.sha256
+      )
+        changedFiles.push(file.relativePath);
     }
 
     for (const file of current.values()) {
@@ -57,18 +70,36 @@ export class BackupIntegrityManager {
     }
 
     const packageValid = new BudgetOpener().validate(packagePath).ok;
-    return { ok: packageValid && missingFiles.length === 0 && changedFiles.length === 0, packageValid, missingFiles, changedFiles, extraFiles };
+    return {
+      ok:
+        packageValid && missingFiles.length === 0 && changedFiles.length === 0,
+      packageValid,
+      missingFiles,
+      changedFiles,
+      extraFiles,
+    };
   }
 
   private walk(root: string, dir = root): BackupIntegrityFile[] {
     if (!existsSync(dir)) return [];
     const files: BackupIntegrityFile[] = [];
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (["Backups", "Temp"].includes(entry.name) || entry.name === "budget.lock") continue;
+      if (
+        ["Backups", "Temp"].includes(entry.name) ||
+        entry.name === "budget.lock"
+      )
+        continue;
       const absolutePath = join(dir, entry.name);
-      const relativePath = absolutePath.slice(root.length + 1).replace(/\\/g, "/");
+      const relativePath = absolutePath
+        .slice(root.length + 1)
+        .replace(/\\/g, "/");
       if (entry.isDirectory()) files.push(...this.walk(root, absolutePath));
-      else files.push({ relativePath, sizeBytes: statSync(absolutePath).size, sha256: sha256File(absolutePath) });
+      else
+        files.push({
+          relativePath,
+          sizeBytes: statSync(absolutePath).size,
+          sha256: sha256File(absolutePath),
+        });
     }
     return files;
   }

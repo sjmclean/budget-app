@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { initDatabase } from "../../database/src/initDatabase.js";
-import type { BudgetPackageMetadata, OpenBudgetPackageResult } from "./BudgetPackageTypes.js";
+import type {
+  BudgetPackageMetadata,
+  OpenBudgetPackageResult,
+} from "./BudgetPackageTypes.js";
 import { writeBudgetMetadata } from "./BudgetMetadata.js";
 import { ensureDir } from "./fsHelpers.js";
 

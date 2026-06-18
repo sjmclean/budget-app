@@ -12,13 +12,13 @@ export function createDevice(userId: string, name: string): Device {
     fingerprint: createHash("sha256").update(raw).digest("hex"),
     trusted: true,
     createdAt: now,
-    lastSeenAt: now
+    lastSeenAt: now,
   };
 }
 
 export function markDeviceSeen(device: Device): Device {
   return {
     ...device,
-    lastSeenAt: new Date()
+    lastSeenAt: new Date(),
   };
 }

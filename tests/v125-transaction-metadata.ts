@@ -17,7 +17,9 @@ import { TransactionMetadataApplicationService } from "../packages/application/s
 import { ClearedStatus } from "../packages/types/src/ClearedStatus.js";
 
 const dbPath = "/tmp/budget-v125-metadata.sqlite";
-try { unlinkSync(dbPath); } catch {}
+try {
+  unlinkSync(dbPath);
+} catch {}
 const db = createDatabase(dbPath);
 
 const budgetRepo = new SqliteBudgetRepository(db);
@@ -27,41 +29,84 @@ const flagRepo = new SqliteTransactionFlagRepository(db);
 const noteRepo = new SqliteTransactionNoteRepository(db);
 const tagRepo = new SqliteTransactionTagRepository(db);
 const assignmentRepo = new SqliteTransactionTagAssignmentRepository(db);
-const metadataService = new TransactionMetadataApplicationService(transactionRepo, flagRepo, noteRepo, tagRepo, assignmentRepo);
+const metadataService = new TransactionMetadataApplicationService(
+  transactionRepo,
+  flagRepo,
+  noteRepo,
+  tagRepo,
+  assignmentRepo,
+);
 
 const budget = createBudget("v1.2.5 Metadata", "AUD");
 await budgetRepo.create(budget);
-const account = createAccount(budget.id, "Everyday", AccountType.Checking, BudgetParticipation.OnBudget, 100000);
+const account = createAccount(
+  budget.id,
+  "Everyday",
+  AccountType.Checking,
+  BudgetParticipation.OnBudget,
+  100000,
+);
 await accountRepo.create(account);
-const transaction = createTransaction({ budgetId: budget.id, accountId: account.id, payeeId: null, categoryId: null, date: "2026-06-17", amount: -2500, memo: "Groceries" });
+const transaction = createTransaction({
+  budgetId: budget.id,
+  accountId: account.id,
+  payeeId: null,
+  categoryId: null,
+  date: "2026-06-17",
+  amount: -2500,
+  memo: "Groceries",
+});
 await transactionRepo.create(transaction);
 
-const flag = await metadataService.setFlag(transaction.id, TransactionFlagColour.Blue, "Check receipt");
+const flag = await metadataService.setFlag(
+  transaction.id,
+  TransactionFlagColour.Blue,
+  "Check receipt",
+);
 const flags = await metadataService.getFlags(transaction.id);
-if (flags.length !== 1 || flags[0].id !== flag.id) throw new Error("Expected flag to be set");
-await metadataService.setFlag(transaction.id, TransactionFlagColour.Red, "Follow up");
+if (flags.length !== 1 || flags[0].id !== flag.id)
+  throw new Error("Expected flag to be set");
+await metadataService.setFlag(
+  transaction.id,
+  TransactionFlagColour.Red,
+  "Follow up",
+);
 const replaced = await metadataService.getFlags(transaction.id);
-if (replaced.length !== 1 || replaced[0].colour !== TransactionFlagColour.Red) throw new Error("Expected flag replacement");
+if (replaced.length !== 1 || replaced[0].colour !== TransactionFlagColour.Red)
+  throw new Error("Expected flag replacement");
 await metadataService.clearFlag(transaction.id);
-if ((await metadataService.getFlags(transaction.id)).length !== 0) throw new Error("Expected flag to be cleared");
+if ((await metadataService.getFlags(transaction.id)).length !== 0)
+  throw new Error("Expected flag to be cleared");
 
 const note = await metadataService.addNote(transaction.id, "  Imported note  ");
 if (note.note !== "Imported note") throw new Error("Expected note trimming");
 const editedNote = await metadataService.editNote(note, "Updated note");
 if (editedNote.note !== "Updated note") throw new Error("Expected note update");
-if ((await metadataService.listNotes(transaction.id)).length !== 1) throw new Error("Expected one note");
+if ((await metadataService.listNotes(transaction.id)).length !== 1)
+  throw new Error("Expected one note");
 await metadataService.deleteNote(note.id);
-if ((await metadataService.listNotes(transaction.id)).length !== 0) throw new Error("Expected note delete");
+if ((await metadataService.listNotes(transaction.id)).length !== 0)
+  throw new Error("Expected note delete");
 
-const tag = await metadataService.createTag(budget.id, " Tax Deductible ", "green");
+const tag = await metadataService.createTag(
+  budget.id,
+  " Tax Deductible ",
+  "green",
+);
 await metadataService.assignTag(transaction.id, tag.id);
 await metadataService.assignTag(transaction.id, tag.id);
 const tags = await metadataService.listTransactionTags(transaction.id);
-if (tags.length !== 1 || tags[0].name !== "Tax Deductible") throw new Error("Expected idempotent tag assignment");
+if (tags.length !== 1 || tags[0].name !== "Tax Deductible")
+  throw new Error("Expected idempotent tag assignment");
 await metadataService.removeTag(transaction.id, tag.id);
-if ((await metadataService.listTransactionTags(transaction.id)).length !== 0) throw new Error("Expected tag removal");
+if ((await metadataService.listTransactionTags(transaction.id)).length !== 0)
+  throw new Error("Expected tag removal");
 
-const cleared = await metadataService.setClearedStatus(transaction.id, ClearedStatus.Cleared);
-if (cleared.clearedStatus !== ClearedStatus.Cleared) throw new Error("Expected cleared status update");
+const cleared = await metadataService.setClearedStatus(
+  transaction.id,
+  ClearedStatus.Cleared,
+);
+if (cleared.clearedStatus !== ClearedStatus.Cleared)
+  throw new Error("Expected cleared status update");
 
 console.log("v1.2.5 transaction metadata OK");

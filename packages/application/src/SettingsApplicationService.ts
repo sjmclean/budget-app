@@ -6,7 +6,11 @@ import { createAccountSettings } from "../../budget-engine/src/services/createAc
 import { createCategorySettings } from "../../budget-engine/src/services/createCategorySettings.js";
 
 export class SettingsApplicationService {
-  createBudgetSettings(budgetId: string, currency = "AUD", symbol = "$"): BudgetSettings {
+  createBudgetSettings(
+    budgetId: string,
+    currency = "AUD",
+    symbol = "$",
+  ): BudgetSettings {
     return createBudgetSettings(budgetId, currency, symbol);
   }
 

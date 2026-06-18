@@ -2,7 +2,11 @@ import { AccountType } from "../packages/types/src/AccountType.js";
 import { BudgetParticipation } from "../packages/types/src/BudgetParticipation.js";
 import { TransactionType } from "../packages/types/src/TransactionType.js";
 import { ClearedStatus } from "../packages/types/src/ClearedStatus.js";
-import { applyCreditCardBudgetedPurchase, applyCreditCardPayment, createCategoryMonth } from "../packages/budget-engine/src/index.js";
+import {
+  applyCreditCardBudgetedPurchase,
+  applyCreditCardPayment,
+  createCategoryMonth,
+} from "../packages/budget-engine/src/index.js";
 
 const now = new Date();
 const card = {
@@ -12,7 +16,7 @@ const card = {
   type: AccountType.CreditCard,
   participation: BudgetParticipation.OnBudget,
   openingBalance: -20000,
-  currentBalance: -20000
+  currentBalance: -20000,
 };
 
 const groceries = createCategoryMonth("bm-1", "groceries", 0, 30000, 0);
@@ -32,17 +36,26 @@ const purchase = {
   clearedStatus: ClearedStatus.Uncleared,
   isDeleted: false,
   createdAt: now,
-  updatedAt: now
+  updatedAt: now,
 };
 
-const purchaseResult = applyCreditCardBudgetedPurchase(purchase, card, groceries, payment);
+const purchaseResult = applyCreditCardBudgetedPurchase(
+  purchase,
+  card,
+  groceries,
+  payment,
+);
 
 if (purchaseResult.sourceCategoryMonth?.available !== 17500) {
-  throw new Error("Expected credit-card purchase to reduce spending category available");
+  throw new Error(
+    "Expected credit-card purchase to reduce spending category available",
+  );
 }
 
 if (purchaseResult.paymentCategoryMonth.available !== 12500) {
-  throw new Error("Expected funded credit-card purchase to increase payment category available");
+  throw new Error(
+    "Expected funded credit-card purchase to increase payment category available",
+  );
 }
 
 const transferToCard = {
@@ -53,12 +66,18 @@ const transferToCard = {
   type: TransactionType.Transfer,
   accountId: "checking-1",
   transferAccountId: "card-1",
-  amount: -10000
+  amount: -10000,
 };
 
-const afterPayment = applyCreditCardPayment(transferToCard, card, purchaseResult.paymentCategoryMonth);
+const afterPayment = applyCreditCardPayment(
+  transferToCard,
+  card,
+  purchaseResult.paymentCategoryMonth,
+);
 if (afterPayment.available !== 2500) {
-  throw new Error("Expected credit-card payment to consume payment category available");
+  throw new Error(
+    "Expected credit-card payment to consume payment category available",
+  );
 }
 
 console.log("v1.2.4 credit card engine OK");

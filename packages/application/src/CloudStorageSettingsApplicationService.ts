@@ -10,7 +10,7 @@ export class CloudStorageSettingsApplicationService {
   }): CloudStorageSettings {
     return createCloudStorageSettings({
       ...input,
-      provider: SyncProvider.LocalFolder
+      provider: SyncProvider.LocalFolder,
     });
   }
 

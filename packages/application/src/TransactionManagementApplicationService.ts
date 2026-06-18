@@ -32,27 +32,41 @@ export class TransactionManagementApplicationService {
 
   async edit(input: EditTransactionInput): Promise<Transaction> {
     const current = await this.requireTransaction(input.transactionId);
-    if (current.clearedStatus === ClearedStatus.Reconciled && !input.forceReconciledEdit) {
-      throw new Error("Reconciled transactions require explicit override before editing");
+    if (
+      current.clearedStatus === ClearedStatus.Reconciled &&
+      !input.forceReconciledEdit
+    ) {
+      throw new Error(
+        "Reconciled transactions require explicit override before editing",
+      );
     }
     const updated: Transaction = {
       ...current,
       date: input.date ?? current.date,
       payeeId: input.payeeId !== undefined ? input.payeeId : current.payeeId,
-      categoryId: input.categoryId !== undefined ? input.categoryId : current.categoryId,
+      categoryId:
+        input.categoryId !== undefined ? input.categoryId : current.categoryId,
       memo: input.memo !== undefined ? input.memo : current.memo,
       amount: input.amount !== undefined ? input.amount : current.amount,
       clearedStatus: input.clearedStatus ?? current.clearedStatus,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
     await this.transactionRepo.update(updated);
     return updated;
   }
 
-  async delete(transactionId: string, forceReconciledDelete = false): Promise<void> {
+  async delete(
+    transactionId: string,
+    forceReconciledDelete = false,
+  ): Promise<void> {
     const current = await this.requireTransaction(transactionId);
-    if (current.clearedStatus === ClearedStatus.Reconciled && !forceReconciledDelete) {
-      throw new Error("Reconciled transactions require explicit override before deleting");
+    if (
+      current.clearedStatus === ClearedStatus.Reconciled &&
+      !forceReconciledDelete
+    ) {
+      throw new Error(
+        "Reconciled transactions require explicit override before deleting",
+      );
     }
     await this.transactionRepo.softDelete(transactionId);
   }

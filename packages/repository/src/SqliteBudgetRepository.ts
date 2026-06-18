@@ -14,21 +14,40 @@ export class SqliteBudgetRepository implements BudgetRepository {
 
   async create(budget: Budget): Promise<void> {
     sqliteClient(this.db)
-      .prepare(`INSERT INTO budgets (id, name, currency, created_at) VALUES (?, ?, ?, ?)`)
-      .run(budget.id, budget.name, budget.currency, toTimestamp(budget.createdAt));
+      .prepare(
+        `INSERT INTO budgets (id, name, currency, created_at) VALUES (?, ?, ?, ?)`,
+      )
+      .run(
+        budget.id,
+        budget.name,
+        budget.currency,
+        toTimestamp(budget.createdAt),
+      );
   }
 
   async getById(id: string): Promise<Budget | null> {
     const row = sqliteClient(this.db)
-      .prepare(`SELECT id, name, currency, created_at FROM budgets WHERE id = ?`)
+      .prepare(
+        `SELECT id, name, currency, created_at FROM budgets WHERE id = ?`,
+      )
       .get(id) as any;
-    return row ? { id: row.id, name: row.name, currency: row.currency, createdAt: new Date(row.created_at) } : null;
+    return row
+      ? {
+          id: row.id,
+          name: row.name,
+          currency: row.currency,
+          createdAt: new Date(row.created_at),
+        }
+      : null;
   }
 }
 
 function sqliteClient(db: any) {
   const client = db?.$client;
-  if (!client || typeof client.prepare !== "function") throw new Error("Repository requires a Drizzle better-sqlite3 database with $client");
+  if (!client || typeof client.prepare !== "function")
+    throw new Error(
+      "Repository requires a Drizzle better-sqlite3 database with $client",
+    );
   return client;
 }
 function toTimestamp(value: Date | number | string): number {

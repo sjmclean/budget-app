@@ -11,7 +11,10 @@ export class SqliteFileFingerprintRepository implements FileFingerprintRepositor
   }
 
   async findLatestByBudget(budgetId: string): Promise<FileFingerprint | null> {
-    const rows = await this.db.select().from(fileFingerprints).where(eq(fileFingerprints.budgetId, budgetId));
+    const rows = await this.db
+      .select()
+      .from(fileFingerprints)
+      .where(eq(fileFingerprints.budgetId, budgetId));
     return rows[rows.length - 1] ?? null;
   }
 }

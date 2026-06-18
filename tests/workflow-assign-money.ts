@@ -18,7 +18,10 @@ async function main() {
   const categoryRepo = new SqliteCategoryRepository(db);
   const budgetMonthRepo = new SqliteBudgetMonthRepository(db);
   const categoryMonthRepo = new SqliteCategoryMonthRepository(db);
-  const budgetService = new BudgetApplicationService(budgetMonthRepo, categoryMonthRepo);
+  const budgetService = new BudgetApplicationService(
+    budgetMonthRepo,
+    categoryMonthRepo,
+  );
 
   const budget = createBudget("Household Budget");
   await budgetRepo.create(budget);
@@ -28,7 +31,12 @@ async function main() {
   await categoryRepo.create(groceries);
 
   await budgetService.postIncomeToReadyToBudget(budget.id, "2026-06", 400000);
-  const result = await budgetService.assignMoney(budget.id, "2026-06", groceries.id, 50000);
+  const result = await budgetService.assignMoney(
+    budget.id,
+    "2026-06",
+    groceries.id,
+    50000,
+  );
 
   console.log(result);
 }

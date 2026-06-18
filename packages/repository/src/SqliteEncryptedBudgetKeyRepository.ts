@@ -10,11 +10,19 @@ export class SqliteEncryptedBudgetKeyRepository implements EncryptedBudgetKeyRep
     await this.db.insert(encryptedBudgetKeys).values(key);
   }
 
-  async getForUserAndBudget(userId: string, budgetId: string): Promise<EncryptedBudgetKey | null> {
+  async getForUserAndBudget(
+    userId: string,
+    budgetId: string,
+  ): Promise<EncryptedBudgetKey | null> {
     const rows = await this.db
       .select()
       .from(encryptedBudgetKeys)
-      .where(and(eq(encryptedBudgetKeys.userId, userId), eq(encryptedBudgetKeys.budgetId, budgetId)));
+      .where(
+        and(
+          eq(encryptedBudgetKeys.userId, userId),
+          eq(encryptedBudgetKeys.budgetId, budgetId),
+        ),
+      );
 
     return rows[0] ?? null;
   }

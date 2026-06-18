@@ -17,7 +17,7 @@ export class ReconciliationApplicationService {
   constructor(
     private accountRepo: AccountRepository,
     private reconciliationRepo: ReconciliationRepository,
-    private transactionRepo: TransactionRepository
+    private transactionRepo: TransactionRepository,
   ) {}
 
   async complete(input: {
@@ -28,11 +28,24 @@ export class ReconciliationApplicationService {
     createAdjustment?: boolean;
   }): Promise<CompleteReconciliationResult> {
     const account = await this.accountRepo.getById(input.accountId);
-    if (!account) throw new NotFoundError(`Account not found: ${input.accountId}`);
+    if (!account)
+      throw new NotFoundError(`Account not found: ${input.accountId}`);
 
-    const transactions = await this.transactionRepo.findByAccount(input.accountId);
-    const clearedTransactions = transactions.filter((item) => item.clearedStatus === ClearedStatus.Cleared || item.clearedStatus === ClearedStatus.Reconciled);
-    const reconciliation = createReconciliation(input.budgetId, account, clearedTransactions, input.statementDate, input.statementBalance);
+    const transactions = await this.transactionRepo.findByAccount(
+      input.accountId,
+    );
+    const clearedTransactions = transactions.filter(
+      (item) =>
+        item.clearedStatus === ClearedStatus.Cleared ||
+        item.clearedStatus === ClearedStatus.Reconciled,
+    );
+    const reconciliation = createReconciliation(
+      input.budgetId,
+      account,
+      clearedTransactions,
+      input.statementDate,
+      input.statementBalance,
+    );
 
     await this.reconciliationRepo.create(reconciliation);
 
@@ -45,7 +58,7 @@ export class ReconciliationApplicationService {
         date: input.statementDate,
         amount: reconciliation.difference,
         memo: "Reconciliation adjustment",
-        clearedStatus: ClearedStatus.Reconciled
+        clearedStatus: ClearedStatus.Reconciled,
       });
       await this.transactionRepo.create(adjustmentTransaction);
     }

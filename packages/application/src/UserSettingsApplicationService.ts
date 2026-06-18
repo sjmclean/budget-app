@@ -11,7 +11,7 @@ export class UserSettingsApplicationService {
   async update(settings: UserSettings): Promise<UserSettings> {
     const updated = {
       ...settings,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     await this.settingsRepo.update(updated);

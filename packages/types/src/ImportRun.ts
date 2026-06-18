@@ -1,7 +1,7 @@
 export enum ImportSource {
   YNAB4 = "YNAB4",
   CSV = "CSV",
-  Manual = "Manual"
+  Manual = "Manual",
 }
 
 export interface ImportRun {

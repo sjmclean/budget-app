@@ -17,11 +17,16 @@ export interface UndoPreview {
 }
 
 export class CommandHistoryApplicationService {
-  constructor(private undoRepo: UndoRecordRepository, private eventRepo: DomainEventRepository) {}
+  constructor(
+    private undoRepo: UndoRecordRepository,
+    private eventRepo: DomainEventRepository,
+  ) {}
 
   async getUndoStack(budgetId: string): Promise<UndoRecord[]> {
     const records = await this.undoRepo.findByBudget(budgetId);
-    return records.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    return records.sort(
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+    );
   }
 
   async previewUndo(budgetId: string): Promise<UndoPreview | null> {
@@ -30,6 +35,10 @@ export class CommandHistoryApplicationService {
     if (!undoRecord) return null;
     const events = await this.eventRepo.findByBudget(budgetId);
     const event = events.find((item) => item.id === undoRecord.eventId) ?? null;
-    return { undoRecord, event, reversePayload: JSON.parse(undoRecord.reverseEventPayloadJson) };
+    return {
+      undoRecord,
+      event,
+      reversePayload: JSON.parse(undoRecord.reverseEventPayloadJson),
+    };
   }
 }

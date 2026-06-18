@@ -11,6 +11,9 @@ export class SqliteBackupRecordRepository implements BackupRecordRepository {
   }
 
   async findByBudget(budgetId: string): Promise<BackupRecord[]> {
-    return await this.db.select().from(backupRecords).where(eq(backupRecords.budgetId, budgetId));
+    return await this.db
+      .select()
+      .from(backupRecords)
+      .where(eq(backupRecords.budgetId, budgetId));
   }
 }

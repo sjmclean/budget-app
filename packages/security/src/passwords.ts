@@ -9,10 +9,16 @@ export function createSalt(): string {
 }
 
 export function hashPassword(password: string, salt: string): string {
-  return pbkdf2Sync(password, salt, ITERATIONS, KEY_LENGTH, DIGEST).toString("hex");
+  return pbkdf2Sync(password, salt, ITERATIONS, KEY_LENGTH, DIGEST).toString(
+    "hex",
+  );
 }
 
-export function verifyPassword(password: string, salt: string, expectedHash: string): boolean {
+export function verifyPassword(
+  password: string,
+  salt: string,
+  expectedHash: string,
+): boolean {
   const actual = Buffer.from(hashPassword(password, salt), "hex");
   const expected = Buffer.from(expectedHash, "hex");
 

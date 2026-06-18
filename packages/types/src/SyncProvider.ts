@@ -3,5 +3,5 @@ export enum SyncProvider {
   Dropbox = "Dropbox",
   OneDrive = "OneDrive",
   GoogleDrive = "GoogleDrive",
-  ICloudDrive = "ICloudDrive"
+  ICloudDrive = "ICloudDrive",
 }

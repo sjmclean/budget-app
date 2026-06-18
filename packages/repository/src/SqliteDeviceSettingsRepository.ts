@@ -11,10 +11,16 @@ export class SqliteDeviceSettingsRepository implements DeviceSettingsRepository 
   }
 
   async update(item: DeviceSettings): Promise<void> {
-    await this.db.update(deviceSettings).set(item).where(eq(deviceSettings.id, item.id));
+    await this.db
+      .update(deviceSettings)
+      .set(item)
+      .where(eq(deviceSettings.id, item.id));
   }
 
   async findByDeviceId(deviceId: string): Promise<DeviceSettings[]> {
-    return await this.db.select().from(deviceSettings).where(eq(deviceSettings.deviceId, deviceId));
+    return await this.db
+      .select()
+      .from(deviceSettings)
+      .where(eq(deviceSettings.deviceId, deviceId));
   }
 }

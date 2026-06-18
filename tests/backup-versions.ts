@@ -24,24 +24,33 @@ async function main() {
 
   await userRepo.create(user);
   await budgetRepo.create(budget);
-  await budgetUserRepo.create(createBudgetUser(budget.id, user.id, BudgetRole.Owner));
+  await budgetUserRepo.create(
+    createBudgetUser(budget.id, user.id, BudgetRole.Owner),
+  );
 
-  const service = new BackupVersionApplicationService(backupRepo, budgetUserRepo);
+  const service = new BackupVersionApplicationService(
+    backupRepo,
+    budgetUserRepo,
+  );
 
-  console.log(await service.createManualBackup({
-    budgetId: budget.id,
-    userId: user.id,
-    filePath: "backups/household-manual-1.budget",
-    fileSize: 1024,
-    note: "Before major changes"
-  }));
+  console.log(
+    await service.createManualBackup({
+      budgetId: budget.id,
+      userId: user.id,
+      filePath: "backups/household-manual-1.budget",
+      fileSize: 1024,
+      note: "Before major changes",
+    }),
+  );
 
-  console.log(await service.createAutomaticBackup({
-    budgetId: budget.id,
-    userId: user.id,
-    filePath: "backups/household-auto-1.budget",
-    fileSize: 1024
-  }));
+  console.log(
+    await service.createAutomaticBackup({
+      budgetId: budget.id,
+      userId: user.id,
+      filePath: "backups/household-auto-1.budget",
+      fileSize: 1024,
+    }),
+  );
 
   console.log(await service.listBackups(user.id, budget.id));
 }

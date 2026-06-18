@@ -16,7 +16,24 @@ export interface CreateScheduledTransactionInput {
   frequency: ScheduledFrequency;
 }
 
-export function createScheduledTransaction(input: CreateScheduledTransactionInput): ScheduledTransaction {
+export function createScheduledTransaction(
+  input: CreateScheduledTransactionInput,
+): ScheduledTransaction {
   const now = new Date();
-  return { id: randomUUID(), budgetId: input.budgetId, accountId: input.accountId, payeeId: input.payeeId ?? null, categoryId: input.categoryId ?? null, transferAccountId: input.transferAccountId ?? null, type: input.type ?? TransactionType.Standard, amount: input.amount, memo: input.memo ?? null, nextDueDate: input.nextDueDate, frequency: input.frequency, isActive: true, createdAt: now, updatedAt: now };
+  return {
+    id: randomUUID(),
+    budgetId: input.budgetId,
+    accountId: input.accountId,
+    payeeId: input.payeeId ?? null,
+    categoryId: input.categoryId ?? null,
+    transferAccountId: input.transferAccountId ?? null,
+    type: input.type ?? TransactionType.Standard,
+    amount: input.amount,
+    memo: input.memo ?? null,
+    nextDueDate: input.nextDueDate,
+    frequency: input.frequency,
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+  };
 }

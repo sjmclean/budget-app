@@ -20,7 +20,7 @@ const requiredFiles = [
   "docs/adr/ADR-005-explicit-overspending.md",
   "docs/adr/ADR-006-file-sync-first.md",
   "docs/adr/ADR-007-attachments-outside-db.md",
-  "docs/adr/ADR-008-persistent-undo-redo.md"
+  "docs/adr/ADR-008-persistent-undo-redo.md",
 ];
 
 for (const file of requiredFiles) {

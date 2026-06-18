@@ -18,7 +18,7 @@ function monthsUntil(targetDate: string | null, fromDate: string): number {
 export function calculateGoalProgress(
   goal: Goal,
   currentAmount: number,
-  fromDate = new Date().toISOString().slice(0, 10)
+  fromDate = new Date().toISOString().slice(0, 10),
 ): GoalProgress {
   const remainingAmount = Math.max(0, goal.targetAmount - currentAmount);
   const percentComplete =
@@ -32,7 +32,7 @@ export function calculateGoalProgress(
     suggestedMonthlyContribution = goal.monthlyAmount ?? 0;
   } else if (goal.type === GoalType.TargetDate) {
     suggestedMonthlyContribution = Math.ceil(
-      remainingAmount / monthsUntil(goal.targetDate, fromDate)
+      remainingAmount / monthsUntil(goal.targetDate, fromDate),
     );
   } else if (goal.type === GoalType.TargetBalance) {
     suggestedMonthlyContribution = remainingAmount;
@@ -46,6 +46,6 @@ export function calculateGoalProgress(
     currentAmount,
     remainingAmount,
     percentComplete,
-    suggestedMonthlyContribution
+    suggestedMonthlyContribution,
   };
 }

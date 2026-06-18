@@ -46,7 +46,6 @@ pnpm test:all
 
 This release intentionally does not add aggressive unique constraints yet. YNAB4 imports may contain messy duplicate payees/categories/tags, and those need explicit cleanup workflows rather than failed writes. v1.2.9 focuses on safe indexes, integrity inspection, and detailed code comments without risking destructive migration behaviour.
 
-
 ## v1.2.10 – Real Undo/Redo + Import Transaction Safety
 
 This release turns the previous command-history foundation into executable backend undo/redo support and hardens YNAB4 imports so failed imports do not leave partial data behind.
@@ -68,7 +67,6 @@ pnpm test:v1210
 pnpm test:all
 ```
 
-
 ## v1.2.11 Security, Backup Hardening & Contract Tests
 
 This release hardens the backend before UI work by adding:
@@ -87,7 +85,6 @@ Run:
 pnpm test:v1211
 pnpm test:all
 ```
-
 
 ## v1.2.12 Performance & Search Indexing
 

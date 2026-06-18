@@ -7,7 +7,7 @@ import { ThemeMode } from "../../../types/src/ThemeMode.js";
 
 export function createUserSettings(
   userId: string,
-  currency = "AUD"
+  currency = "AUD",
 ): UserSettings {
   const now = new Date();
 
@@ -24,6 +24,6 @@ export function createUserSettings(
     privacyMode: false,
     sidebarCollapsed: false,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
 }

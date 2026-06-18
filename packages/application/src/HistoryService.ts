@@ -11,8 +11,8 @@ export class HistoryService {
   async describeHistory(budgetId: string): Promise<string[]> {
     const events = await this.getHistory(budgetId);
 
-    return events.map(
-      (event) => `${event.occurredAt.toISOString()} ${event.type} ${event.entityId ?? ""}`.trim()
+    return events.map((event) =>
+      `${event.occurredAt.toISOString()} ${event.type} ${event.entityId ?? ""}`.trim(),
     );
   }
 }

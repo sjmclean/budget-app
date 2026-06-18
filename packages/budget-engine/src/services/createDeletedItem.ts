@@ -15,6 +15,6 @@ export function createDeletedItem(input: {
     entityId: input.entityId,
     deletedByUserId: input.deletedByUserId ?? null,
     deletedAt: new Date(),
-    reason: input.reason ?? null
+    reason: input.reason ?? null,
   };
 }

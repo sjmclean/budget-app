@@ -19,20 +19,34 @@ export interface BulkTransactionResult {
 export class BulkTransactionApplicationService {
   constructor(private transactionRepo: TransactionRepository) {}
 
-  private async applyChange(transaction: Transaction, input: BulkTransactionChangeInput): Promise<Transaction> {
-    if (transaction.clearedStatus === ClearedStatus.Reconciled && !input.forceReconciledEdit) {
-      throw new Error("Reconciled transactions require explicit override before bulk editing");
+  private async applyChange(
+    transaction: Transaction,
+    input: BulkTransactionChangeInput,
+  ): Promise<Transaction> {
+    if (
+      transaction.clearedStatus === ClearedStatus.Reconciled &&
+      !input.forceReconciledEdit
+    ) {
+      throw new Error(
+        "Reconciled transactions require explicit override before bulk editing",
+      );
     }
     return {
       ...transaction,
       clearedStatus: input.clearedStatus ?? transaction.clearedStatus,
-      categoryId: input.categoryId !== undefined ? input.categoryId : transaction.categoryId,
-      payeeId: input.payeeId !== undefined ? input.payeeId : transaction.payeeId,
-      updatedAt: new Date()
+      categoryId:
+        input.categoryId !== undefined
+          ? input.categoryId
+          : transaction.categoryId,
+      payeeId:
+        input.payeeId !== undefined ? input.payeeId : transaction.payeeId,
+      updatedAt: new Date(),
     };
   }
 
-  async bulkUpdate(input: BulkTransactionChangeInput): Promise<BulkTransactionResult> {
+  async bulkUpdate(
+    input: BulkTransactionChangeInput,
+  ): Promise<BulkTransactionResult> {
     const updated: string[] = [];
     const skipped: { transactionId: string; reason: string }[] = [];
     for (const id of input.transactionIds) {
@@ -46,13 +60,19 @@ export class BulkTransactionApplicationService {
         await this.transactionRepo.update(next);
         updated.push(id);
       } catch (error: any) {
-        skipped.push({ transactionId: id, reason: error.message ?? String(error) });
+        skipped.push({
+          transactionId: id,
+          reason: error.message ?? String(error),
+        });
       }
     }
     return { updated, skipped };
   }
 
-  async bulkDelete(transactionIds: string[], forceReconciledDelete = false): Promise<BulkTransactionResult> {
+  async bulkDelete(
+    transactionIds: string[],
+    forceReconciledDelete = false,
+  ): Promise<BulkTransactionResult> {
     const updated: string[] = [];
     const skipped: { transactionId: string; reason: string }[] = [];
     for (const id of transactionIds) {
@@ -61,8 +81,15 @@ export class BulkTransactionApplicationService {
         skipped.push({ transactionId: id, reason: "Transaction not found" });
         continue;
       }
-      if (transaction.clearedStatus === ClearedStatus.Reconciled && !forceReconciledDelete) {
-        skipped.push({ transactionId: id, reason: "Reconciled transactions require explicit override before bulk deleting" });
+      if (
+        transaction.clearedStatus === ClearedStatus.Reconciled &&
+        !forceReconciledDelete
+      ) {
+        skipped.push({
+          transactionId: id,
+          reason:
+            "Reconciled transactions require explicit override before bulk deleting",
+        });
         continue;
       }
       await this.transactionRepo.softDelete(id);

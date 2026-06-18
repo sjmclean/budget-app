@@ -2,7 +2,10 @@ import { ChangeOperation } from "../../types/src/ChangeOperation.js";
 import { ChangeRecord } from "../../types/src/ChangeRecord.js";
 import { SyncPlan } from "../../types/src/SyncPlan.js";
 import { createChangeRecord } from "../../budget-engine/src/services/createChangeRecord.js";
-import { createSyncState, markSynced } from "../../budget-engine/src/services/createSyncState.js";
+import {
+  createSyncState,
+  markSynced,
+} from "../../budget-engine/src/services/createSyncState.js";
 import { planSync } from "../../budget-engine/src/services/planSync.js";
 import { ChangeRecordRepository } from "../../repository/src/ChangeRecordRepository.js";
 import { SyncStateRepository } from "../../repository/src/SyncStateRepository.js";
@@ -10,7 +13,7 @@ import { SyncStateRepository } from "../../repository/src/SyncStateRepository.js
 export class SyncApplicationService {
   constructor(
     private changeRepo: ChangeRecordRepository,
-    private syncStateRepo: SyncStateRepository
+    private syncStateRepo: SyncStateRepository,
   ) {}
 
   async recordChange(input: {
@@ -27,7 +30,10 @@ export class SyncApplicationService {
   }
 
   async getOrCreateSyncState(budgetId: string, deviceId: string) {
-    const existing = await this.syncStateRepo.getByBudgetAndDevice(budgetId, deviceId);
+    const existing = await this.syncStateRepo.getByBudgetAndDevice(
+      budgetId,
+      deviceId,
+    );
     if (existing) return existing;
 
     const state = createSyncState(budgetId, deviceId);

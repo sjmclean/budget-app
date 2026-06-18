@@ -5,15 +5,18 @@ import { TransactionAttachment } from "../../../types/src/TransactionAttachment.
 export function calculateStorageUsage(
   budgetFileSize: number,
   attachments: TransactionAttachment[],
-  backups: BackupVersion[]
+  backups: BackupVersion[],
 ): StorageUsage {
-  const attachmentSize = attachments.reduce((total, item) => total + item.fileSize, 0);
+  const attachmentSize = attachments.reduce(
+    (total, item) => total + item.fileSize,
+    0,
+  );
   const backupSize = backups.reduce((total, item) => total + item.fileSize, 0);
 
   return {
     budgetFileSize,
     attachmentSize,
     backupSize,
-    totalSize: budgetFileSize + attachmentSize + backupSize
+    totalSize: budgetFileSize + attachmentSize + backupSize,
   };
 }

@@ -12,13 +12,13 @@ export class AuthApplicationService {
   constructor(
     private userRepo: UserRepository,
     private sessionRepo: SessionRepository,
-    private settingsRepo: UserSettingsRepository
+    private settingsRepo: UserSettingsRepository,
   ) {}
 
   async signUp(
     displayName: string,
     email: string | null,
-    password: string
+    password: string,
   ): Promise<User> {
     const existing = await this.userRepo.findByDisplayName(displayName);
     if (existing) {

@@ -13,5 +13,5 @@ export enum DomainEventType {
   OverspendingCovered = "OverspendingCovered",
   OverspendingLeft = "OverspendingLeft",
   MonthRolledOver = "MonthRolledOver",
-  ReconciliationCompleted = "ReconciliationCompleted"
+  ReconciliationCompleted = "ReconciliationCompleted",
 }

@@ -8,7 +8,17 @@
  * richer repair decisions to future import review tooling.
  */
 import { and, eq } from "drizzle-orm";
-import { accounts, categories, importMaps, importRuns, payees, splitTransactionLines, transactionFlags, transactionNotes, transactions } from "../../database/src/schema.js";
+import {
+  accounts,
+  categories,
+  importMaps,
+  importRuns,
+  payees,
+  splitTransactionLines,
+  transactionFlags,
+  transactionNotes,
+  transactions,
+} from "../../database/src/schema.js";
 import { ImportMap } from "../../types/src/ImportMap.js";
 import { ImportRun } from "../../types/src/ImportRun.js";
 
@@ -28,23 +38,32 @@ const orderedEntityTypes = [
   "transaction",
   "account",
   "category",
-  "payee"
+  "payee",
 ];
 
 export class ImportRollbackApplicationService {
   constructor(private db: any) {}
 
   async undoImportRun(importRunId: string): Promise<ImportRollbackResult> {
-    const runs: ImportRun[] = await this.db.select().from(importRuns).where(eq(importRuns.id, importRunId));
+    const runs: ImportRun[] = await this.db
+      .select()
+      .from(importRuns)
+      .where(eq(importRuns.id, importRunId));
     const run = runs[0];
     if (!run) throw new Error(`Import run not found: ${importRunId}`);
-    if (run.status === "rolled_back") return { importRunId, deleted: {}, status: "rolled_back" };
+    if (run.status === "rolled_back")
+      return { importRunId, deleted: {}, status: "rolled_back" };
 
-    const maps: ImportMap[] = await this.db.select().from(importMaps).where(eq(importMaps.importRunId, importRunId));
+    const maps: ImportMap[] = await this.db
+      .select()
+      .from(importMaps)
+      .where(eq(importMaps.importRunId, importRunId));
     const deleted: Record<string, number> = {};
 
     for (const entityType of orderedEntityTypes) {
-      const ids = maps.filter((map) => map.targetEntityType === entityType).map((map) => map.targetEntityId);
+      const ids = maps
+        .filter((map) => map.targetEntityType === entityType)
+        .map((map) => map.targetEntityId);
       if (ids.length === 0) continue;
       for (const id of ids) {
         const count = await this.deleteTarget(entityType, id, run.budgetId);
@@ -52,42 +71,82 @@ export class ImportRollbackApplicationService {
       }
     }
 
-    await this.db.update(importRuns).set({ ...run, status: "rolled_back", completedAt: new Date(), summaryJson: JSON.stringify({ ...this.safeSummary(run), rolledBackAt: new Date().toISOString(), deleted }) }).where(eq(importRuns.id, importRunId));
+    await this.db
+      .update(importRuns)
+      .set({
+        ...run,
+        status: "rolled_back",
+        completedAt: new Date(),
+        summaryJson: JSON.stringify({
+          ...this.safeSummary(run),
+          rolledBackAt: new Date().toISOString(),
+          deleted,
+        }),
+      })
+      .where(eq(importRuns.id, importRunId));
     return { importRunId, deleted, status: "rolled_back" };
   }
 
   private safeSummary(run: ImportRun): Record<string, unknown> {
-    try { return JSON.parse(run.summaryJson || "{}"); } catch { return {}; }
+    try {
+      return JSON.parse(run.summaryJson || "{}");
+    } catch {
+      return {};
+    }
   }
 
-  private async deleteTarget(entityType: string, id: string, budgetId: string): Promise<number> {
+  private async deleteTarget(
+    entityType: string,
+    id: string,
+    budgetId: string,
+  ): Promise<number> {
     switch (entityType) {
       case "split":
       case "splitTransactionLine":
-        await this.db.delete(splitTransactionLines).where(eq(splitTransactionLines.id, id));
+        await this.db
+          .delete(splitTransactionLines)
+          .where(eq(splitTransactionLines.id, id));
         return 1;
       case "flag":
       case "transactionFlag":
-        await this.db.delete(transactionFlags).where(eq(transactionFlags.id, id));
+        await this.db
+          .delete(transactionFlags)
+          .where(eq(transactionFlags.id, id));
         return 1;
       case "note":
       case "transactionNote":
-        await this.db.delete(transactionNotes).where(eq(transactionNotes.id, id));
+        await this.db
+          .delete(transactionNotes)
+          .where(eq(transactionNotes.id, id));
         return 1;
       case "transaction":
-        await this.db.delete(splitTransactionLines).where(eq(splitTransactionLines.transactionId, id));
-        await this.db.delete(transactionFlags).where(eq(transactionFlags.transactionId, id));
-        await this.db.delete(transactionNotes).where(eq(transactionNotes.transactionId, id));
-        await this.db.delete(transactions).where(and(eq(transactions.id, id), eq(transactions.budgetId, budgetId)));
+        await this.db
+          .delete(splitTransactionLines)
+          .where(eq(splitTransactionLines.transactionId, id));
+        await this.db
+          .delete(transactionFlags)
+          .where(eq(transactionFlags.transactionId, id));
+        await this.db
+          .delete(transactionNotes)
+          .where(eq(transactionNotes.transactionId, id));
+        await this.db
+          .delete(transactions)
+          .where(
+            and(eq(transactions.id, id), eq(transactions.budgetId, budgetId)),
+          );
         return 1;
       case "account":
-        await this.db.delete(accounts).where(and(eq(accounts.id, id), eq(accounts.budgetId, budgetId)));
+        await this.db
+          .delete(accounts)
+          .where(and(eq(accounts.id, id), eq(accounts.budgetId, budgetId)));
         return 1;
       case "category":
         await this.db.delete(categories).where(eq(categories.id, id));
         return 1;
       case "payee":
-        await this.db.delete(payees).where(and(eq(payees.id, id), eq(payees.budgetId, budgetId)));
+        await this.db
+          .delete(payees)
+          .where(and(eq(payees.id, id), eq(payees.budgetId, budgetId)));
         return 1;
       default:
         return 0;

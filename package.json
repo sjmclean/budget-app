@@ -121,7 +121,13 @@
     "test:v1214:fk-plan": "tsx tests/v1214-foreign-key-plan.ts",
     "test:v1214": "pnpm test:v1214:bank-import-commit && pnpm test:v1214:payee-rules && pnpm test:v1214:undo-coverage && pnpm test:v1214:fk-plan",
     "test:v1215:docs": "tsx tests/v1215-docs.ts",
-    "test:v1215": "pnpm test:v1215:docs"
+    "test:v1215": "pnpm test:v1215:docs",
+    "eslint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier . --write",
+    "lint": "eslint .",
+    "format:check": "prettier . --check",
+    "validate": "pnpm typecheck && pnpm format:check && pnpm lint"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
@@ -129,6 +135,10 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
+    "@typescript-eslint/eslint-plugin": "^8.61.1",
+    "@typescript-eslint/parser": "^8.61.1",
+    "eslint": "^10.5.0",
+    "prettier": "^3.8.4",
     "tsx": "^4.22.4",
     "typescript": "^5.9.3"
   }

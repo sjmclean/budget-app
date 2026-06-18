@@ -6,7 +6,7 @@ export function createDomainEvent(
   budgetId: string,
   type: DomainEventType,
   entityId: string | null,
-  payload: unknown
+  payload: unknown,
 ): DomainEvent {
   return {
     id: randomUUID(),
@@ -14,6 +14,6 @@ export function createDomainEvent(
     type,
     entityId,
     occurredAt: new Date(),
-    payloadJson: JSON.stringify(payload)
+    payloadJson: JSON.stringify(payload),
   };
 }

@@ -8,21 +8,23 @@ export interface BackupPruneResult {
 
 export function pruneAutomaticBackupVersions(
   backups: BackupVersion[],
-  maxAutomaticBackups = 10
+  maxAutomaticBackups = 10,
 ): BackupPruneResult {
   const automatic = backups
     .filter((backup) => backup.type === BackupType.Automatic)
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-  const manualAndSpecial = backups.filter((backup) => backup.type !== BackupType.Automatic);
+  const manualAndSpecial = backups.filter(
+    (backup) => backup.type !== BackupType.Automatic,
+  );
 
   const keepAutomatic = automatic.slice(0, maxAutomaticBackups);
   const remove = automatic.slice(maxAutomaticBackups);
 
   return {
     keep: [...manualAndSpecial, ...keepAutomatic].sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
     ),
-    remove
+    remove,
   };
 }

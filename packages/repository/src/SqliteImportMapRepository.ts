@@ -11,10 +11,16 @@ export class SqliteImportMapRepository implements ImportMapRepository {
   }
 
   async update(item: ImportMap): Promise<void> {
-    await this.db.update(importMaps).set(item).where(eq(importMaps.id, item.id));
+    await this.db
+      .update(importMaps)
+      .set(item)
+      .where(eq(importMaps.id, item.id));
   }
 
   async findByImportRunId(importRunId: string): Promise<ImportMap[]> {
-    return await this.db.select().from(importMaps).where(eq(importMaps.importRunId, importRunId));
+    return await this.db
+      .select()
+      .from(importMaps)
+      .where(eq(importMaps.importRunId, importRunId));
   }
 }

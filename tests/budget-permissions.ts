@@ -19,24 +19,35 @@ async function main() {
   const auth = new AuthApplicationService(
     userRepo,
     new SqliteSessionRepository(db),
-    settingsRepo
+    settingsRepo,
   );
 
   const budgets = new UserBudgetApplicationService(
     new SqliteBudgetRepository(db),
-    new SqliteBudgetUserRepository(db)
+    new SqliteBudgetUserRepository(db),
   );
 
   const stewart = await auth.signUp("Stewart", null, "password123");
   const daughter = await auth.signUp("Daughter", null, "password456");
 
-  const household = await budgets.createBudgetForUser(stewart.id, "Household Budget");
-  const daughterBudget = await budgets.createBudgetForUser(daughter.id, "Daughter Budget");
+  const household = await budgets.createBudgetForUser(
+    stewart.id,
+    "Household Budget",
+  );
+  const daughterBudget = await budgets.createBudgetForUser(
+    daughter.id,
+    "Daughter Budget",
+  );
 
   console.log(await budgets.listAccessibleBudgetIds(stewart.id));
   console.log(await budgets.listAccessibleBudgetIds(daughter.id));
 
-  await budgets.shareBudget(stewart.id, household.id, daughter.id, BudgetRole.Viewer);
+  await budgets.shareBudget(
+    stewart.id,
+    household.id,
+    daughter.id,
+    BudgetRole.Viewer,
+  );
 
   console.log(await budgets.listAccessibleBudgetIds(daughter.id));
   console.log(household.name, daughterBudget.name);

@@ -11,10 +11,16 @@ export class SqliteImportRunRepository implements ImportRunRepository {
   }
 
   async update(item: ImportRun): Promise<void> {
-    await this.db.update(importRuns).set(item).where(eq(importRuns.id, item.id));
+    await this.db
+      .update(importRuns)
+      .set(item)
+      .where(eq(importRuns.id, item.id));
   }
 
   async findByBudgetId(budgetId: string): Promise<ImportRun[]> {
-    return await this.db.select().from(importRuns).where(eq(importRuns.budgetId, budgetId));
+    return await this.db
+      .select()
+      .from(importRuns)
+      .where(eq(importRuns.budgetId, budgetId));
   }
 }

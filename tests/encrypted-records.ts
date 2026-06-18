@@ -15,7 +15,7 @@ async function main() {
   const original = {
     id: "transaction-1",
     amount: -15000,
-    memo: "Groceries"
+    memo: "Groceries",
   };
 
   const encrypted = await service.saveEncrypted({
@@ -24,7 +24,7 @@ async function main() {
     entityId: original.id,
     keyVersion: 1,
     plainObject: original,
-    key
+    key,
   });
 
   const reloaded = await repo.getByEntity("Transaction", original.id);

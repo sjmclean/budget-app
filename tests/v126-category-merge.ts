@@ -16,7 +16,9 @@ import { SqliteTransactionRepository } from "../packages/repository/src/SqliteTr
 import { CategoryMergeApplicationService } from "../packages/application/src/CategoryMergeApplicationService.js";
 
 const dbPath = "/tmp/budget-v126-category-merge.sqlite";
-try { unlinkSync(dbPath); } catch {}
+try {
+  unlinkSync(dbPath);
+} catch {}
 const db = createDatabase(dbPath);
 const budgetRepo = new SqliteBudgetRepository(db);
 const accountRepo = new SqliteAccountRepository(db);
@@ -24,18 +26,39 @@ const groupRepo = new SqliteCategoryGroupRepository(db);
 const categoryRepo = new SqliteCategoryRepository(db);
 const categoryMonthRepo = new SqliteCategoryMonthRepository(db);
 const txRepo = new SqliteTransactionRepository(db);
-const service = new CategoryMergeApplicationService(categoryRepo, categoryMonthRepo, txRepo);
+const service = new CategoryMergeApplicationService(
+  categoryRepo,
+  categoryMonthRepo,
+  txRepo,
+);
 const budget = createBudget("v1.2.6 Category Merge", "AUD");
 await budgetRepo.create(budget);
-const account = createAccount(budget.id, "Everyday", AccountType.Checking, BudgetParticipation.OnBudget, 0);
+const account = createAccount(
+  budget.id,
+  "Everyday",
+  AccountType.Checking,
+  BudgetParticipation.OnBudget,
+  0,
+);
 await accountRepo.create(account);
-const group = createCategoryGroup(budget.id, "Everyday", 1); await groupRepo.create(group);
-const source = createCategory(group.id, "Dining", 1); const target = createCategory(group.id, "Restaurants", 2);
-await categoryRepo.create(source); await categoryRepo.create(target);
-const tx = createTransaction({ budgetId: budget.id, accountId: account.id, categoryId: source.id, date: "2026-06-17", amount: -2500 });
+const group = createCategoryGroup(budget.id, "Everyday", 1);
+await groupRepo.create(group);
+const source = createCategory(group.id, "Dining", 1);
+const target = createCategory(group.id, "Restaurants", 2);
+await categoryRepo.create(source);
+await categoryRepo.create(target);
+const tx = createTransaction({
+  budgetId: budget.id,
+  accountId: account.id,
+  categoryId: source.id,
+  date: "2026-06-17",
+  amount: -2500,
+});
 await txRepo.create(tx);
 const result = await service.mergeCategories(source.id, target.id, budget.id);
-if (result.movedTransactions !== 1) throw new Error("Expected transaction reassignment during merge");
+if (result.movedTransactions !== 1)
+  throw new Error("Expected transaction reassignment during merge");
 const moved = await txRepo.getById(tx.id);
-if (moved?.categoryId !== target.id) throw new Error("Expected transaction category to move to target");
+if (moved?.categoryId !== target.id)
+  throw new Error("Expected transaction category to move to target");
 console.log("v1.2.6 category merge foundation OK");

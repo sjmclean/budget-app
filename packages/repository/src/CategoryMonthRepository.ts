@@ -5,6 +5,9 @@ export interface CategoryMonthRepository {
   update(categoryMonth: CategoryMonth): Promise<void>;
   getById(id: string): Promise<CategoryMonth | null>;
   findByBudgetMonth(budgetMonthId: string): Promise<CategoryMonth[]>;
-  getByBudgetMonthAndCategory(budgetMonthId: string, categoryId: string): Promise<CategoryMonth | null>;
+  getByBudgetMonthAndCategory(
+    budgetMonthId: string,
+    categoryId: string,
+  ): Promise<CategoryMonth | null>;
   findByCategory(categoryId: string): Promise<CategoryMonth[]>;
 }

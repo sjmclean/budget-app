@@ -1,7 +1,10 @@
 import { randomUUID } from "crypto";
 import { AccountSettings } from "../../../types/src/AccountSettings.js";
 
-export function createAccountSettings(accountId: string, displayOrder = 0): AccountSettings {
+export function createAccountSettings(
+  accountId: string,
+  displayOrder = 0,
+): AccountSettings {
   const now = new Date();
 
   return {
@@ -14,6 +17,6 @@ export function createAccountSettings(accountId: string, displayOrder = 0): Acco
     reconciliationReminder: false,
     notes: null,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
 }

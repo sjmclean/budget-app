@@ -15,13 +15,25 @@ export interface DerivedSecret {
  * should prefer this helper because scrypt is intentionally memory-hard and therefore a
  * better fit for protecting local budget files and optional budget encryption keys.
  */
-export function derivePasswordSecret(password: string, salt = randomBytes(16).toString("hex")): DerivedSecret {
+export function derivePasswordSecret(
+  password: string,
+  salt = randomBytes(16).toString("hex"),
+): DerivedSecret {
   const key = scryptSync(password, salt, 32, { N: 16_384, r: 8, p: 1 });
   return { algorithm: DEFAULT_KEY_DERIVATION, salt, hash: key.toString("hex") };
 }
 
-export function verifyPasswordSecret(password: string, expected: DerivedSecret): boolean {
-  const actual = Buffer.from(derivePasswordSecret(password, expected.salt).hash, "hex");
+export function verifyPasswordSecret(
+  password: string,
+  expected: DerivedSecret,
+): boolean {
+  const actual = Buffer.from(
+    derivePasswordSecret(password, expected.salt).hash,
+    "hex",
+  );
   const expectedHash = Buffer.from(expected.hash, "hex");
-  return actual.length === expectedHash.length && timingSafeEqual(actual, expectedHash);
+  return (
+    actual.length === expectedHash.length &&
+    timingSafeEqual(actual, expectedHash)
+  );
 }

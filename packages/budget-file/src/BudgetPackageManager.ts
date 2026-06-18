@@ -1,4 +1,7 @@
-import { BudgetCreator, type CreateBudgetPackageInput } from "./BudgetCreator.js";
+import {
+  BudgetCreator,
+  type CreateBudgetPackageInput,
+} from "./BudgetCreator.js";
 import { BudgetLockManager } from "./BudgetLockManager.js";
 import { BudgetOpener } from "./BudgetOpener.js";
 import { AttachmentManager } from "./AttachmentManager.js";

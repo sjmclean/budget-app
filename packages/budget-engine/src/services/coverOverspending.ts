@@ -9,11 +9,13 @@ export interface CoverOverspendingResult {
 export function coverOverspending(
   overspentCategoryMonth: CategoryMonth,
   coveringCategoryMonth: CategoryMonth,
-  amount: number
+  amount: number,
 ): CoverOverspendingResult {
   if (amount <= 0) throw new Error("Cover amount must be positive");
-  if (overspentCategoryMonth.available >= 0) throw new Error("Category is not overspent");
-  if (coveringCategoryMonth.available < amount) throw new Error("Covering category has insufficient available funds");
+  if (overspentCategoryMonth.available >= 0)
+    throw new Error("Category is not overspent");
+  if (coveringCategoryMonth.available < amount)
+    throw new Error("Covering category has insufficient available funds");
 
   const updatedOverspentAssigned = overspentCategoryMonth.assigned + amount;
   const updatedCoveringAssigned = coveringCategoryMonth.assigned - amount;
@@ -25,9 +27,9 @@ export function coverOverspending(
       available: calculateAvailable(
         overspentCategoryMonth.previousAvailable,
         updatedOverspentAssigned,
-        overspentCategoryMonth.activity
+        overspentCategoryMonth.activity,
       ),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     },
     coveringCategoryMonth: {
       ...coveringCategoryMonth,
@@ -35,9 +37,9 @@ export function coverOverspending(
       available: calculateAvailable(
         coveringCategoryMonth.previousAvailable,
         updatedCoveringAssigned,
-        coveringCategoryMonth.activity
+        coveringCategoryMonth.activity,
       ),
-      updatedAt: new Date()
-    }
+      updatedAt: new Date(),
+    },
   };
 }

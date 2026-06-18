@@ -10,12 +10,16 @@ export interface MigrationDefinition {
 export class MigrationRunner {
   constructor(private migrationRepo: SchemaMigrationRepository) {}
 
-  async getPending(migrations: MigrationDefinition[]): Promise<MigrationDefinition[]> {
+  async getPending(
+    migrations: MigrationDefinition[],
+  ): Promise<MigrationDefinition[]> {
     const sorted = [...migrations].sort((a, b) => a.version - b.version);
     const pending: MigrationDefinition[] = [];
 
     for (const migration of sorted) {
-      const existing = await this.migrationRepo.findByVersion(String(migration.version));
+      const existing = await this.migrationRepo.findByVersion(
+        String(migration.version),
+      );
       if (existing.length === 0) pending.push(migration);
     }
 
@@ -28,7 +32,9 @@ export class MigrationRunner {
 
     for (const migration of pending) {
       await migration.up();
-      await this.migrationRepo.create(createSchemaMigration(migration.version, migration.name));
+      await this.migrationRepo.create(
+        createSchemaMigration(migration.version, migration.name),
+      );
       applied.push(migration.version);
     }
 

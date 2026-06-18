@@ -18,16 +18,19 @@ export function createImportRun(input: {
     startedAt: new Date(),
     completedAt: null,
     status: "Started",
-    summaryJson: JSON.stringify(input.summary ?? {})
+    summaryJson: JSON.stringify(input.summary ?? {}),
   };
 }
 
-export function completeImportRun(importRun: ImportRun, summary: unknown): ImportRun {
+export function completeImportRun(
+  importRun: ImportRun,
+  summary: unknown,
+): ImportRun {
   return {
     ...importRun,
     completedAt: new Date(),
     status: "Completed",
-    summaryJson: JSON.stringify(summary)
+    summaryJson: JSON.stringify(summary),
   };
 }
 
@@ -41,6 +44,6 @@ export function createImportMap(input: {
   return {
     id: randomUUID(),
     ...input,
-    createdAt: new Date()
+    createdAt: new Date(),
   };
 }

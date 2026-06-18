@@ -8,7 +8,9 @@ async function main() {
   const db = createDatabase("Test.budget");
   const repo = new SqliteRecentFileRepository(db);
 
-  await repo.create(createRecentFile("user", "/Budgets/Household.budget", "Household"));
+  await repo.create(
+    createRecentFile("user", "/Budgets/Household.budget", "Household"),
+  );
 
   console.log(await repo.findByUserId("user"));
 }

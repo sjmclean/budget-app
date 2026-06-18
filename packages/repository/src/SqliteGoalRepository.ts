@@ -15,10 +15,16 @@ export class SqliteGoalRepository implements GoalRepository {
   }
 
   async findByBudget(budgetId: string): Promise<Goal[]> {
-    return await this.db.select().from(goals).where(eq(goals.budgetId, budgetId));
+    return await this.db
+      .select()
+      .from(goals)
+      .where(eq(goals.budgetId, budgetId));
   }
 
   async findByCategory(categoryId: string): Promise<Goal[]> {
-    return await this.db.select().from(goals).where(eq(goals.categoryId, categoryId));
+    return await this.db
+      .select()
+      .from(goals)
+      .where(eq(goals.categoryId, categoryId));
   }
 }

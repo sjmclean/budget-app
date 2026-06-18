@@ -11,10 +11,16 @@ export class SqliteCloudStorageSettingsRepository implements CloudStorageSetting
   }
 
   async update(item: CloudStorageSettings): Promise<void> {
-    await this.db.update(cloudStorageSettings).set(item).where(eq(cloudStorageSettings.id, item.id));
+    await this.db
+      .update(cloudStorageSettings)
+      .set(item)
+      .where(eq(cloudStorageSettings.id, item.id));
   }
 
   async findByUserId(userId: string): Promise<CloudStorageSettings[]> {
-    return await this.db.select().from(cloudStorageSettings).where(eq(cloudStorageSettings.userId, userId));
+    return await this.db
+      .select()
+      .from(cloudStorageSettings)
+      .where(eq(cloudStorageSettings.userId, userId));
   }
 }

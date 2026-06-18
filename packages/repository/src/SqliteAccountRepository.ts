@@ -13,37 +13,64 @@ export class SqliteAccountRepository implements AccountRepository {
 
   async create(account: Account): Promise<void> {
     sqliteClient(this.db)
-      .prepare(`
+      .prepare(
+        `
         INSERT INTO accounts (id, budget_id, name, type, participation, opening_balance, current_balance)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `)
-      .run(account.id, account.budgetId, account.name, account.type, account.participation, account.openingBalance, account.currentBalance);
+      `,
+      )
+      .run(
+        account.id,
+        account.budgetId,
+        account.name,
+        account.type,
+        account.participation,
+        account.openingBalance,
+        account.currentBalance,
+      );
   }
 
   async update(account: Account): Promise<void> {
     sqliteClient(this.db)
-      .prepare(`
+      .prepare(
+        `
         UPDATE accounts
         SET budget_id = ?, name = ?, type = ?, participation = ?, opening_balance = ?, current_balance = ?
         WHERE id = ?
-      `)
-      .run(account.budgetId, account.name, account.type, account.participation, account.openingBalance, account.currentBalance, account.id);
+      `,
+      )
+      .run(
+        account.budgetId,
+        account.name,
+        account.type,
+        account.participation,
+        account.openingBalance,
+        account.currentBalance,
+        account.id,
+      );
   }
 
   async getById(id: string): Promise<Account | null> {
-    const row = sqliteClient(this.db).prepare(`SELECT * FROM accounts WHERE id = ?`).get(id) as any;
+    const row = sqliteClient(this.db)
+      .prepare(`SELECT * FROM accounts WHERE id = ?`)
+      .get(id) as any;
     return row ? fromAccountRow(row) : null;
   }
 
   async findByBudget(budgetId: string): Promise<Account[]> {
-    const rows = sqliteClient(this.db).prepare(`SELECT * FROM accounts WHERE budget_id = ?`).all(budgetId) as any[];
+    const rows = sqliteClient(this.db)
+      .prepare(`SELECT * FROM accounts WHERE budget_id = ?`)
+      .all(budgetId) as any[];
     return rows.map(fromAccountRow);
   }
 }
 
 function sqliteClient(db: any) {
   const client = db?.$client;
-  if (!client || typeof client.prepare !== "function") throw new Error("Repository requires a Drizzle better-sqlite3 database with $client");
+  if (!client || typeof client.prepare !== "function")
+    throw new Error(
+      "Repository requires a Drizzle better-sqlite3 database with $client",
+    );
   return client;
 }
 function fromAccountRow(row: any): Account {
@@ -54,6 +81,6 @@ function fromAccountRow(row: any): Account {
     type: row.type,
     participation: row.participation,
     openingBalance: row.opening_balance,
-    currentBalance: row.current_balance
+    currentBalance: row.current_balance,
   };
 }

@@ -15,23 +15,27 @@ export class SqliteTransactionRepository implements TransactionRepository {
 
   async create(transaction: Transaction): Promise<void> {
     sqliteClient(this.db)
-      .prepare(`
+      .prepare(
+        `
         INSERT INTO transactions (
           id, budget_id, account_id, payee_id, category_id, transfer_account_id, type, date, memo,
           amount, cleared_status, is_deleted, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `)
+      `,
+      )
       .run(...transactionParams(transaction));
   }
 
   async update(transaction: Transaction): Promise<void> {
     sqliteClient(this.db)
-      .prepare(`
+      .prepare(
+        `
         UPDATE transactions
         SET budget_id = ?, account_id = ?, payee_id = ?, category_id = ?, transfer_account_id = ?,
             type = ?, date = ?, memo = ?, amount = ?, cleared_status = ?, is_deleted = ?, created_at = ?, updated_at = ?
         WHERE id = ?
-      `)
+      `,
+      )
       .run(
         transaction.budgetId,
         transaction.accountId,
@@ -46,38 +50,57 @@ export class SqliteTransactionRepository implements TransactionRepository {
         transaction.isDeleted ? 1 : 0,
         toTimestamp(transaction.createdAt),
         toTimestamp(transaction.updatedAt),
-        transaction.id
+        transaction.id,
       );
   }
 
   async getById(id: string): Promise<Transaction | null> {
-    const row = sqliteClient(this.db).prepare(`SELECT * FROM transactions WHERE id = ?`).get(id) as any;
+    const row = sqliteClient(this.db)
+      .prepare(`SELECT * FROM transactions WHERE id = ?`)
+      .get(id) as any;
     return row ? fromTransactionRow(row) : null;
   }
 
   async findByBudget(budgetId: string): Promise<Transaction[]> {
-    const rows = sqliteClient(this.db).prepare(`SELECT * FROM transactions WHERE budget_id = ?`).all(budgetId) as any[];
+    const rows = sqliteClient(this.db)
+      .prepare(`SELECT * FROM transactions WHERE budget_id = ?`)
+      .all(budgetId) as any[];
     return rows.map(fromTransactionRow);
   }
 
   async findByAccount(accountId: string): Promise<Transaction[]> {
-    const rows = sqliteClient(this.db).prepare(`SELECT * FROM transactions WHERE account_id = ?`).all(accountId) as any[];
+    const rows = sqliteClient(this.db)
+      .prepare(`SELECT * FROM transactions WHERE account_id = ?`)
+      .all(accountId) as any[];
     return rows.map(fromTransactionRow);
   }
 
-  async findByStatus(budgetId: string, status: ClearedStatus): Promise<Transaction[]> {
+  async findByStatus(
+    budgetId: string,
+    status: ClearedStatus,
+  ): Promise<Transaction[]> {
     const rows = sqliteClient(this.db)
-      .prepare(`SELECT * FROM transactions WHERE budget_id = ? AND cleared_status = ?`)
+      .prepare(
+        `SELECT * FROM transactions WHERE budget_id = ? AND cleared_status = ?`,
+      )
       .all(budgetId, status) as any[];
     return rows.map(fromTransactionRow);
   }
 
   async softDelete(id: string): Promise<void> {
-    sqliteClient(this.db).prepare(`UPDATE transactions SET is_deleted = 1, updated_at = ? WHERE id = ?`).run(Date.now(), id);
+    sqliteClient(this.db)
+      .prepare(
+        `UPDATE transactions SET is_deleted = 1, updated_at = ? WHERE id = ?`,
+      )
+      .run(Date.now(), id);
   }
 
   async restore(id: string): Promise<void> {
-    sqliteClient(this.db).prepare(`UPDATE transactions SET is_deleted = 0, updated_at = ? WHERE id = ?`).run(Date.now(), id);
+    sqliteClient(this.db)
+      .prepare(
+        `UPDATE transactions SET is_deleted = 0, updated_at = ? WHERE id = ?`,
+      )
+      .run(Date.now(), id);
   }
 }
 
@@ -96,12 +119,15 @@ function transactionParams(transaction: Transaction): any[] {
     transaction.clearedStatus,
     transaction.isDeleted ? 1 : 0,
     toTimestamp(transaction.createdAt),
-    toTimestamp(transaction.updatedAt)
+    toTimestamp(transaction.updatedAt),
   ];
 }
 function sqliteClient(db: any) {
   const client = db?.$client;
-  if (!client || typeof client.prepare !== "function") throw new Error("Repository requires a Drizzle better-sqlite3 database with $client");
+  if (!client || typeof client.prepare !== "function")
+    throw new Error(
+      "Repository requires a Drizzle better-sqlite3 database with $client",
+    );
   return client;
 }
 function toTimestamp(value: Date | number | string): number {
@@ -124,6 +150,6 @@ function fromTransactionRow(row: any): Transaction {
     clearedStatus: row.cleared_status,
     isDeleted: Boolean(row.is_deleted),
     createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at)
+    updatedAt: new Date(row.updated_at),
   };
 }

@@ -1,9 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { copyFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
-import { assertSafePackageFileName, resolveInsidePackage } from "./pathSafety.js";
+import {
+  assertSafePackageFileName,
+  resolveInsidePackage,
+} from "./pathSafety.js";
 import type { AttachmentRecord, StorageStats } from "./BudgetPackageTypes.js";
-import { directorySize, ensureDir, extensionFor, sha256File } from "./fsHelpers.js";
+import {
+  directorySize,
+  ensureDir,
+  extensionFor,
+  sha256File,
+} from "./fsHelpers.js";
 
 export class AttachmentManager {
   addAttachment(packagePath: string, sourceFilePath: string): AttachmentRecord {
@@ -35,6 +43,11 @@ export class AttachmentManager {
     const databaseBytes = directorySize(join(packagePath, "budget.db"));
     const attachmentBytes = directorySize(join(packagePath, "Attachments"));
     const backupBytes = directorySize(join(packagePath, "Backups"));
-    return { databaseBytes, attachmentBytes, backupBytes, totalBytes: databaseBytes + attachmentBytes + backupBytes };
+    return {
+      databaseBytes,
+      attachmentBytes,
+      backupBytes,
+      totalBytes: databaseBytes + attachmentBytes + backupBytes,
+    };
   }
 }

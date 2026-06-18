@@ -13,6 +13,6 @@ export function createCategorySettings(categoryId: string): CategorySettings {
     notes: null,
     goalDisplayMode: "default",
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
 }

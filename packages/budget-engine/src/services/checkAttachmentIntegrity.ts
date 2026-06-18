@@ -1,7 +1,10 @@
 import { createHash } from "crypto";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import { AttachmentIntegrityResult, AttachmentIntegrityStatus } from "../../../types/src/AttachmentIntegrityStatus.js";
+import {
+  AttachmentIntegrityResult,
+  AttachmentIntegrityStatus,
+} from "../../../types/src/AttachmentIntegrityStatus.js";
 import { TransactionAttachment } from "../../../types/src/TransactionAttachment.js";
 
 function hashFile(path: string): string {
@@ -10,7 +13,7 @@ function hashFile(path: string): string {
 
 export function checkAttachmentIntegrity(
   budgetFolder: string,
-  attachment: TransactionAttachment
+  attachment: TransactionAttachment,
 ): AttachmentIntegrityResult {
   const expectedPath = join(budgetFolder, attachment.relativePath);
 
@@ -19,7 +22,7 @@ export function checkAttachmentIntegrity(
       attachmentId: attachment.id,
       status: AttachmentIntegrityStatus.Missing,
       expectedPath,
-      message: "Attachment file is missing"
+      message: "Attachment file is missing",
     };
   }
 
@@ -30,7 +33,7 @@ export function checkAttachmentIntegrity(
       attachmentId: attachment.id,
       status: AttachmentIntegrityStatus.HashMismatch,
       expectedPath,
-      message: "Attachment file hash does not match metadata"
+      message: "Attachment file hash does not match metadata",
     };
   }
 
@@ -38,6 +41,6 @@ export function checkAttachmentIntegrity(
     attachmentId: attachment.id,
     status: AttachmentIntegrityStatus.Ok,
     expectedPath,
-    message: "Attachment verified"
+    message: "Attachment verified",
   };
 }

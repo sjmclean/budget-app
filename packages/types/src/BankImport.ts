@@ -90,7 +90,6 @@ export interface AutoCategorizationSuggestion {
   reason: string;
 }
 
-
 /** Persisted import batch used to commit and undo ongoing bank statement imports. */
 export interface BankImportBatch {
   id: string;

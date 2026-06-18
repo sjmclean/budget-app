@@ -20,21 +20,46 @@ async function main() {
   const payeeRepo = new SqlitePayeeRepository(db);
   const txRepo = new SqliteTransactionRepository(db);
   const payeeUpdater = new SqliteTransactionPayeeUpdater(db);
-  const service = new PayeeManagementApplicationService(payeeRepo, payeeUpdater);
+  const service = new PayeeManagementApplicationService(
+    payeeRepo,
+    payeeUpdater,
+  );
 
   const budget = createBudget("Household Budget");
   await budgetRepo.create(budget);
-  const account = createAccount(budget.id, "Checking", AccountType.Checking, BudgetParticipation.OnBudget, 0);
+  const account = createAccount(
+    budget.id,
+    "Checking",
+    AccountType.Checking,
+    BudgetParticipation.OnBudget,
+    0,
+  );
   await accountRepo.create(account);
 
   const woolworths = await service.createPayee(budget.id, "  Woolworths  ");
   const duplicate = await service.createPayee(budget.id, "Woolworths");
-  if (duplicate.id !== woolworths.id) throw new Error("Expected normalized duplicate to reuse the existing payee");
+  if (duplicate.id !== woolworths.id)
+    throw new Error(
+      "Expected normalized duplicate to reuse the existing payee",
+    );
 
-  const renamed = await service.renamePayee(woolworths.id, "Woolworths Supermarket");
-  if (renamed.name !== "Woolworths Supermarket") throw new Error("Expected payee rename to persist new display name");
+  const renamed = await service.renamePayee(
+    woolworths.id,
+    "Woolworths Supermarket",
+  );
+  if (renamed.name !== "Woolworths Supermarket")
+    throw new Error("Expected payee rename to persist new display name");
 
-  await txRepo.create(createTransaction({ budgetId: budget.id, accountId: account.id, payeeId: renamed.id, categoryId: null, date: "2026-06-17", amount: -1200 }));
+  await txRepo.create(
+    createTransaction({
+      budgetId: budget.id,
+      accountId: account.id,
+      payeeId: renamed.id,
+      categoryId: null,
+      date: "2026-06-17",
+      amount: -1200,
+    }),
+  );
   try {
     await service.deleteUnusedPayee(renamed.id);
     throw new Error("Expected used payee delete to be rejected");
@@ -47,7 +72,9 @@ async function main() {
   const deleted = await payeeRepo.findById(unused.id);
   if (deleted) throw new Error("Expected unused payee to be deleted");
 
-  console.log("v1.2.2 payee CRUD, rename, duplicate prevention, and delete guard OK");
+  console.log(
+    "v1.2.2 payee CRUD, rename, duplicate prevention, and delete guard OK",
+  );
 }
 
 main();

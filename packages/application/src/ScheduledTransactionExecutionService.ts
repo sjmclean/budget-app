@@ -13,28 +13,40 @@ export interface ScheduledExecutionResult {
 export class ScheduledTransactionExecutionService {
   constructor(
     private scheduledRepo: ScheduledTransactionRepository,
-    private transactionRepo: TransactionRepository
+    private transactionRepo: TransactionRepository,
   ) {}
 
-  async findDue(budgetId: string, asOfDate: string): Promise<ScheduledTransaction[]> {
+  async findDue(
+    budgetId: string,
+    asOfDate: string,
+  ): Promise<ScheduledTransaction[]> {
     const active = await this.scheduledRepo.findActiveByBudget(budgetId);
     return active.filter((item) => item.nextDueDate <= asOfDate);
   }
 
-  async executeDue(budgetId: string, asOfDate: string): Promise<ScheduledExecutionResult[]> {
+  async executeDue(
+    budgetId: string,
+    asOfDate: string,
+  ): Promise<ScheduledExecutionResult[]> {
     const due = await this.findDue(budgetId, asOfDate);
     const results: ScheduledExecutionResult[] = [];
 
     for (const item of due) {
-      const transaction = materializeScheduledTransaction(item, item.nextDueDate);
+      const transaction = materializeScheduledTransaction(
+        item,
+        item.nextDueDate,
+      );
       await this.transactionRepo.create(transaction);
 
-      const nextDueDate = advanceScheduledTransactionDate(item.nextDueDate, item.frequency);
+      const nextDueDate = advanceScheduledTransactionDate(
+        item.nextDueDate,
+        item.frequency,
+      );
       const updated: ScheduledTransaction = {
         ...item,
         nextDueDate: nextDueDate ?? item.nextDueDate,
         isActive: nextDueDate !== null,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       if (this.scheduledRepo.update) {

@@ -29,11 +29,24 @@ async function main() {
   const transactionRepo = new SqliteTransactionRepository(db);
   const attachmentRepo = new SqliteTransactionAttachmentRepository(db);
 
-  const service = new SearchApplicationService(accountRepo, groupRepo, categoryRepo, payeeRepo, transactionRepo, attachmentRepo);
+  const service = new SearchApplicationService(
+    accountRepo,
+    groupRepo,
+    categoryRepo,
+    payeeRepo,
+    transactionRepo,
+    attachmentRepo,
+  );
   const budget = createBudget("Household Budget");
   await budgetRepo.create(budget);
 
-  const account = createAccount(budget.id, "Everyday Checking", AccountType.Checking, BudgetParticipation.OnBudget, 0);
+  const account = createAccount(
+    budget.id,
+    "Everyday Checking",
+    AccountType.Checking,
+    BudgetParticipation.OnBudget,
+    0,
+  );
   await accountRepo.create(account);
   const group = createCategoryGroup(budget.id, "Living Expenses");
   await groupRepo.create(group);
@@ -41,20 +54,45 @@ async function main() {
   await categoryRepo.create(category);
   const payee = createPayee(budget.id, "Local Market");
   await payeeRepo.create(payee);
-  const transaction = createTransaction({ budgetId: budget.id, accountId: account.id, payeeId: payee.id, categoryId: category.id, date: "2026-06-17", amount: -4250, memo: "Weekly groceries" });
+  const transaction = createTransaction({
+    budgetId: budget.id,
+    accountId: account.id,
+    payeeId: payee.id,
+    categoryId: category.id,
+    date: "2026-06-17",
+    amount: -4250,
+    memo: "Weekly groceries",
+  });
   await transactionRepo.create(transaction);
-  const attachment = createTransactionAttachment({ budgetId: budget.id, transactionId: transaction.id, originalFileName: "market-receipt.pdf", mimeType: "application/pdf", fileSize: 123, relativePath: "Attachments", content: "receipt" });
+  const attachment = createTransactionAttachment({
+    budgetId: budget.id,
+    transactionId: transaction.id,
+    originalFileName: "market-receipt.pdf",
+    mimeType: "application/pdf",
+    fileSize: 123,
+    relativePath: "Attachments",
+    content: "receipt",
+  });
   await attachmentRepo.create(attachment);
 
   const groceries = await service.searchBudget(budget.id, "groceries");
-  if (groceries.categories.length !== 1) throw new Error("Expected category search hit");
-  if (groceries.transactions.length !== 1) throw new Error("Expected transaction memo search hit");
+  if (groceries.categories.length !== 1)
+    throw new Error("Expected category search hit");
+  if (groceries.transactions.length !== 1)
+    throw new Error("Expected transaction memo search hit");
 
   const receipt = await service.searchBudget(budget.id, "receipt");
-  if (receipt.attachments.length !== 1) throw new Error("Expected attachment search hit");
+  if (receipt.attachments.length !== 1)
+    throw new Error("Expected attachment search hit");
 
   const empty = await service.searchBudget(budget.id, "   ");
-  if (empty.accounts.length || empty.categories.length || empty.payees.length || empty.transactions.length || empty.attachments.length) {
+  if (
+    empty.accounts.length ||
+    empty.categories.length ||
+    empty.payees.length ||
+    empty.transactions.length ||
+    empty.attachments.length
+  ) {
     throw new Error("Expected blank search to return no results");
   }
 

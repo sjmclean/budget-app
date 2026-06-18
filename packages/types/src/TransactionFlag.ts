@@ -4,7 +4,7 @@ export enum TransactionFlagColour {
   Yellow = "Yellow",
   Green = "Green",
   Blue = "Blue",
-  Purple = "Purple"
+  Purple = "Purple",
 }
 
 export interface TransactionFlag {

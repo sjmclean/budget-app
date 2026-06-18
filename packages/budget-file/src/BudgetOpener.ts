@@ -1,19 +1,32 @@
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
-import type { BudgetPackageValidationResult, OpenBudgetPackageResult } from "./BudgetPackageTypes.js";
+import type {
+  BudgetPackageValidationResult,
+  OpenBudgetPackageResult,
+} from "./BudgetPackageTypes.js";
 import { readBudgetMetadata } from "./BudgetMetadata.js";
 
 export class BudgetOpener {
   validate(packagePath: string): BudgetPackageValidationResult {
     const issues: string[] = [];
     if (!existsSync(packagePath)) {
-      return { ok: false, issues: [`Budget package does not exist: ${packagePath}`] };
+      return {
+        ok: false,
+        issues: [`Budget package does not exist: ${packagePath}`],
+      };
     }
     if (!statSync(packagePath).isDirectory()) {
       issues.push("Budget package must be a folder-style .budget package");
     }
-    for (const required of ["budget.json", "budget.db", "Attachments", "Backups", "Temp"]) {
-      if (!existsSync(join(packagePath, required))) issues.push(`Missing ${required}`);
+    for (const required of [
+      "budget.json",
+      "budget.db",
+      "Attachments",
+      "Backups",
+      "Temp",
+    ]) {
+      if (!existsSync(join(packagePath, required)))
+        issues.push(`Missing ${required}`);
     }
     if (existsSync(join(packagePath, "budget.json"))) {
       try {
@@ -31,7 +44,9 @@ export class BudgetOpener {
   open(packagePath: string): OpenBudgetPackageResult {
     const validation = this.validate(packagePath);
     if (!validation.ok) {
-      throw new Error(`Invalid budget package: ${validation.issues.join("; ")}`);
+      throw new Error(
+        `Invalid budget package: ${validation.issues.join("; ")}`,
+      );
     }
     return {
       packagePath,

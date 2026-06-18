@@ -11,10 +11,16 @@ export class SqliteBudgetSettingsRepository implements BudgetSettingsRepository 
   }
 
   async update(item: BudgetSettings): Promise<void> {
-    await this.db.update(budgetSettings).set(item).where(eq(budgetSettings.id, item.id));
+    await this.db
+      .update(budgetSettings)
+      .set(item)
+      .where(eq(budgetSettings.id, item.id));
   }
 
   async findByBudgetId(budgetId: string): Promise<BudgetSettings[]> {
-    return await this.db.select().from(budgetSettings).where(eq(budgetSettings.budgetId, budgetId));
+    return await this.db
+      .select()
+      .from(budgetSettings)
+      .where(eq(budgetSettings.budgetId, budgetId));
   }
 }

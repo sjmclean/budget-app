@@ -13,7 +13,7 @@ async function main() {
     entityType: "Transaction",
     entityId: "tx-1",
     deletedByUserId: "user",
-    reason: "User deleted transaction"
+    reason: "User deleted transaction",
   });
 
   await repo.create(item);

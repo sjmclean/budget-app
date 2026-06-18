@@ -29,12 +29,27 @@ async function main() {
   const txRepo = new SqliteTransactionRepository(db);
   const budgetMonthRepo = new SqliteBudgetMonthRepository(db);
   const categoryMonthRepo = new SqliteCategoryMonthRepository(db);
-  const budgetService = new BudgetApplicationService(budgetMonthRepo, categoryMonthRepo);
-  const txService = new TransactionApplicationService(accountRepo, txRepo, budgetMonthRepo, categoryMonthRepo, budgetService);
+  const budgetService = new BudgetApplicationService(
+    budgetMonthRepo,
+    categoryMonthRepo,
+  );
+  const txService = new TransactionApplicationService(
+    accountRepo,
+    txRepo,
+    budgetMonthRepo,
+    categoryMonthRepo,
+    budgetService,
+  );
 
   const budget = createBudget("Household Budget");
   await budgetRepo.create(budget);
-  const checking = createAccount(budget.id, "Checking", AccountType.Checking, BudgetParticipation.OnBudget, 500000);
+  const checking = createAccount(
+    budget.id,
+    "Checking",
+    AccountType.Checking,
+    BudgetParticipation.OnBudget,
+    500000,
+  );
   await accountRepo.create(checking);
   const food = createCategoryGroup(budget.id, "Food");
   await groupRepo.create(food);
@@ -45,7 +60,15 @@ async function main() {
 
   await budgetService.postIncomeToReadyToBudget(budget.id, "2026-06", 400000);
   await budgetService.assignMoney(budget.id, "2026-06", groceries.id, 50000);
-  const result = await txService.postSpending({ budgetId: budget.id, month: "2026-06", accountId: checking.id, payeeId: woolworths.id, categoryId: groceries.id, date: "2026-06-17", amount: -15000 });
+  const result = await txService.postSpending({
+    budgetId: budget.id,
+    month: "2026-06",
+    accountId: checking.id,
+    payeeId: woolworths.id,
+    categoryId: groceries.id,
+    date: "2026-06-17",
+    amount: -15000,
+  });
 
   console.log(result);
 }

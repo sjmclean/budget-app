@@ -616,9 +616,13 @@ CREATE TABLE IF NOT EXISTS split_transaction_lines (
 
   `);
 
-  const payeeColumns = sqlite.prepare("PRAGMA table_info(payees)").all().map((column: any) => column.name);
+  const payeeColumns = sqlite
+    .prepare("PRAGMA table_info(payees)")
+    .all()
+    .map((column: any) => column.name);
   const addPayeeColumn = (name: string, definition: string) => {
-    if (!payeeColumns.includes(name)) sqlite.exec(`ALTER TABLE payees ADD COLUMN ${definition}`);
+    if (!payeeColumns.includes(name))
+      sqlite.exec(`ALTER TABLE payees ADD COLUMN ${definition}`);
   };
   addPayeeColumn("normalized_name", "normalized_name TEXT NOT NULL DEFAULT ''");
   addPayeeColumn("is_archived", "is_archived INTEGER NOT NULL DEFAULT 0");
@@ -626,5 +630,4 @@ CREATE TABLE IF NOT EXISTS split_transaction_lines (
   addPayeeColumn("transfer_account_id", "transfer_account_id TEXT");
   addPayeeColumn("created_at", "created_at INTEGER NOT NULL DEFAULT 0");
   addPayeeColumn("updated_at", "updated_at INTEGER NOT NULL DEFAULT 0");
-
 }

@@ -11,7 +11,10 @@ export class SqliteBackupVersionRepository implements BackupVersionRepository {
   }
 
   async findByBudget(budgetId: string): Promise<BackupVersion[]> {
-    return await this.db.select().from(backupVersions).where(eq(backupVersions.budgetId, budgetId));
+    return await this.db
+      .select()
+      .from(backupVersions)
+      .where(eq(backupVersions.budgetId, budgetId));
   }
 
   async delete(id: string): Promise<void> {

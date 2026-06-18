@@ -11,10 +11,16 @@ export class SqliteRecentFileRepository implements RecentFileRepository {
   }
 
   async update(item: RecentFile): Promise<void> {
-    await this.db.update(recentFiles).set(item).where(eq(recentFiles.id, item.id));
+    await this.db
+      .update(recentFiles)
+      .set(item)
+      .where(eq(recentFiles.id, item.id));
   }
 
   async findByUserId(userId: string): Promise<RecentFile[]> {
-    return await this.db.select().from(recentFiles).where(eq(recentFiles.userId, userId));
+    return await this.db
+      .select()
+      .from(recentFiles)
+      .where(eq(recentFiles.userId, userId));
   }
 }

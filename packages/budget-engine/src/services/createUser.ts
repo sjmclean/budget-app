@@ -5,7 +5,7 @@ import { createSalt, hashPassword } from "../../../security/src/passwords.js";
 export function createUser(
   displayName: string,
   email: string | null,
-  password: string
+  password: string,
 ): User {
   const now = new Date();
   const salt = createSalt();
@@ -18,6 +18,6 @@ export function createUser(
     passwordHash: hashPassword(password, salt),
     isActive: true,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
 }

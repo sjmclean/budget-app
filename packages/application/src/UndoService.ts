@@ -9,14 +9,14 @@ export class UndoService {
   createUndoRecord(
     budgetId: string,
     event: DomainEvent,
-    reversePayload: unknown
+    reversePayload: unknown,
   ): UndoRecord {
     return {
       id: randomUUID(),
       budgetId,
       eventId: event.id,
       reverseEventPayloadJson: JSON.stringify(reversePayload),
-      createdAt: new Date()
+      createdAt: new Date(),
     };
   }
 

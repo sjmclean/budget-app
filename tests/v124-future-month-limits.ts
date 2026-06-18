@@ -1,4 +1,7 @@
-import { calculateFutureMonthOffset, validateFutureMonth } from "../packages/budget-engine/src/index.js";
+import {
+  calculateFutureMonthOffset,
+  validateFutureMonth,
+} from "../packages/budget-engine/src/index.js";
 
 const offset = calculateFutureMonthOffset("2027-06", "2026-06");
 if (offset !== 12) {
@@ -15,7 +18,9 @@ try {
 }
 
 if (!rejected) {
-  throw new Error("Expected month beyond configured future limit to be rejected");
+  throw new Error(
+    "Expected month beyond configured future limit to be rejected",
+  );
 }
 
 console.log("v1.2.4 future month limits OK");

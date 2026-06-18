@@ -3,20 +3,27 @@ import { SyncPlan } from "../../../types/src/SyncPlan.js";
 
 export function planSync(
   localChanges: ChangeRecord[],
-  remoteChanges: ChangeRecord[]
+  remoteChanges: ChangeRecord[],
 ): SyncPlan {
   const localHashes = new Set(localChanges.map((change) => change.changeHash));
-  const remoteHashes = new Set(remoteChanges.map((change) => change.changeHash));
+  const remoteHashes = new Set(
+    remoteChanges.map((change) => change.changeHash),
+  );
 
-  const localOnly = localChanges.filter((change) => !remoteHashes.has(change.changeHash));
-  const remoteOnly = remoteChanges.filter((change) => !localHashes.has(change.changeHash));
+  const localOnly = localChanges.filter(
+    (change) => !remoteHashes.has(change.changeHash),
+  );
+  const remoteOnly = remoteChanges.filter(
+    (change) => !localHashes.has(change.changeHash),
+  );
 
   const entityConflicts = localOnly.filter((local) =>
-    remoteOnly.some((remote) =>
-      remote.entityType === local.entityType &&
-      remote.entityId === local.entityId &&
-      remote.operation !== local.operation
-    )
+    remoteOnly.some(
+      (remote) =>
+        remote.entityType === local.entityType &&
+        remote.entityId === local.entityId &&
+        remote.operation !== local.operation,
+    ),
   );
 
   return {
@@ -26,7 +33,7 @@ export function planSync(
     notes: [
       `Local-only changes: ${localOnly.length}`,
       `Remote-only changes: ${remoteOnly.length}`,
-      `Entity conflicts: ${entityConflicts.length}`
-    ]
+      `Entity conflicts: ${entityConflicts.length}`,
+    ],
   };
 }

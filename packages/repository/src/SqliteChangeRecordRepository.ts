@@ -11,10 +11,16 @@ export class SqliteChangeRecordRepository implements ChangeRecordRepository {
   }
 
   async findByBudget(budgetId: string): Promise<ChangeRecord[]> {
-    return await this.db.select().from(changeRecords).where(eq(changeRecords.budgetId, budgetId));
+    return await this.db
+      .select()
+      .from(changeRecords)
+      .where(eq(changeRecords.budgetId, budgetId));
   }
 
   async findByDevice(deviceId: string): Promise<ChangeRecord[]> {
-    return await this.db.select().from(changeRecords).where(eq(changeRecords.deviceId, deviceId));
+    return await this.db
+      .select()
+      .from(changeRecords)
+      .where(eq(changeRecords.deviceId, deviceId));
   }
 }

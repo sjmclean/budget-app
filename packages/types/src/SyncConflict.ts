@@ -1,7 +1,7 @@
 export enum SyncConflictType {
   FileChangedExternally = "FileChangedExternally",
   DivergentHistory = "DivergentHistory",
-  Unknown = "Unknown"
+  Unknown = "Unknown",
 }
 
 export interface SyncConflict {

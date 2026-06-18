@@ -9,7 +9,7 @@ const backup = createBackupVersion({
   versionNumber: 1,
   type: BackupType.Automatic,
   filePath: "backup.budget",
-  fileSize: 5000
+  fileSize: 5000,
 });
 
 const attachment = createTransactionAttachment({
@@ -19,7 +19,7 @@ const attachment = createTransactionAttachment({
   mimeType: "text/plain",
   fileSize: Buffer.byteLength("hello"),
   relativePath: "Budget.attachments",
-  content: "hello"
+  content: "hello",
 });
 
 console.log(calculateStorageUsage(1000, [attachment], [backup]));

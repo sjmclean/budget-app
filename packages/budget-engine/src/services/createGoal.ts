@@ -26,6 +26,6 @@ export function createGoal(input: CreateGoalInput): Goal {
     monthlyAmount: input.monthlyAmount ?? null,
     isActive: true,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
 }
