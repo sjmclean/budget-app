@@ -1,0 +1,34 @@
+import { unlinkSync } from "fs";
+import { createDatabase } from "../packages/database/src/db.js";
+import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
+import { createAccount } from "../packages/budget-engine/src/services/createAccount.js";
+import { createTransaction } from "../packages/budget-engine/src/services/createTransaction.js";
+import { AccountType } from "../packages/types/src/AccountType.js";
+import { BudgetParticipation } from "../packages/types/src/BudgetParticipation.js";
+import { ClearedStatus } from "../packages/types/src/ClearedStatus.js";
+import { SqliteBudgetRepository } from "../packages/repository/src/SqliteBudgetRepository.js";
+import { SqliteAccountRepository } from "../packages/repository/src/SqliteAccountRepository.js";
+import { SqliteTransactionRepository } from "../packages/repository/src/SqliteTransactionRepository.js";
+import { AccountSafetyApplicationService } from "../packages/application/src/AccountSafetyApplicationService.js";
+import { DbBackedSearchApplicationService } from "../packages/application/src/DbBackedSearchApplicationService.js";
+
+const dbPath = "/tmp/budget-v128-account-safety.sqlite";
+try { unlinkSync(dbPath); } catch {}
+const db = createDatabase(dbPath);
+const budgetRepo = new SqliteBudgetRepository(db);
+const accountRepo = new SqliteAccountRepository(db);
+const txRepo = new SqliteTransactionRepository(db);
+const safety = new AccountSafetyApplicationService(accountRepo, txRepo);
+const search = new DbBackedSearchApplicationService(db);
+
+const budget = createBudget("v1.2.8 Account Safety", "AUD");
+await budgetRepo.create(budget);
+const account = createAccount(budget.id, "Everyday", AccountType.Checking, BudgetParticipation.OnBudget, 0);
+await accountRepo.create(account);
+const tx = createTransaction({ budgetId: budget.id, accountId: account.id, date: "2026-06-17", amount: -2000, clearedStatus: ClearedStatus.Cleared });
+await txRepo.create(tx);
+const report = await safety.inspectCloseSafety(account.id);
+if (report.canClose) throw new Error("Expected account with transactions to be unsafe to delete");
+const found = await search.searchTransactions({ budgetId: budget.id, accountId: account.id, clearedStatus: ClearedStatus.Cleared, dateFrom: "2026-06-01", dateTo: "2026-06-30", amountMax: -1000 });
+if (found.length !== 1 || found[0].id !== tx.id) throw new Error("Expected indexed DB-backed transaction search result");
+console.log("v1.2.8 account safety and DB-backed search OK");

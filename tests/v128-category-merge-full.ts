@@ -1,0 +1,45 @@
+import { unlinkSync } from "fs";
+import { createDatabase } from "../packages/database/src/db.js";
+import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
+import { createBudgetMonth } from "../packages/budget-engine/src/services/createBudgetMonth.js";
+import { createCategoryMonth } from "../packages/budget-engine/src/services/createCategoryMonth.js";
+import { createCategoryGroup } from "../packages/budget-engine/src/services/createCategoryGroup.js";
+import { createCategory } from "../packages/budget-engine/src/services/createCategory.js";
+import { createGoal } from "../packages/budget-engine/src/services/createGoal.js";
+import { GoalType } from "../packages/types/src/GoalType.js";
+import { SqliteBudgetRepository } from "../packages/repository/src/SqliteBudgetRepository.js";
+import { SqliteBudgetMonthRepository } from "../packages/repository/src/SqliteBudgetMonthRepository.js";
+import { SqliteCategoryMonthRepository } from "../packages/repository/src/SqliteCategoryMonthRepository.js";
+import { SqliteCategoryGroupRepository } from "../packages/repository/src/SqliteCategoryGroupRepository.js";
+import { SqliteCategoryRepository } from "../packages/repository/src/SqliteCategoryRepository.js";
+import { SqliteTransactionRepository } from "../packages/repository/src/SqliteTransactionRepository.js";
+import { SqliteGoalRepository } from "../packages/repository/src/SqliteGoalRepository.js";
+import { CategoryMergeApplicationService } from "../packages/application/src/CategoryMergeApplicationService.js";
+
+const dbPath = "/tmp/budget-v128-category-merge-full.sqlite";
+try { unlinkSync(dbPath); } catch {}
+const db = createDatabase(dbPath);
+const budgetRepo = new SqliteBudgetRepository(db);
+const budgetMonthRepo = new SqliteBudgetMonthRepository(db);
+const categoryMonthRepo = new SqliteCategoryMonthRepository(db);
+const groupRepo = new SqliteCategoryGroupRepository(db);
+const categoryRepo = new SqliteCategoryRepository(db);
+const txRepo = new SqliteTransactionRepository(db);
+const goalRepo = new SqliteGoalRepository(db);
+const service = new CategoryMergeApplicationService(categoryRepo, categoryMonthRepo, txRepo, goalRepo);
+
+const budget = createBudget("v1.2.8 Category Merge Full", "AUD"); await budgetRepo.create(budget);
+const month = createBudgetMonth(budget.id, "2026-06"); await budgetMonthRepo.create(month);
+const group = createCategoryGroup(budget.id, "Living", 1); await groupRepo.create(group);
+const source = createCategory(group.id, "Dining", 1); const target = createCategory(group.id, "Restaurants", 2);
+await categoryRepo.create(source); await categoryRepo.create(target);
+const sourceMonth = createCategoryMonth(month.id, source.id); await categoryMonthRepo.create({ ...sourceMonth, assigned: 5000, activity: -1200, available: 3800 });
+const targetMonth = createCategoryMonth(month.id, target.id); await categoryMonthRepo.create({ ...targetMonth, assigned: 1000, activity: -200, available: 800 });
+const goal = createGoal({ budgetId: budget.id, categoryId: source.id, type: GoalType.TargetBalance, name: "Dining buffer", targetAmount: 10000 }); await goalRepo.create(goal);
+const result = await service.mergeCategories(source.id, target.id, budget.id);
+if (result.movedCategoryMonths !== 1 || result.movedGoals !== 1) throw new Error("Expected category month values and goals to move");
+const mergedMonth = await categoryMonthRepo.getByBudgetMonthAndCategory(month.id, target.id);
+if (!mergedMonth || mergedMonth.assigned !== 6000 || mergedMonth.activity !== -1400 || mergedMonth.available !== 4600) throw new Error("Expected merged category-month totals");
+const goals = await goalRepo.findByCategory(target.id);
+if (goals.length !== 1) throw new Error("Expected goal to move to target category");
+console.log("v1.2.8 full category merge moves budget values and goals OK");

@@ -1,0 +1,34 @@
+import { unlinkSync } from "fs";
+import { createDatabase } from "../packages/database/src/db.js";
+import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
+import { createAccount } from "../packages/budget-engine/src/services/createAccount.js";
+import { createTransaction } from "../packages/budget-engine/src/services/createTransaction.js";
+import { AccountType } from "../packages/types/src/AccountType.js";
+import { BudgetParticipation } from "../packages/types/src/BudgetParticipation.js";
+import { ClearedStatus } from "../packages/types/src/ClearedStatus.js";
+import { SqliteBudgetRepository } from "../packages/repository/src/SqliteBudgetRepository.js";
+import { SqliteAccountRepository } from "../packages/repository/src/SqliteAccountRepository.js";
+import { SqliteTransactionRepository } from "../packages/repository/src/SqliteTransactionRepository.js";
+import { BulkTransactionApplicationService } from "../packages/application/src/BulkTransactionApplicationService.js";
+
+const dbPath = "/tmp/budget-v126-bulk.sqlite";
+try { unlinkSync(dbPath); } catch {}
+const db = createDatabase(dbPath);
+const budgetRepo = new SqliteBudgetRepository(db);
+const accountRepo = new SqliteAccountRepository(db);
+const txRepo = new SqliteTransactionRepository(db);
+const bulk = new BulkTransactionApplicationService(txRepo);
+const budget = createBudget("v1.2.6 Bulk", "AUD");
+await budgetRepo.create(budget);
+const account = createAccount(budget.id, "Everyday", AccountType.Checking, BudgetParticipation.OnBudget, 0);
+await accountRepo.create(account);
+const t1 = createTransaction({ budgetId: budget.id, accountId: account.id, date: "2026-06-17", amount: -1000 });
+const t2 = createTransaction({ budgetId: budget.id, accountId: account.id, date: "2026-06-18", amount: -2000 });
+await txRepo.create(t1); await txRepo.create(t2);
+const result = await bulk.bulkUpdate({ transactionIds: [t1.id, t2.id], clearedStatus: ClearedStatus.Cleared });
+if (result.updated.length !== 2 || result.skipped.length !== 0) throw new Error("Expected both transactions to bulk update");
+const updated = await txRepo.getById(t1.id);
+if (updated?.clearedStatus !== ClearedStatus.Cleared) throw new Error("Expected transaction to be cleared");
+const del = await bulk.bulkDelete([t1.id, "missing"]);
+if (del.updated.length !== 1 || del.skipped.length !== 1) throw new Error("Expected partial bulk delete result");
+console.log("v1.2.6 bulk transaction actions OK");
