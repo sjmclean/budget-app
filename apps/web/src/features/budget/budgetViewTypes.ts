@@ -33,4 +33,11 @@ export interface BudgetViewService {
     budgetId: string;
     month: string;
   }): Promise<BudgetMonthView>;
+
+  updateAssigned(input: {
+    budgetId: string;
+    month: string;
+    categoryId: string;
+    assigned: number;
+  }): Promise<BudgetMonthView>;
 }

@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { budgetViewService } from "./budgetViewService";
 import { useBudgetView } from "./useBudgetView";
 import type {
   BudgetCategoryGroupView,
@@ -18,32 +19,6 @@ interface UseBudgetWorkspaceState {
   clearSelection: () => void;
 }
 
-function recalculateGroup(group: BudgetCategoryGroupView): BudgetCategoryGroupView {
-  const assigned = group.categories.reduce((sum, category) => sum + category.assigned, 0);
-  const activity = group.categories.reduce((sum, category) => sum + category.activity, 0);
-  const available = group.categories.reduce((sum, category) => sum + category.available, 0);
-
-  return {
-    ...group,
-    assigned,
-    activity,
-    available,
-  };
-}
-
-function recalculateBudget(data: BudgetMonthView): BudgetMonthView {
-  const totalAssigned = data.categoryGroups.reduce((sum, group) => sum + group.assigned, 0);
-  const totalActivity = data.categoryGroups.reduce((sum, group) => sum + group.activity, 0);
-  const totalAvailable = data.categoryGroups.reduce((sum, group) => sum + group.available, 0);
-
-  return {
-    ...data,
-    totalAssigned,
-    totalActivity,
-    totalAvailable,
-  };
-}
-
 export function useBudgetWorkspace(
   budgetId: string,
   month: string,
@@ -52,6 +27,13 @@ export function useBudgetWorkspace(
   const [editedData, setEditedData] = useState<BudgetMonthView | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [lastEditedCategoryId, setLastEditedCategoryId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEditedData(null);
+    setSaveError(null);
+    setLastEditedCategoryId(null);
+  }, [budgetId, month]);
 
   const data = editedData ?? budgetView.data;
 
@@ -92,51 +74,32 @@ export function useBudgetWorkspace(
   }
 
   function updateAssigned(categoryId: string, assigned: number) {
-    const source = editedData ?? budgetView.data;
-
-    if (!source) {
-      return;
-    }
-
-    const nextCategoryGroups = source.categoryGroups.map((group) => {
-      const nextCategories = group.categories.map((category) => {
-        if (category.id !== categoryId) {
-          return category;
-        }
-
-        const available = assigned + category.activity;
-
-        return {
-          ...category,
-          assigned,
-          available,
-          isOverspent: available < 0,
-        };
-      });
-
-      return recalculateGroup({
-        ...group,
-        categories: nextCategories,
-      });
-    });
-
-    const nextTotalAssigned = nextCategoryGroups.reduce((sum, group) => sum + group.assigned, 0);
-    const assignedDelta = nextTotalAssigned - source.totalAssigned;
-
-    const nextData = recalculateBudget({
-      ...source,
-      readyToAssign: source.readyToAssign - assignedDelta,
-      categoryGroups: nextCategoryGroups,
-    });
-
     setLastEditedCategoryId(categoryId);
-    setEditedData(nextData);
+    setSaveError(null);
+
+    void budgetViewService
+      .updateAssigned({
+        budgetId,
+        month,
+        categoryId,
+        assigned,
+      })
+      .then((nextData) => {
+        setEditedData(nextData);
+      })
+      .catch((error) => {
+        setSaveError(
+          error instanceof Error
+            ? error.message
+            : "Failed to save category assignment.",
+        );
+      });
   }
 
   return {
     data,
     isLoading: budgetView.isLoading,
-    error: budgetView.error,
+    error: saveError ?? budgetView.error,
     selectedCategory: selected.selectedCategory,
     selectedGroup: selected.selectedGroup,
     overassignedCategoryIds,

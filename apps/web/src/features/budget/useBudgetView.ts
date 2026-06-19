@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { mockBudgetViewService } from "./mockBudgetViewService";
+import { budgetViewService } from "./budgetViewService";
 import type { BudgetMonthView } from "./budgetViewTypes";
 
 interface UseBudgetViewState {
@@ -26,7 +26,7 @@ export function useBudgetView(budgetId: string, month: string): UseBudgetViewSta
       });
 
       try {
-        const data = await mockBudgetViewService.getBudgetMonthView({
+        const data = await budgetViewService.getBudgetMonthView({
           budgetId,
           month,
         });

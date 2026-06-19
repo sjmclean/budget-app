@@ -142,4 +142,31 @@ export const mockBudgetViewService: BudgetViewService = {
     await new Promise((resolve) => window.setTimeout(resolve, 150));
     return demoBudgetMonthView;
   },
+
+  async updateAssigned({ categoryId, assigned }) {
+    await new Promise((resolve) => window.setTimeout(resolve, 150));
+
+    const categoryGroups = demoBudgetMonthView.categoryGroups.map((group) => ({
+      ...group,
+      categories: group.categories.map((category) => {
+        if (category.id !== categoryId) {
+          return category;
+        }
+
+        const available = assigned + category.activity;
+
+        return {
+          ...category,
+          assigned,
+          available,
+          isOverspent: available < 0,
+        };
+      }),
+    }));
+
+    return {
+      ...demoBudgetMonthView,
+      categoryGroups,
+    };
+  },
 };
