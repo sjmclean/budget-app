@@ -72,6 +72,11 @@ export interface AccountRegisterService {
     transactionId: string;
   }): Promise<AccountRegisterView>;
 
+  deleteTransaction(input: {
+    accountId: string;
+    transactionId: string;
+  }): Promise<AccountRegisterView>;
+
   addAttachmentPlaceholder(input: {
     accountId: string;
     transactionId: string;

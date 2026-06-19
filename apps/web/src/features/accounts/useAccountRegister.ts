@@ -18,6 +18,7 @@ interface UseAccountRegisterState {
   addTransaction: (input: NewRegisterTransactionInput) => Promise<void>;
   updateTransaction: (input: UpdateRegisterTransactionInput) => Promise<void>;
   toggleCleared: (transactionId: string) => Promise<void>;
+  deleteTransaction: (transactionId: string) => Promise<void>;
   addMockAttachment: (transactionId: string) => Promise<void>;
 }
 
@@ -134,6 +135,12 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     );
   }, [accountId, runMutation]);
 
+  const deleteTransaction = useCallback(async (transactionId: string) => {
+    await runMutation(
+      () => accountRegisterService.deleteTransaction({ accountId, transactionId }),
+    );
+  }, [accountId, runMutation]);
+
   const addMockAttachment = useCallback(async (transactionId: string) => {
     await runMutation(
       () => accountRegisterService.addAttachmentPlaceholder({ accountId, transactionId }),
@@ -152,6 +159,7 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     addTransaction,
     updateTransaction,
     toggleCleared,
+    deleteTransaction,
     addMockAttachment,
   };
 }

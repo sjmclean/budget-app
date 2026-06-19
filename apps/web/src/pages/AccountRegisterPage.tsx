@@ -497,6 +497,7 @@ export function AccountRegisterPage() {
     addTransaction,
     updateTransaction,
     toggleCleared,
+    deleteTransaction,
     addMockAttachment,
   } = useAccountRegister(accountId);
 
@@ -633,7 +634,23 @@ export function AccountRegisterPage() {
             <button type="button" disabled>Move</button>
             <button type="button" disabled>Flag</button>
             <button type="button" disabled>Add note</button>
-            <button type="button" disabled>Delete</button>
+            <button
+              type="button"
+              onClick={() => {
+                const confirmed = window.confirm(
+                  "Delete this transaction? This cannot be undone yet.",
+                );
+
+                if (!confirmed) {
+                  return;
+                }
+
+                deleteTransaction(selectedTransactionId);
+                setEditingTransactionId(null);
+              }}
+            >
+              Delete
+            </button>
           </div>
         )}
 

@@ -115,6 +115,17 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     });
   }
 
+  async deleteTransaction(input: {
+    accountId: string;
+    transactionId: string;
+  }): Promise<AccountRegisterView> {
+    return updateRegister(input.accountId, (register) => {
+      register.transactions = register.transactions.filter(
+        (transaction) => transaction.id !== input.transactionId,
+      );
+    });
+  }
+
   async addAttachmentPlaceholder(input: {
     accountId: string;
     transactionId: string;
