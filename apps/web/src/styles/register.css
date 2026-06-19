@@ -1,0 +1,587 @@
+/* Register workspace */
+
+.register-workspace {
+  max-width: 100%;
+  display: grid;
+  gap: 1rem;
+}
+
+.register-clean-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.register-main-balance {
+  display: grid;
+  gap: 0.18rem;
+  text-align: right;
+}
+
+.register-main-balance span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.register-main-balance strong {
+  font-size: 1.45rem;
+  letter-spacing: -0.035em;
+}
+
+.register-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.register-toolbar {
+  min-height: 4rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1rem;
+}
+
+.register-toolbar-actions {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.register-search {
+  width: min(20rem, 100%);
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.48rem 0.65rem;
+  font-size: 0.84rem;
+}
+
+.register-entry-row-active {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(10rem, 1fr) 7rem 7rem auto;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-subtle);
+}
+
+.register-entry-row-active input {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.45rem 0.55rem;
+}
+
+.register-entry-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.register-selection-bar {
+  min-height: 2.65rem;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-subtle);
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.84rem;
+}
+
+.register-selection-bar span {
+  font-weight: 720;
+}
+
+.register-selection-bar button {
+  border: 1px solid var(--border-soft);
+  border-radius: 0.4rem;
+  background: var(--surface);
+  color: var(--text-muted);
+  padding: 0.32rem 0.55rem;
+  font-size: 0.8rem;
+}
+
+.register-selection-bar button:disabled {
+  opacity: 0.65;
+}
+
+.register-table {
+  display: grid;
+  overflow-x: auto;
+}
+
+.register-row {
+  width: 100%;
+  min-width: 84rem;
+  display: grid;
+  grid-template-columns:
+    2.25rem
+    7.5rem
+    3.5rem
+    minmax(12rem, 1.25fr)
+    minmax(10rem, 1fr)
+    minmax(12rem, 1.2fr)
+    7.5rem
+    7.5rem
+    8.5rem
+    3rem;
+  gap: 0.75rem;
+  align-items: center;
+  border: 0;
+  border-bottom: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0.56rem 1rem;
+  font-size: 0.86rem;
+}
+
+.register-row:hover {
+  background: var(--surface-subtle);
+}
+
+.register-row-selected,
+.register-row-selected:hover {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.register-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--surface-subtle) 88%, var(--border-soft));
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 820;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  cursor: default;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 var(--border-soft);
+}
+
+.register-head:hover {
+  background: color-mix(in srgb, var(--surface-subtle) 88%, var(--border-soft));
+}
+
+.register-head span {
+  color: var(--text-muted);
+}
+
+.register-checkbox {
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 0.22rem;
+  background: var(--surface);
+}
+
+.register-payee-cell {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.register-payee-cell small,
+.register-memo-cell,
+.register-row span {
+  color: var(--text-muted);
+}
+
+.register-money,
+.register-balance {
+  text-align: right;
+}
+
+.register-outflow {
+  color: var(--text-muted);
+}
+
+.register-inflow {
+  color: var(--positive);
+}
+
+.register-status {
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.register-status-empty:hover {
+  background: var(--surface-subtle);
+}
+
+.register-status-cleared {
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+}
+
+.register-status-reconciled {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.transaction-flag {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.transaction-flag-empty {
+  border: 1px solid var(--border);
+  background: transparent;
+}
+
+.transaction-flag-red {
+  background: #dc2626;
+}
+
+.transaction-flag-orange {
+  background: #f97316;
+}
+
+.transaction-flag-yellow {
+  background: #eab308;
+}
+
+.transaction-flag-green {
+  background: #16a34a;
+}
+
+.transaction-flag-blue {
+  background: #2563eb;
+}
+
+.transaction-flag-purple {
+  background: #7c3aed;
+}
+
+.register-legend {
+  min-height: 2.65rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.65rem;
+  background: var(--surface);
+  padding: 0.65rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.register-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.register-legend-spacer {
+  flex: 1;
+}
+
+/* Legacy register cleanup: prevents older appended CSS/markup from resurfacing. */
+
+.register-summary,
+.register-side-panel,
+.register-compact-balances {
+  display: none !important;
+}
+
+.register-layout {
+  display: block !important;
+}
+
+@media (max-width: 1200px) {
+  .register-entry-row-active {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .register-entry-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 900px) {
+  .register-clean-header,
+  .register-toolbar,
+  .register-toolbar-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .register-main-balance {
+    text-align: left;
+  }
+
+  .register-search {
+    width: 100%;
+  }
+}
+
+@media (max-width: 680px) {
+  .register-entry-row-active {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* v1.8.6 inline transaction editing */
+
+.register-row-editing {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+  cursor: default;
+}
+
+.register-row-editing:hover {
+  background: var(--accent-soft);
+}
+
+.register-row-editing input {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.38rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.36rem 0.45rem;
+  font-size: 0.84rem;
+}
+
+.register-row-editing input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-color: var(--accent);
+}
+
+.register-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.register-edit-actions .button {
+  padding: 0.36rem 0.52rem;
+  font-size: 0.78rem;
+}
+
+/* Replace the Balance/C columns with edit action space while editing. */
+.register-row-editing {
+  grid-template-columns:
+    2.25rem
+    7.5rem
+    3.5rem
+    minmax(12rem, 1.25fr)
+    minmax(10rem, 1fr)
+    minmax(12rem, 1.2fr)
+    7.5rem
+    7.5rem
+    12rem;
+}
+
+.register-selection-bar button:not(:disabled) {
+  color: var(--text);
+  cursor: pointer;
+}
+
+.register-selection-bar button:not(:disabled):hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+/* v1.8.8 register attachment column */
+
+.register-row,
+.register-head {
+  min-width: 88rem;
+  grid-template-columns:
+    2.25rem
+    7.5rem
+    3.5rem
+    3.5rem
+    minmax(12rem, 1.25fr)
+    minmax(10rem, 1fr)
+    minmax(12rem, 1.2fr)
+    7.5rem
+    7.5rem
+    8.5rem
+    3rem;
+}
+
+.register-row-editing {
+  min-width: 88rem;
+  grid-template-columns:
+    2.25rem
+    7.5rem
+    3.5rem
+    3.5rem
+    minmax(12rem, 1.25fr)
+    minmax(10rem, 1fr)
+    minmax(12rem, 1.2fr)
+    7.5rem
+    7.5rem
+    12rem;
+}
+
+.attachment-indicator {
+  min-width: 1.65rem;
+  height: 1.45rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  color: var(--accent-strong);
+  font-size: 0.74rem;
+  font-weight: 760;
+}
+
+.attachment-indicator svg {
+  flex-shrink: 0;
+}
+
+.attachment-indicator-empty {
+  color: var(--text-muted);
+  opacity: 0.28;
+}
+
+.attachment-indicator-empty::before {
+  content: "—";
+}
+
+.register-legend svg {
+  color: var(--accent-strong);
+}
+/* v1.8.8a attachment UX refinement */
+
+.register-head-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attachment-indicator {
+  min-width: 1.65rem;
+  height: 1.45rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-strong);
+}
+
+.attachment-indicator-present svg {
+  stroke-width: 2.2;
+}
+
+.attachment-indicator-empty {
+  opacity: 0;
+}
+
+.attachment-indicator-empty::before {
+  content: "";
+}
+
+/* Remove count styling from the previous attachment iteration. */
+.attachment-indicator span {
+  display: none !important;
+}
+/* v1.8.9 register entry workflow */
+
+.register-date-field {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.register-date-field > input:first-child {
+  width: 100%;
+  padding-right: 2.2rem;
+}
+
+.register-date-picker-button {
+  position: absolute;
+  right: 0.25rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.register-date-picker-button:hover {
+  background: var(--surface-subtle);
+  color: var(--accent-strong);
+}
+
+.register-hidden-date-input {
+  position: absolute;
+  right: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.register-entry-actions-wide {
+  min-width: 18rem;
+}
+
+.register-entry-actions-wide .button-primary {
+  white-space: nowrap;
+}
+
+.register-entry-row-workflow {
+  grid-template-columns:
+    8.5rem
+    minmax(10rem, 1fr)
+    minmax(10rem, 1fr)
+    minmax(10rem, 1fr)
+    7rem
+    7rem
+    auto;
+}
+
+@media (max-width: 1200px) {
+  .register-entry-row-workflow {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .register-entry-actions-wide {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .register-entry-row-workflow {
+    grid-template-columns: 1fr;
+  }
+
+  .register-entry-actions-wide {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
