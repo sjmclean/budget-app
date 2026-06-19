@@ -5,29 +5,11 @@ import type {
   RegisterTransactionView,
   UpdateRegisterTransactionInput,
 } from "./accountRegisterTypes";
+import { accountService, type SidebarAccountType } from "./accountService";
 
 const STORAGE_KEY = "budget-app.account-registers.v1";
 
 type StoredRegisters = Record<string, AccountRegisterView>;
-
-const accountMetadata: Record<string, Pick<AccountRegisterView, "accountName" | "accountType">> = {
-  everyday: {
-    accountName: "Everyday Account",
-    accountType: "On budget",
-  },
-  savings: {
-    accountName: "Savings",
-    accountType: "On budget",
-  },
-  visa: {
-    accountName: "Visa",
-    accountType: "Credit card",
-  },
-  super: {
-    accountName: "Superannuation",
-    accountType: "Tracking",
-  },
-};
 
 /**
  * Browser-facing register service boundary.
@@ -165,20 +147,43 @@ function updateRegister(
 }
 
 function createEmptyRegister(accountId: string): AccountRegisterView {
-  const account = accountMetadata[accountId] ?? {
-    accountName: "Account",
-    accountType: "On budget" as const,
-  };
+  const account = accountService.getAccountById(accountId);
+  const openingBalance = account?.startingBalance ?? 0;
 
   return {
     accountId,
-    ...account,
+    accountName: account?.name ?? "Account",
+    accountType: mapAccountType(account?.type ?? "on-budget"),
     currencyCode: "AUD",
     clearedBalance: 0,
     unclearedBalance: 0,
     workingBalance: 0,
-    transactions: [],
+    transactions:
+      openingBalance === 0
+        ? []
+        : [
+            {
+              id: `${accountId}-opening-balance`,
+              date: new Date().toISOString().slice(0, 10),
+              flag: null,
+              attachmentCount: 0,
+              payee: "Starting Balance",
+              category: "Ready to Assign",
+              memo: "Opening balance",
+              inflow: openingBalance > 0 ? openingBalance : 0,
+              outflow: openingBalance < 0 ? Math.abs(openingBalance) : 0,
+              runningBalance: 0,
+              cleared: true,
+              reconciled: false,
+            },
+          ],
   };
+}
+
+function mapAccountType(type: SidebarAccountType): AccountRegisterView["accountType"] {
+  if (type === "credit-card") return "Credit card";
+  if (type === "tracking") return "Tracking";
+  return "On budget";
 }
 
 function recalculateRegister(register: AccountRegisterView): AccountRegisterView {

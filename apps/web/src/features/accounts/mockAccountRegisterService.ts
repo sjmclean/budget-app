@@ -350,6 +350,21 @@ export const mockAccountRegisterService: AccountRegisterService = {
     return cloneRegister(next);
   },
 
+  async deleteTransaction({ accountId, transactionId }) {
+    await simulateLatency();
+
+    const current = getOrCreateRegister(accountId);
+    const next = recalculateRegister({
+      ...current,
+      transactions: current.transactions.filter(
+        (transaction) => transaction.id !== transactionId
+      ),
+    });
+
+    registersByAccountId.set(accountId, next);
+    return cloneRegister(next);
+  },
+
   async toggleCleared({ accountId, transactionId }) {
     await simulateLatency();
     const current = getOrCreateRegister(accountId);

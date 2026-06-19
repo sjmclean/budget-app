@@ -10,49 +10,40 @@ import {
   WalletCards,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AddAccountModal } from "../components/accounts/AddAccountModal";
-
-interface SidebarAccount {
-  id: string;
-  name: string;
-  type: "on-budget" | "credit-card" | "tracking";
-}
-
-const initialAccounts: SidebarAccount[] = [
-  { id: "everyday", name: "Everyday Account", type: "on-budget" },
-  { id: "savings", name: "Savings", type: "on-budget" },
-  { id: "visa", name: "Visa", type: "credit-card" },
-  { id: "super", name: "Superannuation", type: "tracking" },
-];
+import {
+  accountService,
+  type CreateAccountInput,
+  type SidebarAccount,
+} from "../features/accounts/accountService";
 
 export function Sidebar() {
   const [accountsOpen, setAccountsOpen] = useState(true);
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
-  const [accounts, setAccounts] = useState(initialAccounts);
+  const [accounts, setAccounts] = useState<SidebarAccount[]>([]);
+
+  useEffect(() => {
+    let active = true;
+
+    accountService.listAccounts().then((loadedAccounts) => {
+      if (active) {
+        setAccounts(loadedAccounts);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const budgetAccounts = accounts.filter((account) => account.type === "on-budget");
   const creditCards = accounts.filter((account) => account.type === "credit-card");
   const trackingAccounts = accounts.filter((account) => account.type === "tracking");
 
-  function addAccount(input: {
-    name: string;
-    type: "on-budget" | "credit-card" | "tracking";
-    startingBalance: number;
-  }) {
-    const id = input.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-
-    setAccounts((current) => [
-      ...current,
-      {
-        id: id || `account-${Date.now()}`,
-        name: input.name,
-        type: input.type,
-      },
-    ]);
+  async function addAccount(input: CreateAccountInput) {
+    const nextAccounts = await accountService.createAccount(input);
+    setAccounts(nextAccounts);
   }
 
   function renderAccount(account: SidebarAccount) {
