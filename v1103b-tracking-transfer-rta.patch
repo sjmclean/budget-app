@@ -1,0 +1,33 @@
+--- a/apps/web/src/features/budget/budgetViewService.ts	2026-06-19 11:55:07.905101369 +0000
++++ b/apps/web/src/features/budget/budgetViewService.ts	2026-06-19 11:55:08.983619612 +0000
+@@ -16,6 +16,7 @@
+   category: string;
+   inflow: number;
+   outflow: number;
++  transferAccountId?: string;
+ }
+ 
+ const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
+@@ -189,6 +190,7 @@
+ 
+ function applyRegisterActivity(view: BudgetMonthView, month: string): BudgetMonthView {
+   const categoryLookup = createCategoryLookup(view);
++  const accountTypeById = new Map(readAccounts().map((account) => [account.id, account.type]));
+   const activityByCategoryId = new Map<string, number>();
+   let readyToAssignIncome = 0;
+ 
+@@ -202,6 +204,14 @@
+     const amount = transaction.inflow - transaction.outflow;
+ 
+     if (isTransferCategory(categoryKey)) {
++      if (transaction.transferAccountId) {
++        const transferAccountType = accountTypeById.get(transaction.transferAccountId);
++
++        if (transferAccountType === "tracking") {
++          readyToAssignIncome += amount;
++        }
++      }
++
+       continue;
+     }
+ 

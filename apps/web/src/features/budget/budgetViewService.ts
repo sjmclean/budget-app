@@ -1,11 +1,37 @@
 import type {
   BudgetCategoryGroupView,
+  BudgetCategoryOption,
   BudgetCategoryView,
   BudgetMonthView,
   BudgetViewService,
 } from "./budgetViewTypes";
+import { readAccounts } from "../accounts/accountService";
 
 const STORAGE_KEY_PREFIX = "budget-app.budget-view.v1";
+const REGISTER_STORAGE_KEY = "budget-app.account-registers.v1";
+
+interface StoredRegisterTransaction {
+  id: string;
+  date: string;
+  category: string;
+  inflow: number;
+  outflow: number;
+  transferAccountId?: string;
+}
+
+const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
+const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
+
+interface StoredRegisterView {
+  accountType?: string;
+  transactions?: StoredRegisterTransaction[];
+}
+
+interface BudgetScopedRegisterTransaction extends StoredRegisterTransaction {
+  accountId: string;
+}
+
+type StoredRegisters = Record<string, StoredRegisterView>;
 
 const starterCategoryGroups: Array<{
   id: string;
@@ -161,8 +187,173 @@ function readStoredBudgetView(budgetId: string, month: string): BudgetMonthView 
   }
 }
 
+
+function applyRegisterActivity(view: BudgetMonthView, month: string): BudgetMonthView {
+  const categoryLookup = createCategoryLookup(view);
+  const accountTypeById = new Map(readAccounts().map((account) => [account.id, account.type]));
+  const activityByCategoryId = new Map<string, number>();
+  let readyToAssignIncome = 0;
+
+  for (const transaction of readBudgetScopedRegisterTransactions()) {
+    if (!transaction.date.startsWith(month)) {
+      continue;
+    }
+
+    const categoryKey = normaliseCategoryKey(transaction.category);
+    const categoryId = categoryLookup.get(categoryKey);
+    const amount = transaction.inflow - transaction.outflow;
+
+    if (isTransferCategory(categoryKey)) {
+      if (transaction.transferAccountId) {
+        const transferAccountType = accountTypeById.get(transaction.transferAccountId);
+
+        if (transferAccountType === "tracking") {
+          readyToAssignIncome += amount;
+        }
+      }
+
+      continue;
+    }
+
+    if (isReadyToAssignCategory(categoryKey)) {
+      readyToAssignIncome += amount;
+      continue;
+    }
+
+    if (!categoryId) {
+      if (transaction.inflow > 0 && transaction.outflow === 0) {
+        readyToAssignIncome += amount;
+      }
+
+      continue;
+    }
+
+    activityByCategoryId.set(
+      categoryId,
+      (activityByCategoryId.get(categoryId) ?? 0) + amount,
+    );
+  }
+
+  const recalculated = recalculateBudget({
+    ...view,
+    categoryGroups: view.categoryGroups.map((group) => ({
+      ...group,
+      categories: group.categories.map((category) => ({
+        ...category,
+        activity: activityByCategoryId.get(category.id) ?? 0,
+      })),
+    })),
+  });
+
+  return {
+    ...recalculated,
+    readyToAssign: readyToAssignIncome - recalculated.totalAssigned,
+  };
+}
+
+function createCategoryLookup(view: BudgetMonthView): Map<string, string> {
+  const lookup = new Map<string, string>();
+
+  for (const group of view.categoryGroups) {
+    for (const category of group.categories) {
+      lookup.set(normaliseCategoryKey(category.id), category.id);
+      lookup.set(normaliseCategoryKey(category.name), category.id);
+    }
+  }
+
+  return lookup;
+}
+
+function normaliseCategoryKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "").trim();
+}
+
+function isTransferCategory(categoryKey: string): boolean {
+  return ["transfer", "accounttransfer"].includes(categoryKey);
+}
+
+function isReadyToAssignCategory(categoryKey: string): boolean {
+  return [
+    normaliseCategoryKey(READY_TO_ASSIGN_CATEGORY_ID),
+    normaliseCategoryKey(READY_TO_ASSIGN_CATEGORY_NAME),
+    "incomeforthismonth",
+    "income",
+  ].includes(categoryKey);
+}
+
+function readBudgetScopedRegisterTransactions(): BudgetScopedRegisterTransaction[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const raw = window.localStorage.getItem(REGISTER_STORAGE_KEY);
+
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const registers = JSON.parse(raw) as StoredRegisters;
+    const accountTypeById = new Map(readAccounts().map((account) => [account.id, account.type]));
+
+    return Object.entries(registers).flatMap(([accountId, register]) => {
+      const accountType = accountTypeById.get(accountId) ?? mapRegisterAccountType(register.accountType);
+
+      if (accountType === "tracking") {
+        return [];
+      }
+
+      return (register.transactions ?? []).map((transaction) => ({
+        ...transaction,
+        accountId,
+      }));
+    });
+  } catch {
+    return [];
+  }
+}
+
+function mapRegisterAccountType(accountType: string | undefined): "on-budget" | "credit-card" | "tracking" | null {
+  if (!accountType) {
+    return null;
+  }
+
+  const normalised = accountType.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+  if (normalised === "tracking") {
+    return "tracking";
+  }
+
+  if (normalised === "creditcard") {
+    return "credit-card";
+  }
+
+  if (normalised === "onbudget") {
+    return "on-budget";
+  }
+
+  return null;
+}
+
+function getCategoryOptions(view: BudgetMonthView): BudgetCategoryOption[] {
+  return [
+    {
+      id: READY_TO_ASSIGN_CATEGORY_ID,
+      name: READY_TO_ASSIGN_CATEGORY_NAME,
+      groupName: "Income",
+    },
+    ...view.categoryGroups.flatMap((group) =>
+      group.categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        groupName: group.name,
+      })),
+    ),
+  ];
+}
+
 function saveBudgetView(view: BudgetMonthView, month: string): BudgetMonthView {
-  const next = recalculateBudget(view);
+  const next = applyRegisterActivity(recalculateBudget(view), month);
   window.localStorage.setItem(getStorageKey(next.budgetId, month), JSON.stringify(next));
   return cloneBudgetView(next);
 }
@@ -171,7 +362,7 @@ function loadBudgetView(budgetId: string, month: string): BudgetMonthView {
   const stored = readStoredBudgetView(budgetId, month);
 
   if (stored) {
-    return cloneBudgetView(stored);
+    return cloneBudgetView(applyRegisterActivity(stored, month));
   }
 
   const starter = createStarterBudgetView(budgetId, month);
@@ -181,6 +372,10 @@ function loadBudgetView(budgetId: string, month: string): BudgetMonthView {
 export const budgetViewService: BudgetViewService = {
   async getBudgetMonthView({ budgetId, month }) {
     return loadBudgetView(budgetId, month);
+  },
+
+  async getCategoryOptions({ budgetId, month }) {
+    return getCategoryOptions(loadBudgetView(budgetId, month));
   },
 
   async updateAssigned({ budgetId, month, categoryId, assigned }) {

@@ -3,11 +3,17 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
+import { budgetViewService } from "../features/budget/budgetViewService";
+import { readAccounts, type SidebarAccount } from "../features/accounts/accountService";
 import type {
   NewRegisterTransactionInput,
   RegisterTransactionView,
   TransactionFlag,
 } from "../features/accounts/accountRegisterTypes";
+import type { BudgetCategoryOption } from "../features/budget/budgetViewTypes";
+
+const ACTIVE_BUDGET_ID = "household";
+const ACTIVE_BUDGET_MONTH = "2026-06";
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -227,13 +233,75 @@ function AttachmentIndicator({ count }: { count: number }) {
   );
 }
 
+
+function PayeeInput({
+  value,
+  onChange,
+  transferAccounts,
+  autoFocus,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  transferAccounts: SidebarAccount[];
+  autoFocus?: boolean;
+}) {
+  return (
+    <>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Payee"
+        list="register-payee-options"
+        autoFocus={autoFocus}
+      />
+
+      <datalist id="register-payee-options">
+        {transferAccounts.map((account) => (
+          <option key={account.id} value={`Transfer: ${account.name}`} label="Transfer" />
+        ))}
+      </datalist>
+    </>
+  );
+}
+
+function CategoryInput({
+  value,
+  onChange,
+  categoryOptions,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  categoryOptions: BudgetCategoryOption[];
+}) {
+  return (
+    <>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Category"
+        list="budget-category-options"
+      />
+
+      <datalist id="budget-category-options">
+        {categoryOptions.map((category) => (
+          <option key={category.id} value={category.name} label={category.groupName} />
+        ))}
+      </datalist>
+    </>
+  );
+}
+
 function TransactionEntryRow({
   initialDate,
   onSave,
   onSaveAndAddAnother,
   onCancel,
+  categoryOptions,
+  transferAccounts,
 }: {
   initialDate: string;
+  categoryOptions: BudgetCategoryOption[];
+  transferAccounts: SidebarAccount[];
   onSave: (input: NewRegisterTransactionInput) => void;
   onSaveAndAddAnother: (input: NewRegisterTransactionInput) => void;
   onCancel: () => void;
@@ -250,13 +318,18 @@ function TransactionEntryRow({
       return null;
     }
 
+    const parsedOutflow = parseMoney(outflow);
+    const parsedInflow = parseMoney(inflow);
+
     return {
       date,
       payee: payee.trim(),
-      category: category.trim() || "Uncategorised",
+      category:
+        category.trim() ||
+        (parsedInflow > 0 && parsedOutflow === 0 ? "Ready to Assign" : "Uncategorised"),
       memo: memo.trim(),
-      outflow: parseMoney(outflow),
-      inflow: parseMoney(inflow),
+      outflow: parsedOutflow,
+      inflow: parsedInflow,
     };
   }
 
@@ -299,8 +372,17 @@ function TransactionEntryRow({
       }}
     >
       <RegisterDateField value={date} onChange={setDate} />
-      <input value={payee} onChange={(event) => setPayee(event.target.value)} placeholder="Payee" autoFocus />
-      <input value={category} onChange={(event) => setCategory(event.target.value)} placeholder="Category" />
+      <PayeeInput
+        value={payee}
+        onChange={setPayee}
+        transferAccounts={transferAccounts}
+        autoFocus
+      />
+      <CategoryInput
+        value={category}
+        onChange={setCategory}
+        categoryOptions={categoryOptions}
+      />
       <input value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="Memo" />
       <input value={outflow} onChange={(event) => setOutflow(event.target.value)} placeholder="Outflow" inputMode="decimal" />
       <input value={inflow} onChange={(event) => setInflow(event.target.value)} placeholder="Inflow" inputMode="decimal" />
@@ -324,8 +406,12 @@ function TransactionEditRow({
   transaction,
   onSave,
   onCancel,
+  categoryOptions,
+  transferAccounts,
 }: {
   transaction: RegisterTransactionView;
+  categoryOptions: BudgetCategoryOption[];
+  transferAccounts: SidebarAccount[];
   onSave: (input: {
     id: string;
     date: string;
@@ -349,14 +435,19 @@ function TransactionEditRow({
       return;
     }
 
+    const parsedOutflow = parseMoney(outflow);
+    const parsedInflow = parseMoney(inflow);
+
     onSave({
       id: transaction.id,
       date,
       payee: payee.trim(),
-      category: category.trim() || "Uncategorised",
+      category:
+        category.trim() ||
+        (parsedInflow > 0 && parsedOutflow === 0 ? "Ready to Assign" : "Uncategorised"),
       memo: memo.trim(),
-      outflow: parseMoney(outflow),
-      inflow: parseMoney(inflow),
+      outflow: parsedOutflow,
+      inflow: parsedInflow,
     });
   }
 
@@ -377,8 +468,16 @@ function TransactionEditRow({
       <RegisterDateField value={date} onChange={setDate} autoFocus />
       <FlagDot flag={transaction.flag} />
       <AttachmentIndicator count={transaction.attachmentCount} />
-      <input value={payee} onChange={(event) => setPayee(event.target.value)} placeholder="Payee" />
-      <input value={category} onChange={(event) => setCategory(event.target.value)} placeholder="Category" />
+      <PayeeInput
+        value={payee}
+        onChange={setPayee}
+        transferAccounts={transferAccounts}
+      />
+      <CategoryInput
+        value={category}
+        onChange={setCategory}
+        categoryOptions={categoryOptions}
+      />
       <input value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="Memo" />
       <input value={outflow} onChange={(event) => setOutflow(event.target.value)} placeholder="Outflow" inputMode="decimal" />
       <input value={inflow} onChange={(event) => setInflow(event.target.value)} placeholder="Inflow" inputMode="decimal" />
@@ -504,6 +603,32 @@ export function AccountRegisterPage() {
   const [showEntryRow, setShowEntryRow] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [lastEntryDate, setLastEntryDate] = useState(new Date().toISOString().slice(0, 10));
+  const [categoryOptions, setCategoryOptions] = useState<BudgetCategoryOption[]>([]);
+  const [transferAccounts, setTransferAccounts] = useState<SidebarAccount[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    void budgetViewService
+      .getCategoryOptions({
+        budgetId: ACTIVE_BUDGET_ID,
+        month: ACTIVE_BUDGET_MONTH,
+      })
+      .then((options) => {
+        if (isMounted) {
+          setCategoryOptions(options);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+
+  useEffect(() => {
+    setTransferAccounts(readAccounts().filter((account) => account.id !== accountId));
+  }, [accountId]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -608,6 +733,8 @@ export function AccountRegisterPage() {
         {showEntryRow && (
           <TransactionEntryRow
             initialDate={lastEntryDate}
+            categoryOptions={categoryOptions}
+            transferAccounts={transferAccounts}
             onSave={(input) => {
               addTransaction(input);
               setLastEntryDate(input.date);
@@ -676,6 +803,8 @@ export function AccountRegisterPage() {
               <TransactionEditRow
                 key={transaction.id}
                 transaction={transaction}
+                categoryOptions={categoryOptions}
+                transferAccounts={transferAccounts}
                 onSave={(input) => {
                   updateTransaction(input);
                   setEditingTransactionId(null);

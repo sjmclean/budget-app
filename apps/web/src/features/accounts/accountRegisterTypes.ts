@@ -20,6 +20,9 @@ export interface RegisterTransactionView {
   runningBalance: number;
   cleared: boolean;
   reconciled: boolean;
+  transferId?: string;
+  transferAccountId?: string;
+  transferTransactionId?: string;
 }
 
 export interface AccountRegisterView {

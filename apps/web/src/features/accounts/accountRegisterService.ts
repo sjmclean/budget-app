@@ -5,7 +5,7 @@ import type {
   RegisterTransactionView,
   UpdateRegisterTransactionInput,
 } from "./accountRegisterTypes";
-import { accountService, type SidebarAccountType } from "./accountService";
+import { accountService, readAccounts, type SidebarAccount, type SidebarAccountType } from "./accountService";
 
 const STORAGE_KEY = "budget-app.account-registers.v1";
 
@@ -38,21 +38,14 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     accountId: string;
     transaction: NewRegisterTransactionInput;
   }): Promise<AccountRegisterView> {
+    const transferTarget = findTransferTarget(input.accountId, input.transaction.payee);
+
+    if (transferTarget) {
+      return addTransferTransaction(input.accountId, transferTarget, input.transaction);
+    }
+
     return updateRegister(input.accountId, (register) => {
-      register.transactions.unshift({
-        id: createId(),
-        date: input.transaction.date,
-        flag: null,
-        attachmentCount: 0,
-        payee: input.transaction.payee,
-        category: input.transaction.category,
-        memo: input.transaction.memo,
-        inflow: input.transaction.inflow,
-        outflow: input.transaction.outflow,
-        runningBalance: 0,
-        cleared: false,
-        reconciled: false,
-      });
+      register.transactions.unshift(createTransactionView(input.transaction));
     });
   }
 
@@ -60,6 +53,51 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     accountId: string;
     transaction: UpdateRegisterTransactionInput;
   }): Promise<AccountRegisterView> {
+    const registers = readRegisters();
+    const sourceRegister = cloneRegister(registers[input.accountId] ?? createEmptyRegister(input.accountId));
+    const existing = sourceRegister.transactions.find(
+      (transaction) => transaction.id === input.transaction.id,
+    );
+
+    if (existing?.transferAccountId && existing.transferTransactionId) {
+      const targetRegister = cloneRegister(
+        registers[existing.transferAccountId] ?? createEmptyRegister(existing.transferAccountId),
+      );
+
+      const updatedSource = {
+        ...existing,
+        date: input.transaction.date,
+        payee: existing.payee,
+        category: "Transfer",
+        memo: input.transaction.memo,
+        inflow: input.transaction.inflow,
+        outflow: input.transaction.outflow,
+      };
+      const updatedTarget = createOpposingTransferTransaction(
+        updatedSource,
+        input.accountId,
+        sourceRegister.accountName,
+      );
+
+      sourceRegister.transactions = sourceRegister.transactions.map((transaction) =>
+        transaction.id === updatedSource.id ? updatedSource : transaction,
+      );
+      targetRegister.transactions = targetRegister.transactions.map((transaction) =>
+        transaction.id === existing.transferTransactionId
+          ? {
+              ...updatedTarget,
+              id: existing.transferTransactionId,
+              transferTransactionId: updatedSource.id,
+            }
+          : transaction,
+      );
+
+      registers[input.accountId] = recalculateRegister(sourceRegister);
+      registers[existing.transferAccountId] = recalculateRegister(targetRegister);
+      writeRegisters(registers);
+      return cloneRegister(registers[input.accountId]);
+    }
+
     return updateRegister(input.accountId, (register) => {
       register.transactions = register.transactions.map((transaction) => {
         if (transaction.id !== input.transaction.id) {
@@ -83,29 +121,65 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     accountId: string;
     transactionId: string;
   }): Promise<AccountRegisterView> {
-    return updateRegister(input.accountId, (register) => {
-      register.transactions = register.transactions.map((transaction) => {
-        if (transaction.id !== input.transactionId || transaction.reconciled) {
-          return transaction;
-        }
+    const registers = readRegisters();
+    const register = cloneRegister(registers[input.accountId] ?? createEmptyRegister(input.accountId));
+    const transaction = register.transactions.find(
+      (current) => current.id === input.transactionId,
+    );
 
-        return {
-          ...transaction,
-          cleared: !transaction.cleared,
-        };
-      });
-    });
+    if (!transaction || transaction.reconciled) {
+      return cloneRegister(recalculateRegister(register));
+    }
+
+    const nextCleared = !transaction.cleared;
+    register.transactions = register.transactions.map((current) =>
+      current.id === input.transactionId ? { ...current, cleared: nextCleared } : current,
+    );
+    registers[input.accountId] = recalculateRegister(register);
+
+    if (transaction.transferAccountId && transaction.transferTransactionId) {
+      const targetRegister = cloneRegister(
+        registers[transaction.transferAccountId] ?? createEmptyRegister(transaction.transferAccountId),
+      );
+      targetRegister.transactions = targetRegister.transactions.map((current) =>
+        current.id === transaction.transferTransactionId && !current.reconciled
+          ? { ...current, cleared: nextCleared }
+          : current,
+      );
+      registers[transaction.transferAccountId] = recalculateRegister(targetRegister);
+    }
+
+    writeRegisters(registers);
+    return cloneRegister(registers[input.accountId]);
   }
 
   async deleteTransaction(input: {
     accountId: string;
     transactionId: string;
   }): Promise<AccountRegisterView> {
-    return updateRegister(input.accountId, (register) => {
-      register.transactions = register.transactions.filter(
-        (transaction) => transaction.id !== input.transactionId,
+    const registers = readRegisters();
+    const register = cloneRegister(registers[input.accountId] ?? createEmptyRegister(input.accountId));
+    const transaction = register.transactions.find(
+      (current) => current.id === input.transactionId,
+    );
+
+    register.transactions = register.transactions.filter(
+      (current) => current.id !== input.transactionId,
+    );
+    registers[input.accountId] = recalculateRegister(register);
+
+    if (transaction?.transferAccountId && transaction.transferTransactionId) {
+      const targetRegister = cloneRegister(
+        registers[transaction.transferAccountId] ?? createEmptyRegister(transaction.transferAccountId),
       );
-    });
+      targetRegister.transactions = targetRegister.transactions.filter(
+        (current) => current.id !== transaction.transferTransactionId,
+      );
+      registers[transaction.transferAccountId] = recalculateRegister(targetRegister);
+    }
+
+    writeRegisters(registers);
+    return cloneRegister(registers[input.accountId]);
   }
 
   async addAttachmentPlaceholder(input: {
@@ -129,6 +203,114 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
 
 export const accountRegisterService: AccountRegisterService =
   new BrowserPersistentAccountRegisterService();
+
+function addTransferTransaction(
+  sourceAccountId: string,
+  targetAccount: SidebarAccount,
+  input: NewRegisterTransactionInput,
+): AccountRegisterView {
+  const registers = readRegisters();
+  const sourceRegister = cloneRegister(registers[sourceAccountId] ?? createEmptyRegister(sourceAccountId));
+  const targetRegister = cloneRegister(registers[targetAccount.id] ?? createEmptyRegister(targetAccount.id));
+  const transferId = createId();
+  const sourceTransactionId = createId();
+  const targetTransactionId = createId();
+
+  const sourceTransaction: RegisterTransactionView = {
+    ...createTransactionView(input),
+    id: sourceTransactionId,
+    payee: `Transfer: ${targetAccount.name}`,
+    category: "Transfer",
+    transferId,
+    transferAccountId: targetAccount.id,
+    transferTransactionId: targetTransactionId,
+  };
+
+  const targetTransaction = {
+    ...createOpposingTransferTransaction(
+      sourceTransaction,
+      sourceAccountId,
+      sourceRegister.accountName,
+    ),
+    id: targetTransactionId,
+    transferTransactionId: sourceTransactionId,
+  };
+
+  sourceRegister.transactions.unshift(sourceTransaction);
+  targetRegister.transactions.unshift(targetTransaction);
+
+  registers[sourceAccountId] = recalculateRegister(sourceRegister);
+  registers[targetAccount.id] = recalculateRegister(targetRegister);
+  writeRegisters(registers);
+
+  return cloneRegister(registers[sourceAccountId]);
+}
+
+function createTransactionView(input: NewRegisterTransactionInput): RegisterTransactionView {
+  return {
+    id: createId(),
+    date: input.date,
+    flag: null,
+    attachmentCount: 0,
+    payee: input.payee,
+    category: input.category,
+    memo: input.memo,
+    inflow: input.inflow,
+    outflow: input.outflow,
+    runningBalance: 0,
+    cleared: false,
+    reconciled: false,
+  };
+}
+
+function createOpposingTransferTransaction(
+  sourceTransaction: RegisterTransactionView,
+  sourceAccountId: string,
+  sourceAccountName: string,
+): RegisterTransactionView {
+  return {
+    ...sourceTransaction,
+    id: createId(),
+    payee: `Transfer: ${sourceAccountName}`,
+    category: "Transfer",
+    inflow: sourceTransaction.outflow,
+    outflow: sourceTransaction.inflow,
+    runningBalance: 0,
+    cleared: sourceTransaction.cleared,
+    transferId: sourceTransaction.transferId,
+    transferAccountId: sourceAccountId,
+    transferTransactionId: sourceTransaction.id,
+  };
+}
+
+function findTransferTarget(sourceAccountId: string, payee: string): SidebarAccount | null {
+  const normalisedPayee = normaliseTransferName(payee);
+
+  if (!normalisedPayee) {
+    return null;
+  }
+
+  return (
+    readAccounts().find(
+      (account) =>
+        account.id !== sourceAccountId &&
+        normaliseTransferName(account.name) === normalisedPayee,
+    ) ?? null
+  );
+}
+
+function normaliseTransferName(value: string): string | null {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed
+    .replace(/^transfer\s*(to|from)?\s*:?\s*/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "") || null;
+}
 
 function updateRegister(
   accountId: string,

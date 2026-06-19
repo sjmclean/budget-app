@@ -16,6 +16,12 @@ export interface BudgetCategoryGroupView {
   categories: BudgetCategoryView[];
 }
 
+export interface BudgetCategoryOption {
+  id: string;
+  name: string;
+  groupName: string;
+}
+
 export interface BudgetMonthView {
   budgetId: string;
   budgetName: string;
@@ -40,4 +46,9 @@ export interface BudgetViewService {
     categoryId: string;
     assigned: number;
   }): Promise<BudgetMonthView>;
+
+  getCategoryOptions(input: {
+    budgetId: string;
+    month: string;
+  }): Promise<BudgetCategoryOption[]>;
 }
