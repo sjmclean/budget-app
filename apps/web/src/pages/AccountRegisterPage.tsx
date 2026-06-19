@@ -167,11 +167,15 @@ function RegisterDateField({
             return;
           }
 
-          if ("showPicker" in input) {
-            input.showPicker();
-          } else {
-            input.click();
-          }
+         const dateInput = input as HTMLInputElement & {
+  showPicker?: () => void;
+};
+
+if (typeof dateInput.showPicker === "function") {
+  dateInput.showPicker();
+} else {
+  dateInput.click();
+}
         }}
       >
         <CalendarDays size={15} />

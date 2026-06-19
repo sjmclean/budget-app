@@ -42,8 +42,38 @@ export interface NewRegisterTransactionInput {
   outflow: number;
 }
 
+export interface UpdateRegisterTransactionInput {
+  id: string;
+  date: string;
+  payee: string;
+  category: string;
+  memo?: string;
+  inflow: number;
+  outflow: number;
+}
+
 export interface AccountRegisterService {
   getAccountRegisterView(input: {
     accountId: string;
+  }): Promise<AccountRegisterView>;
+
+  addTransaction(input: {
+    accountId: string;
+    transaction: NewRegisterTransactionInput;
+  }): Promise<AccountRegisterView>;
+
+  updateTransaction(input: {
+    accountId: string;
+    transaction: UpdateRegisterTransactionInput;
+  }): Promise<AccountRegisterView>;
+
+  toggleCleared(input: {
+    accountId: string;
+    transactionId: string;
+  }): Promise<AccountRegisterView>;
+
+  addAttachmentPlaceholder(input: {
+    accountId: string;
+    transactionId: string;
   }): Promise<AccountRegisterView>;
 }

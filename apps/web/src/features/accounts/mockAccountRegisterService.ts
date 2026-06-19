@@ -1,6 +1,9 @@
 import type {
   AccountRegisterService,
   AccountRegisterView,
+  NewRegisterTransactionInput,
+  RegisterTransactionView,
+  UpdateRegisterTransactionInput,
 } from "./accountRegisterTypes";
 
 const accountNames: Record<string, Pick<AccountRegisterView, "accountName" | "accountType">> = {
@@ -22,6 +25,69 @@ const accountNames: Record<string, Pick<AccountRegisterView, "accountName" | "ac
   },
 };
 
+const registersByAccountId = new Map<string, AccountRegisterView>();
+
+function cloneRegister(register: AccountRegisterView): AccountRegisterView {
+  return {
+    ...register,
+    transactions: register.transactions.map((transaction) => ({ ...transaction })),
+  };
+}
+
+function recalculateRegister(data: AccountRegisterView): AccountRegisterView {
+  let runningBalance = 0;
+
+  const chronological = [...data.transactions].sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+
+  const runningById = new Map<string, number>();
+
+  for (const transaction of chronological) {
+    runningBalance += transaction.inflow - transaction.outflow;
+    runningById.set(transaction.id, runningBalance);
+  }
+
+  const transactions = data.transactions.map((transaction) => ({
+    ...transaction,
+    attachmentCount: transaction.attachmentCount ?? 0,
+    runningBalance: runningById.get(transaction.id) ?? transaction.runningBalance,
+  }));
+
+  const clearedBalance = transactions
+    .filter((transaction) => transaction.cleared || transaction.reconciled)
+    .reduce((sum, transaction) => sum + transaction.inflow - transaction.outflow, 0);
+
+  const workingBalance = transactions.reduce(
+    (sum, transaction) => sum + transaction.inflow - transaction.outflow,
+    0,
+  );
+
+  return {
+    ...data,
+    clearedBalance,
+    unclearedBalance: workingBalance - clearedBalance,
+    workingBalance,
+    transactions,
+  };
+}
+
+function getOrCreateRegister(accountId: string): AccountRegisterView {
+  const existing = registersByAccountId.get(accountId);
+
+  if (existing) {
+    return existing;
+  }
+
+  const register = recalculateRegister(buildDemoRegister(accountId));
+  registersByAccountId.set(accountId, register);
+  return register;
+}
+
+async function simulateLatency() {
+  await new Promise((resolve) => window.setTimeout(resolve, 120));
+}
+
 function buildDemoRegister(accountId: string): AccountRegisterView {
   const account = accountNames[accountId] ?? accountNames.everyday;
 
@@ -37,6 +103,8 @@ function buildDemoRegister(accountId: string): AccountRegisterView {
         {
           id: "sav-1",
           date: "2026-06-15",
+          flag: null,
+          attachmentCount: 0,
           payee: "Transfer from Everyday",
           category: "Transfer",
           memo: "Monthly savings",
@@ -49,6 +117,8 @@ function buildDemoRegister(accountId: string): AccountRegisterView {
         {
           id: "sav-2",
           date: "2026-06-01",
+          flag: null,
+          attachmentCount: 0,
           payee: "Opening Balance",
           category: "Starting Balance",
           inflow: 8000,
@@ -73,6 +143,8 @@ function buildDemoRegister(accountId: string): AccountRegisterView {
         {
           id: "visa-1",
           date: "2026-06-18",
+          flag: null,
+          attachmentCount: 0,
           payee: "BP",
           category: "Fuel",
           memo: "",
@@ -85,6 +157,8 @@ function buildDemoRegister(accountId: string): AccountRegisterView {
         {
           id: "visa-2",
           date: "2026-06-16",
+          flag: null,
+          attachmentCount: 0,
           payee: "Netflix",
           category: "Streaming",
           memo: "Monthly subscription",
@@ -97,6 +171,8 @@ function buildDemoRegister(accountId: string): AccountRegisterView {
         {
           id: "visa-3",
           date: "2026-06-12",
+          flag: null,
+          attachmentCount: 0,
           payee: "Credit Card Payment",
           category: "Transfer",
           memo: "Payment from Everyday",
@@ -122,6 +198,8 @@ function buildDemoRegister(accountId: string): AccountRegisterView {
         {
           id: "super-1",
           date: "2026-06-01",
+          flag: null,
+          attachmentCount: 0,
           payee: "Market Value Update",
           category: "Tracking Adjustment",
           memo: "Placeholder tracking account value",
@@ -146,6 +224,8 @@ function buildDemoRegister(accountId: string): AccountRegisterView {
       {
         id: "tx-1",
         date: "2026-06-18",
+        flag: null,
+        attachmentCount: 0,
         payee: "Woolworths",
         category: "Groceries",
         memo: "Weekly shop",
@@ -158,6 +238,8 @@ function buildDemoRegister(accountId: string): AccountRegisterView {
       {
         id: "tx-2",
         date: "2026-06-17",
+        flag: null,
+        attachmentCount: 0,
         payee: "Salary",
         category: "Ready To Assign",
         memo: "Fortnightly income",
@@ -170,6 +252,8 @@ function buildDemoRegister(accountId: string): AccountRegisterView {
       {
         id: "tx-3",
         date: "2026-06-15",
+        flag: null,
+        attachmentCount: 0,
         payee: "Transfer to Savings",
         category: "Transfer",
         memo: "Monthly savings",
@@ -182,6 +266,8 @@ function buildDemoRegister(accountId: string): AccountRegisterView {
       {
         id: "tx-4",
         date: "2026-06-14",
+        flag: null,
+        attachmentCount: 0,
         payee: "Electricity Provider",
         category: "Electricity",
         memo: "",
@@ -195,9 +281,114 @@ function buildDemoRegister(accountId: string): AccountRegisterView {
   };
 }
 
+function addTransactionToRegister(
+  current: AccountRegisterView,
+  input: NewRegisterTransactionInput,
+): AccountRegisterView {
+  const transaction: RegisterTransactionView = {
+    id: `tx-${Date.now()}`,
+    date: input.date,
+    flag: null,
+    attachmentCount: 0,
+    payee: input.payee,
+    category: input.category,
+    memo: input.memo,
+    inflow: input.inflow,
+    outflow: input.outflow,
+    runningBalance: current.workingBalance + input.inflow - input.outflow,
+    cleared: false,
+    reconciled: false,
+  };
+
+  return recalculateRegister({
+    ...current,
+    transactions: [transaction, ...current.transactions],
+  });
+}
+
+function updateTransactionInRegister(
+  current: AccountRegisterView,
+  input: UpdateRegisterTransactionInput,
+): AccountRegisterView {
+  return recalculateRegister({
+    ...current,
+    transactions: current.transactions.map((transaction) => {
+      if (transaction.id !== input.id) {
+        return transaction;
+      }
+
+      return {
+        ...transaction,
+        date: input.date,
+        payee: input.payee,
+        category: input.category,
+        memo: input.memo,
+        inflow: input.inflow,
+        outflow: input.outflow,
+      };
+    }),
+  });
+}
+
 export const mockAccountRegisterService: AccountRegisterService = {
   async getAccountRegisterView({ accountId }) {
-    await new Promise((resolve) => window.setTimeout(resolve, 120));
-    return buildDemoRegister(accountId);
+    await simulateLatency();
+    return cloneRegister(getOrCreateRegister(accountId));
+  },
+
+  async addTransaction({ accountId, transaction }) {
+    await simulateLatency();
+    const next = addTransactionToRegister(getOrCreateRegister(accountId), transaction);
+    registersByAccountId.set(accountId, next);
+    return cloneRegister(next);
+  },
+
+  async updateTransaction({ accountId, transaction }) {
+    await simulateLatency();
+    const next = updateTransactionInRegister(getOrCreateRegister(accountId), transaction);
+    registersByAccountId.set(accountId, next);
+    return cloneRegister(next);
+  },
+
+  async toggleCleared({ accountId, transactionId }) {
+    await simulateLatency();
+    const current = getOrCreateRegister(accountId);
+    const next = recalculateRegister({
+      ...current,
+      transactions: current.transactions.map((transaction) => {
+        if (transaction.id !== transactionId || transaction.reconciled) {
+          return transaction;
+        }
+
+        return {
+          ...transaction,
+          cleared: !transaction.cleared,
+        };
+      }),
+    });
+
+    registersByAccountId.set(accountId, next);
+    return cloneRegister(next);
+  },
+
+  async addAttachmentPlaceholder({ accountId, transactionId }) {
+    await simulateLatency();
+    const current = getOrCreateRegister(accountId);
+    const next = {
+      ...current,
+      transactions: current.transactions.map((transaction) => {
+        if (transaction.id !== transactionId) {
+          return transaction;
+        }
+
+        return {
+          ...transaction,
+          attachmentCount: transaction.attachmentCount + 1,
+        };
+      }),
+    };
+
+    registersByAccountId.set(accountId, next);
+    return cloneRegister(next);
   },
 };
