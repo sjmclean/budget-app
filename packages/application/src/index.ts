@@ -51,3 +51,4 @@ export * from "./AutoCategorizationApplicationService.js";
 export * from "./PersistentPayeeRuleApplicationService.js";
 export * from "./BankImportCommitApplicationService.js";
 export * from "./ForeignKeyMigrationPlanApplicationService.js";
+export * from "./AccountRegisterApplicationService.js";
