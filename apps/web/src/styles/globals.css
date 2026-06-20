@@ -284,24 +284,137 @@ strong {
   letter-spacing: 0.04em;
 }
 
-.account-link {
-  display: block;
+.account-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
   margin-left: 0.4rem;
-  padding: 0.45rem 1.8rem;
+  border-radius: 0.4rem;
+}
+
+.account-row:hover {
+  background: var(--surface-subtle);
+}
+
+.account-link {
+  min-width: 0;
+  flex: 1;
+  display: block;
+  padding: 0.45rem 0.25rem 0.45rem 1.4rem;
   text-decoration: none;
   color: var(--text);
   border-radius: 0.4rem;
   font-size: 0.88rem;
 }
 
-.account-link:hover {
-  background: var(--surface-subtle);
+.account-link-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-row:has(.account-link.active),
+.account-row:has(.account-link[aria-current="page"]) {
+  background: var(--accent-soft);
 }
 
 .account-link.active,
 .account-link[aria-current="page"] {
-  background: var(--accent-soft);
   color: var(--accent-strong);
+}
+
+.account-menu-button {
+  width: 1.55rem;
+  height: 1.55rem;
+  margin-right: 0.15rem;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  opacity: 0;
+}
+
+.account-row:hover .account-menu-button,
+.account-menu-button:focus,
+.account-menu-button[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.account-menu-button:hover {
+  border-color: var(--border-soft);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.account-menu {
+  position: absolute;
+  z-index: 30;
+  top: 1.85rem;
+  right: 0.15rem;
+  min-width: 11rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.55rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.account-menu button {
+  width: 100%;
+  min-height: 2rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.83rem;
+  text-align: left;
+}
+
+.account-menu button:hover {
+  background: var(--surface-subtle);
+}
+
+.account-menu button.danger {
+  color: var(--negative);
+}
+
+.account-menu button.danger:hover {
+  background: var(--negative-bg);
+}
+
+.closed-accounts-toggle {
+  margin: 0.25rem 0 0.1rem 0.4rem;
+  width: calc(100% - 0.4rem);
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.closed-accounts-toggle:hover {
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+
+.closed-account-list .account-row {
+  opacity: 0.72;
 }
 
 .sidebar-footer,
@@ -1054,6 +1167,19 @@ strong {
 .add-account-form select:focus {
   outline: 2px solid color-mix(in srgb, var(--accent) 24%, transparent);
   border-color: var(--accent);
+}
+
+
+.form-help-text {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.add-account-form input:disabled {
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  cursor: not-allowed;
 }
 
 .modal-footer {

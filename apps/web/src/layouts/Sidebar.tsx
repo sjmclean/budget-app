@@ -1,12 +1,17 @@
 import {
+  Archive,
   BarChart3,
   ChevronDown,
   CreditCard,
   FolderOpen,
   Gauge,
+  MoreHorizontal,
+  Pencil,
   PiggyBank,
   Plus,
+  RotateCcw,
   Settings,
+  Trash2,
   WalletCards,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -16,11 +21,17 @@ import {
   accountService,
   type CreateAccountInput,
   type SidebarAccount,
+
+  type UpdateAccountInput
+
 } from "../features/accounts/accountService";
 
 export function Sidebar() {
   const [accountsOpen, setAccountsOpen] = useState(true);
+  const [closedAccountsOpen, setClosedAccountsOpen] = useState(false);
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<SidebarAccount | null>(null);
+  const [openMenuAccountId, setOpenMenuAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<SidebarAccount[]>([]);
 
   useEffect(() => {
@@ -37,24 +48,125 @@ export function Sidebar() {
     };
   }, []);
 
-  const budgetAccounts = accounts.filter((account) => account.type === "on-budget");
-  const creditCards = accounts.filter((account) => account.type === "credit-card");
-  const trackingAccounts = accounts.filter((account) => account.type === "tracking");
+  const activeAccounts = accounts.filter((account) => !account.closedAt);
+  const closedAccounts = accounts.filter((account) => account.closedAt);
+  const budgetAccounts = activeAccounts.filter((account) => account.type === "on-budget");
+  const creditCards = activeAccounts.filter((account) => account.type === "credit-card");
+  const trackingAccounts = activeAccounts.filter((account) => account.type === "tracking");
 
   async function addAccount(input: CreateAccountInput) {
     const nextAccounts = await accountService.createAccount(input);
     setAccounts(nextAccounts);
   }
 
+  async function updateAccount(input: UpdateAccountInput) {
+    const nextAccounts = await accountService.updateAccount(input);
+    setAccounts(nextAccounts);
+    setEditingAccount(null);
+    setOpenMenuAccountId(null);
+  }
+
+  async function closeAccount(account: SidebarAccount) {
+    const shouldClose = window.confirm(
+      `Close "${account.name}"?\n\nClosed accounts are hidden from the main account list, but their transactions are preserved and the account can be reopened later.`,
+    );
+
+    if (!shouldClose) {
+      return;
+    }
+
+    const nextAccounts = await accountService.closeAccount(account.id);
+    setAccounts(nextAccounts);
+    setOpenMenuAccountId(null);
+  }
+
+  async function reopenAccount(account: SidebarAccount) {
+    const nextAccounts = await accountService.reopenAccount(account.id);
+    setAccounts(nextAccounts);
+    setOpenMenuAccountId(null);
+  }
+
+  async function deleteAccount(account: SidebarAccount) {
+    const shouldDelete = window.confirm(
+      `Delete "${account.name}"?\n\nOnly empty accounts can be permanently deleted. This cannot be undone.`,
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    const result = await accountService.deleteAccount(account.id);
+
+    if (!result.deleted) {
+      window.alert(result.reason ?? "This account cannot be deleted.");
+    }
+
+    setAccounts(result.accounts);
+    setOpenMenuAccountId(null);
+  }
+  }
+
   function renderAccount(account: SidebarAccount) {
+    const isMenuOpen = openMenuAccountId === account.id;
+
     return (
-      <NavLink
-        key={account.id}
-        to={`/accounts/${account.id}`}
-        className="account-link"
-      >
-        {account.name}
-      </NavLink>
+      <div className="account-row" key={account.id}>
+        <NavLink to={`/accounts/${account.id}`} className="account-link">
+          <span className="account-link-name">{account.name}</span>
+        </NavLink>
+
+        <button
+          className="account-menu-button"
+          type="button"
+          aria-label={`Manage ${account.name}`}
+          title={`Manage ${account.name}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpenMenuAccountId(isMenuOpen ? null : account.id);
+          }}
+        >
+          <MoreHorizontal size={15} />
+        </button>
+
+        {isMenuOpen && (
+          <div className="account-menu" role="menu">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setEditingAccount(account);
+                setOpenMenuAccountId(null);
+              }}
+            >
+              <Pencil size={14} />
+              <span>Edit / rename</span>
+            </button>
+
+            {account.closedAt ? (
+              <button type="button" role="menuitem" onClick={() => reopenAccount(account)}>
+                <RotateCcw size={14} />
+                <span>Reopen account</span>
+              </button>
+            ) : (
+              <button type="button" role="menuitem" onClick={() => closeAccount(account)}>
+                <Archive size={14} />
+                <span>Close account</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              role="menuitem"
+              className="danger"
+              onClick={() => deleteAccount(account)}
+            >
+              <Trash2 size={14} />
+              <span>Delete account</span>
+            </button>
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -132,6 +244,28 @@ export function Sidebar() {
                 </div>
 
                 {trackingAccounts.map(renderAccount)}
+
+                {closedAccounts.length > 0 && (
+                  <>
+                    <button
+                      className="closed-accounts-toggle"
+                      type="button"
+                      onClick={() => setClosedAccountsOpen(!closedAccountsOpen)}
+                    >
+                      <ChevronDown
+                        size={14}
+                        className={closedAccountsOpen ? "chevron-open" : "chevron-closed"}
+                      />
+                      <span>Closed accounts ({closedAccounts.length})</span>
+                    </button>
+
+                    {closedAccountsOpen && (
+                      <div className="closed-account-list">
+                        {closedAccounts.map(renderAccount)}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -159,6 +293,14 @@ export function Sidebar() {
         isOpen={isAddAccountOpen}
         onClose={() => setIsAddAccountOpen(false)}
         onCreate={addAccount}
+      />
+
+      <AddAccountModal
+        isOpen={Boolean(editingAccount)}
+        account={editingAccount}
+        onClose={() => setEditingAccount(null)}
+        onCreate={addAccount}
+        onUpdate={updateAccount}
       />
     </>
   );
