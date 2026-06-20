@@ -15,6 +15,7 @@ const SCHEDULED_TRANSACTIONS_STORAGE_KEY = "budget-app.scheduled-transactions.v1
 interface StoredRegisterSplitLine {
   id: string;
   category: string;
+  categoryId?: string;
   memo?: string;
   inflow: number;
   outflow: number;
@@ -23,6 +24,7 @@ interface StoredRegisterSplitLine {
 interface StoredScheduledTransaction {
   id: string;
   category: string;
+  categoryId?: string;
 }
 
 interface CategoryLocation {
@@ -34,6 +36,7 @@ interface StoredRegisterTransaction {
   id: string;
   date: string;
   category: string;
+  categoryId?: string;
   inflow: number;
   outflow: number;
   transferAccountId?: string;
@@ -225,10 +228,10 @@ function applyRegisterActivity(view: BudgetMonthView, month: string): BudgetMont
     if (transaction.splitLines && transaction.splitLines.length > 0) {
       for (const splitLine of transaction.splitLines) {
         const splitCategoryKey = normaliseCategoryKey(splitLine.category);
-        const splitCategoryId = categoryLookup.get(splitCategoryKey);
+        const splitCategoryId = resolveStoredCategoryId(splitLine, categoryLookup);
         const splitAmount = splitLine.inflow - splitLine.outflow;
 
-        if (isReadyToAssignCategory(splitCategoryKey)) {
+        if (isReadyToAssignCategoryReference(splitLine, splitCategoryKey)) {
           readyToAssignIncome += splitAmount;
           continue;
         }
@@ -247,7 +250,7 @@ function applyRegisterActivity(view: BudgetMonthView, month: string): BudgetMont
     }
 
     const categoryKey = normaliseCategoryKey(transaction.category);
-    const categoryId = categoryLookup.get(categoryKey);
+    const categoryId = resolveStoredCategoryId(transaction, categoryLookup);
     const amount = transaction.inflow - transaction.outflow;
 
     if (isTransferCategory(categoryKey)) {
@@ -262,7 +265,7 @@ function applyRegisterActivity(view: BudgetMonthView, month: string): BudgetMont
       continue;
     }
 
-    if (isReadyToAssignCategory(categoryKey)) {
+    if (isReadyToAssignCategoryReference(transaction, categoryKey)) {
       readyToAssignIncome += amount;
       continue;
     }
@@ -309,6 +312,31 @@ function createCategoryLookup(view: BudgetMonthView): Map<string, string> {
   }
 
   return lookup;
+}
+
+function resolveStoredCategoryId(
+  item: { category: string; categoryId?: string },
+  categoryLookup: Map<string, string>,
+): string | undefined {
+  if (item.categoryId) {
+    const categoryId = categoryLookup.get(normaliseCategoryKey(item.categoryId));
+
+    if (categoryId) {
+      return categoryId;
+    }
+  }
+
+  return categoryLookup.get(normaliseCategoryKey(item.category));
+}
+
+function isReadyToAssignCategoryReference(
+  item: { category: string; categoryId?: string },
+  categoryKey: string,
+): boolean {
+  return (
+    Boolean(item.categoryId && isReadyToAssignCategory(normaliseCategoryKey(item.categoryId))) ||
+    isReadyToAssignCategory(categoryKey)
+  );
 }
 
 function normaliseCategoryKey(value: string): string {
@@ -411,13 +439,17 @@ function findCategoryLocation(view: BudgetMonthView, categoryId: string): Catego
   return null;
 }
 
-function createCategoryReferenceMatcher(category: BudgetCategoryView): (value: string) => boolean {
+function createCategoryReferenceMatcher(
+  category: BudgetCategoryView,
+): (value: string, categoryId?: string) => boolean {
   const sourceKeys = new Set([
     normaliseCategoryKey(category.id),
     normaliseCategoryKey(category.name),
   ]);
 
-  return (value: string) => sourceKeys.has(normaliseCategoryKey(value));
+  return (value: string, categoryId?: string) =>
+    sourceKeys.has(normaliseCategoryKey(value)) ||
+    Boolean(categoryId && sourceKeys.has(normaliseCategoryKey(categoryId)));
 }
 
 function countRegisterCategoryReferences(category: BudgetCategoryView): {
@@ -442,12 +474,12 @@ function countRegisterCategoryReferences(category: BudgetCategoryView): {
 
     for (const register of Object.values(registers)) {
       for (const transaction of register.transactions ?? []) {
-        if (matchesSourceCategory(transaction.category)) {
+        if (matchesSourceCategory(transaction.category, transaction.categoryId)) {
           registerTransactionCount += 1;
         }
 
         for (const splitLine of transaction.splitLines ?? []) {
-          if (matchesSourceCategory(splitLine.category)) {
+          if (matchesSourceCategory(splitLine.category, splitLine.categoryId)) {
             registerSplitLineCount += 1;
           }
         }
@@ -476,7 +508,7 @@ function countScheduledCategoryReferences(category: BudgetCategoryView): number 
     const matchesSourceCategory = createCategoryReferenceMatcher(category);
 
     return Array.isArray(scheduledTransactions)
-      ? scheduledTransactions.filter((transaction) => matchesSourceCategory(transaction.category)).length
+      ? scheduledTransactions.filter((transaction) => matchesSourceCategory(transaction.category, transaction.categoryId)).length
       : 0;
   } catch {
     return 0;
@@ -546,21 +578,22 @@ function rewriteStoredRegisterCategoryReferences(
     const matchesSourceCategory = createCategoryReferenceMatcher(sourceCategory);
     let changed = false;
 
-    const rewriteValue = (value: string) => {
-      if (!matchesSourceCategory(value)) {
-        return value;
+    const rewriteValue = (item: { category: string; categoryId?: string }) => {
+      if (!matchesSourceCategory(item.category, item.categoryId)) {
+        return;
       }
 
       changed = true;
-      return targetCategory.name;
+      item.category = targetCategory.name;
+      item.categoryId = targetCategory.id;
     };
 
     for (const register of Object.values(registers)) {
       for (const transaction of register.transactions ?? []) {
-        transaction.category = rewriteValue(transaction.category);
+        rewriteValue(transaction);
 
         for (const splitLine of transaction.splitLines ?? []) {
-          splitLine.category = rewriteValue(splitLine.category);
+          rewriteValue(splitLine);
         }
       }
     }
@@ -598,7 +631,7 @@ function rewriteScheduledCategoryReferences(
     let changed = false;
 
     const nextScheduledTransactions = scheduledTransactions.map((transaction) => {
-      if (!matchesSourceCategory(transaction.category)) {
+      if (!matchesSourceCategory(transaction.category, transaction.categoryId)) {
         return transaction;
       }
 
@@ -606,6 +639,7 @@ function rewriteScheduledCategoryReferences(
       return {
         ...transaction,
         category: targetCategory.name,
+        categoryId: targetCategory.id,
       };
     });
 

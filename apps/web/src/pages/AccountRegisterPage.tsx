@@ -569,6 +569,7 @@ function CategoryInput({
 interface SplitLineDraft {
   id: string;
   category: string;
+  categoryId?: string;
   memo: string;
   outflow: string;
   inflow: string;
@@ -596,26 +597,53 @@ function splitDraftsFromTransaction(transaction: RegisterTransactionView): Split
   return (transaction.splitLines ?? []).map((line) => ({
     id: line.id,
     category: line.category,
+    categoryId: line.categoryId,
     memo: line.memo ?? "",
     outflow: line.outflow ? line.outflow.toFixed(2) : "",
     inflow: line.inflow ? line.inflow.toFixed(2) : "",
   }));
 }
 
-function buildSplitLines(splitLines: SplitLineDraft[]): RegisterSplitLineView[] {
+function buildSplitLines(
+  splitLines: SplitLineDraft[],
+  categoryOptions: BudgetCategoryOption[],
+): RegisterSplitLineView[] {
   return splitLines
-    .map((line) => ({
-      id: line.id,
-      category: line.category.trim(),
-      memo: line.memo.trim(),
-      outflow: parseMoney(line.outflow),
-      inflow: parseMoney(line.inflow),
-    }))
+    .map((line) => {
+      const categoryName = line.category.trim();
+      const categoryOption = findCategoryOption(categoryName, categoryOptions);
+
+      return {
+        id: line.id,
+        category: categoryOption?.name ?? categoryName,
+        categoryId: categoryOption?.id,
+        memo: line.memo.trim(),
+        outflow: parseMoney(line.outflow),
+        inflow: parseMoney(line.inflow),
+      };
+    })
     .filter(
       (line) =>
         line.category.length > 0 &&
         (line.outflow > 0 || line.inflow > 0),
     );
+}
+
+function findCategoryOption(
+  categoryName: string,
+  categoryOptions: BudgetCategoryOption[],
+): BudgetCategoryOption | undefined {
+  const normalised = normaliseCategoryName(categoryName);
+
+  return categoryOptions.find(
+    (category) =>
+      normaliseCategoryName(category.name) === normalised ||
+      normaliseCategoryName(category.id) === normalised,
+  );
+}
+
+function normaliseCategoryName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "").trim();
 }
 
 function totalsFromSplitLines(splitLines: RegisterSplitLineView[]): {
@@ -644,7 +672,7 @@ function SplitEditor({
     return null;
   }
 
-  const totals = totalsFromSplitLines(buildSplitLines(splitLines));
+  const totals = totalsFromSplitLines(buildSplitLines(splitLines, categoryOptions));
 
   return (
     <div className="register-split-editor">
@@ -663,7 +691,13 @@ function SplitEditor({
             onChange={(value) =>
               setSplitLines((current) =>
                 current.map((item) =>
-                  item.id === line.id ? { ...item, category: value } : item,
+                  item.id === line.id
+                    ? {
+                        ...item,
+                        category: value,
+                        categoryId: findCategoryOption(value, categoryOptions)?.id,
+                      }
+                    : item,
                 ),
               )
             }
@@ -758,7 +792,7 @@ function TransactionEntryRow({
       return null;
     }
 
-    const parsedSplitLines = buildSplitLines(splitLines);
+    const parsedSplitLines = buildSplitLines(splitLines, categoryOptions);
 
     if (splitLines.length > 0 && parsedSplitLines.length === 0) {
       return null;
@@ -768,14 +802,21 @@ function TransactionEntryRow({
     const parsedOutflow = parsedSplitLines.length > 0 ? splitTotals.outflow : parseMoney(outflow);
     const parsedInflow = parsedSplitLines.length > 0 ? splitTotals.inflow : parseMoney(inflow);
 
+    const categoryName = category.trim();
+    const categoryOption = findCategoryOption(categoryName, categoryOptions);
+    const fallbackCategory = parsedInflow > 0 && parsedOutflow === 0 ? "Ready to Assign" : "Uncategorised";
+
     return {
       date,
       payee: payee.trim(),
       category:
         parsedSplitLines.length > 0
           ? "Split"
-          : category.trim() ||
-            (parsedInflow > 0 && parsedOutflow === 0 ? "Ready to Assign" : "Uncategorised"),
+          : categoryOption?.name ?? (categoryName || fallbackCategory),
+      categoryId:
+        parsedSplitLines.length > 0
+          ? undefined
+          : categoryOption?.id ?? (fallbackCategory === "Ready to Assign" ? "__ready_to_assign__" : undefined),
       memo: memo.trim(),
       outflow: parsedOutflow,
       inflow: parsedInflow,
@@ -907,6 +948,7 @@ function TransactionEditRow({
     date: string;
     payee: string;
     category: string;
+    categoryId?: string;
     memo?: string;
     inflow: number;
     outflow: number;
@@ -955,7 +997,7 @@ function TransactionEditRow({
       return;
     }
 
-    const parsedSplitLines = buildSplitLines(splitLines);
+    const parsedSplitLines = buildSplitLines(splitLines, categoryOptions);
 
     if (splitLines.length > 0 && parsedSplitLines.length === 0) {
       return;
@@ -965,6 +1007,10 @@ function TransactionEditRow({
     const parsedOutflow = parsedSplitLines.length > 0 ? splitTotals.outflow : parseMoney(outflow);
     const parsedInflow = parsedSplitLines.length > 0 ? splitTotals.inflow : parseMoney(inflow);
 
+    const categoryName = category.trim();
+    const categoryOption = findCategoryOption(categoryName, categoryOptions);
+    const fallbackCategory = parsedInflow > 0 && parsedOutflow === 0 ? "Ready to Assign" : "Uncategorised";
+
     onSave({
       id: transaction.id,
       date,
@@ -972,8 +1018,11 @@ function TransactionEditRow({
       category:
         parsedSplitLines.length > 0
           ? "Split"
-          : category.trim() ||
-            (parsedInflow > 0 && parsedOutflow === 0 ? "Ready to Assign" : "Uncategorised"),
+          : categoryOption?.name ?? (categoryName || fallbackCategory),
+      categoryId:
+        parsedSplitLines.length > 0
+          ? undefined
+          : categoryOption?.id ?? (fallbackCategory === "Ready to Assign" ? "__ready_to_assign__" : undefined),
       memo: memo.trim(),
       outflow: parsedOutflow,
       inflow: parsedInflow,

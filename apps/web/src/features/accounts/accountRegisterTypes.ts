@@ -10,6 +10,7 @@ export type TransactionFlag =
 export interface RegisterSplitLineView {
   id: string;
   category: string;
+  categoryId?: string;
   memo?: string;
   inflow: number;
   outflow: number;
@@ -31,6 +32,7 @@ export interface RegisterTransactionView {
   attachments?: RegisterAttachmentView[];
   payee: string;
   category: string;
+  categoryId?: string;
   memo?: string;
   inflow: number;
   outflow: number;
@@ -59,6 +61,7 @@ export interface NewRegisterTransactionInput {
   flag?: TransactionFlag;
   payee: string;
   category: string;
+  categoryId?: string;
   memo?: string;
   inflow: number;
   outflow: number;
@@ -71,6 +74,7 @@ export interface UpdateRegisterTransactionInput {
   flag?: TransactionFlag;
   payee: string;
   category: string;
+  categoryId?: string;
   memo?: string;
   inflow: number;
   outflow: number;
