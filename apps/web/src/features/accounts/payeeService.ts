@@ -119,6 +119,23 @@ class BrowserPersistentPayeeService {
 
 export const payeeService = new BrowserPersistentPayeeService();
 
+export function findPayeeByName(name: string): PayeeView | undefined {
+  const normalised = normalisePayeeName(name).toLocaleLowerCase();
+
+  if (!normalised || isTransferPayee(name)) {
+    return undefined;
+  }
+
+  return readPayees().find(
+    (payee) => normalisePayeeName(payee.name).toLocaleLowerCase() === normalised,
+  );
+}
+
+export function findPayeeIdByName(name: string): string | undefined {
+  return findPayeeByName(name)?.id;
+}
+
+
 export function readPayees(): PayeeView[] {
   if (typeof window === "undefined") {
     return [];

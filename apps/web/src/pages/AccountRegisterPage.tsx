@@ -353,12 +353,14 @@ function AttachmentManager({
 function PayeeInput({
   value,
   onChange,
+  onPayeeIdChange,
   transferAccounts,
   payeeOptions,
   autoFocus,
 }: {
   value: string;
   onChange: (value: string) => void;
+  onPayeeIdChange?: (payeeId: string | undefined) => void;
   transferAccounts: SidebarAccount[];
   payeeOptions: PayeeView[];
   autoFocus?: boolean;
@@ -371,11 +373,13 @@ function PayeeInput({
     ...payeeOptions.map((payee) => ({
       id: `payee-${payee.id}`,
       value: payee.name,
+      payeeId: payee.id,
       label: "Payee",
     })),
     ...transferAccounts.map((account) => ({
       id: `transfer-${account.id}`,
       value: `Transfer: ${account.name}`,
+      payeeId: undefined,
       label: "Transfer",
     })),
   ]
@@ -418,12 +422,13 @@ function PayeeInput({
       return false;
     }
 
-    selectSuggestion(ghostSuggestion.value);
+    selectSuggestion(ghostSuggestion.value, ghostSuggestion.payeeId);
     return true;
   }
 
-  function selectSuggestion(selectedValue: string) {
+  function selectSuggestion(selectedValue: string, selectedPayeeId?: string) {
     onChange(selectedValue);
+    onPayeeIdChange?.(selectedPayeeId);
     setIsOpen(false);
     setHighlightedIndex(0);
   }
@@ -481,7 +486,7 @@ function PayeeInput({
           if (event.key === "Enter") {
             event.preventDefault();
             event.stopPropagation();
-            selectSuggestion(suggestions[highlightedIndex].value);
+            selectSuggestion(suggestions[highlightedIndex].value, suggestions[highlightedIndex].payeeId);
             return;
           }
 
@@ -518,7 +523,7 @@ function PayeeInput({
               onMouseEnter={() => setHighlightedIndex(index)}
               onMouseDown={(event) => {
                 event.preventDefault();
-                selectSuggestion(suggestion.value);
+                selectSuggestion(suggestion.value, suggestion.payeeId);
               }}
               role="option"
               aria-selected={index === highlightedIndex}
@@ -781,6 +786,7 @@ function TransactionEntryRow({
 }) {
   const [date, setDate] = useState(initialDate);
   const [payee, setPayee] = useState("");
+  const [payeeId, setPayeeId] = useState<string | undefined>(undefined);
   const [category, setCategory] = useState("");
   const [memo, setMemo] = useState("");
   const [outflow, setOutflow] = useState("");
@@ -809,6 +815,7 @@ function TransactionEntryRow({
     return {
       date,
       payee: payee.trim(),
+      payeeId,
       category:
         parsedSplitLines.length > 0
           ? "Split"
@@ -826,6 +833,7 @@ function TransactionEntryRow({
 
   function clearForNext() {
     setPayee("");
+    setPayeeId(undefined);
     setCategory("");
     setMemo("");
     setOutflow("");
@@ -893,7 +901,11 @@ function TransactionEntryRow({
       <RegisterDateField value={date} onChange={setDate} />
       <PayeeInput
         value={payee}
-        onChange={setPayee}
+        onChange={(value) => {
+          setPayee(value);
+          setPayeeId(undefined);
+        }}
+        onPayeeIdChange={setPayeeId}
         transferAccounts={transferAccounts}
         payeeOptions={payeeOptions}
         autoFocus
@@ -947,6 +959,7 @@ function TransactionEditRow({
     id: string;
     date: string;
     payee: string;
+    payeeId?: string;
     category: string;
     categoryId?: string;
     memo?: string;
@@ -958,6 +971,7 @@ function TransactionEditRow({
 }) {
   const [date, setDate] = useState(transaction.date);
   const [payee, setPayee] = useState(transaction.payee);
+  const [payeeId, setPayeeId] = useState<string | undefined>(transaction.payeeId);
   const [category, setCategory] = useState(transaction.category);
   const [memo, setMemo] = useState(transaction.memo ?? "");
   const [outflow, setOutflow] = useState(transaction.outflow ? transaction.outflow.toFixed(2) : "");
@@ -1015,6 +1029,7 @@ function TransactionEditRow({
       id: transaction.id,
       date,
       payee: payee.trim(),
+      payeeId,
       category:
         parsedSplitLines.length > 0
           ? "Split"
@@ -1050,7 +1065,11 @@ function TransactionEditRow({
       <AttachmentIndicator count={transaction.attachmentCount} />
       <PayeeInput
         value={payee}
-        onChange={setPayee}
+        onChange={(value) => {
+          setPayee(value);
+          setPayeeId(undefined);
+        }}
+        onPayeeIdChange={setPayeeId}
         transferAccounts={transferAccounts}
         payeeOptions={payeeOptions}
       />

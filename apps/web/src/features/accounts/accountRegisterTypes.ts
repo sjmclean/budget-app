@@ -31,6 +31,7 @@ export interface RegisterTransactionView {
   attachmentCount: number;
   attachments?: RegisterAttachmentView[];
   payee: string;
+  payeeId?: string;
   category: string;
   categoryId?: string;
   memo?: string;
@@ -60,6 +61,7 @@ export interface NewRegisterTransactionInput {
   date: string;
   flag?: TransactionFlag;
   payee: string;
+  payeeId?: string;
   category: string;
   categoryId?: string;
   memo?: string;
@@ -73,6 +75,7 @@ export interface UpdateRegisterTransactionInput {
   date: string;
   flag?: TransactionFlag;
   payee: string;
+  payeeId?: string;
   category: string;
   categoryId?: string;
   memo?: string;

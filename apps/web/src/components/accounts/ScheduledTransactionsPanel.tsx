@@ -27,6 +27,7 @@ interface ScheduledFormDraft {
   nextDueDate: string;
   frequency: ScheduledFrequency;
   payee: string;
+  payeeId?: string;
   category: string;
   memo: string;
   outflow: string;
@@ -116,6 +117,7 @@ export function ScheduledTransactionsPanel({
       nextDueDate: draft.nextDueDate,
       frequency: draft.frequency,
       payee: draft.payee.trim(),
+      payeeId: draft.payeeId,
       category: draft.category.trim(),
       memo: draft.memo.trim(),
       outflow,
@@ -464,6 +466,7 @@ function createEmptyDraft(): ScheduledFormDraft {
     nextDueDate: new Date().toISOString().slice(0, 10),
     frequency: "monthly",
     payee: "",
+    payeeId: undefined,
     category: "",
     memo: "",
     outflow: "",
@@ -478,6 +481,7 @@ function draftFromScheduled(transaction: ScheduledTransactionView): ScheduledFor
     nextDueDate: transaction.nextDueDate,
     frequency: transaction.frequency,
     payee: transaction.payee,
+    payeeId: transaction.payeeId,
     category: transaction.category,
     memo: transaction.memo ?? "",
     outflow: transaction.outflow ? transaction.outflow.toFixed(2) : "",

@@ -7,7 +7,7 @@ import type {
   UpdateRegisterTransactionInput,
 } from "./accountRegisterTypes";
 import { accountService, readAccounts, type SidebarAccount, type SidebarAccountType } from "./accountService";
-import { payeeService } from "./payeeService";
+import { findPayeeIdByName, payeeService } from "./payeeService";
 
 const STORAGE_KEY = "budget-app.account-registers.v1";
 
@@ -41,6 +41,7 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     transaction: NewRegisterTransactionInput;
   }): Promise<AccountRegisterView> {
     await payeeService.recordPayee(input.transaction.payee);
+    const payeeId = resolvePayeeId(input.transaction.payee, input.transaction.payeeId);
 
     const transferTarget = findTransferTarget(input.accountId, input.transaction.payee);
 
@@ -49,7 +50,7 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     }
 
     return updateRegister(input.accountId, (register) => {
-      register.transactions.unshift(createTransactionView(input.transaction));
+      register.transactions.unshift(createTransactionView({ ...input.transaction, payeeId }));
     });
   }
 
@@ -58,6 +59,7 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     transaction: UpdateRegisterTransactionInput;
   }): Promise<AccountRegisterView> {
     await payeeService.recordPayee(input.transaction.payee);
+    const payeeId = resolvePayeeId(input.transaction.payee, input.transaction.payeeId);
 
     const registers = readRegisters();
     const sourceRegister = cloneRegister(registers[input.accountId] ?? createEmptyRegister(input.accountId));
@@ -115,6 +117,7 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
           date: input.transaction.date,
           flag: input.transaction.flag ?? transaction.flag,
           payee: input.transaction.payee,
+          payeeId,
           category: input.transaction.category,
           categoryId: input.transaction.categoryId,
           memo: input.transaction.memo,
@@ -272,6 +275,7 @@ function addTransferTransaction(
     payee: `Transfer: ${targetAccount.name}`,
     category: "Transfer",
     categoryId: undefined,
+    payeeId: undefined,
     transferId,
     transferAccountId: targetAccount.id,
     transferTransactionId: targetTransactionId,
@@ -305,6 +309,7 @@ function createTransactionView(input: NewRegisterTransactionInput): RegisterTran
     attachmentCount: 0,
     attachments: [],
     payee: input.payee,
+    payeeId: input.payeeId ?? resolvePayeeId(input.payee),
     category: input.category,
     categoryId: input.categoryId,
     memo: input.memo,
@@ -326,6 +331,7 @@ function createOpposingTransferTransaction(
     ...sourceTransaction,
     id: createId(),
     payee: `Transfer: ${sourceAccountName}`,
+    payeeId: undefined,
     category: "Transfer",
     categoryId: undefined,
     inflow: sourceTransaction.outflow,
@@ -341,6 +347,10 @@ function createOpposingTransferTransaction(
 
 function cloneSplitLines(splitLines: RegisterTransactionView["splitLines"]): RegisterTransactionView["splitLines"] {
   return splitLines?.map((line) => ({ ...line }));
+}
+
+function resolvePayeeId(payeeName: string, currentPayeeId?: string): string | undefined {
+  return currentPayeeId ?? findPayeeIdByName(payeeName);
 }
 
 function findTransferTarget(sourceAccountId: string, payee: string): SidebarAccount | null {
@@ -411,6 +421,7 @@ function createEmptyRegister(accountId: string): AccountRegisterView {
               attachmentCount: 0,
               attachments: [],
               payee: "Starting Balance",
+              payeeId: undefined,
               category: "Ready to Assign",
               categoryId: "__ready_to_assign__",
               memo: "Opening balance",
@@ -445,6 +456,7 @@ function recalculateRegister(register: AccountRegisterView): AccountRegisterView
       ...transaction,
       attachments: normaliseAttachments(transaction.attachments),
       attachmentCount: normaliseAttachments(transaction.attachments).length || transaction.attachmentCount || 0,
+      payeeId: transaction.payeeId ?? resolvePayeeId(transaction.payee),
       runningBalance: runningBalanceById.get(transaction.id) ?? 0,
     }))
     .sort(compareForRegisterDisplay);

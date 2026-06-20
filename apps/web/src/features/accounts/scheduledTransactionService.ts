@@ -1,5 +1,5 @@
 import type { NewRegisterTransactionInput, TransactionFlag } from "./accountRegisterTypes";
-import { payeeService } from "./payeeService";
+import { findPayeeIdByName, payeeService } from "./payeeService";
 
 export type ScheduledFrequency = "once" | "weekly" | "fortnightly" | "monthly" | "yearly";
 
@@ -10,6 +10,7 @@ export interface ScheduledTransactionView {
   nextDueDate: string;
   frequency: ScheduledFrequency;
   payee: string;
+  payeeId?: string;
   category: string;
   memo?: string;
   outflow: number;
@@ -25,6 +26,7 @@ export interface UpsertScheduledTransactionInput {
   nextDueDate: string;
   frequency: ScheduledFrequency;
   payee: string;
+  payeeId?: string;
   category: string;
   memo?: string;
   outflow: number;
@@ -48,6 +50,7 @@ class BrowserPersistentScheduledTransactionService {
 
   async create(input: UpsertScheduledTransactionInput): Promise<ScheduledTransactionView[]> {
     await payeeService.recordPayee(input.payee);
+    const payeeId = resolvePayeeId(input.payee, input.payeeId);
 
     const transactions = readScheduledTransactions();
     const now = new Date().toISOString();
@@ -58,6 +61,7 @@ class BrowserPersistentScheduledTransactionService {
       nextDueDate: input.nextDueDate,
       frequency: input.frequency,
       payee: input.payee,
+      payeeId,
       category: normaliseScheduledCategory(input),
       memo: input.memo,
       outflow: input.outflow,
@@ -72,6 +76,7 @@ class BrowserPersistentScheduledTransactionService {
 
   async update(input: UpsertScheduledTransactionInput & { id: string }): Promise<ScheduledTransactionView[]> {
     await payeeService.recordPayee(input.payee);
+    const payeeId = resolvePayeeId(input.payee, input.payeeId);
 
     const now = new Date().toISOString();
     const transactions = readScheduledTransactions().map((transaction) => {
@@ -86,6 +91,7 @@ class BrowserPersistentScheduledTransactionService {
         nextDueDate: input.nextDueDate,
         frequency: input.frequency,
         payee: input.payee,
+        payeeId,
         category: normaliseScheduledCategory(input),
         memo: input.memo,
         outflow: input.outflow,
@@ -144,6 +150,7 @@ class BrowserPersistentScheduledTransactionService {
       date: transaction.nextDueDate,
       flag: transaction.flag,
       payee: transaction.payee,
+      payeeId: transaction.payeeId,
       category: transaction.category,
       memo: transaction.memo,
       outflow: transaction.outflow,
@@ -188,9 +195,14 @@ function normaliseStoredScheduledTransaction(
     ...transaction,
     flag: transaction.flag ?? null,
     memo: transaction.memo ?? "",
+    payeeId: transaction.payeeId ?? findPayeeIdByName(transaction.payee),
     outflow: Number.isFinite(transaction.outflow) ? transaction.outflow : 0,
     inflow: Number.isFinite(transaction.inflow) ? transaction.inflow : 0,
   };
+}
+
+function resolvePayeeId(payeeName: string, currentPayeeId?: string): string | undefined {
+  return currentPayeeId ?? findPayeeIdByName(payeeName);
 }
 
 function normaliseScheduledCategory(input: Pick<UpsertScheduledTransactionInput, "category" | "inflow" | "outflow">): string {
