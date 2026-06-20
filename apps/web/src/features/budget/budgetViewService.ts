@@ -117,6 +117,7 @@ function recalculateCategory(category: BudgetCategoryView): BudgetCategoryView {
 
   return {
     ...category,
+    isArchived: category.isArchived ?? false,
     available,
     isOverspent: available < 0,
   };
@@ -176,6 +177,7 @@ function createStarterBudgetView(budgetId: string, month: string): BudgetMonthVi
         activity: 0,
         available: 0,
         isOverspent: false,
+        isArchived: false,
       })),
     })),
   });
@@ -532,4 +534,38 @@ export const budgetViewService: BudgetViewService = {
       month,
     );
   },
+
+  async setCategoryArchived({ budgetId, month, categoryId, isArchived }) {
+    const current = loadBudgetView(budgetId, month);
+    let found = false;
+
+    const nextGroups = current.categoryGroups.map((group) => ({
+      ...group,
+      categories: group.categories.map((category) => {
+        if (category.id !== categoryId) {
+          return category;
+        }
+
+        found = true;
+
+        return {
+          ...category,
+          isArchived,
+        };
+      }),
+    }));
+
+    if (!found) {
+      throw new Error("Category not found.");
+    }
+
+    return saveBudgetView(
+      {
+        ...current,
+        categoryGroups: nextGroups,
+      },
+      month,
+    );
+  },
+
 };

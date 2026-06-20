@@ -17,6 +17,7 @@ interface UseBudgetWorkspaceState {
   selectCategory: (categoryId: string) => void;
   updateAssigned: (categoryId: string, assigned: number) => void;
   renameCategory: (categoryId: string, name: string) => void;
+  setCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   clearSelection: () => void;
 }
 
@@ -118,6 +119,29 @@ export function useBudgetWorkspace(
       });
   }
 
+  function setCategoryArchived(categoryId: string, isArchived: boolean) {
+    setSaveError(null);
+
+    void budgetViewService
+      .setCategoryArchived({
+        budgetId,
+        month,
+        categoryId,
+        isArchived,
+      })
+      .then((nextData) => {
+        setEditedData(nextData);
+        setSelectedCategoryId(categoryId);
+      })
+      .catch((error) => {
+        setSaveError(
+          error instanceof Error
+            ? error.message
+            : "Failed to update category archive status.",
+        );
+      });
+  }
+
   return {
     data,
     isLoading: budgetView.isLoading,
@@ -128,6 +152,7 @@ export function useBudgetWorkspace(
     selectCategory,
     updateAssigned,
     renameCategory,
+    setCategoryArchived,
     clearSelection,
   };
 }

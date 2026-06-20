@@ -807,6 +807,17 @@ strong {
   color: var(--text);
 }
 
+.category-archived-badge {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.08rem 0.42rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .budget-category-dot {
   display: none;
 }
@@ -1211,7 +1222,14 @@ strong {
   padding: 0.35rem 0.5rem;
 }
 
-.category-rename-button {
+.category-inspector-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.45rem;
+}
+
+.category-rename-button,
+.category-archive-button {
   flex: 0 0 auto;
   padding: 0.36rem 0.62rem;
   font-size: 0.78rem;

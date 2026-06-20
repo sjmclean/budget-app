@@ -133,6 +133,7 @@ function BudgetCategoryRow({
       <div className="budget-category-cell">
         <span className="drag-handle" title="Reorder categories later">⋮⋮</span>
         <strong className="budget-category-name">{category.name}</strong>
+        {category.isArchived ? <span className="category-archived-badge">Archived</span> : null}
       </div>
 
       <EditableAssignedCell
@@ -210,12 +211,14 @@ function CategoryInspector({
   currencyCode,
   isOverassignedSource,
   onRenameCategory,
+  onSetCategoryArchived,
 }: {
   category: BudgetCategoryView | null;
   group: BudgetCategoryGroupView | null;
   currencyCode: string;
   isOverassignedSource: boolean;
   onRenameCategory: (categoryId: string, name: string) => void;
+  onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(category?.name ?? "");
@@ -296,21 +299,34 @@ function CategoryInspector({
           ) : (
             <h2>{category.name}</h2>
           )}
-          <p className="muted">{group.name}</p>
+          <p className="muted">
+            {group.name}
+            {category.isArchived ? " · Archived" : ""}
+          </p>
         </div>
 
-        <button
-          className="button button-secondary category-rename-button"
-          type="button"
-          onMouseDown={(event) => {
-            if (isRenaming) {
-              event.preventDefault();
-            }
-          }}
-          onClick={isRenaming ? saveRename : startRename}
-        >
-          {isRenaming ? "Save" : "Rename"}
-        </button>
+        <div className="category-inspector-actions">
+          <button
+            className="button button-secondary category-rename-button"
+            type="button"
+            onMouseDown={(event) => {
+              if (isRenaming) {
+                event.preventDefault();
+              }
+            }}
+            onClick={isRenaming ? saveRename : startRename}
+          >
+            {isRenaming ? "Save" : "Rename"}
+          </button>
+
+          <button
+            className="button button-secondary category-archive-button"
+            type="button"
+            onClick={() => onSetCategoryArchived(category.id, !category.isArchived)}
+          >
+            {category.isArchived ? "Restore" : "Archive"}
+          </button>
+        </div>
       </div>
 
       <div className="inspector-breakdown">
@@ -362,6 +378,7 @@ export function BudgetPage() {
     selectCategory,
     updateAssigned,
     renameCategory,
+    setCategoryArchived,
   } = useBudgetWorkspace("household", "2026-06");
 
   if (isLoading) {
@@ -503,6 +520,7 @@ export function BudgetPage() {
             currencyCode={data.currencyCode}
             isOverassignedSource={selectedCategoryIsOverassignedSource}
             onRenameCategory={renameCategory}
+            onSetCategoryArchived={setCategoryArchived}
           />
 
           <Card className="budget-health-card">

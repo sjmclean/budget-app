@@ -5,6 +5,7 @@ export interface BudgetCategoryView {
   activity: number;
   available: number;
   isOverspent: boolean;
+  isArchived: boolean;
 }
 
 export interface BudgetCategoryGroupView {
@@ -52,6 +53,13 @@ export interface BudgetViewService {
     month: string;
     categoryId: string;
     name: string;
+  }): Promise<BudgetMonthView>;
+
+  setCategoryArchived(input: {
+    budgetId: string;
+    month: string;
+    categoryId: string;
+    isArchived: boolean;
   }): Promise<BudgetMonthView>;
 
   getCategoryOptions(input: {
