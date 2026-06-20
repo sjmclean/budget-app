@@ -385,6 +385,49 @@ function getCategoryOptions(view: BudgetMonthView): BudgetCategoryOption[] {
   ];
 }
 
+function renameStoredRegisterCategory(oldName: string, newName: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const raw = window.localStorage.getItem(REGISTER_STORAGE_KEY);
+
+  if (!raw) {
+    return;
+  }
+
+  try {
+    const registers = JSON.parse(raw) as StoredRegisters;
+    const oldKey = normaliseCategoryKey(oldName);
+    let changed = false;
+
+    const renameValue = (value: string) => {
+      if (normaliseCategoryKey(value) !== oldKey) {
+        return value;
+      }
+
+      changed = true;
+      return newName;
+    };
+
+    for (const register of Object.values(registers)) {
+      for (const transaction of register.transactions ?? []) {
+        transaction.category = renameValue(transaction.category);
+
+        for (const splitLine of transaction.splitLines ?? []) {
+          splitLine.category = renameValue(splitLine.category);
+        }
+      }
+    }
+
+    if (changed) {
+      window.localStorage.setItem(REGISTER_STORAGE_KEY, JSON.stringify(registers));
+    }
+  } catch {
+    // If register storage is unreadable, leave transactions untouched.
+  }
+}
+
 function saveBudgetView(view: BudgetMonthView, month: string): BudgetMonthView {
   const next = applyRegisterActivity(recalculateBudget(view), month);
   window.localStorage.setItem(getStorageKey(next.budgetId, month), JSON.stringify(next));
@@ -426,6 +469,60 @@ export const budgetViewService: BudgetViewService = {
         };
       }),
     }));
+
+    return saveBudgetView(
+      {
+        ...current,
+        categoryGroups: nextGroups,
+      },
+      month,
+    );
+  },
+
+  async renameCategory({ budgetId, month, categoryId, name }) {
+    const trimmedName = name.trim();
+
+    if (!trimmedName) {
+      throw new Error("Category name cannot be blank.");
+    }
+
+    const current = loadBudgetView(budgetId, month);
+    let previousName: string | null = null;
+    let found = false;
+    const newNameKey = normaliseCategoryKey(trimmedName);
+
+    for (const group of current.categoryGroups) {
+      for (const category of group.categories) {
+        if (category.id !== categoryId && normaliseCategoryKey(category.name) === newNameKey) {
+          throw new Error("A category with that name already exists.");
+        }
+      }
+    }
+
+    const nextGroups = current.categoryGroups.map((group) => ({
+      ...group,
+      categories: group.categories.map((category) => {
+        if (category.id !== categoryId) {
+          return category;
+        }
+
+        found = true;
+        previousName = category.name;
+
+        return {
+          ...category,
+          name: trimmedName,
+        };
+      }),
+    }));
+
+    if (!found || !previousName) {
+      throw new Error("Category not found.");
+    }
+
+    if (normaliseCategoryKey(previousName) !== newNameKey) {
+      renameStoredRegisterCategory(previousName, trimmedName);
+    }
 
     return saveBudgetView(
       {

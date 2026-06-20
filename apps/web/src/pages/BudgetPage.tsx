@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "../components/ui/Card";
 import { evaluateAssignedInput } from "../features/budget/evaluateAssignedInput";
 import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
@@ -209,12 +209,55 @@ function CategoryInspector({
   group,
   currencyCode,
   isOverassignedSource,
+  onRenameCategory,
 }: {
   category: BudgetCategoryView | null;
   group: BudgetCategoryGroupView | null;
   currencyCode: string;
   isOverassignedSource: boolean;
+  onRenameCategory: (categoryId: string, name: string) => void;
 }) {
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [draftName, setDraftName] = useState(category?.name ?? "");
+
+  useEffect(() => {
+    setDraftName(category?.name ?? "");
+    setIsRenaming(false);
+  }, [category?.id, category?.name]);
+
+  function startRename() {
+    if (!category) {
+      return;
+    }
+
+    setDraftName(category.name);
+    setIsRenaming(true);
+  }
+
+  function cancelRename() {
+    setDraftName(category?.name ?? "");
+    setIsRenaming(false);
+  }
+
+  function saveRename() {
+    if (!category) {
+      return;
+    }
+
+    const trimmedName = draftName.trim();
+
+    if (!trimmedName) {
+      setDraftName(category.name);
+      setIsRenaming(false);
+      return;
+    }
+
+    if (trimmedName !== category.name) {
+      onRenameCategory(category.id, trimmedName);
+    }
+
+    setIsRenaming(false);
+  }
   if (!category || !group) {
     return (
       <Card className="budget-inspector-card">
@@ -230,9 +273,44 @@ function CategoryInspector({
 
   return (
     <Card className="budget-inspector-card">
-      <div className="panel-section-header">
-        <h2>{category.name}</h2>
-        <p className="muted">{group.name}</p>
+      <div className="panel-section-header category-inspector-header">
+        <div>
+          {isRenaming ? (
+            <input
+              className="category-rename-input"
+              autoFocus
+              value={draftName}
+              onChange={(event) => setDraftName(event.target.value)}
+              onBlur={saveRename}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  saveRename();
+                }
+
+                if (event.key === "Escape") {
+                  cancelRename();
+                }
+              }}
+              aria-label="Category name"
+            />
+          ) : (
+            <h2>{category.name}</h2>
+          )}
+          <p className="muted">{group.name}</p>
+        </div>
+
+        <button
+          className="button button-secondary category-rename-button"
+          type="button"
+          onMouseDown={(event) => {
+            if (isRenaming) {
+              event.preventDefault();
+            }
+          }}
+          onClick={isRenaming ? saveRename : startRename}
+        >
+          {isRenaming ? "Save" : "Rename"}
+        </button>
       </div>
 
       <div className="inspector-breakdown">
@@ -283,6 +361,7 @@ export function BudgetPage() {
     overassignedCategoryIds,
     selectCategory,
     updateAssigned,
+    renameCategory,
   } = useBudgetWorkspace("household", "2026-06");
 
   if (isLoading) {
@@ -423,6 +502,7 @@ export function BudgetPage() {
             group={selectedGroup}
             currencyCode={data.currencyCode}
             isOverassignedSource={selectedCategoryIsOverassignedSource}
+            onRenameCategory={renameCategory}
           />
 
           <Card className="budget-health-card">

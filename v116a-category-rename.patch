@@ -1,0 +1,343 @@
+diff --git a/v116a/budget-app/apps/web/src/features/budget/budgetViewService.ts b/v116a/budget-app-mod/apps/web/src/features/budget/budgetViewService.ts
+index ae04144..77a2681 100644
+--- a/v116a/budget-app/apps/web/src/features/budget/budgetViewService.ts
++++ b/v116a/budget-app-mod/apps/web/src/features/budget/budgetViewService.ts
+@@ -385,6 +385,49 @@ function getCategoryOptions(view: BudgetMonthView): BudgetCategoryOption[] {
+   ];
+ }
+ 
++function renameStoredRegisterCategory(oldName: string, newName: string) {
++  if (typeof window === "undefined") {
++    return;
++  }
++
++  const raw = window.localStorage.getItem(REGISTER_STORAGE_KEY);
++
++  if (!raw) {
++    return;
++  }
++
++  try {
++    const registers = JSON.parse(raw) as StoredRegisters;
++    const oldKey = normaliseCategoryKey(oldName);
++    let changed = false;
++
++    const renameValue = (value: string) => {
++      if (normaliseCategoryKey(value) !== oldKey) {
++        return value;
++      }
++
++      changed = true;
++      return newName;
++    };
++
++    for (const register of Object.values(registers)) {
++      for (const transaction of register.transactions ?? []) {
++        transaction.category = renameValue(transaction.category);
++
++        for (const splitLine of transaction.splitLines ?? []) {
++          splitLine.category = renameValue(splitLine.category);
++        }
++      }
++    }
++
++    if (changed) {
++      window.localStorage.setItem(REGISTER_STORAGE_KEY, JSON.stringify(registers));
++    }
++  } catch {
++    // If register storage is unreadable, leave transactions untouched.
++  }
++}
++
+ function saveBudgetView(view: BudgetMonthView, month: string): BudgetMonthView {
+   const next = applyRegisterActivity(recalculateBudget(view), month);
+   window.localStorage.setItem(getStorageKey(next.budgetId, month), JSON.stringify(next));
+@@ -435,4 +478,58 @@ export const budgetViewService: BudgetViewService = {
+       month,
+     );
+   },
++
++  async renameCategory({ budgetId, month, categoryId, name }) {
++    const trimmedName = name.trim();
++
++    if (!trimmedName) {
++      throw new Error("Category name cannot be blank.");
++    }
++
++    const current = loadBudgetView(budgetId, month);
++    let previousName: string | null = null;
++    let found = false;
++    const newNameKey = normaliseCategoryKey(trimmedName);
++
++    for (const group of current.categoryGroups) {
++      for (const category of group.categories) {
++        if (category.id !== categoryId && normaliseCategoryKey(category.name) === newNameKey) {
++          throw new Error("A category with that name already exists.");
++        }
++      }
++    }
++
++    const nextGroups = current.categoryGroups.map((group) => ({
++      ...group,
++      categories: group.categories.map((category) => {
++        if (category.id !== categoryId) {
++          return category;
++        }
++
++        found = true;
++        previousName = category.name;
++
++        return {
++          ...category,
++          name: trimmedName,
++        };
++      }),
++    }));
++
++    if (!found || !previousName) {
++      throw new Error("Category not found.");
++    }
++
++    if (normaliseCategoryKey(previousName) !== newNameKey) {
++      renameStoredRegisterCategory(previousName, trimmedName);
++    }
++
++    return saveBudgetView(
++      {
++        ...current,
++        categoryGroups: nextGroups,
++      },
++      month,
++    );
++  },
+ };
+diff --git a/v116a/budget-app/apps/web/src/features/budget/budgetViewTypes.ts b/v116a/budget-app-mod/apps/web/src/features/budget/budgetViewTypes.ts
+index 478861e..5e30e13 100644
+--- a/v116a/budget-app/apps/web/src/features/budget/budgetViewTypes.ts
++++ b/v116a/budget-app-mod/apps/web/src/features/budget/budgetViewTypes.ts
+@@ -47,6 +47,13 @@ export interface BudgetViewService {
+     assigned: number;
+   }): Promise<BudgetMonthView>;
+ 
++  renameCategory(input: {
++    budgetId: string;
++    month: string;
++    categoryId: string;
++    name: string;
++  }): Promise<BudgetMonthView>;
++
+   getCategoryOptions(input: {
+     budgetId: string;
+     month: string;
+diff --git a/v116a/budget-app/apps/web/src/features/budget/useBudgetWorkspace.ts b/v116a/budget-app-mod/apps/web/src/features/budget/useBudgetWorkspace.ts
+index 9de171f..4b4a9ea 100644
+--- a/v116a/budget-app/apps/web/src/features/budget/useBudgetWorkspace.ts
++++ b/v116a/budget-app-mod/apps/web/src/features/budget/useBudgetWorkspace.ts
+@@ -16,6 +16,7 @@ interface UseBudgetWorkspaceState {
+   overassignedCategoryIds: string[];
+   selectCategory: (categoryId: string) => void;
+   updateAssigned: (categoryId: string, assigned: number) => void;
++  renameCategory: (categoryId: string, name: string) => void;
+   clearSelection: () => void;
+ }
+ 
+@@ -96,6 +97,27 @@ export function useBudgetWorkspace(
+       });
+   }
+ 
++  function renameCategory(categoryId: string, name: string) {
++    setSaveError(null);
++
++    void budgetViewService
++      .renameCategory({
++        budgetId,
++        month,
++        categoryId,
++        name,
++      })
++      .then((nextData) => {
++        setEditedData(nextData);
++        setSelectedCategoryId(categoryId);
++      })
++      .catch((error) => {
++        setSaveError(
++          error instanceof Error ? error.message : "Failed to rename category.",
++        );
++      });
++  }
++
+   return {
+     data,
+     isLoading: budgetView.isLoading,
+@@ -105,6 +127,7 @@ export function useBudgetWorkspace(
+     overassignedCategoryIds,
+     selectCategory,
+     updateAssigned,
++    renameCategory,
+     clearSelection,
+   };
+ }
+diff --git a/v116a/budget-app/apps/web/src/pages/BudgetPage.tsx b/v116a/budget-app-mod/apps/web/src/pages/BudgetPage.tsx
+index 85e49a2..3e05937 100644
+--- a/v116a/budget-app/apps/web/src/pages/BudgetPage.tsx
++++ b/v116a/budget-app-mod/apps/web/src/pages/BudgetPage.tsx
+@@ -1,4 +1,4 @@
+-import { useState } from "react";
++import { useEffect, useState } from "react";
+ import { Card } from "../components/ui/Card";
+ import { evaluateAssignedInput } from "../features/budget/evaluateAssignedInput";
+ import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
+@@ -209,12 +209,55 @@ function CategoryInspector({
+   group,
+   currencyCode,
+   isOverassignedSource,
++  onRenameCategory,
+ }: {
+   category: BudgetCategoryView | null;
+   group: BudgetCategoryGroupView | null;
+   currencyCode: string;
+   isOverassignedSource: boolean;
++  onRenameCategory: (categoryId: string, name: string) => void;
+ }) {
++  const [isRenaming, setIsRenaming] = useState(false);
++  const [draftName, setDraftName] = useState(category?.name ?? "");
++
++  useEffect(() => {
++    setDraftName(category?.name ?? "");
++    setIsRenaming(false);
++  }, [category?.id, category?.name]);
++
++  function startRename() {
++    if (!category) {
++      return;
++    }
++
++    setDraftName(category.name);
++    setIsRenaming(true);
++  }
++
++  function cancelRename() {
++    setDraftName(category?.name ?? "");
++    setIsRenaming(false);
++  }
++
++  function saveRename() {
++    if (!category) {
++      return;
++    }
++
++    const trimmedName = draftName.trim();
++
++    if (!trimmedName) {
++      setDraftName(category.name);
++      setIsRenaming(false);
++      return;
++    }
++
++    if (trimmedName !== category.name) {
++      onRenameCategory(category.id, trimmedName);
++    }
++
++    setIsRenaming(false);
++  }
+   if (!category || !group) {
+     return (
+       <Card className="budget-inspector-card">
+@@ -230,9 +273,44 @@ function CategoryInspector({
+ 
+   return (
+     <Card className="budget-inspector-card">
+-      <div className="panel-section-header">
+-        <h2>{category.name}</h2>
+-        <p className="muted">{group.name}</p>
++      <div className="panel-section-header category-inspector-header">
++        <div>
++          {isRenaming ? (
++            <input
++              className="category-rename-input"
++              autoFocus
++              value={draftName}
++              onChange={(event) => setDraftName(event.target.value)}
++              onBlur={saveRename}
++              onKeyDown={(event) => {
++                if (event.key === "Enter") {
++                  saveRename();
++                }
++
++                if (event.key === "Escape") {
++                  cancelRename();
++                }
++              }}
++              aria-label="Category name"
++            />
++          ) : (
++            <h2>{category.name}</h2>
++          )}
++          <p className="muted">{group.name}</p>
++        </div>
++
++        <button
++          className="button button-secondary category-rename-button"
++          type="button"
++          onMouseDown={(event) => {
++            if (isRenaming) {
++              event.preventDefault();
++            }
++          }}
++          onClick={isRenaming ? saveRename : startRename}
++        >
++          {isRenaming ? "Save" : "Rename"}
++        </button>
+       </div>
+ 
+       <div className="inspector-breakdown">
+@@ -283,6 +361,7 @@ export function BudgetPage() {
+     overassignedCategoryIds,
+     selectCategory,
+     updateAssigned,
++    renameCategory,
+   } = useBudgetWorkspace("household", "2026-06");
+ 
+   if (isLoading) {
+@@ -423,6 +502,7 @@ export function BudgetPage() {
+             group={selectedGroup}
+             currencyCode={data.currencyCode}
+             isOverassignedSource={selectedCategoryIsOverassignedSource}
++            onRenameCategory={renameCategory}
+           />
+ 
+           <Card className="budget-health-card">
+diff --git a/v116a/budget-app/apps/web/src/styles/globals.css b/v116a/budget-app-mod/apps/web/src/styles/globals.css
+index bb726a4..50e36c5 100644
+--- a/v116a/budget-app/apps/web/src/styles/globals.css
++++ b/v116a/budget-app-mod/apps/web/src/styles/globals.css
+@@ -1190,3 +1190,29 @@ strong {
+   justify-content: flex-end;
+   gap: 0.5rem;
+ }
++
++.category-inspector-header {
++  display: flex;
++  align-items: flex-start;
++  justify-content: space-between;
++  gap: 0.75rem;
++}
++
++.category-rename-input {
++  width: 100%;
++  min-width: 0;
++  border: 1px solid var(--border);
++  border-radius: 0.45rem;
++  background: var(--surface);
++  color: var(--text);
++  font: inherit;
++  font-size: 1.1rem;
++  font-weight: 760;
++  padding: 0.35rem 0.5rem;
++}
++
++.category-rename-button {
++  flex: 0 0 auto;
++  padding: 0.36rem 0.62rem;
++  font-size: 0.78rem;
++}

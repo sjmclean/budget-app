@@ -1190,3 +1190,29 @@ strong {
   justify-content: flex-end;
   gap: 0.5rem;
 }
+
+.category-inspector-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.category-rename-input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 760;
+  padding: 0.35rem 0.5rem;
+}
+
+.category-rename-button {
+  flex: 0 0 auto;
+  padding: 0.36rem 0.62rem;
+  font-size: 0.78rem;
+}

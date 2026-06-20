@@ -16,6 +16,7 @@ interface UseBudgetWorkspaceState {
   overassignedCategoryIds: string[];
   selectCategory: (categoryId: string) => void;
   updateAssigned: (categoryId: string, assigned: number) => void;
+  renameCategory: (categoryId: string, name: string) => void;
   clearSelection: () => void;
 }
 
@@ -96,6 +97,27 @@ export function useBudgetWorkspace(
       });
   }
 
+  function renameCategory(categoryId: string, name: string) {
+    setSaveError(null);
+
+    void budgetViewService
+      .renameCategory({
+        budgetId,
+        month,
+        categoryId,
+        name,
+      })
+      .then((nextData) => {
+        setEditedData(nextData);
+        setSelectedCategoryId(categoryId);
+      })
+      .catch((error) => {
+        setSaveError(
+          error instanceof Error ? error.message : "Failed to rename category.",
+        );
+      });
+  }
+
   return {
     data,
     isLoading: budgetView.isLoading,
@@ -105,6 +127,7 @@ export function useBudgetWorkspace(
     overassignedCategoryIds,
     selectCategory,
     updateAssigned,
+    renameCategory,
     clearSelection,
   };
 }

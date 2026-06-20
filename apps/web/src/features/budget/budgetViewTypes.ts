@@ -47,6 +47,13 @@ export interface BudgetViewService {
     assigned: number;
   }): Promise<BudgetMonthView>;
 
+  renameCategory(input: {
+    budgetId: string;
+    month: string;
+    categoryId: string;
+    name: string;
+  }): Promise<BudgetMonthView>;
+
   getCategoryOptions(input: {
     budgetId: string;
     month: string;
