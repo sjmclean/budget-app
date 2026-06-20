@@ -970,7 +970,38 @@
 }
 
 .register-payee-autocomplete > input {
+  position: relative;
+  z-index: 2;
   width: 100%;
+  background: transparent;
+}
+
+.register-payee-ghost {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 100%;
+  pointer-events: none;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  white-space: pre;
+}
+
+.register-entry-row-active .register-payee-ghost {
+  padding: 0.45rem 0.55rem;
+}
+
+.register-row-editing .register-payee-ghost {
+  padding: 0.36rem 0.45rem;
+  font-size: 0.84rem;
+}
+
+.register-payee-ghost-typed {
+  opacity: 0;
 }
 
 .register-payee-suggestions {

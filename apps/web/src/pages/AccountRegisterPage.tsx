@@ -398,7 +398,29 @@ function PayeeInput({
     })
     .slice(0, 8);
 
+  const ghostSuggestion = normalisedValue
+    ? suggestions.find((suggestion) => {
+        const suggestionValue = suggestion.value.trim().toLowerCase();
+        return (
+          suggestionValue.startsWith(normalisedValue) &&
+          suggestionValue !== normalisedValue
+        );
+      })
+    : undefined;
+  const ghostCompletion = ghostSuggestion
+    ? ghostSuggestion.value.slice(value.length)
+    : "";
+  const shouldShowGhost = Boolean(ghostCompletion);
   const shouldShowSuggestions = isOpen && suggestions.length > 0;
+
+  function acceptGhostSuggestion() {
+    if (!ghostSuggestion) {
+      return false;
+    }
+
+    selectSuggestion(ghostSuggestion.value);
+    return true;
+  }
 
   function selectSuggestion(selectedValue: string) {
     onChange(selectedValue);
@@ -418,6 +440,24 @@ function PayeeInput({
         onFocus={() => setIsOpen(true)}
         onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
         onKeyDown={(event) => {
+          if (event.key === "Tab" && shouldShowGhost) {
+            event.preventDefault();
+            acceptGhostSuggestion();
+            return;
+          }
+
+          if (event.key === "ArrowRight" && shouldShowGhost) {
+            const input = event.currentTarget;
+            const cursorAtEnd =
+              input.selectionStart === value.length && input.selectionEnd === value.length;
+
+            if (cursorAtEnd) {
+              event.preventDefault();
+              acceptGhostSuggestion();
+              return;
+            }
+          }
+
           if (!shouldShowSuggestions) {
             return;
           }
@@ -456,6 +496,13 @@ function PayeeInput({
         aria-autocomplete="list"
         aria-expanded={shouldShowSuggestions}
       />
+
+      {shouldShowGhost ? (
+        <div className="register-payee-ghost" aria-hidden="true">
+          <span className="register-payee-ghost-typed">{value}</span>
+          <span>{ghostCompletion}</span>
+        </div>
+      ) : null}
 
       {shouldShowSuggestions ? (
         <div className="register-payee-suggestions" role="listbox">
