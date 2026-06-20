@@ -238,6 +238,7 @@ function CategoryInspector({
   onMoveCategory,
   onMoveCategoryGroup,
   onPreviewCategoryMerge,
+  onMergeCategory,
   onClearCategoryMergePreview,
 }: {
   category: BudgetCategoryView | null;
@@ -259,6 +260,7 @@ function CategoryInspector({
     sourceCategoryId: string,
     targetCategoryId: string,
   ) => void;
+  onMergeCategory: (sourceCategoryId: string, targetCategoryId: string) => void;
   onClearCategoryMergePreview: () => void;
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
@@ -310,6 +312,25 @@ function CategoryInspector({
     }
 
     onPreviewCategoryMerge(category.id, mergeTargetId);
+  }
+
+  function mergeCategory() {
+    if (!category || !activeMergePreview) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Merge ${activeMergePreview.sourceCategoryName} into ${activeMergePreview.targetCategoryName}? This will reassign matching register and scheduled transactions, move assigned money to the target category, and archive the source category.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    onMergeCategory(
+      activeMergePreview.sourceCategoryId,
+      activeMergePreview.targetCategoryId,
+    );
   }
 
   const activeMergePreview =
@@ -520,6 +541,13 @@ function CategoryInspector({
               {" · "}Available after merge:{" "}
               {formatMoney(activeMergePreview.combinedAvailable, currencyCode)}
             </p>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={mergeCategory}
+            >
+              Merge now
+            </button>
           </div>
         ) : null}
       </div>
@@ -554,6 +582,7 @@ export function BudgetPage() {
     categoryMergePreview,
     isCategoryMergePreviewLoading,
     previewCategoryMerge,
+    mergeCategory,
     clearCategoryMergePreview,
   } = useBudgetWorkspace("household", "2026-06");
 
@@ -810,6 +839,7 @@ export function BudgetPage() {
             onMoveCategory={moveCategory}
             onMoveCategoryGroup={moveCategoryGroup}
             onPreviewCategoryMerge={previewCategoryMerge}
+            onMergeCategory={mergeCategory}
             onClearCategoryMergePreview={clearCategoryMergePreview}
           />
 

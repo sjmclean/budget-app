@@ -526,6 +526,100 @@ function createCategoryMergePreview(
   };
 }
 
+
+function rewriteStoredRegisterCategoryReferences(
+  sourceCategory: BudgetCategoryView,
+  targetCategory: BudgetCategoryView,
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const raw = window.localStorage.getItem(REGISTER_STORAGE_KEY);
+
+  if (!raw) {
+    return;
+  }
+
+  try {
+    const registers = JSON.parse(raw) as StoredRegisters;
+    const matchesSourceCategory = createCategoryReferenceMatcher(sourceCategory);
+    let changed = false;
+
+    const rewriteValue = (value: string) => {
+      if (!matchesSourceCategory(value)) {
+        return value;
+      }
+
+      changed = true;
+      return targetCategory.name;
+    };
+
+    for (const register of Object.values(registers)) {
+      for (const transaction of register.transactions ?? []) {
+        transaction.category = rewriteValue(transaction.category);
+
+        for (const splitLine of transaction.splitLines ?? []) {
+          splitLine.category = rewriteValue(splitLine.category);
+        }
+      }
+    }
+
+    if (changed) {
+      window.localStorage.setItem(REGISTER_STORAGE_KEY, JSON.stringify(registers));
+    }
+  } catch {
+    // If register storage is unreadable, leave transactions untouched.
+  }
+}
+
+function rewriteScheduledCategoryReferences(
+  sourceCategory: BudgetCategoryView,
+  targetCategory: BudgetCategoryView,
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const raw = window.localStorage.getItem(SCHEDULED_TRANSACTIONS_STORAGE_KEY);
+
+  if (!raw) {
+    return;
+  }
+
+  try {
+    const scheduledTransactions = JSON.parse(raw) as StoredScheduledTransaction[];
+
+    if (!Array.isArray(scheduledTransactions)) {
+      return;
+    }
+
+    const matchesSourceCategory = createCategoryReferenceMatcher(sourceCategory);
+    let changed = false;
+
+    const nextScheduledTransactions = scheduledTransactions.map((transaction) => {
+      if (!matchesSourceCategory(transaction.category)) {
+        return transaction;
+      }
+
+      changed = true;
+      return {
+        ...transaction,
+        category: targetCategory.name,
+      };
+    });
+
+    if (changed) {
+      window.localStorage.setItem(
+        SCHEDULED_TRANSACTIONS_STORAGE_KEY,
+        JSON.stringify(nextScheduledTransactions),
+      );
+    }
+  } catch {
+    // If scheduled transaction storage is unreadable, leave scheduled transactions untouched.
+  }
+}
+
 function renameStoredRegisterCategory(oldName: string, newName: string) {
   if (typeof window === "undefined") {
     return;
@@ -596,6 +690,53 @@ export const budgetViewService: BudgetViewService = {
       loadBudgetView(budgetId, month),
       sourceCategoryId,
       targetCategoryId,
+    );
+  },
+
+  async mergeCategory({ budgetId, month, sourceCategoryId, targetCategoryId }) {
+    if (sourceCategoryId === targetCategoryId) {
+      throw new Error("Choose two different categories to merge.");
+    }
+
+    const current = loadBudgetView(budgetId, month);
+    const source = findCategoryLocation(current, sourceCategoryId);
+    const target = findCategoryLocation(current, targetCategoryId);
+
+    if (!source || !target) {
+      throw new Error("Category not found.");
+    }
+
+    rewriteStoredRegisterCategoryReferences(source.category, target.category);
+    rewriteScheduledCategoryReferences(source.category, target.category);
+
+    const nextGroups = current.categoryGroups.map((group) => ({
+      ...group,
+      categories: group.categories.map((category) => {
+        if (category.id === targetCategoryId) {
+          return {
+            ...category,
+            assigned: category.assigned + source.category.assigned,
+          };
+        }
+
+        if (category.id === sourceCategoryId) {
+          return {
+            ...category,
+            assigned: 0,
+            isArchived: true,
+          };
+        }
+
+        return category;
+      }),
+    }));
+
+    return saveBudgetView(
+      {
+        ...current,
+        categoryGroups: nextGroups,
+      },
+      month,
     );
   },
 

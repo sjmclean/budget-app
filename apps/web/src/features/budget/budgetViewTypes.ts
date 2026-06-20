@@ -106,6 +106,13 @@ export interface BudgetViewService {
     targetCategoryId: string;
   }): Promise<CategoryMergePreview>;
 
+  mergeCategory(input: {
+    budgetId: string;
+    month: string;
+    sourceCategoryId: string;
+    targetCategoryId: string;
+  }): Promise<BudgetMonthView>;
+
   getCategoryOptions(input: {
     budgetId: string;
     month: string;

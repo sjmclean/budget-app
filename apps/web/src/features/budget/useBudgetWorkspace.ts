@@ -27,6 +27,7 @@ interface UseBudgetWorkspaceState {
     sourceCategoryId: string,
     targetCategoryId: string,
   ) => void;
+  mergeCategory: (sourceCategoryId: string, targetCategoryId: string) => void;
   clearCategoryMergePreview: () => void;
   clearSelection: () => void;
 }
@@ -242,6 +243,28 @@ export function useBudgetWorkspace(
       });
   }
 
+  function mergeCategory(sourceCategoryId: string, targetCategoryId: string) {
+    setSaveError(null);
+
+    void budgetViewService
+      .mergeCategory({
+        budgetId,
+        month,
+        sourceCategoryId,
+        targetCategoryId,
+      })
+      .then((nextData) => {
+        setEditedData(nextData);
+        setSelectedCategoryId(targetCategoryId);
+        setCategoryMergePreview(null);
+      })
+      .catch((error) => {
+        setSaveError(
+          error instanceof Error ? error.message : "Failed to merge categories.",
+        );
+      });
+  }
+
   function clearCategoryMergePreview() {
     setCategoryMergePreview(null);
   }
@@ -262,6 +285,7 @@ export function useBudgetWorkspace(
     moveCategory,
     moveCategoryGroup,
     previewCategoryMerge,
+    mergeCategory,
     clearCategoryMergePreview,
     clearSelection,
   };
