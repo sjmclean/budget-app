@@ -7,6 +7,7 @@ import type {
   UpdateRegisterTransactionInput,
 } from "./accountRegisterTypes";
 import { accountService, readAccounts, type SidebarAccount, type SidebarAccountType } from "./accountService";
+import { payeeService } from "./payeeService";
 
 const STORAGE_KEY = "budget-app.account-registers.v1";
 
@@ -39,6 +40,8 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     accountId: string;
     transaction: NewRegisterTransactionInput;
   }): Promise<AccountRegisterView> {
+    await payeeService.recordPayee(input.transaction.payee);
+
     const transferTarget = findTransferTarget(input.accountId, input.transaction.payee);
 
     if (transferTarget) {
@@ -54,6 +57,8 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     accountId: string;
     transaction: UpdateRegisterTransactionInput;
   }): Promise<AccountRegisterView> {
+    await payeeService.recordPayee(input.transaction.payee);
+
     const registers = readRegisters();
     const sourceRegister = cloneRegister(registers[input.accountId] ?? createEmptyRegister(input.accountId));
     const existing = sourceRegister.transactions.find(

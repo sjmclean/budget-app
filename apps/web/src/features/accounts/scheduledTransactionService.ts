@@ -1,4 +1,5 @@
 import type { NewRegisterTransactionInput, TransactionFlag } from "./accountRegisterTypes";
+import { payeeService } from "./payeeService";
 
 export type ScheduledFrequency = "once" | "weekly" | "fortnightly" | "monthly" | "yearly";
 
@@ -46,6 +47,8 @@ class BrowserPersistentScheduledTransactionService {
   }
 
   async create(input: UpsertScheduledTransactionInput): Promise<ScheduledTransactionView[]> {
+    await payeeService.recordPayee(input.payee);
+
     const transactions = readScheduledTransactions();
     const now = new Date().toISOString();
     const next: ScheduledTransactionView = {
@@ -68,6 +71,8 @@ class BrowserPersistentScheduledTransactionService {
   }
 
   async update(input: UpsertScheduledTransactionInput & { id: string }): Promise<ScheduledTransactionView[]> {
+    await payeeService.recordPayee(input.payee);
+
     const now = new Date().toISOString();
     const transactions = readScheduledTransactions().map((transaction) => {
       if (transaction.id !== input.id) {
