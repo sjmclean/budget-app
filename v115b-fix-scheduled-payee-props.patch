@@ -1,0 +1,27 @@
+diff --git a/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx b/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx
+index 0000000..0000000 100644
+--- a/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx
++++ b/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx
+@@ -7,12 +7,14 @@ import {
+ } from "../../features/accounts/scheduledTransactionService";
+ import type { SidebarAccount } from "../../features/accounts/accountService";
+ import type { BudgetCategoryOption } from "../../features/budget/budgetViewTypes";
++import type { PayeeView } from "../../features/accounts/payeeService";
+ 
+ interface ScheduledTransactionsPanelProps {
+   accountId: string;
+   isOpen: boolean;
+   categoryOptions: BudgetCategoryOption[];
+   transferAccounts: SidebarAccount[];
++  payeeOptions: PayeeView[];
+   onClose: () => void;
+   onEnter: (transaction: NewRegisterTransactionInput) => Promise<void>;
+   onDueCountChange?: (count: number) => void;
+@@ -46,6 +48,7 @@ export function ScheduledTransactionsPanel({
+   isOpen,
+   categoryOptions,
+   transferAccounts,
++  payeeOptions,
+   onClose,
+   onEnter,
+   onDueCountChange,

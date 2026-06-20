@@ -7,6 +7,7 @@ import {
   type UpsertScheduledTransactionInput,
 } from "../../features/accounts/scheduledTransactionService";
 import type { SidebarAccount } from "../../features/accounts/accountService";
+import type { PayeeView } from "../../features/accounts/payeeService";
 import type { BudgetCategoryOption } from "../../features/budget/budgetViewTypes";
 
 interface ScheduledTransactionsPanelProps {
@@ -14,6 +15,7 @@ interface ScheduledTransactionsPanelProps {
   isOpen: boolean;
   categoryOptions: BudgetCategoryOption[];
   transferAccounts: SidebarAccount[];
+  payeeOptions: PayeeView[];
   onClose: () => void;
   onEnter: (transaction: NewRegisterTransactionInput) => Promise<void>;
   onDueCountChange?: (count: number) => void;
@@ -53,6 +55,7 @@ export function ScheduledTransactionsPanel({
   isOpen,
   categoryOptions,
   transferAccounts,
+  payeeOptions,
   onClose,
   onEnter,
   onDueCountChange,
@@ -166,6 +169,7 @@ export function ScheduledTransactionsPanel({
             setDraft={setDraft}
             categoryOptions={categoryOptions}
             transferAccounts={transferAccounts}
+            payeeOptions={payeeOptions}
             onCancel={() => setDraft(null)}
             onSave={saveDraft}
           />
@@ -210,6 +214,7 @@ function ScheduledForm({
   setDraft,
   categoryOptions,
   transferAccounts,
+  payeeOptions,
   onCancel,
   onSave,
 }: {
@@ -217,6 +222,7 @@ function ScheduledForm({
   setDraft: (draft: ScheduledFormDraft) => void;
   categoryOptions: BudgetCategoryOption[];
   transferAccounts: SidebarAccount[];
+  payeeOptions: PayeeView[];
   onCancel: () => void;
   onSave: () => void;
 }) {
@@ -274,6 +280,10 @@ function ScheduledForm({
         list="scheduled-payee-options"
       />
       <datalist id="scheduled-payee-options">
+        {payeeOptions.map((payee) => (
+          <option key={payee.id} value={payee.name} />
+        ))}
+
         {transferAccounts.map((account) => (
           <option key={account.id} value={`Transfer: ${account.name}`} label="Transfer" />
         ))}

@@ -6,6 +6,7 @@ import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTran
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
 import { budgetViewService } from "../features/budget/budgetViewService";
 import { readAccounts, type SidebarAccount } from "../features/accounts/accountService";
+import { payeeService, type PayeeView } from "../features/accounts/payeeService";
 import type {
   NewRegisterTransactionInput,
   RegisterSplitLineView,
@@ -353,11 +354,13 @@ function PayeeInput({
   value,
   onChange,
   transferAccounts,
+  payeeOptions,
   autoFocus,
 }: {
   value: string;
   onChange: (value: string) => void;
   transferAccounts: SidebarAccount[];
+  payeeOptions: PayeeView[];
   autoFocus?: boolean;
 }) {
   return (
@@ -371,6 +374,10 @@ function PayeeInput({
       />
 
       <datalist id="register-payee-options">
+        {payeeOptions.map((payee) => (
+          <option key={payee.id} value={payee.name} />
+        ))}
+
         {transferAccounts.map((account) => (
           <option key={account.id} value={`Transfer: ${account.name}`} label="Transfer" />
         ))}
@@ -581,10 +588,12 @@ function TransactionEntryRow({
   onCancel,
   categoryOptions,
   transferAccounts,
+  payeeOptions,
 }: {
   initialDate: string;
   categoryOptions: BudgetCategoryOption[];
   transferAccounts: SidebarAccount[];
+  payeeOptions: PayeeView[];
   onSave: (input: NewRegisterTransactionInput) => void;
   onSaveAndAddAnother: (input: NewRegisterTransactionInput) => void;
   onCancel: () => void;
@@ -698,6 +707,7 @@ function TransactionEntryRow({
         value={payee}
         onChange={setPayee}
         transferAccounts={transferAccounts}
+        payeeOptions={payeeOptions}
         autoFocus
       />
       <CategoryInput
@@ -739,10 +749,12 @@ function TransactionEditRow({
   onCancel,
   categoryOptions,
   transferAccounts,
+  payeeOptions,
 }: {
   transaction: RegisterTransactionView;
   categoryOptions: BudgetCategoryOption[];
   transferAccounts: SidebarAccount[];
+  payeeOptions: PayeeView[];
   onSave: (input: {
     id: string;
     date: string;
@@ -844,6 +856,7 @@ function TransactionEditRow({
         value={payee}
         onChange={setPayee}
         transferAccounts={transferAccounts}
+        payeeOptions={payeeOptions}
       />
       <CategoryInput
         value={category}
@@ -989,6 +1002,7 @@ export function AccountRegisterPage() {
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [lastEntryDate, setLastEntryDate] = useState(new Date().toISOString().slice(0, 10));
   const [categoryOptions, setCategoryOptions] = useState<BudgetCategoryOption[]>([]);
+  const [payeeOptions, setPayeeOptions] = useState<PayeeView[]>([]);
   const [transferAccounts, setTransferAccounts] = useState<SidebarAccount[]>([]);
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
@@ -1013,6 +1027,20 @@ export function AccountRegisterPage() {
     };
   }, []);
 
+
+  useEffect(() => {
+    let isMounted = true;
+
+    void payeeService.listPayees().then((payees) => {
+      if (isMounted) {
+        setPayeeOptions(payees);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [data?.transactions]);
 
   useEffect(() => {
     setTransferAccounts(readAccounts().filter((account) => account.id !== accountId));
@@ -1135,6 +1163,7 @@ export function AccountRegisterPage() {
           isOpen={isScheduledOpen}
           categoryOptions={categoryOptions}
           transferAccounts={transferAccounts}
+          payeeOptions={payeeOptions}
           onClose={() => setIsScheduledOpen(false)}
           onDueCountChange={setScheduledDueCount}
           onEnter={async (input) => {
@@ -1147,6 +1176,7 @@ export function AccountRegisterPage() {
             initialDate={lastEntryDate}
             categoryOptions={categoryOptions}
             transferAccounts={transferAccounts}
+            payeeOptions={payeeOptions}
             onSave={(input) => {
               addTransaction(input);
               setLastEntryDate(input.date);
@@ -1217,6 +1247,7 @@ export function AccountRegisterPage() {
                 transaction={transaction}
                 categoryOptions={categoryOptions}
                 transferAccounts={transferAccounts}
+                payeeOptions={payeeOptions}
                 onSave={(input) => {
                   updateTransaction(input);
                   setEditingTransactionId(null);
