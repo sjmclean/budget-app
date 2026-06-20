@@ -368,6 +368,8 @@ function CategoryInspector({
 }
 
 export function BudgetPage() {
+  const [hideArchivedCategories, setHideArchivedCategories] = useState(false);
+
   const {
     data,
     isLoading,
@@ -411,9 +413,29 @@ export function BudgetPage() {
     );
   }
 
+  const visibleCategoryGroups = hideArchivedCategories
+    ? data.categoryGroups
+        .map((group) => ({
+          ...group,
+          categories: group.categories.filter((category) => !category.isArchived),
+        }))
+        .filter((group) => group.categories.length > 0)
+    : data.categoryGroups;
+
+  const hiddenArchivedCount = data.categoryGroups.reduce(
+    (count, group) =>
+      count + group.categories.filter((category) => category.isArchived).length,
+    0,
+  );
+
+  const selectedCategoryVisible =
+    selectedCategory !== null && !(hideArchivedCategories && selectedCategory.isArchived);
+  const visibleSelectedCategory = selectedCategoryVisible ? selectedCategory : null;
+  const visibleSelectedGroup = selectedCategoryVisible ? selectedGroup : null;
+
   const isBudgetOverassigned = data.readyToAssign < 0;
   const selectedCategoryIsOverassignedSource =
-    selectedCategory !== null && overassignedCategoryIds.includes(selectedCategory.id);
+    visibleSelectedCategory !== null && overassignedCategoryIds.includes(visibleSelectedCategory.id);
 
   const overspentCount = data.categoryGroups.reduce(
     (count, group) =>
@@ -455,6 +477,20 @@ export function BudgetPage() {
             <button className="budget-filter" type="button">Overspent</button>
             <button className="budget-filter" type="button">Money Available</button>
             <button className="budget-filter" type="button">Needs Money</button>
+            <button
+              className={hideArchivedCategories ? "budget-filter budget-filter-active" : "budget-filter"}
+              type="button"
+              onClick={() => setHideArchivedCategories((current) => !current)}
+              title={
+                hideArchivedCategories
+                  ? "Show archived categories"
+                  : "Hide archived categories"
+              }
+            >
+              {hideArchivedCategories
+                ? `Archived hidden (${hiddenArchivedCount})`
+                : `Hide archived (${hiddenArchivedCount})`}
+            </button>
 
             <div className="budget-filter-spacer" />
 
@@ -473,12 +509,12 @@ export function BudgetPage() {
               <span>Available</span>
             </div>
 
-            {data.categoryGroups.map((group) => (
+            {visibleCategoryGroups.map((group) => (
               <BudgetGroup
                 key={group.id}
                 group={group}
                 currencyCode={data.currencyCode}
-                selectedCategoryId={selectedCategory?.id ?? null}
+                selectedCategoryId={visibleSelectedCategory?.id ?? null}
                 overassignedCategoryIds={overassignedCategoryIds}
                 onSelectCategory={selectCategory}
                 onAssignedChange={updateAssigned}
@@ -515,8 +551,8 @@ export function BudgetPage() {
           </Card>
 
           <CategoryInspector
-            category={selectedCategory}
-            group={selectedGroup}
+            category={visibleSelectedCategory}
+            group={visibleSelectedGroup}
             currencyCode={data.currencyCode}
             isOverassignedSource={selectedCategoryIsOverassignedSource}
             onRenameCategory={renameCategory}
