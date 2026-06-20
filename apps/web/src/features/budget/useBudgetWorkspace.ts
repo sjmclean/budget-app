@@ -18,6 +18,7 @@ interface UseBudgetWorkspaceState {
   updateAssigned: (categoryId: string, assigned: number) => void;
   renameCategory: (categoryId: string, name: string) => void;
   setCategoryArchived: (categoryId: string, isArchived: boolean) => void;
+  moveCategory: (categoryId: string, direction: "up" | "down") => void;
   clearSelection: () => void;
 }
 
@@ -142,6 +143,27 @@ export function useBudgetWorkspace(
       });
   }
 
+  function moveCategory(categoryId: string, direction: "up" | "down") {
+    setSaveError(null);
+
+    void budgetViewService
+      .moveCategory({
+        budgetId,
+        month,
+        categoryId,
+        direction,
+      })
+      .then((nextData) => {
+        setEditedData(nextData);
+        setSelectedCategoryId(categoryId);
+      })
+      .catch((error) => {
+        setSaveError(
+          error instanceof Error ? error.message : "Failed to move category.",
+        );
+      });
+  }
+
   return {
     data,
     isLoading: budgetView.isLoading,
@@ -153,6 +175,7 @@ export function useBudgetWorkspace(
     updateAssigned,
     renameCategory,
     setCategoryArchived,
+    moveCategory,
     clearSelection,
   };
 }

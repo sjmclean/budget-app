@@ -210,15 +210,21 @@ function CategoryInspector({
   group,
   currencyCode,
   isOverassignedSource,
+  canMoveCategoryUp,
+  canMoveCategoryDown,
   onRenameCategory,
   onSetCategoryArchived,
+  onMoveCategory,
 }: {
   category: BudgetCategoryView | null;
   group: BudgetCategoryGroupView | null;
   currencyCode: string;
   isOverassignedSource: boolean;
+  canMoveCategoryUp: boolean;
+  canMoveCategoryDown: boolean;
   onRenameCategory: (categoryId: string, name: string) => void;
   onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
+  onMoveCategory: (categoryId: string, direction: "up" | "down") => void;
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(category?.name ?? "");
@@ -320,6 +326,26 @@ function CategoryInspector({
           </button>
 
           <button
+            className="button button-secondary category-move-button"
+            type="button"
+            disabled={!canMoveCategoryUp}
+            onClick={() => onMoveCategory(category.id, "up")}
+            title="Move category up"
+          >
+            ↑
+          </button>
+
+          <button
+            className="button button-secondary category-move-button"
+            type="button"
+            disabled={!canMoveCategoryDown}
+            onClick={() => onMoveCategory(category.id, "down")}
+            title="Move category down"
+          >
+            ↓
+          </button>
+
+          <button
             className="button button-secondary category-archive-button"
             type="button"
             onClick={() => onSetCategoryArchived(category.id, !category.isArchived)}
@@ -381,6 +407,7 @@ export function BudgetPage() {
     updateAssigned,
     renameCategory,
     setCategoryArchived,
+    moveCategory,
   } = useBudgetWorkspace("household", "2026-06");
 
   if (isLoading) {
@@ -436,6 +463,18 @@ export function BudgetPage() {
   const isBudgetOverassigned = data.readyToAssign < 0;
   const selectedCategoryIsOverassignedSource =
     visibleSelectedCategory !== null && overassignedCategoryIds.includes(visibleSelectedCategory.id);
+
+  const selectedCategoryIndex =
+    visibleSelectedCategory && visibleSelectedGroup
+      ? visibleSelectedGroup.categories.findIndex(
+          (category) => category.id === visibleSelectedCategory.id,
+        )
+      : -1;
+  const canMoveSelectedCategoryUp = selectedCategoryIndex > 0;
+  const canMoveSelectedCategoryDown =
+    visibleSelectedGroup !== null &&
+    selectedCategoryIndex >= 0 &&
+    selectedCategoryIndex < visibleSelectedGroup.categories.length - 1;
 
   const overspentCount = data.categoryGroups.reduce(
     (count, group) =>
@@ -555,8 +594,11 @@ export function BudgetPage() {
             group={visibleSelectedGroup}
             currencyCode={data.currencyCode}
             isOverassignedSource={selectedCategoryIsOverassignedSource}
+            canMoveCategoryUp={canMoveSelectedCategoryUp}
+            canMoveCategoryDown={canMoveSelectedCategoryDown}
             onRenameCategory={renameCategory}
             onSetCategoryArchived={setCategoryArchived}
+            onMoveCategory={moveCategory}
           />
 
           <Card className="budget-health-card">

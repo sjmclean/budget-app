@@ -1229,8 +1229,18 @@ strong {
 }
 
 .category-rename-button,
-.category-archive-button {
+.category-archive-button,
+.category-move-button {
   flex: 0 0 auto;
   padding: 0.36rem 0.62rem;
   font-size: 0.78rem;
+}
+
+.category-move-button {
+  min-width: 2rem;
+}
+
+.category-move-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }

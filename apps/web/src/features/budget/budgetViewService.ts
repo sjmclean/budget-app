@@ -567,5 +567,48 @@ export const budgetViewService: BudgetViewService = {
       month,
     );
   },
+  async moveCategory({ budgetId, month, categoryId, direction }) {
+    const current = loadBudgetView(budgetId, month);
+    let moved = false;
+
+    const nextGroups = current.categoryGroups.map((group) => {
+      const categoryIndex = group.categories.findIndex(
+        (category) => category.id === categoryId,
+      );
+
+      if (categoryIndex === -1) {
+        return group;
+      }
+
+      const targetIndex = direction === "up" ? categoryIndex - 1 : categoryIndex + 1;
+
+      if (targetIndex < 0 || targetIndex >= group.categories.length) {
+        moved = true;
+        return group;
+      }
+
+      const categories = [...group.categories];
+      const [categoryToMove] = categories.splice(categoryIndex, 1);
+      categories.splice(targetIndex, 0, categoryToMove);
+      moved = true;
+
+      return {
+        ...group,
+        categories,
+      };
+    });
+
+    if (!moved) {
+      throw new Error("Category not found.");
+    }
+
+    return saveBudgetView(
+      {
+        ...current,
+        categoryGroups: nextGroups,
+      },
+      month,
+    );
+  },
 
 };
