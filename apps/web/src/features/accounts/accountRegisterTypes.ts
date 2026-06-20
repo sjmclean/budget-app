@@ -7,11 +7,28 @@ export type TransactionFlag =
   | "purple"
   | null;
 
+export interface RegisterSplitLineView {
+  id: string;
+  category: string;
+  memo?: string;
+  inflow: number;
+  outflow: number;
+}
+
+export interface RegisterAttachmentView {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  attachedAt: string;
+}
+
 export interface RegisterTransactionView {
   id: string;
   date: string;
   flag: TransactionFlag;
   attachmentCount: number;
+  attachments?: RegisterAttachmentView[];
   payee: string;
   category: string;
   memo?: string;
@@ -23,6 +40,7 @@ export interface RegisterTransactionView {
   transferId?: string;
   transferAccountId?: string;
   transferTransactionId?: string;
+  splitLines?: RegisterSplitLineView[];
 }
 
 export interface AccountRegisterView {
@@ -43,6 +61,7 @@ export interface NewRegisterTransactionInput {
   memo?: string;
   inflow: number;
   outflow: number;
+  splitLines?: RegisterSplitLineView[];
 }
 
 export interface UpdateRegisterTransactionInput {
@@ -53,6 +72,7 @@ export interface UpdateRegisterTransactionInput {
   memo?: string;
   inflow: number;
   outflow: number;
+  splitLines?: RegisterSplitLineView[];
 }
 
 export interface AccountRegisterService {
@@ -80,8 +100,19 @@ export interface AccountRegisterService {
     transactionId: string;
   }): Promise<AccountRegisterView>;
 
-  addAttachmentPlaceholder(input: {
+  addAttachment(input: {
     accountId: string;
     transactionId: string;
+    attachment: {
+      fileName: string;
+      fileSize: number;
+      mimeType: string;
+    };
+  }): Promise<AccountRegisterView>;
+
+  removeAttachment(input: {
+    accountId: string;
+    transactionId: string;
+    attachmentId: string;
   }): Promise<AccountRegisterView>;
 }

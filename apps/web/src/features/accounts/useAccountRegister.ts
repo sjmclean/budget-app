@@ -19,7 +19,8 @@ interface UseAccountRegisterState {
   updateTransaction: (input: UpdateRegisterTransactionInput) => Promise<void>;
   toggleCleared: (transactionId: string) => Promise<void>;
   deleteTransaction: (transactionId: string) => Promise<void>;
-  addMockAttachment: (transactionId: string) => Promise<void>;
+  addAttachment: (transactionId: string, file: File) => Promise<void>;
+  removeAttachment: (transactionId: string, attachmentId: string) => Promise<void>;
 }
 
 export function useAccountRegister(accountId: string): UseAccountRegisterState {
@@ -141,9 +142,28 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     );
   }, [accountId, runMutation]);
 
-  const addMockAttachment = useCallback(async (transactionId: string) => {
+  const addAttachment = useCallback(async (transactionId: string, file: File) => {
     await runMutation(
-      () => accountRegisterService.addAttachmentPlaceholder({ accountId, transactionId }),
+      () => accountRegisterService.addAttachment({
+        accountId,
+        transactionId,
+        attachment: {
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+        },
+      }),
+      transactionId,
+    );
+  }, [accountId, runMutation]);
+
+  const removeAttachment = useCallback(async (transactionId: string, attachmentId: string) => {
+    await runMutation(
+      () => accountRegisterService.removeAttachment({
+        accountId,
+        transactionId,
+        attachmentId,
+      }),
       transactionId,
     );
   }, [accountId, runMutation]);
@@ -160,6 +180,7 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     updateTransaction,
     toggleCleared,
     deleteTransaction,
-    addMockAttachment,
+    addAttachment,
+    removeAttachment,
   };
 }

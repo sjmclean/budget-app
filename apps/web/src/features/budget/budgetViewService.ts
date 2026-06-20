@@ -10,6 +10,14 @@ import { readAccounts } from "../accounts/accountService";
 const STORAGE_KEY_PREFIX = "budget-app.budget-view.v1";
 const REGISTER_STORAGE_KEY = "budget-app.account-registers.v1";
 
+interface StoredRegisterSplitLine {
+  id: string;
+  category: string;
+  memo?: string;
+  inflow: number;
+  outflow: number;
+}
+
 interface StoredRegisterTransaction {
   id: string;
   date: string;
@@ -17,6 +25,7 @@ interface StoredRegisterTransaction {
   inflow: number;
   outflow: number;
   transferAccountId?: string;
+  splitLines?: StoredRegisterSplitLine[];
 }
 
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
@@ -196,6 +205,30 @@ function applyRegisterActivity(view: BudgetMonthView, month: string): BudgetMont
 
   for (const transaction of readBudgetScopedRegisterTransactions()) {
     if (!transaction.date.startsWith(month)) {
+      continue;
+    }
+
+    if (transaction.splitLines && transaction.splitLines.length > 0) {
+      for (const splitLine of transaction.splitLines) {
+        const splitCategoryKey = normaliseCategoryKey(splitLine.category);
+        const splitCategoryId = categoryLookup.get(splitCategoryKey);
+        const splitAmount = splitLine.inflow - splitLine.outflow;
+
+        if (isReadyToAssignCategory(splitCategoryKey)) {
+          readyToAssignIncome += splitAmount;
+          continue;
+        }
+
+        if (!splitCategoryId) {
+          continue;
+        }
+
+        activityByCategoryId.set(
+          splitCategoryId,
+          (activityByCategoryId.get(splitCategoryId) ?? 0) + splitAmount,
+        );
+      }
+
       continue;
     }
 

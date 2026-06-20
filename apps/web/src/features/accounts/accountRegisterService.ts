@@ -2,6 +2,7 @@ import type {
   AccountRegisterService,
   AccountRegisterView,
   NewRegisterTransactionInput,
+  RegisterAttachmentView,
   RegisterTransactionView,
   UpdateRegisterTransactionInput,
 } from "./accountRegisterTypes";
@@ -110,6 +111,7 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
           payee: input.transaction.payee,
           category: input.transaction.category,
           memo: input.transaction.memo,
+          splitLines: cloneSplitLines(input.transaction.splitLines),
           inflow: input.transaction.inflow,
           outflow: input.transaction.outflow,
         };
@@ -182,9 +184,14 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     return cloneRegister(registers[input.accountId]);
   }
 
-  async addAttachmentPlaceholder(input: {
+  async addAttachment(input: {
     accountId: string;
     transactionId: string;
+    attachment: {
+      fileName: string;
+      fileSize: number;
+      mimeType: string;
+    };
   }): Promise<AccountRegisterView> {
     return updateRegister(input.accountId, (register) => {
       register.transactions = register.transactions.map((transaction) => {
@@ -192,9 +199,45 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
           return transaction;
         }
 
+        const attachments = [
+          ...(transaction.attachments ?? []),
+          {
+            id: createId(),
+            fileName: input.attachment.fileName,
+            fileSize: input.attachment.fileSize,
+            mimeType: input.attachment.mimeType || "application/octet-stream",
+            attachedAt: new Date().toISOString(),
+          },
+        ];
+
         return {
           ...transaction,
-          attachmentCount: Math.max(1, transaction.attachmentCount ?? 0),
+          attachments,
+          attachmentCount: attachments.length,
+        };
+      });
+    });
+  }
+
+  async removeAttachment(input: {
+    accountId: string;
+    transactionId: string;
+    attachmentId: string;
+  }): Promise<AccountRegisterView> {
+    return updateRegister(input.accountId, (register) => {
+      register.transactions = register.transactions.map((transaction) => {
+        if (transaction.id !== input.transactionId) {
+          return transaction;
+        }
+
+        const attachments = (transaction.attachments ?? []).filter(
+          (attachment) => attachment.id !== input.attachmentId,
+        );
+
+        return {
+          ...transaction,
+          attachments,
+          attachmentCount: attachments.length,
         };
       });
     });
@@ -252,9 +295,11 @@ function createTransactionView(input: NewRegisterTransactionInput): RegisterTran
     date: input.date,
     flag: null,
     attachmentCount: 0,
+    attachments: [],
     payee: input.payee,
     category: input.category,
     memo: input.memo,
+    splitLines: cloneSplitLines(input.splitLines),
     inflow: input.inflow,
     outflow: input.outflow,
     runningBalance: 0,
@@ -280,7 +325,12 @@ function createOpposingTransferTransaction(
     transferId: sourceTransaction.transferId,
     transferAccountId: sourceAccountId,
     transferTransactionId: sourceTransaction.id,
+    splitLines: undefined,
   };
+}
+
+function cloneSplitLines(splitLines: RegisterTransactionView["splitLines"]): RegisterTransactionView["splitLines"] {
+  return splitLines?.map((line) => ({ ...line }));
 }
 
 function findTransferTarget(sourceAccountId: string, payee: string): SidebarAccount | null {
@@ -349,6 +399,7 @@ function createEmptyRegister(accountId: string): AccountRegisterView {
               date: new Date().toISOString().slice(0, 10),
               flag: null,
               attachmentCount: 0,
+              attachments: [],
               payee: "Starting Balance",
               category: "Ready to Assign",
               memo: "Opening balance",
@@ -381,7 +432,8 @@ function recalculateRegister(register: AccountRegisterView): AccountRegisterView
   const transactions = register.transactions
     .map((transaction) => ({
       ...transaction,
-      attachmentCount: transaction.attachmentCount ?? 0,
+      attachments: normaliseAttachments(transaction.attachments),
+      attachmentCount: normaliseAttachments(transaction.attachments).length || transaction.attachmentCount || 0,
       runningBalance: runningBalanceById.get(transaction.id) ?? 0,
     }))
     .sort(compareForRegisterDisplay);
@@ -433,8 +485,19 @@ function writeRegisters(registers: StoredRegisters): void {
 function cloneRegister(register: AccountRegisterView): AccountRegisterView {
   return {
     ...register,
-    transactions: register.transactions.map((transaction) => ({ ...transaction })),
+    transactions: register.transactions.map((transaction) => ({
+      ...transaction,
+      attachments: normaliseAttachments(transaction.attachments),
+      attachmentCount: normaliseAttachments(transaction.attachments).length || transaction.attachmentCount || 0,
+      splitLines: cloneSplitLines(transaction.splitLines),
+    })),
   };
+}
+
+function normaliseAttachments(
+  attachments: RegisterAttachmentView[] | undefined,
+): RegisterAttachmentView[] {
+  return (attachments ?? []).map((attachment) => ({ ...attachment }));
 }
 
 function compareChronologically(a: RegisterTransactionView, b: RegisterTransactionView): number {

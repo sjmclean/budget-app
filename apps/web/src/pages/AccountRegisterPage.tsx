@@ -7,10 +7,18 @@ import { budgetViewService } from "../features/budget/budgetViewService";
 import { readAccounts, type SidebarAccount } from "../features/accounts/accountService";
 import type {
   NewRegisterTransactionInput,
+  RegisterSplitLineView,
   RegisterTransactionView,
   TransactionFlag,
 } from "../features/accounts/accountRegisterTypes";
 import type { BudgetCategoryOption } from "../features/budget/budgetViewTypes";
+
+const SPLIT_CATEGORY_LABEL = "Split...";
+
+function isSplitCategoryValue(value: string): boolean {
+  const normalised = value.trim().toLowerCase();
+  return normalised === "split" || normalised === "split...";
+}
 
 const ACTIVE_BUDGET_ID = "household";
 const ACTIVE_BUDGET_MONTH = "2026-06";
@@ -211,25 +219,131 @@ function FlagDot({ flag }: { flag: TransactionFlag }) {
   return <span className={`transaction-flag transaction-flag-${flag}`} />;
 }
 
-function AttachmentIndicator({ count }: { count: number }) {
-  if (count <= 0) {
-    return (
-      <span
-        className="attachment-indicator attachment-indicator-empty"
-        title="No attachments"
-        aria-label="No attachments"
-      />
-    );
-  }
+function AttachmentIndicator({
+  count,
+  onClick,
+}: {
+  count: number;
+  onClick?: () => void;
+}) {
+  const hasAttachments = count > 0;
 
   return (
-    <span
-      className="attachment-indicator attachment-indicator-present"
-      title="Has attachments"
-      aria-label="Has attachments"
+    <button
+      className={
+        hasAttachments
+          ? "attachment-indicator attachment-indicator-present"
+          : "attachment-indicator attachment-indicator-empty"
+      }
+      type="button"
+      title={hasAttachments ? "View attachments" : "Add attachment"}
+      aria-label={hasAttachments ? "View attachments" : "Add attachment"}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.();
+      }}
     >
-      <Paperclip size={13} />
-    </span>
+      {hasAttachments ? <Paperclip size={13} /> : null}
+    </button>
+  );
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function AttachmentManager({
+  transaction,
+  onClose,
+  onAddAttachment,
+  onRemoveAttachment,
+}: {
+  transaction: RegisterTransactionView;
+  onClose: () => void;
+  onAddAttachment: (file: File) => void;
+  onRemoveAttachment: (attachmentId: string) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const attachments = transaction.attachments ?? [];
+
+  return (
+    <div className="attachment-dialog-backdrop" role="presentation" onClick={onClose}>
+      <div
+        className="attachment-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Transaction attachments"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="attachment-dialog-header">
+          <div>
+            <strong>Attachments</strong>
+            <p className="muted">{transaction.payee} · {formatDate(transaction.date)}</p>
+          </div>
+          <button className="button button-secondary" type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        <div className="attachment-list">
+          {attachments.length === 0 ? (
+            <p className="muted">No attachments yet.</p>
+          ) : (
+            attachments.map((attachment) => (
+              <div className="attachment-list-item" key={attachment.id}>
+                <Paperclip size={15} />
+                <div>
+                  <strong>{attachment.fileName}</strong>
+                  <span>
+                    {formatFileSize(attachment.fileSize)} · {attachment.mimeType || "Unknown type"}
+                  </span>
+                </div>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => onRemoveAttachment(attachment.id)}
+                >
+                  Remove
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="attachment-dialog-actions">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="attachment-file-input"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+
+              if (!file) {
+                return;
+              }
+
+              onAddAttachment(file);
+              event.target.value = "";
+            }}
+          />
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Add attachment
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -268,10 +382,12 @@ function CategoryInput({
   value,
   onChange,
   categoryOptions,
+  includeSplitOption = true,
 }: {
   value: string;
   onChange: (value: string) => void;
   categoryOptions: BudgetCategoryOption[];
+  includeSplitOption?: boolean;
 }) {
   return (
     <>
@@ -283,11 +399,177 @@ function CategoryInput({
       />
 
       <datalist id="budget-category-options">
+        {includeSplitOption ? (
+          <option value={SPLIT_CATEGORY_LABEL} label="Special" />
+        ) : null}
         {categoryOptions.map((category) => (
           <option key={category.id} value={category.name} label={category.groupName} />
         ))}
       </datalist>
     </>
+  );
+}
+
+
+interface SplitLineDraft {
+  id: string;
+  category: string;
+  memo: string;
+  outflow: string;
+  inflow: string;
+}
+
+function createSplitLineDraft(): SplitLineDraft {
+  return {
+    id: createLocalId(),
+    category: "",
+    memo: "",
+    outflow: "",
+    inflow: "",
+  };
+}
+
+function createLocalId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `split-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function splitDraftsFromTransaction(transaction: RegisterTransactionView): SplitLineDraft[] {
+  return (transaction.splitLines ?? []).map((line) => ({
+    id: line.id,
+    category: line.category,
+    memo: line.memo ?? "",
+    outflow: line.outflow ? line.outflow.toFixed(2) : "",
+    inflow: line.inflow ? line.inflow.toFixed(2) : "",
+  }));
+}
+
+function buildSplitLines(splitLines: SplitLineDraft[]): RegisterSplitLineView[] {
+  return splitLines
+    .map((line) => ({
+      id: line.id,
+      category: line.category.trim(),
+      memo: line.memo.trim(),
+      outflow: parseMoney(line.outflow),
+      inflow: parseMoney(line.inflow),
+    }))
+    .filter(
+      (line) =>
+        line.category.length > 0 &&
+        (line.outflow > 0 || line.inflow > 0),
+    );
+}
+
+function totalsFromSplitLines(splitLines: RegisterSplitLineView[]): {
+  outflow: number;
+  inflow: number;
+} {
+  return splitLines.reduce(
+    (totals, line) => ({
+      outflow: totals.outflow + line.outflow,
+      inflow: totals.inflow + line.inflow,
+    }),
+    { outflow: 0, inflow: 0 },
+  );
+}
+
+function SplitEditor({
+  splitLines,
+  setSplitLines,
+  categoryOptions,
+}: {
+  splitLines: SplitLineDraft[];
+  setSplitLines: (updater: (current: SplitLineDraft[]) => SplitLineDraft[]) => void;
+  categoryOptions: BudgetCategoryOption[];
+}) {
+  if (splitLines.length === 0) {
+    return null;
+  }
+
+  const totals = totalsFromSplitLines(buildSplitLines(splitLines));
+
+  return (
+    <div className="register-split-editor">
+      <div className="register-split-header">
+        <strong>Split transaction</strong>
+        <span>
+          Total: {totals.outflow > 0 ? `Outflow ${totals.outflow.toFixed(2)}` : ""}
+          {totals.inflow > 0 ? ` Inflow ${totals.inflow.toFixed(2)}` : ""}
+        </span>
+      </div>
+
+      {splitLines.map((line) => (
+        <div className="register-split-line" key={line.id}>
+          <CategoryInput
+            value={line.category}
+            onChange={(value) =>
+              setSplitLines((current) =>
+                current.map((item) =>
+                  item.id === line.id ? { ...item, category: value } : item,
+                ),
+              )
+            }
+            categoryOptions={categoryOptions}
+            includeSplitOption={false}
+          />
+          <input
+            value={line.memo}
+            onChange={(event) =>
+              setSplitLines((current) =>
+                current.map((item) =>
+                  item.id === line.id ? { ...item, memo: event.target.value } : item,
+                ),
+              )
+            }
+            placeholder="Split memo"
+          />
+          <input
+            value={line.outflow}
+            onChange={(event) =>
+              setSplitLines((current) =>
+                current.map((item) =>
+                  item.id === line.id ? { ...item, outflow: event.target.value } : item,
+                ),
+              )
+            }
+            placeholder="Outflow"
+            inputMode="decimal"
+          />
+          <input
+            value={line.inflow}
+            onChange={(event) =>
+              setSplitLines((current) =>
+                current.map((item) =>
+                  item.id === line.id ? { ...item, inflow: event.target.value } : item,
+                ),
+              )
+            }
+            placeholder="Inflow"
+            inputMode="decimal"
+          />
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={() =>
+              setSplitLines((current) => current.filter((item) => item.id !== line.id))
+            }
+          >
+            Remove
+          </button>
+        </div>
+      ))}
+
+      <button
+        className="button button-secondary"
+        type="button"
+        onClick={() => setSplitLines((current) => [...current, createSplitLineDraft()])}
+      >
+        Add split line
+      </button>
+    </div>
   );
 }
 
@@ -312,24 +594,35 @@ function TransactionEntryRow({
   const [memo, setMemo] = useState("");
   const [outflow, setOutflow] = useState("");
   const [inflow, setInflow] = useState("");
+  const [splitLines, setSplitLines] = useState<SplitLineDraft[]>([]);
 
   function buildInput(): NewRegisterTransactionInput | null {
     if (!payee.trim()) {
       return null;
     }
 
-    const parsedOutflow = parseMoney(outflow);
-    const parsedInflow = parseMoney(inflow);
+    const parsedSplitLines = buildSplitLines(splitLines);
+
+    if (splitLines.length > 0 && parsedSplitLines.length === 0) {
+      return null;
+    }
+
+    const splitTotals = totalsFromSplitLines(parsedSplitLines);
+    const parsedOutflow = parsedSplitLines.length > 0 ? splitTotals.outflow : parseMoney(outflow);
+    const parsedInflow = parsedSplitLines.length > 0 ? splitTotals.inflow : parseMoney(inflow);
 
     return {
       date,
       payee: payee.trim(),
       category:
-        category.trim() ||
-        (parsedInflow > 0 && parsedOutflow === 0 ? "Ready to Assign" : "Uncategorised"),
+        parsedSplitLines.length > 0
+          ? "Split"
+          : category.trim() ||
+            (parsedInflow > 0 && parsedOutflow === 0 ? "Ready to Assign" : "Uncategorised"),
       memo: memo.trim(),
       outflow: parsedOutflow,
       inflow: parsedInflow,
+      splitLines: parsedSplitLines.length > 0 ? parsedSplitLines : undefined,
     };
   }
 
@@ -339,6 +632,33 @@ function TransactionEntryRow({
     setMemo("");
     setOutflow("");
     setInflow("");
+    setSplitLines([]);
+  }
+
+  function handleCategoryChange(value: string) {
+    if (isSplitCategoryValue(value)) {
+      setCategory(SPLIT_CATEGORY_LABEL);
+      setSplitLines((current) =>
+        current.length > 0 ? current : [createSplitLineDraft(), createSplitLineDraft()],
+      );
+      return;
+    }
+
+    setCategory(value);
+  }
+
+  function toggleSplitEditor() {
+    setSplitLines((current) => {
+      if (current.length > 0) {
+        setCategory((currentCategory) =>
+          isSplitCategoryValue(currentCategory) ? "" : currentCategory,
+        );
+        return [];
+      }
+
+      setCategory(SPLIT_CATEGORY_LABEL);
+      return [createSplitLineDraft(), createSplitLineDraft()];
+    });
   }
 
   function save() {
@@ -363,6 +683,7 @@ function TransactionEntryRow({
   }
 
   return (
+    <>
     <div
       className="register-entry-row-active register-entry-row-workflow"
       onKeyDown={(event) => {
@@ -380,12 +701,12 @@ function TransactionEntryRow({
       />
       <CategoryInput
         value={category}
-        onChange={setCategory}
+        onChange={handleCategoryChange}
         categoryOptions={categoryOptions}
       />
       <input value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="Memo" />
-      <input value={outflow} onChange={(event) => setOutflow(event.target.value)} placeholder="Outflow" inputMode="decimal" />
-      <input value={inflow} onChange={(event) => setInflow(event.target.value)} placeholder="Inflow" inputMode="decimal" />
+      <input value={outflow} onChange={(event) => setOutflow(event.target.value)} placeholder="Outflow" inputMode="decimal" disabled={splitLines.length > 0} />
+      <input value={inflow} onChange={(event) => setInflow(event.target.value)} placeholder="Inflow" inputMode="decimal" disabled={splitLines.length > 0} />
 
       <div className="register-entry-actions register-entry-actions-wide">
         <button className="button button-primary" type="button" onClick={saveAndAddAnother}>
@@ -394,11 +715,20 @@ function TransactionEntryRow({
         <button className="button button-secondary" type="button" onClick={save}>
           Save
         </button>
+        <button className="button button-secondary" type="button" onClick={toggleSplitEditor}>
+          Split
+        </button>
         <button className="button button-secondary" type="button" onClick={onCancel}>
           Cancel
         </button>
       </div>
     </div>
+    <SplitEditor
+      splitLines={splitLines}
+      setSplitLines={setSplitLines}
+      categoryOptions={categoryOptions}
+    />
+    </>
   );
 }
 
@@ -420,6 +750,7 @@ function TransactionEditRow({
     memo?: string;
     inflow: number;
     outflow: number;
+    splitLines?: RegisterSplitLineView[];
   }) => void;
   onCancel: () => void;
 }) {
@@ -429,29 +760,69 @@ function TransactionEditRow({
   const [memo, setMemo] = useState(transaction.memo ?? "");
   const [outflow, setOutflow] = useState(transaction.outflow ? transaction.outflow.toFixed(2) : "");
   const [inflow, setInflow] = useState(transaction.inflow ? transaction.inflow.toFixed(2) : "");
+  const [splitLines, setSplitLines] = useState<SplitLineDraft[]>(
+    splitDraftsFromTransaction(transaction),
+  );
+
+  function handleCategoryChange(value: string) {
+    if (isSplitCategoryValue(value)) {
+      setCategory(SPLIT_CATEGORY_LABEL);
+      setSplitLines((current) =>
+        current.length > 0 ? current : [createSplitLineDraft(), createSplitLineDraft()],
+      );
+      return;
+    }
+
+    setCategory(value);
+  }
+
+  function toggleSplitEditor() {
+    setSplitLines((current) => {
+      if (current.length > 0) {
+        setCategory((currentCategory) =>
+          isSplitCategoryValue(currentCategory) ? "" : currentCategory,
+        );
+        return [];
+      }
+
+      setCategory(SPLIT_CATEGORY_LABEL);
+      return [createSplitLineDraft(), createSplitLineDraft()];
+    });
+  }
 
   function save() {
     if (!payee.trim()) {
       return;
     }
 
-    const parsedOutflow = parseMoney(outflow);
-    const parsedInflow = parseMoney(inflow);
+    const parsedSplitLines = buildSplitLines(splitLines);
+
+    if (splitLines.length > 0 && parsedSplitLines.length === 0) {
+      return;
+    }
+
+    const splitTotals = totalsFromSplitLines(parsedSplitLines);
+    const parsedOutflow = parsedSplitLines.length > 0 ? splitTotals.outflow : parseMoney(outflow);
+    const parsedInflow = parsedSplitLines.length > 0 ? splitTotals.inflow : parseMoney(inflow);
 
     onSave({
       id: transaction.id,
       date,
       payee: payee.trim(),
       category:
-        category.trim() ||
-        (parsedInflow > 0 && parsedOutflow === 0 ? "Ready to Assign" : "Uncategorised"),
+        parsedSplitLines.length > 0
+          ? "Split"
+          : category.trim() ||
+            (parsedInflow > 0 && parsedOutflow === 0 ? "Ready to Assign" : "Uncategorised"),
       memo: memo.trim(),
       outflow: parsedOutflow,
       inflow: parsedInflow,
+      splitLines: parsedSplitLines.length > 0 ? parsedSplitLines : undefined,
     });
   }
 
   return (
+    <>
     <div
       className="register-row register-row-editing"
       onKeyDown={(event) => {
@@ -475,18 +846,25 @@ function TransactionEditRow({
       />
       <CategoryInput
         value={category}
-        onChange={setCategory}
+        onChange={handleCategoryChange}
         categoryOptions={categoryOptions}
       />
       <input value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="Memo" />
-      <input value={outflow} onChange={(event) => setOutflow(event.target.value)} placeholder="Outflow" inputMode="decimal" />
-      <input value={inflow} onChange={(event) => setInflow(event.target.value)} placeholder="Inflow" inputMode="decimal" />
+      <input value={outflow} onChange={(event) => setOutflow(event.target.value)} placeholder="Outflow" inputMode="decimal" disabled={splitLines.length > 0} />
+      <input value={inflow} onChange={(event) => setInflow(event.target.value)} placeholder="Inflow" inputMode="decimal" disabled={splitLines.length > 0} />
 
       <div className="register-edit-actions">
         <button className="button button-primary" type="button" onClick={save}>Save</button>
+        <button className="button button-secondary" type="button" onClick={toggleSplitEditor}>Split</button>
         <button className="button button-secondary" type="button" onClick={onCancel}>Cancel</button>
       </div>
     </div>
+    <SplitEditor
+      splitLines={splitLines}
+      setSplitLines={setSplitLines}
+      categoryOptions={categoryOptions}
+    />
+    </>
   );
 }
 
@@ -541,6 +919,7 @@ function TransactionRow({
   onSelect,
   onEdit,
   onToggleCleared,
+  onManageAttachments,
 }: {
   transaction: RegisterTransactionView;
   currencyCode: string;
@@ -548,6 +927,7 @@ function TransactionRow({
   onSelect: () => void;
   onEdit: () => void;
   onToggleCleared: () => void;
+  onManageAttachments: () => void;
 }) {
   return (
     <button
@@ -559,7 +939,10 @@ function TransactionRow({
       <span className="register-checkbox" aria-hidden="true" />
       <span>{formatDate(transaction.date)}</span>
       <FlagDot flag={transaction.flag} />
-      <AttachmentIndicator count={transaction.attachmentCount} />
+      <AttachmentIndicator
+        count={transaction.attachmentCount}
+        onClick={onManageAttachments}
+      />
 
       <div className="register-payee-cell">
         <strong>{transaction.payee}</strong>
@@ -597,7 +980,8 @@ export function AccountRegisterPage() {
     updateTransaction,
     toggleCleared,
     deleteTransaction,
-    addMockAttachment,
+    addAttachment,
+    removeAttachment,
   } = useAccountRegister(accountId);
 
   const [showEntryRow, setShowEntryRow] = useState(false);
@@ -605,6 +989,7 @@ export function AccountRegisterPage() {
   const [lastEntryDate, setLastEntryDate] = useState(new Date().toISOString().slice(0, 10));
   const [categoryOptions, setCategoryOptions] = useState<BudgetCategoryOption[]>([]);
   const [transferAccounts, setTransferAccounts] = useState<SidebarAccount[]>([]);
+  const [attachmentTransactionId, setAttachmentTransactionId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -682,6 +1067,10 @@ export function AccountRegisterPage() {
     );
   }
 
+  const attachmentTransaction = attachmentTransactionId
+    ? data.transactions.find((transaction) => transaction.id === attachmentTransactionId) ?? null
+    : null;
+
   return (
     <div className="register-workspace">
       <section className="register-clean-header">
@@ -754,7 +1143,7 @@ export function AccountRegisterPage() {
             <button type="button" onClick={() => setEditingTransactionId(selectedTransactionId)}>
               Edit
             </button>
-            <button type="button" onClick={() => addMockAttachment(selectedTransactionId)}>
+            <button type="button" onClick={() => setAttachmentTransactionId(selectedTransactionId)}>
               Attach
             </button>
             <button type="button" disabled>Duplicate</button>
@@ -824,11 +1213,26 @@ export function AccountRegisterPage() {
                   setEditingTransactionId(transaction.id);
                 }}
                 onToggleCleared={() => toggleCleared(transaction.id)}
+                onManageAttachments={() => {
+                  selectTransaction(transaction.id);
+                  setAttachmentTransactionId(transaction.id);
+                }}
               />
             ),
           )}
         </div>
       </Card>
+
+      {attachmentTransaction && (
+        <AttachmentManager
+          transaction={attachmentTransaction}
+          onClose={() => setAttachmentTransactionId(null)}
+          onAddAttachment={(file) => addAttachment(attachmentTransaction.id, file)}
+          onRemoveAttachment={(attachmentId) =>
+            removeAttachment(attachmentTransaction.id, attachmentId)
+          }
+        />
+      )}
 
       <div className="register-legend">
         <span><span className="transaction-flag transaction-flag-red" /> Needs attention</span>

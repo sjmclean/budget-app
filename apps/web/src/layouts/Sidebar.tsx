@@ -104,7 +104,7 @@ export function Sidebar() {
     setAccounts(result.accounts);
     setOpenMenuAccountId(null);
   }
-  }
+  
 
   function renderAccount(account: SidebarAccount) {
     const isMenuOpen = openMenuAccountId === account.id;
