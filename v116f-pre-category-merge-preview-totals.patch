@@ -1,0 +1,57 @@
+--- apps/web/src/features/budget/budgetViewTypes.ts	2026-06-20 10:09:32.026977224 +0000
++++ apps/web/src/features/budget/budgetViewTypes.ts	2026-06-20 10:09:33.229622700 +0000
+@@ -28,13 +28,19 @@
+   sourceCategoryName: string;
+   sourceGroupName: string;
+   sourceAssigned: number;
++  sourceActivity: number;
++  sourceAvailable: number;
+   sourceIsArchived: boolean;
+   targetCategoryId: string;
+   targetCategoryName: string;
+   targetGroupName: string;
+   targetAssigned: number;
++  targetActivity: number;
++  targetAvailable: number;
+   targetIsArchived: boolean;
+   combinedAssigned: number;
++  combinedActivity: number;
++  combinedAvailable: number;
+   registerTransactionCount: number;
+   registerSplitLineCount: number;
+   scheduledTransactionCount: number;
+--- apps/web/src/features/budget/budgetViewService.ts	2026-06-20 10:09:32.027153889 +0000
++++ apps/web/src/features/budget/budgetViewService.ts	2026-06-20 10:09:33.230049324 +0000
+@@ -507,13 +507,19 @@
+     sourceCategoryName: source.category.name,
+     sourceGroupName: source.group.name,
+     sourceAssigned: source.category.assigned,
++    sourceActivity: source.category.activity,
++    sourceAvailable: source.category.available,
+     sourceIsArchived: source.category.isArchived,
+     targetCategoryId: target.category.id,
+     targetCategoryName: target.category.name,
+     targetGroupName: target.group.name,
+     targetAssigned: target.category.assigned,
++    targetActivity: target.category.activity,
++    targetAvailable: target.category.available,
+     targetIsArchived: target.category.isArchived,
+     combinedAssigned: source.category.assigned + target.category.assigned,
++    combinedActivity: source.category.activity + target.category.activity,
++    combinedAvailable: source.category.available + target.category.available,
+     registerTransactionCount: registerCounts.registerTransactionCount,
+     registerSplitLineCount: registerCounts.registerSplitLineCount,
+     scheduledTransactionCount,
+--- apps/web/src/pages/BudgetPage.tsx	2026-06-20 10:09:32.040238412 +0000
++++ apps/web/src/pages/BudgetPage.tsx	2026-06-20 10:09:33.230778926 +0000
+@@ -515,6 +515,10 @@
+             <p className="muted">
+               Assigned after merge:{" "}
+               {formatMoney(activeMergePreview.combinedAssigned, currencyCode)}
++              {" · "}Activity after merge:{" "}
++              {formatMoney(activeMergePreview.combinedActivity, currencyCode)}
++              {" · "}Available after merge:{" "}
++              {formatMoney(activeMergePreview.combinedAvailable, currencyCode)}
+             </p>
+           </div>
+         ) : null}

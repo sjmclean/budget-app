@@ -5,6 +5,7 @@ import type {
   BudgetCategoryGroupView,
   BudgetCategoryView,
   BudgetMonthView,
+  CategoryMergePreview,
 } from "./budgetViewTypes";
 
 interface UseBudgetWorkspaceState {
@@ -14,12 +15,19 @@ interface UseBudgetWorkspaceState {
   selectedCategory: BudgetCategoryView | null;
   selectedGroup: BudgetCategoryGroupView | null;
   overassignedCategoryIds: string[];
+  categoryMergePreview: CategoryMergePreview | null;
+  isCategoryMergePreviewLoading: boolean;
   selectCategory: (categoryId: string) => void;
   updateAssigned: (categoryId: string, assigned: number) => void;
   renameCategory: (categoryId: string, name: string) => void;
   setCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   moveCategory: (categoryId: string, direction: "up" | "down") => void;
   moveCategoryGroup: (groupId: string, direction: "up" | "down") => void;
+  previewCategoryMerge: (
+    sourceCategoryId: string,
+    targetCategoryId: string,
+  ) => void;
+  clearCategoryMergePreview: () => void;
   clearSelection: () => void;
 }
 
@@ -29,14 +37,24 @@ export function useBudgetWorkspace(
 ): UseBudgetWorkspaceState {
   const budgetView = useBudgetView(budgetId, month);
   const [editedData, setEditedData] = useState<BudgetMonthView | null>(null);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [lastEditedCategoryId, setLastEditedCategoryId] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null,
+  );
+  const [lastEditedCategoryId, setLastEditedCategoryId] = useState<
+    string | null
+  >(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [categoryMergePreview, setCategoryMergePreview] =
+    useState<CategoryMergePreview | null>(null);
+  const [isCategoryMergePreviewLoading, setIsCategoryMergePreviewLoading] =
+    useState(false);
 
   useEffect(() => {
     setEditedData(null);
     setSaveError(null);
     setLastEditedCategoryId(null);
+    setCategoryMergePreview(null);
+    setIsCategoryMergePreviewLoading(false);
   }, [budgetId, month]);
 
   const data = editedData ?? budgetView.data;
@@ -50,7 +68,9 @@ export function useBudgetWorkspace(
     }
 
     for (const group of data.categoryGroups) {
-      const category = group.categories.find((item) => item.id === selectedCategoryId);
+      const category = group.categories.find(
+        (item) => item.id === selectedCategoryId,
+      );
 
       if (category) {
         return {
@@ -67,14 +87,18 @@ export function useBudgetWorkspace(
   }, [data, selectedCategoryId]);
 
   const overassignedCategoryIds =
-    data && data.readyToAssign < 0 && lastEditedCategoryId ? [lastEditedCategoryId] : [];
+    data && data.readyToAssign < 0 && lastEditedCategoryId
+      ? [lastEditedCategoryId]
+      : [];
 
   function selectCategory(categoryId: string) {
     setSelectedCategoryId(categoryId);
+    setCategoryMergePreview(null);
   }
 
   function clearSelection() {
     setSelectedCategoryId(null);
+    setCategoryMergePreview(null);
   }
 
   function updateAssigned(categoryId: string, assigned: number) {
@@ -181,9 +205,45 @@ export function useBudgetWorkspace(
       })
       .catch((error) => {
         setSaveError(
-          error instanceof Error ? error.message : "Failed to move category group.",
+          error instanceof Error
+            ? error.message
+            : "Failed to move category group.",
         );
       });
+  }
+
+  function previewCategoryMerge(
+    sourceCategoryId: string,
+    targetCategoryId: string,
+  ) {
+    setSaveError(null);
+    setIsCategoryMergePreviewLoading(true);
+
+    void budgetViewService
+      .getCategoryMergePreview({
+        budgetId,
+        month,
+        sourceCategoryId,
+        targetCategoryId,
+      })
+      .then((preview) => {
+        setCategoryMergePreview(preview);
+      })
+      .catch((error) => {
+        setSaveError(
+          error instanceof Error
+            ? error.message
+            : "Failed to preview category merge.",
+        );
+        setCategoryMergePreview(null);
+      })
+      .finally(() => {
+        setIsCategoryMergePreviewLoading(false);
+      });
+  }
+
+  function clearCategoryMergePreview() {
+    setCategoryMergePreview(null);
   }
 
   return {
@@ -193,12 +253,16 @@ export function useBudgetWorkspace(
     selectedCategory: selected.selectedCategory,
     selectedGroup: selected.selectedGroup,
     overassignedCategoryIds,
+    categoryMergePreview,
+    isCategoryMergePreviewLoading,
     selectCategory,
     updateAssigned,
     renameCategory,
     setCategoryArchived,
     moveCategory,
     moveCategoryGroup,
+    previewCategoryMerge,
+    clearCategoryMergePreview,
     clearSelection,
   };
 }

@@ -1,6 +1,7 @@
 import type {
   BudgetCategoryGroupView,
   BudgetCategoryOption,
+  CategoryMergePreview,
   BudgetCategoryView,
   BudgetMonthView,
   BudgetViewService,
@@ -9,6 +10,7 @@ import { readAccounts } from "../accounts/accountService";
 
 const STORAGE_KEY_PREFIX = "budget-app.budget-view.v1";
 const REGISTER_STORAGE_KEY = "budget-app.account-registers.v1";
+const SCHEDULED_TRANSACTIONS_STORAGE_KEY = "budget-app.scheduled-transactions.v1";
 
 interface StoredRegisterSplitLine {
   id: string;
@@ -16,6 +18,16 @@ interface StoredRegisterSplitLine {
   memo?: string;
   inflow: number;
   outflow: number;
+}
+
+interface StoredScheduledTransaction {
+  id: string;
+  category: string;
+}
+
+interface CategoryLocation {
+  group: BudgetCategoryGroupView;
+  category: BudgetCategoryView;
 }
 
 interface StoredRegisterTransaction {
@@ -387,6 +399,133 @@ function getCategoryOptions(view: BudgetMonthView): BudgetCategoryOption[] {
   ];
 }
 
+function findCategoryLocation(view: BudgetMonthView, categoryId: string): CategoryLocation | null {
+  for (const group of view.categoryGroups) {
+    const category = group.categories.find((item) => item.id === categoryId);
+
+    if (category) {
+      return { group, category };
+    }
+  }
+
+  return null;
+}
+
+function createCategoryReferenceMatcher(category: BudgetCategoryView): (value: string) => boolean {
+  const sourceKeys = new Set([
+    normaliseCategoryKey(category.id),
+    normaliseCategoryKey(category.name),
+  ]);
+
+  return (value: string) => sourceKeys.has(normaliseCategoryKey(value));
+}
+
+function countRegisterCategoryReferences(category: BudgetCategoryView): {
+  registerTransactionCount: number;
+  registerSplitLineCount: number;
+} {
+  if (typeof window === "undefined") {
+    return { registerTransactionCount: 0, registerSplitLineCount: 0 };
+  }
+
+  const raw = window.localStorage.getItem(REGISTER_STORAGE_KEY);
+
+  if (!raw) {
+    return { registerTransactionCount: 0, registerSplitLineCount: 0 };
+  }
+
+  try {
+    const registers = JSON.parse(raw) as StoredRegisters;
+    const matchesSourceCategory = createCategoryReferenceMatcher(category);
+    let registerTransactionCount = 0;
+    let registerSplitLineCount = 0;
+
+    for (const register of Object.values(registers)) {
+      for (const transaction of register.transactions ?? []) {
+        if (matchesSourceCategory(transaction.category)) {
+          registerTransactionCount += 1;
+        }
+
+        for (const splitLine of transaction.splitLines ?? []) {
+          if (matchesSourceCategory(splitLine.category)) {
+            registerSplitLineCount += 1;
+          }
+        }
+      }
+    }
+
+    return { registerTransactionCount, registerSplitLineCount };
+  } catch {
+    return { registerTransactionCount: 0, registerSplitLineCount: 0 };
+  }
+}
+
+function countScheduledCategoryReferences(category: BudgetCategoryView): number {
+  if (typeof window === "undefined") {
+    return 0;
+  }
+
+  const raw = window.localStorage.getItem(SCHEDULED_TRANSACTIONS_STORAGE_KEY);
+
+  if (!raw) {
+    return 0;
+  }
+
+  try {
+    const scheduledTransactions = JSON.parse(raw) as StoredScheduledTransaction[];
+    const matchesSourceCategory = createCategoryReferenceMatcher(category);
+
+    return Array.isArray(scheduledTransactions)
+      ? scheduledTransactions.filter((transaction) => matchesSourceCategory(transaction.category)).length
+      : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function createCategoryMergePreview(
+  view: BudgetMonthView,
+  sourceCategoryId: string,
+  targetCategoryId: string,
+): CategoryMergePreview {
+  if (sourceCategoryId === targetCategoryId) {
+    throw new Error("Choose two different categories to preview a merge.");
+  }
+
+  const source = findCategoryLocation(view, sourceCategoryId);
+  const target = findCategoryLocation(view, targetCategoryId);
+
+  if (!source || !target) {
+    throw new Error("Category not found.");
+  }
+
+  const registerCounts = countRegisterCategoryReferences(source.category);
+  const scheduledTransactionCount = countScheduledCategoryReferences(source.category);
+
+  return {
+    sourceCategoryId: source.category.id,
+    sourceCategoryName: source.category.name,
+    sourceGroupName: source.group.name,
+    sourceAssigned: source.category.assigned,
+    sourceActivity: source.category.activity,
+    sourceAvailable: source.category.available,
+    sourceIsArchived: source.category.isArchived,
+    targetCategoryId: target.category.id,
+    targetCategoryName: target.category.name,
+    targetGroupName: target.group.name,
+    targetAssigned: target.category.assigned,
+    targetActivity: target.category.activity,
+    targetAvailable: target.category.available,
+    targetIsArchived: target.category.isArchived,
+    combinedAssigned: source.category.assigned + target.category.assigned,
+    combinedActivity: source.category.activity + target.category.activity,
+    combinedAvailable: source.category.available + target.category.available,
+    registerTransactionCount: registerCounts.registerTransactionCount,
+    registerSplitLineCount: registerCounts.registerSplitLineCount,
+    scheduledTransactionCount,
+  };
+}
+
 function renameStoredRegisterCategory(oldName: string, newName: string) {
   if (typeof window === "undefined") {
     return;
@@ -450,6 +589,14 @@ function loadBudgetView(budgetId: string, month: string): BudgetMonthView {
 export const budgetViewService: BudgetViewService = {
   async getBudgetMonthView({ budgetId, month }) {
     return loadBudgetView(budgetId, month);
+  },
+
+  async getCategoryMergePreview({ budgetId, month, sourceCategoryId, targetCategoryId }) {
+    return createCategoryMergePreview(
+      loadBudgetView(budgetId, month),
+      sourceCategoryId,
+      targetCategoryId,
+    );
   },
 
   async getCategoryOptions({ budgetId, month }) {

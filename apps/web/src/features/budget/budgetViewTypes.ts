@@ -23,6 +23,29 @@ export interface BudgetCategoryOption {
   groupName: string;
 }
 
+export interface CategoryMergePreview {
+  sourceCategoryId: string;
+  sourceCategoryName: string;
+  sourceGroupName: string;
+  sourceAssigned: number;
+  sourceActivity: number;
+  sourceAvailable: number;
+  sourceIsArchived: boolean;
+  targetCategoryId: string;
+  targetCategoryName: string;
+  targetGroupName: string;
+  targetAssigned: number;
+  targetActivity: number;
+  targetAvailable: number;
+  targetIsArchived: boolean;
+  combinedAssigned: number;
+  combinedActivity: number;
+  combinedAvailable: number;
+  registerTransactionCount: number;
+  registerSplitLineCount: number;
+  scheduledTransactionCount: number;
+}
+
 export interface BudgetMonthView {
   budgetId: string;
   budgetName: string;
@@ -75,6 +98,13 @@ export interface BudgetViewService {
     groupId: string;
     direction: "up" | "down";
   }): Promise<BudgetMonthView>;
+
+  getCategoryMergePreview(input: {
+    budgetId: string;
+    month: string;
+    sourceCategoryId: string;
+    targetCategoryId: string;
+  }): Promise<CategoryMergePreview>;
 
   getCategoryOptions(input: {
     budgetId: string;

@@ -5,6 +5,7 @@ import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
 import type {
   BudgetCategoryGroupView,
   BudgetCategoryView,
+  CategoryMergePreview,
 } from "../features/budget/budgetViewTypes";
 
 function formatMoney(value: number, currencyCode: string) {
@@ -61,7 +62,9 @@ function EditableAssignedCell({
   if (isEditing) {
     return (
       <input
-        className={hasError ? "assigned-input assigned-input-error" : "assigned-input"}
+        className={
+          hasError ? "assigned-input assigned-input-error" : "assigned-input"
+        }
         autoFocus
         value={draft}
         onChange={(event) => {
@@ -131,9 +134,13 @@ function BudgetCategoryRow({
       onClick={onSelect}
     >
       <div className="budget-category-cell">
-        <span className="drag-handle" title="Reorder categories later">⋮⋮</span>
+        <span className="drag-handle" title="Reorder categories later">
+          ⋮⋮
+        </span>
         <strong className="budget-category-name">{category.name}</strong>
-        {category.isArchived ? <span className="category-archived-badge">Archived</span> : null}
+        {category.isArchived ? (
+          <span className="category-archived-badge">Archived</span>
+        ) : null}
       </div>
 
       <EditableAssignedCell
@@ -145,7 +152,9 @@ function BudgetCategoryRow({
 
       <span>{formatMoney(category.activity, currencyCode)}</span>
 
-      <strong className={getAvailableClass(category.available, isOverassignedSource)}>
+      <strong
+        className={getAvailableClass(category.available, isOverassignedSource)}
+      >
         {formatMoney(category.available, currencyCode)}
       </strong>
     </button>
@@ -181,13 +190,20 @@ function BudgetGroup({
 
         <strong>{formatMoney(group.assigned, currencyCode)}</strong>
         <strong>{formatMoney(group.activity, currencyCode)}</strong>
-        <strong className={getAvailableClass(group.available, groupHasOverassignedCategory)}>
+        <strong
+          className={getAvailableClass(
+            group.available,
+            groupHasOverassignedCategory,
+          )}
+        >
           {formatMoney(group.available, currencyCode)}
         </strong>
       </div>
 
       {group.categories.map((category) => {
-        const isOverassignedSource = overassignedCategoryIds.includes(category.id);
+        const isOverassignedSource = overassignedCategoryIds.includes(
+          category.id,
+        );
 
         return (
           <BudgetCategoryRow
@@ -214,10 +230,15 @@ function CategoryInspector({
   canMoveCategoryDown,
   canMoveGroupUp,
   canMoveGroupDown,
+  mergeTargetOptions,
+  mergePreview,
+  isMergePreviewLoading,
   onRenameCategory,
   onSetCategoryArchived,
   onMoveCategory,
   onMoveCategoryGroup,
+  onPreviewCategoryMerge,
+  onClearCategoryMergePreview,
 }: {
   category: BudgetCategoryView | null;
   group: BudgetCategoryGroupView | null;
@@ -227,17 +248,27 @@ function CategoryInspector({
   canMoveCategoryDown: boolean;
   canMoveGroupUp: boolean;
   canMoveGroupDown: boolean;
+  mergeTargetOptions: Array<{ id: string; name: string; groupName: string }>;
+  mergePreview: CategoryMergePreview | null;
+  isMergePreviewLoading: boolean;
   onRenameCategory: (categoryId: string, name: string) => void;
   onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   onMoveCategory: (categoryId: string, direction: "up" | "down") => void;
   onMoveCategoryGroup: (groupId: string, direction: "up" | "down") => void;
+  onPreviewCategoryMerge: (
+    sourceCategoryId: string,
+    targetCategoryId: string,
+  ) => void;
+  onClearCategoryMergePreview: () => void;
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(category?.name ?? "");
+  const [mergeTargetId, setMergeTargetId] = useState("");
 
   useEffect(() => {
     setDraftName(category?.name ?? "");
     setIsRenaming(false);
+    setMergeTargetId("");
   }, [category?.id, category?.name]);
 
   function startRename() {
@@ -273,6 +304,21 @@ function CategoryInspector({
 
     setIsRenaming(false);
   }
+  function previewMerge() {
+    if (!category || !mergeTargetId) {
+      return;
+    }
+
+    onPreviewCategoryMerge(category.id, mergeTargetId);
+  }
+
+  const activeMergePreview =
+    mergePreview && category
+      ? mergePreview.sourceCategoryId === category.id
+        ? mergePreview
+        : null
+      : null;
+
   if (!category || !group) {
     return (
       <Card className="budget-inspector-card">
@@ -281,7 +327,9 @@ function CategoryInspector({
           <p className="muted">Select a category to inspect it.</p>
         </div>
 
-        <div className="inspector-empty">Click a budget category to see details here.</div>
+        <div className="inspector-empty">
+          Click a budget category to see details here.
+        </div>
       </Card>
     );
   }
@@ -374,7 +422,9 @@ function CategoryInspector({
           <button
             className="button button-secondary category-archive-button"
             type="button"
-            onClick={() => onSetCategoryArchived(category.id, !category.isArchived)}
+            onClick={() =>
+              onSetCategoryArchived(category.id, !category.isArchived)
+            }
           >
             {category.isArchived ? "Restore" : "Archive"}
           </button>
@@ -392,7 +442,12 @@ function CategoryInspector({
         </div>
         <div>
           <span>Available</span>
-          <strong className={getAvailableClass(category.available, isOverassignedSource)}>
+          <strong
+            className={getAvailableClass(
+              category.available,
+              isOverassignedSource,
+            )}
+          >
             {formatMoney(category.available, currencyCode)}
           </strong>
         </div>
@@ -406,6 +461,67 @@ function CategoryInspector({
                 : "Available"}
           </strong>
         </div>
+      </div>
+
+      <div className="inspector-note">
+        <h3>Merge preview</h3>
+        <p className="muted">
+          Preview how many register and scheduled entries would be affected
+          before we add the actual merge action. This does not change any data.
+        </p>
+
+        <div className="category-merge-preview-controls">
+          <select
+            className="category-rename-input"
+            value={mergeTargetId}
+            onChange={(event) => {
+              setMergeTargetId(event.target.value);
+              onClearCategoryMergePreview();
+            }}
+            aria-label="Merge target category"
+          >
+            <option value="">Merge into…</option>
+            {mergeTargetOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name} — {option.groupName}
+              </option>
+            ))}
+          </select>
+
+          <button
+            className="button button-secondary"
+            type="button"
+            disabled={!mergeTargetId || isMergePreviewLoading}
+            onClick={previewMerge}
+          >
+            {isMergePreviewLoading ? "Previewing…" : "Preview"}
+          </button>
+        </div>
+
+        {activeMergePreview ? (
+          <div className="category-merge-preview-summary">
+            <p>
+              <strong>{activeMergePreview.sourceCategoryName}</strong> would
+              merge into{" "}
+              <strong>{activeMergePreview.targetCategoryName}</strong>.
+            </p>
+            <p className="muted">
+              Register transactions:{" "}
+              {activeMergePreview.registerTransactionCount}
+              {" · "}Split lines: {activeMergePreview.registerSplitLineCount}
+              {" · "}Scheduled transactions:{" "}
+              {activeMergePreview.scheduledTransactionCount}
+            </p>
+            <p className="muted">
+              Assigned after merge:{" "}
+              {formatMoney(activeMergePreview.combinedAssigned, currencyCode)}
+              {" · "}Activity after merge:{" "}
+              {formatMoney(activeMergePreview.combinedActivity, currencyCode)}
+              {" · "}Available after merge:{" "}
+              {formatMoney(activeMergePreview.combinedAvailable, currencyCode)}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <div className="inspector-note">
@@ -435,6 +551,10 @@ export function BudgetPage() {
     setCategoryArchived,
     moveCategory,
     moveCategoryGroup,
+    categoryMergePreview,
+    isCategoryMergePreviewLoading,
+    previewCategoryMerge,
+    clearCategoryMergePreview,
   } = useBudgetWorkspace("household", "2026-06");
 
   if (isLoading) {
@@ -471,7 +591,9 @@ export function BudgetPage() {
     ? data.categoryGroups
         .map((group) => ({
           ...group,
-          categories: group.categories.filter((category) => !category.isArchived),
+          categories: group.categories.filter(
+            (category) => !category.isArchived,
+          ),
         }))
         .filter((group) => group.categories.length > 0)
     : data.categoryGroups;
@@ -483,13 +605,17 @@ export function BudgetPage() {
   );
 
   const selectedCategoryVisible =
-    selectedCategory !== null && !(hideArchivedCategories && selectedCategory.isArchived);
-  const visibleSelectedCategory = selectedCategoryVisible ? selectedCategory : null;
+    selectedCategory !== null &&
+    !(hideArchivedCategories && selectedCategory.isArchived);
+  const visibleSelectedCategory = selectedCategoryVisible
+    ? selectedCategory
+    : null;
   const visibleSelectedGroup = selectedCategoryVisible ? selectedGroup : null;
 
   const isBudgetOverassigned = data.readyToAssign < 0;
   const selectedCategoryIsOverassignedSource =
-    visibleSelectedCategory !== null && overassignedCategoryIds.includes(visibleSelectedCategory.id);
+    visibleSelectedCategory !== null &&
+    overassignedCategoryIds.includes(visibleSelectedCategory.id);
 
   const selectedCategoryIndex =
     visibleSelectedCategory && visibleSelectedGroup
@@ -505,15 +631,29 @@ export function BudgetPage() {
 
   const selectedGroupIndex =
     visibleSelectedGroup !== null
-      ? data.categoryGroups.findIndex((group) => group.id === visibleSelectedGroup.id)
+      ? data.categoryGroups.findIndex(
+          (group) => group.id === visibleSelectedGroup.id,
+        )
       : -1;
   const canMoveSelectedGroupUp = selectedGroupIndex > 0;
   const canMoveSelectedGroupDown =
-    selectedGroupIndex >= 0 && selectedGroupIndex < data.categoryGroups.length - 1;
+    selectedGroupIndex >= 0 &&
+    selectedGroupIndex < data.categoryGroups.length - 1;
+
+  const mergeTargetOptions = data.categoryGroups.flatMap((group) =>
+    group.categories
+      .filter((category) => category.id !== visibleSelectedCategory?.id)
+      .map((category) => ({
+        id: category.id,
+        name: category.name,
+        groupName: group.name,
+      })),
+  );
 
   const overspentCount = data.categoryGroups.reduce(
     (count, group) =>
-      count + group.categories.filter((category) => category.available < 0).length,
+      count +
+      group.categories.filter((category) => category.available < 0).length,
     0,
   );
 
@@ -521,15 +661,21 @@ export function BudgetPage() {
     <div className="budget-workspace-screen">
       <section className="budget-workspace-topbar">
         <div className="month-switcher">
-          <button className="button button-secondary" type="button">‹</button>
+          <button className="button button-secondary" type="button">
+            ‹
+          </button>
 
           <div>
             <h1>{data.monthLabel}</h1>
             <p className="muted">Interactive budget workspace</p>
           </div>
 
-          <button className="button button-secondary" type="button">›</button>
-          <button className="button button-secondary" type="button">Back to today</button>
+          <button className="button button-secondary" type="button">
+            ›
+          </button>
+          <button className="button button-secondary" type="button">
+            Back to today
+          </button>
         </div>
 
         <div
@@ -547,12 +693,27 @@ export function BudgetPage() {
       <div className="budget-workspace-layout budget-workspace-layout-interactive">
         <main className="budget-workspace-main">
           <section className="budget-filter-bar">
-            <button className="budget-filter budget-filter-active" type="button">All</button>
-            <button className="budget-filter" type="button">Overspent</button>
-            <button className="budget-filter" type="button">Money Available</button>
-            <button className="budget-filter" type="button">Needs Money</button>
             <button
-              className={hideArchivedCategories ? "budget-filter budget-filter-active" : "budget-filter"}
+              className="budget-filter budget-filter-active"
+              type="button"
+            >
+              All
+            </button>
+            <button className="budget-filter" type="button">
+              Overspent
+            </button>
+            <button className="budget-filter" type="button">
+              Money Available
+            </button>
+            <button className="budget-filter" type="button">
+              Needs Money
+            </button>
+            <button
+              className={
+                hideArchivedCategories
+                  ? "budget-filter budget-filter-active"
+                  : "budget-filter"
+              }
               type="button"
               onClick={() => setHideArchivedCategories((current) => !current)}
               title={
@@ -607,19 +768,27 @@ export function BudgetPage() {
             <div className="month-breakdown">
               <div>
                 <span>Ready To Assign</span>
-                <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
+                <strong>
+                  {formatMoney(data.readyToAssign, data.currencyCode)}
+                </strong>
               </div>
               <div>
                 <span>Assigned</span>
-                <strong>{formatMoney(data.totalAssigned, data.currencyCode)}</strong>
+                <strong>
+                  {formatMoney(data.totalAssigned, data.currencyCode)}
+                </strong>
               </div>
               <div>
                 <span>Activity</span>
-                <strong>{formatMoney(data.totalActivity, data.currencyCode)}</strong>
+                <strong>
+                  {formatMoney(data.totalActivity, data.currencyCode)}
+                </strong>
               </div>
               <div>
                 <span>Available</span>
-                <strong>{formatMoney(data.totalAvailable, data.currencyCode)}</strong>
+                <strong>
+                  {formatMoney(data.totalAvailable, data.currencyCode)}
+                </strong>
               </div>
             </div>
           </Card>
@@ -633,10 +802,15 @@ export function BudgetPage() {
             canMoveCategoryDown={canMoveSelectedCategoryDown}
             canMoveGroupUp={canMoveSelectedGroupUp}
             canMoveGroupDown={canMoveSelectedGroupDown}
+            mergeTargetOptions={mergeTargetOptions}
+            mergePreview={categoryMergePreview}
+            isMergePreviewLoading={isCategoryMergePreviewLoading}
             onRenameCategory={renameCategory}
             onSetCategoryArchived={setCategoryArchived}
             onMoveCategory={moveCategory}
             onMoveCategoryGroup={moveCategoryGroup}
+            onPreviewCategoryMerge={previewCategoryMerge}
+            onClearCategoryMergePreview={clearCategoryMergePreview}
           />
 
           <Card className="budget-health-card">
@@ -657,7 +831,13 @@ export function BudgetPage() {
 
             <div className="health-row">
               <span>Status</span>
-              <strong>{isBudgetOverassigned ? "Overassigned" : overspentCount > 0 ? "Needs review" : "Good"}</strong>
+              <strong>
+                {isBudgetOverassigned
+                  ? "Overassigned"
+                  : overspentCount > 0
+                    ? "Needs review"
+                    : "Good"}
+              </strong>
             </div>
           </Card>
         </aside>
