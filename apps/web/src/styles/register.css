@@ -962,3 +962,63 @@
 .flag-colour-picker-option[aria-selected="true"] {
   background: var(--surface-muted);
 }
+
+/* v1.15c register inline payee suggestions */
+.register-payee-autocomplete {
+  position: relative;
+  min-width: 0;
+}
+
+.register-payee-autocomplete > input {
+  width: 100%;
+}
+
+.register-payee-suggestions {
+  position: absolute;
+  z-index: 90;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  padding: 0.25rem;
+}
+
+.register-payee-suggestion {
+  width: 100%;
+  border: 0;
+  border-radius: 0.42rem;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.44rem 0.52rem;
+  text-align: left;
+}
+
+.register-payee-suggestion span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.register-payee-suggestion small {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.register-payee-suggestion:hover,
+.register-payee-suggestion-active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}

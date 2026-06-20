@@ -363,26 +363,126 @@ function PayeeInput({
   payeeOptions: PayeeView[];
   autoFocus?: boolean;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+
+  const normalisedValue = value.trim().toLowerCase();
+  const suggestions = [
+    ...payeeOptions.map((payee) => ({
+      id: `payee-${payee.id}`,
+      value: payee.name,
+      label: "Payee",
+    })),
+    ...transferAccounts.map((account) => ({
+      id: `transfer-${account.id}`,
+      value: `Transfer: ${account.name}`,
+      label: "Transfer",
+    })),
+  ]
+    .filter((suggestion, index, allSuggestions) => {
+      const suggestionValue = suggestion.value.trim().toLowerCase();
+      const isDuplicate =
+        allSuggestions.findIndex(
+          (candidate) => candidate.value.trim().toLowerCase() === suggestionValue,
+        ) !== index;
+
+      if (isDuplicate) {
+        return false;
+      }
+
+      if (!normalisedValue) {
+        return true;
+      }
+
+      return suggestionValue.includes(normalisedValue);
+    })
+    .slice(0, 8);
+
+  const shouldShowSuggestions = isOpen && suggestions.length > 0;
+
+  function selectSuggestion(selectedValue: string) {
+    onChange(selectedValue);
+    setIsOpen(false);
+    setHighlightedIndex(0);
+  }
+
   return (
-    <>
+    <div className="register-payee-autocomplete">
       <input
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setIsOpen(true);
+          setHighlightedIndex(0);
+        }}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
+        onKeyDown={(event) => {
+          if (!shouldShowSuggestions) {
+            return;
+          }
+
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setHighlightedIndex((current) =>
+              current >= suggestions.length - 1 ? 0 : current + 1,
+            );
+            return;
+          }
+
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setHighlightedIndex((current) =>
+              current <= 0 ? suggestions.length - 1 : current - 1,
+            );
+            return;
+          }
+
+          if (event.key === "Enter") {
+            event.preventDefault();
+            event.stopPropagation();
+            selectSuggestion(suggestions[highlightedIndex].value);
+            return;
+          }
+
+          if (event.key === "Escape") {
+            event.preventDefault();
+            setIsOpen(false);
+          }
+        }}
         placeholder="Payee"
-        list="register-payee-options"
         autoFocus={autoFocus}
+        autoComplete="off"
+        aria-autocomplete="list"
+        aria-expanded={shouldShowSuggestions}
       />
 
-      <datalist id="register-payee-options">
-        {payeeOptions.map((payee) => (
-          <option key={payee.id} value={payee.name} />
-        ))}
-
-        {transferAccounts.map((account) => (
-          <option key={account.id} value={`Transfer: ${account.name}`} label="Transfer" />
-        ))}
-      </datalist>
-    </>
+      {shouldShowSuggestions ? (
+        <div className="register-payee-suggestions" role="listbox">
+          {suggestions.map((suggestion, index) => (
+            <button
+              key={suggestion.id}
+              type="button"
+              className={
+                index === highlightedIndex
+                  ? "register-payee-suggestion register-payee-suggestion-active"
+                  : "register-payee-suggestion"
+              }
+              onMouseEnter={() => setHighlightedIndex(index)}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                selectSuggestion(suggestion.value);
+              }}
+              role="option"
+              aria-selected={index === highlightedIndex}
+            >
+              <span>{suggestion.value}</span>
+              <small>{suggestion.label}</small>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
