@@ -1,0 +1,194 @@
+--- apps/web/src/pages/AccountRegisterPage.tsx	2026-06-20 23:26:24.530661324 +0000
++++ apps/web/src/pages/AccountRegisterPage.tsx	2026-06-20 23:26:24.330790892 +0000
+@@ -1221,6 +1221,8 @@
+   const [transferAccounts, setTransferAccounts] = useState<SidebarAccount[]>([]);
+   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
+   const [scheduledDueCount, setScheduledDueCount] = useState(0);
++  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
++  const [isPayeeManagerOpen, setIsPayeeManagerOpen] = useState(false);
+   const [attachmentTransactionId, setAttachmentTransactionId] = useState<string | null>(null);
+ 
+   useEffect(() => {
+@@ -1345,14 +1347,6 @@
+               Add transaction
+             </button>
+ 
+-            <button
+-              className="button button-secondary scheduled-toolbar-button"
+-              type="button"
+-              onClick={() => setIsScheduledOpen((current) => !current)}
+-            >
+-              Scheduled{scheduledDueCount > 0 ? ` (${scheduledDueCount})` : ""}
+-            </button>
+-
+             <input
+               className="register-search"
+               placeholder="Search transactions…"
+@@ -1367,9 +1361,43 @@
+               Reconcile
+             </button>
+ 
+-            <button className="button button-secondary" type="button" disabled>
+-              More
+-            </button>
++            <div className="register-more-menu">
++              <button
++                className="button button-secondary"
++                type="button"
++                aria-haspopup="menu"
++                aria-expanded={isMoreMenuOpen}
++                onClick={() => setIsMoreMenuOpen((current) => !current)}
++              >
++                More ▾
++              </button>
++
++              {isMoreMenuOpen && (
++                <div className="register-more-menu-panel" role="menu">
++                  <button
++                    type="button"
++                    role="menuitem"
++                    onClick={() => {
++                      setIsPayeeManagerOpen(true);
++                      setIsMoreMenuOpen(false);
++                    }}
++                  >
++                    Manage Payees
++                  </button>
++
++                  <button
++                    type="button"
++                    role="menuitem"
++                    onClick={() => {
++                      setIsScheduledOpen((current) => !current);
++                      setIsMoreMenuOpen(false);
++                    }}
++                  >
++                    Scheduled Transactions{scheduledDueCount > 0 ? ` (${scheduledDueCount})` : ""}
++                  </button>
++                </div>
++              )}
++            </div>
+           </div>
+         </div>
+ 
+@@ -1386,6 +1414,31 @@
+           }}
+         />
+ 
++        {isPayeeManagerOpen && (
++          <div className="payee-manager-overlay" role="presentation">
++            <Card className="payee-manager-panel">
++              <div className="payee-manager-header">
++                <div>
++                  <h2>Manage Payees</h2>
++                  <p>Payee management will live here.</p>
++                </div>
++
++                <button
++                  className="button button-secondary"
++                  type="button"
++                  onClick={() => setIsPayeeManagerOpen(false)}
++                >
++                  Close
++                </button>
++              </div>
++
++              <p className="payee-manager-placeholder">
++                Payee list, rename, merge and archive tools will be added in the next Payee Management increments.
++              </p>
++            </Card>
++          </div>
++        )}
++
+         {showEntryRow && (
+           <TransactionEntryRow
+             initialDate={lastEntryDate}
+
+--- apps/web/src/styles/register.css	2026-06-20 23:26:24.598877981 +0000
++++ apps/web/src/styles/register.css	2026-06-20 23:26:24.342163834 +0000
+@@ -63,6 +63,85 @@
+   font-size: 0.84rem;
+ }
+ 
++
++.register-more-menu {
++  position: relative;
++}
++
++.register-more-menu-panel {
++  position: absolute;
++  right: 0;
++  top: calc(100% + 0.45rem);
++  z-index: 25;
++  min-width: 14rem;
++  border: 1px solid var(--border-soft);
++  border-radius: 0.75rem;
++  background: var(--surface);
++  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16);
++  padding: 0.35rem;
++  display: grid;
++  gap: 0.2rem;
++}
++
++.register-more-menu-panel button {
++  width: 100%;
++  border: 0;
++  border-radius: 0.55rem;
++  background: transparent;
++  color: var(--text);
++  cursor: pointer;
++  font: inherit;
++  font-size: 0.84rem;
++  padding: 0.55rem 0.65rem;
++  text-align: left;
++}
++
++.register-more-menu-panel button:hover {
++  background: var(--surface-subtle);
++}
++
++.payee-manager-overlay {
++  position: fixed;
++  inset: 0;
++  z-index: 35;
++  display: flex;
++  align-items: flex-start;
++  justify-content: center;
++  padding: 8vh 32px 32px;
++  background: rgba(15, 23, 42, 0.18);
++}
++
++.payee-manager-panel {
++  width: min(560px, calc(100vw - 64px));
++  display: grid;
++  gap: 1rem;
++  padding: 1.1rem;
++}
++
++.payee-manager-header {
++  display: flex;
++  align-items: flex-start;
++  justify-content: space-between;
++  gap: 1rem;
++}
++
++.payee-manager-header h2 {
++  margin: 0;
++  font-size: 1.05rem;
++}
++
++.payee-manager-header p {
++  margin: 0.25rem 0 0;
++  color: var(--text-muted);
++  font-size: 0.84rem;
++}
++
++.payee-manager-placeholder {
++  margin: 0;
++  color: var(--text-muted);
++  font-size: 0.88rem;
++}
++
+ .register-entry-row-active {
+   display: grid;
+   grid-template-columns: 8.5rem minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(10rem, 1fr) 7rem 7rem auto;

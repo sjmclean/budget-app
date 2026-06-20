@@ -1221,6 +1221,8 @@ export function AccountRegisterPage() {
   const [transferAccounts, setTransferAccounts] = useState<SidebarAccount[]>([]);
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isPayeeManagerOpen, setIsPayeeManagerOpen] = useState(false);
   const [attachmentTransactionId, setAttachmentTransactionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1345,14 +1347,6 @@ export function AccountRegisterPage() {
               Add transaction
             </button>
 
-            <button
-              className="button button-secondary scheduled-toolbar-button"
-              type="button"
-              onClick={() => setIsScheduledOpen((current) => !current)}
-            >
-              Scheduled{scheduledDueCount > 0 ? ` (${scheduledDueCount})` : ""}
-            </button>
-
             <input
               className="register-search"
               placeholder="Search transactions…"
@@ -1367,9 +1361,43 @@ export function AccountRegisterPage() {
               Reconcile
             </button>
 
-            <button className="button button-secondary" type="button" disabled>
-              More
-            </button>
+            <div className="register-more-menu">
+              <button
+                className="button button-secondary"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={isMoreMenuOpen}
+                onClick={() => setIsMoreMenuOpen((current) => !current)}
+              >
+                More ▾
+              </button>
+
+              {isMoreMenuOpen && (
+                <div className="register-more-menu-panel" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsPayeeManagerOpen(true);
+                      setIsMoreMenuOpen(false);
+                    }}
+                  >
+                    Manage Payees
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsScheduledOpen((current) => !current);
+                      setIsMoreMenuOpen(false);
+                    }}
+                  >
+                    Scheduled Transactions{scheduledDueCount > 0 ? ` (${scheduledDueCount})` : ""}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1385,6 +1413,31 @@ export function AccountRegisterPage() {
             await addTransaction(input);
           }}
         />
+
+        {isPayeeManagerOpen && (
+          <div className="payee-manager-overlay" role="presentation">
+            <Card className="payee-manager-panel">
+              <div className="payee-manager-header">
+                <div>
+                  <h2>Manage Payees</h2>
+                  <p>Payee management will live here.</p>
+                </div>
+
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => setIsPayeeManagerOpen(false)}
+                >
+                  Close
+                </button>
+              </div>
+
+              <p className="payee-manager-placeholder">
+                Payee list, rename, merge and archive tools will be added in the next Payee Management increments.
+              </p>
+            </Card>
+          </div>
+        )}
 
         {showEntryRow && (
           <TransactionEntryRow
