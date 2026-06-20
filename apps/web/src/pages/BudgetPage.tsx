@@ -212,9 +212,12 @@ function CategoryInspector({
   isOverassignedSource,
   canMoveCategoryUp,
   canMoveCategoryDown,
+  canMoveGroupUp,
+  canMoveGroupDown,
   onRenameCategory,
   onSetCategoryArchived,
   onMoveCategory,
+  onMoveCategoryGroup,
 }: {
   category: BudgetCategoryView | null;
   group: BudgetCategoryGroupView | null;
@@ -222,9 +225,12 @@ function CategoryInspector({
   isOverassignedSource: boolean;
   canMoveCategoryUp: boolean;
   canMoveCategoryDown: boolean;
+  canMoveGroupUp: boolean;
+  canMoveGroupDown: boolean;
   onRenameCategory: (categoryId: string, name: string) => void;
   onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   onMoveCategory: (categoryId: string, direction: "up" | "down") => void;
+  onMoveCategoryGroup: (groupId: string, direction: "up" | "down") => void;
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(category?.name ?? "");
@@ -346,6 +352,26 @@ function CategoryInspector({
           </button>
 
           <button
+            className="button button-secondary category-move-button"
+            type="button"
+            disabled={!canMoveGroupUp}
+            onClick={() => onMoveCategoryGroup(group.id, "up")}
+            title="Move category group up"
+          >
+            Group ↑
+          </button>
+
+          <button
+            className="button button-secondary category-move-button"
+            type="button"
+            disabled={!canMoveGroupDown}
+            onClick={() => onMoveCategoryGroup(group.id, "down")}
+            title="Move category group down"
+          >
+            Group ↓
+          </button>
+
+          <button
             className="button button-secondary category-archive-button"
             type="button"
             onClick={() => onSetCategoryArchived(category.id, !category.isArchived)}
@@ -408,6 +434,7 @@ export function BudgetPage() {
     renameCategory,
     setCategoryArchived,
     moveCategory,
+    moveCategoryGroup,
   } = useBudgetWorkspace("household", "2026-06");
 
   if (isLoading) {
@@ -475,6 +502,14 @@ export function BudgetPage() {
     visibleSelectedGroup !== null &&
     selectedCategoryIndex >= 0 &&
     selectedCategoryIndex < visibleSelectedGroup.categories.length - 1;
+
+  const selectedGroupIndex =
+    visibleSelectedGroup !== null
+      ? data.categoryGroups.findIndex((group) => group.id === visibleSelectedGroup.id)
+      : -1;
+  const canMoveSelectedGroupUp = selectedGroupIndex > 0;
+  const canMoveSelectedGroupDown =
+    selectedGroupIndex >= 0 && selectedGroupIndex < data.categoryGroups.length - 1;
 
   const overspentCount = data.categoryGroups.reduce(
     (count, group) =>
@@ -596,9 +631,12 @@ export function BudgetPage() {
             isOverassignedSource={selectedCategoryIsOverassignedSource}
             canMoveCategoryUp={canMoveSelectedCategoryUp}
             canMoveCategoryDown={canMoveSelectedCategoryDown}
+            canMoveGroupUp={canMoveSelectedGroupUp}
+            canMoveGroupDown={canMoveSelectedGroupDown}
             onRenameCategory={renameCategory}
             onSetCategoryArchived={setCategoryArchived}
             onMoveCategory={moveCategory}
+            onMoveCategoryGroup={moveCategoryGroup}
           />
 
           <Card className="budget-health-card">

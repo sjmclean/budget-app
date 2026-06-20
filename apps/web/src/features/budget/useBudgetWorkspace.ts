@@ -19,6 +19,7 @@ interface UseBudgetWorkspaceState {
   renameCategory: (categoryId: string, name: string) => void;
   setCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   moveCategory: (categoryId: string, direction: "up" | "down") => void;
+  moveCategoryGroup: (groupId: string, direction: "up" | "down") => void;
   clearSelection: () => void;
 }
 
@@ -164,6 +165,27 @@ export function useBudgetWorkspace(
       });
   }
 
+  function moveCategoryGroup(groupId: string, direction: "up" | "down") {
+    setSaveError(null);
+
+    void budgetViewService
+      .moveCategoryGroup({
+        budgetId,
+        month,
+        groupId,
+        direction,
+      })
+      .then((nextData) => {
+        setEditedData(nextData);
+        setSelectedCategoryId((currentCategoryId) => currentCategoryId);
+      })
+      .catch((error) => {
+        setSaveError(
+          error instanceof Error ? error.message : "Failed to move category group.",
+        );
+      });
+  }
+
   return {
     data,
     isLoading: budgetView.isLoading,
@@ -176,6 +198,7 @@ export function useBudgetWorkspace(
     renameCategory,
     setCategoryArchived,
     moveCategory,
+    moveCategoryGroup,
     clearSelection,
   };
 }

@@ -69,6 +69,13 @@ export interface BudgetViewService {
     direction: "up" | "down";
   }): Promise<BudgetMonthView>;
 
+  moveCategoryGroup(input: {
+    budgetId: string;
+    month: string;
+    groupId: string;
+    direction: "up" | "down";
+  }): Promise<BudgetMonthView>;
+
   getCategoryOptions(input: {
     budgetId: string;
     month: string;

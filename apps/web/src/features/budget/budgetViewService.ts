@@ -611,4 +611,31 @@ export const budgetViewService: BudgetViewService = {
     );
   },
 
+  async moveCategoryGroup({ budgetId, month, groupId, direction }) {
+    const current = loadBudgetView(budgetId, month);
+    const groupIndex = current.categoryGroups.findIndex((group) => group.id === groupId);
+
+    if (groupIndex === -1) {
+      throw new Error("Category group not found.");
+    }
+
+    const targetIndex = direction === "up" ? groupIndex - 1 : groupIndex + 1;
+
+    if (targetIndex < 0 || targetIndex >= current.categoryGroups.length) {
+      return current;
+    }
+
+    const categoryGroups = [...current.categoryGroups];
+    const [groupToMove] = categoryGroups.splice(groupIndex, 1);
+    categoryGroups.splice(targetIndex, 0, groupToMove);
+
+    return saveBudgetView(
+      {
+        ...current,
+        categoryGroups,
+      },
+      month,
+    );
+  },
+
 };
