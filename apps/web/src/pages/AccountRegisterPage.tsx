@@ -2,6 +2,7 @@ import { CalendarDays, Paperclip } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "../components/ui/Card";
+import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
 import { budgetViewService } from "../features/budget/budgetViewService";
 import { readAccounts, type SidebarAccount } from "../features/accounts/accountService";
@@ -989,6 +990,8 @@ export function AccountRegisterPage() {
   const [lastEntryDate, setLastEntryDate] = useState(new Date().toISOString().slice(0, 10));
   const [categoryOptions, setCategoryOptions] = useState<BudgetCategoryOption[]>([]);
   const [transferAccounts, setTransferAccounts] = useState<SidebarAccount[]>([]);
+  const [isScheduledOpen, setIsScheduledOpen] = useState(false);
+  const [scheduledDueCount, setScheduledDueCount] = useState(0);
   const [attachmentTransactionId, setAttachmentTransactionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1099,6 +1102,14 @@ export function AccountRegisterPage() {
               Add transaction
             </button>
 
+            <button
+              className="button button-secondary scheduled-toolbar-button"
+              type="button"
+              onClick={() => setIsScheduledOpen((current) => !current)}
+            >
+              Scheduled{scheduledDueCount > 0 ? ` (${scheduledDueCount})` : ""}
+            </button>
+
             <input
               className="register-search"
               placeholder="Search transactions…"
@@ -1118,6 +1129,18 @@ export function AccountRegisterPage() {
             </button>
           </div>
         </div>
+
+        <ScheduledTransactionsPanel
+          accountId={accountId}
+          isOpen={isScheduledOpen}
+          categoryOptions={categoryOptions}
+          transferAccounts={transferAccounts}
+          onClose={() => setIsScheduledOpen(false)}
+          onDueCountChange={setScheduledDueCount}
+          onEnter={async (input) => {
+            await addTransaction(input);
+          }}
+        />
 
         {showEntryRow && (
           <TransactionEntryRow

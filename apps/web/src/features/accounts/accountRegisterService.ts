@@ -108,6 +108,7 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
         return {
           ...transaction,
           date: input.transaction.date,
+          flag: input.transaction.flag ?? transaction.flag,
           payee: input.transaction.payee,
           category: input.transaction.category,
           memo: input.transaction.memo,
@@ -293,7 +294,7 @@ function createTransactionView(input: NewRegisterTransactionInput): RegisterTran
   return {
     id: createId(),
     date: input.date,
-    flag: null,
+    flag: input.flag ?? null,
     attachmentCount: 0,
     attachments: [],
     payee: input.payee,

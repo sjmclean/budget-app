@@ -56,6 +56,7 @@ export interface AccountRegisterView {
 
 export interface NewRegisterTransactionInput {
   date: string;
+  flag?: TransactionFlag;
   payee: string;
   category: string;
   memo?: string;
@@ -67,6 +68,7 @@ export interface NewRegisterTransactionInput {
 export interface UpdateRegisterTransactionInput {
   id: string;
   date: string;
+  flag?: TransactionFlag;
   payee: string;
   category: string;
   memo?: string;
