@@ -2,6 +2,7 @@ import type { AccountPersistencePort } from "../accounts/accountPersistencePort"
 import type { AccountRegisterService } from "../accounts/accountRegisterTypes";
 import type { PayeePersistencePort } from "../accounts/payeePersistencePort";
 import type { scheduledTransactionService } from "../accounts/scheduledTransactionService";
+import type { CategoryPersistencePort } from "../budget/categoryPersistencePort";
 import type { BudgetViewService } from "../budget/budgetViewTypes";
 
 export type PersistenceBackendKind = "browser-local-storage" | "sqlite-adapter";
@@ -26,6 +27,7 @@ export interface AppPersistenceGateway {
   readonly accounts: AccountPersistencePort;
   readonly accountRegisters: AccountRegisterService;
   readonly budgetView: BudgetViewService;
+  readonly categories: CategoryPersistencePort;
   readonly payees: PayeePersistencePort;
   readonly scheduledTransactions: typeof scheduledTransactionService;
 }

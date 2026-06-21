@@ -16,6 +16,7 @@ export const browserLocalStoragePersistenceGateway: AppPersistenceGateway = {
   accounts: accountService,
   accountRegisters: accountRegisterService,
   budgetView: budgetViewService,
+  categories: budgetViewService,
   payees: payeeService,
   scheduledTransactions: scheduledTransactionService,
 };

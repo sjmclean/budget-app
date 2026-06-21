@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { budgetViewService } from "./budgetViewService";
+import { getAppPersistenceGateway } from "../persistence";
 import type { BudgetMonthView } from "./budgetViewTypes";
+
+const categoriesPersistence = getAppPersistenceGateway().categories;
 
 interface UseBudgetViewState {
   data: BudgetMonthView | null;
@@ -26,7 +28,7 @@ export function useBudgetView(budgetId: string, month: string): UseBudgetViewSta
       });
 
       try {
-        const data = await budgetViewService.getBudgetMonthView({
+        const data = await categoriesPersistence.getBudgetMonthView({
           budgetId,
           month,
         });

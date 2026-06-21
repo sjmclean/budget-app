@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { budgetViewService } from "./budgetViewService";
+import { getAppPersistenceGateway } from "../persistence";
 import { useBudgetView } from "./useBudgetView";
 import type {
   BudgetCategoryGroupView,
@@ -7,6 +7,8 @@ import type {
   BudgetMonthView,
   CategoryMergePreview,
 } from "./budgetViewTypes";
+
+const categoriesPersistence = getAppPersistenceGateway().categories;
 
 interface UseBudgetWorkspaceState {
   data: BudgetMonthView | null;
@@ -106,7 +108,7 @@ export function useBudgetWorkspace(
     setLastEditedCategoryId(categoryId);
     setSaveError(null);
 
-    void budgetViewService
+    void categoriesPersistence
       .updateAssigned({
         budgetId,
         month,
@@ -128,7 +130,7 @@ export function useBudgetWorkspace(
   function renameCategory(categoryId: string, name: string) {
     setSaveError(null);
 
-    void budgetViewService
+    void categoriesPersistence
       .renameCategory({
         budgetId,
         month,
@@ -149,7 +151,7 @@ export function useBudgetWorkspace(
   function setCategoryArchived(categoryId: string, isArchived: boolean) {
     setSaveError(null);
 
-    void budgetViewService
+    void categoriesPersistence
       .setCategoryArchived({
         budgetId,
         month,
@@ -172,7 +174,7 @@ export function useBudgetWorkspace(
   function moveCategory(categoryId: string, direction: "up" | "down") {
     setSaveError(null);
 
-    void budgetViewService
+    void categoriesPersistence
       .moveCategory({
         budgetId,
         month,
@@ -193,7 +195,7 @@ export function useBudgetWorkspace(
   function moveCategoryGroup(groupId: string, direction: "up" | "down") {
     setSaveError(null);
 
-    void budgetViewService
+    void categoriesPersistence
       .moveCategoryGroup({
         budgetId,
         month,
@@ -220,7 +222,7 @@ export function useBudgetWorkspace(
     setSaveError(null);
     setIsCategoryMergePreviewLoading(true);
 
-    void budgetViewService
+    void categoriesPersistence
       .getCategoryMergePreview({
         budgetId,
         month,
@@ -246,7 +248,7 @@ export function useBudgetWorkspace(
   function mergeCategory(sourceCategoryId: string, targetCategoryId: string) {
     setSaveError(null);
 
-    void budgetViewService
+    void categoriesPersistence
       .mergeCategory({
         budgetId,
         month,

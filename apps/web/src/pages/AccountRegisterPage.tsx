@@ -5,7 +5,6 @@ import { Card } from "../components/ui/Card";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
 import { scheduledTransactionService } from "../features/accounts/scheduledTransactionService";
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
-import { budgetViewService } from "../features/budget/budgetViewService";
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
 import type { PayeeView } from "../features/accounts/payeeService";
@@ -27,6 +26,7 @@ function isSplitCategoryValue(value: string): boolean {
 const persistenceGateway = getAppPersistenceGateway();
 const accountsPersistence = persistenceGateway.accounts;
 const payeesPersistence = persistenceGateway.payees;
+const categoriesPersistence = persistenceGateway.categories;
 
 const ACTIVE_BUDGET_ID = "household";
 const ACTIVE_BUDGET_MONTH = "2026-06";
@@ -1255,7 +1255,7 @@ export function AccountRegisterPage() {
   useEffect(() => {
     let isMounted = true;
 
-    void budgetViewService
+    void categoriesPersistence
       .getCategoryOptions({
         budgetId: ACTIVE_BUDGET_ID,
         month: ACTIVE_BUDGET_MONTH,
