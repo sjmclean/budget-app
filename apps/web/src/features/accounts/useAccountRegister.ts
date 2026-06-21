@@ -21,6 +21,11 @@ interface UseAccountRegisterState {
   deleteTransaction: (transactionId: string) => Promise<void>;
   addAttachment: (transactionId: string, file: File) => Promise<void>;
   removeAttachment: (transactionId: string, attachmentId: string) => Promise<void>;
+  renamePayeeReferences: (input: {
+    payeeId: string;
+    previousName: string;
+    nextName: string;
+  }) => Promise<void>;
 }
 
 export function useAccountRegister(accountId: string): UseAccountRegisterState {
@@ -168,6 +173,19 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     );
   }, [accountId, runMutation]);
 
+  const renamePayeeReferences = useCallback(async (input: {
+    payeeId: string;
+    previousName: string;
+    nextName: string;
+  }) => {
+    await runMutation(
+      () => accountRegisterService.renamePayeeReferences({
+        accountId,
+        ...input,
+      }),
+    );
+  }, [accountId, runMutation]);
+
   return {
     data,
     isLoading,
@@ -182,5 +200,6 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     deleteTransaction,
     addAttachment,
     removeAttachment,
+    renamePayeeReferences,
   };
 }

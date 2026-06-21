@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
+import { scheduledTransactionService } from "../features/accounts/scheduledTransactionService";
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
 import { budgetViewService } from "../features/budget/budgetViewService";
 import { readAccounts, type SidebarAccount } from "../features/accounts/accountService";
@@ -38,6 +39,22 @@ function formatDate(date: string) {
     month: "short",
     year: "numeric",
   }).format(new Date(date));
+}
+
+function normalisePayeeKey(name: string) {
+  return name.replace(/\s+/g, " ").trim().toLocaleLowerCase();
+}
+
+function hasSamePayeeName(left: string, right: string) {
+  return normalisePayeeKey(left) === normalisePayeeKey(right);
+}
+
+function formatPayeeLastUsed(value: string | undefined) {
+  if (!value) {
+    return "Never";
+  }
+
+  return formatDate(value.slice(0, 10));
 }
 
 function formatDateForInput(date: string) {
@@ -1211,6 +1228,7 @@ export function AccountRegisterPage() {
     deleteTransaction,
     addAttachment,
     removeAttachment,
+    renamePayeeReferences,
   } = useAccountRegister(accountId);
 
   const [showEntryRow, setShowEntryRow] = useState(false);
@@ -1223,6 +1241,10 @@ export function AccountRegisterPage() {
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isPayeeManagerOpen, setIsPayeeManagerOpen] = useState(false);
+  const [selectedPayeeId, setSelectedPayeeId] = useState<string | null>(null);
+  const [payeeRenameDraft, setPayeeRenameDraft] = useState("");
+  const [payeeManagerMessage, setPayeeManagerMessage] = useState<string | null>(null);
+  const [payeeManagerError, setPayeeManagerError] = useState<string | null>(null);
   const [attachmentTransactionId, setAttachmentTransactionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1244,6 +1266,12 @@ export function AccountRegisterPage() {
     };
   }, []);
 
+
+  async function refreshPayees(): Promise<PayeeView[]> {
+    const payees = await payeeService.listPayees();
+    setPayeeOptions(payees);
+    return payees;
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -1318,6 +1346,83 @@ export function AccountRegisterPage() {
   const attachmentTransaction = attachmentTransactionId
     ? data.transactions.find((transaction) => transaction.id === attachmentTransactionId) ?? null
     : null;
+
+  const payeeSummaries = payeeOptions.map((payee) => {
+    const payeeKey = normalisePayeeKey(payee.name);
+    const matchingTransactions = data.transactions.filter((transaction) => {
+      if (transaction.payeeId) {
+        return transaction.payeeId === payee.id;
+      }
+
+      return normalisePayeeKey(transaction.payee) === payeeKey;
+    });
+
+    const lastTransactionDate = matchingTransactions
+      .map((transaction) => transaction.date)
+      .sort()
+      .at(-1);
+
+    return {
+      payee,
+      registerTransactionCount: matchingTransactions.length,
+      lastUsed: lastTransactionDate ?? payee.lastUsedAt,
+    };
+  });
+
+  const selectedPayeeSummary =
+    payeeSummaries.find((summary) => summary.payee.id === selectedPayeeId) ?? null;
+
+  async function handleRenamePayee() {
+    if (!selectedPayeeSummary) {
+      return;
+    }
+
+    const nextName = payeeRenameDraft.replace(/\s+/g, " ").trim();
+
+    setPayeeManagerMessage(null);
+    setPayeeManagerError(null);
+
+    if (!nextName) {
+      setPayeeManagerError("Enter a payee name before saving.");
+      return;
+    }
+
+    if (hasSamePayeeName(nextName, selectedPayeeSummary.payee.name)) {
+      setPayeeManagerMessage("Payee name is unchanged.");
+      return;
+    }
+
+    const duplicate = payeeOptions.find(
+      (payee) =>
+        payee.id !== selectedPayeeSummary.payee.id && hasSamePayeeName(payee.name, nextName),
+    );
+
+    if (duplicate) {
+      setPayeeManagerError("Another payee already uses that name. Merge payees will be added separately.");
+      return;
+    }
+
+    const previousName = selectedPayeeSummary.payee.name;
+
+    await payeeService.renamePayee({
+      id: selectedPayeeSummary.payee.id,
+      name: nextName,
+    });
+    await scheduledTransactionService.renamePayeeReferences({
+      payeeId: selectedPayeeSummary.payee.id,
+      previousName,
+      nextName,
+    });
+    await renamePayeeReferences({
+      payeeId: selectedPayeeSummary.payee.id,
+      previousName,
+      nextName,
+    });
+    await refreshPayees();
+
+    setPayeeRenameDraft(nextName);
+    setPayeeManagerMessage(`Renamed ${previousName} to ${nextName}.`);
+  }
 
   return (
     <div className="register-workspace">
@@ -1432,9 +1537,83 @@ export function AccountRegisterPage() {
                 </button>
               </div>
 
-              <p className="payee-manager-placeholder">
-                Payee list, rename, merge and archive tools will be added in the next Payee Management increments.
-              </p>
+              {payeeManagerError && <p className="payee-manager-error">{payeeManagerError}</p>}
+              {payeeManagerMessage && <p className="payee-manager-message">{payeeManagerMessage}</p>}
+
+              {payeeSummaries.length === 0 ? (
+                <p className="payee-manager-placeholder">
+                  No saved payees yet. Payees will appear here after you enter transactions.
+                </p>
+              ) : (
+                <div className="payee-manager-content">
+                  <div className="payee-manager-list" role="table" aria-label="Saved payees">
+                    <div className="payee-manager-list-head" role="row">
+                      <span>Payee</span>
+                      <span>Register transactions</span>
+                      <span>Last used</span>
+                    </div>
+
+                    {payeeSummaries.map((summary) => (
+                      <button
+                        className={`payee-manager-list-row${
+                          selectedPayeeId === summary.payee.id ? " payee-manager-list-row-selected" : ""
+                        }`}
+                        type="button"
+                        role="row"
+                        key={summary.payee.id}
+                        onClick={() => {
+                          setSelectedPayeeId(summary.payee.id);
+                          setPayeeRenameDraft(summary.payee.name);
+                          setPayeeManagerMessage(null);
+                          setPayeeManagerError(null);
+                        }}
+                      >
+                        <span>
+                          <strong>{summary.payee.name}</strong>
+                        </span>
+                        <span>{summary.registerTransactionCount}</span>
+                        <span>{formatPayeeLastUsed(summary.lastUsed)}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <aside className="payee-manager-detail" aria-label="Selected payee details">
+                    {selectedPayeeSummary ? (
+                      <>
+                        <div>
+                          <h3>{selectedPayeeSummary.payee.name}</h3>
+                          <p className="muted">
+                            {selectedPayeeSummary.registerTransactionCount} register transaction
+                            {selectedPayeeSummary.registerTransactionCount === 1 ? "" : "s"} · Last used{" "}
+                            {formatPayeeLastUsed(selectedPayeeSummary.lastUsed)}
+                          </p>
+                        </div>
+
+                        <label className="field-label">
+                          Rename payee
+                          <input
+                            className="text-input"
+                            value={payeeRenameDraft}
+                            onChange={(event) => setPayeeRenameDraft(event.target.value)}
+                          />
+                        </label>
+
+                        <button
+                          className="button button-primary"
+                          type="button"
+                          onClick={() => {
+                            void handleRenamePayee();
+                          }}
+                        >
+                          Save rename
+                        </button>
+                      </>
+                    ) : (
+                      <p className="payee-manager-placeholder">Select a payee to rename it.</p>
+                    )}
+                  </aside>
+                </div>
+              )}
             </Card>
           </div>
         )}

@@ -124,4 +124,11 @@ export interface AccountRegisterService {
     transactionId: string;
     attachmentId: string;
   }): Promise<AccountRegisterView>;
+
+  renamePayeeReferences(input: {
+    accountId: string;
+    payeeId: string;
+    previousName: string;
+    nextName: string;
+  }): Promise<AccountRegisterView>;
 }

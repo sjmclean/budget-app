@@ -157,9 +157,52 @@ class BrowserPersistentScheduledTransactionService {
       inflow: transaction.inflow,
     };
   }
+
+  async renamePayeeReferences(input: {
+    payeeId: string;
+    previousName: string;
+    nextName: string;
+  }): Promise<void> {
+    const now = new Date().toISOString();
+    const transactions = readScheduledTransactions().map((transaction) => {
+      if (!isScheduledPayeeReferenceMatch(transaction, input.payeeId, input.previousName)) {
+        return transaction;
+      }
+
+      return {
+        ...transaction,
+        payee: input.nextName,
+        payeeId: input.payeeId,
+        updatedAt: now,
+      };
+    });
+
+    writeScheduledTransactions(transactions);
+  }
 }
 
 export const scheduledTransactionService = new BrowserPersistentScheduledTransactionService();
+
+
+function isScheduledPayeeReferenceMatch(
+  transaction: ScheduledTransactionView,
+  payeeId: string,
+  previousName: string,
+): boolean {
+  if (transaction.payee.startsWith("Transfer:")) {
+    return false;
+  }
+
+  if (transaction.payeeId) {
+    return transaction.payeeId === payeeId;
+  }
+
+  return normalisePayeeReference(transaction.payee) === normalisePayeeReference(previousName);
+}
+
+function normalisePayeeReference(value: string): string {
+  return value.replace(/\s+/g, " ").trim().toLocaleLowerCase();
+}
 
 function readScheduledTransactions(): ScheduledTransactionView[] {
   if (typeof window === "undefined") {

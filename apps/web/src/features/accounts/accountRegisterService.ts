@@ -252,6 +252,40 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
       });
     });
   }
+
+  async renamePayeeReferences(input: {
+    accountId: string;
+    payeeId: string;
+    previousName: string;
+    nextName: string;
+  }): Promise<AccountRegisterView> {
+    const registers = readRegisters();
+
+    for (const [accountId, register] of Object.entries(registers)) {
+      const cloned = cloneRegister(register);
+
+      cloned.transactions = cloned.transactions.map((transaction) => {
+        if (isPayeeReferenceMatch(transaction, input.payeeId, input.previousName)) {
+          return {
+            ...transaction,
+            payee: input.nextName,
+            payeeId: input.payeeId,
+          };
+        }
+
+        return transaction;
+      });
+
+      registers[accountId] = recalculateRegister(cloned);
+    }
+
+    if (!registers[input.accountId]) {
+      registers[input.accountId] = createEmptyRegister(input.accountId);
+    }
+
+    writeRegisters(registers);
+    return cloneRegister(recalculateRegister(registers[input.accountId]));
+  }
 }
 
 export const accountRegisterService: AccountRegisterService =
@@ -299,6 +333,27 @@ function addTransferTransaction(
   writeRegisters(registers);
 
   return cloneRegister(registers[sourceAccountId]);
+}
+
+
+function isPayeeReferenceMatch(
+  transaction: RegisterTransactionView,
+  payeeId: string,
+  previousName: string,
+): boolean {
+  if (transaction.transferId || transaction.payee.startsWith("Transfer:")) {
+    return false;
+  }
+
+  if (transaction.payeeId) {
+    return transaction.payeeId === payeeId;
+  }
+
+  return normalisePayeeReference(transaction.payee) === normalisePayeeReference(previousName);
+}
+
+function normalisePayeeReference(value: string): string {
+  return value.replace(/\s+/g, " ").trim().toLocaleLowerCase();
 }
 
 function createTransactionView(input: NewRegisterTransactionInput): RegisterTransactionView {
