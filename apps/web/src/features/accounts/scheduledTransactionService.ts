@@ -1,4 +1,5 @@
 import type { NewRegisterTransactionInput, TransactionFlag } from "./accountRegisterTypes";
+import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 
 
 export type ScheduledFrequency = "once" | "weekly" | "fortnightly" | "monthly" | "yearly";
@@ -36,6 +37,7 @@ export interface UpsertScheduledTransactionInput {
 const STORAGE_KEY = "budget-app.scheduled-transactions.v1";
 
 export interface ScheduledTransactionServiceDependencies {
+  storage: KeyValueStoragePort;
   recordPayee(payeeName: string): Promise<void>;
   findPayeeIdByName(payeeName: string): string | undefined;
 }
@@ -76,7 +78,7 @@ export class BrowserPersistentScheduledTransactionService {
       updatedAt: now,
     };
 
-    writeScheduledTransactions([...transactions, next]);
+    writeScheduledTransactions(this.dependencies.storage, [...transactions, next]);
     return this.listByAccount(input.accountId);
   }
 
@@ -106,12 +108,13 @@ export class BrowserPersistentScheduledTransactionService {
       };
     });
 
-    writeScheduledTransactions(transactions);
+    writeScheduledTransactions(this.dependencies.storage, transactions);
     return this.listByAccount(input.accountId);
   }
 
   async delete(accountId: string, scheduledTransactionId: string): Promise<ScheduledTransactionView[]> {
     writeScheduledTransactions(
+      this.dependencies.storage,
       readScheduledTransactions(this.dependencies).filter((transaction) => transaction.id !== scheduledTransactionId),
     );
     return this.listByAccount(accountId);
@@ -130,6 +133,7 @@ export class BrowserPersistentScheduledTransactionService {
 
     if (target.frequency === "once") {
       writeScheduledTransactions(
+        this.dependencies.storage,
         transactions.filter((transaction) => transaction.id !== scheduledTransactionId),
       );
       return this.listByAccount(accountId);
@@ -137,6 +141,7 @@ export class BrowserPersistentScheduledTransactionService {
 
     const now = new Date().toISOString();
     writeScheduledTransactions(
+      this.dependencies.storage,
       transactions.map((transaction) =>
         transaction.id === scheduledTransactionId
           ? {
@@ -183,7 +188,7 @@ export class BrowserPersistentScheduledTransactionService {
       };
     });
 
-    writeScheduledTransactions(transactions);
+    writeScheduledTransactions(this.dependencies.storage, transactions);
   }
 }
 
@@ -217,11 +222,7 @@ function normalisePayeeReference(value: string): string {
 function readScheduledTransactions(
   dependencies?: ScheduledTransactionServiceDependencies,
 ): ScheduledTransactionView[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  const value = window.localStorage.getItem(STORAGE_KEY);
+  const value = dependencies?.storage.getItem(STORAGE_KEY);
 
   if (!value) {
     return [];
@@ -235,12 +236,11 @@ function readScheduledTransactions(
   }
 }
 
-function writeScheduledTransactions(transactions: ScheduledTransactionView[]): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(
+function writeScheduledTransactions(
+  storage: KeyValueStoragePort,
+  transactions: ScheduledTransactionView[],
+): void {
+  storage.setItem(
     STORAGE_KEY,
     JSON.stringify(
       transactions.map((transaction) => normaliseStoredScheduledTransaction(transaction)),

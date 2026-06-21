@@ -7,6 +7,7 @@ import type {
   BudgetViewService,
 } from "./budgetViewTypes";
 import type { BudgetActivityPersistencePort } from "./budgetActivityPersistencePort";
+import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 
 const STORAGE_KEY_PREFIX = "budget-app.budget-view.v1";
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
@@ -14,6 +15,7 @@ const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
 
 export interface BudgetViewServiceDependencies {
   budgetActivity: BudgetActivityPersistencePort;
+  storage: KeyValueStoragePort;
 }
 
 interface CategoryLocation {
@@ -162,8 +164,12 @@ function createStarterBudgetView(budgetId: string, month: string): BudgetMonthVi
   });
 }
 
-function readStoredBudgetView(budgetId: string, month: string): BudgetMonthView | null {
-  const raw = window.localStorage.getItem(getStorageKey(budgetId, month));
+function readStoredBudgetView(
+  storage: KeyValueStoragePort,
+  budgetId: string,
+  month: string,
+): BudgetMonthView | null {
+  const raw = storage.getItem(getStorageKey(budgetId, month));
 
   if (!raw) {
     return null;
@@ -331,7 +337,7 @@ async function saveBudgetView(
   month: string,
 ): Promise<BudgetMonthView> {
   const next = await applyRegisterActivity(dependencies, recalculateBudget(view), month);
-  window.localStorage.setItem(getStorageKey(next.budgetId, month), JSON.stringify(next));
+  dependencies.storage.setItem(getStorageKey(next.budgetId, month), JSON.stringify(next));
   return cloneBudgetView(next);
 }
 
@@ -340,7 +346,7 @@ async function loadBudgetView(
   budgetId: string,
   month: string,
 ): Promise<BudgetMonthView> {
-  const stored = readStoredBudgetView(budgetId, month);
+  const stored = readStoredBudgetView(dependencies.storage, budgetId, month);
 
   if (stored) {
     return cloneBudgetView(await applyRegisterActivity(dependencies, stored, month));

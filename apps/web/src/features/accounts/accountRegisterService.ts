@@ -7,12 +7,14 @@ import type {
   UpdateRegisterTransactionInput,
 } from "./accountRegisterTypes";
 import type { SidebarAccount, SidebarAccountType } from "./accountService";
+import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 
 const STORAGE_KEY = "budget-app.account-registers.v1";
 
 type StoredRegisters = Record<string, AccountRegisterView>;
 
 export interface AccountRegisterServiceDependencies {
+  storage: KeyValueStoragePort;
   recordPayee(payeeName: string): Promise<void>;
   findPayeeIdByName(payeeName: string): string | undefined;
   readAccounts(): SidebarAccount[];
@@ -32,12 +34,12 @@ export interface AccountRegisterServiceDependencies {
 export class BrowserPersistentAccountRegisterService implements AccountRegisterService {
   constructor(private readonly dependencies: AccountRegisterServiceDependencies) {}
   async getAccountRegisterView(input: { accountId: string }): Promise<AccountRegisterView> {
-    const registers = readRegisters();
+    const registers = readRegisters(this.dependencies.storage);
     const register = registers[input.accountId] ?? createEmptyRegister(this.dependencies, input.accountId);
 
     if (!registers[input.accountId]) {
       registers[input.accountId] = register;
-      writeRegisters(registers);
+      writeRegisters(this.dependencies.storage, registers);
     }
 
     return cloneRegister(recalculateRegister(this.dependencies, register));
@@ -68,7 +70,7 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
     await this.dependencies.recordPayee(input.transaction.payee);
     const payeeId = resolvePayeeId(this.dependencies, input.transaction.payee, input.transaction.payeeId);
 
-    const registers = readRegisters();
+    const registers = readRegisters(this.dependencies.storage);
     const sourceRegister = cloneRegister(registers[input.accountId] ?? createEmptyRegister(this.dependencies, input.accountId));
     const existing = sourceRegister.transactions.find(
       (transaction) => transaction.id === input.transaction.id,
@@ -109,7 +111,7 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
 
       registers[input.accountId] = recalculateRegister(this.dependencies, sourceRegister);
       registers[existing.transferAccountId] = recalculateRegister(this.dependencies, targetRegister);
-      writeRegisters(registers);
+      writeRegisters(this.dependencies.storage, registers);
       return cloneRegister(registers[input.accountId]);
     }
 
@@ -140,7 +142,7 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
     accountId: string;
     transactionId: string;
   }): Promise<AccountRegisterView> {
-    const registers = readRegisters();
+    const registers = readRegisters(this.dependencies.storage);
     const register = cloneRegister(registers[input.accountId] ?? createEmptyRegister(this.dependencies, input.accountId));
     const transaction = register.transactions.find(
       (current) => current.id === input.transactionId,
@@ -168,7 +170,7 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
       registers[transaction.transferAccountId] = recalculateRegister(this.dependencies, targetRegister);
     }
 
-    writeRegisters(registers);
+    writeRegisters(this.dependencies.storage, registers);
     return cloneRegister(registers[input.accountId]);
   }
 
@@ -176,7 +178,7 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
     accountId: string;
     transactionId: string;
   }): Promise<AccountRegisterView> {
-    const registers = readRegisters();
+    const registers = readRegisters(this.dependencies.storage);
     const register = cloneRegister(registers[input.accountId] ?? createEmptyRegister(this.dependencies, input.accountId));
     const transaction = register.transactions.find(
       (current) => current.id === input.transactionId,
@@ -197,7 +199,7 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
       registers[transaction.transferAccountId] = recalculateRegister(this.dependencies, targetRegister);
     }
 
-    writeRegisters(registers);
+    writeRegisters(this.dependencies.storage, registers);
     return cloneRegister(registers[input.accountId]);
   }
 
@@ -266,7 +268,7 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
     previousName: string;
     nextName: string;
   }): Promise<AccountRegisterView> {
-    const registers = readRegisters();
+    const registers = readRegisters(this.dependencies.storage);
 
     for (const [accountId, register] of Object.entries(registers)) {
       const cloned = cloneRegister(register);
@@ -290,7 +292,7 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
       registers[input.accountId] = createEmptyRegister(this.dependencies, input.accountId);
     }
 
-    writeRegisters(registers);
+    writeRegisters(this.dependencies.storage, registers);
     return cloneRegister(recalculateRegister(this.dependencies, registers[input.accountId]));
   }
 }
@@ -307,7 +309,7 @@ function addTransferTransaction(
   targetAccount: SidebarAccount,
   input: NewRegisterTransactionInput,
 ): AccountRegisterView {
-  const registers = readRegisters();
+  const registers = readRegisters(dependencies.storage);
   const sourceRegister = cloneRegister(registers[sourceAccountId] ?? createEmptyRegister(dependencies, sourceAccountId));
   const targetRegister = cloneRegister(registers[targetAccount.id] ?? createEmptyRegister(dependencies, targetAccount.id));
   const transferId = createId();
@@ -341,7 +343,7 @@ function addTransferTransaction(
 
   registers[sourceAccountId] = recalculateRegister(dependencies, sourceRegister);
   registers[targetAccount.id] = recalculateRegister(dependencies, targetRegister);
-  writeRegisters(registers);
+  writeRegisters(dependencies.storage, registers);
 
   return cloneRegister(registers[sourceAccountId]);
 }
@@ -464,14 +466,14 @@ function updateRegister(
   accountId: string,
   updater: (register: AccountRegisterView) => void,
 ): AccountRegisterView {
-  const registers = readRegisters();
+  const registers = readRegisters(dependencies.storage);
   const register = cloneRegister(registers[accountId] ?? createEmptyRegister(dependencies, accountId));
 
   updater(register);
 
   const recalculated = recalculateRegister(dependencies, register);
   registers[accountId] = recalculated;
-  writeRegisters(registers);
+  writeRegisters(dependencies.storage, registers);
 
   return cloneRegister(recalculated);
 }
@@ -563,12 +565,8 @@ function recalculateRegister(
   };
 }
 
-function readRegisters(): StoredRegisters {
-  if (typeof window === "undefined") {
-    return {};
-  }
-
-  const value = window.localStorage.getItem(STORAGE_KEY);
+function readRegisters(storage: KeyValueStoragePort): StoredRegisters {
+  const value = storage.getItem(STORAGE_KEY);
 
   if (!value) {
     return {};
@@ -581,12 +579,8 @@ function readRegisters(): StoredRegisters {
   }
 }
 
-function writeRegisters(registers: StoredRegisters): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(registers));
+function writeRegisters(storage: KeyValueStoragePort, registers: StoredRegisters): void {
+  storage.setItem(STORAGE_KEY, JSON.stringify(registers));
 }
 
 function cloneRegister(register: AccountRegisterView): AccountRegisterView {
