@@ -40,6 +40,20 @@ class InMemoryPayeeRepository implements SqlitePayeeRepositoryLike {
     this.records.set(payee.id, payee);
   }
 
+  async archive(payeeId: string): Promise<void> {
+    const payee = this.records.get(payeeId);
+
+    if (!payee) {
+      return;
+    }
+
+    this.records.set(payeeId, {
+      ...payee,
+      isArchived: true,
+      updatedAt: new Date("2026-06-21T00:00:00.000Z"),
+    });
+  }
+
   async delete(payeeId: string): Promise<void> {
     this.records.delete(payeeId);
   }

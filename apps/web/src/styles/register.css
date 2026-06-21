@@ -1243,3 +1243,33 @@
     grid-template-columns: 1fr;
   }
 }
+
+.payee-manager-section-label {
+  padding: 0.55rem 0.75rem;
+  border-top: 1px solid var(--border-soft);
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.payee-manager-list-row-archived strong {
+  color: var(--text-muted);
+}
+
+.payee-manager-list-row em {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.payee-manager-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

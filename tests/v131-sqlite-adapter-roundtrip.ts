@@ -127,12 +127,16 @@ async function validatePayeeAdapterRoundTrip(): Promise<void> {
   assertEqual(renamedRecord.normalizedName, "fuel & snacks", "renamed payee normalizedName should update");
 
   payees = await adapter.renamePayee({ id: "coffee-shop", name: "Fuel & Snacks" });
-  assertEqual(payees.length, 2, "renaming to an existing normalized payee should merge by deleting duplicate target");
-  assertMissing(await repository.findById("coffee-shop"), "duplicate payee should be deleted during merge-style rename");
+  assertEqual(payees.length, 2, "renaming to an existing normalized payee should merge by archiving duplicate source");
+  const mergedSource = await repository.findById("coffee-shop");
+  assertExists(mergedSource, "duplicate payee should be preserved during merge-style rename");
+  assertEqual(mergedSource.isArchived, true, "duplicate payee should be archived during merge-style rename");
 
   payees = await adapter.deletePayee("fuel-station");
-  assertMissing(payees.find((payee) => payee.id === "fuel-station"), "deleted payee should not appear in adapter list");
-  assertMissing(await repository.findById("fuel-station"), "deleted payee should be removed from repository");
+  assertMissing(payees.find((payee) => payee.id === "fuel-station"), "archived payee should not appear in adapter list");
+  const archivedPayee = await repository.findById("fuel-station");
+  assertExists(archivedPayee, "archived payee should be preserved in repository");
+  assertEqual(archivedPayee.isArchived, true, "deletePayee should archive the payee row");
 }
 
 function assertExists<T>(value: T | null | undefined, message: string): asserts value is T {

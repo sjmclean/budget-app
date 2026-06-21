@@ -1240,6 +1240,7 @@ export function AccountRegisterPage() {
   const [lastEntryDate, setLastEntryDate] = useState(new Date().toISOString().slice(0, 10));
   const [categoryOptions, setCategoryOptions] = useState<BudgetCategoryOption[]>([]);
   const [payeeOptions, setPayeeOptions] = useState<PayeeView[]>([]);
+  const [archivedPayeeOptions, setArchivedPayeeOptions] = useState<PayeeView[]>([]);
   const [transferAccounts, setTransferAccounts] = useState<SidebarAccount[]>([]);
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
@@ -1272,17 +1273,26 @@ export function AccountRegisterPage() {
 
 
   async function refreshPayees(): Promise<PayeeView[]> {
-    const payees = await payeesPersistence.listPayees();
+    const [payees, archivedPayees] = await Promise.all([
+      payeesPersistence.listPayees(),
+      payeesPersistence.listArchivedPayees(),
+    ]);
+
     setPayeeOptions(payees);
+    setArchivedPayeeOptions(archivedPayees);
     return payees;
   }
 
   useEffect(() => {
     let isMounted = true;
 
-    void payeesPersistence.listPayees().then((payees) => {
+    void Promise.all([
+      payeesPersistence.listPayees(),
+      payeesPersistence.listArchivedPayees(),
+    ]).then(([payees, archivedPayees]) => {
       if (isMounted) {
         setPayeeOptions(payees);
+        setArchivedPayeeOptions(archivedPayees);
       }
     });
 
@@ -1361,7 +1371,9 @@ export function AccountRegisterPage() {
     ? data.transactions.find((transaction) => transaction.id === attachmentTransactionId) ?? null
     : null;
 
-  const payeeSummaries = payeeOptions.map((payee) => {
+  const allManagedPayees = [...payeeOptions, ...archivedPayeeOptions];
+
+  const payeeSummaries = allManagedPayees.map((payee) => {
     const payeeKey = normalisePayeeKey(payee.name);
     const matchingTransactions = data.transactions.filter((transaction) => {
       if (transaction.payeeId) {
@@ -1383,6 +1395,8 @@ export function AccountRegisterPage() {
     };
   });
 
+  const activePayeeSummaries = payeeSummaries.filter((summary) => !summary.payee.isArchived);
+  const archivedPayeeSummaries = payeeSummaries.filter((summary) => summary.payee.isArchived);
   const selectedPayeeSummary =
     payeeSummaries.find((summary) => summary.payee.id === selectedPayeeId) ?? null;
 
@@ -1406,7 +1420,7 @@ export function AccountRegisterPage() {
       return;
     }
 
-    const duplicate = payeeOptions.find(
+    const duplicate = allManagedPayees.find(
       (payee) =>
         payee.id !== selectedPayeeSummary.payee.id && hasSamePayeeName(payee.name, nextName),
     );
@@ -1436,6 +1450,34 @@ export function AccountRegisterPage() {
 
     setPayeeRenameDraft(nextName);
     setPayeeManagerMessage(`Renamed ${previousName} to ${nextName}.`);
+  }
+
+  async function handleArchiveSelectedPayee() {
+    if (!selectedPayeeSummary || selectedPayeeSummary.payee.isArchived) {
+      return;
+    }
+
+    setPayeeManagerMessage(null);
+    setPayeeManagerError(null);
+
+    const payeeName = selectedPayeeSummary.payee.name;
+    await payeesPersistence.archivePayee(selectedPayeeSummary.payee.id);
+    await refreshPayees();
+    setPayeeManagerMessage(`Archived ${payeeName}. Existing transactions still keep this payee.`);
+  }
+
+  async function handleRestoreSelectedPayee() {
+    if (!selectedPayeeSummary || !selectedPayeeSummary.payee.isArchived) {
+      return;
+    }
+
+    setPayeeManagerMessage(null);
+    setPayeeManagerError(null);
+
+    const payeeName = selectedPayeeSummary.payee.name;
+    await payeesPersistence.restorePayee(selectedPayeeSummary.payee.id);
+    await refreshPayees();
+    setPayeeManagerMessage(`Restored ${payeeName}. It will appear in payee suggestions again.`);
   }
 
   return (
@@ -1539,7 +1581,7 @@ export function AccountRegisterPage() {
               <div className="payee-manager-header">
                 <div>
                   <h2>Manage Payees</h2>
-                  <p>Payee management will live here.</p>
+                  <p>Archive unused payees without changing historical transactions.</p>
                 </div>
 
                 <button
@@ -1567,7 +1609,11 @@ export function AccountRegisterPage() {
                       <span>Last used</span>
                     </div>
 
-                    {payeeSummaries.map((summary) => (
+                    {activePayeeSummaries.length > 0 && (
+                      <div className="payee-manager-section-label">Active</div>
+                    )}
+
+                    {activePayeeSummaries.map((summary) => (
                       <button
                         className={`payee-manager-list-row${
                           selectedPayeeId === summary.payee.id ? " payee-manager-list-row-selected" : ""
@@ -1589,6 +1635,34 @@ export function AccountRegisterPage() {
                         <span>{formatPayeeLastUsed(summary.lastUsed)}</span>
                       </button>
                     ))}
+
+                    {archivedPayeeSummaries.length > 0 && (
+                      <div className="payee-manager-section-label">Archived</div>
+                    )}
+
+                    {archivedPayeeSummaries.map((summary) => (
+                      <button
+                        className={`payee-manager-list-row payee-manager-list-row-archived${
+                          selectedPayeeId === summary.payee.id ? " payee-manager-list-row-selected" : ""
+                        }`}
+                        type="button"
+                        role="row"
+                        key={summary.payee.id}
+                        onClick={() => {
+                          setSelectedPayeeId(summary.payee.id);
+                          setPayeeRenameDraft(summary.payee.name);
+                          setPayeeManagerMessage(null);
+                          setPayeeManagerError(null);
+                        }}
+                      >
+                        <span>
+                          <strong>{summary.payee.name}</strong>
+                          <em>Archived</em>
+                        </span>
+                        <span>{summary.registerTransactionCount}</span>
+                        <span>{formatPayeeLastUsed(summary.lastUsed)}</span>
+                      </button>
+                    ))}
                   </div>
 
                   <aside className="payee-manager-detail" aria-label="Selected payee details">
@@ -1597,6 +1671,7 @@ export function AccountRegisterPage() {
                         <div>
                           <h3>{selectedPayeeSummary.payee.name}</h3>
                           <p className="muted">
+                            {selectedPayeeSummary.payee.isArchived ? "Archived" : "Active"} ·{" "}
                             {selectedPayeeSummary.registerTransactionCount} register transaction
                             {selectedPayeeSummary.registerTransactionCount === 1 ? "" : "s"} · Last used{" "}
                             {formatPayeeLastUsed(selectedPayeeSummary.lastUsed)}
@@ -1612,18 +1687,42 @@ export function AccountRegisterPage() {
                           />
                         </label>
 
-                        <button
-                          className="button button-primary"
-                          type="button"
-                          onClick={() => {
-                            void handleRenamePayee();
-                          }}
-                        >
-                          Save rename
-                        </button>
+                        <div className="payee-manager-detail-actions">
+                          <button
+                            className="button button-primary"
+                            type="button"
+                            onClick={() => {
+                              void handleRenamePayee();
+                            }}
+                          >
+                            Save rename
+                          </button>
+
+                          {selectedPayeeSummary.payee.isArchived ? (
+                            <button
+                              className="button button-secondary"
+                              type="button"
+                              onClick={() => {
+                                void handleRestoreSelectedPayee();
+                              }}
+                            >
+                              Restore payee
+                            </button>
+                          ) : (
+                            <button
+                              className="button button-secondary"
+                              type="button"
+                              onClick={() => {
+                                void handleArchiveSelectedPayee();
+                              }}
+                            >
+                              Archive payee
+                            </button>
+                          )}
+                        </div>
                       </>
                     ) : (
-                      <p className="payee-manager-placeholder">Select a payee to rename it.</p>
+                      <p className="payee-manager-placeholder">Select a payee to rename, archive, or restore it.</p>
                     )}
                   </aside>
                 </div>

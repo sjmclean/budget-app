@@ -17,6 +17,7 @@ export interface SqlitePayeeRecord {
 export interface SqlitePayeeRepositoryLike {
   create(payee: SqlitePayeeRecord): Promise<void>;
   update(payee: SqlitePayeeRecord): Promise<void>;
+  archive(payeeId: string): Promise<void>;
   delete(payeeId: string): Promise<void>;
   findByBudget(budgetId: string): Promise<SqlitePayeeRecord[]>;
   findActiveByBudget(budgetId: string): Promise<SqlitePayeeRecord[]>;
@@ -52,6 +53,11 @@ export class SqlitePayeePersistenceAdapter implements PayeePersistencePort {
     return sortPayees(payees.map(mapSqlitePayeeToPayeeView));
   }
 
+  async listArchivedPayees(): Promise<PayeeView[]> {
+    const payees = await this.options.repository.findByBudget(this.budgetId);
+    return sortPayees(payees.filter((payee) => payee.isArchived).map(mapSqlitePayeeToPayeeView));
+  }
+
   async recordPayee(name: string): Promise<PayeeView[]> {
     const trimmed = normalisePayeeName(name);
 
@@ -68,6 +74,7 @@ export class SqlitePayeePersistenceAdapter implements PayeePersistencePort {
         ...existing,
         name: existing.name || trimmed,
         normalizedName,
+        isArchived: false,
         updatedAt: now,
       });
     } else {
@@ -113,7 +120,7 @@ export class SqlitePayeePersistenceAdapter implements PayeePersistencePort {
     const duplicate = await this.options.repository.findByNormalizedName(this.budgetId, normalizedName);
 
     if (duplicate && duplicate.id !== input.id) {
-      await this.options.repository.delete(target.id);
+      await this.options.repository.archive(target.id);
       return this.listPayees();
     }
 
@@ -127,9 +134,29 @@ export class SqlitePayeePersistenceAdapter implements PayeePersistencePort {
     return this.listPayees();
   }
 
-  async deletePayee(payeeId: string): Promise<PayeeView[]> {
-    await this.options.repository.delete(payeeId);
+  async archivePayee(payeeId: string): Promise<PayeeView[]> {
+    await this.options.repository.archive(payeeId);
     return this.listPayees();
+  }
+
+  async restorePayee(payeeId: string): Promise<PayeeView[]> {
+    const target = await this.options.repository.findById(payeeId);
+
+    if (!target) {
+      return this.listPayees();
+    }
+
+    await this.options.repository.update({
+      ...target,
+      isArchived: false,
+      updatedAt: this.now(),
+    });
+
+    return this.listPayees();
+  }
+
+  async deletePayee(payeeId: string): Promise<PayeeView[]> {
+    return this.archivePayee(payeeId);
   }
 }
 
@@ -149,6 +176,7 @@ export function mapSqlitePayeeToPayeeView(payee: SqlitePayeeRecord): PayeeView {
     createdAt,
     lastUsedAt: updatedAt,
     useCount: 1,
+    isArchived: payee.isArchived === true,
   };
 }
 
