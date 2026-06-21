@@ -1,0 +1,16 @@
+diff --git a/docs/current-codebase-audit.md b/docs/current-codebase-audit.md
+index 9b2ae10..e490461 100644
+--- a/docs/current-codebase-audit.md
++++ b/docs/current-codebase-audit.md
+@@ -111,3 +111,11 @@ The issue is not only feature absence; it is that much of this capability is not
+ Do not add more localStorage-only feature work unless it is deliberately short-lived prototype work.
+ 
+ The safest next implementation step is to introduce a narrow persistence seam in the web app, then replace each localStorage service with a DB-backed adapter one feature area at a time.
++
++## v1.19b Follow-up
++
++A dedicated persistence migration matrix now exists at:
++
++- `docs/v119b-persistence-migration-matrix.md`
++
++The key decision is that the Vite browser app must not directly import the native `better-sqlite3` repository layer. The next implementation step should introduce a browser-safe budget data gateway seam, then migrate one UI service at a time.
