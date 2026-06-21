@@ -130,3 +130,9 @@ service directly.
 
 This continues the persistence unification path without adding payee merge or
 archive UI yet.
+
+## v1.25 update
+
+The account register UI hook now depends on `AppPersistenceGateway.accountRegisters` through `AccountRegisterPersistencePort`. This preserves localStorage behaviour while removing one of the largest remaining direct UI imports of the concrete register service.
+
+The register service implementation itself is still localStorage-backed and should be cleaned up internally before a SQLite adapter is introduced.

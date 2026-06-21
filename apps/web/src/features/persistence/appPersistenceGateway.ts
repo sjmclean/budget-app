@@ -1,5 +1,5 @@
 import type { AccountPersistencePort } from "../accounts/accountPersistencePort";
-import type { AccountRegisterService } from "../accounts/accountRegisterTypes";
+import type { AccountRegisterPersistencePort } from "../accounts/accountRegisterPersistencePort";
 import type { PayeePersistencePort } from "../accounts/payeePersistencePort";
 import type { ScheduledTransactionPersistencePort } from "../accounts/scheduledTransactionPersistencePort";
 import type { CategoryPersistencePort } from "../budget/categoryPersistencePort";
@@ -25,7 +25,7 @@ export interface PersistenceGatewayMetadata {
 export interface AppPersistenceGateway {
   readonly metadata: PersistenceGatewayMetadata;
   readonly accounts: AccountPersistencePort;
-  readonly accountRegisters: AccountRegisterService;
+  readonly accountRegisters: AccountRegisterPersistencePort;
   readonly budgetView: BudgetViewService;
   readonly categories: CategoryPersistencePort;
   readonly payees: PayeePersistencePort;

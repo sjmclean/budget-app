@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { accountRegisterService } from "./accountRegisterService";
+import { getAppPersistenceGateway } from "../persistence";
 import type {
   AccountRegisterView,
   NewRegisterTransactionInput,
@@ -29,6 +29,8 @@ interface UseAccountRegisterState {
 }
 
 export function useAccountRegister(accountId: string): UseAccountRegisterState {
+  const accountRegisters = getAppPersistenceGateway().accountRegisters;
+
   const [data, setData] = useState<AccountRegisterView | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -54,7 +56,7 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
       setError(null);
 
       try {
-        const result = await accountRegisterService.getAccountRegisterView({
+        const result = await accountRegisters.getAccountRegisterView({
           accountId,
         });
 
@@ -83,7 +85,7 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     return () => {
       isMounted = false;
     };
-  }, [accountId, applyRegisterView]);
+  }, [accountId, accountRegisters, applyRegisterView]);
 
   const selectedTransaction = useMemo(() => {
     if (!data || !selectedTransactionId) {
@@ -123,33 +125,33 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
 
   const addTransaction = useCallback(async (input: NewRegisterTransactionInput) => {
     await runMutation(
-      () => accountRegisterService.addTransaction({ accountId, transaction: input }),
+      () => accountRegisters.addTransaction({ accountId, transaction: input }),
     );
-  }, [accountId, runMutation]);
+  }, [accountId, accountRegisters, runMutation]);
 
   const updateTransaction = useCallback(async (input: UpdateRegisterTransactionInput) => {
     await runMutation(
-      () => accountRegisterService.updateTransaction({ accountId, transaction: input }),
+      () => accountRegisters.updateTransaction({ accountId, transaction: input }),
       input.id,
     );
-  }, [accountId, runMutation]);
+  }, [accountId, accountRegisters, runMutation]);
 
   const toggleCleared = useCallback(async (transactionId: string) => {
     await runMutation(
-      () => accountRegisterService.toggleCleared({ accountId, transactionId }),
+      () => accountRegisters.toggleCleared({ accountId, transactionId }),
       transactionId,
     );
-  }, [accountId, runMutation]);
+  }, [accountId, accountRegisters, runMutation]);
 
   const deleteTransaction = useCallback(async (transactionId: string) => {
     await runMutation(
-      () => accountRegisterService.deleteTransaction({ accountId, transactionId }),
+      () => accountRegisters.deleteTransaction({ accountId, transactionId }),
     );
-  }, [accountId, runMutation]);
+  }, [accountId, accountRegisters, runMutation]);
 
   const addAttachment = useCallback(async (transactionId: string, file: File) => {
     await runMutation(
-      () => accountRegisterService.addAttachment({
+      () => accountRegisters.addAttachment({
         accountId,
         transactionId,
         attachment: {
@@ -160,18 +162,18 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
       }),
       transactionId,
     );
-  }, [accountId, runMutation]);
+  }, [accountId, accountRegisters, runMutation]);
 
   const removeAttachment = useCallback(async (transactionId: string, attachmentId: string) => {
     await runMutation(
-      () => accountRegisterService.removeAttachment({
+      () => accountRegisters.removeAttachment({
         accountId,
         transactionId,
         attachmentId,
       }),
       transactionId,
     );
-  }, [accountId, runMutation]);
+  }, [accountId, accountRegisters, runMutation]);
 
   const renamePayeeReferences = useCallback(async (input: {
     payeeId: string;
@@ -179,12 +181,12 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     nextName: string;
   }) => {
     await runMutation(
-      () => accountRegisterService.renamePayeeReferences({
+      () => accountRegisters.renamePayeeReferences({
         accountId,
         ...input,
       }),
     );
-  }, [accountId, runMutation]);
+  }, [accountId, accountRegisters, runMutation]);
 
   return {
     data,
