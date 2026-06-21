@@ -1,12 +1,22 @@
 import { getAppPersistenceGateway } from "./appPersistenceGatewayFactory";
 
-export type PersistenceMode = "browser-local-storage" | "database-adapter-pending" | "sqlite-adapter";
+export type PersistenceMode =
+  | "browser-local-storage"
+  | "database-adapter-pending"
+  | "sqlite-adapter";
 
 export interface PersistenceModeSummary {
   mode: PersistenceMode;
   label: string;
   description: string;
   risk: "prototype" | "production-ready";
+}
+
+export const DEFAULT_PERSISTENCE_BACKEND: PersistenceMode =
+  "browser-local-storage";
+
+export function getDefaultPersistenceBackend(): PersistenceMode {
+  return DEFAULT_PERSISTENCE_BACKEND;
 }
 
 /**
@@ -24,6 +34,8 @@ export function getPersistenceModeSummary(): PersistenceModeSummary {
     mode: gateway.metadata.kind,
     label: gateway.metadata.label,
     description: gateway.metadata.description,
-    risk: gateway.metadata.isProductionPersistence ? "production-ready" : "prototype",
+    risk: gateway.metadata.isProductionPersistence
+      ? "production-ready"
+      : "prototype",
   };
 }
