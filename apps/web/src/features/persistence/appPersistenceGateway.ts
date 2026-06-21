@@ -1,4 +1,4 @@
-import type { accountService } from "../accounts/accountService";
+import type { AccountPersistencePort } from "../accounts/accountPersistencePort";
 import type { AccountRegisterService } from "../accounts/accountRegisterTypes";
 import type { payeeService } from "../accounts/payeeService";
 import type { scheduledTransactionService } from "../accounts/scheduledTransactionService";
@@ -23,7 +23,7 @@ export interface PersistenceGatewayMetadata {
  */
 export interface AppPersistenceGateway {
   readonly metadata: PersistenceGatewayMetadata;
-  readonly accounts: typeof accountService;
+  readonly accounts: AccountPersistencePort;
   readonly accountRegisters: AccountRegisterService;
   readonly budgetView: BudgetViewService;
   readonly payees: typeof payeeService;

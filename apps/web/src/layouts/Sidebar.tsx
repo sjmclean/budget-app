@@ -17,14 +17,14 @@ import {
 import { NavLink } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { AddAccountModal } from "../components/accounts/AddAccountModal";
-import {
-  accountService,
-  type CreateAccountInput,
-  type SidebarAccount,
-
-  type UpdateAccountInput
-
+import type {
+  CreateAccountInput,
+  SidebarAccount,
+  UpdateAccountInput,
 } from "../features/accounts/accountService";
+import { getAppPersistenceGateway } from "../features/persistence";
+
+const accountsPersistence = getAppPersistenceGateway().accounts;
 
 export function Sidebar() {
   const [accountsOpen, setAccountsOpen] = useState(true);
@@ -37,7 +37,7 @@ export function Sidebar() {
   useEffect(() => {
     let active = true;
 
-    accountService.listAccounts().then((loadedAccounts) => {
+    accountsPersistence.listAccounts().then((loadedAccounts) => {
       if (active) {
         setAccounts(loadedAccounts);
       }
@@ -55,12 +55,12 @@ export function Sidebar() {
   const trackingAccounts = activeAccounts.filter((account) => account.type === "tracking");
 
   async function addAccount(input: CreateAccountInput) {
-    const nextAccounts = await accountService.createAccount(input);
+    const nextAccounts = await accountsPersistence.createAccount(input);
     setAccounts(nextAccounts);
   }
 
   async function updateAccount(input: UpdateAccountInput) {
-    const nextAccounts = await accountService.updateAccount(input);
+    const nextAccounts = await accountsPersistence.updateAccount(input);
     setAccounts(nextAccounts);
     setEditingAccount(null);
     setOpenMenuAccountId(null);
@@ -75,13 +75,13 @@ export function Sidebar() {
       return;
     }
 
-    const nextAccounts = await accountService.closeAccount(account.id);
+    const nextAccounts = await accountsPersistence.closeAccount(account.id);
     setAccounts(nextAccounts);
     setOpenMenuAccountId(null);
   }
 
   async function reopenAccount(account: SidebarAccount) {
-    const nextAccounts = await accountService.reopenAccount(account.id);
+    const nextAccounts = await accountsPersistence.reopenAccount(account.id);
     setAccounts(nextAccounts);
     setOpenMenuAccountId(null);
   }
@@ -95,7 +95,7 @@ export function Sidebar() {
       return;
     }
 
-    const result = await accountService.deleteAccount(account.id);
+    const result = await accountsPersistence.deleteAccount(account.id);
 
     if (!result.deleted) {
       window.alert(result.reason ?? "This account cannot be deleted.");

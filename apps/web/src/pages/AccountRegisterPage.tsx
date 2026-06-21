@@ -6,7 +6,8 @@ import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTran
 import { scheduledTransactionService } from "../features/accounts/scheduledTransactionService";
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
 import { budgetViewService } from "../features/budget/budgetViewService";
-import { readAccounts, type SidebarAccount } from "../features/accounts/accountService";
+import type { SidebarAccount } from "../features/accounts/accountService";
+import { getAppPersistenceGateway } from "../features/persistence";
 import { payeeService, type PayeeView } from "../features/accounts/payeeService";
 import type {
   NewRegisterTransactionInput,
@@ -22,6 +23,8 @@ function isSplitCategoryValue(value: string): boolean {
   const normalised = value.trim().toLowerCase();
   return normalised === "split" || normalised === "split...";
 }
+
+const accountsPersistence = getAppPersistenceGateway().accounts;
 
 const ACTIVE_BUDGET_ID = "household";
 const ACTIVE_BUDGET_MONTH = "2026-06";
@@ -1288,7 +1291,17 @@ export function AccountRegisterPage() {
   }, [data?.transactions]);
 
   useEffect(() => {
-    setTransferAccounts(readAccounts().filter((account) => account.id !== accountId));
+    let active = true;
+
+    accountsPersistence.listAccounts().then((loadedAccounts) => {
+      if (active) {
+        setTransferAccounts(loadedAccounts.filter((account) => account.id !== accountId));
+      }
+    });
+
+    return () => {
+      active = false;
+    };
   }, [accountId]);
 
   useEffect(() => {
