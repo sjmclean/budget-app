@@ -1,4 +1,6 @@
-export type PersistenceMode = "browser-local-storage" | "database-adapter-pending";
+import { getAppPersistenceGateway } from "./appPersistenceGatewayFactory";
+
+export type PersistenceMode = "browser-local-storage" | "database-adapter-pending" | "sqlite-adapter";
 
 export interface PersistenceModeSummary {
   mode: PersistenceMode;
@@ -16,11 +18,12 @@ export interface PersistenceModeSummary {
  * distinction clearly while the DB-backed adapter is introduced incrementally.
  */
 export function getPersistenceModeSummary(): PersistenceModeSummary {
+  const gateway = getAppPersistenceGateway();
+
   return {
-    mode: "browser-local-storage",
-    label: "Browser localStorage",
-    description:
-      "This web build is still using browser localStorage for active budget data. SQLite-backed repositories exist in the package layer but are not wired into the web UI yet.",
-    risk: "prototype",
+    mode: gateway.metadata.kind,
+    label: gateway.metadata.label,
+    description: gateway.metadata.description,
+    risk: gateway.metadata.isProductionPersistence ? "production-ready" : "prototype",
   };
 }
