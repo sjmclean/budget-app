@@ -1,4 +1,5 @@
 import { readAccounts } from "../accounts/accountService";
+import { browserLocalStorageKeyValueStorage } from "./keyValueStoragePort";
 import type { SidebarAccountType } from "../accounts/accountService";
 import type {
   BudgetActivityCategoryReference,
@@ -75,7 +76,7 @@ function readBudgetScopedRegisterTransactions(): BudgetActivityRegisterTransacti
 
   try {
     const registers = JSON.parse(raw) as StoredRegisters;
-    const accountTypeById = new Map(readAccounts().map((account) => [account.id, account.type]));
+    const accountTypeById = new Map(readAccounts(browserLocalStorageKeyValueStorage).map((account) => [account.id, account.type]));
 
     return Object.entries(registers).flatMap(([accountId, register]) => {
       const accountType = accountTypeById.get(accountId) ?? mapRegisterAccountType(register.accountType);

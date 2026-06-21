@@ -1,3 +1,5 @@
+import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+
 export type SidebarAccountType = "on-budget" | "credit-card" | "tracking";
 
 export interface SidebarAccount {
@@ -27,16 +29,22 @@ export interface DeleteAccountResult {
   accounts: SidebarAccount[];
 }
 
+export interface AccountServiceDependencies {
+  storage: KeyValueStoragePort;
+}
+
 const STORAGE_KEY = "budget-app.accounts.v1";
 const REGISTER_STORAGE_PREFIX = "budget-app.register.";
 
 class BrowserPersistentAccountService {
+  constructor(private readonly dependencies: AccountServiceDependencies) {}
+
   async listAccounts(): Promise<SidebarAccount[]> {
-    return normalizeAccounts(readAccounts());
+    return normalizeAccounts(readAccounts(this.dependencies.storage));
   }
 
   async createAccount(input: CreateAccountInput): Promise<SidebarAccount[]> {
-    const accounts = normalizeAccounts(readAccounts());
+    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
     const account: SidebarAccount = {
       id: createAccountId(input.name, accounts),
       name: input.name,
@@ -47,12 +55,12 @@ class BrowserPersistentAccountService {
     };
 
     const nextAccounts = [...accounts, account];
-    writeAccounts(nextAccounts);
+    writeAccounts(this.dependencies.storage, nextAccounts);
     return nextAccounts;
   }
 
   async updateAccount(input: UpdateAccountInput): Promise<SidebarAccount[]> {
-    const accounts = normalizeAccounts(readAccounts());
+    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
     const nextAccounts = accounts.map((account) =>
       account.id === input.id
         ? {
@@ -63,12 +71,12 @@ class BrowserPersistentAccountService {
         : account,
     );
 
-    writeAccounts(nextAccounts);
+    writeAccounts(this.dependencies.storage, nextAccounts);
     return nextAccounts;
   }
 
   async closeAccount(accountId: string): Promise<SidebarAccount[]> {
-    const accounts = normalizeAccounts(readAccounts());
+    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
     const closedAt = new Date().toISOString();
 
     const nextAccounts = accounts.map((account) =>
@@ -80,12 +88,12 @@ class BrowserPersistentAccountService {
         : account,
     );
 
-    writeAccounts(nextAccounts);
+    writeAccounts(this.dependencies.storage, nextAccounts);
     return nextAccounts;
   }
 
   async reopenAccount(accountId: string): Promise<SidebarAccount[]> {
-    const accounts = normalizeAccounts(readAccounts());
+    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
 
     const nextAccounts = accounts.map((account) =>
       account.id === accountId
@@ -96,14 +104,14 @@ class BrowserPersistentAccountService {
         : account,
     );
 
-    writeAccounts(nextAccounts);
+    writeAccounts(this.dependencies.storage, nextAccounts);
     return nextAccounts;
   }
 
   async deleteAccount(accountId: string): Promise<DeleteAccountResult> {
-    const accounts = normalizeAccounts(readAccounts());
+    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
 
-    if (accountHasTransactions(accountId)) {
+    if (accountHasTransactions(this.dependencies.storage, accountId)) {
       return {
         deleted: false,
         reason: "Accounts with transactions cannot be deleted. Close the account instead.",
@@ -112,8 +120,8 @@ class BrowserPersistentAccountService {
     }
 
     const nextAccounts = accounts.filter((account) => account.id !== accountId);
-    writeAccounts(nextAccounts);
-    removeAccountRegister(accountId);
+    writeAccounts(this.dependencies.storage, nextAccounts);
+    removeAccountRegister(this.dependencies.storage, accountId);
 
     return {
       deleted: true,
@@ -122,18 +130,18 @@ class BrowserPersistentAccountService {
   }
 
   getAccountById(accountId: string): SidebarAccount | null {
-    return normalizeAccounts(readAccounts()).find((account) => account.id === accountId) ?? null;
+    return normalizeAccounts(readAccounts(this.dependencies.storage)).find((account) => account.id === accountId) ?? null;
   }
 }
 
-export const accountService = new BrowserPersistentAccountService();
+export function createAccountService(
+  dependencies: AccountServiceDependencies,
+): BrowserPersistentAccountService {
+  return new BrowserPersistentAccountService(dependencies);
+}
 
-export function readAccounts(): SidebarAccount[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  const value = window.localStorage.getItem(STORAGE_KEY);
+export function readAccounts(storage: KeyValueStoragePort): SidebarAccount[] {
+  const value = storage.getItem(STORAGE_KEY);
 
   if (!value) {
     return [];
@@ -154,20 +162,12 @@ function normalizeAccounts(accounts: SidebarAccount[]): SidebarAccount[] {
   }));
 }
 
-function writeAccounts(accounts: SidebarAccount[]): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeAccounts(accounts)));
+function writeAccounts(storage: KeyValueStoragePort, accounts: SidebarAccount[]): void {
+  storage.setItem(STORAGE_KEY, JSON.stringify(normalizeAccounts(accounts)));
 }
 
-function accountHasTransactions(accountId: string): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  const value = window.localStorage.getItem(`${REGISTER_STORAGE_PREFIX}${accountId}`);
+function accountHasTransactions(storage: KeyValueStoragePort, accountId: string): boolean {
+  const value = storage.getItem(`${REGISTER_STORAGE_PREFIX}${accountId}`);
 
   if (!value) {
     return false;
@@ -181,12 +181,8 @@ function accountHasTransactions(accountId: string): boolean {
   }
 }
 
-function removeAccountRegister(accountId: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.removeItem(`${REGISTER_STORAGE_PREFIX}${accountId}`);
+function removeAccountRegister(storage: KeyValueStoragePort, accountId: string): void {
+  storage.removeItem(`${REGISTER_STORAGE_PREFIX}${accountId}`);
 }
 
 function createAccountId(name: string, existingAccounts: SidebarAccount[]): string {

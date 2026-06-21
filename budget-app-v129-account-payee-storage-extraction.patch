@@ -1,0 +1,430 @@
+diff -ruN ../v129_base/budget-app/apps/web/src/features/accounts/accountService.ts budget-app/apps/web/src/features/accounts/accountService.ts
+--- ../v129_base/budget-app/apps/web/src/features/accounts/accountService.ts	2026-06-19 23:58:05.000000000 +0000
++++ budget-app/apps/web/src/features/accounts/accountService.ts	2026-06-21 06:43:36.343847343 +0000
+@@ -1,3 +1,5 @@
++import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
++
+ export type SidebarAccountType = "on-budget" | "credit-card" | "tracking";
+ 
+ export interface SidebarAccount {
+@@ -27,16 +29,22 @@
+   accounts: SidebarAccount[];
+ }
+ 
++export interface AccountServiceDependencies {
++  storage: KeyValueStoragePort;
++}
++
+ const STORAGE_KEY = "budget-app.accounts.v1";
+ const REGISTER_STORAGE_PREFIX = "budget-app.register.";
+ 
+ class BrowserPersistentAccountService {
++  constructor(private readonly dependencies: AccountServiceDependencies) {}
++
+   async listAccounts(): Promise<SidebarAccount[]> {
+-    return normalizeAccounts(readAccounts());
++    return normalizeAccounts(readAccounts(this.dependencies.storage));
+   }
+ 
+   async createAccount(input: CreateAccountInput): Promise<SidebarAccount[]> {
+-    const accounts = normalizeAccounts(readAccounts());
++    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
+     const account: SidebarAccount = {
+       id: createAccountId(input.name, accounts),
+       name: input.name,
+@@ -47,12 +55,12 @@
+     };
+ 
+     const nextAccounts = [...accounts, account];
+-    writeAccounts(nextAccounts);
++    writeAccounts(this.dependencies.storage, nextAccounts);
+     return nextAccounts;
+   }
+ 
+   async updateAccount(input: UpdateAccountInput): Promise<SidebarAccount[]> {
+-    const accounts = normalizeAccounts(readAccounts());
++    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
+     const nextAccounts = accounts.map((account) =>
+       account.id === input.id
+         ? {
+@@ -63,12 +71,12 @@
+         : account,
+     );
+ 
+-    writeAccounts(nextAccounts);
++    writeAccounts(this.dependencies.storage, nextAccounts);
+     return nextAccounts;
+   }
+ 
+   async closeAccount(accountId: string): Promise<SidebarAccount[]> {
+-    const accounts = normalizeAccounts(readAccounts());
++    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
+     const closedAt = new Date().toISOString();
+ 
+     const nextAccounts = accounts.map((account) =>
+@@ -80,12 +88,12 @@
+         : account,
+     );
+ 
+-    writeAccounts(nextAccounts);
++    writeAccounts(this.dependencies.storage, nextAccounts);
+     return nextAccounts;
+   }
+ 
+   async reopenAccount(accountId: string): Promise<SidebarAccount[]> {
+-    const accounts = normalizeAccounts(readAccounts());
++    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
+ 
+     const nextAccounts = accounts.map((account) =>
+       account.id === accountId
+@@ -96,14 +104,14 @@
+         : account,
+     );
+ 
+-    writeAccounts(nextAccounts);
++    writeAccounts(this.dependencies.storage, nextAccounts);
+     return nextAccounts;
+   }
+ 
+   async deleteAccount(accountId: string): Promise<DeleteAccountResult> {
+-    const accounts = normalizeAccounts(readAccounts());
++    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
+ 
+-    if (accountHasTransactions(accountId)) {
++    if (accountHasTransactions(this.dependencies.storage, accountId)) {
+       return {
+         deleted: false,
+         reason: "Accounts with transactions cannot be deleted. Close the account instead.",
+@@ -112,8 +120,8 @@
+     }
+ 
+     const nextAccounts = accounts.filter((account) => account.id !== accountId);
+-    writeAccounts(nextAccounts);
+-    removeAccountRegister(accountId);
++    writeAccounts(this.dependencies.storage, nextAccounts);
++    removeAccountRegister(this.dependencies.storage, accountId);
+ 
+     return {
+       deleted: true,
+@@ -122,18 +130,18 @@
+   }
+ 
+   getAccountById(accountId: string): SidebarAccount | null {
+-    return normalizeAccounts(readAccounts()).find((account) => account.id === accountId) ?? null;
++    return normalizeAccounts(readAccounts(this.dependencies.storage)).find((account) => account.id === accountId) ?? null;
+   }
+ }
+ 
+-export const accountService = new BrowserPersistentAccountService();
+-
+-export function readAccounts(): SidebarAccount[] {
+-  if (typeof window === "undefined") {
+-    return [];
+-  }
++export function createAccountService(
++  dependencies: AccountServiceDependencies,
++): BrowserPersistentAccountService {
++  return new BrowserPersistentAccountService(dependencies);
++}
+ 
+-  const value = window.localStorage.getItem(STORAGE_KEY);
++export function readAccounts(storage: KeyValueStoragePort): SidebarAccount[] {
++  const value = storage.getItem(STORAGE_KEY);
+ 
+   if (!value) {
+     return [];
+@@ -154,20 +162,12 @@
+   }));
+ }
+ 
+-function writeAccounts(accounts: SidebarAccount[]): void {
+-  if (typeof window === "undefined") {
+-    return;
+-  }
+-
+-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeAccounts(accounts)));
++function writeAccounts(storage: KeyValueStoragePort, accounts: SidebarAccount[]): void {
++  storage.setItem(STORAGE_KEY, JSON.stringify(normalizeAccounts(accounts)));
+ }
+ 
+-function accountHasTransactions(accountId: string): boolean {
+-  if (typeof window === "undefined") {
+-    return false;
+-  }
+-
+-  const value = window.localStorage.getItem(`${REGISTER_STORAGE_PREFIX}${accountId}`);
++function accountHasTransactions(storage: KeyValueStoragePort, accountId: string): boolean {
++  const value = storage.getItem(`${REGISTER_STORAGE_PREFIX}${accountId}`);
+ 
+   if (!value) {
+     return false;
+@@ -181,12 +181,8 @@
+   }
+ }
+ 
+-function removeAccountRegister(accountId: string): void {
+-  if (typeof window === "undefined") {
+-    return;
+-  }
+-
+-  window.localStorage.removeItem(`${REGISTER_STORAGE_PREFIX}${accountId}`);
++function removeAccountRegister(storage: KeyValueStoragePort, accountId: string): void {
++  storage.removeItem(`${REGISTER_STORAGE_PREFIX}${accountId}`);
+ }
+ 
+ function createAccountId(name: string, existingAccounts: SidebarAccount[]): string {
+@@ -208,4 +204,4 @@
+   }
+ 
+   return `${base}-${counter}`;
+-}
+\ No newline at end of file
++}
+diff -ruN ../v129_base/budget-app/apps/web/src/features/accounts/payeeService.ts budget-app/apps/web/src/features/accounts/payeeService.ts
+--- ../v129_base/budget-app/apps/web/src/features/accounts/payeeService.ts	2026-06-20 22:48:53.000000000 +0000
++++ budget-app/apps/web/src/features/accounts/payeeService.ts	2026-06-21 06:44:08.936624324 +0000
+@@ -1,3 +1,5 @@
++import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
++
+ export interface PayeeView {
+   id: string;
+   name: string;
+@@ -11,21 +13,27 @@
+   name: string;
+ }
+ 
++export interface PayeeServiceDependencies {
++  storage: KeyValueStoragePort;
++}
++
+ const STORAGE_KEY = "budget-app.payees.v1";
+ 
+ class BrowserPersistentPayeeService {
++  constructor(private readonly dependencies: PayeeServiceDependencies) {}
++
+   async listPayees(): Promise<PayeeView[]> {
+-    return sortPayees(readPayees());
++    return sortPayees(readPayees(this.dependencies.storage));
+   }
+ 
+   async recordPayee(name: string): Promise<PayeeView[]> {
+     const trimmed = normalisePayeeName(name);
+ 
+     if (!trimmed || isTransferPayee(trimmed)) {
+-      return sortPayees(readPayees());
++      return sortPayees(readPayees(this.dependencies.storage));
+     }
+ 
+-    const payees = readPayees();
++    const payees = readPayees(this.dependencies.storage);
+     const existing = payees.find((payee) => samePayee(payee.name, trimmed));
+     const now = new Date().toISOString();
+ 
+@@ -51,16 +59,16 @@
+           },
+         ];
+ 
+-    writePayees(nextPayees);
++    writePayees(this.dependencies.storage, nextPayees);
+     return sortPayees(nextPayees);
+   }
+ 
+   async recordPayees(names: string[]): Promise<PayeeView[]> {
+-    let latest = readPayees();
++    let latest = readPayees(this.dependencies.storage);
+ 
+     for (const name of names) {
+       await this.recordPayee(name);
+-      latest = readPayees();
++      latest = readPayees(this.dependencies.storage);
+     }
+ 
+     return sortPayees(latest);
+@@ -70,10 +78,10 @@
+     const nextName = normalisePayeeName(input.name);
+ 
+     if (!nextName) {
+-      return sortPayees(readPayees());
++      return sortPayees(readPayees(this.dependencies.storage));
+     }
+ 
+-    const payees = readPayees();
++    const payees = readPayees(this.dependencies.storage);
+     const target = payees.find((payee) => payee.id === input.id);
+ 
+     if (!target) {
+@@ -98,7 +106,7 @@
+             : payee,
+         );
+ 
+-      writePayees(merged);
++      writePayees(this.dependencies.storage, merged);
+       return sortPayees(merged);
+     }
+ 
+@@ -106,42 +114,49 @@
+       payee.id === input.id ? { ...payee, name: nextName } : payee,
+     );
+ 
+-    writePayees(renamed);
++    writePayees(this.dependencies.storage, renamed);
+     return sortPayees(renamed);
+   }
+ 
+   async deletePayee(payeeId: string): Promise<PayeeView[]> {
+-    const nextPayees = readPayees().filter((payee) => payee.id !== payeeId);
+-    writePayees(nextPayees);
++    const nextPayees = readPayees(this.dependencies.storage).filter((payee) => payee.id !== payeeId);
++    writePayees(this.dependencies.storage, nextPayees);
+     return sortPayees(nextPayees);
+   }
++
++  findPayeeByName(name: string): PayeeView | undefined {
++    return findPayeeByName(this.dependencies.storage, name);
++  }
++
++  findPayeeIdByName(name: string): string | undefined {
++    return this.findPayeeByName(name)?.id;
++  }
+ }
+ 
+-export const payeeService = new BrowserPersistentPayeeService();
++export function createPayeeService(
++  dependencies: PayeeServiceDependencies,
++): BrowserPersistentPayeeService {
++  return new BrowserPersistentPayeeService(dependencies);
++}
+ 
+-export function findPayeeByName(name: string): PayeeView | undefined {
++export function findPayeeByName(storage: KeyValueStoragePort, name: string): PayeeView | undefined {
+   const normalised = normalisePayeeName(name).toLocaleLowerCase();
+ 
+   if (!normalised || isTransferPayee(name)) {
+     return undefined;
+   }
+ 
+-  return readPayees().find(
++  return readPayees(storage).find(
+     (payee) => normalisePayeeName(payee.name).toLocaleLowerCase() === normalised,
+   );
+ }
+ 
+-export function findPayeeIdByName(name: string): string | undefined {
+-  return findPayeeByName(name)?.id;
++export function findPayeeIdByName(storage: KeyValueStoragePort, name: string): string | undefined {
++  return findPayeeByName(storage, name)?.id;
+ }
+ 
+-
+-export function readPayees(): PayeeView[] {
+-  if (typeof window === "undefined") {
+-    return [];
+-  }
+-
+-  const value = window.localStorage.getItem(STORAGE_KEY);
++export function readPayees(storage: KeyValueStoragePort): PayeeView[] {
++  const value = storage.getItem(STORAGE_KEY);
+ 
+   if (!value) {
+     return [];
+@@ -155,12 +170,8 @@
+   }
+ }
+ 
+-function writePayees(payees: PayeeView[]): void {
+-  if (typeof window === "undefined") {
+-    return;
+-  }
+-
+-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sortPayees(normalisePayees(payees))));
++function writePayees(storage: KeyValueStoragePort, payees: PayeeView[]): void {
++  storage.setItem(STORAGE_KEY, JSON.stringify(sortPayees(normalisePayees(payees))));
+ }
+ 
+ function normalisePayees(payees: PayeeView[]): PayeeView[] {
+diff -ruN ../v129_base/budget-app/apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts budget-app/apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts
+--- ../v129_base/budget-app/apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts	2026-06-21 06:03:07.000000000 +0000
++++ budget-app/apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts	2026-06-21 06:44:23.287679077 +0000
+@@ -1,4 +1,5 @@
+ import { readAccounts } from "../accounts/accountService";
++import { browserLocalStorageKeyValueStorage } from "./keyValueStoragePort";
+ import type { SidebarAccountType } from "../accounts/accountService";
+ import type {
+   BudgetActivityCategoryReference,
+@@ -75,7 +76,7 @@
+ 
+   try {
+     const registers = JSON.parse(raw) as StoredRegisters;
+-    const accountTypeById = new Map(readAccounts().map((account) => [account.id, account.type]));
++    const accountTypeById = new Map(readAccounts(browserLocalStorageKeyValueStorage).map((account) => [account.id, account.type]));
+ 
+     return Object.entries(registers).flatMap(([accountId, register]) => {
+       const accountType = accountTypeById.get(accountId) ?? mapRegisterAccountType(register.accountType);
+diff -ruN ../v129_base/budget-app/apps/web/src/features/persistence/browserLocalStoragePersistenceGateway.ts budget-app/apps/web/src/features/persistence/browserLocalStoragePersistenceGateway.ts
+--- ../v129_base/budget-app/apps/web/src/features/persistence/browserLocalStoragePersistenceGateway.ts	2026-06-21 06:30:20.000000000 +0000
++++ budget-app/apps/web/src/features/persistence/browserLocalStoragePersistenceGateway.ts	2026-06-21 06:44:23.287035179 +0000
+@@ -1,19 +1,27 @@
+-import { accountService, readAccounts } from "../accounts/accountService";
++import { createAccountService, readAccounts } from "../accounts/accountService";
+ import { createAccountRegisterService } from "../accounts/accountRegisterService";
+-import { findPayeeIdByName, payeeService } from "../accounts/payeeService";
++import { createPayeeService, findPayeeIdByName } from "../accounts/payeeService";
+ import { createScheduledTransactionService } from "../accounts/scheduledTransactionService";
+ import { createBudgetViewService } from "../budget/budgetViewService";
+ import { browserLocalStorageBudgetActivityPersistence } from "./browserLocalStorageBudgetActivityPersistence";
+ import { browserLocalStorageKeyValueStorage } from "./keyValueStoragePort";
+ import type { AppPersistenceGateway } from "./appPersistenceGateway";
+ 
++const accountService = createAccountService({
++  storage: browserLocalStorageKeyValueStorage,
++});
++
++const payeeService = createPayeeService({
++  storage: browserLocalStorageKeyValueStorage,
++});
++
+ const accountRegisterService = createAccountRegisterService({
+   storage: browserLocalStorageKeyValueStorage,
+   recordPayee: async (payeeName: string) => {
+     await payeeService.recordPayee(payeeName);
+   },
+-  findPayeeIdByName,
+-  readAccounts,
++  findPayeeIdByName: (payeeName: string) => findPayeeIdByName(browserLocalStorageKeyValueStorage, payeeName),
++  readAccounts: () => readAccounts(browserLocalStorageKeyValueStorage),
+   getAccountById: (accountId: string) => accountService.getAccountById(accountId) ?? undefined,
+ });
+ 
+@@ -22,7 +30,7 @@
+   recordPayee: async (payeeName: string) => {
+     await payeeService.recordPayee(payeeName);
+   },
+-  findPayeeIdByName,
++  findPayeeIdByName: (payeeName: string) => findPayeeIdByName(browserLocalStorageKeyValueStorage, payeeName),
+ });
+ 
+ const budgetViewService = createBudgetViewService({
+diff -ruN ../v129_base/budget-app/docs/v129-account-payee-storage-extraction.md budget-app/docs/v129-account-payee-storage-extraction.md
+--- ../v129_base/budget-app/docs/v129-account-payee-storage-extraction.md	1970-01-01 00:00:00.000000000 +0000
++++ budget-app/docs/v129-account-payee-storage-extraction.md	2026-06-21 06:44:33.766946754 +0000
+@@ -0,0 +1,20 @@
++# v1.29 Account + Payee Storage Extraction
++
++This release removes direct browser `localStorage` ownership from the account and payee feature services.
++
++## Changed
++
++- `accountService` now accepts a `KeyValueStoragePort` dependency.
++- `payeeService` now accepts a `KeyValueStoragePort` dependency.
++- The browser-localStorage gateway now constructs account and payee services with `browserLocalStorageKeyValueStorage`.
++- Existing storage keys and persisted data format are unchanged.
++
++## Not changed
++
++- No SQLite adapter is introduced yet.
++- No account or payee behaviour should change.
++- Budget activity persistence still lives under the browser-localStorage persistence layer and is expected to read localStorage until the SQLite adapter work begins.
++
++## Why
++
++After v1.28, register, scheduled transaction, and budget view services used injected storage, but account and payee services still reached directly into `window.localStorage`. This release completes that cleanup for the remaining account/payee feature services so direct browser storage access is isolated under persistence-layer wiring.

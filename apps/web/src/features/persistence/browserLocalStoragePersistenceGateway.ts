@@ -1,19 +1,27 @@
-import { accountService, readAccounts } from "../accounts/accountService";
+import { createAccountService, readAccounts } from "../accounts/accountService";
 import { createAccountRegisterService } from "../accounts/accountRegisterService";
-import { findPayeeIdByName, payeeService } from "../accounts/payeeService";
+import { createPayeeService, findPayeeIdByName } from "../accounts/payeeService";
 import { createScheduledTransactionService } from "../accounts/scheduledTransactionService";
 import { createBudgetViewService } from "../budget/budgetViewService";
 import { browserLocalStorageBudgetActivityPersistence } from "./browserLocalStorageBudgetActivityPersistence";
 import { browserLocalStorageKeyValueStorage } from "./keyValueStoragePort";
 import type { AppPersistenceGateway } from "./appPersistenceGateway";
 
+const accountService = createAccountService({
+  storage: browserLocalStorageKeyValueStorage,
+});
+
+const payeeService = createPayeeService({
+  storage: browserLocalStorageKeyValueStorage,
+});
+
 const accountRegisterService = createAccountRegisterService({
   storage: browserLocalStorageKeyValueStorage,
   recordPayee: async (payeeName: string) => {
     await payeeService.recordPayee(payeeName);
   },
-  findPayeeIdByName,
-  readAccounts,
+  findPayeeIdByName: (payeeName: string) => findPayeeIdByName(browserLocalStorageKeyValueStorage, payeeName),
+  readAccounts: () => readAccounts(browserLocalStorageKeyValueStorage),
   getAccountById: (accountId: string) => accountService.getAccountById(accountId) ?? undefined,
 });
 
@@ -22,7 +30,7 @@ const scheduledTransactionService = createScheduledTransactionService({
   recordPayee: async (payeeName: string) => {
     await payeeService.recordPayee(payeeName);
   },
-  findPayeeIdByName,
+  findPayeeIdByName: (payeeName: string) => findPayeeIdByName(browserLocalStorageKeyValueStorage, payeeName),
 });
 
 const budgetViewService = createBudgetViewService({

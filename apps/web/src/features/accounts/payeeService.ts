@@ -1,3 +1,5 @@
+import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+
 export interface PayeeView {
   id: string;
   name: string;
@@ -11,21 +13,27 @@ export interface RenamePayeeInput {
   name: string;
 }
 
+export interface PayeeServiceDependencies {
+  storage: KeyValueStoragePort;
+}
+
 const STORAGE_KEY = "budget-app.payees.v1";
 
 class BrowserPersistentPayeeService {
+  constructor(private readonly dependencies: PayeeServiceDependencies) {}
+
   async listPayees(): Promise<PayeeView[]> {
-    return sortPayees(readPayees());
+    return sortPayees(readPayees(this.dependencies.storage));
   }
 
   async recordPayee(name: string): Promise<PayeeView[]> {
     const trimmed = normalisePayeeName(name);
 
     if (!trimmed || isTransferPayee(trimmed)) {
-      return sortPayees(readPayees());
+      return sortPayees(readPayees(this.dependencies.storage));
     }
 
-    const payees = readPayees();
+    const payees = readPayees(this.dependencies.storage);
     const existing = payees.find((payee) => samePayee(payee.name, trimmed));
     const now = new Date().toISOString();
 
@@ -51,16 +59,16 @@ class BrowserPersistentPayeeService {
           },
         ];
 
-    writePayees(nextPayees);
+    writePayees(this.dependencies.storage, nextPayees);
     return sortPayees(nextPayees);
   }
 
   async recordPayees(names: string[]): Promise<PayeeView[]> {
-    let latest = readPayees();
+    let latest = readPayees(this.dependencies.storage);
 
     for (const name of names) {
       await this.recordPayee(name);
-      latest = readPayees();
+      latest = readPayees(this.dependencies.storage);
     }
 
     return sortPayees(latest);
@@ -70,10 +78,10 @@ class BrowserPersistentPayeeService {
     const nextName = normalisePayeeName(input.name);
 
     if (!nextName) {
-      return sortPayees(readPayees());
+      return sortPayees(readPayees(this.dependencies.storage));
     }
 
-    const payees = readPayees();
+    const payees = readPayees(this.dependencies.storage);
     const target = payees.find((payee) => payee.id === input.id);
 
     if (!target) {
@@ -98,7 +106,7 @@ class BrowserPersistentPayeeService {
             : payee,
         );
 
-      writePayees(merged);
+      writePayees(this.dependencies.storage, merged);
       return sortPayees(merged);
     }
 
@@ -106,42 +114,49 @@ class BrowserPersistentPayeeService {
       payee.id === input.id ? { ...payee, name: nextName } : payee,
     );
 
-    writePayees(renamed);
+    writePayees(this.dependencies.storage, renamed);
     return sortPayees(renamed);
   }
 
   async deletePayee(payeeId: string): Promise<PayeeView[]> {
-    const nextPayees = readPayees().filter((payee) => payee.id !== payeeId);
-    writePayees(nextPayees);
+    const nextPayees = readPayees(this.dependencies.storage).filter((payee) => payee.id !== payeeId);
+    writePayees(this.dependencies.storage, nextPayees);
     return sortPayees(nextPayees);
+  }
+
+  findPayeeByName(name: string): PayeeView | undefined {
+    return findPayeeByName(this.dependencies.storage, name);
+  }
+
+  findPayeeIdByName(name: string): string | undefined {
+    return this.findPayeeByName(name)?.id;
   }
 }
 
-export const payeeService = new BrowserPersistentPayeeService();
+export function createPayeeService(
+  dependencies: PayeeServiceDependencies,
+): BrowserPersistentPayeeService {
+  return new BrowserPersistentPayeeService(dependencies);
+}
 
-export function findPayeeByName(name: string): PayeeView | undefined {
+export function findPayeeByName(storage: KeyValueStoragePort, name: string): PayeeView | undefined {
   const normalised = normalisePayeeName(name).toLocaleLowerCase();
 
   if (!normalised || isTransferPayee(name)) {
     return undefined;
   }
 
-  return readPayees().find(
+  return readPayees(storage).find(
     (payee) => normalisePayeeName(payee.name).toLocaleLowerCase() === normalised,
   );
 }
 
-export function findPayeeIdByName(name: string): string | undefined {
-  return findPayeeByName(name)?.id;
+export function findPayeeIdByName(storage: KeyValueStoragePort, name: string): string | undefined {
+  return findPayeeByName(storage, name)?.id;
 }
 
-
-export function readPayees(): PayeeView[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  const value = window.localStorage.getItem(STORAGE_KEY);
+export function readPayees(storage: KeyValueStoragePort): PayeeView[] {
+  const value = storage.getItem(STORAGE_KEY);
 
   if (!value) {
     return [];
@@ -155,12 +170,8 @@ export function readPayees(): PayeeView[] {
   }
 }
 
-function writePayees(payees: PayeeView[]): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sortPayees(normalisePayees(payees))));
+function writePayees(storage: KeyValueStoragePort, payees: PayeeView[]): void {
+  storage.setItem(STORAGE_KEY, JSON.stringify(sortPayees(normalisePayees(payees))));
 }
 
 function normalisePayees(payees: PayeeView[]): PayeeView[] {
