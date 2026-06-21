@@ -22,12 +22,6 @@ function isSplitCategoryValue(value: string): boolean {
   return normalised === "split" || normalised === "split...";
 }
 
-const persistenceGateway = getAppPersistenceGateway();
-const accountsPersistence = persistenceGateway.accounts;
-const payeesPersistence = persistenceGateway.payees;
-const categoriesPersistence = persistenceGateway.categories;
-const scheduledTransactionsPersistence = persistenceGateway.scheduledTransactions;
-
 const ACTIVE_BUDGET_ID = "household";
 const ACTIVE_BUDGET_MONTH = "2026-06";
 
@@ -1221,6 +1215,11 @@ function TransactionRow({
 
 export function AccountRegisterPage() {
   const { accountId = "everyday" } = useParams();
+  const persistenceGateway = getAppPersistenceGateway();
+  const accountsPersistence = persistenceGateway.accounts;
+  const payeesPersistence = persistenceGateway.payees;
+  const categoriesPersistence = persistenceGateway.categories;
+  const scheduledTransactionsPersistence = persistenceGateway.scheduledTransactions;
   const {
     data,
     isLoading,
@@ -1269,7 +1268,7 @@ export function AccountRegisterPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [categoriesPersistence]);
 
 
   async function refreshPayees(): Promise<PayeeView[]> {
@@ -1290,7 +1289,7 @@ export function AccountRegisterPage() {
     return () => {
       isMounted = false;
     };
-  }, [data?.transactions]);
+  }, [data?.transactions, payeesPersistence]);
 
   useEffect(() => {
     let active = true;
@@ -1304,7 +1303,7 @@ export function AccountRegisterPage() {
     return () => {
       active = false;
     };
-  }, [accountId]);
+  }, [accountId, accountsPersistence]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {

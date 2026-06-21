@@ -10,8 +10,6 @@ import type { SidebarAccount } from "../../features/accounts/accountService";
 import type { PayeeView } from "../../features/accounts/payeeService";
 import type { BudgetCategoryOption } from "../../features/budget/budgetViewTypes";
 
-const scheduledTransactionsPersistence = getAppPersistenceGateway().scheduledTransactions;
-
 interface ScheduledTransactionsPanelProps {
   accountId: string;
   isOpen: boolean;
@@ -63,6 +61,7 @@ export function ScheduledTransactionsPanel({
   onEnter,
   onDueCountChange,
 }: ScheduledTransactionsPanelProps) {
+  const scheduledTransactionsPersistence = getAppPersistenceGateway().scheduledTransactions;
   const [scheduledTransactions, setScheduledTransactions] = useState<ScheduledTransactionView[]>([]);
   const [draft, setDraft] = useState<ScheduledFormDraft | null>(null);
 
@@ -78,7 +77,7 @@ export function ScheduledTransactionsPanel({
     return () => {
       mounted = false;
     };
-  }, [accountId, onDueCountChange]);
+  }, [accountId, onDueCountChange, scheduledTransactionsPersistence]);
 
   const dueSoonTransactions = useMemo(
     () => scheduledTransactions.filter((transaction) => isDueOrUpcoming(transaction.nextDueDate)),

@@ -8,8 +8,6 @@ import type {
   CategoryMergePreview,
 } from "./budgetViewTypes";
 
-const categoriesPersistence = getAppPersistenceGateway().categories;
-
 interface UseBudgetWorkspaceState {
   data: BudgetMonthView | null;
   isLoading: boolean;
@@ -38,6 +36,7 @@ export function useBudgetWorkspace(
   budgetId: string,
   month: string,
 ): UseBudgetWorkspaceState {
+  const categoriesPersistence = getAppPersistenceGateway().categories;
   const budgetView = useBudgetView(budgetId, month);
   const [editedData, setEditedData] = useState<BudgetMonthView | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(

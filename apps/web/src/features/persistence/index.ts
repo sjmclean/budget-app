@@ -3,7 +3,11 @@ export type {
   PersistenceBackendKind,
   PersistenceGatewayMetadata,
 } from "./appPersistenceGateway";
-export { getAppPersistenceGateway } from "./appPersistenceGatewayFactory";
+export {
+  configureAppPersistenceGateway,
+  getAppPersistenceGateway,
+  resetAppPersistenceGateway,
+} from "./appPersistenceGatewayFactory";
 export {
   createSqliteAccountPersistenceAdapter,
   DEFAULT_SQLITE_BUDGET_ID,

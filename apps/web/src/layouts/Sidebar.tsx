@@ -24,9 +24,8 @@ import type {
 } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
 
-const accountsPersistence = getAppPersistenceGateway().accounts;
-
 export function Sidebar() {
+  const accountsPersistence = getAppPersistenceGateway().accounts;
   const [accountsOpen, setAccountsOpen] = useState(true);
   const [closedAccountsOpen, setClosedAccountsOpen] = useState(false);
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
@@ -46,7 +45,7 @@ export function Sidebar() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [accountsPersistence]);
 
   const activeAccounts = accounts.filter((account) => !account.closedAt);
   const closedAccounts = accounts.filter((account) => account.closedAt);
