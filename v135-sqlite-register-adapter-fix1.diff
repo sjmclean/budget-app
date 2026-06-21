@@ -1,0 +1,21 @@
+diff --git a/tests/v135-sqlite-register-adapter.ts b/tests/v135-sqlite-register-adapter.ts
+index c5afdd2..7b218c4 100644
+--- a/tests/v135-sqlite-register-adapter.ts
++++ b/tests/v135-sqlite-register-adapter.ts
+@@ -21,6 +21,8 @@ import { BudgetParticipation } from "../packages/types/src/BudgetParticipation.j
+ import { ClearedStatus } from "../packages/types/src/ClearedStatus.js";
+ 
+ const tempDir = mkdtempSync(join(tmpdir(), "budget-app-v135-"));
++let nextId = 1;
++
+ const db = createDatabase(join(tempDir, "sqlite-register-adapter.sqlite"));
+ 
+ try {
+@@ -142,7 +144,6 @@ async function validateSqliteRegisterAdapterFoundation(): Promise<void> {
+   assertEqual(deletedTransaction.isDeleted, true, "transaction should be marked deleted");
+ }
+ 
+-let nextId = 1;
+ function createDeterministicId(): string {
+   return `tx-${nextId++}`;
+ }

@@ -17,6 +17,16 @@ export type {
   SqliteAccountRepositoryLike,
 } from "./sqliteAccountPersistenceAdapter";
 export {
+  createSqliteAccountRegisterPersistenceAdapter,
+  SqliteAccountRegisterPersistenceAdapter,
+} from "./sqliteAccountRegisterPersistenceAdapter";
+export type {
+  SqliteAccountRegisterAccountRepositoryLike,
+  SqliteAccountRegisterPayeeRepositoryLike,
+  SqliteAccountRegisterPersistenceAdapterOptions,
+  SqliteAccountRegisterTransactionRepositoryLike,
+} from "./sqliteAccountRegisterPersistenceAdapter";
+export {
   createSqlitePayeePersistenceAdapter,
   mapSqlitePayeeToPayeeView,
   SqlitePayeePersistenceAdapter,
