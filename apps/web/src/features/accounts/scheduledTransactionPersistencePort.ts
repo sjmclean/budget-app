@@ -32,4 +32,11 @@ export interface ScheduledTransactionPersistencePort {
     previousName: string;
     nextName: string;
   }): Promise<void>;
+
+  reassignPayeeReferences(input: {
+    sourcePayeeId: string;
+    sourceName: string;
+    targetPayeeId: string;
+    targetName: string;
+  }): Promise<void>;
 }

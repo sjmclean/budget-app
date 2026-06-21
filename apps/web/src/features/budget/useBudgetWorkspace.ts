@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getAppPersistenceGateway } from "../persistence";
 import { useBudgetView } from "./useBudgetView";
 import type {
+  BudgetActivityDrilldown,
   BudgetCategoryGroupView,
   BudgetCategoryView,
   BudgetMonthView,
@@ -17,6 +18,10 @@ interface UseBudgetWorkspaceState {
   overassignedCategoryIds: string[];
   categoryMergePreview: CategoryMergePreview | null;
   isCategoryMergePreviewLoading: boolean;
+  activityDrilldown: BudgetActivityDrilldown | null;
+  isActivityDrilldownLoading: boolean;
+  openActivityDrilldown: (categoryId: string) => void;
+  closeActivityDrilldown: () => void;
   selectCategory: (categoryId: string) => void;
   updateAssigned: (categoryId: string, assigned: number) => void;
   renameCategory: (categoryId: string, name: string) => void;
@@ -50,6 +55,10 @@ export function useBudgetWorkspace(
     useState<CategoryMergePreview | null>(null);
   const [isCategoryMergePreviewLoading, setIsCategoryMergePreviewLoading] =
     useState(false);
+  const [activityDrilldown, setActivityDrilldown] =
+    useState<BudgetActivityDrilldown | null>(null);
+  const [isActivityDrilldownLoading, setIsActivityDrilldownLoading] =
+    useState(false);
 
   useEffect(() => {
     setEditedData(null);
@@ -57,6 +66,8 @@ export function useBudgetWorkspace(
     setLastEditedCategoryId(null);
     setCategoryMergePreview(null);
     setIsCategoryMergePreviewLoading(false);
+    setActivityDrilldown(null);
+    setIsActivityDrilldownLoading(false);
   }, [budgetId, month]);
 
   const data = editedData ?? budgetView.data;
@@ -92,6 +103,38 @@ export function useBudgetWorkspace(
     data && data.readyToAssign < 0 && lastEditedCategoryId
       ? [lastEditedCategoryId]
       : [];
+
+
+  function openActivityDrilldown(categoryId: string) {
+    setSaveError(null);
+    setIsActivityDrilldownLoading(true);
+
+    void categoriesPersistence
+      .getCategoryActivityDrilldown({
+        budgetId,
+        month,
+        categoryId,
+      })
+      .then((drilldown) => {
+        setActivityDrilldown(drilldown);
+      })
+      .catch((error) => {
+        setSaveError(
+          error instanceof Error
+            ? error.message
+            : "Failed to load category activity.",
+        );
+        setActivityDrilldown(null);
+      })
+      .finally(() => {
+        setIsActivityDrilldownLoading(false);
+      });
+  }
+
+  function closeActivityDrilldown() {
+    setActivityDrilldown(null);
+    setIsActivityDrilldownLoading(false);
+  }
 
   function selectCategory(categoryId: string) {
     setSelectedCategoryId(categoryId);
@@ -279,6 +322,10 @@ export function useBudgetWorkspace(
     overassignedCategoryIds,
     categoryMergePreview,
     isCategoryMergePreviewLoading,
+    activityDrilldown,
+    isActivityDrilldownLoading,
+    openActivityDrilldown,
+    closeActivityDrilldown,
     selectCategory,
     updateAssigned,
     renameCategory,

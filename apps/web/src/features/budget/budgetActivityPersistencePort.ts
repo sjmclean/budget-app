@@ -12,10 +12,13 @@ export interface BudgetActivitySplitLine {
 export interface BudgetActivityRegisterTransaction {
   id: string;
   accountId: string;
+  accountName?: string;
   accountType?: SidebarAccountType | null;
   date: string;
+  payee?: string;
   category: string;
   categoryId?: string;
+  memo?: string;
   inflow: number;
   outflow: number;
   transferAccountId?: string;

@@ -270,6 +270,19 @@ export class SqliteAccountRegisterPersistenceAdapter implements AccountRegisterP
     return this.getAccountRegisterView({ accountId: input.accountId });
   }
 
+  async reassignPayeeReferences(input: {
+    accountId: string;
+    sourcePayeeId: string;
+    sourceName: string;
+    targetPayeeId: string;
+    targetName: string;
+  }): Promise<AccountRegisterView> {
+    // SQLite merge reassignment is handled by SqlitePayeePersistenceAdapter when
+    // it is composed with a transaction payee updater. The register adapter only
+    // refreshes its read model for the current account.
+    return this.getAccountRegisterView({ accountId: input.accountId });
+  }
+
   private async requireAccount(accountId: string): Promise<Account> {
     const account = await this.options.accountRepository.getById(accountId);
 

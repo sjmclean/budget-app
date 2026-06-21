@@ -1,5 +1,7 @@
 import type {
   BudgetCategoryGroupView,
+  BudgetActivityDrilldown,
+  BudgetActivityDrilldownRow,
   BudgetCategoryOption,
   CategoryMergePreview,
   BudgetCategoryView,
@@ -276,6 +278,155 @@ async function applyRegisterActivity(
   };
 }
 
+function findCategoryById(view: BudgetMonthView, categoryId: string): BudgetCategoryView | null {
+  for (const group of view.categoryGroups) {
+    const category = group.categories.find((item) => item.id === categoryId);
+
+    if (category) {
+      return category;
+    }
+  }
+
+  return null;
+}
+
+function createActivityRow(input: {
+  transaction: {
+    id: string;
+    accountId: string;
+    accountName?: string;
+    date: string;
+    payee?: string;
+    memo?: string;
+  };
+  categoryId: string;
+  categoryName: string;
+  inflow: number;
+  outflow: number;
+  splitLineId?: string;
+  splitMemo?: string;
+  isSplit: boolean;
+}): BudgetActivityDrilldownRow {
+  return {
+    id: input.splitLineId
+      ? `${input.transaction.id}:${input.splitLineId}`
+      : input.transaction.id,
+    transactionId: input.transaction.id,
+    splitLineId: input.splitLineId,
+    accountId: input.transaction.accountId,
+    accountName: input.transaction.accountName ?? input.transaction.accountId,
+    date: input.transaction.date,
+    payee: input.transaction.payee?.trim() || "Unspecified payee",
+    memo: input.splitMemo ?? input.transaction.memo ?? "",
+    categoryId: input.categoryId,
+    categoryName: input.categoryName,
+    inflow: input.inflow,
+    outflow: input.outflow,
+    amount: input.inflow - input.outflow,
+    isSplit: input.isSplit,
+  };
+}
+
+async function createCategoryActivityDrilldown(
+  dependencies: BudgetViewServiceDependencies,
+  view: BudgetMonthView,
+  month: string,
+  categoryId: string,
+): Promise<BudgetActivityDrilldown> {
+  const category = findCategoryById(view, categoryId);
+
+  if (!category) {
+    throw new Error("Category not found.");
+  }
+
+  const categoryLookup = createCategoryLookup(view);
+  const rows: BudgetActivityDrilldownRow[] = [];
+  const transactions = await dependencies.budgetActivity.listRegisterTransactionsForBudgetActivity();
+
+  for (const transaction of transactions) {
+    if (!transaction.date.startsWith(month)) {
+      continue;
+    }
+
+    if (transaction.splitLines && transaction.splitLines.length > 0) {
+      for (const splitLine of transaction.splitLines) {
+        const splitCategoryKey = normaliseCategoryKey(splitLine.category);
+        const splitCategoryId = resolveStoredCategoryId(splitLine, categoryLookup);
+
+        if (isReadyToAssignCategoryReference(splitLine, splitCategoryKey)) {
+          continue;
+        }
+
+        if (splitCategoryId !== categoryId) {
+          continue;
+        }
+
+        rows.push(
+          createActivityRow({
+            transaction,
+            categoryId: splitCategoryId,
+            categoryName: splitLine.category || category.name,
+            inflow: splitLine.inflow,
+            outflow: splitLine.outflow,
+            splitLineId: splitLine.id,
+            splitMemo: splitLine.memo,
+            isSplit: true,
+          }),
+        );
+      }
+
+      continue;
+    }
+
+    const categoryKey = normaliseCategoryKey(transaction.category);
+    const transactionCategoryId = resolveStoredCategoryId(transaction, categoryLookup);
+
+    if (isTransferCategory(categoryKey)) {
+      continue;
+    }
+
+    if (isReadyToAssignCategoryReference(transaction, categoryKey)) {
+      continue;
+    }
+
+    if (transactionCategoryId !== categoryId) {
+      continue;
+    }
+
+    rows.push(
+      createActivityRow({
+        transaction,
+        categoryId: transactionCategoryId,
+        categoryName: transaction.category || category.name,
+        inflow: transaction.inflow,
+        outflow: transaction.outflow,
+        isSplit: false,
+      }),
+    );
+  }
+
+  const sortedRows = rows.sort((left, right) =>
+    left.date.localeCompare(right.date) ||
+    left.payee.localeCompare(right.payee) ||
+    left.transactionId.localeCompare(right.transactionId),
+  );
+  const totalInflow = sortedRows.reduce((sum, row) => sum + row.inflow, 0);
+  const totalOutflow = sortedRows.reduce((sum, row) => sum + row.outflow, 0);
+
+  return {
+    budgetId: view.budgetId,
+    month,
+    monthLabel: view.monthLabel,
+    categoryId: category.id,
+    categoryName: category.name,
+    currencyCode: view.currencyCode,
+    rows: sortedRows,
+    totalInflow,
+    totalOutflow,
+    netActivity: totalInflow - totalOutflow,
+  };
+}
+
 function createCategoryLookup(view: BudgetMonthView): Map<string, string> {
   const lookup = new Map<string, string>();
 
@@ -499,6 +650,15 @@ export function createBudgetViewService(
 
   async getCategoryOptions({ budgetId, month }) {
     return getCategoryOptions(await loadBudgetView(dependencies, budgetId, month));
+  },
+
+  async getCategoryActivityDrilldown({ budgetId, month, categoryId }) {
+    return createCategoryActivityDrilldown(
+      dependencies,
+      await loadBudgetView(dependencies, budgetId, month),
+      month,
+      categoryId,
+    );
   },
 
   async updateAssigned({ budgetId, month, categoryId, assigned }) {

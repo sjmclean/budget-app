@@ -1233,6 +1233,7 @@ export function AccountRegisterPage() {
     addAttachment,
     removeAttachment,
     renamePayeeReferences,
+    reassignPayeeReferences,
   } = useAccountRegister(accountId);
 
   const [showEntryRow, setShowEntryRow] = useState(false);
@@ -1248,6 +1249,7 @@ export function AccountRegisterPage() {
   const [isPayeeManagerOpen, setIsPayeeManagerOpen] = useState(false);
   const [selectedPayeeId, setSelectedPayeeId] = useState<string | null>(null);
   const [payeeRenameDraft, setPayeeRenameDraft] = useState("");
+  const [payeeMergeTargetId, setPayeeMergeTargetId] = useState("");
   const [payeeManagerMessage, setPayeeManagerMessage] = useState<string | null>(null);
   const [payeeManagerError, setPayeeManagerError] = useState<string | null>(null);
   const [attachmentTransactionId, setAttachmentTransactionId] = useState<string | null>(null);
@@ -1399,6 +1401,9 @@ export function AccountRegisterPage() {
   const archivedPayeeSummaries = payeeSummaries.filter((summary) => summary.payee.isArchived);
   const selectedPayeeSummary =
     payeeSummaries.find((summary) => summary.payee.id === selectedPayeeId) ?? null;
+  const mergeTargetOptions = selectedPayeeSummary
+    ? activePayeeSummaries.filter((summary) => summary.payee.id !== selectedPayeeSummary.payee.id)
+    : [];
 
   async function handleRenamePayee() {
     if (!selectedPayeeSummary) {
@@ -1478,6 +1483,53 @@ export function AccountRegisterPage() {
     await payeesPersistence.restorePayee(selectedPayeeSummary.payee.id);
     await refreshPayees();
     setPayeeManagerMessage(`Restored ${payeeName}. It will appear in payee suggestions again.`);
+  }
+
+  async function handleMergeSelectedPayee() {
+    if (!selectedPayeeSummary) {
+      return;
+    }
+
+    setPayeeManagerMessage(null);
+    setPayeeManagerError(null);
+
+    if (selectedPayeeSummary.payee.isArchived) {
+      setPayeeManagerError("Restore this payee before merging it into another payee.");
+      return;
+    }
+
+    const targetSummary = activePayeeSummaries.find((summary) => summary.payee.id === payeeMergeTargetId);
+
+    if (!targetSummary) {
+      setPayeeManagerError("Choose an active target payee before merging.");
+      return;
+    }
+
+    const sourcePayee = selectedPayeeSummary.payee;
+    const targetPayee = targetSummary.payee;
+
+    await payeesPersistence.mergePayees({
+      sourcePayeeId: sourcePayee.id,
+      targetPayeeId: targetPayee.id,
+    });
+    await scheduledTransactionsPersistence.reassignPayeeReferences({
+      sourcePayeeId: sourcePayee.id,
+      sourceName: sourcePayee.name,
+      targetPayeeId: targetPayee.id,
+      targetName: targetPayee.name,
+    });
+    await reassignPayeeReferences({
+      sourcePayeeId: sourcePayee.id,
+      sourceName: sourcePayee.name,
+      targetPayeeId: targetPayee.id,
+      targetName: targetPayee.name,
+    });
+    await refreshPayees();
+
+    setSelectedPayeeId(targetPayee.id);
+    setPayeeRenameDraft(targetPayee.name);
+    setPayeeMergeTargetId("");
+    setPayeeManagerMessage(`Merged ${sourcePayee.name} into ${targetPayee.name}. Historical references now use ${targetPayee.name}.`);
   }
 
   return (
@@ -1624,6 +1676,7 @@ export function AccountRegisterPage() {
                         onClick={() => {
                           setSelectedPayeeId(summary.payee.id);
                           setPayeeRenameDraft(summary.payee.name);
+                          setPayeeMergeTargetId("");
                           setPayeeManagerMessage(null);
                           setPayeeManagerError(null);
                         }}
@@ -1651,6 +1704,7 @@ export function AccountRegisterPage() {
                         onClick={() => {
                           setSelectedPayeeId(summary.payee.id);
                           setPayeeRenameDraft(summary.payee.name);
+                          setPayeeMergeTargetId("");
                           setPayeeManagerMessage(null);
                           setPayeeManagerError(null);
                         }}
@@ -1687,6 +1741,29 @@ export function AccountRegisterPage() {
                           />
                         </label>
 
+                        {!selectedPayeeSummary.payee.isArchived && mergeTargetOptions.length > 0 && (
+                          <div className="payee-manager-merge-box">
+                            <label className="field-label">
+                              Merge into
+                              <select
+                                className="text-input"
+                                value={payeeMergeTargetId}
+                                onChange={(event) => setPayeeMergeTargetId(event.target.value)}
+                              >
+                                <option value="">Choose target payee…</option>
+                                {mergeTargetOptions.map((summary) => (
+                                  <option key={summary.payee.id} value={summary.payee.id}>
+                                    {summary.payee.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <p className="muted">
+                              Merge reassigns existing transactions and scheduled transactions to the target, then archives this payee.
+                            </p>
+                          </div>
+                        )}
+
                         <div className="payee-manager-detail-actions">
                           <button
                             className="button button-primary"
@@ -1697,6 +1774,19 @@ export function AccountRegisterPage() {
                           >
                             Save rename
                           </button>
+
+                          {!selectedPayeeSummary.payee.isArchived && (
+                            <button
+                              className="button button-secondary"
+                              type="button"
+                              disabled={!payeeMergeTargetId}
+                              onClick={() => {
+                                void handleMergeSelectedPayee();
+                              }}
+                            >
+                              Merge payee
+                            </button>
+                          )}
 
                           {selectedPayeeSummary.payee.isArchived ? (
                             <button

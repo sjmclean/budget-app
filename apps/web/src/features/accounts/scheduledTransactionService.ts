@@ -190,6 +190,29 @@ export class BrowserPersistentScheduledTransactionService {
 
     writeScheduledTransactions(this.dependencies.storage, transactions);
   }
+
+  async reassignPayeeReferences(input: {
+    sourcePayeeId: string;
+    sourceName: string;
+    targetPayeeId: string;
+    targetName: string;
+  }): Promise<void> {
+    const now = new Date().toISOString();
+    const transactions = readScheduledTransactions(this.dependencies).map((transaction) => {
+      if (!isScheduledPayeeReferenceMatch(transaction, input.sourcePayeeId, input.sourceName)) {
+        return transaction;
+      }
+
+      return {
+        ...transaction,
+        payee: input.targetName,
+        payeeId: input.targetPayeeId,
+        updatedAt: now,
+      };
+    });
+
+    writeScheduledTransactions(this.dependencies.storage, transactions);
+  }
 }
 
 export function createScheduledTransactionService(

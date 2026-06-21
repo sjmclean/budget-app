@@ -1273,3 +1273,12 @@
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+.payee-manager-merge-box {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.03);
+}

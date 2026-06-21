@@ -17,6 +17,37 @@ export interface BudgetCategoryGroupView {
   categories: BudgetCategoryView[];
 }
 
+
+export interface BudgetActivityDrilldownRow {
+  id: string;
+  transactionId: string;
+  splitLineId?: string;
+  accountId: string;
+  accountName: string;
+  date: string;
+  payee: string;
+  memo: string;
+  categoryId: string;
+  categoryName: string;
+  inflow: number;
+  outflow: number;
+  amount: number;
+  isSplit: boolean;
+}
+
+export interface BudgetActivityDrilldown {
+  budgetId: string;
+  month: string;
+  monthLabel: string;
+  categoryId: string;
+  categoryName: string;
+  currencyCode: string;
+  rows: BudgetActivityDrilldownRow[];
+  totalInflow: number;
+  totalOutflow: number;
+  netActivity: number;
+}
+
 export interface BudgetCategoryOption {
   id: string;
   name: string;
@@ -117,4 +148,10 @@ export interface BudgetViewService {
     budgetId: string;
     month: string;
   }): Promise<BudgetCategoryOption[]>;
+
+  getCategoryActivityDrilldown(input: {
+    budgetId: string;
+    month: string;
+    categoryId: string;
+  }): Promise<BudgetActivityDrilldown>;
 }

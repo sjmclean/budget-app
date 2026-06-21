@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { evaluateAssignedInput } from "../features/budget/evaluateAssignedInput";
 import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
 import type {
+  BudgetActivityDrilldown,
+  BudgetActivityDrilldownRow,
   BudgetCategoryGroupView,
   BudgetCategoryView,
   CategoryMergePreview,
@@ -116,6 +119,7 @@ function BudgetCategoryRow({
   isOverassignedSource,
   onSelect,
   onAssignedChange,
+  onActivityClick,
 }: {
   category: BudgetCategoryView;
   currencyCode: string;
@@ -123,6 +127,7 @@ function BudgetCategoryRow({
   isOverassignedSource: boolean;
   onSelect: () => void;
   onAssignedChange: (value: number) => void;
+  onActivityClick: () => void;
 }) {
   return (
     <button
@@ -150,7 +155,22 @@ function BudgetCategoryRow({
         onSave={onAssignedChange}
       />
 
-      <span>{formatMoney(category.activity, currencyCode)}</span>
+      <button
+        className="activity-drilldown-button"
+        type="button"
+        disabled={category.activity === 0}
+        onClick={(event) => {
+          event.stopPropagation();
+          onActivityClick();
+        }}
+        title={
+          category.activity === 0
+            ? "No activity for this category"
+            : "Show activity transactions"
+        }
+      >
+        {formatMoney(category.activity, currencyCode)}
+      </button>
 
       <strong
         className={getAvailableClass(category.available, isOverassignedSource)}
@@ -168,6 +188,7 @@ function BudgetGroup({
   overassignedCategoryIds,
   onSelectCategory,
   onAssignedChange,
+  onActivityClick,
 }: {
   group: BudgetCategoryGroupView;
   currencyCode: string;
@@ -175,6 +196,7 @@ function BudgetGroup({
   overassignedCategoryIds: string[];
   onSelectCategory: (categoryId: string) => void;
   onAssignedChange: (categoryId: string, value: number) => void;
+  onActivityClick: (categoryId: string) => void;
 }) {
   const groupHasOverassignedCategory = group.categories.some((category) =>
     overassignedCategoryIds.includes(category.id),
@@ -214,6 +236,7 @@ function BudgetGroup({
             isOverassignedSource={isOverassignedSource}
             onSelect={() => onSelectCategory(category.id)}
             onAssignedChange={(value) => onAssignedChange(category.id, value)}
+            onActivityClick={() => onActivityClick(category.id)}
           />
         );
       })}
@@ -563,7 +586,144 @@ function CategoryInspector({
   );
 }
 
+
+function formatShortDate(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "2-digit",
+    month: "short",
+  }).format(date);
+}
+
+function BudgetActivityDrilldownModal({
+  drilldown,
+  isLoading,
+  onClose,
+  onTransactionClick,
+}: {
+  drilldown: BudgetActivityDrilldown | null;
+  isLoading: boolean;
+  onClose: () => void;
+  onTransactionClick: (row: BudgetActivityDrilldownRow) => void;
+}) {
+  if (!drilldown && !isLoading) {
+    return null;
+  }
+
+  return (
+    <div className="budget-activity-modal-backdrop" role="presentation">
+      <section
+        className="budget-activity-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="budget-activity-modal-title"
+      >
+        <header className="budget-activity-modal-header">
+          <div>
+            <h2 id="budget-activity-modal-title">
+              {drilldown ? `${drilldown.categoryName} Activity` : "Category Activity"}
+            </h2>
+            <p className="muted">
+              {drilldown
+                ? `${drilldown.monthLabel} · ${drilldown.rows.length} transaction${drilldown.rows.length === 1 ? "" : "s"}`
+                : "Loading activity…"}
+            </p>
+          </div>
+
+          <button
+            className="budget-activity-modal-close"
+            type="button"
+            onClick={onClose}
+            aria-label="Close activity drilldown"
+          >
+            ×
+          </button>
+        </header>
+
+        {isLoading ? (
+          <div className="budget-activity-empty">Loading category activity…</div>
+        ) : drilldown && drilldown.rows.length > 0 ? (
+          <>
+            <div className="budget-activity-table" role="table">
+              <div className="budget-activity-table-head" role="row">
+                <span>Date</span>
+                <span>Payee</span>
+                <span>Memo</span>
+                <span>Outflow</span>
+                <span>Inflow</span>
+                <span>Account</span>
+              </div>
+
+              {drilldown.rows.map((row) => (
+                <button
+                  key={row.id}
+                  className="budget-activity-table-row"
+                  type="button"
+                  onClick={() => onTransactionClick(row)}
+                  title="Open this transaction in the account register"
+                >
+                  <span>{formatShortDate(row.date)}</span>
+                  <strong>{row.payee}</strong>
+                  <span className="budget-activity-memo">
+                    {row.memo || (row.isSplit ? "Split line" : "—")}
+                  </span>
+                  <span className={row.outflow > 0 ? "money-negative" : ""}>
+                    {row.outflow > 0
+                      ? formatMoney(row.outflow, drilldown.currencyCode)
+                      : "—"}
+                  </span>
+                  <span className={row.inflow > 0 ? "money-positive" : ""}>
+                    {row.inflow > 0
+                      ? formatMoney(row.inflow, drilldown.currencyCode)
+                      : "—"}
+                  </span>
+                  <span>{row.accountName}</span>
+                </button>
+              ))}
+            </div>
+
+            <footer className="budget-activity-modal-footer">
+              <div>
+                <span>Total outflow</span>
+                <strong className="money-negative">
+                  {formatMoney(drilldown.totalOutflow, drilldown.currencyCode)}
+                </strong>
+              </div>
+              <div>
+                <span>Total inflow</span>
+                <strong className="money-positive">
+                  {formatMoney(drilldown.totalInflow, drilldown.currencyCode)}
+                </strong>
+              </div>
+              <div>
+                <span>Net activity</span>
+                <strong>
+                  {formatMoney(drilldown.netActivity, drilldown.currencyCode)}
+                </strong>
+              </div>
+            </footer>
+          </>
+        ) : (
+          <div className="budget-activity-empty">
+            No register activity was found for this category in this month.
+          </div>
+        )}
+
+        <div className="budget-activity-modal-note">
+          Click a transaction to open its account register.
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function BudgetPage() {
+  const navigate = useNavigate();
   const [hideArchivedCategories, setHideArchivedCategories] = useState(false);
 
   const {
@@ -581,6 +741,10 @@ export function BudgetPage() {
     moveCategoryGroup,
     categoryMergePreview,
     isCategoryMergePreviewLoading,
+    activityDrilldown,
+    isActivityDrilldownLoading,
+    openActivityDrilldown,
+    closeActivityDrilldown,
     previewCategoryMerge,
     mergeCategory,
     clearCategoryMergePreview,
@@ -782,6 +946,7 @@ export function BudgetPage() {
                 overassignedCategoryIds={overassignedCategoryIds}
                 onSelectCategory={selectCategory}
                 onAssignedChange={updateAssigned}
+                onActivityClick={openActivityDrilldown}
               />
             ))}
           </Card>
@@ -872,6 +1037,16 @@ export function BudgetPage() {
           </Card>
         </aside>
       </div>
+
+      <BudgetActivityDrilldownModal
+        drilldown={activityDrilldown}
+        isLoading={isActivityDrilldownLoading}
+        onClose={closeActivityDrilldown}
+        onTransactionClick={(row) => {
+          closeActivityDrilldown();
+          void navigate(`/accounts/${row.accountId}`);
+        }}
+      />
     </div>
   );
 }

@@ -295,6 +295,41 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
     writeRegisters(this.dependencies.storage, registers);
     return cloneRegister(recalculateRegister(this.dependencies, registers[input.accountId]));
   }
+
+  async reassignPayeeReferences(input: {
+    accountId: string;
+    sourcePayeeId: string;
+    sourceName: string;
+    targetPayeeId: string;
+    targetName: string;
+  }): Promise<AccountRegisterView> {
+    const registers = readRegisters(this.dependencies.storage);
+
+    for (const [accountId, register] of Object.entries(registers)) {
+      const cloned = cloneRegister(register);
+
+      cloned.transactions = cloned.transactions.map((transaction) => {
+        if (isPayeeReferenceMatch(transaction, input.sourcePayeeId, input.sourceName)) {
+          return {
+            ...transaction,
+            payee: input.targetName,
+            payeeId: input.targetPayeeId,
+          };
+        }
+
+        return transaction;
+      });
+
+      registers[accountId] = recalculateRegister(this.dependencies, cloned);
+    }
+
+    if (!registers[input.accountId]) {
+      registers[input.accountId] = createEmptyRegister(this.dependencies, input.accountId);
+    }
+
+    writeRegisters(this.dependencies.storage, registers);
+    return cloneRegister(recalculateRegister(this.dependencies, registers[input.accountId]));
+  }
 }
 
 export function createAccountRegisterService(

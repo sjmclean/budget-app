@@ -26,7 +26,14 @@ interface UseAccountRegisterState {
     previousName: string;
     nextName: string;
   }) => Promise<void>;
+  reassignPayeeReferences: (input: {
+    sourcePayeeId: string;
+    sourceName: string;
+    targetPayeeId: string;
+    targetName: string;
+  }) => Promise<void>;
 }
+
 
 export function useAccountRegister(accountId: string): UseAccountRegisterState {
   const accountRegisters = getAppPersistenceGateway().accountRegisters;
@@ -188,6 +195,20 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     );
   }, [accountId, accountRegisters, runMutation]);
 
+  const reassignPayeeReferences = useCallback(async (input: {
+    sourcePayeeId: string;
+    sourceName: string;
+    targetPayeeId: string;
+    targetName: string;
+  }) => {
+    await runMutation(
+      () => accountRegisters.reassignPayeeReferences({
+        accountId,
+        ...input,
+      }),
+    );
+  }, [accountId, accountRegisters, runMutation]);
+
   return {
     data,
     isLoading,
@@ -203,5 +224,6 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     addAttachment,
     removeAttachment,
     renamePayeeReferences,
+    reassignPayeeReferences,
   };
 }

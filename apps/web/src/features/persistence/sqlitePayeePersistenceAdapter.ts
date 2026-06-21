@@ -1,5 +1,5 @@
 import type { PayeePersistencePort } from "../accounts/payeePersistencePort.js";
-import type { PayeeView, RenamePayeeInput } from "../accounts/payeeService.js";
+import type { MergePayeesInput, PayeeView, RenamePayeeInput } from "../accounts/payeeService.js";
 import { DEFAULT_SQLITE_BUDGET_ID } from "./sqliteAccountPersistenceAdapter.js";
 
 export interface SqlitePayeeRecord {
@@ -25,8 +25,13 @@ export interface SqlitePayeeRepositoryLike {
   findByNormalizedName(budgetId: string, normalizedName: string): Promise<SqlitePayeeRecord | null>;
 }
 
+export interface SqliteTransactionPayeeUpdaterLike {
+  replacePayee(fromPayeeId: string, toPayeeId: string): Promise<void>;
+}
+
 export interface SqlitePayeePersistenceAdapterOptions {
   repository: SqlitePayeeRepositoryLike;
+  transactionPayeeUpdater?: SqliteTransactionPayeeUpdaterLike;
   budgetId?: string;
   now?: () => Date;
 }
@@ -128,6 +133,35 @@ export class SqlitePayeePersistenceAdapter implements PayeePersistencePort {
       ...target,
       name: nextName,
       normalizedName,
+      updatedAt: this.now(),
+    });
+
+    return this.listPayees();
+  }
+
+  async mergePayees(input: MergePayeesInput): Promise<PayeeView[]> {
+    if (input.sourcePayeeId === input.targetPayeeId) {
+      return this.listPayees();
+    }
+
+    const [source, target] = await Promise.all([
+      this.options.repository.findById(input.sourcePayeeId),
+      this.options.repository.findById(input.targetPayeeId),
+    ]);
+
+    if (!source || !target) {
+      return this.listPayees();
+    }
+
+    if (source.budgetId !== target.budgetId) {
+      throw new Error("Cannot merge payees from different budgets.");
+    }
+
+    await this.options.transactionPayeeUpdater?.replacePayee(source.id, target.id);
+    await this.options.repository.archive(source.id);
+    await this.options.repository.update({
+      ...target,
+      isArchived: false,
       updatedAt: this.now(),
     });
 

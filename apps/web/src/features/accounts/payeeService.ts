@@ -14,6 +14,11 @@ export interface RenamePayeeInput {
   name: string;
 }
 
+export interface MergePayeesInput {
+  sourcePayeeId: string;
+  targetPayeeId: string;
+}
+
 export interface PayeeServiceDependencies {
   storage: KeyValueStoragePort;
 }
@@ -119,6 +124,40 @@ class BrowserPersistentPayeeService {
 
     writePayees(this.dependencies.storage, renamed);
     return sortPayees(renamed.filter((payee) => !payee.isArchived));
+  }
+
+  async mergePayees(input: MergePayeesInput): Promise<PayeeView[]> {
+    if (input.sourcePayeeId === input.targetPayeeId) {
+      return sortPayees(readPayees(this.dependencies.storage).filter((payee) => !payee.isArchived));
+    }
+
+    const payees = readPayees(this.dependencies.storage);
+    const source = payees.find((payee) => payee.id === input.sourcePayeeId);
+    const target = payees.find((payee) => payee.id === input.targetPayeeId);
+
+    if (!source || !target) {
+      return sortPayees(payees.filter((payee) => !payee.isArchived));
+    }
+
+    const nextPayees = payees.map((payee) => {
+      if (payee.id === source.id) {
+        return { ...payee, isArchived: true };
+      }
+
+      if (payee.id === target.id) {
+        return {
+          ...payee,
+          isArchived: false,
+          lastUsedAt: maxIsoDate(payee.lastUsedAt, source.lastUsedAt),
+          useCount: payee.useCount + source.useCount,
+        };
+      }
+
+      return payee;
+    });
+
+    writePayees(this.dependencies.storage, nextPayees);
+    return sortPayees(nextPayees.filter((payee) => !payee.isArchived));
   }
 
   async archivePayee(payeeId: string): Promise<PayeeView[]> {

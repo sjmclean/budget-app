@@ -67,4 +67,12 @@ export interface AccountRegisterPersistencePort {
     previousName: string;
     nextName: string;
   }): Promise<AccountRegisterView>;
+
+  reassignPayeeReferences(input: {
+    accountId: string;
+    sourcePayeeId: string;
+    sourceName: string;
+    targetPayeeId: string;
+    targetName: string;
+  }): Promise<AccountRegisterView>;
 }

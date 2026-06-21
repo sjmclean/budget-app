@@ -20,4 +20,5 @@ export type CategoryPersistencePort = Pick<
   | "getCategoryMergePreview"
   | "mergeCategory"
   | "getCategoryOptions"
+  | "getCategoryActivityDrilldown"
 >;

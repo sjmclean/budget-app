@@ -17,8 +17,10 @@ interface StoredRegisterSplitLine extends BudgetActivitySplitLine {}
 interface StoredRegisterTransaction {
   id: string;
   date: string;
+  payee?: string;
   category: string;
   categoryId?: string;
+  memo?: string;
   inflow: number;
   outflow: number;
   transferAccountId?: string;
@@ -26,6 +28,7 @@ interface StoredRegisterTransaction {
 }
 
 interface StoredRegisterView {
+  accountName?: string;
   accountType?: string;
   transactions?: StoredRegisterTransaction[];
 }
@@ -76,10 +79,13 @@ function readBudgetScopedRegisterTransactions(): BudgetActivityRegisterTransacti
 
   try {
     const registers = JSON.parse(raw) as StoredRegisters;
-    const accountTypeById = new Map(readAccounts(browserLocalStorageKeyValueStorage).map((account) => [account.id, account.type]));
+    const accounts = readAccounts(browserLocalStorageKeyValueStorage);
+    const accountTypeById = new Map(accounts.map((account) => [account.id, account.type]));
+    const accountNameById = new Map(accounts.map((account) => [account.id, account.name]));
 
     return Object.entries(registers).flatMap(([accountId, register]) => {
       const accountType = accountTypeById.get(accountId) ?? mapRegisterAccountType(register.accountType);
+      const accountName = accountNameById.get(accountId) ?? register.accountName ?? accountId;
 
       if (accountType === "tracking") {
         return [];
@@ -88,6 +94,7 @@ function readBudgetScopedRegisterTransactions(): BudgetActivityRegisterTransacti
       return (register.transactions ?? []).map((transaction) => ({
         ...transaction,
         accountId,
+        accountName,
         accountType,
       }));
     });
