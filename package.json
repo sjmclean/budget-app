@@ -129,7 +129,9 @@
     "test:v127:budget-activity": "tsx tests/v127-budget-activity-persistence.ts",
     "test:v127": "pnpm test:v127:budget-activity",
     "test:v132": "tsx tests/v132-gateway-selection.ts",
-    "test:release-integrity": "pnpm test:v127 && pnpm test:v130 && pnpm test:v131 && pnpm test:v132"
+    "test:release-integrity": "pnpm test:v127 && pnpm test:v130 && pnpm test:v131 && pnpm test:v132 && pnpm test:v133",
+    "test:v133:sqlite-gateway-repository-wiring": "tsx tests/v133-sqlite-gateway-repository-wiring.ts",
+    "test:v133": "pnpm test:v133:sqlite-gateway-repository-wiring"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
