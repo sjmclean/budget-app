@@ -1,9 +1,11 @@
 import { Card } from "../components/ui/Card";
+import { getPersistenceModeSummary } from "../features/persistence/persistenceMode";
 import { useUIStore, type ThemeMode } from "../stores/uiStore";
 
 export function SettingsPage() {
   const theme = useUIStore((state) => state.theme);
   const setTheme = useUIStore((state) => state.setTheme);
+  const persistenceMode = getPersistenceModeSummary();
 
   return (
     <div className="page-stack">
@@ -32,6 +34,16 @@ export function SettingsPage() {
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
+        </div>
+
+
+        <div className="settings-row">
+          <div>
+            <h2>Persistence mode</h2>
+            <p className="muted">{persistenceMode.description}</p>
+          </div>
+
+          <strong>{persistenceMode.label}</strong>
         </div>
 
         <div className="settings-row">
