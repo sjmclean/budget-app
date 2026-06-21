@@ -13,6 +13,7 @@ import type { AccountRegisterApplicationService } from "../../../../../packages/
 
 export interface SqliteAccountRegisterAccountRepositoryLike {
   getById(id: string): Promise<Account | null>;
+  findByBudget(budgetId: string): Promise<Account[]>;
 }
 
 export interface SqliteAccountRegisterPayeeRepositoryLike {
@@ -25,6 +26,7 @@ export interface SqliteAccountRegisterTransactionRepositoryLike {
   create(transaction: Transaction): Promise<void>;
   update(transaction: Transaction): Promise<void>;
   getById(id: string): Promise<Transaction | null>;
+  findByAccount(accountId: string): Promise<Transaction[]>;
   softDelete(id: string): Promise<void>;
 }
 
@@ -40,11 +42,11 @@ export interface SqliteAccountRegisterPersistenceAdapterOptions {
 /**
  * SQLite-backed foundation for the account register UI persistence port.
  *
- * v1.35 intentionally implements standard transaction persistence first. It
- * avoids browser/localStorage dependencies and writes through repository-shaped
- * contracts so a desktop/Tauri runtime can compose real SQLite repositories.
- * Transfers, splits, and attachment mutation are deliberately guarded until the
- * corresponding SQLite domain behaviours are migrated and validated.
+ * v1.35 introduced standard transaction persistence. v1.36 extends the
+ * foundation to transfer mutation so the two-account register workflow can be
+ * validated without browser/localStorage dependencies. Splits and attachment
+ * mutation remain deliberately guarded until their SQLite domain behaviours are
+ * migrated and validated.
  */
 export class SqliteAccountRegisterPersistenceAdapter implements AccountRegisterPersistencePort {
   private readonly now: () => Date;
@@ -63,9 +65,47 @@ export class SqliteAccountRegisterPersistenceAdapter implements AccountRegisterP
     accountId: string;
     transaction: NewRegisterTransactionInput;
   }): Promise<AccountRegisterView> {
-    assertSupportedStandardTransaction(input.transaction);
+    assertSupportedMutation(input.transaction);
 
     const account = await this.requireAccount(input.accountId);
+
+    if (isTransferPayee(input.transaction.payee)) {
+      const targetAccount = await this.requireTransferAccount(account, input.transaction.payee);
+      const now = this.now();
+      const amount = Math.abs(toSignedAmount(input.transaction));
+
+      if (amount <= 0) {
+        throw new Error("SQLite register adapter transfer amount must be non-zero.");
+      }
+
+      const sourceAmount = input.transaction.inflow > 0 ? amount : -amount;
+      const targetAmount = -sourceAmount;
+
+      await this.options.transactionRepository.create(createTransferTransaction({
+        id: this.createId(),
+        budgetId: account.budgetId,
+        accountId: account.id,
+        transferAccountId: targetAccount.id,
+        date: input.transaction.date,
+        memo: input.transaction.memo ?? null,
+        amount: sourceAmount,
+        now,
+      }));
+
+      await this.options.transactionRepository.create(createTransferTransaction({
+        id: this.createId(),
+        budgetId: account.budgetId,
+        accountId: targetAccount.id,
+        transferAccountId: account.id,
+        date: input.transaction.date,
+        memo: input.transaction.memo ?? null,
+        amount: targetAmount,
+        now,
+      }));
+
+      return this.getAccountRegisterView({ accountId: input.accountId });
+    }
+
     const payeeId = await this.resolvePayeeId(account.budgetId, input.transaction.payee, input.transaction.payeeId);
     const now = this.now();
 
@@ -93,7 +133,7 @@ export class SqliteAccountRegisterPersistenceAdapter implements AccountRegisterP
     accountId: string;
     transaction: UpdateRegisterTransactionInput;
   }): Promise<AccountRegisterView> {
-    assertSupportedStandardTransaction(input.transaction);
+    assertSupportedMutation(input.transaction);
 
     const existing = await this.options.transactionRepository.getById(input.transaction.id);
 
@@ -101,11 +141,43 @@ export class SqliteAccountRegisterPersistenceAdapter implements AccountRegisterP
       return this.getAccountRegisterView({ accountId: input.accountId });
     }
 
-    if (existing.type !== TransactionType.Standard || existing.transferAccountId) {
-      throw new Error("SQLite register adapter v1.35 only updates standard transactions.");
+    const account = await this.requireAccount(input.accountId);
+
+    if (existing.type === TransactionType.Transfer || existing.transferAccountId) {
+      const targetAccount = await this.requireTransferAccount(account, input.transaction.payee);
+      const opposite = await this.findOpposingTransfer(existing);
+      const amount = Math.abs(toSignedAmount(input.transaction));
+
+      if (amount <= 0) {
+        throw new Error("SQLite register adapter transfer amount must be non-zero.");
+      }
+
+      const sourceAmount = input.transaction.inflow > 0 ? amount : -amount;
+      const now = this.now();
+
+      await this.options.transactionRepository.update({
+        ...existing,
+        transferAccountId: targetAccount.id,
+        date: input.transaction.date,
+        memo: input.transaction.memo ?? null,
+        amount: sourceAmount,
+        updatedAt: now,
+      });
+
+      if (opposite) {
+        await this.options.transactionRepository.update({
+          ...opposite,
+          transferAccountId: account.id,
+          date: input.transaction.date,
+          memo: input.transaction.memo ?? null,
+          amount: -sourceAmount,
+          updatedAt: now,
+        });
+      }
+
+      return this.getAccountRegisterView({ accountId: input.accountId });
     }
 
-    const account = await this.requireAccount(input.accountId);
     const payeeId = await this.resolvePayeeId(account.budgetId, input.transaction.payee, input.transaction.payeeId);
 
     await this.options.transactionRepository.update({
@@ -135,14 +207,27 @@ export class SqliteAccountRegisterPersistenceAdapter implements AccountRegisterP
       return this.getAccountRegisterView({ accountId: input.accountId });
     }
 
+    const nextClearedStatus =
+      existing.clearedStatus === ClearedStatus.Cleared
+        ? ClearedStatus.Uncleared
+        : ClearedStatus.Cleared;
+    const updatedAt = this.now();
+
     await this.options.transactionRepository.update({
       ...existing,
-      clearedStatus:
-        existing.clearedStatus === ClearedStatus.Cleared
-          ? ClearedStatus.Uncleared
-          : ClearedStatus.Cleared,
-      updatedAt: this.now(),
+      clearedStatus: nextClearedStatus,
+      updatedAt,
     });
+
+    const opposite = await this.findOpposingTransfer(existing);
+
+    if (opposite && opposite.clearedStatus !== ClearedStatus.Reconciled) {
+      await this.options.transactionRepository.update({
+        ...opposite,
+        clearedStatus: nextClearedStatus,
+        updatedAt,
+      });
+    }
 
     return this.getAccountRegisterView({ accountId: input.accountId });
   }
@@ -155,6 +240,12 @@ export class SqliteAccountRegisterPersistenceAdapter implements AccountRegisterP
 
     if (existing && existing.accountId === input.accountId && !existing.isDeleted) {
       await this.options.transactionRepository.softDelete(input.transactionId);
+
+      const opposite = await this.findOpposingTransfer(existing);
+
+      if (opposite && !opposite.isDeleted) {
+        await this.options.transactionRepository.softDelete(opposite.id);
+      }
     }
 
     return this.getAccountRegisterView({ accountId: input.accountId });
@@ -187,6 +278,40 @@ export class SqliteAccountRegisterPersistenceAdapter implements AccountRegisterP
     }
 
     return account;
+  }
+
+  private async requireTransferAccount(sourceAccount: Account, payeeName: string): Promise<Account> {
+    const transferAccountName = getTransferAccountName(payeeName);
+    const accounts = await this.options.accountRepository.findByBudget(sourceAccount.budgetId);
+    const targetAccount = accounts.find(
+      (account) =>
+        account.id !== sourceAccount.id &&
+        normalizeForLookup(account.name) === normalizeForLookup(transferAccountName),
+    );
+
+    if (!targetAccount) {
+      throw new Error(`Transfer account not found: ${transferAccountName}`);
+    }
+
+    return targetAccount;
+  }
+
+  private async findOpposingTransfer(transaction: Transaction): Promise<Transaction | null> {
+    if (!transaction.transferAccountId) {
+      return null;
+    }
+
+    const candidates = await this.options.transactionRepository.findByAccount(transaction.transferAccountId);
+
+    return candidates.find(
+      (candidate) =>
+        candidate.id !== transaction.id &&
+        !candidate.isDeleted &&
+        candidate.type === TransactionType.Transfer &&
+        candidate.transferAccountId === transaction.accountId &&
+        candidate.date === transaction.date &&
+        candidate.amount === -transaction.amount,
+    ) ?? null;
   }
 
   private async resolvePayeeId(
@@ -236,14 +361,43 @@ export function createSqliteAccountRegisterPersistenceAdapter(
   return new SqliteAccountRegisterPersistenceAdapter(options);
 }
 
-function assertSupportedStandardTransaction(input: NewRegisterTransactionInput | UpdateRegisterTransactionInput): void {
+function assertSupportedMutation(input: NewRegisterTransactionInput | UpdateRegisterTransactionInput): void {
   if (input.splitLines && input.splitLines.length > 0) {
     throw new Error("SQLite register adapter v1.35 does not support split transaction mutation yet.");
   }
 
-  if (isTransferPayee(input.payee)) {
-    throw new Error("SQLite register adapter v1.35 does not support transfer mutation yet.");
-  }
+}
+
+function createTransferTransaction(input: {
+  id: string;
+  budgetId: string;
+  accountId: string;
+  transferAccountId: string;
+  date: string;
+  memo: string | null;
+  amount: number;
+  now: Date;
+}): Transaction {
+  return {
+    id: input.id,
+    budgetId: input.budgetId,
+    accountId: input.accountId,
+    payeeId: null,
+    categoryId: null,
+    transferAccountId: input.transferAccountId,
+    type: TransactionType.Transfer,
+    date: input.date,
+    memo: input.memo,
+    amount: input.amount,
+    clearedStatus: ClearedStatus.Uncleared,
+    isDeleted: false,
+    createdAt: input.now,
+    updatedAt: input.now,
+  };
+}
+
+function getTransferAccountName(payeeName: string): string {
+  return normaliseName(payeeName).replace(/^transfer\s*:\s*/i, "");
 }
 
 function toSignedAmount(input: NewRegisterTransactionInput | UpdateRegisterTransactionInput): number {

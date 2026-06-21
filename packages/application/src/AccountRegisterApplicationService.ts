@@ -25,6 +25,7 @@ export interface RegisterTransactionView {
   runningBalance: number;
   cleared: boolean;
   reconciled: boolean;
+  transferAccountId?: string;
 }
 
 export interface AccountRegisterView {
@@ -66,13 +67,15 @@ export class AccountRegisterApplicationService {
       throw new Error(`Account not found: ${input.accountId}`);
     }
 
-    const [allPayees, categoryNameById, attachmentCountByTransactionId] = await Promise.all([
+    const [allPayees, allAccounts, categoryNameById, attachmentCountByTransactionId] = await Promise.all([
       this.payeeRepo.findByBudget(account.budgetId),
+      this.accountRepo.findByBudget(account.budgetId),
       this.loadCategoryNameById(account.budgetId),
       this.loadAttachmentCounts(account.budgetId)
     ]);
 
     const payeeNameById = new Map(allPayees.map((payee) => [payee.id, payee.name]));
+    const accountNameById = new Map(allAccounts.map((account) => [account.id, account.name]));
 
     const transactions = (await this.transactionRepo.findByAccount(account.id))
       .filter((transaction) => !transaction.isDeleted)
@@ -92,6 +95,7 @@ export class AccountRegisterApplicationService {
       .map((transaction) => toRegisterTransactionView({
         transaction,
         payeeName: transaction.payeeId ? payeeNameById.get(transaction.payeeId) : undefined,
+        transferAccountName: transaction.transferAccountId ? accountNameById.get(transaction.transferAccountId) : undefined,
         categoryName: transaction.categoryId ? categoryNameById.get(transaction.categoryId) : undefined,
         attachmentCount: attachmentCountByTransactionId.get(transaction.id) ?? 0,
         runningBalance: runningBalanceById.get(transaction.id) ?? account.openingBalance
@@ -142,6 +146,7 @@ export class AccountRegisterApplicationService {
 function toRegisterTransactionView(input: {
   transaction: Transaction;
   payeeName?: string;
+  transferAccountName?: string;
   categoryName?: string;
   attachmentCount: number;
   runningBalance: number;
@@ -153,14 +158,17 @@ function toRegisterTransactionView(input: {
     date: input.transaction.date,
     flag: null,
     attachmentCount: input.attachmentCount,
-    payee: input.payeeName ?? "",
-    category: input.categoryName ?? "",
+    payee: input.transaction.transferAccountId
+      ? `Transfer: ${input.transferAccountName ?? "Account"}`
+      : input.payeeName ?? "",
+    category: input.transaction.transferAccountId ? "Transfer" : input.categoryName ?? "",
     memo: input.transaction.memo ?? undefined,
     inflow: amount > 0 ? amount : 0,
     outflow: amount < 0 ? Math.abs(amount) : 0,
     runningBalance: input.runningBalance,
     cleared: input.transaction.clearedStatus === ClearedStatus.Cleared,
-    reconciled: input.transaction.clearedStatus === ClearedStatus.Reconciled
+    reconciled: input.transaction.clearedStatus === ClearedStatus.Reconciled,
+    transferAccountId: input.transaction.transferAccountId ?? undefined
   };
 }
 
