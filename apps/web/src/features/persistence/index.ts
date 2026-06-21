@@ -40,5 +40,9 @@ export type {
   SqlitePayeeRecord,
   SqlitePayeeRepositoryLike,
 } from "./sqlitePayeePersistenceAdapter";
+export {
+  bootstrapHostPersistenceGateway,
+  getHostPersistenceGateway,
+} from "./hostPersistenceGateway";
 export { createSqlitePersistenceGateway } from "./sqlitePersistenceGateway";
 export type { SqlitePersistenceGatewayDependencies } from "./sqlitePersistenceGateway";

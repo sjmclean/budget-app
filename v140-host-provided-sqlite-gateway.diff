@@ -1,0 +1,298 @@
+diff --git a/apps/web/src/features/persistence/hostPersistenceGateway.ts b/apps/web/src/features/persistence/hostPersistenceGateway.ts
+new file mode 100644
+index 0000000..1d2db0e
+--- /dev/null
++++ b/apps/web/src/features/persistence/hostPersistenceGateway.ts
+@@ -0,0 +1,34 @@
++import type { AppPersistenceGateway } from "./appPersistenceGateway";
++import { configureAppPersistenceGateway } from "./appPersistenceGatewayFactory";
++
++declare global {
++  interface Window {
++    __BUDGET_APP_PERSISTENCE_GATEWAY__?: AppPersistenceGateway;
++  }
++}
++
++/**
++ * Runtime host integration point for desktop/Tauri persistence.
++ *
++ * Browser builds must not import SQLite repositories or native database drivers.
++ * Instead, a host runtime can compose an AppPersistenceGateway and expose it on
++ * window before React renders. If no host gateway is present, the app keeps the
++ * browser-localStorage fallback selected by appPersistenceGatewayFactory.
++ */
++export function getHostPersistenceGateway(): AppPersistenceGateway | null {
++  if (typeof window === "undefined") {
++    return null;
++  }
++
++  return window.__BUDGET_APP_PERSISTENCE_GATEWAY__ ?? null;
++}
++
++export function bootstrapHostPersistenceGateway(): AppPersistenceGateway | null {
++  const hostGateway = getHostPersistenceGateway();
++
++  if (hostGateway) {
++    configureAppPersistenceGateway(hostGateway);
++  }
++
++  return hostGateway;
++}
+diff --git a/apps/web/src/features/persistence/index.ts b/apps/web/src/features/persistence/index.ts
+index 2708f8a..701279f 100644
+--- a/apps/web/src/features/persistence/index.ts
++++ b/apps/web/src/features/persistence/index.ts
+@@ -40,5 +40,9 @@ export type {
+   SqlitePayeeRecord,
+   SqlitePayeeRepositoryLike,
+ } from "./sqlitePayeePersistenceAdapter";
++export {
++  bootstrapHostPersistenceGateway,
++  getHostPersistenceGateway,
++} from "./hostPersistenceGateway";
+ export { createSqlitePersistenceGateway } from "./sqlitePersistenceGateway";
+ export type { SqlitePersistenceGatewayDependencies } from "./sqlitePersistenceGateway";
+diff --git a/apps/web/src/main.tsx b/apps/web/src/main.tsx
+index 74ff120..f99c178 100644
+--- a/apps/web/src/main.tsx
++++ b/apps/web/src/main.tsx
+@@ -1,9 +1,12 @@
+ import React from "react";
+ import ReactDOM from "react-dom/client";
+ import { App } from "./App";
++import { bootstrapHostPersistenceGateway } from "./features/persistence";
+ import "./styles/globals.css";
+ import "./styles/register.css";
+ 
++bootstrapHostPersistenceGateway();
++
+ ReactDOM.createRoot(document.getElementById("root")!).render(
+   <React.StrictMode>
+     <App />
+diff --git a/docs/v140-host-provided-sqlite-gateway.md b/docs/v140-host-provided-sqlite-gateway.md
+new file mode 100644
+index 0000000..05d95e8
+--- /dev/null
++++ b/docs/v140-host-provided-sqlite-gateway.md
+@@ -0,0 +1,44 @@
++# v1.40 Host-Provided SQLite Gateway
++
++## Goal
++
++Activate the runtime persistence seam without importing SQLite repository or database construction code into the browser bundle.
++
++## Decision
++
++The web app now supports a host-provided persistence gateway exposed before React renders:
++
++```ts
++window.__BUDGET_APP_PERSISTENCE_GATEWAY__
++```
++
++If the host provides a gateway, the bootstrap layer configures it as the active application persistence gateway. If no gateway is provided, the browser localStorage gateway remains the fallback.
++
++## Runtime Shape
++
++```text
++Desktop/Tauri host
++  ↓
++composes AppPersistenceGateway
++  ↓
++sets window.__BUDGET_APP_PERSISTENCE_GATEWAY__
++  ↓
++main.tsx calls bootstrapHostPersistenceGateway()
++  ↓
++React renders
++  ↓
++UI consumers call getAppPersistenceGateway()
++```
++
++## Guardrail
++
++The browser bootstrap must not import concrete SQLite repositories, database factories, or native database drivers. The host owns SQLite construction.
++
++## Validation
++
++`tests/v140-host-provided-persistence-gateway.ts` validates:
++
++- Browser fallback remains localStorage when no host gateway exists.
++- A host-provided gateway becomes the active no-argument runtime gateway.
++- `main.tsx` bootstraps persistence before React renders.
++- Browser bootstrap files do not import concrete SQLite repository/database code.
+diff --git a/package.json b/package.json
+index bfc306c..1039a03 100644
+--- a/package.json
++++ b/package.json
+@@ -129,7 +129,7 @@
+     "test:v127:budget-activity": "tsx tests/v127-budget-activity-persistence.ts",
+     "test:v127": "pnpm test:v127:budget-activity",
+     "test:v132": "tsx tests/v132-gateway-selection.ts",
+-    "test:release-integrity": "pnpm test:v127 && pnpm test:v130 && pnpm test:v131 && pnpm test:v132 && pnpm test:v133 && pnpm test:v134 && pnpm test:v135 && pnpm test:v136 && pnpm test:v137 && pnpm test:v138 && pnpm test:v139",
++    "test:release-integrity": "pnpm test:v127 && pnpm test:v130 && pnpm test:v131 && pnpm test:v132 && pnpm test:v133 && pnpm test:v134 && pnpm test:v135 && pnpm test:v136 && pnpm test:v137 && pnpm test:v138 && pnpm test:v139 && pnpm test:v140",
+     "test:v133:sqlite-gateway-repository-wiring": "tsx tests/v133-sqlite-gateway-repository-wiring.ts",
+     "test:v133": "pnpm test:v133:sqlite-gateway-repository-wiring",
+     "test:v134:runtime-activation-audit": "tsx tests/v134-runtime-activation-audit.ts",
+@@ -143,7 +143,9 @@
+     "test:v138:runtime-gateway-activation-prep": "tsx tests/v138-runtime-gateway-activation-prep.ts",
+     "test:v138": "pnpm test:v138:runtime-gateway-activation-prep",
+     "test:v139:sqlite-runtime-activation": "tsx tests/v139-sqlite-runtime-activation.ts",
+-    "test:v139": "pnpm test:v139:sqlite-runtime-activation"
++    "test:v139": "pnpm test:v139:sqlite-runtime-activation",
++    "test:v140:host-provided-persistence-gateway": "tsx tests/v140-host-provided-persistence-gateway.ts",
++    "test:v140": "pnpm test:v140:host-provided-persistence-gateway"
+   },
+   "dependencies": {
+     "better-sqlite3": "^12.11.1",
+diff --git a/tests/v140-host-provided-persistence-gateway.ts b/tests/v140-host-provided-persistence-gateway.ts
+new file mode 100644
+index 0000000..abfc4b2
+--- /dev/null
++++ b/tests/v140-host-provided-persistence-gateway.ts
+@@ -0,0 +1,117 @@
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++
++import type { AppPersistenceGateway } from "../apps/web/src/features/persistence/appPersistenceGateway.js";
++import {
++  bootstrapHostPersistenceGateway,
++  getAppPersistenceGateway,
++  getHostPersistenceGateway,
++  resetAppPersistenceGateway,
++} from "../apps/web/src/features/persistence/index.js";
++import { browserLocalStoragePersistenceGateway } from "../apps/web/src/features/persistence/browserLocalStoragePersistenceGateway.js";
++
++const hostGateway: AppPersistenceGateway = {
++  ...browserLocalStoragePersistenceGateway,
++  metadata: {
++    kind: "sqlite-adapter",
++    label: "Host-provided SQLite gateway",
++    description: "Synthetic host-provided gateway used by v1.40 validation.",
++    isProductionPersistence: false,
++  },
++};
++
++try {
++  validateBrowserFallbackWithoutHostGateway();
++  validateHostGatewayIsConfiguredBeforeRuntimeUse();
++  validateMainBootstrapsHostPersistenceBeforeRendering();
++  validateHostBootstrapDoesNotImportSQLiteRepositories();
++
++  console.log("v1.40 host-provided persistence gateway validation passed");
++} finally {
++  delete (globalThis as typeof globalThis & { window?: unknown }).window;
++  resetAppPersistenceGateway();
++}
++
++function validateBrowserFallbackWithoutHostGateway(): void {
++  resetAppPersistenceGateway();
++  (globalThis as typeof globalThis & { window: Record<string, unknown> }).window = {};
++
++  assert.equal(
++    getHostPersistenceGateway(),
++    null,
++    "missing host gateway should return null",
++  );
++
++  assert.equal(
++    bootstrapHostPersistenceGateway(),
++    null,
++    "bootstrap should not configure anything when no host gateway is supplied",
++  );
++
++  assert.equal(
++    getAppPersistenceGateway().metadata.kind,
++    "browser-local-storage",
++    "browser fallback should remain localStorage without a host gateway",
++  );
++}
++
++function validateHostGatewayIsConfiguredBeforeRuntimeUse(): void {
++  resetAppPersistenceGateway();
++  (globalThis as typeof globalThis & { window: Record<string, unknown> }).window = {
++    __BUDGET_APP_PERSISTENCE_GATEWAY__: hostGateway,
++  };
++
++  assert.equal(
++    getHostPersistenceGateway(),
++    hostGateway,
++    "host gateway should be read from the runtime global",
++  );
++
++  assert.equal(
++    bootstrapHostPersistenceGateway(),
++    hostGateway,
++    "bootstrap should return the configured host gateway",
++  );
++
++  assert.equal(
++    getAppPersistenceGateway().metadata.kind,
++    "sqlite-adapter",
++    "no-argument gateway selection should use the host-provided SQLite gateway after bootstrap",
++  );
++
++  assert.equal(
++    getAppPersistenceGateway().accountRegisters,
++    hostGateway.accountRegisters,
++    "runtime register persistence should come from the host-provided gateway",
++  );
++}
++
++function validateMainBootstrapsHostPersistenceBeforeRendering(): void {
++  const source = readFileSync("apps/web/src/main.tsx", "utf8");
++  const bootstrapIndex = source.indexOf("bootstrapHostPersistenceGateway();");
++  const renderIndex = source.indexOf("ReactDOM.createRoot");
++
++  assert.ok(bootstrapIndex >= 0, "main.tsx should call bootstrapHostPersistenceGateway");
++  assert.ok(renderIndex >= 0, "main.tsx should still render React");
++  assert.ok(
++    bootstrapIndex < renderIndex,
++    "host persistence bootstrap must run before React renders",
++  );
++}
++
++function validateHostBootstrapDoesNotImportSQLiteRepositories(): void {
++  const filesToCheck = [
++    "apps/web/src/main.tsx",
++    "apps/web/src/features/persistence/hostPersistenceGateway.ts",
++  ];
++
++  for (const file of filesToCheck) {
++    const source = readFileSync(file, "utf8");
++
++    assert.doesNotMatch(
++      source,
++      /Sqlite[A-Z].*Repository|better-sqlite3|createDatabase|resetDatabase/,
++      `${file} should not import or construct concrete SQLite repositories in the browser bundle`,
++    );
++  }
++}
+diff --git a/v139-package-script-repair.diff b/v139-package-script-repair.diff
+deleted file mode 100644
+index cdde49e..0000000
+--- a/v139-package-script-repair.diff
++++ /dev/null
+@@ -1,24 +0,0 @@
+-diff --git a/package.json b/package.json
+-index b21a21b..bfc306c 100644
+---- a/package.json
+-+++ b/package.json
+-@@ -129,7 +129,7 @@
+-     "test:v127:budget-activity": "tsx tests/v127-budget-activity-persistence.ts",
+-     "test:v127": "pnpm test:v127:budget-activity",
+-     "test:v132": "tsx tests/v132-gateway-selection.ts",
+--    "test:release-integrity": "pnpm test:v127 && pnpm test:v130 && pnpm test:v131 && pnpm test:v132 && pnpm test:v133 && pnpm test:v134 && pnpm test:v135 && pnpm test:v136 && pnpm test:v137 && pnpm test:v138",
+-+    "test:release-integrity": "pnpm test:v127 && pnpm test:v130 && pnpm test:v131 && pnpm test:v132 && pnpm test:v133 && pnpm test:v134 && pnpm test:v135 && pnpm test:v136 && pnpm test:v137 && pnpm test:v138 && pnpm test:v139",
+-     "test:v133:sqlite-gateway-repository-wiring": "tsx tests/v133-sqlite-gateway-repository-wiring.ts",
+-     "test:v133": "pnpm test:v133:sqlite-gateway-repository-wiring",
+-     "test:v134:runtime-activation-audit": "tsx tests/v134-runtime-activation-audit.ts",
+-@@ -141,7 +141,9 @@
+-     "test:v137:runtime-activation-assessment": "tsx tests/v137-runtime-activation-assessment.ts",
+-     "test:v137": "pnpm test:v137:runtime-activation-assessment",
+-     "test:v138:runtime-gateway-activation-prep": "tsx tests/v138-runtime-gateway-activation-prep.ts",
+--    "test:v138": "pnpm test:v138:runtime-gateway-activation-prep"
+-+    "test:v138": "pnpm test:v138:runtime-gateway-activation-prep",
+-+    "test:v139:sqlite-runtime-activation": "tsx tests/v139-sqlite-runtime-activation.ts",
+-+    "test:v139": "pnpm test:v139:sqlite-runtime-activation"
+-   },
+-   "dependencies": {
+-     "better-sqlite3": "^12.11.1",
