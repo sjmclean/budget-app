@@ -6,56 +6,20 @@ import type {
   BudgetMonthView,
   BudgetViewService,
 } from "./budgetViewTypes";
-import { readAccounts } from "../accounts/accountService";
+import type { BudgetActivityPersistencePort } from "./budgetActivityPersistencePort";
 
 const STORAGE_KEY_PREFIX = "budget-app.budget-view.v1";
-const REGISTER_STORAGE_KEY = "budget-app.account-registers.v1";
-const SCHEDULED_TRANSACTIONS_STORAGE_KEY = "budget-app.scheduled-transactions.v1";
+const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
+const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
 
-interface StoredRegisterSplitLine {
-  id: string;
-  category: string;
-  categoryId?: string;
-  memo?: string;
-  inflow: number;
-  outflow: number;
-}
-
-interface StoredScheduledTransaction {
-  id: string;
-  category: string;
-  categoryId?: string;
+export interface BudgetViewServiceDependencies {
+  budgetActivity: BudgetActivityPersistencePort;
 }
 
 interface CategoryLocation {
   group: BudgetCategoryGroupView;
   category: BudgetCategoryView;
 }
-
-interface StoredRegisterTransaction {
-  id: string;
-  date: string;
-  category: string;
-  categoryId?: string;
-  inflow: number;
-  outflow: number;
-  transferAccountId?: string;
-  splitLines?: StoredRegisterSplitLine[];
-}
-
-const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
-const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
-
-interface StoredRegisterView {
-  accountType?: string;
-  transactions?: StoredRegisterTransaction[];
-}
-
-interface BudgetScopedRegisterTransaction extends StoredRegisterTransaction {
-  accountId: string;
-}
-
-type StoredRegisters = Record<string, StoredRegisterView>;
 
 const starterCategoryGroups: Array<{
   id: string;
@@ -214,13 +178,18 @@ function readStoredBudgetView(budgetId: string, month: string): BudgetMonthView 
 }
 
 
-function applyRegisterActivity(view: BudgetMonthView, month: string): BudgetMonthView {
+async function applyRegisterActivity(
+  dependencies: BudgetViewServiceDependencies,
+  view: BudgetMonthView,
+  month: string,
+): Promise<BudgetMonthView> {
   const categoryLookup = createCategoryLookup(view);
-  const accountTypeById = new Map(readAccounts().map((account) => [account.id, account.type]));
+  const transactions = await dependencies.budgetActivity.listRegisterTransactionsForBudgetActivity();
+  const accountTypeById = new Map(transactions.map((transaction) => [transaction.accountId, transaction.accountType]));
   const activityByCategoryId = new Map<string, number>();
   let readyToAssignIncome = 0;
 
-  for (const transaction of readBudgetScopedRegisterTransactions()) {
+  for (const transaction of transactions) {
     if (!transaction.date.startsWith(month)) {
       continue;
     }
@@ -356,58 +325,29 @@ function isReadyToAssignCategory(categoryKey: string): boolean {
   ].includes(categoryKey);
 }
 
-function readBudgetScopedRegisterTransactions(): BudgetScopedRegisterTransaction[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  const raw = window.localStorage.getItem(REGISTER_STORAGE_KEY);
-
-  if (!raw) {
-    return [];
-  }
-
-  try {
-    const registers = JSON.parse(raw) as StoredRegisters;
-    const accountTypeById = new Map(readAccounts().map((account) => [account.id, account.type]));
-
-    return Object.entries(registers).flatMap(([accountId, register]) => {
-      const accountType = accountTypeById.get(accountId) ?? mapRegisterAccountType(register.accountType);
-
-      if (accountType === "tracking") {
-        return [];
-      }
-
-      return (register.transactions ?? []).map((transaction) => ({
-        ...transaction,
-        accountId,
-      }));
-    });
-  } catch {
-    return [];
-  }
+async function saveBudgetView(
+  dependencies: BudgetViewServiceDependencies,
+  view: BudgetMonthView,
+  month: string,
+): Promise<BudgetMonthView> {
+  const next = await applyRegisterActivity(dependencies, recalculateBudget(view), month);
+  window.localStorage.setItem(getStorageKey(next.budgetId, month), JSON.stringify(next));
+  return cloneBudgetView(next);
 }
 
-function mapRegisterAccountType(accountType: string | undefined): "on-budget" | "credit-card" | "tracking" | null {
-  if (!accountType) {
-    return null;
+async function loadBudgetView(
+  dependencies: BudgetViewServiceDependencies,
+  budgetId: string,
+  month: string,
+): Promise<BudgetMonthView> {
+  const stored = readStoredBudgetView(budgetId, month);
+
+  if (stored) {
+    return cloneBudgetView(await applyRegisterActivity(dependencies, stored, month));
   }
 
-  const normalised = accountType.toLowerCase().replace(/[^a-z0-9]+/g, "");
-
-  if (normalised === "tracking") {
-    return "tracking";
-  }
-
-  if (normalised === "creditcard") {
-    return "credit-card";
-  }
-
-  if (normalised === "onbudget") {
-    return "on-budget";
-  }
-
-  return null;
+  const starter = createStarterBudgetView(budgetId, month);
+  return saveBudgetView(dependencies, starter, month);
 }
 
 function getCategoryOptions(view: BudgetMonthView): BudgetCategoryOption[] {
@@ -439,87 +379,12 @@ function findCategoryLocation(view: BudgetMonthView, categoryId: string): Catego
   return null;
 }
 
-function createCategoryReferenceMatcher(
-  category: BudgetCategoryView,
-): (value: string, categoryId?: string) => boolean {
-  const sourceKeys = new Set([
-    normaliseCategoryKey(category.id),
-    normaliseCategoryKey(category.name),
-  ]);
-
-  return (value: string, categoryId?: string) =>
-    sourceKeys.has(normaliseCategoryKey(value)) ||
-    Boolean(categoryId && sourceKeys.has(normaliseCategoryKey(categoryId)));
-}
-
-function countRegisterCategoryReferences(category: BudgetCategoryView): {
-  registerTransactionCount: number;
-  registerSplitLineCount: number;
-} {
-  if (typeof window === "undefined") {
-    return { registerTransactionCount: 0, registerSplitLineCount: 0 };
-  }
-
-  const raw = window.localStorage.getItem(REGISTER_STORAGE_KEY);
-
-  if (!raw) {
-    return { registerTransactionCount: 0, registerSplitLineCount: 0 };
-  }
-
-  try {
-    const registers = JSON.parse(raw) as StoredRegisters;
-    const matchesSourceCategory = createCategoryReferenceMatcher(category);
-    let registerTransactionCount = 0;
-    let registerSplitLineCount = 0;
-
-    for (const register of Object.values(registers)) {
-      for (const transaction of register.transactions ?? []) {
-        if (matchesSourceCategory(transaction.category, transaction.categoryId)) {
-          registerTransactionCount += 1;
-        }
-
-        for (const splitLine of transaction.splitLines ?? []) {
-          if (matchesSourceCategory(splitLine.category, splitLine.categoryId)) {
-            registerSplitLineCount += 1;
-          }
-        }
-      }
-    }
-
-    return { registerTransactionCount, registerSplitLineCount };
-  } catch {
-    return { registerTransactionCount: 0, registerSplitLineCount: 0 };
-  }
-}
-
-function countScheduledCategoryReferences(category: BudgetCategoryView): number {
-  if (typeof window === "undefined") {
-    return 0;
-  }
-
-  const raw = window.localStorage.getItem(SCHEDULED_TRANSACTIONS_STORAGE_KEY);
-
-  if (!raw) {
-    return 0;
-  }
-
-  try {
-    const scheduledTransactions = JSON.parse(raw) as StoredScheduledTransaction[];
-    const matchesSourceCategory = createCategoryReferenceMatcher(category);
-
-    return Array.isArray(scheduledTransactions)
-      ? scheduledTransactions.filter((transaction) => matchesSourceCategory(transaction.category, transaction.categoryId)).length
-      : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function createCategoryMergePreview(
+async function createCategoryMergePreview(
+  dependencies: BudgetViewServiceDependencies,
   view: BudgetMonthView,
   sourceCategoryId: string,
   targetCategoryId: string,
-): CategoryMergePreview {
+): Promise<CategoryMergePreview> {
   if (sourceCategoryId === targetCategoryId) {
     throw new Error("Choose two different categories to preview a merge.");
   }
@@ -531,8 +396,10 @@ function createCategoryMergePreview(
     throw new Error("Category not found.");
   }
 
-  const registerCounts = countRegisterCategoryReferences(source.category);
-  const scheduledTransactionCount = countScheduledCategoryReferences(source.category);
+  const referenceCounts = await dependencies.budgetActivity.countCategoryReferences({
+    id: source.category.id,
+    name: source.category.name,
+  });
 
   return {
     sourceCategoryId: source.category.id,
@@ -552,176 +419,24 @@ function createCategoryMergePreview(
     combinedAssigned: source.category.assigned + target.category.assigned,
     combinedActivity: source.category.activity + target.category.activity,
     combinedAvailable: source.category.available + target.category.available,
-    registerTransactionCount: registerCounts.registerTransactionCount,
-    registerSplitLineCount: registerCounts.registerSplitLineCount,
-    scheduledTransactionCount,
+    registerTransactionCount: referenceCounts.registerTransactionCount,
+    registerSplitLineCount: referenceCounts.registerSplitLineCount,
+    scheduledTransactionCount: referenceCounts.scheduledTransactionCount,
   };
 }
 
-
-function rewriteStoredRegisterCategoryReferences(
-  sourceCategory: BudgetCategoryView,
-  targetCategory: BudgetCategoryView,
-) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const raw = window.localStorage.getItem(REGISTER_STORAGE_KEY);
-
-  if (!raw) {
-    return;
-  }
-
-  try {
-    const registers = JSON.parse(raw) as StoredRegisters;
-    const matchesSourceCategory = createCategoryReferenceMatcher(sourceCategory);
-    let changed = false;
-
-    const rewriteValue = (item: { category: string; categoryId?: string }) => {
-      if (!matchesSourceCategory(item.category, item.categoryId)) {
-        return;
-      }
-
-      changed = true;
-      item.category = targetCategory.name;
-      item.categoryId = targetCategory.id;
-    };
-
-    for (const register of Object.values(registers)) {
-      for (const transaction of register.transactions ?? []) {
-        rewriteValue(transaction);
-
-        for (const splitLine of transaction.splitLines ?? []) {
-          rewriteValue(splitLine);
-        }
-      }
-    }
-
-    if (changed) {
-      window.localStorage.setItem(REGISTER_STORAGE_KEY, JSON.stringify(registers));
-    }
-  } catch {
-    // If register storage is unreadable, leave transactions untouched.
-  }
-}
-
-function rewriteScheduledCategoryReferences(
-  sourceCategory: BudgetCategoryView,
-  targetCategory: BudgetCategoryView,
-) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const raw = window.localStorage.getItem(SCHEDULED_TRANSACTIONS_STORAGE_KEY);
-
-  if (!raw) {
-    return;
-  }
-
-  try {
-    const scheduledTransactions = JSON.parse(raw) as StoredScheduledTransaction[];
-
-    if (!Array.isArray(scheduledTransactions)) {
-      return;
-    }
-
-    const matchesSourceCategory = createCategoryReferenceMatcher(sourceCategory);
-    let changed = false;
-
-    const nextScheduledTransactions = scheduledTransactions.map((transaction) => {
-      if (!matchesSourceCategory(transaction.category, transaction.categoryId)) {
-        return transaction;
-      }
-
-      changed = true;
-      return {
-        ...transaction,
-        category: targetCategory.name,
-        categoryId: targetCategory.id,
-      };
-    });
-
-    if (changed) {
-      window.localStorage.setItem(
-        SCHEDULED_TRANSACTIONS_STORAGE_KEY,
-        JSON.stringify(nextScheduledTransactions),
-      );
-    }
-  } catch {
-    // If scheduled transaction storage is unreadable, leave scheduled transactions untouched.
-  }
-}
-
-function renameStoredRegisterCategory(oldName: string, newName: string) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const raw = window.localStorage.getItem(REGISTER_STORAGE_KEY);
-
-  if (!raw) {
-    return;
-  }
-
-  try {
-    const registers = JSON.parse(raw) as StoredRegisters;
-    const oldKey = normaliseCategoryKey(oldName);
-    let changed = false;
-
-    const renameValue = (value: string) => {
-      if (normaliseCategoryKey(value) !== oldKey) {
-        return value;
-      }
-
-      changed = true;
-      return newName;
-    };
-
-    for (const register of Object.values(registers)) {
-      for (const transaction of register.transactions ?? []) {
-        transaction.category = renameValue(transaction.category);
-
-        for (const splitLine of transaction.splitLines ?? []) {
-          splitLine.category = renameValue(splitLine.category);
-        }
-      }
-    }
-
-    if (changed) {
-      window.localStorage.setItem(REGISTER_STORAGE_KEY, JSON.stringify(registers));
-    }
-  } catch {
-    // If register storage is unreadable, leave transactions untouched.
-  }
-}
-
-function saveBudgetView(view: BudgetMonthView, month: string): BudgetMonthView {
-  const next = applyRegisterActivity(recalculateBudget(view), month);
-  window.localStorage.setItem(getStorageKey(next.budgetId, month), JSON.stringify(next));
-  return cloneBudgetView(next);
-}
-
-function loadBudgetView(budgetId: string, month: string): BudgetMonthView {
-  const stored = readStoredBudgetView(budgetId, month);
-
-  if (stored) {
-    return cloneBudgetView(applyRegisterActivity(stored, month));
-  }
-
-  const starter = createStarterBudgetView(budgetId, month);
-  return saveBudgetView(starter, month);
-}
-
-export const budgetViewService: BudgetViewService = {
+export function createBudgetViewService(
+  dependencies: BudgetViewServiceDependencies,
+): BudgetViewService {
+  return {
   async getBudgetMonthView({ budgetId, month }) {
-    return loadBudgetView(budgetId, month);
+    return loadBudgetView(dependencies, budgetId, month);
   },
 
   async getCategoryMergePreview({ budgetId, month, sourceCategoryId, targetCategoryId }) {
     return createCategoryMergePreview(
-      loadBudgetView(budgetId, month),
+      dependencies,
+      await loadBudgetView(dependencies, budgetId, month),
       sourceCategoryId,
       targetCategoryId,
     );
@@ -732,7 +447,7 @@ export const budgetViewService: BudgetViewService = {
       throw new Error("Choose two different categories to merge.");
     }
 
-    const current = loadBudgetView(budgetId, month);
+    const current = await loadBudgetView(dependencies, budgetId, month);
     const source = findCategoryLocation(current, sourceCategoryId);
     const target = findCategoryLocation(current, targetCategoryId);
 
@@ -740,8 +455,10 @@ export const budgetViewService: BudgetViewService = {
       throw new Error("Category not found.");
     }
 
-    rewriteStoredRegisterCategoryReferences(source.category, target.category);
-    rewriteScheduledCategoryReferences(source.category, target.category);
+    await dependencies.budgetActivity.rewriteCategoryReferences({
+      sourceCategory: source.category,
+      targetCategory: target.category,
+    });
 
     const nextGroups = current.categoryGroups.map((group) => ({
       ...group,
@@ -765,7 +482,7 @@ export const budgetViewService: BudgetViewService = {
       }),
     }));
 
-    return saveBudgetView(
+    return saveBudgetView(dependencies,
       {
         ...current,
         categoryGroups: nextGroups,
@@ -775,11 +492,11 @@ export const budgetViewService: BudgetViewService = {
   },
 
   async getCategoryOptions({ budgetId, month }) {
-    return getCategoryOptions(loadBudgetView(budgetId, month));
+    return getCategoryOptions(await loadBudgetView(dependencies, budgetId, month));
   },
 
   async updateAssigned({ budgetId, month, categoryId, assigned }) {
-    const current = loadBudgetView(budgetId, month);
+    const current = await loadBudgetView(dependencies, budgetId, month);
     const nextGroups = current.categoryGroups.map((group) => ({
       ...group,
       categories: group.categories.map((category) => {
@@ -794,7 +511,7 @@ export const budgetViewService: BudgetViewService = {
       }),
     }));
 
-    return saveBudgetView(
+    return saveBudgetView(dependencies,
       {
         ...current,
         categoryGroups: nextGroups,
@@ -810,7 +527,7 @@ export const budgetViewService: BudgetViewService = {
       throw new Error("Category name cannot be blank.");
     }
 
-    const current = loadBudgetView(budgetId, month);
+    const current = await loadBudgetView(dependencies, budgetId, month);
     let previousName: string | null = null;
     let found = false;
     const newNameKey = normaliseCategoryKey(trimmedName);
@@ -845,10 +562,13 @@ export const budgetViewService: BudgetViewService = {
     }
 
     if (normaliseCategoryKey(previousName) !== newNameKey) {
-      renameStoredRegisterCategory(previousName, trimmedName);
+      await dependencies.budgetActivity.renameRegisterCategoryReferences({
+        previousName,
+        nextName: trimmedName,
+      });
     }
 
-    return saveBudgetView(
+    return saveBudgetView(dependencies,
       {
         ...current,
         categoryGroups: nextGroups,
@@ -858,7 +578,7 @@ export const budgetViewService: BudgetViewService = {
   },
 
   async setCategoryArchived({ budgetId, month, categoryId, isArchived }) {
-    const current = loadBudgetView(budgetId, month);
+    const current = await loadBudgetView(dependencies, budgetId, month);
     let found = false;
 
     const nextGroups = current.categoryGroups.map((group) => ({
@@ -881,7 +601,7 @@ export const budgetViewService: BudgetViewService = {
       throw new Error("Category not found.");
     }
 
-    return saveBudgetView(
+    return saveBudgetView(dependencies,
       {
         ...current,
         categoryGroups: nextGroups,
@@ -890,7 +610,7 @@ export const budgetViewService: BudgetViewService = {
     );
   },
   async moveCategory({ budgetId, month, categoryId, direction }) {
-    const current = loadBudgetView(budgetId, month);
+    const current = await loadBudgetView(dependencies, budgetId, month);
     let moved = false;
 
     const nextGroups = current.categoryGroups.map((group) => {
@@ -924,7 +644,7 @@ export const budgetViewService: BudgetViewService = {
       throw new Error("Category not found.");
     }
 
-    return saveBudgetView(
+    return saveBudgetView(dependencies,
       {
         ...current,
         categoryGroups: nextGroups,
@@ -934,7 +654,7 @@ export const budgetViewService: BudgetViewService = {
   },
 
   async moveCategoryGroup({ budgetId, month, groupId, direction }) {
-    const current = loadBudgetView(budgetId, month);
+    const current = await loadBudgetView(dependencies, budgetId, month);
     const groupIndex = current.categoryGroups.findIndex((group) => group.id === groupId);
 
     if (groupIndex === -1) {
@@ -951,7 +671,7 @@ export const budgetViewService: BudgetViewService = {
     const [groupToMove] = categoryGroups.splice(groupIndex, 1);
     categoryGroups.splice(targetIndex, 0, groupToMove);
 
-    return saveBudgetView(
+    return saveBudgetView(dependencies,
       {
         ...current,
         categoryGroups,
@@ -960,4 +680,5 @@ export const budgetViewService: BudgetViewService = {
     );
   },
 
-};
+  };
+}

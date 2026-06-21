@@ -2,7 +2,8 @@ import { accountService, readAccounts } from "../accounts/accountService";
 import { createAccountRegisterService } from "../accounts/accountRegisterService";
 import { findPayeeIdByName, payeeService } from "../accounts/payeeService";
 import { createScheduledTransactionService } from "../accounts/scheduledTransactionService";
-import { budgetViewService } from "../budget/budgetViewService";
+import { createBudgetViewService } from "../budget/budgetViewService";
+import { browserLocalStorageBudgetActivityPersistence } from "./browserLocalStorageBudgetActivityPersistence";
 import type { AppPersistenceGateway } from "./appPersistenceGateway";
 
 const accountRegisterService = createAccountRegisterService({
@@ -19,6 +20,10 @@ const scheduledTransactionService = createScheduledTransactionService({
     await payeeService.recordPayee(payeeName);
   },
   findPayeeIdByName,
+});
+
+const budgetViewService = createBudgetViewService({
+  budgetActivity: browserLocalStorageBudgetActivityPersistence,
 });
 
 export const browserLocalStoragePersistenceGateway: AppPersistenceGateway = {
