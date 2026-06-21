@@ -6,12 +6,18 @@ import type {
   RegisterTransactionView,
   UpdateRegisterTransactionInput,
 } from "./accountRegisterTypes";
-import { accountService, readAccounts, type SidebarAccount, type SidebarAccountType } from "./accountService";
-import { findPayeeIdByName, payeeService } from "./payeeService";
+import type { SidebarAccount, SidebarAccountType } from "./accountService";
 
 const STORAGE_KEY = "budget-app.account-registers.v1";
 
 type StoredRegisters = Record<string, AccountRegisterView>;
+
+export interface AccountRegisterServiceDependencies {
+  recordPayee(payeeName: string): Promise<void>;
+  findPayeeIdByName(payeeName: string): string | undefined;
+  readAccounts(): SidebarAccount[];
+  getAccountById(accountId: string): SidebarAccount | undefined;
+}
 
 /**
  * Browser-facing register service boundary.
@@ -23,34 +29,35 @@ type StoredRegisters = Record<string, AccountRegisterView>;
  * Desktop target:
  * React -> this service port -> Tauri invoke -> application services -> repositories -> SQLite.
  */
-class BrowserPersistentAccountRegisterService implements AccountRegisterService {
+export class BrowserPersistentAccountRegisterService implements AccountRegisterService {
+  constructor(private readonly dependencies: AccountRegisterServiceDependencies) {}
   async getAccountRegisterView(input: { accountId: string }): Promise<AccountRegisterView> {
     const registers = readRegisters();
-    const register = registers[input.accountId] ?? createEmptyRegister(input.accountId);
+    const register = registers[input.accountId] ?? createEmptyRegister(this.dependencies, input.accountId);
 
     if (!registers[input.accountId]) {
       registers[input.accountId] = register;
       writeRegisters(registers);
     }
 
-    return cloneRegister(recalculateRegister(register));
+    return cloneRegister(recalculateRegister(this.dependencies, register));
   }
 
   async addTransaction(input: {
     accountId: string;
     transaction: NewRegisterTransactionInput;
   }): Promise<AccountRegisterView> {
-    await payeeService.recordPayee(input.transaction.payee);
-    const payeeId = resolvePayeeId(input.transaction.payee, input.transaction.payeeId);
+    await this.dependencies.recordPayee(input.transaction.payee);
+    const payeeId = resolvePayeeId(this.dependencies, input.transaction.payee, input.transaction.payeeId);
 
-    const transferTarget = findTransferTarget(input.accountId, input.transaction.payee);
+    const transferTarget = findTransferTarget(this.dependencies, input.accountId, input.transaction.payee);
 
     if (transferTarget) {
-      return addTransferTransaction(input.accountId, transferTarget, input.transaction);
+      return addTransferTransaction(this.dependencies, input.accountId, transferTarget, input.transaction);
     }
 
-    return updateRegister(input.accountId, (register) => {
-      register.transactions.unshift(createTransactionView({ ...input.transaction, payeeId }));
+    return updateRegister(this.dependencies, input.accountId, (register) => {
+      register.transactions.unshift(createTransactionView(this.dependencies, { ...input.transaction, payeeId }));
     });
   }
 
@@ -58,18 +65,18 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     accountId: string;
     transaction: UpdateRegisterTransactionInput;
   }): Promise<AccountRegisterView> {
-    await payeeService.recordPayee(input.transaction.payee);
-    const payeeId = resolvePayeeId(input.transaction.payee, input.transaction.payeeId);
+    await this.dependencies.recordPayee(input.transaction.payee);
+    const payeeId = resolvePayeeId(this.dependencies, input.transaction.payee, input.transaction.payeeId);
 
     const registers = readRegisters();
-    const sourceRegister = cloneRegister(registers[input.accountId] ?? createEmptyRegister(input.accountId));
+    const sourceRegister = cloneRegister(registers[input.accountId] ?? createEmptyRegister(this.dependencies, input.accountId));
     const existing = sourceRegister.transactions.find(
       (transaction) => transaction.id === input.transaction.id,
     );
 
     if (existing?.transferAccountId && existing.transferTransactionId) {
       const targetRegister = cloneRegister(
-        registers[existing.transferAccountId] ?? createEmptyRegister(existing.transferAccountId),
+        registers[existing.transferAccountId] ?? createEmptyRegister(this.dependencies, existing.transferAccountId),
       );
 
       const updatedSource = {
@@ -100,13 +107,13 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
           : transaction,
       );
 
-      registers[input.accountId] = recalculateRegister(sourceRegister);
-      registers[existing.transferAccountId] = recalculateRegister(targetRegister);
+      registers[input.accountId] = recalculateRegister(this.dependencies, sourceRegister);
+      registers[existing.transferAccountId] = recalculateRegister(this.dependencies, targetRegister);
       writeRegisters(registers);
       return cloneRegister(registers[input.accountId]);
     }
 
-    return updateRegister(input.accountId, (register) => {
+    return updateRegister(this.dependencies, input.accountId, (register) => {
       register.transactions = register.transactions.map((transaction) => {
         if (transaction.id !== input.transaction.id) {
           return transaction;
@@ -134,31 +141,31 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     transactionId: string;
   }): Promise<AccountRegisterView> {
     const registers = readRegisters();
-    const register = cloneRegister(registers[input.accountId] ?? createEmptyRegister(input.accountId));
+    const register = cloneRegister(registers[input.accountId] ?? createEmptyRegister(this.dependencies, input.accountId));
     const transaction = register.transactions.find(
       (current) => current.id === input.transactionId,
     );
 
     if (!transaction || transaction.reconciled) {
-      return cloneRegister(recalculateRegister(register));
+      return cloneRegister(recalculateRegister(this.dependencies, register));
     }
 
     const nextCleared = !transaction.cleared;
     register.transactions = register.transactions.map((current) =>
       current.id === input.transactionId ? { ...current, cleared: nextCleared } : current,
     );
-    registers[input.accountId] = recalculateRegister(register);
+    registers[input.accountId] = recalculateRegister(this.dependencies, register);
 
     if (transaction.transferAccountId && transaction.transferTransactionId) {
       const targetRegister = cloneRegister(
-        registers[transaction.transferAccountId] ?? createEmptyRegister(transaction.transferAccountId),
+        registers[transaction.transferAccountId] ?? createEmptyRegister(this.dependencies, transaction.transferAccountId),
       );
       targetRegister.transactions = targetRegister.transactions.map((current) =>
         current.id === transaction.transferTransactionId && !current.reconciled
           ? { ...current, cleared: nextCleared }
           : current,
       );
-      registers[transaction.transferAccountId] = recalculateRegister(targetRegister);
+      registers[transaction.transferAccountId] = recalculateRegister(this.dependencies, targetRegister);
     }
 
     writeRegisters(registers);
@@ -170,7 +177,7 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     transactionId: string;
   }): Promise<AccountRegisterView> {
     const registers = readRegisters();
-    const register = cloneRegister(registers[input.accountId] ?? createEmptyRegister(input.accountId));
+    const register = cloneRegister(registers[input.accountId] ?? createEmptyRegister(this.dependencies, input.accountId));
     const transaction = register.transactions.find(
       (current) => current.id === input.transactionId,
     );
@@ -178,16 +185,16 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     register.transactions = register.transactions.filter(
       (current) => current.id !== input.transactionId,
     );
-    registers[input.accountId] = recalculateRegister(register);
+    registers[input.accountId] = recalculateRegister(this.dependencies, register);
 
     if (transaction?.transferAccountId && transaction.transferTransactionId) {
       const targetRegister = cloneRegister(
-        registers[transaction.transferAccountId] ?? createEmptyRegister(transaction.transferAccountId),
+        registers[transaction.transferAccountId] ?? createEmptyRegister(this.dependencies, transaction.transferAccountId),
       );
       targetRegister.transactions = targetRegister.transactions.filter(
         (current) => current.id !== transaction.transferTransactionId,
       );
-      registers[transaction.transferAccountId] = recalculateRegister(targetRegister);
+      registers[transaction.transferAccountId] = recalculateRegister(this.dependencies, targetRegister);
     }
 
     writeRegisters(registers);
@@ -203,7 +210,7 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
       mimeType: string;
     };
   }): Promise<AccountRegisterView> {
-    return updateRegister(input.accountId, (register) => {
+    return updateRegister(this.dependencies, input.accountId, (register) => {
       register.transactions = register.transactions.map((transaction) => {
         if (transaction.id !== input.transactionId) {
           return transaction;
@@ -234,7 +241,7 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
     transactionId: string;
     attachmentId: string;
   }): Promise<AccountRegisterView> {
-    return updateRegister(input.accountId, (register) => {
+    return updateRegister(this.dependencies, input.accountId, (register) => {
       register.transactions = register.transactions.map((transaction) => {
         if (transaction.id !== input.transactionId) {
           return transaction;
@@ -276,35 +283,39 @@ class BrowserPersistentAccountRegisterService implements AccountRegisterService 
         return transaction;
       });
 
-      registers[accountId] = recalculateRegister(cloned);
+      registers[accountId] = recalculateRegister(this.dependencies, cloned);
     }
 
     if (!registers[input.accountId]) {
-      registers[input.accountId] = createEmptyRegister(input.accountId);
+      registers[input.accountId] = createEmptyRegister(this.dependencies, input.accountId);
     }
 
     writeRegisters(registers);
-    return cloneRegister(recalculateRegister(registers[input.accountId]));
+    return cloneRegister(recalculateRegister(this.dependencies, registers[input.accountId]));
   }
 }
 
-export const accountRegisterService: AccountRegisterService =
-  new BrowserPersistentAccountRegisterService();
+export function createAccountRegisterService(
+  dependencies: AccountRegisterServiceDependencies,
+): AccountRegisterService {
+  return new BrowserPersistentAccountRegisterService(dependencies);
+}
 
 function addTransferTransaction(
+  dependencies: AccountRegisterServiceDependencies,
   sourceAccountId: string,
   targetAccount: SidebarAccount,
   input: NewRegisterTransactionInput,
 ): AccountRegisterView {
   const registers = readRegisters();
-  const sourceRegister = cloneRegister(registers[sourceAccountId] ?? createEmptyRegister(sourceAccountId));
-  const targetRegister = cloneRegister(registers[targetAccount.id] ?? createEmptyRegister(targetAccount.id));
+  const sourceRegister = cloneRegister(registers[sourceAccountId] ?? createEmptyRegister(dependencies, sourceAccountId));
+  const targetRegister = cloneRegister(registers[targetAccount.id] ?? createEmptyRegister(dependencies, targetAccount.id));
   const transferId = createId();
   const sourceTransactionId = createId();
   const targetTransactionId = createId();
 
   const sourceTransaction: RegisterTransactionView = {
-    ...createTransactionView(input),
+    ...createTransactionView(dependencies, input),
     id: sourceTransactionId,
     payee: `Transfer: ${targetAccount.name}`,
     category: "Transfer",
@@ -328,8 +339,8 @@ function addTransferTransaction(
   sourceRegister.transactions.unshift(sourceTransaction);
   targetRegister.transactions.unshift(targetTransaction);
 
-  registers[sourceAccountId] = recalculateRegister(sourceRegister);
-  registers[targetAccount.id] = recalculateRegister(targetRegister);
+  registers[sourceAccountId] = recalculateRegister(dependencies, sourceRegister);
+  registers[targetAccount.id] = recalculateRegister(dependencies, targetRegister);
   writeRegisters(registers);
 
   return cloneRegister(registers[sourceAccountId]);
@@ -356,7 +367,10 @@ function normalisePayeeReference(value: string): string {
   return value.replace(/\s+/g, " ").trim().toLocaleLowerCase();
 }
 
-function createTransactionView(input: NewRegisterTransactionInput): RegisterTransactionView {
+function createTransactionView(
+  dependencies: AccountRegisterServiceDependencies,
+  input: NewRegisterTransactionInput,
+): RegisterTransactionView {
   return {
     id: createId(),
     date: input.date,
@@ -364,7 +378,7 @@ function createTransactionView(input: NewRegisterTransactionInput): RegisterTran
     attachmentCount: 0,
     attachments: [],
     payee: input.payee,
-    payeeId: input.payeeId ?? resolvePayeeId(input.payee),
+    payeeId: input.payeeId ?? resolvePayeeId(dependencies, input.payee),
     category: input.category,
     categoryId: input.categoryId,
     memo: input.memo,
@@ -404,11 +418,19 @@ function cloneSplitLines(splitLines: RegisterTransactionView["splitLines"]): Reg
   return splitLines?.map((line) => ({ ...line }));
 }
 
-function resolvePayeeId(payeeName: string, currentPayeeId?: string): string | undefined {
-  return currentPayeeId ?? findPayeeIdByName(payeeName);
+function resolvePayeeId(
+  dependencies: AccountRegisterServiceDependencies,
+  payeeName: string,
+  currentPayeeId?: string,
+): string | undefined {
+  return currentPayeeId ?? dependencies.findPayeeIdByName(payeeName);
 }
 
-function findTransferTarget(sourceAccountId: string, payee: string): SidebarAccount | null {
+function findTransferTarget(
+  dependencies: AccountRegisterServiceDependencies,
+  sourceAccountId: string,
+  payee: string,
+): SidebarAccount | null {
   const normalisedPayee = normaliseTransferName(payee);
 
   if (!normalisedPayee) {
@@ -416,7 +438,7 @@ function findTransferTarget(sourceAccountId: string, payee: string): SidebarAcco
   }
 
   return (
-    readAccounts().find(
+    dependencies.readAccounts().find(
       (account) =>
         account.id !== sourceAccountId &&
         normaliseTransferName(account.name) === normalisedPayee,
@@ -438,23 +460,27 @@ function normaliseTransferName(value: string): string | null {
 }
 
 function updateRegister(
+  dependencies: AccountRegisterServiceDependencies,
   accountId: string,
   updater: (register: AccountRegisterView) => void,
 ): AccountRegisterView {
   const registers = readRegisters();
-  const register = cloneRegister(registers[accountId] ?? createEmptyRegister(accountId));
+  const register = cloneRegister(registers[accountId] ?? createEmptyRegister(dependencies, accountId));
 
   updater(register);
 
-  const recalculated = recalculateRegister(register);
+  const recalculated = recalculateRegister(dependencies, register);
   registers[accountId] = recalculated;
   writeRegisters(registers);
 
   return cloneRegister(recalculated);
 }
 
-function createEmptyRegister(accountId: string): AccountRegisterView {
-  const account = accountService.getAccountById(accountId);
+function createEmptyRegister(
+  dependencies: AccountRegisterServiceDependencies,
+  accountId: string,
+): AccountRegisterView {
+  const account = dependencies.getAccountById(accountId);
   const openingBalance = account?.startingBalance ?? 0;
 
   return {
@@ -496,7 +522,10 @@ function mapAccountType(type: SidebarAccountType): AccountRegisterView["accountT
   return "On budget";
 }
 
-function recalculateRegister(register: AccountRegisterView): AccountRegisterView {
+function recalculateRegister(
+  dependencies: AccountRegisterServiceDependencies,
+  register: AccountRegisterView,
+): AccountRegisterView {
   const chronological = [...register.transactions].sort(compareChronologically);
   const runningBalanceById = new Map<string, number>();
   let runningBalance = 0;
@@ -511,7 +540,7 @@ function recalculateRegister(register: AccountRegisterView): AccountRegisterView
       ...transaction,
       attachments: normaliseAttachments(transaction.attachments),
       attachmentCount: normaliseAttachments(transaction.attachments).length || transaction.attachmentCount || 0,
-      payeeId: transaction.payeeId ?? resolvePayeeId(transaction.payee),
+      payeeId: transaction.payeeId ?? resolvePayeeId(dependencies, transaction.payee),
       runningBalance: runningBalanceById.get(transaction.id) ?? 0,
     }))
     .sort(compareForRegisterDisplay);

@@ -1,5 +1,5 @@
 import type { NewRegisterTransactionInput, TransactionFlag } from "./accountRegisterTypes";
-import { findPayeeIdByName, payeeService } from "./payeeService";
+
 
 export type ScheduledFrequency = "once" | "weekly" | "fortnightly" | "monthly" | "yearly";
 
@@ -35,9 +35,15 @@ export interface UpsertScheduledTransactionInput {
 
 const STORAGE_KEY = "budget-app.scheduled-transactions.v1";
 
-class BrowserPersistentScheduledTransactionService {
+export interface ScheduledTransactionServiceDependencies {
+  recordPayee(payeeName: string): Promise<void>;
+  findPayeeIdByName(payeeName: string): string | undefined;
+}
+
+export class BrowserPersistentScheduledTransactionService {
+  constructor(private readonly dependencies: ScheduledTransactionServiceDependencies) {}
   async listByAccount(accountId: string): Promise<ScheduledTransactionView[]> {
-    return readScheduledTransactions()
+    return readScheduledTransactions(this.dependencies)
       .filter((transaction) => transaction.accountId === accountId)
       .sort(compareScheduledTransactions);
   }
@@ -49,10 +55,10 @@ class BrowserPersistentScheduledTransactionService {
   }
 
   async create(input: UpsertScheduledTransactionInput): Promise<ScheduledTransactionView[]> {
-    await payeeService.recordPayee(input.payee);
-    const payeeId = resolvePayeeId(input.payee, input.payeeId);
+    await this.dependencies.recordPayee(input.payee);
+    const payeeId = resolvePayeeId(this.dependencies, input.payee, input.payeeId);
 
-    const transactions = readScheduledTransactions();
+    const transactions = readScheduledTransactions(this.dependencies);
     const now = new Date().toISOString();
     const next: ScheduledTransactionView = {
       id: createId(),
@@ -75,11 +81,11 @@ class BrowserPersistentScheduledTransactionService {
   }
 
   async update(input: UpsertScheduledTransactionInput & { id: string }): Promise<ScheduledTransactionView[]> {
-    await payeeService.recordPayee(input.payee);
-    const payeeId = resolvePayeeId(input.payee, input.payeeId);
+    await this.dependencies.recordPayee(input.payee);
+    const payeeId = resolvePayeeId(this.dependencies, input.payee, input.payeeId);
 
     const now = new Date().toISOString();
-    const transactions = readScheduledTransactions().map((transaction) => {
+    const transactions = readScheduledTransactions(this.dependencies).map((transaction) => {
       if (transaction.id !== input.id) {
         return transaction;
       }
@@ -106,7 +112,7 @@ class BrowserPersistentScheduledTransactionService {
 
   async delete(accountId: string, scheduledTransactionId: string): Promise<ScheduledTransactionView[]> {
     writeScheduledTransactions(
-      readScheduledTransactions().filter((transaction) => transaction.id !== scheduledTransactionId),
+      readScheduledTransactions(this.dependencies).filter((transaction) => transaction.id !== scheduledTransactionId),
     );
     return this.listByAccount(accountId);
   }
@@ -115,7 +121,7 @@ class BrowserPersistentScheduledTransactionService {
     accountId: string,
     scheduledTransactionId: string,
   ): Promise<ScheduledTransactionView[]> {
-    const transactions = readScheduledTransactions();
+    const transactions = readScheduledTransactions(this.dependencies);
     const target = transactions.find((transaction) => transaction.id === scheduledTransactionId);
 
     if (!target) {
@@ -164,7 +170,7 @@ class BrowserPersistentScheduledTransactionService {
     nextName: string;
   }): Promise<void> {
     const now = new Date().toISOString();
-    const transactions = readScheduledTransactions().map((transaction) => {
+    const transactions = readScheduledTransactions(this.dependencies).map((transaction) => {
       if (!isScheduledPayeeReferenceMatch(transaction, input.payeeId, input.previousName)) {
         return transaction;
       }
@@ -181,7 +187,11 @@ class BrowserPersistentScheduledTransactionService {
   }
 }
 
-export const scheduledTransactionService = new BrowserPersistentScheduledTransactionService();
+export function createScheduledTransactionService(
+  dependencies: ScheduledTransactionServiceDependencies,
+): BrowserPersistentScheduledTransactionService {
+  return new BrowserPersistentScheduledTransactionService(dependencies);
+}
 
 
 function isScheduledPayeeReferenceMatch(
@@ -204,7 +214,9 @@ function normalisePayeeReference(value: string): string {
   return value.replace(/\s+/g, " ").trim().toLocaleLowerCase();
 }
 
-function readScheduledTransactions(): ScheduledTransactionView[] {
+function readScheduledTransactions(
+  dependencies?: ScheduledTransactionServiceDependencies,
+): ScheduledTransactionView[] {
   if (typeof window === "undefined") {
     return [];
   }
@@ -217,7 +229,7 @@ function readScheduledTransactions(): ScheduledTransactionView[] {
 
   try {
     const parsed = JSON.parse(value) as ScheduledTransactionView[];
-    return Array.isArray(parsed) ? parsed.map(normaliseStoredScheduledTransaction) : [];
+    return Array.isArray(parsed) ? parsed.map((transaction) => normaliseStoredScheduledTransaction(transaction, dependencies)) : [];
   } catch {
     return [];
   }
@@ -228,24 +240,34 @@ function writeScheduledTransactions(transactions: ScheduledTransactionView[]): v
     return;
   }
 
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions.map(normaliseStoredScheduledTransaction)));
+  window.localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify(
+      transactions.map((transaction) => normaliseStoredScheduledTransaction(transaction)),
+    ),
+  );
 }
 
 function normaliseStoredScheduledTransaction(
   transaction: ScheduledTransactionView,
+  dependencies?: ScheduledTransactionServiceDependencies,
 ): ScheduledTransactionView {
   return {
     ...transaction,
     flag: transaction.flag ?? null,
     memo: transaction.memo ?? "",
-    payeeId: transaction.payeeId ?? findPayeeIdByName(transaction.payee),
+    payeeId: transaction.payeeId ?? dependencies?.findPayeeIdByName(transaction.payee),
     outflow: Number.isFinite(transaction.outflow) ? transaction.outflow : 0,
     inflow: Number.isFinite(transaction.inflow) ? transaction.inflow : 0,
   };
 }
 
-function resolvePayeeId(payeeName: string, currentPayeeId?: string): string | undefined {
-  return currentPayeeId ?? findPayeeIdByName(payeeName);
+function resolvePayeeId(
+  dependencies: ScheduledTransactionServiceDependencies,
+  payeeName: string,
+  currentPayeeId?: string,
+): string | undefined {
+  return currentPayeeId ?? dependencies.findPayeeIdByName(payeeName);
 }
 
 function normaliseScheduledCategory(input: Pick<UpsertScheduledTransactionInput, "category" | "inflow" | "outflow">): string {

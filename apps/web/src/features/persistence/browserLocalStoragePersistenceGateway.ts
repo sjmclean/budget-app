@@ -1,9 +1,25 @@
-import { accountService } from "../accounts/accountService";
-import { accountRegisterService } from "../accounts/accountRegisterService";
-import { payeeService } from "../accounts/payeeService";
-import { scheduledTransactionService } from "../accounts/scheduledTransactionService";
+import { accountService, readAccounts } from "../accounts/accountService";
+import { createAccountRegisterService } from "../accounts/accountRegisterService";
+import { findPayeeIdByName, payeeService } from "../accounts/payeeService";
+import { createScheduledTransactionService } from "../accounts/scheduledTransactionService";
 import { budgetViewService } from "../budget/budgetViewService";
 import type { AppPersistenceGateway } from "./appPersistenceGateway";
+
+const accountRegisterService = createAccountRegisterService({
+  recordPayee: async (payeeName: string) => {
+    await payeeService.recordPayee(payeeName);
+  },
+  findPayeeIdByName,
+  readAccounts,
+  getAccountById: (accountId: string) => accountService.getAccountById(accountId) ?? undefined,
+});
+
+const scheduledTransactionService = createScheduledTransactionService({
+  recordPayee: async (payeeName: string) => {
+    await payeeService.recordPayee(payeeName);
+  },
+  findPayeeIdByName,
+});
 
 export const browserLocalStoragePersistenceGateway: AppPersistenceGateway = {
   metadata: {
