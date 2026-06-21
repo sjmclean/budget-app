@@ -8,7 +8,7 @@ import { useAccountRegister } from "../features/accounts/useAccountRegister";
 import { budgetViewService } from "../features/budget/budgetViewService";
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
-import { payeeService, type PayeeView } from "../features/accounts/payeeService";
+import type { PayeeView } from "../features/accounts/payeeService";
 import type {
   NewRegisterTransactionInput,
   RegisterSplitLineView,
@@ -24,7 +24,9 @@ function isSplitCategoryValue(value: string): boolean {
   return normalised === "split" || normalised === "split...";
 }
 
-const accountsPersistence = getAppPersistenceGateway().accounts;
+const persistenceGateway = getAppPersistenceGateway();
+const accountsPersistence = persistenceGateway.accounts;
+const payeesPersistence = persistenceGateway.payees;
 
 const ACTIVE_BUDGET_ID = "household";
 const ACTIVE_BUDGET_MONTH = "2026-06";
@@ -1271,7 +1273,7 @@ export function AccountRegisterPage() {
 
 
   async function refreshPayees(): Promise<PayeeView[]> {
-    const payees = await payeeService.listPayees();
+    const payees = await payeesPersistence.listPayees();
     setPayeeOptions(payees);
     return payees;
   }
@@ -1279,7 +1281,7 @@ export function AccountRegisterPage() {
   useEffect(() => {
     let isMounted = true;
 
-    void payeeService.listPayees().then((payees) => {
+    void payeesPersistence.listPayees().then((payees) => {
       if (isMounted) {
         setPayeeOptions(payees);
       }
@@ -1417,7 +1419,7 @@ export function AccountRegisterPage() {
 
     const previousName = selectedPayeeSummary.payee.name;
 
-    await payeeService.renamePayee({
+    await payeesPersistence.renamePayee({
       id: selectedPayeeSummary.payee.id,
       name: nextName,
     });

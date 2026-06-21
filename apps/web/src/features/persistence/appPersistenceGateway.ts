@@ -1,6 +1,6 @@
 import type { AccountPersistencePort } from "../accounts/accountPersistencePort";
 import type { AccountRegisterService } from "../accounts/accountRegisterTypes";
-import type { payeeService } from "../accounts/payeeService";
+import type { PayeePersistencePort } from "../accounts/payeePersistencePort";
 import type { scheduledTransactionService } from "../accounts/scheduledTransactionService";
 import type { BudgetViewService } from "../budget/budgetViewTypes";
 
@@ -26,6 +26,6 @@ export interface AppPersistenceGateway {
   readonly accounts: AccountPersistencePort;
   readonly accountRegisters: AccountRegisterService;
   readonly budgetView: BudgetViewService;
-  readonly payees: typeof payeeService;
+  readonly payees: PayeePersistencePort;
   readonly scheduledTransactions: typeof scheduledTransactionService;
 }

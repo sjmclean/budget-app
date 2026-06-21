@@ -119,3 +119,14 @@ A dedicated persistence migration matrix now exists at:
 - `docs/v119b-persistence-migration-matrix.md`
 
 The key decision is that the Vite browser app must not directly import the native `better-sqlite3` repository layer. The next implementation step should introduce a browser-safe budget data gateway seam, then migrate one UI service at a time.
+
+
+## v1.22 Payees Persistence Port Update
+
+The payee UI dependency has been moved behind `AppPersistenceGateway.payees` via
+a new `PayeePersistencePort`. Behaviour remains localStorage-backed for now, but
+the account register payee management UI no longer imports the concrete payee
+service directly.
+
+This continues the persistence unification path without adding payee merge or
+archive UI yet.
