@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
-import { scheduledTransactionService } from "../features/accounts/scheduledTransactionService";
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
@@ -27,6 +26,7 @@ const persistenceGateway = getAppPersistenceGateway();
 const accountsPersistence = persistenceGateway.accounts;
 const payeesPersistence = persistenceGateway.payees;
 const categoriesPersistence = persistenceGateway.categories;
+const scheduledTransactionsPersistence = persistenceGateway.scheduledTransactions;
 
 const ACTIVE_BUDGET_ID = "household";
 const ACTIVE_BUDGET_MONTH = "2026-06";
@@ -1423,7 +1423,7 @@ export function AccountRegisterPage() {
       id: selectedPayeeSummary.payee.id,
       name: nextName,
     });
-    await scheduledTransactionService.renamePayeeReferences({
+    await scheduledTransactionsPersistence.renamePayeeReferences({
       payeeId: selectedPayeeSummary.payee.id,
       previousName,
       nextName,

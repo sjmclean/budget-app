@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import type { NewRegisterTransactionInput, TransactionFlag } from "../../features/accounts/accountRegisterTypes";
-import {
-  scheduledTransactionService,
-  type ScheduledFrequency,
-  type ScheduledTransactionView,
-  type UpsertScheduledTransactionInput,
-} from "../../features/accounts/scheduledTransactionService";
+import type {
+  ScheduledFrequency,
+  ScheduledTransactionView,
+  UpsertScheduledTransactionInput,
+} from "../../features/accounts/scheduledTransactionPersistencePort";
+import { getAppPersistenceGateway } from "../../features/persistence";
 import type { SidebarAccount } from "../../features/accounts/accountService";
 import type { PayeeView } from "../../features/accounts/payeeService";
 import type { BudgetCategoryOption } from "../../features/budget/budgetViewTypes";
+
+const scheduledTransactionsPersistence = getAppPersistenceGateway().scheduledTransactions;
 
 interface ScheduledTransactionsPanelProps {
   accountId: string;
@@ -67,7 +69,7 @@ export function ScheduledTransactionsPanel({
   useEffect(() => {
     let mounted = true;
 
-    scheduledTransactionService.listByAccount(accountId).then((transactions) => {
+    scheduledTransactionsPersistence.listByAccount(accountId).then((transactions) => {
       if (!mounted) return;
       setScheduledTransactions(transactions);
       onDueCountChange?.(countDue(transactions));
@@ -125,8 +127,8 @@ export function ScheduledTransactionsPanel({
     };
 
     const next = draft.id
-      ? await scheduledTransactionService.update({ ...input, id: draft.id })
-      : await scheduledTransactionService.create(input);
+      ? await scheduledTransactionsPersistence.update({ ...input, id: draft.id })
+      : await scheduledTransactionsPersistence.create(input);
 
     setScheduledTransactions(next);
     onDueCountChange?.(countDue(next));
@@ -140,14 +142,14 @@ export function ScheduledTransactionsPanel({
       return;
     }
 
-    const next = await scheduledTransactionService.delete(accountId, transaction.id);
+    const next = await scheduledTransactionsPersistence.delete(accountId, transaction.id);
     setScheduledTransactions(next);
     onDueCountChange?.(countDue(next));
   }
 
   async function enterScheduled(transaction: ScheduledTransactionView) {
-    await onEnter(scheduledTransactionService.toRegisterInput(transaction));
-    const next = await scheduledTransactionService.advanceAfterEnter(accountId, transaction.id);
+    await onEnter(scheduledTransactionsPersistence.toRegisterInput(transaction));
+    const next = await scheduledTransactionsPersistence.advanceAfterEnter(accountId, transaction.id);
     setScheduledTransactions(next);
     onDueCountChange?.(countDue(next));
   }

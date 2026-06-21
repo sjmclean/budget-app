@@ -1,0 +1,221 @@
+diff --git a/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx b/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx
+index ec8ce48..d1f29c0 100644
+--- a/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx
++++ b/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx
+@@ -1,15 +1,17 @@
+ import { useEffect, useMemo, useState } from "react";
+ import type { NewRegisterTransactionInput, TransactionFlag } from "../../features/accounts/accountRegisterTypes";
+-import {
+-  scheduledTransactionService,
+-  type ScheduledFrequency,
+-  type ScheduledTransactionView,
+-  type UpsertScheduledTransactionInput,
+-} from "../../features/accounts/scheduledTransactionService";
++import type {
++  ScheduledFrequency,
++  ScheduledTransactionView,
++  UpsertScheduledTransactionInput,
++} from "../../features/accounts/scheduledTransactionPersistencePort";
++import { getAppPersistenceGateway } from "../../features/persistence";
+ import type { SidebarAccount } from "../../features/accounts/accountService";
+ import type { PayeeView } from "../../features/accounts/payeeService";
+ import type { BudgetCategoryOption } from "../../features/budget/budgetViewTypes";
+ 
++const scheduledTransactionsPersistence = getAppPersistenceGateway().scheduledTransactions;
++
+ interface ScheduledTransactionsPanelProps {
+   accountId: string;
+   isOpen: boolean;
+@@ -67,7 +69,7 @@ export function ScheduledTransactionsPanel({
+   useEffect(() => {
+     let mounted = true;
+ 
+-    scheduledTransactionService.listByAccount(accountId).then((transactions) => {
++    scheduledTransactionsPersistence.listByAccount(accountId).then((transactions) => {
+       if (!mounted) return;
+       setScheduledTransactions(transactions);
+       onDueCountChange?.(countDue(transactions));
+@@ -125,8 +127,8 @@ export function ScheduledTransactionsPanel({
+     };
+ 
+     const next = draft.id
+-      ? await scheduledTransactionService.update({ ...input, id: draft.id })
+-      : await scheduledTransactionService.create(input);
++      ? await scheduledTransactionsPersistence.update({ ...input, id: draft.id })
++      : await scheduledTransactionsPersistence.create(input);
+ 
+     setScheduledTransactions(next);
+     onDueCountChange?.(countDue(next));
+@@ -140,14 +142,14 @@ export function ScheduledTransactionsPanel({
+       return;
+     }
+ 
+-    const next = await scheduledTransactionService.delete(accountId, transaction.id);
++    const next = await scheduledTransactionsPersistence.delete(accountId, transaction.id);
+     setScheduledTransactions(next);
+     onDueCountChange?.(countDue(next));
+   }
+ 
+   async function enterScheduled(transaction: ScheduledTransactionView) {
+-    await onEnter(scheduledTransactionService.toRegisterInput(transaction));
+-    const next = await scheduledTransactionService.advanceAfterEnter(accountId, transaction.id);
++    await onEnter(scheduledTransactionsPersistence.toRegisterInput(transaction));
++    const next = await scheduledTransactionsPersistence.advanceAfterEnter(accountId, transaction.id);
+     setScheduledTransactions(next);
+     onDueCountChange?.(countDue(next));
+   }
+diff --git a/apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts b/apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts
+new file mode 100644
+index 0000000..0b0bcf7
+--- /dev/null
++++ b/apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts
+@@ -0,0 +1,35 @@
++import type { NewRegisterTransactionInput } from "./accountRegisterTypes";
++import type {
++  ScheduledFrequency,
++  ScheduledTransactionView,
++  UpsertScheduledTransactionInput,
++} from "./scheduledTransactionService";
++
++export type {
++  ScheduledFrequency,
++  ScheduledTransactionView,
++  UpsertScheduledTransactionInput,
++} from "./scheduledTransactionService";
++
++/**
++ * Browser-safe scheduled transaction persistence boundary for the web UI.
++ *
++ * UI code should depend on this port via AppPersistenceGateway instead of
++ * importing the concrete browser localStorage scheduled transaction service
++ * directly. This keeps current behaviour in place while a future SQLite/Tauri
++ * adapter implements the same contract.
++ */
++export interface ScheduledTransactionPersistencePort {
++  listByAccount(accountId: string): Promise<ScheduledTransactionView[]>;
++  dueCountByAccount(accountId: string): Promise<number>;
++  create(input: UpsertScheduledTransactionInput): Promise<ScheduledTransactionView[]>;
++  update(input: UpsertScheduledTransactionInput & { id: string }): Promise<ScheduledTransactionView[]>;
++  delete(accountId: string, scheduledTransactionId: string): Promise<ScheduledTransactionView[]>;
++  advanceAfterEnter(accountId: string, scheduledTransactionId: string): Promise<ScheduledTransactionView[]>;
++  toRegisterInput(transaction: ScheduledTransactionView): NewRegisterTransactionInput;
++  renamePayeeReferences(input: {
++    payeeId: string;
++    previousName: string;
++    nextName: string;
++  }): Promise<void>;
++}
+diff --git a/apps/web/src/features/persistence/appPersistenceGateway.ts b/apps/web/src/features/persistence/appPersistenceGateway.ts
+index 819e42f..fc49b24 100644
+--- a/apps/web/src/features/persistence/appPersistenceGateway.ts
++++ b/apps/web/src/features/persistence/appPersistenceGateway.ts
+@@ -1,7 +1,7 @@
+ import type { AccountPersistencePort } from "../accounts/accountPersistencePort";
+ import type { AccountRegisterService } from "../accounts/accountRegisterTypes";
+ import type { PayeePersistencePort } from "../accounts/payeePersistencePort";
+-import type { scheduledTransactionService } from "../accounts/scheduledTransactionService";
++import type { ScheduledTransactionPersistencePort } from "../accounts/scheduledTransactionPersistencePort";
+ import type { CategoryPersistencePort } from "../budget/categoryPersistencePort";
+ import type { BudgetViewService } from "../budget/budgetViewTypes";
+ 
+@@ -29,5 +29,5 @@ export interface AppPersistenceGateway {
+   readonly budgetView: BudgetViewService;
+   readonly categories: CategoryPersistencePort;
+   readonly payees: PayeePersistencePort;
+-  readonly scheduledTransactions: typeof scheduledTransactionService;
++  readonly scheduledTransactions: ScheduledTransactionPersistencePort;
+ }
+diff --git a/apps/web/src/pages/AccountRegisterPage.tsx b/apps/web/src/pages/AccountRegisterPage.tsx
+index 4fd36e1..94e46d4 100644
+--- a/apps/web/src/pages/AccountRegisterPage.tsx
++++ b/apps/web/src/pages/AccountRegisterPage.tsx
+@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
+ import { useParams } from "react-router-dom";
+ import { Card } from "../components/ui/Card";
+ import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
+-import { scheduledTransactionService } from "../features/accounts/scheduledTransactionService";
+ import { useAccountRegister } from "../features/accounts/useAccountRegister";
+ import type { SidebarAccount } from "../features/accounts/accountService";
+ import { getAppPersistenceGateway } from "../features/persistence";
+@@ -27,6 +26,7 @@ const persistenceGateway = getAppPersistenceGateway();
+ const accountsPersistence = persistenceGateway.accounts;
+ const payeesPersistence = persistenceGateway.payees;
+ const categoriesPersistence = persistenceGateway.categories;
++const scheduledTransactionsPersistence = persistenceGateway.scheduledTransactions;
+ 
+ const ACTIVE_BUDGET_ID = "household";
+ const ACTIVE_BUDGET_MONTH = "2026-06";
+@@ -1423,7 +1423,7 @@ export function AccountRegisterPage() {
+       id: selectedPayeeSummary.payee.id,
+       name: nextName,
+     });
+-    await scheduledTransactionService.renamePayeeReferences({
++    await scheduledTransactionsPersistence.renamePayeeReferences({
+       payeeId: selectedPayeeSummary.payee.id,
+       previousName,
+       nextName,
+diff --git a/docs/v124-scheduled-transactions-persistence-port.md b/docs/v124-scheduled-transactions-persistence-port.md
+new file mode 100644
+index 0000000..c14578a
+--- /dev/null
++++ b/docs/v124-scheduled-transactions-persistence-port.md
+@@ -0,0 +1,59 @@
++# v1.24 Scheduled Transactions Persistence Port
++
++## Purpose
++
++This release continues persistence unification by moving scheduled transaction UI
++operations behind the shared `AppPersistenceGateway`.
++
++The web UI should not import the concrete localStorage-backed scheduled
++transaction service directly. It should depend on a scheduled transaction
++persistence port exposed through the gateway, so a future SQLite/Tauri adapter
++can implement the same contract.
++
++## Scope
++
++Added:
++
++- `ScheduledTransactionPersistencePort`
++- `AppPersistenceGateway.scheduledTransactions` typed to the new port
++- scheduled transaction panel wiring through the gateway
++- payee rename reference updates wired through the gateway
++
++Preserved:
++
++- existing localStorage behaviour
++- existing scheduled transaction panel behaviour
++- existing due count behaviour
++- existing scheduled transaction enter/advance behaviour
++- existing scheduled payee rename reference behaviour
++
++## Not included
++
++This release does not:
++
++- move scheduled transactions to SQLite yet
++- add scheduled split support
++- redesign the scheduled transactions panel
++- replace `window.alert` / `window.confirm`
++- change due-date or frequency semantics
++
++## Why this comes before register persistence
++
++Scheduled transactions are a medium-risk domain and are smaller than the account
++register. Moving them behind the gateway first reduces the number of direct
++localStorage service dependencies before the higher-risk register migration.
++
++The register still remains the largest persistence migration because it includes:
++
++- transactions
++- splits
++- transfers
++- attachments
++- running balances
++- scheduled transaction entry flow
++
++## Next recommended step
++
++Before implementing the register persistence port, perform a short architecture
++audit to list the remaining direct concrete service imports and decide whether
++register migration should be split into smaller releases.
