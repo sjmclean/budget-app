@@ -1,0 +1,533 @@
+diff --git a/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx b/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx
+index 7639afb..ed65bc2 100644
+--- a/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx
++++ b/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useMemo, useState } from "react";
+ import type { NewRegisterTransactionInput, TransactionFlag } from "../../features/accounts/accountRegisterTypes";
++import { alertDialog, confirmDialog } from "../../features/ui/appDialogService";
+ import type {
+   ScheduledFrequency,
+   ScheduledTransactionView,
+@@ -102,12 +103,12 @@ export function ScheduledTransactionsPanel({
+     const inflow = parseMoney(draft.inflow);
+ 
+     if (outflow > 0 && inflow > 0) {
+-      window.alert("A scheduled transaction can have either an outflow or an inflow, not both.");
++      alertDialog({ message: "A scheduled transaction can have either an outflow or an inflow, not both." });
+       return;
+     }
+ 
+     if (outflow <= 0 && inflow <= 0) {
+-      window.alert("Enter either an outflow or an inflow amount.");
++      alertDialog({ message: "Enter either an outflow or an inflow amount." });
+       return;
+     }
+ 
+@@ -135,7 +136,7 @@ export function ScheduledTransactionsPanel({
+   }
+ 
+   async function deleteScheduled(transaction: ScheduledTransactionView) {
+-    const confirmed = window.confirm(`Delete scheduled transaction "${transaction.payee}"?`);
++    const confirmed = confirmDialog({ message: `Delete scheduled transaction "${transaction.payee}"?` });
+ 
+     if (!confirmed) {
+       return;
+diff --git a/apps/web/src/features/budget/activeBudget.ts b/apps/web/src/features/budget/activeBudget.ts
+new file mode 100644
+index 0000000..03a76d4
+--- /dev/null
++++ b/apps/web/src/features/budget/activeBudget.ts
+@@ -0,0 +1,25 @@
++import type { BudgetSummary } from "./budgetRegistry";
++
++export function resolveActiveBudgetId(
++  budgets: BudgetSummary[],
++  selectedBudgetId: string | null,
++): string | null {
++  if (selectedBudgetId && budgets.some((budget) => budget.id === selectedBudgetId)) {
++    return selectedBudgetId;
++  }
++
++  return budgets[0]?.id ?? null;
++}
++
++export function resolveActiveBudget(
++  budgets: BudgetSummary[],
++  selectedBudgetId: string | null,
++): BudgetSummary | null {
++  const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
++
++  if (!activeBudgetId) {
++    return null;
++  }
++
++  return budgets.find((budget) => budget.id === activeBudgetId) ?? null;
++}
+diff --git a/apps/web/src/features/ui/appDialogService.ts b/apps/web/src/features/ui/appDialogService.ts
+new file mode 100644
+index 0000000..d9ec0ba
+--- /dev/null
++++ b/apps/web/src/features/ui/appDialogService.ts
+@@ -0,0 +1,29 @@
++export interface ConfirmDialogInput {
++  title?: string;
++  message: string;
++}
++
++export interface AlertDialogInput {
++  title?: string;
++  message: string;
++}
++
++function formatDialogMessage(input: ConfirmDialogInput | AlertDialogInput): string {
++  return input.title ? `${input.title}\n\n${input.message}` : input.message;
++}
++
++export function confirmDialog(input: ConfirmDialogInput): boolean {
++  if (typeof window === "undefined") {
++    return false;
++  }
++
++  return window.confirm(formatDialogMessage(input));
++}
++
++export function alertDialog(input: AlertDialogInput): void {
++  if (typeof window === "undefined") {
++    return;
++  }
++
++  window.alert(formatDialogMessage(input));
++}
+diff --git a/apps/web/src/layouts/AppShell.tsx b/apps/web/src/layouts/AppShell.tsx
+index adf172d..39b51c1 100644
+--- a/apps/web/src/layouts/AppShell.tsx
++++ b/apps/web/src/layouts/AppShell.tsx
+@@ -1,10 +1,27 @@
+-import { Outlet } from "react-router-dom";
++import { Navigate, Outlet } from "react-router-dom";
+ import { Sidebar } from "./Sidebar";
+ import { TopBar } from "./TopBar";
++import { useEffect } from "react";
++import { resolveActiveBudgetId } from "../features/budget/activeBudget";
++import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
+ import { useUIStore } from "../stores/uiStore";
+ 
+ export function AppShell() {
+   const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
++  const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
++  const selectBudget = useUIStore((state) => state.selectBudget);
++  const budgets = useBudgetRegistryStore((state) => state.budgets);
++  const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
++
++  useEffect(() => {
++    if (activeBudgetId && activeBudgetId !== selectedBudgetId) {
++      selectBudget(activeBudgetId);
++    }
++  }, [activeBudgetId, selectBudget, selectedBudgetId]);
++
++  if (!activeBudgetId) {
++    return <Navigate to="/" replace />;
++  }
+ 
+   return (
+     <div className="app-shell">
+diff --git a/apps/web/src/layouts/Sidebar.tsx b/apps/web/src/layouts/Sidebar.tsx
+index df70969..9e0b9dc 100644
+--- a/apps/web/src/layouts/Sidebar.tsx
++++ b/apps/web/src/layouts/Sidebar.tsx
+@@ -23,6 +23,7 @@ import type {
+   UpdateAccountInput,
+ } from "../features/accounts/accountService";
+ import { getAppPersistenceGateway } from "../features/persistence";
++import { alertDialog, confirmDialog } from "../features/ui/appDialogService";
+ 
+ export function Sidebar() {
+   const accountsPersistence = getAppPersistenceGateway().accounts;
+@@ -66,9 +67,11 @@ export function Sidebar() {
+   }
+ 
+   async function closeAccount(account: SidebarAccount) {
+-    const shouldClose = window.confirm(
+-      `Close "${account.name}"?\n\nClosed accounts are hidden from the main account list, but their transactions are preserved and the account can be reopened later.`,
+-    );
++    const shouldClose = confirmDialog({
++      title: `Close "${account.name}"?`,
++      message:
++        "Closed accounts are hidden from the main account list, but their transactions are preserved and the account can be reopened later.",
++    });
+ 
+     if (!shouldClose) {
+       return;
+@@ -86,9 +89,10 @@ export function Sidebar() {
+   }
+ 
+   async function deleteAccount(account: SidebarAccount) {
+-    const shouldDelete = window.confirm(
+-      `Delete "${account.name}"?\n\nOnly empty accounts can be permanently deleted. This cannot be undone.`,
+-    );
++    const shouldDelete = confirmDialog({
++      title: `Delete "${account.name}"?`,
++      message: "Only empty accounts can be permanently deleted. This cannot be undone.",
++    });
+ 
+     if (!shouldDelete) {
+       return;
+@@ -97,7 +101,7 @@ export function Sidebar() {
+     const result = await accountsPersistence.deleteAccount(account.id);
+ 
+     if (!result.deleted) {
+-      window.alert(result.reason ?? "This account cannot be deleted.");
++      alertDialog({ message: result.reason ?? "This account cannot be deleted." });
+     }
+ 
+     setAccounts(result.accounts);
+diff --git a/apps/web/src/layouts/TopBar.tsx b/apps/web/src/layouts/TopBar.tsx
+index 226d0a7..447206c 100644
+--- a/apps/web/src/layouts/TopBar.tsx
++++ b/apps/web/src/layouts/TopBar.tsx
+@@ -1,15 +1,19 @@
++import { resolveActiveBudget } from "../features/budget/activeBudget";
++import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
+ import { useUIStore, type ThemeMode } from "../stores/uiStore";
+ 
+ export function TopBar() {
+   const theme = useUIStore((state) => state.theme);
+   const setTheme = useUIStore((state) => state.setTheme);
+   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
++  const budgets = useBudgetRegistryStore((state) => state.budgets);
++  const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
+ 
+   return (
+     <header className="topbar">
+       <div>
+         <h1 className="topbar-title">
+-          {selectedBudgetId ? "Household Budget" : "Budget App"}
++          {activeBudget?.name ?? "Budget App"}
+         </h1>
+         <p className="topbar-subtitle">Local-first envelope budgeting</p>
+       </div>
+diff --git a/apps/web/src/pages/AccountRegisterPage.tsx b/apps/web/src/pages/AccountRegisterPage.tsx
+index 4924fc8..c9c9c1d 100644
+--- a/apps/web/src/pages/AccountRegisterPage.tsx
++++ b/apps/web/src/pages/AccountRegisterPage.tsx
+@@ -6,6 +6,8 @@ import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTran
+ import { useAccountRegister } from "../features/accounts/useAccountRegister";
+ import type { SidebarAccount } from "../features/accounts/accountService";
+ import { getAppPersistenceGateway } from "../features/persistence";
++import { confirmDialog } from "../features/ui/appDialogService";
++import { resolveActiveBudgetId } from "../features/budget/activeBudget";
+ import type { PayeeView } from "../features/accounts/payeeService";
+ import type {
+   NewRegisterTransactionInput,
+@@ -14,6 +16,8 @@ import type {
+   TransactionFlag,
+ } from "../features/accounts/accountRegisterTypes";
+ import type { BudgetCategoryOption } from "../features/budget/budgetViewTypes";
++import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
++import { useUIStore } from "../stores/uiStore";
+ 
+ const SPLIT_CATEGORY_LABEL = "Split...";
+ 
+@@ -22,7 +26,6 @@ function isSplitCategoryValue(value: string): boolean {
+   return normalised === "split" || normalised === "split...";
+ }
+ 
+-const ACTIVE_BUDGET_ID = "household";
+ const ACTIVE_BUDGET_MONTH = "2026-06";
+ 
+ function formatMoney(value: number, currencyCode: string) {
+@@ -1216,6 +1219,9 @@ function TransactionRow({
+ export function AccountRegisterPage() {
+   const { accountId = "everyday" } = useParams();
+   const persistenceGateway = getAppPersistenceGateway();
++  const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
++  const budgets = useBudgetRegistryStore((state) => state.budgets);
++  const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
+   const accountsPersistence = persistenceGateway.accounts;
+   const payeesPersistence = persistenceGateway.payees;
+   const categoriesPersistence = persistenceGateway.categories;
+@@ -1257,9 +1263,16 @@ export function AccountRegisterPage() {
+   useEffect(() => {
+     let isMounted = true;
+ 
++    if (!activeBudgetId) {
++      setCategoryOptions([]);
++      return () => {
++        isMounted = false;
++      };
++    }
++
+     void categoriesPersistence
+       .getCategoryOptions({
+-        budgetId: ACTIVE_BUDGET_ID,
++        budgetId: activeBudgetId,
+         month: ACTIVE_BUDGET_MONTH,
+       })
+       .then((options) => {
+@@ -1271,7 +1284,7 @@ export function AccountRegisterPage() {
+     return () => {
+       isMounted = false;
+     };
+-  }, [categoriesPersistence]);
++  }, [activeBudgetId, categoriesPersistence]);
+ 
+ 
+   async function refreshPayees(): Promise<PayeeView[]> {
+@@ -1856,9 +1869,9 @@ export function AccountRegisterPage() {
+             <button
+               type="button"
+               onClick={() => {
+-                const confirmed = window.confirm(
+-                  "Delete this transaction? This cannot be undone yet.",
+-                );
++                const confirmed = confirmDialog({
++                  message: "Delete this transaction? This cannot be undone yet.",
++                });
+ 
+                 if (!confirmed) {
+                   return;
+diff --git a/apps/web/src/pages/BudgetPage.tsx b/apps/web/src/pages/BudgetPage.tsx
+index dbfdc9a..c5b553d 100644
+--- a/apps/web/src/pages/BudgetPage.tsx
++++ b/apps/web/src/pages/BudgetPage.tsx
+@@ -1,8 +1,12 @@
+ import { useEffect, useState } from "react";
+ import { useNavigate } from "react-router-dom";
+ import { Card } from "../components/ui/Card";
++import { confirmDialog } from "../features/ui/appDialogService";
++import { resolveActiveBudgetId } from "../features/budget/activeBudget";
+ import { evaluateAssignedInput } from "../features/budget/evaluateAssignedInput";
+ import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
++import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
++import { useUIStore } from "../stores/uiStore";
+ import type {
+   BudgetActivityDrilldown,
+   BudgetActivityDrilldownRow,
+@@ -342,9 +346,11 @@ function CategoryInspector({
+       return;
+     }
+ 
+-    const confirmed = window.confirm(
+-      `Merge ${activeMergePreview.sourceCategoryName} into ${activeMergePreview.targetCategoryName}? This will reassign matching register and scheduled transactions, move assigned money to the target category, and archive the source category.`,
+-    );
++    const confirmed = confirmDialog({
++      title: `Merge ${activeMergePreview.sourceCategoryName} into ${activeMergePreview.targetCategoryName}?`,
++      message:
++        "This will reassign matching register and scheduled transactions, move assigned money to the target category, and archive the source category.",
++    });
+ 
+     if (!confirmed) {
+       return;
+@@ -722,7 +728,34 @@ function BudgetActivityDrilldownModal({
+   );
+ }
+ 
++interface BudgetWorkspacePageProps {
++  budgetId: string;
++}
++
+ export function BudgetPage() {
++  const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
++  const budgets = useBudgetRegistryStore((state) => state.budgets);
++  const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
++
++  if (!activeBudgetId) {
++    return (
++      <div className="page-stack">
++        <section className="workspace-header">
++          <div>
++            <h1>Budget</h1>
++            <p className="muted">No active budget is selected.</p>
++          </div>
++        </section>
++
++        <Card>Open or create a budget before editing categories.</Card>
++      </div>
++    );
++  }
++
++  return <BudgetWorkspacePage budgetId={activeBudgetId} />;
++}
++
++function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
+   const navigate = useNavigate();
+   const [hideArchivedCategories, setHideArchivedCategories] = useState(false);
+ 
+@@ -748,7 +781,7 @@ export function BudgetPage() {
+     previewCategoryMerge,
+     mergeCategory,
+     clearCategoryMergePreview,
+-  } = useBudgetWorkspace("household", "2026-06");
++  } = useBudgetWorkspace(budgetId, "2026-06");
+ 
+   if (isLoading) {
+     return (
+diff --git a/apps/web/src/pages/DashboardPage.tsx b/apps/web/src/pages/DashboardPage.tsx
+index 634daea..54b4512 100644
+--- a/apps/web/src/pages/DashboardPage.tsx
++++ b/apps/web/src/pages/DashboardPage.tsx
+@@ -1,4 +1,7 @@
+ import { Card } from "../components/ui/Card";
++import { resolveActiveBudget } from "../features/budget/activeBudget";
++import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
++import { useUIStore } from "../stores/uiStore";
+ 
+ const accounts = [
+   {
+@@ -61,11 +64,15 @@ const recentTransactions = [
+ ];
+ 
+ export function DashboardPage() {
++  const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
++  const budgets = useBudgetRegistryStore((state) => state.budgets);
++  const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
++
+   return (
+     <div className="budget-workspace">
+       <section className="budget-workspace-header">
+         <div>
+-          <h1>Household Budget</h1>
++          <h1>{activeBudget?.name ?? "Budget"}</h1>
+           <p className="muted">
+             June 2026 · Local-first budget workspace
+           </p>
+diff --git a/apps/web/src/stores/uiStore.ts b/apps/web/src/stores/uiStore.ts
+index 81a0964..81ce5b2 100644
+--- a/apps/web/src/stores/uiStore.ts
++++ b/apps/web/src/stores/uiStore.ts
+@@ -15,6 +15,16 @@ interface UIState {
+ }
+ 
+ const themeStorageKey = "budget-app-theme";
++const selectedBudgetStorageKey = "budget-app.selected-budget-id.v1";
++
++function getInitialSelectedBudgetId(): string | null {
++  if (typeof window === "undefined") {
++    return null;
++  }
++
++  const storedBudgetId = window.localStorage.getItem(selectedBudgetStorageKey);
++  return storedBudgetId?.trim() || null;
++}
+ 
+ function getInitialTheme(): ThemeMode {
+   if (typeof window === "undefined") {
+@@ -39,7 +49,7 @@ export const useUIStore = create<UIState>((set) => ({
+   sidebarCollapsed: false,
+ 
+   theme: getInitialTheme(),
+-  selectedBudgetId: null,
++  selectedBudgetId: getInitialSelectedBudgetId(),
+ 
+   toggleSidebar: () =>
+     set((state) => ({
+@@ -66,6 +76,6 @@ export const useUIStore = create<UIState>((set) => ({
+ 
+   clearSelectedBudget: () =>
+     set({
+-      selectedBudgetId: null,
++      selectedBudgetId: getInitialSelectedBudgetId(),
+     }),
+ }));
+\ No newline at end of file
+diff --git a/docs/v147-active-budget-context.md b/docs/v147-active-budget-context.md
+new file mode 100644
+index 0000000..14e6d11
+--- /dev/null
++++ b/docs/v147-active-budget-context.md
+@@ -0,0 +1,28 @@
++# v1.47 Active Budget Context + Dialog Foundation
++
++## Purpose
++
++v1.47 starts converting the web app from a hardcoded demo budget workflow into an active-budget workflow.
++
++The budget registry introduced in v1.46 now has a small active budget resolver and the selected budget id is persisted so a page refresh can continue in the same budget.
++
++## Changes
++
++- Added active budget resolver helpers.
++- Persisted the selected budget id in localStorage.
++- AppShell resolves and normalises the active budget before rendering workspace routes.
++- BudgetPage now uses the active budget id instead of hardcoding `household`.
++- AccountRegisterPage loads category options for the active budget id instead of hardcoding `household`.
++- Dashboard and TopBar display the active budget name.
++- Added an app dialog service as a first standardisation step away from direct `alert()` / `confirm()` usage.
++- Replaced current direct app UI `alert()` / `confirm()` calls with the dialog service.
++- Added v1.47 release validation.
++
++## Still intentionally out of scope
++
++- True budget-scoped localStorage isolation for accounts, payees, register transactions, scheduled transactions, and attachments.
++- Reset Budget and Delete Budget lifecycle workflows.
++- Desktop host budget file selection.
++- Custom modal rendering for dialogs.
++
++Those belong in the next architecture consolidation releases.
+diff --git a/package.json b/package.json
+index 7ad5831..6624f50 100644
+--- a/package.json
++++ b/package.json
+@@ -129,7 +129,7 @@
+     "test:v127:budget-activity": "tsx tests/v127-budget-activity-persistence.ts",
+     "test:v127": "pnpm test:v127:budget-activity",
+     "test:v132": "tsx tests/v132-gateway-selection.ts",
+-    "test:release-integrity": "pnpm test:v127 && pnpm test:v130 && pnpm test:v131 && pnpm test:v132 && pnpm test:v133 && pnpm test:v134 && pnpm test:v135 && pnpm test:v136 && pnpm test:v137 && pnpm test:v138 && pnpm test:v139 && pnpm test:v140 && pnpm test:v141 && pnpm test:v142 && pnpm test:v143 && pnpm test:v144 && pnpm test:v145 && pnpm test:v146",
++    "test:release-integrity": "pnpm test:v127 && pnpm test:v130 && pnpm test:v131 && pnpm test:v132 && pnpm test:v133 && pnpm test:v134 && pnpm test:v135 && pnpm test:v136 && pnpm test:v137 && pnpm test:v138 && pnpm test:v139 && pnpm test:v140 && pnpm test:v141 && pnpm test:v142 && pnpm test:v143 && pnpm test:v144 && pnpm test:v145 && pnpm test:v146 && pnpm test:v147",
+     "test:v133:sqlite-gateway-repository-wiring": "tsx tests/v133-sqlite-gateway-repository-wiring.ts",
+     "test:v133": "pnpm test:v133:sqlite-gateway-repository-wiring",
+     "test:v134:runtime-activation-audit": "tsx tests/v134-runtime-activation-audit.ts",
+@@ -157,7 +157,9 @@
+     "test:v145:default-category-template": "tsx tests/v145-default-category-template.ts",
+     "test:v145": "pnpm test:v145:default-category-template",
+     "test:v146:budget-registry-foundation": "tsx tests/v146-budget-registry-foundation.ts",
+-    "test:v146": "pnpm test:v146:budget-registry-foundation"
++    "test:v146": "pnpm test:v146:budget-registry-foundation",
++    "test:v147:active-budget-context": "tsx tests/v147-active-budget-context.ts",
++    "test:v147": "pnpm test:v147:active-budget-context"
+   },
+   "dependencies": {
+     "better-sqlite3": "^12.11.1",
+diff --git a/tests/v147-active-budget-context.ts b/tests/v147-active-budget-context.ts
+new file mode 100644
+index 0000000..0ec0096
+--- /dev/null
++++ b/tests/v147-active-budget-context.ts
+@@ -0,0 +1,36 @@
++import assert from "node:assert/strict";
++import {
++  createInitialBudgetRegistry,
++  type BudgetSummary,
++} from "../apps/web/src/features/budget/budgetRegistry";
++import {
++  resolveActiveBudget,
++  resolveActiveBudgetId,
++} from "../apps/web/src/features/budget/activeBudget";
++
++const initial = createInitialBudgetRegistry(new Date("2026-06-22T00:00:00.000Z"));
++
++assert.equal(resolveActiveBudgetId(initial, "household"), "household");
++assert.equal(resolveActiveBudget(initial, "household")?.name, "Household Budget");
++assert.equal(resolveActiveBudgetId(initial, null), "household");
++assert.equal(resolveActiveBudgetId(initial, "missing-budget"), "household");
++assert.equal(resolveActiveBudgetId([], "missing-budget"), null);
++assert.equal(resolveActiveBudget([], "missing-budget"), null);
++
++const multipleBudgets: BudgetSummary[] = [
++  ...initial,
++  {
++    id: "side-business",
++    name: "Side Business",
++    currency: "AUD",
++    lastOpenedLabel: "Not opened yet",
++    packagePath: "~/Budgets/SideBusiness.budget",
++    createdAt: "2026-06-22T00:00:00.000Z",
++    updatedAt: "2026-06-22T00:00:00.000Z",
++  },
++];
++
++assert.equal(resolveActiveBudgetId(multipleBudgets, "side-business"), "side-business");
++assert.equal(resolveActiveBudget(multipleBudgets, "side-business")?.name, "Side Business");
++
++console.log("v1.47 active budget context checks passed");

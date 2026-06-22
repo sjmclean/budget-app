@@ -6,6 +6,8 @@ import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTran
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
+import { confirmDialog } from "../features/ui/appDialogService";
+import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import type { PayeeView } from "../features/accounts/payeeService";
 import type {
   NewRegisterTransactionInput,
@@ -14,6 +16,8 @@ import type {
   TransactionFlag,
 } from "../features/accounts/accountRegisterTypes";
 import type { BudgetCategoryOption } from "../features/budget/budgetViewTypes";
+import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
+import { useUIStore } from "../stores/uiStore";
 
 const SPLIT_CATEGORY_LABEL = "Split...";
 
@@ -22,7 +26,6 @@ function isSplitCategoryValue(value: string): boolean {
   return normalised === "split" || normalised === "split...";
 }
 
-const ACTIVE_BUDGET_ID = "household";
 const ACTIVE_BUDGET_MONTH = "2026-06";
 
 function formatMoney(value: number, currencyCode: string) {
@@ -1216,6 +1219,9 @@ function TransactionRow({
 export function AccountRegisterPage() {
   const { accountId = "everyday" } = useParams();
   const persistenceGateway = getAppPersistenceGateway();
+  const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
+  const budgets = useBudgetRegistryStore((state) => state.budgets);
+  const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
   const accountsPersistence = persistenceGateway.accounts;
   const payeesPersistence = persistenceGateway.payees;
   const categoriesPersistence = persistenceGateway.categories;
@@ -1257,9 +1263,16 @@ export function AccountRegisterPage() {
   useEffect(() => {
     let isMounted = true;
 
+    if (!activeBudgetId) {
+      setCategoryOptions([]);
+      return () => {
+        isMounted = false;
+      };
+    }
+
     void categoriesPersistence
       .getCategoryOptions({
-        budgetId: ACTIVE_BUDGET_ID,
+        budgetId: activeBudgetId,
         month: ACTIVE_BUDGET_MONTH,
       })
       .then((options) => {
@@ -1271,7 +1284,7 @@ export function AccountRegisterPage() {
     return () => {
       isMounted = false;
     };
-  }, [categoriesPersistence]);
+  }, [activeBudgetId, categoriesPersistence]);
 
 
   async function refreshPayees(): Promise<PayeeView[]> {
@@ -1856,9 +1869,9 @@ export function AccountRegisterPage() {
             <button
               type="button"
               onClick={() => {
-                const confirmed = window.confirm(
-                  "Delete this transaction? This cannot be undone yet.",
-                );
+                const confirmed = confirmDialog({
+                  message: "Delete this transaction? This cannot be undone yet.",
+                });
 
                 if (!confirmed) {
                   return;

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { NewRegisterTransactionInput, TransactionFlag } from "../../features/accounts/accountRegisterTypes";
+import { alertDialog, confirmDialog } from "../../features/ui/appDialogService";
 import type {
   ScheduledFrequency,
   ScheduledTransactionView,
@@ -102,12 +103,12 @@ export function ScheduledTransactionsPanel({
     const inflow = parseMoney(draft.inflow);
 
     if (outflow > 0 && inflow > 0) {
-      window.alert("A scheduled transaction can have either an outflow or an inflow, not both.");
+      alertDialog({ message: "A scheduled transaction can have either an outflow or an inflow, not both." });
       return;
     }
 
     if (outflow <= 0 && inflow <= 0) {
-      window.alert("Enter either an outflow or an inflow amount.");
+      alertDialog({ message: "Enter either an outflow or an inflow amount." });
       return;
     }
 
@@ -135,7 +136,7 @@ export function ScheduledTransactionsPanel({
   }
 
   async function deleteScheduled(transaction: ScheduledTransactionView) {
-    const confirmed = window.confirm(`Delete scheduled transaction "${transaction.payee}"?`);
+    const confirmed = confirmDialog({ message: `Delete scheduled transaction "${transaction.payee}"?` });
 
     if (!confirmed) {
       return;

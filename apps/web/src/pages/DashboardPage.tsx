@@ -1,4 +1,7 @@
 import { Card } from "../components/ui/Card";
+import { resolveActiveBudget } from "../features/budget/activeBudget";
+import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
+import { useUIStore } from "../stores/uiStore";
 
 const accounts = [
   {
@@ -61,11 +64,15 @@ const recentTransactions = [
 ];
 
 export function DashboardPage() {
+  const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
+  const budgets = useBudgetRegistryStore((state) => state.budgets);
+  const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
+
   return (
     <div className="budget-workspace">
       <section className="budget-workspace-header">
         <div>
-          <h1>Household Budget</h1>
+          <h1>{activeBudget?.name ?? "Budget"}</h1>
           <p className="muted">
             June 2026 · Local-first budget workspace
           </p>

@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/ui/Card";
+import { confirmDialog } from "../features/ui/appDialogService";
+import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { evaluateAssignedInput } from "../features/budget/evaluateAssignedInput";
 import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
+import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
+import { useUIStore } from "../stores/uiStore";
 import type {
   BudgetActivityDrilldown,
   BudgetActivityDrilldownRow,
@@ -342,9 +346,11 @@ function CategoryInspector({
       return;
     }
 
-    const confirmed = window.confirm(
-      `Merge ${activeMergePreview.sourceCategoryName} into ${activeMergePreview.targetCategoryName}? This will reassign matching register and scheduled transactions, move assigned money to the target category, and archive the source category.`,
-    );
+    const confirmed = confirmDialog({
+      title: `Merge ${activeMergePreview.sourceCategoryName} into ${activeMergePreview.targetCategoryName}?`,
+      message:
+        "This will reassign matching register and scheduled transactions, move assigned money to the target category, and archive the source category.",
+    });
 
     if (!confirmed) {
       return;
@@ -722,7 +728,34 @@ function BudgetActivityDrilldownModal({
   );
 }
 
+interface BudgetWorkspacePageProps {
+  budgetId: string;
+}
+
 export function BudgetPage() {
+  const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
+  const budgets = useBudgetRegistryStore((state) => state.budgets);
+  const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
+
+  if (!activeBudgetId) {
+    return (
+      <div className="page-stack">
+        <section className="workspace-header">
+          <div>
+            <h1>Budget</h1>
+            <p className="muted">No active budget is selected.</p>
+          </div>
+        </section>
+
+        <Card>Open or create a budget before editing categories.</Card>
+      </div>
+    );
+  }
+
+  return <BudgetWorkspacePage budgetId={activeBudgetId} />;
+}
+
+function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const navigate = useNavigate();
   const [hideArchivedCategories, setHideArchivedCategories] = useState(false);
 
@@ -748,7 +781,7 @@ export function BudgetPage() {
     previewCategoryMerge,
     mergeCategory,
     clearCategoryMergePreview,
-  } = useBudgetWorkspace("household", "2026-06");
+  } = useBudgetWorkspace(budgetId, "2026-06");
 
   if (isLoading) {
     return (

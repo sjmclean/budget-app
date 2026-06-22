@@ -23,6 +23,7 @@ import type {
   UpdateAccountInput,
 } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
+import { alertDialog, confirmDialog } from "../features/ui/appDialogService";
 
 export function Sidebar() {
   const accountsPersistence = getAppPersistenceGateway().accounts;
@@ -66,9 +67,11 @@ export function Sidebar() {
   }
 
   async function closeAccount(account: SidebarAccount) {
-    const shouldClose = window.confirm(
-      `Close "${account.name}"?\n\nClosed accounts are hidden from the main account list, but their transactions are preserved and the account can be reopened later.`,
-    );
+    const shouldClose = confirmDialog({
+      title: `Close "${account.name}"?`,
+      message:
+        "Closed accounts are hidden from the main account list, but their transactions are preserved and the account can be reopened later.",
+    });
 
     if (!shouldClose) {
       return;
@@ -86,9 +89,10 @@ export function Sidebar() {
   }
 
   async function deleteAccount(account: SidebarAccount) {
-    const shouldDelete = window.confirm(
-      `Delete "${account.name}"?\n\nOnly empty accounts can be permanently deleted. This cannot be undone.`,
-    );
+    const shouldDelete = confirmDialog({
+      title: `Delete "${account.name}"?`,
+      message: "Only empty accounts can be permanently deleted. This cannot be undone.",
+    });
 
     if (!shouldDelete) {
       return;
@@ -97,7 +101,7 @@ export function Sidebar() {
     const result = await accountsPersistence.deleteAccount(account.id);
 
     if (!result.deleted) {
-      window.alert(result.reason ?? "This account cannot be deleted.");
+      alertDialog({ message: result.reason ?? "This account cannot be deleted." });
     }
 
     setAccounts(result.accounts);

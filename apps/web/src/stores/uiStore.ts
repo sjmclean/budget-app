@@ -15,6 +15,16 @@ interface UIState {
 }
 
 const themeStorageKey = "budget-app-theme";
+const selectedBudgetStorageKey = "budget-app.selected-budget-id.v1";
+
+function getInitialSelectedBudgetId(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const storedBudgetId = window.localStorage.getItem(selectedBudgetStorageKey);
+  return storedBudgetId?.trim() || null;
+}
 
 function getInitialTheme(): ThemeMode {
   if (typeof window === "undefined") {
@@ -39,7 +49,7 @@ export const useUIStore = create<UIState>((set) => ({
   sidebarCollapsed: false,
 
   theme: getInitialTheme(),
-  selectedBudgetId: null,
+  selectedBudgetId: getInitialSelectedBudgetId(),
 
   toggleSidebar: () =>
     set((state) => ({
@@ -66,6 +76,6 @@ export const useUIStore = create<UIState>((set) => ({
 
   clearSelectedBudget: () =>
     set({
-      selectedBudgetId: null,
+      selectedBudgetId: getInitialSelectedBudgetId(),
     }),
 }));
