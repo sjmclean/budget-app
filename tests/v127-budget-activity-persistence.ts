@@ -1,4 +1,5 @@
-import { browserLocalStorageBudgetActivityPersistence } from "../apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.js";
+import { createBrowserLocalStorageBudgetActivityPersistence } from "../apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.js";
+import { browserLocalStorageKeyValueStorage } from "../apps/web/src/features/persistence/keyValueStoragePort.js";
 
 const ACCOUNT_STORAGE_KEY = "budget-app.accounts.v1";
 const REGISTER_STORAGE_KEY = "budget-app.account-registers.v1";
@@ -25,6 +26,10 @@ class MemoryLocalStorage {
 }
 
 const localStorage = new MemoryLocalStorage();
+const browserLocalStorageBudgetActivityPersistence = createBrowserLocalStorageBudgetActivityPersistence(
+  browserLocalStorageKeyValueStorage,
+);
+
 (globalThis as typeof globalThis & { window: { localStorage: MemoryLocalStorage } }).window = {
   localStorage,
 };

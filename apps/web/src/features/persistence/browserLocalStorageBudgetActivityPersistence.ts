@@ -1,5 +1,5 @@
 import { readAccounts } from "../accounts/accountService";
-import { browserLocalStorageKeyValueStorage } from "./keyValueStoragePort";
+import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { SidebarAccountType } from "../accounts/accountService";
 import type {
   BudgetActivityCategoryReference,
@@ -41,37 +41,41 @@ interface StoredScheduledTransaction {
   categoryId?: string;
 }
 
-export const browserLocalStorageBudgetActivityPersistence: BudgetActivityPersistencePort = {
-  async listRegisterTransactionsForBudgetActivity() {
-    return readBudgetScopedRegisterTransactions();
-  },
+export function createBrowserLocalStorageBudgetActivityPersistence(
+  storage: KeyValueStoragePort,
+): BudgetActivityPersistencePort {
+  return {
+    async listRegisterTransactionsForBudgetActivity() {
+      return readBudgetScopedRegisterTransactions(storage);
+    },
 
-  async countCategoryReferences(category) {
-    const registerCounts = countRegisterCategoryReferences(category);
-    const scheduledTransactionCount = countScheduledCategoryReferences(category);
+    async countCategoryReferences(category) {
+      const registerCounts = countRegisterCategoryReferences(storage, category);
+      const scheduledTransactionCount = countScheduledCategoryReferences(storage, category);
 
-    return {
-      ...registerCounts,
-      scheduledTransactionCount,
-    };
-  },
+      return {
+        ...registerCounts,
+        scheduledTransactionCount,
+      };
+    },
 
-  async renameRegisterCategoryReferences({ previousName, nextName }) {
-    renameStoredRegisterCategory(previousName, nextName);
-  },
+    async renameRegisterCategoryReferences({ previousName, nextName }) {
+      renameStoredRegisterCategory(storage, previousName, nextName);
+    },
 
-  async rewriteCategoryReferences({ sourceCategory, targetCategory }) {
-    rewriteStoredRegisterCategoryReferences(sourceCategory, targetCategory);
-    rewriteScheduledCategoryReferences(sourceCategory, targetCategory);
-  },
-};
+    async rewriteCategoryReferences({ sourceCategory, targetCategory }) {
+      rewriteStoredRegisterCategoryReferences(storage, sourceCategory, targetCategory);
+      rewriteScheduledCategoryReferences(storage, sourceCategory, targetCategory);
+    },
+  };
+}
 
-function readBudgetScopedRegisterTransactions(): BudgetActivityRegisterTransaction[] {
+function readBudgetScopedRegisterTransactions(storage: KeyValueStoragePort): BudgetActivityRegisterTransaction[] {
   if (typeof window === "undefined") {
     return [];
   }
 
-  const raw = window.localStorage.getItem(REGISTER_STORAGE_KEY);
+  const raw = storage.getItem(REGISTER_STORAGE_KEY);
 
   if (!raw) {
     return [];
@@ -79,7 +83,7 @@ function readBudgetScopedRegisterTransactions(): BudgetActivityRegisterTransacti
 
   try {
     const registers = JSON.parse(raw) as StoredRegisters;
-    const accounts = readAccounts(browserLocalStorageKeyValueStorage);
+    const accounts = readAccounts(storage);
     const accountTypeById = new Map(accounts.map((account) => [account.id, account.type]));
     const accountNameById = new Map(accounts.map((account) => [account.id, account.name]));
 
@@ -125,7 +129,7 @@ function mapRegisterAccountType(accountType: string | undefined): SidebarAccount
   return null;
 }
 
-function countRegisterCategoryReferences(category: BudgetActivityCategoryReference): {
+function countRegisterCategoryReferences(storage: KeyValueStoragePort, category: BudgetActivityCategoryReference): {
   registerTransactionCount: number;
   registerSplitLineCount: number;
 } {
@@ -133,7 +137,7 @@ function countRegisterCategoryReferences(category: BudgetActivityCategoryReferen
     return { registerTransactionCount: 0, registerSplitLineCount: 0 };
   }
 
-  const raw = window.localStorage.getItem(REGISTER_STORAGE_KEY);
+  const raw = storage.getItem(REGISTER_STORAGE_KEY);
 
   if (!raw) {
     return { registerTransactionCount: 0, registerSplitLineCount: 0 };
@@ -165,12 +169,12 @@ function countRegisterCategoryReferences(category: BudgetActivityCategoryReferen
   }
 }
 
-function countScheduledCategoryReferences(category: BudgetActivityCategoryReference): number {
+function countScheduledCategoryReferences(storage: KeyValueStoragePort, category: BudgetActivityCategoryReference): number {
   if (typeof window === "undefined") {
     return 0;
   }
 
-  const raw = window.localStorage.getItem(SCHEDULED_TRANSACTIONS_STORAGE_KEY);
+  const raw = storage.getItem(SCHEDULED_TRANSACTIONS_STORAGE_KEY);
 
   if (!raw) {
     return 0;
@@ -189,6 +193,7 @@ function countScheduledCategoryReferences(category: BudgetActivityCategoryRefere
 }
 
 function rewriteStoredRegisterCategoryReferences(
+  storage: KeyValueStoragePort,
   sourceCategory: BudgetActivityCategoryReference,
   targetCategory: BudgetActivityCategoryReference,
 ): void {
@@ -196,7 +201,7 @@ function rewriteStoredRegisterCategoryReferences(
     return;
   }
 
-  const raw = window.localStorage.getItem(REGISTER_STORAGE_KEY);
+  const raw = storage.getItem(REGISTER_STORAGE_KEY);
 
   if (!raw) {
     return;
@@ -228,7 +233,7 @@ function rewriteStoredRegisterCategoryReferences(
     }
 
     if (changed) {
-      window.localStorage.setItem(REGISTER_STORAGE_KEY, JSON.stringify(registers));
+      storage.setItem(REGISTER_STORAGE_KEY, JSON.stringify(registers));
     }
   } catch {
     // If register storage is unreadable, leave transactions untouched.
@@ -236,6 +241,7 @@ function rewriteStoredRegisterCategoryReferences(
 }
 
 function rewriteScheduledCategoryReferences(
+  storage: KeyValueStoragePort,
   sourceCategory: BudgetActivityCategoryReference,
   targetCategory: BudgetActivityCategoryReference,
 ): void {
@@ -243,7 +249,7 @@ function rewriteScheduledCategoryReferences(
     return;
   }
 
-  const raw = window.localStorage.getItem(SCHEDULED_TRANSACTIONS_STORAGE_KEY);
+  const raw = storage.getItem(SCHEDULED_TRANSACTIONS_STORAGE_KEY);
 
   if (!raw) {
     return;
@@ -273,7 +279,7 @@ function rewriteScheduledCategoryReferences(
     });
 
     if (changed) {
-      window.localStorage.setItem(
+      storage.setItem(
         SCHEDULED_TRANSACTIONS_STORAGE_KEY,
         JSON.stringify(nextScheduledTransactions),
       );
@@ -283,12 +289,12 @@ function rewriteScheduledCategoryReferences(
   }
 }
 
-function renameStoredRegisterCategory(previousName: string, nextName: string): void {
+function renameStoredRegisterCategory(storage: KeyValueStoragePort, previousName: string, nextName: string): void {
   if (typeof window === "undefined") {
     return;
   }
 
-  const raw = window.localStorage.getItem(REGISTER_STORAGE_KEY);
+  const raw = storage.getItem(REGISTER_STORAGE_KEY);
 
   if (!raw) {
     return;
@@ -319,7 +325,7 @@ function renameStoredRegisterCategory(previousName: string, nextName: string): v
     }
 
     if (changed) {
-      window.localStorage.setItem(REGISTER_STORAGE_KEY, JSON.stringify(registers));
+      storage.setItem(REGISTER_STORAGE_KEY, JSON.stringify(registers));
     }
   } catch {
     // If register storage is unreadable, leave transactions untouched.

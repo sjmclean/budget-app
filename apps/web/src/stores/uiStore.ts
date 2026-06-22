@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { SELECTED_BUDGET_STORAGE_KEY } from "../features/budget/budgetDataScope";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -15,7 +16,7 @@ interface UIState {
 }
 
 const themeStorageKey = "budget-app-theme";
-const selectedBudgetStorageKey = "budget-app.selected-budget-id.v1";
+const selectedBudgetStorageKey = SELECTED_BUDGET_STORAGE_KEY;
 
 function getInitialSelectedBudgetId(): string | null {
   if (typeof window === "undefined") {
@@ -69,13 +70,23 @@ export const useUIStore = create<UIState>((set) => ({
     set({ theme });
   },
 
-  selectBudget: (budgetId) =>
+  selectBudget: (budgetId) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(selectedBudgetStorageKey, budgetId);
+    }
+
     set({
       selectedBudgetId: budgetId,
-    }),
+    });
+  },
 
-  clearSelectedBudget: () =>
+  clearSelectedBudget: () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(selectedBudgetStorageKey);
+    }
+
     set({
-      selectedBudgetId: getInitialSelectedBudgetId(),
-    }),
+      selectedBudgetId: null,
+    });
+  },
 }));

@@ -3,38 +3,41 @@ import { createAccountRegisterService } from "../accounts/accountRegisterService
 import { createPayeeService, findPayeeIdByName } from "../accounts/payeeService";
 import { createScheduledTransactionService } from "../accounts/scheduledTransactionService";
 import { createBudgetViewService } from "../budget/budgetViewService";
-import { browserLocalStorageBudgetActivityPersistence } from "./browserLocalStorageBudgetActivityPersistence";
+import { createBrowserLocalStorageBudgetActivityPersistence } from "./browserLocalStorageBudgetActivityPersistence";
+import { createBudgetScopedStorage } from "../budget/budgetDataScope";
 import { browserLocalStorageKeyValueStorage } from "./keyValueStoragePort";
 import type { AppPersistenceGateway } from "./appPersistenceGateway";
 
+const budgetScopedStorage = createBudgetScopedStorage(browserLocalStorageKeyValueStorage);
+
 const accountService = createAccountService({
-  storage: browserLocalStorageKeyValueStorage,
+  storage: budgetScopedStorage,
 });
 
 const payeeService = createPayeeService({
-  storage: browserLocalStorageKeyValueStorage,
+  storage: budgetScopedStorage,
 });
 
 const accountRegisterService = createAccountRegisterService({
-  storage: browserLocalStorageKeyValueStorage,
+  storage: budgetScopedStorage,
   recordPayee: async (payeeName: string) => {
     await payeeService.recordPayee(payeeName);
   },
-  findPayeeIdByName: (payeeName: string) => findPayeeIdByName(browserLocalStorageKeyValueStorage, payeeName),
-  readAccounts: () => readAccounts(browserLocalStorageKeyValueStorage),
+  findPayeeIdByName: (payeeName: string) => findPayeeIdByName(budgetScopedStorage, payeeName),
+  readAccounts: () => readAccounts(budgetScopedStorage),
   getAccountById: (accountId: string) => accountService.getAccountById(accountId) ?? undefined,
 });
 
 const scheduledTransactionService = createScheduledTransactionService({
-  storage: browserLocalStorageKeyValueStorage,
+  storage: budgetScopedStorage,
   recordPayee: async (payeeName: string) => {
     await payeeService.recordPayee(payeeName);
   },
-  findPayeeIdByName: (payeeName: string) => findPayeeIdByName(browserLocalStorageKeyValueStorage, payeeName),
+  findPayeeIdByName: (payeeName: string) => findPayeeIdByName(budgetScopedStorage, payeeName),
 });
 
 const budgetViewService = createBudgetViewService({
-  budgetActivity: browserLocalStorageBudgetActivityPersistence,
+  budgetActivity: createBrowserLocalStorageBudgetActivityPersistence(budgetScopedStorage),
   storage: browserLocalStorageKeyValueStorage,
 });
 
