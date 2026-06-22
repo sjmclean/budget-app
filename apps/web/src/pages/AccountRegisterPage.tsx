@@ -335,6 +335,7 @@ function AttachmentManager({
                   <strong>{attachment.fileName}</strong>
                   <span>
                     {formatFileSize(attachment.fileSize)} · {attachment.mimeType || "Unknown type"}
+                    {attachment.contentDataUrl ? " · Stored" : " · Metadata only"}
                   </span>
                 </div>
                 <button
@@ -353,6 +354,7 @@ function AttachmentManager({
           <input
             ref={fileInputRef}
             type="file"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
             className="attachment-file-input"
             onChange={(event) => {
               const file = event.target.files?.[0];

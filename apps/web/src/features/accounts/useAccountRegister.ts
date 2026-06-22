@@ -7,6 +7,14 @@ import type {
   UpdateRegisterTransactionInput,
 } from "./accountRegisterTypes";
 
+const MAX_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
 interface UseAccountRegisterState {
   data: AccountRegisterView | null;
   isLoading: boolean;
@@ -157,6 +165,20 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
   }, [accountId, accountRegisters, runMutation]);
 
   const addAttachment = useCallback(async (transactionId: string, file: File) => {
+    if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+      setError("Attachment is too large. Maximum supported size is 5 MB.");
+      return;
+    }
+
+    const mimeType = file.type || "application/octet-stream";
+
+    if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(mimeType)) {
+      setError("Unsupported attachment type. Attach PDF, JPG, PNG, or WEBP files.");
+      return;
+    }
+
+    const contentDataUrl = await readFileAsDataUrl(file);
+
     await runMutation(
       () => accountRegisters.addAttachment({
         accountId,
@@ -164,7 +186,8 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
         attachment: {
           fileName: file.name,
           fileSize: file.size,
-          mimeType: file.type,
+          mimeType,
+          contentDataUrl,
         },
       }),
       transactionId,
@@ -226,4 +249,26 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     renamePayeeReferences,
     reassignPayeeReferences,
   };
+}
+
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error("Failed to read attachment content."));
+        return;
+      }
+
+      resolve(reader.result);
+    };
+
+    reader.onerror = () => {
+      reject(new Error("Failed to read attachment content."));
+    };
+
+    reader.readAsDataURL(file);
+  });
 }

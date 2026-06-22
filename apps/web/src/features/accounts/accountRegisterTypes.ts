@@ -22,6 +22,15 @@ export interface RegisterAttachmentView {
   fileSize: number;
   mimeType: string;
   attachedAt: string;
+  /**
+   * Browser prototype storage payload.
+   *
+   * The current web runtime stores attachment content inline with the
+   * register view so attachments survive reloads/backups while the
+   * desktop/package-backed attachment file store is wired into the UI.
+   */
+  contentDataUrl?: string;
+  storageType?: "inline-data-url" | "external-file";
 }
 
 export interface RegisterTransactionView {
@@ -116,6 +125,7 @@ export interface AccountRegisterService {
       fileName: string;
       fileSize: number;
       mimeType: string;
+      contentDataUrl?: string;
     };
   }): Promise<AccountRegisterView>;
 

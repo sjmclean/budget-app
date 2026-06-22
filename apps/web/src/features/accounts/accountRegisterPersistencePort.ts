@@ -52,6 +52,7 @@ export interface AccountRegisterPersistencePort {
       fileName: string;
       fileSize: number;
       mimeType: string;
+      contentDataUrl?: string;
     };
   }): Promise<AccountRegisterView>;
 

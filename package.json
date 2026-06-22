@@ -175,7 +175,9 @@
     "test:v153:import-column-mapping": "tsx tests/v153-import-column-mapping.ts",
     "test:v153": "pnpm test:v153:import-column-mapping",
     "test:v154:attachment-foundation": "tsx tests/v154-attachment-foundation.ts",
-    "test:v154": "pnpm test:v154:attachment-foundation"
+    "test:v154": "pnpm test:v154:attachment-foundation",
+    "test:v155:attachment-persistence": "tsx tests/v155-attachment-persistence.ts",
+    "test:v155": "pnpm test:v154 && pnpm test:v155:attachment-persistence"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

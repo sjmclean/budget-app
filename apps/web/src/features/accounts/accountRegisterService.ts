@@ -210,6 +210,7 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
       fileName: string;
       fileSize: number;
       mimeType: string;
+      contentDataUrl?: string;
     };
   }): Promise<AccountRegisterView> {
     return updateRegister(this.dependencies, input.accountId, (register) => {
@@ -226,6 +227,12 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
             fileSize: input.attachment.fileSize,
             mimeType: input.attachment.mimeType || "application/octet-stream",
             attachedAt: new Date().toISOString(),
+            ...(input.attachment.contentDataUrl
+              ? {
+                  contentDataUrl: input.attachment.contentDataUrl,
+                  storageType: "inline-data-url" as const,
+                }
+              : {}),
           },
         ];
 
