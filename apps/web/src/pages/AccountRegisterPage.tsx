@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
+import { getAttachmentAccessState, getSafeAttachmentFileName } from "../features/accounts/attachmentAccess";
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
 import { confirmDialog } from "../features/ui/appDialogService";
@@ -328,25 +329,52 @@ function AttachmentManager({
           {attachments.length === 0 ? (
             <p className="muted">No attachments yet.</p>
           ) : (
-            attachments.map((attachment) => (
-              <div className="attachment-list-item" key={attachment.id}>
-                <Paperclip size={15} />
-                <div>
-                  <strong>{attachment.fileName}</strong>
-                  <span>
-                    {formatFileSize(attachment.fileSize)} · {attachment.mimeType || "Unknown type"}
-                    {attachment.contentDataUrl ? " · Stored" : " · Metadata only"}
-                  </span>
+            attachments.map((attachment) => {
+              const access = getAttachmentAccessState(attachment);
+              const safeFileName = getSafeAttachmentFileName(attachment.fileName);
+
+              return (
+                <div className="attachment-list-item" key={attachment.id}>
+                  <Paperclip size={15} />
+                  <div>
+                    <strong>{attachment.fileName}</strong>
+                    <span>
+                      {formatFileSize(attachment.fileSize)} · {attachment.mimeType || "Unknown type"}
+                      {attachment.contentDataUrl ? " · Stored" : " · Metadata only"}
+                    </span>
+                    {!access.canAccess ? <small>{access.reason}</small> : null}
+                  </div>
+                  <div className="attachment-list-actions">
+                    {access.canAccess && attachment.contentDataUrl ? (
+                      <>
+                        <a
+                          className="button button-secondary"
+                          href={attachment.contentDataUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open
+                        </a>
+                        <a
+                          className="button button-secondary"
+                          href={attachment.contentDataUrl}
+                          download={safeFileName}
+                        >
+                          Download
+                        </a>
+                      </>
+                    ) : null}
+                    <button
+                      className="button button-secondary"
+                      type="button"
+                      onClick={() => onRemoveAttachment(attachment.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  onClick={() => onRemoveAttachment(attachment.id)}
-                >
-                  Remove
-                </button>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 

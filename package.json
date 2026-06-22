@@ -177,7 +177,9 @@
     "test:v154:attachment-foundation": "tsx tests/v154-attachment-foundation.ts",
     "test:v154": "pnpm test:v154:attachment-foundation",
     "test:v155:attachment-persistence": "tsx tests/v155-attachment-persistence.ts",
-    "test:v155": "pnpm test:v154 && pnpm test:v155:attachment-persistence"
+    "test:v155": "pnpm test:v154 && pnpm test:v155:attachment-persistence",
+    "test:v156:attachment-access": "tsx tests/v156-attachment-access.ts",
+    "test:v156": "pnpm test:v156:attachment-access"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

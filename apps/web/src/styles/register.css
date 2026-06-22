@@ -806,6 +806,24 @@
   font-size: 0.78rem;
 }
 
+.attachment-list-item small {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.attachment-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.attachment-list-actions .button {
+  text-decoration: none;
+}
+
 .attachment-file-input {
   display: none;
 }
