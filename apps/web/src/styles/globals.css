@@ -1860,3 +1860,9 @@ strong {
   padding-left: 1.1rem;
   color: var(--text-muted);
 }
+
+.settings-restore-actions {
+  display: grid;
+  gap: 0.55rem;
+  justify-items: start;
+}

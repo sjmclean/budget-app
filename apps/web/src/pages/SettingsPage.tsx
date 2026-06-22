@@ -6,6 +6,7 @@ import {
   createBudgetDataExportPackage,
   createBudgetDataFilename,
   previewBudgetDataRestore,
+  restoreBudgetDataPackage,
   serialiseBudgetDataPackage,
   type BudgetDataExportKind,
   type BudgetDataRestorePreview,
@@ -24,6 +25,7 @@ import {
   type SettingsPreferences,
   writeSettingsPreferences,
 } from "../features/settings/settingsPreferences";
+import { confirmDialog } from "../features/ui/appDialogService";
 import { useUIStore, type ThemeMode } from "../stores/uiStore";
 
 type SettingsSectionId = "general" | "budget" | "data" | "cloud" | "about";
@@ -126,6 +128,7 @@ export function SettingsPage() {
   const [statusMessage, setStatusMessage] = useState("Settings saved locally.");
   const [dataStatusMessage, setDataStatusMessage] = useState("Export or back up the currently selected budget.");
   const [restorePreview, setRestorePreview] = useState<BudgetDataRestorePreview | null>(null);
+  const [restorePackageRaw, setRestorePackageRaw] = useState<string | null>(null);
 
   useEffect(() => {
     setSettings((current) => ({
@@ -234,6 +237,7 @@ export function SettingsPage() {
       const raw = typeof reader.result === "string" ? reader.result : "";
       const preview = previewBudgetDataRestore(raw);
       setRestorePreview(preview);
+      setRestorePackageRaw(preview.valid ? raw : null);
       setDataStatusMessage(
         preview.valid
           ? `Restore preview loaded for ${preview.budgetName ?? "budget package"}. No data has been changed.`
@@ -242,9 +246,41 @@ export function SettingsPage() {
     };
     reader.onerror = () => {
       setRestorePreview(null);
+      setRestorePackageRaw(null);
       setDataStatusMessage("Could not read restore file. No data has been changed.");
     };
     reader.readAsText(file);
+  }
+
+  function commitRestorePreview() {
+    if (!restorePreview?.valid || !restorePackageRaw) {
+      setDataStatusMessage("Load a valid restore preview before restoring.");
+      return;
+    }
+
+    const confirmed = confirmDialog({
+      title: "Restore current budget?",
+      message:
+        `This will replace the data in the currently selected budget with the backup for ${restorePreview.budgetName ?? "the selected package"}. Other budgets and global app preferences will not be restored.`,
+    });
+
+    if (!confirmed) {
+      setDataStatusMessage("Restore cancelled. No data has been changed.");
+      return;
+    }
+
+    const result = restoreBudgetDataPackage(browserLocalStorageKeyValueStorage, restorePackageRaw);
+
+    if (!result.restored) {
+      setDataStatusMessage(result.errors[0] ?? "Restore failed. No data has been changed.");
+      return;
+    }
+
+    setDataStatusMessage(
+      `Restore complete for current budget: ${result.writtenRecords} records restored, ${result.skippedGlobalRecords} global snapshots skipped. Reload the app if open screens still show old data.`,
+    );
+    setRestorePreview(null);
+    setRestorePackageRaw(null);
   }
 
   function closeSettings() {
@@ -277,7 +313,7 @@ export function SettingsPage() {
             <span className="settings-sidebar-icon">⚙</span>
             <div>
               <h1 id="settings-title">Settings</h1>
-              <p className="muted">v1.49.0</p>
+              <p className="muted">v1.50.0</p>
             </div>
           </div>
 
@@ -297,8 +333,8 @@ export function SettingsPage() {
           </nav>
 
           <div className="settings-sidebar-footer">
-            <strong>v1.49.0</strong>
-            <span>Data Export Foundation</span>
+            <strong>v1.50.0</strong>
+            <span>Restore Commit</span>
           </div>
         </aside>
 
@@ -568,9 +604,18 @@ export function SettingsPage() {
                       <li key={message}>{message}</li>
                     ))}
                   </ul>
-                ) : (
-                  <p className="muted">Preview only. v1.49 does not overwrite or restore data.</p>
-                )}
+                ) : null}
+
+                {restorePreview.valid ? (
+                  <div className="settings-restore-actions">
+                    <Button type="button" variant="secondary" onClick={commitRestorePreview}>
+                      Restore current budget
+                    </Button>
+                    <p className="muted">
+                      Restore replaces the currently selected budget only. Other budgets and global app preferences are left unchanged.
+                    </p>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </Card>
@@ -606,7 +651,7 @@ export function SettingsPage() {
               </div>
               <div>
                 <span>Release</span>
-                <strong>v1.49</strong>
+                <strong>v1.50</strong>
               </div>
               <div>
                 <span>Persistence mode</span>

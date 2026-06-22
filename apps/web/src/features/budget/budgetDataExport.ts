@@ -12,7 +12,7 @@ import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import { SETTINGS_STORAGE_KEY } from "../settings/settingsPreferences";
 
 export const BUDGET_DATA_EXPORT_SCHEMA = "budget-app.data-export.v1";
-export const BUDGET_DATA_EXPORT_RELEASE = "v1.49";
+export const BUDGET_DATA_EXPORT_RELEASE = "v1.50";
 
 export type BudgetDataExportKind = "export" | "backup";
 
@@ -57,10 +57,23 @@ export interface BudgetDataRestorePreview {
   errors: string[];
 }
 
+export interface BudgetDataRestoreResult {
+  restored: boolean;
+  targetBudgetId?: string;
+  sourceBudgetId?: string;
+  budgetName?: string;
+  removedRecords: number;
+  writtenRecords: number;
+  skippedGlobalRecords: number;
+  warnings: string[];
+  errors: string[];
+}
+
 const ACCOUNT_STORAGE_KEY = "budget-app.accounts.v1";
 const ACCOUNT_REGISTER_STORAGE_KEY = "budget-app.account-registers.v1";
 const PAYEE_STORAGE_KEY = "budget-app.payees.v1";
-const SCHEDULED_TRANSACTION_STORAGE_KEY = "budget-app.scheduled-transactions.v1";
+const SCHEDULED_TRANSACTION_STORAGE_KEY =
+  "budget-app.scheduled-transactions.v1";
 const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
 
 const budgetScopedLogicalKeys = [
@@ -103,7 +116,10 @@ function countArray(value: string | null): number {
   return Array.isArray(parsed) ? parsed.length : 0;
 }
 
-function countRegisterRecords(value: string | null): { accountRegisters: number; transactions: number } {
+function countRegisterRecords(value: string | null): {
+  accountRegisters: number;
+  transactions: number;
+} {
   const parsed = parseJson(value);
 
   if (!isRecord(parsed)) {
@@ -132,7 +148,11 @@ function listStorageKeys(storage: KeyValueStoragePort): string[] {
   return typeof storage.listKeys === "function" ? storage.listKeys() : [];
 }
 
-function readBudgetScopedValue(storage: KeyValueStoragePort, budgetId: string, logicalKey: string): string | null {
+function readBudgetScopedValue(
+  storage: KeyValueStoragePort,
+  budgetId: string,
+  logicalKey: string,
+): string | null {
   const scopedKey = getBudgetScopedStorageKey(budgetId, logicalKey);
   const scopedValue = storage.getItem(scopedKey);
 
@@ -155,7 +175,8 @@ export function createBudgetDataExportPackage(
   now = new Date(),
 ): BudgetDataExportPackage {
   const budgets = readBudgetRegistry(storage);
-  const selectedBudgetId = storage.getItem(SELECTED_BUDGET_STORAGE_KEY)?.trim() || null;
+  const selectedBudgetId =
+    storage.getItem(SELECTED_BUDGET_STORAGE_KEY)?.trim() || null;
   const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
 
   if (!activeBudget) {
@@ -178,7 +199,9 @@ export function createBudgetDataExportPackage(
   }
 
   const budgetViewPrefix = `${BUDGET_VIEW_STORAGE_PREFIX}.${activeBudget.id}.`;
-  for (const key of listStorageKeys(storage).filter((key) => key.startsWith(budgetViewPrefix)).sort()) {
+  for (const key of listStorageKeys(storage)
+    .filter((key) => key.startsWith(budgetViewPrefix))
+    .sort()) {
     const value = storage.getItem(key);
 
     if (value !== null) {
@@ -211,10 +234,18 @@ export function createBudgetDataExportPackage(
     });
   }
 
-  const accountRecord = records.find((record) => record.key.endsWith(ACCOUNT_STORAGE_KEY));
-  const registerRecord = records.find((record) => record.key.endsWith(ACCOUNT_REGISTER_STORAGE_KEY));
-  const payeeRecord = records.find((record) => record.key.endsWith(PAYEE_STORAGE_KEY));
-  const scheduledRecord = records.find((record) => record.key.endsWith(SCHEDULED_TRANSACTION_STORAGE_KEY));
+  const accountRecord = records.find((record) =>
+    record.key.endsWith(ACCOUNT_STORAGE_KEY),
+  );
+  const registerRecord = records.find((record) =>
+    record.key.endsWith(ACCOUNT_REGISTER_STORAGE_KEY),
+  );
+  const payeeRecord = records.find((record) =>
+    record.key.endsWith(PAYEE_STORAGE_KEY),
+  );
+  const scheduledRecord = records.find((record) =>
+    record.key.endsWith(SCHEDULED_TRANSACTION_STORAGE_KEY),
+  );
   const registerCounts = countRegisterRecords(registerRecord?.value ?? null);
 
   return {
@@ -229,34 +260,41 @@ export function createBudgetDataExportPackage(
       transactions: registerCounts.transactions,
       payees: countArray(payeeRecord?.value ?? null),
       scheduledTransactions: countArray(scheduledRecord?.value ?? null),
-      budgetMonths: records.filter((record) => record.key.startsWith(budgetViewPrefix)).length,
+      budgetMonths: records.filter((record) =>
+        record.key.startsWith(budgetViewPrefix),
+      ).length,
       storageRecords: records.length,
     },
     records,
     notes: [
-      "v1.49 creates a portable JSON package for the active budget only.",
-      "Restore is preview-only in v1.49; no existing app data is overwritten by the restore preview workflow.",
-      "Global settings and registry records are included as snapshots so future restore work can validate context.",
+      "v1.50 creates a portable JSON package for the active budget only.",
+      "Restore commits target the currently selected budget only and do not overwrite other budgets.",
+      "Global settings and registry records are included as snapshots but are not restored by current-budget restore.",
     ],
   };
 }
 
-export function serialiseBudgetDataPackage(pkg: BudgetDataExportPackage): string {
+export function serialiseBudgetDataPackage(
+  pkg: BudgetDataExportPackage,
+): string {
   return `${JSON.stringify(pkg, null, 2)}\n`;
 }
 
 export function createBudgetDataFilename(pkg: BudgetDataExportPackage): string {
-  const safeName = pkg.budget.name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "budget";
+  const safeName =
+    pkg.budget.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "budget";
   const date = pkg.exportedAt.slice(0, 10);
   const suffix = pkg.kind === "backup" ? "backup" : "export";
 
   return `${safeName}-${date}.${suffix}.json`;
 }
 
-export function previewBudgetDataRestore(raw: string): BudgetDataRestorePreview {
+export function previewBudgetDataRestore(
+  raw: string,
+): BudgetDataRestorePreview {
   const errors: string[] = [];
   const warnings: string[] = [];
   let parsed: unknown;
@@ -280,9 +318,11 @@ export function previewBudgetDataRestore(raw: string): BudgetDataRestorePreview 
   }
 
   const schema = typeof parsed.schema === "string" ? parsed.schema : undefined;
-  const release = typeof parsed.release === "string" ? parsed.release : undefined;
+  const release =
+    typeof parsed.release === "string" ? parsed.release : undefined;
   const kind = typeof parsed.kind === "string" ? parsed.kind : undefined;
-  const exportedAt = typeof parsed.exportedAt === "string" ? parsed.exportedAt : undefined;
+  const exportedAt =
+    typeof parsed.exportedAt === "string" ? parsed.exportedAt : undefined;
   const budget = isRecord(parsed.budget) ? parsed.budget : null;
   const counts = isRecord(parsed.counts) ? parsed.counts : null;
   const records = Array.isArray(parsed.records) ? parsed.records : null;
@@ -308,7 +348,9 @@ export function previewBudgetDataRestore(raw: string): BudgetDataRestorePreview 
   }
 
   if (release && release !== BUDGET_DATA_EXPORT_RELEASE) {
-    warnings.push(`Package was created by ${release}; current restore preview is ${BUDGET_DATA_EXPORT_RELEASE}.`);
+    warnings.push(
+      `Package was created by ${release}; current restore preview is ${BUDGET_DATA_EXPORT_RELEASE}.`,
+    );
   }
 
   return {
@@ -330,6 +372,202 @@ export function previewBudgetDataRestore(raw: string): BudgetDataRestorePreview 
           storageRecords: Number(counts.storageRecords) || records?.length || 0,
         }
       : undefined,
+    warnings,
+    errors,
+  };
+}
+
+function readExportPackage(raw: string): {
+  package?: BudgetDataExportPackage;
+  preview: BudgetDataRestorePreview;
+} {
+  const preview = previewBudgetDataRestore(raw);
+
+  if (!preview.valid) {
+    return { preview };
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as BudgetDataExportPackage;
+    return { package: parsed, preview };
+  } catch {
+    return {
+      preview: {
+        ...preview,
+        valid: false,
+        errors: [...preview.errors, "File is not valid JSON."],
+      },
+    };
+  }
+}
+
+function removeCurrentBudgetRecords(
+  storage: KeyValueStoragePort,
+  budgetId: string,
+): number {
+  const keysToRemove = new Set<string>();
+
+  for (const item of budgetScopedLogicalKeys) {
+    keysToRemove.add(getBudgetScopedStorageKey(budgetId, item.key));
+  }
+
+  if (budgetId === "household") {
+    for (const item of budgetScopedLogicalKeys) {
+      keysToRemove.add(item.key);
+    }
+  }
+
+  const budgetViewPrefix = `${BUDGET_VIEW_STORAGE_PREFIX}.${budgetId}.`;
+  for (const key of listStorageKeys(storage)) {
+    if (key.startsWith(budgetViewPrefix)) {
+      keysToRemove.add(key);
+    }
+  }
+
+  for (const key of keysToRemove) {
+    storage.removeItem(key);
+  }
+
+  return keysToRemove.size;
+}
+
+function mapBudgetRecordKey(
+  recordKey: string,
+  sourceBudgetId: string,
+  targetBudgetId: string,
+): string | null {
+  for (const item of budgetScopedLogicalKeys) {
+    if (
+      recordKey === item.key ||
+      recordKey === getBudgetScopedStorageKey(sourceBudgetId, item.key)
+    ) {
+      return getBudgetScopedStorageKey(targetBudgetId, item.key);
+    }
+  }
+
+  const sourceBudgetViewPrefix = `${BUDGET_VIEW_STORAGE_PREFIX}.${sourceBudgetId}.`;
+  if (recordKey.startsWith(sourceBudgetViewPrefix)) {
+    return `${BUDGET_VIEW_STORAGE_PREFIX}.${targetBudgetId}.${recordKey.slice(sourceBudgetViewPrefix.length)}`;
+  }
+
+  return null;
+}
+
+function isSafeJsonString(value: string): boolean {
+  try {
+    JSON.parse(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function restoreBudgetDataPackage(
+  storage: KeyValueStoragePort,
+  raw: string,
+): BudgetDataRestoreResult {
+  const { package: dataPackage, preview } = readExportPackage(raw);
+
+  if (!dataPackage) {
+    return {
+      restored: false,
+      removedRecords: 0,
+      writtenRecords: 0,
+      skippedGlobalRecords: 0,
+      warnings: preview.warnings,
+      errors: preview.errors.length
+        ? preview.errors
+        : ["Restore package could not be read."],
+    };
+  }
+
+  const budgets = readBudgetRegistry(storage);
+  const selectedBudgetId =
+    storage.getItem(SELECTED_BUDGET_STORAGE_KEY)?.trim() || null;
+  const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
+
+  if (!activeBudget) {
+    return {
+      restored: false,
+      sourceBudgetId: preview.budgetId,
+      budgetName: preview.budgetName,
+      removedRecords: 0,
+      writtenRecords: 0,
+      skippedGlobalRecords: 0,
+      warnings: preview.warnings,
+      errors: ["No active budget is available to restore into."],
+    };
+  }
+
+  const sourceBudgetId = preview.budgetId ?? dataPackage.budget.id;
+  const warnings = [...preview.warnings];
+  const errors: string[] = [];
+  const recordsToWrite: Array<{ key: string; value: string }> = [];
+  let skippedGlobalRecords = 0;
+
+  for (const record of dataPackage.records) {
+    if (!isRecord(record)) {
+      errors.push("Restore package contains an invalid storage record.");
+      continue;
+    }
+
+    const key = typeof record.key === "string" ? record.key : "";
+    const value = typeof record.value === "string" ? record.value : "";
+    const scope = record.scope;
+
+    if (scope === "global") {
+      skippedGlobalRecords += 1;
+      continue;
+    }
+
+    if (scope !== "budget") {
+      warnings.push(`Skipped record with unsupported scope: ${String(scope)}.`);
+      continue;
+    }
+
+    const targetKey = mapBudgetRecordKey(key, sourceBudgetId, activeBudget.id);
+
+    if (!targetKey) {
+      warnings.push(`Skipped unsupported budget record key: ${key}.`);
+      continue;
+    }
+
+    if (!isSafeJsonString(value)) {
+      errors.push(`Restore record is not valid JSON: ${key}.`);
+      continue;
+    }
+
+    recordsToWrite.push({ key: targetKey, value });
+  }
+
+  if (errors.length > 0) {
+    return {
+      restored: false,
+      targetBudgetId: activeBudget.id,
+      sourceBudgetId,
+      budgetName: preview.budgetName,
+      removedRecords: 0,
+      writtenRecords: 0,
+      skippedGlobalRecords,
+      warnings,
+      errors,
+    };
+  }
+
+  const removedRecords = removeCurrentBudgetRecords(storage, activeBudget.id);
+
+  for (const record of recordsToWrite) {
+    storage.setItem(record.key, record.value);
+  }
+
+  return {
+    restored: true,
+    targetBudgetId: activeBudget.id,
+    sourceBudgetId,
+    budgetName: preview.budgetName,
+    removedRecords,
+    writtenRecords: recordsToWrite.length,
+    skippedGlobalRecords,
     warnings,
     errors,
   };
