@@ -11,6 +11,7 @@ interface UIState {
   setSidebarCollapsed: (collapsed: boolean) => void;
   setTheme: (theme: ThemeMode) => void;
   selectBudget: (budgetId: string) => void;
+  clearSelectedBudget: () => void;
 }
 
 const themeStorageKey = "budget-app-theme";
@@ -61,5 +62,10 @@ export const useUIStore = create<UIState>((set) => ({
   selectBudget: (budgetId) =>
     set({
       selectedBudgetId: budgetId,
+    }),
+
+  clearSelectedBudget: () =>
+    set({
+      selectedBudgetId: null,
     }),
 }));

@@ -11,6 +11,7 @@ import type {
 import type { BudgetActivityPersistencePort } from "./budgetActivityPersistencePort";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import { readSettingsPreferences } from "../settings/settingsPreferences";
+import { cloneDefaultCategoryTemplate } from "./defaultCategoryTemplate";
 
 const STORAGE_KEY_PREFIX = "budget-app.budget-view.v1";
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
@@ -25,49 +26,6 @@ interface CategoryLocation {
   group: BudgetCategoryGroupView;
   category: BudgetCategoryView;
 }
-
-const starterCategoryGroups: Array<{
-  id: string;
-  name: string;
-  categories: Array<{ id: string; name: string }>;
-}> = [
-  {
-    id: "immediate-obligations",
-    name: "Immediate Obligations",
-    categories: [
-      { id: "mortgage", name: "Mortgage" },
-      { id: "groceries", name: "Groceries" },
-      { id: "electricity", name: "Electricity" },
-      { id: "internet", name: "Internet" },
-    ],
-  },
-  {
-    id: "true-expenses",
-    name: "True Expenses",
-    categories: [
-      { id: "car-rego", name: "Car Rego" },
-      { id: "insurance", name: "Insurance" },
-      { id: "medical", name: "Medical" },
-    ],
-  },
-  {
-    id: "quality-of-life",
-    name: "Quality of Life",
-    categories: [
-      { id: "dining-out", name: "Dining Out" },
-      { id: "entertainment", name: "Entertainment" },
-      { id: "streaming", name: "Streaming" },
-    ],
-  },
-  {
-    id: "giving-and-savings",
-    name: "Giving & Savings",
-    categories: [
-      { id: "emergency-fund", name: "Emergency Fund" },
-      { id: "holiday", name: "Holiday" },
-    ],
-  },
-];
 
 function getStorageKey(budgetId: string, month: string): string {
   return `${STORAGE_KEY_PREFIX}.${budgetId}.${month}`;
@@ -148,7 +106,7 @@ function createStarterBudgetView(budgetId: string, month: string): BudgetMonthVi
     totalAssigned: 0,
     totalActivity: 0,
     totalAvailable: 0,
-    categoryGroups: starterCategoryGroups.map((group) => ({
+    categoryGroups: cloneDefaultCategoryTemplate().map((group) => ({
       id: group.id,
       name: group.name,
       assigned: 0,

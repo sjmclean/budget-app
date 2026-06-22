@@ -1,39 +1,54 @@
 import { create } from "zustand";
-
-export interface BudgetSummary {
-  id: string;
-  name: string;
-  currency: string;
-  lastOpenedLabel: string;
-  packagePath: string;
-}
+import {
+  createBudgetRegistryEntry,
+  deleteBudgetRegistryEntry,
+  markBudgetOpened as markBudgetRegistryOpened,
+  readBudgetRegistry,
+  updateBudgetRegistryEntry,
+  type BudgetSummary,
+  type CreateBudgetRegistryInput,
+  type UpdateBudgetRegistryInput,
+} from "../features/budget/budgetRegistry";
+import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 
 interface BudgetRegistryState {
   budgets: BudgetSummary[];
+  createBudget: (input?: CreateBudgetRegistryInput) => BudgetSummary;
+  updateBudget: (budgetId: string, input: UpdateBudgetRegistryInput) => BudgetSummary | null;
+  markBudgetOpened: (budgetId: string) => BudgetSummary | null;
+  deleteBudget: (budgetId: string) => void;
+  refreshBudgets: () => void;
 }
 
-export const useBudgetRegistryStore = create<BudgetRegistryState>(() => ({
-  budgets: [
-    {
-      id: "household",
-      name: "Household Budget",
-      currency: "AUD",
-      lastOpenedLabel: "Demo budget",
-      packagePath: "~/Budgets/Household.budget",
-    },
-    {
-      id: "personal",
-      name: "Personal Budget",
-      currency: "AUD",
-      lastOpenedLabel: "Demo budget",
-      packagePath: "~/Budgets/Personal.budget",
-    },
-    {
-      id: "business",
-      name: "Business Budget",
-      currency: "AUD",
-      lastOpenedLabel: "Demo budget",
-      packagePath: "~/Budgets/Business.budget",
-    },
-  ],
+export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
+  budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage),
+
+  createBudget: (input) => {
+    const budget = createBudgetRegistryEntry(browserLocalStorageKeyValueStorage, input);
+    set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
+    return budget;
+  },
+
+  updateBudget: (budgetId, input) => {
+    const budget = updateBudgetRegistryEntry(browserLocalStorageKeyValueStorage, budgetId, input);
+    set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
+    return budget;
+  },
+
+  markBudgetOpened: (budgetId) => {
+    const budget = markBudgetRegistryOpened(browserLocalStorageKeyValueStorage, budgetId);
+    set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
+    return budget;
+  },
+
+  deleteBudget: (budgetId) => {
+    const budgets = deleteBudgetRegistryEntry(browserLocalStorageKeyValueStorage, budgetId);
+    set({ budgets });
+  },
+
+  refreshBudgets: () => {
+    set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
+  },
 }));
+
+export type { BudgetSummary };

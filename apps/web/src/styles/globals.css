@@ -1800,3 +1800,14 @@ strong {
     grid-template-columns: 1fr;
   }
 }
+
+.budget-selector-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.budget-empty-card {
+  border-style: dashed;
+}
