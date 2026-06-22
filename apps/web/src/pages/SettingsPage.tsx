@@ -2,6 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import {
+  createBudgetDataExportPackage,
+  createBudgetDataFilename,
+  previewBudgetDataRestore,
+  serialiseBudgetDataPackage,
+  type BudgetDataExportKind,
+  type BudgetDataRestorePreview,
+} from "../features/budget/budgetDataExport";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { getPersistenceModeSummary } from "../features/persistence/persistenceMode";
 import {
@@ -116,6 +124,8 @@ export function SettingsPage() {
     readSettingsPreferences(browserLocalStorageKeyValueStorage),
   );
   const [statusMessage, setStatusMessage] = useState("Settings saved locally.");
+  const [dataStatusMessage, setDataStatusMessage] = useState("Export or back up the currently selected budget.");
+  const [restorePreview, setRestorePreview] = useState<BudgetDataRestorePreview | null>(null);
 
   useEffect(() => {
     setSettings((current) => ({
@@ -193,6 +203,50 @@ export function SettingsPage() {
     );
   }
 
+  function downloadBudgetData(kind: BudgetDataExportKind) {
+    try {
+      const dataPackage = createBudgetDataExportPackage(browserLocalStorageKeyValueStorage, kind);
+      const blob = new Blob([serialiseBudgetDataPackage(dataPackage)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = createBudgetDataFilename(dataPackage);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      setDataStatusMessage(
+        `${kind === "backup" ? "Backup" : "Export"} created for ${dataPackage.budget.name}: ${dataPackage.counts.accounts} accounts, ${dataPackage.counts.transactions} transactions.`,
+      );
+    } catch (error) {
+      setDataStatusMessage(error instanceof Error ? error.message : "Could not create budget data package.");
+    }
+  }
+
+  function previewRestoreFile(file: File | null) {
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const raw = typeof reader.result === "string" ? reader.result : "";
+      const preview = previewBudgetDataRestore(raw);
+      setRestorePreview(preview);
+      setDataStatusMessage(
+        preview.valid
+          ? `Restore preview loaded for ${preview.budgetName ?? "budget package"}. No data has been changed.`
+          : "Restore preview failed validation. No data has been changed.",
+      );
+    };
+    reader.onerror = () => {
+      setRestorePreview(null);
+      setDataStatusMessage("Could not read restore file. No data has been changed.");
+    };
+    reader.readAsText(file);
+  }
+
   function closeSettings() {
     if (window.history.length > 1) {
       navigate(-1);
@@ -223,7 +277,7 @@ export function SettingsPage() {
             <span className="settings-sidebar-icon">⚙</span>
             <div>
               <h1 id="settings-title">Settings</h1>
-              <p className="muted">v1.44.0</p>
+              <p className="muted">v1.49.0</p>
             </div>
           </div>
 
@@ -243,8 +297,8 @@ export function SettingsPage() {
           </nav>
 
           <div className="settings-sidebar-footer">
-            <strong>v1.44.0</strong>
-            <span>Settings Foundation</span>
+            <strong>v1.49.0</strong>
+            <span>Data Export Foundation</span>
           </div>
         </aside>
 
@@ -455,26 +509,70 @@ export function SettingsPage() {
               <div>
                 <p className="eyebrow">Data</p>
                 <h2>Backup, export, and restore</h2>
-                <p className="muted">Export and recovery workflows will live here.</p>
+                <p className="muted">{dataStatusMessage}</p>
               </div>
             </div>
             <div className="settings-action-grid">
               <div className="settings-action-card">
                 <h3>Export Budget</h3>
-                <p className="muted">Future workflow for exporting budget data to a portable file.</p>
-                <Button type="button" variant="secondary" disabled>Export...</Button>
+                <p className="muted">Download a portable JSON export for the currently selected budget.</p>
+                <Button type="button" variant="secondary" onClick={() => downloadBudgetData("export")}>
+                  Export JSON
+                </Button>
               </div>
               <div className="settings-action-card">
                 <h3>Backup Budget</h3>
-                <p className="muted">Future workflow for creating a restorable budget backup.</p>
-                <Button type="button" variant="secondary" disabled>Backup...</Button>
+                <p className="muted">Create a restorable JSON backup package for the active budget.</p>
+                <Button type="button" variant="secondary" onClick={() => downloadBudgetData("backup")}>
+                  Backup JSON
+                </Button>
               </div>
               <div className="settings-action-card">
-                <h3>Restore Budget</h3>
-                <p className="muted">Future workflow for restoring from a previous backup.</p>
-                <Button type="button" variant="secondary" disabled>Restore...</Button>
+                <h3>Restore Preview</h3>
+                <p className="muted">Validate a previous export or backup without changing app data.</p>
+                <label className="button button-secondary settings-file-button">
+                  Preview restore
+                  <input
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={(event) => previewRestoreFile(event.target.files?.[0] ?? null)}
+                  />
+                </label>
               </div>
             </div>
+
+            {restorePreview ? (
+              <div className={`settings-restore-preview${restorePreview.valid ? " valid" : " invalid"}`}>
+                <div>
+                  <p className="eyebrow">Restore preview</p>
+                  <h3>{restorePreview.valid ? "Package looks valid" : "Package needs attention"}</h3>
+                  <p className="muted">
+                    {restorePreview.budgetName ?? "Unknown budget"}
+                    {restorePreview.exportedAt ? ` · Exported ${restorePreview.exportedAt.slice(0, 10)}` : ""}
+                  </p>
+                </div>
+
+                {restorePreview.counts ? (
+                  <div className="settings-restore-counts">
+                    <span>{restorePreview.counts.accounts} accounts</span>
+                    <span>{restorePreview.counts.transactions} transactions</span>
+                    <span>{restorePreview.counts.payees} payees</span>
+                    <span>{restorePreview.counts.scheduledTransactions} scheduled</span>
+                    <span>{restorePreview.counts.budgetMonths} months</span>
+                  </div>
+                ) : null}
+
+                {[...restorePreview.errors, ...restorePreview.warnings].length ? (
+                  <ul className="settings-restore-messages">
+                    {[...restorePreview.errors, ...restorePreview.warnings].map((message) => (
+                      <li key={message}>{message}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="muted">Preview only. v1.49 does not overwrite or restore data.</p>
+                )}
+              </div>
+            ) : null}
           </Card>
         ) : null}
 
@@ -508,7 +606,7 @@ export function SettingsPage() {
               </div>
               <div>
                 <span>Release</span>
-                <strong>v1.44</strong>
+                <strong>v1.49</strong>
               </div>
               <div>
                 <span>Persistence mode</span>

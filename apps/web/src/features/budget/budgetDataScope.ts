@@ -73,5 +73,9 @@ export function createBudgetScopedStorage(storage: KeyValueStoragePort): KeyValu
         storage.removeItem(key);
       }
     },
+
+    listKeys(): string[] {
+      return typeof storage.listKeys === "function" ? storage.listKeys() : [];
+    },
   };
 }

@@ -1811,3 +1811,52 @@ strong {
 .budget-empty-card {
   border-style: dashed;
 }
+
+.settings-file-button {
+  cursor: pointer;
+  justify-self: start;
+}
+
+.settings-file-button input {
+  display: none;
+}
+
+.settings-restore-preview {
+  margin-top: 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.85rem;
+  background: var(--surface-subtle);
+  padding: 1rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.settings-restore-preview.valid {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.settings-restore-preview.invalid {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.settings-restore-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.settings-restore-counts span {
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.25rem 0.6rem;
+}
+
+.settings-restore-messages {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--text-muted);
+}
