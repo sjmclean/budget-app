@@ -171,7 +171,9 @@
     "test:v151:budget-lifecycle": "tsx tests/v151-budget-lifecycle.ts",
     "test:v151": "pnpm test:v151:budget-lifecycle",
     "test:v152:transaction-import": "tsx tests/v152-transaction-import.ts",
-    "test:v152": "pnpm test:v152:transaction-import"
+    "test:v152": "pnpm test:v152:transaction-import",
+    "test:v153:import-column-mapping": "tsx tests/v153-import-column-mapping.ts",
+    "test:v153": "pnpm test:v153:import-column-mapping"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
