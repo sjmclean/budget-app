@@ -173,7 +173,9 @@
     "test:v152:transaction-import": "tsx tests/v152-transaction-import.ts",
     "test:v152": "pnpm test:v152:transaction-import",
     "test:v153:import-column-mapping": "tsx tests/v153-import-column-mapping.ts",
-    "test:v153": "pnpm test:v153:import-column-mapping"
+    "test:v153": "pnpm test:v153:import-column-mapping",
+    "test:v154:attachment-foundation": "tsx tests/v154-attachment-foundation.ts",
+    "test:v154": "pnpm test:v154:attachment-foundation"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
