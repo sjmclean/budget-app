@@ -16,6 +16,12 @@ import type {
   TransactionFlag,
 } from "../features/accounts/accountRegisterTypes";
 import type { BudgetCategoryOption } from "../features/budget/budgetViewTypes";
+import {
+  buildRegisterTransactionsFromImport,
+  previewTransactionCsvImport,
+  type TransactionImportCandidate,
+  type TransactionImportPreview,
+} from "../features/accounts/transactionImport";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 
@@ -368,6 +374,170 @@ function AttachmentManager({
   );
 }
 
+
+
+function TransactionImportDialog({
+  accountName,
+  transactions,
+  currencyCode,
+  onClose,
+  onImportTransactions,
+}: {
+  accountName: string;
+  transactions: RegisterTransactionView[];
+  currencyCode: string;
+  onClose: () => void;
+  onImportTransactions: (transactions: NewRegisterTransactionInput[]) => Promise<void>;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [preview, setPreview] = useState<TransactionImportPreview | null>(null);
+  const [candidates, setCandidates] = useState<TransactionImportCandidate[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const selectedCount = candidates.filter((candidate) => candidate.selected && candidate.status === "new").length;
+
+  async function readFile(file: File) {
+    setError(null);
+    setMessage(null);
+
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setError("Choose a CSV transaction file.");
+      return;
+    }
+
+    const text = await file.text();
+    const nextPreview = previewTransactionCsvImport(text, transactions);
+    setPreview(nextPreview);
+    setCandidates(nextPreview.candidates);
+  }
+
+  function toggleCandidate(candidateId: string) {
+    setCandidates((current) =>
+      current.map((candidate) =>
+        candidate.id === candidateId && candidate.status === "new"
+          ? { ...candidate, selected: !candidate.selected }
+          : candidate,
+      ),
+    );
+  }
+
+  async function importSelected() {
+    const importable = buildRegisterTransactionsFromImport(candidates);
+
+    if (importable.length === 0) {
+      setError("No new transactions are selected for import.");
+      return;
+    }
+
+    for (const transaction of importable) {
+      await onImportTransactions([transaction]);
+    }
+
+    setMessage(`Imported ${importable.length} transaction${importable.length === 1 ? "" : "s"} into ${accountName}.`);
+    setCandidates((current) => current.map((candidate) => ({ ...candidate, selected: false })));
+  }
+
+  return (
+    <div className="transaction-import-backdrop" role="presentation" onClick={onClose}>
+      <section
+        className="transaction-import-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="transaction-import-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="transaction-import-header">
+          <div>
+            <h2 id="transaction-import-title">Import Transactions</h2>
+            <p className="muted">Target account: {accountName}</p>
+          </div>
+          <button className="button button-secondary" type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        <div className="transaction-import-actions">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="attachment-file-input"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) {
+                void readFile(file);
+              }
+              event.target.value = "";
+            }}
+          />
+          <button className="button button-primary" type="button" onClick={() => fileInputRef.current?.click()}>
+            Choose CSV File
+          </button>
+          <p className="muted">CSV columns supported: Date, Payee/Description, Amount or Outflow/Inflow, Memo.</p>
+        </div>
+
+        {error ? <p className="transaction-import-error">{error}</p> : null}
+        {message ? <p className="transaction-import-message">{message}</p> : null}
+
+        {preview ? (
+          <div className="transaction-import-summary">
+            <span>Total rows: {preview.summary.totalRows}</span>
+            <span>New: {preview.summary.newTransactions}</span>
+            <span>Matched: {preview.summary.exactMatches}</span>
+            <span>Possible: {preview.summary.possibleMatches}</span>
+            <span>Invalid: {preview.summary.invalidRows}</span>
+          </div>
+        ) : null}
+
+        {candidates.length > 0 ? (
+          <div className="transaction-import-table">
+            <div className="transaction-import-row transaction-import-row-head">
+              <span>Import</span>
+              <span>Date</span>
+              <span>Payee</span>
+              <span>Outflow</span>
+              <span>Inflow</span>
+              <span>Status</span>
+            </div>
+            {candidates.map((candidate) => (
+              <label className="transaction-import-row" key={candidate.id}>
+                <span>
+                  <input
+                    type="checkbox"
+                    checked={candidate.selected}
+                    disabled={candidate.status !== "new"}
+                    onChange={() => toggleCandidate(candidate.id)}
+                  />
+                </span>
+                <span>{candidate.parsed.date || "—"}</span>
+                <span>
+                  <strong>{candidate.parsed.payee || "Missing payee"}</strong>
+                  <small>{candidate.parsed.memo ?? candidate.reason}</small>
+                </span>
+                <span>{candidate.parsed.outflow ? formatMoney(candidate.parsed.outflow, currencyCode) : ""}</span>
+                <span>{candidate.parsed.inflow ? formatMoney(candidate.parsed.inflow, currencyCode) : ""}</span>
+                <span className={`transaction-import-status transaction-import-status-${candidate.status}`}>
+                  {candidate.status.replace("-", " ")}
+                </span>
+              </label>
+            ))}
+          </div>
+        ) : (
+          <p className="transaction-import-placeholder">Choose a CSV file to preview transactions before importing.</p>
+        )}
+
+        <div className="transaction-import-footer">
+          <button className="button button-secondary" type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="button button-primary" type="button" disabled={selectedCount === 0} onClick={() => void importSelected()}>
+            Import {selectedCount} New Transaction{selectedCount === 1 ? "" : "s"}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
 
 function PayeeInput({
   value,
@@ -1259,6 +1429,7 @@ export function AccountRegisterPage() {
   const [payeeManagerMessage, setPayeeManagerMessage] = useState<string | null>(null);
   const [payeeManagerError, setPayeeManagerError] = useState<string | null>(null);
   const [attachmentTransactionId, setAttachmentTransactionId] = useState<string | null>(null);
+  const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -1579,7 +1750,7 @@ export function AccountRegisterPage() {
               aria-label="Search transactions"
             />
 
-            <button className="button button-secondary" type="button" disabled>
+            <button className="button button-secondary" type="button" onClick={() => setIsTransactionImportOpen(true)}>
               Import
             </button>
 
@@ -1832,6 +2003,20 @@ export function AccountRegisterPage() {
               )}
             </Card>
           </div>
+        )}
+
+        {isTransactionImportOpen && (
+          <TransactionImportDialog
+            accountName={data.accountName}
+            transactions={data.transactions}
+            currencyCode={data.currencyCode}
+            onClose={() => setIsTransactionImportOpen(false)}
+            onImportTransactions={async (transactions) => {
+              for (const transaction of transactions) {
+                await addTransaction(transaction);
+              }
+            }}
+          />
         )}
 
         {showEntryRow && (

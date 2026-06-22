@@ -1,0 +1,947 @@
+diff --git a/apps/web/src/features/accounts/transactionImport.ts b/apps/web/src/features/accounts/transactionImport.ts
+new file mode 100644
+index 0000000..75515c4
+--- /dev/null
++++ b/apps/web/src/features/accounts/transactionImport.ts
+@@ -0,0 +1,375 @@
++import type {
++  NewRegisterTransactionInput,
++  RegisterTransactionView,
++} from "./accountRegisterTypes";
++
++export type TransactionImportMatchStatus = "exact-match" | "possible-match" | "new" | "invalid";
++
++export interface ParsedImportTransaction {
++  rowNumber: number;
++  date: string;
++  payee: string;
++  memo?: string;
++  outflow: number;
++  inflow: number;
++  raw: Record<string, string>;
++}
++
++export interface TransactionImportCandidate {
++  id: string;
++  parsed: ParsedImportTransaction;
++  status: TransactionImportMatchStatus;
++  matchedTransactionId?: string;
++  matchedTransaction?: RegisterTransactionView;
++  reason: string;
++  selected: boolean;
++  errors: string[];
++}
++
++export interface TransactionImportPreview {
++  candidates: TransactionImportCandidate[];
++  summary: {
++    totalRows: number;
++    newTransactions: number;
++    exactMatches: number;
++    possibleMatches: number;
++    invalidRows: number;
++    selectedForImport: number;
++  };
++}
++
++const DATE_HEADERS = ["date", "transaction date", "posted date", "settled date"];
++const PAYEE_HEADERS = ["payee", "description", "merchant", "name"];
++const MEMO_HEADERS = ["memo", "notes", "details", "reference"];
++const AMOUNT_HEADERS = ["amount", "value"];
++const OUTFLOW_HEADERS = ["outflow", "debit", "withdrawal", "withdrawals", "spent"];
++const INFLOW_HEADERS = ["inflow", "credit", "deposit", "deposits", "received"];
++
++export function previewTransactionCsvImport(
++  csvText: string,
++  existingTransactions: RegisterTransactionView[],
++): TransactionImportPreview {
++  const parsed = parseTransactionCsv(csvText);
++  const candidates = parsed.map((transaction) => classifyImportCandidate(transaction, existingTransactions));
++
++  return {
++    candidates,
++    summary: {
++      totalRows: candidates.length,
++      newTransactions: candidates.filter((candidate) => candidate.status === "new").length,
++      exactMatches: candidates.filter((candidate) => candidate.status === "exact-match").length,
++      possibleMatches: candidates.filter((candidate) => candidate.status === "possible-match").length,
++      invalidRows: candidates.filter((candidate) => candidate.status === "invalid").length,
++      selectedForImport: candidates.filter((candidate) => candidate.selected).length,
++    },
++  };
++}
++
++export function buildRegisterTransactionsFromImport(
++  candidates: TransactionImportCandidate[],
++): NewRegisterTransactionInput[] {
++  return candidates
++    .filter((candidate) => candidate.selected && candidate.status === "new")
++    .map((candidate) => ({
++      date: candidate.parsed.date,
++      payee: candidate.parsed.payee,
++      category:
++        candidate.parsed.inflow > 0 && candidate.parsed.outflow === 0
++          ? "Ready to Assign"
++          : "Uncategorised",
++      categoryId:
++        candidate.parsed.inflow > 0 && candidate.parsed.outflow === 0
++          ? "__ready_to_assign__"
++          : undefined,
++      memo: candidate.parsed.memo,
++      outflow: candidate.parsed.outflow,
++      inflow: candidate.parsed.inflow,
++    }));
++}
++
++export function parseTransactionCsv(csvText: string): ParsedImportTransaction[] {
++  const rows = parseCsvRows(csvText);
++
++  if (rows.length <= 1) {
++    return [];
++  }
++
++  const headers = rows[0].map(normaliseHeader);
++
++  return rows.slice(1).map((row, index) => {
++    const raw = Object.fromEntries(headers.map((header, headerIndex) => [header, row[headerIndex] ?? ""]));
++    const date = normaliseImportDate(readFirst(raw, DATE_HEADERS));
++    const payee = readFirst(raw, PAYEE_HEADERS).trim();
++    const memo = readFirst(raw, MEMO_HEADERS).trim() || undefined;
++    const { outflow, inflow } = readImportAmount(raw);
++
++    return {
++      rowNumber: index + 2,
++      date,
++      payee,
++      memo,
++      outflow,
++      inflow,
++      raw,
++    };
++  });
++}
++
++function classifyImportCandidate(
++  parsed: ParsedImportTransaction,
++  existingTransactions: RegisterTransactionView[],
++): TransactionImportCandidate {
++  const errors = validateParsedTransaction(parsed);
++
++  if (errors.length > 0) {
++    return {
++      id: `row-${parsed.rowNumber}`,
++      parsed,
++      status: "invalid",
++      reason: errors.join(" "),
++      selected: false,
++      errors,
++    };
++  }
++
++  const exact = existingTransactions.find(
++    (transaction) =>
++      transaction.date === parsed.date &&
++      amountsEqual(transaction, parsed) &&
++      normalisePayee(transaction.payee) === normalisePayee(parsed.payee),
++  );
++
++  if (exact) {
++    return {
++      id: `row-${parsed.rowNumber}`,
++      parsed,
++      status: "exact-match",
++      matchedTransactionId: exact.id,
++      matchedTransaction: exact,
++      reason: "Exact date, amount, and payee match already exists in this register.",
++      selected: false,
++      errors: [],
++    };
++  }
++
++  const automaticNear = existingTransactions.find(
++    (transaction) => amountsEqual(transaction, parsed) && daysBetween(transaction.date, parsed.date) <= 3,
++  );
++
++  if (automaticNear) {
++    return {
++      id: `row-${parsed.rowNumber}`,
++      parsed,
++      status: "exact-match",
++      matchedTransactionId: automaticNear.id,
++      matchedTransaction: automaticNear,
++      reason: "Matched by same amount within 3 days in this register.",
++      selected: false,
++      errors: [],
++    };
++  }
++
++  const possible = existingTransactions.find(
++    (transaction) => amountsEqual(transaction, parsed) && daysBetween(transaction.date, parsed.date) <= 7,
++  );
++
++  if (possible) {
++    return {
++      id: `row-${parsed.rowNumber}`,
++      parsed,
++      status: "possible-match",
++      matchedTransactionId: possible.id,
++      matchedTransaction: possible,
++      reason: "Possible match: same amount within 7 days. Review before importing as new.",
++      selected: false,
++      errors: [],
++    };
++  }
++
++  return {
++    id: `row-${parsed.rowNumber}`,
++    parsed,
++    status: "new",
++    reason: "No matching transaction found in this register.",
++    selected: true,
++    errors: [],
++  };
++}
++
++function validateParsedTransaction(parsed: ParsedImportTransaction): string[] {
++  const errors: string[] = [];
++
++  if (!parsed.date) {
++    errors.push("Missing or invalid date.");
++  }
++
++  if (!parsed.payee) {
++    errors.push("Missing payee/description.");
++  }
++
++  if (parsed.inflow <= 0 && parsed.outflow <= 0) {
++    errors.push("Missing amount.");
++  }
++
++  return errors;
++}
++
++function parseCsvRows(text: string): string[][] {
++  const rows: string[][] = [];
++  let row: string[] = [];
++  let cell = "";
++  let inQuotes = false;
++
++  for (let index = 0; index < text.length; index += 1) {
++    const char = text[index];
++    const next = text[index + 1];
++
++    if (char === '"') {
++      if (inQuotes && next === '"') {
++        cell += '"';
++        index += 1;
++      } else {
++        inQuotes = !inQuotes;
++      }
++      continue;
++    }
++
++    if (char === "," && !inQuotes) {
++      row.push(cell.trim());
++      cell = "";
++      continue;
++    }
++
++    if ((char === "\n" || char === "\r") && !inQuotes) {
++      if (char === "\r" && next === "\n") {
++        index += 1;
++      }
++
++      row.push(cell.trim());
++      if (row.some((value) => value.length > 0)) {
++        rows.push(row);
++      }
++      row = [];
++      cell = "";
++      continue;
++    }
++
++    cell += char;
++  }
++
++  row.push(cell.trim());
++  if (row.some((value) => value.length > 0)) {
++    rows.push(row);
++  }
++
++  return rows;
++}
++
++function readFirst(row: Record<string, string>, headers: string[]): string {
++  for (const header of headers) {
++    const value = row[header];
++
++    if (value !== undefined && value.trim()) {
++      return value;
++    }
++  }
++
++  return "";
++}
++
++function readImportAmount(row: Record<string, string>): { outflow: number; inflow: number } {
++  const explicitOutflow = parseMoney(readFirst(row, OUTFLOW_HEADERS));
++  const explicitInflow = parseMoney(readFirst(row, INFLOW_HEADERS));
++
++  if (explicitOutflow > 0 || explicitInflow > 0) {
++    return { outflow: Math.abs(explicitOutflow), inflow: Math.abs(explicitInflow) };
++  }
++
++  const amount = parseMoney(readFirst(row, AMOUNT_HEADERS));
++
++  if (amount < 0) {
++    return { outflow: Math.abs(amount), inflow: 0 };
++  }
++
++  return { outflow: 0, inflow: Math.abs(amount) };
++}
++
++function parseMoney(value: string): number {
++  const cleaned = value.replace(/[$,\s]/g, "");
++  const parsed = Number.parseFloat(cleaned);
++  return Number.isFinite(parsed) ? parsed : 0;
++}
++
++function normaliseImportDate(value: string): string {
++  const trimmed = value.trim();
++
++  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
++    return trimmed;
++  }
++
++  const parts = trimmed.split(/[\/\-.]/).filter(Boolean);
++
++  if (parts.length !== 3) {
++    return "";
++  }
++
++  const [first, second, third] = parts;
++
++  if (first.length === 4) {
++    return normaliseDateParts(third, second, first);
++  }
++
++  const year = third.length === 2 ? `20${third}` : third;
++  return normaliseDateParts(first, second, year);
++}
++
++function normaliseDateParts(day: string, month: string, year: string): string {
++  const numericDay = Number.parseInt(day, 10);
++  const numericMonth = Number.parseInt(month, 10);
++  const numericYear = Number.parseInt(year, 10);
++  const date = new Date(numericYear, numericMonth - 1, numericDay);
++
++  if (
++    !Number.isFinite(numericDay) ||
++    !Number.isFinite(numericMonth) ||
++    !Number.isFinite(numericYear) ||
++    date.getFullYear() !== numericYear ||
++    date.getMonth() !== numericMonth - 1 ||
++    date.getDate() !== numericDay
++  ) {
++    return "";
++  }
++
++  return [
++    String(numericYear).padStart(4, "0"),
++    String(numericMonth).padStart(2, "0"),
++    String(numericDay).padStart(2, "0"),
++  ].join("-");
++}
++
++function normaliseHeader(value: string): string {
++  return value.trim().toLowerCase().replace(/^\uFEFF/, "");
++}
++
++function normalisePayee(value: string): string {
++  return value.toLowerCase().replace(/[^a-z0-9]+/g, "").trim();
++}
++
++function amountsEqual(transaction: RegisterTransactionView, parsed: ParsedImportTransaction): boolean {
++  return cents(transaction.inflow) === cents(parsed.inflow) && cents(transaction.outflow) === cents(parsed.outflow);
++}
++
++function cents(value: number): number {
++  return Math.round(value * 100);
++}
++
++function daysBetween(left: string, right: string): number {
++  const leftDate = Date.parse(`${left}T00:00:00.000Z`);
++  const rightDate = Date.parse(`${right}T00:00:00.000Z`);
++
++  if (!Number.isFinite(leftDate) || !Number.isFinite(rightDate)) {
++    return Number.POSITIVE_INFINITY;
++  }
++
++  return Math.abs(Math.round((leftDate - rightDate) / 86_400_000));
++}
+diff --git a/apps/web/src/pages/AccountRegisterPage.tsx b/apps/web/src/pages/AccountRegisterPage.tsx
+index c9c9c1d..6c10c82 100644
+--- a/apps/web/src/pages/AccountRegisterPage.tsx
++++ b/apps/web/src/pages/AccountRegisterPage.tsx
+@@ -16,6 +16,12 @@ import type {
+   TransactionFlag,
+ } from "../features/accounts/accountRegisterTypes";
+ import type { BudgetCategoryOption } from "../features/budget/budgetViewTypes";
++import {
++  buildRegisterTransactionsFromImport,
++  previewTransactionCsvImport,
++  type TransactionImportCandidate,
++  type TransactionImportPreview,
++} from "../features/accounts/transactionImport";
+ import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
+ import { useUIStore } from "../stores/uiStore";
+ 
+@@ -369,6 +375,170 @@ function AttachmentManager({
+ }
+ 
+ 
++
++function TransactionImportDialog({
++  accountName,
++  transactions,
++  currencyCode,
++  onClose,
++  onImportTransactions,
++}: {
++  accountName: string;
++  transactions: RegisterTransactionView[];
++  currencyCode: string;
++  onClose: () => void;
++  onImportTransactions: (transactions: NewRegisterTransactionInput[]) => Promise<void>;
++}) {
++  const fileInputRef = useRef<HTMLInputElement | null>(null);
++  const [preview, setPreview] = useState<TransactionImportPreview | null>(null);
++  const [candidates, setCandidates] = useState<TransactionImportCandidate[]>([]);
++  const [message, setMessage] = useState<string | null>(null);
++  const [error, setError] = useState<string | null>(null);
++  const selectedCount = candidates.filter((candidate) => candidate.selected && candidate.status === "new").length;
++
++  async function readFile(file: File) {
++    setError(null);
++    setMessage(null);
++
++    if (!file.name.toLowerCase().endsWith(".csv")) {
++      setError("Choose a CSV transaction file.");
++      return;
++    }
++
++    const text = await file.text();
++    const nextPreview = previewTransactionCsvImport(text, transactions);
++    setPreview(nextPreview);
++    setCandidates(nextPreview.candidates);
++  }
++
++  function toggleCandidate(candidateId: string) {
++    setCandidates((current) =>
++      current.map((candidate) =>
++        candidate.id === candidateId && candidate.status === "new"
++          ? { ...candidate, selected: !candidate.selected }
++          : candidate,
++      ),
++    );
++  }
++
++  async function importSelected() {
++    const importable = buildRegisterTransactionsFromImport(candidates);
++
++    if (importable.length === 0) {
++      setError("No new transactions are selected for import.");
++      return;
++    }
++
++    for (const transaction of importable) {
++      await onImportTransactions([transaction]);
++    }
++
++    setMessage(`Imported ${importable.length} transaction${importable.length === 1 ? "" : "s"} into ${accountName}.`);
++    setCandidates((current) => current.map((candidate) => ({ ...candidate, selected: false })));
++  }
++
++  return (
++    <div className="transaction-import-backdrop" role="presentation" onClick={onClose}>
++      <section
++        className="transaction-import-dialog"
++        role="dialog"
++        aria-modal="true"
++        aria-labelledby="transaction-import-title"
++        onClick={(event) => event.stopPropagation()}
++      >
++        <div className="transaction-import-header">
++          <div>
++            <h2 id="transaction-import-title">Import Transactions</h2>
++            <p className="muted">Target account: {accountName}</p>
++          </div>
++          <button className="button button-secondary" type="button" onClick={onClose}>
++            Close
++          </button>
++        </div>
++
++        <div className="transaction-import-actions">
++          <input
++            ref={fileInputRef}
++            type="file"
++            accept=".csv,text/csv"
++            className="attachment-file-input"
++            onChange={(event) => {
++              const file = event.target.files?.[0];
++              if (file) {
++                void readFile(file);
++              }
++              event.target.value = "";
++            }}
++          />
++          <button className="button button-primary" type="button" onClick={() => fileInputRef.current?.click()}>
++            Choose CSV File
++          </button>
++          <p className="muted">CSV columns supported: Date, Payee/Description, Amount or Outflow/Inflow, Memo.</p>
++        </div>
++
++        {error ? <p className="transaction-import-error">{error}</p> : null}
++        {message ? <p className="transaction-import-message">{message}</p> : null}
++
++        {preview ? (
++          <div className="transaction-import-summary">
++            <span>Total rows: {preview.summary.totalRows}</span>
++            <span>New: {preview.summary.newTransactions}</span>
++            <span>Matched: {preview.summary.exactMatches}</span>
++            <span>Possible: {preview.summary.possibleMatches}</span>
++            <span>Invalid: {preview.summary.invalidRows}</span>
++          </div>
++        ) : null}
++
++        {candidates.length > 0 ? (
++          <div className="transaction-import-table">
++            <div className="transaction-import-row transaction-import-row-head">
++              <span>Import</span>
++              <span>Date</span>
++              <span>Payee</span>
++              <span>Outflow</span>
++              <span>Inflow</span>
++              <span>Status</span>
++            </div>
++            {candidates.map((candidate) => (
++              <label className="transaction-import-row" key={candidate.id}>
++                <span>
++                  <input
++                    type="checkbox"
++                    checked={candidate.selected}
++                    disabled={candidate.status !== "new"}
++                    onChange={() => toggleCandidate(candidate.id)}
++                  />
++                </span>
++                <span>{candidate.parsed.date || "—"}</span>
++                <span>
++                  <strong>{candidate.parsed.payee || "Missing payee"}</strong>
++                  <small>{candidate.parsed.memo ?? candidate.reason}</small>
++                </span>
++                <span>{candidate.parsed.outflow ? formatMoney(candidate.parsed.outflow, currencyCode) : ""}</span>
++                <span>{candidate.parsed.inflow ? formatMoney(candidate.parsed.inflow, currencyCode) : ""}</span>
++                <span className={`transaction-import-status transaction-import-status-${candidate.status}`}>
++                  {candidate.status.replace("-", " ")}
++                </span>
++              </label>
++            ))}
++          </div>
++        ) : (
++          <p className="transaction-import-placeholder">Choose a CSV file to preview transactions before importing.</p>
++        )}
++
++        <div className="transaction-import-footer">
++          <button className="button button-secondary" type="button" onClick={onClose}>
++            Cancel
++          </button>
++          <button className="button button-primary" type="button" disabled={selectedCount === 0} onClick={() => void importSelected()}>
++            Import {selectedCount} New Transaction{selectedCount === 1 ? "" : "s"}
++          </button>
++        </div>
++      </section>
++    </div>
++  );
++}
++
+ function PayeeInput({
+   value,
+   onChange,
+@@ -1259,6 +1429,7 @@ export function AccountRegisterPage() {
+   const [payeeManagerMessage, setPayeeManagerMessage] = useState<string | null>(null);
+   const [payeeManagerError, setPayeeManagerError] = useState<string | null>(null);
+   const [attachmentTransactionId, setAttachmentTransactionId] = useState<string | null>(null);
++  const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
+ 
+   useEffect(() => {
+     let isMounted = true;
+@@ -1579,7 +1750,7 @@ export function AccountRegisterPage() {
+               aria-label="Search transactions"
+             />
+ 
+-            <button className="button button-secondary" type="button" disabled>
++            <button className="button button-secondary" type="button" onClick={() => setIsTransactionImportOpen(true)}>
+               Import
+             </button>
+ 
+@@ -1834,6 +2005,20 @@ export function AccountRegisterPage() {
+           </div>
+         )}
+ 
++        {isTransactionImportOpen && (
++          <TransactionImportDialog
++            accountName={data.accountName}
++            transactions={data.transactions}
++            currencyCode={data.currencyCode}
++            onClose={() => setIsTransactionImportOpen(false)}
++            onImportTransactions={async (transactions) => {
++              for (const transaction of transactions) {
++                await addTransaction(transaction);
++              }
++            }}
++          />
++        )}
++
+         {showEntryRow && (
+           <TransactionEntryRow
+             initialDate={lastEntryDate}
+diff --git a/apps/web/src/styles/register.css b/apps/web/src/styles/register.css
+index 7262e63..f3ff81a 100644
+--- a/apps/web/src/styles/register.css
++++ b/apps/web/src/styles/register.css
+@@ -1282,3 +1282,132 @@
+   border-radius: 0.75rem;
+   background: rgba(15, 23, 42, 0.03);
+ }
++
++.transaction-import-backdrop {
++  position: fixed;
++  inset: 0;
++  z-index: 70;
++  display: grid;
++  place-items: center;
++  background: rgb(15 23 42 / 0.45);
++  padding: 1.5rem;
++}
++
++.transaction-import-dialog {
++  width: min(980px, 100%);
++  max-height: min(780px, 92vh);
++  overflow: auto;
++  border-radius: 22px;
++  background: var(--surface, #fff);
++  box-shadow: 0 24px 80px rgb(15 23 42 / 0.28);
++  padding: 1.25rem;
++}
++
++.transaction-import-header,
++.transaction-import-actions,
++.transaction-import-footer {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 1rem;
++}
++
++.transaction-import-actions {
++  justify-content: flex-start;
++  margin-top: 1rem;
++  flex-wrap: wrap;
++}
++
++.transaction-import-summary {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 0.75rem;
++  margin: 1rem 0;
++  color: var(--muted-foreground, #64748b);
++  font-size: 0.9rem;
++}
++
++.transaction-import-error,
++.transaction-import-message {
++  margin: 1rem 0 0;
++  border-radius: 12px;
++  padding: 0.75rem 0.9rem;
++}
++
++.transaction-import-error {
++  background: #fee2e2;
++  color: #991b1b;
++}
++
++.transaction-import-message {
++  background: #dcfce7;
++  color: #166534;
++}
++
++.transaction-import-table {
++  display: grid;
++  margin: 1rem 0;
++  border: 1px solid var(--border, #e2e8f0);
++  border-radius: 14px;
++  overflow: hidden;
++}
++
++.transaction-import-row {
++  display: grid;
++  grid-template-columns: 64px 110px minmax(220px, 1fr) 120px 120px 140px;
++  gap: 0.75rem;
++  align-items: center;
++  padding: 0.7rem 0.8rem;
++  border-bottom: 1px solid var(--border, #e2e8f0);
++  font-size: 0.9rem;
++}
++
++.transaction-import-row:last-child {
++  border-bottom: 0;
++}
++
++.transaction-import-row-head {
++  background: var(--muted, #f8fafc);
++  color: var(--muted-foreground, #64748b);
++  font-weight: 700;
++}
++
++.transaction-import-row small {
++  display: block;
++  margin-top: 0.2rem;
++  color: var(--muted-foreground, #64748b);
++}
++
++.transaction-import-status {
++  border-radius: 999px;
++  padding: 0.25rem 0.55rem;
++  text-transform: capitalize;
++  text-align: center;
++  font-size: 0.78rem;
++  background: #e2e8f0;
++}
++
++.transaction-import-status-new {
++  background: #dcfce7;
++  color: #166534;
++}
++
++.transaction-import-status-exact-match {
++  background: #dbeafe;
++  color: #1d4ed8;
++}
++
++.transaction-import-status-possible-match {
++  background: #fef3c7;
++  color: #92400e;
++}
++
++.transaction-import-status-invalid {
++  background: #fee2e2;
++  color: #991b1b;
++}
++
++.transaction-import-placeholder {
++  margin: 1.25rem 0;
++  color: var(--muted-foreground, #64748b);
++}
+diff --git a/docs/v152-transaction-import-foundation.md b/docs/v152-transaction-import-foundation.md
+new file mode 100644
+index 0000000..aeedca9
+--- /dev/null
++++ b/docs/v152-transaction-import-foundation.md
+@@ -0,0 +1,76 @@
++# v1.52 Transaction Import Foundation
++
++## Purpose
++
++v1.52 introduces register-scoped CSV transaction import.
++
++This is separate from budget backup/restore:
++
++```text
++Budget Backup / Restore = JSON, complete budget structure
++Transaction Import = CSV, bank-style transaction intake
++```
++
++## UX Direction
++
++Import is launched from an account register, so the target account is implicit.
++
++```text
++Open Register
++↓
++Import
++↓
++Choose CSV
++↓
++Preview / Match
++↓
++Import selected new transactions
++```
++
++The import dialog shows the target account as read-only context rather than asking the user to select an account again.
++
++## Matching Rules
++
++v1.52 avoids naive 1:1 duplicate checks.
++
++Rows are classified against transactions in the current register only:
++
++- `exact-match`: same date, amount, and payee, or same amount within 3 days.
++- `possible-match`: same amount within 7 days.
++- `new`: no matching transaction found.
++- `invalid`: missing date, payee, or amount.
++
++Only `new` rows are selected for import by default.
++
++This handles the common manual-entry case where a user enters a transaction on purchase date and the bank file settles it a few days later.
++
++## Supported CSV Columns
++
++The parser recognises common headings:
++
++```text
++Date / Transaction Date / Posted Date / Settled Date
++Payee / Description / Merchant / Name
++Amount / Value
++Outflow / Debit / Withdrawal / Spent
++Inflow / Credit / Deposit / Received
++Memo / Notes / Details / Reference
++```
++
++## Out of Scope
++
++- QIF / OFX / QFX parsing.
++- Bank-specific import profiles.
++- Payee cleanup rules.
++- Auto-categorisation.
++- Import rollback / undo.
++- Cross-account matching.
++- CSV export review.
++
++## Pinned Follow-ups
++
++- Add CSV export for conventional user-facing exports.
++- Add category ghost text/autocomplete.
++- Add richer possible-match review actions.
++- Add OFX/QFX/QIF import formats.
++- Consider payee rules and auto-categorisation after CSV import is stable.
+diff --git a/package.json b/package.json
+index 5bfbe50..5130a42 100644
+--- a/package.json
++++ b/package.json
+@@ -129,7 +129,7 @@
+     "test:v127:budget-activity": "tsx tests/v127-budget-activity-persistence.ts",
+     "test:v127": "pnpm test:v127:budget-activity",
+     "test:v132": "tsx tests/v132-gateway-selection.ts",
+-    "test:release-integrity": "pnpm test:v127 && pnpm test:v130 && pnpm test:v131 && pnpm test:v132 && pnpm test:v133 && pnpm test:v134 && pnpm test:v135 && pnpm test:v136 && pnpm test:v137 && pnpm test:v138 && pnpm test:v139 && pnpm test:v140 && pnpm test:v141 && pnpm test:v142 && pnpm test:v143 && pnpm test:v144 && pnpm test:v145 && pnpm test:v146 && pnpm test:v147 && pnpm test:v148 && pnpm test:v149 && pnpm test:v150 && pnpm test:v1501 && pnpm test:v151",
++    "test:release-integrity": "pnpm test:v127 && pnpm test:v130 && pnpm test:v131 && pnpm test:v132 && pnpm test:v133 && pnpm test:v134 && pnpm test:v135 && pnpm test:v136 && pnpm test:v137 && pnpm test:v138 && pnpm test:v139 && pnpm test:v140 && pnpm test:v141 && pnpm test:v142 && pnpm test:v143 && pnpm test:v144 && pnpm test:v145 && pnpm test:v146 && pnpm test:v147 && pnpm test:v148 && pnpm test:v149 && pnpm test:v150 && pnpm test:v1501 && pnpm test:v151 && pnpm test:v152",
+     "test:v133:sqlite-gateway-repository-wiring": "tsx tests/v133-sqlite-gateway-repository-wiring.ts",
+     "test:v133": "pnpm test:v133:sqlite-gateway-repository-wiring",
+     "test:v134:runtime-activation-audit": "tsx tests/v134-runtime-activation-audit.ts",
+@@ -169,7 +169,9 @@
+     "test:v1501:budget-backup-schema-cleanup": "tsx tests/v1501-budget-backup-schema-cleanup.ts",
+     "test:v1501": "pnpm test:v1501:budget-backup-schema-cleanup",
+     "test:v151:budget-lifecycle": "tsx tests/v151-budget-lifecycle.ts",
+-    "test:v151": "pnpm test:v151:budget-lifecycle"
++    "test:v151": "pnpm test:v151:budget-lifecycle",
++    "test:v152:transaction-import": "tsx tests/v152-transaction-import.ts",
++    "test:v152": "pnpm test:v152:transaction-import"
+   },
+   "dependencies": {
+     "better-sqlite3": "^12.11.1",
+diff --git a/tests/v152-transaction-import.ts b/tests/v152-transaction-import.ts
+new file mode 100644
+index 0000000..9aa3e4d
+--- /dev/null
++++ b/tests/v152-transaction-import.ts
+@@ -0,0 +1,91 @@
++import assert from "node:assert/strict";
++
++import {
++  buildRegisterTransactionsFromImport,
++  parseTransactionCsv,
++  previewTransactionCsvImport,
++} from "../apps/web/src/features/accounts/transactionImport.js";
++import type { RegisterTransactionView } from "../apps/web/src/features/accounts/accountRegisterTypes.js";
++
++const existingTransactions: RegisterTransactionView[] = [
++  createTransaction({
++    id: "manual-coles",
++    date: "2026-06-01",
++    payee: "Coles",
++    outflow: 125.4,
++  }),
++  createTransaction({
++    id: "manual-fuel",
++    date: "2026-06-01",
++    payee: "Fuel",
++    outflow: 80,
++  }),
++];
++
++const csv = [
++  "Date,Description,Amount,Memo",
++  "2026-06-03,COLES SUPERMARKET,-125.40,Settled later",
++  "2026-06-08,Fuel Station,-80.00,Possible delayed settlement",
++  "2026-06-10,Salary,2500.00,Payroll",
++  "2026-06-11,Coffee Shop,-5.50,Morning coffee",
++  "not-a-date,,0,Broken row",
++].join("\n");
++
++const parsed = parseTransactionCsv(csv);
++assert.equal(parsed.length, 5, "CSV parser should return data rows");
++assert.equal(parsed[0]?.date, "2026-06-03", "ISO dates should parse");
++assert.equal(parsed[0]?.outflow, 125.4, "negative amount should become outflow");
++assert.equal(parsed[2]?.inflow, 2500, "positive amount should become inflow");
++
++const preview = previewTransactionCsvImport(csv, existingTransactions);
++assert.equal(preview.summary.totalRows, 5, "preview should include all candidate rows");
++assert.equal(preview.summary.exactMatches, 1, "same amount within 3 days should auto-match");
++assert.equal(preview.summary.possibleMatches, 1, "same amount within 7 days should become a possible match");
++assert.equal(preview.summary.newTransactions, 2, "two rows should be new transactions");
++assert.equal(preview.summary.invalidRows, 1, "one row should be invalid");
++assert.equal(preview.summary.selectedForImport, 2, "only new rows should be selected by default");
++
++const exactMatch = preview.candidates.find((candidate) => candidate.parsed.payee === "COLES SUPERMARKET");
++assert.equal(exactMatch?.status, "exact-match", "manual transaction settling two days later should be matched");
++assert.equal(exactMatch?.selected, false, "matched rows should not import as duplicates");
++
++const possibleMatch = preview.candidates.find((candidate) => candidate.parsed.payee === "Fuel Station");
++assert.equal(possibleMatch?.status, "possible-match", "same amount seven days later should be review-only possible match");
++assert.equal(possibleMatch?.selected, false, "possible matches should not import automatically");
++
++const imported = buildRegisterTransactionsFromImport(preview.candidates);
++assert.equal(imported.length, 2, "only selected new rows should become register inputs");
++assert.deepEqual(
++  imported.map((transaction) => [transaction.date, transaction.payee, transaction.category, transaction.inflow, transaction.outflow]),
++  [
++    ["2026-06-10", "Salary", "Ready to Assign", 2500, 0],
++    ["2026-06-11", "Coffee Shop", "Uncategorised", 0, 5.5],
++  ],
++  "import builder should create income and spending transactions with safe default categories",
++);
++
++console.log("v1.52 transaction import checks passed");
++
++function createTransaction(input: {
++  id: string;
++  date: string;
++  payee: string;
++  outflow?: number;
++  inflow?: number;
++}): RegisterTransactionView {
++  return {
++    id: input.id,
++    date: input.date,
++    flag: null,
++    attachmentCount: 0,
++    attachments: [],
++    payee: input.payee,
++    category: "Uncategorised",
++    memo: undefined,
++    inflow: input.inflow ?? 0,
++    outflow: input.outflow ?? 0,
++    runningBalance: 0,
++    cleared: false,
++    reconciled: false,
++  };
++}
