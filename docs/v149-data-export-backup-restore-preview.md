@@ -16,14 +16,14 @@ Restore preview is intentionally non-destructive. It validates and summarises a 
 
 v1.48 established the budget data boundary. v1.49 uses that boundary so export and backup operate on the active budget only.
 
-Switching budgets should feel like opening a different budget file, so the data package contains only the selected budget's scoped records plus a small number of global context snapshots.
+Switching budgets should feel like opening a different budget file, so the data package is intended to contain one selected budget. v1.50.1 clarifies this further by keeping restorable records budget-scoped only and moving global context into diagnostic snapshots.
 
 ## Export package
 
 The v1.49 JSON package uses schema:
 
 ```text
-budget-app.data-export.v1
+budget-app.budget-backup.v1
 ```
 
 The package includes:
@@ -33,8 +33,8 @@ The package includes:
 - Export timestamp.
 - Active budget summary.
 - Counts for accounts, registers, transactions, payees, scheduled transactions, and budget months.
-- Budget-scoped storage records.
-- Global settings and registry snapshots for future restore validation.
+- Budget-scoped restorable storage records.
+- Global settings and registry diagnostic snapshots for context only; these are not restored.
 
 ## Current storage boundary
 
@@ -83,6 +83,10 @@ A later restore release should add:
 
 1. Dry-run conflict detection against the active app state.
 2. Explicit user confirmation.
-3. Restore into a new budget by default.
-4. Optional overwrite of the current budget only after strong confirmation.
-5. Release-integrity tests proving restore cannot cross budget boundaries.
+3. Current-budget restore only unless a separate Clone/New Budget workflow is explicitly chosen.
+4. Release-integrity tests proving restore cannot cross budget boundaries.
+
+
+## v1.50.1 Clarification
+
+The JSON file is a structured budget backup/restore package, not a CSV transaction export. CSV remains appropriate for future transaction/report exports and bank-style import/export workflows, but it is not suitable as the complete backup format because it cannot safely represent categories, groups, splits, scheduled transactions, metadata, and relationships in one file.

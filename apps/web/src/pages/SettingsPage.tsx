@@ -11,6 +11,7 @@ import {
   type BudgetDataExportKind,
   type BudgetDataRestorePreview,
 } from "../features/budget/budgetDataExport";
+import { deleteCurrentBudget, resetCurrentBudget } from "../features/budget/budgetLifecycle";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { getPersistenceModeSummary } from "../features/persistence/persistenceMode";
 import {
@@ -26,6 +27,7 @@ import {
   writeSettingsPreferences,
 } from "../features/settings/settingsPreferences";
 import { confirmDialog } from "../features/ui/appDialogService";
+import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore, type ThemeMode } from "../stores/uiStore";
 
 type SettingsSectionId = "general" | "budget" | "data" | "cloud" | "about";
@@ -120,6 +122,8 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const theme = useUIStore((state) => state.theme);
   const setTheme = useUIStore((state) => state.setTheme);
+  const clearSelectedBudget = useUIStore((state) => state.clearSelectedBudget);
+  const refreshBudgets = useBudgetRegistryStore((state) => state.refreshBudgets);
   const persistenceMode = getPersistenceModeSummary();
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("general");
   const [settings, setSettings] = useState<SettingsPreferences>(() =>
@@ -283,6 +287,58 @@ export function SettingsPage() {
     setRestorePackageRaw(null);
   }
 
+  function handleResetCurrentBudget() {
+    const confirmed = confirmDialog({
+      title: "Reset current budget?",
+      message:
+        "This will permanently remove accounts, transactions, payees, scheduled transactions, attachments, and custom categories from the currently selected budget. Budget settings are preserved and starter categories will be recreated. Create a backup first if you need a recovery point.",
+    });
+
+    if (!confirmed) {
+      setDataStatusMessage("Reset cancelled. No data has been changed.");
+      return;
+    }
+
+    const result = resetCurrentBudget(browserLocalStorageKeyValueStorage);
+    refreshBudgets();
+
+    if (!result.completed) {
+      setDataStatusMessage(result.errors[0] ?? "Reset failed. No data has been changed.");
+      return;
+    }
+
+    setRestorePreview(null);
+    setRestorePackageRaw(null);
+    setDataStatusMessage(
+      `Reset complete for ${result.budgetName}: ${result.removedRecords} budget records removed and starter categories reapplied. Reload open screens if they still show old data.`,
+    );
+  }
+
+  function handleDeleteCurrentBudget() {
+    const confirmed = confirmDialog({
+      title: "Delete current budget?",
+      message:
+        "This will permanently delete the currently selected budget and all data associated with it. Other budgets and global app preferences are preserved. Create a backup first if you need a recovery point. This action cannot be undone.",
+    });
+
+    if (!confirmed) {
+      setDataStatusMessage("Delete cancelled. No data has been changed.");
+      return;
+    }
+
+    const result = deleteCurrentBudget(browserLocalStorageKeyValueStorage);
+    refreshBudgets();
+    clearSelectedBudget();
+
+    if (!result.completed) {
+      setDataStatusMessage(result.errors[0] ?? "Delete failed. No data has been changed.");
+      return;
+    }
+
+    setDataStatusMessage(`Deleted ${result.budgetName}. Returning to the budget selector.`);
+    navigate("/");
+  }
+
   function closeSettings() {
     if (window.history.length > 1) {
       navigate(-1);
@@ -313,7 +369,7 @@ export function SettingsPage() {
             <span className="settings-sidebar-icon">⚙</span>
             <div>
               <h1 id="settings-title">Settings</h1>
-              <p className="muted">v1.50.0</p>
+              <p className="muted">v1.51.0</p>
             </div>
           </div>
 
@@ -333,8 +389,8 @@ export function SettingsPage() {
           </nav>
 
           <div className="settings-sidebar-footer">
-            <strong>v1.50.0</strong>
-            <span>Restore Commit</span>
+            <strong>v1.51.0</strong>
+            <span>Budget Lifecycle</span>
           </div>
         </aside>
 
@@ -574,6 +630,27 @@ export function SettingsPage() {
                     onChange={(event) => previewRestoreFile(event.target.files?.[0] ?? null)}
                   />
                 </label>
+              </div>
+            </div>
+
+            <div className="settings-action-grid settings-danger-grid">
+              <div className="settings-action-card settings-danger-card">
+                <h3>Reset Current Budget</h3>
+                <p className="muted">
+                  Remove budget data and recreate starter categories while preserving the budget entry and settings.
+                </p>
+                <Button type="button" variant="secondary" onClick={handleResetCurrentBudget}>
+                  Reset Budget
+                </Button>
+              </div>
+              <div className="settings-action-card settings-danger-card">
+                <h3>Delete Current Budget</h3>
+                <p className="muted">
+                  Permanently delete the selected budget and return to the budget selector. Other budgets are preserved.
+                </p>
+                <Button type="button" variant="secondary" onClick={handleDeleteCurrentBudget}>
+                  Delete Budget
+                </Button>
               </div>
             </div>
 

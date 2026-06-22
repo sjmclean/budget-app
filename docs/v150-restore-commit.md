@@ -27,7 +27,7 @@ Restore does not overwrite:
 - Global settings/preferences.
 - Cloud configuration placeholders.
 
-Global settings and registry records may exist inside a backup package as snapshots, but v1.50 skips them during restore.
+Current v1.50.1 backup packages keep global settings and registry data outside restorable records as diagnostic snapshots. Older v1.49/v1.50 packages may contain global records; restore skips them.
 
 ## Safety Rules
 
@@ -65,6 +65,7 @@ pnpm --filter @budget-app/web build
 - Stale selected-budget data is removed first.
 - Other budgets are not overwritten.
 - Global settings survive restore.
-- Global snapshot records are skipped.
+- Current diagnostic snapshots are not written as restorable records.
+- Legacy global snapshot records are skipped.
 - Unsupported keys cannot be written through restore.
 - Invalid packages do not restore.

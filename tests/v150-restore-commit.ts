@@ -187,8 +187,8 @@ assert.ok(
 );
 assert.equal(
   result.skippedGlobalRecords,
-  2,
-  "settings and registry snapshots should not be restored",
+  0,
+  "current packages keep global diagnostics out of restorable records",
 );
 assert.deepEqual(result.errors, []);
 
@@ -253,6 +253,30 @@ assert.ok(
 assert.equal(
   rootStorage.getItem("budget-app.budget-registry.v1")?.includes("evil"),
   false,
+);
+
+
+const legacyPackage = JSON.parse(backupRaw);
+legacyPackage.schema = "budget-app.data-export.v1";
+legacyPackage.records.push({
+  key: "budget-app.settings.v1",
+  value: JSON.stringify({ marker: "legacy global should be skipped" }),
+  scope: "global",
+  description: "Legacy settings snapshot",
+});
+const legacyResult = restoreBudgetDataPackage(
+  rootStorage,
+  JSON.stringify(legacyPackage),
+);
+assert.equal(legacyResult.restored, true);
+assert.equal(legacyResult.skippedGlobalRecords, 1);
+assert.ok(
+  legacyResult.warnings.some((warning) => warning.includes("legacy v1.49/v1.50")),
+  "legacy schema should restore with an explicit compatibility warning",
+);
+assert.equal(
+  rootStorage.getItem(SETTINGS_STORAGE_KEY),
+  JSON.stringify({ marker: "current settings should survive restore" }),
 );
 
 const invalidResult = restoreBudgetDataPackage(rootStorage, "not json");

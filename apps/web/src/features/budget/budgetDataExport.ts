@@ -11,8 +11,9 @@ import {
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import { SETTINGS_STORAGE_KEY } from "../settings/settingsPreferences";
 
-export const BUDGET_DATA_EXPORT_SCHEMA = "budget-app.data-export.v1";
-export const BUDGET_DATA_EXPORT_RELEASE = "v1.50";
+export const BUDGET_DATA_EXPORT_SCHEMA = "budget-app.budget-backup.v1";
+export const LEGACY_BUDGET_DATA_EXPORT_SCHEMA = "budget-app.data-export.v1";
+export const BUDGET_DATA_EXPORT_RELEASE = "v1.50.1";
 
 export type BudgetDataExportKind = "export" | "backup";
 
@@ -41,6 +42,7 @@ export interface BudgetDataExportPackage {
   budget: BudgetSummary;
   counts: BudgetDataSummaryCounts;
   records: BudgetDataStorageRecord[];
+  diagnosticSnapshots: BudgetDataStorageRecord[];
   notes: string[];
 }
 
@@ -214,9 +216,11 @@ export function createBudgetDataExportPackage(
     }
   }
 
+  const diagnosticSnapshots: BudgetDataStorageRecord[] = [];
+
   const settings = storage.getItem(SETTINGS_STORAGE_KEY);
   if (settings !== null) {
-    records.push({
+    diagnosticSnapshots.push({
       key: SETTINGS_STORAGE_KEY,
       value: settings,
       scope: "global",
@@ -226,7 +230,7 @@ export function createBudgetDataExportPackage(
 
   const registry = storage.getItem(BUDGET_REGISTRY_STORAGE_KEY);
   if (registry !== null) {
-    records.push({
+    diagnosticSnapshots.push({
       key: BUDGET_REGISTRY_STORAGE_KEY,
       value: registry,
       scope: "global",
@@ -266,10 +270,12 @@ export function createBudgetDataExportPackage(
       storageRecords: records.length,
     },
     records,
+    diagnosticSnapshots,
     notes: [
-      "v1.50 creates a portable JSON package for the active budget only.",
+      "v1.50.1 creates a portable JSON backup package for the active budget only.",
+      "CSV remains a separate future transaction/report export format, not the backup/restore format.",
       "Restore commits target the currently selected budget only and do not overwrite other budgets.",
-      "Global settings and registry records are included as snapshots but are not restored by current-budget restore.",
+      "Global settings and registry data are diagnostic snapshots only and are not restorable records.",
     ],
   };
 }
@@ -327,8 +333,15 @@ export function previewBudgetDataRestore(
   const counts = isRecord(parsed.counts) ? parsed.counts : null;
   const records = Array.isArray(parsed.records) ? parsed.records : null;
 
-  if (schema !== BUDGET_DATA_EXPORT_SCHEMA) {
-    errors.push("Unsupported or missing export schema.");
+  const supportedSchema =
+    schema === BUDGET_DATA_EXPORT_SCHEMA || schema === LEGACY_BUDGET_DATA_EXPORT_SCHEMA;
+
+  if (!supportedSchema) {
+    errors.push("Unsupported or missing budget backup schema.");
+  }
+
+  if (schema === LEGACY_BUDGET_DATA_EXPORT_SCHEMA) {
+    warnings.push("Package uses the legacy v1.49/v1.50 data-export schema name; it is still supported as a budget backup.");
   }
 
   if (!budget) {
@@ -349,7 +362,7 @@ export function previewBudgetDataRestore(
 
   if (release && release !== BUDGET_DATA_EXPORT_RELEASE) {
     warnings.push(
-      `Package was created by ${release}; current restore preview is ${BUDGET_DATA_EXPORT_RELEASE}.`,
+      `Package was created by ${release}; current restore support is ${BUDGET_DATA_EXPORT_RELEASE}.`,
     );
   }
 

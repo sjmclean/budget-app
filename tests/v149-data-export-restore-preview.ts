@@ -142,6 +142,8 @@ assert.equal(exportPackage.counts.transactions, 2, "opening balance plus entered
 assert.equal(exportPackage.counts.scheduledTransactions, 1);
 assert.equal(exportPackage.counts.budgetMonths, 1);
 assert.ok(exportPackage.records.some((record) => record.key === getBudgetScopedStorageKey(sideBudget.id, "budget-app.accounts.v1")));
+assert.ok(exportPackage.records.every((record) => record.scope === "budget"), "restorable records should be budget-scoped only");
+assert.ok(exportPackage.diagnosticSnapshots.every((record) => record.scope === "global"), "global context should be isolated as diagnostics");
 assert.ok(!serialiseBudgetDataPackage(exportPackage).includes("Household transaction"), "active budget export must not leak other budget transactions");
 assert.match(createBudgetDataFilename(exportPackage), /^side-business-2026-06-22\.backup\.json$/);
 
@@ -151,6 +153,7 @@ assert.equal(preview.budgetId, sideBudget.id);
 assert.equal(preview.counts?.accounts, 1);
 assert.equal(preview.counts?.transactions, 2);
 assert.deepEqual(preview.errors, []);
+assert.ok(preview.warnings.every((warning) => !warning.includes("legacy")), "current schema should not warn as legacy");
 
 const invalidPreview = previewBudgetDataRestore("not json");
 assert.equal(invalidPreview.valid, false);

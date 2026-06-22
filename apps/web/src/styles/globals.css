@@ -1866,3 +1866,12 @@ strong {
   gap: 0.55rem;
   justify-items: start;
 }
+
+.settings-danger-grid {
+  margin-top: 1rem;
+}
+
+.settings-danger-card {
+  border-color: var(--negative-bg);
+  background: color-mix(in srgb, var(--negative-bg) 28%, var(--surface));
+}
