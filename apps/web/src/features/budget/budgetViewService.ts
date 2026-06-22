@@ -10,6 +10,7 @@ import type {
 } from "./budgetViewTypes";
 import type { BudgetActivityPersistencePort } from "./budgetActivityPersistencePort";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import { readSettingsPreferences } from "../settings/settingsPreferences";
 
 const STORAGE_KEY_PREFIX = "budget-app.budget-view.v1";
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
@@ -482,6 +483,19 @@ function isReadyToAssignCategory(categoryKey: string): boolean {
   ].includes(categoryKey);
 }
 
+function applyStoredSettings(
+  dependencies: BudgetViewServiceDependencies,
+  view: BudgetMonthView,
+): BudgetMonthView {
+  const settings = readSettingsPreferences(dependencies.storage);
+
+  return {
+    ...view,
+    budgetName: settings.budget.budgetName,
+    currencyCode: settings.budget.currencyCode,
+  };
+}
+
 async function saveBudgetView(
   dependencies: BudgetViewServiceDependencies,
   view: BudgetMonthView,
@@ -489,7 +503,7 @@ async function saveBudgetView(
 ): Promise<BudgetMonthView> {
   const next = await applyRegisterActivity(dependencies, recalculateBudget(view), month);
   dependencies.storage.setItem(getStorageKey(next.budgetId, month), JSON.stringify(next));
-  return cloneBudgetView(next);
+  return cloneBudgetView(applyStoredSettings(dependencies, next));
 }
 
 async function loadBudgetView(
@@ -500,11 +514,11 @@ async function loadBudgetView(
   const stored = readStoredBudgetView(dependencies.storage, budgetId, month);
 
   if (stored) {
-    return cloneBudgetView(await applyRegisterActivity(dependencies, stored, month));
+    return cloneBudgetView(applyStoredSettings(dependencies, await applyRegisterActivity(dependencies, stored, month)));
   }
 
   const starter = createStarterBudgetView(budgetId, month);
-  return saveBudgetView(dependencies, starter, month);
+  return saveBudgetView(dependencies, applyStoredSettings(dependencies, starter), month);
 }
 
 function getCategoryOptions(view: BudgetMonthView): BudgetCategoryOption[] {
