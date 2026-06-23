@@ -1,8 +1,11 @@
+import { useNavigate } from "react-router-dom";
+import { Button } from "../components/ui/Button";
 import { resolveActiveBudget } from "../features/budget/activeBudget";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore, type ThemeMode } from "../stores/uiStore";
 
 export function TopBar() {
+  const navigate = useNavigate();
   const theme = useUIStore((state) => state.theme);
   const setTheme = useUIStore((state) => state.setTheme);
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
@@ -19,6 +22,10 @@ export function TopBar() {
       </div>
 
       <div className="topbar-controls">
+        <Button type="button" variant="secondary" onClick={() => navigate("/")}>
+          Switch budget
+        </Button>
+
         <label className="field-label" htmlFor="theme-select">
           Theme
         </label>

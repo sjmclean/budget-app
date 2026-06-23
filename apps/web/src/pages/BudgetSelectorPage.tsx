@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -10,6 +11,13 @@ export function BudgetSelectorPage() {
   const createBudget = useBudgetRegistryStore((state) => state.createBudget);
   const markBudgetOpened = useBudgetRegistryStore((state) => state.markBudgetOpened);
   const selectBudget = useUIStore((state) => state.selectBudget);
+  const [budgetName, setBudgetName] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const sortedBudgets = useMemo(
+    () => [...budgets].sort((first, second) => first.name.localeCompare(second.name)),
+    [budgets],
+  );
 
   function handleOpenBudget(budgetId: string) {
     markBudgetOpened(budgetId);
@@ -18,63 +26,120 @@ export function BudgetSelectorPage() {
   }
 
   function handleCreateBudget() {
-    const budget = createBudget();
+    const name = budgetName.trim();
+
+    if (!name) {
+      setFormError("Enter a budget name before creating a budget.");
+      return;
+    }
+
+    const budget = createBudget({ name });
+    setBudgetName("");
+    setFormError(null);
     selectBudget(budget.id);
     navigate("/dashboard");
   }
 
   return (
-    <main className="budget-selector-page">
-      <section className="workspace-header">
-        <div>
-          <h1>Open budget</h1>
-          <p className="muted">
-            Select a local budget package or create a new budget registry entry.
+    <main className="budget-selector-page budget-selector-page-premium">
+      <section className="budget-selector-premium-shell" aria-labelledby="budget-selector-title">
+        <div className="budget-selector-premium-chrome" aria-hidden="true">
+          <span className="budget-selector-orb budget-selector-orb-one" />
+          <span className="budget-selector-orb budget-selector-orb-two" />
+          <span className="budget-selector-orb budget-selector-orb-three" />
+        </div>
+
+        <header className="budget-selector-premium-header">
+          <div className="budget-selector-brand-mark" aria-hidden="true">▣</div>
+          <div>
+            <p className="budget-selector-brand">Budget App</p>
+            <p className="budget-selector-caption">Local-first budgeting</p>
+          </div>
+        </header>
+
+        <section className="budget-selector-premium-hero">
+          <p className="eyebrow">Welcome back</p>
+          <h1 id="budget-selector-title">Choose a budget</h1>
+          <p>
+            Open an existing local budget, or create a new blank budget and finish setup later.
           </p>
-        </div>
+        </section>
 
-        <div className="budget-selector-actions">
-          <Button type="button" variant="secondary">
-            Open .budget package
-          </Button>
-          <Button type="button" onClick={handleCreateBudget}>
-            New budget
-          </Button>
-        </div>
-      </section>
+        <Card className="budget-create-card budget-create-card-glass">
+          <div>
+            <h2>New budget</h2>
+            <p>
+              Currency, date format, start month, and other setup details will be handled by the
+              first-run setup flow later.
+            </p>
+          </div>
 
-      <section className="budget-list">
-        {budgets.length === 0 ? (
-          <Card className="budget-row-card budget-empty-card">
-            <div>
-              <h2>No budgets yet</h2>
-              <p className="muted">Create a budget to get started.</p>
-            </div>
+          <div className="budget-create-inline-form">
+            <label className="form-field budget-name-field">
+              <span className="field-label">Budget name</span>
+              <input
+                className="text-input budget-selector-input"
+                value={budgetName}
+                onChange={(event) => {
+                  setBudgetName(event.target.value);
+                  setFormError(null);
+                }}
+                placeholder="Personal Budget"
+              />
+            </label>
+
             <Button type="button" onClick={handleCreateBudget}>
-              New budget
+              + New budget
             </Button>
-          </Card>
-        ) : null}
+          </div>
 
-        {budgets.map((budget) => (
-          <Card key={budget.id} className="budget-row-card">
-            <div className="budget-row-main">
-              <div>
-                <h2>{budget.name}</h2>
-                <p className="muted">{budget.packagePath}</p>
-              </div>
+          {formError ? <p className="form-error">{formError}</p> : null}
+        </Card>
 
-              <div className="budget-meta">
-                <span>{budget.currency}</span>
-                <span>{budget.lastOpenedLabel}</span>
-              </div>
+        <section className="budget-list-panel budget-list-panel-glass" aria-label="Existing budgets">
+          <div className="budget-list-header budget-list-header-premium">
+            <div>
+              <h2>Your budgets</h2>
+              <p>Choose a budget to continue.</p>
             </div>
+            <span>{sortedBudgets.length} budget{sortedBudgets.length === 1 ? "" : "s"}</span>
+          </div>
 
-            <Button type="button" onClick={() => handleOpenBudget(budget.id)}>
-              Open
-            </Button>
-          </Card>
-        ))}
+          <div className="budget-list budget-list-premium">
+            {sortedBudgets.length === 0 ? (
+              <div className="budget-row-card budget-row-card-premium budget-empty-card-premium">
+                <div className="budget-row-icon" aria-hidden="true">▣</div>
+                <div>
+                  <h2>No budgets yet</h2>
+                  <p>Create a budget above to get started.</p>
+                </div>
+              </div>
+            ) : null}
+
+            {sortedBudgets.map((budget) => (
+              <button
+                key={budget.id}
+                type="button"
+                className="budget-row-card budget-row-card-premium"
+                onClick={() => handleOpenBudget(budget.id)}
+              >
+                <span className="budget-row-icon" aria-hidden="true">▣</span>
+                <span className="budget-row-main">
+                  <strong>{budget.name}</strong>
+                  <span>{budget.lastOpenedLabel}</span>
+                </span>
+                <span className="budget-row-chevron" aria-hidden="true">›</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <div className="budget-selector-import-placeholder">
+          <Button type="button" variant="secondary" disabled>
+            Import budget later
+          </Button>
+          <p>Import/open package support remains pinned for the future host runtime.</p>
+        </div>
       </section>
     </main>
   );

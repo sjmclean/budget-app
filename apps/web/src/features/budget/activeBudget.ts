@@ -8,7 +8,7 @@ export function resolveActiveBudgetId(
     return selectedBudgetId;
   }
 
-  return budgets[0]?.id ?? null;
+  return null;
 }
 
 export function resolveActiveBudget(

@@ -176,12 +176,12 @@ export function Sidebar() {
   return (
     <>
       <aside className="sidebar">
-        <div className="sidebar-brand">
+        <NavLink to="/" className="sidebar-brand sidebar-brand-link">
           <div>
             <h2>Budget App</h2>
-            <p className="sidebar-subtitle">Local file</p>
+            <p className="sidebar-subtitle">Budgets</p>
           </div>
-        </div>
+        </NavLink>
 
         <nav className="sidebar-nav">
           <NavLink to="/budget" className="sidebar-link">
