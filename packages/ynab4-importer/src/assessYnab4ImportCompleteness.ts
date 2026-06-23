@@ -114,12 +114,12 @@ const ITEMS: Ynab4CompletenessItem[] = [
     id: "scheduled-transactions",
     area: "Scheduled Transactions",
     ynab4Data: "Scheduled transactions with frequency, next date, memo, cleared state, transfers, and subTransactions.",
-    currentAppCapability: "ScheduledTransaction exists, but scheduled split lines/subTransactions and YNAB4-specific frequencies such as twice-a-month details are not fully represented.",
+    currentAppCapability: "ScheduledTransaction exists and scheduled split lines/subTransactions are now representable. YNAB4-specific frequencies such as twice-a-month details are not fully mapped yet.",
     status: "partial",
-    risk: "critical",
-    importImpact: "Scheduled transactions can be partially imported, but split scheduled transactions and some recurrence details may be lost.",
+    risk: "high",
+    importImpact: "Scheduled split lines can now be preserved, but some recurrence details may still be lost until YNAB4 recurrence mapping is proven.",
     requiredBeforeFullImport: true,
-    recommendedAction: "Add scheduled split line support and map YNAB4 recurrence metadata, including twiceAMonthStartDay."
+    recommendedAction: "Map YNAB4 scheduled subTransactions into scheduled split lines and prove recurrence metadata mapping, including twiceAMonthStartDay."
   },
   {
     id: "payees",
@@ -214,7 +214,7 @@ export function assessYnab4ImportCompleteness(): Ynab4ImportCompletenessAudit {
     recommendedBuildOrder: [
       "Add category group/header notes support.",
       "Add transaction check-number preservation.",
-      "Add scheduled split transaction support and YNAB4 recurrence mapping.",
+      "Map scheduled split transactions and prove YNAB4 recurrence mapping.",
       "Prove historical monthly budget/category-month mapping.",
       "Prove transfer-pair and credit-card migration against real YNAB4 data.",
       "Wire ImportRun/ImportMap source-id tracking for YNAB4 entities."

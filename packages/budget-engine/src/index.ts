@@ -21,6 +21,7 @@ export * from "./services/applyActivityToCategoryMonth.js";
 export * from "./services/rolloverBudgetMonth.js";
 export * from "./services/createReconciliation.js";
 export * from "./services/createScheduledTransaction.js";
+export * from "./services/createScheduledSplitTransaction.js";
 export * from "./services/materializeScheduledTransaction.js";
 export * from "./reports/spendingByCategory.js";
 export * from "./reports/accountBalances.js";

@@ -111,6 +111,16 @@ CREATE TABLE IF NOT EXISTS split_transaction_lines (
       updated_at INTEGER NOT NULL
     );
 
+
+    CREATE TABLE IF NOT EXISTS scheduled_transaction_split_lines (
+      id TEXT PRIMARY KEY,
+      scheduled_transaction_id TEXT NOT NULL,
+      category_id TEXT NOT NULL,
+      memo TEXT,
+      amount INTEGER NOT NULL,
+      sort_order INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS budget_months (
       id TEXT PRIMARY KEY,
       budget_id TEXT NOT NULL,

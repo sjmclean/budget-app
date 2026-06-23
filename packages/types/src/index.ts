@@ -15,6 +15,7 @@ export * from "./SplitTransactionLine.js";
 export * from "./Reconciliation.js";
 export * from "./ScheduledFrequency.js";
 export * from "./ScheduledTransaction.js";
+export * from "./ScheduledTransactionSplitLine.js";
 export * from "./OverspendingDecision.js";
 export * from "./DomainEventType.js";
 export * from "./DomainEvent.js";

@@ -101,7 +101,7 @@ Remaining work:
 
 ---
 
-### 3. Scheduled split transactions are not fully representable yet
+### 3. Scheduled split transactions are now representable, but YNAB4 recurrence mapping remains unproven
 
 YNAB4 scheduled transactions can contain `subTransactions`.
 
@@ -109,16 +109,16 @@ Current app support:
 
 - scheduled transactions exist
 - regular split transaction lines exist
-- scheduled split lines do not appear to have a dedicated schema/model
+- scheduled split transaction lines now exist
 
 Impact:
 
-- scheduled split transactions could be flattened, partially imported, or lose detail
+- scheduled split transaction line data now has a first-class landing place
+- YNAB4 recurrence details could still be partially imported or lose detail
 
 Recommended fix:
 
-- add scheduled split transaction line support
-- map YNAB4 scheduled `subTransactions`
+- map YNAB4 scheduled `subTransactions` into scheduled split lines
 - map YNAB4 recurrence metadata such as `twiceAMonthStartDay`
 
 ---
@@ -188,7 +188,7 @@ Recommended fix:
 | Transactions | Partial | Critical | Yes |
 | Transaction check numbers | Supported | Low | No |
 | Split transactions | Partial | High | Yes |
-| Scheduled transactions | Partial | Critical | Yes |
+| Scheduled transactions | Partial | High | Yes |
 | Payees | Partial | Medium | No |
 | Transfers | Partial | Critical | Yes |
 | Transaction flags | Partial | Medium | No |
@@ -201,7 +201,7 @@ Recommended fix:
 Before actual import writes, build the missing representation pieces in this order:
 
 1. Add category group/header notes support.
-2. Add scheduled split transaction support and YNAB4 recurrence mapping.
+2. Map scheduled split transactions and prove YNAB4 recurrence mapping.
 3. Prove historical monthly budget/category-month mapping.
 4. Prove transfer-pair and credit-card migration against real YNAB4 data.
 5. Wire `ImportRun`/`ImportMap` source-id tracking for YNAB4 entities.

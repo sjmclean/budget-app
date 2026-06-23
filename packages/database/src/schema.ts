@@ -99,6 +99,16 @@ export const scheduledTransactions = sqliteTable("scheduled_transactions", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull()
 });
 
+
+export const scheduledTransactionSplitLines = sqliteTable("scheduled_transaction_split_lines", {
+  id: text("id").primaryKey(),
+  scheduledTransactionId: text("scheduled_transaction_id").notNull(),
+  categoryId: text("category_id").notNull(),
+  memo: text("memo"),
+  amount: integer("amount").notNull(),
+  sortOrder: integer("sort_order").notNull()
+});
+
 export const budgetMonths = sqliteTable("budget_months", {
   id: text("id").primaryKey(),
   budgetId: text("budget_id").notNull(),
