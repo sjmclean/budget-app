@@ -21,6 +21,9 @@ export function BudgetSelectorPage() {
   const navigate = useNavigate();
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const createBudget = useBudgetRegistryStore((state) => state.createBudget);
+  const importYnab4Budget = useBudgetRegistryStore(
+    (state) => state.importYnab4Budget,
+  );
   const markBudgetOpened = useBudgetRegistryStore(
     (state) => state.markBudgetOpened,
   );
@@ -36,6 +39,7 @@ export function BudgetSelectorPage() {
   );
   const [ynabError, setYnabError] = useState<string | null>(null);
   const [isAnalysingYnab, setIsAnalysingYnab] = useState(false);
+  const [isImportingYnab, setIsImportingYnab] = useState(false);
 
   const sortedBudgets = useMemo(
     () =>
@@ -72,6 +76,43 @@ export function BudgetSelectorPage() {
     setFormError(null);
     selectBudget(budget.id);
     navigate("/dashboard");
+  }
+
+
+  function handleImportYnab4Budget() {
+    setYnabError(null);
+
+    if (!ynabDiscovery || !ynabPreview) {
+      setYnabError("Preview a valid YNAB4 package before importing.");
+      return;
+    }
+
+    if (!ynabPreview.canContinue) {
+      setYnabError("Resolve YNAB4 package warnings before importing.");
+      return;
+    }
+
+    setIsImportingYnab(true);
+    setYnabStatus("Creating imported YNAB4 budget…");
+
+    try {
+      const result = importYnab4Budget({
+        discovery: ynabDiscovery,
+        preview: ynabPreview,
+      });
+      selectBudget(result.budget.id);
+      setYnabStatus(`Imported ${result.budget.name}. Opening budget…`);
+      navigate("/dashboard");
+    } catch (error) {
+      setYnabError(
+        error instanceof Error
+          ? error.message
+          : "Unable to create the imported YNAB4 budget.",
+      );
+      setYnabStatus("YNAB4 import failed.");
+    } finally {
+      setIsImportingYnab(false);
+    }
   }
 
   async function handleYnab4PackageSelection(files: FileList | null) {
@@ -271,7 +312,9 @@ export function BudgetSelectorPage() {
           >
             {isAnalysingYnab
               ? "Analysing selected YNAB4 package…"
-              : (ynabError ?? ynabStatus)}
+              : isImportingYnab
+                ? "Creating imported YNAB4 budget…"
+                : (ynabError ?? ynabStatus)}
           </p>
 
           {ynabPreview ? (
@@ -521,12 +564,16 @@ export function BudgetSelectorPage() {
           ) : null}
 
           <div className="ynab4-preview-actions">
-            <Button type="button" disabled>
-              Continue import later
+            <Button
+              type="button"
+              disabled={!ynabPreview?.canContinue || isAnalysingYnab || isImportingYnab}
+              onClick={handleImportYnab4Budget}
+            >
+              {isImportingYnab ? "Creating imported budget…" : "Create imported budget"}
             </Button>
             <p>
-              No data is written in v1.60. This screen only analyses and
-              previews the package.
+              v1.71 creates a new launcher budget from the validated YNAB4
+              package and opens it. Fancy progress UI follows in v1.72.
             </p>
           </div>
         </section>
