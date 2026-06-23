@@ -36,6 +36,30 @@ function createMemoryStorage(): KeyValueStoragePort {
   };
 }
 
+function createRegisterQuotaStorage(): KeyValueStoragePort {
+  const values = new Map<string, string>();
+  let rejectedRegisterWrite = false;
+
+  return {
+    getItem(key) {
+      return values.get(key) ?? null;
+    },
+    setItem(key, value) {
+      if (!rejectedRegisterWrite && key.includes("budget-app.account-registers.v1")) {
+        rejectedRegisterWrite = true;
+        throw new DOMException("Setting the value exceeded the quota.", "QuotaExceededError");
+      }
+      values.set(key, value);
+    },
+    removeItem(key) {
+      values.delete(key);
+    },
+    listKeys() {
+      return [...values.keys()].sort();
+    },
+  };
+}
+
 const entries: Ynab4PackageEntry[] = [
   {
     path: "Family Budget.ynab4/Budget.ymeta",
@@ -184,10 +208,62 @@ function testLauncherImportPersistsImportedBudgetData() {
   assert.equal(budgetView.categoryGroups[0].categories[0].name, "Rent");
 }
 
+
+function testLauncherImportFallsBackWhenRegisterStorageExceedsQuota() {
+  const storage = createRegisterQuotaStorage();
+  const transactions = Array.from({ length: 1_250 }, (_, index) => ({
+    entityId: `large-${index}`,
+    accountId: "checking",
+    payeeId: "p1",
+    date: `2026-06-${String((index % 28) + 1).padStart(2, "0")}`,
+    amount: -1000,
+    memo: `Imported history transaction ${index}`,
+  }));
+  const largeEntries: Ynab4PackageEntry[] = [
+    entries[0],
+    {
+      path: "Family Budget.ynab4/data1/Budget.yfull",
+      text: JSON.stringify({
+        accounts: [
+          { accountId: "checking", name: "Cheque", accountType: "Checking" },
+        ],
+        masterCategories: [],
+        payees: [{ entityId: "p1", name: "Shop" }],
+        monthlyBudgets: [{ entityId: "mb1", month: "2026-06" }],
+        transactions,
+        scheduledTransactions: [],
+      }),
+    },
+  ];
+  const discovery = discoverYnab4Package(largeEntries);
+  const preview = createYnab4PackageMigrationPreview(discovery, "new-budget");
+
+  const result = createYnab4LauncherBudgetImport(storage, {
+    discovery,
+    preview,
+    entries: largeEntries,
+    now: new Date("2026-06-23T11:20:00.000Z"),
+  });
+
+  const scopedPrefix = `budget-app.budgets.${result.budget.id}.`;
+  const accountsRaw = storage.getItem(`${scopedPrefix}budget-app.accounts.v1`);
+  const registersRaw = storage.getItem(`${scopedPrefix}budget-app.account-registers.v1`);
+  const record = readYnab4LauncherImportRecord(storage, result.budget.id);
+
+  assert.ok(accountsRaw);
+  assert.ok(registersRaw);
+  assert.ok(record);
+  assert.equal(record.warnings.some((warning) => warning.includes("browser localStorage quota was exceeded")), true);
+
+  const registers = JSON.parse(registersRaw);
+  assert.equal(registers.cheque.transactions.length, 1000);
+}
+
 function run() {
   testLauncherImportCreatesNewBudgetAndKeepsExistingBudgets();
   testLauncherImportStoresMigrationSummaryForImportedBudget();
   testLauncherImportPersistsImportedBudgetData();
+  testLauncherImportFallsBackWhenRegisterStorageExceedsQuota();
   testLauncherImportRejectsInvalidPreview();
   console.log("v1.71 YNAB4 launcher integration tests passed");
 }
