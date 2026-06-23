@@ -2265,3 +2265,229 @@ strong {
     grid-template-columns: 1fr;
   }
 }
+
+/* v1.60 YNAB4 package preview */
+
+.ynab4-preview-panel {
+  position: relative;
+  z-index: 1;
+  width: min(48rem, 100%);
+  margin: 1rem auto 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1.2rem 3rem rgba(0, 0, 0, 0.18);
+  color: #f8fafc;
+  padding: 1.1rem;
+  backdrop-filter: blur(18px);
+}
+
+.ynab4-preview-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: start;
+}
+
+.ynab4-preview-header h2,
+.ynab4-preview-summary h3,
+.ynab4-progress-preview h3 {
+  margin: 0;
+  color: #ffffff;
+}
+
+.ynab4-preview-header p,
+.ynab4-preview-summary p,
+.ynab4-preview-actions p {
+  margin: 0.35rem 0 0;
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.ynab4-file-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ynab4-file-button:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.ynab4-file-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ynab4-mode-picker {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.ynab4-mode-picker label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: start;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.8rem;
+  cursor: pointer;
+}
+
+.ynab4-mode-picker strong,
+.ynab4-progress-preview strong {
+  display: block;
+  color: #ffffff;
+  font-size: 0.88rem;
+}
+
+.ynab4-mode-picker small,
+.ynab4-progress-preview small {
+  display: block;
+  margin-top: 0.15rem;
+  color: rgba(226, 232, 240, 0.65);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.ynab4-status {
+  margin: 0.9rem 0 0;
+  border: 1px solid rgba(42, 181, 121, 0.24);
+  border-radius: 0.75rem;
+  background: rgba(42, 181, 121, 0.1);
+  color: rgba(235, 255, 244, 0.88);
+  padding: 0.7rem 0.8rem;
+  font-size: 0.82rem;
+}
+
+.ynab4-status-error {
+  border-color: rgba(239, 68, 68, 0.34);
+  background: rgba(239, 68, 68, 0.12);
+  color: rgba(254, 226, 226, 0.92);
+}
+
+.ynab4-preview-grid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(16rem, 0.8fr);
+  gap: 1rem;
+}
+
+.ynab4-preview-summary,
+.ynab4-progress-preview {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.9rem;
+  background: rgba(5, 15, 26, 0.32);
+  padding: 0.95rem;
+}
+
+.ynab4-summary-metrics {
+  margin-top: 0.85rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.ynab4-summary-metric {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.07);
+  padding: 0.65rem;
+}
+
+.ynab4-summary-metric strong {
+  display: block;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.ynab4-summary-metric span,
+.ynab4-data-path {
+  display: block;
+  margin-top: 0.12rem;
+  color: rgba(226, 232, 240, 0.65);
+  font-size: 0.74rem;
+}
+
+.ynab4-data-path {
+  word-break: break-word;
+}
+
+.ynab4-warning-list {
+  margin: 0.85rem 0 0;
+  padding-left: 1.1rem;
+  color: rgba(254, 226, 226, 0.92);
+  font-size: 0.8rem;
+}
+
+.ynab4-progress-preview ol {
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.ynab4-progress-preview li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: start;
+}
+
+.ynab4-progress-dot {
+  width: 0.72rem;
+  height: 0.72rem;
+  margin-top: 0.2rem;
+  border: 2px solid rgba(226, 232, 240, 0.44);
+  border-radius: 999px;
+}
+
+.ynab4-progress-dot-complete {
+  border-color: rgba(42, 181, 121, 0.95);
+  background: rgba(42, 181, 121, 0.9);
+  box-shadow: 0 0 0 0.28rem rgba(42, 181, 121, 0.12);
+}
+
+.ynab4-preview-actions {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ynab4-preview-actions p {
+  font-size: 0.78rem;
+}
+
+@media (max-width: 850px) {
+  .ynab4-preview-header,
+  .ynab4-preview-grid,
+  .ynab4-mode-picker {
+    grid-template-columns: 1fr;
+  }
+
+  .ynab4-file-button {
+    width: 100%;
+  }
+
+  .ynab4-summary-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -1,5 +1,18 @@
 import type { Ynab4JsonImportProgressStep } from "./analyzeYnab4Json.js";
 
+
+export type Ynab4PackageImportMode = "new-budget" | "replace-current-budget";
+
+export type Ynab4PackageMigrationPreview = {
+  canContinue: boolean;
+  mode: Ynab4PackageImportMode;
+  destructive: boolean;
+  budgetName: string | null;
+  summaryItems: Array<{ label: string; value: number }>;
+  warnings: string[];
+  progressSteps: Ynab4JsonImportProgressStep[];
+};
+
 export type Ynab4PackageEntry = {
   path: string;
   text: string;
@@ -72,6 +85,80 @@ const DISCOVERY_PROGRESS_STEPS: Ynab4JsonImportProgressStep[] = [
     detail: "Preparing a summary before any budget data is created or replaced.",
   },
 ];
+
+
+export function createYnab4PackageMigrationPreview(
+  discovery: Ynab4PackageDiscoveryResult,
+  mode: Ynab4PackageImportMode,
+): Ynab4PackageMigrationPreview {
+  const destructive = mode === "replace-current-budget";
+  const progressSteps = getYnab4PackageMigrationProgressSteps();
+  return {
+    canContinue: discovery.isYnab4Package && discovery.warnings.length === 0,
+    mode,
+    destructive,
+    budgetName: discovery.budgetName,
+    summaryItems: [
+      { label: "Accounts", value: discovery.counts.accounts },
+      { label: "Category groups", value: discovery.counts.masterCategories },
+      { label: "Categories", value: discovery.counts.categories },
+      { label: "Payees", value: discovery.counts.payees },
+      { label: "Monthly budgets", value: discovery.counts.monthlyBudgets },
+      { label: "Transactions", value: discovery.counts.transactions },
+      { label: "Scheduled transactions", value: discovery.counts.scheduledTransactions },
+      { label: "Category notes", value: discovery.counts.categoryNotes },
+      { label: "Category group notes", value: discovery.counts.categoryGroupNotes },
+    ],
+    warnings: [...discovery.warnings],
+    progressSteps,
+  };
+}
+
+export function getYnab4PackageMigrationProgressSteps(): Ynab4JsonImportProgressStep[] {
+  return [
+    ...DISCOVERY_PROGRESS_STEPS.map((step) => ({ ...step })),
+    {
+      phase: "prepare-target-budget",
+      label: "Preparing target budget",
+      detail: "Creating a new budget or replacing the current budget after confirmation.",
+    },
+    {
+      phase: "import-accounts",
+      label: "Importing accounts",
+      detail: "Migrating on-budget and off-budget YNAB4 accounts.",
+    },
+    {
+      phase: "import-categories",
+      label: "Importing categories",
+      detail: "Migrating category groups, categories, budget values, and notes.",
+    },
+    {
+      phase: "import-payees",
+      label: "Importing payees",
+      detail: "Migrating payees and preserving transaction references.",
+    },
+    {
+      phase: "import-transactions",
+      label: "Importing transactions",
+      detail: "Migrating transactions, splits, transfers, memos, flags, and cleared state.",
+    },
+    {
+      phase: "import-scheduled-transactions",
+      label: "Importing scheduled transactions",
+      detail: "Migrating scheduled transactions after normal transactions are understood.",
+    },
+    {
+      phase: "validate-result",
+      label: "Validating imported budget",
+      detail: "Checking imported counts and relationships before opening the budget.",
+    },
+    {
+      phase: "complete",
+      label: "Import complete",
+      detail: "Opening the imported budget once migration succeeds.",
+    },
+  ];
+}
 
 export function discoverYnab4Package(entries: Ynab4PackageEntry[]): Ynab4PackageDiscoveryResult {
   const warnings: string[] = [];
