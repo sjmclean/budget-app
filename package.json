@@ -209,7 +209,9 @@
     "test:v170": "pnpm test:v170:ynab4-import-progress-reporting",
     "test:v170:ynab4-import-progress-reporting": "tsx tests/v170-ynab4-import-progress-reporting.ts",
     "test:v171": "pnpm test:v171:ynab4-launcher-integration",
-    "test:v171:ynab4-launcher-integration": "tsx tests/v171-ynab4-launcher-integration.ts"
+    "test:v171:ynab4-launcher-integration": "tsx tests/v171-ynab4-launcher-integration.ts",
+    "test:v1714": "pnpm test:v1714:ynab4-import-accuracy-audit",
+    "test:v1714:ynab4-import-accuracy-audit": "tsx tests/v1714-ynab4-import-accuracy-audit.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
