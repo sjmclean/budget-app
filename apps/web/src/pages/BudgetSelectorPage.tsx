@@ -34,6 +34,7 @@ export function BudgetSelectorPage() {
     useState<Ynab4PackageDiscoveryResult | null>(null);
   const [ynabPreview, setYnabPreview] =
     useState<Ynab4PackageMigrationPreview | null>(null);
+  const [ynabEntries, setYnabEntries] = useState<Ynab4PackageEntry[]>([]);
   const [ynabStatus, setYnabStatus] = useState<string>(
     "Select your real .ynab4 package folder to preview the migration.",
   );
@@ -82,7 +83,7 @@ export function BudgetSelectorPage() {
   function handleImportYnab4Budget() {
     setYnabError(null);
 
-    if (!ynabDiscovery || !ynabPreview) {
+    if (!ynabDiscovery || !ynabPreview || ynabEntries.length === 0) {
       setYnabError("Preview a valid YNAB4 package before importing.");
       return;
     }
@@ -99,6 +100,7 @@ export function BudgetSelectorPage() {
       const result = importYnab4Budget({
         discovery: ynabDiscovery,
         preview: ynabPreview,
+        entries: ynabEntries,
       });
       selectBudget(result.budget.id);
       setYnabStatus(`Imported ${result.budget.name}. Opening budget…`);
@@ -119,6 +121,7 @@ export function BudgetSelectorPage() {
     setYnabError(null);
     setYnabDiscovery(null);
     setYnabPreview(null);
+    setYnabEntries([]);
 
     if (!files || files.length === 0) {
       setYnabStatus(
@@ -137,6 +140,7 @@ export function BudgetSelectorPage() {
         discovery,
         "new-budget",
       );
+      setYnabEntries(entries);
       setYnabDiscovery(discovery);
       setYnabPreview(preview);
       setYnabStatus(

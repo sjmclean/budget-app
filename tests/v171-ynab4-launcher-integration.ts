@@ -89,6 +89,7 @@ function testLauncherImportCreatesNewBudgetAndKeepsExistingBudgets() {
   const result = createYnab4LauncherBudgetImport(storage, {
     discovery,
     preview,
+    entries,
     now: new Date("2026-06-23T11:00:00.000Z"),
   });
 
@@ -106,6 +107,7 @@ function testLauncherImportStoresMigrationSummaryForImportedBudget() {
   const result = createYnab4LauncherBudgetImport(storage, {
     discovery,
     preview,
+    entries,
     now: new Date("2026-06-23T11:05:00.000Z"),
   });
 
@@ -131,7 +133,7 @@ function testLauncherImportRejectsInvalidPreview() {
   const preview = createYnab4PackageMigrationPreview(discovery, "new-budget");
 
   assert.throws(
-    () => createYnab4LauncherBudgetImport(storage, { discovery, preview }),
+    () => createYnab4LauncherBudgetImport(storage, { discovery, preview, entries: [] }),
     /preview validation passes/,
   );
 
@@ -139,9 +141,53 @@ function testLauncherImportRejectsInvalidPreview() {
   assert.ok(storage.getItem(BUDGET_REGISTRY_STORAGE_KEY));
 }
 
+function testLauncherImportPersistsImportedBudgetData() {
+  const storage = createMemoryStorage();
+  const { discovery, preview } = preparePreview();
+
+  const result = createYnab4LauncherBudgetImport(storage, {
+    discovery,
+    preview,
+    entries,
+    now: new Date("2026-06-23T11:10:00.000Z"),
+  });
+
+  const scopedPrefix = `budget-app.budgets.${result.budget.id}.`;
+  const accountsRaw = storage.getItem(`${scopedPrefix}budget-app.accounts.v1`);
+  const registersRaw = storage.getItem(`${scopedPrefix}budget-app.account-registers.v1`);
+  const payeesRaw = storage.getItem(`${scopedPrefix}budget-app.payees.v1`);
+  const scheduledRaw = storage.getItem(`${scopedPrefix}budget-app.scheduled-transactions.v1`);
+  const budgetViewRaw = storage.getItem(`budget-app.budget-view.v1.${result.budget.id}.2026-06`);
+
+  assert.ok(accountsRaw);
+  assert.ok(registersRaw);
+  assert.ok(payeesRaw);
+  assert.ok(scheduledRaw);
+  assert.ok(budgetViewRaw);
+
+  const accounts = JSON.parse(accountsRaw);
+  const registers = JSON.parse(registersRaw);
+  const payees = JSON.parse(payeesRaw);
+  const scheduled = JSON.parse(scheduledRaw);
+  const budgetView = JSON.parse(budgetViewRaw);
+
+  assert.equal(accounts.length, 2);
+  assert.equal(accounts.some((account: any) => account.name === "Cheque"), true);
+  assert.equal(accounts.some((account: any) => account.name === "Visa" && account.type === "credit-card"), true);
+  assert.equal(payees.length, 1);
+  assert.equal(payees[0].name, "Landlord");
+  assert.equal(registers.cheque.transactions.length, 1);
+  assert.equal(registers.cheque.transactions[0].payee, "Landlord");
+  assert.equal(scheduled.length, 1);
+  assert.equal(budgetView.categoryGroups.length, 1);
+  assert.equal(budgetView.categoryGroups[0].name, "Bills");
+  assert.equal(budgetView.categoryGroups[0].categories[0].name, "Rent");
+}
+
 function run() {
   testLauncherImportCreatesNewBudgetAndKeepsExistingBudgets();
   testLauncherImportStoresMigrationSummaryForImportedBudget();
+  testLauncherImportPersistsImportedBudgetData();
   testLauncherImportRejectsInvalidPreview();
   console.log("v1.71 YNAB4 launcher integration tests passed");
 }
