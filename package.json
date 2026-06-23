@@ -211,7 +211,9 @@
     "test:v171": "pnpm test:v171:ynab4-launcher-integration",
     "test:v171:ynab4-launcher-integration": "tsx tests/v171-ynab4-launcher-integration.ts",
     "test:v1714": "pnpm test:v1714:ynab4-import-accuracy-audit",
-    "test:v1714:ynab4-import-accuracy-audit": "tsx tests/v1714-ynab4-import-accuracy-audit.ts"
+    "test:v1714:ynab4-import-accuracy-audit": "tsx tests/v1714-ynab4-import-accuracy-audit.ts",
+    "test:v1715": "pnpm test:v1715:ynab4-import-diagnostic-report",
+    "test:v1715:ynab4-import-diagnostic-report": "tsx tests/v1715-ynab4-import-diagnostic-report.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

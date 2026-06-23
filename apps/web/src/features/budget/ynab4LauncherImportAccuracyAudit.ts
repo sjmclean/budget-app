@@ -131,6 +131,106 @@ export function auditYnab4LauncherImportAccuracy(
   };
 }
 
+export function formatYnab4LauncherImportAccuracyAuditReport(
+  audit: Ynab4LauncherImportAccuracyAuditResult,
+): string {
+  const lines: string[] = [];
+  lines.push("v1.71.5 YNAB4 Import Diagnostic Report");
+  lines.push(`Status: ${audit.status.toUpperCase()}`);
+  lines.push("");
+  lines.push("Accounts");
+  lines.push(`  Source total: ${audit.source.accounts}`);
+  lines.push(`  Imported total: ${audit.imported.accounts}`);
+  lines.push(`  Source open: ${audit.source.openAccounts}`);
+  lines.push(`  Imported open: ${audit.imported.openAccounts}`);
+  lines.push(`  Source closed: ${audit.source.closedAccounts}`);
+  lines.push(`  Imported closed: ${audit.imported.closedAccounts}`);
+  lines.push("");
+  lines.push("Transactions");
+  lines.push(`  Source total: ${audit.source.transactions}`);
+  lines.push(`  Imported total: ${audit.imported.transactions}`);
+  lines.push(`  Source open-account transactions: ${audit.source.openAccountTransactions}`);
+  lines.push(`  Imported open-account transactions: ${audit.imported.openAccountTransactions}`);
+  lines.push(`  Source closed-account transactions: ${audit.source.closedAccountTransactions}`);
+  lines.push(`  Imported closed-account transactions: ${audit.imported.closedAccountTransactions}`);
+  lines.push("");
+  lines.push("Scheduled Transactions");
+  lines.push(`  Source: ${audit.source.scheduledTransactions}`);
+  lines.push(`  Imported: ${audit.imported.scheduledTransactions}`);
+  lines.push("");
+  lines.push("Budget Months");
+  lines.push(`  Source monthly budgets: ${audit.source.monthlyBudgets}`);
+  lines.push(`  Persisted month views: ${audit.imported.budgetMonthViews}`);
+  lines.push("");
+
+  const accountMismatches = Object.entries(audit.source.transactionsByAccountName)
+    .map(([accountName, sourceCount]) => ({
+      accountName,
+      sourceCount,
+      importedCount: audit.imported.transactionsByAccountName[accountName] ?? 0,
+    }))
+    .filter((row) => row.sourceCount !== row.importedCount);
+
+  if (accountMismatches.length > 0) {
+    lines.push("Accounts With Transaction Count Mismatches");
+    for (const row of accountMismatches) {
+      lines.push(`  ${row.accountName}: source=${row.sourceCount}, imported=${row.importedCount}`);
+    }
+    lines.push("");
+  }
+
+  const missingBudgetMonths = Object.keys(audit.source.budgetMonthTotals)
+    .filter((month) => !audit.imported.budgetMonthTotals[month]);
+  if (missingBudgetMonths.length > 0) {
+    lines.push("Missing Budget Months");
+    for (const month of missingBudgetMonths.slice(0, 24)) {
+      lines.push(`  ${month}`);
+    }
+    if (missingBudgetMonths.length > 24) {
+      lines.push(`  ... ${missingBudgetMonths.length - 24} more`);
+    }
+    lines.push("");
+  }
+
+  if (audit.warnings.length > 0) {
+    lines.push("Warnings");
+    for (const warning of audit.warnings) {
+      lines.push(`  - ${warning}`);
+    }
+    lines.push("");
+  }
+
+  if (audit.mismatches.length > 0) {
+    lines.push("Mismatches");
+    for (const mismatch of audit.mismatches.slice(0, 80)) {
+      lines.push(`  - ${mismatch}`);
+    }
+    if (audit.mismatches.length > 80) {
+      lines.push(`  - ... ${audit.mismatches.length - 80} more mismatches`);
+    }
+    lines.push("");
+  }
+
+  lines.push("Likely Cause Hints");
+  if (audit.source.closedAccountTransactions > 0 && audit.imported.closedAccountTransactions === 0) {
+    lines.push("  - Closed-account transactions are probably not being persisted or associated with imported closed accounts.");
+  }
+  if (audit.imported.transactions < audit.source.transactions) {
+    lines.push("  - Transaction history is incomplete. Check localStorage quota fallback/truncation and account-id mapping.");
+  }
+  if (audit.imported.budgetMonthViews < audit.source.monthlyBudgets) {
+    lines.push("  - Budget month history is incomplete due to localStorage capping/compaction.");
+  }
+  if (audit.mismatches.some((mismatch) => mismatch.includes("budget month"))) {
+    lines.push("  - Monthly budget mapping still differs from the YNAB4 source values.");
+  }
+  if (lines[lines.length - 1] === "Likely Cause Hints") {
+    lines.push("  - No obvious mismatch hints were detected by the audit.");
+  }
+
+  return lines.join("\n");
+}
+
 function buildSourceAudit(data: RecordMap): Ynab4LauncherImportAccuracyAuditResult["source"] {
   const accounts = toRecords(data.accounts);
   const accountBySourceId = new Map<string, { name: string; closed: boolean }>();

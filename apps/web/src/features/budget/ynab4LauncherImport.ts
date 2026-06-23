@@ -14,6 +14,11 @@ import type { AccountRegisterView, RegisterTransactionView } from "../accounts/a
 import type { PayeeView } from "../accounts/payeeService";
 import type { ScheduledTransactionView, ScheduledFrequency } from "../accounts/scheduledTransactionService";
 import type { BudgetMonthView, BudgetCategoryGroupView } from "./budgetViewTypes";
+import {
+  auditYnab4LauncherImportAccuracy,
+  formatYnab4LauncherImportAccuracyAuditReport,
+  type Ynab4LauncherImportAccuracyAuditResult,
+} from "./ynab4LauncherImportAccuracyAudit";
 import type {
   Ynab4PackageDiscoveryResult,
   Ynab4PackageEntry,
@@ -60,6 +65,8 @@ export interface Ynab4LauncherImportRecord {
     label: string;
     detail?: string;
   }>;
+  accuracyAudit?: Ynab4LauncherImportAccuracyAuditResult;
+  accuracyAuditReport?: string;
 }
 
 export interface CreateYnab4LauncherBudgetImportInput {
@@ -135,6 +142,11 @@ export function createYnab4LauncherBudgetImport(
   });
 
   const persistenceWarnings = writeImportedBudgetData(storage, budget, activeData, now);
+  const accuracyAudit = auditYnab4LauncherImportAccuracy(storage, {
+    entries: input.entries,
+    budgetId: budget.id,
+  });
+  const accuracyAuditReport = formatYnab4LauncherImportAccuracyAuditReport(accuracyAudit);
 
   markBudgetOpened(storage, budget.id, now);
   storage.setItem(SELECTED_BUDGET_STORAGE_KEY, budget.id);
@@ -165,7 +177,11 @@ export function createYnab4LauncherBudgetImport(
       label: step.label,
       detail: step.detail,
     })),
+    accuracyAudit,
+    accuracyAuditReport,
   };
+
+  logYnab4LauncherImportDiagnosticReport(accuracyAuditReport, accuracyAudit.status);
 
   storage.setItem(
     getYnab4LauncherImportStorageKey(budget.id),
@@ -179,6 +195,11 @@ export function createYnab4LauncherBudgetImport(
     record,
     budgets: readBudgetRegistry(storage),
   };
+}
+
+function logYnab4LauncherImportDiagnosticReport(report: string, status: "pass" | "fail"): void {
+  const logger = status === "pass" ? console.info : console.warn;
+  logger(report);
 }
 
 export function createImportedBudgetName(sourceName: string | null): string {
