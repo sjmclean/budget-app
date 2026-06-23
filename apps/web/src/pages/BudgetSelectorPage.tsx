@@ -45,6 +45,14 @@ export function BudgetSelectorPage() {
     [budgets],
   );
 
+  const getSummaryValue = (label: string) =>
+    ynabPreview?.summaryItems.find((item) => item.label === label)?.value ?? 0;
+
+  const detailLimitText = (shown: number, total: number, noun: string) =>
+    total > shown
+      ? `Showing ${shown.toLocaleString()} of ${total.toLocaleString()} ${noun}.`
+      : `Showing ${shown.toLocaleString()} ${noun}.`;
+
   function handleOpenBudget(budgetId: string) {
     markBudgetOpened(budgetId);
     selectBudget(budgetId);
@@ -267,6 +275,17 @@ export function BudgetSelectorPage() {
           </p>
 
           {ynabPreview ? (
+            <div className="ynab4-preview-context-note">
+              <strong>Preview lists are intentionally capped.</strong>
+              <span>
+                They are samples to confirm the file has been understood, not a
+                full browser for every YNAB4 record. Full counts are shown
+                above.
+              </span>
+            </div>
+          ) : null}
+
+          {ynabPreview ? (
             <div className="ynab4-preview-grid">
               <div className="ynab4-preview-summary">
                 <h3>{ynabPreview.budgetName ?? "YNAB4 Budget"}</h3>
@@ -298,6 +317,11 @@ export function BudgetSelectorPage() {
                 >
                   <Ynab4PreviewDetails
                     title="Accounts"
+                    summary={detailLimitText(
+                      ynabPreview.details.accounts.length,
+                      getSummaryValue("Accounts"),
+                      "accounts",
+                    )}
                     emptyMessage="No accounts detected yet."
                   >
                     {ynabPreview.details.accounts.map((account) => (
@@ -311,6 +335,11 @@ export function BudgetSelectorPage() {
 
                   <Ynab4PreviewDetails
                     title="Categories"
+                    summary={`${detailLimitText(
+                      ynabPreview.details.categoryGroups.length,
+                      getSummaryValue("Category groups"),
+                      "category groups",
+                    )} Showing up to ${ynabPreview.details.previewLimits.categoriesPerGroup} categories per group.`}
                     emptyMessage="No categories detected yet."
                   >
                     {ynabPreview.details.categoryGroups.map((group) => (
@@ -339,7 +368,26 @@ export function BudgetSelectorPage() {
                   </Ynab4PreviewDetails>
 
                   <Ynab4PreviewDetails
+                    title="Payees"
+                    summary={detailLimitText(
+                      ynabPreview.details.payees.length,
+                      getSummaryValue("Payees"),
+                      "payees",
+                    )}
+                    emptyMessage="No payees detected yet."
+                  >
+                    {ynabPreview.details.payees.map((payee) => (
+                      <Ynab4PreviewLine
+                        key={payee.id ?? payee.name}
+                        primary={payee.name}
+                        secondary={payee.note}
+                      />
+                    ))}
+                  </Ynab4PreviewDetails>
+
+                  <Ynab4PreviewDetails
                     title="Notes"
+                    summary={`Showing up to ${ynabPreview.details.previewLimits.notes} category notes and ${ynabPreview.details.previewLimits.notes} group notes.`}
                     emptyMessage="No category or category group notes detected yet."
                   >
                     {ynabPreview.details.notes.categoryGroupNotes.map(
@@ -362,6 +410,11 @@ export function BudgetSelectorPage() {
 
                   <Ynab4PreviewDetails
                     title="Scheduled transactions"
+                    summary={detailLimitText(
+                      ynabPreview.details.scheduledTransactions.length,
+                      getSummaryValue("Scheduled transactions"),
+                      "scheduled transactions",
+                    )}
                     emptyMessage="No scheduled transactions detected yet."
                   >
                     {ynabPreview.details.scheduledTransactions.map(
@@ -387,6 +440,7 @@ export function BudgetSelectorPage() {
 
                   <Ynab4PreviewDetails
                     title="Transaction samples"
+                    summary={`Showing first ${ynabPreview.details.firstTransactions.length} and recent ${ynabPreview.details.recentTransactions.length} of ${getSummaryValue("Transactions").toLocaleString()} transactions.`}
                     emptyMessage="No transactions detected yet."
                   >
                     <p className="ynab4-drilldown-caption">
@@ -483,10 +537,12 @@ export function BudgetSelectorPage() {
 
 function Ynab4PreviewDetails({
   title,
+  summary,
   emptyMessage,
   children,
 }: {
   title: string;
+  summary?: string;
   emptyMessage: string;
   children: ReactNode;
 }) {
@@ -498,6 +554,7 @@ function Ynab4PreviewDetails({
     <details className="ynab4-drilldown-section">
       <summary>{title}</summary>
       <div className="ynab4-drilldown-content">
+        {summary ? <p className="ynab4-drilldown-summary">{summary}</p> : null}
         {hasContent ? (
           children
         ) : (

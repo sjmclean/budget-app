@@ -21,6 +21,16 @@ export type Ynab4PackageTransactionPreview = {
   category: string | null;
 };
 
+export type Ynab4PackagePreviewLimits = {
+  accounts: number;
+  categoryGroups: number;
+  categoriesPerGroup: number;
+  payees: number;
+  scheduledTransactions: number;
+  notes: number;
+  transactionSamples: number;
+};
+
 export type Ynab4PackageDetailedPreview = {
   accounts: Ynab4PackagePreviewItem[];
   categoryGroups: Ynab4PackageCategoryGroupPreview[];
@@ -32,6 +42,7 @@ export type Ynab4PackageDetailedPreview = {
     categoryNotes: Ynab4PackagePreviewItem[];
     categoryGroupNotes: Ynab4PackagePreviewItem[];
   };
+  previewLimits: Ynab4PackagePreviewLimits;
 };
 
 export type Ynab4PackageMigrationPreview = {
@@ -96,6 +107,16 @@ const EMPTY_COUNTS: Ynab4PackageCounts = {
   categoryGroupNotes: 0,
 };
 
+export const YNAB4_PACKAGE_PREVIEW_LIMITS: Ynab4PackagePreviewLimits = {
+  accounts: 20,
+  categoryGroups: 20,
+  categoriesPerGroup: 12,
+  payees: 20,
+  scheduledTransactions: 15,
+  notes: 20,
+  transactionSamples: 10,
+};
+
 const EMPTY_DETAILS: Ynab4PackageDetailedPreview = {
   accounts: [],
   categoryGroups: [],
@@ -107,6 +128,7 @@ const EMPTY_DETAILS: Ynab4PackageDetailedPreview = {
     categoryNotes: [],
     categoryGroupNotes: [],
   },
+  previewLimits: { ...YNAB4_PACKAGE_PREVIEW_LIMITS },
 };
 
 const DISCOVERY_PROGRESS_STEPS: Ynab4JsonImportProgressStep[] = [
@@ -436,17 +458,26 @@ function countYnab4BudgetData(
 function createDetailedPreview(
   data: Record<string, unknown>,
 ): Ynab4PackageDetailedPreview {
-  const accounts = toArray(data.accounts).map(toNamedPreviewItem).slice(0, 20);
+  const accounts = toArray(data.accounts)
+    .map(toNamedPreviewItem)
+    .slice(0, YNAB4_PACKAGE_PREVIEW_LIMITS.accounts);
   const categoryGroups = toArray(data.masterCategories)
     .map(toCategoryGroupPreview)
-    .slice(0, 30);
-  const payees = toArray(data.payees).map(toNamedPreviewItem).slice(0, 30);
+    .slice(0, YNAB4_PACKAGE_PREVIEW_LIMITS.categoryGroups);
+  const payees = toArray(data.payees)
+    .map(toNamedPreviewItem)
+    .slice(0, YNAB4_PACKAGE_PREVIEW_LIMITS.payees);
   const scheduledTransactions = toArray(data.scheduledTransactions)
     .map(toTransactionPreviewItem)
-    .slice(0, 15);
+    .slice(0, YNAB4_PACKAGE_PREVIEW_LIMITS.scheduledTransactions);
   const transactions = toArray(data.transactions).map(toTransactionPreviewItem);
-  const firstTransactions = transactions.slice(0, 10);
-  const recentTransactions = transactions.slice(-10).reverse();
+  const firstTransactions = transactions.slice(
+    0,
+    YNAB4_PACKAGE_PREVIEW_LIMITS.transactionSamples,
+  );
+  const recentTransactions = transactions
+    .slice(-YNAB4_PACKAGE_PREVIEW_LIMITS.transactionSamples)
+    .reverse();
   const categoryNotes = categoryGroups.flatMap((group) =>
     group.categories.filter((category) => category.note),
   );
@@ -460,9 +491,13 @@ function createDetailedPreview(
     firstTransactions,
     recentTransactions,
     notes: {
-      categoryNotes: categoryNotes.slice(0, 20),
-      categoryGroupNotes: categoryGroupNotes.slice(0, 20),
+      categoryNotes: categoryNotes.slice(0, YNAB4_PACKAGE_PREVIEW_LIMITS.notes),
+      categoryGroupNotes: categoryGroupNotes.slice(
+        0,
+        YNAB4_PACKAGE_PREVIEW_LIMITS.notes,
+      ),
     },
+    previewLimits: { ...YNAB4_PACKAGE_PREVIEW_LIMITS },
   };
 }
 
@@ -474,7 +509,7 @@ function toCategoryGroupPreview(
     ...toNamedPreviewItem(record),
     categories: toArray(record.subCategories)
       .map(toNamedPreviewItem)
-      .slice(0, 50),
+      .slice(0, YNAB4_PACKAGE_PREVIEW_LIMITS.categoriesPerGroup),
   };
 }
 
@@ -566,6 +601,7 @@ function cloneDetails(
         ...item,
       })),
     },
+    previewLimits: { ...details.previewLimits },
   };
 }
 

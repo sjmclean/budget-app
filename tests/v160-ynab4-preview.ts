@@ -82,6 +82,9 @@ function testPreviewIncludesDrillDownSamples() {
   const preview = createYnab4PackageMigrationPreview(discovery, "new-budget");
 
   assert.equal(preview.details.accounts.length, 2);
+  assert.equal(preview.details.payees.length, 3);
+  assert.equal(preview.details.payees[0]?.name, "Coles");
+  assert.equal(preview.details.previewLimits.payees, 20);
   assert.equal(preview.details.categoryGroups[0]?.name, "Bills");
   assert.equal(preview.details.categoryGroups[0]?.categories[0]?.name, "Rent");
   assert.equal(
@@ -91,6 +94,52 @@ function testPreviewIncludesDrillDownSamples() {
   assert.equal(preview.details.notes.categoryNotes[0]?.note, "Category note");
   assert.equal(preview.details.firstTransactions[0]?.payee, "Coles");
   assert.equal(preview.details.scheduledTransactions[0]?.payee, "Mortgage");
+}
+
+
+function testDetailedPreviewIsCappedForLargeBudgets() {
+  const largeEntries: Ynab4PackageEntry[] = [
+    entries[0]!,
+    {
+      path: "My Budget.ynab4/data32-73E5B868/Budget.yfull",
+      text: JSON.stringify({
+        accounts: Array.from({ length: 25 }, (_, index) => ({
+          name: `Account ${index + 1}`,
+        })),
+        masterCategories: Array.from({ length: 25 }, (_, index) => ({
+          name: `Group ${index + 1}`,
+          subCategories: Array.from({ length: 20 }, (_, categoryIndex) => ({
+            name: `Category ${categoryIndex + 1}`,
+          })),
+        })),
+        payees: Array.from({ length: 35 }, (_, index) => ({
+          name: `Payee ${index + 1}`,
+        })),
+        transactions: Array.from({ length: 50 }, (_, index) => ({
+          id: `t${index + 1}`,
+          date: `2026-06-${String((index % 28) + 1).padStart(2, "0")}`,
+          payeeName: `Payee ${index + 1}`,
+          amount: index,
+        })),
+        scheduledTransactions: Array.from({ length: 20 }, (_, index) => ({
+          id: `s${index + 1}`,
+          payeeName: `Scheduled ${index + 1}`,
+        })),
+      }),
+    },
+  ];
+
+  const discovery = discoverYnab4Package(largeEntries);
+  const preview = createYnab4PackageMigrationPreview(discovery, "new-budget");
+
+  assert.equal(discovery.counts.accounts, 25);
+  assert.equal(preview.details.accounts.length, 20);
+  assert.equal(preview.details.categoryGroups.length, 20);
+  assert.equal(preview.details.categoryGroups[0]?.categories.length, 12);
+  assert.equal(preview.details.payees.length, 20);
+  assert.equal(preview.details.scheduledTransactions.length, 15);
+  assert.equal(preview.details.firstTransactions.length, 10);
+  assert.equal(preview.details.recentTransactions.length, 10);
 }
 
 function testReplaceModeIsDestructiveButStillPreviewOnly() {
@@ -139,6 +188,7 @@ function testInvalidPackageCannotContinue() {
 function run() {
   testPreviewSummarisesDiscoveredPackage();
   testPreviewIncludesDrillDownSamples();
+  testDetailedPreviewIsCappedForLargeBudgets();
   testReplaceModeIsDestructiveButStillPreviewOnly();
   testProgressStepsIncludeVisibleImportPhases();
   testInvalidPackageCannotContinue();

@@ -25,7 +25,8 @@ Implemented:
 - `.ynab4` package folder selection using browser directory selection
 - `Budget.ymeta` / active data folder discovery through the v1.59 analyser
 - Counts preview for accounts, category groups, categories, payees, monthly budgets, transactions, scheduled transactions, and notes
-- Drill-down preview sections for accounts, categories, notes, scheduled transactions, and transaction samples
+- Drill-down preview sections for accounts, categories, payees, notes, scheduled transactions, and transaction samples
+- Context text explaining that long drill-down lists are capped samples, not full record browsers
 - Launcher import is fixed to Import as New Budget only
 - Custom progress-step preview model
 - Tests for preview generation and progress phases
@@ -53,12 +54,23 @@ v1.60 therefore includes drill-down previews for:
 
 - Accounts
 - Category groups and categories
+- Payees
 - Category and category group notes
 - Scheduled transactions
 - First transaction sample
 - Recent transaction sample
 
-The transaction preview deliberately samples rather than listing every transaction, because real YNAB4 budgets may contain tens of thousands of rows.
+The preview deliberately samples rather than listing every record, because real YNAB4 budgets may contain thousands of payees and tens of thousands of transactions. Full counts remain visible in the summary metrics, while drill-down sections show enough context to validate that the parser has understood the package.
+
+Current preview caps:
+
+- Accounts: first 20
+- Category groups: first 20
+- Categories within each group: first 12
+- Payees: first 20
+- Scheduled transactions: first 15
+- Notes: first 20 category notes and first 20 group notes
+- Transactions: first 10 and recent 10
 
 ## Progress Indicator Requirement
 
