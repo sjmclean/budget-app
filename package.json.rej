@@ -1,0 +1,14 @@
+diff a/package.json b/package.json	(rejected hunks)
+@@ -195,7 +195,11 @@
+     "test:v163:category-notes": "tsx tests/v163-category-notes.ts",
+     "test:v163": "pnpm test:v163:category-notes",
+     "test:v164:transaction-check-numbers": "tsx tests/v164-transaction-check-numbers.ts",
+-    "test:v164": "pnpm test:v164:transaction-check-numbers"
++    "test:v164": "pnpm test:v164:transaction-check-numbers",
++    "test:v165:scheduled-split-transactions": "tsx tests/v165-scheduled-split-transactions.ts",
++    "test:v165": "pnpm test:v165:scheduled-split-transactions",
++    "test:v166:monthly-budget-mapping-audit": "tsx tests/v166-monthly-budget-mapping-audit.ts",
++    "test:v166": "pnpm test:v166:monthly-budget-mapping-audit"
+   },
+   "dependencies": {
+     "better-sqlite3": "^12.11.1",

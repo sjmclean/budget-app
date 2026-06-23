@@ -197,7 +197,9 @@
     "test:v164:transaction-check-numbers": "tsx tests/v164-transaction-check-numbers.ts",
     "test:v164": "pnpm test:v164:transaction-check-numbers",
     "test:v165:scheduled-split-transactions": "tsx tests/v165-scheduled-split-transactions.ts",
-    "test:v165": "pnpm test:v165:scheduled-split-transactions"
+    "test:v165": "pnpm test:v165:scheduled-split-transactions",
+    "test:v166": "pnpm test:v166:monthly-budget-mapping-audit",
+    "test:v166:monthly-budget-mapping-audit": "tsx tests/v166-monthly-budget-mapping-audit.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
