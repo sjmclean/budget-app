@@ -6,6 +6,7 @@ export interface BudgetCategoryView {
   available: number;
   isOverspent: boolean;
   isArchived: boolean;
+  note: string;
 }
 
 export interface BudgetCategoryGroupView {
@@ -14,6 +15,7 @@ export interface BudgetCategoryGroupView {
   assigned: number;
   activity: number;
   available: number;
+  note: string;
   categories: BudgetCategoryView[];
 }
 
@@ -128,6 +130,20 @@ export interface BudgetViewService {
     month: string;
     groupId: string;
     direction: "up" | "down";
+  }): Promise<BudgetMonthView>;
+
+  updateCategoryNote(input: {
+    budgetId: string;
+    month: string;
+    categoryId: string;
+    note: string;
+  }): Promise<BudgetMonthView>;
+
+  updateCategoryGroupNote(input: {
+    budgetId: string;
+    month: string;
+    groupId: string;
+    note: string;
   }): Promise<BudgetMonthView>;
 
   getCategoryMergePreview(input: {

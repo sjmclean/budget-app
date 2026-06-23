@@ -150,6 +150,9 @@ function BudgetCategoryRow({
         {category.isArchived ? (
           <span className="category-archived-badge">Archived</span>
         ) : null}
+        {category.note?.trim() ? (
+          <span className="category-note-badge" title="Category has notes">Note</span>
+        ) : null}
       </div>
 
       <EditableAssignedCell
@@ -212,6 +215,9 @@ function BudgetGroup({
         <div className="budget-group-title">
           <span>⌄</span>
           <strong>{group.name}</strong>
+          {group.note?.trim() ? (
+            <span className="category-note-badge" title="Category group has notes">Note</span>
+          ) : null}
         </div>
 
         <strong>{formatMoney(group.assigned, currencyCode)}</strong>
@@ -267,6 +273,8 @@ function CategoryInspector({
   onPreviewCategoryMerge,
   onMergeCategory,
   onClearCategoryMergePreview,
+  onUpdateCategoryNote,
+  onUpdateCategoryGroupNote,
 }: {
   category: BudgetCategoryView | null;
   group: BudgetCategoryGroupView | null;
@@ -289,16 +297,22 @@ function CategoryInspector({
   ) => void;
   onMergeCategory: (sourceCategoryId: string, targetCategoryId: string) => void;
   onClearCategoryMergePreview: () => void;
+  onUpdateCategoryNote: (categoryId: string, note: string) => void;
+  onUpdateCategoryGroupNote: (groupId: string, note: string) => void;
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(category?.name ?? "");
   const [mergeTargetId, setMergeTargetId] = useState("");
+  const [draftCategoryNote, setDraftCategoryNote] = useState(category?.note ?? "");
+  const [draftGroupNote, setDraftGroupNote] = useState(group?.note ?? "");
 
   useEffect(() => {
     setDraftName(category?.name ?? "");
     setIsRenaming(false);
     setMergeTargetId("");
-  }, [category?.id, category?.name]);
+    setDraftCategoryNote(category?.note ?? "");
+    setDraftGroupNote(group?.note ?? "");
+  }, [category?.id, category?.name, category?.note, group?.id, group?.note]);
 
   function startRename() {
     if (!category) {
@@ -333,6 +347,26 @@ function CategoryInspector({
 
     setIsRenaming(false);
   }
+  function saveCategoryNote() {
+    if (!category) {
+      return;
+    }
+
+    if (draftCategoryNote !== (category.note ?? "")) {
+      onUpdateCategoryNote(category.id, draftCategoryNote);
+    }
+  }
+
+  function saveGroupNote() {
+    if (!group) {
+      return;
+    }
+
+    if (draftGroupNote !== (group.note ?? "")) {
+      onUpdateCategoryGroupNote(group.id, draftGroupNote);
+    }
+  }
+
   function previewMerge() {
     if (!category || !mergeTargetId) {
       return;
@@ -581,12 +615,34 @@ function CategoryInspector({
         ) : null}
       </div>
 
-      <div className="inspector-note">
-        <h3>Notes</h3>
+      <div className="inspector-note category-notes-editor">
+        <h3>Category notes</h3>
         <p className="muted">
-          Category notes, goals, move money, and covering overspending can live
-          here later if this panel proves useful.
+          Notes are stored on the individual category and are preserved for future YNAB4 import mapping.
         </p>
+        <textarea
+          className="category-note-textarea"
+          value={draftCategoryNote}
+          onChange={(event) => setDraftCategoryNote(event.target.value)}
+          onBlur={saveCategoryNote}
+          placeholder="Add reminders, rules, renewal dates, or category-specific instructions…"
+          rows={5}
+        />
+      </div>
+
+      <div className="inspector-note category-notes-editor">
+        <h3>Category group notes</h3>
+        <p className="muted">
+          YNAB4 category headers can also have notes, so this group-level note is preserved separately.
+        </p>
+        <textarea
+          className="category-note-textarea"
+          value={draftGroupNote}
+          onChange={(event) => setDraftGroupNote(event.target.value)}
+          onBlur={saveGroupNote}
+          placeholder="Add notes that apply to this whole category group…"
+          rows={4}
+        />
       </div>
     </Card>
   );
@@ -772,6 +828,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     setCategoryArchived,
     moveCategory,
     moveCategoryGroup,
+    updateCategoryNote,
+    updateCategoryGroupNote,
     categoryMergePreview,
     isCategoryMergePreviewLoading,
     activityDrilldown,
@@ -1039,6 +1097,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             onPreviewCategoryMerge={previewCategoryMerge}
             onMergeCategory={mergeCategory}
             onClearCategoryMergePreview={clearCategoryMergePreview}
+            onUpdateCategoryNote={updateCategoryNote}
+            onUpdateCategoryGroupNote={updateCategoryGroupNote}
           />
 
           <Card className="budget-health-card">

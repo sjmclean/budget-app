@@ -400,6 +400,16 @@ CREATE TABLE IF NOT EXISTS split_transaction_lines (
       updated_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS category_group_settings (
+      id TEXT PRIMARY KEY,
+      category_group_id TEXT NOT NULL,
+      notes TEXT,
+      hidden INTEGER NOT NULL,
+      pinned INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS transaction_flags (
       id TEXT PRIMARY KEY,
       transaction_id TEXT NOT NULL,

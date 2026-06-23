@@ -69,3 +69,4 @@ export * from "./services/calculateFutureMonthOffset.js";
 export * from "./services/creditCardEngine.js";
 export * from "./services/createCreditCardPaymentCategory.js";
 export * from "./services/budgetEngineScenario.js";
+export * from "./services/createCategoryGroupSettings.js";

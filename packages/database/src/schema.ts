@@ -386,6 +386,16 @@ export const categorySettings = sqliteTable("category_settings", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull()
 });
 
+export const categoryGroupSettings = sqliteTable("category_group_settings", {
+  id: text("id").primaryKey(),
+  categoryGroupId: text("category_group_id").notNull(),
+  notes: text("notes"),
+  hidden: integer("hidden", { mode: "boolean" }).notNull(),
+  pinned: integer("pinned", { mode: "boolean" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull()
+});
+
 export const transactionFlags = sqliteTable("transaction_flags", {
   id: text("id").primaryKey(),
   transactionId: text("transaction_id").notNull(),

@@ -28,6 +28,8 @@ interface UseBudgetWorkspaceState {
   setCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   moveCategory: (categoryId: string, direction: "up" | "down") => void;
   moveCategoryGroup: (groupId: string, direction: "up" | "down") => void;
+  updateCategoryNote: (categoryId: string, note: string) => void;
+  updateCategoryGroupNote: (groupId: string, note: string) => void;
   previewCategoryMerge: (
     sourceCategoryId: string,
     targetCategoryId: string,
@@ -257,6 +259,53 @@ export function useBudgetWorkspace(
       });
   }
 
+
+
+  function updateCategoryNote(categoryId: string, note: string) {
+    setSaveError(null);
+
+    void categoriesPersistence
+      .updateCategoryNote({
+        budgetId,
+        month,
+        categoryId,
+        note,
+      })
+      .then((nextData) => {
+        setEditedData(nextData);
+        setSelectedCategoryId(categoryId);
+      })
+      .catch((error) => {
+        setSaveError(
+          error instanceof Error
+            ? error.message
+            : "Failed to update category note.",
+        );
+      });
+  }
+
+  function updateCategoryGroupNote(groupId: string, note: string) {
+    setSaveError(null);
+
+    void categoriesPersistence
+      .updateCategoryGroupNote({
+        budgetId,
+        month,
+        groupId,
+        note,
+      })
+      .then((nextData) => {
+        setEditedData(nextData);
+      })
+      .catch((error) => {
+        setSaveError(
+          error instanceof Error
+            ? error.message
+            : "Failed to update category group note.",
+        );
+      });
+  }
+
   function previewCategoryMerge(
     sourceCategoryId: string,
     targetCategoryId: string,
@@ -332,6 +381,8 @@ export function useBudgetWorkspace(
     setCategoryArchived,
     moveCategory,
     moveCategoryGroup,
+    updateCategoryNote,
+    updateCategoryGroupNote,
     previewCategoryMerge,
     mergeCategory,
     clearCategoryMergePreview,

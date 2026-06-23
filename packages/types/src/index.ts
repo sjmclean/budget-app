@@ -73,3 +73,4 @@ export * from "./AppError.js";
 export * from "./Result.js";
 export * from "./CommandHistoryEntry.js";
 export * from "./BankImport.js";
+export * from "./CategoryGroupSettings.js";

@@ -96,3 +96,5 @@ export * from "./PayeeRuleRepository.js";
 export * from "./SqlitePayeeRuleRepository.js";
 export * from "./BankImportBatchRepository.js";
 export * from "./SqliteBankImportBatchRepository.js";
+export * from "./CategoryGroupSettingsRepository.js";
+export * from "./SqliteCategoryGroupSettingsRepository.js";

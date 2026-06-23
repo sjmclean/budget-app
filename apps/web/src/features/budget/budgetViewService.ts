@@ -36,7 +36,11 @@ function cloneBudgetView(view: BudgetMonthView): BudgetMonthView {
     ...view,
     categoryGroups: view.categoryGroups.map((group) => ({
       ...group,
-      categories: group.categories.map((category) => ({ ...category })),
+      note: group.note ?? "",
+      categories: group.categories.map((category) => ({
+        ...category,
+        note: category.note ?? "",
+      })),
     })),
   };
 }
@@ -73,6 +77,7 @@ function recalculateGroup(group: BudgetCategoryGroupView): BudgetCategoryGroupVi
 
   return {
     ...group,
+    note: group.note ?? "",
     categories,
     assigned,
     activity,
@@ -112,6 +117,7 @@ function createStarterBudgetView(budgetId: string, month: string): BudgetMonthVi
       assigned: 0,
       activity: 0,
       available: 0,
+      note: "",
       categories: group.categories.map((category) => ({
         id: category.id,
         name: category.name,
@@ -120,6 +126,7 @@ function createStarterBudgetView(budgetId: string, month: string): BudgetMonthVi
         available: 0,
         isOverspent: false,
         isArchived: false,
+        note: "",
       })),
     })),
   });
@@ -808,6 +815,69 @@ export function createBudgetViewService(
     const categoryGroups = [...current.categoryGroups];
     const [groupToMove] = categoryGroups.splice(groupIndex, 1);
     categoryGroups.splice(targetIndex, 0, groupToMove);
+
+    return saveBudgetView(dependencies,
+      {
+        ...current,
+        categoryGroups,
+      },
+      month,
+    );
+  },
+
+  async updateCategoryNote({ budgetId, month, categoryId, note }) {
+    const current = await loadBudgetView(dependencies, budgetId, month);
+    let found = false;
+
+    const nextGroups = current.categoryGroups.map((group) => ({
+      ...group,
+      categories: group.categories.map((category) => {
+        if (category.id !== categoryId) {
+          return category;
+        }
+
+        found = true;
+
+        return {
+          ...category,
+          note,
+        };
+      }),
+    }));
+
+    if (!found) {
+      throw new Error("Category not found.");
+    }
+
+    return saveBudgetView(dependencies,
+      {
+        ...current,
+        categoryGroups: nextGroups,
+      },
+      month,
+    );
+  },
+
+  async updateCategoryGroupNote({ budgetId, month, groupId, note }) {
+    const current = await loadBudgetView(dependencies, budgetId, month);
+    let found = false;
+
+    const categoryGroups = current.categoryGroups.map((group) => {
+      if (group.id !== groupId) {
+        return group;
+      }
+
+      found = true;
+
+      return {
+        ...group,
+        note,
+      };
+    });
+
+    if (!found) {
+      throw new Error("Category group not found.");
+    }
 
     return saveBudgetView(dependencies,
       {

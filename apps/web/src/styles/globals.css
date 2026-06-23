@@ -2636,3 +2636,36 @@ strong {
 .ynab4-drilldown-summary {
   margin: 0.15rem 0 0.35rem;
 }
+
+.category-note-badge {
+  border: 1px solid var(--accent-soft);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.08rem 0.42rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.category-notes-editor {
+  border-top: 1px solid var(--border-soft);
+}
+
+.category-note-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.75rem 0.85rem;
+  font: inherit;
+  line-height: 1.4;
+}
+
+.category-note-textarea:focus {
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--accent);
+}
