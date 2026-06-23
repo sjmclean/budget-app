@@ -4,7 +4,7 @@
 
 v1.60 makes the YNAB4 migration flow visible from the Budget Launcher without writing any imported data yet.
 
-The goal is to let the user select a real `.ynab4` package folder, analyse its active YNAB4 data file, and preview what would be imported before any budget is created or replaced.
+The goal is to let the user select a real `.ynab4` package folder, analyse its active YNAB4 data file, and preview what would be imported before any new imported budget is created.
 
 ## Confirmed Direction
 
@@ -15,7 +15,7 @@ Register import remains for bank/transaction files such as CSV/QIF/OFX/QFX.
 YNAB4 import belongs in budget-level flows:
 
 - Budget Launcher → Import YNAB4 Budget → Import as New Budget
-- Settings / Reset → Replace Current Budget from YNAB4 Import
+- Settings / Reset → Replace Current Budget from YNAB4 Import (future advanced/destructive flow)
 
 ## v1.60 Scope
 
@@ -25,9 +25,8 @@ Implemented:
 - `.ynab4` package folder selection using browser directory selection
 - `Budget.ymeta` / active data folder discovery through the v1.59 analyser
 - Counts preview for accounts, category groups, categories, payees, monthly budgets, transactions, scheduled transactions, and notes
-- Import mode selection:
-  - Import as new budget
-  - Replace current budget
+- Drill-down preview sections for accounts, categories, notes, scheduled transactions, and transaction samples
+- Launcher import is fixed to Import as New Budget only
 - Custom progress-step preview model
 - Tests for preview generation and progress phases
 
@@ -35,7 +34,7 @@ Not implemented yet:
 
 - Import commit
 - Budget creation from YNAB4 data
-- Reset/replace current budget execution
+- Reset/replace current budget execution from Settings
 - ZIP extraction in browser
 - Database writes
 - Mapping validation beyond discovery counts
@@ -45,6 +44,21 @@ Not implemented yet:
 A real YNAB4 budget is a package/folder structure containing `Budget.ymeta`, an active `dataXX-*` folder, and `Budget.yfull` / `Budget.json`.
 
 The browser implementation currently expects the user to select the extracted `.ynab4` package folder. ZIP extraction is deliberately deferred.
+
+## Drill-down Preview Requirement
+
+A summary count is not enough to trust the importer. The preview should let the user expand the major sections and confirm that the package has been interpreted correctly.
+
+v1.60 therefore includes drill-down previews for:
+
+- Accounts
+- Category groups and categories
+- Category and category group notes
+- Scheduled transactions
+- First transaction sample
+- Recent transaction sample
+
+The transaction preview deliberately samples rather than listing every transaction, because real YNAB4 budgets may contain tens of thousands of rows.
 
 ## Progress Indicator Requirement
 
@@ -71,4 +85,4 @@ Future implementation should update this indicator during real import work, espe
 
 v1.60 writes no budget data.
 
-The Continue button is intentionally disabled. Actual import modes will be implemented in later releases after the preview and mapping are proven against real YNAB4 data.
+The Continue button is intentionally disabled. The Budget Launcher flow will create a new imported budget in a later release. Replacing the current budget remains a separate future Settings / Reset workflow and is not exposed on the launcher.

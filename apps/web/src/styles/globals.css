@@ -2491,3 +2491,120 @@ strong {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* v1.60 YNAB4 package drill-down preview refinement */
+
+.ynab4-import-mode-note {
+  margin-top: 0.9rem;
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid rgba(42, 181, 121, 0.22);
+  border-radius: 0.85rem;
+  background: rgba(42, 181, 121, 0.1);
+  padding: 0.75rem 0.85rem;
+}
+
+.ynab4-import-mode-note strong {
+  color: #ffffff;
+  font-size: 0.86rem;
+}
+
+.ynab4-import-mode-note span {
+  color: rgba(226, 232, 240, 0.68);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.ynab4-drilldown-list {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.ynab4-drilldown-section {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.055);
+  overflow: hidden;
+}
+
+.ynab4-drilldown-section summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.7rem 0.8rem;
+  color: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.ynab4-drilldown-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.ynab4-drilldown-section summary::after {
+  content: "›";
+  float: right;
+  transform: rotate(90deg);
+  color: rgba(226, 232, 240, 0.66);
+}
+
+.ynab4-drilldown-section[open] summary::after {
+  transform: rotate(-90deg);
+}
+
+.ynab4-drilldown-content {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.35rem 0.8rem 0.75rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.ynab4-preview-line {
+  display: grid;
+  gap: 0.12rem;
+  padding: 0.35rem 0;
+}
+
+.ynab4-preview-line strong,
+.ynab4-category-group-preview > .ynab4-preview-line strong {
+  color: rgba(248, 250, 252, 0.94);
+  font-size: 0.8rem;
+}
+
+.ynab4-preview-line small,
+.ynab4-category-group-preview small,
+.ynab4-drilldown-empty,
+.ynab4-drilldown-caption {
+  color: rgba(226, 232, 240, 0.62);
+  font-size: 0.73rem;
+  line-height: 1.35;
+}
+
+.ynab4-category-group-preview {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.ynab4-category-group-preview ul {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.ynab4-category-group-preview li {
+  color: rgba(248, 250, 252, 0.9);
+  font-size: 0.78rem;
+}
+
+.ynab4-category-group-preview li small {
+  display: block;
+  margin-top: 0.05rem;
+}
+
+.ynab4-drilldown-caption {
+  margin: 0.45rem 0 0.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+}

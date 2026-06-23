@@ -16,13 +16,38 @@ const entries: Ynab4PackageEntry[] = [
     text: JSON.stringify({
       accounts: [{ accountId: "a1" }, { accountId: "a2" }],
       masterCategories: [
-        { name: "Bills", note: "Header note", subCategories: [{ name: "Rent", note: "Category note" }] },
-        { name: "Everyday", subCategories: [{ name: "Groceries" }, { name: "Fuel" }] },
+        {
+          name: "Bills",
+          note: "Header note",
+          subCategories: [{ name: "Rent", note: "Category note" }],
+        },
+        {
+          name: "Everyday",
+          subCategories: [{ name: "Groceries" }, { name: "Fuel" }],
+        },
       ],
       payees: [{ name: "Coles" }, { name: "Payroll" }, { name: "Visa" }],
       monthlyBudgets: [{ month: "2026-06" }],
-      transactions: [{ id: "t1" }, { id: "t2" }, { id: "t3" }, { id: "t4" }],
-      scheduledTransactions: [{ id: "s1" }],
+      transactions: [
+        {
+          id: "t1",
+          date: "2026-06-01",
+          payeeName: "Coles",
+          amount: -4500,
+          memo: "Groceries",
+        },
+        { id: "t2", date: "2026-06-02", payeeName: "Payroll", amount: 250000 },
+        { id: "t3", date: "2026-06-03", payeeName: "Visa", amount: -10000 },
+        { id: "t4", date: "2026-06-04", payeeName: "Fuel", amount: -8500 },
+      ],
+      scheduledTransactions: [
+        {
+          id: "s1",
+          payeeName: "Mortgage",
+          nextDueDate: "2026-07-01",
+          amount: -200000,
+        },
+      ],
     }),
   },
 ];
@@ -35,7 +60,9 @@ function testPreviewSummarisesDiscoveredPackage() {
   assert.equal(preview.destructive, false);
   assert.equal(preview.budgetName, "My Budget");
   assert.deepEqual(
-    Object.fromEntries(preview.summaryItems.map((item) => [item.label, item.value])),
+    Object.fromEntries(
+      preview.summaryItems.map((item) => [item.label, item.value]),
+    ),
     {
       Accounts: 2,
       "Category groups": 2,
@@ -50,9 +77,28 @@ function testPreviewSummarisesDiscoveredPackage() {
   );
 }
 
+function testPreviewIncludesDrillDownSamples() {
+  const discovery = discoverYnab4Package(entries);
+  const preview = createYnab4PackageMigrationPreview(discovery, "new-budget");
+
+  assert.equal(preview.details.accounts.length, 2);
+  assert.equal(preview.details.categoryGroups[0]?.name, "Bills");
+  assert.equal(preview.details.categoryGroups[0]?.categories[0]?.name, "Rent");
+  assert.equal(
+    preview.details.notes.categoryGroupNotes[0]?.note,
+    "Header note",
+  );
+  assert.equal(preview.details.notes.categoryNotes[0]?.note, "Category note");
+  assert.equal(preview.details.firstTransactions[0]?.payee, "Coles");
+  assert.equal(preview.details.scheduledTransactions[0]?.payee, "Mortgage");
+}
+
 function testReplaceModeIsDestructiveButStillPreviewOnly() {
   const discovery = discoverYnab4Package(entries);
-  const preview = createYnab4PackageMigrationPreview(discovery, "replace-current-budget");
+  const preview = createYnab4PackageMigrationPreview(
+    discovery,
+    "replace-current-budget",
+  );
 
   assert.equal(preview.mode, "replace-current-budget");
   assert.equal(preview.destructive, true);
@@ -60,9 +106,16 @@ function testReplaceModeIsDestructiveButStillPreviewOnly() {
 }
 
 function testProgressStepsIncludeVisibleImportPhases() {
-  const phases = getYnab4PackageMigrationProgressSteps().map((step) => step.phase);
+  const phases = getYnab4PackageMigrationProgressSteps().map(
+    (step) => step.phase,
+  );
 
-  assert.deepEqual(phases.slice(0, 4), ["read-file", "validate-json", "analyse-structure", "preview-migration"]);
+  assert.deepEqual(phases.slice(0, 4), [
+    "read-file",
+    "validate-json",
+    "analyse-structure",
+    "preview-migration",
+  ]);
   assert.ok(phases.includes("import-accounts"));
   assert.ok(phases.includes("import-categories"));
   assert.ok(phases.includes("import-payees"));
@@ -72,15 +125,20 @@ function testProgressStepsIncludeVisibleImportPhases() {
 }
 
 function testInvalidPackageCannotContinue() {
-  const discovery = discoverYnab4Package([{ path: "not-a-budget/readme.txt", text: "hello" }]);
+  const discovery = discoverYnab4Package([
+    { path: "not-a-budget/readme.txt", text: "hello" },
+  ]);
   const preview = createYnab4PackageMigrationPreview(discovery, "new-budget");
 
   assert.equal(preview.canContinue, false);
-  assert.ok(preview.warnings.some((warning) => warning.includes("Budget.ymeta")));
+  assert.ok(
+    preview.warnings.some((warning) => warning.includes("Budget.ymeta")),
+  );
 }
 
 function run() {
   testPreviewSummarisesDiscoveredPackage();
+  testPreviewIncludesDrillDownSamples();
   testReplaceModeIsDestructiveButStillPreviewOnly();
   testProgressStepsIncludeVisibleImportPhases();
   testInvalidPackageCannotContinue();

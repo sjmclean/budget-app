@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   createYnab4PackageMigrationPreview,
   discoverYnab4Package,
   type Ynab4PackageDiscoveryResult,
   type Ynab4PackageEntry,
-  type Ynab4PackageImportMode,
   type Ynab4PackageMigrationPreview,
 } from "../../../../packages/ynab4-importer/src/analyzeYnab4Package";
 import { Button } from "../components/ui/Button";
@@ -22,19 +21,27 @@ export function BudgetSelectorPage() {
   const navigate = useNavigate();
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const createBudget = useBudgetRegistryStore((state) => state.createBudget);
-  const markBudgetOpened = useBudgetRegistryStore((state) => state.markBudgetOpened);
+  const markBudgetOpened = useBudgetRegistryStore(
+    (state) => state.markBudgetOpened,
+  );
   const selectBudget = useUIStore((state) => state.selectBudget);
   const [budgetName, setBudgetName] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-  const [ynabImportMode, setYnabImportMode] = useState<Ynab4PackageImportMode>("new-budget");
-  const [ynabDiscovery, setYnabDiscovery] = useState<Ynab4PackageDiscoveryResult | null>(null);
-  const [ynabPreview, setYnabPreview] = useState<Ynab4PackageMigrationPreview | null>(null);
-  const [ynabStatus, setYnabStatus] = useState<string>("Select your real .ynab4 package folder to preview the migration.");
+  const [ynabDiscovery, setYnabDiscovery] =
+    useState<Ynab4PackageDiscoveryResult | null>(null);
+  const [ynabPreview, setYnabPreview] =
+    useState<Ynab4PackageMigrationPreview | null>(null);
+  const [ynabStatus, setYnabStatus] = useState<string>(
+    "Select your real .ynab4 package folder to preview the migration.",
+  );
   const [ynabError, setYnabError] = useState<string | null>(null);
   const [isAnalysingYnab, setIsAnalysingYnab] = useState(false);
 
   const sortedBudgets = useMemo(
-    () => [...budgets].sort((first, second) => first.name.localeCompare(second.name)),
+    () =>
+      [...budgets].sort((first, second) =>
+        first.name.localeCompare(second.name),
+      ),
     [budgets],
   );
 
@@ -65,7 +72,9 @@ export function BudgetSelectorPage() {
     setYnabPreview(null);
 
     if (!files || files.length === 0) {
-      setYnabStatus("Select your real .ynab4 package folder to preview the migration.");
+      setYnabStatus(
+        "Select your real .ynab4 package folder to preview the migration.",
+      );
       return;
     }
 
@@ -75,28 +84,35 @@ export function BudgetSelectorPage() {
     try {
       const entries = await readYnab4PackageEntries(Array.from(files));
       const discovery = discoverYnab4Package(entries);
-      const preview = createYnab4PackageMigrationPreview(discovery, ynabImportMode);
+      const preview = createYnab4PackageMigrationPreview(
+        discovery,
+        "new-budget",
+      );
       setYnabDiscovery(discovery);
       setYnabPreview(preview);
-      setYnabStatus(discovery.isYnab4Package ? "YNAB4 package analysed. Review the preview before continuing." : "The selected folder was not recognised as a YNAB4 package.");
+      setYnabStatus(
+        discovery.isYnab4Package
+          ? "YNAB4 package analysed. Review the preview before continuing."
+          : "The selected folder was not recognised as a YNAB4 package.",
+      );
     } catch (error) {
-      setYnabError(error instanceof Error ? error.message : "Unable to analyse the selected YNAB4 package.");
+      setYnabError(
+        error instanceof Error
+          ? error.message
+          : "Unable to analyse the selected YNAB4 package.",
+      );
       setYnabStatus("YNAB4 package analysis failed.");
     } finally {
       setIsAnalysingYnab(false);
     }
   }
 
-  function handleYnabImportModeChange(mode: Ynab4PackageImportMode) {
-    setYnabImportMode(mode);
-    if (ynabDiscovery) {
-      setYnabPreview(createYnab4PackageMigrationPreview(ynabDiscovery, mode));
-    }
-  }
-
   return (
     <main className="budget-selector-page budget-selector-page-premium">
-      <section className="budget-selector-premium-shell" aria-labelledby="budget-selector-title">
+      <section
+        className="budget-selector-premium-shell"
+        aria-labelledby="budget-selector-title"
+      >
         <div className="budget-selector-premium-chrome" aria-hidden="true">
           <span className="budget-selector-orb budget-selector-orb-one" />
           <span className="budget-selector-orb budget-selector-orb-two" />
@@ -104,7 +120,9 @@ export function BudgetSelectorPage() {
         </div>
 
         <header className="budget-selector-premium-header">
-          <div className="budget-selector-brand-mark" aria-hidden="true">▣</div>
+          <div className="budget-selector-brand-mark" aria-hidden="true">
+            ▣
+          </div>
           <div>
             <p className="budget-selector-brand">Budget App</p>
             <p className="budget-selector-caption">Local-first budgeting</p>
@@ -115,7 +133,8 @@ export function BudgetSelectorPage() {
           <p className="eyebrow">Welcome back</p>
           <h1 id="budget-selector-title">Choose a budget</h1>
           <p>
-            Open an existing local budget, create a new blank budget, or preview a YNAB4 package migration.
+            Open an existing local budget, create a new blank budget, or preview
+            a YNAB4 package migration.
           </p>
         </section>
 
@@ -123,8 +142,8 @@ export function BudgetSelectorPage() {
           <div>
             <h2>New budget</h2>
             <p>
-              Currency, date format, start month, and other setup details will be handled by the
-              first-run setup flow later.
+              Currency, date format, start month, and other setup details will
+              be handled by the first-run setup flow later.
             </p>
           </div>
 
@@ -150,22 +169,33 @@ export function BudgetSelectorPage() {
           {formError ? <p className="form-error">{formError}</p> : null}
         </Card>
 
-        <section className="budget-list-panel budget-list-panel-glass" aria-label="Existing budgets">
+        <section
+          className="budget-list-panel budget-list-panel-glass"
+          aria-label="Existing budgets"
+        >
           <div className="budget-list-header budget-list-header-premium">
             <div>
               <h2>Your budgets</h2>
               <p>Choose a budget to continue.</p>
             </div>
-            <span>{sortedBudgets.length} budget{sortedBudgets.length === 1 ? "" : "s"}</span>
+            <span>
+              {sortedBudgets.length} budget
+              {sortedBudgets.length === 1 ? "" : "s"}
+            </span>
           </div>
 
           <div className="budget-list budget-list-premium">
             {sortedBudgets.length === 0 ? (
               <div className="budget-row-card budget-row-card-premium budget-empty-card-premium">
-                <div className="budget-row-icon" aria-hidden="true">▣</div>
+                <div className="budget-row-icon" aria-hidden="true">
+                  ▣
+                </div>
                 <div>
                   <h2>No budgets yet</h2>
-                  <p>Create a budget above to get started or preview a YNAB4 import below.</p>
+                  <p>
+                    Create a budget above to get started or preview a YNAB4
+                    import below.
+                  </p>
                 </div>
               </div>
             ) : null}
@@ -177,73 +207,70 @@ export function BudgetSelectorPage() {
                 className="budget-row-card budget-row-card-premium"
                 onClick={() => handleOpenBudget(budget.id)}
               >
-                <span className="budget-row-icon" aria-hidden="true">▣</span>
+                <span className="budget-row-icon" aria-hidden="true">
+                  ▣
+                </span>
                 <span className="budget-row-main">
                   <strong>{budget.name}</strong>
                   <span>{budget.lastOpenedLabel}</span>
                 </span>
-                <span className="budget-row-chevron" aria-hidden="true">›</span>
+                <span className="budget-row-chevron" aria-hidden="true">
+                  ›
+                </span>
               </button>
             ))}
           </div>
         </section>
 
-        <section className="ynab4-preview-panel" aria-labelledby="ynab4-preview-title">
+        <section
+          className="ynab4-preview-panel"
+          aria-labelledby="ynab4-preview-title"
+        >
           <div className="ynab4-preview-header">
             <div>
               <p className="eyebrow">Migration preview</p>
               <h2 id="ynab4-preview-title">Import YNAB4 budget</h2>
               <p>
-                Preview a real .ynab4 package before any budget is created or replaced.
+                Preview a real .ynab4 package before creating a new imported
+                budget.
               </p>
             </div>
             <label className="ynab4-file-button">
               <input
                 type="file"
                 multiple
-                onChange={(event) => void handleYnab4PackageSelection(event.currentTarget.files)}
+                onChange={(event) =>
+                  void handleYnab4PackageSelection(event.currentTarget.files)
+                }
                 {...ynab4DirectoryInputProps}
               />
               Select .ynab4 package folder
             </label>
           </div>
 
-          <div className="ynab4-mode-picker" role="radiogroup" aria-label="YNAB4 import mode">
-            <label>
-              <input
-                type="radio"
-                name="ynab4-import-mode"
-                checked={ynabImportMode === "new-budget"}
-                onChange={() => handleYnabImportModeChange("new-budget")}
-              />
-              <span>
-                <strong>Import as new budget</strong>
-                <small>Non-destructive. Creates a separate imported budget later.</small>
-              </span>
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="ynab4-import-mode"
-                checked={ynabImportMode === "replace-current-budget"}
-                onChange={() => handleYnabImportModeChange("replace-current-budget")}
-              />
-              <span>
-                <strong>Replace current budget</strong>
-                <small>Destructive future mode. Will require confirmation from Settings/Reset.</small>
-              </span>
-            </label>
+          <div className="ynab4-import-mode-note">
+            <strong>Launcher imports always create a new budget.</strong>
+            <span>
+              Replacing the current budget remains a future Settings / Reset
+              workflow with destructive confirmation.
+            </span>
           </div>
 
-          <p className={ynabError ? "ynab4-status ynab4-status-error" : "ynab4-status"}>
-            {isAnalysingYnab ? "Analysing selected YNAB4 package…" : ynabError ?? ynabStatus}
+          <p
+            className={
+              ynabError ? "ynab4-status ynab4-status-error" : "ynab4-status"
+            }
+          >
+            {isAnalysingYnab
+              ? "Analysing selected YNAB4 package…"
+              : (ynabError ?? ynabStatus)}
           </p>
 
           {ynabPreview ? (
             <div className="ynab4-preview-grid">
               <div className="ynab4-preview-summary">
                 <h3>{ynabPreview.budgetName ?? "YNAB4 Budget"}</h3>
-                <p>{ynabPreview.destructive ? "Replace current budget preview" : "New budget import preview"}</p>
+                <p>New budget import preview</p>
                 <div className="ynab4-summary-metrics">
                   {ynabPreview.summaryItems.map((item) => (
                     <div key={item.label} className="ynab4-summary-metric">
@@ -253,7 +280,9 @@ export function BudgetSelectorPage() {
                   ))}
                 </div>
                 {ynabDiscovery?.budgetDataPath ? (
-                  <p className="ynab4-data-path">Data source: {ynabDiscovery.budgetDataPath}</p>
+                  <p className="ynab4-data-path">
+                    Data source: {ynabDiscovery.budgetDataPath}
+                  </p>
                 ) : null}
                 {ynabPreview.warnings.length > 0 ? (
                   <ul className="ynab4-warning-list">
@@ -262,14 +291,170 @@ export function BudgetSelectorPage() {
                     ))}
                   </ul>
                 ) : null}
+
+                <div
+                  className="ynab4-drilldown-list"
+                  aria-label="YNAB4 package drill-down preview"
+                >
+                  <Ynab4PreviewDetails
+                    title="Accounts"
+                    emptyMessage="No accounts detected yet."
+                  >
+                    {ynabPreview.details.accounts.map((account) => (
+                      <Ynab4PreviewLine
+                        key={account.id ?? account.name}
+                        primary={account.name}
+                        secondary={account.note}
+                      />
+                    ))}
+                  </Ynab4PreviewDetails>
+
+                  <Ynab4PreviewDetails
+                    title="Categories"
+                    emptyMessage="No categories detected yet."
+                  >
+                    {ynabPreview.details.categoryGroups.map((group) => (
+                      <div
+                        key={group.id ?? group.name}
+                        className="ynab4-category-group-preview"
+                      >
+                        <Ynab4PreviewLine
+                          primary={group.name}
+                          secondary={group.note}
+                        />
+                        {group.categories.length > 0 ? (
+                          <ul>
+                            {group.categories.map((category) => (
+                              <li key={category.id ?? category.name}>
+                                <span>{category.name}</span>
+                                {category.note ? (
+                                  <small>{category.note}</small>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    ))}
+                  </Ynab4PreviewDetails>
+
+                  <Ynab4PreviewDetails
+                    title="Notes"
+                    emptyMessage="No category or category group notes detected yet."
+                  >
+                    {ynabPreview.details.notes.categoryGroupNotes.map(
+                      (note) => (
+                        <Ynab4PreviewLine
+                          key={`group-${note.id ?? note.name}`}
+                          primary={`Group: ${note.name}`}
+                          secondary={note.note}
+                        />
+                      ),
+                    )}
+                    {ynabPreview.details.notes.categoryNotes.map((note) => (
+                      <Ynab4PreviewLine
+                        key={`category-${note.id ?? note.name}`}
+                        primary={`Category: ${note.name}`}
+                        secondary={note.note}
+                      />
+                    ))}
+                  </Ynab4PreviewDetails>
+
+                  <Ynab4PreviewDetails
+                    title="Scheduled transactions"
+                    emptyMessage="No scheduled transactions detected yet."
+                  >
+                    {ynabPreview.details.scheduledTransactions.map(
+                      (transaction, index) => (
+                        <Ynab4PreviewLine
+                          key={transaction.id ?? `scheduled-${index}`}
+                          primary={
+                            transaction.payee ??
+                            transaction.memo ??
+                            "Scheduled transaction"
+                          }
+                          secondary={[
+                            transaction.date,
+                            transaction.amount,
+                            transaction.memo,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        />
+                      ),
+                    )}
+                  </Ynab4PreviewDetails>
+
+                  <Ynab4PreviewDetails
+                    title="Transaction samples"
+                    emptyMessage="No transactions detected yet."
+                  >
+                    <p className="ynab4-drilldown-caption">
+                      First transactions
+                    </p>
+                    {ynabPreview.details.firstTransactions.map(
+                      (transaction, index) => (
+                        <Ynab4PreviewLine
+                          key={transaction.id ?? `first-${index}`}
+                          primary={
+                            transaction.payee ??
+                            transaction.memo ??
+                            "Transaction"
+                          }
+                          secondary={[
+                            transaction.date,
+                            transaction.amount,
+                            transaction.category,
+                            transaction.memo,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        />
+                      ),
+                    )}
+                    <p className="ynab4-drilldown-caption">
+                      Recent transactions
+                    </p>
+                    {ynabPreview.details.recentTransactions.map(
+                      (transaction, index) => (
+                        <Ynab4PreviewLine
+                          key={transaction.id ?? `recent-${index}`}
+                          primary={
+                            transaction.payee ??
+                            transaction.memo ??
+                            "Transaction"
+                          }
+                          secondary={[
+                            transaction.date,
+                            transaction.amount,
+                            transaction.category,
+                            transaction.memo,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        />
+                      ),
+                    )}
+                  </Ynab4PreviewDetails>
+                </div>
               </div>
 
-              <div className="ynab4-progress-preview" aria-label="Planned YNAB4 import progress">
+              <div
+                className="ynab4-progress-preview"
+                aria-label="Planned YNAB4 import progress"
+              >
                 <h3>Planned progress indicator</h3>
                 <ol>
                   {ynabPreview.progressSteps.map((step, index) => (
                     <li key={step.phase}>
-                      <span className={index < 4 ? "ynab4-progress-dot ynab4-progress-dot-complete" : "ynab4-progress-dot"} aria-hidden="true" />
+                      <span
+                        className={
+                          index < 4
+                            ? "ynab4-progress-dot ynab4-progress-dot-complete"
+                            : "ynab4-progress-dot"
+                        }
+                        aria-hidden="true"
+                      />
                       <span>
                         <strong>{step.label}</strong>
                         <small>{step.detail}</small>
@@ -285,7 +470,10 @@ export function BudgetSelectorPage() {
             <Button type="button" disabled>
               Continue import later
             </Button>
-            <p>No data is written in v1.60. This screen only analyses and previews the package.</p>
+            <p>
+              No data is written in v1.60. This screen only analyses and
+              previews the package.
+            </p>
           </div>
         </section>
       </section>
@@ -293,11 +481,59 @@ export function BudgetSelectorPage() {
   );
 }
 
-async function readYnab4PackageEntries(files: File[]): Promise<Ynab4PackageEntry[]> {
-  const readableFiles = files.filter((file) => /(?:Budget\.ymeta|Budget\.yfull|Budget\.json)$/i.test(file.name));
+function Ynab4PreviewDetails({
+  title,
+  emptyMessage,
+  children,
+}: {
+  title: string;
+  emptyMessage: string;
+  children: ReactNode;
+}) {
+  const hasContent = Array.isArray(children)
+    ? children.some(Boolean)
+    : Boolean(children);
+
+  return (
+    <details className="ynab4-drilldown-section">
+      <summary>{title}</summary>
+      <div className="ynab4-drilldown-content">
+        {hasContent ? (
+          children
+        ) : (
+          <p className="ynab4-drilldown-empty">{emptyMessage}</p>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function Ynab4PreviewLine({
+  primary,
+  secondary,
+}: {
+  primary: string;
+  secondary?: string | number | null;
+}) {
+  return (
+    <div className="ynab4-preview-line">
+      <strong>{primary}</strong>
+      {secondary ? <small>{secondary}</small> : null}
+    </div>
+  );
+}
+
+async function readYnab4PackageEntries(
+  files: File[],
+): Promise<Ynab4PackageEntry[]> {
+  const readableFiles = files.filter((file) =>
+    /(?:Budget\.ymeta|Budget\.yfull|Budget\.json)$/i.test(file.name),
+  );
 
   if (readableFiles.length === 0) {
-    throw new Error("No Budget.ymeta, Budget.yfull, or Budget.json files were found in the selected folder.");
+    throw new Error(
+      "No Budget.ymeta, Budget.yfull, or Budget.json files were found in the selected folder.",
+    );
   }
 
   return Promise.all(
