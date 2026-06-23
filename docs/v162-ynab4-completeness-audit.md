@@ -1,0 +1,236 @@
+# v1.62 YNAB4 Import Completeness Audit
+
+## Purpose
+
+v1.62 answers a different question from v1.59-v1.61.
+
+Earlier work proved that the app can discover and preview a real YNAB4 package. This audit asks whether the current app can faithfully represent the data once import writes begin.
+
+The answer is: **not yet**.
+
+The codebase has a strong foundation, but a full-fidelity YNAB4 migration still has several schema, mapping, and workflow blockers.
+
+## Scope
+
+This audit is intentionally non-destructive.
+
+It does not:
+
+- create budgets
+- create accounts
+- create categories
+- write transactions
+- mutate existing data
+
+It does:
+
+- list YNAB4 data areas that must be preserved
+- compare them against current app capabilities
+- identify migration blockers
+- identify likely data-loss risks
+- recommend the order of missing foundational work
+
+## Current Strengths
+
+The app already has useful foundations for YNAB4 migration:
+
+- budgets
+- accounts
+- on/off budget participation
+- category groups
+- categories
+- payees
+- transfer payees
+- transactions
+- split transaction lines
+- cleared status
+- scheduled transactions
+- budget months
+- category months
+- reconciliations
+- transaction flags schema
+- transaction notes schema
+- account settings
+- category settings
+- import run/import map tables
+
+This means the project is not starting from zero.
+
+## Critical Findings
+
+### 1. Category group/header notes are not representable yet
+
+YNAB4 can store notes at the category-header/master-category level.
+
+Current app support:
+
+- individual category settings support notes
+- category groups do not have notes/settings
+
+Impact:
+
+- YNAB4 category header notes would be lost
+- this is a full-fidelity migration blocker
+
+Recommended fix:
+
+- add `CategoryGroupSettings`, or add a note/settings structure for category groups
+
+This is one of the first underlying pieces that should be built.
+
+---
+
+### 2. Transaction check numbers are not representable yet
+
+The real YNAB4 data contains transactions with `checkNumber`.
+
+Current app support:
+
+- account settings can track `lastEnteredCheckNumber`
+- transactions do not have a check-number field
+
+Impact:
+
+- cheque/check-number data would be silently lost unless preserved elsewhere
+
+Recommended fix:
+
+- add optional `checkNumber` to transactions, or
+- add a generic transaction metadata table and map YNAB4 `checkNumber` there
+
+---
+
+### 3. Scheduled split transactions are not fully representable yet
+
+YNAB4 scheduled transactions can contain `subTransactions`.
+
+Current app support:
+
+- scheduled transactions exist
+- regular split transaction lines exist
+- scheduled split lines do not appear to have a dedicated schema/model
+
+Impact:
+
+- scheduled split transactions could be flattened, partially imported, or lose detail
+
+Recommended fix:
+
+- add scheduled split transaction line support
+- map YNAB4 scheduled `subTransactions`
+- map YNAB4 recurrence metadata such as `twiceAMonthStartDay`
+
+---
+
+### 4. Historical monthly budget data must be proven before transaction import
+
+YNAB4 stores historical monthly budget allocations in `monthlyBudgets` and `monthlySubCategoryBudgets`.
+
+Current app support:
+
+- `budget_months` exists
+- `category_months` exists
+
+Risk:
+
+- schema exists, but YNAB4 mapping is not proven
+
+Impact:
+
+- importing transactions without historical category month data would not be a complete YNAB4 migration
+
+Recommended fix:
+
+- build monthly budget mapping tests before transaction import
+- verify assigned, activity, available, previous available, and overspending handling semantics
+
+---
+
+### 5. Transfers and credit-card migration remain high-risk
+
+YNAB4 uses transfer relationships such as:
+
+- `targetAccountId`
+- `transferTransactionId`
+- transfer payees
+
+Credit-card data can also involve:
+
+- liability accounts
+- payments/transfers
+- Pre-YNAB debt categories
+- historical category balances
+
+Current app support:
+
+- transfer transactions exist
+- transfer payees exist
+- credit-card handling has been designed conceptually
+
+Risk:
+
+- incorrect mapping can duplicate transfers, distort balances, or misrepresent credit-card payments
+
+Recommended fix:
+
+- build transfer-pair tests from real YNAB4 data
+- build dedicated credit-card migration tests before full transaction import
+
+## Completeness Matrix
+
+| Area | Status | Risk | Required before full import |
+|---|---:|---:|---:|
+| Accounts | Partial | Medium | Yes |
+| Category groups | Missing | Critical | Yes |
+| Categories | Partial | High | Yes |
+| Historical budget months | Partial | Critical | Yes |
+| Transactions | Partial | Critical | Yes |
+| Transaction check numbers | Missing | High | Yes |
+| Split transactions | Partial | High | Yes |
+| Scheduled transactions | Partial | Critical | Yes |
+| Payees | Partial | Medium | No |
+| Transfers | Partial | Critical | Yes |
+| Transaction flags | Partial | Medium | No |
+| Reconciliation state | Partial | High | Yes |
+| Credit cards | Partial | Critical | Yes |
+| Import traceability | Partial | Medium | Yes |
+
+## Recommended Build Order
+
+Before actual import writes, build the missing representation pieces in this order:
+
+1. Add category group/header notes support.
+2. Add transaction check-number preservation.
+3. Add scheduled split transaction support and YNAB4 recurrence mapping.
+4. Prove historical monthly budget/category-month mapping.
+5. Prove transfer-pair and credit-card migration against real YNAB4 data.
+6. Wire `ImportRun`/`ImportMap` source-id tracking for YNAB4 entities.
+
+## Why This Matters
+
+Full YNAB4 import is not just importing transactions.
+
+A faithful migration must preserve:
+
+- structure
+- history
+- notes
+- relationships
+- scheduled behaviour
+- cleared/reconciled state
+- credit-card semantics
+- enough metadata to validate/debug the migration
+
+Without these pieces, an import could appear successful while silently losing data that mattered in YNAB4.
+
+## Test Command
+
+```bash
+pnpm test:v162
+```
+
+## Build Verification
+
+```bash
+pnpm --filter @budget-app/web build
+```
