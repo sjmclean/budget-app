@@ -202,8 +202,8 @@
     "test:v166:monthly-budget-mapping-audit": "tsx tests/v166-monthly-budget-mapping-audit.ts",
     "test:v167": "pnpm test:v167:monthly-budget-mapping-proof",
     "test:v167:monthly-budget-mapping-proof": "tsx tests/v167-monthly-budget-mapping-proof.ts",
-    "test:v167": "pnpm test:v167:monthly-budget-mapping-proof",
-    "test:v167:monthly-budget-mapping-proof": "tsx tests/v167-monthly-budget-mapping-proof.ts"
+    "test:v168": "pnpm test:v168:transfer-credit-card-migration-validation",
+    "test:v168:transfer-credit-card-migration-validation": "tsx tests/v168-transfer-credit-card-migration-validation.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

@@ -8,3 +8,5 @@ export * from "./analyzeYnab4Json.js";
 export * from "./analyzeYnab4Package.js";
 export * from "./assessYnab4ImportCompleteness.js";
 export * from "./auditYnab4MonthlyBudgetMapping.js";
+export * from "./proveYnab4MonthlyBudgetMapping.js";
+export * from "./proveYnab4TransferCreditCardMigration.js";
