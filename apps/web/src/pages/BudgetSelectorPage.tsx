@@ -136,9 +136,12 @@ export function BudgetSelectorPage() {
 
         <div className="budget-selector-import-placeholder">
           <Button type="button" variant="secondary" disabled>
-            Import budget later
+            Import YNAB4 budget
           </Button>
-          <p>Import/open package support remains pinned for the future host runtime.</p>
+          <p>
+            YNAB4 JSON migration will create a new budget here. Full migration UI and progress
+            indicator are planned next.
+          </p>
         </div>
       </section>
     </main>

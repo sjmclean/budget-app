@@ -181,7 +181,9 @@
     "test:v156:attachment-access": "tsx tests/v156-attachment-access.ts",
     "test:v156": "pnpm test:v156:attachment-access",
     "test:v157:budget-launcher": "tsx tests/v157-budget-launcher.ts",
-    "test:v157": "pnpm test:v157:budget-launcher"
+    "test:v157": "pnpm test:v157:budget-launcher",
+    "test:v158:ynab4-json-import-audit": "tsx tests/v158-ynab4-json-import-audit.ts",
+    "test:v158": "pnpm test:v158:ynab4-json-import-audit"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
