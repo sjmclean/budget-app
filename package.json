@@ -205,7 +205,9 @@
     "test:v168": "pnpm test:v168:transfer-credit-card-migration-validation",
     "test:v168:transfer-credit-card-migration-validation": "tsx tests/v168-transfer-credit-card-migration-validation.ts",
     "test:v169": "pnpm test:v169:ynab4-import-execution-engine",
-    "test:v169:ynab4-import-execution-engine": "tsx tests/v169-ynab4-import-execution-engine.ts"
+    "test:v169:ynab4-import-execution-engine": "tsx tests/v169-ynab4-import-execution-engine.ts",
+    "test:v170": "pnpm test:v170:ynab4-import-progress-reporting",
+    "test:v170:ynab4-import-progress-reporting": "tsx tests/v170-ynab4-import-progress-reporting.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

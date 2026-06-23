@@ -22,11 +22,48 @@ import { normalizePayeeName } from "../../budget-engine/src/services/payeeNormal
 import { discoverYnab4Package, type Ynab4PackageEntry } from "./analyzeYnab4Package.js";
 import { proveYnab4TransferCreditCardMigration } from "./proveYnab4TransferCreditCardMigration.js";
 
+export type Ynab4ImportProgressStage =
+  | "discover-package"
+  | "validate-transfers-credit-cards"
+  | "read-active-budget"
+  | "create-budget"
+  | "import-accounts"
+  | "import-categories"
+  | "import-payees"
+  | "import-transactions"
+  | "import-scheduled-transactions"
+  | "import-monthly-budgets"
+  | "write-import-run"
+  | "write-import-maps"
+  | "complete";
+
+export type Ynab4ImportProgressStatus = "started" | "completed" | "skipped";
+
+export type Ynab4ImportProgressEvent = {
+  stage: Ynab4ImportProgressStage;
+  status: Ynab4ImportProgressStatus;
+  label: string;
+  current: number;
+  total: number;
+  created: number;
+  skipped: number;
+  warnings: string[];
+};
+
+export type Ynab4ImportProgressSummary = {
+  totalEvents: number;
+  completedStages: Ynab4ImportProgressStage[];
+  warnings: string[];
+};
+
+export type Ynab4ImportProgressReporter = (event: Ynab4ImportProgressEvent) => void;
+
 export type Ynab4PackageImportExecutionOptions = {
   userId?: string;
   currency?: string;
   sourceFileName?: string | null;
   now?: Date;
+  onProgress?: Ynab4ImportProgressReporter;
 };
 
 export type Ynab4PackageImportExecutionResult = {
@@ -54,6 +91,7 @@ export type Ynab4PackageImportExecutionResult = {
     categoryMonths: number;
   };
   warnings: string[];
+  progress: Ynab4ImportProgressSummary;
 };
 
 type Ynab4PackageMetadata = {
@@ -67,7 +105,47 @@ type ImportContext = {
   now: Date;
   created: Ynab4PackageImportExecutionResult["created"];
   importMapRows: Array<typeof importMaps.$inferInsert>;
+  progress: ImportProgressTracker;
 };
+
+class ImportProgressTracker {
+  private events: Ynab4ImportProgressEvent[] = [];
+
+  constructor(private readonly reporter?: Ynab4ImportProgressReporter) {}
+
+  start(stage: Ynab4ImportProgressStage, label: string, total = 0, warnings: string[] = []): void {
+    this.emit({ stage, status: "started", label, current: 0, total, created: 0, skipped: 0, warnings });
+  }
+
+  complete(stage: Ynab4ImportProgressStage, label: string, details: { total?: number; created?: number; skipped?: number; warnings?: string[] } = {}): void {
+    const total = details.total ?? details.created ?? 0;
+    const created = details.created ?? total;
+    const skipped = details.skipped ?? 0;
+    this.emit({
+      stage,
+      status: "completed",
+      label,
+      current: total,
+      total,
+      created,
+      skipped,
+      warnings: details.warnings ?? [],
+    });
+  }
+
+  summary(warnings: string[]): Ynab4ImportProgressSummary {
+    return {
+      totalEvents: this.events.length,
+      completedStages: this.events.filter((event) => event.status === "completed").map((event) => event.stage),
+      warnings,
+    };
+  }
+
+  private emit(event: Ynab4ImportProgressEvent): void {
+    this.events.push(event);
+    this.reporter?.(event);
+  }
+}
 
 /**
  * v1.69 write-import entry point.
@@ -80,38 +158,57 @@ export function executeYnab4PackageImportToNewBudget(
   entries: Ynab4PackageEntry[],
   options: Ynab4PackageImportExecutionOptions = {},
 ): Ynab4PackageImportExecutionResult {
+  const progress = new ImportProgressTracker(options.onProgress);
+
+  progress.start("discover-package", "Discovering YNAB4 package", entries.length);
   const discovery = discoverYnab4Package(entries);
+  progress.complete("discover-package", "Discovered YNAB4 package", {
+    total: entries.length,
+    created: discovery.isYnab4Package ? 1 : 0,
+    skipped: discovery.isYnab4Package ? 0 : 1,
+    warnings: discovery.warnings,
+  });
   if (!discovery.isYnab4Package || discovery.warnings.length > 0) {
     throw new Error(
       `Cannot execute YNAB4 import: ${discovery.warnings.join(" ") || "package discovery failed."}`,
     );
   }
 
+  progress.start("validate-transfers-credit-cards", "Validating transfers and credit cards");
   const transferCreditCardProof = proveYnab4TransferCreditCardMigration(entries);
+  progress.complete("validate-transfers-credit-cards", "Validated transfers and credit cards", {
+    created: transferCreditCardProof.canProceedToWriteImport ? 1 : 0,
+    skipped: transferCreditCardProof.canProceedToWriteImport ? 0 : 1,
+    warnings: transferCreditCardProof.warnings,
+  });
   if (!transferCreditCardProof.canProceedToWriteImport) {
     throw new Error(
       `Cannot execute YNAB4 import: ${transferCreditCardProof.blockers.join(" ")}`,
     );
   }
 
+  progress.start("read-active-budget", "Reading active YNAB4 budget data");
   const { data, warnings } = readActiveBudgetData(entries);
+  progress.complete("read-active-budget", "Read active YNAB4 budget data", {
+    created: data ? 1 : 0,
+    skipped: data ? 0 : 1,
+    warnings,
+  });
   if (!data) {
     throw new Error(`Cannot execute YNAB4 import: ${warnings.join(" ")}`);
   }
 
-  const importBody = () => importWithoutOuterTransaction(db, data, discovery.budgetName ?? "Imported YNAB4 Budget", entries, options, [
+  const allWarnings = [
     ...discovery.warnings,
     ...transferCreditCardProof.warnings,
     ...warnings,
-  ]);
+  ];
+
+  const importBody = () => importWithoutOuterTransaction(db, data, discovery.budgetName ?? "Imported YNAB4 Budget", entries, options, allWarnings, progress);
 
   if (typeof db.transaction === "function") {
     return db.transaction((tx: any) =>
-      importWithoutOuterTransaction(tx, data, discovery.budgetName ?? "Imported YNAB4 Budget", entries, options, [
-        ...discovery.warnings,
-        ...transferCreditCardProof.warnings,
-        ...warnings,
-      ]),
+      importWithoutOuterTransaction(tx, data, discovery.budgetName ?? "Imported YNAB4 Budget", entries, options, allWarnings, progress),
     );
   }
 
@@ -125,6 +222,7 @@ function importWithoutOuterTransaction(
   entries: Ynab4PackageEntry[],
   options: Ynab4PackageImportExecutionOptions,
   warnings: string[],
+  progress: ImportProgressTracker,
 ): Ynab4PackageImportExecutionResult {
   const now = options.now ?? new Date();
   const budgetId = randomUUID();
@@ -149,6 +247,7 @@ function importWithoutOuterTransaction(
     categoryMonths: 0,
   };
 
+  progress.start("create-budget", "Creating imported budget", 1);
   db.insert(budgets).values({
     id: budgetId,
     name: budgetName,
@@ -156,15 +255,64 @@ function importWithoutOuterTransaction(
     createdAt: now,
   }).run();
   created.budgets++;
+  progress.complete("create-budget", "Created imported budget", { total: 1, created: 1 });
 
-  const ctx: ImportContext = { db, budgetId, importRunId, now, created, importMapRows: [] };
-  const accountIdMap = importAccounts(ctx, toRecords(data.accounts));
-  const categoryIdMap = importCategories(ctx, toRecords(data.masterCategories));
-  const payeeIdMap = importPayees(ctx, toRecords(data.payees), accountIdMap, skipped);
-  importTransactions(ctx, toRecords(data.transactions), accountIdMap, categoryIdMap, payeeIdMap, skipped);
-  importScheduledTransactions(ctx, toRecords(data.scheduledTransactions), accountIdMap, categoryIdMap, payeeIdMap, skipped);
-  importMonthlyBudgets(ctx, toRecords(data.monthlyBudgets), categoryIdMap, skipped);
+  const ctx: ImportContext = { db, budgetId, importRunId, now, created, importMapRows: [], progress };
+  const ynabAccounts = toRecords(data.accounts);
+  progress.start("import-accounts", "Importing accounts", ynabAccounts.length);
+  const accountIdMap = importAccounts(ctx, ynabAccounts);
+  progress.complete("import-accounts", "Imported accounts", { total: ynabAccounts.length, created: created.accounts });
 
+  const ynabCategoryGroups = toRecords(data.masterCategories);
+  progress.start("import-categories", "Importing category groups and categories", ynabCategoryGroups.length);
+  const beforeCategoryGroups = created.categoryGroups;
+  const beforeCategories = created.categories;
+  const categoryIdMap = importCategories(ctx, ynabCategoryGroups);
+  progress.complete("import-categories", "Imported category groups and categories", {
+    total: ynabCategoryGroups.length,
+    created: (created.categoryGroups - beforeCategoryGroups) + (created.categories - beforeCategories),
+  });
+
+  const ynabPayees = toRecords(data.payees);
+  progress.start("import-payees", "Importing payees", ynabPayees.length);
+  const payeeIdMap = importPayees(ctx, ynabPayees, accountIdMap, skipped);
+  progress.complete("import-payees", "Imported payees", {
+    total: ynabPayees.length,
+    created: created.payees,
+    skipped: skipped.transferPayeesAsOrdinaryPayees,
+  });
+
+  const ynabTransactions = toRecords(data.transactions);
+  progress.start("import-transactions", "Importing transactions", ynabTransactions.length);
+  importTransactions(ctx, ynabTransactions, accountIdMap, categoryIdMap, payeeIdMap, skipped);
+  progress.complete("import-transactions", "Imported transactions", {
+    total: ynabTransactions.length,
+    created: created.transactions,
+    skipped: skipped.transactions,
+  });
+
+  const ynabScheduledTransactions = toRecords(data.scheduledTransactions);
+  progress.start("import-scheduled-transactions", "Importing scheduled transactions", ynabScheduledTransactions.length);
+  importScheduledTransactions(ctx, ynabScheduledTransactions, accountIdMap, categoryIdMap, payeeIdMap, skipped);
+  progress.complete("import-scheduled-transactions", "Imported scheduled transactions", {
+    total: ynabScheduledTransactions.length,
+    created: created.scheduledTransactions,
+    skipped: skipped.scheduledTransactions,
+  });
+
+  const ynabMonthlyBudgets = toRecords(data.monthlyBudgets);
+  progress.start("import-monthly-budgets", "Importing monthly budgets", ynabMonthlyBudgets.length);
+  const beforeBudgetMonths = created.budgetMonths;
+  const beforeCategoryMonths = created.categoryMonths;
+  importMonthlyBudgets(ctx, ynabMonthlyBudgets, categoryIdMap, skipped);
+  progress.complete("import-monthly-budgets", "Imported monthly budgets", {
+    total: ynabMonthlyBudgets.length,
+    created: (created.budgetMonths - beforeBudgetMonths) + (created.categoryMonths - beforeCategoryMonths),
+    skipped: skipped.categoryMonths,
+  });
+
+  progress.start("write-import-run", "Writing import run summary", 1);
+  const progressSummaryForRun = progress.summary(warnings);
   db.insert(importRuns).values({
     id: importRunId,
     budgetId,
@@ -174,12 +322,16 @@ function importWithoutOuterTransaction(
     startedAt: now,
     completedAt: new Date(now.getTime()),
     status: "completed",
-    summaryJson: JSON.stringify({ created, skipped, warnings }),
+    summaryJson: JSON.stringify({ created, skipped, warnings, progress: progressSummaryForRun }),
   }).run();
+  progress.complete("write-import-run", "Wrote import run summary", { total: 1, created: 1 });
 
+  progress.start("write-import-maps", "Writing import maps", ctx.importMapRows.length);
   for (const row of ctx.importMapRows) {
     db.insert(importMaps).values(row).run();
   }
+  progress.complete("write-import-maps", "Wrote import maps", { total: ctx.importMapRows.length, created: ctx.importMapRows.length });
+  progress.complete("complete", "YNAB4 import complete", { created: 1, warnings });
 
   return {
     budgetId,
@@ -189,6 +341,7 @@ function importWithoutOuterTransaction(
     created,
     skipped,
     warnings,
+    progress: progress.summary(warnings),
   };
 }
 
