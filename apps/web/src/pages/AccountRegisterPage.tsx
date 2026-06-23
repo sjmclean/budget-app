@@ -1177,6 +1177,7 @@ function TransactionEntryRow({
   const [payeeId, setPayeeId] = useState<string | undefined>(undefined);
   const [category, setCategory] = useState("");
   const [memo, setMemo] = useState("");
+  const [checkNumber, setCheckNumber] = useState("");
   const [outflow, setOutflow] = useState("");
   const [inflow, setInflow] = useState("");
   const [splitLines, setSplitLines] = useState<SplitLineDraft[]>([]);
@@ -1213,6 +1214,7 @@ function TransactionEntryRow({
           ? undefined
           : categoryOption?.id ?? (fallbackCategory === "Ready to Assign" ? "__ready_to_assign__" : undefined),
       memo: memo.trim(),
+      checkNumber: checkNumber.trim(),
       outflow: parsedOutflow,
       inflow: parsedInflow,
       splitLines: parsedSplitLines.length > 0 ? parsedSplitLines : undefined,
@@ -1224,6 +1226,7 @@ function TransactionEntryRow({
     setPayeeId(undefined);
     setCategory("");
     setMemo("");
+    setCheckNumber("");
     setOutflow("");
     setInflow("");
     setSplitLines([]);
@@ -1304,6 +1307,7 @@ function TransactionEntryRow({
         categoryOptions={categoryOptions}
       />
       <input value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="Memo" />
+      <input value={checkNumber} onChange={(event) => setCheckNumber(event.target.value)} placeholder="Check #" />
       <input value={outflow} onChange={(event) => setOutflow(event.target.value)} placeholder="Outflow" inputMode="decimal" disabled={splitLines.length > 0} />
       <input value={inflow} onChange={(event) => setInflow(event.target.value)} placeholder="Inflow" inputMode="decimal" disabled={splitLines.length > 0} />
 
@@ -1351,6 +1355,7 @@ function TransactionEditRow({
     category: string;
     categoryId?: string;
     memo?: string;
+    checkNumber?: string;
     inflow: number;
     outflow: number;
     splitLines?: RegisterSplitLineView[];
@@ -1362,6 +1367,7 @@ function TransactionEditRow({
   const [payeeId, setPayeeId] = useState<string | undefined>(transaction.payeeId);
   const [category, setCategory] = useState(transaction.category);
   const [memo, setMemo] = useState(transaction.memo ?? "");
+  const [checkNumber, setCheckNumber] = useState(transaction.checkNumber ?? "");
   const [outflow, setOutflow] = useState(transaction.outflow ? transaction.outflow.toFixed(2) : "");
   const [inflow, setInflow] = useState(transaction.inflow ? transaction.inflow.toFixed(2) : "");
   const [splitLines, setSplitLines] = useState<SplitLineDraft[]>(
@@ -1427,6 +1433,7 @@ function TransactionEditRow({
           ? undefined
           : categoryOption?.id ?? (fallbackCategory === "Ready to Assign" ? "__ready_to_assign__" : undefined),
       memo: memo.trim(),
+      checkNumber: checkNumber.trim(),
       outflow: parsedOutflow,
       inflow: parsedInflow,
       splitLines: parsedSplitLines.length > 0 ? parsedSplitLines : undefined,
@@ -1467,6 +1474,7 @@ function TransactionEditRow({
         categoryOptions={categoryOptions}
       />
       <input value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="Memo" />
+      <input value={checkNumber} onChange={(event) => setCheckNumber(event.target.value)} placeholder="Check #" />
       <input value={outflow} onChange={(event) => setOutflow(event.target.value)} placeholder="Outflow" inputMode="decimal" disabled={splitLines.length > 0} />
       <input value={inflow} onChange={(event) => setInflow(event.target.value)} placeholder="Inflow" inputMode="decimal" disabled={splitLines.length > 0} />
 
@@ -1567,6 +1575,7 @@ function TransactionRow({
 
       <span>{transaction.category}</span>
       <span className="register-memo-cell">{transaction.memo ?? ""}</span>
+      <span className="register-check-number-cell">{transaction.checkNumber ?? ""}</span>
 
       <span className="register-money register-outflow">
         {transaction.outflow ? formatMoney(transaction.outflow, currencyCode) : ""}
@@ -2281,6 +2290,7 @@ export function AccountRegisterPage() {
             <span>Payee</span>
             <span>Category</span>
             <span>Memo</span>
+            <span>Check #</span>
             <span>Outflow</span>
             <span>Inflow</span>
             <span>Balance</span>

@@ -42,6 +42,7 @@ export function createSplitTransaction(input: CreateSplitTransactionInput): Spli
     type: TransactionType.Split,
     date: input.date,
     memo: input.memo ?? null,
+    checkNumber: null,
     amount: input.amount,
     clearedStatus: input.clearedStatus ?? ClearedStatus.Uncleared,
     isDeleted: false,

@@ -53,6 +53,7 @@ export const transactions = sqliteTable("transactions", {
   type: text("type").notNull(),
   date: text("date").notNull(),
   memo: text("memo"),
+  checkNumber: text("check_number"),
   amount: integer("amount").notNull(),
   clearedStatus: text("cleared_status").notNull(),
   isDeleted: integer("is_deleted", { mode: "boolean" }).notNull(),

@@ -193,7 +193,9 @@
     "test:v162:ynab4-completeness-audit": "tsx tests/v162-ynab4-completeness-audit.ts",
     "test:v162": "pnpm test:v162:ynab4-completeness-audit",
     "test:v163:category-notes": "tsx tests/v163-category-notes.ts",
-    "test:v163": "pnpm test:v163:category-notes"
+    "test:v163": "pnpm test:v163:category-notes",
+    "test:v164:transaction-check-numbers": "tsx tests/v164-transaction-check-numbers.ts",
+    "test:v164": "pnpm test:v164:transaction-check-numbers"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

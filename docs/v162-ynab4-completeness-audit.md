@@ -80,23 +80,24 @@ This is one of the first underlying pieces that should be built.
 
 ---
 
-### 2. Transaction check numbers are not representable yet
+### 2. Transaction check numbers are now representable
 
 The real YNAB4 data contains transactions with `checkNumber`.
 
-Current app support:
+Current app support after v1.64:
 
 - account settings can track `lastEnteredCheckNumber`
-- transactions do not have a check-number field
+- transactions have an optional `checkNumber` field
+- SQLite stores this as `transactions.check_number`
+- the browser register can display and edit check numbers
 
 Impact:
 
-- cheque/check-number data would be silently lost unless preserved elsewhere
+- cheque/check-number data now has a first-class landing place
 
-Recommended fix:
+Remaining work:
 
-- add optional `checkNumber` to transactions, or
-- add a generic transaction metadata table and map YNAB4 `checkNumber` there
+- map YNAB4 `checkNumber` into `transaction.checkNumber` during actual import
 
 ---
 
@@ -185,7 +186,7 @@ Recommended fix:
 | Categories | Partial | High | Yes |
 | Historical budget months | Partial | Critical | Yes |
 | Transactions | Partial | Critical | Yes |
-| Transaction check numbers | Missing | High | Yes |
+| Transaction check numbers | Supported | Low | No |
 | Split transactions | Partial | High | Yes |
 | Scheduled transactions | Partial | Critical | Yes |
 | Payees | Partial | Medium | No |
@@ -200,11 +201,10 @@ Recommended fix:
 Before actual import writes, build the missing representation pieces in this order:
 
 1. Add category group/header notes support.
-2. Add transaction check-number preservation.
-3. Add scheduled split transaction support and YNAB4 recurrence mapping.
-4. Prove historical monthly budget/category-month mapping.
-5. Prove transfer-pair and credit-card migration against real YNAB4 data.
-6. Wire `ImportRun`/`ImportMap` source-id tracking for YNAB4 entities.
+2. Add scheduled split transaction support and YNAB4 recurrence mapping.
+3. Prove historical monthly budget/category-month mapping.
+4. Prove transfer-pair and credit-card migration against real YNAB4 data.
+5. Wire `ImportRun`/`ImportMap` source-id tracking for YNAB4 entities.
 
 ## Why This Matters
 

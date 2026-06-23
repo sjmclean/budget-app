@@ -59,6 +59,7 @@ export class BankImportCommitApplicationService {
           type: TransactionType.Standard,
           date: row.date,
           memo: suggestion?.suggestedMemo ?? row.memo,
+          checkNumber: null,
           amount: row.amount,
           clearedStatus: ClearedStatus.Cleared,
           isDeleted: false,
@@ -67,10 +68,10 @@ export class BankImportCommitApplicationService {
         };
         client.prepare(`
           INSERT INTO transactions (
-            id, budget_id, account_id, payee_id, category_id, transfer_account_id, type, date, memo,
+            id, budget_id, account_id, payee_id, category_id, transfer_account_id, type, date, memo, check_number,
             amount, cleared_status, is_deleted, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(tx.id, tx.budgetId, tx.accountId, tx.payeeId, tx.categoryId, tx.transferAccountId, tx.type, tx.date, tx.memo, tx.amount, tx.clearedStatus, 0, now.getTime(), now.getTime());
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(tx.id, tx.budgetId, tx.accountId, tx.payeeId, tx.categoryId, tx.transferAccountId, tx.type, tx.date, tx.memo, tx.checkNumber, tx.amount, tx.clearedStatus, 0, now.getTime(), now.getTime());
         client.prepare(`
           INSERT INTO bank_import_batch_items (id, batch_id, transaction_id, external_id, raw_payee, amount, date, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)

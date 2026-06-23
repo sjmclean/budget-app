@@ -164,9 +164,9 @@ function toTimestamp(value: Date | number | string): number {
 function insertTransaction(sqlite: any, transaction: any): void {
   sqlite.prepare(`
     INSERT INTO transactions (
-      id, budget_id, account_id, payee_id, category_id, transfer_account_id, type, date, memo,
+      id, budget_id, account_id, payee_id, category_id, transfer_account_id, type, date, memo, check_number,
       amount, cleared_status, is_deleted, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     transaction.id,
     transaction.budgetId,
@@ -177,6 +177,7 @@ function insertTransaction(sqlite: any, transaction: any): void {
     transaction.type,
     transaction.date,
     transaction.memo ?? null,
+    normaliseCheckNumber(transaction.checkNumber),
     transaction.amount,
     transaction.clearedStatus,
     transaction.isDeleted ? 1 : 0,
@@ -189,7 +190,7 @@ function updateTransaction(sqlite: any, transaction: any): void {
   sqlite.prepare(`
     UPDATE transactions
     SET budget_id = ?, account_id = ?, payee_id = ?, category_id = ?, transfer_account_id = ?,
-        type = ?, date = ?, memo = ?, amount = ?, cleared_status = ?, is_deleted = ?, created_at = ?, updated_at = ?
+        type = ?, date = ?, memo = ?, check_number = ?, amount = ?, cleared_status = ?, is_deleted = ?, created_at = ?, updated_at = ?
     WHERE id = ?
   `).run(
     transaction.budgetId,
@@ -200,6 +201,7 @@ function updateTransaction(sqlite: any, transaction: any): void {
     transaction.type,
     transaction.date,
     transaction.memo ?? null,
+    normaliseCheckNumber(transaction.checkNumber),
     transaction.amount,
     transaction.clearedStatus,
     transaction.isDeleted ? 1 : 0,
@@ -207,6 +209,11 @@ function updateTransaction(sqlite: any, transaction: any): void {
     toTimestamp(transaction.updatedAt),
     transaction.id
   );
+}
+
+function normaliseCheckNumber(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }
 
 function updateAccount(sqlite: any, account: any): void {

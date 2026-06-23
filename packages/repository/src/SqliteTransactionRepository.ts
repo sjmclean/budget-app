@@ -17,9 +17,9 @@ export class SqliteTransactionRepository implements TransactionRepository {
     sqliteClient(this.db)
       .prepare(`
         INSERT INTO transactions (
-          id, budget_id, account_id, payee_id, category_id, transfer_account_id, type, date, memo,
+          id, budget_id, account_id, payee_id, category_id, transfer_account_id, type, date, memo, check_number,
           amount, cleared_status, is_deleted, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .run(...transactionParams(transaction));
   }
@@ -29,7 +29,7 @@ export class SqliteTransactionRepository implements TransactionRepository {
       .prepare(`
         UPDATE transactions
         SET budget_id = ?, account_id = ?, payee_id = ?, category_id = ?, transfer_account_id = ?,
-            type = ?, date = ?, memo = ?, amount = ?, cleared_status = ?, is_deleted = ?, created_at = ?, updated_at = ?
+            type = ?, date = ?, memo = ?, check_number = ?, amount = ?, cleared_status = ?, is_deleted = ?, created_at = ?, updated_at = ?
         WHERE id = ?
       `)
       .run(
@@ -41,6 +41,7 @@ export class SqliteTransactionRepository implements TransactionRepository {
         transaction.type,
         transaction.date,
         transaction.memo,
+        normaliseCheckNumber(transaction.checkNumber),
         transaction.amount,
         transaction.clearedStatus,
         transaction.isDeleted ? 1 : 0,
@@ -92,6 +93,7 @@ function transactionParams(transaction: Transaction): any[] {
     transaction.type,
     transaction.date,
     transaction.memo,
+    normaliseCheckNumber(transaction.checkNumber),
     transaction.amount,
     transaction.clearedStatus,
     transaction.isDeleted ? 1 : 0,
@@ -120,10 +122,16 @@ function fromTransactionRow(row: any): Transaction {
     type: row.type,
     date: row.date,
     memo: row.memo ?? null,
+    checkNumber: row.check_number ?? null,
     amount: row.amount,
     clearedStatus: row.cleared_status,
     isDeleted: Boolean(row.is_deleted),
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at)
   };
+}
+
+function normaliseCheckNumber(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }

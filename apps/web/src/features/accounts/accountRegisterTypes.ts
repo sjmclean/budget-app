@@ -44,6 +44,7 @@ export interface RegisterTransactionView {
   category: string;
   categoryId?: string;
   memo?: string;
+  checkNumber?: string;
   inflow: number;
   outflow: number;
   runningBalance: number;
@@ -74,6 +75,7 @@ export interface NewRegisterTransactionInput {
   category: string;
   categoryId?: string;
   memo?: string;
+  checkNumber?: string;
   inflow: number;
   outflow: number;
   splitLines?: RegisterSplitLineView[];
@@ -88,6 +90,7 @@ export interface UpdateRegisterTransactionInput {
   category: string;
   categoryId?: string;
   memo?: string;
+  checkNumber?: string;
   inflow: number;
   outflow: number;
   splitLines?: RegisterSplitLineView[];

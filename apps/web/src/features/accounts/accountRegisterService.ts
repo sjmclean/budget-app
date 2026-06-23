@@ -87,6 +87,7 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
         payee: existing.payee,
         category: "Transfer",
         memo: input.transaction.memo,
+        checkNumber: normaliseCheckNumber(input.transaction.checkNumber),
         inflow: input.transaction.inflow,
         outflow: input.transaction.outflow,
       };
@@ -130,6 +131,7 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
           category: input.transaction.category,
           categoryId: input.transaction.categoryId,
           memo: input.transaction.memo,
+          checkNumber: normaliseCheckNumber(input.transaction.checkNumber),
           splitLines: cloneSplitLines(input.transaction.splitLines),
           inflow: input.transaction.inflow,
           outflow: input.transaction.outflow,
@@ -426,6 +428,7 @@ function createTransactionView(
     category: input.category,
     categoryId: input.categoryId,
     memo: input.memo,
+    checkNumber: normaliseCheckNumber(input.checkNumber),
     splitLines: cloneSplitLines(input.splitLines),
     inflow: input.inflow,
     outflow: input.outflow,
@@ -661,4 +664,9 @@ function createId(): string {
   }
 
   return `tx-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function normaliseCheckNumber(value: string | null | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
 }

@@ -65,6 +65,7 @@ export function initDatabase(sqlite: Database.Database): void {
       type TEXT NOT NULL,
       date TEXT NOT NULL,
       memo TEXT,
+      check_number TEXT,
       amount INTEGER NOT NULL,
       cleared_status TEXT NOT NULL,
       is_deleted INTEGER NOT NULL,
@@ -636,5 +637,11 @@ CREATE TABLE IF NOT EXISTS split_transaction_lines (
   addPayeeColumn("transfer_account_id", "transfer_account_id TEXT");
   addPayeeColumn("created_at", "created_at INTEGER NOT NULL DEFAULT 0");
   addPayeeColumn("updated_at", "updated_at INTEGER NOT NULL DEFAULT 0");
+
+  const transactionColumns = sqlite.prepare("PRAGMA table_info(transactions)").all().map((column: any) => column.name);
+  const addTransactionColumn = (name: string, definition: string) => {
+    if (!transactionColumns.includes(name)) sqlite.exec(`ALTER TABLE transactions ADD COLUMN ${definition}`);
+  };
+  addTransactionColumn("check_number", "check_number TEXT");
 
 }

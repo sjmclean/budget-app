@@ -11,6 +11,7 @@ export interface Transaction {
   type: TransactionType;
   date: string;
   memo: string | null;
+  checkNumber: string | null;
   amount: number;
   clearedStatus: ClearedStatus;
   isDeleted: boolean;

@@ -81,23 +81,23 @@ const ITEMS: Ynab4CompletenessItem[] = [
     id: "transactions",
     area: "Transactions",
     ynab4Data: "Transactions with date, amount, account, payee, category, memo, cleared state, accepted state, flags, check numbers, import metadata, tombstones, and transfer links.",
-    currentAppCapability: "Core transactions support date/amount/account/payee/category/memo/cleared/transfer. Flags exist as separate schema. Check numbers and accepted/import metadata are not represented in the core transaction model.",
+    currentAppCapability: "Core transactions support date/amount/account/payee/category/memo/check number/cleared/transfer. Flags exist as separate schema. Accepted/import metadata still needs an explicit preservation strategy.",
     status: "partial",
     risk: "critical",
-    importImpact: "Most transactions can be represented, but check numbers and some YNAB4 metadata may be lost. Tombstones must be ignored or used for conflict history, not imported as active transactions.",
+    importImpact: "Most transaction fields can be represented, including check numbers. Some YNAB4 metadata still needs mapping. Tombstones must be ignored or used for conflict history, not imported as active transactions.",
     requiredBeforeFullImport: true,
-    recommendedAction: "Add transaction check number support or decide an explicit preservation strategy. Define accepted/imported metadata handling."
+    recommendedAction: "Define accepted/imported metadata handling and source-id traceability."
   },
   {
     id: "transaction-check-numbers",
     area: "Transaction Check Numbers",
     ynab4Data: "YNAB4 transactions may include checkNumber.",
-    currentAppCapability: "No transaction checkNumber field or transaction metadata field is present in the core Transaction type/schema.",
-    status: "missing",
-    risk: "high",
-    importImpact: "Cheque/check-number data will be silently lost unless the schema is extended or the value is preserved in memo/metadata.",
-    requiredBeforeFullImport: true,
-    recommendedAction: "Add optional checkNumber to transactions, or create a general transaction metadata table and map YNAB4 checkNumber there."
+    currentAppCapability: "Transactions now have an optional checkNumber field in the type, SQLite schema, repository, and browser register model.",
+    status: "supported",
+    risk: "low",
+    importImpact: "YNAB4 cheque/check-number data has a first-class landing place. Mapping tests are still required before write import.",
+    requiredBeforeFullImport: false,
+    recommendedAction: "Map YNAB4 checkNumber directly to transaction.checkNumber during import."
   },
   {
     id: "splits",

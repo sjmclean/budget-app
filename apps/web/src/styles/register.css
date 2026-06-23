@@ -182,7 +182,7 @@
 
 .register-entry-row-active {
   display: grid;
-  grid-template-columns: 8.5rem minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(10rem, 1fr) 7rem 7rem auto;
+  grid-template-columns: 8.5rem minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(10rem, 1fr) 6rem 7rem 7rem auto;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border-soft);
@@ -247,6 +247,7 @@
     minmax(12rem, 1.25fr)
     minmax(10rem, 1fr)
     minmax(12rem, 1.2fr)
+    6rem
     7.5rem
     7.5rem
     8.5rem
@@ -510,6 +511,7 @@
     minmax(12rem, 1.25fr)
     minmax(10rem, 1fr)
     minmax(12rem, 1.2fr)
+    6rem
     7.5rem
     7.5rem
     12rem;
@@ -529,7 +531,7 @@
 
 .register-row,
 .register-head {
-  min-width: 88rem;
+  min-width: 94rem;
   grid-template-columns:
     2.25rem
     7.5rem
@@ -538,6 +540,7 @@
     minmax(12rem, 1.25fr)
     minmax(10rem, 1fr)
     minmax(12rem, 1.2fr)
+    6rem
     7.5rem
     7.5rem
     8.5rem
@@ -545,7 +548,7 @@
 }
 
 .register-row-editing {
-  min-width: 88rem;
+  min-width: 94rem;
   grid-template-columns:
     2.25rem
     7.5rem
@@ -554,10 +557,12 @@
     minmax(12rem, 1.25fr)
     minmax(10rem, 1fr)
     minmax(12rem, 1.2fr)
+    6rem
     7.5rem
     7.5rem
     12rem;
 }
+
 
 .attachment-indicator {
   min-width: 1.65rem;
@@ -676,6 +681,7 @@
     minmax(10rem, 1fr)
     minmax(10rem, 1fr)
     minmax(10rem, 1fr)
+    6rem
     7rem
     7rem
     auto;
@@ -1549,4 +1555,9 @@
   .transaction-import-section-heading {
     flex-direction: column;
   }
+}
+
+.register-check-number-cell {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
