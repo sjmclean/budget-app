@@ -73,6 +73,29 @@ export type Ynab4PackageCounts = {
   categoryGroupNotes: number;
 };
 
+export type Ynab4ExtractionAuditStatus =
+  | "found"
+  | "missing"
+  | "needs-mapping"
+  | "unknown";
+
+export type Ynab4ExtractionAuditItem = {
+  entity: string;
+  label: string;
+  status: Ynab4ExtractionAuditStatus;
+  count: number;
+  sampleFields: string[];
+  notes: string[];
+};
+
+export type Ynab4ExtractionAuditResult = {
+  isYnab4Package: boolean;
+  budgetName: string | null;
+  budgetDataPath: string | null;
+  items: Ynab4ExtractionAuditItem[];
+  warnings: string[];
+};
+
 export type Ynab4PackageDiscoveryResult = {
   isYnab4Package: boolean;
   packageRoot: string | null;
@@ -248,6 +271,180 @@ export function getYnab4PackageMigrationProgressSteps(
   ];
 }
 
+export function auditYnab4PackageExtraction(
+  entries: Ynab4PackageEntry[],
+): Ynab4ExtractionAuditResult {
+  const discovery = discoverYnab4Package(entries);
+  const budgetData = readActiveYnab4BudgetData(entries);
+
+  if (!budgetData.data) {
+    return {
+      isYnab4Package: discovery.isYnab4Package,
+      budgetName: discovery.budgetName,
+      budgetDataPath: discovery.budgetDataPath,
+      items: [],
+      warnings: [...discovery.warnings, ...budgetData.warnings],
+    };
+  }
+
+  const data = budgetData.data;
+  const accounts = toRecords(data.accounts);
+  const masterCategories = toRecords(data.masterCategories);
+  const categories = masterCategories.flatMap((group) =>
+    toRecords(group.subCategories),
+  );
+  const payees = toRecords(data.payees);
+  const transactions = toRecords(data.transactions);
+  const scheduledTransactions = toRecords(data.scheduledTransactions);
+  const monthlyBudgets = toRecords(data.monthlyBudgets);
+  const payeesById = new Map(
+    payees
+      .map((payee) => [firstString(payee.entityId, payee.id), payee] as const)
+      .filter((entry): entry is readonly [string, Record<string, unknown>] =>
+        Boolean(entry[0]),
+      ),
+  );
+
+  const transferTransactions = transactions.filter((transaction) =>
+    isTransferLikeTransaction(transaction, payeesById),
+  );
+  const splitTransactions = transactions.filter(
+    (transaction) => toArray(transaction.subTransactions).length > 0,
+  );
+  const tombstoneTransactions = transactions.filter(
+    (transaction) => transaction.isTombstone === true,
+  );
+  const memoTransactions = transactions.filter(
+    (transaction) => firstString(transaction.memo, transaction.note, transaction.notes),
+  );
+  const flaggedTransactions = transactions.filter((transaction) =>
+    firstString(transaction.flag, transaction.flagColor, transaction.flagName),
+  );
+  const scheduledTransfers = scheduledTransactions.filter((transaction) =>
+    isTransferLikeTransaction(transaction, payeesById),
+  );
+  const scheduledSplits = scheduledTransactions.filter(
+    (transaction) => toArray(transaction.subTransactions).length > 0,
+  );
+  const categoryNotes = categories.filter(hasNoteLikeValue);
+  const categoryGroupNotes = masterCategories.filter(hasNoteLikeValue);
+
+  const items: Ynab4ExtractionAuditItem[] = [
+    createAuditItem({
+      entity: "accounts",
+      label: "Accounts",
+      count: accounts.length,
+      records: accounts,
+      notes: [
+        `On-budget accounts: ${accounts.filter((account) => account.onBudget === true).length}`,
+        `Off-budget accounts: ${accounts.filter((account) => account.onBudget === false).length}`,
+        `Hidden accounts: ${accounts.filter((account) => account.hidden === true).length}`,
+      ],
+    }),
+    createAuditItem({
+      entity: "category-groups",
+      label: "Category groups",
+      count: masterCategories.length,
+      records: masterCategories,
+      notes: [
+        `Groups with notes: ${categoryGroupNotes.length}`,
+        "Category group notes are YNAB4 compatibility data and should be preserved even if the first app UI only prioritises category notes.",
+      ],
+    }),
+    createAuditItem({
+      entity: "categories",
+      label: "Categories",
+      count: categories.length,
+      records: categories,
+      notes: [`Categories with notes: ${categoryNotes.length}`],
+    }),
+    createAuditItem({
+      entity: "payees",
+      label: "Payees",
+      count: payees.length,
+      records: payees,
+      notes: [
+        `Transfer payees: ${payees.filter((payee) => firstString(payee.targetAccountId)).length}`,
+        "Payee rename conditions and auto-fill fields need a future mapping decision.",
+      ],
+      statusOverride: payees.some(
+        (payee) =>
+          toArray(payee.renameConditions).length > 0 ||
+          firstString(payee.autoFillCategoryId, payee.autoFillMemo) ||
+          firstNumber(payee.autoFillAmount) !== null,
+      )
+        ? "needs-mapping"
+        : undefined,
+    }),
+    createAuditItem({
+      entity: "monthly-budgets",
+      label: "Monthly budgets",
+      count: monthlyBudgets.length,
+      records: monthlyBudgets,
+      notes: [
+        "Monthly budget data drives historical budgeted values and must be mapped before full-fidelity import.",
+      ],
+      statusOverride: monthlyBudgets.length > 0 ? "needs-mapping" : undefined,
+    }),
+    createAuditItem({
+      entity: "transactions",
+      label: "Transactions",
+      count: transactions.length,
+      records: transactions,
+      notes: [
+        `Transfer-like transactions: ${transferTransactions.length}`,
+        `Split transactions: ${splitTransactions.length}`,
+        `Tombstone/deleted transactions: ${tombstoneTransactions.length}`,
+        `Transactions with memos: ${memoTransactions.length}`,
+        `Flagged transactions: ${flaggedTransactions.length}`,
+      ],
+      statusOverride:
+        transferTransactions.length > 0 ||
+        splitTransactions.length > 0 ||
+        tombstoneTransactions.length > 0 ||
+        flaggedTransactions.length > 0
+          ? "needs-mapping"
+          : undefined,
+    }),
+    createAuditItem({
+      entity: "scheduled-transactions",
+      label: "Scheduled transactions",
+      count: scheduledTransactions.length,
+      records: scheduledTransactions,
+      notes: [
+        `Scheduled transfers: ${scheduledTransfers.length}`,
+        `Scheduled splits: ${scheduledSplits.length}`,
+        "Scheduled transaction recurrence/frequency fields require dedicated mapping.",
+      ],
+      statusOverride:
+        scheduledTransactions.length > 0 ? "needs-mapping" : undefined,
+    }),
+    createAuditItem({
+      entity: "notes",
+      label: "Notes and metadata",
+      count: categoryNotes.length + categoryGroupNotes.length,
+      records: [...categoryNotes, ...categoryGroupNotes],
+      notes: [
+        `Category notes: ${categoryNotes.length}`,
+        `Category group notes: ${categoryGroupNotes.length}`,
+        "Individual category notes are the MVP UI target; group notes remain a YNAB4 preservation requirement.",
+      ],
+      statusOverride:
+        categoryNotes.length + categoryGroupNotes.length > 0
+          ? "needs-mapping"
+          : undefined,
+    }),
+  ];
+
+  return {
+    isYnab4Package: discovery.isYnab4Package,
+    budgetName: discovery.budgetName,
+    budgetDataPath: discovery.budgetDataPath,
+    items,
+    warnings: [...discovery.warnings, ...budgetData.warnings],
+  };
+}
+
 export function discoverYnab4Package(
   entries: Ynab4PackageEntry[],
 ): Ynab4PackageDiscoveryResult {
@@ -407,17 +604,10 @@ function findActiveBudgetDataEntry(
   const activeEntries = entries.filter((entry) =>
     entry.path.startsWith(activePrefix),
   );
+
   return (
-    activeEntries.find(
-      (entry) =>
-        entry.path.endsWith("/Budget.yfull") ||
-        entry.path === `${activeDataFolderPath}/Budget.yfull`,
-    ) ??
-    activeEntries.find(
-      (entry) =>
-        entry.path.endsWith("/Budget.json") ||
-        entry.path === `${activeDataFolderPath}/Budget.json`,
-    )
+    activeEntries.find((entry) => entry.path.endsWith("/Budget.yfull")) ??
+    activeEntries.find((entry) => entry.path.endsWith("/Budget.json"))
   );
 }
 
@@ -578,6 +768,124 @@ function toTransactionPreviewItem(
         record.masterCategoryName,
       ) ?? null,
   };
+}
+
+function readActiveYnab4BudgetData(entries: Ynab4PackageEntry[]): {
+  data: Record<string, unknown> | null;
+  warnings: string[];
+} {
+  const normalisedEntries = entries.map((entry) => ({
+    path: normalisePath(entry.path),
+    text: entry.text,
+  }));
+  const metadataEntry = normalisedEntries.find(
+    (entry) =>
+      entry.path.endsWith("/Budget.ymeta") || entry.path === "Budget.ymeta",
+  );
+
+  if (!metadataEntry) {
+    return { data: null, warnings: ["Budget.ymeta was not found."] };
+  }
+
+  let metadata: Ynab4PackageMetadata;
+  try {
+    metadata = JSON.parse(metadataEntry.text) as Ynab4PackageMetadata;
+  } catch {
+    return { data: null, warnings: ["Budget.ymeta is not valid JSON."] };
+  }
+
+  const relativeDataFolderName =
+    typeof metadata.relativeDataFolderName === "string"
+      ? metadata.relativeDataFolderName
+      : null;
+  if (!relativeDataFolderName) {
+    return {
+      data: null,
+      warnings: ["Budget.ymeta does not contain a relativeDataFolderName value."],
+    };
+  }
+
+  const packageRoot = inferPackageRoot(metadataEntry.path);
+  const activeDataFolderPath = packageRoot
+    ? `${packageRoot}/${relativeDataFolderName}`
+    : relativeDataFolderName;
+  const budgetDataEntry = findActiveBudgetDataEntry(
+    normalisedEntries,
+    activeDataFolderPath,
+  );
+
+  if (!budgetDataEntry) {
+    return {
+      data: null,
+      warnings: [
+        `No Budget.yfull or Budget.json file was found under ${activeDataFolderPath}.`,
+      ],
+    };
+  }
+
+  try {
+    const data = JSON.parse(budgetDataEntry.text);
+    return {
+      data: isRecord(data) ? data : null,
+      warnings: isRecord(data)
+        ? []
+        : ["The active YNAB4 budget data root is not an object."],
+    };
+  } catch {
+    return {
+      data: null,
+      warnings: ["The active YNAB4 budget data file is not valid JSON."],
+    };
+  }
+}
+
+function createAuditItem(input: {
+  entity: string;
+  label: string;
+  count: number;
+  records: Record<string, unknown>[];
+  notes: string[];
+  statusOverride?: Ynab4ExtractionAuditStatus;
+}): Ynab4ExtractionAuditItem {
+  return {
+    entity: input.entity,
+    label: input.label,
+    status: input.statusOverride ?? (input.count > 0 ? "found" : "missing"),
+    count: input.count,
+    sampleFields: collectSampleFields(input.records),
+    notes: input.notes,
+  };
+}
+
+function collectSampleFields(records: Record<string, unknown>[]): string[] {
+  const fields = new Set<string>();
+  for (const record of records.slice(0, 5)) {
+    for (const key of Object.keys(record)) {
+      fields.add(key);
+    }
+  }
+  return Array.from(fields).sort();
+}
+
+function isTransferLikeTransaction(
+  transaction: Record<string, unknown>,
+  payeesById: Map<string, Record<string, unknown>>,
+): boolean {
+  if (firstString(transaction.targetAccountId, transaction.transferAccountId)) {
+    return true;
+  }
+
+  const payeeId = firstString(transaction.payeeId);
+  if (!payeeId) {
+    return false;
+  }
+
+  const payee = payeesById.get(payeeId);
+  return Boolean(payee && firstString(payee.targetAccountId));
+}
+
+function toRecords(value: unknown): Record<string, unknown>[] {
+  return toArray(value).filter(isRecord);
 }
 
 function cloneDetails(

@@ -187,7 +187,9 @@
     "test:v159:ynab4-package-discovery": "tsx tests/v159-ynab4-package-discovery.ts",
     "test:v159": "pnpm test:v159:ynab4-package-discovery",
     "test:v160:ynab4-preview": "tsx tests/v160-ynab4-preview.ts",
-    "test:v160": "pnpm test:v160:ynab4-preview"
+    "test:v160": "pnpm test:v160:ynab4-preview",
+    "test:v161:ynab4-extraction-audit": "tsx tests/v161-ynab4-extraction-audit.ts",
+    "test:v161": "pnpm test:v161:ynab4-extraction-audit"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
