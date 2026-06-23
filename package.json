@@ -183,7 +183,9 @@
     "test:v157:budget-launcher": "tsx tests/v157-budget-launcher.ts",
     "test:v157": "pnpm test:v157:budget-launcher",
     "test:v158:ynab4-json-import-audit": "tsx tests/v158-ynab4-json-import-audit.ts",
-    "test:v158": "pnpm test:v158:ynab4-json-import-audit"
+    "test:v158": "pnpm test:v158:ynab4-json-import-audit",
+    "test:v159:ynab4-package-discovery": "tsx tests/v159-ynab4-package-discovery.ts",
+    "test:v159": "pnpm test:v159:ynab4-package-discovery"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

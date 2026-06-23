@@ -5,3 +5,4 @@ export * from "./mapYnab4Rows.js";
 export * from "./importYnab4.js";
 export * from "./Ynab4DatabaseImportService.js";
 export * from "./analyzeYnab4Json.js";
+export * from "./analyzeYnab4Package.js";
