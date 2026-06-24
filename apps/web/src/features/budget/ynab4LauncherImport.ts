@@ -660,24 +660,20 @@ function mapSplitLines(lines: RecordMap[], maps: ImportMaps): RegisterTransactio
 }
 
 
-function transactionAmountToDisplayUnits(...values: unknown[]): number | null {
-  const amountMilliUnits = values[1];
-  if (typeof amountMilliUnits === "number" && Number.isFinite(amountMilliUnits)) {
-    return amountMilliUnits / 1000;
-  }
-  if (typeof amountMilliUnits === "string" && amountMilliUnits.trim()) {
-    const parsed = Number(amountMilliUnits.replace(/[$,]/g, ""));
-    if (Number.isFinite(parsed)) return parsed / 1000;
-  }
+function transactionAmountToDisplayUnits(
+  amount: unknown,
+  amountMilliUnits: unknown,
+  ...fallbackValues: unknown[]
+): number | null {
+  const displayAmount = parseDisplayAmount(amount);
+  if (displayAmount !== null) return displayAmount;
 
-  for (const value of values) {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return Math.round(value * 100) / 100;
-    }
-    if (typeof value === "string" && value.trim()) {
-      const parsed = Number(value.replace(/[$,]/g, ""));
-      if (Number.isFinite(parsed)) return Math.round(parsed * 100) / 100;
-    }
+  const milliUnitAmount = parseMilliUnitAmount(amountMilliUnits);
+  if (milliUnitAmount !== null) return milliUnitAmount;
+
+  for (const value of fallbackValues) {
+    const parsed = parseDisplayAmount(value);
+    if (parsed !== null) return parsed;
   }
 
   return null;
@@ -750,15 +746,20 @@ function mapScheduledSplitLines(lines: RecordMap[], maps: ImportMaps): RegisterT
   });
 }
 
-function scheduledAmountToDisplayUnits(...values: unknown[]): number | null {
-  const amountMilliUnits = values[1];
-  if (typeof amountMilliUnits === "number" && Number.isFinite(amountMilliUnits)) {
-    return amountMilliUnits / 1000;
-  }
+function scheduledAmountToDisplayUnits(
+  amount: unknown,
+  amountMilliUnits: unknown,
+  ...fallbackValues: unknown[]
+): number | null {
+  const displayAmount = parseDisplayAmount(amount);
+  if (displayAmount !== null) return displayAmount;
 
-  for (const value of values) {
-    if (typeof value !== "number" || !Number.isFinite(value)) continue;
-    return value;
+  const milliUnitAmount = parseMilliUnitAmount(amountMilliUnits);
+  if (milliUnitAmount !== null) return milliUnitAmount;
+
+  for (const value of fallbackValues) {
+    const parsed = parseDisplayAmount(value);
+    if (parsed !== null) return parsed;
   }
 
   return null;
@@ -855,15 +856,36 @@ function readActiveYnab4BudgetData(entries: Ynab4PackageEntry[]): Ynab4ImportDat
 
 function amountToDisplayUnits(...values: unknown[]): number | null {
   for (const value of values) {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return Number.isInteger(value) ? value / 1000 : Math.round(value * 100) / 100;
-    }
-    if (typeof value === "string" && value.trim()) {
-      const parsed = Number(value.replace(/[$,]/g, ""));
-      if (Number.isFinite(parsed)) return Number.isInteger(parsed) ? parsed / 1000 : Math.round(parsed * 100) / 100;
-    }
+    const parsed = parseDisplayAmount(value);
+    if (parsed !== null) return parsed;
   }
   return null;
+}
+
+function parseDisplayAmount(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return roundMoney(value);
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.replace(/[$,]/g, ""));
+    if (Number.isFinite(parsed)) return roundMoney(parsed);
+  }
+  return null;
+}
+
+function parseMilliUnitAmount(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return roundMoney(value / 1000);
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.replace(/[$,]/g, ""));
+    if (Number.isFinite(parsed)) return roundMoney(parsed / 1000);
+  }
+  return null;
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 function mapAccountType(value: string | null, onBudget: unknown): SidebarAccountType {

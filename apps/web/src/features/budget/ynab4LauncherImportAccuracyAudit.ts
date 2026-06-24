@@ -418,11 +418,11 @@ function sourceMonthKey(month: RecordMap): string {
 function amountToDisplayUnits(...values: unknown[]): number | null {
   for (const value of values) {
     if (typeof value === "number" && Number.isFinite(value)) {
-      return Number.isInteger(value) ? value / 1000 : Math.round(value * 100) / 100;
+      return Math.round(value * 100) / 100;
     }
     if (typeof value === "string" && value.trim()) {
       const parsed = Number(value.replace(/[$,]/g, ""));
-      if (Number.isFinite(parsed)) return Number.isInteger(parsed) ? parsed / 1000 : Math.round(parsed * 100) / 100;
+      if (Number.isFinite(parsed)) return Math.round(parsed * 100) / 100;
     }
   }
   return null;
