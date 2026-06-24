@@ -404,6 +404,7 @@ function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategor
     const groupName = firstString(group.name, group.masterCategoryName, group.displayName) ?? `Imported Group ${groupIndex + 1}`;
     const groupSourceIds = sourceIds(group, `categoryGroup:${groupIndex}`);
     const subCategories = toRecords(group.subCategories);
+    const groupIsArchived = isYnab4Tombstone(group);
 
     if (isYnab4HiddenCategoriesGroup(group, groupName)) {
       for (const [categoryIndex, category] of subCategories.entries()) {
@@ -418,7 +419,7 @@ function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategor
       continue;
     }
 
-    if (isYnab4Tombstone(group) && subCategories.length === 0) {
+    if (groupIsArchived && subCategories.length === 0) {
       continue;
     }
 
@@ -443,7 +444,7 @@ function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategor
         sourceIds: sourceIds(category, `category:${groupIndex}:${categoryIndex}`),
         existingCategoryIds,
         maps,
-        isArchived: isYnab4Tombstone(category),
+        isArchived: groupIsArchived || isYnab4Tombstone(category),
       });
     }
 
@@ -469,7 +470,45 @@ function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategor
     });
   }
 
-  return drafts.map(({ sourceIds: _sourceIds, ...group }) => group);
+  suppressDuplicateArchivedCategories(drafts, maps);
+  return drafts
+    .filter((group) => group.categories.length > 0)
+    .map(({ sourceIds: _sourceIds, ...group }) => group);
+}
+
+function suppressDuplicateArchivedCategories(drafts: CategoryGroupDraft[], maps: ImportMaps): void {
+  const activeCategoryIdByName = new Map<string, string>();
+  const ambiguousActiveNames = new Set<string>();
+
+  for (const group of drafts) {
+    for (const category of group.categories) {
+      if (category.isArchived) continue;
+      const key = normaliseCategoryStateName(category.name);
+      const existing = activeCategoryIdByName.get(key);
+      if (existing && existing !== category.id) {
+        ambiguousActiveNames.add(key);
+        continue;
+      }
+      activeCategoryIdByName.set(key, category.id);
+    }
+  }
+
+  for (const group of drafts) {
+    group.categories = group.categories.filter((category) => {
+      if (!category.isArchived) return true;
+      const key = normaliseCategoryStateName(category.name);
+      if (ambiguousActiveNames.has(key)) return true;
+      const canonicalId = activeCategoryIdByName.get(key);
+      if (!canonicalId || canonicalId === category.id) return true;
+
+      for (const [sourceId, mappedCategoryId] of maps.categoryIdBySourceId.entries()) {
+        if (mappedCategoryId === category.id) {
+          maps.categoryIdBySourceId.set(sourceId, canonicalId);
+        }
+      }
+      return false;
+    });
+  }
 }
 
 function addImportedCategoryToGroup(input: {
@@ -1024,6 +1063,7 @@ function sourceIds(record: RecordMap, fallback: string): string[] {
     firstString(record.id),
     firstString(record.accountId),
     firstString(record.categoryId),
+    firstString(record.subCategoryId),
     firstString(record.masterCategoryId),
     firstString(record.payeeId),
   ].filter((value): value is string => Boolean(value));
