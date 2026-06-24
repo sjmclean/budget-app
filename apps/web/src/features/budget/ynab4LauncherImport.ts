@@ -612,7 +612,7 @@ function createEmptyRegister(account: SidebarAccount): AccountRegisterView {
 }
 
 function mapRegisterTransaction(transaction: RecordMap, index: number, maps: ImportMaps): RegisterTransactionView {
-  const amount = amountToDisplayUnits(transaction.amount, transaction.amountMilliUnits, transaction.inflow, transaction.outflow) ?? 0;
+  const amount = transactionAmountToDisplayUnits(transaction.amount, transaction.amountMilliUnits, transaction.inflow, transaction.outflow) ?? 0;
   const transferAccountId = mappedId(maps.accountIdBySourceId, transaction.targetAccountId, transaction.transferAccountId);
   const payeeId = mappedId(maps.payeeIdBySourceId, transaction.payeeId);
   const categoryId = transferAccountId ? undefined : mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
@@ -646,7 +646,7 @@ function mapRegisterTransaction(transaction: RecordMap, index: number, maps: Imp
 function mapSplitLines(lines: RecordMap[], maps: ImportMaps): RegisterTransactionView["splitLines"] {
   if (lines.length === 0) return undefined;
   return lines.map((line, index) => {
-    const amount = amountToDisplayUnits(line.amount, line.amountMilliUnits, line.inflow, line.outflow) ?? 0;
+    const amount = transactionAmountToDisplayUnits(line.amount, line.amountMilliUnits, line.inflow, line.outflow) ?? 0;
     const categoryId = mappedId(maps.categoryIdBySourceId, line.categoryId, line.subCategoryId) ?? READY_TO_ASSIGN_CATEGORY_ID;
     return {
       id: firstString(line.entityId, line.id) ?? `split-${index}`,
@@ -657,6 +657,30 @@ function mapSplitLines(lines: RecordMap[], maps: ImportMaps): RegisterTransactio
       outflow: amount < 0 ? Math.abs(amount) : 0,
     };
   });
+}
+
+
+function transactionAmountToDisplayUnits(...values: unknown[]): number | null {
+  const amountMilliUnits = values[1];
+  if (typeof amountMilliUnits === "number" && Number.isFinite(amountMilliUnits)) {
+    return amountMilliUnits / 1000;
+  }
+  if (typeof amountMilliUnits === "string" && amountMilliUnits.trim()) {
+    const parsed = Number(amountMilliUnits.replace(/[$,]/g, ""));
+    if (Number.isFinite(parsed)) return parsed / 1000;
+  }
+
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return Math.round(value * 100) / 100;
+    }
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value.replace(/[$,]/g, ""));
+      if (Number.isFinite(parsed)) return Math.round(parsed * 100) / 100;
+    }
+  }
+
+  return null;
 }
 
 function recalculateRegister(register: AccountRegisterView): void {

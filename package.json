@@ -231,7 +231,9 @@
     "test:v176:ynab4-category-state-fix": "tsx tests/v176-ynab4-category-state-fix.ts",
     "test:v176": "pnpm test:v176:ynab4-category-state-fix",
     "test:v177:ynab4-scheduled-transaction-fidelity": "tsx tests/v177-ynab4-scheduled-transaction-fidelity.ts",
-    "test:v177": "pnpm test:v177:ynab4-scheduled-transaction-fidelity"
+    "test:v177": "pnpm test:v177:ynab4-scheduled-transaction-fidelity",
+    "test:v178:ynab4-register-amount-fidelity": "tsx tests/v178-ynab4-register-amount-fidelity.ts",
+    "test:v178": "pnpm test:v178:ynab4-register-amount-fidelity"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
