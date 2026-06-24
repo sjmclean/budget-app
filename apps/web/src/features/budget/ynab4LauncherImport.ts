@@ -88,6 +88,7 @@ type ImportMaps = {
   accountNameById: Map<string, string>;
   categoryIdBySourceId: Map<string, string>;
   categoryNameById: Map<string, string>;
+  categoryIsArchivedById: Map<string, boolean>;
   payeeIdBySourceId: Map<string, string>;
   payeeNameById: Map<string, string>;
 };
@@ -318,6 +319,7 @@ function writeImportedBudgetData(
     accountNameById: new Map(),
     categoryIdBySourceId: new Map(),
     categoryNameById: new Map(),
+    categoryIsArchivedById: new Map(),
     payeeIdBySourceId: new Map(),
     payeeNameById: new Map(),
   };
@@ -484,6 +486,7 @@ function addImportedCategoryToGroup(input: {
     input.maps.categoryIdBySourceId.set(sourceId, id);
   }
   input.maps.categoryNameById.set(id, input.categoryName);
+  input.maps.categoryIsArchivedById.set(id, input.isArchived);
   input.group.categories.push({
     id,
     name: input.categoryName,
@@ -615,7 +618,7 @@ function mapRegisterTransaction(transaction: RecordMap, index: number, maps: Imp
   const amount = transactionAmountToDisplayUnits(transaction.amount, transaction.amountMilliUnits, transaction.inflow, transaction.outflow) ?? 0;
   const transferAccountId = mappedId(maps.accountIdBySourceId, transaction.targetAccountId, transaction.transferAccountId);
   const payeeId = mappedId(maps.payeeIdBySourceId, transaction.payeeId);
-  const categoryId = transferAccountId ? undefined : mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
+  const categoryId = mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
   const payeeName = transferAccountId
     ? `Transfer: ${maps.accountNameById.get(transferAccountId) ?? "Account"}`
     : firstString(transaction.payeeName, transaction.payee) ?? (payeeId ? maps.payeeNameById.get(payeeId) : null) ?? "Imported Payee";
@@ -629,7 +632,7 @@ function mapRegisterTransaction(transaction: RecordMap, index: number, maps: Imp
     payee: payeeName,
     payeeId: transferAccountId ? undefined : payeeId ?? undefined,
     category: transferAccountId ? "Transfer" : categoryId ? maps.categoryNameById.get(categoryId) ?? "Uncategorised" : READY_TO_ASSIGN_CATEGORY_NAME,
-    categoryId: transferAccountId ? undefined : categoryId ?? READY_TO_ASSIGN_CATEGORY_ID,
+    categoryId: categoryId ?? (transferAccountId ? undefined : READY_TO_ASSIGN_CATEGORY_ID),
     memo: firstString(transaction.memo, transaction.note, transaction.notes) ?? undefined,
     checkNumber: firstString(transaction.checkNumber, transaction.check, transaction.number) ?? undefined,
     inflow: amount > 0 ? amount : 0,
@@ -706,7 +709,7 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
     const amount = scheduledAmountToDisplayUnits(transaction.amount, transaction.amountMilliUnits, transaction.inflow, transaction.outflow) ?? 0;
     const transferAccountId = mappedId(maps.accountIdBySourceId, transaction.targetAccountId, transaction.transferAccountId);
     const payeeId = mappedId(maps.payeeIdBySourceId, transaction.payeeId);
-    const categoryId = transferAccountId ? undefined : mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
+    const categoryId = mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
     return [{
       id: firstString(transaction.entityId, transaction.id, transaction.scheduledTransactionId) ?? `imported-scheduled-${index}`,
       accountId,
@@ -774,7 +777,7 @@ function mapBudgetMonthViews(
   now: Date,
 ): Map<string, BudgetMonthView> {
   const views = new Map<string, BudgetMonthView>();
-  const activityByMonthCategory = buildBudgetActivityByMonthCategory(registers);
+  const activityByMonthCategory = buildBudgetActivityByMonthCategory(registers, templateGroups, maps);
   const sourceMonths = monthlyBudgets.length > 0 ? monthlyBudgets : [{ month: now.toISOString().slice(0, 7), monthlySubCategoryBudgets: [] }];
 
   for (const monthlyBudget of sourceMonths) {
@@ -824,8 +827,11 @@ function mapBudgetMonthViews(
 
 function buildBudgetActivityByMonthCategory(
   registers: Record<string, AccountRegisterView>,
+  templateGroups: BudgetCategoryGroupView[],
+  maps: ImportMaps,
 ): Map<string, Map<string, number>> {
   const activityByMonthCategory = new Map<string, Map<string, number>>();
+  const canonicalCategoryIdById = buildBudgetActivityCanonicalCategoryMap(templateGroups, maps);
 
   for (const register of Object.values(registers)) {
     for (const transaction of register.transactions) {
@@ -834,17 +840,50 @@ function buildBudgetActivityByMonthCategory(
 
       if (transaction.splitLines && transaction.splitLines.length > 0) {
         for (const splitLine of transaction.splitLines) {
-          addBudgetActivity(activityByMonthCategory, month, splitLine.categoryId, splitLine.inflow - splitLine.outflow);
+          if (splitLine.categoryId) {
+          addBudgetActivity(activityByMonthCategory, month, canonicalCategoryIdById.get(splitLine.categoryId) ?? splitLine.categoryId, splitLine.inflow - splitLine.outflow);
+        }
         }
         continue;
       }
 
-      if (transaction.category === "Transfer" || !transaction.categoryId) continue;
-      addBudgetActivity(activityByMonthCategory, month, transaction.categoryId, transaction.inflow - transaction.outflow);
+      if (!transaction.categoryId) continue;
+      addBudgetActivity(activityByMonthCategory, month, canonicalCategoryIdById.get(transaction.categoryId) ?? transaction.categoryId, transaction.inflow - transaction.outflow);
     }
   }
 
   return activityByMonthCategory;
+}
+
+
+function buildBudgetActivityCanonicalCategoryMap(
+  templateGroups: BudgetCategoryGroupView[],
+  maps: ImportMaps,
+): Map<string, string> {
+  const activeCategoryIdsByName = new Map<string, Set<string>>();
+
+  for (const group of templateGroups) {
+    for (const category of group.categories) {
+      if (category.isArchived) continue;
+      const key = normaliseCategoryStateName(category.name);
+      const ids = activeCategoryIdsByName.get(key) ?? new Set<string>();
+      ids.add(category.id);
+      activeCategoryIdsByName.set(key, ids);
+    }
+  }
+
+  const canonicalById = new Map<string, string>();
+  for (const [categoryId, categoryName] of maps.categoryNameById.entries()) {
+    if (!maps.categoryIsArchivedById.get(categoryId)) continue;
+    const activeIds = activeCategoryIdsByName.get(normaliseCategoryStateName(categoryName));
+    if (!activeIds || activeIds.size !== 1) continue;
+    const [canonicalId] = [...activeIds];
+    if (canonicalId && canonicalId !== categoryId) {
+      canonicalById.set(categoryId, canonicalId);
+    }
+  }
+
+  return canonicalById;
 }
 
 function addBudgetActivity(
