@@ -112,12 +112,17 @@ export function auditYnab4LauncherImportAccuracy(
     }
 
     compareMoney(mismatches, `budget month ${month} assigned`, sourceTotals.assigned, importedTotals.assigned);
-    compareMoney(mismatches, `budget month ${month} activity`, sourceTotals.activity, importedTotals.activity);
 
-    // YNAB4 Budget.yfull monthly subcategory rows do not reliably expose a
-    // source-of-truth value equivalent to the app's calculated modern
-    // "available" total. Keep available differences visible for real-budget
-    // diagnostics, but do not block atomic import on this derived comparison.
+    // YNAB4 Budget.yfull monthly subcategory rows in real-world packages only
+    // provide budgeted/assigned values reliably. Activity and available are
+    // reconstructed by the app from imported transactions and rollover rules,
+    // so keep any source-row activity/available differences diagnostic-only.
+    if (Math.abs(sourceTotals.activity - importedTotals.activity) > 0.005) {
+      warnings.push(
+        `Budget month ${month} activity differs: source=${sourceTotals.activity.toFixed(2)}, imported=${importedTotals.activity.toFixed(2)}.`,
+      );
+    }
+
     if (Math.abs(sourceTotals.available - importedTotals.available) > 0.005) {
       warnings.push(
         `Budget month ${month} available differs: source=${sourceTotals.available.toFixed(2)}, imported=${importedTotals.available.toFixed(2)}.`,

@@ -327,7 +327,7 @@ function writeImportedBudgetData(
   const payees = mapPayees(toRecords(data.payees), maps, nowIso);
   const registers = mapRegisters(toRecords(data.transactions), accounts, maps);
   const scheduled = mapScheduledTransactions(toRecords(data.scheduledTransactions), maps, nowIso);
-  const monthViews = mapBudgetMonthViews(budget, toRecords(data.monthlyBudgets), categoryGroups, maps, now);
+  const monthViews = mapBudgetMonthViews(budget, toRecords(data.monthlyBudgets), categoryGroups, maps, registers, now);
 
   writeScopedJson(storage, budget.id, ACCOUNTS_STORAGE_KEY, accounts);
   writeScopedJson(storage, budget.id, PAYEES_STORAGE_KEY, payees);
@@ -770,9 +770,11 @@ function mapBudgetMonthViews(
   monthlyBudgets: RecordMap[],
   templateGroups: BudgetCategoryGroupView[],
   maps: ImportMaps,
+  registers: Record<string, AccountRegisterView>,
   now: Date,
 ): Map<string, BudgetMonthView> {
   const views = new Map<string, BudgetMonthView>();
+  const activityByMonthCategory = buildBudgetActivityByMonthCategory(registers);
   const sourceMonths = monthlyBudgets.length > 0 ? monthlyBudgets : [{ month: now.toISOString().slice(0, 7), monthlySubCategoryBudgets: [] }];
 
   for (const monthlyBudget of sourceMonths) {
@@ -785,8 +787,12 @@ function mapBudgetMonthViews(
       const category = categoryId ? categoryById.get(categoryId) : undefined;
       if (!category) continue;
       category.assigned = amountToDisplayUnits(row.budgeted, row.assigned) ?? 0;
-      category.activity = amountToDisplayUnits(row.activity) ?? -Math.abs(amountToDisplayUnits(row.outflows) ?? 0);
-      category.available = amountToDisplayUnits(row.balance, row.available) ?? category.assigned + category.activity;
+    }
+
+    const activityByCategory = activityByMonthCategory.get(month) ?? new Map<string, number>();
+    for (const category of categoryById.values()) {
+      category.activity = roundMoney(activityByCategory.get(category.id) ?? 0);
+      category.available = roundMoney(category.assigned + category.activity);
       category.isOverspent = category.available < 0;
     }
 
@@ -813,6 +819,45 @@ function mapBudgetMonthViews(
   }
 
   return views;
+}
+
+
+function buildBudgetActivityByMonthCategory(
+  registers: Record<string, AccountRegisterView>,
+): Map<string, Map<string, number>> {
+  const activityByMonthCategory = new Map<string, Map<string, number>>();
+
+  for (const register of Object.values(registers)) {
+    for (const transaction of register.transactions) {
+      const month = transaction.date.slice(0, 7);
+      if (!/^\d{4}-\d{2}$/.test(month)) continue;
+
+      if (transaction.splitLines && transaction.splitLines.length > 0) {
+        for (const splitLine of transaction.splitLines) {
+          addBudgetActivity(activityByMonthCategory, month, splitLine.categoryId, splitLine.inflow - splitLine.outflow);
+        }
+        continue;
+      }
+
+      if (transaction.category === "Transfer" || !transaction.categoryId) continue;
+      addBudgetActivity(activityByMonthCategory, month, transaction.categoryId, transaction.inflow - transaction.outflow);
+    }
+  }
+
+  return activityByMonthCategory;
+}
+
+function addBudgetActivity(
+  activityByMonthCategory: Map<string, Map<string, number>>,
+  month: string,
+  categoryId: string | undefined,
+  amount: number,
+): void {
+  if (!categoryId || categoryId === READY_TO_ASSIGN_CATEGORY_ID) return;
+
+  const byCategory = activityByMonthCategory.get(month) ?? new Map<string, number>();
+  byCategory.set(categoryId, roundMoney((byCategory.get(categoryId) ?? 0) + amount));
+  activityByMonthCategory.set(month, byCategory);
 }
 
 function cloneCategoryGroups(groups: BudgetCategoryGroupView[]): BudgetCategoryGroupView[] {

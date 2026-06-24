@@ -235,7 +235,9 @@
     "test:v178:ynab4-register-amount-fidelity": "tsx tests/v178-ynab4-register-amount-fidelity.ts",
     "test:v178": "pnpm test:v178:ynab4-register-amount-fidelity",
     "test:v1781:ynab4-amount-conversion-fidelity": "tsx tests/v1781-ynab4-amount-conversion-fidelity.ts",
-    "test:v1781": "pnpm test:v1781:ynab4-amount-conversion-fidelity"
+    "test:v1781": "pnpm test:v1781:ynab4-amount-conversion-fidelity",
+    "test:v179:ynab4-budget-activity-fidelity": "tsx tests/v179-ynab4-budget-activity-fidelity.ts",
+    "test:v179": "pnpm test:v179:ynab4-budget-activity-fidelity"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
