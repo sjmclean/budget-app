@@ -1,4 +1,5 @@
 import {
+  BUDGET_REGISTRY_STORAGE_KEY,
   createBudgetRegistryEntry,
   markBudgetOpened,
   readBudgetRegistry,
@@ -35,9 +36,6 @@ const SCHEDULED_STORAGE_KEY = "budget-app.scheduled-transactions.v1";
 const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
 const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
-const MAX_LAUNCHER_REGISTER_TRANSACTIONS = 1000;
-const MAX_LAUNCHER_BUDGET_MONTH_VIEWS = 36;
-const MAX_LAUNCHER_COMPACT_BUDGET_MONTH_VIEWS = 12;
 
 export interface Ynab4LauncherImportRecord {
   budgetId: string;
@@ -130,71 +128,147 @@ export function createYnab4LauncherBudgetImport(
     throw new Error("Cannot import YNAB4 package because the active Budget.yfull data could not be read.");
   }
 
+  const registryBeforeImport = storage.getItem(BUDGET_REGISTRY_STORAGE_KEY);
+  const selectedBudgetBeforeImport = storage.getItem(SELECTED_BUDGET_STORAGE_KEY);
+  const keysBeforeImport = new Set(storage.listKeys?.() ?? []);
+
   const now = input.now ?? new Date();
-  const budgetName = createImportedBudgetName(input.preview.budgetName);
-  const budget = createBudgetRegistryEntry(storage, {
-    name: budgetName,
-    currency: "AUD",
-    packagePath: input.discovery.packageRoot
-      ? `${input.discovery.packageRoot}.budget`
-      : undefined,
-    now,
-  });
+  let budget: BudgetSummary | null = null;
 
-  const persistenceWarnings = writeImportedBudgetData(storage, budget, activeData, now);
-  const accuracyAudit = auditYnab4LauncherImportAccuracy(storage, {
-    entries: input.entries,
-    budgetId: budget.id,
-  });
-  const accuracyAuditReport = formatYnab4LauncherImportAccuracyAuditReport(accuracyAudit);
+  try {
+    const budgetName = createImportedBudgetName(input.preview.budgetName);
+    budget = createBudgetRegistryEntry(storage, {
+      name: budgetName,
+      currency: "AUD",
+      packagePath: input.discovery.packageRoot
+        ? `${input.discovery.packageRoot}.budget`
+        : undefined,
+      now,
+    });
 
-  markBudgetOpened(storage, budget.id, now);
-  storage.setItem(SELECTED_BUDGET_STORAGE_KEY, budget.id);
+    const persistenceWarnings = writeImportedBudgetData(storage, budget, activeData, now);
+    const accuracyAudit = auditYnab4LauncherImportAccuracy(storage, {
+      entries: input.entries,
+      budgetId: budget.id,
+    });
+    const accuracyAuditReport = formatYnab4LauncherImportAccuracyAuditReport(accuracyAudit);
 
-  const record: Ynab4LauncherImportRecord = {
-    budgetId: budget.id,
-    budgetName: budget.name,
-    sourceBudgetName: input.preview.budgetName,
-    sourcePackageRoot: input.discovery.packageRoot,
-    sourceDataPath: input.discovery.budgetDataPath,
-    mode: "new-budget",
-    status: "completed",
-    importedAt: now.toISOString(),
-    counts: {
-      accounts: input.discovery.counts.accounts,
-      categoryGroups: input.discovery.counts.masterCategories,
-      categories: input.discovery.counts.categories,
-      payees: input.discovery.counts.payees,
-      monthlyBudgets: input.discovery.counts.monthlyBudgets,
-      transactions: input.discovery.counts.transactions,
-      scheduledTransactions: input.discovery.counts.scheduledTransactions,
-      categoryNotes: input.discovery.counts.categoryNotes,
-      categoryGroupNotes: input.discovery.counts.categoryGroupNotes,
-    },
-    warnings: [...input.preview.warnings, ...persistenceWarnings],
-    progressSteps: input.preview.progressSteps.map((step) => ({
-      phase: step.phase,
-      label: step.label,
-      detail: step.detail,
-    })),
-    accuracyAudit,
-    accuracyAuditReport,
-  };
+    if (accuracyAudit.status !== "pass") {
+      logYnab4LauncherImportDiagnosticReport(accuracyAuditReport, accuracyAudit.status);
+      throw new Error(
+        `YNAB4 import accuracy audit failed. The imported data did not match the source package; no budget was saved.\n\n${accuracyAuditReport}`,
+      );
+    }
 
-  logYnab4LauncherImportDiagnosticReport(accuracyAuditReport, accuracyAudit.status);
+    markBudgetOpened(storage, budget.id, now);
+    storage.setItem(SELECTED_BUDGET_STORAGE_KEY, budget.id);
 
-  storage.setItem(
-    getYnab4LauncherImportStorageKey(budget.id),
-    JSON.stringify(record),
-  );
+    const record: Ynab4LauncherImportRecord = {
+      budgetId: budget.id,
+      budgetName: budget.name,
+      sourceBudgetName: input.preview.budgetName,
+      sourcePackageRoot: input.discovery.packageRoot,
+      sourceDataPath: input.discovery.budgetDataPath,
+      mode: "new-budget",
+      status: "completed",
+      importedAt: now.toISOString(),
+      counts: {
+        accounts: input.discovery.counts.accounts,
+        categoryGroups: input.discovery.counts.masterCategories,
+        categories: input.discovery.counts.categories,
+        payees: input.discovery.counts.payees,
+        monthlyBudgets: input.discovery.counts.monthlyBudgets,
+        transactions: input.discovery.counts.transactions,
+        scheduledTransactions: input.discovery.counts.scheduledTransactions,
+        categoryNotes: input.discovery.counts.categoryNotes,
+        categoryGroupNotes: input.discovery.counts.categoryGroupNotes,
+      },
+      warnings: [...input.preview.warnings, ...persistenceWarnings],
+      progressSteps: input.preview.progressSteps.map((step) => ({
+        phase: step.phase,
+        label: step.label,
+        detail: step.detail,
+      })),
+      accuracyAudit,
+      accuracyAuditReport,
+    };
 
-  const openedBudget = markBudgetOpened(storage, budget.id, now) ?? budget;
+    logYnab4LauncherImportDiagnosticReport(accuracyAuditReport, accuracyAudit.status);
 
-  return {
-    budget: openedBudget,
-    record,
-    budgets: readBudgetRegistry(storage),
-  };
+    storage.setItem(
+      getYnab4LauncherImportStorageKey(budget.id),
+      JSON.stringify(record),
+    );
+
+    const openedBudget = markBudgetOpened(storage, budget.id, now) ?? budget;
+
+    return {
+      budget: openedBudget,
+      record,
+      budgets: readBudgetRegistry(storage),
+    };
+  } catch (error) {
+    rollbackYnab4LauncherImport(storage, {
+      budgetId: budget?.id ?? null,
+      keysBeforeImport,
+      registryBeforeImport,
+      selectedBudgetBeforeImport,
+    });
+
+    if (isStorageQuotaError(error)) {
+      throw new Error(
+        "YNAB4 import requires more browser storage than localStorage allows. No budget was created and no partial data was saved. Use the future IndexedDB/SQLite-backed storage mode for full YNAB4 imports.",
+        { cause: error },
+      );
+    }
+
+    throw error;
+  }
+}
+
+interface Ynab4LauncherImportRollbackSnapshot {
+  budgetId: string | null;
+  keysBeforeImport: Set<string>;
+  registryBeforeImport: string | null;
+  selectedBudgetBeforeImport: string | null;
+}
+
+function rollbackYnab4LauncherImport(
+  storage: KeyValueStoragePort,
+  snapshot: Ynab4LauncherImportRollbackSnapshot,
+): void {
+  const keysAfterImport = storage.listKeys?.() ?? [];
+  for (const key of keysAfterImport) {
+    if (!snapshot.keysBeforeImport.has(key)) {
+      storage.removeItem(key);
+    }
+  }
+
+  if (snapshot.budgetId) {
+    storage.removeItem(getYnab4LauncherImportStorageKey(snapshot.budgetId));
+    storage.removeItem(getBudgetScopedStorageKey(snapshot.budgetId, ACCOUNTS_STORAGE_KEY));
+    storage.removeItem(getBudgetScopedStorageKey(snapshot.budgetId, REGISTERS_STORAGE_KEY));
+    storage.removeItem(getBudgetScopedStorageKey(snapshot.budgetId, PAYEES_STORAGE_KEY));
+    storage.removeItem(getBudgetScopedStorageKey(snapshot.budgetId, SCHEDULED_STORAGE_KEY));
+
+    for (const key of storage.listKeys?.() ?? []) {
+      if (key.startsWith(`${BUDGET_VIEW_STORAGE_PREFIX}.${snapshot.budgetId}.`)) {
+        storage.removeItem(key);
+      }
+    }
+  }
+
+  restoreStorageValue(storage, BUDGET_REGISTRY_STORAGE_KEY, snapshot.registryBeforeImport);
+  restoreStorageValue(storage, SELECTED_BUDGET_STORAGE_KEY, snapshot.selectedBudgetBeforeImport);
+}
+
+function restoreStorageValue(storage: KeyValueStoragePort, key: string, value: string | null): void {
+  if (value === null) {
+    storage.removeItem(key);
+    return;
+  }
+
+  storage.setItem(key, value);
 }
 
 function logYnab4LauncherImportDiagnosticReport(report: string, status: "pass" | "fail"): void {
@@ -230,168 +304,22 @@ function writeImportedBudgetData(
   const scheduled = mapScheduledTransactions(toRecords(data.scheduledTransactions), maps, nowIso);
   const monthViews = mapBudgetMonthViews(budget, toRecords(data.monthlyBudgets), categoryGroups, maps, now);
 
-  const warnings: string[] = [];
-
   writeScopedJson(storage, budget.id, ACCOUNTS_STORAGE_KEY, accounts);
   writeScopedJson(storage, budget.id, PAYEES_STORAGE_KEY, payees);
-
-  const registerWrite = writeRegistersJsonWithFallback(storage, budget.id, registers);
-  warnings.push(...registerWrite.warnings);
-
+  writeScopedJson(storage, budget.id, REGISTERS_STORAGE_KEY, registers);
   writeScopedJson(storage, budget.id, SCHEDULED_STORAGE_KEY, scheduled);
 
-  const monthViewWrite = writeBudgetMonthViewsJsonWithFallback(storage, budget.id, monthViews);
-  warnings.push(...monthViewWrite.warnings);
+  for (const [month, view] of monthViews) {
+    storage.setItem(`${BUDGET_VIEW_STORAGE_PREFIX}.${budget.id}.${month}`, JSON.stringify(view));
+  }
 
-  return warnings;
+  return [];
 }
 
 function writeScopedJson(storage: KeyValueStoragePort, budgetId: string, key: string, value: unknown): void {
   storage.setItem(getBudgetScopedStorageKey(budgetId, key), JSON.stringify(value));
 }
 
-function writeRegistersJsonWithFallback(
-  storage: KeyValueStoragePort,
-  budgetId: string,
-  registers: Record<string, AccountRegisterView>,
-): { warnings: string[] } {
-  try {
-    writeScopedJson(storage, budgetId, REGISTERS_STORAGE_KEY, registers);
-    return { warnings: [] };
-  } catch (error) {
-    if (!isStorageQuotaError(error)) throw error;
-
-    const compacted = compactRegistersForLocalStorage(registers);
-    writeScopedJson(storage, budgetId, REGISTERS_STORAGE_KEY, compacted.registers);
-
-    return {
-      warnings: [
-        `Imported register history was capped to ${compacted.keptTransactions} of ${compacted.originalTransactions} transactions because browser localStorage quota was exceeded. Accounts, categories, payees, scheduled transactions, and budget values were still imported. Full transaction import requires the future SQLite/file-backed storage backend.`,
-      ],
-    };
-  }
-}
-
-
-function writeBudgetMonthViewsJsonWithFallback(
-  storage: KeyValueStoragePort,
-  budgetId: string,
-  monthViews: Map<string, BudgetMonthView>,
-): { warnings: string[] } {
-  const sortedMonthViews = [...monthViews.entries()].sort(([a], [b]) => a.localeCompare(b));
-  const selectedMonthViews = sortedMonthViews.slice(-MAX_LAUNCHER_BUDGET_MONTH_VIEWS);
-  const skippedMonths = sortedMonthViews.length - selectedMonthViews.length;
-
-  const fullWrite = writeBudgetMonthViewEntries(storage, budgetId, selectedMonthViews);
-  if (fullWrite.ok) {
-    return skippedMonths > 0
-      ? {
-          warnings: [
-            `Imported budget month history was capped to the latest ${selectedMonthViews.length} of ${sortedMonthViews.length} months to avoid browser localStorage quota limits. Full month-by-month history requires the future SQLite/file-backed storage backend.`,
-          ],
-        }
-      : { warnings: [] };
-  }
-
-  const compactMonthViews = selectedMonthViews
-    .slice(-MAX_LAUNCHER_COMPACT_BUDGET_MONTH_VIEWS)
-    .map(([month, view]) => [month, compactBudgetMonthView(view)] as const);
-
-  const compactWrite = writeBudgetMonthViewEntries(storage, budgetId, compactMonthViews);
-  if (compactWrite.ok) {
-    return {
-      warnings: [
-        `Imported budget month history was compacted to the latest ${compactMonthViews.length} of ${sortedMonthViews.length} months because browser localStorage quota was exceeded. Category notes and older month snapshots were skipped. Full month-by-month history requires the future SQLite/file-backed storage backend.`,
-      ],
-    };
-  }
-
-  const latest = sortedMonthViews.at(-1);
-  if (latest) {
-    const latestWrite = writeBudgetMonthViewEntries(storage, budgetId, [[latest[0], compactBudgetMonthView(latest[1])]]);
-    if (latestWrite.ok) {
-      return {
-        warnings: [
-          `Only the latest imported budget month (${latest[0]}) was stored because browser localStorage quota was exceeded. Full month-by-month budget history requires the future SQLite/file-backed storage backend.`,
-        ],
-      };
-    }
-  }
-
-  return {
-    warnings: [
-      "Imported budget month snapshots could not be stored because browser localStorage quota was exceeded. Accounts, payees, scheduled transactions, and any stored register data were still imported. Full month-by-month budget history requires the future SQLite/file-backed storage backend.",
-    ],
-  };
-}
-
-function writeBudgetMonthViewEntries(
-  storage: KeyValueStoragePort,
-  budgetId: string,
-  entries: ReadonlyArray<readonly [string, BudgetMonthView]>,
-): { ok: boolean } {
-  const writtenKeys: string[] = [];
-
-  try {
-    for (const [month, view] of entries) {
-      const key = `${BUDGET_VIEW_STORAGE_PREFIX}.${budgetId}.${month}`;
-      storage.setItem(key, JSON.stringify(view));
-      writtenKeys.push(key);
-    }
-    return { ok: true };
-  } catch (error) {
-    for (const key of writtenKeys) {
-      storage.removeItem(key);
-    }
-    if (!isStorageQuotaError(error)) throw error;
-    return { ok: false };
-  }
-}
-
-function compactBudgetMonthView(view: BudgetMonthView): BudgetMonthView {
-  return {
-    ...view,
-    categoryGroups: view.categoryGroups.map((group) => ({
-      ...group,
-      note: "",
-      categories: group.categories.map((category) => ({
-        ...category,
-        note: "",
-      })),
-    })),
-  };
-}
-
-function compactRegistersForLocalStorage(registers: Record<string, AccountRegisterView>): {
-  registers: Record<string, AccountRegisterView>;
-  originalTransactions: number;
-  keptTransactions: number;
-} {
-  const allTransactions = Object.values(registers).flatMap((register) =>
-    register.transactions.map((transaction) => ({ registerId: register.accountId, transaction })),
-  );
-  const originalTransactions = allTransactions.length;
-
-  const keepIds = new Set(
-    [...allTransactions]
-      .sort((a, b) => b.transaction.date.localeCompare(a.transaction.date) || b.transaction.id.localeCompare(a.transaction.id))
-      .slice(0, MAX_LAUNCHER_REGISTER_TRANSACTIONS)
-      .map((entry) => `${entry.registerId}:${entry.transaction.id}`),
-  );
-
-  const compacted: Record<string, AccountRegisterView> = {};
-  for (const [accountId, register] of Object.entries(registers)) {
-    const transactions = register.transactions.filter((transaction) => keepIds.has(`${accountId}:${transaction.id}`));
-    compacted[accountId] = { ...register, transactions };
-    recalculateRegister(compacted[accountId]);
-  }
-
-  return {
-    registers: compacted,
-    originalTransactions,
-    keptTransactions: Object.values(compacted).reduce((sum, register) => sum + register.transactions.length, 0),
-  };
-}
 
 function isStorageQuotaError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;

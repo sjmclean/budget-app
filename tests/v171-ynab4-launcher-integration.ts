@@ -209,7 +209,7 @@ function testLauncherImportPersistsImportedBudgetData() {
 }
 
 
-function testLauncherImportFallsBackWhenRegisterStorageExceedsQuota() {
+function testLauncherImportRollsBackWhenRegisterStorageExceedsQuota() {
   const storage = createRegisterQuotaStorage();
   const transactions = Array.from({ length: 1_250 }, (_, index) => ({
     entityId: `large-${index}`,
@@ -238,32 +238,27 @@ function testLauncherImportFallsBackWhenRegisterStorageExceedsQuota() {
   const discovery = discoverYnab4Package(largeEntries);
   const preview = createYnab4PackageMigrationPreview(discovery, "new-budget");
 
-  const result = createYnab4LauncherBudgetImport(storage, {
-    discovery,
-    preview,
-    entries: largeEntries,
-    now: new Date("2026-06-23T11:20:00.000Z"),
-  });
+  assert.throws(
+    () => createYnab4LauncherBudgetImport(storage, {
+      discovery,
+      preview,
+      entries: largeEntries,
+      now: new Date("2026-06-23T11:20:00.000Z"),
+    }),
+    /No budget was created and no partial data was saved/,
+  );
 
-  const scopedPrefix = `budget-app.budgets.${result.budget.id}.`;
-  const accountsRaw = storage.getItem(`${scopedPrefix}budget-app.accounts.v1`);
-  const registersRaw = storage.getItem(`${scopedPrefix}budget-app.account-registers.v1`);
-  const record = readYnab4LauncherImportRecord(storage, result.budget.id);
-
-  assert.ok(accountsRaw);
-  assert.ok(registersRaw);
-  assert.ok(record);
-  assert.equal(record.warnings.some((warning) => warning.includes("browser localStorage quota was exceeded")), true);
-
-  const registers = JSON.parse(registersRaw);
-  assert.equal(registers.cheque.transactions.length, 1000);
+  const keys = storage.listKeys?.() ?? [];
+  assert.equal(keys.some((key) => key.includes("family-budget-imported")), false);
+  assert.equal(readBudgetRegistry(storage).some((budget) => budget.name === "Family Budget Imported"), false);
+  assert.notEqual(storage.getItem(SELECTED_BUDGET_STORAGE_KEY), "family-budget-imported");
 }
 
 function run() {
   testLauncherImportCreatesNewBudgetAndKeepsExistingBudgets();
   testLauncherImportStoresMigrationSummaryForImportedBudget();
   testLauncherImportPersistsImportedBudgetData();
-  testLauncherImportFallsBackWhenRegisterStorageExceedsQuota();
+  testLauncherImportRollsBackWhenRegisterStorageExceedsQuota();
   testLauncherImportRejectsInvalidPreview();
   console.log("v1.71 YNAB4 launcher integration tests passed");
 }

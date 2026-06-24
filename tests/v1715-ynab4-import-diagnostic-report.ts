@@ -133,25 +133,23 @@ function testDiagnosticReportIsStoredForSuccessfulLauncherImport() {
   assert.match(record.accuracyAuditReport, /Budget Months/);
 }
 
-function testDiagnosticReportFlagsQuotaTruncatedTransactionHistory() {
+function testDiagnosticReportDoesNotPersistPartialBudgetWhenQuotaFails() {
   const storage = createRegisterQuotaStorage();
   const entries = createEntries(1_250);
   const { discovery, preview } = preparePreview(entries);
 
-  const result = createYnab4LauncherBudgetImport(storage, {
-    discovery,
-    preview,
-    entries,
-    now: new Date("2026-06-24T00:05:00.000Z"),
-  });
+  assert.throws(
+    () => createYnab4LauncherBudgetImport(storage, {
+      discovery,
+      preview,
+      entries,
+      now: new Date("2026-06-24T00:05:00.000Z"),
+    }),
+    /No budget was created and no partial data was saved/,
+  );
 
-  const record = readYnab4LauncherImportRecord(storage, result.budget.id);
-  assert.ok(record);
-  assert.equal(record.accuracyAudit?.status, "fail");
-  assert.ok(record.accuracyAudit?.imported.transactions);
-  assert.ok(record.accuracyAudit.imported.transactions < record.accuracyAudit.source.transactions);
-  assert.match(record.accuracyAuditReport ?? "", /Transaction history is incomplete/);
-  assert.match(record.accuracyAuditReport ?? "", /Accounts With Transaction Count Mismatches/);
+  const keys = storage.listKeys?.() ?? [];
+  assert.equal(keys.some((key) => key.includes("family-budget-imported")), false);
 }
 
 function testFormatterCanBeUsedAgainstPersistedBudgetData() {
@@ -172,7 +170,7 @@ function testFormatterCanBeUsedAgainstPersistedBudgetData() {
 }
 
 testDiagnosticReportIsStoredForSuccessfulLauncherImport();
-testDiagnosticReportFlagsQuotaTruncatedTransactionHistory();
+testDiagnosticReportDoesNotPersistPartialBudgetWhenQuotaFails();
 testFormatterCanBeUsedAgainstPersistedBudgetData();
 
 console.log("v1.71.5 YNAB4 import diagnostic report tests passed");
