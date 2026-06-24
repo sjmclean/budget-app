@@ -229,7 +229,9 @@
     "test:v174:ynab4-imported-category-hierarchy-audit": "tsx tests/v174-ynab4-imported-category-hierarchy-audit.ts",
     "test:v174": "pnpm test:v174:ynab4-imported-category-hierarchy-audit",
     "test:v176:ynab4-category-state-fix": "tsx tests/v176-ynab4-category-state-fix.ts",
-    "test:v176": "pnpm test:v176:ynab4-category-state-fix"
+    "test:v176": "pnpm test:v176:ynab4-category-state-fix",
+    "test:v177:ynab4-scheduled-transaction-fidelity": "tsx tests/v177-ynab4-scheduled-transaction-fidelity.ts",
+    "test:v177": "pnpm test:v177:ynab4-scheduled-transaction-fidelity"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

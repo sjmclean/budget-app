@@ -682,7 +682,8 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
     if (transaction.isTombstone === true || transaction.deleted === true) return [];
     const accountId = mappedId(maps.accountIdBySourceId, transaction.accountId, transaction.accountEntityId);
     if (!accountId) return [];
-    const amount = amountToDisplayUnits(transaction.amount, transaction.amountMilliUnits, transaction.inflow, transaction.outflow) ?? 0;
+    const splitLines = mapScheduledSplitLines(toRecords(transaction.subTransactions), maps);
+    const amount = scheduledAmountToDisplayUnits(transaction.amount, transaction.amountMilliUnits, transaction.inflow, transaction.outflow) ?? 0;
     const transferAccountId = mappedId(maps.accountIdBySourceId, transaction.targetAccountId, transaction.transferAccountId);
     const payeeId = mappedId(maps.payeeIdBySourceId, transaction.payeeId);
     const categoryId = transferAccountId ? undefined : mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
@@ -696,14 +697,47 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
         ? `Transfer: ${maps.accountNameById.get(transferAccountId) ?? "Account"}`
         : firstString(transaction.payeeName, transaction.payee) ?? (payeeId ? maps.payeeNameById.get(payeeId) : null) ?? "Imported Payee",
       payeeId: transferAccountId ? undefined : payeeId ?? undefined,
-      category: transferAccountId ? "Transfer" : categoryId ? maps.categoryNameById.get(categoryId) ?? "Uncategorised" : READY_TO_ASSIGN_CATEGORY_NAME,
+      category: splitLines && splitLines.length > 0
+        ? "Split"
+        : transferAccountId ? "Transfer" : categoryId ? maps.categoryNameById.get(categoryId) ?? "Uncategorised" : READY_TO_ASSIGN_CATEGORY_NAME,
       memo: firstString(transaction.memo, transaction.note, transaction.notes) ?? undefined,
       outflow: amount < 0 ? Math.abs(amount) : 0,
       inflow: amount > 0 ? amount : 0,
+      splitLines,
       createdAt: nowIso,
       updatedAt: nowIso,
     }];
   });
+}
+
+function mapScheduledSplitLines(lines: RecordMap[], maps: ImportMaps): RegisterTransactionView["splitLines"] {
+  if (lines.length === 0) return undefined;
+  return lines.map((line, index) => {
+    const amount = scheduledAmountToDisplayUnits(line.amount, line.amountMilliUnits, line.inflow, line.outflow) ?? 0;
+    const categoryId = mappedId(maps.categoryIdBySourceId, line.categoryId, line.subCategoryId) ?? READY_TO_ASSIGN_CATEGORY_ID;
+    return {
+      id: firstString(line.entityId, line.id) ?? `scheduled-split-${index}`,
+      category: maps.categoryNameById.get(categoryId) ?? READY_TO_ASSIGN_CATEGORY_NAME,
+      categoryId,
+      memo: firstString(line.memo, line.note, line.notes) ?? undefined,
+      inflow: amount > 0 ? amount : 0,
+      outflow: amount < 0 ? Math.abs(amount) : 0,
+    };
+  });
+}
+
+function scheduledAmountToDisplayUnits(...values: unknown[]): number | null {
+  const amountMilliUnits = values[1];
+  if (typeof amountMilliUnits === "number" && Number.isFinite(amountMilliUnits)) {
+    return amountMilliUnits / 1000;
+  }
+
+  for (const value of values) {
+    if (typeof value !== "number" || !Number.isFinite(value)) continue;
+    return value;
+  }
+
+  return null;
 }
 
 function mapBudgetMonthViews(

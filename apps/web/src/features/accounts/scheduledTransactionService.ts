@@ -1,4 +1,4 @@
-import type { NewRegisterTransactionInput, TransactionFlag } from "./accountRegisterTypes";
+import type { NewRegisterTransactionInput, RegisterTransactionView, TransactionFlag } from "./accountRegisterTypes";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 
 
@@ -16,6 +16,7 @@ export interface ScheduledTransactionView {
   memo?: string;
   outflow: number;
   inflow: number;
+  splitLines?: RegisterTransactionView["splitLines"];
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +33,7 @@ export interface UpsertScheduledTransactionInput {
   memo?: string;
   outflow: number;
   inflow: number;
+  splitLines?: RegisterTransactionView["splitLines"];
 }
 
 const STORAGE_KEY = "budget-app.scheduled-transactions.v1";
@@ -74,6 +76,7 @@ export class BrowserPersistentScheduledTransactionService {
       memo: input.memo,
       outflow: input.outflow,
       inflow: input.inflow,
+      splitLines: cloneSplitLines(input.splitLines),
       createdAt: now,
       updatedAt: now,
     };
@@ -104,6 +107,7 @@ export class BrowserPersistentScheduledTransactionService {
         memo: input.memo,
         outflow: input.outflow,
         inflow: input.inflow,
+        splitLines: cloneSplitLines(input.splitLines),
         updatedAt: now,
       };
     });
@@ -166,6 +170,7 @@ export class BrowserPersistentScheduledTransactionService {
       memo: transaction.memo,
       outflow: transaction.outflow,
       inflow: transaction.inflow,
+      splitLines: cloneSplitLines(transaction.splitLines),
     };
   }
 
@@ -282,6 +287,7 @@ function normaliseStoredScheduledTransaction(
     payeeId: transaction.payeeId ?? dependencies?.findPayeeIdByName(transaction.payee),
     outflow: Number.isFinite(transaction.outflow) ? transaction.outflow : 0,
     inflow: Number.isFinite(transaction.inflow) ? transaction.inflow : 0,
+    splitLines: cloneSplitLines(transaction.splitLines),
   };
 }
 
@@ -339,4 +345,8 @@ function createId(): string {
   }
 
   return `scheduled-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function cloneSplitLines(splitLines: RegisterTransactionView["splitLines"]): RegisterTransactionView["splitLines"] {
+  return splitLines?.map((line) => ({ ...line }));
 }
