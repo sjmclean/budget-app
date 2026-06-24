@@ -378,42 +378,177 @@ function mapAccounts(accounts: RecordMap[], maps: ImportMaps, nowIso: string): S
   });
 }
 
+type CategoryGroupDraft = BudgetCategoryGroupView & {
+  sourceIds: Set<string>;
+};
+
+type ParsedHiddenCategoryName = {
+  groupName: string;
+  categoryName: string;
+  groupSourceId: string | null;
+};
+
 function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategoryGroupView[] {
   const existingGroupIds = new Set<string>();
   const existingCategoryIds = new Set<string>();
+  const drafts: CategoryGroupDraft[] = [];
+  const hiddenCategories: Array<{
+    record: RecordMap;
+    sourceIds: string[];
+    parsed: ParsedHiddenCategoryName;
+  }> = [];
 
-  return groups.map((group, groupIndex) => {
+  for (const [groupIndex, group] of groups.entries()) {
     const groupName = firstString(group.name, group.masterCategoryName, group.displayName) ?? `Imported Group ${groupIndex + 1}`;
-    const groupId = uniqueSlug(groupName, existingGroupIds, "group");
-    const categories = toRecords(group.subCategories).map((category, categoryIndex) => {
-      const name = firstString(category.name, category.categoryName, category.displayName) ?? `Imported Category ${categoryIndex + 1}`;
-      const id = uniqueSlug(name, existingCategoryIds, "category");
-      for (const sourceId of sourceIds(category, `category:${groupIndex}:${categoryIndex}`)) {
-        maps.categoryIdBySourceId.set(sourceId, id);
-      }
-      maps.categoryNameById.set(id, name);
-      return {
-        id,
-        name,
-        assigned: 0,
-        activity: 0,
-        available: 0,
-        isOverspent: false,
-        isArchived: category.isTombstone === true || category.hidden === true,
-        note: firstString(category.note, category.notes) ?? "",
-      };
-    });
+    const groupSourceIds = sourceIds(group, `categoryGroup:${groupIndex}`);
+    const subCategories = toRecords(group.subCategories);
 
-    return {
+    if (isYnab4HiddenCategoriesGroup(group, groupName)) {
+      for (const [categoryIndex, category] of subCategories.entries()) {
+        const parsed = parseYnab4HiddenCategoryName(firstString(category.name, category.categoryName, category.displayName));
+        if (!parsed) continue;
+        hiddenCategories.push({
+          record: category,
+          sourceIds: sourceIds(category, `hiddenCategory:${groupIndex}:${categoryIndex}`),
+          parsed,
+        });
+      }
+      continue;
+    }
+
+    if (isYnab4Tombstone(group) && subCategories.length === 0) {
+      continue;
+    }
+
+    const groupId = uniqueSlug(groupName, existingGroupIds, "group");
+    const draft: CategoryGroupDraft = {
       id: groupId,
       name: groupName,
       assigned: 0,
       activity: 0,
       available: 0,
       note: firstString(group.note, group.notes) ?? "",
-      categories,
+      categories: [],
+      sourceIds: new Set(groupSourceIds),
     };
+
+    for (const [categoryIndex, category] of subCategories.entries()) {
+      const categoryName = firstString(category.name, category.categoryName, category.displayName) ?? `Imported Category ${categoryIndex + 1}`;
+      addImportedCategoryToGroup({
+        group: draft,
+        category,
+        categoryName,
+        sourceIds: sourceIds(category, `category:${groupIndex}:${categoryIndex}`),
+        existingCategoryIds,
+        maps,
+        isArchived: isYnab4Tombstone(category),
+      });
+    }
+
+    drafts.push(draft);
+  }
+
+  for (const hiddenCategory of hiddenCategories) {
+    const group = findOrCreateCategoryGroupDraft({
+      drafts,
+      groupName: hiddenCategory.parsed.groupName,
+      groupSourceId: hiddenCategory.parsed.groupSourceId,
+      existingGroupIds,
+    });
+
+    addImportedCategoryToGroup({
+      group,
+      category: hiddenCategory.record,
+      categoryName: hiddenCategory.parsed.categoryName,
+      sourceIds: hiddenCategory.sourceIds,
+      existingCategoryIds,
+      maps,
+      isArchived: true,
+    });
+  }
+
+  return drafts.map(({ sourceIds: _sourceIds, ...group }) => group);
+}
+
+function addImportedCategoryToGroup(input: {
+  group: CategoryGroupDraft;
+  category: RecordMap;
+  categoryName: string;
+  sourceIds: string[];
+  existingCategoryIds: Set<string>;
+  maps: ImportMaps;
+  isArchived: boolean;
+}): void {
+  const id = uniqueSlug(input.categoryName, input.existingCategoryIds, "category");
+  for (const sourceId of input.sourceIds) {
+    input.maps.categoryIdBySourceId.set(sourceId, id);
+  }
+  input.maps.categoryNameById.set(id, input.categoryName);
+  input.group.categories.push({
+    id,
+    name: input.categoryName,
+    assigned: 0,
+    activity: 0,
+    available: 0,
+    isOverspent: false,
+    isArchived: input.isArchived,
+    note: firstString(input.category.note, input.category.notes) ?? "",
   });
+}
+
+function findOrCreateCategoryGroupDraft(input: {
+  drafts: CategoryGroupDraft[];
+  groupName: string;
+  groupSourceId: string | null;
+  existingGroupIds: Set<string>;
+}): CategoryGroupDraft {
+  const normalisedGroupName = normaliseCategoryStateName(input.groupName);
+  const existing = input.drafts.find((group) =>
+    (input.groupSourceId && group.sourceIds.has(input.groupSourceId)) ||
+    normaliseCategoryStateName(group.name) === normalisedGroupName,
+  );
+
+  if (existing) {
+    if (input.groupSourceId) existing.sourceIds.add(input.groupSourceId);
+    return existing;
+  }
+
+  const group: CategoryGroupDraft = {
+    id: uniqueSlug(input.groupName, input.existingGroupIds, "group"),
+    name: input.groupName,
+    assigned: 0,
+    activity: 0,
+    available: 0,
+    note: "",
+    categories: [],
+    sourceIds: new Set(input.groupSourceId ? [input.groupSourceId] : []),
+  };
+  input.drafts.push(group);
+  return group;
+}
+
+function isYnab4HiddenCategoriesGroup(group: RecordMap, groupName: string): boolean {
+  return groupName.toLowerCase() === "hidden categories" ||
+    firstString(group.entityId, group.id, group.masterCategoryId) === "MasterCategory/__Hidden__";
+}
+
+function isYnab4Tombstone(record: RecordMap): boolean {
+  return record.isTombstone === true || record.deleted === true;
+}
+
+function parseYnab4HiddenCategoryName(name: string | null): ParsedHiddenCategoryName | null {
+  if (!name) return null;
+  const parts = name.split("`").map((part) => part.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  return {
+    groupName: parts[0],
+    categoryName: parts[1],
+    groupSourceId: parts[2] ?? null,
+  };
+}
+
+function normaliseCategoryStateName(name: string): string {
+  return name.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
 function mapPayees(payees: RecordMap[], maps: ImportMaps, nowIso: string): PayeeView[] {
