@@ -217,7 +217,11 @@
     "test:v1716": "pnpm test:v1716:ynab4-atomic-launcher-import",
     "test:v1716:ynab4-atomic-launcher-import": "tsx tests/v1716-ynab4-atomic-launcher-import.ts",
     "test:v172": "pnpm test:v172:indexeddb-backed-ynab4-import-storage",
-    "test:v172:indexeddb-backed-ynab4-import-storage": "tsx tests/v172-indexeddb-backed-ynab4-import-storage.ts"
+    "test:v172:indexeddb-backed-ynab4-import-storage": "tsx tests/v172-indexeddb-backed-ynab4-import-storage.ts",
+    "test:v1721": "pnpm test:v1721:ynab4-monthly-available-audit-warning",
+    "test:v1721:ynab4-monthly-available-audit-warning": "tsx tests/v1721-ynab4-monthly-available-audit-warning.ts",
+    "test:v1722": "pnpm test:v1722:ynab4-budget-rounding-tolerance",
+    "test:v1722:ynab4-budget-rounding-tolerance": "tsx tests/v1722-ynab4-budget-rounding-tolerance.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
