@@ -225,7 +225,9 @@
     "test:v1724": "pnpm test:v1724:account-budget-reconciliation-audit",
     "test:v1724:account-budget-reconciliation-audit": "tsx tests/v1724-account-budget-reconciliation-audit.ts",
     "test:v173": "pnpm test:v173:ynab4-migration-correctness-audit",
-    "test:v173:ynab4-migration-correctness-audit": "tsx tests/v173-ynab4-migration-correctness-audit.ts"
+    "test:v173:ynab4-migration-correctness-audit": "tsx tests/v173-ynab4-migration-correctness-audit.ts",
+    "test:v174:ynab4-imported-category-hierarchy-audit": "tsx tests/v174-ynab4-imported-category-hierarchy-audit.ts",
+    "test:v174": "pnpm test:v174:ynab4-imported-category-hierarchy-audit"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

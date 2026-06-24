@@ -12,3 +12,4 @@ export * from "./proveYnab4MonthlyBudgetMapping.js";
 export * from "./proveYnab4TransferCreditCardMigration.js";
 export * from "./executeYnab4PackageImport.js";
 export * from "./auditYnab4MigrationCorrectness.js";
+export * from "./auditYnab4ImportedCategoryHierarchy.js";
