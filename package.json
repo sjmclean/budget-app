@@ -215,7 +215,9 @@
     "test:v1715": "pnpm test:v1715:ynab4-import-diagnostic-report",
     "test:v1715:ynab4-import-diagnostic-report": "tsx tests/v1715-ynab4-import-diagnostic-report.ts",
     "test:v1716": "pnpm test:v1716:ynab4-atomic-launcher-import",
-    "test:v1716:ynab4-atomic-launcher-import": "tsx tests/v1716-ynab4-atomic-launcher-import.ts"
+    "test:v1716:ynab4-atomic-launcher-import": "tsx tests/v1716-ynab4-atomic-launcher-import.ts",
+    "test:v172": "pnpm test:v172:indexeddb-backed-ynab4-import-storage",
+    "test:v172:indexeddb-backed-ynab4-import-storage": "tsx tests/v172-indexeddb-backed-ynab4-import-storage.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

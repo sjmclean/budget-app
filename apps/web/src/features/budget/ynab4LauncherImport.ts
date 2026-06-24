@@ -96,6 +96,31 @@ export function getYnab4LauncherImportStorageKey(budgetId: string): string {
   return `${YNAB4_LAUNCHER_IMPORT_STORAGE_PREFIX}.${budgetId}`;
 }
 
+export async function createYnab4LauncherBudgetImportWithBackend(
+  storage: KeyValueStoragePort,
+  input: CreateYnab4LauncherBudgetImportInput,
+): Promise<Ynab4LauncherImportResult> {
+  const registryBeforeImport = storage.getItem(BUDGET_REGISTRY_STORAGE_KEY);
+  const selectedBudgetBeforeImport = storage.getItem(SELECTED_BUDGET_STORAGE_KEY);
+  const keysBeforeImport = new Set(storage.listKeys?.() ?? []);
+  let result: Ynab4LauncherImportResult | null = null;
+
+  try {
+    result = createYnab4LauncherBudgetImport(storage, input);
+    await storage.flush?.();
+    return result;
+  } catch (error) {
+    rollbackYnab4LauncherImport(storage, {
+      budgetId: result?.budget.id ?? null,
+      keysBeforeImport,
+      registryBeforeImport,
+      selectedBudgetBeforeImport,
+    });
+    await storage.flush?.();
+    throw error;
+  }
+}
+
 export function readYnab4LauncherImportRecord(
   storage: KeyValueStoragePort,
   budgetId: string,
@@ -217,7 +242,7 @@ export function createYnab4LauncherBudgetImport(
 
     if (isStorageQuotaError(error)) {
       throw new Error(
-        "YNAB4 import requires more browser storage than localStorage allows. No budget was created and no partial data was saved. Use the future IndexedDB/SQLite-backed storage mode for full YNAB4 imports.",
+        "YNAB4 import requires more browser storage than localStorage allows. No budget was created and no partial data was saved. The IndexedDB-backed storage backend could not persist the full import. No budget was created and no partial data was saved.",
         { cause: error },
       );
     }

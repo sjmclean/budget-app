@@ -9,13 +9,13 @@ import {
   type CreateBudgetRegistryInput,
   type UpdateBudgetRegistryInput,
 } from "../features/budget/budgetRegistry";
-import { createYnab4LauncherBudgetImport, type CreateYnab4LauncherBudgetImportInput, type Ynab4LauncherImportResult } from "../features/budget/ynab4LauncherImport";
+import { createYnab4LauncherBudgetImportWithBackend, type CreateYnab4LauncherBudgetImportInput, type Ynab4LauncherImportResult } from "../features/budget/ynab4LauncherImport";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 
 interface BudgetRegistryState {
   budgets: BudgetSummary[];
   createBudget: (input?: CreateBudgetRegistryInput) => BudgetSummary;
-  importYnab4Budget: (input: CreateYnab4LauncherBudgetImportInput) => Ynab4LauncherImportResult;
+  importYnab4Budget: (input: CreateYnab4LauncherBudgetImportInput) => Promise<Ynab4LauncherImportResult>;
   updateBudget: (budgetId: string, input: UpdateBudgetRegistryInput) => BudgetSummary | null;
   markBudgetOpened: (budgetId: string) => BudgetSummary | null;
   deleteBudget: (budgetId: string) => void;
@@ -31,8 +31,8 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
     return budget;
   },
 
-  importYnab4Budget: (input) => {
-    const result = createYnab4LauncherBudgetImport(browserLocalStorageKeyValueStorage, input);
+  importYnab4Budget: async (input) => {
+    const result = await createYnab4LauncherBudgetImportWithBackend(browserLocalStorageKeyValueStorage, input);
     set({ budgets: result.budgets });
     return result;
   },

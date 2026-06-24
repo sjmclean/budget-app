@@ -80,7 +80,7 @@ export function BudgetSelectorPage() {
   }
 
 
-  function handleImportYnab4Budget() {
+  async function handleImportYnab4Budget() {
     setYnabError(null);
 
     if (!ynabDiscovery || !ynabPreview || ynabEntries.length === 0) {
@@ -97,7 +97,7 @@ export function BudgetSelectorPage() {
     setYnabStatus("Creating imported YNAB4 budget…");
 
     try {
-      const result = importYnab4Budget({
+      const result = await importYnab4Budget({
         discovery: ynabDiscovery,
         preview: ynabPreview,
         entries: ynabEntries,
