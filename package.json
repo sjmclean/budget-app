@@ -223,7 +223,9 @@
     "test:v1722": "pnpm test:v1722:ynab4-budget-rounding-tolerance",
     "test:v1722:ynab4-budget-rounding-tolerance": "tsx tests/v1722-ynab4-budget-rounding-tolerance.ts",
     "test:v1724": "pnpm test:v1724:account-budget-reconciliation-audit",
-    "test:v1724:account-budget-reconciliation-audit": "tsx tests/v1724-account-budget-reconciliation-audit.ts"
+    "test:v1724:account-budget-reconciliation-audit": "tsx tests/v1724-account-budget-reconciliation-audit.ts",
+    "test:v173": "pnpm test:v173:ynab4-migration-correctness-audit",
+    "test:v173:ynab4-migration-correctness-audit": "tsx tests/v173-ynab4-migration-correctness-audit.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
