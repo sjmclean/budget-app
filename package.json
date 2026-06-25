@@ -255,7 +255,12 @@
     "test:v189:ynab4-closed-account-transaction-fidelity-audit": "tsx tests/v189-ynab4-closed-account-transaction-fidelity-audit.ts",
     "test:v189": "pnpm test:v189:ynab4-closed-account-transaction-fidelity-audit",
     "test:v190:ynab4-budgeted-archived-category-activity-fidelity": "tsx tests/v190-ynab4-budgeted-archived-category-activity-fidelity.ts",
-    "test:v190": "pnpm test:v190:ynab4-budgeted-archived-category-activity-fidelity"
+    "test:v190": "pnpm test:v190:ynab4-budgeted-archived-category-activity-fidelity",
+    "test:v191": "tsx tests/v191-budget-month-navigation.ts",
+    "test:v192:ynab4-hidden-account-closed-state": "tsx tests/v192-ynab4-hidden-account-closed-state.ts",
+    "test:v192": "pnpm test:v192:ynab4-hidden-account-closed-state",
+    "test:v193:money-tolerance": "tsx tests/v193-money-tolerance.ts",
+    "test:v193": "pnpm test:v193:money-tolerance"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

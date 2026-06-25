@@ -4,6 +4,11 @@ import { Card } from "../components/ui/Card";
 import { confirmDialog } from "../features/ui/appDialogService";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { evaluateAssignedInput } from "../features/budget/evaluateAssignedInput";
+import {
+  getCurrentBudgetMonth,
+  getNextBudgetMonth,
+  getPreviousBudgetMonth,
+} from "../features/budget/budgetMonthNavigation";
 import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
@@ -14,20 +19,21 @@ import type {
   BudgetCategoryView,
   CategoryMergePreview,
 } from "../features/budget/budgetViewTypes";
+import { isMoneyNegative, isMoneyZero, normaliseMoney } from "../features/budget/moneyMath";
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
     style: "currency",
     currency: currencyCode,
-  }).format(value);
+  }).format(normaliseMoney(value));
 }
 
 function getAvailableClass(value: number, isOverassignedSource: boolean) {
-  if (value < 0) {
+  if (isMoneyNegative(value)) {
     return "available-pill available-pill-negative";
   }
 
-  if (value === 0) {
+  if (isMoneyZero(value)) {
     return "available-pill available-pill-zero";
   }
 
@@ -538,7 +544,7 @@ function CategoryInspector({
         <div>
           <span>Status</span>
           <strong>
-            {category.available < 0
+            {isMoneyNegative(category.available)
               ? "Overspent"
               : isOverassignedSource
                 ? "Overbudgeted"
@@ -814,6 +820,9 @@ export function BudgetPage() {
 function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const navigate = useNavigate();
   const [hideArchivedCategories, setHideArchivedCategories] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(() =>
+    getCurrentBudgetMonth(),
+  );
 
   const {
     data,
@@ -839,7 +848,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     previewCategoryMerge,
     mergeCategory,
     clearCategoryMergePreview,
-  } = useBudgetWorkspace(budgetId, "2026-06");
+  } = useBudgetWorkspace(budgetId, selectedMonth);
 
   if (isLoading) {
     return (
@@ -896,7 +905,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     : null;
   const visibleSelectedGroup = selectedCategoryVisible ? selectedGroup : null;
 
-  const isBudgetOverassigned = data.readyToAssign < 0;
+  const isBudgetOverassigned = isMoneyNegative(data.readyToAssign);
   const selectedCategoryIsOverassignedSource =
     visibleSelectedCategory !== null &&
     overassignedCategoryIds.includes(visibleSelectedCategory.id);
@@ -937,7 +946,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const overspentCount = data.categoryGroups.reduce(
     (count, group) =>
       count +
-      group.categories.filter((category) => category.available < 0).length,
+      group.categories.filter((category) => isMoneyNegative(category.available)).length,
     0,
   );
 
@@ -945,7 +954,16 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     <div className="budget-workspace-screen">
       <section className="budget-workspace-topbar">
         <div className="month-switcher">
-          <button className="button button-secondary" type="button">
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={() =>
+              setSelectedMonth((currentMonth) =>
+                getPreviousBudgetMonth(currentMonth),
+              )
+            }
+            title="Go to previous budget month"
+          >
             ‹
           </button>
 
@@ -954,10 +972,23 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             <p className="muted">Interactive budget workspace</p>
           </div>
 
-          <button className="button button-secondary" type="button">
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={() =>
+              setSelectedMonth((currentMonth) =>
+                getNextBudgetMonth(currentMonth),
+              )
+            }
+            title="Go to next budget month"
+          >
             ›
           </button>
-          <button className="button button-secondary" type="button">
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={() => setSelectedMonth(getCurrentBudgetMonth())}
+          >
             Back to today
           </button>
         </div>

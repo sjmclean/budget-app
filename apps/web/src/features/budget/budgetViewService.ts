@@ -12,6 +12,7 @@ import type { BudgetActivityPersistencePort } from "./budgetActivityPersistenceP
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import { readSettingsPreferences } from "../settings/settingsPreferences";
 import { cloneDefaultCategoryTemplate } from "./defaultCategoryTemplate";
+import { isMoneyNegative, normaliseMoney } from "./moneyMath";
 
 const STORAGE_KEY_PREFIX = "budget-app.budget-view.v1";
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
@@ -60,14 +61,14 @@ function monthLabelFromIsoMonth(month: string): string {
 
 function recalculateCategory(category: BudgetCategoryView): BudgetCategoryView {
   const previousAvailable = category.previousAvailable ?? 0;
-  const available = previousAvailable + category.assigned + category.activity;
+  const available = normaliseMoney(previousAvailable + category.assigned + category.activity);
 
   return {
     ...category,
     previousAvailable,
     isArchived: category.isArchived ?? false,
     available,
-    isOverspent: available < 0,
+    isOverspent: isMoneyNegative(available),
   };
 }
 

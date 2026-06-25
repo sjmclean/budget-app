@@ -1685,7 +1685,11 @@ function sourceIds(record: RecordMap, fallback: string): string[] {
 }
 
 function isClosed(record: RecordMap): boolean {
-  return record.isTombstone === true || record.closed === true;
+  return (
+    record.isTombstone === true ||
+    record.closed === true ||
+    record.hidden === true
+  );
 }
 
 function isDeleted(record: RecordMap): boolean {

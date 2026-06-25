@@ -25,6 +25,7 @@ import type {
   Ynab4PackageEntry,
   Ynab4PackageMigrationPreview,
 } from "../../../../../packages/ynab4-importer/src/analyzeYnab4Package";
+import { isMoneyNegative, normaliseMoney } from "./moneyMath";
 
 export const YNAB4_LAUNCHER_IMPORT_STORAGE_PREFIX =
   "budget-app.ynab4-launcher-import.v1";
@@ -379,9 +380,17 @@ function mapAccounts(accounts: RecordMap[], maps: ImportMaps, nowIso: string): S
       type,
       startingBalance: amountToDisplayUnits(account.startingBalance, account.balance, account.clearedBalance) ?? 0,
       createdAt: nowIso,
-      closedAt: account.isTombstone === true || account.closed === true ? nowIso : null,
+      closedAt: isYnab4ClosedAccount(account) ? nowIso : null,
     };
   });
+}
+
+function isYnab4ClosedAccount(account: RecordMap): boolean {
+  return (
+    account.isTombstone === true ||
+    account.closed === true ||
+    account.hidden === true
+  );
 }
 
 type CategoryGroupDraft = BudgetCategoryGroupView & {
@@ -852,8 +861,8 @@ function mapBudgetMonthViews(
     for (const category of categoryById.values()) {
       category.previousAvailable = roundMoney(previousAvailableByCategoryId.get(category.id) ?? 0);
       category.activity = roundMoney(activityByCategory.get(category.id) ?? 0);
-      category.available = roundMoney(category.previousAvailable + category.assigned + category.activity);
-      category.isOverspent = category.available < 0;
+      category.available = normaliseMoney(roundMoney(category.previousAvailable + category.assigned + category.activity));
+      category.isOverspent = isMoneyNegative(category.available);
       previousAvailableByCategoryId.set(category.id, category.available);
     }
 

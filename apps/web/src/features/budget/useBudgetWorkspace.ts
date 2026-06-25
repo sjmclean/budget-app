@@ -8,6 +8,7 @@ import type {
   BudgetMonthView,
   CategoryMergePreview,
 } from "./budgetViewTypes";
+import { isMoneyNegative } from "./moneyMath";
 
 interface UseBudgetWorkspaceState {
   data: BudgetMonthView | null;
@@ -102,7 +103,7 @@ export function useBudgetWorkspace(
   }, [data, selectedCategoryId]);
 
   const overassignedCategoryIds =
-    data && data.readyToAssign < 0 && lastEditedCategoryId
+    data && isMoneyNegative(data.readyToAssign) && lastEditedCategoryId
       ? [lastEditedCategoryId]
       : [];
 
