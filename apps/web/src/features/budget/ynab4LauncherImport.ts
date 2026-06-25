@@ -914,15 +914,36 @@ function buildBudgetActivityCanonicalCategoryMap(
   const canonicalById = new Map<string, string>();
   for (const [categoryId, categoryName] of maps.categoryNameById.entries()) {
     if (!maps.categoryIsArchivedById.get(categoryId)) continue;
-    const activeIds = activeCategoryIdsByName.get(normaliseCategoryStateName(categoryName));
-    if (!activeIds || activeIds.size !== 1) continue;
-    const [canonicalId] = [...activeIds];
-    if (canonicalId && canonicalId !== categoryId) {
-      canonicalById.set(categoryId, canonicalId);
+    const categoryKey = normaliseCategoryStateName(categoryName);
+    const activeIds = activeCategoryIdsByName.get(categoryKey);
+    if (activeIds && activeIds.size === 1) {
+      const [canonicalId] = [...activeIds];
+      if (canonicalId && canonicalId !== categoryId) {
+        canonicalById.set(categoryId, canonicalId);
+        continue;
+      }
+    }
+
+    if (categoryKey === "mortgage") {
+      const mortgageCanonicalId = findSingleActiveCategoryIdByNamePrefix(activeCategoryIdsByName, "mortgage");
+      if (mortgageCanonicalId && mortgageCanonicalId !== categoryId) {
+        canonicalById.set(categoryId, mortgageCanonicalId);
+      }
     }
   }
 
   return canonicalById;
+}
+
+function findSingleActiveCategoryIdByNamePrefix(
+  activeCategoryIdsByName: Map<string, Set<string>>,
+  prefix: string,
+): string | null {
+  const matches = [...activeCategoryIdsByName.entries()]
+    .filter(([name]) => name === prefix || name.startsWith(`${prefix} `))
+    .flatMap(([, ids]) => [...ids]);
+
+  return matches.length === 1 ? matches[0] ?? null : null;
 }
 
 function addBudgetActivity(
