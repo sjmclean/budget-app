@@ -107,7 +107,7 @@ export class BrowserPersistentScheduledTransactionService {
         memo: input.memo,
         outflow: input.outflow,
         inflow: input.inflow,
-        splitLines: cloneSplitLines(input.splitLines),
+        splitLines: cloneSplitLines(input.splitLines ?? transaction.splitLines),
         updatedAt: now,
       };
     });

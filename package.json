@@ -260,7 +260,9 @@
     "test:v192:ynab4-hidden-account-closed-state": "tsx tests/v192-ynab4-hidden-account-closed-state.ts",
     "test:v192": "pnpm test:v192:ynab4-hidden-account-closed-state",
     "test:v193:money-tolerance": "tsx tests/v193-money-tolerance.ts",
-    "test:v193": "pnpm test:v193:money-tolerance"
+    "test:v193": "pnpm test:v193:money-tolerance",
+    "test:v194:scheduled-split-drilldown": "tsx tests/v194-scheduled-split-drilldown.ts",
+    "test:v194": "pnpm test:v194:scheduled-split-drilldown"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

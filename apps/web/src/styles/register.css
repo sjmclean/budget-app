@@ -1051,6 +1051,80 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+
+.scheduled-split-toggle {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0;
+  text-align: left;
+}
+
+.scheduled-split-toggle:hover {
+  color: #0f172a;
+  text-decoration: underline;
+}
+
+.scheduled-split-details {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 10px 12px 10px 24px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.scheduled-split-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, auto);
+  gap: 12px;
+  align-items: start;
+}
+
+.scheduled-split-line-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.scheduled-split-line-main span {
+  color: #334155;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scheduled-split-line-main small {
+  color: #64748b;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scheduled-split-line-amounts {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.scheduled-split-line-amounts .negative {
+  color: #b91c1c;
+}
+
+.scheduled-split-line-amounts .positive {
+  color: #047857;
+}
 .flag-colour-picker {
   position: relative;
   display: inline-flex;

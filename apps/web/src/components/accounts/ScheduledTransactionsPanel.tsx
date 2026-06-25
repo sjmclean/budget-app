@@ -25,6 +25,7 @@ interface ScheduledTransactionsPanelProps {
 interface ScheduledFormDraft {
   id?: string;
   flag: TransactionFlag;
+  splitLines?: ScheduledTransactionView["splitLines"];
   nextDueDate: string;
   frequency: ScheduledFrequency;
   payee: string;
@@ -124,6 +125,7 @@ export function ScheduledTransactionsPanel({
       memo: draft.memo.trim(),
       outflow,
       inflow,
+      splitLines: draft.splitLines,
     };
 
     const next = draft.id
@@ -160,7 +162,7 @@ export function ScheduledTransactionsPanel({
         <div className="scheduled-panel-header">
           <div>
             <h2>Scheduled Transactions</h2>
-            <p>Scheduled splits are pinned for later.</p>
+            <p>View upcoming repeating transactions and inspect imported split allocations.</p>
           </div>
           <button className="button button-secondary" type="button" onClick={onClose}>
             Close
@@ -423,42 +425,98 @@ function ScheduledSection({
   onEdit: (transaction: ScheduledTransactionView) => void;
   onDelete: (transaction: ScheduledTransactionView) => void;
 }) {
+  const [expandedTransactionIds, setExpandedTransactionIds] = useState<Set<string>>(new Set());
+
+  function toggleSplitDetails(transactionId: string) {
+    setExpandedTransactionIds((current) => {
+      const next = new Set(current);
+      if (next.has(transactionId)) {
+        next.delete(transactionId);
+      } else {
+        next.add(transactionId);
+      }
+      return next;
+    });
+  }
+
   return (
     <section className="scheduled-section">
       <h3>{title}</h3>
 
       {transactions.length === 0 ? <p className="muted">{emptyText}</p> : null}
 
-      {transactions.map((transaction) => (
-        <div className="scheduled-item" key={transaction.id}>
-          <div className="scheduled-item-main">
-            <strong>{transaction.payee}</strong>
-            <span>
-              {formatDate(transaction.nextDueDate)} · {frequencyLabels[transaction.frequency]}
-            </span>
-            <span>{transaction.category}</span>
-            {transaction.memo ? <span>{transaction.memo}</span> : null}
-          </div>
+      {transactions.map((transaction) => {
+        const splitLines = transaction.splitLines ?? [];
+        const hasSplitLines = splitLines.length > 0;
+        const isExpanded = expandedTransactionIds.has(transaction.id);
 
-          <div className="scheduled-item-amounts">
-            {transaction.outflow > 0 ? <span className="negative">-{formatAmount(transaction.outflow)}</span> : null}
-            {transaction.inflow > 0 ? <span className="positive">+{formatAmount(transaction.inflow)}</span> : null}
-          </div>
+        return (
+          <div className="scheduled-item" key={transaction.id}>
+            <div className="scheduled-item-main">
+              <strong>{transaction.payee}</strong>
+              <span>
+                {formatDate(transaction.nextDueDate)} · {frequencyLabels[transaction.frequency]}
+              </span>
+              {hasSplitLines ? (
+                <button
+                  className="scheduled-split-toggle"
+                  type="button"
+                  aria-expanded={isExpanded}
+                  onClick={() => toggleSplitDetails(transaction.id)}
+                >
+                  {isExpanded ? "▾" : "▸"} Split ({splitLines.length} {splitLines.length === 1 ? "category" : "categories"})
+                </button>
+              ) : (
+                <span>{transaction.category}</span>
+              )}
+              {transaction.memo ? <span>{transaction.memo}</span> : null}
+            </div>
 
-          <div className="scheduled-item-actions">
-            <button className="button button-primary" type="button" onClick={() => onEnter(transaction)}>
-              Enter
-            </button>
-            <button className="button button-secondary" type="button" onClick={() => onEdit(transaction)}>
-              Edit
-            </button>
-            <button className="button button-secondary" type="button" onClick={() => onDelete(transaction)}>
-              Delete
-            </button>
+            <div className="scheduled-item-amounts">
+              {transaction.outflow > 0 ? <span className="negative">-{formatAmount(transaction.outflow)}</span> : null}
+              {transaction.inflow > 0 ? <span className="positive">+{formatAmount(transaction.inflow)}</span> : null}
+            </div>
+
+            <div className="scheduled-item-actions">
+              <button className="button button-primary" type="button" onClick={() => onEnter(transaction)}>
+                Enter
+              </button>
+              <button className="button button-secondary" type="button" onClick={() => onEdit(transaction)}>
+                Edit
+              </button>
+              <button className="button button-secondary" type="button" onClick={() => onDelete(transaction)}>
+                Delete
+              </button>
+            </div>
+
+            {hasSplitLines && isExpanded ? <ScheduledSplitDetails splitLines={splitLines} /> : null}
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+function ScheduledSplitDetails({
+  splitLines,
+}: {
+  splitLines: NonNullable<ScheduledTransactionView["splitLines"]>;
+}) {
+  return (
+    <div className="scheduled-split-details" aria-label="Scheduled split details">
+      {splitLines.map((line) => (
+        <div className="scheduled-split-line" key={line.id}>
+          <div className="scheduled-split-line-main">
+            <span>{line.category}</span>
+            {line.memo ? <small>{line.memo}</small> : null}
+          </div>
+          <div className="scheduled-split-line-amounts">
+            {line.outflow > 0 ? <span className="negative">-{formatAmount(line.outflow)}</span> : null}
+            {line.inflow > 0 ? <span className="positive">+{formatAmount(line.inflow)}</span> : null}
           </div>
         </div>
       ))}
-    </section>
+    </div>
   );
 }
 
@@ -473,6 +531,7 @@ function createEmptyDraft(): ScheduledFormDraft {
     memo: "",
     outflow: "",
     inflow: "",
+    splitLines: undefined,
   };
 }
 
@@ -488,6 +547,7 @@ function draftFromScheduled(transaction: ScheduledTransactionView): ScheduledFor
     memo: transaction.memo ?? "",
     outflow: transaction.outflow ? transaction.outflow.toFixed(2) : "",
     inflow: transaction.inflow ? transaction.inflow.toFixed(2) : "",
+    splitLines: transaction.splitLines?.map((line) => ({ ...line })),
   };
 }
 

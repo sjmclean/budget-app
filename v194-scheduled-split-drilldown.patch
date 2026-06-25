@@ -1,0 +1,427 @@
+diff --git a/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx b/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx
+index ed65bc2..9fabcac 100644
+--- a/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx
++++ b/apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx
+@@ -25,6 +25,7 @@ interface ScheduledTransactionsPanelProps {
+ interface ScheduledFormDraft {
+   id?: string;
+   flag: TransactionFlag;
++  splitLines?: ScheduledTransactionView["splitLines"];
+   nextDueDate: string;
+   frequency: ScheduledFrequency;
+   payee: string;
+@@ -124,6 +125,7 @@ export function ScheduledTransactionsPanel({
+       memo: draft.memo.trim(),
+       outflow,
+       inflow,
++      splitLines: draft.splitLines,
+     };
+ 
+     const next = draft.id
+@@ -160,7 +162,7 @@ export function ScheduledTransactionsPanel({
+         <div className="scheduled-panel-header">
+           <div>
+             <h2>Scheduled Transactions</h2>
+-            <p>Scheduled splits are pinned for later.</p>
++            <p>View upcoming repeating transactions and inspect imported split allocations.</p>
+           </div>
+           <button className="button button-secondary" type="button" onClick={onClose}>
+             Close
+@@ -423,42 +425,98 @@ function ScheduledSection({
+   onEdit: (transaction: ScheduledTransactionView) => void;
+   onDelete: (transaction: ScheduledTransactionView) => void;
+ }) {
++  const [expandedTransactionIds, setExpandedTransactionIds] = useState<Set<string>>(new Set());
++
++  function toggleSplitDetails(transactionId: string) {
++    setExpandedTransactionIds((current) => {
++      const next = new Set(current);
++      if (next.has(transactionId)) {
++        next.delete(transactionId);
++      } else {
++        next.add(transactionId);
++      }
++      return next;
++    });
++  }
++
+   return (
+     <section className="scheduled-section">
+       <h3>{title}</h3>
+ 
+       {transactions.length === 0 ? <p className="muted">{emptyText}</p> : null}
+ 
+-      {transactions.map((transaction) => (
+-        <div className="scheduled-item" key={transaction.id}>
+-          <div className="scheduled-item-main">
+-            <strong>{transaction.payee}</strong>
+-            <span>
+-              {formatDate(transaction.nextDueDate)} · {frequencyLabels[transaction.frequency]}
+-            </span>
+-            <span>{transaction.category}</span>
+-            {transaction.memo ? <span>{transaction.memo}</span> : null}
++      {transactions.map((transaction) => {
++        const splitLines = transaction.splitLines ?? [];
++        const hasSplitLines = splitLines.length > 0;
++        const isExpanded = expandedTransactionIds.has(transaction.id);
++
++        return (
++          <div className="scheduled-item" key={transaction.id}>
++            <div className="scheduled-item-main">
++              <strong>{transaction.payee}</strong>
++              <span>
++                {formatDate(transaction.nextDueDate)} · {frequencyLabels[transaction.frequency]}
++              </span>
++              {hasSplitLines ? (
++                <button
++                  className="scheduled-split-toggle"
++                  type="button"
++                  aria-expanded={isExpanded}
++                  onClick={() => toggleSplitDetails(transaction.id)}
++                >
++                  {isExpanded ? "▾" : "▸"} Split ({splitLines.length} {splitLines.length === 1 ? "category" : "categories"})
++                </button>
++              ) : (
++                <span>{transaction.category}</span>
++              )}
++              {transaction.memo ? <span>{transaction.memo}</span> : null}
++            </div>
++
++            <div className="scheduled-item-amounts">
++              {transaction.outflow > 0 ? <span className="negative">-{formatAmount(transaction.outflow)}</span> : null}
++              {transaction.inflow > 0 ? <span className="positive">+{formatAmount(transaction.inflow)}</span> : null}
++            </div>
++
++            <div className="scheduled-item-actions">
++              <button className="button button-primary" type="button" onClick={() => onEnter(transaction)}>
++                Enter
++              </button>
++              <button className="button button-secondary" type="button" onClick={() => onEdit(transaction)}>
++                Edit
++              </button>
++              <button className="button button-secondary" type="button" onClick={() => onDelete(transaction)}>
++                Delete
++              </button>
++            </div>
++
++            {hasSplitLines && isExpanded ? <ScheduledSplitDetails splitLines={splitLines} /> : null}
+           </div>
++        );
++      })}
++    </section>
++  );
++}
+ 
+-          <div className="scheduled-item-amounts">
+-            {transaction.outflow > 0 ? <span className="negative">-{formatAmount(transaction.outflow)}</span> : null}
+-            {transaction.inflow > 0 ? <span className="positive">+{formatAmount(transaction.inflow)}</span> : null}
++function ScheduledSplitDetails({
++  splitLines,
++}: {
++  splitLines: NonNullable<ScheduledTransactionView["splitLines"]>;
++}) {
++  return (
++    <div className="scheduled-split-details" aria-label="Scheduled split details">
++      {splitLines.map((line) => (
++        <div className="scheduled-split-line" key={line.id}>
++          <div className="scheduled-split-line-main">
++            <span>{line.category}</span>
++            {line.memo ? <small>{line.memo}</small> : null}
+           </div>
+-
+-          <div className="scheduled-item-actions">
+-            <button className="button button-primary" type="button" onClick={() => onEnter(transaction)}>
+-              Enter
+-            </button>
+-            <button className="button button-secondary" type="button" onClick={() => onEdit(transaction)}>
+-              Edit
+-            </button>
+-            <button className="button button-secondary" type="button" onClick={() => onDelete(transaction)}>
+-              Delete
+-            </button>
++          <div className="scheduled-split-line-amounts">
++            {line.outflow > 0 ? <span className="negative">-{formatAmount(line.outflow)}</span> : null}
++            {line.inflow > 0 ? <span className="positive">+{formatAmount(line.inflow)}</span> : null}
+           </div>
+         </div>
+       ))}
+-    </section>
++    </div>
+   );
+ }
+ 
+@@ -473,6 +531,7 @@ function createEmptyDraft(): ScheduledFormDraft {
+     memo: "",
+     outflow: "",
+     inflow: "",
++    splitLines: undefined,
+   };
+ }
+ 
+@@ -488,6 +547,7 @@ function draftFromScheduled(transaction: ScheduledTransactionView): ScheduledFor
+     memo: transaction.memo ?? "",
+     outflow: transaction.outflow ? transaction.outflow.toFixed(2) : "",
+     inflow: transaction.inflow ? transaction.inflow.toFixed(2) : "",
++    splitLines: transaction.splitLines?.map((line) => ({ ...line })),
+   };
+ }
+ 
+diff --git a/apps/web/src/features/accounts/scheduledTransactionService.ts b/apps/web/src/features/accounts/scheduledTransactionService.ts
+index 438f8b1..a814d80 100644
+--- a/apps/web/src/features/accounts/scheduledTransactionService.ts
++++ b/apps/web/src/features/accounts/scheduledTransactionService.ts
+@@ -107,7 +107,7 @@ export class BrowserPersistentScheduledTransactionService {
+         memo: input.memo,
+         outflow: input.outflow,
+         inflow: input.inflow,
+-        splitLines: cloneSplitLines(input.splitLines),
++        splitLines: cloneSplitLines(input.splitLines ?? transaction.splitLines),
+         updatedAt: now,
+       };
+     });
+diff --git a/apps/web/src/styles/register.css b/apps/web/src/styles/register.css
+index 6bff9fe..da3eb05 100644
+--- a/apps/web/src/styles/register.css
++++ b/apps/web/src/styles/register.css
+@@ -1051,6 +1051,80 @@
+   flex-wrap: wrap;
+   justify-content: flex-end;
+ }
++
++.scheduled-split-toggle {
++  appearance: none;
++  border: 0;
++  background: transparent;
++  color: #334155;
++  cursor: pointer;
++  font: inherit;
++  font-size: 13px;
++  font-weight: 700;
++  padding: 0;
++  text-align: left;
++}
++
++.scheduled-split-toggle:hover {
++  color: #0f172a;
++  text-decoration: underline;
++}
++
++.scheduled-split-details {
++  grid-column: 1 / -1;
++  display: grid;
++  gap: 6px;
++  margin-top: 2px;
++  padding: 10px 12px 10px 24px;
++  border-radius: 12px;
++  background: #f8fafc;
++  border: 1px solid rgba(15, 23, 42, 0.08);
++}
++
++.scheduled-split-line {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr) minmax(96px, auto);
++  gap: 12px;
++  align-items: start;
++}
++
++.scheduled-split-line-main {
++  display: grid;
++  gap: 2px;
++  min-width: 0;
++}
++
++.scheduled-split-line-main span {
++  color: #334155;
++  font-size: 13px;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++
++.scheduled-split-line-main small {
++  color: #64748b;
++  font-size: 12px;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++
++.scheduled-split-line-amounts {
++  display: grid;
++  gap: 2px;
++  text-align: right;
++  font-size: 13px;
++  font-weight: 700;
++}
++
++.scheduled-split-line-amounts .negative {
++  color: #b91c1c;
++}
++
++.scheduled-split-line-amounts .positive {
++  color: #047857;
++}
+ .flag-colour-picker {
+   position: relative;
+   display: inline-flex;
+diff --git a/package.json b/package.json
+index 067466c..64f2821 100644
+--- a/package.json
++++ b/package.json
+@@ -260,7 +260,9 @@
+     "test:v192:ynab4-hidden-account-closed-state": "tsx tests/v192-ynab4-hidden-account-closed-state.ts",
+     "test:v192": "pnpm test:v192:ynab4-hidden-account-closed-state",
+     "test:v193:money-tolerance": "tsx tests/v193-money-tolerance.ts",
+-    "test:v193": "pnpm test:v193:money-tolerance"
++    "test:v193": "pnpm test:v193:money-tolerance",
++    "test:v194:scheduled-split-drilldown": "tsx tests/v194-scheduled-split-drilldown.ts",
++    "test:v194": "pnpm test:v194:scheduled-split-drilldown"
+   },
+   "dependencies": {
+     "better-sqlite3": "^12.11.1",
+diff --git a/tests/v194-scheduled-split-drilldown.ts b/tests/v194-scheduled-split-drilldown.ts
+new file mode 100644
+index 0000000..d59b490
+--- /dev/null
++++ b/tests/v194-scheduled-split-drilldown.ts
+@@ -0,0 +1,140 @@
++import assert from "node:assert/strict";
++import { BrowserPersistentScheduledTransactionService } from "../apps/web/src/features/accounts/scheduledTransactionService.ts";
++import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
++
++function createMemoryStorage(): KeyValueStoragePort {
++  const values = new Map<string, string>();
++
++  return {
++    getItem(key) {
++      return values.get(key) ?? null;
++    },
++    setItem(key, value) {
++      values.set(key, value);
++    },
++    removeItem(key) {
++      values.delete(key);
++    },
++    listKeys() {
++      return [...values.keys()].sort();
++    },
++  };
++}
++
++function createService(storage = createMemoryStorage()) {
++  const payees = new Map<string, string>([["Department Of Education", "payee-department"]]);
++
++  return new BrowserPersistentScheduledTransactionService({
++    storage,
++    async recordPayee(payeeName) {
++      if (!payees.has(payeeName)) {
++        payees.set(payeeName, `payee-${payeeName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`);
++      }
++    },
++    findPayeeIdByName(payeeName) {
++      return payees.get(payeeName);
++    },
++  });
++}
++
++async function testScheduledSplitLinesReachListAndRegisterInput() {
++  const service = createService();
++
++  const transactions = await service.create({
++    accountId: "account-1",
++    flag: null,
++    nextDueDate: "2026-07-07",
++    frequency: "fortnightly",
++    payee: "Department Of Education",
++    category: "Split",
++    memo: "Imported scheduled income allocation",
++    outflow: 0,
++    inflow: 3621.05,
++    splitLines: [
++      {
++        id: "split-income-a",
++        category: "Income Allocation A",
++        memo: "Base pay",
++        outflow: 0,
++        inflow: 2000,
++      },
++      {
++        id: "split-income-b",
++        category: "Income Allocation B",
++        memo: "Allowance",
++        outflow: 0,
++        inflow: 1621.05,
++      },
++    ],
++  });
++
++  assert.equal(transactions.length, 1);
++  assert.equal(transactions[0]?.category, "Split");
++  assert.equal(transactions[0]?.splitLines?.length, 2);
++  assert.equal(transactions[0]?.splitLines?.[0]?.category, "Income Allocation A");
++  assert.equal(transactions[0]?.splitLines?.[0]?.memo, "Base pay");
++  assert.equal(transactions[0]?.splitLines?.[1]?.inflow, 1621.05);
++
++  const registerInput = service.toRegisterInput(transactions[0]!);
++  assert.equal(registerInput.splitLines?.length, 2);
++  assert.equal(registerInput.splitLines?.[0]?.category, "Income Allocation A");
++  assert.notEqual(registerInput.splitLines, transactions[0]?.splitLines, "Split lines should be cloned for register entry");
++}
++
++async function testEditingScheduledTransactionPreservesImportedSplitLines() {
++  const service = createService();
++
++  const [created] = await service.create({
++    accountId: "account-1",
++    flag: null,
++    nextDueDate: "2026-07-07",
++    frequency: "fortnightly",
++    payee: "Department Of Education",
++    category: "Split",
++    memo: "Original memo",
++    outflow: 0,
++    inflow: 3621.05,
++    splitLines: [
++      {
++        id: "split-income-a",
++        category: "Income Allocation A",
++        outflow: 0,
++        inflow: 2000,
++      },
++      {
++        id: "split-income-b",
++        category: "Income Allocation B",
++        outflow: 0,
++        inflow: 1621.05,
++      },
++    ],
++  });
++
++  assert.ok(created);
++
++  const [updated] = await service.update({
++    id: created.id,
++    accountId: "account-1",
++    flag: "green",
++    nextDueDate: "2026-07-08",
++    frequency: "monthly",
++    payee: "Department Of Education",
++    category: "Split",
++    memo: "Edited memo",
++    outflow: 0,
++    inflow: 3621.05,
++  });
++
++  assert.ok(updated);
++  assert.equal(updated.memo, "Edited memo");
++  assert.equal(updated.flag, "green");
++  assert.equal(updated.nextDueDate, "2026-07-08");
++  assert.equal(updated.splitLines?.length, 2);
++  assert.equal(updated.splitLines?.[0]?.category, "Income Allocation A");
++  assert.equal(updated.splitLines?.[1]?.inflow, 1621.05);
++}
++
++await testScheduledSplitLinesReachListAndRegisterInput();
++await testEditingScheduledTransactionPreservesImportedSplitLines();
++
++console.log("v1.94 scheduled split drill-down passed");
