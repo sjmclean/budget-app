@@ -34,6 +34,8 @@ import {
 } from "../features/accounts/transactionImport";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
+import { formatDateForDisplay } from "../features/settings/dateFormatting";
+import { useDateFormatPreference } from "../features/settings/useDateFormatPreference";
 
 const SPLIT_CATEGORY_LABEL = "Split...";
 
@@ -51,13 +53,6 @@ function formatMoney(value: number, currencyCode: string) {
   }).format(value);
 }
 
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(date));
-}
 
 function normalisePayeeKey(name: string) {
   return name.replace(/\s+/g, " ").trim().toLocaleLowerCase();
@@ -72,7 +67,7 @@ function formatPayeeLastUsed(value: string | undefined) {
     return "Never";
   }
 
-  return formatDate(value.slice(0, 10));
+  return formatDateForDisplay(value.slice(0, 10));
 }
 
 function formatDateForInput(date: string) {
@@ -308,6 +303,7 @@ function AttachmentManager({
   onAddAttachment: (file: File) => void;
   onRemoveAttachment: (attachmentId: string) => void;
 }) {
+  const dateFormat = useDateFormatPreference();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const attachments = transaction.attachments ?? [];
 
@@ -323,7 +319,7 @@ function AttachmentManager({
         <div className="attachment-dialog-header">
           <div>
             <strong>Attachments</strong>
-            <p className="muted">{transaction.payee} · {formatDate(transaction.date)}</p>
+            <p className="muted">{transaction.payee} · {formatDateForDisplay(transaction.date, dateFormat)}</p>
           </div>
           <button className="button button-secondary" type="button" onClick={onClose}>
             Close
@@ -1559,6 +1555,8 @@ function TransactionRow({
   onToggleCleared: () => void;
   onManageAttachments: () => void;
 }) {
+  const dateFormat = useDateFormatPreference();
+
   return (
     <button
       type="button"
@@ -1567,7 +1565,7 @@ function TransactionRow({
       onDoubleClick={onEdit}
     >
       <span className="register-checkbox" aria-hidden="true" />
-      <span>{formatDate(transaction.date)}</span>
+      <span>{formatDateForDisplay(transaction.date, dateFormat)}</span>
       <FlagDot flag={transaction.flag} />
       <AttachmentIndicator
         count={transaction.attachmentCount}

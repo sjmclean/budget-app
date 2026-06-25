@@ -10,6 +10,8 @@ import { getAppPersistenceGateway } from "../../features/persistence";
 import type { SidebarAccount } from "../../features/accounts/accountService";
 import type { PayeeView } from "../../features/accounts/payeeService";
 import type { BudgetCategoryOption } from "../../features/budget/budgetViewTypes";
+import { formatDateForDisplay } from "../../features/settings/dateFormatting";
+import { useDateFormatPreference } from "../../features/settings/useDateFormatPreference";
 
 interface ScheduledTransactionsPanelProps {
   accountId: string;
@@ -64,6 +66,7 @@ export function ScheduledTransactionsPanel({
   onDueCountChange,
 }: ScheduledTransactionsPanelProps) {
   const scheduledTransactionsPersistence = getAppPersistenceGateway().scheduledTransactions;
+  const dateFormat = useDateFormatPreference();
   const [scheduledTransactions, setScheduledTransactions] = useState<ScheduledTransactionView[]>([]);
   const [draft, setDraft] = useState<ScheduledFormDraft | null>(null);
 
@@ -194,6 +197,7 @@ export function ScheduledTransactionsPanel({
             title="Due soon"
             emptyText="No scheduled transactions due in the next 30 days."
             transactions={dueSoonTransactions}
+            dateFormat={dateFormat}
             onEnter={enterScheduled}
             onEdit={(transaction) => setDraft(draftFromScheduled(transaction))}
             onDelete={deleteScheduled}
@@ -204,6 +208,7 @@ export function ScheduledTransactionsPanel({
               title="Later"
               emptyText=""
               transactions={otherTransactions}
+              dateFormat={dateFormat}
               onEnter={enterScheduled}
               onEdit={(transaction) => setDraft(draftFromScheduled(transaction))}
               onDelete={deleteScheduled}
@@ -414,6 +419,7 @@ function ScheduledSection({
   title,
   emptyText,
   transactions,
+  dateFormat,
   onEnter,
   onEdit,
   onDelete,
@@ -421,6 +427,7 @@ function ScheduledSection({
   title: string;
   emptyText: string;
   transactions: ScheduledTransactionView[];
+  dateFormat: ReturnType<typeof useDateFormatPreference>;
   onEnter: (transaction: ScheduledTransactionView) => void;
   onEdit: (transaction: ScheduledTransactionView) => void;
   onDelete: (transaction: ScheduledTransactionView) => void;
@@ -455,7 +462,7 @@ function ScheduledSection({
             <div className="scheduled-item-main">
               <strong>{transaction.payee}</strong>
               <span>
-                {formatDate(transaction.nextDueDate)} · {frequencyLabels[transaction.frequency]}
+                {formatDateForDisplay(transaction.nextDueDate, dateFormat)} · {frequencyLabels[transaction.frequency]}
               </span>
               {hasSplitLines ? (
                 <button
@@ -568,13 +575,6 @@ function parseMoney(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
-}
 
 function formatAmount(value: number): string {
   return new Intl.NumberFormat("en-AU", {

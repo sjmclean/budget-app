@@ -20,6 +20,8 @@ import type {
   CategoryMergePreview,
 } from "../features/budget/budgetViewTypes";
 import { isMoneyNegative, isMoneyZero, normaliseMoney } from "../features/budget/moneyMath";
+import { formatDateForDisplay } from "../features/settings/dateFormatting";
+import { useDateFormatPreference } from "../features/settings/useDateFormatPreference";
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -655,18 +657,6 @@ function CategoryInspector({
 }
 
 
-function formatShortDate(value: string) {
-  const date = new Date(`${value}T00:00:00`);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "2-digit",
-    month: "short",
-  }).format(date);
-}
 
 function BudgetActivityDrilldownModal({
   drilldown,
@@ -679,6 +669,8 @@ function BudgetActivityDrilldownModal({
   onClose: () => void;
   onTransactionClick: (row: BudgetActivityDrilldownRow) => void;
 }) {
+  const dateFormat = useDateFormatPreference();
+
   if (!drilldown && !isLoading) {
     return null;
   }
@@ -735,7 +727,7 @@ function BudgetActivityDrilldownModal({
                   onClick={() => onTransactionClick(row)}
                   title="Open this transaction in the account register"
                 >
-                  <span>{formatShortDate(row.date)}</span>
+                  <span>{formatDateForDisplay(row.date, dateFormat, "short")}</span>
                   <strong>{row.payee}</strong>
                   <span className="budget-activity-memo">
                     {row.memo || (row.isSplit ? "Split line" : "—")}

@@ -264,7 +264,9 @@
     "test:v194:scheduled-split-drilldown": "tsx tests/v194-scheduled-split-drilldown.ts",
     "test:v194": "pnpm test:v194:scheduled-split-drilldown",
     "test:v195:register-pagination": "tsx tests/v195-register-pagination.ts",
-    "test:v195": "pnpm test:v195:register-pagination"
+    "test:v195": "pnpm test:v195:register-pagination",
+    "test:v196:date-format-preferences": "tsx tests/v196-date-format-preferences.ts",
+    "test:v196": "pnpm test:v196:date-format-preferences"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

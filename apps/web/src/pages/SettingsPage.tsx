@@ -27,6 +27,7 @@ import {
   writeSettingsPreferences,
 } from "../features/settings/settingsPreferences";
 import { confirmDialog } from "../features/ui/appDialogService";
+import { formatDateForDisplay, notifySettingsPreferencesChanged } from "../features/settings/dateFormatting";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore, type ThemeMode } from "../stores/uiStore";
 
@@ -83,25 +84,7 @@ function getLocaleForNumberFormat(format: NumberFormatPreference): string {
 }
 
 function formatDatePreview(format: DateFormatPreference): string {
-  const sample = new Date(2026, 5, 22);
-
-  if (format === "YYYY-MM-DD") {
-    return "2026-06-22";
-  }
-
-  if (format === "MM/DD/YYYY") {
-    return new Intl.DateTimeFormat("en-US", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(sample);
-  }
-
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(sample);
+  return formatDateForDisplay(new Date(2026, 5, 22), format);
 }
 
 function formatMoneyPreview(settings: SettingsPreferences): string {
@@ -157,6 +140,7 @@ export function SettingsPage() {
   function persist(next: SettingsPreferences, message = "Settings saved locally.") {
     const saved = writeSettingsPreferences(browserLocalStorageKeyValueStorage, next);
     setSettings(saved);
+    notifySettingsPreferencesChanged();
     setStatusMessage(message);
   }
 
