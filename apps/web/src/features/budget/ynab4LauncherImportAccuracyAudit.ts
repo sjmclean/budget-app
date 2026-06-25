@@ -588,7 +588,20 @@ function appendActivityContributionBreakdown(
   const importedTransactionActivity = roundMoney(importedContributions.reduce((sum, contribution) => sum + contribution.amount, 0));
   const transactionDelta = roundMoney(importedTransactionActivity - sourceTransactionActivity);
 
+  const sourceBudgetRowActivity = row.source?.activity ?? 0;
+  const importedBudgetRowActivity = row.imported?.activity ?? 0;
+  const sourceBudgetRowGap = roundMoney(sourceBudgetRowActivity - sourceTransactionActivity);
+  const importedBudgetRowGap = roundMoney(importedBudgetRowActivity - importedTransactionActivity);
+
   lines.push(`    Transaction Activity: source=${sourceTransactionActivity.toFixed(2)}, imported=${importedTransactionActivity.toFixed(2)}, delta=${transactionDelta.toFixed(2)}`);
+  lines.push(
+    `    Budget Activity Semantics: sourceRow=${sourceBudgetRowActivity.toFixed(2)}, sourceTransactions=${sourceTransactionActivity.toFixed(2)}, sourceRowMinusTransactions=${sourceBudgetRowGap.toFixed(2)}, importedRow=${importedBudgetRowActivity.toFixed(2)}, importedTransactions=${importedTransactionActivity.toFixed(2)}, importedRowMinusTransactions=${importedBudgetRowGap.toFixed(2)}`,
+  );
+  if (Math.abs(transactionDelta) <= MONEY_AUDIT_TOLERANCE && Math.abs(sourceBudgetRowGap) > MONEY_AUDIT_TOLERANCE) {
+    lines.push(
+      "    Interpretation: imported transaction activity matches source transaction activity; remaining difference comes from the YNAB4 budget-row activity value.",
+    );
+  }
   appendContributionList(lines, "Source Transactions", sourceContributions);
   appendContributionList(lines, "Imported Transactions", importedContributions);
 }
