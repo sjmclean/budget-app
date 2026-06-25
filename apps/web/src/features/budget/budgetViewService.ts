@@ -59,10 +59,12 @@ function monthLabelFromIsoMonth(month: string): string {
 }
 
 function recalculateCategory(category: BudgetCategoryView): BudgetCategoryView {
-  const available = category.assigned + category.activity;
+  const previousAvailable = category.previousAvailable ?? 0;
+  const available = previousAvailable + category.assigned + category.activity;
 
   return {
     ...category,
+    previousAvailable,
     isArchived: category.isArchived ?? false,
     available,
     isOverspent: available < 0,
@@ -71,6 +73,7 @@ function recalculateCategory(category: BudgetCategoryView): BudgetCategoryView {
 
 function recalculateGroup(group: BudgetCategoryGroupView): BudgetCategoryGroupView {
   const categories = group.categories.map(recalculateCategory);
+  const previousAvailable = categories.reduce((sum, category) => sum + category.previousAvailable, 0);
   const assigned = categories.reduce((sum, category) => sum + category.assigned, 0);
   const activity = categories.reduce((sum, category) => sum + category.activity, 0);
   const available = categories.reduce((sum, category) => sum + category.available, 0);
@@ -78,6 +81,7 @@ function recalculateGroup(group: BudgetCategoryGroupView): BudgetCategoryGroupVi
   return {
     ...group,
     note: group.note ?? "",
+    previousAvailable,
     categories,
     assigned,
     activity,
@@ -114,6 +118,7 @@ function createStarterBudgetView(budgetId: string, month: string): BudgetMonthVi
     categoryGroups: cloneDefaultCategoryTemplate().map((group) => ({
       id: group.id,
       name: group.name,
+      previousAvailable: 0,
       assigned: 0,
       activity: 0,
       available: 0,
@@ -121,6 +126,7 @@ function createStarterBudgetView(budgetId: string, month: string): BudgetMonthVi
       categories: group.categories.map((category) => ({
         id: category.id,
         name: category.name,
+        previousAvailable: 0,
         assigned: 0,
         activity: 0,
         available: 0,
@@ -541,6 +547,7 @@ async function createCategoryMergePreview(
     sourceCategoryId: source.category.id,
     sourceCategoryName: source.category.name,
     sourceGroupName: source.group.name,
+    sourcePreviousAvailable: source.category.previousAvailable,
     sourceAssigned: source.category.assigned,
     sourceActivity: source.category.activity,
     sourceAvailable: source.category.available,
@@ -548,10 +555,12 @@ async function createCategoryMergePreview(
     targetCategoryId: target.category.id,
     targetCategoryName: target.category.name,
     targetGroupName: target.group.name,
+    targetPreviousAvailable: target.category.previousAvailable,
     targetAssigned: target.category.assigned,
     targetActivity: target.category.activity,
     targetAvailable: target.category.available,
     targetIsArchived: target.category.isArchived,
+    combinedPreviousAvailable: source.category.previousAvailable + target.category.previousAvailable,
     combinedAssigned: source.category.assigned + target.category.assigned,
     combinedActivity: source.category.activity + target.category.activity,
     combinedAvailable: source.category.available + target.category.available,
@@ -602,6 +611,7 @@ export function createBudgetViewService(
         if (category.id === targetCategoryId) {
           return {
             ...category,
+            previousAvailable: category.previousAvailable + source.category.previousAvailable,
             assigned: category.assigned + source.category.assigned,
           };
         }
@@ -609,6 +619,7 @@ export function createBudgetViewService(
         if (category.id === sourceCategoryId) {
           return {
             ...category,
+            previousAvailable: 0,
             assigned: 0,
             isArchived: true,
           };

@@ -101,12 +101,14 @@ function createStarterBudgetMonthValue(budget: BudgetSummary, month: string): st
   const categoryGroups = cloneDefaultCategoryTemplate().map((group) => ({
     id: group.id,
     name: group.name,
+    previousAvailable: 0,
     assigned: 0,
     activity: 0,
     available: 0,
     categories: group.categories.map((category) => ({
       id: category.id,
       name: category.name,
+      previousAvailable: 0,
       assigned: 0,
       activity: 0,
       available: 0,

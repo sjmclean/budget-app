@@ -1,0 +1,253 @@
+diff -ruN '--exclude=.git' '--exclude=node_modules' '--exclude=v181-ynab4-mortgage-activity-only-alias.patch' '--exclude=apply_v1722_budget_rounding_tolerance_fix.sh' budget_app_original_dirty/budget-app/apps/web/src/features/budget/budgetLifecycle.ts budget_app_audit/budget-app/apps/web/src/features/budget/budgetLifecycle.ts
+--- budget_app_original_dirty/budget-app/apps/web/src/features/budget/budgetLifecycle.ts	2026-06-22 07:18:22.000000000 +0000
++++ budget_app_audit/budget-app/apps/web/src/features/budget/budgetLifecycle.ts	2026-06-24 23:56:51.239472956 +0000
+@@ -107,6 +107,7 @@
+     categories: group.categories.map((category) => ({
+       id: category.id,
+       name: category.name,
++      previousAvailable: 0,
+       assigned: 0,
+       activity: 0,
+       available: 0,
+diff -ruN '--exclude=.git' '--exclude=node_modules' '--exclude=v181-ynab4-mortgage-activity-only-alias.patch' '--exclude=apply_v1722_budget_rounding_tolerance_fix.sh' budget_app_original_dirty/budget-app/apps/web/src/features/budget/budgetViewService.ts budget_app_audit/budget-app/apps/web/src/features/budget/budgetViewService.ts
+--- budget_app_original_dirty/budget-app/apps/web/src/features/budget/budgetViewService.ts	2026-06-23 05:29:49.000000000 +0000
++++ budget_app_audit/budget-app/apps/web/src/features/budget/budgetViewService.ts	2026-06-24 23:56:17.832277716 +0000
+@@ -59,10 +59,12 @@
+ }
+ 
+ function recalculateCategory(category: BudgetCategoryView): BudgetCategoryView {
+-  const available = category.assigned + category.activity;
++  const previousAvailable = category.previousAvailable ?? 0;
++  const available = previousAvailable + category.assigned + category.activity;
+ 
+   return {
+     ...category,
++    previousAvailable,
+     isArchived: category.isArchived ?? false,
+     available,
+     isOverspent: available < 0,
+@@ -121,6 +123,7 @@
+       categories: group.categories.map((category) => ({
+         id: category.id,
+         name: category.name,
++        previousAvailable: 0,
+         assigned: 0,
+         activity: 0,
+         available: 0,
+@@ -602,6 +605,7 @@
+         if (category.id === targetCategoryId) {
+           return {
+             ...category,
++            previousAvailable: category.previousAvailable + source.category.previousAvailable,
+             assigned: category.assigned + source.category.assigned,
+           };
+         }
+@@ -609,6 +613,7 @@
+         if (category.id === sourceCategoryId) {
+           return {
+             ...category,
++            previousAvailable: 0,
+             assigned: 0,
+             isArchived: true,
+           };
+diff -ruN '--exclude=.git' '--exclude=node_modules' '--exclude=v181-ynab4-mortgage-activity-only-alias.patch' '--exclude=apply_v1722_budget_rounding_tolerance_fix.sh' budget_app_original_dirty/budget-app/apps/web/src/features/budget/budgetViewTypes.ts budget_app_audit/budget-app/apps/web/src/features/budget/budgetViewTypes.ts
+--- budget_app_original_dirty/budget-app/apps/web/src/features/budget/budgetViewTypes.ts	2026-06-23 05:29:49.000000000 +0000
++++ budget_app_audit/budget-app/apps/web/src/features/budget/budgetViewTypes.ts	2026-06-24 23:56:17.831797645 +0000
+@@ -1,6 +1,7 @@
+ export interface BudgetCategoryView {
+   id: string;
+   name: string;
++  previousAvailable: number;
+   assigned: number;
+   activity: number;
+   available: number;
+diff -ruN '--exclude=.git' '--exclude=node_modules' '--exclude=v181-ynab4-mortgage-activity-only-alias.patch' '--exclude=apply_v1722_budget_rounding_tolerance_fix.sh' budget_app_original_dirty/budget-app/apps/web/src/features/budget/ynab4LauncherImport.ts budget_app_audit/budget-app/apps/web/src/features/budget/ynab4LauncherImport.ts
+--- budget_app_original_dirty/budget-app/apps/web/src/features/budget/ynab4LauncherImport.ts	2026-06-24 13:09:10.000000000 +0000
++++ budget_app_audit/budget-app/apps/web/src/features/budget/ynab4LauncherImport.ts	2026-06-24 23:56:51.239121769 +0000
+@@ -529,6 +529,7 @@
+   input.group.categories.push({
+     id,
+     name: input.categoryName,
++    previousAvailable: 0,
+     assigned: 0,
+     activity: 0,
+     available: 0,
+@@ -817,10 +818,18 @@
+ ): Map<string, BudgetMonthView> {
+   const views = new Map<string, BudgetMonthView>();
+   const activityByMonthCategory = buildBudgetActivityByMonthCategory(registers, templateGroups, maps);
+-  const sourceMonths = monthlyBudgets.length > 0 ? monthlyBudgets : [{ month: now.toISOString().slice(0, 7), monthlySubCategoryBudgets: [] }];
++  const fallbackMonth = now.toISOString().slice(0, 7);
++  const sourceMonths = (monthlyBudgets.length > 0
++    ? monthlyBudgets
++    : [{ month: fallbackMonth, monthlySubCategoryBudgets: [] }])
++    .map((monthlyBudget) => ({
++      monthlyBudget,
++      month: monthKey(firstString(monthlyBudget.month, monthlyBudget.date, monthlyBudget.monthName)) ?? fallbackMonth,
++    }))
++    .sort((left, right) => left.month.localeCompare(right.month));
++  const priorAvailableByCategoryId = new Map<string, number>();
+ 
+-  for (const monthlyBudget of sourceMonths) {
+-    const month = monthKey(firstString(monthlyBudget.month, monthlyBudget.date, monthlyBudget.monthName)) ?? now.toISOString().slice(0, 7);
++  for (const { monthlyBudget, month } of sourceMonths) {
+     const groups = cloneCategoryGroups(templateGroups);
+     const categoryById = new Map(groups.flatMap((group) => group.categories.map((category) => [category.id, category] as const)));
+ 
+@@ -828,14 +837,23 @@
+       const categoryId = mappedId(maps.categoryIdBySourceId, row.categoryId, row.subCategoryId);
+       const category = categoryId ? categoryById.get(categoryId) : undefined;
+       if (!category) continue;
++      category.previousAvailable = amountToDisplayUnits(
++        row.previousAvailable,
++        row.balancePreviousMonth,
++        row.startingBalance,
++        row.beginningBalance,
++        row.carryover,
++      ) ?? priorAvailableByCategoryId.get(category.id) ?? 0;
+       category.assigned = amountToDisplayUnits(row.budgeted, row.assigned) ?? 0;
+     }
+ 
+     const activityByCategory = activityByMonthCategory.get(month) ?? new Map<string, number>();
+     for (const category of categoryById.values()) {
++      category.previousAvailable = roundMoney(category.previousAvailable ?? priorAvailableByCategoryId.get(category.id) ?? 0);
+       category.activity = roundMoney(activityByCategory.get(category.id) ?? 0);
+-      category.available = roundMoney(category.assigned + category.activity);
++      category.available = roundMoney(category.previousAvailable + category.assigned + category.activity);
+       category.isOverspent = category.available < 0;
++      priorAvailableByCategoryId.set(category.id, category.available);
+     }
+ 
+     for (const group of groups) {
+diff -ruN '--exclude=.git' '--exclude=node_modules' '--exclude=v181-ynab4-mortgage-activity-only-alias.patch' '--exclude=apply_v1722_budget_rounding_tolerance_fix.sh' budget_app_original_dirty/budget-app/package.json budget_app_audit/budget-app/package.json
+--- budget_app_original_dirty/budget-app/package.json	2026-06-24 10:15:12.000000000 +0000
++++ budget_app_audit/budget-app/package.json	2026-06-24 23:57:28.030707892 +0000
+@@ -237,7 +237,9 @@
+     "test:v1781:ynab4-amount-conversion-fidelity": "tsx tests/v1781-ynab4-amount-conversion-fidelity.ts",
+     "test:v1781": "pnpm test:v1781:ynab4-amount-conversion-fidelity",
+     "test:v179:ynab4-budget-activity-fidelity": "tsx tests/v179-ynab4-budget-activity-fidelity.ts",
+-    "test:v179": "pnpm test:v179:ynab4-budget-activity-fidelity"
++    "test:v179": "pnpm test:v179:ynab4-budget-activity-fidelity",
++    "test:v181:budget-available-rollover": "tsx tests/v181-budget-available-rollover.ts",
++    "test:v181": "pnpm test:v181:budget-available-rollover"
+   },
+   "dependencies": {
+     "better-sqlite3": "^12.11.1",
+diff -ruN '--exclude=.git' '--exclude=node_modules' '--exclude=v181-ynab4-mortgage-activity-only-alias.patch' '--exclude=apply_v1722_budget_rounding_tolerance_fix.sh' budget_app_original_dirty/budget-app/tests/v181-budget-available-rollover.ts budget_app_audit/budget-app/tests/v181-budget-available-rollover.ts
+--- budget_app_original_dirty/budget-app/tests/v181-budget-available-rollover.ts	1970-01-01 00:00:00.000000000 +0000
++++ budget_app_audit/budget-app/tests/v181-budget-available-rollover.ts	2026-06-24 23:57:12.028219781 +0000
+@@ -0,0 +1,114 @@
++import assert from "node:assert/strict";
++
++import { createBudgetViewService } from "../apps/web/src/features/budget/budgetViewService.js";
++import type { BudgetActivityPersistencePort } from "../apps/web/src/features/budget/budgetActivityPersistencePort.js";
++import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.js";
++
++const BUDGET_ID = "household";
++const MONTH = "2026-06";
++const STORAGE_KEY = `budget-app.budget-view.v1.${BUDGET_ID}.${MONTH}`;
++
++function createMemoryStorage(): KeyValueStoragePort {
++  const values = new Map<string, string>();
++  return {
++    getItem(key: string): string | null {
++      return values.get(key) ?? null;
++    },
++    setItem(key: string, value: string): void {
++      values.set(key, value);
++    },
++    removeItem(key: string): void {
++      values.delete(key);
++    },
++  };
++}
++
++const emptyActivity: BudgetActivityPersistencePort = {
++  async listRegisterTransactionsForBudgetActivity() {
++    return [];
++  },
++  async countCategoryReferences() {
++    return {
++      registerTransactionCount: 0,
++      registerSplitLineCount: 0,
++      scheduledTransactionCount: 0,
++    };
++  },
++  async renameRegisterCategoryReferences() {},
++  async rewriteCategoryReferences() {},
++};
++
++function writeBudgetView(storage: KeyValueStoragePort, category: Record<string, unknown>): void {
++  storage.setItem(
++    STORAGE_KEY,
++    JSON.stringify({
++      budgetId: BUDGET_ID,
++      budgetName: "Household Budget",
++      monthLabel: "June 2026",
++      currencyCode: "AUD",
++      readyToAssign: 0,
++      totalAssigned: 0,
++      totalActivity: 0,
++      totalAvailable: 0,
++      categoryGroups: [
++        {
++          id: "main-expenses",
++          name: "Main Expenses",
++          assigned: 0,
++          activity: 0,
++          available: 0,
++          note: "",
++          categories: [
++            {
++              id: "groceries",
++              name: "Groceries",
++              previousAvailable: 125,
++              assigned: 50,
++              activity: 0,
++              available: 999,
++              isOverspent: false,
++              isArchived: false,
++              note: "",
++              ...category,
++            },
++          ],
++        },
++      ],
++    }),
++  );
++}
++
++async function validatesPreviousAvailableInRuntimeRecalculation(): Promise<void> {
++  const storage = createMemoryStorage();
++  writeBudgetView(storage, {});
++
++  const service = createBudgetViewService({ storage, budgetActivity: emptyActivity });
++  const view = await service.getBudgetMonthView({ budgetId: BUDGET_ID, month: MONTH });
++  const category = view.categoryGroups[0]?.categories[0];
++
++  assert.equal(category?.previousAvailable, 125, "previous available should be preserved on load");
++  assert.equal(category?.available, 175, "available should include previous available plus assigned plus activity");
++  assert.equal(view.totalAvailable, 175, "budget total available should include previous available");
++
++  const updated = await service.updateAssigned({ budgetId: BUDGET_ID, month: MONTH, categoryId: "groceries", assigned: 75 });
++  const updatedCategory = updated.categoryGroups[0]?.categories[0];
++  assert.equal(updatedCategory?.previousAvailable, 125, "previous available should survive assigned edits");
++  assert.equal(updatedCategory?.available, 200, "assigned edits should recalculate using previous available");
++}
++
++async function defaultsLegacyStoredMonthsToZeroPreviousAvailable(): Promise<void> {
++  const storage = createMemoryStorage();
++  writeBudgetView(storage, { previousAvailable: undefined, assigned: 50, activity: 0, available: 50 });
++
++  const service = createBudgetViewService({ storage, budgetActivity: emptyActivity });
++  const view = await service.getBudgetMonthView({ budgetId: BUDGET_ID, month: MONTH });
++  const category = view.categoryGroups[0]?.categories[0];
++
++  assert.equal(category?.previousAvailable, 0, "legacy budget views should default previous available to zero");
++  assert.equal(category?.available, 50, "legacy views should keep existing assigned plus activity behaviour by default");
++}
++
++await validatesPreviousAvailableInRuntimeRecalculation();
++await defaultsLegacyStoredMonthsToZeroPreviousAvailable();
++
++console.log("v1.81 budget available rollover validation passed");

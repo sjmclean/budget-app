@@ -427,6 +427,7 @@ function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategor
     const draft: CategoryGroupDraft = {
       id: groupId,
       name: groupName,
+      previousAvailable: 0,
       assigned: 0,
       activity: 0,
       available: 0,
@@ -529,6 +530,7 @@ function addImportedCategoryToGroup(input: {
   input.group.categories.push({
     id,
     name: input.categoryName,
+    previousAvailable: 0,
     assigned: 0,
     activity: 0,
     available: 0,
@@ -558,6 +560,7 @@ function findOrCreateCategoryGroupDraft(input: {
   const group: CategoryGroupDraft = {
     id: uniqueSlug(input.groupName, input.existingGroupIds, "group"),
     name: input.groupName,
+    previousAvailable: 0,
     assigned: 0,
     activity: 0,
     available: 0,
@@ -817,10 +820,15 @@ function mapBudgetMonthViews(
 ): Map<string, BudgetMonthView> {
   const views = new Map<string, BudgetMonthView>();
   const activityByMonthCategory = buildBudgetActivityByMonthCategory(registers, templateGroups, maps);
-  const sourceMonths = monthlyBudgets.length > 0 ? monthlyBudgets : [{ month: now.toISOString().slice(0, 7), monthlySubCategoryBudgets: [] }];
+  const sourceMonths = (monthlyBudgets.length > 0 ? monthlyBudgets : [{ month: now.toISOString().slice(0, 7), monthlySubCategoryBudgets: [] }])
+    .map((monthlyBudget) => ({
+      monthlyBudget,
+      month: monthKey(firstString(monthlyBudget.month, monthlyBudget.date, monthlyBudget.monthName)) ?? now.toISOString().slice(0, 7),
+    }))
+    .sort((left, right) => left.month.localeCompare(right.month));
+  const previousAvailableByCategoryId = new Map<string, number>();
 
-  for (const monthlyBudget of sourceMonths) {
-    const month = monthKey(firstString(monthlyBudget.month, monthlyBudget.date, monthlyBudget.monthName)) ?? now.toISOString().slice(0, 7);
+  for (const { monthlyBudget, month } of sourceMonths) {
     const groups = cloneCategoryGroups(templateGroups);
     const categoryById = new Map(groups.flatMap((group) => group.categories.map((category) => [category.id, category] as const)));
 
@@ -833,12 +841,15 @@ function mapBudgetMonthViews(
 
     const activityByCategory = activityByMonthCategory.get(month) ?? new Map<string, number>();
     for (const category of categoryById.values()) {
+      category.previousAvailable = roundMoney(previousAvailableByCategoryId.get(category.id) ?? 0);
       category.activity = roundMoney(activityByCategory.get(category.id) ?? 0);
-      category.available = roundMoney(category.assigned + category.activity);
+      category.available = roundMoney(category.previousAvailable + category.assigned + category.activity);
       category.isOverspent = category.available < 0;
+      previousAvailableByCategoryId.set(category.id, category.available);
     }
 
     for (const group of groups) {
+      group.previousAvailable = group.categories.reduce((sum, category) => sum + category.previousAvailable, 0);
       group.assigned = group.categories.reduce((sum, category) => sum + category.assigned, 0);
       group.activity = group.categories.reduce((sum, category) => sum + category.activity, 0);
       group.available = group.categories.reduce((sum, category) => sum + category.available, 0);

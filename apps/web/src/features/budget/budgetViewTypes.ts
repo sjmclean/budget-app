@@ -1,6 +1,7 @@
 export interface BudgetCategoryView {
   id: string;
   name: string;
+  previousAvailable: number;
   assigned: number;
   activity: number;
   available: number;
@@ -12,6 +13,7 @@ export interface BudgetCategoryView {
 export interface BudgetCategoryGroupView {
   id: string;
   name: string;
+  previousAvailable: number;
   assigned: number;
   activity: number;
   available: number;
@@ -60,6 +62,7 @@ export interface CategoryMergePreview {
   sourceCategoryId: string;
   sourceCategoryName: string;
   sourceGroupName: string;
+  sourcePreviousAvailable: number;
   sourceAssigned: number;
   sourceActivity: number;
   sourceAvailable: number;
@@ -67,10 +70,12 @@ export interface CategoryMergePreview {
   targetCategoryId: string;
   targetCategoryName: string;
   targetGroupName: string;
+  targetPreviousAvailable: number;
   targetAssigned: number;
   targetActivity: number;
   targetAvailable: number;
   targetIsArchived: boolean;
+  combinedPreviousAvailable: number;
   combinedAssigned: number;
   combinedActivity: number;
   combinedAvailable: number;
