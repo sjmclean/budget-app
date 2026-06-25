@@ -241,7 +241,9 @@
     "test:v182:budget-available-rollover-fidelity": "tsx tests/v182-budget-available-rollover-fidelity.ts",
     "test:v182": "pnpm test:v182:budget-available-rollover-fidelity",
     "test:v183:ynab4-budget-month-fidelity-audit": "tsx tests/v183-ynab4-budget-month-fidelity-audit.ts",
-    "test:v183": "pnpm test:v183:ynab4-budget-month-fidelity-audit"
+    "test:v183": "pnpm test:v183:ynab4-budget-month-fidelity-audit",
+    "test:v184:ynab4-activity-contribution-audit": "tsx tests/v184-ynab4-activity-contribution-audit.ts",
+    "test:v184": "pnpm test:v184:ynab4-activity-contribution-audit"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
