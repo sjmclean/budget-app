@@ -31,6 +31,7 @@ export interface Ynab4LauncherImportAccuracyAuditResult {
     categories: number;
     monthlyBudgets: number;
     budgetMonthTotals: Record<string, BudgetMonthTotals>;
+    budgetMonthCategoryValues: Record<string, Record<string, BudgetMonthCategoryValues>>;
     transactionsByAccountName: Record<string, number>;
   };
   imported: {
@@ -43,6 +44,7 @@ export interface Ynab4LauncherImportAccuracyAuditResult {
     scheduledTransactions: number;
     budgetMonthViews: number;
     budgetMonthTotals: Record<string, BudgetMonthTotals>;
+    budgetMonthCategoryValues: Record<string, Record<string, BudgetMonthCategoryValues>>;
     transactionsByAccountName: Record<string, number>;
   };
 }
@@ -51,6 +53,22 @@ interface BudgetMonthTotals {
   assigned: number;
   activity: number;
   available: number;
+}
+
+interface BudgetMonthCategoryValues extends BudgetMonthTotals {
+  categoryId: string | null;
+  categoryName: string;
+}
+
+interface BudgetMonthCategoryDifference {
+  month: string;
+  categoryKey: string;
+  categoryName: string;
+  sourceCategoryId: string | null;
+  importedCategoryId: string | null;
+  source: BudgetMonthTotals | null;
+  imported: BudgetMonthTotals | null;
+  delta: BudgetMonthTotals;
 }
 
 type RecordMap = Record<string, unknown>;
@@ -112,6 +130,25 @@ export function auditYnab4LauncherImportAccuracy(
     }
 
     compareMoney(mismatches, `budget month ${month} assigned`, sourceTotals.assigned, importedTotals.assigned);
+
+    const categoryDifferences = budgetMonthCategoryDifferences(
+      source.budgetMonthCategoryValues[month] ?? {},
+      imported.budgetMonthCategoryValues[month] ?? {},
+      month,
+    );
+    for (const difference of categoryDifferences) {
+      const parts: string[] = [];
+      if (Math.abs(difference.delta.assigned) > MONEY_AUDIT_TOLERANCE) {
+        parts.push(`assigned source=${formatOptionalMoney(difference.source?.assigned)} imported=${formatOptionalMoney(difference.imported?.assigned)} delta=${difference.delta.assigned.toFixed(2)}`);
+      }
+      if (Math.abs(difference.delta.activity) > MONEY_AUDIT_TOLERANCE) {
+        parts.push(`activity source=${formatOptionalMoney(difference.source?.activity)} imported=${formatOptionalMoney(difference.imported?.activity)} delta=${difference.delta.activity.toFixed(2)}`);
+      }
+      if (Math.abs(difference.delta.available) > MONEY_AUDIT_TOLERANCE) {
+        parts.push(`available source=${formatOptionalMoney(difference.source?.available)} imported=${formatOptionalMoney(difference.imported?.available)} delta=${difference.delta.available.toFixed(2)}`);
+      }
+      warnings.push(`Budget month ${month} category ${difference.categoryName} differs: ${parts.join('; ')}.`);
+    }
 
     // YNAB4 Budget.yfull monthly subcategory rows in real-world packages only
     // provide budgeted/assigned values reliably. Activity and available are
@@ -206,6 +243,24 @@ export function formatYnab4LauncherImportAccuracyAuditReport(
     lines.push("");
   }
 
+  const categoryDifferences = allBudgetMonthCategoryDifferences(audit);
+  if (categoryDifferences.length > 0) {
+    lines.push("Budget Month Category Differences");
+    for (const row of categoryDifferences.slice(0, 40)) {
+      lines.push(`  ${row.month} / ${row.categoryName}`);
+      if (row.sourceCategoryId || row.importedCategoryId) {
+        lines.push(`    IDs: source=${row.sourceCategoryId ?? "missing"}, imported=${row.importedCategoryId ?? "missing"}`);
+      }
+      lines.push(`    Assigned: source=${formatOptionalMoney(row.source?.assigned)}, imported=${formatOptionalMoney(row.imported?.assigned)}, delta=${row.delta.assigned.toFixed(2)}`);
+      lines.push(`    Activity:  source=${formatOptionalMoney(row.source?.activity)}, imported=${formatOptionalMoney(row.imported?.activity)}, delta=${row.delta.activity.toFixed(2)}`);
+      lines.push(`    Available: source=${formatOptionalMoney(row.source?.available)}, imported=${formatOptionalMoney(row.imported?.available)}, delta=${row.delta.available.toFixed(2)}`);
+    }
+    if (categoryDifferences.length > 40) {
+      lines.push(`  ... ${categoryDifferences.length - 40} more category differences`);
+    }
+    lines.push("");
+  }
+
   if (audit.warnings.length > 0) {
     lines.push("Warnings");
     for (const warning of audit.warnings) {
@@ -290,6 +345,9 @@ function buildSourceAudit(data: RecordMap): Ynab4LauncherImportAccuracyAuditResu
     budgetMonthTotals: Object.fromEntries(
       monthlyBudgets.map((month) => [sourceMonthKey(month), sourceBudgetMonthTotals(month)]),
     ),
+    budgetMonthCategoryValues: Object.fromEntries(
+      monthlyBudgets.map((month) => [sourceMonthKey(month), sourceBudgetMonthCategoryValues(month, categoryNameById(categoryGroups))]),
+    ),
     transactionsByAccountName,
   };
 }
@@ -327,6 +385,7 @@ function buildImportedAudit(
     scheduledTransactions: scheduled.length,
     budgetMonthViews: monthViews.length,
     budgetMonthTotals: Object.fromEntries(monthViews.map(({ month, view }) => [month, importedBudgetMonthTotals(view)])),
+    budgetMonthCategoryValues: Object.fromEntries(monthViews.map(({ month, view }) => [month, importedBudgetMonthCategoryValues(view)])),
     transactionsByAccountName,
   };
 }
@@ -344,20 +403,130 @@ function readBudgetMonthViews(storage: KeyValueStoragePort, budgetId: string): A
 }
 
 function sourceBudgetMonthTotals(month: RecordMap): BudgetMonthTotals {
-  const rows = toRecords(month.monthlySubCategoryBudgets);
-  return {
-    assigned: roundMoney(rows.reduce((sum, row) => sum + (amountToDisplayUnits(row.budgeted, row.assigned) ?? 0), 0)),
-    activity: roundMoney(rows.reduce((sum, row) => sum + (amountToDisplayUnits(row.activity) ?? -Math.abs(amountToDisplayUnits(row.outflows) ?? 0)), 0)),
-    available: roundMoney(rows.reduce((sum, row) => sum + (amountToDisplayUnits(row.balance, row.available) ?? 0), 0)),
-  };
+  return sumBudgetMonthCategoryValues(Object.values(sourceBudgetMonthCategoryValues(month, new Map())));
+}
+
+function sourceBudgetMonthCategoryValues(
+  month: RecordMap,
+  categoryNamesById: Map<string, string>,
+): Record<string, BudgetMonthCategoryValues> {
+  const values: Record<string, BudgetMonthCategoryValues> = {};
+  for (const row of toRecords(month.monthlySubCategoryBudgets)) {
+    const categoryId = firstString(row.categoryId, row.subCategoryId, row.categoryEntityId);
+    const categoryName = firstString(row.categoryName, row.name) ?? (categoryId ? categoryNamesById.get(categoryId) : null) ?? "Unknown Category";
+    const key = categoryAuditKey(categoryName);
+    values[key] = {
+      categoryId,
+      categoryName,
+      assigned: roundMoney((values[key]?.assigned ?? 0) + (amountToDisplayUnits(row.budgeted, row.assigned) ?? 0)),
+      activity: roundMoney((values[key]?.activity ?? 0) + (amountToDisplayUnits(row.activity) ?? -Math.abs(amountToDisplayUnits(row.outflows) ?? 0))),
+      available: roundMoney((values[key]?.available ?? 0) + (amountToDisplayUnits(row.balance, row.available) ?? 0)),
+    };
+  }
+  return values;
 }
 
 function importedBudgetMonthTotals(view: BudgetMonthView): BudgetMonthTotals {
+  return sumBudgetMonthCategoryValues(Object.values(importedBudgetMonthCategoryValues(view)));
+}
+
+function importedBudgetMonthCategoryValues(view: BudgetMonthView): Record<string, BudgetMonthCategoryValues> {
+  const values: Record<string, BudgetMonthCategoryValues> = {};
+  for (const group of view.categoryGroups) {
+    for (const category of group.categories) {
+      const key = categoryAuditKey(category.name);
+      values[key] = {
+        categoryId: category.id,
+        categoryName: category.name,
+        assigned: roundMoney((values[key]?.assigned ?? 0) + category.assigned),
+        activity: roundMoney((values[key]?.activity ?? 0) + category.activity),
+        available: roundMoney((values[key]?.available ?? 0) + category.available),
+      };
+    }
+  }
+  return values;
+}
+
+function sumBudgetMonthCategoryValues(values: BudgetMonthTotals[]): BudgetMonthTotals {
   return {
-    assigned: roundMoney(view.totalAssigned),
-    activity: roundMoney(view.totalActivity),
-    available: roundMoney(view.totalAvailable),
+    assigned: roundMoney(values.reduce((sum, row) => sum + row.assigned, 0)),
+    activity: roundMoney(values.reduce((sum, row) => sum + row.activity, 0)),
+    available: roundMoney(values.reduce((sum, row) => sum + row.available, 0)),
   };
+}
+
+function categoryNameById(categoryGroups: RecordMap[]): Map<string, string> {
+  const names = new Map<string, string>();
+  for (const group of categoryGroups) {
+    for (const category of toRecords(group.subCategories)) {
+      const name = firstString(category.name, category.categoryName, category.displayName);
+      if (!name) continue;
+      for (const id of sourceIds(category, `category:${names.size + 1}`)) {
+        names.set(id, name);
+      }
+    }
+  }
+  return names;
+}
+
+function budgetMonthCategoryDifferences(
+  source: Record<string, BudgetMonthCategoryValues>,
+  imported: Record<string, BudgetMonthCategoryValues>,
+  month: string,
+): BudgetMonthCategoryDifference[] {
+  const keys = new Set([...Object.keys(source), ...Object.keys(imported)]);
+  return [...keys]
+    .map((categoryKey) => {
+      const sourceValues = source[categoryKey] ?? null;
+      const importedValues = imported[categoryKey] ?? null;
+      const delta = {
+        assigned: roundMoney((importedValues?.assigned ?? 0) - (sourceValues?.assigned ?? 0)),
+        activity: roundMoney((importedValues?.activity ?? 0) - (sourceValues?.activity ?? 0)),
+        available: roundMoney((importedValues?.available ?? 0) - (sourceValues?.available ?? 0)),
+      };
+      return {
+        month,
+        categoryKey,
+        categoryName: importedValues?.categoryName ?? sourceValues?.categoryName ?? categoryKey,
+        sourceCategoryId: sourceValues?.categoryId ?? null,
+        importedCategoryId: importedValues?.categoryId ?? null,
+        source: sourceValues,
+        imported: importedValues,
+        delta,
+      };
+    })
+    .filter((difference) =>
+      Math.abs(difference.delta.assigned) > MONEY_AUDIT_TOLERANCE
+      || Math.abs(difference.delta.activity) > MONEY_AUDIT_TOLERANCE
+      || Math.abs(difference.delta.available) > MONEY_AUDIT_TOLERANCE,
+    )
+    .sort((a, b) => differenceMagnitude(b) - differenceMagnitude(a) || a.month.localeCompare(b.month) || a.categoryName.localeCompare(b.categoryName));
+}
+
+function allBudgetMonthCategoryDifferences(audit: Ynab4LauncherImportAccuracyAuditResult): BudgetMonthCategoryDifference[] {
+  const months = new Set([
+    ...Object.keys(audit.source.budgetMonthCategoryValues),
+    ...Object.keys(audit.imported.budgetMonthCategoryValues),
+  ]);
+  return [...months].flatMap((month) =>
+    budgetMonthCategoryDifferences(
+      audit.source.budgetMonthCategoryValues[month] ?? {},
+      audit.imported.budgetMonthCategoryValues[month] ?? {},
+      month,
+    ),
+  ).sort((a, b) => differenceMagnitude(b) - differenceMagnitude(a) || a.month.localeCompare(b.month) || a.categoryName.localeCompare(b.categoryName));
+}
+
+function differenceMagnitude(difference: BudgetMonthCategoryDifference): number {
+  return Math.abs(difference.delta.assigned) + Math.abs(difference.delta.activity) + Math.abs(difference.delta.available);
+}
+
+function categoryAuditKey(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function formatOptionalMoney(value: number | undefined): string {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(2) : "missing";
 }
 
 function compareCount(mismatches: string[], label: string, source: number, imported: number): void {
@@ -504,6 +673,7 @@ function emptySourceAudit(): Ynab4LauncherImportAccuracyAuditResult["source"] {
     categories: 0,
     monthlyBudgets: 0,
     budgetMonthTotals: {},
+    budgetMonthCategoryValues: {},
     transactionsByAccountName: {},
   };
 }
@@ -519,6 +689,7 @@ function emptyImportedAudit(): Ynab4LauncherImportAccuracyAuditResult["imported"
     scheduledTransactions: 0,
     budgetMonthViews: 0,
     budgetMonthTotals: {},
+    budgetMonthCategoryValues: {},
     transactionsByAccountName: {},
   };
 }
