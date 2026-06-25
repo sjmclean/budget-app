@@ -249,7 +249,9 @@
     "test:v186:real-ynab4-budget-row-schema-audit": "tsx tests/v186-real-ynab4-budget-row-schema-audit.ts",
     "test:v186": "pnpm test:v186:real-ynab4-budget-row-schema-audit",
     "test:v187:ynab4-activity-calculation-rules-audit": "tsx tests/v187-ynab4-activity-calculation-rules-audit.ts",
-    "test:v187": "pnpm test:v187:ynab4-activity-calculation-rules-audit"
+    "test:v187": "pnpm test:v187:ynab4-activity-calculation-rules-audit",
+    "test:v188:ynab4-mortgage-transfer-activity-fidelity": "tsx tests/v188-ynab4-mortgage-transfer-activity-fidelity.ts",
+    "test:v188": "pnpm test:v188:ynab4-mortgage-transfer-activity-fidelity"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

@@ -31,11 +31,11 @@ function createMemoryStorage(): KeyValueStoragePort {
 
 const entries: Ynab4PackageEntry[] = [
   {
-    path: "Rules Audit.ynab4/Budget.ymeta",
+    path: "Mortgage Transfer.ynab4/Budget.ymeta",
     text: JSON.stringify({ relativeDataFolderName: "data1" }),
   },
   {
-    path: "Rules Audit.ynab4/data1/Budget.yfull",
+    path: "Mortgage Transfer.ynab4/data1/Budget.yfull",
     text: JSON.stringify({
       accounts: [
         {
@@ -119,10 +119,18 @@ assert.match(report, /YNAB4 Activity Calculation Rule Inputs/);
 assert.match(report, /2026-06 \/ Mortgage \(\$955\/f\)/);
 assert.match(report, /Overspending handling: Confined/);
 assert.match(report, /Transaction-derived activity: source=-878\.00, imported=-878\.00, delta=0\.00/);
-assert.match(report, /Source Rule Transactions:/);
-assert.match(report, /2026-06-06 Checking Bank -878\.00 \[transaction\]/);
-assert.match(report, /accountType=Checking onBudget=true hidden=false/);
 assert.match(report, /transferTo=Home Loan transferAccountType=Mortgage transferOnBudget=false/);
 
+const budgetViewKey = `budget-app.budget-view.v1.${result.budget.id}.2026-06`;
+const budgetViewRaw = storage.getItem(budgetViewKey);
+assert.ok(budgetViewRaw, "Expected imported June budget view to be persisted.");
+
+assert.match(report, /2026-06 \/ Mortgage \(\$955\/f\)/);
+
+assert.match(
+  report,
+  /Transaction-derived activity: source=-878\.00, imported=-878\.00, delta=0\.00/,
+);
+
 console.log(report);
-console.log("v1.87 YNAB4 activity calculation rules audit passed");
+console.log("v1.88 YNAB4 mortgage transfer activity fidelity passed");

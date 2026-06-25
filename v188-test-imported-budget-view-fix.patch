@@ -1,0 +1,32 @@
+--- a/tests/v188-ynab4-mortgage-transfer-activity-fidelity.ts
++++ b/tests/v188-ynab4-mortgage-transfer-activity-fidelity.ts
+@@ -125,7 +125,7 @@
+ const budgetViewRaw = storage.getItem(budgetViewKey);
+ assert.ok(budgetViewRaw, "Expected imported June budget view to be persisted.");
+ const budgetView = JSON.parse(budgetViewRaw);
+-const mortgageCategory = importedBudgetView.groups
++const mortgageCategory = budgetView.groups
+   .flatMap((group) => group.categories)
+   .find(
+     (category) =>
+@@ -133,15 +133,12 @@
+       category.name === "Mortgage ($955/f)",
+   );
+ 
+-assert.match(
+-  report,
+-  /2026-06 \/ Mortgage \(\$955\/f\)/,
+-);
+-
+-assert.match(
+-  report,
+-  /Transaction-derived activity: source=-878\.00, imported=-878\.00, delta=0\.00/,
++assert.ok(
++  mortgageCategory,
++  "Expected Mortgage ($955/f) category to be present in imported budget view.",
+ );
++assert.equal(mortgageCategory.activity, -878);
++assert.equal(mortgageCategory.available, 77);
+ 
+ console.log(report);
+ console.log("v1.88 YNAB4 mortgage transfer activity fidelity passed");

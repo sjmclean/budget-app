@@ -86,6 +86,7 @@ type RecordMap = Record<string, unknown>;
 type ImportMaps = {
   accountIdBySourceId: Map<string, string>;
   accountNameById: Map<string, string>;
+  accountTypeById: Map<string, SidebarAccountType>;
   categoryIdBySourceId: Map<string, string>;
   categoryNameById: Map<string, string>;
   categoryIsArchivedById: Map<string, boolean>;
@@ -317,6 +318,7 @@ function writeImportedBudgetData(
   const maps: ImportMaps = {
     accountIdBySourceId: new Map(),
     accountNameById: new Map(),
+    accountTypeById: new Map(),
     categoryIdBySourceId: new Map(),
     categoryNameById: new Map(),
     categoryIsArchivedById: new Map(),
@@ -368,11 +370,13 @@ function mapAccounts(accounts: RecordMap[], maps: ImportMaps, nowIso: string): S
     for (const sourceId of sourceIds(account, `account:${index}`)) {
       maps.accountIdBySourceId.set(sourceId, id);
     }
+    const type = mapAccountType(firstString(account.accountType, account.type), account.onBudget);
     maps.accountNameById.set(id, name);
+    maps.accountTypeById.set(id, type);
     return {
       id,
       name,
-      type: mapAccountType(firstString(account.accountType, account.type), account.onBudget),
+      type,
       startingBalance: amountToDisplayUnits(account.startingBalance, account.balance, account.clearedBalance) ?? 0,
       createdAt: nowIso,
       closedAt: account.isTombstone === true || account.closed === true ? nowIso : null,
@@ -661,6 +665,8 @@ function mapRegisterTransaction(transaction: RecordMap, index: number, maps: Imp
   const transferAccountId = mappedId(maps.accountIdBySourceId, transaction.targetAccountId, transaction.transferAccountId);
   const payeeId = mappedId(maps.payeeIdBySourceId, transaction.payeeId);
   const categoryId = mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
+  const transferAccountType = transferAccountId ? maps.accountTypeById.get(transferAccountId) : undefined;
+  const isCategorisedOffBudgetTransfer = Boolean(transferAccountId && categoryId && transferAccountType === "tracking");
   const payeeName = transferAccountId
     ? `Transfer: ${maps.accountNameById.get(transferAccountId) ?? "Account"}`
     : firstString(transaction.payeeName, transaction.payee) ?? (payeeId ? maps.payeeNameById.get(payeeId) : null) ?? "Imported Payee";
@@ -673,7 +679,9 @@ function mapRegisterTransaction(transaction: RecordMap, index: number, maps: Imp
     attachments: [],
     payee: payeeName,
     payeeId: transferAccountId ? undefined : payeeId ?? undefined,
-    category: transferAccountId ? "Transfer" : categoryId ? maps.categoryNameById.get(categoryId) ?? "Uncategorised" : READY_TO_ASSIGN_CATEGORY_NAME,
+    category: categoryId && (!transferAccountId || isCategorisedOffBudgetTransfer)
+      ? maps.categoryNameById.get(categoryId) ?? "Uncategorised"
+      : transferAccountId ? "Transfer" : READY_TO_ASSIGN_CATEGORY_NAME,
     categoryId: categoryId ?? (transferAccountId ? undefined : READY_TO_ASSIGN_CATEGORY_ID),
     memo: firstString(transaction.memo, transaction.note, transaction.notes) ?? undefined,
     checkNumber: firstString(transaction.checkNumber, transaction.check, transaction.number) ?? undefined,
