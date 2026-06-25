@@ -1,0 +1,286 @@
+diff --git a/apps/web/src/features/budget/ynab4LauncherImport.ts b/apps/web/src/features/budget/ynab4LauncherImport.ts
+index e30e04b..ac3221b 100644
+--- a/apps/web/src/features/budget/ynab4LauncherImport.ts
++++ b/apps/web/src/features/budget/ynab4LauncherImport.ts
+@@ -827,7 +827,8 @@ function mapBudgetMonthViews(
+   now: Date,
+ ): Map<string, BudgetMonthView> {
+   const views = new Map<string, BudgetMonthView>();
+-  const activityByMonthCategory = buildBudgetActivityByMonthCategory(registers, templateGroups, maps);
++  const budgetedCategoryIdsByMonth = buildBudgetedCategoryIdsByMonth(monthlyBudgets, maps);
++  const activityByMonthCategory = buildBudgetActivityByMonthCategory(registers, templateGroups, maps, budgetedCategoryIdsByMonth);
+   const sourceMonths = (monthlyBudgets.length > 0 ? monthlyBudgets : [{ month: now.toISOString().slice(0, 7), monthlySubCategoryBudgets: [] }])
+     .map((monthlyBudget) => ({
+       monthlyBudget,
+@@ -887,6 +888,7 @@ function buildBudgetActivityByMonthCategory(
+   registers: Record<string, AccountRegisterView>,
+   templateGroups: BudgetCategoryGroupView[],
+   maps: ImportMaps,
++  budgetedCategoryIdsByMonth: Map<string, Set<string>>,
+ ): Map<string, Map<string, number>> {
+   const activityByMonthCategory = new Map<string, Map<string, number>>();
+   const canonicalCategoryIdById = buildBudgetActivityCanonicalCategoryMap(templateGroups, maps);
+@@ -899,14 +901,24 @@ function buildBudgetActivityByMonthCategory(
+       if (transaction.splitLines && transaction.splitLines.length > 0) {
+         for (const splitLine of transaction.splitLines) {
+           if (splitLine.categoryId) {
+-          addBudgetActivity(activityByMonthCategory, month, canonicalCategoryIdById.get(splitLine.categoryId) ?? splitLine.categoryId, splitLine.inflow - splitLine.outflow);
+-        }
++            addBudgetActivity(
++              activityByMonthCategory,
++              month,
++              resolveBudgetActivityCategoryId(month, splitLine.categoryId, canonicalCategoryIdById, budgetedCategoryIdsByMonth),
++              splitLine.inflow - splitLine.outflow,
++            );
++          }
+         }
+         continue;
+       }
+ 
+       if (!transaction.categoryId) continue;
+-      addBudgetActivity(activityByMonthCategory, month, canonicalCategoryIdById.get(transaction.categoryId) ?? transaction.categoryId, transaction.inflow - transaction.outflow);
++      addBudgetActivity(
++        activityByMonthCategory,
++        month,
++        resolveBudgetActivityCategoryId(month, transaction.categoryId, canonicalCategoryIdById, budgetedCategoryIdsByMonth),
++        transaction.inflow - transaction.outflow,
++      );
+     }
+   }
+ 
+@@ -914,6 +926,41 @@ function buildBudgetActivityByMonthCategory(
+ }
+ 
+ 
++function buildBudgetedCategoryIdsByMonth(
++  monthlyBudgets: RecordMap[],
++  maps: ImportMaps,
++): Map<string, Set<string>> {
++  const budgetedCategoryIdsByMonth = new Map<string, Set<string>>();
++
++  for (const monthlyBudget of monthlyBudgets) {
++    const month = monthKey(firstString(monthlyBudget.month, monthlyBudget.date, monthlyBudget.monthName));
++    if (!month) continue;
++
++    for (const row of toRecords(monthlyBudget.monthlySubCategoryBudgets)) {
++      const categoryId = mappedId(maps.categoryIdBySourceId, row.categoryId, row.subCategoryId);
++      if (!categoryId) continue;
++      const categoryIds = budgetedCategoryIdsByMonth.get(month) ?? new Set<string>();
++      categoryIds.add(categoryId);
++      budgetedCategoryIdsByMonth.set(month, categoryIds);
++    }
++  }
++
++  return budgetedCategoryIdsByMonth;
++}
++
++function resolveBudgetActivityCategoryId(
++  month: string,
++  categoryId: string,
++  canonicalCategoryIdById: Map<string, string>,
++  budgetedCategoryIdsByMonth: Map<string, Set<string>>,
++): string {
++  if (budgetedCategoryIdsByMonth.get(month)?.has(categoryId)) {
++    return categoryId;
++  }
++
++  return canonicalCategoryIdById.get(categoryId) ?? categoryId;
++}
++
+ function buildBudgetActivityCanonicalCategoryMap(
+   templateGroups: BudgetCategoryGroupView[],
+   maps: ImportMaps,
+diff --git a/package.json b/package.json
+index 5fb47df..e62ab37 100644
+--- a/package.json
++++ b/package.json
+@@ -253,7 +253,9 @@
+     "test:v188:ynab4-mortgage-transfer-activity-fidelity": "tsx tests/v188-ynab4-mortgage-transfer-activity-fidelity.ts",
+     "test:v188": "pnpm test:v188:ynab4-mortgage-transfer-activity-fidelity",
+     "test:v189:ynab4-closed-account-transaction-fidelity-audit": "tsx tests/v189-ynab4-closed-account-transaction-fidelity-audit.ts",
+-    "test:v189": "pnpm test:v189:ynab4-closed-account-transaction-fidelity-audit"
++    "test:v189": "pnpm test:v189:ynab4-closed-account-transaction-fidelity-audit",
++    "test:v190:ynab4-budgeted-archived-category-activity-fidelity": "tsx tests/v190-ynab4-budgeted-archived-category-activity-fidelity.ts",
++    "test:v190": "pnpm test:v190:ynab4-budgeted-archived-category-activity-fidelity"
+   },
+   "dependencies": {
+     "better-sqlite3": "^12.11.1",
+diff --git a/tests/v190-ynab4-budgeted-archived-category-activity-fidelity.ts b/tests/v190-ynab4-budgeted-archived-category-activity-fidelity.ts
+new file mode 100644
+index 0000000..26fb84b
+--- /dev/null
++++ b/tests/v190-ynab4-budgeted-archived-category-activity-fidelity.ts
+@@ -0,0 +1,173 @@
++import assert from "node:assert/strict";
++import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
++import { createYnab4LauncherBudgetImport } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
++import {
++  createYnab4PackageMigrationPreview,
++  discoverYnab4Package,
++  type Ynab4PackageEntry,
++} from "../packages/ynab4-importer/src/analyzeYnab4Package.ts";
++
++function createMemoryStorage(): KeyValueStoragePort {
++  const values = new Map<string, string>();
++  return {
++    getItem(key) {
++      return values.get(key) ?? null;
++    },
++    setItem(key, value) {
++      values.set(key, value);
++    },
++    removeItem(key) {
++      values.delete(key);
++    },
++    listKeys() {
++      return [...values.keys()].sort();
++    },
++  };
++}
++
++const entries: Ynab4PackageEntry[] = [
++  {
++    path: "Historical Mortgage.ynab4/Budget.ymeta",
++    text: JSON.stringify({ relativeDataFolderName: "data1" }),
++  },
++  {
++    path: "Historical Mortgage.ynab4/data1/Budget.yfull",
++    text: JSON.stringify({
++      accounts: [
++        {
++          entityId: "checking",
++          accountName: "Checking",
++          accountType: "Checking",
++          onBudget: true,
++          hidden: false,
++        },
++        {
++          entityId: "home-loan",
++          accountName: "Home loan",
++          accountType: "Mortgage",
++          onBudget: false,
++          hidden: true,
++        },
++      ],
++      masterCategories: [
++        {
++          entityId: "main-expenses",
++          name: "Main Expenses",
++          subCategories: [
++            { entityId: "active-mortgage", name: "Mortgage ($955/f) $878" },
++          ],
++        },
++        {
++          entityId: "MasterCategory/__Hidden__",
++          name: "Hidden Categories",
++          subCategories: [
++            {
++              entityId: "old-mortgage",
++              name: "Fortnight Two (2) ` Mortgage ` fortnight-two-2",
++            },
++          ],
++        },
++      ],
++      payees: [{ entityId: "bank", name: "Bank" }],
++      monthlyBudgets: [
++        {
++          entityId: "MB/2015-01",
++          month: "2015-01-01",
++          monthlySubCategoryBudgets: [
++            {
++              entityType: "monthlyCategoryBudget",
++              categoryId: "old-mortgage",
++              budgeted: 1886,
++              entityId: "MCB/2015-01/old-mortgage",
++              parentMonthlyBudgetId: "MB/2015-01",
++            },
++            {
++              entityType: "monthlyCategoryBudget",
++              categoryId: "active-mortgage",
++              budgeted: 800,
++              entityId: "MCB/2015-01/active-mortgage",
++              parentMonthlyBudgetId: "MB/2015-01",
++            },
++          ],
++        },
++        {
++          entityId: "MB/2015-02",
++          month: "2015-02-01",
++          monthlySubCategoryBudgets: [
++            {
++              entityType: "monthlyCategoryBudget",
++              categoryId: "active-mortgage",
++              budgeted: 0,
++              entityId: "MCB/2015-02/active-mortgage",
++              parentMonthlyBudgetId: "MB/2015-02",
++            },
++          ],
++        },
++      ],
++      transactions: [
++        {
++          entityId: "txn-old-mortgage-payment",
++          accountId: "checking",
++          transferAccountId: "home-loan",
++          payeeId: "bank",
++          payeeName: "Bank",
++          categoryId: "old-mortgage",
++          date: "2015-01-13",
++          amount: -1886,
++        },
++      ],
++      scheduledTransactions: [],
++    }),
++  },
++];
++
++const storage = createMemoryStorage();
++const discovery = discoverYnab4Package(entries);
++const preview = createYnab4PackageMigrationPreview(discovery, "new-budget");
++assert.equal(preview.canContinue, true);
++
++const result = createYnab4LauncherBudgetImport(storage, {
++  discovery,
++  preview,
++  entries,
++  now: new Date("2026-06-25T00:00:00.000Z"),
++});
++
++function readBudgetMonth(month: string) {
++  const raw = storage.getItem(`budget-app.budget-view.v1.${result.budget.id}.${month}`);
++  assert.ok(raw, `Expected imported ${month} budget view to be persisted.`);
++  return JSON.parse(raw);
++}
++
++function findCategory(view: { categoryGroups: Array<{ name: string; categories: Array<{ id: string; name: string; assigned: number; activity: number; available: number; previousAvailable: number; isArchived: boolean }> }> }, groupName: string, categoryName: string) {
++  const group = view.categoryGroups.find((candidate) => candidate.name === groupName);
++  assert.ok(group, `Expected group ${groupName} to exist.`);
++  const category = group.categories.find((candidate) => candidate.name === categoryName);
++  assert.ok(category, `Expected category ${groupName} > ${categoryName} to exist.`);
++  return category;
++}
++
++const january = readBudgetMonth("2015-01");
++const oldMortgageJanuary = findCategory(january, "Fortnight Two (2)", "Mortgage");
++const activeMortgageJanuary = findCategory(january, "Main Expenses", "Mortgage ($955/f) $878");
++
++assert.equal(oldMortgageJanuary.isArchived, true);
++assert.equal(oldMortgageJanuary.assigned, 1886);
++assert.equal(oldMortgageJanuary.activity, -1886);
++assert.equal(oldMortgageJanuary.available, 0);
++
++assert.equal(activeMortgageJanuary.isArchived, false);
++assert.equal(activeMortgageJanuary.assigned, 800);
++assert.equal(activeMortgageJanuary.activity, 0);
++assert.equal(activeMortgageJanuary.available, 800);
++
++const february = readBudgetMonth("2015-02");
++const oldMortgageFebruary = findCategory(february, "Fortnight Two (2)", "Mortgage");
++const activeMortgageFebruary = findCategory(february, "Main Expenses", "Mortgage ($955/f) $878");
++
++assert.equal(oldMortgageFebruary.previousAvailable, 0);
++assert.equal(oldMortgageFebruary.available, 0);
++assert.equal(activeMortgageFebruary.previousAvailable, 800);
++assert.equal(activeMortgageFebruary.available, 800);
++
++console.log("v1.90 YNAB4 budgeted archived category activity fidelity passed");

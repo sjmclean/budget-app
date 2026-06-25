@@ -253,7 +253,9 @@
     "test:v188:ynab4-mortgage-transfer-activity-fidelity": "tsx tests/v188-ynab4-mortgage-transfer-activity-fidelity.ts",
     "test:v188": "pnpm test:v188:ynab4-mortgage-transfer-activity-fidelity",
     "test:v189:ynab4-closed-account-transaction-fidelity-audit": "tsx tests/v189-ynab4-closed-account-transaction-fidelity-audit.ts",
-    "test:v189": "pnpm test:v189:ynab4-closed-account-transaction-fidelity-audit"
+    "test:v189": "pnpm test:v189:ynab4-closed-account-transaction-fidelity-audit",
+    "test:v190:ynab4-budgeted-archived-category-activity-fidelity": "tsx tests/v190-ynab4-budgeted-archived-category-activity-fidelity.ts",
+    "test:v190": "pnpm test:v190:ynab4-budgeted-archived-category-activity-fidelity"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

@@ -827,7 +827,8 @@ function mapBudgetMonthViews(
   now: Date,
 ): Map<string, BudgetMonthView> {
   const views = new Map<string, BudgetMonthView>();
-  const activityByMonthCategory = buildBudgetActivityByMonthCategory(registers, templateGroups, maps);
+  const budgetedCategoryIdsByMonth = buildBudgetedCategoryIdsByMonth(monthlyBudgets, maps);
+  const activityByMonthCategory = buildBudgetActivityByMonthCategory(registers, templateGroups, maps, budgetedCategoryIdsByMonth);
   const sourceMonths = (monthlyBudgets.length > 0 ? monthlyBudgets : [{ month: now.toISOString().slice(0, 7), monthlySubCategoryBudgets: [] }])
     .map((monthlyBudget) => ({
       monthlyBudget,
@@ -887,6 +888,7 @@ function buildBudgetActivityByMonthCategory(
   registers: Record<string, AccountRegisterView>,
   templateGroups: BudgetCategoryGroupView[],
   maps: ImportMaps,
+  budgetedCategoryIdsByMonth: Map<string, Set<string>>,
 ): Map<string, Map<string, number>> {
   const activityByMonthCategory = new Map<string, Map<string, number>>();
   const canonicalCategoryIdById = buildBudgetActivityCanonicalCategoryMap(templateGroups, maps);
@@ -899,20 +901,65 @@ function buildBudgetActivityByMonthCategory(
       if (transaction.splitLines && transaction.splitLines.length > 0) {
         for (const splitLine of transaction.splitLines) {
           if (splitLine.categoryId) {
-          addBudgetActivity(activityByMonthCategory, month, canonicalCategoryIdById.get(splitLine.categoryId) ?? splitLine.categoryId, splitLine.inflow - splitLine.outflow);
-        }
+            addBudgetActivity(
+              activityByMonthCategory,
+              month,
+              resolveBudgetActivityCategoryId(month, splitLine.categoryId, canonicalCategoryIdById, budgetedCategoryIdsByMonth),
+              splitLine.inflow - splitLine.outflow,
+            );
+          }
         }
         continue;
       }
 
       if (!transaction.categoryId) continue;
-      addBudgetActivity(activityByMonthCategory, month, canonicalCategoryIdById.get(transaction.categoryId) ?? transaction.categoryId, transaction.inflow - transaction.outflow);
+      addBudgetActivity(
+        activityByMonthCategory,
+        month,
+        resolveBudgetActivityCategoryId(month, transaction.categoryId, canonicalCategoryIdById, budgetedCategoryIdsByMonth),
+        transaction.inflow - transaction.outflow,
+      );
     }
   }
 
   return activityByMonthCategory;
 }
 
+
+function buildBudgetedCategoryIdsByMonth(
+  monthlyBudgets: RecordMap[],
+  maps: ImportMaps,
+): Map<string, Set<string>> {
+  const budgetedCategoryIdsByMonth = new Map<string, Set<string>>();
+
+  for (const monthlyBudget of monthlyBudgets) {
+    const month = monthKey(firstString(monthlyBudget.month, monthlyBudget.date, monthlyBudget.monthName));
+    if (!month) continue;
+
+    for (const row of toRecords(monthlyBudget.monthlySubCategoryBudgets)) {
+      const categoryId = mappedId(maps.categoryIdBySourceId, row.categoryId, row.subCategoryId);
+      if (!categoryId) continue;
+      const categoryIds = budgetedCategoryIdsByMonth.get(month) ?? new Set<string>();
+      categoryIds.add(categoryId);
+      budgetedCategoryIdsByMonth.set(month, categoryIds);
+    }
+  }
+
+  return budgetedCategoryIdsByMonth;
+}
+
+function resolveBudgetActivityCategoryId(
+  month: string,
+  categoryId: string,
+  canonicalCategoryIdById: Map<string, string>,
+  budgetedCategoryIdsByMonth: Map<string, Set<string>>,
+): string {
+  if (budgetedCategoryIdsByMonth.get(month)?.has(categoryId)) {
+    return categoryId;
+  }
+
+  return canonicalCategoryIdById.get(categoryId) ?? categoryId;
+}
 
 function buildBudgetActivityCanonicalCategoryMap(
   templateGroups: BudgetCategoryGroupView[],
