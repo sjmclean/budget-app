@@ -262,7 +262,9 @@
     "test:v193:money-tolerance": "tsx tests/v193-money-tolerance.ts",
     "test:v193": "pnpm test:v193:money-tolerance",
     "test:v194:scheduled-split-drilldown": "tsx tests/v194-scheduled-split-drilldown.ts",
-    "test:v194": "pnpm test:v194:scheduled-split-drilldown"
+    "test:v194": "pnpm test:v194:scheduled-split-drilldown",
+    "test:v195:register-pagination": "tsx tests/v195-register-pagination.ts",
+    "test:v195": "pnpm test:v195:register-pagination"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

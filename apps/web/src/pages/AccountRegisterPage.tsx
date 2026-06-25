@@ -1,9 +1,14 @@
 import { CalendarDays, Paperclip } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
+import {
+  REGISTER_DEFAULT_PAGE_SIZE,
+  getRegisterPaginationState,
+  paginateRegisterItems,
+} from "../features/accounts/registerPagination";
 import { getAttachmentAccessState, getSafeAttachmentFileName } from "../features/accounts/attachmentAccess";
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
@@ -1594,6 +1599,14 @@ function TransactionRow({
   );
 }
 
+function clampPageForTransactionCount(page: number, transactionCount: number): number {
+  return getRegisterPaginationState(
+    transactionCount,
+    page,
+    REGISTER_DEFAULT_PAGE_SIZE,
+  ).currentPage;
+}
+
 export function AccountRegisterPage() {
   const { accountId = "everyday" } = useParams();
   const persistenceGateway = getAppPersistenceGateway();
@@ -1638,6 +1651,11 @@ export function AccountRegisterPage() {
   const [payeeManagerError, setPayeeManagerError] = useState<string | null>(null);
   const [attachmentTransactionId, setAttachmentTransactionId] = useState<string | null>(null);
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
+  const [registerPage, setRegisterPage] = useState(1);
+
+  useEffect(() => {
+    setRegisterPage(1);
+  }, [accountId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1708,6 +1726,29 @@ export function AccountRegisterPage() {
       active = false;
     };
   }, [accountId, accountsPersistence]);
+
+  const registerTransactions = data?.transactions ?? [];
+  const registerPagination = getRegisterPaginationState(
+    registerTransactions.length,
+    registerPage,
+    REGISTER_DEFAULT_PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setRegisterPage((currentPage) =>
+      clampPageForTransactionCount(currentPage, registerTransactions.length),
+    );
+  }, [registerTransactions.length]);
+
+  const visibleTransactions = useMemo(
+    () =>
+      paginateRegisterItems(
+        registerTransactions,
+        registerPagination.currentPage,
+        registerPagination.pageSize,
+      ),
+    [registerTransactions, registerPagination.currentPage, registerPagination.pageSize],
+  );
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -2297,7 +2338,7 @@ export function AccountRegisterPage() {
             <span>C</span>
           </div>
 
-          {data.transactions.map((transaction) =>
+          {visibleTransactions.map((transaction) =>
             editingTransactionId === transaction.id ? (
               <TransactionEditRow
                 key={transaction.id}
@@ -2331,6 +2372,38 @@ export function AccountRegisterPage() {
               />
             ),
           )}
+        </div>
+
+        <div className="register-pagination" aria-label="Register pagination">
+          <span>
+            Showing {registerPagination.visibleStart}–{registerPagination.visibleEnd} of{" "}
+            {registerPagination.totalItems}
+          </span>
+          <div className="register-pagination-controls">
+            <button
+              className="button button-secondary"
+              type="button"
+              disabled={!registerPagination.hasPreviousPage}
+              onClick={() => setRegisterPage((currentPage) => Math.max(1, currentPage - 1))}
+            >
+              Previous
+            </button>
+            <strong>
+              Page {registerPagination.currentPage} of {registerPagination.totalPages}
+            </strong>
+            <button
+              className="button button-secondary"
+              type="button"
+              disabled={!registerPagination.hasNextPage}
+              onClick={() =>
+                setRegisterPage((currentPage) =>
+                  Math.min(registerPagination.totalPages, currentPage + 1),
+                )
+              }
+            >
+              Next
+            </button>
+          </div>
         </div>
       </Card>
 

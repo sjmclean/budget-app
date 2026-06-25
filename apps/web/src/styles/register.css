@@ -1635,3 +1635,37 @@
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
+
+.register-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem 1rem;
+  border-top: 1px solid var(--border, #e2e8f0);
+  color: var(--text-muted, #64748b);
+  font-size: 0.9rem;
+}
+
+.register-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.register-pagination-controls strong {
+  color: var(--text, #0f172a);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .register-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .register-pagination-controls {
+    justify-content: space-between;
+  }
+}
