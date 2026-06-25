@@ -41,6 +41,7 @@ export interface Ynab4LauncherImportAccuracyAuditResult {
       Record<string, BudgetActivityContribution[]>
     >;
     transactionsByAccountName: Record<string, number>;
+    accountTransactionFidelity: Record<string, AccountTransactionFidelityRow>;
   };
   imported: {
     accounts: number;
@@ -61,6 +62,7 @@ export interface Ynab4LauncherImportAccuracyAuditResult {
       Record<string, BudgetActivityContribution[]>
     >;
     transactionsByAccountName: Record<string, number>;
+    accountTransactionFidelity: Record<string, AccountTransactionFidelityRow>;
   };
 }
 
@@ -76,6 +78,26 @@ interface SourceAccountAuditInfo {
   accountType: string;
   onBudget: boolean | null;
   hidden: boolean | null;
+}
+
+interface AccountTransactionFidelityRow {
+  accountName: string;
+  sourceAccountType: string | null;
+  importedAccountType: string | null;
+  sourceClosed: boolean;
+  sourceHidden: boolean | null;
+  sourceClosedOrHidden: boolean;
+  importedClosed: boolean;
+  sourceTransactionCount: number;
+  importedTransactionCount: number;
+  transactionCountDelta: number;
+  sourceTransactionBalance: number;
+  importedTransactionBalance: number;
+  transactionBalanceDelta: number;
+  sourceFirstTransactionDate: string | null;
+  sourceLastTransactionDate: string | null;
+  importedFirstTransactionDate: string | null;
+  importedLastTransactionDate: string | null;
 }
 
 interface BudgetMonthSourceRowSchemaSummary {
@@ -146,6 +168,10 @@ export function auditYnab4LauncherImportAccuracy(
 
   const source = buildSourceAudit(data);
   const imported = buildImportedAudit(storage, input.budgetId);
+  reconcileAccountTransactionFidelity(
+    source.accountTransactionFidelity,
+    imported.accountTransactionFidelity,
+  );
   const mismatches: string[] = [];
   const warnings: string[] = [];
 
@@ -209,6 +235,20 @@ export function auditYnab4LauncherImportAccuracy(
     if (sourceCount !== importedCount) {
       mismatches.push(
         `Account transaction count mismatch for ${accountName}: source=${sourceCount}, imported=${importedCount}.`,
+      );
+    }
+  }
+
+  for (const row of Object.values(source.accountTransactionFidelity)) {
+    if (!row.sourceClosedOrHidden) continue;
+    if (row.transactionCountDelta !== 0) {
+      mismatches.push(
+        `Closed/hidden account transaction count mismatch for ${row.accountName}: source=${row.sourceTransactionCount}, imported=${row.importedTransactionCount}.`,
+      );
+    }
+    if (Math.abs(row.transactionBalanceDelta) > MONEY_AUDIT_TOLERANCE) {
+      mismatches.push(
+        `Closed/hidden account transaction balance mismatch for ${row.accountName}: source=${row.sourceTransactionBalance.toFixed(2)}, imported=${row.importedTransactionBalance.toFixed(2)}.`,
       );
     }
   }
@@ -386,6 +426,8 @@ export function formatYnab4LauncherImportAccuracyAuditReport(
   }
   lines.push("");
 
+  appendClosedAccountFidelity(lines, audit);
+
   const accountMismatches = Object.entries(
     audit.source.transactionsByAccountName,
   )
@@ -523,6 +565,8 @@ function buildSourceAudit(
     }
   }
 
+  const accountTransactionFidelity =
+    initialSourceAccountFidelityRows(accountBySourceId);
   const transactionsByAccountName: Record<string, number> = {};
   let transactions = 0;
   let openAccountTransactions = 0;
@@ -536,9 +580,55 @@ function buildSourceAudit(
     );
     const account = accountId ? accountBySourceId.get(accountId) : undefined;
     const accountName = account?.name ?? "Unknown Account";
+    const amount =
+      amountToDisplayUnits(
+        transaction.amount,
+        transaction.amountMilliUnits,
+        transaction.inflow,
+        transaction.outflow,
+      ) ?? 0;
+    const date = monthDate(
+      firstString(
+        transaction.date,
+        transaction.dateString,
+        transaction.acceptedDate,
+      ),
+    );
     transactions += 1;
     transactionsByAccountName[accountName] =
       (transactionsByAccountName[accountName] ?? 0) + 1;
+    const row = accountTransactionFidelity[accountName] ?? {
+      accountName,
+      sourceAccountType: account?.accountType ?? null,
+      importedAccountType: null,
+      sourceClosed: account?.closed ?? false,
+      sourceHidden: account?.hidden ?? null,
+      sourceClosedOrHidden: Boolean(account?.closed || account?.hidden),
+      importedClosed: false,
+      sourceTransactionCount: 0,
+      importedTransactionCount: 0,
+      transactionCountDelta: 0,
+      sourceTransactionBalance: 0,
+      importedTransactionBalance: 0,
+      transactionBalanceDelta: 0,
+      sourceFirstTransactionDate: null,
+      sourceLastTransactionDate: null,
+      importedFirstTransactionDate: null,
+      importedLastTransactionDate: null,
+    };
+    row.sourceTransactionCount += 1;
+    row.sourceTransactionBalance = roundMoney(
+      row.sourceTransactionBalance + amount,
+    );
+    row.sourceFirstTransactionDate = earliestDate(
+      row.sourceFirstTransactionDate,
+      date,
+    );
+    row.sourceLastTransactionDate = latestDate(
+      row.sourceLastTransactionDate,
+      date,
+    );
+    accountTransactionFidelity[accountName] = row;
     if (account?.closed) closedAccountTransactions += 1;
     else openAccountTransactions += 1;
   }
@@ -586,6 +676,7 @@ function buildSourceAudit(
         categoryNameById(categoryGroups),
       ),
     transactionsByAccountName,
+    accountTransactionFidelity,
   };
 }
 
@@ -613,15 +704,48 @@ function buildImportedAudit(
     accounts.map((account) => [account.id, account] as const),
   );
   const transactionsByAccountName: Record<string, number> = {};
+  const accountTransactionFidelity: Record<
+    string,
+    AccountTransactionFidelityRow
+  > = {};
   let transactions = 0;
   let openAccountTransactions = 0;
   let closedAccountTransactions = 0;
 
   for (const register of Object.values(registers)) {
     const account = accountById.get(register.accountId);
+    const accountName = account?.name ?? register.accountName;
     const count = register.transactions.length;
+    const importedBalance = roundMoney(
+      register.transactions.reduce(
+        (sum, transaction) => sum + transaction.inflow - transaction.outflow,
+        0,
+      ),
+    );
+    const dates = register.transactions.map((transaction) => transaction.date);
     transactions += count;
-    transactionsByAccountName[account?.name ?? register.accountName] = count;
+    transactionsByAccountName[accountName] = count;
+    accountTransactionFidelity[accountName] = {
+      accountName,
+      sourceAccountType: null,
+      importedAccountType: account?.type ?? null,
+      sourceClosed: false,
+      sourceHidden: null,
+      sourceClosedOrHidden: false,
+      importedClosed: Boolean(account?.closedAt),
+      sourceTransactionCount: 0,
+      importedTransactionCount: count,
+      transactionCountDelta: count,
+      sourceTransactionBalance: 0,
+      importedTransactionBalance: importedBalance,
+      transactionBalanceDelta: importedBalance,
+      sourceFirstTransactionDate: null,
+      sourceLastTransactionDate: null,
+      importedFirstTransactionDate:
+        dates.length > 0 ? ([...dates].sort()[0] ?? null) : null,
+      importedLastTransactionDate:
+        dates.length > 0 ? ([...dates].sort().at(-1) ?? null) : null,
+    };
     if (account?.closedAt) closedAccountTransactions += count;
     else openAccountTransactions += count;
   }
@@ -651,7 +775,105 @@ function buildImportedAudit(
     budgetMonthCategoryActivityContributions:
       importedBudgetMonthCategoryActivityContributions(registers),
     transactionsByAccountName,
+    accountTransactionFidelity,
   };
+}
+
+function initialSourceAccountFidelityRows(
+  accountBySourceId: Map<string, SourceAccountAuditInfo>,
+): Record<string, AccountTransactionFidelityRow> {
+  const rows: Record<string, AccountTransactionFidelityRow> = {};
+  for (const account of uniqueAccountsByName(accountBySourceId)) {
+    rows[account.name] = {
+      accountName: account.name,
+      sourceAccountType: account.accountType,
+      importedAccountType: null,
+      sourceClosed: account.closed,
+      sourceHidden: account.hidden,
+      sourceClosedOrHidden: Boolean(account.closed || account.hidden),
+      importedClosed: false,
+      sourceTransactionCount: 0,
+      importedTransactionCount: 0,
+      transactionCountDelta: 0,
+      sourceTransactionBalance: 0,
+      importedTransactionBalance: 0,
+      transactionBalanceDelta: 0,
+      sourceFirstTransactionDate: null,
+      sourceLastTransactionDate: null,
+      importedFirstTransactionDate: null,
+      importedLastTransactionDate: null,
+    };
+  }
+  return rows;
+}
+
+function uniqueAccountsByName(
+  accountBySourceId: Map<string, SourceAccountAuditInfo>,
+): SourceAccountAuditInfo[] {
+  const byName = new Map<string, SourceAccountAuditInfo>();
+  for (const account of accountBySourceId.values()) {
+    byName.set(account.name, account);
+  }
+  return [...byName.values()].sort((left, right) =>
+    left.name.localeCompare(right.name),
+  );
+}
+
+function reconcileAccountTransactionFidelity(
+  source: Record<string, AccountTransactionFidelityRow>,
+  imported: Record<string, AccountTransactionFidelityRow>,
+): void {
+  const names = new Set([...Object.keys(source), ...Object.keys(imported)]);
+  for (const accountName of names) {
+    const sourceRow = source[accountName];
+    const importedRow = imported[accountName];
+    const row: AccountTransactionFidelityRow = {
+      accountName,
+      sourceAccountType: sourceRow?.sourceAccountType ?? null,
+      importedAccountType: importedRow?.importedAccountType ?? null,
+      sourceClosed: sourceRow?.sourceClosed ?? false,
+      sourceHidden: sourceRow?.sourceHidden ?? null,
+      sourceClosedOrHidden: sourceRow?.sourceClosedOrHidden ?? false,
+      importedClosed: importedRow?.importedClosed ?? false,
+      sourceTransactionCount: sourceRow?.sourceTransactionCount ?? 0,
+      importedTransactionCount: importedRow?.importedTransactionCount ?? 0,
+      transactionCountDelta: 0,
+      sourceTransactionBalance: sourceRow?.sourceTransactionBalance ?? 0,
+      importedTransactionBalance: importedRow?.importedTransactionBalance ?? 0,
+      transactionBalanceDelta: 0,
+      sourceFirstTransactionDate: sourceRow?.sourceFirstTransactionDate ?? null,
+      sourceLastTransactionDate: sourceRow?.sourceLastTransactionDate ?? null,
+      importedFirstTransactionDate:
+        importedRow?.importedFirstTransactionDate ?? null,
+      importedLastTransactionDate:
+        importedRow?.importedLastTransactionDate ?? null,
+    };
+    row.transactionCountDelta =
+      row.importedTransactionCount - row.sourceTransactionCount;
+    row.transactionBalanceDelta = roundMoney(
+      row.importedTransactionBalance - row.sourceTransactionBalance,
+    );
+    source[accountName] = row;
+    imported[accountName] = row;
+  }
+}
+
+function earliestDate(
+  current: string | null,
+  next: string | null,
+): string | null {
+  if (!next) return current;
+  if (!current) return next;
+  return next < current ? next : current;
+}
+
+function latestDate(
+  current: string | null,
+  next: string | null,
+): string | null {
+  if (!next) return current;
+  if (!current) return next;
+  return next > current ? next : current;
 }
 
 function readBudgetMonthViews(
@@ -987,6 +1209,32 @@ function addActivityContribution(
   );
   monthContributions[key] = categoryContributions;
   contributions[month] = monthContributions;
+}
+
+function appendClosedAccountFidelity(
+  lines: string[],
+  audit: Ynab4LauncherImportAccuracyAuditResult,
+): void {
+  const rows = Object.values(audit.source.accountTransactionFidelity)
+    .filter((row) => row.sourceClosedOrHidden || row.importedClosed)
+    .sort((left, right) => left.accountName.localeCompare(right.accountName));
+
+  if (rows.length === 0) return;
+
+  lines.push("Closed/Hidden Account Transaction Fidelity");
+  for (const row of rows) {
+    lines.push(`  ${row.accountName}`);
+    lines.push(
+      `    Source: type=${row.sourceAccountType ?? "unknown"}, closed=${row.sourceClosed}, hidden=${formatNullableBoolean(row.sourceHidden)}, transactions=${row.sourceTransactionCount}, transactionBalance=${row.sourceTransactionBalance.toFixed(2)}, first=${row.sourceFirstTransactionDate ?? "none"}, last=${row.sourceLastTransactionDate ?? "none"}`,
+    );
+    lines.push(
+      `    Imported: type=${row.importedAccountType ?? "missing"}, closed=${row.importedClosed}, transactions=${row.importedTransactionCount}, transactionBalance=${row.importedTransactionBalance.toFixed(2)}, first=${row.importedFirstTransactionDate ?? "none"}, last=${row.importedLastTransactionDate ?? "none"}`,
+    );
+    lines.push(
+      `    Delta: transactions=${row.transactionCountDelta}, transactionBalance=${row.transactionBalanceDelta.toFixed(2)}`,
+    );
+  }
+  lines.push("");
 }
 
 function appendActivityContributionBreakdown(
@@ -1521,6 +1769,7 @@ function emptySourceAudit(): Ynab4LauncherImportAccuracyAuditResult["source"] {
     budgetMonthCategoryValues: {},
     budgetMonthCategoryActivityContributions: {},
     transactionsByAccountName: {},
+    accountTransactionFidelity: {},
   };
 }
 
@@ -1538,5 +1787,6 @@ function emptyImportedAudit(): Ynab4LauncherImportAccuracyAuditResult["imported"
     budgetMonthCategoryValues: {},
     budgetMonthCategoryActivityContributions: {},
     transactionsByAccountName: {},
+    accountTransactionFidelity: {},
   };
 }

@@ -251,7 +251,9 @@
     "test:v187:ynab4-activity-calculation-rules-audit": "tsx tests/v187-ynab4-activity-calculation-rules-audit.ts",
     "test:v187": "pnpm test:v187:ynab4-activity-calculation-rules-audit",
     "test:v188:ynab4-mortgage-transfer-activity-fidelity": "tsx tests/v188-ynab4-mortgage-transfer-activity-fidelity.ts",
-    "test:v188": "pnpm test:v188:ynab4-mortgage-transfer-activity-fidelity"
+    "test:v188": "pnpm test:v188:ynab4-mortgage-transfer-activity-fidelity",
+    "test:v189:ynab4-closed-account-transaction-fidelity-audit": "tsx tests/v189-ynab4-closed-account-transaction-fidelity-audit.ts",
+    "test:v189": "pnpm test:v189:ynab4-closed-account-transaction-fidelity-audit"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
