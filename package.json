@@ -270,7 +270,9 @@
     "test:v197:date-format-audit": "tsx tests/v197-date-format-audit.ts",
     "test:v197": "pnpm test:v197:date-format-audit",
     "test:v198:register-performance": "tsx tests/v198-register-performance.ts",
-    "test:v198": "pnpm test:v198:register-performance"
+    "test:v198": "pnpm test:v198:register-performance",
+    "test:v199:register-render-performance": "tsx tests/v199-register-render-performance.ts",
+    "test:v199": "pnpm test:v199:register-render-performance"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

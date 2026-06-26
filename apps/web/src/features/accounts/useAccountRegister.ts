@@ -102,16 +102,21 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     };
   }, [accountId, accountRegisters, applyRegisterView]);
 
+  const transactionById = useMemo(() => {
+    if (!data) {
+      return new Map<string, RegisterTransactionView>();
+    }
+
+    return new Map(data.transactions.map((transaction) => [transaction.id, transaction]));
+  }, [data]);
+
   const selectedTransaction = useMemo(() => {
-    if (!data || !selectedTransactionId) {
+    if (!selectedTransactionId) {
       return null;
     }
 
-    return (
-      data.transactions.find((transaction) => transaction.id === selectedTransactionId) ??
-      null
-    );
-  }, [data, selectedTransactionId]);
+    return transactionById.get(selectedTransactionId) ?? null;
+  }, [selectedTransactionId, transactionById]);
 
   const runMutation = useCallback(async (
     action: () => Promise<AccountRegisterView>,

@@ -1,5 +1,5 @@
 import { CalendarDays, Paperclip } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
@@ -1539,38 +1539,38 @@ function TransactionStatus({
   );
 }
 
-function TransactionRow({
+const TransactionRow = memo(function TransactionRow({
   transaction,
   currencyCode,
+  dateFormat,
   isSelected,
-  onSelect,
-  onEdit,
-  onToggleCleared,
-  onManageAttachments,
+  onSelectTransaction,
+  onEditTransaction,
+  onToggleClearedTransaction,
+  onManageTransactionAttachments,
 }: {
   transaction: RegisterTransactionView;
   currencyCode: string;
+  dateFormat: ReturnType<typeof useDateFormatPreference>;
   isSelected: boolean;
-  onSelect: () => void;
-  onEdit: () => void;
-  onToggleCleared: () => void;
-  onManageAttachments: () => void;
+  onSelectTransaction: (transactionId: string) => void;
+  onEditTransaction: (transactionId: string) => void;
+  onToggleClearedTransaction: (transactionId: string) => void;
+  onManageTransactionAttachments: (transactionId: string) => void;
 }) {
-  const dateFormat = useDateFormatPreference();
-
   return (
     <button
       type="button"
       className={isSelected ? "register-row register-row-selected" : "register-row"}
-      onClick={onSelect}
-      onDoubleClick={onEdit}
+      onClick={() => onSelectTransaction(transaction.id)}
+      onDoubleClick={() => onEditTransaction(transaction.id)}
     >
       <span className="register-checkbox" aria-hidden="true" />
       <span>{formatDateForDisplay(transaction.date, dateFormat)}</span>
       <FlagDot flag={transaction.flag} />
       <AttachmentIndicator
         count={transaction.attachmentCount}
-        onClick={onManageAttachments}
+        onClick={() => onManageTransactionAttachments(transaction.id)}
       />
 
       <div className="register-payee-cell">
@@ -1593,10 +1593,13 @@ function TransactionRow({
         {formatMoney(transaction.runningBalance, currencyCode)}
       </strong>
 
-      <TransactionStatus transaction={transaction} onToggleCleared={onToggleCleared} />
+      <TransactionStatus
+        transaction={transaction}
+        onToggleCleared={() => onToggleClearedTransaction(transaction.id)}
+      />
     </button>
   );
-}
+});
 
 function clampPageForTransactionCount(page: number, transactionCount: number): number {
   return getRegisterPaginationState(
@@ -1711,7 +1714,7 @@ export function AccountRegisterPage() {
     return () => {
       isMounted = false;
     };
-  }, [data?.transactions, payeesPersistence]);
+  }, [payeesPersistence]);
 
   useEffect(() => {
     let active = true;
@@ -1790,6 +1793,25 @@ export function AccountRegisterPage() {
         : [],
     [activePayeeSummaries, selectedPayeeSummary],
   );
+
+  const handleSelectTransaction = useCallback((transactionId: string) => {
+    selectTransaction(transactionId);
+  }, [selectTransaction]);
+
+  const handleEditTransaction = useCallback((transactionId: string) => {
+    selectTransaction(transactionId);
+    setShowEntryRow(false);
+    setEditingTransactionId(transactionId);
+  }, [selectTransaction]);
+
+  const handleToggleClearedTransaction = useCallback((transactionId: string) => {
+    void toggleCleared(transactionId);
+  }, [toggleCleared]);
+
+  const handleManageTransactionAttachments = useCallback((transactionId: string) => {
+    selectTransaction(transactionId);
+    setAttachmentTransactionId(transactionId);
+  }, [selectTransaction]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -2366,18 +2388,12 @@ export function AccountRegisterPage() {
                 key={transaction.id}
                 transaction={transaction}
                 currencyCode={data.currencyCode}
+                dateFormat={dateFormat}
                 isSelected={selectedTransactionId === transaction.id}
-                onSelect={() => selectTransaction(transaction.id)}
-                onEdit={() => {
-                  selectTransaction(transaction.id);
-                  setShowEntryRow(false);
-                  setEditingTransactionId(transaction.id);
-                }}
-                onToggleCleared={() => toggleCleared(transaction.id)}
-                onManageAttachments={() => {
-                  selectTransaction(transaction.id);
-                  setAttachmentTransactionId(transaction.id);
-                }}
+                onSelectTransaction={handleSelectTransaction}
+                onEditTransaction={handleEditTransaction}
+                onToggleClearedTransaction={handleToggleClearedTransaction}
+                onManageTransactionAttachments={handleManageTransactionAttachments}
               />
             ),
           )}
