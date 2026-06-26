@@ -24,6 +24,7 @@ import {
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
 import { confirmDialog } from "../features/ui/appDialogService";
+import { DropdownMenu } from "../features/ui/DropdownMenu";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import type { PayeeView } from "../features/accounts/payeeService";
 import { buildPayeeRegisterSummaries } from "../features/accounts/payeeRegisterSummaries";
@@ -322,30 +323,22 @@ function buildRegisterRowStyle(
 
 function RegisterColumnsMenu({
   visibleColumns,
-  isOpen,
-  onToggleOpen,
   onToggleColumn,
   onReset,
 }: {
   visibleColumns: Set<RegisterOptionalColumnId>;
-  isOpen: boolean;
-  onToggleOpen: () => void;
   onToggleColumn: (column: RegisterOptionalColumnId) => void;
   onReset: () => void;
 }) {
   return (
-    <div className="register-columns-menu">
-      <button
-        className="button button-secondary"
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        onClick={onToggleOpen}
-      >
-        Columns ▾
-      </button>
-      {isOpen ? (
-        <div className="register-columns-menu-panel" role="menu" aria-label="Register columns">
+    <DropdownMenu
+      label="Columns ▾"
+      ariaLabel="Register columns"
+      className="register-columns-menu"
+      panelClassName="register-columns-menu-panel"
+    >
+      {({ closeMenu }) => (
+        <>
           {REGISTER_OPTIONAL_COLUMNS.map((column) => (
             <label className="register-column-toggle" key={column}>
               <input
@@ -356,12 +349,20 @@ function RegisterColumnsMenu({
               <span>{REGISTER_COLUMN_DEFINITIONS[column].label}</span>
             </label>
           ))}
-          <button className="register-column-reset" type="button" role="menuitem" onClick={onReset}>
+          <button
+            className="register-column-reset"
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onReset();
+              closeMenu({ restoreFocus: true });
+            }}
+          >
             Reset columns
           </button>
-        </div>
-      ) : null}
-    </div>
+        </>
+      )}
+    </DropdownMenu>
   );
 }
 
@@ -2468,8 +2469,6 @@ export function AccountRegisterPage() {
   );
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
-  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
   const [visibleRegisterColumns, setVisibleRegisterColumns] = useState<
     RegisterOptionalColumnId[]
   >(() => readRegisterColumnPreferences(activeBudgetId));
@@ -2503,7 +2502,6 @@ export function AccountRegisterPage() {
 
   useEffect(() => {
     setVisibleRegisterColumns(readRegisterColumnPreferences(activeBudgetId));
-    setIsColumnsMenuOpen(false);
   }, [activeBudgetId]);
 
   const visibleRegisterColumnSet = useMemo(
@@ -2538,7 +2536,6 @@ export function AccountRegisterPage() {
   function handleResetRegisterColumns() {
     setVisibleRegisterColumns(DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS);
     writeRegisterColumnPreferences(activeBudgetId, DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS);
-    setIsColumnsMenuOpen(false);
   }
 
   useEffect(() => {
@@ -3025,11 +3022,6 @@ export function AccountRegisterPage() {
 
             <RegisterColumnsMenu
               visibleColumns={visibleRegisterColumnSet}
-              isOpen={isColumnsMenuOpen}
-              onToggleOpen={() => {
-                setIsColumnsMenuOpen((current) => !current);
-                setIsMoreMenuOpen(false);
-              }}
               onToggleColumn={handleToggleRegisterColumn}
               onReset={handleResetRegisterColumns}
             />
@@ -3046,25 +3038,20 @@ export function AccountRegisterPage() {
               Reconcile
             </button>
 
-            <div className="register-more-menu">
-              <button
-                className="button button-secondary"
-                type="button"
-                aria-haspopup="menu"
-                aria-expanded={isMoreMenuOpen}
-                onClick={() => setIsMoreMenuOpen((current) => !current)}
-              >
-                More ▾
-              </button>
-
-              {isMoreMenuOpen && (
-                <div className="register-more-menu-panel" role="menu">
+            <DropdownMenu
+              label="More ▾"
+              ariaLabel="Register actions"
+              className="register-more-menu"
+              panelClassName="register-more-menu-panel"
+            >
+              {({ closeMenu }) => (
+                <>
                   <button
                     type="button"
                     role="menuitem"
                     onClick={() => {
                       setIsPayeeManagerOpen(true);
-                      setIsMoreMenuOpen(false);
+                      closeMenu({ restoreFocus: true });
                     }}
                   >
                     Manage Payees
@@ -3075,15 +3062,15 @@ export function AccountRegisterPage() {
                     role="menuitem"
                     onClick={() => {
                       setIsScheduledOpen((current) => !current);
-                      setIsMoreMenuOpen(false);
+                      closeMenu({ restoreFocus: true });
                     }}
                   >
                     Scheduled Transactions
                     {scheduledDueCount > 0 ? ` (${scheduledDueCount})` : ""}
                   </button>
-                </div>
+                </>
               )}
-            </div>
+            </DropdownMenu>
           </div>
         </div>
 

@@ -278,7 +278,9 @@
     "test:v203:register-column-visibility": "tsx tests/v203-register-column-visibility.ts",
     "test:v203": "pnpm test:v203:register-column-visibility",
     "test:v204:shared-table-layout": "tsx tests/v204-shared-table-layout.ts",
-    "test:v204": "pnpm test:v204:shared-table-layout"
+    "test:v204": "pnpm test:v204:shared-table-layout",
+    "test:v205:shared-dropdown-menu": "tsx tests/v205-shared-dropdown-menu.ts",
+    "test:v205": "pnpm test:v205:shared-dropdown-menu"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

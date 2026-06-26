@@ -1,0 +1,453 @@
+diff --git a/apps/web/src/features/tableLayout/ColumnVisibilityMenu.tsx b/apps/web/src/features/tableLayout/ColumnVisibilityMenu.tsx
+index 0bbf8ca..f81e1c1 100644
+--- a/apps/web/src/features/tableLayout/ColumnVisibilityMenu.tsx
++++ b/apps/web/src/features/tableLayout/ColumnVisibilityMenu.tsx
+@@ -1,4 +1,4 @@
+-import { useEffect, useRef, useState } from "react";
++import { DropdownMenu } from "../ui/DropdownMenu";
+ import type { TableColumnDefinition } from "./tableLayout";
+ 
+ export function ColumnVisibilityMenu<TColumnId extends string>({
+@@ -14,53 +14,18 @@ export function ColumnVisibilityMenu<TColumnId extends string>({
+   onToggleColumn: (columnId: TColumnId) => void;
+   onReset: () => void;
+ }) {
+-  const [isOpen, setIsOpen] = useState(false);
+-  const menuRef = useRef<HTMLDivElement | null>(null);
+-  const triggerRef = useRef<HTMLButtonElement | null>(null);
+   const hideableColumns = columns.filter((column) => column.canHide === true);
+ 
+-  useEffect(() => {
+-    if (!isOpen) {
+-      return;
+-    }
+-
+-    function handlePointerDown(event: PointerEvent) {
+-      if (!menuRef.current?.contains(event.target as Node)) {
+-        setIsOpen(false);
+-      }
+-    }
+-
+-    function handleKeyDown(event: KeyboardEvent) {
+-      if (event.key === "Escape") {
+-        setIsOpen(false);
+-        triggerRef.current?.focus();
+-      }
+-    }
+-
+-    document.addEventListener("pointerdown", handlePointerDown);
+-    document.addEventListener("keydown", handleKeyDown);
+-
+-    return () => {
+-      document.removeEventListener("pointerdown", handlePointerDown);
+-      document.removeEventListener("keydown", handleKeyDown);
+-    };
+-  }, [isOpen]);
+-
+   return (
+-    <div className="table-layout-menu" ref={menuRef}>
+-      <button
+-        ref={triggerRef}
+-        className="button button-secondary table-layout-menu-trigger"
+-        type="button"
+-        aria-haspopup="menu"
+-        aria-expanded={isOpen}
+-        onClick={() => setIsOpen((current) => !current)}
+-      >
+-        {label}
+-      </button>
+-
+-      {isOpen ? (
+-        <div className="table-layout-menu-panel" role="menu" aria-label={`${label} options`}>
++    <DropdownMenu
++      label={label}
++      ariaLabel={`${label} options`}
++      className="table-layout-menu"
++      buttonClassName="button button-secondary table-layout-menu-trigger"
++      panelClassName="table-layout-menu-panel"
++    >
++      {({ closeMenu }) => (
++        <>
+           {hideableColumns.map((column) => (
+             <label className="table-layout-column-toggle" key={column.id}>
+               <input
+@@ -77,14 +42,13 @@ export function ColumnVisibilityMenu<TColumnId extends string>({
+             role="menuitem"
+             onClick={() => {
+               onReset();
+-              setIsOpen(false);
+-              triggerRef.current?.focus();
++              closeMenu({ restoreFocus: true });
+             }}
+           >
+             Reset layout
+           </button>
+-        </div>
+-      ) : null}
+-    </div>
++        </>
++      )}
++    </DropdownMenu>
+   );
+ }
+diff --git a/apps/web/src/features/ui/DropdownMenu.tsx b/apps/web/src/features/ui/DropdownMenu.tsx
+new file mode 100644
+index 0000000..729952e
+--- /dev/null
++++ b/apps/web/src/features/ui/DropdownMenu.tsx
+@@ -0,0 +1,78 @@
++import { ReactNode, useEffect, useId, useRef, useState } from "react";
++
++export function DropdownMenu({
++  label,
++  ariaLabel,
++  buttonClassName = "button button-secondary",
++  className = "dropdown-menu",
++  panelClassName = "dropdown-menu-panel",
++  children,
++}: {
++  label: ReactNode;
++  ariaLabel?: string;
++  buttonClassName?: string;
++  className?: string;
++  panelClassName?: string;
++  children: ReactNode | ((controls: { closeMenu: (options?: { restoreFocus?: boolean }) => void }) => ReactNode);
++}) {
++  const [isOpen, setIsOpen] = useState(false);
++  const menuId = useId();
++  const rootRef = useRef<HTMLDivElement | null>(null);
++  const triggerRef = useRef<HTMLButtonElement | null>(null);
++
++  function closeMenu({ restoreFocus = false }: { restoreFocus?: boolean } = {}) {
++    setIsOpen(false);
++
++    if (restoreFocus) {
++      triggerRef.current?.focus();
++    }
++  }
++
++  useEffect(() => {
++    if (!isOpen) {
++      return;
++    }
++
++    function handlePointerDown(event: PointerEvent) {
++      if (!rootRef.current?.contains(event.target as Node)) {
++        closeMenu();
++      }
++    }
++
++    function handleKeyDown(event: KeyboardEvent) {
++      if (event.key === "Escape") {
++        closeMenu({ restoreFocus: true });
++      }
++    }
++
++    document.addEventListener("pointerdown", handlePointerDown);
++    document.addEventListener("keydown", handleKeyDown);
++
++    return () => {
++      document.removeEventListener("pointerdown", handlePointerDown);
++      document.removeEventListener("keydown", handleKeyDown);
++    };
++  }, [isOpen]);
++
++  return (
++    <div className={className} ref={rootRef}>
++      <button
++        ref={triggerRef}
++        className={buttonClassName}
++        type="button"
++        aria-haspopup="menu"
++        aria-expanded={isOpen}
++        aria-controls={isOpen ? menuId : undefined}
++        onClick={() => setIsOpen((current) => !current)}
++      >
++        {label}
++      </button>
++
++      {isOpen ? (
++        <div id={menuId} className={panelClassName} role="menu" aria-label={ariaLabel}>
++          {typeof children === "function" ? children({ closeMenu }) : children}
++        </div>
++      ) : null}
++    </div>
++  );
++}
+diff --git a/apps/web/src/pages/AccountRegisterPage.tsx b/apps/web/src/pages/AccountRegisterPage.tsx
+index 55b58a9..10d4ca8 100644
+--- a/apps/web/src/pages/AccountRegisterPage.tsx
++++ b/apps/web/src/pages/AccountRegisterPage.tsx
+@@ -24,6 +24,7 @@ import {
+ import type { SidebarAccount } from "../features/accounts/accountService";
+ import { getAppPersistenceGateway } from "../features/persistence";
+ import { confirmDialog } from "../features/ui/appDialogService";
++import { DropdownMenu } from "../features/ui/DropdownMenu";
+ import { resolveActiveBudgetId } from "../features/budget/activeBudget";
+ import type { PayeeView } from "../features/accounts/payeeService";
+ import { buildPayeeRegisterSummaries } from "../features/accounts/payeeRegisterSummaries";
+@@ -322,30 +323,22 @@ function buildRegisterRowStyle(
+ 
+ function RegisterColumnsMenu({
+   visibleColumns,
+-  isOpen,
+-  onToggleOpen,
+   onToggleColumn,
+   onReset,
+ }: {
+   visibleColumns: Set<RegisterOptionalColumnId>;
+-  isOpen: boolean;
+-  onToggleOpen: () => void;
+   onToggleColumn: (column: RegisterOptionalColumnId) => void;
+   onReset: () => void;
+ }) {
+   return (
+-    <div className="register-columns-menu">
+-      <button
+-        className="button button-secondary"
+-        type="button"
+-        aria-haspopup="menu"
+-        aria-expanded={isOpen}
+-        onClick={onToggleOpen}
+-      >
+-        Columns ▾
+-      </button>
+-      {isOpen ? (
+-        <div className="register-columns-menu-panel" role="menu" aria-label="Register columns">
++    <DropdownMenu
++      label="Columns ▾"
++      ariaLabel="Register columns"
++      className="register-columns-menu"
++      panelClassName="register-columns-menu-panel"
++    >
++      {({ closeMenu }) => (
++        <>
+           {REGISTER_OPTIONAL_COLUMNS.map((column) => (
+             <label className="register-column-toggle" key={column}>
+               <input
+@@ -356,12 +349,20 @@ function RegisterColumnsMenu({
+               <span>{REGISTER_COLUMN_DEFINITIONS[column].label}</span>
+             </label>
+           ))}
+-          <button className="register-column-reset" type="button" role="menuitem" onClick={onReset}>
++          <button
++            className="register-column-reset"
++            type="button"
++            role="menuitem"
++            onClick={() => {
++              onReset();
++              closeMenu({ restoreFocus: true });
++            }}
++          >
+             Reset columns
+           </button>
+-        </div>
+-      ) : null}
+-    </div>
++        </>
++      )}
++    </DropdownMenu>
+   );
+ }
+ 
+@@ -2468,8 +2469,6 @@ export function AccountRegisterPage() {
+   );
+   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
+   const [scheduledDueCount, setScheduledDueCount] = useState(0);
+-  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+-  const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
+   const [visibleRegisterColumns, setVisibleRegisterColumns] = useState<
+     RegisterOptionalColumnId[]
+   >(() => readRegisterColumnPreferences(activeBudgetId));
+@@ -2503,7 +2502,6 @@ export function AccountRegisterPage() {
+ 
+   useEffect(() => {
+     setVisibleRegisterColumns(readRegisterColumnPreferences(activeBudgetId));
+-    setIsColumnsMenuOpen(false);
+   }, [activeBudgetId]);
+ 
+   const visibleRegisterColumnSet = useMemo(
+@@ -2538,7 +2536,6 @@ export function AccountRegisterPage() {
+   function handleResetRegisterColumns() {
+     setVisibleRegisterColumns(DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS);
+     writeRegisterColumnPreferences(activeBudgetId, DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS);
+-    setIsColumnsMenuOpen(false);
+   }
+ 
+   useEffect(() => {
+@@ -3025,11 +3022,6 @@ export function AccountRegisterPage() {
+ 
+             <RegisterColumnsMenu
+               visibleColumns={visibleRegisterColumnSet}
+-              isOpen={isColumnsMenuOpen}
+-              onToggleOpen={() => {
+-                setIsColumnsMenuOpen((current) => !current);
+-                setIsMoreMenuOpen(false);
+-              }}
+               onToggleColumn={handleToggleRegisterColumn}
+               onReset={handleResetRegisterColumns}
+             />
+@@ -3046,25 +3038,20 @@ export function AccountRegisterPage() {
+               Reconcile
+             </button>
+ 
+-            <div className="register-more-menu">
+-              <button
+-                className="button button-secondary"
+-                type="button"
+-                aria-haspopup="menu"
+-                aria-expanded={isMoreMenuOpen}
+-                onClick={() => setIsMoreMenuOpen((current) => !current)}
+-              >
+-                More ▾
+-              </button>
+-
+-              {isMoreMenuOpen && (
+-                <div className="register-more-menu-panel" role="menu">
++            <DropdownMenu
++              label="More ▾"
++              ariaLabel="Register actions"
++              className="register-more-menu"
++              panelClassName="register-more-menu-panel"
++            >
++              {({ closeMenu }) => (
++                <>
+                   <button
+                     type="button"
+                     role="menuitem"
+                     onClick={() => {
+                       setIsPayeeManagerOpen(true);
+-                      setIsMoreMenuOpen(false);
++                      closeMenu({ restoreFocus: true });
+                     }}
+                   >
+                     Manage Payees
+@@ -3075,15 +3062,15 @@ export function AccountRegisterPage() {
+                     role="menuitem"
+                     onClick={() => {
+                       setIsScheduledOpen((current) => !current);
+-                      setIsMoreMenuOpen(false);
++                      closeMenu({ restoreFocus: true });
+                     }}
+                   >
+                     Scheduled Transactions
+                     {scheduledDueCount > 0 ? ` (${scheduledDueCount})` : ""}
+                   </button>
+-                </div>
++                </>
+               )}
+-            </div>
++            </DropdownMenu>
+           </div>
+         </div>
+ 
+diff --git a/package.json b/package.json
+index d022cbd..973a2ff 100644
+--- a/package.json
++++ b/package.json
+@@ -278,7 +278,9 @@
+     "test:v203:register-column-visibility": "tsx tests/v203-register-column-visibility.ts",
+     "test:v203": "pnpm test:v203:register-column-visibility",
+     "test:v204:shared-table-layout": "tsx tests/v204-shared-table-layout.ts",
+-    "test:v204": "pnpm test:v204:shared-table-layout"
++    "test:v204": "pnpm test:v204:shared-table-layout",
++    "test:v205:shared-dropdown-menu": "tsx tests/v205-shared-dropdown-menu.ts",
++    "test:v205": "pnpm test:v205:shared-dropdown-menu"
+   },
+   "dependencies": {
+     "better-sqlite3": "^12.11.1",
+diff --git a/tests/v205-shared-dropdown-menu.ts b/tests/v205-shared-dropdown-menu.ts
+new file mode 100644
+index 0000000..d245afa
+--- /dev/null
++++ b/tests/v205-shared-dropdown-menu.ts
+@@ -0,0 +1,89 @@
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++
++const dropdownMenuSource = readFileSync(
++  "apps/web/src/features/ui/DropdownMenu.tsx",
++  "utf8",
++);
++const columnVisibilityMenuSource = readFileSync(
++  "apps/web/src/features/tableLayout/ColumnVisibilityMenu.tsx",
++  "utf8",
++);
++const registerPageSource = readFileSync("apps/web/src/pages/AccountRegisterPage.tsx", "utf8");
++const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
++
++assert.match(
++  dropdownMenuSource,
++  /export function DropdownMenu/,
++  "shared DropdownMenu component should exist",
++);
++assert.match(
++  dropdownMenuSource,
++  /document\.addEventListener\("pointerdown"/,
++  "DropdownMenu should close on outside pointer interactions",
++);
++assert.match(
++  dropdownMenuSource,
++  /event\.key === "Escape"/,
++  "DropdownMenu should close on Escape",
++);
++assert.match(
++  dropdownMenuSource,
++  /triggerRef\.current\?\.focus\(\)/,
++  "DropdownMenu should restore focus to its trigger when requested",
++);
++assert.match(
++  dropdownMenuSource,
++  /aria-haspopup="menu"/,
++  "DropdownMenu trigger should expose menu semantics",
++);
++assert.match(
++  dropdownMenuSource,
++  /aria-expanded=\{isOpen\}/,
++  "DropdownMenu trigger should expose expanded state",
++);
++
++assert.match(
++  columnVisibilityMenuSource,
++  /import \{ DropdownMenu \} from "\.\.\/ui\/DropdownMenu"/,
++  "shared ColumnVisibilityMenu should use the shared DropdownMenu",
++);
++assert.doesNotMatch(
++  columnVisibilityMenuSource,
++  /document\.addEventListener/,
++  "ColumnVisibilityMenu should not own document-level menu listeners anymore",
++);
++
++assert.match(
++  registerPageSource,
++  /import \{ DropdownMenu \} from "\.\.\/features\/ui\/DropdownMenu"/,
++  "AccountRegisterPage should import the shared DropdownMenu",
++);
++assert.match(
++  registerPageSource,
++  /<DropdownMenu\s+label="Columns ▾"/,
++  "Register Columns menu should use the shared DropdownMenu",
++);
++assert.match(
++  registerPageSource,
++  /<DropdownMenu\s+label="More ▾"/,
++  "Register More menu should use the shared DropdownMenu",
++);
++assert.doesNotMatch(
++  registerPageSource,
++  /isColumnsMenuOpen|setIsColumnsMenuOpen|isMoreMenuOpen|setIsMoreMenuOpen/,
++  "Register page should not keep duplicated dropdown open state for Columns/More menus",
++);
++
++assert.equal(
++  packageJson.scripts["test:v205:shared-dropdown-menu"],
++  "tsx tests/v205-shared-dropdown-menu.ts",
++  "package.json should expose the v2.05 shared dropdown test",
++);
++assert.equal(
++  packageJson.scripts["test:v205"],
++  "pnpm test:v205:shared-dropdown-menu",
++  "package.json should expose the v2.05 aggregate test",
++);
++
++console.log("v2.05 shared dropdown/menu framework checks passed");
