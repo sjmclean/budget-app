@@ -125,6 +125,7 @@ strong {
 }
 
 .app-content {
+  min-width: 0;
   min-height: 100vh;
   margin-left: 15rem;
   transition: margin-left 140ms ease;
@@ -135,6 +136,8 @@ strong {
 }
 
 .main-content {
+  min-width: 0;
+  max-width: 100%;
   padding: 1.25rem;
 }
 
@@ -732,6 +735,13 @@ strong {
   overflow: hidden;
 }
 
+.budget-workspace-table-card {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+
 .budget-workspace-table-head,
 .budget-workspace-group-header,
 .budget-workspace-row {
@@ -1079,7 +1089,7 @@ strong {
 
 @media (max-width: 680px) {
   .budget-workspace-table-head {
-    display: none;
+    display: grid;
   }
 
   .budget-workspace-group-header,
@@ -2683,6 +2693,20 @@ strong {
 .settings-checkbox-field span {
   display: grid;
   gap: 0.25rem;
+}
+
+
+/* v2.10 shared responsive table containment */
+.budget-workspace-table-card,
+.register-table {
+  scrollbar-gutter: stable;
+}
+
+.budget-workspace-table-head,
+.budget-workspace-group-header,
+.budget-workspace-row,
+.register-row {
+  max-width: none;
 }
 
 /* v2.04 shared table layout controls */

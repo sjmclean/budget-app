@@ -290,7 +290,9 @@
     "test:v208:register-decomposition-phase1": "tsx tests/v208-register-decomposition-phase1.ts",
     "test:v208": "pnpm test:v208:register-decomposition-phase1",
     "test:v209:register-row-extraction": "tsx tests/v209-register-row-extraction.ts",
-    "test:v209": "pnpm test:v209:register-row-extraction"
+    "test:v209": "pnpm test:v209:register-row-extraction",
+    "test:v210:responsive-scaling": "tsx tests/v210-responsive-scaling.ts",
+    "test:v210": "pnpm test:v210:responsive-scaling"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
