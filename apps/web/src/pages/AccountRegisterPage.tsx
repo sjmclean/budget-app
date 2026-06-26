@@ -62,12 +62,12 @@ function hasSamePayeeName(left: string, right: string) {
   return normalisePayeeKey(left) === normalisePayeeKey(right);
 }
 
-function formatPayeeLastUsed(value: string | undefined) {
+function formatPayeeLastUsed(value: string | undefined, dateFormat: ReturnType<typeof useDateFormatPreference>) {
   if (!value) {
     return "Never";
   }
 
-  return formatDateForDisplay(value.slice(0, 10));
+  return formatDateForDisplay(value.slice(0, 10), dateFormat);
 }
 
 function formatDateForInput(date: string) {
@@ -1650,6 +1650,7 @@ export function AccountRegisterPage() {
   const [attachmentTransactionId, setAttachmentTransactionId] = useState<string | null>(null);
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
   const [registerPage, setRegisterPage] = useState(1);
+  const dateFormat = useDateFormatPreference();
 
   useEffect(() => {
     setRegisterPage(1);
@@ -2116,7 +2117,7 @@ export function AccountRegisterPage() {
                           <strong>{summary.payee.name}</strong>
                         </span>
                         <span>{summary.registerTransactionCount}</span>
-                        <span>{formatPayeeLastUsed(summary.lastUsed)}</span>
+                        <span>{formatPayeeLastUsed(summary.lastUsed, dateFormat)}</span>
                       </button>
                     ))}
 
@@ -2145,7 +2146,7 @@ export function AccountRegisterPage() {
                           <em>Archived</em>
                         </span>
                         <span>{summary.registerTransactionCount}</span>
-                        <span>{formatPayeeLastUsed(summary.lastUsed)}</span>
+                        <span>{formatPayeeLastUsed(summary.lastUsed, dateFormat)}</span>
                       </button>
                     ))}
                   </div>
@@ -2159,7 +2160,7 @@ export function AccountRegisterPage() {
                             {selectedPayeeSummary.payee.isArchived ? "Archived" : "Active"} ·{" "}
                             {selectedPayeeSummary.registerTransactionCount} register transaction
                             {selectedPayeeSummary.registerTransactionCount === 1 ? "" : "s"} · Last used{" "}
-                            {formatPayeeLastUsed(selectedPayeeSummary.lastUsed)}
+                            {formatPayeeLastUsed(selectedPayeeSummary.lastUsed, dateFormat)}
                           </p>
                         </div>
 

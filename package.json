@@ -266,7 +266,9 @@
     "test:v195:register-pagination": "tsx tests/v195-register-pagination.ts",
     "test:v195": "pnpm test:v195:register-pagination",
     "test:v196:date-format-preferences": "tsx tests/v196-date-format-preferences.ts",
-    "test:v196": "pnpm test:v196:date-format-preferences"
+    "test:v196": "pnpm test:v196:date-format-preferences",
+    "test:v197:date-format-audit": "tsx tests/v197-date-format-audit.ts",
+    "test:v197": "pnpm test:v197:date-format-audit"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
