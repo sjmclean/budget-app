@@ -286,7 +286,9 @@
     "test:v207:shared-column-resizing": "tsx tests/v207-shared-column-resizing.ts",
     "test:v207": "pnpm test:v207:shared-column-resizing",
     "test:v2071:table-layout-behaviour": "tsx tests/v2071-table-layout-behaviour.ts",
-    "test:v2071": "pnpm test:v2071:table-layout-behaviour"
+    "test:v2071": "pnpm test:v2071:table-layout-behaviour",
+    "test:v208:register-decomposition-phase1": "tsx tests/v208-register-decomposition-phase1.ts",
+    "test:v208": "pnpm test:v208:register-decomposition-phase1"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
