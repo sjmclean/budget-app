@@ -294,7 +294,9 @@
     "test:v210:responsive-scaling": "tsx tests/v210-responsive-scaling.ts",
     "test:v210": "pnpm test:v210:responsive-scaling",
     "test:v2101:budget-view-cleanup": "tsx tests/v2101-budget-view-cleanup.ts",
-    "test:v2101": "pnpm test:v2101:budget-view-cleanup"
+    "test:v2101": "pnpm test:v2101:budget-view-cleanup",
+    "test:v211:responsive-layout": "tsx tests/v211-responsive-layout.ts",
+    "test:v211": "pnpm test:v211:responsive-layout"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
