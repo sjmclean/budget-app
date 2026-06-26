@@ -284,7 +284,9 @@
     "test:v206:register-shared-table-layout": "tsx tests/v206-register-shared-table-layout.ts",
     "test:v206": "pnpm test:v206:register-shared-table-layout",
     "test:v207:shared-column-resizing": "tsx tests/v207-shared-column-resizing.ts",
-    "test:v207": "pnpm test:v207:shared-column-resizing"
+    "test:v207": "pnpm test:v207:shared-column-resizing",
+    "test:v2071:table-layout-behaviour": "tsx tests/v2071-table-layout-behaviour.ts",
+    "test:v2071": "pnpm test:v2071:table-layout-behaviour"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
