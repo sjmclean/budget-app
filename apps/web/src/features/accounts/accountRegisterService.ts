@@ -84,6 +84,7 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
       const updatedSource = {
         ...existing,
         date: input.transaction.date,
+        flag: input.transaction.flag === undefined ? existing.flag : input.transaction.flag,
         payee: existing.payee,
         category: "Transfer",
         memo: input.transaction.memo,
@@ -125,7 +126,7 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
         return {
           ...transaction,
           date: input.transaction.date,
-          flag: input.transaction.flag ?? transaction.flag,
+          flag: input.transaction.flag === undefined ? transaction.flag : input.transaction.flag,
           payee: input.transaction.payee,
           payeeId,
           category: input.transaction.category,

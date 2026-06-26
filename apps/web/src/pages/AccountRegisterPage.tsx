@@ -54,6 +54,14 @@ function isSplitCategoryValue(value: string): boolean {
 }
 
 const ACTIVE_BUDGET_MONTH = "2026-06";
+const REGISTER_FLAG_OPTIONS: Array<Exclude<TransactionFlag, null>> = [
+  "red",
+  "orange",
+  "yellow",
+  "green",
+  "blue",
+  "purple",
+];
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -258,6 +266,73 @@ function FlagDot({ flag }: { flag: TransactionFlag }) {
   }
 
   return <span className={`transaction-flag transaction-flag-${flag}`} />;
+}
+
+function InlineFlagPicker({
+  value,
+  onChange,
+}: {
+  value: TransactionFlag;
+  onChange: (flag: TransactionFlag) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  function chooseFlag(flag: TransactionFlag) {
+    onChange(flag);
+    setIsOpen(false);
+  }
+
+  return (
+    <div className="flag-colour-picker" title="Flag">
+      <button
+        className="flag-colour-picker-button"
+        type="button"
+        aria-label={value ? `${value} flag` : "No flag"}
+        aria-expanded={isOpen}
+        onClick={(event) => {
+          event.stopPropagation();
+          setIsOpen((open) => !open);
+        }}
+      >
+        <FlagDot flag={value} />
+      </button>
+
+      {isOpen ? (
+        <div className="flag-colour-picker-menu" role="listbox" aria-label="Choose flag colour">
+          <button
+            className="flag-colour-picker-option"
+            type="button"
+            role="option"
+            aria-selected={value === null}
+            title="No flag"
+            onClick={(event) => {
+              event.stopPropagation();
+              chooseFlag(null);
+            }}
+          >
+            <span className="transaction-flag transaction-flag-empty" aria-hidden="true" />
+          </button>
+
+          {REGISTER_FLAG_OPTIONS.map((flag) => (
+            <button
+              className="flag-colour-picker-option"
+              type="button"
+              role="option"
+              aria-selected={value === flag}
+              title={`${flag[0].toUpperCase()}${flag.slice(1)} flag`}
+              key={flag}
+              onClick={(event) => {
+                event.stopPropagation();
+                chooseFlag(flag);
+              }}
+            >
+              <span className={`transaction-flag transaction-flag-${flag}`} aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function AttachmentIndicator({
@@ -1462,6 +1537,7 @@ function TransactionEditRow({
   transaction,
   onSave,
   onCancel,
+  onManageTransactionAttachments,
   categoryOptions,
   transferAccounts,
   payeeOptions,
@@ -1473,6 +1549,7 @@ function TransactionEditRow({
   onSave: (input: {
     id: string;
     date: string;
+    flag?: TransactionFlag;
     payee: string;
     payeeId?: string;
     category: string;
@@ -1484,8 +1561,10 @@ function TransactionEditRow({
     splitLines?: RegisterSplitLineView[];
   }) => void;
   onCancel: () => void;
+  onManageTransactionAttachments: (transactionId: string) => void;
 }) {
   const [date, setDate] = useState(transaction.date);
+  const [flag, setFlag] = useState<TransactionFlag>(transaction.flag);
   const [payee, setPayee] = useState(transaction.payee);
   const [payeeId, setPayeeId] = useState<string | undefined>(transaction.payeeId);
   const [category, setCategory] = useState(transaction.category);
@@ -1545,6 +1624,7 @@ function TransactionEditRow({
     onSave({
       id: transaction.id,
       date,
+      flag,
       payee: payee.trim(),
       payeeId,
       category:
@@ -1579,8 +1659,11 @@ function TransactionEditRow({
     >
       <span className="register-checkbox" aria-hidden="true" />
       <RegisterDateField value={date} onChange={setDate} autoFocus />
-      <FlagDot flag={transaction.flag} />
-      <AttachmentIndicator count={transaction.attachmentCount} />
+      <InlineFlagPicker value={flag} onChange={setFlag} />
+      <AttachmentIndicator
+        count={transaction.attachmentCount}
+        onClick={() => onManageTransactionAttachments(transaction.id)}
+      />
       <PayeeInput
         value={payee}
         onChange={(value) => {
@@ -1669,6 +1752,7 @@ const TransactionRow = memo(function TransactionRow({
   onEditTransaction,
   onToggleClearedTransaction,
   onManageTransactionAttachments,
+  onUpdateTransactionFlag,
 }: {
   transaction: RegisterTransactionView;
   currencyCode: string;
@@ -1678,6 +1762,7 @@ const TransactionRow = memo(function TransactionRow({
   onEditTransaction: (transactionId: string) => void;
   onToggleClearedTransaction: (transactionId: string) => void;
   onManageTransactionAttachments: (transactionId: string) => void;
+  onUpdateTransactionFlag: (transaction: RegisterTransactionView, flag: TransactionFlag) => void;
 }) {
   return (
     <button
@@ -1688,7 +1773,10 @@ const TransactionRow = memo(function TransactionRow({
     >
       <span className="register-checkbox" aria-hidden="true" />
       <span>{formatDateForDisplay(transaction.date, dateFormat)}</span>
-      <FlagDot flag={transaction.flag} />
+      <InlineFlagPicker
+        value={transaction.flag}
+        onChange={(flag) => onUpdateTransactionFlag(transaction, flag)}
+      />
       <AttachmentIndicator
         count={transaction.attachmentCount}
         onClick={() => onManageTransactionAttachments(transaction.id)}
@@ -1978,6 +2066,30 @@ export function AccountRegisterPage() {
     selectTransaction(transactionId);
     setAttachmentTransactionId(transactionId);
   }, [selectTransaction]);
+
+  const handleUpdateTransactionFlag = useCallback((
+    transaction: RegisterTransactionView,
+    flag: TransactionFlag,
+  ) => {
+    if (transaction.flag === flag) {
+      return;
+    }
+
+    void updateTransaction({
+      id: transaction.id,
+      date: transaction.date,
+      flag,
+      payee: transaction.payee,
+      payeeId: transaction.payeeId,
+      category: transaction.category,
+      categoryId: transaction.categoryId,
+      memo: transaction.memo,
+      checkNumber: transaction.checkNumber,
+      inflow: transaction.inflow,
+      outflow: transaction.outflow,
+      splitLines: transaction.splitLines,
+    });
+  }, [updateTransaction]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -2548,6 +2660,7 @@ export function AccountRegisterPage() {
                   setEditingTransactionId(null);
                 }}
                 onCancel={() => setEditingTransactionId(null)}
+                onManageTransactionAttachments={handleManageTransactionAttachments}
               />
             ) : (
               <TransactionRow
@@ -2560,6 +2673,7 @@ export function AccountRegisterPage() {
                 onEditTransaction={handleEditTransaction}
                 onToggleClearedTransaction={handleToggleClearedTransaction}
                 onManageTransactionAttachments={handleManageTransactionAttachments}
+                onUpdateTransactionFlag={handleUpdateTransactionFlag}
               />
             ),
           )}
