@@ -473,6 +473,20 @@ function resolvePayeeId(
   return currentPayeeId ?? dependencies.findPayeeIdByName(payeeName);
 }
 
+function resolvePayeeIdWithCache(
+  dependencies: AccountRegisterServiceDependencies,
+  payeeName: string,
+  payeeIdByName: Map<string, string | undefined>,
+): string | undefined {
+  if (payeeIdByName.has(payeeName)) {
+    return payeeIdByName.get(payeeName);
+  }
+
+  const payeeId = dependencies.findPayeeIdByName(payeeName);
+  payeeIdByName.set(payeeName, payeeId);
+  return payeeId;
+}
+
 function findTransferTarget(
   dependencies: AccountRegisterServiceDependencies,
   sourceAccountId: string,
@@ -582,24 +596,29 @@ function recalculateRegister(
     runningBalanceById.set(transaction.id, runningBalance);
   }
 
+  let clearedBalance = 0;
+  let workingBalance = 0;
+  const payeeIdByName = new Map<string, string | undefined>();
+
   const transactions = register.transactions
-    .map((transaction) => ({
-      ...transaction,
-      attachments: normaliseAttachments(transaction.attachments),
-      attachmentCount: normaliseAttachments(transaction.attachments).length || transaction.attachmentCount || 0,
-      payeeId: transaction.payeeId ?? resolvePayeeId(dependencies, transaction.payee),
-      runningBalance: runningBalanceById.get(transaction.id) ?? 0,
-    }))
+    .map((transaction) => {
+      const attachments = normaliseAttachments(transaction.attachments);
+      const transactionAmount = transaction.inflow - transaction.outflow;
+      workingBalance += transactionAmount;
+
+      if (transaction.cleared || transaction.reconciled) {
+        clearedBalance += transactionAmount;
+      }
+
+      return {
+        ...transaction,
+        attachments,
+        attachmentCount: attachments.length || transaction.attachmentCount || 0,
+        payeeId: transaction.payeeId ?? resolvePayeeIdWithCache(dependencies, transaction.payee, payeeIdByName),
+        runningBalance: runningBalanceById.get(transaction.id) ?? 0,
+      };
+    })
     .sort(compareForRegisterDisplay);
-
-  const clearedBalance = transactions
-    .filter((transaction) => transaction.cleared || transaction.reconciled)
-    .reduce((sum, transaction) => sum + transaction.inflow - transaction.outflow, 0);
-
-  const workingBalance = transactions.reduce(
-    (sum, transaction) => sum + transaction.inflow - transaction.outflow,
-    0,
-  );
 
   return {
     ...register,

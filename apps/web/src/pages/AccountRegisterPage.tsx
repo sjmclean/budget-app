@@ -15,6 +15,7 @@ import { getAppPersistenceGateway } from "../features/persistence";
 import { confirmDialog } from "../features/ui/appDialogService";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import type { PayeeView } from "../features/accounts/payeeService";
+import { buildPayeeRegisterSummaries } from "../features/accounts/payeeRegisterSummaries";
 import type {
   NewRegisterTransactionInput,
   RegisterSplitLineView,
@@ -1749,6 +1750,47 @@ export function AccountRegisterPage() {
     [registerTransactions, registerPagination.currentPage, registerPagination.pageSize],
   );
 
+  const transactionById = useMemo(
+    () => new Map(registerTransactions.map((transaction) => [transaction.id, transaction])),
+    [registerTransactions],
+  );
+
+  const allManagedPayees = useMemo(
+    () => [...payeeOptions, ...archivedPayeeOptions],
+    [payeeOptions, archivedPayeeOptions],
+  );
+
+  const payeeSummaries = useMemo(
+    () =>
+      isPayeeManagerOpen
+        ? buildPayeeRegisterSummaries(allManagedPayees, registerTransactions)
+        : [],
+    [allManagedPayees, registerTransactions, isPayeeManagerOpen],
+  );
+
+  const activePayeeSummaries = useMemo(
+    () => payeeSummaries.filter((summary) => !summary.payee.isArchived),
+    [payeeSummaries],
+  );
+
+  const archivedPayeeSummaries = useMemo(
+    () => payeeSummaries.filter((summary) => summary.payee.isArchived),
+    [payeeSummaries],
+  );
+
+  const selectedPayeeSummary = useMemo(
+    () => payeeSummaries.find((summary) => summary.payee.id === selectedPayeeId) ?? null,
+    [payeeSummaries, selectedPayeeId],
+  );
+
+  const mergeTargetOptions = useMemo(
+    () =>
+      selectedPayeeSummary
+        ? activePayeeSummaries.filter((summary) => summary.payee.id !== selectedPayeeSummary.payee.id)
+        : [],
+    [activePayeeSummaries, selectedPayeeSummary],
+  );
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Enter" || !selectedTransactionId || editingTransactionId) {
@@ -1802,40 +1844,8 @@ export function AccountRegisterPage() {
   }
 
   const attachmentTransaction = attachmentTransactionId
-    ? data.transactions.find((transaction) => transaction.id === attachmentTransactionId) ?? null
+    ? transactionById.get(attachmentTransactionId) ?? null
     : null;
-
-  const allManagedPayees = [...payeeOptions, ...archivedPayeeOptions];
-
-  const payeeSummaries = allManagedPayees.map((payee) => {
-    const payeeKey = normalisePayeeKey(payee.name);
-    const matchingTransactions = data.transactions.filter((transaction) => {
-      if (transaction.payeeId) {
-        return transaction.payeeId === payee.id;
-      }
-
-      return normalisePayeeKey(transaction.payee) === payeeKey;
-    });
-
-    const lastTransactionDate = matchingTransactions
-      .map((transaction) => transaction.date)
-      .sort()
-      .at(-1);
-
-    return {
-      payee,
-      registerTransactionCount: matchingTransactions.length,
-      lastUsed: lastTransactionDate ?? payee.lastUsedAt,
-    };
-  });
-
-  const activePayeeSummaries = payeeSummaries.filter((summary) => !summary.payee.isArchived);
-  const archivedPayeeSummaries = payeeSummaries.filter((summary) => summary.payee.isArchived);
-  const selectedPayeeSummary =
-    payeeSummaries.find((summary) => summary.payee.id === selectedPayeeId) ?? null;
-  const mergeTargetOptions = selectedPayeeSummary
-    ? activePayeeSummaries.filter((summary) => summary.payee.id !== selectedPayeeSummary.payee.id)
-    : [];
 
   async function handleRenamePayee() {
     if (!selectedPayeeSummary) {
