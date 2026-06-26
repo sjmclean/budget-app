@@ -1,6 +1,5 @@
 import { CalendarDays, Paperclip } from "lucide-react";
 import {
-  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -13,6 +12,12 @@ import { Card } from "../components/ui/Card";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
 import { AttachmentManager } from "../features/accounts/components/AttachmentManager";
 import { TransactionImportDialog } from "../features/accounts/components/TransactionImportDialog";
+import {
+  AttachmentIndicator,
+  InlineFlagPicker,
+  TransactionRow,
+  type RegisterColumnId,
+} from "../features/accounts/components/TransactionRow";
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
 import {
   REGISTER_DEFAULT_PAGE_SIZE,
@@ -61,89 +66,79 @@ function isSplitCategoryValue(value: string): boolean {
 }
 
 const ACTIVE_BUDGET_MONTH = "2026-06";
-const REGISTER_FLAG_OPTIONS: Array<Exclude<TransactionFlag, null>> = [
-  "red",
-  "orange",
-  "yellow",
-  "green",
-  "blue",
-  "purple",
-];
 
-type RegisterColumnId =
-  | "select"
-  | "date"
-  | "flag"
-  | "attachments"
-  | "payee"
-  | "category"
-  | "memo"
-  | "checkNumber"
-  | "outflow"
-  | "inflow"
-  | "runningBalance"
-  | "status"
-  | "actions";
+const REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX =
+  "budget-app.register-columns.v1";
 
-const REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.register-columns.v1";
+const REGISTER_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumnId>[] =
+  [
+    { id: "select", label: "Select", template: "2.25rem", widthRem: 2.25 },
+    { id: "date", label: "Date", template: "7.5rem", widthRem: 7.5 },
+    {
+      id: "flag",
+      label: "Flag",
+      template: "3.5rem",
+      widthRem: 3.5,
+      canHide: true,
+    },
+    {
+      id: "attachments",
+      label: "Attachments",
+      template: "3.5rem",
+      widthRem: 3.5,
+      canHide: true,
+    },
+    {
+      id: "payee",
+      label: "Payee",
+      template: "minmax(12rem, 1.25fr)",
+      widthRem: 12,
+    },
+    {
+      id: "category",
+      label: "Category",
+      template: "minmax(10rem, 1fr)",
+      widthRem: 10,
+    },
+    {
+      id: "memo",
+      label: "Memo",
+      template: "minmax(12rem, 1.2fr)",
+      widthRem: 12,
+      canHide: true,
+    },
+    {
+      id: "checkNumber",
+      label: "Check #",
+      template: "6rem",
+      widthRem: 6,
+      canHide: true,
+    },
+    { id: "outflow", label: "Outflow", template: "7.5rem", widthRem: 7.5 },
+    { id: "inflow", label: "Inflow", template: "7.5rem", widthRem: 7.5 },
+    {
+      id: "runningBalance",
+      label: "Running Balance",
+      template: "8.5rem",
+      widthRem: 8.5,
+      canHide: true,
+    },
+    {
+      id: "status",
+      label: "Cleared",
+      template: "3rem",
+      widthRem: 3,
+      canHide: true,
+    },
+  ];
 
-const REGISTER_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumnId>[] = [
-  { id: "select", label: "Select", template: "2.25rem", widthRem: 2.25 },
-  { id: "date", label: "Date", template: "7.5rem", widthRem: 7.5 },
-  {
-    id: "flag",
-    label: "Flag",
-    template: "3.5rem",
-    widthRem: 3.5,
-    canHide: true,
-  },
-  {
-    id: "attachments",
-    label: "Attachments",
-    template: "3.5rem",
-    widthRem: 3.5,
-    canHide: true,
-  },
-  { id: "payee", label: "Payee", template: "minmax(12rem, 1.25fr)", widthRem: 12 },
-  { id: "category", label: "Category", template: "minmax(10rem, 1fr)", widthRem: 10 },
-  {
-    id: "memo",
-    label: "Memo",
-    template: "minmax(12rem, 1.2fr)",
-    widthRem: 12,
-    canHide: true,
-  },
-  {
-    id: "checkNumber",
-    label: "Check #",
-    template: "6rem",
-    widthRem: 6,
-    canHide: true,
-  },
-  { id: "outflow", label: "Outflow", template: "7.5rem", widthRem: 7.5 },
-  { id: "inflow", label: "Inflow", template: "7.5rem", widthRem: 7.5 },
-  {
-    id: "runningBalance",
-    label: "Running Balance",
-    template: "8.5rem",
-    widthRem: 8.5,
-    canHide: true,
-  },
-  {
-    id: "status",
-    label: "Cleared",
-    template: "3rem",
-    widthRem: 3,
-    canHide: true,
-  },
-];
-
-const REGISTER_EDIT_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumnId>[] = [
-  ...REGISTER_COLUMN_DEFINITIONS.filter(
-    (column) => column.id !== "runningBalance" && column.id !== "status",
-  ),
-  { id: "actions", label: "Actions", template: "12rem", widthRem: 12 },
-];
+const REGISTER_EDIT_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumnId>[] =
+  [
+    ...REGISTER_COLUMN_DEFINITIONS.filter(
+      (column) => column.id !== "runningBalance" && column.id !== "status",
+    ),
+    { id: "actions", label: "Actions", template: "12rem", widthRem: 12 },
+  ];
 
 const REGISTER_COLUMN_LABELS = new Map(
   [...REGISTER_COLUMN_DEFINITIONS, ...REGISTER_EDIT_COLUMN_DEFINITIONS].map(
@@ -370,120 +365,6 @@ function RegisterDateField({
         aria-hidden="true"
       />
     </div>
-  );
-}
-
-function FlagDot({ flag }: { flag: TransactionFlag }) {
-  if (!flag) {
-    return <span className="transaction-flag transaction-flag-empty" />;
-  }
-
-  return <span className={`transaction-flag transaction-flag-${flag}`} />;
-}
-
-function InlineFlagPicker({
-  value,
-  onChange,
-}: {
-  value: TransactionFlag;
-  onChange: (flag: TransactionFlag) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  function chooseFlag(flag: TransactionFlag) {
-    onChange(flag);
-    setIsOpen(false);
-  }
-
-  return (
-    <div className="flag-colour-picker" title="Flag">
-      <button
-        className="flag-colour-picker-button"
-        type="button"
-        aria-label={value ? `${value} flag` : "No flag"}
-        aria-expanded={isOpen}
-        onClick={(event) => {
-          event.stopPropagation();
-          setIsOpen((open) => !open);
-        }}
-      >
-        <FlagDot flag={value} />
-      </button>
-
-      {isOpen ? (
-        <div
-          className="flag-colour-picker-menu"
-          role="listbox"
-          aria-label="Choose flag colour"
-        >
-          <button
-            className="flag-colour-picker-option"
-            type="button"
-            role="option"
-            aria-selected={value === null}
-            title="No flag"
-            onClick={(event) => {
-              event.stopPropagation();
-              chooseFlag(null);
-            }}
-          >
-            <span
-              className="transaction-flag transaction-flag-empty"
-              aria-hidden="true"
-            />
-          </button>
-
-          {REGISTER_FLAG_OPTIONS.map((flag) => (
-            <button
-              className="flag-colour-picker-option"
-              type="button"
-              role="option"
-              aria-selected={value === flag}
-              title={`${flag[0].toUpperCase()}${flag.slice(1)} flag`}
-              key={flag}
-              onClick={(event) => {
-                event.stopPropagation();
-                chooseFlag(flag);
-              }}
-            >
-              <span
-                className={`transaction-flag transaction-flag-${flag}`}
-                aria-hidden="true"
-              />
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function AttachmentIndicator({
-  count,
-  onClick,
-}: {
-  count: number;
-  onClick?: () => void;
-}) {
-  const hasAttachments = count > 0;
-
-  return (
-    <button
-      className={
-        hasAttachments
-          ? "attachment-indicator attachment-indicator-present"
-          : "attachment-indicator attachment-indicator-empty"
-      }
-      type="button"
-      title={hasAttachments ? "View attachments" : "Add attachment"}
-      aria-label={hasAttachments ? "View attachments" : "Add attachment"}
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick?.();
-      }}
-    >
-      {hasAttachments ? <Paperclip size={13} /> : null}
-    </button>
   );
 }
 
@@ -1509,149 +1390,6 @@ function TransactionEditRow({
   );
 }
 
-function TransactionStatus({
-  transaction,
-  onToggleCleared,
-}: {
-  transaction: RegisterTransactionView;
-  onToggleCleared: () => void;
-}) {
-  if (transaction.reconciled) {
-    return (
-      <button
-        className="register-status register-status-reconciled"
-        type="button"
-        title="Reconciled"
-      >
-        R
-      </button>
-    );
-  }
-
-  if (transaction.cleared) {
-    return (
-      <button
-        className="register-status register-status-cleared"
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onToggleCleared();
-        }}
-        title="Cleared"
-      >
-        C
-      </button>
-    );
-  }
-
-  return (
-    <button
-      className="register-status register-status-empty"
-      type="button"
-      onClick={(event) => {
-        event.stopPropagation();
-        onToggleCleared();
-      }}
-      title="Mark cleared"
-    />
-  );
-}
-
-const TransactionRow = memo(function TransactionRow({
-  transaction,
-  currencyCode,
-  dateFormat,
-  isSelected,
-  onSelectTransaction,
-  onEditTransaction,
-  onToggleClearedTransaction,
-  onManageTransactionAttachments,
-  onUpdateTransactionFlag,
-  visibleColumns,
-  rowStyle,
-}: {
-  transaction: RegisterTransactionView;
-  currencyCode: string;
-  dateFormat: ReturnType<typeof useDateFormatPreference>;
-  isSelected: boolean;
-  onSelectTransaction: (transactionId: string) => void;
-  onEditTransaction: (transactionId: string) => void;
-  onToggleClearedTransaction: (transactionId: string) => void;
-  onManageTransactionAttachments: (transactionId: string) => void;
-  onUpdateTransactionFlag: (
-    transaction: RegisterTransactionView,
-    flag: TransactionFlag,
-  ) => void;
-  visibleColumns: Set<RegisterColumnId>;
-  rowStyle: CSSProperties;
-}) {
-  return (
-    <button
-      type="button"
-      className={
-        isSelected ? "register-row register-row-selected" : "register-row"
-      }
-      onClick={() => onSelectTransaction(transaction.id)}
-      onDoubleClick={() => onEditTransaction(transaction.id)}
-      style={rowStyle}
-    >
-      <span className="register-checkbox" aria-hidden="true" />
-      <span>{formatDateForDisplay(transaction.date, dateFormat)}</span>
-      {isRegisterColumnVisible("flag", visibleColumns) ? (
-        <InlineFlagPicker
-          value={transaction.flag}
-          onChange={(flag) => onUpdateTransactionFlag(transaction, flag)}
-        />
-      ) : null}
-      {isRegisterColumnVisible("attachments", visibleColumns) ? (
-        <AttachmentIndicator
-          count={transaction.attachmentCount}
-          onClick={() => onManageTransactionAttachments(transaction.id)}
-        />
-      ) : null}
-
-      <div className="register-payee-cell">
-        <strong>{transaction.payee}</strong>
-      </div>
-
-      <span>{transaction.category}</span>
-      {isRegisterColumnVisible("memo", visibleColumns) ? (
-        <span className="register-memo-cell">{transaction.memo ?? ""}</span>
-      ) : null}
-      {isRegisterColumnVisible("checkNumber", visibleColumns) ? (
-        <span className="register-check-number-cell">
-          {transaction.checkNumber ?? ""}
-        </span>
-      ) : null}
-
-      <span className="register-money register-outflow">
-        {transaction.outflow
-          ? formatMoney(transaction.outflow, currencyCode)
-          : ""}
-      </span>
-
-      <span className="register-money register-inflow">
-        {transaction.inflow
-          ? formatMoney(transaction.inflow, currencyCode)
-          : ""}
-      </span>
-
-      {isRegisterColumnVisible("runningBalance", visibleColumns) ? (
-        <strong className="register-balance">
-          {formatMoney(transaction.runningBalance, currencyCode)}
-        </strong>
-      ) : null}
-
-      {isRegisterColumnVisible("status", visibleColumns) ? (
-        <TransactionStatus
-          transaction={transaction}
-          onToggleCleared={() => onToggleClearedTransaction(transaction.id)}
-        />
-      ) : null}
-    </button>
-  );
-});
-
 function clampPageForTransactionCount(
   page: number,
   transactionCount: number,
@@ -1745,7 +1483,8 @@ export function AccountRegisterPage() {
   });
 
   const registerEditVisibleColumnIds = useMemo(
-    () => buildRegisterEditVisibleColumnIds(registerTableLayout.visibleColumnIds),
+    () =>
+      buildRegisterEditVisibleColumnIds(registerTableLayout.visibleColumnIds),
     [registerTableLayout.visibleColumnIds],
   );
 
@@ -2650,7 +2389,9 @@ export function AccountRegisterPage() {
                     : "table-layout-resizable-head-cell"
                 }
                 key={column.id}
-                aria-label={column.id === "attachments" ? "Attachments" : undefined}
+                aria-label={
+                  column.id === "attachments" ? "Attachments" : undefined
+                }
               >
                 {column.id === "attachments" ? (
                   <Paperclip size={13} />
