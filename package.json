@@ -282,7 +282,9 @@
     "test:v205:shared-dropdown-menu": "tsx tests/v205-shared-dropdown-menu.ts",
     "test:v205": "pnpm test:v205:shared-dropdown-menu",
     "test:v206:register-shared-table-layout": "tsx tests/v206-register-shared-table-layout.ts",
-    "test:v206": "pnpm test:v206:register-shared-table-layout"
+    "test:v206": "pnpm test:v206:register-shared-table-layout",
+    "test:v207:shared-column-resizing": "tsx tests/v207-shared-column-resizing.ts",
+    "test:v207": "pnpm test:v207:shared-column-resizing"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

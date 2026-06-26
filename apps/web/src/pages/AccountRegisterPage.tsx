@@ -26,6 +26,7 @@ import { getAppPersistenceGateway } from "../features/persistence";
 import { confirmDialog } from "../features/ui/appDialogService";
 import { DropdownMenu } from "../features/ui/DropdownMenu";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
+import { ColumnResizeHandle } from "../features/tableLayout/ColumnResizeHandle";
 import { ColumnVisibilityMenu } from "../features/tableLayout/ColumnVisibilityMenu";
 import {
   buildTableRowStyle,
@@ -2326,7 +2327,7 @@ export function AccountRegisterPage() {
 
   const registerEditColumnSet = useMemo(
     () => new Set<RegisterColumnId>(registerEditVisibleColumnIds),
-    [registerEditVisibleColumnIds],
+    [registerEditVisibleColumnIds, registerTableLayout.columnWidths],
   );
 
   const registerEditRowStyle = useMemo(
@@ -2335,8 +2336,9 @@ export function AccountRegisterPage() {
         REGISTER_EDIT_COLUMN_DEFINITIONS,
         registerEditVisibleColumnIds,
         72,
+        registerTableLayout.columnWidths,
       ),
-    [registerEditVisibleColumnIds],
+    [registerEditVisibleColumnIds, registerTableLayout.columnWidths],
   );
 
   useEffect(() => {
@@ -2826,7 +2828,7 @@ export function AccountRegisterPage() {
               columns={REGISTER_COLUMN_DEFINITIONS}
               visibleColumnSet={registerTableLayout.visibleColumnSet}
               onToggleColumn={registerTableLayout.toggleColumn}
-              onReset={registerTableLayout.resetColumns}
+              onReset={registerTableLayout.resetLayout}
             />
 
             <button
@@ -3216,26 +3218,36 @@ export function AccountRegisterPage() {
             className="register-row register-head register-row-with-attachments"
             style={registerTableLayout.rowStyle}
           >
-            <span />
-            <span>Date</span>
-            {isRegisterColumnVisible("flag", registerTableLayout.visibleColumnSet) ? <span>Flag</span> : null}
-            {isRegisterColumnVisible("attachments", registerTableLayout.visibleColumnSet) ? (
-              <span className="register-head-icon" aria-label="Attachments">
-                <Paperclip size={13} />
+            {registerTableLayout.visibleColumns.map((column) => (
+              <span
+                className={
+                  column.id === "attachments"
+                    ? "register-head-icon table-layout-resizable-head-cell"
+                    : "table-layout-resizable-head-cell"
+                }
+                key={column.id}
+                aria-label={column.id === "attachments" ? "Attachments" : undefined}
+              >
+                {column.id === "attachments" ? (
+                  <Paperclip size={13} />
+                ) : column.id === "runningBalance" ? (
+                  "Balance"
+                ) : column.id === "status" ? (
+                  "C"
+                ) : column.id === "select" ? (
+                  ""
+                ) : (
+                  column.label
+                )}
+                <ColumnResizeHandle
+                  columnId={column.id}
+                  label={column.label}
+                  onResizeStart={registerTableLayout.startColumnResize}
+                  onNudgeColumnWidth={registerTableLayout.nudgeColumnWidth}
+                  onResetColumnWidth={registerTableLayout.resetColumnWidth}
+                />
               </span>
-            ) : null}
-            <span>Payee</span>
-            <span>Category</span>
-            {isRegisterColumnVisible("memo", registerTableLayout.visibleColumnSet) ? <span>Memo</span> : null}
-            {isRegisterColumnVisible("checkNumber", registerTableLayout.visibleColumnSet) ? (
-              <span>Check #</span>
-            ) : null}
-            <span>Outflow</span>
-            <span>Inflow</span>
-            {isRegisterColumnVisible("runningBalance", registerTableLayout.visibleColumnSet) ? (
-              <span>Balance</span>
-            ) : null}
-            {isRegisterColumnVisible("status", registerTableLayout.visibleColumnSet) ? <span>C</span> : null}
+            ))}
           </div>
 
           {visibleTransactions.map((transaction) =>

@@ -2747,3 +2747,54 @@ strong {
 .table-layout-menu-reset:hover {
   background: var(--surface-subtle, #f8fafc) !important;
 }
+
+/* v2.07 shared table column resizing */
+.table-layout-resizable-head-cell {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  padding-right: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-layout-column-resize-handle {
+  position: absolute;
+  top: 0.25rem;
+  right: -0.2rem;
+  bottom: 0.25rem;
+  width: 0.6rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: col-resize;
+  padding: 0;
+}
+
+.table-layout-column-resize-handle::after {
+  position: absolute;
+  top: 0.2rem;
+  right: 0.28rem;
+  bottom: 0.2rem;
+  width: 1px;
+  background: var(--border, #cbd5e1);
+  content: "";
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.table-layout-resizable-head-cell:hover .table-layout-column-resize-handle::after,
+.table-layout-column-resize-handle:focus-visible::after,
+.table-layout-resizing .table-layout-column-resize-handle::after {
+  opacity: 1;
+}
+
+.table-layout-column-resize-handle:focus-visible {
+  outline: 2px solid var(--accent-soft, #bfdbfe);
+  outline-offset: 1px;
+}
+
+.table-layout-resizing {
+  cursor: col-resize;
+  user-select: none;
+}

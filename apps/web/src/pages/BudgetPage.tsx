@@ -22,6 +22,7 @@ import type {
 import { isMoneyNegative, isMoneyZero, normaliseMoney } from "../features/budget/moneyMath";
 import { formatDateForDisplay } from "../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../features/settings/useDateFormatPreference";
+import { ColumnResizeHandle } from "../features/tableLayout/ColumnResizeHandle";
 import { ColumnVisibilityMenu } from "../features/tableLayout/ColumnVisibilityMenu";
 import { useTableLayout, type TableColumnDefinition } from "../features/tableLayout/tableLayout";
 
@@ -1088,7 +1089,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
               columns={BUDGET_COLUMN_DEFINITIONS}
               visibleColumnSet={budgetTableLayout.visibleColumnSet}
               onToggleColumn={budgetTableLayout.toggleColumn}
-              onReset={budgetTableLayout.resetColumns}
+              onReset={budgetTableLayout.resetLayout}
             />
 
             <input
@@ -1104,7 +1105,16 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
               style={budgetTableLayout.rowStyle}
             >
               {budgetTableLayout.visibleColumns.map((column) => (
-                <span key={column.id}>{column.label}</span>
+                <span className="table-layout-resizable-head-cell" key={column.id}>
+                  {column.label}
+                  <ColumnResizeHandle
+                    columnId={column.id}
+                    label={column.label}
+                    onResizeStart={budgetTableLayout.startColumnResize}
+                    onNudgeColumnWidth={budgetTableLayout.nudgeColumnWidth}
+                    onResetColumnWidth={budgetTableLayout.resetColumnWidth}
+                  />
+                </span>
               ))}
             </div>
 

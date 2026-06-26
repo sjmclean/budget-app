@@ -61,8 +61,8 @@ assert.match(
 );
 assert.match(
   registerPageSource,
-  /<DropdownMenu\s+label="Columns ▾"/,
-  "Register Columns menu should use the shared DropdownMenu",
+  /<ColumnVisibilityMenu\s+label="Columns ▾"/,
+  "Register Columns menu should use the shared ColumnVisibilityMenu wrapper",
 );
 assert.match(
   registerPageSource,
