@@ -292,7 +292,9 @@
     "test:v209:register-row-extraction": "tsx tests/v209-register-row-extraction.ts",
     "test:v209": "pnpm test:v209:register-row-extraction",
     "test:v210:responsive-scaling": "tsx tests/v210-responsive-scaling.ts",
-    "test:v210": "pnpm test:v210:responsive-scaling"
+    "test:v210": "pnpm test:v210:responsive-scaling",
+    "test:v2101:budget-view-cleanup": "tsx tests/v2101-budget-view-cleanup.ts",
+    "test:v2101": "pnpm test:v2101:budget-view-cleanup"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

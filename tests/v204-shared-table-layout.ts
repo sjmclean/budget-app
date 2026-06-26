@@ -39,7 +39,6 @@ const packageJson = readFileSync("package.json", "utf8");
   "BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX",
   "BUDGET_COLUMN_DEFINITIONS",
   "useTableLayout",
-  "ColumnVisibilityMenu",
   "budgetTableLayout.rowStyle",
   "isBudgetColumnVisible",
 ].forEach((marker) => {
@@ -47,9 +46,9 @@ const packageJson = readFileSync("package.json", "utf8");
 });
 
 ["assigned", "activity"].forEach((column) => {
-  assert(budgetPage.includes(`id: "${column}"`), `Expected hideable budget column ${column}.`);
-  assert(budgetPage.includes("canHide: true"), "Expected budget columns to support canHide.");
+  assert(budgetPage.includes(`id: "${column}"`), `Expected mandatory budget column ${column}.`);
 });
+assert(!budgetPage.includes("canHide: true"), "Budget core columns should not be hideable.");
 
 assert(packageJson.includes("test:v204"), "Expected package.json to include test:v204.");
 

@@ -134,10 +134,10 @@ assert.match(
   /onResizeStart=\{budgetTableLayout\.startColumnResize\}/,
   "Budget resize handles should use the shared table layout resize starter.",
 );
-assert.match(
+assert.doesNotMatch(
   budgetPageSource,
-  /onReset=\{budgetTableLayout\.resetLayout\}/,
-  "Budget column menu should reset visibility and widths together.",
+  /ColumnVisibilityMenu/,
+  "Budget should not expose a column visibility menu because its core columns are mandatory.",
 );
 assert.match(
   globalsSource,

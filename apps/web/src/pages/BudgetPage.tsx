@@ -23,7 +23,6 @@ import { isMoneyNegative, isMoneyZero, normaliseMoney } from "../features/budget
 import { formatDateForDisplay } from "../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../features/settings/useDateFormatPreference";
 import { ColumnResizeHandle } from "../features/tableLayout/ColumnResizeHandle";
-import { ColumnVisibilityMenu } from "../features/tableLayout/ColumnVisibilityMenu";
 import { useTableLayout, type TableColumnDefinition } from "../features/tableLayout/tableLayout";
 
 type BudgetColumnId = "category" | "assigned" | "activity" | "available";
@@ -32,8 +31,8 @@ const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v
 
 const BUDGET_COLUMN_DEFINITIONS: readonly TableColumnDefinition<BudgetColumnId>[] = [
   { id: "category", label: "Category Group", template: "minmax(18rem, 1fr)", widthRem: 18 },
-  { id: "assigned", label: "Assigned", template: "8.5rem", widthRem: 8.5, canHide: true },
-  { id: "activity", label: "Activity", template: "8.5rem", widthRem: 8.5, canHide: true },
+  { id: "assigned", label: "Assigned", template: "8.5rem", widthRem: 8.5 },
+  { id: "activity", label: "Activity", template: "8.5rem", widthRem: 8.5 },
   { id: "available", label: "Available", template: "8.5rem", widthRem: 8.5 },
 ];
 
@@ -1084,13 +1083,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             </button>
 
             <div className="budget-filter-spacer" />
-
-            <ColumnVisibilityMenu
-              columns={BUDGET_COLUMN_DEFINITIONS}
-              visibleColumnSet={budgetTableLayout.visibleColumnSet}
-              onToggleColumn={budgetTableLayout.toggleColumn}
-              onReset={budgetTableLayout.resetLayout}
-            />
 
             <input
               className="budget-search"
