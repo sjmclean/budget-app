@@ -1731,8 +1731,23 @@
 }
 
 /* v2.03 register column visibility */
+.register-columns-menu {
+  position: relative;
+}
+
 .register-columns-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.45rem);
+  z-index: 25;
   min-width: 15rem;
+  border: 1px solid var(--border-soft, #e2e8f0);
+  border-radius: 0.75rem;
+  background: var(--surface, #ffffff);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16);
+  padding: 0.35rem;
+  display: grid;
+  gap: 0.2rem;
 }
 
 .register-column-toggle {
@@ -1744,6 +1759,7 @@
   cursor: pointer;
   font-size: 0.84rem;
   padding: 0.5rem 0.65rem;
+  white-space: nowrap;
 }
 
 .register-column-toggle:hover {
@@ -1755,8 +1771,20 @@
 }
 
 .register-column-reset {
+  width: 100%;
   margin-top: 0.2rem;
+  border: 0 !important;
   border-top: 1px solid var(--border-soft, #e2e8f0) !important;
   border-radius: 0.55rem !important;
-  padding-top: 0.65rem !important;
+  background: transparent !important;
+  color: var(--text, #0f172a) !important;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  padding: 0.65rem 0.65rem 0.55rem !important;
+  text-align: left;
+}
+
+.register-column-reset:hover {
+  background: var(--surface-subtle, #f8fafc) !important;
 }

@@ -335,11 +335,17 @@ function RegisterColumnsMenu({
 }) {
   return (
     <div className="register-columns-menu">
-      <button className="button button-secondary" type="button" onClick={onToggleOpen}>
-        Columns
+      <button
+        className="button button-secondary"
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={onToggleOpen}
+      >
+        Columns ▾
       </button>
       {isOpen ? (
-        <div className="register-columns-menu-panel" role="menu">
+        <div className="register-columns-menu-panel" role="menu" aria-label="Register columns">
           {REGISTER_OPTIONAL_COLUMNS.map((column) => (
             <label className="register-column-toggle" key={column}>
               <input
@@ -350,7 +356,7 @@ function RegisterColumnsMenu({
               <span>{REGISTER_COLUMN_DEFINITIONS[column].label}</span>
             </label>
           ))}
-          <button className="register-column-reset" type="button" onClick={onReset}>
+          <button className="register-column-reset" type="button" role="menuitem" onClick={onReset}>
             Reset columns
           </button>
         </div>
