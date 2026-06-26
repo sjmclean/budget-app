@@ -26,6 +26,12 @@ import { getAppPersistenceGateway } from "../features/persistence";
 import { confirmDialog } from "../features/ui/appDialogService";
 import { DropdownMenu } from "../features/ui/DropdownMenu";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
+import { ColumnVisibilityMenu } from "../features/tableLayout/ColumnVisibilityMenu";
+import {
+  buildTableRowStyle,
+  useTableLayout,
+  type TableColumnDefinition,
+} from "../features/tableLayout/tableLayout";
 import type { PayeeView } from "../features/accounts/payeeService";
 import { buildPayeeRegisterSummaries } from "../features/accounts/payeeRegisterSummaries";
 import type {
@@ -75,295 +81,104 @@ const REGISTER_FLAG_OPTIONS: Array<Exclude<TransactionFlag, null>> = [
   "purple",
 ];
 
-type RegisterOptionalColumnId =
-  | "flag"
-  | "attachments"
-  | "memo"
-  | "checkNumber"
-  | "runningBalance"
-  | "status";
-
 type RegisterColumnId =
   | "select"
   | "date"
-  | RegisterOptionalColumnId
+  | "flag"
+  | "attachments"
   | "payee"
   | "category"
+  | "memo"
+  | "checkNumber"
   | "outflow"
   | "inflow"
+  | "runningBalance"
+  | "status"
   | "actions";
 
-type RegisterColumnDefinition = {
-  id: RegisterColumnId;
-  label: string;
-  template: string;
-  widthRem: number;
-  optional?: boolean;
-};
+const REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.register-columns.v1";
 
-const REGISTER_COLUMN_PREFERENCES_KEY_PREFIX = "budget-app.register-columns.v1";
-
-const REGISTER_COLUMN_DEFINITIONS: Record<
-  RegisterColumnId,
-  RegisterColumnDefinition
-> = {
-  select: {
-    id: "select",
-    label: "Select",
-    template: "2.25rem",
-    widthRem: 2.25,
-  },
-  date: { id: "date", label: "Date", template: "7.5rem", widthRem: 7.5 },
-  flag: {
+const REGISTER_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumnId>[] = [
+  { id: "select", label: "Select", template: "2.25rem", widthRem: 2.25 },
+  { id: "date", label: "Date", template: "7.5rem", widthRem: 7.5 },
+  {
     id: "flag",
     label: "Flag",
     template: "3.5rem",
     widthRem: 3.5,
-    optional: true,
+    canHide: true,
   },
-  attachments: {
+  {
     id: "attachments",
     label: "Attachments",
     template: "3.5rem",
     widthRem: 3.5,
-    optional: true,
+    canHide: true,
   },
-  payee: {
-    id: "payee",
-    label: "Payee",
-    template: "minmax(12rem, 1.25fr)",
-    widthRem: 12,
-  },
-  category: {
-    id: "category",
-    label: "Category",
-    template: "minmax(10rem, 1fr)",
-    widthRem: 10,
-  },
-  memo: {
+  { id: "payee", label: "Payee", template: "minmax(12rem, 1.25fr)", widthRem: 12 },
+  { id: "category", label: "Category", template: "minmax(10rem, 1fr)", widthRem: 10 },
+  {
     id: "memo",
     label: "Memo",
     template: "minmax(12rem, 1.2fr)",
     widthRem: 12,
-    optional: true,
+    canHide: true,
   },
-  checkNumber: {
+  {
     id: "checkNumber",
     label: "Check #",
     template: "6rem",
     widthRem: 6,
-    optional: true,
+    canHide: true,
   },
-  outflow: {
-    id: "outflow",
-    label: "Outflow",
-    template: "7.5rem",
-    widthRem: 7.5,
-  },
-  inflow: { id: "inflow", label: "Inflow", template: "7.5rem", widthRem: 7.5 },
-  runningBalance: {
+  { id: "outflow", label: "Outflow", template: "7.5rem", widthRem: 7.5 },
+  { id: "inflow", label: "Inflow", template: "7.5rem", widthRem: 7.5 },
+  {
     id: "runningBalance",
     label: "Running Balance",
     template: "8.5rem",
     widthRem: 8.5,
-    optional: true,
+    canHide: true,
   },
-  status: {
+  {
     id: "status",
     label: "Cleared",
     template: "3rem",
     widthRem: 3,
-    optional: true,
+    canHide: true,
   },
-  actions: { id: "actions", label: "Actions", template: "12rem", widthRem: 12 },
-};
-
-const REGISTER_OPTIONAL_COLUMNS: RegisterOptionalColumnId[] = [
-  "flag",
-  "attachments",
-  "memo",
-  "checkNumber",
-  "runningBalance",
-  "status",
 ];
 
-const DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS: RegisterOptionalColumnId[] = [
-  "flag",
-  "attachments",
-  "memo",
-  "checkNumber",
-  "runningBalance",
-  "status",
+const REGISTER_EDIT_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumnId>[] = [
+  ...REGISTER_COLUMN_DEFINITIONS.filter(
+    (column) => column.id !== "runningBalance" && column.id !== "status",
+  ),
+  { id: "actions", label: "Actions", template: "12rem", widthRem: 12 },
 ];
 
-function getRegisterColumnPreferenceKey(budgetId?: string | null) {
-  return `${REGISTER_COLUMN_PREFERENCES_KEY_PREFIX}.${budgetId || "default"}`;
-}
-
-function readRegisterColumnPreferences(
-  budgetId?: string | null,
-): RegisterOptionalColumnId[] {
-  if (typeof window === "undefined") {
-    return DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS;
-  }
-
-  const stored = window.localStorage.getItem(
-    getRegisterColumnPreferenceKey(budgetId),
-  );
-
-  if (!stored) {
-    return DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS;
-  }
-
-  try {
-    const parsed = JSON.parse(stored);
-
-    if (!Array.isArray(parsed)) {
-      return DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS;
-    }
-
-    const validColumns = parsed.filter(
-      (column): column is RegisterOptionalColumnId =>
-        REGISTER_OPTIONAL_COLUMNS.includes(column as RegisterOptionalColumnId),
-    );
-
-    return validColumns;
-  } catch {
-    return DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS;
-  }
-}
-
-function writeRegisterColumnPreferences(
-  budgetId: string | null | undefined,
-  visibleColumns: RegisterOptionalColumnId[],
-) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(
-    getRegisterColumnPreferenceKey(budgetId),
-    JSON.stringify(visibleColumns),
-  );
-}
-
-function createVisibleRegisterColumnSet(
-  visibleColumns: RegisterOptionalColumnId[],
-) {
-  return new Set<RegisterOptionalColumnId>(visibleColumns);
-}
+const REGISTER_COLUMN_LABELS = new Map(
+  [...REGISTER_COLUMN_DEFINITIONS, ...REGISTER_EDIT_COLUMN_DEFINITIONS].map(
+    (column) => [column.id, column.label] as const,
+  ),
+);
 
 function isRegisterColumnVisible(
-  column: RegisterOptionalColumnId,
-  visibleColumns: Set<RegisterOptionalColumnId>,
+  column: RegisterColumnId,
+  visibleColumns: Set<RegisterColumnId>,
 ) {
   return visibleColumns.has(column);
 }
 
-function buildRegisterColumns(
-  visibleColumns: Set<RegisterOptionalColumnId>,
-  mode: "display" | "edit" = "display",
+function buildRegisterEditVisibleColumnIds(
+  visibleColumnIds: readonly RegisterColumnId[],
 ): RegisterColumnId[] {
-  const columns: RegisterColumnId[] = ["select", "date"];
+  return REGISTER_EDIT_COLUMN_DEFINITIONS.filter((column) => {
+    if (column.id === "actions") {
+      return true;
+    }
 
-  if (isRegisterColumnVisible("flag", visibleColumns)) {
-    columns.push("flag");
-  }
-
-  if (isRegisterColumnVisible("attachments", visibleColumns)) {
-    columns.push("attachments");
-  }
-
-  columns.push("payee", "category");
-
-  if (isRegisterColumnVisible("memo", visibleColumns)) {
-    columns.push("memo");
-  }
-
-  if (isRegisterColumnVisible("checkNumber", visibleColumns)) {
-    columns.push("checkNumber");
-  }
-
-  columns.push("outflow", "inflow");
-
-  if (mode === "edit") {
-    columns.push("actions");
-    return columns;
-  }
-
-  if (isRegisterColumnVisible("runningBalance", visibleColumns)) {
-    columns.push("runningBalance");
-  }
-
-  if (isRegisterColumnVisible("status", visibleColumns)) {
-    columns.push("status");
-  }
-
-  return columns;
-}
-
-function buildRegisterRowStyle(
-  visibleColumns: Set<RegisterOptionalColumnId>,
-  mode: "display" | "edit" = "display",
-): CSSProperties {
-  const columns = buildRegisterColumns(visibleColumns, mode);
-  const minimumWidth = columns.reduce(
-    (total, column) => total + REGISTER_COLUMN_DEFINITIONS[column].widthRem,
-    0,
-  );
-
-  return {
-    gridTemplateColumns: columns
-      .map((column) => REGISTER_COLUMN_DEFINITIONS[column].template)
-      .join(" "),
-    minWidth: `${Math.max(minimumWidth + columns.length * 0.75 + 2, mode === "edit" ? 72 : 74)}rem`,
-  };
-}
-
-
-function RegisterColumnsMenu({
-  visibleColumns,
-  onToggleColumn,
-  onReset,
-}: {
-  visibleColumns: Set<RegisterOptionalColumnId>;
-  onToggleColumn: (column: RegisterOptionalColumnId) => void;
-  onReset: () => void;
-}) {
-  return (
-    <DropdownMenu
-      label="Columns ▾"
-      ariaLabel="Register columns"
-      className="register-columns-menu"
-      panelClassName="register-columns-menu-panel"
-    >
-      {({ closeMenu }) => (
-        <>
-          {REGISTER_OPTIONAL_COLUMNS.map((column) => (
-            <label className="register-column-toggle" key={column}>
-              <input
-                type="checkbox"
-                checked={visibleColumns.has(column)}
-                onChange={() => onToggleColumn(column)}
-              />
-              <span>{REGISTER_COLUMN_DEFINITIONS[column].label}</span>
-            </label>
-          ))}
-          <button
-            className="register-column-reset"
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              onReset();
-              closeMenu({ restoreFocus: true });
-            }}
-          >
-            Reset columns
-          </button>
-        </>
-      )}
-    </DropdownMenu>
-  );
+    return visibleColumnIds.includes(column.id);
+  }).map((column) => column.id);
 }
 
 function formatMoney(value: number, currencyCode: string) {
@@ -2064,7 +1879,7 @@ function TransactionEditRow({
   }) => void;
   onCancel: () => void;
   onManageTransactionAttachments: (transactionId: string) => void;
-  visibleColumns: Set<RegisterOptionalColumnId>;
+  visibleColumns: Set<RegisterColumnId>;
   rowStyle: CSSProperties;
 }) {
   const [date, setDate] = useState(transaction.date);
@@ -2342,7 +2157,7 @@ const TransactionRow = memo(function TransactionRow({
     transaction: RegisterTransactionView,
     flag: TransactionFlag,
   ) => void;
-  visibleColumns: Set<RegisterOptionalColumnId>;
+  visibleColumns: Set<RegisterColumnId>;
   rowStyle: CSSProperties;
 }) {
   return (
@@ -2469,9 +2284,6 @@ export function AccountRegisterPage() {
   );
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
-  const [visibleRegisterColumns, setVisibleRegisterColumns] = useState<
-    RegisterOptionalColumnId[]
-  >(() => readRegisterColumnPreferences(activeBudgetId));
   const [isPayeeManagerOpen, setIsPayeeManagerOpen] = useState(false);
   const [selectedPayeeId, setSelectedPayeeId] = useState<string | null>(null);
   const [payeeRenameDraft, setPayeeRenameDraft] = useState("");
@@ -2500,43 +2312,32 @@ export function AccountRegisterPage() {
     setRegisterPage(1);
   }, [accountId]);
 
-  useEffect(() => {
-    setVisibleRegisterColumns(readRegisterColumnPreferences(activeBudgetId));
-  }, [activeBudgetId]);
+  const registerTableLayout = useTableLayout<RegisterColumnId>({
+    storageKeyPrefix: REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
+    scopeId: activeBudgetId,
+    columns: REGISTER_COLUMN_DEFINITIONS,
+    minimumWidthRem: 74,
+  });
 
-  const visibleRegisterColumnSet = useMemo(
-    () => createVisibleRegisterColumnSet(visibleRegisterColumns),
-    [visibleRegisterColumns],
+  const registerEditVisibleColumnIds = useMemo(
+    () => buildRegisterEditVisibleColumnIds(registerTableLayout.visibleColumnIds),
+    [registerTableLayout.visibleColumnIds],
   );
 
-  const registerDisplayRowStyle = useMemo(
-    () => buildRegisterRowStyle(visibleRegisterColumnSet),
-    [visibleRegisterColumnSet],
+  const registerEditColumnSet = useMemo(
+    () => new Set<RegisterColumnId>(registerEditVisibleColumnIds),
+    [registerEditVisibleColumnIds],
   );
 
   const registerEditRowStyle = useMemo(
-    () => buildRegisterRowStyle(visibleRegisterColumnSet, "edit"),
-    [visibleRegisterColumnSet],
+    () =>
+      buildTableRowStyle(
+        REGISTER_EDIT_COLUMN_DEFINITIONS,
+        registerEditVisibleColumnIds,
+        72,
+      ),
+    [registerEditVisibleColumnIds],
   );
-
-  function handleToggleRegisterColumn(column: RegisterOptionalColumnId) {
-    setVisibleRegisterColumns((current) => {
-      const currentSet = createVisibleRegisterColumnSet(current);
-      const next = currentSet.has(column)
-        ? current.filter((visibleColumn) => visibleColumn !== column)
-        : REGISTER_OPTIONAL_COLUMNS.filter(
-            (optionalColumn) => currentSet.has(optionalColumn) || optionalColumn === column,
-          );
-
-      writeRegisterColumnPreferences(activeBudgetId, next);
-      return next;
-    });
-  }
-
-  function handleResetRegisterColumns() {
-    setVisibleRegisterColumns(DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS);
-    writeRegisterColumnPreferences(activeBudgetId, DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS);
-  }
 
   useEffect(() => {
     let isMounted = true;
@@ -3020,10 +2821,12 @@ export function AccountRegisterPage() {
               aria-label="Search transactions"
             />
 
-            <RegisterColumnsMenu
-              visibleColumns={visibleRegisterColumnSet}
-              onToggleColumn={handleToggleRegisterColumn}
-              onReset={handleResetRegisterColumns}
+            <ColumnVisibilityMenu
+              label="Columns ▾"
+              columns={REGISTER_COLUMN_DEFINITIONS}
+              visibleColumnSet={registerTableLayout.visibleColumnSet}
+              onToggleColumn={registerTableLayout.toggleColumn}
+              onReset={registerTableLayout.resetColumns}
             />
 
             <button
@@ -3411,28 +3214,28 @@ export function AccountRegisterPage() {
         <div className="register-table">
           <div
             className="register-row register-head register-row-with-attachments"
-            style={registerDisplayRowStyle}
+            style={registerTableLayout.rowStyle}
           >
             <span />
             <span>Date</span>
-            {isRegisterColumnVisible("flag", visibleRegisterColumnSet) ? <span>Flag</span> : null}
-            {isRegisterColumnVisible("attachments", visibleRegisterColumnSet) ? (
+            {isRegisterColumnVisible("flag", registerTableLayout.visibleColumnSet) ? <span>Flag</span> : null}
+            {isRegisterColumnVisible("attachments", registerTableLayout.visibleColumnSet) ? (
               <span className="register-head-icon" aria-label="Attachments">
                 <Paperclip size={13} />
               </span>
             ) : null}
             <span>Payee</span>
             <span>Category</span>
-            {isRegisterColumnVisible("memo", visibleRegisterColumnSet) ? <span>Memo</span> : null}
-            {isRegisterColumnVisible("checkNumber", visibleRegisterColumnSet) ? (
+            {isRegisterColumnVisible("memo", registerTableLayout.visibleColumnSet) ? <span>Memo</span> : null}
+            {isRegisterColumnVisible("checkNumber", registerTableLayout.visibleColumnSet) ? (
               <span>Check #</span>
             ) : null}
             <span>Outflow</span>
             <span>Inflow</span>
-            {isRegisterColumnVisible("runningBalance", visibleRegisterColumnSet) ? (
+            {isRegisterColumnVisible("runningBalance", registerTableLayout.visibleColumnSet) ? (
               <span>Balance</span>
             ) : null}
-            {isRegisterColumnVisible("status", visibleRegisterColumnSet) ? <span>C</span> : null}
+            {isRegisterColumnVisible("status", registerTableLayout.visibleColumnSet) ? <span>C</span> : null}
           </div>
 
           {visibleTransactions.map((transaction) =>
@@ -3451,7 +3254,7 @@ export function AccountRegisterPage() {
                 onManageTransactionAttachments={
                   handleManageTransactionAttachments
                 }
-                visibleColumns={visibleRegisterColumnSet}
+                visibleColumns={registerEditColumnSet}
                 rowStyle={registerEditRowStyle}
               />
             ) : (
@@ -3468,8 +3271,8 @@ export function AccountRegisterPage() {
                   handleManageTransactionAttachments
                 }
                 onUpdateTransactionFlag={handleUpdateTransactionFlag}
-                visibleColumns={visibleRegisterColumnSet}
-                rowStyle={registerDisplayRowStyle}
+                visibleColumns={registerTableLayout.visibleColumnSet}
+                rowStyle={registerTableLayout.rowStyle}
               />
             ),
           )}
