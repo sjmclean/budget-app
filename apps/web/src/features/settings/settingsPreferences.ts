@@ -12,6 +12,7 @@ export interface GeneralSettingsPreference {
   numberFormat: NumberFormatPreference;
   firstDayOfWeek: FirstDayOfWeekPreference;
   language: string;
+  developerPerformanceMode: boolean;
 }
 
 export interface BudgetSettingsPreference {
@@ -34,6 +35,7 @@ export const defaultSettingsPreferences: SettingsPreferences = {
     numberFormat: "1,234.56",
     firstDayOfWeek: "monday",
     language: "English",
+    developerPerformanceMode: false,
   },
   budget: {
     budgetName: "Household Budget",
@@ -74,6 +76,10 @@ function readNumber(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+function readBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
 function normalisePreferences(value: unknown): SettingsPreferences {
   const root = isRecord(value) ? value : {};
   const general = isRecord(root.general) ? root.general : {};
@@ -95,6 +101,10 @@ function normalisePreferences(value: unknown): SettingsPreferences {
         ? (readString(general.firstDayOfWeek, defaults.general.firstDayOfWeek) as FirstDayOfWeekPreference)
         : defaults.general.firstDayOfWeek,
       language: readString(general.language, defaults.general.language),
+      developerPerformanceMode: readBoolean(
+        general.developerPerformanceMode,
+        defaults.general.developerPerformanceMode,
+      ),
     },
     budget: {
       budgetName: readString(budget.budgetName, defaults.budget.budgetName),

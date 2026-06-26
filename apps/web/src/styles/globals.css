@@ -2669,3 +2669,18 @@ strong {
   outline: 2px solid var(--accent-soft);
   border-color: var(--accent);
 }
+
+.settings-checkbox-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.settings-checkbox-field input {
+  margin-top: 0.18rem;
+}
+
+.settings-checkbox-field span {
+  display: grid;
+  gap: 0.25rem;
+}

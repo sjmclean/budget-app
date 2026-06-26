@@ -37,6 +37,14 @@ import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import { formatDateForDisplay } from "../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../features/settings/useDateFormatPreference";
+import { useDeveloperPerformanceMode } from "../features/settings/useDeveloperPerformanceMode";
+import {
+  buildRegisterPerformanceSnapshot,
+  formatPerformanceMs,
+  getPerformanceNow,
+  measureRegisterPerformance,
+  type RegisterPerformanceTimings,
+} from "../features/performance/registerPerformanceInstrumentation";
 
 const SPLIT_CATEGORY_LABEL = "Split...";
 
@@ -1655,6 +1663,13 @@ export function AccountRegisterPage() {
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
   const [registerPage, setRegisterPage] = useState(1);
   const dateFormat = useDateFormatPreference();
+  const developerPerformanceMode = useDeveloperPerformanceMode();
+  const registerPerformanceTimingsRef = useRef<RegisterPerformanceTimings>({});
+  const registerRenderStartedAt = getPerformanceNow(developerPerformanceMode);
+
+  if (developerPerformanceMode) {
+    registerPerformanceTimingsRef.current = {};
+  }
 
   useEffect(() => {
     setRegisterPage(1);
@@ -1745,17 +1760,34 @@ export function AccountRegisterPage() {
 
   const visibleTransactions = useMemo(
     () =>
-      paginateRegisterItems(
-        registerTransactions,
-        registerPagination.currentPage,
-        registerPagination.pageSize,
+      measureRegisterPerformance(
+        developerPerformanceMode,
+        registerPerformanceTimingsRef.current,
+        "visible pagination",
+        () =>
+          paginateRegisterItems(
+            registerTransactions,
+            registerPagination.currentPage,
+            registerPagination.pageSize,
+          ),
       ),
-    [registerTransactions, registerPagination.currentPage, registerPagination.pageSize],
+    [
+      registerTransactions,
+      registerPagination.currentPage,
+      registerPagination.pageSize,
+      developerPerformanceMode,
+    ],
   );
 
   const transactionById = useMemo(
-    () => new Map(registerTransactions.map((transaction) => [transaction.id, transaction])),
-    [registerTransactions],
+    () =>
+      measureRegisterPerformance(
+        developerPerformanceMode,
+        registerPerformanceTimingsRef.current,
+        "transaction index",
+        () => new Map(registerTransactions.map((transaction) => [transaction.id, transaction])),
+      ),
+    [registerTransactions, developerPerformanceMode],
   );
 
   const allManagedPayees = useMemo(
@@ -1766,9 +1798,14 @@ export function AccountRegisterPage() {
   const payeeSummaries = useMemo(
     () =>
       isPayeeManagerOpen
-        ? buildPayeeRegisterSummaries(allManagedPayees, registerTransactions)
+        ? measureRegisterPerformance(
+            developerPerformanceMode,
+            registerPerformanceTimingsRef.current,
+            "payee summary build",
+            () => buildPayeeRegisterSummaries(allManagedPayees, registerTransactions),
+          )
         : [],
-    [allManagedPayees, registerTransactions, isPayeeManagerOpen],
+    [allManagedPayees, registerTransactions, isPayeeManagerOpen, developerPerformanceMode],
   );
 
   const activePayeeSummaries = useMemo(
@@ -1793,6 +1830,22 @@ export function AccountRegisterPage() {
         : [],
     [activePayeeSummaries, selectedPayeeSummary],
   );
+
+  const registerPerformanceSnapshot = buildRegisterPerformanceSnapshot({
+    enabled: developerPerformanceMode,
+    renderStartedAt: registerRenderStartedAt,
+    totalTransactions: registerTransactions.length,
+    visibleTransactions: visibleTransactions.length,
+    currentPage: registerPagination.currentPage,
+    totalPages: registerPagination.totalPages,
+    pageSize: registerPagination.pageSize,
+    payeeManagerOpen: isPayeeManagerOpen,
+    payeeSummaryCount: payeeSummaries.length,
+    selectedTransaction: Boolean(selectedTransactionId),
+    editingTransaction: Boolean(editingTransactionId),
+    timings: registerPerformanceTimingsRef.current,
+  });
+
 
   const handleSelectTransaction = useCallback((transactionId: string) => {
     selectTransaction(transactionId);
@@ -2430,6 +2483,49 @@ export function AccountRegisterPage() {
             </button>
           </div>
         </div>
+
+        {registerPerformanceSnapshot ? (
+          <section
+            className={`register-performance-panel register-performance-panel-${registerPerformanceSnapshot.warningLevel}`}
+            aria-label="Register performance diagnostics"
+          >
+            <div>
+              <p className="eyebrow">Developer performance mode</p>
+              <h3>Register diagnostics</h3>
+              <p className="muted">
+                {registerPerformanceSnapshot.visibleTransactions} visible of{" "}
+                {registerPerformanceSnapshot.totalTransactions} transactions · page{" "}
+                {registerPerformanceSnapshot.currentPage} of {registerPerformanceSnapshot.totalPages}
+              </p>
+            </div>
+            <div className="register-performance-grid">
+              <span>
+                <strong>{formatPerformanceMs(registerPerformanceSnapshot.renderElapsedMs)}</strong>
+                <small>Render pass</small>
+              </span>
+              <span>
+                <strong>{formatPerformanceMs(registerPerformanceSnapshot.timings["visible pagination"])}</strong>
+                <small>Pagination</small>
+              </span>
+              <span>
+                <strong>{formatPerformanceMs(registerPerformanceSnapshot.timings["transaction index"])}</strong>
+                <small>Transaction index</small>
+              </span>
+              <span>
+                <strong>{formatPerformanceMs(registerPerformanceSnapshot.timings["payee summary build"])}</strong>
+                <small>Payee summaries</small>
+              </span>
+              <span>
+                <strong>{registerPerformanceSnapshot.pageSize}</strong>
+                <small>Rows per page</small>
+              </span>
+              <span>
+                <strong>{registerPerformanceSnapshot.payeeManagerOpen ? "Open" : "Closed"}</strong>
+                <small>Payee manager</small>
+              </span>
+            </div>
+          </section>
+        ) : null}
       </Card>
 
       {attachmentTransaction && (

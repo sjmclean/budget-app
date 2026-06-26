@@ -483,6 +483,20 @@ export function SettingsPage() {
                   <option value="saturday">Saturday</option>
                 </select>
               </label>
+
+              <label className="settings-field settings-field-wide settings-checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={settings.general.developerPerformanceMode}
+                  onChange={(event) =>
+                    updateGeneral("developerPerformanceMode", event.target.checked)
+                  }
+                />
+                <span>
+                  Developer performance mode
+                  <small>Show register timing diagnostics and large-data counters while profiling.</small>
+                </span>
+              </label>
             </div>
           </Card>
         ) : null}

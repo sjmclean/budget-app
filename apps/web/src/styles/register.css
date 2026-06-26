@@ -1669,3 +1669,63 @@
     justify-content: space-between;
   }
 }
+
+.register-performance-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 2fr);
+  gap: 1rem;
+  margin: 0 1rem 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 0.85rem;
+  background: var(--muted, #f8fafc);
+}
+
+.register-performance-panel h3 {
+  margin: 0.1rem 0;
+  font-size: 1rem;
+}
+
+.register-performance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.register-performance-grid span {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.7rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 0.65rem;
+  background: var(--surface, #ffffff);
+}
+
+.register-performance-grid strong {
+  color: var(--text, #0f172a);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.register-performance-grid small {
+  color: var(--text-muted, #64748b);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.register-performance-panel-watch {
+  border-color: #f59e0b;
+}
+
+.register-performance-panel-slow {
+  border-color: #ef4444;
+}
+
+@media (max-width: 900px) {
+  .register-performance-panel,
+  .register-performance-grid {
+    grid-template-columns: 1fr;
+  }
+}
