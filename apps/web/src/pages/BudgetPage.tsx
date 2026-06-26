@@ -30,10 +30,10 @@ type BudgetColumnId = "category" | "assigned" | "activity" | "available";
 const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
 
 const BUDGET_COLUMN_DEFINITIONS: readonly TableColumnDefinition<BudgetColumnId>[] = [
-  { id: "category", label: "Category Group", template: "minmax(18rem, 1fr)", widthRem: 18 },
-  { id: "assigned", label: "Assigned", template: "8.5rem", widthRem: 8.5 },
-  { id: "activity", label: "Activity", template: "8.5rem", widthRem: 8.5 },
-  { id: "available", label: "Available", template: "8.5rem", widthRem: 8.5 },
+  { id: "category", label: "Category Group", template: "minmax(15rem, 1fr)", widthRem: 15 },
+  { id: "assigned", label: "Assigned", template: "7rem", widthRem: 7 },
+  { id: "activity", label: "Activity", template: "7rem", widthRem: 7 },
+  { id: "available", label: "Available", template: "7rem", widthRem: 7 },
 ];
 
 function formatMoney(value: number, currencyCode: string) {
@@ -882,7 +882,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     storageKeyPrefix: BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
     scopeId: budgetId,
     columns: BUDGET_COLUMN_DEFINITIONS,
-    minimumWidthRem: 36,
+    minimumWidthRem: 30,
   });
 
   const isBudgetColumnVisible = useMemo(

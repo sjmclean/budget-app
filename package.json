@@ -296,7 +296,9 @@
     "test:v2101:budget-view-cleanup": "tsx tests/v2101-budget-view-cleanup.ts",
     "test:v2101": "pnpm test:v2101:budget-view-cleanup",
     "test:v211:responsive-layout": "tsx tests/v211-responsive-layout.ts",
-    "test:v211": "pnpm test:v211:responsive-layout"
+    "test:v211": "pnpm test:v211:responsive-layout",
+    "test:v212:compact-density": "tsx tests/v212-compact-density.ts",
+    "test:v212": "pnpm test:v212:compact-density"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

@@ -72,62 +72,62 @@ const REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX =
 
 const REGISTER_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumnId>[] =
   [
-    { id: "select", label: "Select", template: "2.25rem", widthRem: 2.25 },
-    { id: "date", label: "Date", template: "7.5rem", widthRem: 7.5 },
+    { id: "select", label: "Select", template: "2rem", widthRem: 2 },
+    { id: "date", label: "Date", template: "6.4rem", widthRem: 6.4 },
     {
       id: "flag",
       label: "Flag",
-      template: "3.5rem",
-      widthRem: 3.5,
+      template: "2.6rem",
+      widthRem: 2.6,
       canHide: true,
     },
     {
       id: "attachments",
       label: "Attachments",
-      template: "3.5rem",
-      widthRem: 3.5,
+      template: "2.6rem",
+      widthRem: 2.6,
       canHide: true,
     },
     {
       id: "payee",
       label: "Payee",
-      template: "minmax(12rem, 1.25fr)",
-      widthRem: 12,
+      template: "minmax(9rem, 1.15fr)",
+      widthRem: 9,
     },
     {
       id: "category",
       label: "Category",
-      template: "minmax(10rem, 1fr)",
-      widthRem: 10,
+      template: "minmax(8.5rem, 1fr)",
+      widthRem: 8.5,
     },
     {
       id: "memo",
       label: "Memo",
-      template: "minmax(12rem, 1.2fr)",
-      widthRem: 12,
+      template: "minmax(7rem, 0.85fr)",
+      widthRem: 7,
       canHide: true,
     },
     {
       id: "checkNumber",
       label: "Check #",
-      template: "6rem",
-      widthRem: 6,
+      template: "4.5rem",
+      widthRem: 4.5,
       canHide: true,
     },
-    { id: "outflow", label: "Outflow", template: "7.5rem", widthRem: 7.5 },
-    { id: "inflow", label: "Inflow", template: "7.5rem", widthRem: 7.5 },
+    { id: "outflow", label: "Outflow", template: "6.6rem", widthRem: 6.6 },
+    { id: "inflow", label: "Inflow", template: "6.6rem", widthRem: 6.6 },
     {
       id: "runningBalance",
       label: "Running Balance",
-      template: "8.5rem",
-      widthRem: 8.5,
+      template: "7rem",
+      widthRem: 7,
       canHide: true,
     },
     {
       id: "status",
       label: "Cleared",
-      template: "3rem",
-      widthRem: 3,
+      template: "2.6rem",
+      widthRem: 2.6,
       canHide: true,
     },
   ];
@@ -137,7 +137,7 @@ const REGISTER_EDIT_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterC
     ...REGISTER_COLUMN_DEFINITIONS.filter(
       (column) => column.id !== "runningBalance" && column.id !== "status",
     ),
-    { id: "actions", label: "Actions", template: "12rem", widthRem: 12 },
+    { id: "actions", label: "Actions", template: "10rem", widthRem: 10 },
   ];
 
 const REGISTER_COLUMN_LABELS = new Map(
@@ -1479,7 +1479,7 @@ export function AccountRegisterPage() {
     storageKeyPrefix: REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
     scopeId: activeBudgetId,
     columns: REGISTER_COLUMN_DEFINITIONS,
-    minimumWidthRem: 74,
+    minimumWidthRem: 58,
   });
 
   const registerEditVisibleColumnIds = useMemo(

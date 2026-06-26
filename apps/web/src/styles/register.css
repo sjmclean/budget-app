@@ -4,7 +4,7 @@
   min-width: 0;
   max-width: 100%;
   display: grid;
-  gap: 1rem;
+  gap: 0.45rem;
 }
 
 .register-clean-header {
@@ -13,7 +13,7 @@
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.45rem;
 }
 
 .register-main-balance {
@@ -29,7 +29,7 @@
 }
 
 .register-main-balance strong {
-  font-size: 1.45rem;
+  font-size: 1.25rem;
   letter-spacing: -0.035em;
 }
 
@@ -43,13 +43,13 @@
 
 .register-toolbar {
   min-width: 0;
-  min-height: 4rem;
-  padding: 0.75rem 1rem;
+  min-height: 3.35rem;
+  padding: 0.55rem 0.72rem;
   border-bottom: 1px solid var(--border-soft);
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 1rem;
+  gap: 0.45rem;
 }
 
 .register-toolbar-actions {
@@ -59,18 +59,18 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
-  gap: 0.5rem;
+  gap: 0.38rem;
 }
 
 .register-search {
-  flex: 1 1 14rem;
-  width: min(20rem, 100%);
-  min-width: min(14rem, 100%);
+  flex: 1 1 12rem;
+  width: min(16rem, 100%);
+  min-width: min(10rem, 100%);
   border: 1px solid var(--border);
   border-radius: 0.45rem;
   background: var(--surface);
   color: var(--text);
-  padding: 0.48rem 0.65rem;
+  padding: 0.38rem 0.55rem;
   font-size: 0.84rem;
 }
 
@@ -127,7 +127,7 @@
   max-height: min(82vh, 44rem);
   overflow: auto;
   display: grid;
-  gap: 1rem;
+  gap: 0.65rem;
   padding: 1.1rem;
 }
 
@@ -135,7 +135,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.45rem;
 }
 
 .payee-manager-header h2 {
@@ -167,7 +167,7 @@
 .payee-manager-list-row {
   display: grid;
   grid-template-columns: minmax(12rem, 1fr) 9rem 8rem;
-  gap: 0.75rem;
+  gap: 0.45rem;
   align-items: center;
   padding: 0.65rem 0.75rem;
 }
@@ -183,7 +183,7 @@
 
 .payee-manager-list-row {
   border-top: 1px solid var(--border-soft);
-  font-size: 0.86rem;
+  font-size: 0.85rem;
 }
 
 .payee-manager-list-row strong {
@@ -197,8 +197,8 @@
 .register-entry-row-active {
   display: grid;
   grid-template-columns: 8.5rem minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(10rem, 1fr) 6rem 7rem 7rem auto;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  gap: 0.38rem;
+  padding: 0.55rem 0.72rem;
   border-bottom: 1px solid var(--border-soft);
   background: var(--surface-subtle);
 }
@@ -218,7 +218,7 @@
 }
 
 .register-selection-bar {
-  min-height: 2.65rem;
+  min-height: 2.25rem;
   border-bottom: 1px solid var(--border-soft);
   background: var(--surface-subtle);
   padding: 0.5rem 1rem;
@@ -257,21 +257,21 @@
 
 .register-row {
   width: 100%;
-  min-width: 84rem;
+  min-width: 58rem;
   display: grid;
   grid-template-columns:
-    2.25rem
-    7.5rem
-    3.5rem
-    minmax(12rem, 1.25fr)
-    minmax(10rem, 1fr)
-    minmax(12rem, 1.2fr)
-    6rem
-    7.5rem
-    7.5rem
-    8.5rem
-    3rem;
-  gap: 0.75rem;
+    2rem
+    6.4rem
+    2.6rem
+    minmax(9rem, 1.15fr)
+    minmax(8.5rem, 1fr)
+    minmax(7rem, 0.85fr)
+    4.5rem
+    6.6rem
+    6.6rem
+    7rem
+    2.6rem;
+  gap: 0.45rem;
   align-items: center;
   border: 0;
   border-bottom: 1px solid var(--border-soft);
@@ -280,8 +280,8 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  padding: 0.56rem 1rem;
-  font-size: 0.86rem;
+  padding: 0.38rem 0.62rem;
+  font-size: 0.85rem;
 }
 
 .register-row:hover {
@@ -318,8 +318,8 @@
 }
 
 .register-checkbox {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 0.82rem;
+  height: 0.82rem;
   border: 1px solid var(--border);
   border-radius: 0.22rem;
   background: var(--surface);
@@ -350,8 +350,8 @@
 }
 
 .register-status {
-  width: 1.45rem;
-  height: 1.45rem;
+  width: 1.3rem;
+  height: 1.3rem;
   border: 1px solid var(--border-soft);
   border-radius: 999px;
   display: inline-grid;
@@ -379,8 +379,8 @@
 }
 
 .transaction-flag {
-  width: 0.62rem;
-  height: 0.62rem;
+  width: 0.56rem;
+  height: 0.56rem;
   border-radius: 999px;
   display: inline-block;
 }
@@ -415,14 +415,14 @@
 }
 
 .register-legend {
-  min-height: 2.65rem;
+  min-height: 2.25rem;
   border: 1px solid var(--border-soft);
   border-radius: 0.65rem;
   background: var(--surface);
-  padding: 0.65rem 1rem;
+  padding: 0.5rem 0.72rem;
   display: flex;
   align-items: center;
-  gap: 1.15rem;
+  gap: 0.8rem;
   flex-wrap: wrap;
   color: var(--text-muted);
   font-size: 0.78rem;
@@ -585,7 +585,7 @@
 
 .attachment-indicator {
   min-width: 1.65rem;
-  height: 1.45rem;
+  height: 1.3rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -621,7 +621,7 @@
 
 .attachment-indicator {
   min-width: 1.65rem;
-  height: 1.45rem;
+  height: 1.3rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -740,7 +740,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.65rem;
   color: var(--text-muted);
   font-size: 0.82rem;
 }
@@ -748,7 +748,7 @@
 .register-split-line {
   display: grid;
   grid-template-columns: minmax(12rem, 1fr) minmax(12rem, 1fr) 7.5rem 7.5rem auto;
-  gap: 0.5rem;
+  gap: 0.38rem;
   align-items: center;
 }
 
@@ -793,7 +793,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.45rem;
 }
 
 .attachment-dialog-header p {
@@ -802,7 +802,7 @@
 
 .attachment-list {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.38rem;
   margin: 1rem 0;
 }
 
@@ -1263,7 +1263,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.45rem;
   padding: 0.44rem 0.52rem;
   text-align: left;
 }
@@ -1291,7 +1291,7 @@
 .payee-manager-content {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 18rem;
-  gap: 1rem;
+  gap: 0.65rem;
   align-items: start;
 }
 
@@ -1388,12 +1388,12 @@
 .payee-manager-detail-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.38rem;
 }
 
 .payee-manager-merge-box {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.38rem;
   padding: 0.75rem;
   border: 1px solid rgba(148, 163, 184, 0.25);
   border-radius: 0.75rem;
@@ -1426,7 +1426,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.45rem;
 }
 
 .transaction-import-actions {
@@ -1438,7 +1438,7 @@
 .transaction-import-summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.45rem;
   margin: 1rem 0;
   color: var(--muted-foreground, #64748b);
   font-size: 0.9rem;
@@ -1472,7 +1472,7 @@
 .transaction-import-row {
   display: grid;
   grid-template-columns: 64px 110px minmax(180px, 1fr) minmax(160px, 0.8fr) 120px 120px 140px;
-  gap: 0.75rem;
+  gap: 0.45rem;
   align-items: center;
   padding: 0.7rem 0.8rem;
   border-bottom: 1px solid var(--border, #e2e8f0);
@@ -1533,7 +1533,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.65rem;
   margin: 1.25rem 0 0.75rem;
 }
 
@@ -1556,7 +1556,7 @@
 .transaction-import-column-row {
   display: grid;
   grid-template-columns: minmax(170px, 1fr) 220px minmax(220px, 1.4fr);
-  gap: 0.75rem;
+  gap: 0.45rem;
   align-items: center;
   padding: 0.7rem 0.8rem;
   border-bottom: 1px solid var(--border, #e2e8f0);
@@ -1659,7 +1659,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.65rem;
   padding: 0.85rem 1rem 1rem;
   border-top: 1px solid var(--border, #e2e8f0);
   color: var(--text-muted, #64748b);
@@ -1669,7 +1669,7 @@
 .register-pagination-controls {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.45rem;
 }
 
 .register-pagination-controls strong {
@@ -1692,7 +1692,7 @@
 .register-performance-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 2fr);
-  gap: 1rem;
+  gap: 0.65rem;
   margin: 0 1rem 1rem;
   padding: 1rem;
   border: 1px solid var(--border, #e2e8f0);
@@ -1708,7 +1708,7 @@
 .register-performance-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
+  gap: 0.45rem;
 }
 
 .register-performance-grid span {
