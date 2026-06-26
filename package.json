@@ -276,7 +276,9 @@
     "test:v202:inline-register-actions": "tsx tests/v202-inline-register-actions.ts",
     "test:v202": "pnpm test:v202:inline-register-actions",
     "test:v203:register-column-visibility": "tsx tests/v203-register-column-visibility.ts",
-    "test:v203": "pnpm test:v203:register-column-visibility"
+    "test:v203": "pnpm test:v203:register-column-visibility",
+    "test:v204:shared-table-layout": "tsx tests/v204-shared-table-layout.ts",
+    "test:v204": "pnpm test:v204:shared-table-layout"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

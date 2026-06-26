@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { confirmDialog } from "../features/ui/appDialogService";
@@ -22,6 +22,19 @@ import type {
 import { isMoneyNegative, isMoneyZero, normaliseMoney } from "../features/budget/moneyMath";
 import { formatDateForDisplay } from "../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../features/settings/useDateFormatPreference";
+import { ColumnVisibilityMenu } from "../features/tableLayout/ColumnVisibilityMenu";
+import { useTableLayout, type TableColumnDefinition } from "../features/tableLayout/tableLayout";
+
+type BudgetColumnId = "category" | "assigned" | "activity" | "available";
+
+const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
+
+const BUDGET_COLUMN_DEFINITIONS: readonly TableColumnDefinition<BudgetColumnId>[] = [
+  { id: "category", label: "Category Group", template: "minmax(18rem, 1fr)", widthRem: 18 },
+  { id: "assigned", label: "Assigned", template: "8.5rem", widthRem: 8.5, canHide: true },
+  { id: "activity", label: "Activity", template: "8.5rem", widthRem: 8.5, canHide: true },
+  { id: "available", label: "Available", template: "8.5rem", widthRem: 8.5 },
+];
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -132,6 +145,8 @@ function BudgetCategoryRow({
   onSelect,
   onAssignedChange,
   onActivityClick,
+  isBudgetColumnVisible,
+  rowStyle,
 }: {
   category: BudgetCategoryView;
   currencyCode: string;
@@ -140,6 +155,8 @@ function BudgetCategoryRow({
   onSelect: () => void;
   onAssignedChange: (value: number) => void;
   onActivityClick: () => void;
+  isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
+  rowStyle: CSSProperties;
 }) {
   return (
     <button
@@ -149,6 +166,7 @@ function BudgetCategoryRow({
         isSelected ? "budget-workspace-row-selected" : "",
       ].join(" ")}
       onClick={onSelect}
+      style={rowStyle}
     >
       <div className="budget-category-cell">
         <span className="drag-handle" title="Reorder categories later">
@@ -163,35 +181,41 @@ function BudgetCategoryRow({
         ) : null}
       </div>
 
-      <EditableAssignedCell
-        category={category}
-        currencyCode={currencyCode}
-        isOverassignedSource={isOverassignedSource}
-        onSave={onAssignedChange}
-      />
+      {isBudgetColumnVisible("assigned") ? (
+        <EditableAssignedCell
+          category={category}
+          currencyCode={currencyCode}
+          isOverassignedSource={isOverassignedSource}
+          onSave={onAssignedChange}
+        />
+      ) : null}
 
-      <button
-        className="activity-drilldown-button"
-        type="button"
-        disabled={category.activity === 0}
-        onClick={(event) => {
-          event.stopPropagation();
-          onActivityClick();
-        }}
-        title={
-          category.activity === 0
-            ? "No activity for this category"
-            : "Show activity transactions"
-        }
-      >
-        {formatMoney(category.activity, currencyCode)}
-      </button>
+      {isBudgetColumnVisible("activity") ? (
+        <button
+          className="activity-drilldown-button"
+          type="button"
+          disabled={category.activity === 0}
+          onClick={(event) => {
+            event.stopPropagation();
+            onActivityClick();
+          }}
+          title={
+            category.activity === 0
+              ? "No activity for this category"
+              : "Show activity transactions"
+          }
+        >
+          {formatMoney(category.activity, currencyCode)}
+        </button>
+      ) : null}
 
-      <strong
-        className={getAvailableClass(category.available, isOverassignedSource)}
-      >
-        {formatMoney(category.available, currencyCode)}
-      </strong>
+      {isBudgetColumnVisible("available") ? (
+        <strong
+          className={getAvailableClass(category.available, isOverassignedSource)}
+        >
+          {formatMoney(category.available, currencyCode)}
+        </strong>
+      ) : null}
     </button>
   );
 }
@@ -204,6 +228,8 @@ function BudgetGroup({
   onSelectCategory,
   onAssignedChange,
   onActivityClick,
+  isBudgetColumnVisible,
+  rowStyle,
 }: {
   group: BudgetCategoryGroupView;
   currencyCode: string;
@@ -212,6 +238,8 @@ function BudgetGroup({
   onSelectCategory: (categoryId: string) => void;
   onAssignedChange: (categoryId: string, value: number) => void;
   onActivityClick: (categoryId: string) => void;
+  isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
+  rowStyle: CSSProperties;
 }) {
   const groupHasOverassignedCategory = group.categories.some((category) =>
     overassignedCategoryIds.includes(category.id),
@@ -219,7 +247,7 @@ function BudgetGroup({
 
   return (
     <section className="budget-workspace-group">
-      <div className="budget-workspace-group-header">
+      <div className="budget-workspace-group-header" style={rowStyle}>
         <div className="budget-group-title">
           <span>⌄</span>
           <strong>{group.name}</strong>
@@ -228,16 +256,22 @@ function BudgetGroup({
           ) : null}
         </div>
 
-        <strong>{formatMoney(group.assigned, currencyCode)}</strong>
-        <strong>{formatMoney(group.activity, currencyCode)}</strong>
-        <strong
-          className={getAvailableClass(
-            group.available,
-            groupHasOverassignedCategory,
-          )}
-        >
-          {formatMoney(group.available, currencyCode)}
-        </strong>
+        {isBudgetColumnVisible("assigned") ? (
+          <strong>{formatMoney(group.assigned, currencyCode)}</strong>
+        ) : null}
+        {isBudgetColumnVisible("activity") ? (
+          <strong>{formatMoney(group.activity, currencyCode)}</strong>
+        ) : null}
+        {isBudgetColumnVisible("available") ? (
+          <strong
+            className={getAvailableClass(
+              group.available,
+              groupHasOverassignedCategory,
+            )}
+          >
+            {formatMoney(group.available, currencyCode)}
+          </strong>
+        ) : null}
       </div>
 
       {group.categories.map((category) => {
@@ -255,6 +289,8 @@ function BudgetGroup({
             onSelect={() => onSelectCategory(category.id)}
             onAssignedChange={(value) => onAssignedChange(category.id, value)}
             onActivityClick={() => onActivityClick(category.id)}
+            isBudgetColumnVisible={isBudgetColumnVisible}
+            rowStyle={rowStyle}
           />
         );
       })}
@@ -842,6 +878,18 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     clearCategoryMergePreview,
   } = useBudgetWorkspace(budgetId, selectedMonth);
 
+  const budgetTableLayout = useTableLayout({
+    storageKeyPrefix: BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
+    scopeId: budgetId,
+    columns: BUDGET_COLUMN_DEFINITIONS,
+    minimumWidthRem: 36,
+  });
+
+  const isBudgetColumnVisible = useMemo(
+    () => (columnId: BudgetColumnId) => budgetTableLayout.visibleColumnSet.has(columnId),
+    [budgetTableLayout.visibleColumnSet],
+  );
+
   if (isLoading) {
     return (
       <div className="page-stack">
@@ -1036,6 +1084,13 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
             <div className="budget-filter-spacer" />
 
+            <ColumnVisibilityMenu
+              columns={BUDGET_COLUMN_DEFINITIONS}
+              visibleColumnSet={budgetTableLayout.visibleColumnSet}
+              onToggleColumn={budgetTableLayout.toggleColumn}
+              onReset={budgetTableLayout.resetColumns}
+            />
+
             <input
               className="budget-search"
               placeholder="Search categories…"
@@ -1044,11 +1099,13 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           </section>
 
           <Card className="budget-workspace-table-card">
-            <div className="budget-workspace-table-head">
-              <span>Category Group</span>
-              <span>Assigned</span>
-              <span>Activity</span>
-              <span>Available</span>
+            <div
+              className="budget-workspace-table-head"
+              style={budgetTableLayout.rowStyle}
+            >
+              {budgetTableLayout.visibleColumns.map((column) => (
+                <span key={column.id}>{column.label}</span>
+              ))}
             </div>
 
             {visibleCategoryGroups.map((group) => (
@@ -1061,6 +1118,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 onSelectCategory={selectCategory}
                 onAssignedChange={updateAssigned}
                 onActivityClick={openActivityDrilldown}
+                isBudgetColumnVisible={isBudgetColumnVisible}
+                rowStyle={budgetTableLayout.rowStyle}
               />
             ))}
           </Card>
