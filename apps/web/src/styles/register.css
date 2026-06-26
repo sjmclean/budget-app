@@ -1729,3 +1729,34 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* v2.03 register column visibility */
+.register-columns-menu-panel {
+  min-width: 15rem;
+}
+
+.register-column-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 0.55rem;
+  color: var(--text, #0f172a);
+  cursor: pointer;
+  font-size: 0.84rem;
+  padding: 0.5rem 0.65rem;
+}
+
+.register-column-toggle:hover {
+  background: var(--surface-subtle, #f8fafc);
+}
+
+.register-column-toggle input {
+  margin: 0;
+}
+
+.register-column-reset {
+  margin-top: 0.2rem;
+  border-top: 1px solid var(--border-soft, #e2e8f0) !important;
+  border-radius: 0.55rem !important;
+  padding-top: 0.65rem !important;
+}

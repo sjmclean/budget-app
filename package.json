@@ -274,7 +274,9 @@
     "test:v199:register-render-performance": "tsx tests/v199-register-render-performance.ts",
     "test:v199": "pnpm test:v199:register-render-performance",
     "test:v202:inline-register-actions": "tsx tests/v202-inline-register-actions.ts",
-    "test:v202": "pnpm test:v202:inline-register-actions"
+    "test:v202": "pnpm test:v202:inline-register-actions",
+    "test:v203:register-column-visibility": "tsx tests/v203-register-column-visibility.ts",
+    "test:v203": "pnpm test:v203:register-column-visibility"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

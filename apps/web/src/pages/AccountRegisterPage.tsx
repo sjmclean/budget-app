@@ -1,5 +1,13 @@
 import { CalendarDays, Paperclip } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
@@ -9,7 +17,10 @@ import {
   getRegisterPaginationState,
   paginateRegisterItems,
 } from "../features/accounts/registerPagination";
-import { getAttachmentAccessState, getSafeAttachmentFileName } from "../features/accounts/attachmentAccess";
+import {
+  getAttachmentAccessState,
+  getSafeAttachmentFileName,
+} from "../features/accounts/attachmentAccess";
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
 import { confirmDialog } from "../features/ui/appDialogService";
@@ -63,13 +74,297 @@ const REGISTER_FLAG_OPTIONS: Array<Exclude<TransactionFlag, null>> = [
   "purple",
 ];
 
+type RegisterOptionalColumnId =
+  | "flag"
+  | "attachments"
+  | "memo"
+  | "checkNumber"
+  | "runningBalance"
+  | "status";
+
+type RegisterColumnId =
+  | "select"
+  | "date"
+  | RegisterOptionalColumnId
+  | "payee"
+  | "category"
+  | "outflow"
+  | "inflow"
+  | "actions";
+
+type RegisterColumnDefinition = {
+  id: RegisterColumnId;
+  label: string;
+  template: string;
+  widthRem: number;
+  optional?: boolean;
+};
+
+const REGISTER_COLUMN_PREFERENCES_KEY_PREFIX = "budget-app.register-columns.v1";
+
+const REGISTER_COLUMN_DEFINITIONS: Record<
+  RegisterColumnId,
+  RegisterColumnDefinition
+> = {
+  select: {
+    id: "select",
+    label: "Select",
+    template: "2.25rem",
+    widthRem: 2.25,
+  },
+  date: { id: "date", label: "Date", template: "7.5rem", widthRem: 7.5 },
+  flag: {
+    id: "flag",
+    label: "Flag",
+    template: "3.5rem",
+    widthRem: 3.5,
+    optional: true,
+  },
+  attachments: {
+    id: "attachments",
+    label: "Attachments",
+    template: "3.5rem",
+    widthRem: 3.5,
+    optional: true,
+  },
+  payee: {
+    id: "payee",
+    label: "Payee",
+    template: "minmax(12rem, 1.25fr)",
+    widthRem: 12,
+  },
+  category: {
+    id: "category",
+    label: "Category",
+    template: "minmax(10rem, 1fr)",
+    widthRem: 10,
+  },
+  memo: {
+    id: "memo",
+    label: "Memo",
+    template: "minmax(12rem, 1.2fr)",
+    widthRem: 12,
+    optional: true,
+  },
+  checkNumber: {
+    id: "checkNumber",
+    label: "Check #",
+    template: "6rem",
+    widthRem: 6,
+    optional: true,
+  },
+  outflow: {
+    id: "outflow",
+    label: "Outflow",
+    template: "7.5rem",
+    widthRem: 7.5,
+  },
+  inflow: { id: "inflow", label: "Inflow", template: "7.5rem", widthRem: 7.5 },
+  runningBalance: {
+    id: "runningBalance",
+    label: "Running Balance",
+    template: "8.5rem",
+    widthRem: 8.5,
+    optional: true,
+  },
+  status: {
+    id: "status",
+    label: "Cleared",
+    template: "3rem",
+    widthRem: 3,
+    optional: true,
+  },
+  actions: { id: "actions", label: "Actions", template: "12rem", widthRem: 12 },
+};
+
+const REGISTER_OPTIONAL_COLUMNS: RegisterOptionalColumnId[] = [
+  "flag",
+  "attachments",
+  "memo",
+  "checkNumber",
+  "runningBalance",
+  "status",
+];
+
+const DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS: RegisterOptionalColumnId[] = [
+  "flag",
+  "attachments",
+  "memo",
+  "checkNumber",
+  "runningBalance",
+  "status",
+];
+
+function getRegisterColumnPreferenceKey(budgetId?: string | null) {
+  return `${REGISTER_COLUMN_PREFERENCES_KEY_PREFIX}.${budgetId || "default"}`;
+}
+
+function readRegisterColumnPreferences(
+  budgetId?: string | null,
+): RegisterOptionalColumnId[] {
+  if (typeof window === "undefined") {
+    return DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS;
+  }
+
+  const stored = window.localStorage.getItem(
+    getRegisterColumnPreferenceKey(budgetId),
+  );
+
+  if (!stored) {
+    return DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS;
+  }
+
+  try {
+    const parsed = JSON.parse(stored);
+
+    if (!Array.isArray(parsed)) {
+      return DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS;
+    }
+
+    const validColumns = parsed.filter(
+      (column): column is RegisterOptionalColumnId =>
+        REGISTER_OPTIONAL_COLUMNS.includes(column as RegisterOptionalColumnId),
+    );
+
+    return validColumns;
+  } catch {
+    return DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS;
+  }
+}
+
+function writeRegisterColumnPreferences(
+  budgetId: string | null | undefined,
+  visibleColumns: RegisterOptionalColumnId[],
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    getRegisterColumnPreferenceKey(budgetId),
+    JSON.stringify(visibleColumns),
+  );
+}
+
+function createVisibleRegisterColumnSet(
+  visibleColumns: RegisterOptionalColumnId[],
+) {
+  return new Set<RegisterOptionalColumnId>(visibleColumns);
+}
+
+function isRegisterColumnVisible(
+  column: RegisterOptionalColumnId,
+  visibleColumns: Set<RegisterOptionalColumnId>,
+) {
+  return visibleColumns.has(column);
+}
+
+function buildRegisterColumns(
+  visibleColumns: Set<RegisterOptionalColumnId>,
+  mode: "display" | "edit" = "display",
+): RegisterColumnId[] {
+  const columns: RegisterColumnId[] = ["select", "date"];
+
+  if (isRegisterColumnVisible("flag", visibleColumns)) {
+    columns.push("flag");
+  }
+
+  if (isRegisterColumnVisible("attachments", visibleColumns)) {
+    columns.push("attachments");
+  }
+
+  columns.push("payee", "category");
+
+  if (isRegisterColumnVisible("memo", visibleColumns)) {
+    columns.push("memo");
+  }
+
+  if (isRegisterColumnVisible("checkNumber", visibleColumns)) {
+    columns.push("checkNumber");
+  }
+
+  columns.push("outflow", "inflow");
+
+  if (mode === "edit") {
+    columns.push("actions");
+    return columns;
+  }
+
+  if (isRegisterColumnVisible("runningBalance", visibleColumns)) {
+    columns.push("runningBalance");
+  }
+
+  if (isRegisterColumnVisible("status", visibleColumns)) {
+    columns.push("status");
+  }
+
+  return columns;
+}
+
+function buildRegisterRowStyle(
+  visibleColumns: Set<RegisterOptionalColumnId>,
+  mode: "display" | "edit" = "display",
+): CSSProperties {
+  const columns = buildRegisterColumns(visibleColumns, mode);
+  const minimumWidth = columns.reduce(
+    (total, column) => total + REGISTER_COLUMN_DEFINITIONS[column].widthRem,
+    0,
+  );
+
+  return {
+    gridTemplateColumns: columns
+      .map((column) => REGISTER_COLUMN_DEFINITIONS[column].template)
+      .join(" "),
+    minWidth: `${Math.max(minimumWidth + columns.length * 0.75 + 2, mode === "edit" ? 72 : 74)}rem`,
+  };
+}
+
+
+function RegisterColumnsMenu({
+  visibleColumns,
+  isOpen,
+  onToggleOpen,
+  onToggleColumn,
+  onReset,
+}: {
+  visibleColumns: Set<RegisterOptionalColumnId>;
+  isOpen: boolean;
+  onToggleOpen: () => void;
+  onToggleColumn: (column: RegisterOptionalColumnId) => void;
+  onReset: () => void;
+}) {
+  return (
+    <div className="register-columns-menu">
+      <button className="button button-secondary" type="button" onClick={onToggleOpen}>
+        Columns
+      </button>
+      {isOpen ? (
+        <div className="register-columns-menu-panel" role="menu">
+          {REGISTER_OPTIONAL_COLUMNS.map((column) => (
+            <label className="register-column-toggle" key={column}>
+              <input
+                type="checkbox"
+                checked={visibleColumns.has(column)}
+                onChange={() => onToggleColumn(column)}
+              />
+              <span>{REGISTER_COLUMN_DEFINITIONS[column].label}</span>
+            </label>
+          ))}
+          <button className="register-column-reset" type="button" onClick={onReset}>
+            Reset columns
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
     style: "currency",
     currency: currencyCode,
   }).format(value);
 }
-
 
 function normalisePayeeKey(name: string) {
   return name.replace(/\s+/g, " ").trim().toLocaleLowerCase();
@@ -79,7 +374,10 @@ function hasSamePayeeName(left: string, right: string) {
   return normalisePayeeKey(left) === normalisePayeeKey(right);
 }
 
-function formatPayeeLastUsed(value: string | undefined, dateFormat: ReturnType<typeof useDateFormatPreference>) {
+function formatPayeeLastUsed(
+  value: string | undefined,
+  dateFormat: ReturnType<typeof useDateFormatPreference>,
+) {
   if (!value) {
     return "Never";
   }
@@ -142,7 +440,11 @@ function parseDateInput(value: string): string | null {
   return null;
 }
 
-function normaliseDateParts(day: string, month: string, year: string): string | null {
+function normaliseDateParts(
+  day: string,
+  month: string,
+  year: string,
+): string | null {
   const numericDay = Number.parseInt(day, 10);
   const numericMonth = Number.parseInt(month, 10);
   const numericYear = Number.parseInt(year, 10);
@@ -230,15 +532,15 @@ function RegisterDateField({
             return;
           }
 
-         const dateInput = input as HTMLInputElement & {
-  showPicker?: () => void;
-};
+          const dateInput = input as HTMLInputElement & {
+            showPicker?: () => void;
+          };
 
-if (typeof dateInput.showPicker === "function") {
-  dateInput.showPicker();
-} else {
-  dateInput.click();
-}
+          if (typeof dateInput.showPicker === "function") {
+            dateInput.showPicker();
+          } else {
+            dateInput.click();
+          }
         }}
       >
         <CalendarDays size={15} />
@@ -298,7 +600,11 @@ function InlineFlagPicker({
       </button>
 
       {isOpen ? (
-        <div className="flag-colour-picker-menu" role="listbox" aria-label="Choose flag colour">
+        <div
+          className="flag-colour-picker-menu"
+          role="listbox"
+          aria-label="Choose flag colour"
+        >
           <button
             className="flag-colour-picker-option"
             type="button"
@@ -310,7 +616,10 @@ function InlineFlagPicker({
               chooseFlag(null);
             }}
           >
-            <span className="transaction-flag transaction-flag-empty" aria-hidden="true" />
+            <span
+              className="transaction-flag transaction-flag-empty"
+              aria-hidden="true"
+            />
           </button>
 
           {REGISTER_FLAG_OPTIONS.map((flag) => (
@@ -326,7 +635,10 @@ function InlineFlagPicker({
                 chooseFlag(flag);
               }}
             >
-              <span className={`transaction-flag transaction-flag-${flag}`} aria-hidden="true" />
+              <span
+                className={`transaction-flag transaction-flag-${flag}`}
+                aria-hidden="true"
+              />
             </button>
           ))}
         </div>
@@ -392,7 +704,11 @@ function AttachmentManager({
   const attachments = transaction.attachments ?? [];
 
   return (
-    <div className="attachment-dialog-backdrop" role="presentation" onClick={onClose}>
+    <div
+      className="attachment-dialog-backdrop"
+      role="presentation"
+      onClick={onClose}
+    >
       <div
         className="attachment-dialog"
         role="dialog"
@@ -403,9 +719,16 @@ function AttachmentManager({
         <div className="attachment-dialog-header">
           <div>
             <strong>Attachments</strong>
-            <p className="muted">{transaction.payee} · {formatDateForDisplay(transaction.date, dateFormat)}</p>
+            <p className="muted">
+              {transaction.payee} ·{" "}
+              {formatDateForDisplay(transaction.date, dateFormat)}
+            </p>
           </div>
-          <button className="button button-secondary" type="button" onClick={onClose}>
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={onClose}
+          >
             Close
           </button>
         </div>
@@ -416,7 +739,9 @@ function AttachmentManager({
           ) : (
             attachments.map((attachment) => {
               const access = getAttachmentAccessState(attachment);
-              const safeFileName = getSafeAttachmentFileName(attachment.fileName);
+              const safeFileName = getSafeAttachmentFileName(
+                attachment.fileName,
+              );
 
               return (
                 <div className="attachment-list-item" key={attachment.id}>
@@ -424,8 +749,11 @@ function AttachmentManager({
                   <div>
                     <strong>{attachment.fileName}</strong>
                     <span>
-                      {formatFileSize(attachment.fileSize)} · {attachment.mimeType || "Unknown type"}
-                      {attachment.contentDataUrl ? " · Stored" : " · Metadata only"}
+                      {formatFileSize(attachment.fileSize)} ·{" "}
+                      {attachment.mimeType || "Unknown type"}
+                      {attachment.contentDataUrl
+                        ? " · Stored"
+                        : " · Metadata only"}
                     </span>
                     {!access.canAccess ? <small>{access.reason}</small> : null}
                   </div>
@@ -493,19 +821,18 @@ function AttachmentManager({
   );
 }
 
-
-
-const CSV_IMPORT_ROLE_OPTIONS: { value: CsvImportColumnRole; label: string }[] = [
-  { value: "ignore", label: "Ignore" },
-  { value: "date", label: "Date" },
-  { value: "payee", label: "Payee / Description" },
-  { value: "payeeFallback", label: "Payee fallback" },
-  { value: "memo", label: "Memo" },
-  { value: "amount", label: "Amount (+/-)" },
-  { value: "outflow", label: "Outflow / Debit" },
-  { value: "inflow", label: "Inflow / Credit" },
-  { value: "balance", label: "Balance" },
-];
+const CSV_IMPORT_ROLE_OPTIONS: { value: CsvImportColumnRole; label: string }[] =
+  [
+    { value: "ignore", label: "Ignore" },
+    { value: "date", label: "Date" },
+    { value: "payee", label: "Payee / Description" },
+    { value: "payeeFallback", label: "Payee fallback" },
+    { value: "memo", label: "Memo" },
+    { value: "amount", label: "Amount (+/-)" },
+    { value: "outflow", label: "Outflow / Debit" },
+    { value: "inflow", label: "Inflow / Credit" },
+    { value: "balance", label: "Balance" },
+  ];
 
 function TransactionImportDialog({
   accountName,
@@ -518,7 +845,9 @@ function TransactionImportDialog({
   transactions: RegisterTransactionView[];
   currencyCode: string;
   onClose: () => void;
-  onImportTransactions: (transactions: NewRegisterTransactionInput[]) => Promise<void>;
+  onImportTransactions: (
+    transactions: NewRegisterTransactionInput[],
+  ) => Promise<void>;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [csvText, setCsvText] = useState<string | null>(null);
@@ -526,10 +855,14 @@ function TransactionImportDialog({
   const [analysis, setAnalysis] = useState<CsvImportAnalysis | null>(null);
   const [mapping, setMapping] = useState<CsvImportColumnMapping>({});
   const [preview, setPreview] = useState<TransactionImportPreview | null>(null);
-  const [candidates, setCandidates] = useState<TransactionImportCandidate[]>([]);
+  const [candidates, setCandidates] = useState<TransactionImportCandidate[]>(
+    [],
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const selectedCount = candidates.filter((candidate) => candidate.selected && candidate.status === "new").length;
+  const selectedCount = candidates.filter(
+    (candidate) => candidate.selected && candidate.status === "new",
+  ).length;
 
   async function readFile(file: File) {
     setError(null);
@@ -586,15 +919,24 @@ function TransactionImportDialog({
     }
 
     const roles = Object.values(mapping);
-    const hasAmount = roles.includes("amount") || roles.includes("outflow") || roles.includes("inflow");
+    const hasAmount =
+      roles.includes("amount") ||
+      roles.includes("outflow") ||
+      roles.includes("inflow");
 
     if (!roles.includes("date") || !roles.includes("payee") || !hasAmount) {
-      setError("Map at least Date, Payee/Description, and an Amount or Inflow/Outflow column before continuing.");
+      setError(
+        "Map at least Date, Payee/Description, and an Amount or Inflow/Outflow column before continuing.",
+      );
       return;
     }
 
     setError(null);
-    const nextPreview = previewTransactionCsvImport(csvText, transactions, mapping);
+    const nextPreview = previewTransactionCsvImport(
+      csvText,
+      transactions,
+      mapping,
+    );
     setPreview(nextPreview);
     setCandidates(nextPreview.candidates);
   }
@@ -621,12 +963,20 @@ function TransactionImportDialog({
       await onImportTransactions([transaction]);
     }
 
-    setMessage(`Imported ${importable.length} transaction${importable.length === 1 ? "" : "s"} into ${accountName}.`);
-    setCandidates((current) => current.map((candidate) => ({ ...candidate, selected: false })));
+    setMessage(
+      `Imported ${importable.length} transaction${importable.length === 1 ? "" : "s"} into ${accountName}.`,
+    );
+    setCandidates((current) =>
+      current.map((candidate) => ({ ...candidate, selected: false })),
+    );
   }
 
   return (
-    <div className="transaction-import-backdrop" role="presentation" onClick={onClose}>
+    <div
+      className="transaction-import-backdrop"
+      role="presentation"
+      onClick={onClose}
+    >
       <section
         className="transaction-import-dialog"
         role="dialog"
@@ -639,7 +989,11 @@ function TransactionImportDialog({
             <h2 id="transaction-import-title">Import Transactions</h2>
             <p className="muted">Target account: {accountName}</p>
           </div>
-          <button className="button button-secondary" type="button" onClick={onClose}>
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={onClose}
+          >
             Close
           </button>
         </div>
@@ -658,16 +1012,23 @@ function TransactionImportDialog({
               event.target.value = "";
             }}
           />
-          <button className="button button-primary" type="button" onClick={() => fileInputRef.current?.click()}>
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+          >
             Choose CSV File
           </button>
           <p className="muted">
-            Map your bank CSV columns before previewing. Different banks use different column names.
+            Map your bank CSV columns before previewing. Different banks use
+            different column names.
           </p>
         </div>
 
         {error ? <p className="transaction-import-error">{error}</p> : null}
-        {message ? <p className="transaction-import-message">{message}</p> : null}
+        {message ? (
+          <p className="transaction-import-message">{message}</p>
+        ) : null}
 
         {analysis ? (
           <div className="transaction-import-mapping">
@@ -675,13 +1036,24 @@ function TransactionImportDialog({
               <div>
                 <h3>1. Map CSV Columns</h3>
                 <p className="muted">
-                  {fileName ? `${fileName} · ` : ""}{analysis.totalDataRows} data row{analysis.totalDataRows === 1 ? "" : "s"} detected.
+                  {fileName ? `${fileName} · ` : ""}
+                  {analysis.totalDataRows} data row
+                  {analysis.totalDataRows === 1 ? "" : "s"} detected.
                 </p>
                 <p className="muted transaction-import-help">
-                  Use Amount (+/-) only when your bank has one amount column where spending is negative and deposits are positive. If your bank has separate debit/credit columns, map them to Outflow / Debit and Inflow / Credit. If the normal payee column is sometimes blank, map another column as Payee fallback; memo is also used as a final fallback when payee is blank.
+                  Use Amount (+/-) only when your bank has one amount column
+                  where spending is negative and deposits are positive. If your
+                  bank has separate debit/credit columns, map them to Outflow /
+                  Debit and Inflow / Credit. If the normal payee column is
+                  sometimes blank, map another column as Payee fallback; memo is
+                  also used as a final fallback when payee is blank.
                 </p>
               </div>
-              <button className="button button-secondary" type="button" onClick={resetAutoMapping}>
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={resetAutoMapping}
+              >
                 Reset Auto Mapping
               </button>
             </div>
@@ -693,15 +1065,25 @@ function TransactionImportDialog({
                 <span>Sample Values</span>
               </div>
               {analysis.columns.map((column) => (
-                <div className="transaction-import-column-row" key={column.index}>
+                <div
+                  className="transaction-import-column-row"
+                  key={column.index}
+                >
                   <span>
                     <strong>{column.header}</strong>
-                    {column.suggestedRole !== "ignore" ? <small>Auto-detected: {column.suggestedRole}</small> : null}
+                    {column.suggestedRole !== "ignore" ? (
+                      <small>Auto-detected: {column.suggestedRole}</small>
+                    ) : null}
                   </span>
                   <span>
                     <select
                       value={mapping[column.index] ?? "ignore"}
-                      onChange={(event) => updateColumnRole(column.index, event.target.value as CsvImportColumnRole)}
+                      onChange={(event) =>
+                        updateColumnRole(
+                          column.index,
+                          event.target.value as CsvImportColumnRole,
+                        )
+                      }
                     >
                       {CSV_IMPORT_ROLE_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -711,7 +1093,9 @@ function TransactionImportDialog({
                     </select>
                   </span>
                   <span className="transaction-import-samples">
-                    {column.sampleValues.length > 0 ? column.sampleValues.join(" · ") : "—"}
+                    {column.sampleValues.length > 0
+                      ? column.sampleValues.join(" · ")
+                      : "—"}
                   </span>
                 </div>
               ))}
@@ -733,7 +1117,9 @@ function TransactionImportDialog({
                       {analysis.sampleRows.map((row, rowIndex) => (
                         <tr key={rowIndex}>
                           {analysis.columns.map((column) => (
-                            <td key={column.index}>{row[column.index] || "—"}</td>
+                            <td key={column.index}>
+                              {row[column.index] || "—"}
+                            </td>
                           ))}
                         </tr>
                       ))}
@@ -744,7 +1130,11 @@ function TransactionImportDialog({
             ) : null}
 
             <div className="transaction-import-step-actions">
-              <button className="button button-primary" type="button" onClick={buildPreview}>
+              <button
+                className="button button-primary"
+                type="button"
+                onClick={buildPreview}
+              >
                 Preview Import
               </button>
             </div>
@@ -756,7 +1146,9 @@ function TransactionImportDialog({
             <div className="transaction-import-section-heading">
               <div>
                 <h3>2. Review Import Preview</h3>
-                <p className="muted">Only selected new transactions will be imported.</p>
+                <p className="muted">
+                  Only selected new transactions will be imported.
+                </p>
               </div>
             </div>
             <div className="transaction-import-summary">
@@ -796,26 +1188,51 @@ function TransactionImportDialog({
                   <small>{candidate.reason}</small>
                 </span>
                 <span>{candidate.parsed.memo || "—"}</span>
-                <span>{candidate.parsed.outflow ? formatMoney(candidate.parsed.outflow, currencyCode) : ""}</span>
-                <span>{candidate.parsed.inflow ? formatMoney(candidate.parsed.inflow, currencyCode) : ""}</span>
-                <span className={`transaction-import-status transaction-import-status-${candidate.status}`}>
+                <span>
+                  {candidate.parsed.outflow
+                    ? formatMoney(candidate.parsed.outflow, currencyCode)
+                    : ""}
+                </span>
+                <span>
+                  {candidate.parsed.inflow
+                    ? formatMoney(candidate.parsed.inflow, currencyCode)
+                    : ""}
+                </span>
+                <span
+                  className={`transaction-import-status transaction-import-status-${candidate.status}`}
+                >
                   {candidate.status.replace("-", " ")}
                 </span>
               </label>
             ))}
           </div>
         ) : !analysis ? (
-          <p className="transaction-import-placeholder">Choose a CSV file to map columns and preview transactions before importing.</p>
+          <p className="transaction-import-placeholder">
+            Choose a CSV file to map columns and preview transactions before
+            importing.
+          </p>
         ) : preview ? (
-          <p className="transaction-import-placeholder">No importable rows were found in this CSV file.</p>
+          <p className="transaction-import-placeholder">
+            No importable rows were found in this CSV file.
+          </p>
         ) : null}
 
         <div className="transaction-import-footer">
-          <button className="button button-secondary" type="button" onClick={onClose}>
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={onClose}
+          >
             Cancel
           </button>
-          <button className="button button-primary" type="button" disabled={selectedCount === 0} onClick={() => void importSelected()}>
-            Import {selectedCount} New Transaction{selectedCount === 1 ? "" : "s"}
+          <button
+            className="button button-primary"
+            type="button"
+            disabled={selectedCount === 0}
+            onClick={() => void importSelected()}
+          >
+            Import {selectedCount} New Transaction
+            {selectedCount === 1 ? "" : "s"}
           </button>
         </div>
       </section>
@@ -860,7 +1277,8 @@ function PayeeInput({
       const suggestionValue = suggestion.value.trim().toLowerCase();
       const isDuplicate =
         allSuggestions.findIndex(
-          (candidate) => candidate.value.trim().toLowerCase() === suggestionValue,
+          (candidate) =>
+            candidate.value.trim().toLowerCase() === suggestionValue,
         ) !== index;
 
       if (isDuplicate) {
@@ -927,7 +1345,8 @@ function PayeeInput({
           if (event.key === "ArrowRight" && shouldShowGhost) {
             const input = event.currentTarget;
             const cursorAtEnd =
-              input.selectionStart === value.length && input.selectionEnd === value.length;
+              input.selectionStart === value.length &&
+              input.selectionEnd === value.length;
 
             if (cursorAtEnd) {
               event.preventDefault();
@@ -959,7 +1378,10 @@ function PayeeInput({
           if (event.key === "Enter") {
             event.preventDefault();
             event.stopPropagation();
-            selectSuggestion(suggestions[highlightedIndex].value, suggestions[highlightedIndex].payeeId);
+            selectSuggestion(
+              suggestions[highlightedIndex].value,
+              suggestions[highlightedIndex].payeeId,
+            );
             return;
           }
 
@@ -1050,7 +1472,8 @@ function CategoryInput({
       }));
 
     const splitSuggestion =
-      includeSplitOption && normaliseCategoryName(SPLIT_CATEGORY_LABEL).startsWith(normalisedValue)
+      includeSplitOption &&
+      normaliseCategoryName(SPLIT_CATEGORY_LABEL).startsWith(normalisedValue)
         ? [{ id: "__split", value: SPLIT_CATEGORY_LABEL, label: "Special" }]
         : [];
 
@@ -1088,7 +1511,9 @@ function CategoryInput({
           if (event.key === "ArrowDown" && suggestions.length > 0) {
             event.preventDefault();
             setIsOpen(true);
-            setHighlightedIndex((current) => (current + 1) % suggestions.length);
+            setHighlightedIndex(
+              (current) => (current + 1) % suggestions.length,
+            );
             return;
           }
 
@@ -1101,7 +1526,10 @@ function CategoryInput({
             return;
           }
 
-          if ((event.key === "Enter" || event.key === "Tab") && shouldShowSuggestions) {
+          if (
+            (event.key === "Enter" || event.key === "Tab") &&
+            shouldShowSuggestions
+          ) {
             if (highlightedSuggestion) {
               event.preventDefault();
               selectSuggestion(highlightedSuggestion.value);
@@ -1156,7 +1584,6 @@ function CategoryInput({
   );
 }
 
-
 interface SplitLineDraft {
   id: string;
   category: string;
@@ -1184,7 +1611,9 @@ function createLocalId(): string {
   return `split-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function splitDraftsFromTransaction(transaction: RegisterTransactionView): SplitLineDraft[] {
+function splitDraftsFromTransaction(
+  transaction: RegisterTransactionView,
+): SplitLineDraft[] {
   return (transaction.splitLines ?? []).map((line) => ({
     id: line.id,
     category: line.category,
@@ -1215,8 +1644,7 @@ function buildSplitLines(
     })
     .filter(
       (line) =>
-        line.category.length > 0 &&
-        (line.outflow > 0 || line.inflow > 0),
+        line.category.length > 0 && (line.outflow > 0 || line.inflow > 0),
     );
 }
 
@@ -1234,7 +1662,10 @@ function findCategoryOption(
 }
 
 function normaliseCategoryName(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "").trim();
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .trim();
 }
 
 function totalsFromSplitLines(splitLines: RegisterSplitLineView[]): {
@@ -1256,21 +1687,26 @@ function SplitEditor({
   categoryOptions,
 }: {
   splitLines: SplitLineDraft[];
-  setSplitLines: (updater: (current: SplitLineDraft[]) => SplitLineDraft[]) => void;
+  setSplitLines: (
+    updater: (current: SplitLineDraft[]) => SplitLineDraft[],
+  ) => void;
   categoryOptions: BudgetCategoryOption[];
 }) {
   if (splitLines.length === 0) {
     return null;
   }
 
-  const totals = totalsFromSplitLines(buildSplitLines(splitLines, categoryOptions));
+  const totals = totalsFromSplitLines(
+    buildSplitLines(splitLines, categoryOptions),
+  );
 
   return (
     <div className="register-split-editor">
       <div className="register-split-header">
         <strong>Split transaction</strong>
         <span>
-          Total: {totals.outflow > 0 ? `Outflow ${totals.outflow.toFixed(2)}` : ""}
+          Total:{" "}
+          {totals.outflow > 0 ? `Outflow ${totals.outflow.toFixed(2)}` : ""}
           {totals.inflow > 0 ? ` Inflow ${totals.inflow.toFixed(2)}` : ""}
         </span>
       </div>
@@ -1286,7 +1722,8 @@ function SplitEditor({
                     ? {
                         ...item,
                         category: value,
-                        categoryId: findCategoryOption(value, categoryOptions)?.id,
+                        categoryId: findCategoryOption(value, categoryOptions)
+                          ?.id,
                       }
                     : item,
                 ),
@@ -1300,7 +1737,9 @@ function SplitEditor({
             onChange={(event) =>
               setSplitLines((current) =>
                 current.map((item) =>
-                  item.id === line.id ? { ...item, memo: event.target.value } : item,
+                  item.id === line.id
+                    ? { ...item, memo: event.target.value }
+                    : item,
                 ),
               )
             }
@@ -1311,7 +1750,9 @@ function SplitEditor({
             onChange={(event) =>
               setSplitLines((current) =>
                 current.map((item) =>
-                  item.id === line.id ? { ...item, outflow: event.target.value } : item,
+                  item.id === line.id
+                    ? { ...item, outflow: event.target.value }
+                    : item,
                 ),
               )
             }
@@ -1323,7 +1764,9 @@ function SplitEditor({
             onChange={(event) =>
               setSplitLines((current) =>
                 current.map((item) =>
-                  item.id === line.id ? { ...item, inflow: event.target.value } : item,
+                  item.id === line.id
+                    ? { ...item, inflow: event.target.value }
+                    : item,
                 ),
               )
             }
@@ -1334,7 +1777,9 @@ function SplitEditor({
             className="button button-secondary"
             type="button"
             onClick={() =>
-              setSplitLines((current) => current.filter((item) => item.id !== line.id))
+              setSplitLines((current) =>
+                current.filter((item) => item.id !== line.id),
+              )
             }
           >
             Remove
@@ -1345,7 +1790,9 @@ function SplitEditor({
       <button
         className="button button-secondary"
         type="button"
-        onClick={() => setSplitLines((current) => [...current, createSplitLineDraft()])}
+        onClick={() =>
+          setSplitLines((current) => [...current, createSplitLineDraft()])
+        }
       >
         Add split line
       </button>
@@ -1392,12 +1839,17 @@ function TransactionEntryRow({
     }
 
     const splitTotals = totalsFromSplitLines(parsedSplitLines);
-    const parsedOutflow = parsedSplitLines.length > 0 ? splitTotals.outflow : parseMoney(outflow);
-    const parsedInflow = parsedSplitLines.length > 0 ? splitTotals.inflow : parseMoney(inflow);
+    const parsedOutflow =
+      parsedSplitLines.length > 0 ? splitTotals.outflow : parseMoney(outflow);
+    const parsedInflow =
+      parsedSplitLines.length > 0 ? splitTotals.inflow : parseMoney(inflow);
 
     const categoryName = category.trim();
     const categoryOption = findCategoryOption(categoryName, categoryOptions);
-    const fallbackCategory = parsedInflow > 0 && parsedOutflow === 0 ? "Ready to Assign" : "Uncategorised";
+    const fallbackCategory =
+      parsedInflow > 0 && parsedOutflow === 0
+        ? "Ready to Assign"
+        : "Uncategorised";
 
     return {
       date,
@@ -1406,11 +1858,14 @@ function TransactionEntryRow({
       category:
         parsedSplitLines.length > 0
           ? "Split"
-          : categoryOption?.name ?? (categoryName || fallbackCategory),
+          : (categoryOption?.name ?? (categoryName || fallbackCategory)),
       categoryId:
         parsedSplitLines.length > 0
           ? undefined
-          : categoryOption?.id ?? (fallbackCategory === "Ready to Assign" ? "__ready_to_assign__" : undefined),
+          : (categoryOption?.id ??
+            (fallbackCategory === "Ready to Assign"
+              ? "__ready_to_assign__"
+              : undefined)),
       memo: memo.trim(),
       checkNumber: checkNumber.trim(),
       outflow: parsedOutflow,
@@ -1434,7 +1889,9 @@ function TransactionEntryRow({
     if (isSplitCategoryValue(value)) {
       setCategory(SPLIT_CATEGORY_LABEL);
       setSplitLines((current) =>
-        current.length > 0 ? current : [createSplitLineDraft(), createSplitLineDraft()],
+        current.length > 0
+          ? current
+          : [createSplitLineDraft(), createSplitLineDraft()],
       );
       return;
     }
@@ -1479,56 +1936,92 @@ function TransactionEntryRow({
 
   return (
     <>
-    <div
-      className="register-entry-row-active register-entry-row-workflow"
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          onCancel();
-        }
-      }}
-    >
-      <RegisterDateField value={date} onChange={setDate} />
-      <PayeeInput
-        value={payee}
-        onChange={(value) => {
-          setPayee(value);
-          setPayeeId(undefined);
+      <div
+        className="register-entry-row-active register-entry-row-workflow"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            onCancel();
+          }
         }}
-        onPayeeIdChange={setPayeeId}
-        transferAccounts={transferAccounts}
-        payeeOptions={payeeOptions}
-        autoFocus
-      />
-      <CategoryInput
-        value={category}
-        onChange={handleCategoryChange}
+      >
+        <RegisterDateField value={date} onChange={setDate} />
+        <PayeeInput
+          value={payee}
+          onChange={(value) => {
+            setPayee(value);
+            setPayeeId(undefined);
+          }}
+          onPayeeIdChange={setPayeeId}
+          transferAccounts={transferAccounts}
+          payeeOptions={payeeOptions}
+          autoFocus
+        />
+        <CategoryInput
+          value={category}
+          onChange={handleCategoryChange}
+          categoryOptions={categoryOptions}
+        />
+        <input
+          value={memo}
+          onChange={(event) => setMemo(event.target.value)}
+          placeholder="Memo"
+        />
+        <input
+          value={checkNumber}
+          onChange={(event) => setCheckNumber(event.target.value)}
+          placeholder="Check #"
+        />
+        <input
+          value={outflow}
+          onChange={(event) => setOutflow(event.target.value)}
+          placeholder="Outflow"
+          inputMode="decimal"
+          disabled={splitLines.length > 0}
+        />
+        <input
+          value={inflow}
+          onChange={(event) => setInflow(event.target.value)}
+          placeholder="Inflow"
+          inputMode="decimal"
+          disabled={splitLines.length > 0}
+        />
+
+        <div className="register-entry-actions register-entry-actions-wide">
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={saveAndAddAnother}
+          >
+            Save & add another
+          </button>
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={save}
+          >
+            Save
+          </button>
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={toggleSplitEditor}
+          >
+            Split
+          </button>
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+      <SplitEditor
+        splitLines={splitLines}
+        setSplitLines={setSplitLines}
         categoryOptions={categoryOptions}
       />
-      <input value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="Memo" />
-      <input value={checkNumber} onChange={(event) => setCheckNumber(event.target.value)} placeholder="Check #" />
-      <input value={outflow} onChange={(event) => setOutflow(event.target.value)} placeholder="Outflow" inputMode="decimal" disabled={splitLines.length > 0} />
-      <input value={inflow} onChange={(event) => setInflow(event.target.value)} placeholder="Inflow" inputMode="decimal" disabled={splitLines.length > 0} />
-
-      <div className="register-entry-actions register-entry-actions-wide">
-        <button className="button button-primary" type="button" onClick={saveAndAddAnother}>
-          Save & add another
-        </button>
-        <button className="button button-secondary" type="button" onClick={save}>
-          Save
-        </button>
-        <button className="button button-secondary" type="button" onClick={toggleSplitEditor}>
-          Split
-        </button>
-        <button className="button button-secondary" type="button" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
-    </div>
-    <SplitEditor
-      splitLines={splitLines}
-      setSplitLines={setSplitLines}
-      categoryOptions={categoryOptions}
-    />
     </>
   );
 }
@@ -1541,6 +2034,8 @@ function TransactionEditRow({
   categoryOptions,
   transferAccounts,
   payeeOptions,
+  visibleColumns,
+  rowStyle,
 }: {
   transaction: RegisterTransactionView;
   categoryOptions: BudgetCategoryOption[];
@@ -1562,16 +2057,24 @@ function TransactionEditRow({
   }) => void;
   onCancel: () => void;
   onManageTransactionAttachments: (transactionId: string) => void;
+  visibleColumns: Set<RegisterOptionalColumnId>;
+  rowStyle: CSSProperties;
 }) {
   const [date, setDate] = useState(transaction.date);
   const [flag, setFlag] = useState<TransactionFlag>(transaction.flag);
   const [payee, setPayee] = useState(transaction.payee);
-  const [payeeId, setPayeeId] = useState<string | undefined>(transaction.payeeId);
+  const [payeeId, setPayeeId] = useState<string | undefined>(
+    transaction.payeeId,
+  );
   const [category, setCategory] = useState(transaction.category);
   const [memo, setMemo] = useState(transaction.memo ?? "");
   const [checkNumber, setCheckNumber] = useState(transaction.checkNumber ?? "");
-  const [outflow, setOutflow] = useState(transaction.outflow ? transaction.outflow.toFixed(2) : "");
-  const [inflow, setInflow] = useState(transaction.inflow ? transaction.inflow.toFixed(2) : "");
+  const [outflow, setOutflow] = useState(
+    transaction.outflow ? transaction.outflow.toFixed(2) : "",
+  );
+  const [inflow, setInflow] = useState(
+    transaction.inflow ? transaction.inflow.toFixed(2) : "",
+  );
   const [splitLines, setSplitLines] = useState<SplitLineDraft[]>(
     splitDraftsFromTransaction(transaction),
   );
@@ -1580,7 +2083,9 @@ function TransactionEditRow({
     if (isSplitCategoryValue(value)) {
       setCategory(SPLIT_CATEGORY_LABEL);
       setSplitLines((current) =>
-        current.length > 0 ? current : [createSplitLineDraft(), createSplitLineDraft()],
+        current.length > 0
+          ? current
+          : [createSplitLineDraft(), createSplitLineDraft()],
       );
       return;
     }
@@ -1614,12 +2119,17 @@ function TransactionEditRow({
     }
 
     const splitTotals = totalsFromSplitLines(parsedSplitLines);
-    const parsedOutflow = parsedSplitLines.length > 0 ? splitTotals.outflow : parseMoney(outflow);
-    const parsedInflow = parsedSplitLines.length > 0 ? splitTotals.inflow : parseMoney(inflow);
+    const parsedOutflow =
+      parsedSplitLines.length > 0 ? splitTotals.outflow : parseMoney(outflow);
+    const parsedInflow =
+      parsedSplitLines.length > 0 ? splitTotals.inflow : parseMoney(inflow);
 
     const categoryName = category.trim();
     const categoryOption = findCategoryOption(categoryName, categoryOptions);
-    const fallbackCategory = parsedInflow > 0 && parsedOutflow === 0 ? "Ready to Assign" : "Uncategorised";
+    const fallbackCategory =
+      parsedInflow > 0 && parsedOutflow === 0
+        ? "Ready to Assign"
+        : "Uncategorised";
 
     onSave({
       id: transaction.id,
@@ -1630,11 +2140,14 @@ function TransactionEditRow({
       category:
         parsedSplitLines.length > 0
           ? "Split"
-          : categoryOption?.name ?? (categoryName || fallbackCategory),
+          : (categoryOption?.name ?? (categoryName || fallbackCategory)),
       categoryId:
         parsedSplitLines.length > 0
           ? undefined
-          : categoryOption?.id ?? (fallbackCategory === "Ready to Assign" ? "__ready_to_assign__" : undefined),
+          : (categoryOption?.id ??
+            (fallbackCategory === "Ready to Assign"
+              ? "__ready_to_assign__"
+              : undefined)),
       memo: memo.trim(),
       checkNumber: checkNumber.trim(),
       outflow: parsedOutflow,
@@ -1645,56 +2158,106 @@ function TransactionEditRow({
 
   return (
     <>
-    <div
-      className="register-row register-row-editing"
-      onKeyDown={(event) => {
-        if (event.key === "Enter" && !(event.target instanceof HTMLTextAreaElement)) {
-          save();
-        }
+      <div
+        className="register-row register-row-editing"
+        style={rowStyle}
+        onKeyDown={(event) => {
+          if (
+            event.key === "Enter" &&
+            !(event.target instanceof HTMLTextAreaElement)
+          ) {
+            save();
+          }
 
-        if (event.key === "Escape") {
-          onCancel();
-        }
-      }}
-    >
-      <span className="register-checkbox" aria-hidden="true" />
-      <RegisterDateField value={date} onChange={setDate} autoFocus />
-      <InlineFlagPicker value={flag} onChange={setFlag} />
-      <AttachmentIndicator
-        count={transaction.attachmentCount}
-        onClick={() => onManageTransactionAttachments(transaction.id)}
-      />
-      <PayeeInput
-        value={payee}
-        onChange={(value) => {
-          setPayee(value);
-          setPayeeId(undefined);
+          if (event.key === "Escape") {
+            onCancel();
+          }
         }}
-        onPayeeIdChange={setPayeeId}
-        transferAccounts={transferAccounts}
-        payeeOptions={payeeOptions}
-      />
-      <CategoryInput
-        value={category}
-        onChange={handleCategoryChange}
+      >
+        <span className="register-checkbox" aria-hidden="true" />
+        <RegisterDateField value={date} onChange={setDate} autoFocus />
+        {isRegisterColumnVisible("flag", visibleColumns) ? (
+          <InlineFlagPicker value={flag} onChange={setFlag} />
+        ) : null}
+        {isRegisterColumnVisible("attachments", visibleColumns) ? (
+          <AttachmentIndicator
+            count={transaction.attachmentCount}
+            onClick={() => onManageTransactionAttachments(transaction.id)}
+          />
+        ) : null}
+        <PayeeInput
+          value={payee}
+          onChange={(value) => {
+            setPayee(value);
+            setPayeeId(undefined);
+          }}
+          onPayeeIdChange={setPayeeId}
+          transferAccounts={transferAccounts}
+          payeeOptions={payeeOptions}
+        />
+        <CategoryInput
+          value={category}
+          onChange={handleCategoryChange}
+          categoryOptions={categoryOptions}
+        />
+        {isRegisterColumnVisible("memo", visibleColumns) ? (
+          <input
+            value={memo}
+            onChange={(event) => setMemo(event.target.value)}
+            placeholder="Memo"
+          />
+        ) : null}
+        {isRegisterColumnVisible("checkNumber", visibleColumns) ? (
+          <input
+            value={checkNumber}
+            onChange={(event) => setCheckNumber(event.target.value)}
+            placeholder="Check #"
+          />
+        ) : null}
+        <input
+          value={outflow}
+          onChange={(event) => setOutflow(event.target.value)}
+          placeholder="Outflow"
+          inputMode="decimal"
+          disabled={splitLines.length > 0}
+        />
+        <input
+          value={inflow}
+          onChange={(event) => setInflow(event.target.value)}
+          placeholder="Inflow"
+          inputMode="decimal"
+          disabled={splitLines.length > 0}
+        />
+
+        <div className="register-edit-actions">
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={save}
+          >
+            Save
+          </button>
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={toggleSplitEditor}
+          >
+            Split
+          </button>
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+      <SplitEditor
+        splitLines={splitLines}
+        setSplitLines={setSplitLines}
         categoryOptions={categoryOptions}
       />
-      <input value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="Memo" />
-      <input value={checkNumber} onChange={(event) => setCheckNumber(event.target.value)} placeholder="Check #" />
-      <input value={outflow} onChange={(event) => setOutflow(event.target.value)} placeholder="Outflow" inputMode="decimal" disabled={splitLines.length > 0} />
-      <input value={inflow} onChange={(event) => setInflow(event.target.value)} placeholder="Inflow" inputMode="decimal" disabled={splitLines.length > 0} />
-
-      <div className="register-edit-actions">
-        <button className="button button-primary" type="button" onClick={save}>Save</button>
-        <button className="button button-secondary" type="button" onClick={toggleSplitEditor}>Split</button>
-        <button className="button button-secondary" type="button" onClick={onCancel}>Cancel</button>
-      </div>
-    </div>
-    <SplitEditor
-      splitLines={splitLines}
-      setSplitLines={setSplitLines}
-      categoryOptions={categoryOptions}
-    />
     </>
   );
 }
@@ -1708,7 +2271,11 @@ function TransactionStatus({
 }) {
   if (transaction.reconciled) {
     return (
-      <button className="register-status register-status-reconciled" type="button" title="Reconciled">
+      <button
+        className="register-status register-status-reconciled"
+        type="button"
+        title="Reconciled"
+      >
         R
       </button>
     );
@@ -1753,6 +2320,8 @@ const TransactionRow = memo(function TransactionRow({
   onToggleClearedTransaction,
   onManageTransactionAttachments,
   onUpdateTransactionFlag,
+  visibleColumns,
+  rowStyle,
 }: {
   transaction: RegisterTransactionView;
   currencyCode: string;
@@ -1762,55 +2331,84 @@ const TransactionRow = memo(function TransactionRow({
   onEditTransaction: (transactionId: string) => void;
   onToggleClearedTransaction: (transactionId: string) => void;
   onManageTransactionAttachments: (transactionId: string) => void;
-  onUpdateTransactionFlag: (transaction: RegisterTransactionView, flag: TransactionFlag) => void;
+  onUpdateTransactionFlag: (
+    transaction: RegisterTransactionView,
+    flag: TransactionFlag,
+  ) => void;
+  visibleColumns: Set<RegisterOptionalColumnId>;
+  rowStyle: CSSProperties;
 }) {
   return (
     <button
       type="button"
-      className={isSelected ? "register-row register-row-selected" : "register-row"}
+      className={
+        isSelected ? "register-row register-row-selected" : "register-row"
+      }
       onClick={() => onSelectTransaction(transaction.id)}
       onDoubleClick={() => onEditTransaction(transaction.id)}
+      style={rowStyle}
     >
       <span className="register-checkbox" aria-hidden="true" />
       <span>{formatDateForDisplay(transaction.date, dateFormat)}</span>
-      <InlineFlagPicker
-        value={transaction.flag}
-        onChange={(flag) => onUpdateTransactionFlag(transaction, flag)}
-      />
-      <AttachmentIndicator
-        count={transaction.attachmentCount}
-        onClick={() => onManageTransactionAttachments(transaction.id)}
-      />
+      {isRegisterColumnVisible("flag", visibleColumns) ? (
+        <InlineFlagPicker
+          value={transaction.flag}
+          onChange={(flag) => onUpdateTransactionFlag(transaction, flag)}
+        />
+      ) : null}
+      {isRegisterColumnVisible("attachments", visibleColumns) ? (
+        <AttachmentIndicator
+          count={transaction.attachmentCount}
+          onClick={() => onManageTransactionAttachments(transaction.id)}
+        />
+      ) : null}
 
       <div className="register-payee-cell">
         <strong>{transaction.payee}</strong>
       </div>
 
       <span>{transaction.category}</span>
-      <span className="register-memo-cell">{transaction.memo ?? ""}</span>
-      <span className="register-check-number-cell">{transaction.checkNumber ?? ""}</span>
+      {isRegisterColumnVisible("memo", visibleColumns) ? (
+        <span className="register-memo-cell">{transaction.memo ?? ""}</span>
+      ) : null}
+      {isRegisterColumnVisible("checkNumber", visibleColumns) ? (
+        <span className="register-check-number-cell">
+          {transaction.checkNumber ?? ""}
+        </span>
+      ) : null}
 
       <span className="register-money register-outflow">
-        {transaction.outflow ? formatMoney(transaction.outflow, currencyCode) : ""}
+        {transaction.outflow
+          ? formatMoney(transaction.outflow, currencyCode)
+          : ""}
       </span>
 
       <span className="register-money register-inflow">
-        {transaction.inflow ? formatMoney(transaction.inflow, currencyCode) : ""}
+        {transaction.inflow
+          ? formatMoney(transaction.inflow, currencyCode)
+          : ""}
       </span>
 
-      <strong className="register-balance">
-        {formatMoney(transaction.runningBalance, currencyCode)}
-      </strong>
+      {isRegisterColumnVisible("runningBalance", visibleColumns) ? (
+        <strong className="register-balance">
+          {formatMoney(transaction.runningBalance, currencyCode)}
+        </strong>
+      ) : null}
 
-      <TransactionStatus
-        transaction={transaction}
-        onToggleCleared={() => onToggleClearedTransaction(transaction.id)}
-      />
+      {isRegisterColumnVisible("status", visibleColumns) ? (
+        <TransactionStatus
+          transaction={transaction}
+          onToggleCleared={() => onToggleClearedTransaction(transaction.id)}
+        />
+      ) : null}
     </button>
   );
 });
 
-function clampPageForTransactionCount(page: number, transactionCount: number): number {
+function clampPageForTransactionCount(
+  page: number,
+  transactionCount: number,
+): number {
   return getRegisterPaginationState(
     transactionCount,
     page,
@@ -1827,7 +2425,8 @@ export function AccountRegisterPage() {
   const accountsPersistence = persistenceGateway.accounts;
   const payeesPersistence = persistenceGateway.payees;
   const categoriesPersistence = persistenceGateway.categories;
-  const scheduledTransactionsPersistence = persistenceGateway.scheduledTransactions;
+  const scheduledTransactionsPersistence =
+    persistenceGateway.scheduledTransactions;
   const {
     data,
     isLoading,
@@ -1845,22 +2444,42 @@ export function AccountRegisterPage() {
   } = useAccountRegister(accountId);
 
   const [showEntryRow, setShowEntryRow] = useState(false);
-  const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
-  const [lastEntryDate, setLastEntryDate] = useState(new Date().toISOString().slice(0, 10));
-  const [categoryOptions, setCategoryOptions] = useState<BudgetCategoryOption[]>([]);
+  const [editingTransactionId, setEditingTransactionId] = useState<
+    string | null
+  >(null);
+  const [lastEntryDate, setLastEntryDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [categoryOptions, setCategoryOptions] = useState<
+    BudgetCategoryOption[]
+  >([]);
   const [payeeOptions, setPayeeOptions] = useState<PayeeView[]>([]);
-  const [archivedPayeeOptions, setArchivedPayeeOptions] = useState<PayeeView[]>([]);
-  const [transferAccounts, setTransferAccounts] = useState<SidebarAccount[]>([]);
+  const [archivedPayeeOptions, setArchivedPayeeOptions] = useState<PayeeView[]>(
+    [],
+  );
+  const [transferAccounts, setTransferAccounts] = useState<SidebarAccount[]>(
+    [],
+  );
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
+  const [visibleRegisterColumns, setVisibleRegisterColumns] = useState<
+    RegisterOptionalColumnId[]
+  >(() => readRegisterColumnPreferences(activeBudgetId));
   const [isPayeeManagerOpen, setIsPayeeManagerOpen] = useState(false);
   const [selectedPayeeId, setSelectedPayeeId] = useState<string | null>(null);
   const [payeeRenameDraft, setPayeeRenameDraft] = useState("");
   const [payeeMergeTargetId, setPayeeMergeTargetId] = useState("");
-  const [payeeManagerMessage, setPayeeManagerMessage] = useState<string | null>(null);
-  const [payeeManagerError, setPayeeManagerError] = useState<string | null>(null);
-  const [attachmentTransactionId, setAttachmentTransactionId] = useState<string | null>(null);
+  const [payeeManagerMessage, setPayeeManagerMessage] = useState<string | null>(
+    null,
+  );
+  const [payeeManagerError, setPayeeManagerError] = useState<string | null>(
+    null,
+  );
+  const [attachmentTransactionId, setAttachmentTransactionId] = useState<
+    string | null
+  >(null);
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
   const [registerPage, setRegisterPage] = useState(1);
   const dateFormat = useDateFormatPreference();
@@ -1875,6 +2494,46 @@ export function AccountRegisterPage() {
   useEffect(() => {
     setRegisterPage(1);
   }, [accountId]);
+
+  useEffect(() => {
+    setVisibleRegisterColumns(readRegisterColumnPreferences(activeBudgetId));
+    setIsColumnsMenuOpen(false);
+  }, [activeBudgetId]);
+
+  const visibleRegisterColumnSet = useMemo(
+    () => createVisibleRegisterColumnSet(visibleRegisterColumns),
+    [visibleRegisterColumns],
+  );
+
+  const registerDisplayRowStyle = useMemo(
+    () => buildRegisterRowStyle(visibleRegisterColumnSet),
+    [visibleRegisterColumnSet],
+  );
+
+  const registerEditRowStyle = useMemo(
+    () => buildRegisterRowStyle(visibleRegisterColumnSet, "edit"),
+    [visibleRegisterColumnSet],
+  );
+
+  function handleToggleRegisterColumn(column: RegisterOptionalColumnId) {
+    setVisibleRegisterColumns((current) => {
+      const currentSet = createVisibleRegisterColumnSet(current);
+      const next = currentSet.has(column)
+        ? current.filter((visibleColumn) => visibleColumn !== column)
+        : REGISTER_OPTIONAL_COLUMNS.filter(
+            (optionalColumn) => currentSet.has(optionalColumn) || optionalColumn === column,
+          );
+
+      writeRegisterColumnPreferences(activeBudgetId, next);
+      return next;
+    });
+  }
+
+  function handleResetRegisterColumns() {
+    setVisibleRegisterColumns(DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS);
+    writeRegisterColumnPreferences(activeBudgetId, DEFAULT_VISIBLE_REGISTER_OPTIONAL_COLUMNS);
+    setIsColumnsMenuOpen(false);
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -1901,7 +2560,6 @@ export function AccountRegisterPage() {
       isMounted = false;
     };
   }, [activeBudgetId, categoriesPersistence]);
-
 
   async function refreshPayees(): Promise<PayeeView[]> {
     const [payees, archivedPayees] = await Promise.all([
@@ -1937,7 +2595,9 @@ export function AccountRegisterPage() {
 
     accountsPersistence.listAccounts().then((loadedAccounts) => {
       if (active) {
-        setTransferAccounts(loadedAccounts.filter((account) => account.id !== accountId));
+        setTransferAccounts(
+          loadedAccounts.filter((account) => account.id !== accountId),
+        );
       }
     });
 
@@ -1986,7 +2646,13 @@ export function AccountRegisterPage() {
         developerPerformanceMode,
         registerPerformanceTimingsRef.current,
         "transaction index",
-        () => new Map(registerTransactions.map((transaction) => [transaction.id, transaction])),
+        () =>
+          new Map(
+            registerTransactions.map((transaction) => [
+              transaction.id,
+              transaction,
+            ]),
+          ),
       ),
     [registerTransactions, developerPerformanceMode],
   );
@@ -2003,10 +2669,19 @@ export function AccountRegisterPage() {
             developerPerformanceMode,
             registerPerformanceTimingsRef.current,
             "payee summary build",
-            () => buildPayeeRegisterSummaries(allManagedPayees, registerTransactions),
+            () =>
+              buildPayeeRegisterSummaries(
+                allManagedPayees,
+                registerTransactions,
+              ),
           )
         : [],
-    [allManagedPayees, registerTransactions, isPayeeManagerOpen, developerPerformanceMode],
+    [
+      allManagedPayees,
+      registerTransactions,
+      isPayeeManagerOpen,
+      developerPerformanceMode,
+    ],
   );
 
   const activePayeeSummaries = useMemo(
@@ -2020,14 +2695,18 @@ export function AccountRegisterPage() {
   );
 
   const selectedPayeeSummary = useMemo(
-    () => payeeSummaries.find((summary) => summary.payee.id === selectedPayeeId) ?? null,
+    () =>
+      payeeSummaries.find((summary) => summary.payee.id === selectedPayeeId) ??
+      null,
     [payeeSummaries, selectedPayeeId],
   );
 
   const mergeTargetOptions = useMemo(
     () =>
       selectedPayeeSummary
-        ? activePayeeSummaries.filter((summary) => summary.payee.id !== selectedPayeeSummary.payee.id)
+        ? activePayeeSummaries.filter(
+            (summary) => summary.payee.id !== selectedPayeeSummary.payee.id,
+          )
         : [],
     [activePayeeSummaries, selectedPayeeSummary],
   );
@@ -2047,53 +2726,68 @@ export function AccountRegisterPage() {
     timings: registerPerformanceTimingsRef.current,
   });
 
+  const handleSelectTransaction = useCallback(
+    (transactionId: string) => {
+      selectTransaction(transactionId);
+    },
+    [selectTransaction],
+  );
 
-  const handleSelectTransaction = useCallback((transactionId: string) => {
-    selectTransaction(transactionId);
-  }, [selectTransaction]);
+  const handleEditTransaction = useCallback(
+    (transactionId: string) => {
+      selectTransaction(transactionId);
+      setShowEntryRow(false);
+      setEditingTransactionId(transactionId);
+    },
+    [selectTransaction],
+  );
 
-  const handleEditTransaction = useCallback((transactionId: string) => {
-    selectTransaction(transactionId);
-    setShowEntryRow(false);
-    setEditingTransactionId(transactionId);
-  }, [selectTransaction]);
+  const handleToggleClearedTransaction = useCallback(
+    (transactionId: string) => {
+      void toggleCleared(transactionId);
+    },
+    [toggleCleared],
+  );
 
-  const handleToggleClearedTransaction = useCallback((transactionId: string) => {
-    void toggleCleared(transactionId);
-  }, [toggleCleared]);
+  const handleManageTransactionAttachments = useCallback(
+    (transactionId: string) => {
+      selectTransaction(transactionId);
+      setAttachmentTransactionId(transactionId);
+    },
+    [selectTransaction],
+  );
 
-  const handleManageTransactionAttachments = useCallback((transactionId: string) => {
-    selectTransaction(transactionId);
-    setAttachmentTransactionId(transactionId);
-  }, [selectTransaction]);
+  const handleUpdateTransactionFlag = useCallback(
+    (transaction: RegisterTransactionView, flag: TransactionFlag) => {
+      if (transaction.flag === flag) {
+        return;
+      }
 
-  const handleUpdateTransactionFlag = useCallback((
-    transaction: RegisterTransactionView,
-    flag: TransactionFlag,
-  ) => {
-    if (transaction.flag === flag) {
-      return;
-    }
-
-    void updateTransaction({
-      id: transaction.id,
-      date: transaction.date,
-      flag,
-      payee: transaction.payee,
-      payeeId: transaction.payeeId,
-      category: transaction.category,
-      categoryId: transaction.categoryId,
-      memo: transaction.memo,
-      checkNumber: transaction.checkNumber,
-      inflow: transaction.inflow,
-      outflow: transaction.outflow,
-      splitLines: transaction.splitLines,
-    });
-  }, [updateTransaction]);
+      void updateTransaction({
+        id: transaction.id,
+        date: transaction.date,
+        flag,
+        payee: transaction.payee,
+        payeeId: transaction.payeeId,
+        category: transaction.category,
+        categoryId: transaction.categoryId,
+        memo: transaction.memo,
+        checkNumber: transaction.checkNumber,
+        inflow: transaction.inflow,
+        outflow: transaction.outflow,
+        splitLines: transaction.splitLines,
+      });
+    },
+    [updateTransaction],
+  );
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Enter" || !selectedTransactionId || editingTransactionId) {
+      if (
+        event.key !== "Enter" ||
+        !selectedTransactionId ||
+        editingTransactionId
+      ) {
         return;
       }
 
@@ -2144,7 +2838,7 @@ export function AccountRegisterPage() {
   }
 
   const attachmentTransaction = attachmentTransactionId
-    ? transactionById.get(attachmentTransactionId) ?? null
+    ? (transactionById.get(attachmentTransactionId) ?? null)
     : null;
 
   async function handleRenamePayee() {
@@ -2169,11 +2863,14 @@ export function AccountRegisterPage() {
 
     const duplicate = allManagedPayees.find(
       (payee) =>
-        payee.id !== selectedPayeeSummary.payee.id && hasSamePayeeName(payee.name, nextName),
+        payee.id !== selectedPayeeSummary.payee.id &&
+        hasSamePayeeName(payee.name, nextName),
     );
 
     if (duplicate) {
-      setPayeeManagerError("Another payee already uses that name. Merge payees will be added separately.");
+      setPayeeManagerError(
+        "Another payee already uses that name. Merge payees will be added separately.",
+      );
       return;
     }
 
@@ -2210,7 +2907,9 @@ export function AccountRegisterPage() {
     const payeeName = selectedPayeeSummary.payee.name;
     await payeesPersistence.archivePayee(selectedPayeeSummary.payee.id);
     await refreshPayees();
-    setPayeeManagerMessage(`Archived ${payeeName}. Existing transactions still keep this payee.`);
+    setPayeeManagerMessage(
+      `Archived ${payeeName}. Existing transactions still keep this payee.`,
+    );
   }
 
   async function handleRestoreSelectedPayee() {
@@ -2224,7 +2923,9 @@ export function AccountRegisterPage() {
     const payeeName = selectedPayeeSummary.payee.name;
     await payeesPersistence.restorePayee(selectedPayeeSummary.payee.id);
     await refreshPayees();
-    setPayeeManagerMessage(`Restored ${payeeName}. It will appear in payee suggestions again.`);
+    setPayeeManagerMessage(
+      `Restored ${payeeName}. It will appear in payee suggestions again.`,
+    );
   }
 
   async function handleMergeSelectedPayee() {
@@ -2236,11 +2937,15 @@ export function AccountRegisterPage() {
     setPayeeManagerError(null);
 
     if (selectedPayeeSummary.payee.isArchived) {
-      setPayeeManagerError("Restore this payee before merging it into another payee.");
+      setPayeeManagerError(
+        "Restore this payee before merging it into another payee.",
+      );
       return;
     }
 
-    const targetSummary = activePayeeSummaries.find((summary) => summary.payee.id === payeeMergeTargetId);
+    const targetSummary = activePayeeSummaries.find(
+      (summary) => summary.payee.id === payeeMergeTargetId,
+    );
 
     if (!targetSummary) {
       setPayeeManagerError("Choose an active target payee before merging.");
@@ -2271,7 +2976,9 @@ export function AccountRegisterPage() {
     setSelectedPayeeId(targetPayee.id);
     setPayeeRenameDraft(targetPayee.name);
     setPayeeMergeTargetId("");
-    setPayeeManagerMessage(`Merged ${sourcePayee.name} into ${targetPayee.name}. Historical references now use ${targetPayee.name}.`);
+    setPayeeManagerMessage(
+      `Merged ${sourcePayee.name} into ${targetPayee.name}. Historical references now use ${targetPayee.name}.`,
+    );
   }
 
   return (
@@ -2279,7 +2986,9 @@ export function AccountRegisterPage() {
       <section className="register-clean-header">
         <div>
           <h1>{data.accountName}</h1>
-          <p className="muted">Keyboard-first date entry · Save & add another</p>
+          <p className="muted">
+            Keyboard-first date entry · Save & add another
+          </p>
         </div>
 
         <div className="register-main-balance">
@@ -2308,7 +3017,22 @@ export function AccountRegisterPage() {
               aria-label="Search transactions"
             />
 
-            <button className="button button-secondary" type="button" onClick={() => setIsTransactionImportOpen(true)}>
+            <RegisterColumnsMenu
+              visibleColumns={visibleRegisterColumnSet}
+              isOpen={isColumnsMenuOpen}
+              onToggleOpen={() => {
+                setIsColumnsMenuOpen((current) => !current);
+                setIsMoreMenuOpen(false);
+              }}
+              onToggleColumn={handleToggleRegisterColumn}
+              onReset={handleResetRegisterColumns}
+            />
+
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() => setIsTransactionImportOpen(true)}
+            >
               Import
             </button>
 
@@ -2348,7 +3072,8 @@ export function AccountRegisterPage() {
                       setIsMoreMenuOpen(false);
                     }}
                   >
-                    Scheduled Transactions{scheduledDueCount > 0 ? ` (${scheduledDueCount})` : ""}
+                    Scheduled Transactions
+                    {scheduledDueCount > 0 ? ` (${scheduledDueCount})` : ""}
                   </button>
                 </div>
               )}
@@ -2375,7 +3100,10 @@ export function AccountRegisterPage() {
               <div className="payee-manager-header">
                 <div>
                   <h2>Manage Payees</h2>
-                  <p>Archive unused payees without changing historical transactions.</p>
+                  <p>
+                    Archive unused payees without changing historical
+                    transactions.
+                  </p>
                 </div>
 
                 <button
@@ -2387,16 +3115,25 @@ export function AccountRegisterPage() {
                 </button>
               </div>
 
-              {payeeManagerError && <p className="payee-manager-error">{payeeManagerError}</p>}
-              {payeeManagerMessage && <p className="payee-manager-message">{payeeManagerMessage}</p>}
+              {payeeManagerError && (
+                <p className="payee-manager-error">{payeeManagerError}</p>
+              )}
+              {payeeManagerMessage && (
+                <p className="payee-manager-message">{payeeManagerMessage}</p>
+              )}
 
               {payeeSummaries.length === 0 ? (
                 <p className="payee-manager-placeholder">
-                  No saved payees yet. Payees will appear here after you enter transactions.
+                  No saved payees yet. Payees will appear here after you enter
+                  transactions.
                 </p>
               ) : (
                 <div className="payee-manager-content">
-                  <div className="payee-manager-list" role="table" aria-label="Saved payees">
+                  <div
+                    className="payee-manager-list"
+                    role="table"
+                    aria-label="Saved payees"
+                  >
                     <div className="payee-manager-list-head" role="row">
                       <span>Payee</span>
                       <span>Register transactions</span>
@@ -2410,7 +3147,9 @@ export function AccountRegisterPage() {
                     {activePayeeSummaries.map((summary) => (
                       <button
                         className={`payee-manager-list-row${
-                          selectedPayeeId === summary.payee.id ? " payee-manager-list-row-selected" : ""
+                          selectedPayeeId === summary.payee.id
+                            ? " payee-manager-list-row-selected"
+                            : ""
                         }`}
                         type="button"
                         role="row"
@@ -2427,18 +3166,24 @@ export function AccountRegisterPage() {
                           <strong>{summary.payee.name}</strong>
                         </span>
                         <span>{summary.registerTransactionCount}</span>
-                        <span>{formatPayeeLastUsed(summary.lastUsed, dateFormat)}</span>
+                        <span>
+                          {formatPayeeLastUsed(summary.lastUsed, dateFormat)}
+                        </span>
                       </button>
                     ))}
 
                     {archivedPayeeSummaries.length > 0 && (
-                      <div className="payee-manager-section-label">Archived</div>
+                      <div className="payee-manager-section-label">
+                        Archived
+                      </div>
                     )}
 
                     {archivedPayeeSummaries.map((summary) => (
                       <button
                         className={`payee-manager-list-row payee-manager-list-row-archived${
-                          selectedPayeeId === summary.payee.id ? " payee-manager-list-row-selected" : ""
+                          selectedPayeeId === summary.payee.id
+                            ? " payee-manager-list-row-selected"
+                            : ""
                         }`}
                         type="button"
                         role="row"
@@ -2456,21 +3201,35 @@ export function AccountRegisterPage() {
                           <em>Archived</em>
                         </span>
                         <span>{summary.registerTransactionCount}</span>
-                        <span>{formatPayeeLastUsed(summary.lastUsed, dateFormat)}</span>
+                        <span>
+                          {formatPayeeLastUsed(summary.lastUsed, dateFormat)}
+                        </span>
                       </button>
                     ))}
                   </div>
 
-                  <aside className="payee-manager-detail" aria-label="Selected payee details">
+                  <aside
+                    className="payee-manager-detail"
+                    aria-label="Selected payee details"
+                  >
                     {selectedPayeeSummary ? (
                       <>
                         <div>
                           <h3>{selectedPayeeSummary.payee.name}</h3>
                           <p className="muted">
-                            {selectedPayeeSummary.payee.isArchived ? "Archived" : "Active"} ·{" "}
-                            {selectedPayeeSummary.registerTransactionCount} register transaction
-                            {selectedPayeeSummary.registerTransactionCount === 1 ? "" : "s"} · Last used{" "}
-                            {formatPayeeLastUsed(selectedPayeeSummary.lastUsed, dateFormat)}
+                            {selectedPayeeSummary.payee.isArchived
+                              ? "Archived"
+                              : "Active"}{" "}
+                            · {selectedPayeeSummary.registerTransactionCount}{" "}
+                            register transaction
+                            {selectedPayeeSummary.registerTransactionCount === 1
+                              ? ""
+                              : "s"}{" "}
+                            · Last used{" "}
+                            {formatPayeeLastUsed(
+                              selectedPayeeSummary.lastUsed,
+                              dateFormat,
+                            )}
                           </p>
                         </div>
 
@@ -2479,32 +3238,42 @@ export function AccountRegisterPage() {
                           <input
                             className="text-input"
                             value={payeeRenameDraft}
-                            onChange={(event) => setPayeeRenameDraft(event.target.value)}
+                            onChange={(event) =>
+                              setPayeeRenameDraft(event.target.value)
+                            }
                           />
                         </label>
 
-                        {!selectedPayeeSummary.payee.isArchived && mergeTargetOptions.length > 0 && (
-                          <div className="payee-manager-merge-box">
-                            <label className="field-label">
-                              Merge into
-                              <select
-                                className="text-input"
-                                value={payeeMergeTargetId}
-                                onChange={(event) => setPayeeMergeTargetId(event.target.value)}
-                              >
-                                <option value="">Choose target payee…</option>
-                                {mergeTargetOptions.map((summary) => (
-                                  <option key={summary.payee.id} value={summary.payee.id}>
-                                    {summary.payee.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <p className="muted">
-                              Merge reassigns existing transactions and scheduled transactions to the target, then archives this payee.
-                            </p>
-                          </div>
-                        )}
+                        {!selectedPayeeSummary.payee.isArchived &&
+                          mergeTargetOptions.length > 0 && (
+                            <div className="payee-manager-merge-box">
+                              <label className="field-label">
+                                Merge into
+                                <select
+                                  className="text-input"
+                                  value={payeeMergeTargetId}
+                                  onChange={(event) =>
+                                    setPayeeMergeTargetId(event.target.value)
+                                  }
+                                >
+                                  <option value="">Choose target payee…</option>
+                                  {mergeTargetOptions.map((summary) => (
+                                    <option
+                                      key={summary.payee.id}
+                                      value={summary.payee.id}
+                                    >
+                                      {summary.payee.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <p className="muted">
+                                Merge reassigns existing transactions and
+                                scheduled transactions to the target, then
+                                archives this payee.
+                              </p>
+                            </div>
+                          )}
 
                         <div className="payee-manager-detail-actions">
                           <button
@@ -2554,7 +3323,9 @@ export function AccountRegisterPage() {
                         </div>
                       </>
                     ) : (
-                      <p className="payee-manager-placeholder">Select a payee to rename, archive, or restore it.</p>
+                      <p className="payee-manager-placeholder">
+                        Select a payee to rename, archive, or restore it.
+                      </p>
                     )}
                   </aside>
                 </div>
@@ -2599,21 +3370,36 @@ export function AccountRegisterPage() {
         {selectedTransactionId && !editingTransactionId && (
           <div className="register-selection-bar">
             <span>1 selected</span>
-            <button type="button" onClick={() => setEditingTransactionId(selectedTransactionId)}>
+            <button
+              type="button"
+              onClick={() => setEditingTransactionId(selectedTransactionId)}
+            >
               Edit
             </button>
-            <button type="button" onClick={() => setAttachmentTransactionId(selectedTransactionId)}>
+            <button
+              type="button"
+              onClick={() => setAttachmentTransactionId(selectedTransactionId)}
+            >
               Attach
             </button>
-            <button type="button" disabled>Duplicate</button>
-            <button type="button" disabled>Move</button>
-            <button type="button" disabled>Flag</button>
-            <button type="button" disabled>Add note</button>
+            <button type="button" disabled>
+              Duplicate
+            </button>
+            <button type="button" disabled>
+              Move
+            </button>
+            <button type="button" disabled>
+              Flag
+            </button>
+            <button type="button" disabled>
+              Add note
+            </button>
             <button
               type="button"
               onClick={() => {
                 const confirmed = confirmDialog({
-                  message: "Delete this transaction? This cannot be undone yet.",
+                  message:
+                    "Delete this transaction? This cannot be undone yet.",
                 });
 
                 if (!confirmed) {
@@ -2630,21 +3416,30 @@ export function AccountRegisterPage() {
         )}
 
         <div className="register-table">
-          <div className="register-row register-head register-row-with-attachments">
+          <div
+            className="register-row register-head register-row-with-attachments"
+            style={registerDisplayRowStyle}
+          >
             <span />
             <span>Date</span>
-            <span>Flag</span>
-            <span className="register-head-icon" aria-label="Attachments">
-              <Paperclip size={13} />
-            </span>
+            {isRegisterColumnVisible("flag", visibleRegisterColumnSet) ? <span>Flag</span> : null}
+            {isRegisterColumnVisible("attachments", visibleRegisterColumnSet) ? (
+              <span className="register-head-icon" aria-label="Attachments">
+                <Paperclip size={13} />
+              </span>
+            ) : null}
             <span>Payee</span>
             <span>Category</span>
-            <span>Memo</span>
-            <span>Check #</span>
+            {isRegisterColumnVisible("memo", visibleRegisterColumnSet) ? <span>Memo</span> : null}
+            {isRegisterColumnVisible("checkNumber", visibleRegisterColumnSet) ? (
+              <span>Check #</span>
+            ) : null}
             <span>Outflow</span>
             <span>Inflow</span>
-            <span>Balance</span>
-            <span>C</span>
+            {isRegisterColumnVisible("runningBalance", visibleRegisterColumnSet) ? (
+              <span>Balance</span>
+            ) : null}
+            {isRegisterColumnVisible("status", visibleRegisterColumnSet) ? <span>C</span> : null}
           </div>
 
           {visibleTransactions.map((transaction) =>
@@ -2660,7 +3455,11 @@ export function AccountRegisterPage() {
                   setEditingTransactionId(null);
                 }}
                 onCancel={() => setEditingTransactionId(null)}
-                onManageTransactionAttachments={handleManageTransactionAttachments}
+                onManageTransactionAttachments={
+                  handleManageTransactionAttachments
+                }
+                visibleColumns={visibleRegisterColumnSet}
+                rowStyle={registerEditRowStyle}
               />
             ) : (
               <TransactionRow
@@ -2672,8 +3471,12 @@ export function AccountRegisterPage() {
                 onSelectTransaction={handleSelectTransaction}
                 onEditTransaction={handleEditTransaction}
                 onToggleClearedTransaction={handleToggleClearedTransaction}
-                onManageTransactionAttachments={handleManageTransactionAttachments}
+                onManageTransactionAttachments={
+                  handleManageTransactionAttachments
+                }
                 onUpdateTransactionFlag={handleUpdateTransactionFlag}
+                visibleColumns={visibleRegisterColumnSet}
+                rowStyle={registerDisplayRowStyle}
               />
             ),
           )}
@@ -2681,20 +3484,23 @@ export function AccountRegisterPage() {
 
         <div className="register-pagination" aria-label="Register pagination">
           <span>
-            Showing {registerPagination.visibleStart}–{registerPagination.visibleEnd} of{" "}
-            {registerPagination.totalItems}
+            Showing {registerPagination.visibleStart}–
+            {registerPagination.visibleEnd} of {registerPagination.totalItems}
           </span>
           <div className="register-pagination-controls">
             <button
               className="button button-secondary"
               type="button"
               disabled={!registerPagination.hasPreviousPage}
-              onClick={() => setRegisterPage((currentPage) => Math.max(1, currentPage - 1))}
+              onClick={() =>
+                setRegisterPage((currentPage) => Math.max(1, currentPage - 1))
+              }
             >
               Previous
             </button>
             <strong>
-              Page {registerPagination.currentPage} of {registerPagination.totalPages}
+              Page {registerPagination.currentPage} of{" "}
+              {registerPagination.totalPages}
             </strong>
             <button
               className="button button-secondary"
@@ -2721,25 +3527,42 @@ export function AccountRegisterPage() {
               <h3>Register diagnostics</h3>
               <p className="muted">
                 {registerPerformanceSnapshot.visibleTransactions} visible of{" "}
-                {registerPerformanceSnapshot.totalTransactions} transactions · page{" "}
-                {registerPerformanceSnapshot.currentPage} of {registerPerformanceSnapshot.totalPages}
+                {registerPerformanceSnapshot.totalTransactions} transactions ·
+                page {registerPerformanceSnapshot.currentPage} of{" "}
+                {registerPerformanceSnapshot.totalPages}
               </p>
             </div>
             <div className="register-performance-grid">
               <span>
-                <strong>{formatPerformanceMs(registerPerformanceSnapshot.renderElapsedMs)}</strong>
+                <strong>
+                  {formatPerformanceMs(
+                    registerPerformanceSnapshot.renderElapsedMs,
+                  )}
+                </strong>
                 <small>Render pass</small>
               </span>
               <span>
-                <strong>{formatPerformanceMs(registerPerformanceSnapshot.timings["visible pagination"])}</strong>
+                <strong>
+                  {formatPerformanceMs(
+                    registerPerformanceSnapshot.timings["visible pagination"],
+                  )}
+                </strong>
                 <small>Pagination</small>
               </span>
               <span>
-                <strong>{formatPerformanceMs(registerPerformanceSnapshot.timings["transaction index"])}</strong>
+                <strong>
+                  {formatPerformanceMs(
+                    registerPerformanceSnapshot.timings["transaction index"],
+                  )}
+                </strong>
                 <small>Transaction index</small>
               </span>
               <span>
-                <strong>{formatPerformanceMs(registerPerformanceSnapshot.timings["payee summary build"])}</strong>
+                <strong>
+                  {formatPerformanceMs(
+                    registerPerformanceSnapshot.timings["payee summary build"],
+                  )}
+                </strong>
                 <small>Payee summaries</small>
               </span>
               <span>
@@ -2747,7 +3570,11 @@ export function AccountRegisterPage() {
                 <small>Rows per page</small>
               </span>
               <span>
-                <strong>{registerPerformanceSnapshot.payeeManagerOpen ? "Open" : "Closed"}</strong>
+                <strong>
+                  {registerPerformanceSnapshot.payeeManagerOpen
+                    ? "Open"
+                    : "Closed"}
+                </strong>
                 <small>Payee manager</small>
               </span>
             </div>
@@ -2759,7 +3586,9 @@ export function AccountRegisterPage() {
         <AttachmentManager
           transaction={attachmentTransaction}
           onClose={() => setAttachmentTransactionId(null)}
-          onAddAttachment={(file) => addAttachment(attachmentTransaction.id, file)}
+          onAddAttachment={(file) =>
+            addAttachment(attachmentTransaction.id, file)
+          }
           onRemoveAttachment={(attachmentId) =>
             removeAttachment(attachmentTransaction.id, attachmentId)
           }
@@ -2767,16 +3596,40 @@ export function AccountRegisterPage() {
       )}
 
       <div className="register-legend">
-        <span><span className="transaction-flag transaction-flag-red" /> Needs attention</span>
-        <span><span className="transaction-flag transaction-flag-orange" /> Waiting for receipt</span>
-        <span><span className="transaction-flag transaction-flag-yellow" /> Tax related</span>
-        <span><span className="transaction-flag transaction-flag-green" /> Reimbursable</span>
-        <span><span className="transaction-flag transaction-flag-blue" /> Business</span>
-        <span><span className="transaction-flag transaction-flag-purple" /> Review later</span>
+        <span>
+          <span className="transaction-flag transaction-flag-red" /> Needs
+          attention
+        </span>
+        <span>
+          <span className="transaction-flag transaction-flag-orange" /> Waiting
+          for receipt
+        </span>
+        <span>
+          <span className="transaction-flag transaction-flag-yellow" /> Tax
+          related
+        </span>
+        <span>
+          <span className="transaction-flag transaction-flag-green" />{" "}
+          Reimbursable
+        </span>
+        <span>
+          <span className="transaction-flag transaction-flag-blue" /> Business
+        </span>
+        <span>
+          <span className="transaction-flag transaction-flag-purple" /> Review
+          later
+        </span>
         <span className="register-legend-spacer" />
-        <span><Paperclip size={13} /> Attachment</span>
-        <span><span className="register-status register-status-cleared">C</span> Cleared</span>
-        <span><span className="register-status register-status-empty" /> Uncleared</span>
+        <span>
+          <Paperclip size={13} /> Attachment
+        </span>
+        <span>
+          <span className="register-status register-status-cleared">C</span>{" "}
+          Cleared
+        </span>
+        <span>
+          <span className="register-status register-status-empty" /> Uncleared
+        </span>
       </div>
     </div>
   );
