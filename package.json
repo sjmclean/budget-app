@@ -302,7 +302,9 @@
     "test:v213:budget-ux-cleanup": "tsx tests/v213-budget-ux-cleanup.ts",
     "test:v213": "pnpm test:v213:budget-ux-cleanup",
     "test:v214:category-details-panel": "tsx tests/v214-category-details-panel.ts",
-    "test:v214": "pnpm test:v214:category-details-panel"
+    "test:v214": "pnpm test:v214:category-details-panel",
+    "test:v215:autocomplete-modernisation": "tsx tests/v215-autocomplete-modernisation.ts",
+    "test:v215": "pnpm test:v215:autocomplete-modernisation"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

@@ -27,6 +27,11 @@ import {
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
 import { confirmDialog } from "../features/ui/appDialogService";
+import {
+  getAutocompleteCompletion,
+  rankAutocompleteOptions,
+  type AutocompleteOption,
+} from "../features/ui/autocomplete/autocompleteEngine";
 import { DropdownMenu } from "../features/ui/DropdownMenu";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { ColumnResizeHandle } from "../features/tableLayout/ColumnResizeHandle";
@@ -386,70 +391,65 @@ function PayeeInput({
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
-  const normalisedValue = value.trim().toLowerCase();
-  const suggestions = [
-    ...payeeOptions.map((payee) => ({
-      id: `payee-${payee.id}`,
-      value: payee.name,
-      payeeId: payee.id,
-      label: "Payee",
-    })),
-    ...transferAccounts.map((account) => ({
-      id: `transfer-${account.id}`,
-      value: `Transfer: ${account.name}`,
-      payeeId: undefined,
-      label: "Transfer",
-    })),
-  ]
-    .filter((suggestion, index, allSuggestions) => {
-      const suggestionValue = suggestion.value.trim().toLowerCase();
-      const isDuplicate =
-        allSuggestions.findIndex(
-          (candidate) =>
-            candidate.value.trim().toLowerCase() === suggestionValue,
-        ) !== index;
+  const autocompleteOptions = useMemo(
+    (): Array<AutocompleteOption<{ payeeId?: string; label: string }>> => [
+      ...payeeOptions.map((payee) => ({
+        id: `payee-${payee.id}`,
+        value: payee.name,
+        label: "Payee",
+        metadata: { payeeId: payee.id, label: "Payee" },
+      })),
+      ...transferAccounts.map((account) => ({
+        id: `transfer-${account.id}`,
+        value: `Transfer: ${account.name}`,
+        label: "Transfer",
+        metadata: { payeeId: undefined, label: "Transfer" },
+      })),
+    ],
+    [payeeOptions, transferAccounts],
+  );
 
-      if (isDuplicate) {
-        return false;
-      }
+  const suggestions = useMemo(
+    () =>
+      rankAutocompleteOptions({
+        inputValue: value,
+        options: autocompleteOptions,
+        maxResults: 8,
+      }),
+    [autocompleteOptions, value],
+  );
 
-      if (!normalisedValue) {
-        return true;
-      }
-
-      return suggestionValue.includes(normalisedValue);
-    })
-    .slice(0, 8);
-
-  const ghostSuggestion = normalisedValue
-    ? suggestions.find((suggestion) => {
-        const suggestionValue = suggestion.value.trim().toLowerCase();
-        return (
-          suggestionValue.startsWith(normalisedValue) &&
-          suggestionValue !== normalisedValue
-        );
-      })
-    : undefined;
-  const ghostCompletion = ghostSuggestion
-    ? ghostSuggestion.value.slice(value.length)
-    : "";
+  const highlightedSuggestion =
+    suggestions[
+      Math.min(highlightedIndex, Math.max(suggestions.length - 1, 0))
+    ];
+  const ghostCompletion = getAutocompleteCompletion(
+    value,
+    highlightedSuggestion?.value,
+  );
   const shouldShowGhost = Boolean(ghostCompletion);
   const shouldShowSuggestions = isOpen && suggestions.length > 0;
 
-  function acceptGhostSuggestion() {
-    if (!ghostSuggestion) {
-      return false;
-    }
-
-    selectSuggestion(ghostSuggestion.value, ghostSuggestion.payeeId);
-    return true;
-  }
-
-  function selectSuggestion(selectedValue: string, selectedPayeeId?: string) {
+  function selectSuggestion(
+    selectedValue: string,
+    selectedPayeeId?: string,
+  ) {
     onChange(selectedValue);
     onPayeeIdChange?.(selectedPayeeId);
     setIsOpen(false);
     setHighlightedIndex(0);
+  }
+
+  function acceptHighlightedSuggestion() {
+    if (!highlightedSuggestion) {
+      return false;
+    }
+
+    selectSuggestion(
+      highlightedSuggestion.value,
+      highlightedSuggestion.metadata?.payeeId,
+    );
+    return true;
   }
 
   return (
@@ -458,6 +458,7 @@ function PayeeInput({
         value={value}
         onChange={(event) => {
           onChange(event.target.value);
+          onPayeeIdChange?.(undefined);
           setIsOpen(true);
           setHighlightedIndex(0);
         }}
@@ -466,7 +467,7 @@ function PayeeInput({
         onKeyDown={(event) => {
           if (event.key === "Tab" && shouldShowGhost) {
             event.preventDefault();
-            acceptGhostSuggestion();
+            acceptHighlightedSuggestion();
             return;
           }
 
@@ -478,7 +479,7 @@ function PayeeInput({
 
             if (cursorAtEnd) {
               event.preventDefault();
-              acceptGhostSuggestion();
+              acceptHighlightedSuggestion();
               return;
             }
           }
@@ -506,10 +507,7 @@ function PayeeInput({
           if (event.key === "Enter") {
             event.preventDefault();
             event.stopPropagation();
-            selectSuggestion(
-              suggestions[highlightedIndex].value,
-              suggestions[highlightedIndex].payeeId,
-            );
+            acceptHighlightedSuggestion();
             return;
           }
 
@@ -546,13 +544,16 @@ function PayeeInput({
               onMouseEnter={() => setHighlightedIndex(index)}
               onMouseDown={(event) => {
                 event.preventDefault();
-                selectSuggestion(suggestion.value, suggestion.payeeId);
+                selectSuggestion(
+                  suggestion.value,
+                  suggestion.metadata?.payeeId,
+                );
               }}
               role="option"
               aria-selected={index === highlightedIndex}
             >
               <span>{suggestion.value}</span>
-              <small>{suggestion.label}</small>
+              <small>{suggestion.metadata?.label ?? suggestion.label}</small>
             </button>
           ))}
         </div>
@@ -574,47 +575,51 @@ function CategoryInput({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
-  const trimmedValue = value.trim();
-  const normalisedValue = normaliseCategoryName(trimmedValue);
 
-  const suggestions = useMemo(() => {
-    if (normalisedValue.length === 0) {
-      return [];
-    }
-
-    const categorySuggestions = categoryOptions
-      .filter((category) => {
-        const normalisedName = normaliseCategoryName(category.name);
-        const normalisedGroup = normaliseCategoryName(category.groupName);
-
-        return (
-          normalisedName.startsWith(normalisedValue) ||
-          normalisedName.includes(normalisedValue) ||
-          normalisedGroup.includes(normalisedValue)
-        );
-      })
-      .map((category) => ({
+  const autocompleteOptions = useMemo(
+    (): Array<AutocompleteOption<{ label: string }>> => {
+      const categorySuggestions = categoryOptions.map((category) => ({
         id: category.id,
         value: category.name,
         label: category.groupName,
+        metadata: { label: category.groupName },
       }));
 
-    const splitSuggestion =
-      includeSplitOption &&
-      normaliseCategoryName(SPLIT_CATEGORY_LABEL).startsWith(normalisedValue)
-        ? [{ id: "__split", value: SPLIT_CATEGORY_LABEL, label: "Special" }]
+      const splitSuggestion = includeSplitOption
+        ? [
+            {
+              id: "__split",
+              value: SPLIT_CATEGORY_LABEL,
+              label: "Special",
+              metadata: { label: "Special" },
+            },
+          ]
         : [];
 
-    return [...splitSuggestion, ...categorySuggestions].slice(0, 8);
-  }, [categoryOptions, includeSplitOption, normalisedValue]);
+      return [...splitSuggestion, ...categorySuggestions];
+    },
+    [categoryOptions, includeSplitOption],
+  );
 
-  const highlightedSuggestion = suggestions[highlightedIndex] ?? suggestions[0];
-  const ghostCompletion =
-    highlightedSuggestion &&
-    highlightedSuggestion.value.toLowerCase().startsWith(value.toLowerCase()) &&
-    highlightedSuggestion.value.length > value.length
-      ? highlightedSuggestion.value.slice(value.length)
-      : "";
+  const suggestions = useMemo(
+    () =>
+      rankAutocompleteOptions({
+        inputValue: value,
+        options: autocompleteOptions,
+        maxResults: 8,
+        normalise: normaliseCategoryName,
+      }),
+    [autocompleteOptions, value],
+  );
+
+  const highlightedSuggestion =
+    suggestions[
+      Math.min(highlightedIndex, Math.max(suggestions.length - 1, 0))
+    ];
+  const ghostCompletion = getAutocompleteCompletion(
+    value,
+    highlightedSuggestion?.value,
+  );
   const shouldShowSuggestions = isOpen && suggestions.length > 0;
   const shouldShowGhost = Boolean(ghostCompletion);
 
@@ -622,6 +627,15 @@ function CategoryInput({
     onChange(nextValue);
     setIsOpen(false);
     setHighlightedIndex(0);
+  }
+
+  function acceptHighlightedSuggestion() {
+    if (!highlightedSuggestion) {
+      return false;
+    }
+
+    selectSuggestion(highlightedSuggestion.value);
+    return true;
   }
 
   return (
@@ -636,6 +650,25 @@ function CategoryInput({
         onFocus={() => setIsOpen(true)}
         onBlur={() => setIsOpen(false)}
         onKeyDown={(event) => {
+          if (event.key === "Tab" && shouldShowGhost) {
+            event.preventDefault();
+            acceptHighlightedSuggestion();
+            return;
+          }
+
+          if (event.key === "ArrowRight" && shouldShowGhost) {
+            const input = event.currentTarget;
+            const cursorAtEnd =
+              input.selectionStart === value.length &&
+              input.selectionEnd === value.length;
+
+            if (cursorAtEnd) {
+              event.preventDefault();
+              acceptHighlightedSuggestion();
+              return;
+            }
+          }
+
           if (event.key === "ArrowDown" && suggestions.length > 0) {
             event.preventDefault();
             setIsOpen(true);
@@ -654,14 +687,9 @@ function CategoryInput({
             return;
           }
 
-          if (
-            (event.key === "Enter" || event.key === "Tab") &&
-            shouldShowSuggestions
-          ) {
-            if (highlightedSuggestion) {
-              event.preventDefault();
-              selectSuggestion(highlightedSuggestion.value);
-            }
+          if (event.key === "Enter" && shouldShowSuggestions) {
+            event.preventDefault();
+            acceptHighlightedSuggestion();
             return;
           }
 
@@ -703,7 +731,7 @@ function CategoryInput({
               aria-selected={index === highlightedIndex}
             >
               <span>{suggestion.value}</span>
-              <small>{suggestion.label}</small>
+              <small>{suggestion.metadata?.label ?? suggestion.label}</small>
             </button>
           ))}
         </div>
