@@ -1689,7 +1689,10 @@ export function AccountRegisterPage() {
   );
 
 
-  const registerEntryVisibleColumnIds = registerTableLayout.visibleColumnIds;
+  const registerEntryVisibleColumnIds = useMemo(
+    () => registerTableLayout.visibleColumns.map((column) => column.id),
+    [registerTableLayout.visibleColumns],
+  );
 
   const registerEntryColumnSet = registerTableLayout.visibleColumnSet;
 
