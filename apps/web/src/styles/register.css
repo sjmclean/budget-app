@@ -558,6 +558,21 @@
   border-color: var(--accent);
 }
 
+
+.register-edit-actions-panel {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  padding: 0.35rem 0.72rem 0.62rem;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.register-edit-commit-actions {
+  justify-content: flex-end;
+}
+
 .register-edit-actions {
   display: flex;
   align-items: center;
@@ -715,7 +730,9 @@
   }
 
   .register-entry-actions,
-  .register-entry-commit-actions {
+  .register-entry-commit-actions,
+  .register-edit-actions,
+  .register-edit-commit-actions {
     flex-wrap: wrap;
     justify-content: flex-start;
   }

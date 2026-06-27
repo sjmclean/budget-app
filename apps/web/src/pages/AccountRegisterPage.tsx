@@ -1643,20 +1643,15 @@ function TransactionEditRow({
           disabled={splitLines.length > 0}
         />
 
-        <div className="register-edit-actions">
+      </div>
+      <div className="register-edit-actions-panel">
+        <div className="register-edit-actions register-edit-commit-actions">
           <button
             className="button button-primary"
             type="button"
             onClick={save}
           >
             Save
-          </button>
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={toggleSplitEditor}
-          >
-            Split
           </button>
           <button
             className="button button-secondary"

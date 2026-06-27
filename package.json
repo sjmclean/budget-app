@@ -322,7 +322,9 @@
     "test:v2191:register-responsive-compression": "tsx tests/v2191-register-responsive-compression.ts",
     "test:v2191": "pnpm test:v2191:register-responsive-compression",
     "test:v2192:inline-edit-responsive-layout": "tsx tests/v2192-inline-edit-responsive-layout.ts",
-    "test:v2192": "pnpm test:v2192:inline-edit-responsive-layout"
+    "test:v2192": "pnpm test:v2192:inline-edit-responsive-layout",
+    "test:v220:edit-actions-split-foundation": "tsx tests/v220-edit-actions-split-foundation.ts",
+    "test:v220": "pnpm test:v220:edit-actions-split-foundation"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
