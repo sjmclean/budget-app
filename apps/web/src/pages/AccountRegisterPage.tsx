@@ -171,23 +171,35 @@ function buildRegisterEditVisibleColumnIds(
   }).map((column) => column.id);
 }
 
-function buildRegisterEntryVisibleColumnIds(
-  visibleColumnIds: readonly RegisterColumnId[],
-): RegisterColumnId[] {
-  const entryColumnIds = new Set<RegisterColumnId>([
-    "date",
-    "payee",
-    "category",
-    "memo",
-    "checkNumber",
-    "outflow",
-    "inflow",
-  ]);
+const REGISTER_ENTRY_INPUT_COLUMN_IDS = new Set<RegisterColumnId>([
+  "date",
+  "payee",
+  "category",
+  "memo",
+  "checkNumber",
+  "outflow",
+  "inflow",
+]);
 
-  return REGISTER_COLUMN_DEFINITIONS.filter(
-    (column) =>
-      entryColumnIds.has(column.id) && visibleColumnIds.includes(column.id),
-  ).map((column) => column.id);
+function isRegisterEntryInputColumn(column: RegisterColumnId) {
+  return REGISTER_ENTRY_INPUT_COLUMN_IDS.has(column);
+}
+
+function formatRegisterMonthSeparator(date: string) {
+  if (!date) {
+    return "Undated";
+  }
+
+  const parsedDate = new Date(`${date}T00:00:00`);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Undated";
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    month: "long",
+    year: "numeric",
+  }).format(parsedDate);
 }
 
 function formatMoney(value: number, currencyCode: string) {
@@ -1041,6 +1053,7 @@ function TransactionEntryRow({
   transferAccounts,
   payeeOptions,
   visibleColumns,
+  visibleColumnIds,
   rowStyle,
 }: {
   initialDate: string;
@@ -1048,6 +1061,7 @@ function TransactionEntryRow({
   transferAccounts: SidebarAccount[];
   payeeOptions: PayeeView[];
   visibleColumns: Set<RegisterColumnId>;
+  visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   onSave: (input: NewRegisterTransactionInput) => void;
   onSaveAndAddAnother: (input: NewRegisterTransactionInput) => void;
@@ -1181,51 +1195,105 @@ function TransactionEntryRow({
           }
         }}
       >
-        <RegisterDateField value={date} onChange={setDate} />
-        <PayeeInput
-          value={payee}
-          onChange={(value) => {
-            setPayee(value);
-            setPayeeId(undefined);
-          }}
-          onPayeeIdChange={setPayeeId}
-          transferAccounts={transferAccounts}
-          payeeOptions={payeeOptions}
-          autoFocus
-        />
-        <CategoryInput
-          value={category}
-          onChange={handleCategoryChange}
-          categoryOptions={categoryOptions}
-        />
-        {isRegisterColumnVisible("memo", visibleColumns) ? (
-          <input
-            value={memo}
-            onChange={(event) => setMemo(event.target.value)}
-            placeholder="Memo"
-          />
-        ) : null}
-        {isRegisterColumnVisible("checkNumber", visibleColumns) ? (
-          <input
-            value={checkNumber}
-            onChange={(event) => setCheckNumber(event.target.value)}
-            placeholder="Check #"
-          />
-        ) : null}
-        <input
-          value={outflow}
-          onChange={(event) => setOutflow(event.target.value)}
-          placeholder="Outflow"
-          inputMode="decimal"
-          disabled={splitLines.length > 0}
-        />
-        <input
-          value={inflow}
-          onChange={(event) => setInflow(event.target.value)}
-          placeholder="Inflow"
-          inputMode="decimal"
-          disabled={splitLines.length > 0}
-        />
+        {visibleColumnIds.map((columnId) => {
+          if (!isRegisterEntryInputColumn(columnId)) {
+            return (
+              <span
+                aria-hidden="true"
+                className="register-entry-placeholder-cell"
+                key={columnId}
+              />
+            );
+          }
+
+          if (columnId === "date") {
+            return (
+              <RegisterDateField
+                key={columnId}
+                value={date}
+                onChange={setDate}
+              />
+            );
+          }
+
+          if (columnId === "payee") {
+            return (
+              <PayeeInput
+                key={columnId}
+                value={payee}
+                onChange={(value) => {
+                  setPayee(value);
+                  setPayeeId(undefined);
+                }}
+                onPayeeIdChange={setPayeeId}
+                transferAccounts={transferAccounts}
+                payeeOptions={payeeOptions}
+                autoFocus
+              />
+            );
+          }
+
+          if (columnId === "category") {
+            return (
+              <CategoryInput
+                key={columnId}
+                value={category}
+                onChange={handleCategoryChange}
+                categoryOptions={categoryOptions}
+              />
+            );
+          }
+
+          if (columnId === "memo") {
+            return (
+              <input
+                key={columnId}
+                value={memo}
+                onChange={(event) => setMemo(event.target.value)}
+                placeholder="Memo"
+              />
+            );
+          }
+
+          if (columnId === "checkNumber") {
+            return (
+              <input
+                key={columnId}
+                value={checkNumber}
+                onChange={(event) => setCheckNumber(event.target.value)}
+                placeholder="Check #"
+              />
+            );
+          }
+
+          if (columnId === "outflow") {
+            return (
+              <input
+                key={columnId}
+                value={outflow}
+                onChange={(event) => setOutflow(event.target.value)}
+                placeholder="Outflow"
+                inputMode="decimal"
+                disabled={splitLines.length > 0}
+              />
+            );
+          }
+
+          if (columnId === "inflow") {
+            return (
+              <input
+                key={columnId}
+                value={inflow}
+                onChange={(event) => setInflow(event.target.value)}
+                placeholder="Inflow"
+                inputMode="decimal"
+                disabled={splitLines.length > 0}
+              />
+            );
+          }
+
+          return null;
+        })}
       </div>
 
       <div className="register-entry-actions-panel">
@@ -1621,27 +1689,11 @@ export function AccountRegisterPage() {
   );
 
 
-  const registerEntryVisibleColumnIds = useMemo(
-    () =>
-      buildRegisterEntryVisibleColumnIds(registerTableLayout.visibleColumnIds),
-    [registerTableLayout.visibleColumnIds],
-  );
+  const registerEntryVisibleColumnIds = registerTableLayout.visibleColumnIds;
 
-  const registerEntryColumnSet = useMemo(
-    () => new Set<RegisterColumnId>(registerEntryVisibleColumnIds),
-    [registerEntryVisibleColumnIds],
-  );
+  const registerEntryColumnSet = registerTableLayout.visibleColumnSet;
 
-  const registerEntryRowStyle = useMemo(
-    () =>
-      buildTableRowStyle(
-        REGISTER_COLUMN_DEFINITIONS,
-        registerEntryVisibleColumnIds,
-        0,
-        registerTableLayout.columnWidths,
-      ),
-    [registerEntryVisibleColumnIds, registerTableLayout.columnWidths],
-  );
+  const registerEntryRowStyle = registerTableLayout.rowStyle;
 
   useEffect(() => {
     let isMounted = true;
@@ -2448,26 +2500,6 @@ export function AccountRegisterPage() {
           />
         )}
 
-        {showEntryRow && (
-          <TransactionEntryRow
-            initialDate={lastEntryDate}
-            categoryOptions={categoryOptions}
-            transferAccounts={transferAccounts}
-            payeeOptions={payeeOptions}
-            visibleColumns={registerEntryColumnSet}
-            rowStyle={registerEntryRowStyle}
-            onSave={(input) => {
-              addTransaction(input);
-              setLastEntryDate(input.date);
-              setShowEntryRow(false);
-            }}
-            onSaveAndAddAnother={(input) => {
-              addTransaction(input);
-              setLastEntryDate(input.date);
-            }}
-            onCancel={() => setShowEntryRow(false)}
-          />
-        )}
 
         {selectedTransactionId && !editingTransactionId && (
           <div className="register-selection-bar">
@@ -2556,44 +2588,80 @@ export function AccountRegisterPage() {
             ))}
           </div>
 
-          {visibleTransactions.map((transaction) =>
-            editingTransactionId === transaction.id ? (
-              <TransactionEditRow
-                key={transaction.id}
-                transaction={transaction}
-                categoryOptions={categoryOptions}
-                transferAccounts={transferAccounts}
-                payeeOptions={payeeOptions}
-                onSave={(input) => {
-                  updateTransaction(input);
-                  setEditingTransactionId(null);
-                }}
-                onCancel={() => setEditingTransactionId(null)}
-                onManageTransactionAttachments={
-                  handleManageTransactionAttachments
-                }
-                visibleColumns={registerEditColumnSet}
-                rowStyle={registerEditRowStyle}
-              />
-            ) : (
-              <TransactionRow
-                key={transaction.id}
-                transaction={transaction}
-                currencyCode={data.currencyCode}
-                dateFormat={dateFormat}
-                isSelected={selectedTransactionId === transaction.id}
-                onSelectTransaction={handleSelectTransaction}
-                onEditTransaction={handleEditTransaction}
-                onToggleClearedTransaction={handleToggleClearedTransaction}
-                onManageTransactionAttachments={
-                  handleManageTransactionAttachments
-                }
-                onUpdateTransactionFlag={handleUpdateTransactionFlag}
-                visibleColumns={registerTableLayout.visibleColumnSet}
-                rowStyle={registerTableLayout.rowStyle}
-              />
-            ),
+          {showEntryRow && (
+            <TransactionEntryRow
+              initialDate={lastEntryDate}
+              categoryOptions={categoryOptions}
+              transferAccounts={transferAccounts}
+              payeeOptions={payeeOptions}
+              visibleColumns={registerEntryColumnSet}
+              visibleColumnIds={registerEntryVisibleColumnIds}
+              rowStyle={registerEntryRowStyle}
+              onSave={(input) => {
+                addTransaction(input);
+                setLastEntryDate(input.date);
+                setShowEntryRow(false);
+              }}
+              onSaveAndAddAnother={(input) => {
+                addTransaction(input);
+                setLastEntryDate(input.date);
+              }}
+              onCancel={() => setShowEntryRow(false)}
+            />
           )}
+
+          {visibleTransactions.map((transaction, transactionIndex) => {
+            const previousTransaction =
+              transactionIndex > 0 ? visibleTransactions[transactionIndex - 1] : null;
+            const showMonthSeparator =
+              transactionIndex === 0 ||
+              formatRegisterMonthSeparator(previousTransaction?.date ?? "") !==
+                formatRegisterMonthSeparator(transaction.date);
+
+            return (
+              <div className="register-transaction-with-month" key={transaction.id}>
+                {showMonthSeparator ? (
+                  <div className="register-month-separator">
+                    {formatRegisterMonthSeparator(transaction.date)}
+                  </div>
+                ) : null}
+                {editingTransactionId === transaction.id ? (
+                  <TransactionEditRow
+                    transaction={transaction}
+                    categoryOptions={categoryOptions}
+                    transferAccounts={transferAccounts}
+                    payeeOptions={payeeOptions}
+                    onSave={(input) => {
+                      updateTransaction(input);
+                      setEditingTransactionId(null);
+                    }}
+                    onCancel={() => setEditingTransactionId(null)}
+                    onManageTransactionAttachments={
+                      handleManageTransactionAttachments
+                    }
+                    visibleColumns={registerEditColumnSet}
+                    rowStyle={registerEditRowStyle}
+                  />
+                ) : (
+                  <TransactionRow
+                    transaction={transaction}
+                    currencyCode={data.currencyCode}
+                    dateFormat={dateFormat}
+                    isSelected={selectedTransactionId === transaction.id}
+                    onSelectTransaction={handleSelectTransaction}
+                    onEditTransaction={handleEditTransaction}
+                    onToggleClearedTransaction={handleToggleClearedTransaction}
+                    onManageTransactionAttachments={
+                      handleManageTransactionAttachments
+                    }
+                    onUpdateTransactionFlag={handleUpdateTransactionFlag}
+                    visibleColumns={registerTableLayout.visibleColumnSet}
+                    rowStyle={registerTableLayout.rowStyle}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className="register-pagination" aria-label="Register pagination">

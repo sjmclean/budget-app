@@ -1895,3 +1895,22 @@
 .register-category-suggestions .register-payee-suggestion {
   justify-content: flex-start;
 }
+
+/* v2.17 transaction entry/register alignment */
+.register-entry-placeholder-cell {
+  min-width: 0;
+}
+
+.register-transaction-with-month {
+  display: contents;
+}
+
+.register-month-separator {
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--surface-subtle) 92%, var(--surface));
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 0.55rem 0.9rem;
+}
