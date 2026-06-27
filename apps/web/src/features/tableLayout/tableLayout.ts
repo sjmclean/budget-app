@@ -220,15 +220,24 @@ export function buildTableRowStyle<TColumnId extends string>(
   const visibleColumnSet = new Set(visibleColumnIds);
   const visibleColumns = columns.filter((column) => visibleColumnSet.has(column.id));
   const minimumWidth = visibleColumns.reduce(
-    (total, column) => total + getColumnWidthRem(column, columnWidths),
+    (total, column) =>
+      total +
+      (typeof columnWidths[column.id] === "number"
+        ? getColumnWidthRem(column, columnWidths)
+        : getMinimumColumnWidthRem(column)),
     0,
   );
 
   return {
     gridTemplateColumns: visibleColumns
-      .map((column) => `${getColumnWidthRem(column, columnWidths)}rem`)
+      .map((column) =>
+        typeof columnWidths[column.id] === "number"
+          ? `${getColumnWidthRem(column, columnWidths)}rem`
+          : column.template,
+      )
       .join(" "),
     minWidth: `${Math.max(minimumWidth + visibleColumns.length * 0.75 + 2, minimumWidthRem)}rem`,
+    width: "100%",
   };
 }
 

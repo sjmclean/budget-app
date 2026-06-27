@@ -78,62 +78,82 @@ const REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX =
 
 const REGISTER_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumnId>[] =
   [
-    { id: "select", label: "Select", template: "2rem", widthRem: 2 },
-    { id: "date", label: "Date", template: "6.4rem", widthRem: 6.4 },
+    { id: "select", label: "Select", template: "1.8rem", widthRem: 1.8, minWidthRem: 1.6 },
+    { id: "date", label: "Date", template: "minmax(5.2rem, 6.4rem)", widthRem: 6.4, minWidthRem: 5.2 },
     {
       id: "flag",
       label: "Flag",
-      template: "2.6rem",
-      widthRem: 2.6,
+      template: "2.2rem",
+      widthRem: 2.2,
+      minWidthRem: 2,
       canHide: true,
     },
     {
       id: "attachments",
       label: "Attachments",
-      template: "2.6rem",
-      widthRem: 2.6,
+      template: "2.2rem",
+      widthRem: 2.2,
+      minWidthRem: 2,
       canHide: true,
     },
     {
       id: "payee",
       label: "Payee",
-      template: "minmax(9rem, 1.15fr)",
-      widthRem: 9,
+      template: "minmax(6.5rem, 1.45fr)",
+      widthRem: 11,
+      minWidthRem: 6.5,
     },
     {
       id: "category",
       label: "Category",
-      template: "minmax(8.5rem, 1fr)",
-      widthRem: 8.5,
+      template: "minmax(6.5rem, 1.2fr)",
+      widthRem: 10,
+      minWidthRem: 6.5,
     },
     {
       id: "memo",
       label: "Memo",
-      template: "minmax(7rem, 0.85fr)",
-      widthRem: 7,
+      template: "minmax(5.5rem, 1.3fr)",
+      widthRem: 10,
+      minWidthRem: 5.5,
       canHide: true,
     },
     {
       id: "checkNumber",
       label: "Check #",
-      template: "4.5rem",
+      template: "minmax(3.4rem, 4.5rem)",
       widthRem: 4.5,
+      minWidthRem: 3.4,
       canHide: true,
     },
-    { id: "outflow", label: "Outflow", template: "6.6rem", widthRem: 6.6 },
-    { id: "inflow", label: "Inflow", template: "6.6rem", widthRem: 6.6 },
+    {
+      id: "outflow",
+      label: "Outflow",
+      template: "minmax(5.6rem, 7.2rem)",
+      widthRem: 7.2,
+      minWidthRem: 5.6,
+    },
+    {
+      id: "inflow",
+      label: "Inflow",
+      template: "minmax(5.6rem, 7.2rem)",
+      widthRem: 7.2,
+      minWidthRem: 5.6,
+    },
     {
       id: "runningBalance",
       label: "Running Balance",
-      template: "7rem",
-      widthRem: 7,
+      template: "minmax(6.2rem, 7.5rem)",
+      widthRem: 7.5,
+      minWidthRem: 6.2,
       canHide: true,
     },
     {
       id: "status",
       label: "Cleared",
-      template: "2.6rem",
-      widthRem: 2.6,
+      template: "2.2rem",
+      widthRem: 2.2,
+      minWidthRem: 2,
       canHide: true,
     },
   ];
@@ -1341,6 +1361,7 @@ function TransactionEntryRow({
           if (columnId === "outflow") {
             return (
               <input
+                className="register-money-input"
                 key={columnId}
                 value={outflow}
                 onChange={(event) => setOutflow(event.target.value)}
@@ -1354,6 +1375,7 @@ function TransactionEntryRow({
           if (columnId === "inflow") {
             return (
               <input
+                className="register-money-input"
                 key={columnId}
                 value={inflow}
                 onChange={(event) => setInflow(event.target.value)}
@@ -1599,6 +1621,7 @@ function TransactionEditRow({
           />
         ) : null}
         <input
+          className="register-money-input"
           value={outflow}
           onChange={(event) => setOutflow(event.target.value)}
           placeholder="Outflow"
@@ -1606,6 +1629,7 @@ function TransactionEditRow({
           disabled={splitLines.length > 0}
         />
         <input
+          className="register-money-input"
           value={inflow}
           onChange={(event) => setInflow(event.target.value)}
           placeholder="Inflow"
@@ -2631,11 +2655,17 @@ export function AccountRegisterPage() {
           >
             {registerTableLayout.visibleColumns.map((column) => (
               <span
-                className={
-                  column.id === "attachments"
-                    ? "register-head-icon table-layout-resizable-head-cell"
-                    : "table-layout-resizable-head-cell"
-                }
+                className={[
+                  column.id === "attachments" ? "register-head-icon" : "",
+                  column.id === "outflow" ||
+                  column.id === "inflow" ||
+                  column.id === "runningBalance"
+                    ? "register-head-money"
+                    : "",
+                  "table-layout-resizable-head-cell",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 key={column.id}
                 aria-label={
                   column.id === "attachments" ? "Attachments" : undefined

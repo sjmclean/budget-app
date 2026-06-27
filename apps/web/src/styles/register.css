@@ -267,6 +267,7 @@
 
 .register-table {
   min-width: 0;
+  width: 100%;
   max-width: 100%;
   display: grid;
   overflow-x: auto;
@@ -337,6 +338,16 @@
   color: var(--text-muted);
 }
 
+.register-head-money {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.register-money-input {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .register-checkbox {
   width: 0.82rem;
   height: 0.82rem;
@@ -356,9 +367,26 @@
   color: var(--text-muted);
 }
 
+.register-payee-cell,
+.register-payee-cell strong,
+.register-payee-cell small,
+.register-category-cell,
+.register-memo-cell,
+.register-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .register-money,
 .register-balance {
+  min-width: 0;
+  overflow: hidden;
   text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .register-outflow {
@@ -570,36 +598,36 @@
 
 .register-row,
 .register-head {
-  min-width: 94rem;
+  min-width: 58rem;
   grid-template-columns:
-    2.25rem
-    7.5rem
-    3.5rem
-    3.5rem
-    minmax(12rem, 1.25fr)
-    minmax(10rem, 1fr)
-    minmax(12rem, 1.2fr)
-    6rem
-    7.5rem
-    7.5rem
-    8.5rem
-    3rem;
+    1.8rem
+    minmax(5.2rem, 6.4rem)
+    2.2rem
+    2.2rem
+    minmax(6.5rem, 1.45fr)
+    minmax(6.5rem, 1.2fr)
+    minmax(5.5rem, 1.3fr)
+    minmax(3.4rem, 4.5rem)
+    minmax(5.6rem, 7.2rem)
+    minmax(5.6rem, 7.2rem)
+    minmax(6.2rem, 7.5rem)
+    2.2rem;
 }
 
 .register-row-editing {
-  min-width: 94rem;
+  min-width: 58rem;
   grid-template-columns:
-    2.25rem
-    7.5rem
-    3.5rem
-    3.5rem
-    minmax(12rem, 1.25fr)
-    minmax(10rem, 1fr)
-    minmax(12rem, 1.2fr)
-    6rem
-    7.5rem
-    7.5rem
-    12rem;
+    1.8rem
+    minmax(5.2rem, 6.4rem)
+    2.2rem
+    2.2rem
+    minmax(6.5rem, 1.45fr)
+    minmax(6.5rem, 1.2fr)
+    minmax(5.5rem, 1.3fr)
+    minmax(3.4rem, 4.5rem)
+    minmax(5.6rem, 7.2rem)
+    minmax(5.6rem, 7.2rem)
+    minmax(8rem, 10rem);
 }
 
 
