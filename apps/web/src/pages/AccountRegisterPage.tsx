@@ -163,7 +163,13 @@ const REGISTER_EDIT_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterC
     ...REGISTER_COLUMN_DEFINITIONS.filter(
       (column) => column.id !== "runningBalance" && column.id !== "status",
     ),
-    { id: "actions", label: "Actions", template: "10rem", widthRem: 10 },
+    {
+      id: "actions",
+      label: "Actions",
+      template: "minmax(6.5rem, 8rem)",
+      widthRem: 8,
+      minWidthRem: 6.5,
+    },
   ];
 
 const REGISTER_COLUMN_LABELS = new Map(

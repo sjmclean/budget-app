@@ -561,28 +561,19 @@
 .register-edit-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.35rem;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .register-edit-actions .button {
-  padding: 0.36rem 0.52rem;
-  font-size: 0.78rem;
+  min-width: 0;
+  padding: 0.34rem 0.46rem;
+  font-size: 0.76rem;
+  white-space: nowrap;
 }
 
-/* Replace the Balance/C columns with edit action space while editing. */
-.register-row-editing {
-  grid-template-columns:
-    2.25rem
-    7.5rem
-    3.5rem
-    minmax(12rem, 1.25fr)
-    minmax(10rem, 1fr)
-    minmax(12rem, 1.2fr)
-    6rem
-    7.5rem
-    7.5rem
-    12rem;
-}
 
 .register-selection-bar button:not(:disabled) {
   color: var(--text);
@@ -613,23 +604,6 @@
     minmax(6.2rem, 7.5rem)
     2.2rem;
 }
-
-.register-row-editing {
-  min-width: 58rem;
-  grid-template-columns:
-    1.8rem
-    minmax(5.2rem, 6.4rem)
-    2.2rem
-    2.2rem
-    minmax(6.5rem, 1.45fr)
-    minmax(6.5rem, 1.2fr)
-    minmax(5.5rem, 1.3fr)
-    minmax(3.4rem, 4.5rem)
-    minmax(5.6rem, 7.2rem)
-    minmax(5.6rem, 7.2rem)
-    minmax(8rem, 10rem);
-}
-
 
 .attachment-indicator {
   min-width: 1.65rem;

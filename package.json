@@ -320,7 +320,9 @@
     "test:v219:register-layout": "tsx tests/v219-register-layout.ts",
     "test:v219": "pnpm test:v219:register-layout",
     "test:v2191:register-responsive-compression": "tsx tests/v2191-register-responsive-compression.ts",
-    "test:v2191": "pnpm test:v2191:register-responsive-compression"
+    "test:v2191": "pnpm test:v2191:register-responsive-compression",
+    "test:v2192:inline-edit-responsive-layout": "tsx tests/v2192-inline-edit-responsive-layout.ts",
+    "test:v2192": "pnpm test:v2192:inline-edit-responsive-layout"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
