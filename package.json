@@ -324,7 +324,9 @@
     "test:v2192:inline-edit-responsive-layout": "tsx tests/v2192-inline-edit-responsive-layout.ts",
     "test:v2192": "pnpm test:v2192:inline-edit-responsive-layout",
     "test:v220:edit-actions-split-foundation": "tsx tests/v220-edit-actions-split-foundation.ts",
-    "test:v220": "pnpm test:v220:edit-actions-split-foundation"
+    "test:v220": "pnpm test:v220:edit-actions-split-foundation",
+    "test:v2201:edit-actions-placement": "tsx tests/v2201-edit-actions-placement.ts",
+    "test:v2201": "pnpm test:v2201:edit-actions-placement"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

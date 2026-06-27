@@ -560,10 +560,11 @@
 
 
 .register-edit-actions-panel {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.55rem;
-  padding: 0.35rem 0.72rem 0.62rem;
+  display: grid;
+  align-items: center;
+  column-gap: 0.58rem;
+  min-width: var(--register-table-min-width, 100%);
+  padding: 0.16rem 0.72rem 0.62rem;
   border-bottom: 1px solid var(--border-soft);
   background: var(--accent-soft);
   box-shadow: inset 3px 0 0 var(--accent);
@@ -571,6 +572,7 @@
 
 .register-edit-commit-actions {
   justify-content: flex-end;
+  justify-self: stretch;
 }
 
 .register-edit-actions {

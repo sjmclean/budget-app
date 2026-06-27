@@ -159,18 +159,9 @@ const REGISTER_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumn
   ];
 
 const REGISTER_EDIT_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumnId>[] =
-  [
-    ...REGISTER_COLUMN_DEFINITIONS.filter(
-      (column) => column.id !== "runningBalance" && column.id !== "status",
-    ),
-    {
-      id: "actions",
-      label: "Actions",
-      template: "minmax(6.5rem, 8rem)",
-      widthRem: 8,
-      minWidthRem: 6.5,
-    },
-  ];
+  REGISTER_COLUMN_DEFINITIONS.filter(
+    (column) => column.id !== "runningBalance" && column.id !== "status",
+  );
 
 const REGISTER_COLUMN_LABELS = new Map(
   [...REGISTER_COLUMN_DEFINITIONS, ...REGISTER_EDIT_COLUMN_DEFINITIONS].map(
@@ -188,13 +179,9 @@ function isRegisterColumnVisible(
 function buildRegisterEditVisibleColumnIds(
   visibleColumnIds: readonly RegisterColumnId[],
 ): RegisterColumnId[] {
-  return REGISTER_EDIT_COLUMN_DEFINITIONS.filter((column) => {
-    if (column.id === "actions") {
-      return true;
-    }
-
-    return visibleColumnIds.includes(column.id);
-  }).map((column) => column.id);
+  return REGISTER_EDIT_COLUMN_DEFINITIONS.filter((column) =>
+    visibleColumnIds.includes(column.id),
+  ).map((column) => column.id);
 }
 
 const REGISTER_ENTRY_INPUT_COLUMN_IDS = new Set<RegisterColumnId>([
@@ -1447,6 +1434,7 @@ function TransactionEditRow({
   transferAccounts,
   payeeOptions,
   visibleColumns,
+  visibleColumnIds,
   rowStyle,
 }: {
   transaction: RegisterTransactionView;
@@ -1470,6 +1458,7 @@ function TransactionEditRow({
   onCancel: () => void;
   onManageTransactionAttachments: (transactionId: string) => void;
   visibleColumns: Set<RegisterColumnId>;
+  visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
 }) {
   const [date, setDate] = useState(transaction.date);
@@ -1568,6 +1557,13 @@ function TransactionEditRow({
     });
   }
 
+  const outflowColumnIndex = visibleColumnIds.indexOf("outflow");
+  const inflowColumnIndex = visibleColumnIds.indexOf("inflow");
+  const editActionGridColumn =
+    outflowColumnIndex >= 0 && inflowColumnIndex >= outflowColumnIndex
+      ? `${outflowColumnIndex + 1} / ${inflowColumnIndex + 2}`
+      : "1 / -1";
+
   return (
     <>
       <div
@@ -1644,8 +1640,11 @@ function TransactionEditRow({
         />
 
       </div>
-      <div className="register-edit-actions-panel">
-        <div className="register-edit-actions register-edit-commit-actions">
+      <div className="register-edit-actions-panel" style={rowStyle}>
+        <div
+          className="register-edit-actions register-edit-commit-actions"
+          style={{ gridColumn: editActionGridColumn }}
+        >
           <button
             className="button button-primary"
             type="button"
@@ -1779,7 +1778,7 @@ export function AccountRegisterPage() {
       buildTableRowStyle(
         REGISTER_EDIT_COLUMN_DEFINITIONS,
         registerEditVisibleColumnIds,
-        72,
+        58,
         registerTableLayout.columnWidths,
       ),
     [registerEditVisibleColumnIds, registerTableLayout.columnWidths],
@@ -2746,6 +2745,7 @@ export function AccountRegisterPage() {
                       handleManageTransactionAttachments
                     }
                     visibleColumns={registerEditColumnSet}
+                    visibleColumnIds={registerEditVisibleColumnIds}
                     rowStyle={registerEditRowStyle}
                   />
                 ) : (
