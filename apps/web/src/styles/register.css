@@ -1857,3 +1857,53 @@
     min-width: 28rem;
   }
 }
+
+/* v2.16 shared autocomplete popup presentation */
+.register-autocomplete-popup {
+  right: auto;
+  width: max-content;
+  min-width: min(24rem, calc(100vw - 2rem));
+  max-width: min(38rem, calc(100vw - 2rem));
+  max-height: 17rem;
+  padding: 0.3rem;
+}
+
+.register-autocomplete-section-heading {
+  padding: 0.38rem 0.55rem 0.28rem;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.register-autocomplete-suggestion-block + .register-autocomplete-suggestion-block .register-autocomplete-section-heading {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 0.18rem;
+  padding-top: 0.48rem;
+}
+
+.register-autocomplete-popup .register-payee-suggestion {
+  min-width: 0;
+  gap: 1rem;
+}
+
+.register-autocomplete-primary {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.42rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.register-autocomplete-icon {
+  flex: 0 0 auto;
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+.register-category-suggestions .register-payee-suggestion {
+  justify-content: flex-start;
+}

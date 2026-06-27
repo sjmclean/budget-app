@@ -31,6 +31,7 @@ import {
   getAutocompleteCompletion,
   rankAutocompleteOptions,
   type AutocompleteOption,
+  type RankedAutocompleteOption,
 } from "../features/ui/autocomplete/autocompleteEngine";
 import { DropdownMenu } from "../features/ui/DropdownMenu";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
@@ -374,6 +375,30 @@ function RegisterDateField({
   );
 }
 
+function getPayeeSuggestionSection(
+  suggestion: RankedAutocompleteOption<{ payeeId?: string; label: string; type: "payee" | "transfer" }>,
+) {
+  return suggestion.metadata?.type === "transfer" ? "Transfers" : "Payees";
+}
+
+function getPayeeSuggestionText(
+  suggestion: RankedAutocompleteOption<{ payeeId?: string; label: string; type: "payee" | "transfer" }>,
+) {
+  if (suggestion.metadata?.type !== "transfer") {
+    return suggestion.value;
+  }
+
+  return suggestion.value.replace(/^Transfer:\s*/i, "");
+}
+
+function getCategorySuggestionSection(
+  suggestion: RankedAutocompleteOption<{ label: string; groupName?: string; type: "category" | "special" }>,
+) {
+  return suggestion.metadata?.type === "special"
+    ? "Special"
+    : suggestion.metadata?.groupName ?? suggestion.label ?? "Categories";
+}
+
 function PayeeInput({
   value,
   onChange,
@@ -393,18 +418,18 @@ function PayeeInput({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const autocompleteOptions = useMemo(
-    (): Array<AutocompleteOption<{ payeeId?: string; label: string }>> => [
-      ...payeeOptions.map((payee) => ({
-        id: `payee-${payee.id}`,
-        value: payee.name,
-        label: "Payee",
-        metadata: { payeeId: payee.id, label: "Payee" },
-      })),
+    (): Array<AutocompleteOption<{ payeeId?: string; label: string; type: "payee" | "transfer" }>> => [
       ...transferAccounts.map((account) => ({
         id: `transfer-${account.id}`,
         value: `Transfer: ${account.name}`,
         label: "Transfer",
-        metadata: { payeeId: undefined, label: "Transfer" },
+        metadata: { payeeId: undefined, label: "Transfer", type: "transfer" as const },
+      })),
+      ...payeeOptions.map((payee) => ({
+        id: `payee-${payee.id}`,
+        value: payee.name,
+        label: "Payee",
+        metadata: { payeeId: payee.id, label: "Payee", type: "payee" as const },
       })),
     ],
     [payeeOptions, transferAccounts],
@@ -531,31 +556,51 @@ function PayeeInput({
       ) : null}
 
       {shouldShowSuggestions ? (
-        <div className="register-payee-suggestions" role="listbox">
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={suggestion.id}
-              type="button"
-              className={
-                index === highlightedIndex
-                  ? "register-payee-suggestion register-payee-suggestion-active"
-                  : "register-payee-suggestion"
-              }
-              onMouseEnter={() => setHighlightedIndex(index)}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                selectSuggestion(
-                  suggestion.value,
-                  suggestion.metadata?.payeeId,
-                );
-              }}
-              role="option"
-              aria-selected={index === highlightedIndex}
-            >
-              <span>{suggestion.value}</span>
-              <small>{suggestion.metadata?.label ?? suggestion.label}</small>
-            </button>
-          ))}
+        <div className="register-payee-suggestions register-autocomplete-popup" role="listbox">
+          {suggestions.map((suggestion, index) => {
+            const section = getPayeeSuggestionSection(suggestion);
+            const previousSection =
+              index > 0 ? getPayeeSuggestionSection(suggestions[index - 1]) : null;
+            const showSection = section !== previousSection;
+            const isTransfer = suggestion.metadata?.type === "transfer";
+
+            return (
+              <div key={suggestion.id} className="register-autocomplete-suggestion-block">
+                {showSection ? (
+                  <div className="register-autocomplete-section-heading">
+                    {section}
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  className={
+                    index === highlightedIndex
+                      ? "register-payee-suggestion register-payee-suggestion-active"
+                      : "register-payee-suggestion"
+                  }
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    selectSuggestion(
+                      suggestion.value,
+                      suggestion.metadata?.payeeId,
+                    );
+                  }}
+                  role="option"
+                  aria-selected={index === highlightedIndex}
+                >
+                  <span className="register-autocomplete-primary">
+                    {isTransfer ? <span className="register-autocomplete-icon">↔</span> : null}
+                    <span>{getPayeeSuggestionText(suggestion)}</span>
+                  </span>
+                  {isTransfer ? null : (
+                    <small>{suggestion.metadata?.label ?? suggestion.label}</small>
+                  )}
+                </button>
+              </div>
+            );
+          })}
         </div>
       ) : null}
     </div>
@@ -577,12 +622,12 @@ function CategoryInput({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const autocompleteOptions = useMemo(
-    (): Array<AutocompleteOption<{ label: string }>> => {
+    (): Array<AutocompleteOption<{ label: string; groupName?: string; type: "category" | "special" }>> => {
       const categorySuggestions = categoryOptions.map((category) => ({
         id: category.id,
         value: category.name,
         label: category.groupName,
-        metadata: { label: category.groupName },
+        metadata: { label: category.groupName, groupName: category.groupName, type: "category" as const },
       }));
 
       const splitSuggestion = includeSplitOption
@@ -591,7 +636,7 @@ function CategoryInput({
               id: "__split",
               value: SPLIT_CATEGORY_LABEL,
               label: "Special",
-              metadata: { label: "Special" },
+              metadata: { label: "Special", type: "special" as const },
             },
           ]
         : [];
@@ -711,28 +756,41 @@ function CategoryInput({
       ) : null}
 
       {shouldShowSuggestions ? (
-        <div className="register-payee-suggestions" role="listbox">
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={suggestion.id}
-              type="button"
-              className={
-                index === highlightedIndex
-                  ? "register-payee-suggestion register-payee-suggestion-active"
-                  : "register-payee-suggestion"
-              }
-              onMouseEnter={() => setHighlightedIndex(index)}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                selectSuggestion(suggestion.value);
-              }}
-              role="option"
-              aria-selected={index === highlightedIndex}
-            >
-              <span>{suggestion.value}</span>
-              <small>{suggestion.metadata?.label ?? suggestion.label}</small>
-            </button>
-          ))}
+        <div className="register-payee-suggestions register-autocomplete-popup register-category-suggestions" role="listbox">
+          {suggestions.map((suggestion, index) => {
+            const section = getCategorySuggestionSection(suggestion);
+            const previousSection =
+              index > 0 ? getCategorySuggestionSection(suggestions[index - 1]) : null;
+            const showSection = section !== previousSection;
+
+            return (
+              <div key={suggestion.id} className="register-autocomplete-suggestion-block">
+                {showSection ? (
+                  <div className="register-autocomplete-section-heading">
+                    {section}
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  className={
+                    index === highlightedIndex
+                      ? "register-payee-suggestion register-payee-suggestion-active"
+                      : "register-payee-suggestion"
+                  }
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    selectSuggestion(suggestion.value);
+                  }}
+                  role="option"
+                  aria-selected={index === highlightedIndex}
+                >
+                  <span className="register-autocomplete-primary">{suggestion.value}</span>
+                </button>
+              </div>
+            );
+          })}
         </div>
       ) : null}
     </div>
