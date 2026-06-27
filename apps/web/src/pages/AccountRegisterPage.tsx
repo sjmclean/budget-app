@@ -171,6 +171,25 @@ function buildRegisterEditVisibleColumnIds(
   }).map((column) => column.id);
 }
 
+function buildRegisterEntryVisibleColumnIds(
+  visibleColumnIds: readonly RegisterColumnId[],
+): RegisterColumnId[] {
+  const entryColumnIds = new Set<RegisterColumnId>([
+    "date",
+    "payee",
+    "category",
+    "memo",
+    "checkNumber",
+    "outflow",
+    "inflow",
+  ]);
+
+  return REGISTER_COLUMN_DEFINITIONS.filter(
+    (column) =>
+      entryColumnIds.has(column.id) && visibleColumnIds.includes(column.id),
+  ).map((column) => column.id);
+}
+
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
     style: "currency",
@@ -1021,11 +1040,15 @@ function TransactionEntryRow({
   categoryOptions,
   transferAccounts,
   payeeOptions,
+  visibleColumns,
+  rowStyle,
 }: {
   initialDate: string;
   categoryOptions: BudgetCategoryOption[];
   transferAccounts: SidebarAccount[];
   payeeOptions: PayeeView[];
+  visibleColumns: Set<RegisterColumnId>;
+  rowStyle: CSSProperties;
   onSave: (input: NewRegisterTransactionInput) => void;
   onSaveAndAddAnother: (input: NewRegisterTransactionInput) => void;
   onCancel: () => void;
@@ -1151,6 +1174,7 @@ function TransactionEntryRow({
     <>
       <div
         className="register-entry-row-active register-entry-row-workflow"
+        style={rowStyle}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             onCancel();
@@ -1174,16 +1198,20 @@ function TransactionEntryRow({
           onChange={handleCategoryChange}
           categoryOptions={categoryOptions}
         />
-        <input
-          value={memo}
-          onChange={(event) => setMemo(event.target.value)}
-          placeholder="Memo"
-        />
-        <input
-          value={checkNumber}
-          onChange={(event) => setCheckNumber(event.target.value)}
-          placeholder="Check #"
-        />
+        {isRegisterColumnVisible("memo", visibleColumns) ? (
+          <input
+            value={memo}
+            onChange={(event) => setMemo(event.target.value)}
+            placeholder="Memo"
+          />
+        ) : null}
+        {isRegisterColumnVisible("checkNumber", visibleColumns) ? (
+          <input
+            value={checkNumber}
+            onChange={(event) => setCheckNumber(event.target.value)}
+            placeholder="Check #"
+          />
+        ) : null}
         <input
           value={outflow}
           onChange={(event) => setOutflow(event.target.value)}
@@ -1198,8 +1226,17 @@ function TransactionEntryRow({
           inputMode="decimal"
           disabled={splitLines.length > 0}
         />
+      </div>
 
-        <div className="register-entry-actions register-entry-actions-wide">
+      <div className="register-entry-actions-panel">
+        <button
+          className="button button-secondary"
+          type="button"
+          onClick={toggleSplitEditor}
+        >
+          Split
+        </button>
+        <div className="register-entry-actions register-entry-commit-actions">
           <button
             className="button button-primary"
             type="button"
@@ -1217,19 +1254,13 @@ function TransactionEntryRow({
           <button
             className="button button-secondary"
             type="button"
-            onClick={toggleSplitEditor}
-          >
-            Split
-          </button>
-          <button
-            className="button button-secondary"
-            type="button"
             onClick={onCancel}
           >
             Cancel
           </button>
         </div>
       </div>
+
       <SplitEditor
         splitLines={splitLines}
         setSplitLines={setSplitLines}
@@ -1587,6 +1618,29 @@ export function AccountRegisterPage() {
         registerTableLayout.columnWidths,
       ),
     [registerEditVisibleColumnIds, registerTableLayout.columnWidths],
+  );
+
+
+  const registerEntryVisibleColumnIds = useMemo(
+    () =>
+      buildRegisterEntryVisibleColumnIds(registerTableLayout.visibleColumnIds),
+    [registerTableLayout.visibleColumnIds],
+  );
+
+  const registerEntryColumnSet = useMemo(
+    () => new Set<RegisterColumnId>(registerEntryVisibleColumnIds),
+    [registerEntryVisibleColumnIds],
+  );
+
+  const registerEntryRowStyle = useMemo(
+    () =>
+      buildTableRowStyle(
+        REGISTER_COLUMN_DEFINITIONS,
+        registerEntryVisibleColumnIds,
+        0,
+        registerTableLayout.columnWidths,
+      ),
+    [registerEntryVisibleColumnIds, registerTableLayout.columnWidths],
   );
 
   useEffect(() => {
@@ -2400,6 +2454,8 @@ export function AccountRegisterPage() {
             categoryOptions={categoryOptions}
             transferAccounts={transferAccounts}
             payeeOptions={payeeOptions}
+            visibleColumns={registerEntryColumnSet}
+            rowStyle={registerEntryRowStyle}
             onSave={(input) => {
               addTransaction(input);
               setLastEntryDate(input.date);

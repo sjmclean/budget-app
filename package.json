@@ -308,7 +308,9 @@
     "test:v2151:autocomplete-keyboard-flow": "tsx tests/v2151-autocomplete-keyboard-flow.ts",
     "test:v2151": "pnpm test:v2151:autocomplete-keyboard-flow",
     "test:v216:autocomplete-popup": "tsx tests/v216-autocomplete-popup.ts",
-    "test:v216": "pnpm test:v216:autocomplete-popup"
+    "test:v216": "pnpm test:v216:autocomplete-popup",
+    "test:v217:transaction-entry-layout": "tsx tests/v217-transaction-entry-layout.ts",
+    "test:v217": "pnpm test:v217:transaction-entry-layout"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

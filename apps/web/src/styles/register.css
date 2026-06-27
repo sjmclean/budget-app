@@ -196,11 +196,10 @@
 
 .register-entry-row-active {
   display: grid;
-  grid-template-columns: 8.5rem minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(10rem, 1fr) 6rem 7rem 7rem auto;
   gap: 0.38rem;
-  padding: 0.55rem 0.72rem;
-  border-bottom: 1px solid var(--border-soft);
+  padding: 0.55rem 0.72rem 0.35rem;
   background: var(--surface-subtle);
+  overflow-x: auto;
 }
 
 .register-entry-row-active input {
@@ -215,6 +214,24 @@
 .register-entry-actions {
   display: flex;
   gap: 0.45rem;
+}
+
+.register-entry-actions-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.35rem 0.72rem 0.62rem;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-subtle);
+}
+
+.register-entry-commit-actions {
+  justify-content: flex-end;
+}
+
+.register-entry-commit-actions .button-primary {
+  white-space: nowrap;
 }
 
 .register-selection-bar {
@@ -686,45 +703,16 @@
   pointer-events: none;
 }
 
-.register-entry-actions-wide {
-  min-width: 18rem;
-}
-
-.register-entry-actions-wide .button-primary {
-  white-space: nowrap;
-}
-
-.register-entry-row-workflow {
-  grid-template-columns:
-    8.5rem
-    minmax(10rem, 1fr)
-    minmax(10rem, 1fr)
-    minmax(10rem, 1fr)
-    6rem
-    7rem
-    7rem
-    auto;
-}
-
-@media (max-width: 1200px) {
-  .register-entry-row-workflow {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .register-entry-actions-wide {
-    grid-column: 1 / -1;
-    min-width: 0;
-  }
-}
-
 @media (max-width: 680px) {
-  .register-entry-row-workflow {
-    grid-template-columns: 1fr;
+  .register-entry-actions-panel {
+    align-items: stretch;
+    flex-direction: column;
   }
 
-  .register-entry-actions-wide {
-    flex-direction: column;
-    align-items: stretch;
+  .register-entry-actions,
+  .register-entry-commit-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 }
 
