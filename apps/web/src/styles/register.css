@@ -37,7 +37,7 @@
   min-width: 0;
   max-width: 100%;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
   contain: inline-size;
 }
 
@@ -199,15 +199,18 @@
   gap: 0.38rem;
   padding: 0.55rem 0.72rem 0.35rem;
   background: var(--surface-subtle);
-  overflow-x: auto;
+  overflow: visible;
 }
 
 .register-entry-row-active input {
   min-width: 0;
+  min-height: 2rem;
   border: 1px solid var(--border);
   border-radius: 0.4rem;
   background: var(--surface);
   color: var(--text);
+  line-height: 1.2;
+  overflow: hidden;
   padding: 0.45rem 0.55rem;
 }
 
@@ -1189,6 +1192,7 @@
 .register-payee-autocomplete {
   position: relative;
   min-width: 0;
+  overflow: visible;
 }
 
 .register-payee-autocomplete > input {
@@ -1228,7 +1232,7 @@
 
 .register-payee-suggestions {
   position: absolute;
-  z-index: 90;
+  z-index: 1000;
   top: calc(100% + 4px);
   left: 0;
   right: 0;
@@ -1849,6 +1853,7 @@
 /* v2.16 shared autocomplete popup presentation */
 .register-autocomplete-popup {
   right: auto;
+  z-index: 1000;
   width: max-content;
   min-width: min(24rem, calc(100vw - 2rem));
   max-width: min(38rem, calc(100vw - 2rem));

@@ -310,7 +310,13 @@
     "test:v216:autocomplete-popup": "tsx tests/v216-autocomplete-popup.ts",
     "test:v216": "pnpm test:v216:autocomplete-popup",
     "test:v217:transaction-entry-layout": "tsx tests/v217-transaction-entry-layout.ts",
-    "test:v217": "pnpm test:v217:transaction-entry-layout"
+    "test:v217": "pnpm test:v217:transaction-entry-layout",
+    "test:v2182:register-input-polish": "tsx tests/v2182-register-input-polish.ts",
+    "test:v2182": "pnpm test:v2182:register-input-polish",
+    "test:v2183:autocomplete-focus-behaviour": "tsx tests/v2183-autocomplete-focus-behaviour.ts",
+    "test:v2183": "pnpm test:v2183:autocomplete-focus-behaviour",
+    "test:v2184:smart-autocomplete-ranking": "tsx tests/v2184-smart-autocomplete-ranking.ts",
+    "test:v2184": "pnpm test:v2184:smart-autocomplete-ranking"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

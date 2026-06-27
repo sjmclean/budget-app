@@ -430,6 +430,47 @@ function getCategorySuggestionSection(
     : suggestion.metadata?.groupName ?? suggestion.label ?? "Categories";
 }
 
+
+function useRegisterAutocompletePopupStyle(isOpen: boolean) {
+  const anchorRef = useRef<HTMLInputElement | null>(null);
+  const [popupStyle, setPopupStyle] = useState<CSSProperties>({});
+
+  const updatePopupStyle = useCallback(() => {
+    const anchor = anchorRef.current;
+
+    if (!anchor) {
+      return;
+    }
+
+    const rect = anchor.getBoundingClientRect();
+
+    setPopupStyle({
+      left: rect.left,
+      minWidth: Math.max(rect.width, 384),
+      position: "fixed",
+      top: rect.bottom + 4,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    updatePopupStyle();
+
+    window.addEventListener("resize", updatePopupStyle);
+    window.addEventListener("scroll", updatePopupStyle, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePopupStyle);
+      window.removeEventListener("scroll", updatePopupStyle, true);
+    };
+  }, [isOpen, updatePopupStyle]);
+
+  return { anchorRef, popupStyle };
+}
+
 function PayeeInput({
   value,
   onChange,
@@ -455,12 +496,18 @@ function PayeeInput({
         value: `Transfer: ${account.name}`,
         label: "Transfer",
         metadata: { payeeId: undefined, label: "Transfer", type: "transfer" as const },
+        ranking: { priority: 0 },
       })),
       ...payeeOptions.map((payee) => ({
         id: `payee-${payee.id}`,
         value: payee.name,
         label: "Payee",
         metadata: { payeeId: payee.id, label: "Payee", type: "payee" as const },
+        ranking: {
+          priority: 1,
+          recentAt: payee.lastUsedAt,
+          useCount: payee.useCount,
+        },
       })),
     ],
     [payeeOptions, transferAccounts],
@@ -484,8 +531,10 @@ function PayeeInput({
     value,
     highlightedSuggestion?.value,
   );
-  const shouldShowGhost = Boolean(ghostCompletion);
   const shouldShowSuggestions = isOpen && suggestions.length > 0;
+  const shouldShowGhost = shouldShowSuggestions && Boolean(ghostCompletion);
+  const { anchorRef, popupStyle } =
+    useRegisterAutocompletePopupStyle(shouldShowSuggestions);
 
   function selectSuggestion(
     selectedValue: string,
@@ -512,14 +561,17 @@ function PayeeInput({
   return (
     <div className="register-payee-autocomplete">
       <input
+        ref={anchorRef}
         value={value}
         onChange={(event) => {
-          onChange(event.target.value);
+          const nextValue = event.target.value;
+
+          onChange(nextValue);
           onPayeeIdChange?.(undefined);
-          setIsOpen(true);
+          setIsOpen(nextValue.trim().length > 0);
           setHighlightedIndex(0);
         }}
-        onFocus={() => setIsOpen(true)}
+        onFocus={() => setIsOpen(false)}
         onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
         onKeyDown={(event) => {
           if (event.key === "Tab" && !event.shiftKey && shouldShowGhost) {
@@ -540,23 +592,29 @@ function PayeeInput({
             }
           }
 
+          if (event.key === "ArrowDown" && suggestions.length > 0) {
+            event.preventDefault();
+            setIsOpen(true);
+            setHighlightedIndex((current) =>
+              shouldShowSuggestions && current < suggestions.length - 1
+                ? current + 1
+                : 0,
+            );
+            return;
+          }
+
+          if (event.key === "ArrowUp" && suggestions.length > 0) {
+            event.preventDefault();
+            setIsOpen(true);
+            setHighlightedIndex((current) =>
+              shouldShowSuggestions && current > 0
+                ? current - 1
+                : suggestions.length - 1,
+            );
+            return;
+          }
+
           if (!shouldShowSuggestions) {
-            return;
-          }
-
-          if (event.key === "ArrowDown") {
-            event.preventDefault();
-            setHighlightedIndex((current) =>
-              current >= suggestions.length - 1 ? 0 : current + 1,
-            );
-            return;
-          }
-
-          if (event.key === "ArrowUp") {
-            event.preventDefault();
-            setHighlightedIndex((current) =>
-              current <= 0 ? suggestions.length - 1 : current - 1,
-            );
             return;
           }
 
@@ -587,7 +645,11 @@ function PayeeInput({
       ) : null}
 
       {shouldShowSuggestions ? (
-        <div className="register-payee-suggestions register-autocomplete-popup" role="listbox">
+        <div
+          className="register-payee-suggestions register-autocomplete-popup"
+          role="listbox"
+          style={popupStyle}
+        >
           {suggestions.map((suggestion, index) => {
             const section = getPayeeSuggestionSection(suggestion);
             const previousSection =
@@ -668,6 +730,7 @@ function CategoryInput({
               value: SPLIT_CATEGORY_LABEL,
               label: "Special",
               metadata: { label: "Special", type: "special" as const },
+              ranking: { priority: 0 },
             },
           ]
         : [];
@@ -697,7 +760,9 @@ function CategoryInput({
     highlightedSuggestion?.value,
   );
   const shouldShowSuggestions = isOpen && suggestions.length > 0;
-  const shouldShowGhost = Boolean(ghostCompletion);
+  const shouldShowGhost = shouldShowSuggestions && Boolean(ghostCompletion);
+  const { anchorRef, popupStyle } =
+    useRegisterAutocompletePopupStyle(shouldShowSuggestions);
 
   function selectSuggestion(nextValue: string) {
     onChange(nextValue);
@@ -717,13 +782,16 @@ function CategoryInput({
   return (
     <div className="register-payee-autocomplete">
       <input
+        ref={anchorRef}
         value={value}
         onChange={(event) => {
-          onChange(event.target.value);
-          setIsOpen(true);
+          const nextValue = event.target.value;
+
+          onChange(nextValue);
+          setIsOpen(nextValue.trim().length > 0);
           setHighlightedIndex(0);
         }}
-        onFocus={() => setIsOpen(true)}
+        onFocus={() => setIsOpen(false)}
         onBlur={() => setIsOpen(false)}
         onKeyDown={(event) => {
           if (event.key === "Tab" && !event.shiftKey && shouldShowGhost) {
@@ -787,7 +855,11 @@ function CategoryInput({
       ) : null}
 
       {shouldShowSuggestions ? (
-        <div className="register-payee-suggestions register-autocomplete-popup register-category-suggestions" role="listbox">
+        <div
+          className="register-payee-suggestions register-autocomplete-popup register-category-suggestions"
+          role="listbox"
+          style={popupStyle}
+        >
           {suggestions.map((suggestion, index) => {
             const section = getCategorySuggestionSection(suggestion);
             const previousSection =

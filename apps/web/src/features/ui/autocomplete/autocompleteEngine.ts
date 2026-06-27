@@ -3,6 +3,14 @@ export interface AutocompleteOption<TMetadata = unknown> {
   value: string;
   label?: string;
   metadata?: TMetadata;
+  ranking?: {
+    /** Lower values are ranked first within the same match type. */
+    priority?: number;
+    /** ISO timestamp or numeric epoch used for recency-aware suggestions. */
+    recentAt?: string | number;
+    /** Frequency hint used after recency. */
+    useCount?: number;
+  };
 }
 
 export interface RankedAutocompleteOption<TMetadata = unknown>
@@ -13,6 +21,10 @@ export interface RankedAutocompleteOption<TMetadata = unknown>
 interface InternalRankedAutocompleteOption<TMetadata = unknown>
   extends RankedAutocompleteOption<TMetadata> {
   score: number;
+  priority: number;
+  recentTime: number;
+  useCount: number;
+  normalisedValue: string;
   originalIndex: number;
 }
 
@@ -25,6 +37,28 @@ export interface RankAutocompleteOptionsConfig<TMetadata = unknown> {
 
 function defaultNormalise(value: string): string {
   return value.replace(/\s+/g, " ").trim().toLocaleLowerCase();
+}
+
+function getRankingRecentTime(value: string | number | undefined): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const time = Date.parse(value);
+
+    return Number.isFinite(time) ? time : 0;
+  }
+
+  return 0;
+}
+
+function getRankingUseCount(value: number | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function getRankingPriority(value: number | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 1;
 }
 
 function getMatchScore(
@@ -79,6 +113,10 @@ export function rankAutocompleteOptions<TMetadata = unknown>({
       ...option,
       matchType: match.matchType,
       score: match.score,
+      priority: getRankingPriority(option.ranking?.priority),
+      recentTime: getRankingRecentTime(option.ranking?.recentAt),
+      useCount: getRankingUseCount(option.ranking?.useCount),
+      normalisedValue: normalisedOptionValue,
       originalIndex,
     });
   });
@@ -89,18 +127,44 @@ export function rankAutocompleteOptions<TMetadata = unknown>({
         return left.score - right.score;
       }
 
+      if (left.priority !== right.priority) {
+        return left.priority - right.priority;
+      }
+
+      if (left.recentTime !== right.recentTime) {
+        return right.recentTime - left.recentTime;
+      }
+
+      if (left.useCount !== right.useCount) {
+        return right.useCount - left.useCount;
+      }
+
       const lengthDifference = left.value.length - right.value.length;
 
       if (lengthDifference !== 0) {
         return lengthDifference;
       }
 
+      const alphabeticalDifference = left.normalisedValue.localeCompare(
+        right.normalisedValue,
+      );
+
+      if (alphabeticalDifference !== 0) {
+        return alphabeticalDifference;
+      }
+
       return left.originalIndex - right.originalIndex;
     })
     .slice(0, maxResults)
-    .map(({ score: _score, originalIndex: _originalIndex, ...option }) =>
-      option,
-    );
+    .map(({
+      score: _score,
+      priority: _priority,
+      recentTime: _recentTime,
+      useCount: _useCount,
+      normalisedValue: _normalisedValue,
+      originalIndex: _originalIndex,
+      ...option
+    }) => option);
 }
 
 export function getAutocompleteCompletion(
