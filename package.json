@@ -298,7 +298,11 @@
     "test:v211:responsive-layout": "tsx tests/v211-responsive-layout.ts",
     "test:v211": "pnpm test:v211:responsive-layout",
     "test:v212:compact-density": "tsx tests/v212-compact-density.ts",
-    "test:v212": "pnpm test:v212:compact-density"
+    "test:v212": "pnpm test:v212:compact-density",
+    "test:v213:budget-ux-cleanup": "tsx tests/v213-budget-ux-cleanup.ts",
+    "test:v213": "pnpm test:v213:budget-ux-cleanup",
+    "test:v214:category-details-panel": "tsx tests/v214-category-details-panel.ts",
+    "test:v214": "pnpm test:v214:category-details-panel"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

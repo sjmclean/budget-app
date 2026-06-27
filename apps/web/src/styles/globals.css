@@ -722,12 +722,20 @@ strong {
   min-width: 0;
 }
 
-.budget-filter-bar {
+.budget-display-bar {
   min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.45rem;
+}
+
+.budget-display-label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .budget-filter {
@@ -747,15 +755,6 @@ strong {
   border-color: var(--accent);
 }
 
-.budget-filter-spacer {
-  flex: 1;
-}
-
-.budget-search {
-  width: min(18rem, 100%);
-  padding: 0.48rem 0.65rem;
-  font-size: 0.84rem;
-}
 
 .budget-workspace-table-card,
 .month-overview-card,
@@ -1057,13 +1056,12 @@ strong {
   .budget-row-card,
   .budget-workspace-topbar,
   .month-switcher,
-  .budget-filter-bar {
+  .budget-display-bar {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .ready-to-assign-pill,
-  .budget-search {
+  .ready-to-assign-pill {
     width: 100%;
   }
 
@@ -2851,4 +2849,96 @@ strong {
 .table-layout-resizing {
   cursor: col-resize;
   user-select: none;
+}
+
+.category-details-actions {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.category-details-note-summary {
+  padding: 0.65rem 0.75rem;
+}
+
+.category-management-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(3px);
+}
+
+.category-management-modal {
+  width: min(980px, calc(100vw - 2rem));
+  max-height: min(820px, calc(100vh - 2rem));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.category-management-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem 0.85rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.category-management-modal-header h2 {
+  margin: 0;
+}
+
+.category-management-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  overflow: auto;
+  padding: 1rem 1.15rem 1.15rem;
+}
+
+.category-management-section {
+  display: grid;
+  align-content: start;
+  gap: 0.7rem;
+  min-width: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8rem;
+  background: var(--surface-muted);
+  padding: 0.85rem;
+}
+
+.category-management-section h3 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.category-management-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.category-management-section .category-inspector-actions {
+  flex-wrap: wrap;
+}
+
+.category-notes-editor label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+@media (max-width: 900px) {
+  .category-management-sections {
+    grid-template-columns: 1fr;
+  }
 }

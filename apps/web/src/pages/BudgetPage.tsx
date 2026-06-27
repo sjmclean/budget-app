@@ -303,6 +303,119 @@ function CategoryInspector({
   group,
   currencyCode,
   isOverassignedSource,
+  onSetCategoryArchived,
+  onOpenManageCategory,
+}: {
+  category: BudgetCategoryView | null;
+  group: BudgetCategoryGroupView | null;
+  currencyCode: string;
+  isOverassignedSource: boolean;
+  onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
+  onOpenManageCategory: () => void;
+}) {
+  if (!category || !group) {
+    return (
+      <Card className="budget-inspector-card">
+        <div className="panel-section-header">
+          <h2>Category Details</h2>
+          <p className="muted">Select a category to inspect it.</p>
+        </div>
+
+        <div className="inspector-empty">
+          Click a budget category to see details here.
+        </div>
+      </Card>
+    );
+  }
+
+  const statusLabel = isMoneyNegative(category.available)
+    ? "Overspent"
+    : isOverassignedSource
+      ? "Overbudgeted"
+      : "Available";
+  const hasCategoryNote = Boolean(category.note?.trim());
+  const hasGroupNote = Boolean(group.note?.trim());
+
+  return (
+    <Card className="budget-inspector-card">
+      <div className="panel-section-header category-inspector-header">
+        <div>
+          <h2>{category.name}</h2>
+          <p className="muted">
+            {group.name}
+            {category.isArchived ? " · Archived" : ""}
+          </p>
+        </div>
+      </div>
+
+      <div className="inspector-breakdown">
+        <div>
+          <span>Assigned</span>
+          <strong>{formatMoney(category.assigned, currencyCode)}</strong>
+        </div>
+        <div>
+          <span>Activity</span>
+          <strong>{formatMoney(category.activity, currencyCode)}</strong>
+        </div>
+        <div>
+          <span>Available</span>
+          <strong
+            className={getAvailableClass(
+              category.available,
+              isOverassignedSource,
+            )}
+          >
+            {formatMoney(category.available, currencyCode)}
+          </strong>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong>{statusLabel}</strong>
+        </div>
+      </div>
+
+      {hasCategoryNote || hasGroupNote ? (
+        <div className="inspector-note category-details-note-summary">
+          <h3>Notes</h3>
+          <p className="muted">
+            {hasCategoryNote && hasGroupNote
+              ? "This category and its group have notes."
+              : hasCategoryNote
+                ? "This category has notes."
+                : "This category group has notes."}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="category-details-actions">
+        <button
+          className="button button-secondary category-archive-button"
+          type="button"
+          onClick={() =>
+            onSetCategoryArchived(category.id, !category.isArchived)
+          }
+        >
+          {category.isArchived ? "Restore category" : "Archive category"}
+        </button>
+
+        <button
+          className="button button-primary"
+          type="button"
+          onClick={onOpenManageCategory}
+        >
+          Manage Category…
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+function CategoryManagementDialog({
+  category,
+  group,
+  currencyCode,
+  isOpen,
+  isOverassignedSource,
   canMoveCategoryUp,
   canMoveCategoryDown,
   canMoveGroupUp,
@@ -310,6 +423,7 @@ function CategoryInspector({
   mergeTargetOptions,
   mergePreview,
   isMergePreviewLoading,
+  onClose,
   onRenameCategory,
   onSetCategoryArchived,
   onMoveCategory,
@@ -323,6 +437,7 @@ function CategoryInspector({
   category: BudgetCategoryView | null;
   group: BudgetCategoryGroupView | null;
   currencyCode: string;
+  isOpen: boolean;
   isOverassignedSource: boolean;
   canMoveCategoryUp: boolean;
   canMoveCategoryDown: boolean;
@@ -331,6 +446,7 @@ function CategoryInspector({
   mergeTargetOptions: Array<{ id: string; name: string; groupName: string }>;
   mergePreview: CategoryMergePreview | null;
   isMergePreviewLoading: boolean;
+  onClose: () => void;
   onRenameCategory: (categoryId: string, name: string) => void;
   onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   onMoveCategory: (categoryId: string, direction: "up" | "down") => void;
@@ -391,6 +507,7 @@ function CategoryInspector({
 
     setIsRenaming(false);
   }
+
   function saveCategoryNote() {
     if (!category) {
       return;
@@ -447,248 +564,231 @@ function CategoryInspector({
         : null
       : null;
 
-  if (!category || !group) {
-    return (
-      <Card className="budget-inspector-card">
-        <div className="panel-section-header">
-          <h2>Inspector</h2>
-          <p className="muted">Select a category to inspect it.</p>
-        </div>
-
-        <div className="inspector-empty">
-          Click a budget category to see details here.
-        </div>
-      </Card>
-    );
+  if (!isOpen || !category || !group) {
+    return null;
   }
 
   return (
-    <Card className="budget-inspector-card">
-      <div className="panel-section-header category-inspector-header">
-        <div>
-          {isRenaming ? (
-            <input
-              className="category-rename-input"
-              autoFocus
-              value={draftName}
-              onChange={(event) => setDraftName(event.target.value)}
-              onBlur={saveRename}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  saveRename();
-                }
-
-                if (event.key === "Escape") {
-                  cancelRename();
-                }
-              }}
-              aria-label="Category name"
-            />
-          ) : (
-            <h2>{category.name}</h2>
-          )}
-          <p className="muted">
-            {group.name}
-            {category.isArchived ? " · Archived" : ""}
-          </p>
-        </div>
-
-        <div className="category-inspector-actions">
-          <button
-            className="button button-secondary category-rename-button"
-            type="button"
-            onMouseDown={(event) => {
-              if (isRenaming) {
-                event.preventDefault();
-              }
-            }}
-            onClick={isRenaming ? saveRename : startRename}
-          >
-            {isRenaming ? "Save" : "Rename"}
-          </button>
-
-          <button
-            className="button button-secondary category-move-button"
-            type="button"
-            disabled={!canMoveCategoryUp}
-            onClick={() => onMoveCategory(category.id, "up")}
-            title="Move category up"
-          >
-            ↑
-          </button>
-
-          <button
-            className="button button-secondary category-move-button"
-            type="button"
-            disabled={!canMoveCategoryDown}
-            onClick={() => onMoveCategory(category.id, "down")}
-            title="Move category down"
-          >
-            ↓
-          </button>
-
-          <button
-            className="button button-secondary category-move-button"
-            type="button"
-            disabled={!canMoveGroupUp}
-            onClick={() => onMoveCategoryGroup(group.id, "up")}
-            title="Move category group up"
-          >
-            Group ↑
-          </button>
-
-          <button
-            className="button button-secondary category-move-button"
-            type="button"
-            disabled={!canMoveGroupDown}
-            onClick={() => onMoveCategoryGroup(group.id, "down")}
-            title="Move category group down"
-          >
-            Group ↓
-          </button>
-
-          <button
-            className="button button-secondary category-archive-button"
-            type="button"
-            onClick={() =>
-              onSetCategoryArchived(category.id, !category.isArchived)
-            }
-          >
-            {category.isArchived ? "Restore" : "Archive"}
-          </button>
-        </div>
-      </div>
-
-      <div className="inspector-breakdown">
-        <div>
-          <span>Assigned</span>
-          <strong>{formatMoney(category.assigned, currencyCode)}</strong>
-        </div>
-        <div>
-          <span>Activity</span>
-          <strong>{formatMoney(category.activity, currencyCode)}</strong>
-        </div>
-        <div>
-          <span>Available</span>
-          <strong
-            className={getAvailableClass(
-              category.available,
-              isOverassignedSource,
-            )}
-          >
-            {formatMoney(category.available, currencyCode)}
-          </strong>
-        </div>
-        <div>
-          <span>Status</span>
-          <strong>
-            {isMoneyNegative(category.available)
-              ? "Overspent"
-              : isOverassignedSource
-                ? "Overbudgeted"
-                : "Available"}
-          </strong>
-        </div>
-      </div>
-
-      <div className="inspector-note">
-        <h3>Merge preview</h3>
-        <p className="muted">
-          Preview how many register and scheduled entries would be affected
-          before we add the actual merge action. This does not change any data.
-        </p>
-
-        <div className="category-merge-preview-controls">
-          <select
-            className="category-rename-input"
-            value={mergeTargetId}
-            onChange={(event) => {
-              setMergeTargetId(event.target.value);
-              onClearCategoryMergePreview();
-            }}
-            aria-label="Merge target category"
-          >
-            <option value="">Merge into…</option>
-            {mergeTargetOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.name} — {option.groupName}
-              </option>
-            ))}
-          </select>
-
-          <button
-            className="button button-secondary"
-            type="button"
-            disabled={!mergeTargetId || isMergePreviewLoading}
-            onClick={previewMerge}
-          >
-            {isMergePreviewLoading ? "Previewing…" : "Preview"}
-          </button>
-        </div>
-
-        {activeMergePreview ? (
-          <div className="category-merge-preview-summary">
-            <p>
-              <strong>{activeMergePreview.sourceCategoryName}</strong> would
-              merge into{" "}
-              <strong>{activeMergePreview.targetCategoryName}</strong>.
-            </p>
+    <div
+      className="category-management-modal-backdrop"
+      role="presentation"
+      onClick={onClose}
+    >
+      <section
+        className="category-management-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="category-management-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="category-management-modal-header">
+          <div>
+            <h2 id="category-management-title">Manage Category</h2>
             <p className="muted">
-              Register transactions:{" "}
-              {activeMergePreview.registerTransactionCount}
-              {" · "}Split lines: {activeMergePreview.registerSplitLineCount}
-              {" · "}Scheduled transactions:{" "}
-              {activeMergePreview.scheduledTransactionCount}
+              {category.name} · {group.name}
             </p>
-            <p className="muted">
-              Assigned after merge:{" "}
-              {formatMoney(activeMergePreview.combinedAssigned, currencyCode)}
-              {" · "}Activity after merge:{" "}
-              {formatMoney(activeMergePreview.combinedActivity, currencyCode)}
-              {" · "}Available after merge:{" "}
-              {formatMoney(activeMergePreview.combinedAvailable, currencyCode)}
-            </p>
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={mergeCategory}
-            >
-              Merge now
-            </button>
           </div>
-        ) : null}
-      </div>
 
-      <div className="inspector-note category-notes-editor">
-        <h3>Category notes</h3>
-        <p className="muted">
-          Notes are stored on the individual category and are preserved for future YNAB4 import mapping.
-        </p>
-        <textarea
-          className="category-note-textarea"
-          value={draftCategoryNote}
-          onChange={(event) => setDraftCategoryNote(event.target.value)}
-          onBlur={saveCategoryNote}
-          placeholder="Add reminders, rules, renewal dates, or category-specific instructions…"
-          rows={5}
-        />
-      </div>
+          <button
+            className="budget-activity-modal-close"
+            type="button"
+            onClick={onClose}
+            aria-label="Close category management"
+          >
+            ×
+          </button>
+        </header>
 
-      <div className="inspector-note category-notes-editor">
-        <h3>Category group notes</h3>
-        <p className="muted">
-          YNAB4 category headers can also have notes, so this group-level note is preserved separately.
-        </p>
-        <textarea
-          className="category-note-textarea"
-          value={draftGroupNote}
-          onChange={(event) => setDraftGroupNote(event.target.value)}
-          onBlur={saveGroupNote}
-          placeholder="Add notes that apply to this whole category group…"
-          rows={4}
-        />
-      </div>
-    </Card>
+        <div className="category-management-sections">
+          <section className="category-management-section">
+            <h3>General</h3>
+            <div className="category-management-row">
+              {isRenaming ? (
+                <input
+                  className="category-rename-input"
+                  autoFocus
+                  value={draftName}
+                  onChange={(event) => setDraftName(event.target.value)}
+                  onBlur={saveRename}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      saveRename();
+                    }
+
+                    if (event.key === "Escape") {
+                      cancelRename();
+                    }
+                  }}
+                  aria-label="Category name"
+                />
+              ) : (
+                <strong>{category.name}</strong>
+              )}
+
+              <button
+                className="button button-secondary category-rename-button"
+                type="button"
+                onMouseDown={(event) => {
+                  if (isRenaming) {
+                    event.preventDefault();
+                  }
+                }}
+                onClick={isRenaming ? saveRename : startRename}
+              >
+                {isRenaming ? "Save" : "Rename"}
+              </button>
+            </div>
+
+            <button
+              className="button button-secondary category-archive-button"
+              type="button"
+              onClick={() =>
+                onSetCategoryArchived(category.id, !category.isArchived)
+              }
+            >
+              {category.isArchived ? "Restore category" : "Archive category"}
+            </button>
+          </section>
+
+          <section className="category-management-section">
+            <h3>Organisation</h3>
+            <div className="category-inspector-actions">
+              <button
+                className="button button-secondary category-move-button"
+                type="button"
+                disabled={!canMoveCategoryUp}
+                onClick={() => onMoveCategory(category.id, "up")}
+                title="Move category up"
+              >
+                Move category up
+              </button>
+
+              <button
+                className="button button-secondary category-move-button"
+                type="button"
+                disabled={!canMoveCategoryDown}
+                onClick={() => onMoveCategory(category.id, "down")}
+                title="Move category down"
+              >
+                Move category down
+              </button>
+
+              <button
+                className="button button-secondary category-move-button"
+                type="button"
+                disabled={!canMoveGroupUp}
+                onClick={() => onMoveCategoryGroup(group.id, "up")}
+                title="Move category group up"
+              >
+                Move group up
+              </button>
+
+              <button
+                className="button button-secondary category-move-button"
+                type="button"
+                disabled={!canMoveGroupDown}
+                onClick={() => onMoveCategoryGroup(group.id, "down")}
+                title="Move category group down"
+              >
+                Move group down
+              </button>
+            </div>
+          </section>
+
+          <section className="category-management-section">
+            <h3>Merge</h3>
+            <p className="muted">
+              Preview how many register and scheduled entries would be affected before merging.
+            </p>
+
+            <div className="category-merge-preview-controls">
+              <select
+                className="category-rename-input"
+                value={mergeTargetId}
+                onChange={(event) => {
+                  setMergeTargetId(event.target.value);
+                  onClearCategoryMergePreview();
+                }}
+                aria-label="Merge target category"
+              >
+                <option value="">Merge into…</option>
+                {mergeTargetOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name} — {option.groupName}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                className="button button-secondary"
+                type="button"
+                disabled={!mergeTargetId || isMergePreviewLoading}
+                onClick={previewMerge}
+              >
+                {isMergePreviewLoading ? "Previewing…" : "Preview"}
+              </button>
+            </div>
+
+            {activeMergePreview ? (
+              <div className="category-merge-preview-summary">
+                <p>
+                  <strong>{activeMergePreview.sourceCategoryName}</strong> would
+                  merge into <strong>{activeMergePreview.targetCategoryName}</strong>.
+                </p>
+                <p className="muted">
+                  Register transactions: {activeMergePreview.registerTransactionCount}
+                  {" · "}Split lines: {activeMergePreview.registerSplitLineCount}
+                  {" · "}Scheduled transactions: {activeMergePreview.scheduledTransactionCount}
+                </p>
+                <p className="muted">
+                  Assigned after merge: {formatMoney(activeMergePreview.combinedAssigned, currencyCode)}
+                  {" · "}Activity after merge: {formatMoney(activeMergePreview.combinedActivity, currencyCode)}
+                  {" · "}Available after merge: {formatMoney(activeMergePreview.combinedAvailable, currencyCode)}
+                </p>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={mergeCategory}
+                >
+                  Merge now
+                </button>
+              </div>
+            ) : null}
+          </section>
+
+          <section className="category-management-section">
+            <h3>Notes</h3>
+            <div className="category-notes-editor">
+              <label>
+                <span>Category notes</span>
+                <textarea
+                  className="category-note-textarea"
+                  value={draftCategoryNote}
+                  onChange={(event) => setDraftCategoryNote(event.target.value)}
+                  onBlur={saveCategoryNote}
+                  placeholder="Add reminders, rules, renewal dates, or category-specific instructions…"
+                  rows={5}
+                />
+              </label>
+            </div>
+
+            <div className="category-notes-editor">
+              <label>
+                <span>Category group notes</span>
+                <textarea
+                  className="category-note-textarea"
+                  value={draftGroupNote}
+                  onChange={(event) => setDraftGroupNote(event.target.value)}
+                  onBlur={saveGroupNote}
+                  placeholder="Add notes that apply to this whole category group…"
+                  rows={4}
+                />
+              </label>
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -848,6 +948,7 @@ export function BudgetPage() {
 function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const navigate = useNavigate();
   const [hideArchivedCategories, setHideArchivedCategories] = useState(false);
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(() =>
     getCurrentBudgetMonth(),
   );
@@ -889,6 +990,12 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     () => (columnId: BudgetColumnId) => budgetTableLayout.visibleColumnSet.has(columnId),
     [budgetTableLayout.visibleColumnSet],
   );
+
+  useEffect(() => {
+    if (!selectedCategory) {
+      setIsCategoryManagerOpen(false);
+    }
+  }, [selectedCategory?.id]);
 
   if (isLoading) {
     return (
@@ -1047,22 +1154,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
       <div className="budget-workspace-layout budget-workspace-layout-interactive">
         <main className="budget-workspace-main">
-          <section className="budget-filter-bar">
-            <button
-              className="budget-filter budget-filter-active"
-              type="button"
-            >
-              All
-            </button>
-            <button className="budget-filter" type="button">
-              Overspent
-            </button>
-            <button className="budget-filter" type="button">
-              Money Available
-            </button>
-            <button className="budget-filter" type="button">
-              Needs Money
-            </button>
+          <section className="budget-display-bar" aria-label="Budget display options">
+            <span className="budget-display-label">Display</span>
             <button
               className={
                 hideArchivedCategories
@@ -1081,14 +1174,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 ? `Archived hidden (${hiddenArchivedCount})`
                 : `Hide archived (${hiddenArchivedCount})`}
             </button>
-
-            <div className="budget-filter-spacer" />
-
-            <input
-              className="budget-search"
-              placeholder="Search categories…"
-              aria-label="Search categories"
-            />
           </section>
 
           <Card className="budget-workspace-table-card">
@@ -1167,22 +1252,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             group={visibleSelectedGroup}
             currencyCode={data.currencyCode}
             isOverassignedSource={selectedCategoryIsOverassignedSource}
-            canMoveCategoryUp={canMoveSelectedCategoryUp}
-            canMoveCategoryDown={canMoveSelectedCategoryDown}
-            canMoveGroupUp={canMoveSelectedGroupUp}
-            canMoveGroupDown={canMoveSelectedGroupDown}
-            mergeTargetOptions={mergeTargetOptions}
-            mergePreview={categoryMergePreview}
-            isMergePreviewLoading={isCategoryMergePreviewLoading}
-            onRenameCategory={renameCategory}
             onSetCategoryArchived={setCategoryArchived}
-            onMoveCategory={moveCategory}
-            onMoveCategoryGroup={moveCategoryGroup}
-            onPreviewCategoryMerge={previewCategoryMerge}
-            onMergeCategory={mergeCategory}
-            onClearCategoryMergePreview={clearCategoryMergePreview}
-            onUpdateCategoryNote={updateCategoryNote}
-            onUpdateCategoryGroupNote={updateCategoryGroupNote}
+            onOpenManageCategory={() => setIsCategoryManagerOpen(true)}
           />
 
           <Card className="budget-health-card">
@@ -1215,6 +1286,31 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
         </aside>
       </div>
 
+
+      <CategoryManagementDialog
+        category={visibleSelectedCategory}
+        group={visibleSelectedGroup}
+        currencyCode={data.currencyCode}
+        isOpen={isCategoryManagerOpen}
+        isOverassignedSource={selectedCategoryIsOverassignedSource}
+        canMoveCategoryUp={canMoveSelectedCategoryUp}
+        canMoveCategoryDown={canMoveSelectedCategoryDown}
+        canMoveGroupUp={canMoveSelectedGroupUp}
+        canMoveGroupDown={canMoveSelectedGroupDown}
+        mergeTargetOptions={mergeTargetOptions}
+        mergePreview={categoryMergePreview}
+        isMergePreviewLoading={isCategoryMergePreviewLoading}
+        onClose={() => setIsCategoryManagerOpen(false)}
+        onRenameCategory={renameCategory}
+        onSetCategoryArchived={setCategoryArchived}
+        onMoveCategory={moveCategory}
+        onMoveCategoryGroup={moveCategoryGroup}
+        onPreviewCategoryMerge={previewCategoryMerge}
+        onMergeCategory={mergeCategory}
+        onClearCategoryMergePreview={clearCategoryMergePreview}
+        onUpdateCategoryNote={updateCategoryNote}
+        onUpdateCategoryGroupNote={updateCategoryGroupNote}
+      />
       <BudgetActivityDrilldownModal
         drilldown={activityDrilldown}
         isLoading={isActivityDrilldownLoading}
