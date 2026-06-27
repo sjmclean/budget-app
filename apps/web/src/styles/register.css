@@ -1940,3 +1940,138 @@
   font-weight: 700;
   padding: 0.55rem 0.9rem;
 }
+
+/* v2.21 split transaction balancing and read-only expansion */
+.register-split-category-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.register-split-toggle {
+  width: 1.25rem;
+  height: 1.25rem;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 0.32rem;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.register-split-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.register-split-readonly-row {
+  border-top: 0;
+  background: color-mix(in srgb, var(--surface-subtle) 72%, var(--surface));
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.register-split-readonly-row:hover {
+  background: color-mix(in srgb, var(--accent-soft) 42%, var(--surface));
+}
+
+.register-split-readonly-spacer {
+  box-shadow: inset 2px 0 0 var(--border);
+  min-height: 1.25rem;
+}
+
+.register-split-readonly-payee,
+.register-split-readonly-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.register-split-readonly-payee {
+  color: var(--text-muted);
+}
+
+.register-split-readonly-category {
+  font-weight: 650;
+}
+
+.register-split-editor-balanced {
+  border-left: 3px solid color-mix(in srgb, #16a34a 70%, var(--accent));
+}
+
+.register-split-editor-unbalanced {
+  border-left: 3px solid color-mix(in srgb, #f59e0b 76%, var(--accent));
+}
+
+.register-split-editor-over {
+  border-left: 3px solid color-mix(in srgb, #dc2626 76%, var(--accent));
+}
+
+.register-split-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 0.35rem;
+}
+
+.register-split-balance-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  flex: 1 1 32rem;
+  min-width: min(100%, 28rem);
+}
+
+.register-split-balance-summary span {
+  display: grid;
+  gap: 0.1rem;
+  text-align: right;
+}
+
+.register-split-balance-summary small {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.register-split-remaining-balanced strong,
+.register-split-balanced-badge {
+  color: #15803d;
+}
+
+.register-split-remaining-unbalanced strong {
+  color: #d97706;
+}
+
+.register-split-remaining-over strong {
+  color: #dc2626;
+}
+
+.register-split-balanced-badge {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.register-split-commit-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.register-split-commit-actions .button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

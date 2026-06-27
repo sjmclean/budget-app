@@ -1,4 +1,4 @@
-import { Paperclip } from "lucide-react";
+import { ChevronDown, ChevronRight, CornerDownRight, Paperclip } from "lucide-react";
 import { memo, useState, type CSSProperties } from "react";
 import type {
   RegisterTransactionView,
@@ -235,69 +235,126 @@ export const TransactionRow = memo(function TransactionRow({
   visibleColumns: Set<RegisterColumnId>;
   rowStyle: CSSProperties;
 }) {
+  const [isSplitExpanded, setIsSplitExpanded] = useState(false);
+  const splitLines = transaction.splitLines ?? [];
+  const hasSplitLines = splitLines.length > 0;
+
   return (
-    <button
-      type="button"
-      className={
-        isSelected ? "register-row register-row-selected" : "register-row"
-      }
-      onClick={() => onSelectTransaction(transaction.id)}
-      onDoubleClick={() => onEditTransaction(transaction.id)}
-      style={rowStyle}
-    >
-      <span className="register-checkbox" aria-hidden="true" />
-      <span>{formatDateForDisplay(transaction.date, dateFormat)}</span>
-      {isRegisterColumnVisible("flag", visibleColumns) ? (
-        <InlineFlagPicker
-          value={transaction.flag}
-          onChange={(flag) => onUpdateTransactionFlag(transaction, flag)}
-        />
-      ) : null}
-      {isRegisterColumnVisible("attachments", visibleColumns) ? (
-        <AttachmentIndicator
-          count={transaction.attachmentCount}
-          onClick={() => onManageTransactionAttachments(transaction.id)}
-        />
-      ) : null}
+    <>
+      <button
+        type="button"
+        className={
+          isSelected ? "register-row register-row-selected" : "register-row"
+        }
+        onClick={() => onSelectTransaction(transaction.id)}
+        onDoubleClick={() => onEditTransaction(transaction.id)}
+        style={rowStyle}
+      >
+        <span className="register-checkbox" aria-hidden="true" />
+        <span>{formatDateForDisplay(transaction.date, dateFormat)}</span>
+        {isRegisterColumnVisible("flag", visibleColumns) ? (
+          <InlineFlagPicker
+            value={transaction.flag}
+            onChange={(flag) => onUpdateTransactionFlag(transaction, flag)}
+          />
+        ) : null}
+        {isRegisterColumnVisible("attachments", visibleColumns) ? (
+          <AttachmentIndicator
+            count={transaction.attachmentCount}
+            onClick={() => onManageTransactionAttachments(transaction.id)}
+          />
+        ) : null}
 
-      <div className="register-payee-cell">
-        <strong>{transaction.payee}</strong>
-      </div>
+        <div className="register-payee-cell">
+          <strong>{transaction.payee}</strong>
+        </div>
 
-      <span>{transaction.category}</span>
-      {isRegisterColumnVisible("memo", visibleColumns) ? (
-        <span className="register-memo-cell">{transaction.memo ?? ""}</span>
-      ) : null}
-      {isRegisterColumnVisible("checkNumber", visibleColumns) ? (
-        <span className="register-check-number-cell">
-          {transaction.checkNumber ?? ""}
+        <span className={hasSplitLines ? "register-split-category-cell" : undefined}>
+          {hasSplitLines ? (
+            <button
+              className="register-split-toggle"
+              type="button"
+              aria-label={isSplitExpanded ? "Collapse split transaction" : "Expand split transaction"}
+              aria-expanded={isSplitExpanded}
+              onClick={(event) => {
+                event.stopPropagation();
+                setIsSplitExpanded((expanded) => !expanded);
+              }}
+            >
+              {isSplitExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </button>
+          ) : null}
+          {hasSplitLines ? `Split (${splitLines.length})` : transaction.category}
         </span>
-      ) : null}
+        {isRegisterColumnVisible("memo", visibleColumns) ? (
+          <span className="register-memo-cell">{transaction.memo ?? ""}</span>
+        ) : null}
+        {isRegisterColumnVisible("checkNumber", visibleColumns) ? (
+          <span className="register-check-number-cell">
+            {transaction.checkNumber ?? ""}
+          </span>
+        ) : null}
 
-      <span className="register-money register-outflow">
-        {transaction.outflow
-          ? formatMoney(transaction.outflow, currencyCode)
-          : ""}
-      </span>
+        <span className="register-money register-outflow">
+          {transaction.outflow
+            ? formatMoney(transaction.outflow, currencyCode)
+            : ""}
+        </span>
 
-      <span className="register-money register-inflow">
-        {transaction.inflow
-          ? formatMoney(transaction.inflow, currencyCode)
-          : ""}
-      </span>
+        <span className="register-money register-inflow">
+          {transaction.inflow
+            ? formatMoney(transaction.inflow, currencyCode)
+            : ""}
+        </span>
 
-      {isRegisterColumnVisible("runningBalance", visibleColumns) ? (
-        <strong className="register-balance">
-          {formatMoney(transaction.runningBalance, currencyCode)}
-        </strong>
-      ) : null}
+        {isRegisterColumnVisible("runningBalance", visibleColumns) ? (
+          <strong className="register-balance">
+            {formatMoney(transaction.runningBalance, currencyCode)}
+          </strong>
+        ) : null}
 
-      {isRegisterColumnVisible("status", visibleColumns) ? (
-        <TransactionStatus
-          transaction={transaction}
-          onToggleCleared={() => onToggleClearedTransaction(transaction.id)}
-        />
-      ) : null}
-    </button>
+        {isRegisterColumnVisible("status", visibleColumns) ? (
+          <TransactionStatus
+            transaction={transaction}
+            onToggleCleared={() => onToggleClearedTransaction(transaction.id)}
+          />
+        ) : null}
+      </button>
+
+      {hasSplitLines && isSplitExpanded
+        ? splitLines.map((line) => (
+            <button
+              className="register-row register-split-readonly-row"
+              type="button"
+              key={line.id}
+              style={rowStyle}
+              onClick={() => onSelectTransaction(transaction.id)}
+              onDoubleClick={() => onEditTransaction(transaction.id)}
+            >
+              <span className="register-split-readonly-spacer" aria-hidden="true" />
+              <span />
+              {isRegisterColumnVisible("flag", visibleColumns) ? <span /> : null}
+              {isRegisterColumnVisible("attachments", visibleColumns) ? <span /> : null}
+              <span className="register-split-readonly-payee">
+                <CornerDownRight size={13} aria-hidden="true" />
+                {transaction.payee}
+              </span>
+              <span className="register-split-readonly-category">{line.category}</span>
+              {isRegisterColumnVisible("memo", visibleColumns) ? (
+                <span className="register-memo-cell">{line.memo ?? ""}</span>
+              ) : null}
+              {isRegisterColumnVisible("checkNumber", visibleColumns) ? <span /> : null}
+              <span className="register-money register-outflow">
+                {line.outflow ? formatMoney(line.outflow, currencyCode) : ""}
+              </span>
+              <span className="register-money register-inflow">
+                {line.inflow ? formatMoney(line.inflow, currencyCode) : ""}
+              </span>
+              {isRegisterColumnVisible("runningBalance", visibleColumns) ? <span className="register-balance">-</span> : null}
+              {isRegisterColumnVisible("status", visibleColumns) ? <span /> : null}
+            </button>
+          ))
+        : null}
+    </>
   );
 });

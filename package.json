@@ -326,7 +326,9 @@
     "test:v220:edit-actions-split-foundation": "tsx tests/v220-edit-actions-split-foundation.ts",
     "test:v220": "pnpm test:v220:edit-actions-split-foundation",
     "test:v2201:edit-actions-placement": "tsx tests/v2201-edit-actions-placement.ts",
-    "test:v2201": "pnpm test:v2201:edit-actions-placement"
+    "test:v2201": "pnpm test:v2201:edit-actions-placement",
+    "test:v221:split-balance-readonly": "tsx tests/v221-split-balance-readonly.ts",
+    "test:v221": "pnpm test:v221:split-balance-readonly"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

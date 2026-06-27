@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "../components/ui/Card";
@@ -1010,33 +1011,130 @@ function totalsFromSplitLines(splitLines: RegisterSplitLineView[]): {
   );
 }
 
+const SPLIT_BALANCE_TOLERANCE = 0.005;
+
+function normaliseMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function getSplitBalanceStatus({
+  parentOutflow,
+  parentInflow,
+  splitOutflow,
+  splitInflow,
+}: {
+  parentOutflow: number;
+  parentInflow: number;
+  splitOutflow: number;
+  splitInflow: number;
+}): {
+  parentAmount: number;
+  splitAmount: number;
+  remaining: number;
+  isBalanced: boolean;
+  isOverAssigned: boolean;
+  activeSide: "outflow" | "inflow";
+} {
+  const activeSide = parentInflow > parentOutflow ? "inflow" : "outflow";
+  const parentAmount = activeSide === "inflow" ? parentInflow : parentOutflow;
+  const splitAmount = activeSide === "inflow" ? splitInflow : splitOutflow;
+  const remaining = normaliseMoney(parentAmount - splitAmount);
+
+  return {
+    parentAmount,
+    splitAmount,
+    remaining,
+    isBalanced: Math.abs(remaining) < SPLIT_BALANCE_TOLERANCE,
+    isOverAssigned: remaining < -SPLIT_BALANCE_TOLERANCE,
+    activeSide,
+  };
+}
+
+function isSplitBalanced(
+  parentOutflow: number,
+  parentInflow: number,
+  splitLines: RegisterSplitLineView[],
+): boolean {
+  const totals = totalsFromSplitLines(splitLines);
+  return getSplitBalanceStatus({
+    parentOutflow,
+    parentInflow,
+    splitOutflow: totals.outflow,
+    splitInflow: totals.inflow,
+  }).isBalanced;
+}
+
 function SplitEditor({
   splitLines,
   setSplitLines,
   categoryOptions,
+  parentOutflow,
+  parentInflow,
+  currencyCode,
+  children,
 }: {
   splitLines: SplitLineDraft[];
   setSplitLines: (
     updater: (current: SplitLineDraft[]) => SplitLineDraft[],
   ) => void;
   categoryOptions: BudgetCategoryOption[];
+  parentOutflow: number;
+  parentInflow: number;
+  currencyCode: string;
+  children?: ReactNode;
 }) {
   if (splitLines.length === 0) {
     return null;
   }
 
-  const totals = totalsFromSplitLines(
-    buildSplitLines(splitLines, categoryOptions),
-  );
+  const parsedSplitLines = buildSplitLines(splitLines, categoryOptions);
+  const totals = totalsFromSplitLines(parsedSplitLines);
+  const balanceStatus = getSplitBalanceStatus({
+    parentOutflow,
+    parentInflow,
+    splitOutflow: totals.outflow,
+    splitInflow: totals.inflow,
+  });
+  const remainingLabel = balanceStatus.isOverAssigned
+    ? "Amount over-assigned"
+    : "Amount remaining to assign";
+
+  function balanceLastSplit() {
+    setSplitLines((current) => {
+      if (current.length === 0 || balanceStatus.isBalanced) {
+        return current;
+      }
+
+      const lastLine = current[current.length - 1];
+      const field = balanceStatus.activeSide;
+      const currentAmount = parseMoney(lastLine[field]);
+      const nextAmount = Math.max(
+        0,
+        normaliseMoney(currentAmount + balanceStatus.remaining),
+      );
+
+      return current.map((line) =>
+        line.id === lastLine.id ? { ...line, [field]: nextAmount.toFixed(2) } : line,
+      );
+    });
+  }
 
   return (
-    <div className="register-split-editor">
+    <div
+      className={[
+        "register-split-editor",
+        balanceStatus.isBalanced
+          ? "register-split-editor-balanced"
+          : balanceStatus.isOverAssigned
+            ? "register-split-editor-over"
+            : "register-split-editor-unbalanced",
+      ].join(" ")}
+    >
       <div className="register-split-header">
         <strong>Split transaction</strong>
         <span>
-          Total:{" "}
-          {totals.outflow > 0 ? `Outflow ${totals.outflow.toFixed(2)}` : ""}
-          {totals.inflow > 0 ? ` Inflow ${totals.inflow.toFixed(2)}` : ""}
+          Parent: {formatMoney(balanceStatus.parentAmount, currencyCode)} · Split total:{" "}
+          {formatMoney(balanceStatus.splitAmount, currencyCode)}
         </span>
       </div>
 
@@ -1116,15 +1214,55 @@ function SplitEditor({
         </div>
       ))}
 
-      <button
-        className="button button-secondary"
-        type="button"
-        onClick={() =>
-          setSplitLines((current) => [...current, createSplitLineDraft()])
-        }
-      >
-        Add split line
-      </button>
+      <div className="register-split-footer">
+        <button
+          className="button button-secondary"
+          type="button"
+          onClick={() =>
+            setSplitLines((current) => [...current, createSplitLineDraft()])
+          }
+        >
+          + Add another split
+        </button>
+
+        <div className="register-split-balance-summary" aria-live="polite">
+          <span>
+            <small>Parent amount</small>
+            <strong>{formatMoney(balanceStatus.parentAmount, currencyCode)}</strong>
+          </span>
+          <span>
+            <small>Split total</small>
+            <strong>{formatMoney(balanceStatus.splitAmount, currencyCode)}</strong>
+          </span>
+          <span
+            className={[
+              "register-split-remaining",
+              balanceStatus.isBalanced
+                ? "register-split-remaining-balanced"
+                : balanceStatus.isOverAssigned
+                  ? "register-split-remaining-over"
+                  : "register-split-remaining-unbalanced",
+            ].join(" ")}
+          >
+            <small>{remainingLabel}</small>
+            <strong>{formatMoney(Math.abs(balanceStatus.remaining), currencyCode)}</strong>
+          </span>
+        </div>
+
+        {!balanceStatus.isBalanced ? (
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={balanceLastSplit}
+          >
+            Balance last split
+          </button>
+        ) : (
+          <span className="register-split-balanced-badge">✓ Balanced</span>
+        )}
+
+        {children ? <div className="register-split-commit-actions">{children}</div> : null}
+      </div>
     </div>
   );
 }
@@ -1137,6 +1275,7 @@ function TransactionEntryRow({
   categoryOptions,
   transferAccounts,
   payeeOptions,
+  currencyCode,
   visibleColumns,
   visibleColumnIds,
   rowStyle,
@@ -1145,6 +1284,7 @@ function TransactionEntryRow({
   categoryOptions: BudgetCategoryOption[];
   transferAccounts: SidebarAccount[];
   payeeOptions: PayeeView[];
+  currencyCode: string;
   visibleColumns: Set<RegisterColumnId>;
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
@@ -1173,11 +1313,15 @@ function TransactionEntryRow({
       return null;
     }
 
-    const splitTotals = totalsFromSplitLines(parsedSplitLines);
-    const parsedOutflow =
-      parsedSplitLines.length > 0 ? splitTotals.outflow : parseMoney(outflow);
-    const parsedInflow =
-      parsedSplitLines.length > 0 ? splitTotals.inflow : parseMoney(inflow);
+    const parsedOutflow = parseMoney(outflow);
+    const parsedInflow = parseMoney(inflow);
+
+    if (
+      parsedSplitLines.length > 0 &&
+      !isSplitBalanced(parsedOutflow, parsedInflow, parsedSplitLines)
+    ) {
+      return null;
+    }
 
     const categoryName = category.trim();
     const categoryOption = findCategoryOption(categoryName, categoryOptions);
@@ -1360,7 +1504,6 @@ function TransactionEntryRow({
                 onChange={(event) => setOutflow(event.target.value)}
                 placeholder="Outflow"
                 inputMode="decimal"
-                disabled={splitLines.length > 0}
               />
             );
           }
@@ -1374,7 +1517,6 @@ function TransactionEntryRow({
                 onChange={(event) => setInflow(event.target.value)}
                 placeholder="Inflow"
                 inputMode="decimal"
-                disabled={splitLines.length > 0}
               />
             );
           }
@@ -1420,6 +1562,9 @@ function TransactionEntryRow({
         splitLines={splitLines}
         setSplitLines={setSplitLines}
         categoryOptions={categoryOptions}
+        parentOutflow={parseMoney(outflow)}
+        parentInflow={parseMoney(inflow)}
+        currencyCode={currencyCode}
       />
     </>
   );
@@ -1433,6 +1578,7 @@ function TransactionEditRow({
   categoryOptions,
   transferAccounts,
   payeeOptions,
+  currencyCode,
   visibleColumns,
   visibleColumnIds,
   rowStyle,
@@ -1441,6 +1587,7 @@ function TransactionEditRow({
   categoryOptions: BudgetCategoryOption[];
   transferAccounts: SidebarAccount[];
   payeeOptions: PayeeView[];
+  currencyCode: string;
   onSave: (input: {
     id: string;
     date: string;
@@ -1519,11 +1666,15 @@ function TransactionEditRow({
       return;
     }
 
-    const splitTotals = totalsFromSplitLines(parsedSplitLines);
-    const parsedOutflow =
-      parsedSplitLines.length > 0 ? splitTotals.outflow : parseMoney(outflow);
-    const parsedInflow =
-      parsedSplitLines.length > 0 ? splitTotals.inflow : parseMoney(inflow);
+    const parsedOutflow = parseMoney(outflow);
+    const parsedInflow = parseMoney(inflow);
+
+    if (
+      parsedSplitLines.length > 0 &&
+      !isSplitBalanced(parsedOutflow, parsedInflow, parsedSplitLines)
+    ) {
+      return;
+    }
 
     const categoryName = category.trim();
     const categoryOption = findCategoryOption(categoryName, categoryOptions);
@@ -1628,7 +1779,6 @@ function TransactionEditRow({
           onChange={(event) => setOutflow(event.target.value)}
           placeholder="Outflow"
           inputMode="decimal"
-          disabled={splitLines.length > 0}
         />
         <input
           className="register-money-input"
@@ -1636,19 +1786,29 @@ function TransactionEditRow({
           onChange={(event) => setInflow(event.target.value)}
           placeholder="Inflow"
           inputMode="decimal"
-          disabled={splitLines.length > 0}
         />
 
       </div>
-      <div className="register-edit-actions-panel" style={rowStyle}>
-        <div
-          className="register-edit-actions register-edit-commit-actions"
-          style={{ gridColumn: editActionGridColumn }}
+      {splitLines.length > 0 ? (
+        <SplitEditor
+          splitLines={splitLines}
+          setSplitLines={setSplitLines}
+          categoryOptions={categoryOptions}
+          parentOutflow={parseMoney(outflow)}
+          parentInflow={parseMoney(inflow)}
+          currencyCode={currencyCode}
         >
           <button
             className="button button-primary"
             type="button"
             onClick={save}
+            disabled={
+              !isSplitBalanced(
+                parseMoney(outflow),
+                parseMoney(inflow),
+                buildSplitLines(splitLines, categoryOptions),
+              )
+            }
           >
             Save
           </button>
@@ -1659,13 +1819,30 @@ function TransactionEditRow({
           >
             Cancel
           </button>
+        </SplitEditor>
+      ) : (
+        <div className="register-edit-actions-panel" style={rowStyle}>
+          <div
+            className="register-edit-actions register-edit-commit-actions"
+            style={{ gridColumn: editActionGridColumn }}
+          >
+            <button
+              className="button button-primary"
+              type="button"
+              onClick={save}
+            >
+              Save
+            </button>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
-      </div>
-      <SplitEditor
-        splitLines={splitLines}
-        setSplitLines={setSplitLines}
-        categoryOptions={categoryOptions}
-      />
+      )}
     </>
   );
 }
@@ -2699,6 +2876,7 @@ export function AccountRegisterPage() {
               categoryOptions={categoryOptions}
               transferAccounts={transferAccounts}
               payeeOptions={payeeOptions}
+              currencyCode={data.currencyCode}
               visibleColumns={registerEntryColumnSet}
               visibleColumnIds={registerEntryVisibleColumnIds}
               rowStyle={registerEntryRowStyle}
@@ -2736,6 +2914,7 @@ export function AccountRegisterPage() {
                     categoryOptions={categoryOptions}
                     transferAccounts={transferAccounts}
                     payeeOptions={payeeOptions}
+                    currencyCode={data.currencyCode}
                     onSave={(input) => {
                       updateTransaction(input);
                       setEditingTransactionId(null);
