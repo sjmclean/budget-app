@@ -304,7 +304,9 @@
     "test:v214:category-details-panel": "tsx tests/v214-category-details-panel.ts",
     "test:v214": "pnpm test:v214:category-details-panel",
     "test:v215:autocomplete-modernisation": "tsx tests/v215-autocomplete-modernisation.ts",
-    "test:v215": "pnpm test:v215:autocomplete-modernisation"
+    "test:v215": "pnpm test:v215:autocomplete-modernisation",
+    "test:v2151:autocomplete-keyboard-flow": "tsx tests/v2151-autocomplete-keyboard-flow.ts",
+    "test:v2151": "pnpm test:v2151:autocomplete-keyboard-flow"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

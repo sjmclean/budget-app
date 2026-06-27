@@ -336,6 +336,7 @@ function RegisterDateField({
         type="button"
         title="Choose date"
         aria-label="Choose date"
+        tabIndex={-1}
         onClick={() => {
           const input = hiddenDateInputRef.current;
 
@@ -465,8 +466,7 @@ function PayeeInput({
         onFocus={() => setIsOpen(true)}
         onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
         onKeyDown={(event) => {
-          if (event.key === "Tab" && shouldShowGhost) {
-            event.preventDefault();
+          if (event.key === "Tab" && !event.shiftKey && shouldShowGhost) {
             acceptHighlightedSuggestion();
             return;
           }
@@ -650,8 +650,7 @@ function CategoryInput({
         onFocus={() => setIsOpen(true)}
         onBlur={() => setIsOpen(false)}
         onKeyDown={(event) => {
-          if (event.key === "Tab" && shouldShowGhost) {
-            event.preventDefault();
+          if (event.key === "Tab" && !event.shiftKey && shouldShowGhost) {
             acceptHighlightedSuggestion();
             return;
           }
