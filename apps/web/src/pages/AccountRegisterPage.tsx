@@ -1119,30 +1119,61 @@ function SplitEditor({
     });
   }
 
+  const visibleSplitInputColumns = visibleColumnIds.filter((columnId) =>
+    ["category", "memo", "outflow", "inflow"].includes(columnId),
+  );
+  const splitRemoveColumn = visibleSplitInputColumns[0] ?? "category";
   const balanceLabelColumn: RegisterColumnId = visibleColumnIds.includes("checkNumber")
     ? "checkNumber"
     : visibleColumnIds.includes("memo")
       ? "memo"
-      : "category";
+      : visibleColumnIds.includes("category")
+        ? "category"
+        : visibleColumnIds.includes("outflow")
+          ? "outflow"
+          : "inflow";
+
+  function renderSplitRemoveButton(line: SplitLineDraft) {
+    return (
+      <button
+        className="register-split-remove-button"
+        type="button"
+        aria-label="Remove split line"
+        title="Remove split line"
+        onClick={() =>
+          setSplitLines((current) =>
+            current.filter((item) => item.id !== line.id),
+          )
+        }
+      >
+        ×
+      </button>
+    );
+  }
+
+  function renderWithOptionalRemove(
+    columnId: RegisterColumnId,
+    line: SplitLineDraft,
+    child: ReactNode,
+  ) {
+    if (columnId !== splitRemoveColumn) {
+      return child;
+    }
+
+    return (
+      <div className="register-split-cell-with-remove" key={columnId}>
+        {renderSplitRemoveButton(line)}
+        {child}
+      </div>
+    );
+  }
 
   function renderSplitCell(columnId: RegisterColumnId, line: SplitLineDraft) {
     if (columnId === "category") {
-      return (
-        <div className="register-split-category-edit" key={columnId}>
-          <button
-            className="register-split-remove-button"
-            type="button"
-            aria-label="Remove split line"
-            title="Remove split line"
-            onClick={() =>
-              setSplitLines((current) =>
-                current.filter((item) => item.id !== line.id),
-              )
-            }
-          >
-            ×
-          </button>
-          <CategoryInput
+      return renderWithOptionalRemove(
+        columnId,
+        line,
+        <CategoryInput
             value={line.category}
             onChange={(value) =>
               setSplitLines((current) =>
@@ -1160,13 +1191,14 @@ function SplitEditor({
             }
             categoryOptions={categoryOptions}
             includeSplitOption={false}
-          />
-        </div>
+          />,
       );
     }
 
     if (columnId === "memo") {
-      return (
+      return renderWithOptionalRemove(
+        columnId,
+        line,
         <input
           key={columnId}
           value={line.memo}
@@ -1180,12 +1212,14 @@ function SplitEditor({
             )
           }
           placeholder="Split memo"
-        />
+        />,
       );
     }
 
     if (columnId === "outflow") {
-      return (
+      return renderWithOptionalRemove(
+        columnId,
+        line,
         <input
           className="register-money-input"
           key={columnId}
@@ -1201,12 +1235,14 @@ function SplitEditor({
           }
           placeholder="Outflow"
           inputMode="decimal"
-        />
+        />,
       );
     }
 
     if (columnId === "inflow") {
-      return (
+      return renderWithOptionalRemove(
+        columnId,
+        line,
         <input
           className="register-money-input"
           key={columnId}
@@ -1222,7 +1258,7 @@ function SplitEditor({
           }
           placeholder="Inflow"
           inputMode="decimal"
-        />
+        />,
       );
     }
 
@@ -1236,7 +1272,7 @@ function SplitEditor({
   }
 
   function renderSplitFooterCell(columnId: RegisterColumnId) {
-    if (columnId === "category") {
+    if (columnId === splitRemoveColumn) {
       return (
         <button
           className="button button-secondary register-split-add-button"

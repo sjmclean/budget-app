@@ -335,11 +335,11 @@ export const TransactionRow = memo(function TransactionRow({
               <span />
               {isRegisterColumnVisible("flag", visibleColumns) ? <span /> : null}
               {isRegisterColumnVisible("attachments", visibleColumns) ? <span /> : null}
-              <span className="register-split-readonly-payee">
+              <span className="register-split-readonly-payee" aria-hidden="true" />
+              <span className="register-split-readonly-category">
                 <CornerDownRight size={13} aria-hidden="true" />
-                {transaction.payee}
+                {line.category}
               </span>
-              <span className="register-split-readonly-category">{line.category}</span>
               {isRegisterColumnVisible("memo", visibleColumns) ? (
                 <span className="register-memo-cell">{line.memo ?? ""}</span>
               ) : null}
