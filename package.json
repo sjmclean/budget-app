@@ -334,7 +334,9 @@
     "test:v222:adaptive-register-foundation": "tsx tests/v222-adaptive-register-foundation.ts",
     "test:v222": "pnpm test:v222:adaptive-register-foundation",
     "test:v2221:register-renderer-extraction": "tsx tests/v2221-register-renderer-extraction.ts",
-    "test:v2221": "pnpm test:v2221:register-renderer-extraction"
+    "test:v2221": "pnpm test:v2221:register-renderer-extraction",
+    "test:v2240:budget-table-layout-ux": "tsx tests/v2240-budget-table-layout-ux.ts",
+    "test:v2240": "pnpm test:v2240:budget-table-layout-ux"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

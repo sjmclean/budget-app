@@ -1174,6 +1174,19 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 ? `Archived hidden (${hiddenArchivedCount})`
                 : `Hide archived (${hiddenArchivedCount})`}
             </button>
+
+            <button
+              className="budget-filter budget-table-layout-reset"
+              type="button"
+              onClick={budgetTableLayout.resetColumnWidths}
+              title="Reset Budget column widths"
+            >
+              Reset column widths
+            </button>
+
+            <span className="budget-table-layout-help">
+              Drag header grips to resize columns.
+            </span>
           </section>
 
           <Card className="budget-workspace-table-card">

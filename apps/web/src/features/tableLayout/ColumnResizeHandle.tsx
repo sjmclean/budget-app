@@ -40,8 +40,8 @@ export function ColumnResizeHandle<TColumnId extends string>({
     <button
       className="table-layout-column-resize-handle"
       type="button"
-      aria-label={`Resize ${label} column`}
-      title="Drag to resize. Double-click to reset width."
+      aria-label={`Resize ${label} column. Drag, use left and right arrow keys, or double-click to reset.`}
+      title="Drag to resize. Use ←/→ to adjust. Double-click to reset width."
       onPointerDown={handlePointerDown}
       onDoubleClick={(event) => {
         event.preventDefault();
@@ -49,6 +49,10 @@ export function ColumnResizeHandle<TColumnId extends string>({
         onResetColumnWidth(columnId);
       }}
       onKeyDown={handleKeyDown}
-    />
+    >
+      <span className="table-layout-column-resize-grip" aria-hidden="true">
+        ⋮⋮
+      </span>
+    </button>
   );
 }
