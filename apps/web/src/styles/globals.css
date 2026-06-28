@@ -19,15 +19,15 @@
   --accent-strong: #15566a;
   --accent-soft: #e7f3f6;
 
-  --positive: #176b4d;
-  --positive-bg: #e7f7ef;
+  --positive: #15803d;
+  --positive-bg: #dcfce7;
 
-  --warning: #d97706;
-  --warning-text: #92400e;
-  --warning-bg: #fef3c7;
+  --warning: #ca8a04;
+  --warning-text: #854d0e;
+  --warning-bg: #fef9c3;
 
-  --negative: #b91c1c;
-  --negative-bg: #fee2e2;
+  --negative: #c2410c;
+  --negative-bg: #ffedd5;
 
   --radius-card: 14px;
   --radius-panel: 12px;
