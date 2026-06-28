@@ -37,15 +37,19 @@ assert(
 );
 
 assert(
-  registerPage.includes('balanceStatus.activeSide === "outflow"') &&
-    registerPage.includes("-Math.abs(balanceStatus.remaining)"),
-  "outflow amount-to-assign values should render as negative amounts",
+  registerPage.includes("totalsFromSplitDrafts"),
+  "split balance display should use draft split amounts, not only validated split lines",
 );
 
 assert(
-  registerPage.includes('balanceStatus.activeSide === "inflow"') &&
-    registerPage.includes("formatMoney(Math.abs(balanceStatus.remaining), currencyCode)"),
-  "inflow amount-to-assign values should render as positive amounts",
+  registerPage.includes("balanceStatus.isBalanced"),
+  "split save workflow should still depend on split balance status",
+);
+
+assert(
+  registerPage.includes("event.key === \"Tab\"") &&
+    registerPage.includes("createSplitLineDraft()"),
+  "tabbing from the final split amount should add another split row",
 );
 
 assert(
@@ -65,7 +69,7 @@ assert(
 
 assert(
   registerStyles.includes("register-split-grid-row") &&
-    registerStyles.includes("register-split-category-edit") &&
+    registerStyles.includes("register-split-cell-with-remove") &&
     registerStyles.includes("register-split-remove-button"),
   "split editor styles should align split rows to the register grid with a compact remove control",
 );

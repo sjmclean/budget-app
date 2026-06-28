@@ -2124,6 +2124,10 @@
   color: #15803d;
 }
 
+.register-split-assign-over {
+  color: #dc2626;
+}
+
 .register-split-commit-actions {
   grid-column: span 2;
   display: inline-flex;

@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent,
   type ReactNode,
 } from "react";
 import { useParams } from "react-router-dom";
@@ -1011,6 +1012,26 @@ function totalsFromSplitLines(splitLines: RegisterSplitLineView[]): {
   );
 }
 
+function totalsFromSplitDrafts(splitLines: readonly SplitLineDraft[]): {
+  outflow: number;
+  inflow: number;
+} {
+  return splitLines.reduce(
+    (totals, line) => ({
+      outflow: totals.outflow + parseMoney(line.outflow),
+      inflow: totals.inflow + parseMoney(line.inflow),
+    }),
+    { outflow: 0, inflow: 0 },
+  );
+}
+
+function hasIncompleteSplitDrafts(splitLines: readonly SplitLineDraft[]): boolean {
+  return splitLines.some((line) => {
+    const hasAmount = parseMoney(line.outflow) > 0 || parseMoney(line.inflow) > 0;
+    return hasAmount && line.category.trim().length === 0;
+  });
+}
+
 const SPLIT_BALANCE_TOLERANCE = 0.005;
 
 function normaliseMoney(value: number): number {
@@ -1064,6 +1085,20 @@ function isSplitBalanced(
   }).isBalanced;
 }
 
+function isSplitDraftBalanced(
+  parentOutflow: number,
+  parentInflow: number,
+  splitLines: readonly SplitLineDraft[],
+): boolean {
+  const totals = totalsFromSplitDrafts(splitLines);
+  return getSplitBalanceStatus({
+    parentOutflow,
+    parentInflow,
+    splitOutflow: totals.outflow,
+    splitInflow: totals.inflow,
+  }).isBalanced;
+}
+
 function SplitEditor({
   splitLines,
   setSplitLines,
@@ -1091,8 +1126,7 @@ function SplitEditor({
     return null;
   }
 
-  const parsedSplitLines = buildSplitLines(splitLines, categoryOptions);
-  const totals = totalsFromSplitLines(parsedSplitLines);
+  const totals = totalsFromSplitDrafts(splitLines);
   const balanceStatus = getSplitBalanceStatus({
     parentOutflow,
     parentInflow,
@@ -1168,6 +1202,24 @@ function SplitEditor({
     );
   }
 
+  function addSplitOnTab(event: KeyboardEvent<HTMLInputElement>, line: SplitLineDraft) {
+    if (
+      event.key !== "Tab" ||
+      event.shiftKey ||
+      line.id !== splitLines[splitLines.length - 1]?.id
+    ) {
+      return;
+    }
+
+    const hasAmount = parseMoney(line.outflow) > 0 || parseMoney(line.inflow) > 0;
+
+    if (!hasAmount) {
+      return;
+    }
+
+    setSplitLines((current) => [...current, createSplitLineDraft()]);
+  }
+
   function renderSplitCell(columnId: RegisterColumnId, line: SplitLineDraft) {
     if (columnId === "category") {
       return renderWithOptionalRemove(
@@ -1235,6 +1287,7 @@ function SplitEditor({
           }
           placeholder="Outflow"
           inputMode="decimal"
+          onKeyDown={(event) => addSplitOnTab(event, line)}
         />,
       );
     }
@@ -1258,6 +1311,7 @@ function SplitEditor({
           }
           placeholder="Inflow"
           inputMode="decimal"
+          onKeyDown={(event) => addSplitOnTab(event, line)}
         />,
       );
     }
@@ -1347,11 +1401,17 @@ function SplitEditor({
     if (columnId === "inflow") {
       return (
         <strong
-          className="register-split-assign-amount register-split-assign-inflow"
+          className={[
+            "register-split-assign-amount register-split-assign-inflow",
+            balanceStatus.isOverAssigned ? "register-split-assign-over" : "",
+          ].join(" ")}
           key={columnId}
         >
           {balanceStatus.activeSide === "inflow"
-            ? formatMoney(Math.abs(balanceStatus.remaining), currencyCode)
+            ? formatMoney(
+                balanceStatus.isBalanced ? 0 : balanceStatus.remaining,
+                currencyCode,
+              )
             : ""}
         </strong>
       );
@@ -1486,7 +1546,10 @@ function TransactionEntryRow({
 
     const parsedSplitLines = buildSplitLines(splitLines, categoryOptions);
 
-    if (splitLines.length > 0 && parsedSplitLines.length === 0) {
+    if (
+      splitLines.length > 0 &&
+      (parsedSplitLines.length === 0 || hasIncompleteSplitDrafts(splitLines))
+    ) {
       return null;
     }
 
@@ -1494,8 +1557,8 @@ function TransactionEntryRow({
     const parsedInflow = parseMoney(inflow);
 
     if (
-      parsedSplitLines.length > 0 &&
-      !isSplitBalanced(parsedOutflow, parsedInflow, parsedSplitLines)
+      splitLines.length > 0 &&
+      !isSplitDraftBalanced(parsedOutflow, parsedInflow, splitLines)
     ) {
       return null;
     }
@@ -1702,38 +1765,40 @@ function TransactionEntryRow({
         })}
       </div>
 
-      <div className="register-entry-actions-panel">
-        <button
-          className="button button-secondary"
-          type="button"
-          onClick={toggleSplitEditor}
-        >
-          Split
-        </button>
-        <div className="register-entry-actions register-entry-commit-actions">
-          <button
-            className="button button-primary"
-            type="button"
-            onClick={saveAndAddAnother}
-          >
-            Save & add another
-          </button>
+      {splitLines.length === 0 ? (
+        <div className="register-entry-actions-panel">
           <button
             className="button button-secondary"
             type="button"
-            onClick={save}
+            onClick={toggleSplitEditor}
           >
-            Save
+            Split
           </button>
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={onCancel}
-          >
-            Cancel
-          </button>
+          <div className="register-entry-actions register-entry-commit-actions">
+            <button
+              className="button button-primary"
+              type="button"
+              onClick={saveAndAddAnother}
+            >
+              Save & add another
+            </button>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={save}
+            >
+              Save
+            </button>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <SplitEditor
         splitLines={splitLines}
@@ -1744,7 +1809,35 @@ function TransactionEntryRow({
         currencyCode={currencyCode}
         visibleColumnIds={visibleColumnIds}
         rowStyle={rowStyle}
-      />
+      >
+        <button
+          className="button button-primary"
+          type="button"
+          onClick={saveAndAddAnother}
+          disabled={
+            !isSplitDraftBalanced(parseMoney(outflow), parseMoney(inflow), splitLines)
+          }
+        >
+          Save & add another
+        </button>
+        <button
+          className="button button-secondary"
+          type="button"
+          onClick={save}
+          disabled={
+            !isSplitDraftBalanced(parseMoney(outflow), parseMoney(inflow), splitLines)
+          }
+        >
+          Save
+        </button>
+        <button
+          className="button button-secondary"
+          type="button"
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+      </SplitEditor>
     </>
   );
 }
@@ -1849,8 +1942,8 @@ function TransactionEditRow({
     const parsedInflow = parseMoney(inflow);
 
     if (
-      parsedSplitLines.length > 0 &&
-      !isSplitBalanced(parsedOutflow, parsedInflow, parsedSplitLines)
+      splitLines.length > 0 &&
+      !isSplitDraftBalanced(parsedOutflow, parsedInflow, splitLines)
     ) {
       return;
     }
@@ -1984,11 +2077,7 @@ function TransactionEditRow({
             type="button"
             onClick={save}
             disabled={
-              !isSplitBalanced(
-                parseMoney(outflow),
-                parseMoney(inflow),
-                buildSplitLines(splitLines, categoryOptions),
-              )
+              !isSplitDraftBalanced(parseMoney(outflow), parseMoney(inflow), splitLines)
             }
           >
             Save
@@ -2399,7 +2488,7 @@ export function AccountRegisterPage() {
   );
 
   useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
       if (
         event.key !== "Enter" ||
         !selectedTransactionId ||
