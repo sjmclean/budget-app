@@ -312,7 +312,7 @@ strong {
   text-decoration: none;
   color: var(--text);
   border-radius: 0.4rem;
-  font-size: 0.86rem;
+  font-size: 0.9rem;
 }
 
 .account-link-name {
@@ -503,14 +503,14 @@ strong {
 
 .select {
   padding: 0.42rem 0.6rem;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
 }
 
 .button {
   border: 1px solid transparent;
   border-radius: 0.45rem;
   padding: 0.4rem 0.62rem;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 650;
   cursor: pointer;
 }
@@ -816,7 +816,7 @@ strong {
   padding: 0.58rem 0.72rem;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface) 92%, var(--border-soft));
-  font-size: 0.86rem;
+  font-size: 0.9rem;
 }
 
 .budget-group-title {
@@ -835,8 +835,8 @@ strong {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  padding: 0.46rem 0.72rem;
-  font-size: 0.87rem;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.88rem;
 }
 
 .budget-workspace-row:hover,
@@ -880,20 +880,28 @@ strong {
 
 .drag-handle {
   color: var(--text-muted);
-  opacity: 0.45;
+  opacity: 0.6;
   font-size: 0.85rem;
   letter-spacing: -0.2rem;
   cursor: grab;
 }
 
+.drag-handle {
+  transition: opacity 120ms ease;
+}
+
+.drag-handle {
+  transition: opacity 140ms ease;
+}
+
 .drag-handle:hover {
-  opacity: 0.8;
+  opacity: 1;
 }
 
 .assigned-button {
   justify-self: start;
   border: 1px solid transparent;
-  border-radius: 0.42rem;
+  border-radius: 0.6rem;
   background: transparent;
   color: var(--text);
   padding: 0.22rem 0.34rem;
@@ -984,7 +992,7 @@ strong {
   gap: 0.75rem;
   padding: 0.7rem 1rem;
   border-bottom: 1px solid var(--border-soft);
-  font-size: 0.86rem;
+  font-size: 0.9rem;
 }
 
 .month-breakdown div:last-child,
@@ -1002,7 +1010,7 @@ strong {
 .inspector-empty {
   padding: 1rem;
   color: var(--text-muted);
-  font-size: 0.86rem;
+  font-size: 0.9rem;
 }
 
 .inspector-note {
@@ -1182,7 +1190,7 @@ strong {
 
 .modal-header .muted {
   margin-top: 0.25rem;
-  font-size: 0.86rem;
+  font-size: 0.9rem;
 }
 
 .modal-close-button {
@@ -1296,7 +1304,7 @@ strong {
 
 .category-move-button:disabled {
   cursor: not-allowed;
-  opacity: 0.45;
+  opacity: 0.6;
 }
 
 .activity-drilldown-button {
@@ -1416,7 +1424,7 @@ strong {
   color: var(--text);
   cursor: pointer;
   font: inherit;
-  padding: 0.5rem 0.72rem;
+  padding: 0.62rem 0.85rem;
   text-align: left;
 }
 
@@ -2080,7 +2088,7 @@ strong {
   position: absolute;
   border-radius: 999px;
   filter: blur(8px);
-  opacity: 0.8;
+  opacity: 1;
 }
 
 .budget-selector-orb-one {
@@ -2407,7 +2415,7 @@ strong {
 .ynab4-progress-preview strong {
   display: block;
   color: #ffffff;
-  font-size: 0.86rem;
+  font-size: 0.9rem;
 }
 
 .ynab4-mode-picker small,
@@ -2560,7 +2568,7 @@ strong {
 
 .ynab4-import-mode-note strong {
   color: #ffffff;
-  font-size: 0.86rem;
+  font-size: 0.9rem;
 }
 
 .ynab4-import-mode-note span {
@@ -2857,7 +2865,7 @@ strong {
   border-radius: 999px;
   background: var(--border, #cbd5e1);
   content: "";
-  opacity: 0.45;
+  opacity: 0.6;
   transition: opacity 120ms ease, background 120ms ease;
 }
 
