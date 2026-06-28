@@ -26,6 +26,7 @@ import { useTableLayout, type TableColumnDefinition } from "../features/tableLay
 
 type BudgetColumnId = "category" | "assigned" | "activity" | "available";
 type BudgetCategoryDropPosition = "before" | "after";
+type BudgetGroupDropPosition = "before" | "after";
 
 interface BudgetCategoryDragState {
   categoryId: string;
@@ -35,6 +36,15 @@ interface BudgetCategoryDragState {
 interface BudgetCategoryDropTarget {
   categoryId: string;
   position: BudgetCategoryDropPosition;
+}
+
+interface BudgetGroupDragState {
+  groupId: string;
+}
+
+interface BudgetGroupDropTarget {
+  groupId: string;
+  position: BudgetGroupDropPosition;
 }
 
 const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
@@ -315,6 +325,12 @@ function BudgetGroup({
   onActivityClick,
   dragState,
   dropTarget,
+  isGroupDragSource,
+  groupDropPosition,
+  onGroupDragStart,
+  onGroupDragOver,
+  onGroupDrop,
+  onGroupDragEnd,
   onCategoryDragStart,
   onCategoryDragOver,
   onCategoryDrop,
@@ -332,6 +348,15 @@ function BudgetGroup({
   onActivityClick: (categoryId: string) => void;
   dragState: BudgetCategoryDragState | null;
   dropTarget: BudgetCategoryDropTarget | null;
+  isGroupDragSource: boolean;
+  groupDropPosition: BudgetGroupDropPosition | null;
+  onGroupDragStart: (groupId: string) => void;
+  onGroupDragOver: (
+    event: DragEvent<HTMLDivElement>,
+    targetGroupId: string,
+  ) => void;
+  onGroupDrop: (targetGroupId: string) => void;
+  onGroupDragEnd: () => void;
   onCategoryDragStart: (categoryId: string, groupId: string) => void;
   onCategoryDragOver: (
     event: DragEvent<HTMLButtonElement>,
@@ -349,12 +374,48 @@ function BudgetGroup({
 
   return (
     <section className="budget-workspace-group">
-      <div className="budget-workspace-group-header" style={rowStyle}>
+      <div
+        className={[
+          "budget-workspace-group-header",
+          isGroupDragSource ? "budget-workspace-group-header-dragging" : "",
+          groupDropPosition === "before" ? "budget-workspace-group-drop-before" : "",
+          groupDropPosition === "after" ? "budget-workspace-group-drop-after" : "",
+        ].filter(Boolean).join(" ")}
+        style={rowStyle}
+        onDragOver={(event) => onGroupDragOver(event, group.id)}
+        onDrop={(event) => {
+          event.preventDefault();
+          onGroupDrop(group.id);
+        }}
+        onDragEnd={onGroupDragEnd}
+      >
         <div className="budget-group-title">
+          <span
+            className="drag-handle drag-handle-active budget-group-drag-handle"
+            title="Drag to reorder category groups"
+            draggable
+            onClick={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
+            onDragStart={(event) => {
+              event.stopPropagation();
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", group.id);
+              onGroupDragStart(group.id);
+            }}
+            aria-label={`Drag ${group.name} category group to reorder groups`}
+          >
+            ⋮⋮
+          </span>
           <span>⌄</span>
           <strong>{group.name}</strong>
           {group.note?.trim() ? (
-            <span className="category-note-badge" title="Category group has notes">Note</span>
+            <span
+              className="category-note-indicator"
+              title={group.note.trim()}
+              aria-label="Category group has a note"
+            >
+              ✎
+            </span>
           ) : null}
         </div>
 
@@ -829,6 +890,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     useState<BudgetCategoryDragState | null>(null);
   const [categoryDropTarget, setCategoryDropTarget] =
     useState<BudgetCategoryDropTarget | null>(null);
+  const [groupDragState, setGroupDragState] =
+    useState<BudgetGroupDragState | null>(null);
+  const [groupDropTarget, setGroupDropTarget] =
+    useState<BudgetGroupDropTarget | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(() =>
     getCurrentBudgetMonth(),
   );
@@ -845,6 +910,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     renameCategory,
     setCategoryArchived,
     moveCategoryToPosition,
+    moveCategoryGroupToPosition,
     updateCategoryNote,
     activityDrilldown,
     isActivityDrilldownLoading,
@@ -938,6 +1004,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   );
 
   function startCategoryDrag(categoryId: string, groupId: string) {
+    setGroupDragState(null);
+    setGroupDropTarget(null);
     setCategoryDragState({ categoryId, groupId });
     setCategoryDropTarget(null);
   }
@@ -988,6 +1056,59 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   function endCategoryDrag() {
     setCategoryDragState(null);
     setCategoryDropTarget(null);
+  }
+
+  function startCategoryGroupDrag(groupId: string) {
+    setCategoryDragState(null);
+    setCategoryDropTarget(null);
+    setGroupDragState({ groupId });
+    setGroupDropTarget(null);
+  }
+
+  function updateCategoryGroupDropTarget(
+    event: DragEvent<HTMLDivElement>,
+    targetGroupId: string,
+  ) {
+    if (!groupDragState) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+
+    if (groupDragState.groupId === targetGroupId) {
+      setGroupDropTarget(null);
+      return;
+    }
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const position = event.clientY < bounds.top + bounds.height / 2
+      ? "before"
+      : "after";
+
+    setGroupDropTarget({ groupId: targetGroupId, position });
+  }
+
+  function dropCategoryGroup(targetGroupId: string) {
+    if (
+      groupDragState &&
+      groupDragState.groupId !== targetGroupId &&
+      groupDropTarget?.groupId === targetGroupId
+    ) {
+      moveCategoryGroupToPosition(
+        groupDragState.groupId,
+        targetGroupId,
+        groupDropTarget.position,
+      );
+    }
+
+    setGroupDragState(null);
+    setGroupDropTarget(null);
+  }
+
+  function endCategoryGroupDrag() {
+    setGroupDragState(null);
+    setGroupDropTarget(null);
   }
 
 
@@ -1120,6 +1241,14 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 onActivityClick={openActivityDrilldown}
                 dragState={categoryDragState}
                 dropTarget={categoryDropTarget}
+                isGroupDragSource={groupDragState?.groupId === group.id}
+                groupDropPosition={
+                  groupDropTarget?.groupId === group.id ? groupDropTarget.position : null
+                }
+                onGroupDragStart={startCategoryGroupDrag}
+                onGroupDragOver={updateCategoryGroupDropTarget}
+                onGroupDrop={dropCategoryGroup}
+                onGroupDragEnd={endCategoryGroupDrag}
                 onCategoryDragStart={startCategoryDrag}
                 onCategoryDragOver={updateCategoryDropTarget}
                 onCategoryDrop={dropCategory}

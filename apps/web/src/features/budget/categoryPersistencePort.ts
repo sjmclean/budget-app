@@ -18,6 +18,7 @@ export type CategoryPersistencePort = Pick<
   | "moveCategory"
   | "moveCategoryToPosition"
   | "moveCategoryGroup"
+  | "moveCategoryGroupToPosition"
   | "updateCategoryNote"
   | "updateCategoryGroupNote"
   | "getCategoryMergePreview"

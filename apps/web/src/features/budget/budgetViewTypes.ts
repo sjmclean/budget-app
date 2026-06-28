@@ -145,6 +145,14 @@ export interface BudgetViewService {
     direction: "up" | "down";
   }): Promise<BudgetMonthView>;
 
+  moveCategoryGroupToPosition(input: {
+    budgetId: string;
+    month: string;
+    groupId: string;
+    targetGroupId: string;
+    placement: "before" | "after";
+  }): Promise<BudgetMonthView>;
+
   updateCategoryNote(input: {
     budgetId: string;
     month: string;

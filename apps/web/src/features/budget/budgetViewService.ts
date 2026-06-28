@@ -912,6 +912,37 @@ export function createBudgetViewService(
     );
   },
 
+  async moveCategoryGroupToPosition({ budgetId, month, groupId, targetGroupId, placement }) {
+    const current = await loadBudgetView(dependencies, budgetId, month);
+    const groupIndex = current.categoryGroups.findIndex((group) => group.id === groupId);
+    const targetIndex = current.categoryGroups.findIndex((group) => group.id === targetGroupId);
+
+    if (groupIndex === -1 || targetIndex === -1) {
+      throw new Error("Category group not found.");
+    }
+
+    if (groupId === targetGroupId) {
+      return current;
+    }
+
+    const categoryGroups = [...current.categoryGroups];
+    const [groupToMove] = categoryGroups.splice(groupIndex, 1);
+    const adjustedTargetIndex = groupIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    const insertIndex = placement === "before"
+      ? adjustedTargetIndex
+      : adjustedTargetIndex + 1;
+
+    categoryGroups.splice(insertIndex, 0, groupToMove);
+
+    return saveBudgetView(dependencies,
+      {
+        ...current,
+        categoryGroups,
+      },
+      month,
+    );
+  },
+
   async updateCategoryNote({ budgetId, month, categoryId, note }) {
     const current = await loadBudgetView(dependencies, budgetId, month);
     let found = false;

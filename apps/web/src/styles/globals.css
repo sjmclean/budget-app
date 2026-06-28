@@ -3066,6 +3066,48 @@ strong {
   }
 }
 
+
+/* v2.28.0 budget category group drag reordering */
+.budget-group-drag-handle {
+  opacity: 0.5;
+}
+
+.budget-workspace-group-header:hover .budget-group-drag-handle,
+.budget-group-drag-handle:focus-visible {
+  opacity: 1;
+}
+
+.budget-workspace-group-header-dragging {
+  opacity: 0.62;
+  background: var(--accent-soft);
+}
+
+.budget-workspace-group-drop-before,
+.budget-workspace-group-drop-after {
+  position: relative;
+}
+
+.budget-workspace-group-drop-before::before,
+.budget-workspace-group-drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0.55rem;
+  right: 0.55rem;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.budget-workspace-group-drop-before::before {
+  top: -2px;
+}
+
+.budget-workspace-group-drop-after::after {
+  bottom: -2px;
+}
+
 /* v2.25.0 budget category drag reordering */
 .drag-handle-active {
   width: 1.45rem;

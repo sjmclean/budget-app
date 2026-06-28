@@ -34,6 +34,11 @@ interface UseBudgetWorkspaceState {
     placement: "before" | "after",
   ) => void;
   moveCategoryGroup: (groupId: string, direction: "up" | "down") => void;
+  moveCategoryGroupToPosition: (
+    groupId: string,
+    targetGroupId: string,
+    placement: "before" | "after",
+  ) => void;
   updateCategoryNote: (categoryId: string, note: string) => void;
   updateCategoryGroupNote: (groupId: string, note: string) => void;
   previewCategoryMerge: (
@@ -293,6 +298,35 @@ export function useBudgetWorkspace(
 
 
 
+  function moveCategoryGroupToPosition(
+    groupId: string,
+    targetGroupId: string,
+    placement: "before" | "after",
+  ) {
+    setSaveError(null);
+
+    void categoriesPersistence
+      .moveCategoryGroupToPosition({
+        budgetId,
+        month,
+        groupId,
+        targetGroupId,
+        placement,
+      })
+      .then((nextData) => {
+        setEditedData(nextData);
+        setSelectedCategoryId((currentCategoryId) => currentCategoryId);
+      })
+      .catch((error) => {
+        setSaveError(
+          error instanceof Error
+            ? error.message
+            : "Failed to move category group.",
+        );
+      });
+  }
+
+
   function updateCategoryNote(categoryId: string, note: string) {
     setSaveError(null);
 
@@ -414,6 +448,7 @@ export function useBudgetWorkspace(
     moveCategory,
     moveCategoryToPosition,
     moveCategoryGroup,
+    moveCategoryGroupToPosition,
     updateCategoryNote,
     updateCategoryGroupNote,
     previewCategoryMerge,
