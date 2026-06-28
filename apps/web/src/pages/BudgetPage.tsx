@@ -157,6 +157,7 @@ function BudgetCategoryRow({
   isDragSource,
   dropPosition,
   onSelect,
+  onOpenCategoryEditor,
   onAssignedChange,
   onActivityClick,
   onDragStart,
@@ -174,6 +175,7 @@ function BudgetCategoryRow({
   isDragSource: boolean;
   dropPosition: BudgetCategoryDropPosition | null;
   onSelect: () => void;
+  onOpenCategoryEditor: () => void;
   onAssignedChange: (value: number) => void;
   onActivityClick: () => void;
   onDragStart: (categoryId: string, groupId: string) => void;
@@ -223,7 +225,25 @@ function BudgetCategoryRow({
         >
           ⋮⋮
         </span>
-        <strong className="budget-category-name">{category.name}</strong>
+        <span
+          className="budget-category-name-button"
+          role="button"
+          tabIndex={0}
+          title="Edit category name, notes, merge, or archive"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenCategoryEditor();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              event.stopPropagation();
+              onOpenCategoryEditor();
+            }
+          }}
+        >
+          <strong className="budget-category-name">{category.name}</strong>
+        </span>
         {category.isArchived ? (
           <span className="category-archived-badge">Archived</span>
         ) : null}
@@ -277,6 +297,7 @@ function BudgetGroup({
   selectedCategoryId,
   overassignedCategoryIds,
   onSelectCategory,
+  onOpenCategoryEditor,
   onAssignedChange,
   onActivityClick,
   dragState,
@@ -293,6 +314,7 @@ function BudgetGroup({
   selectedCategoryId: string | null;
   overassignedCategoryIds: string[];
   onSelectCategory: (categoryId: string) => void;
+  onOpenCategoryEditor: (categoryId: string) => void;
   onAssignedChange: (categoryId: string, value: number) => void;
   onActivityClick: (categoryId: string) => void;
   dragState: BudgetCategoryDragState | null;
@@ -359,6 +381,7 @@ function BudgetGroup({
               dropTarget?.categoryId === category.id ? dropTarget.position : null
             }
             onSelect={() => onSelectCategory(category.id)}
+            onOpenCategoryEditor={() => onOpenCategoryEditor(category.id)}
             onAssignedChange={(value) => onAssignedChange(category.id, value)}
             onActivityClick={() => onActivityClick(category.id)}
             onDragStart={onCategoryDragStart}
@@ -536,7 +559,6 @@ function CategoryManagementDialog({
   onUpdateCategoryNote: (categoryId: string, note: string) => void;
   onUpdateCategoryGroupNote: (groupId: string, note: string) => void;
 }) {
-  const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(category?.name ?? "");
   const [mergeTargetId, setMergeTargetId] = useState("");
   const [draftCategoryNote, setDraftCategoryNote] = useState(category?.note ?? "");
@@ -544,24 +566,13 @@ function CategoryManagementDialog({
 
   useEffect(() => {
     setDraftName(category?.name ?? "");
-    setIsRenaming(false);
     setMergeTargetId("");
     setDraftCategoryNote(category?.note ?? "");
     setDraftGroupNote(group?.note ?? "");
   }, [category?.id, category?.name, category?.note, group?.id, group?.note]);
 
-  function startRename() {
-    if (!category) {
-      return;
-    }
-
-    setDraftName(category.name);
-    setIsRenaming(true);
-  }
-
   function cancelRename() {
     setDraftName(category?.name ?? "");
-    setIsRenaming(false);
   }
 
   function saveRename() {
@@ -573,7 +584,6 @@ function CategoryManagementDialog({
 
     if (!trimmedName) {
       setDraftName(category.name);
-      setIsRenaming(false);
       return;
     }
 
@@ -581,7 +591,6 @@ function CategoryManagementDialog({
       onRenameCategory(category.id, trimmedName);
     }
 
-    setIsRenaming(false);
   }
 
   function saveCategoryNote() {
@@ -659,7 +668,7 @@ function CategoryManagementDialog({
       >
         <header className="category-management-modal-header">
           <div>
-            <h2 id="category-management-title">Manage Category</h2>
+            <h2 id="category-management-title">Edit Category</h2>
             <p className="muted">
               {category.name} · {group.name}
             </p>
@@ -678,42 +687,26 @@ function CategoryManagementDialog({
         <div className="category-management-sections">
           <section className="category-management-section">
             <h3>General</h3>
-            <div className="category-management-row">
-              {isRenaming ? (
-                <input
-                  className="category-rename-input"
-                  autoFocus
-                  value={draftName}
-                  onChange={(event) => setDraftName(event.target.value)}
-                  onBlur={saveRename}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      saveRename();
-                    }
+            <label className="category-management-field">
+              <span>Category name</span>
+              <input
+                className="category-rename-input"
+                autoFocus
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+                onBlur={saveRename}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    saveRename();
+                  }
 
-                    if (event.key === "Escape") {
-                      cancelRename();
-                    }
-                  }}
-                  aria-label="Category name"
-                />
-              ) : (
-                <strong>{category.name}</strong>
-              )}
-
-              <button
-                className="button button-secondary category-rename-button"
-                type="button"
-                onMouseDown={(event) => {
-                  if (isRenaming) {
-                    event.preventDefault();
+                  if (event.key === "Escape") {
+                    cancelRename();
                   }
                 }}
-                onClick={isRenaming ? saveRename : startRename}
-              >
-                {isRenaming ? "Save" : "Rename"}
-              </button>
-            </div>
+                aria-label="Category name"
+              />
+            </label>
 
             <button
               className="button button-secondary category-archive-button"
@@ -1231,6 +1224,12 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     setCategoryDropTarget(null);
   }
 
+
+  function openCategoryEditor(categoryId: string) {
+    selectCategory(categoryId);
+    setIsCategoryManagerOpen(true);
+  }
+
   return (
     <div className="budget-workspace-screen">
       <section className="budget-workspace-topbar">
@@ -1350,6 +1349,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 selectedCategoryId={visibleSelectedCategory?.id ?? null}
                 overassignedCategoryIds={overassignedCategoryIds}
                 onSelectCategory={selectCategory}
+                onOpenCategoryEditor={openCategoryEditor}
                 onAssignedChange={updateAssigned}
                 onActivityClick={openActivityDrilldown}
                 dragState={categoryDragState}
