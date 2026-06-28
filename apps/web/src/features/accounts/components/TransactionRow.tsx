@@ -396,11 +396,11 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
     <>
       <button
         type="button"
-        className={
-          isSelected
-            ? "register-row-compact register-row-selected"
-            : "register-row-compact"
-        }
+        className={[
+          "register-row-compact",
+          isSelected ? "register-row-selected" : "",
+          hasSplitLines && isSplitExpanded ? "register-row-compact-expanded" : "",
+        ].filter(Boolean).join(" ")}
         onClick={() => onSelectTransaction(transaction.id)}
         onDoubleClick={() => onEditTransaction(transaction.id)}
       >
@@ -429,7 +429,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
         )}
 
         <div className="register-compact-main">
-          <strong>{transaction.payee}</strong>
+          <strong title={transaction.payee}>{transaction.payee}</strong>
           <span className="register-compact-secondary">
             {hasSplitLines ? (
               <button
@@ -453,9 +453,11 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
                 )}
               </button>
             ) : null}
-            <span>{hasSplitLines ? `Split (${splitLines.length})` : transaction.category}</span>
+            <span title={hasSplitLines ? `Split (${splitLines.length})` : transaction.category}>
+              {hasSplitLines ? `Split (${splitLines.length})` : transaction.category}
+            </span>
             {hasMemo ? <span className="register-compact-dot">•</span> : null}
-            {hasMemo ? <span>{transaction.memo}</span> : null}
+            {hasMemo ? <span title={transaction.memo}>{transaction.memo}</span> : null}
           </span>
         </div>
 
@@ -502,12 +504,12 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
                 <span aria-hidden="true" />
 
                 <div className="register-compact-main register-compact-split-main">
-                  <strong>
+                  <strong title={line.category}>
                     <CornerDownRight size={13} aria-hidden="true" />
                     {line.category}
                   </strong>
                   {hasSplitMemo ? (
-                    <span className="register-compact-secondary">{line.memo}</span>
+                    <span className="register-compact-secondary" title={line.memo}>{line.memo}</span>
                   ) : null}
                 </div>
 

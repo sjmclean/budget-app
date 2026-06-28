@@ -21,7 +21,7 @@ import {
   type RegisterColumnId,
 } from "../features/accounts/components/TransactionRow";
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
-import { useRegisterLayoutMode } from "../features/accounts/registerLayoutMode";
+import { useRegisterLayoutMode, type RegisterLayoutMode } from "../features/accounts/registerLayoutMode";
 import {
   REGISTER_DEFAULT_PAGE_SIZE,
   getRegisterPaginationState,
@@ -1109,6 +1109,7 @@ function SplitEditor({
   currencyCode,
   visibleColumnIds,
   rowStyle,
+  layoutMode,
   children,
 }: {
   splitLines: SplitLineDraft[];
@@ -1121,6 +1122,7 @@ function SplitEditor({
   currencyCode: string;
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
+  layoutMode: RegisterLayoutMode;
   children?: ReactNode;
 }) {
   if (splitLines.length === 0) {
@@ -1422,6 +1424,155 @@ function SplitEditor({
     );
   }
 
+  if (layoutMode === "compact") {
+    return (
+      <div
+        className={[
+          "register-split-editor register-split-editor-compact",
+          balanceStatus.isBalanced
+            ? "register-split-editor-balanced"
+            : balanceStatus.isOverAssigned
+              ? "register-split-editor-over"
+              : "register-split-editor-unbalanced",
+        ].join(" ")}
+      >
+        <div className="register-split-compact-header">
+          <strong>Split transaction</strong>
+          <span>{splitLines.length} lines</span>
+        </div>
+
+        {splitLines.map((line) => (
+          <div className="register-split-compact-line" key={line.id}>
+            {renderSplitRemoveButton(line)}
+
+            <div className="register-split-compact-main">
+              <CategoryInput
+                value={line.category}
+                onChange={(value) =>
+                  setSplitLines((current) =>
+                    current.map((item) =>
+                      item.id === line.id
+                        ? {
+                            ...item,
+                            category: value,
+                            categoryId: findCategoryOption(value, categoryOptions)
+                              ?.id,
+                          }
+                        : item,
+                    ),
+                  )
+                }
+                categoryOptions={categoryOptions}
+                includeSplitOption={false}
+              />
+
+              <input
+                value={line.memo}
+                onChange={(event) =>
+                  setSplitLines((current) =>
+                    current.map((item) =>
+                      item.id === line.id
+                        ? { ...item, memo: event.target.value }
+                        : item,
+                    ),
+                  )
+                }
+                placeholder="Split memo"
+              />
+            </div>
+
+            <div className="register-split-compact-money">
+              <input
+                className="register-money-input"
+                value={line.outflow}
+                onChange={(event) =>
+                  setSplitLines((current) =>
+                    current.map((item) =>
+                      item.id === line.id
+                        ? { ...item, outflow: event.target.value }
+                        : item,
+                    ),
+                  )
+                }
+                placeholder="Outflow"
+                inputMode="decimal"
+                onKeyDown={(event) => addSplitOnTab(event, line)}
+              />
+
+              <input
+                className="register-money-input"
+                value={line.inflow}
+                onChange={(event) =>
+                  setSplitLines((current) =>
+                    current.map((item) =>
+                      item.id === line.id
+                        ? { ...item, inflow: event.target.value }
+                        : item,
+                    ),
+                  )
+                }
+                placeholder="Inflow"
+                inputMode="decimal"
+                onKeyDown={(event) => addSplitOnTab(event, line)}
+              />
+            </div>
+          </div>
+        ))}
+
+        <div className="register-split-compact-footer">
+          <div className="register-split-compact-footer-top">
+            <button
+              className="button button-secondary register-split-add-button"
+              type="button"
+              onClick={() =>
+                setSplitLines((current) => [...current, createSplitLineDraft()])
+              }
+            >
+              + Add another split
+            </button>
+
+            <span className="register-split-footer-status">
+              {balanceStatus.isBalanced ? "✓ Balanced" : ""}
+            </span>
+          </div>
+
+          <div className="register-split-compact-assign" aria-live="polite">
+            <span className="register-split-balance-label">Amount to assign</span>
+            <strong className="register-split-assign-amount register-split-assign-outflow">
+              {balanceStatus.activeSide === "outflow"
+                ? formatMoney(
+                    balanceStatus.isBalanced
+                      ? 0
+                      : -Math.abs(balanceStatus.remaining),
+                    currencyCode,
+                  )
+                : ""}
+            </strong>
+            <strong
+              className={[
+                "register-split-assign-amount register-split-assign-inflow",
+                balanceStatus.isOverAssigned ? "register-split-assign-over" : "",
+              ].join(" ")}
+            >
+              {balanceStatus.activeSide === "inflow"
+                ? formatMoney(
+                    balanceStatus.isBalanced ? 0 : balanceStatus.remaining,
+                    currencyCode,
+                  )
+                : ""}
+            </strong>
+          </div>
+
+          {children ? (
+            <div className="register-split-commit-actions register-split-compact-actions">
+              {children}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={[
@@ -1484,6 +1635,7 @@ function TransactionEntryRow({
   visibleColumns,
   visibleColumnIds,
   rowStyle,
+  layoutMode,
 }: {
   initialDate: string;
   categoryOptions: BudgetCategoryOption[];
@@ -1493,6 +1645,7 @@ function TransactionEntryRow({
   visibleColumns: Set<RegisterColumnId>;
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
+  layoutMode: RegisterLayoutMode;
   onSave: (input: NewRegisterTransactionInput) => void;
   onSaveAndAddAnother: (input: NewRegisterTransactionInput) => void;
   onCancel: () => void;
@@ -1777,6 +1930,7 @@ function TransactionEntryRow({
         currencyCode={currencyCode}
         visibleColumnIds={visibleColumnIds}
         rowStyle={rowStyle}
+        layoutMode={layoutMode}
       >
         <button
           className="button button-primary"
@@ -1822,6 +1976,7 @@ function TransactionEditRow({
   visibleColumns,
   visibleColumnIds,
   rowStyle,
+  layoutMode,
 }: {
   transaction: RegisterTransactionView;
   categoryOptions: BudgetCategoryOption[];
@@ -1847,6 +2002,7 @@ function TransactionEditRow({
   visibleColumns: Set<RegisterColumnId>;
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
+  layoutMode: RegisterLayoutMode;
 }) {
   const [date, setDate] = useState(transaction.date);
   const [flag, setFlag] = useState<TransactionFlag>(transaction.flag);
@@ -2039,6 +2195,7 @@ function TransactionEditRow({
           currencyCode={currencyCode}
           visibleColumnIds={visibleColumnIds}
           rowStyle={rowStyle}
+          layoutMode={layoutMode}
         >
           <button
             className="button button-primary"
@@ -3120,6 +3277,7 @@ export function AccountRegisterPage() {
               visibleColumns={registerEntryColumnSet}
               visibleColumnIds={registerEntryVisibleColumnIds}
               rowStyle={registerEntryRowStyle}
+              layoutMode={registerLayoutMode}
               onSave={(input) => {
                 addTransaction(input);
                 setLastEntryDate(input.date);
@@ -3166,6 +3324,7 @@ export function AccountRegisterPage() {
                     visibleColumns={registerEditColumnSet}
                     visibleColumnIds={registerEditVisibleColumnIds}
                     rowStyle={registerEditRowStyle}
+                    layoutMode={registerLayoutMode}
                   />
                 ) : (
                   <TransactionRow
