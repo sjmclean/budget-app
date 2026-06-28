@@ -743,7 +743,7 @@
 .register-split-editor {
   display: grid;
   gap: 0.55rem;
-  padding: 0.75rem 1rem 0.85rem 18rem;
+  padding: 0.75rem 1rem 0.85rem 28.2rem;
   border-bottom: 1px solid var(--border-soft);
   background: color-mix(in srgb, var(--surface-subtle) 82%, var(--surface));
 }
@@ -759,7 +759,7 @@
 
 .register-split-line {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(12rem, 1fr) 7.5rem 7.5rem auto;
+  grid-template-columns: 1.55rem minmax(12rem, 1.2fr) minmax(12rem, 1.4fr) 7.5rem 7.5rem;
   gap: 0.38rem;
   align-items: center;
 }
@@ -771,6 +771,26 @@
   background: var(--surface);
   color: var(--text);
   padding: 0.45rem 0.55rem;
+}
+
+.register-split-remove-button {
+  width: 1.35rem;
+  height: 1.35rem;
+  display: inline-grid;
+  place-items: center;
+  justify-self: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.register-split-remove-button:hover {
+  background: color-mix(in srgb, #dc2626 12%, var(--surface));
 }
 
 
@@ -2015,48 +2035,45 @@
 }
 
 .register-split-footer {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: flex-end;
   gap: 0.75rem;
-  flex-wrap: wrap;
   padding-top: 0.35rem;
 }
 
 .register-split-balance-summary {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) 7.5rem 7.5rem;
   align-items: center;
-  justify-content: flex-end;
-  gap: 1rem;
-  flex: 1 1 32rem;
+  gap: 0.38rem;
+  justify-self: stretch;
   min-width: min(100%, 28rem);
 }
 
-.register-split-balance-summary span {
-  display: grid;
-  gap: 0.1rem;
+.register-split-balance-label {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 760;
   text-align: right;
 }
 
-.register-split-balance-summary small {
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  font-weight: 650;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+.register-split-assign-amount {
+  min-height: 1.45rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
-.register-split-remaining-balanced strong,
+.register-split-assign-outflow {
+  color: #dc2626;
+}
+
+.register-split-assign-inflow,
 .register-split-balanced-badge {
   color: #15803d;
-}
-
-.register-split-remaining-unbalanced strong {
-  color: #d97706;
-}
-
-.register-split-remaining-over strong {
-  color: #dc2626;
 }
 
 .register-split-balanced-badge {
@@ -2074,4 +2091,23 @@
 .register-split-commit-actions .button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+@media (max-width: 1100px) {
+  .register-split-editor {
+    padding-left: 1rem;
+  }
+
+  .register-split-footer {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .register-split-balance-summary {
+    grid-template-columns: minmax(10rem, 1fr) 7.5rem 7.5rem;
+  }
+
+  .register-split-commit-actions {
+    justify-content: flex-end;
+  }
 }

@@ -1095,10 +1095,6 @@ function SplitEditor({
     splitOutflow: totals.outflow,
     splitInflow: totals.inflow,
   });
-  const remainingLabel = balanceStatus.isOverAssigned
-    ? "Amount over-assigned"
-    : "Amount remaining to assign";
-
   function balanceLastSplit() {
     setSplitLines((current) => {
       if (current.length === 0 || balanceStatus.isBalanced) {
@@ -1132,14 +1128,23 @@ function SplitEditor({
     >
       <div className="register-split-header">
         <strong>Split transaction</strong>
-        <span>
-          Parent: {formatMoney(balanceStatus.parentAmount, currencyCode)} · Split total:{" "}
-          {formatMoney(balanceStatus.splitAmount, currencyCode)}
-        </span>
       </div>
 
       {splitLines.map((line) => (
         <div className="register-split-line" key={line.id}>
+          <button
+            className="register-split-remove-button"
+            type="button"
+            aria-label="Remove split line"
+            title="Remove split line"
+            onClick={() =>
+              setSplitLines((current) =>
+                current.filter((item) => item.id !== line.id),
+              )
+            }
+          >
+            ×
+          </button>
           <CategoryInput
             value={line.category}
             onChange={(value) =>
@@ -1173,6 +1178,7 @@ function SplitEditor({
             placeholder="Split memo"
           />
           <input
+            className="register-money-input"
             value={line.outflow}
             onChange={(event) =>
               setSplitLines((current) =>
@@ -1187,6 +1193,7 @@ function SplitEditor({
             inputMode="decimal"
           />
           <input
+            className="register-money-input"
             value={line.inflow}
             onChange={(event) =>
               setSplitLines((current) =>
@@ -1200,17 +1207,6 @@ function SplitEditor({
             placeholder="Inflow"
             inputMode="decimal"
           />
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={() =>
-              setSplitLines((current) =>
-                current.filter((item) => item.id !== line.id),
-              )
-            }
-          >
-            Remove
-          </button>
         </div>
       ))}
 
@@ -1226,27 +1222,38 @@ function SplitEditor({
         </button>
 
         <div className="register-split-balance-summary" aria-live="polite">
-          <span>
-            <small>Parent amount</small>
-            <strong>{formatMoney(balanceStatus.parentAmount, currencyCode)}</strong>
-          </span>
-          <span>
-            <small>Split total</small>
-            <strong>{formatMoney(balanceStatus.splitAmount, currencyCode)}</strong>
-          </span>
-          <span
+          <span className="register-split-balance-label">Amount to assign</span>
+          <strong
             className={[
-              "register-split-remaining",
-              balanceStatus.isBalanced
-                ? "register-split-remaining-balanced"
-                : balanceStatus.isOverAssigned
-                  ? "register-split-remaining-over"
-                  : "register-split-remaining-unbalanced",
+              "register-split-assign-amount",
+              "register-split-assign-outflow",
+              balanceStatus.activeSide === "outflow" && !balanceStatus.isBalanced
+                ? "register-split-assign-active"
+                : "",
             ].join(" ")}
           >
-            <small>{remainingLabel}</small>
-            <strong>{formatMoney(Math.abs(balanceStatus.remaining), currencyCode)}</strong>
-          </span>
+            {balanceStatus.activeSide === "outflow"
+              ? formatMoney(
+                  balanceStatus.isBalanced
+                    ? 0
+                    : -Math.abs(balanceStatus.remaining),
+                  currencyCode,
+                )
+              : ""}
+          </strong>
+          <strong
+            className={[
+              "register-split-assign-amount",
+              "register-split-assign-inflow",
+              balanceStatus.activeSide === "inflow" && !balanceStatus.isBalanced
+                ? "register-split-assign-active"
+                : "",
+            ].join(" ")}
+          >
+            {balanceStatus.activeSide === "inflow"
+              ? formatMoney(Math.abs(balanceStatus.remaining), currencyCode)
+              : ""}
+          </strong>
         </div>
 
         {!balanceStatus.isBalanced ? (
