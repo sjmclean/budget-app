@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight, CornerDownRight, Paperclip } from "lucide-react";
 import { memo, useState, type CSSProperties } from "react";
+import type { RegisterLayoutMode } from "../registerLayoutMode";
 import type {
   RegisterTransactionView,
   TransactionFlag,
@@ -207,19 +208,7 @@ function TransactionStatus({
   );
 }
 
-export const TransactionRow = memo(function TransactionRow({
-  transaction,
-  currencyCode,
-  dateFormat,
-  isSelected,
-  onSelectTransaction,
-  onEditTransaction,
-  onToggleClearedTransaction,
-  onManageTransactionAttachments,
-  onUpdateTransactionFlag,
-  visibleColumns,
-  rowStyle,
-}: {
+interface TransactionRowRendererProps {
   transaction: RegisterTransactionView;
   currencyCode: string;
   dateFormat: ReturnType<typeof useDateFormatPreference>;
@@ -234,7 +223,25 @@ export const TransactionRow = memo(function TransactionRow({
   ) => void;
   visibleColumns: Set<RegisterColumnId>;
   rowStyle: CSSProperties;
-}) {
+}
+
+interface TransactionRowProps extends TransactionRowRendererProps {
+  layoutMode: RegisterLayoutMode;
+}
+
+const DesktopTransactionRow = memo(function DesktopTransactionRow({
+  transaction,
+  currencyCode,
+  dateFormat,
+  isSelected,
+  onSelectTransaction,
+  onEditTransaction,
+  onToggleClearedTransaction,
+  onManageTransactionAttachments,
+  onUpdateTransactionFlag,
+  visibleColumns,
+  rowStyle,
+}: TransactionRowRendererProps) {
   const [isSplitExpanded, setIsSplitExpanded] = useState(false);
   const splitLines = transaction.splitLines ?? [];
   const hasSplitLines = splitLines.length > 0;
@@ -357,4 +364,35 @@ export const TransactionRow = memo(function TransactionRow({
         : null}
     </>
   );
+});
+
+function CompactTransactionRow(props: TransactionRowRendererProps) {
+  return <DesktopTransactionRow {...props} />;
+}
+
+function TabletTransactionRow(props: TransactionRowRendererProps) {
+  return <DesktopTransactionRow {...props} />;
+}
+
+function MobileTransactionRow(props: TransactionRowRendererProps) {
+  return <DesktopTransactionRow {...props} />;
+}
+
+export const TransactionRow = memo(function TransactionRow({
+  layoutMode,
+  ...props
+}: TransactionRowProps) {
+  if (layoutMode === "compact") {
+    return <CompactTransactionRow {...props} />;
+  }
+
+  if (layoutMode === "tablet") {
+    return <TabletTransactionRow {...props} />;
+  }
+
+  if (layoutMode === "mobile") {
+    return <MobileTransactionRow {...props} />;
+  }
+
+  return <DesktopTransactionRow {...props} />;
 });

@@ -3182,6 +3182,7 @@ export function AccountRegisterPage() {
                     onUpdateTransactionFlag={handleUpdateTransactionFlag}
                     visibleColumns={registerTableLayout.visibleColumnSet}
                     rowStyle={registerTableLayout.rowStyle}
+                    layoutMode={registerLayoutMode}
                   />
                 )}
               </div>
