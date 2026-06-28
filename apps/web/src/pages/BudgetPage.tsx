@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { confirmDialog } from "../features/ui/appDialogService";
@@ -26,6 +26,17 @@ import { ColumnResizeHandle } from "../features/tableLayout/ColumnResizeHandle";
 import { useTableLayout, type TableColumnDefinition } from "../features/tableLayout/tableLayout";
 
 type BudgetColumnId = "category" | "assigned" | "activity" | "available";
+type BudgetCategoryDropPosition = "before" | "after";
+
+interface BudgetCategoryDragState {
+  categoryId: string;
+  groupId: string;
+}
+
+interface BudgetCategoryDropTarget {
+  categoryId: string;
+  position: BudgetCategoryDropPosition;
+}
 
 const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
 
@@ -139,22 +150,40 @@ function EditableAssignedCell({
 
 function BudgetCategoryRow({
   category,
+  groupId,
   currencyCode,
   isSelected,
   isOverassignedSource,
+  isDragSource,
+  dropPosition,
   onSelect,
   onAssignedChange,
   onActivityClick,
+  onDragStart,
+  onDragOverCategory,
+  onDropCategory,
+  onDragEnd,
   isBudgetColumnVisible,
   rowStyle,
 }: {
   category: BudgetCategoryView;
+  groupId: string;
   currencyCode: string;
   isSelected: boolean;
   isOverassignedSource: boolean;
+  isDragSource: boolean;
+  dropPosition: BudgetCategoryDropPosition | null;
   onSelect: () => void;
   onAssignedChange: (value: number) => void;
   onActivityClick: () => void;
+  onDragStart: (categoryId: string, groupId: string) => void;
+  onDragOverCategory: (
+    event: DragEvent<HTMLButtonElement>,
+    targetCategoryId: string,
+    targetGroupId: string,
+  ) => void;
+  onDropCategory: (targetCategoryId: string, targetGroupId: string) => void;
+  onDragEnd: () => void;
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
   rowStyle: CSSProperties;
 }) {
@@ -164,12 +193,34 @@ function BudgetCategoryRow({
       className={[
         "budget-workspace-row interactive-budget-row",
         isSelected ? "budget-workspace-row-selected" : "",
-      ].join(" ")}
+        isDragSource ? "budget-workspace-row-dragging" : "",
+        dropPosition === "before" ? "budget-workspace-row-drop-before" : "",
+        dropPosition === "after" ? "budget-workspace-row-drop-after" : "",
+      ].filter(Boolean).join(" ")}
       onClick={onSelect}
+      onDragOver={(event) => onDragOverCategory(event, category.id, groupId)}
+      onDrop={(event) => {
+        event.preventDefault();
+        onDropCategory(category.id, groupId);
+      }}
+      onDragEnd={onDragEnd}
       style={rowStyle}
     >
       <div className="budget-category-cell">
-        <span className="drag-handle" title="Reorder categories later">
+        <span
+          className="drag-handle drag-handle-active"
+          title="Drag to reorder within this category group"
+          draggable
+          onClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+          onDragStart={(event) => {
+            event.stopPropagation();
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", category.id);
+            onDragStart(category.id, groupId);
+          }}
+          aria-label={`Drag ${category.name} to reorder within ${groupId}`}
+        >
           ⋮⋮
         </span>
         <strong className="budget-category-name">{category.name}</strong>
@@ -228,6 +279,12 @@ function BudgetGroup({
   onSelectCategory,
   onAssignedChange,
   onActivityClick,
+  dragState,
+  dropTarget,
+  onCategoryDragStart,
+  onCategoryDragOver,
+  onCategoryDrop,
+  onCategoryDragEnd,
   isBudgetColumnVisible,
   rowStyle,
 }: {
@@ -238,6 +295,16 @@ function BudgetGroup({
   onSelectCategory: (categoryId: string) => void;
   onAssignedChange: (categoryId: string, value: number) => void;
   onActivityClick: (categoryId: string) => void;
+  dragState: BudgetCategoryDragState | null;
+  dropTarget: BudgetCategoryDropTarget | null;
+  onCategoryDragStart: (categoryId: string, groupId: string) => void;
+  onCategoryDragOver: (
+    event: DragEvent<HTMLButtonElement>,
+    targetCategoryId: string,
+    targetGroupId: string,
+  ) => void;
+  onCategoryDrop: (targetCategoryId: string, targetGroupId: string) => void;
+  onCategoryDragEnd: () => void;
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
   rowStyle: CSSProperties;
 }) {
@@ -283,12 +350,21 @@ function BudgetGroup({
           <BudgetCategoryRow
             key={category.id}
             category={category}
+            groupId={group.id}
             currencyCode={currencyCode}
             isSelected={selectedCategoryId === category.id}
             isOverassignedSource={isOverassignedSource}
+            isDragSource={dragState?.categoryId === category.id}
+            dropPosition={
+              dropTarget?.categoryId === category.id ? dropTarget.position : null
+            }
             onSelect={() => onSelectCategory(category.id)}
             onAssignedChange={(value) => onAssignedChange(category.id, value)}
             onActivityClick={() => onActivityClick(category.id)}
+            onDragStart={onCategoryDragStart}
+            onDragOverCategory={onCategoryDragOver}
+            onDropCategory={onCategoryDrop}
+            onDragEnd={onCategoryDragEnd}
             isBudgetColumnVisible={isBudgetColumnVisible}
             rowStyle={rowStyle}
           />
@@ -949,6 +1025,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const navigate = useNavigate();
   const [hideArchivedCategories, setHideArchivedCategories] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+  const [categoryDragState, setCategoryDragState] =
+    useState<BudgetCategoryDragState | null>(null);
+  const [categoryDropTarget, setCategoryDropTarget] =
+    useState<BudgetCategoryDropTarget | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(() =>
     getCurrentBudgetMonth(),
   );
@@ -965,6 +1045,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     renameCategory,
     setCategoryArchived,
     moveCategory,
+    moveCategoryToPosition,
     moveCategoryGroup,
     updateCategoryNote,
     updateCategoryGroupNote,
@@ -1097,6 +1178,59 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     0,
   );
 
+  function startCategoryDrag(categoryId: string, groupId: string) {
+    setCategoryDragState({ categoryId, groupId });
+    setCategoryDropTarget(null);
+  }
+
+  function updateCategoryDropTarget(
+    event: DragEvent<HTMLButtonElement>,
+    targetCategoryId: string,
+    targetGroupId: string,
+  ) {
+    if (!categoryDragState || categoryDragState.groupId !== targetGroupId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+
+    if (categoryDragState.categoryId === targetCategoryId) {
+      setCategoryDropTarget(null);
+      return;
+    }
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const position = event.clientY < bounds.top + bounds.height / 2
+      ? "before"
+      : "after";
+
+    setCategoryDropTarget({ categoryId: targetCategoryId, position });
+  }
+
+  function dropCategory(targetCategoryId: string, targetGroupId: string) {
+    if (
+      categoryDragState &&
+      categoryDragState.groupId === targetGroupId &&
+      categoryDragState.categoryId !== targetCategoryId &&
+      categoryDropTarget?.categoryId === targetCategoryId
+    ) {
+      moveCategoryToPosition(
+        categoryDragState.categoryId,
+        targetCategoryId,
+        categoryDropTarget.position,
+      );
+    }
+
+    setCategoryDragState(null);
+    setCategoryDropTarget(null);
+  }
+
+  function endCategoryDrag() {
+    setCategoryDragState(null);
+    setCategoryDropTarget(null);
+  }
+
   return (
     <div className="budget-workspace-screen">
       <section className="budget-workspace-topbar">
@@ -1218,6 +1352,12 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 onSelectCategory={selectCategory}
                 onAssignedChange={updateAssigned}
                 onActivityClick={openActivityDrilldown}
+                dragState={categoryDragState}
+                dropTarget={categoryDropTarget}
+                onCategoryDragStart={startCategoryDrag}
+                onCategoryDragOver={updateCategoryDropTarget}
+                onCategoryDrop={dropCategory}
+                onCategoryDragEnd={endCategoryDrag}
                 isBudgetColumnVisible={isBudgetColumnVisible}
                 rowStyle={budgetTableLayout.rowStyle}
               />

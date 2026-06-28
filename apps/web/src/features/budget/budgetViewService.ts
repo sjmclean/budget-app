@@ -810,6 +810,81 @@ export function createBudgetViewService(
     );
   },
 
+  async moveCategoryToPosition({ budgetId, month, categoryId, targetCategoryId, placement }) {
+    const current = await loadBudgetView(dependencies, budgetId, month);
+
+    if (categoryId === targetCategoryId) {
+      return current;
+    }
+
+    let sourceGroupId: string | null = null;
+    let targetGroupId: string | null = null;
+
+    for (const group of current.categoryGroups) {
+      if (group.categories.some((category) => category.id === categoryId)) {
+        sourceGroupId = group.id;
+      }
+
+      if (group.categories.some((category) => category.id === targetCategoryId)) {
+        targetGroupId = group.id;
+      }
+    }
+
+    if (!sourceGroupId || !targetGroupId) {
+      throw new Error("Category not found.");
+    }
+
+    if (sourceGroupId !== targetGroupId) {
+      return current;
+    }
+
+    const nextGroups = current.categoryGroups.map((group) => {
+      if (group.id !== sourceGroupId) {
+        return group;
+      }
+
+      const sourceIndex = group.categories.findIndex(
+        (category) => category.id === categoryId,
+      );
+      const targetIndex = group.categories.findIndex(
+        (category) => category.id === targetCategoryId,
+      );
+
+      if (sourceIndex === -1 || targetIndex === -1) {
+        return group;
+      }
+
+      const categories = [...group.categories];
+      const [categoryToMove] = categories.splice(sourceIndex, 1);
+      const adjustedTargetIndex = categories.findIndex(
+        (category) => category.id === targetCategoryId,
+      );
+
+      if (adjustedTargetIndex === -1) {
+        return group;
+      }
+
+      const insertIndex = placement === "before"
+        ? adjustedTargetIndex
+        : adjustedTargetIndex + 1;
+
+      categories.splice(insertIndex, 0, categoryToMove);
+
+      return {
+        ...group,
+        categories,
+      };
+    });
+
+    return saveBudgetView(dependencies,
+      {
+        ...current,
+        categoryGroups: nextGroups,
+      },
+      month,
+    );
+  },
+
   async moveCategoryGroup({ budgetId, month, groupId, direction }) {
     const current = await loadBudgetView(dependencies, budgetId, month);
     const groupIndex = current.categoryGroups.findIndex((group) => group.id === groupId);

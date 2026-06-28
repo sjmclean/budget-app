@@ -2990,3 +2990,57 @@ strong {
     grid-template-columns: 1fr;
   }
 }
+
+/* v2.25.0 budget category drag reordering */
+.drag-handle-active {
+  width: 1.45rem;
+  min-width: 1.45rem;
+  height: 1.65rem;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  letter-spacing: -0.16rem;
+  user-select: none;
+}
+
+.drag-handle-active:hover {
+  border-color: var(--border-soft);
+  background: var(--surface-subtle);
+  color: var(--accent-strong);
+  opacity: 1;
+}
+
+.drag-handle-active:active {
+  cursor: grabbing;
+}
+
+.budget-workspace-row-dragging {
+  opacity: 0.58;
+  background: var(--accent-soft);
+}
+
+.budget-workspace-row-drop-before,
+.budget-workspace-row-drop-after {
+  position: relative;
+}
+
+.budget-workspace-row-drop-before::before,
+.budget-workspace-row-drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0.55rem;
+  right: 0.55rem;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.budget-workspace-row-drop-before::before {
+  top: -2px;
+}
+
+.budget-workspace-row-drop-after::after {
+  bottom: -2px;
+}

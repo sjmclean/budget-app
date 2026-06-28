@@ -336,7 +336,9 @@
     "test:v2221:register-renderer-extraction": "tsx tests/v2221-register-renderer-extraction.ts",
     "test:v2221": "pnpm test:v2221:register-renderer-extraction",
     "test:v2240:budget-table-layout-ux": "tsx tests/v2240-budget-table-layout-ux.ts",
-    "test:v2240": "pnpm test:v2240:budget-table-layout-ux"
+    "test:v2240": "pnpm test:v2240:budget-table-layout-ux",
+    "test:v2250:budget-category-drag-reorder": "tsx tests/v2250-budget-category-drag-reorder.ts",
+    "test:v2250": "pnpm test:v2250:budget-category-drag-reorder"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

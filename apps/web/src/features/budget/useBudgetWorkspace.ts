@@ -28,6 +28,11 @@ interface UseBudgetWorkspaceState {
   renameCategory: (categoryId: string, name: string) => void;
   setCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   moveCategory: (categoryId: string, direction: "up" | "down") => void;
+  moveCategoryToPosition: (
+    categoryId: string,
+    targetCategoryId: string,
+    placement: "before" | "after",
+  ) => void;
   moveCategoryGroup: (groupId: string, direction: "up" | "down") => void;
   updateCategoryNote: (categoryId: string, note: string) => void;
   updateCategoryGroupNote: (groupId: string, note: string) => void;
@@ -237,6 +242,32 @@ export function useBudgetWorkspace(
       });
   }
 
+  function moveCategoryToPosition(
+    categoryId: string,
+    targetCategoryId: string,
+    placement: "before" | "after",
+  ) {
+    setSaveError(null);
+
+    void categoriesPersistence
+      .moveCategoryToPosition({
+        budgetId,
+        month,
+        categoryId,
+        targetCategoryId,
+        placement,
+      })
+      .then((nextData) => {
+        setEditedData(nextData);
+        setSelectedCategoryId(categoryId);
+      })
+      .catch((error) => {
+        setSaveError(
+          error instanceof Error ? error.message : "Failed to move category.",
+        );
+      });
+  }
+
   function moveCategoryGroup(groupId: string, direction: "up" | "down") {
     setSaveError(null);
 
@@ -381,6 +412,7 @@ export function useBudgetWorkspace(
     renameCategory,
     setCategoryArchived,
     moveCategory,
+    moveCategoryToPosition,
     moveCategoryGroup,
     updateCategoryNote,
     updateCategoryGroupNote,

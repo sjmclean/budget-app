@@ -16,6 +16,7 @@ export type CategoryPersistencePort = Pick<
   | "renameCategory"
   | "setCategoryArchived"
   | "moveCategory"
+  | "moveCategoryToPosition"
   | "moveCategoryGroup"
   | "updateCategoryNote"
   | "updateCategoryGroupNote"
