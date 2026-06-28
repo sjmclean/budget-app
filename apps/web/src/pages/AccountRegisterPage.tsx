@@ -1133,26 +1133,6 @@ function SplitEditor({
     splitOutflow: totals.outflow,
     splitInflow: totals.inflow,
   });
-  function balanceLastSplit() {
-    setSplitLines((current) => {
-      if (current.length === 0 || balanceStatus.isBalanced) {
-        return current;
-      }
-
-      const lastLine = current[current.length - 1];
-      const field = balanceStatus.activeSide;
-      const currentAmount = parseMoney(lastLine[field]);
-      const nextAmount = Math.max(
-        0,
-        normaliseMoney(currentAmount + balanceStatus.remaining),
-      );
-
-      return current.map((line) =>
-        line.id === lastLine.id ? { ...line, [field]: nextAmount.toFixed(2) } : line,
-      );
-    });
-  }
-
   const visibleSplitInputColumns = visibleColumnIds.filter((columnId) =>
     ["category", "memo", "outflow", "inflow"].includes(columnId),
   );
@@ -1346,19 +1326,6 @@ function SplitEditor({
         <span className="register-split-footer-status" key={columnId}>
           {balanceStatus.isBalanced ? "✓ Balanced" : ""}
         </span>
-      );
-    }
-
-    if (columnId === "outflow" && !balanceStatus.isBalanced) {
-      return (
-        <button
-          className="button button-secondary register-split-balance-button"
-          key={columnId}
-          type="button"
-          onClick={balanceLastSplit}
-        >
-          Balance last split
-        </button>
       );
     }
 

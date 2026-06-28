@@ -47,6 +47,11 @@ assert(
 );
 
 assert(
+  !registerPage.includes("Balance last split"),
+  "split editor should no longer expose a Balance last split action",
+);
+
+assert(
   registerPage.includes("event.key === \"Tab\"") &&
     registerPage.includes("createSplitLineDraft()"),
   "tabbing from the final split amount should add another split row",
