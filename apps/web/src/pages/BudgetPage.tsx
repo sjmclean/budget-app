@@ -17,7 +17,6 @@ import type {
   BudgetActivityDrilldownRow,
   BudgetCategoryGroupView,
   BudgetCategoryView,
-  CategoryMergePreview,
 } from "../features/budget/budgetViewTypes";
 import { isMoneyNegative, isMoneyZero, normaliseMoney } from "../features/budget/moneyMath";
 import { formatDateForDisplay } from "../features/settings/dateFormatting";
@@ -189,6 +188,8 @@ function BudgetCategoryRow({
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
   rowStyle: CSSProperties;
 }) {
+  const categoryNotePreview = category.note?.trim().split(/\r?\n/)[0] ?? "";
+
   return (
     <button
       type="button"
@@ -225,31 +226,43 @@ function BudgetCategoryRow({
         >
           ⋮⋮
         </span>
-        <span
-          className="budget-category-name-button"
-          role="button"
-          tabIndex={0}
-          title="Edit category name, notes, merge, or archive"
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpenCategoryEditor();
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              event.stopPropagation();
-              onOpenCategoryEditor();
-            }
-          }}
-        >
-          <strong className="budget-category-name">{category.name}</strong>
-        </span>
-        {category.isArchived ? (
-          <span className="category-archived-badge">Archived</span>
-        ) : null}
-        {category.note?.trim() ? (
-          <span className="category-note-badge" title="Category has notes">Note</span>
-        ) : null}
+
+        <div className="budget-category-label-stack">
+          <span className="budget-category-name-line">
+            <span
+              className="budget-category-name-button"
+              role="button"
+              tabIndex={0}
+              title="Edit category name, note, or archive status"
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenCategoryEditor();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onOpenCategoryEditor();
+                }
+              }}
+            >
+              <strong className="budget-category-name">{category.name}</strong>
+            </span>
+            {category.isArchived ? (
+              <span className="category-archived-badge">Archived</span>
+            ) : null}
+            {categoryNotePreview ? (
+              <span
+                className="category-note-indicator"
+                title={category.note?.trim()}
+                aria-label="Category has a note"
+              >
+                ✎
+              </span>
+            ) : null}
+          </span>
+
+        </div>
       </div>
 
       {isBudgetColumnVisible("assigned") ? (
@@ -512,64 +525,27 @@ function CategoryInspector({
 function CategoryManagementDialog({
   category,
   group,
-  currencyCode,
   isOpen,
-  isOverassignedSource,
-  canMoveCategoryUp,
-  canMoveCategoryDown,
-  canMoveGroupUp,
-  canMoveGroupDown,
-  mergeTargetOptions,
-  mergePreview,
-  isMergePreviewLoading,
   onClose,
   onRenameCategory,
   onSetCategoryArchived,
-  onMoveCategory,
-  onMoveCategoryGroup,
-  onPreviewCategoryMerge,
-  onMergeCategory,
-  onClearCategoryMergePreview,
   onUpdateCategoryNote,
-  onUpdateCategoryGroupNote,
 }: {
   category: BudgetCategoryView | null;
   group: BudgetCategoryGroupView | null;
-  currencyCode: string;
   isOpen: boolean;
-  isOverassignedSource: boolean;
-  canMoveCategoryUp: boolean;
-  canMoveCategoryDown: boolean;
-  canMoveGroupUp: boolean;
-  canMoveGroupDown: boolean;
-  mergeTargetOptions: Array<{ id: string; name: string; groupName: string }>;
-  mergePreview: CategoryMergePreview | null;
-  isMergePreviewLoading: boolean;
   onClose: () => void;
   onRenameCategory: (categoryId: string, name: string) => void;
   onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
-  onMoveCategory: (categoryId: string, direction: "up" | "down") => void;
-  onMoveCategoryGroup: (groupId: string, direction: "up" | "down") => void;
-  onPreviewCategoryMerge: (
-    sourceCategoryId: string,
-    targetCategoryId: string,
-  ) => void;
-  onMergeCategory: (sourceCategoryId: string, targetCategoryId: string) => void;
-  onClearCategoryMergePreview: () => void;
   onUpdateCategoryNote: (categoryId: string, note: string) => void;
-  onUpdateCategoryGroupNote: (groupId: string, note: string) => void;
 }) {
   const [draftName, setDraftName] = useState(category?.name ?? "");
-  const [mergeTargetId, setMergeTargetId] = useState("");
   const [draftCategoryNote, setDraftCategoryNote] = useState(category?.note ?? "");
-  const [draftGroupNote, setDraftGroupNote] = useState(group?.note ?? "");
 
   useEffect(() => {
     setDraftName(category?.name ?? "");
-    setMergeTargetId("");
     setDraftCategoryNote(category?.note ?? "");
-    setDraftGroupNote(group?.note ?? "");
-  }, [category?.id, category?.name, category?.note, group?.id, group?.note]);
+  }, [category?.id, category?.name, category?.note]);
 
   function cancelRename() {
     setDraftName(category?.name ?? "");
@@ -590,7 +566,6 @@ function CategoryManagementDialog({
     if (trimmedName !== category.name) {
       onRenameCategory(category.id, trimmedName);
     }
-
   }
 
   function saveCategoryNote() {
@@ -603,52 +578,6 @@ function CategoryManagementDialog({
     }
   }
 
-  function saveGroupNote() {
-    if (!group) {
-      return;
-    }
-
-    if (draftGroupNote !== (group.note ?? "")) {
-      onUpdateCategoryGroupNote(group.id, draftGroupNote);
-    }
-  }
-
-  function previewMerge() {
-    if (!category || !mergeTargetId) {
-      return;
-    }
-
-    onPreviewCategoryMerge(category.id, mergeTargetId);
-  }
-
-  function mergeCategory() {
-    if (!category || !activeMergePreview) {
-      return;
-    }
-
-    const confirmed = confirmDialog({
-      title: `Merge ${activeMergePreview.sourceCategoryName} into ${activeMergePreview.targetCategoryName}?`,
-      message:
-        "This will reassign matching register and scheduled transactions, move assigned money to the target category, and archive the source category.",
-    });
-
-    if (!confirmed) {
-      return;
-    }
-
-    onMergeCategory(
-      activeMergePreview.sourceCategoryId,
-      activeMergePreview.targetCategoryId,
-    );
-  }
-
-  const activeMergePreview =
-    mergePreview && category
-      ? mergePreview.sourceCategoryId === category.id
-        ? mergePreview
-        : null
-      : null;
-
   if (!isOpen || !category || !group) {
     return null;
   }
@@ -660,7 +589,7 @@ function CategoryManagementDialog({
       onClick={onClose}
     >
       <section
-        className="category-management-modal"
+        className="category-management-modal category-management-modal-compact"
         role="dialog"
         aria-modal="true"
         aria-labelledby="category-management-title"
@@ -678,15 +607,15 @@ function CategoryManagementDialog({
             className="budget-activity-modal-close"
             type="button"
             onClick={onClose}
-            aria-label="Close category management"
+            aria-label="Close category editor"
           >
             ×
           </button>
         </header>
 
-        <div className="category-management-sections">
+        <div className="category-management-sections category-management-sections-compact">
           <section className="category-management-section">
-            <h3>General</h3>
+            <h3>Category details</h3>
             <label className="category-management-field">
               <span>Category name</span>
               <input
@@ -708,6 +637,21 @@ function CategoryManagementDialog({
               />
             </label>
 
+            <label className="category-management-field">
+              <span>Category note</span>
+              <textarea
+                className="category-note-textarea"
+                value={draftCategoryNote}
+                onChange={(event) => setDraftCategoryNote(event.target.value)}
+                onBlur={saveCategoryNote}
+                placeholder="Add reminders, rules, renewal dates, or category-specific instructions…"
+                rows={5}
+              />
+            </label>
+          </section>
+
+          <section className="category-management-section category-management-actions-section">
+            <h3>Actions</h3>
             <button
               className="button button-secondary category-archive-button"
               type="button"
@@ -717,143 +661,6 @@ function CategoryManagementDialog({
             >
               {category.isArchived ? "Restore category" : "Archive category"}
             </button>
-          </section>
-
-          <section className="category-management-section">
-            <h3>Organisation</h3>
-            <div className="category-inspector-actions">
-              <button
-                className="button button-secondary category-move-button"
-                type="button"
-                disabled={!canMoveCategoryUp}
-                onClick={() => onMoveCategory(category.id, "up")}
-                title="Move category up"
-              >
-                Move category up
-              </button>
-
-              <button
-                className="button button-secondary category-move-button"
-                type="button"
-                disabled={!canMoveCategoryDown}
-                onClick={() => onMoveCategory(category.id, "down")}
-                title="Move category down"
-              >
-                Move category down
-              </button>
-
-              <button
-                className="button button-secondary category-move-button"
-                type="button"
-                disabled={!canMoveGroupUp}
-                onClick={() => onMoveCategoryGroup(group.id, "up")}
-                title="Move category group up"
-              >
-                Move group up
-              </button>
-
-              <button
-                className="button button-secondary category-move-button"
-                type="button"
-                disabled={!canMoveGroupDown}
-                onClick={() => onMoveCategoryGroup(group.id, "down")}
-                title="Move category group down"
-              >
-                Move group down
-              </button>
-            </div>
-          </section>
-
-          <section className="category-management-section">
-            <h3>Merge</h3>
-            <p className="muted">
-              Preview how many register and scheduled entries would be affected before merging.
-            </p>
-
-            <div className="category-merge-preview-controls">
-              <select
-                className="category-rename-input"
-                value={mergeTargetId}
-                onChange={(event) => {
-                  setMergeTargetId(event.target.value);
-                  onClearCategoryMergePreview();
-                }}
-                aria-label="Merge target category"
-              >
-                <option value="">Merge into…</option>
-                {mergeTargetOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.name} — {option.groupName}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                className="button button-secondary"
-                type="button"
-                disabled={!mergeTargetId || isMergePreviewLoading}
-                onClick={previewMerge}
-              >
-                {isMergePreviewLoading ? "Previewing…" : "Preview"}
-              </button>
-            </div>
-
-            {activeMergePreview ? (
-              <div className="category-merge-preview-summary">
-                <p>
-                  <strong>{activeMergePreview.sourceCategoryName}</strong> would
-                  merge into <strong>{activeMergePreview.targetCategoryName}</strong>.
-                </p>
-                <p className="muted">
-                  Register transactions: {activeMergePreview.registerTransactionCount}
-                  {" · "}Split lines: {activeMergePreview.registerSplitLineCount}
-                  {" · "}Scheduled transactions: {activeMergePreview.scheduledTransactionCount}
-                </p>
-                <p className="muted">
-                  Assigned after merge: {formatMoney(activeMergePreview.combinedAssigned, currencyCode)}
-                  {" · "}Activity after merge: {formatMoney(activeMergePreview.combinedActivity, currencyCode)}
-                  {" · "}Available after merge: {formatMoney(activeMergePreview.combinedAvailable, currencyCode)}
-                </p>
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  onClick={mergeCategory}
-                >
-                  Merge now
-                </button>
-              </div>
-            ) : null}
-          </section>
-
-          <section className="category-management-section">
-            <h3>Notes</h3>
-            <div className="category-notes-editor">
-              <label>
-                <span>Category notes</span>
-                <textarea
-                  className="category-note-textarea"
-                  value={draftCategoryNote}
-                  onChange={(event) => setDraftCategoryNote(event.target.value)}
-                  onBlur={saveCategoryNote}
-                  placeholder="Add reminders, rules, renewal dates, or category-specific instructions…"
-                  rows={5}
-                />
-              </label>
-            </div>
-
-            <div className="category-notes-editor">
-              <label>
-                <span>Category group notes</span>
-                <textarea
-                  className="category-note-textarea"
-                  value={draftGroupNote}
-                  onChange={(event) => setDraftGroupNote(event.target.value)}
-                  onBlur={saveGroupNote}
-                  placeholder="Add notes that apply to this whole category group…"
-                  rows={4}
-                />
-              </label>
-            </div>
           </section>
         </div>
       </section>
@@ -1037,20 +844,12 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     updateAssigned,
     renameCategory,
     setCategoryArchived,
-    moveCategory,
     moveCategoryToPosition,
-    moveCategoryGroup,
     updateCategoryNote,
-    updateCategoryGroupNote,
-    categoryMergePreview,
-    isCategoryMergePreviewLoading,
     activityDrilldown,
     isActivityDrilldownLoading,
     openActivityDrilldown,
     closeActivityDrilldown,
-    previewCategoryMerge,
-    mergeCategory,
-    clearCategoryMergePreview,
   } = useBudgetWorkspace(budgetId, selectedMonth);
 
   const budgetTableLayout = useTableLayout({
@@ -1130,39 +929,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const selectedCategoryIsOverassignedSource =
     visibleSelectedCategory !== null &&
     overassignedCategoryIds.includes(visibleSelectedCategory.id);
-
-  const selectedCategoryIndex =
-    visibleSelectedCategory && visibleSelectedGroup
-      ? visibleSelectedGroup.categories.findIndex(
-          (category) => category.id === visibleSelectedCategory.id,
-        )
-      : -1;
-  const canMoveSelectedCategoryUp = selectedCategoryIndex > 0;
-  const canMoveSelectedCategoryDown =
-    visibleSelectedGroup !== null &&
-    selectedCategoryIndex >= 0 &&
-    selectedCategoryIndex < visibleSelectedGroup.categories.length - 1;
-
-  const selectedGroupIndex =
-    visibleSelectedGroup !== null
-      ? data.categoryGroups.findIndex(
-          (group) => group.id === visibleSelectedGroup.id,
-        )
-      : -1;
-  const canMoveSelectedGroupUp = selectedGroupIndex > 0;
-  const canMoveSelectedGroupDown =
-    selectedGroupIndex >= 0 &&
-    selectedGroupIndex < data.categoryGroups.length - 1;
-
-  const mergeTargetOptions = data.categoryGroups.flatMap((group) =>
-    group.categories
-      .filter((category) => category.id !== visibleSelectedCategory?.id)
-      .map((category) => ({
-        id: category.id,
-        name: category.name,
-        groupName: group.name,
-      })),
-  );
 
   const overspentCount = data.categoryGroups.reduce(
     (count, group) =>
@@ -1443,26 +1209,11 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
       <CategoryManagementDialog
         category={visibleSelectedCategory}
         group={visibleSelectedGroup}
-        currencyCode={data.currencyCode}
         isOpen={isCategoryManagerOpen}
-        isOverassignedSource={selectedCategoryIsOverassignedSource}
-        canMoveCategoryUp={canMoveSelectedCategoryUp}
-        canMoveCategoryDown={canMoveSelectedCategoryDown}
-        canMoveGroupUp={canMoveSelectedGroupUp}
-        canMoveGroupDown={canMoveSelectedGroupDown}
-        mergeTargetOptions={mergeTargetOptions}
-        mergePreview={categoryMergePreview}
-        isMergePreviewLoading={isCategoryMergePreviewLoading}
         onClose={() => setIsCategoryManagerOpen(false)}
         onRenameCategory={renameCategory}
         onSetCategoryArchived={setCategoryArchived}
-        onMoveCategory={moveCategory}
-        onMoveCategoryGroup={moveCategoryGroup}
-        onPreviewCategoryMerge={previewCategoryMerge}
-        onMergeCategory={mergeCategory}
-        onClearCategoryMergePreview={clearCategoryMergePreview}
         onUpdateCategoryNote={updateCategoryNote}
-        onUpdateCategoryGroupNote={updateCategoryGroupNote}
       />
       <BudgetActivityDrilldownModal
         drilldown={activityDrilldown}

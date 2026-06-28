@@ -851,11 +851,26 @@ strong {
 }
 
 .budget-category-cell {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 0.4rem;
+  min-width: 0;
   padding-left: 0.2rem;
   color: var(--text);
+}
+
+.budget-category-label-stack {
+  min-width: 0;
+  display: grid;
+  gap: 0.12rem;
+}
+
+.budget-category-name-line {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .budget-category-cell strong,
@@ -2723,15 +2738,19 @@ strong {
   margin: 0.15rem 0 0.35rem;
 }
 
-.category-note-badge {
-  border: 1px solid var(--accent-soft);
+.category-note-indicator {
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid var(--border-soft);
   border-radius: 999px;
-  color: var(--accent);
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
   font-size: 0.68rem;
-  font-weight: 700;
-  padding: 0.08rem 0.42rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .category-notes-editor {
@@ -2964,6 +2983,10 @@ strong {
   box-shadow: var(--shadow-md);
 }
 
+.category-management-modal-compact {
+  width: min(640px, calc(100vw - 2rem));
+}
+
 .category-management-modal-header {
   display: flex;
   align-items: flex-start;
@@ -2985,6 +3008,10 @@ strong {
   padding: 1rem 1.15rem 1.15rem;
 }
 
+.category-management-sections-compact {
+  grid-template-columns: 1fr;
+}
+
 .category-management-section {
   display: grid;
   align-content: start;
@@ -2992,7 +3019,7 @@ strong {
   min-width: 0;
   border: 1px solid var(--border-soft);
   border-radius: 0.8rem;
-  background: var(--surface-muted);
+  background: var(--surface-subtle);
   padding: 0.85rem;
 }
 
@@ -3027,6 +3054,10 @@ strong {
 .category-notes-editor label {
   display: grid;
   gap: 0.35rem;
+}
+
+.category-management-actions-section .category-archive-button {
+  justify-self: start;
 }
 
 @media (max-width: 900px) {
