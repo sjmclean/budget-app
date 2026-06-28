@@ -850,6 +850,61 @@ strong {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
+.budget-workspace-row-dragging,
+.budget-workspace-group-dragging {
+  opacity: 0.62;
+  background: color-mix(in srgb, var(--accent-soft) 58%, var(--surface));
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    0 8px 22px rgba(16, 24, 40, 0.12);
+}
+
+.budget-workspace-row-drop-before,
+.budget-workspace-row-drop-after,
+.budget-workspace-group-drop-before,
+.budget-workspace-group-drop-after {
+  position: relative;
+}
+
+.budget-workspace-row-drop-before::before,
+.budget-workspace-row-drop-after::after,
+.budget-workspace-group-drop-before::before,
+.budget-workspace-group-drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0.72rem;
+  right: 0.72rem;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  pointer-events: none;
+}
+
+.budget-workspace-row-drop-before::before,
+.budget-workspace-group-drop-before::before {
+  top: -2px;
+}
+
+.budget-workspace-row-drop-after::after,
+.budget-workspace-group-drop-after::after {
+  bottom: -2px;
+}
+
+.budget-workspace-group-drop-inside {
+  background: color-mix(in srgb, var(--accent-soft) 46%, var(--surface));
+  outline: 2px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: -4px;
+}
+
+.budget-workspace-row,
+.budget-workspace-group-header {
+  transition:
+    background 120ms ease,
+    box-shadow 120ms ease,
+    opacity 120ms ease;
+}
+
 .budget-category-cell {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
