@@ -206,7 +206,7 @@ strong {
 }
 
 .sidebar-link:hover {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
 }
 
 .sidebar-link.active,
@@ -242,7 +242,7 @@ strong {
 }
 
 .accounts-header:hover {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
 }
 
 .accounts-header > div {
@@ -301,7 +301,7 @@ strong {
 }
 
 .account-row:hover {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
 }
 
 .account-link {
@@ -388,7 +388,7 @@ strong {
 }
 
 .account-menu button:hover {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
 }
 
 .account-menu button.danger {
@@ -416,7 +416,7 @@ strong {
 }
 
 .closed-accounts-toggle:hover {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   color: var(--text);
 }
 
@@ -445,7 +445,7 @@ strong {
 }
 
 .settings-button:hover {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
 }
 
 .settings-button.active,
@@ -530,7 +530,7 @@ strong {
 }
 
 .button-secondary {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   border-color: var(--border-soft);
   color: var(--text);
 }
@@ -541,7 +541,7 @@ strong {
 }
 
 .button-ghost:hover {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
 }
 
 /* Shared menus */
@@ -639,7 +639,7 @@ strong {
   border: 1px solid var(--border-soft);
   border-radius: 999px;
   padding: 0.16rem 0.5rem;
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
 }
 
 /* Budget workspace */
@@ -761,7 +761,7 @@ strong {
 
 .budget-table-layout-reset:hover,
 .budget-filter:hover {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   color: var(--accent-strong);
   border-color: var(--accent);
 }
@@ -800,7 +800,7 @@ strong {
 .budget-workspace-table-head {
   padding: 0.46rem 0.72rem;
   border-bottom: 1px solid var(--border-soft);
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   color: var(--text-muted);
   font-size: 0.72rem;
   font-weight: 760;
@@ -841,7 +841,7 @@ strong {
 
 .budget-workspace-row:hover,
 .interactive-budget-row:hover {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
 }
 
 .budget-workspace-row-selected,
@@ -947,7 +947,7 @@ strong {
 }
 
 .available-pill-zero {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   color: var(--text-muted);
 }
 
@@ -1035,7 +1035,7 @@ strong {
 }
 
 .quick-action:hover {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
 }
 
 .quick-action:last-child {
@@ -1206,7 +1206,7 @@ strong {
 }
 
 .modal-close-button:hover {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   color: var(--text);
 }
 
@@ -1250,7 +1250,7 @@ strong {
 }
 
 .add-account-form input:disabled {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   color: var(--text-muted);
   cursor: not-allowed;
 }
@@ -1258,7 +1258,7 @@ strong {
 .modal-footer {
   padding: 1rem;
   border-top: 1px solid var(--border-soft);
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
@@ -1385,7 +1385,7 @@ strong {
 
 .budget-activity-modal-close:hover {
   color: var(--text);
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
 }
 
 .budget-activity-table {
@@ -1408,7 +1408,7 @@ strong {
   top: 0;
   z-index: 1;
   padding: 0.65rem 1rem;
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   color: var(--text-muted);
   font-size: 0.72rem;
   font-weight: 800;
@@ -1446,7 +1446,7 @@ strong {
   padding: 2rem;
   border: 1px dashed var(--border);
   border-radius: 0.85rem;
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   color: var(--text-muted);
   text-align: center;
 }
@@ -1464,7 +1464,7 @@ strong {
   padding: 0.75rem;
   border: 1px solid var(--border-soft);
   border-radius: 0.75rem;
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
 }
 
 .budget-activity-modal-footer span,
@@ -1538,7 +1538,7 @@ strong {
   grid-template-rows: auto 1fr auto;
   gap: 1.4rem;
   border-right: 1px solid var(--border-soft);
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   padding: 1rem;
 }
 
@@ -1722,7 +1722,7 @@ strong {
   min-width: 13rem;
   border: 1px solid var(--border-soft);
   border-radius: 0.75rem;
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   padding: 0.75rem 0.9rem;
   display: grid;
   align-content: center;
@@ -1758,7 +1758,7 @@ strong {
 .settings-about-grid > div {
   border: 1px solid var(--border-soft);
   border-radius: 0.7rem;
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   padding: 0.9rem;
 }
 
@@ -1887,7 +1887,7 @@ strong {
   margin-top: 1rem;
   border: 1px solid var(--border-soft);
   border-radius: 0.85rem;
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   padding: 1rem;
   display: grid;
   gap: 0.8rem;
@@ -1946,7 +1946,7 @@ strong {
 }
 
 .sidebar-brand-link:hover {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
 }
 
 .eyebrow {
@@ -3014,7 +3014,7 @@ strong {
 
 .drag-handle-active:hover {
   border-color: var(--border-soft);
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
   color: var(--accent-strong);
   opacity: 1;
 }
