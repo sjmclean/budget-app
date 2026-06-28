@@ -2438,3 +2438,218 @@
     grid-template-columns: minmax(0, 1fr) minmax(5.8rem, 7rem) minmax(5.8rem, 7rem);
   }
 }
+
+
+/* v2.23.0 tablet register display renderer */
+.register-row-tablet,
+.register-row-tablet-split {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.register-row-tablet {
+  display: grid;
+  grid-template-columns: 1.8rem minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  align-items: start;
+  padding: 0.68rem 0.78rem;
+}
+
+.register-row-tablet:hover,
+.register-row-tablet-split:hover {
+  background: var(--surface-subtle);
+}
+
+.register-row-tablet.register-row-selected,
+.register-row-tablet.register-row-selected:hover {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.register-row-tablet-expanded {
+  border-bottom-color: color-mix(in srgb, var(--accent) 20%, var(--border-soft));
+}
+
+.register-tablet-select {
+  display: inline-grid;
+  min-height: 2.2rem;
+  place-items: center;
+}
+
+.register-tablet-main {
+  min-width: 0;
+  display: grid;
+  gap: 0.34rem;
+}
+
+.register-tablet-primary-line,
+.register-tablet-secondary-line,
+.register-tablet-meta-line {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.register-tablet-primary-line {
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.register-tablet-payee {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.98rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.register-tablet-amount {
+  flex: 0 0 auto;
+  font-size: 0.98rem;
+  font-weight: 820;
+}
+
+.register-tablet-secondary-line {
+  gap: 0.45rem;
+  color: var(--text-muted);
+  font-size: 0.83rem;
+}
+
+.register-tablet-category,
+.register-tablet-memo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.register-tablet-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: var(--text);
+  font-weight: 650;
+}
+
+.register-tablet-memo::before {
+  content: "•";
+  margin-right: 0.45rem;
+  color: var(--text-muted);
+}
+
+.register-tablet-meta-line {
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.register-tablet-meta-line span:not(:first-child)::before {
+  content: "•";
+  margin-right: 0.45rem;
+  color: var(--text-muted);
+}
+
+.register-tablet-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.24rem;
+}
+
+.register-row-tablet .flag-colour-picker,
+.register-row-tablet .flag-colour-picker-button {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.register-row-tablet .attachment-indicator,
+.register-row-tablet .register-status {
+  min-width: 2.2rem;
+  height: 2.2rem;
+}
+
+.register-row-tablet .register-split-toggle {
+  flex: 0 0 auto;
+  margin-left: -0.18rem;
+}
+
+.register-row-tablet-split {
+  display: grid;
+  grid-template-columns: 2.45rem minmax(0, 1fr) minmax(6rem, auto);
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.46rem 0.78rem 0.46rem 1.55rem;
+  background: color-mix(in srgb, var(--surface-subtle) 70%, var(--surface));
+  font-size: 0.82rem;
+}
+
+.register-tablet-split-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.register-tablet-split-main {
+  min-width: 0;
+  display: grid;
+  gap: 0.12rem;
+}
+
+.register-tablet-split-main strong,
+.register-tablet-split-main span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.register-tablet-split-main strong {
+  color: var(--text);
+  font-size: 0.84rem;
+}
+
+.register-tablet-split-main span {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.register-tablet-split-amount {
+  font-weight: 760;
+}
+
+.register-layout-tablet .register-head {
+  display: none;
+}
+
+.register-layout-tablet .register-table {
+  overflow-x: visible;
+}
+
+@media (max-width: 760px) {
+  .register-row-tablet {
+    grid-template-columns: 1.6rem minmax(0, 1fr);
+  }
+
+  .register-tablet-actions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+
+  .register-tablet-primary-line {
+    align-items: flex-start;
+  }
+
+  .register-tablet-amount {
+    text-align: right;
+  }
+}

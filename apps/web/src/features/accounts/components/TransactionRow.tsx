@@ -526,9 +526,163 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   );
 });
 
-function TabletTransactionRow(props: TransactionRowRendererProps) {
-  return <DesktopTransactionRow {...props} />;
-}
+const TabletTransactionRow = memo(function TabletTransactionRow({
+  transaction,
+  currencyCode,
+  dateFormat,
+  isSelected,
+  onSelectTransaction,
+  onEditTransaction,
+  onToggleClearedTransaction,
+  onManageTransactionAttachments,
+  onUpdateTransactionFlag,
+  visibleColumns,
+}: TransactionRowRendererProps) {
+  const [isSplitExpanded, setIsSplitExpanded] = useState(false);
+  const splitLines = transaction.splitLines ?? [];
+  const hasSplitLines = splitLines.length > 0;
+  const formattedDate = formatDateForDisplay(transaction.date, dateFormat);
+  const hasMemo = Boolean(transaction.memo?.trim());
+  const hasCheckNumber = Boolean(transaction.checkNumber?.trim());
+  const amountLabel = transaction.outflow
+    ? formatMoney(transaction.outflow, currencyCode)
+    : transaction.inflow
+      ? formatMoney(transaction.inflow, currencyCode)
+      : formatMoney(0, currencyCode);
+  const amountClassName = transaction.inflow
+    ? "register-tablet-amount register-money register-inflow"
+    : "register-tablet-amount register-money register-outflow";
+
+  return (
+    <>
+      <button
+        type="button"
+        className={[
+          "register-row-tablet",
+          isSelected ? "register-row-selected" : "",
+          hasSplitLines && isSplitExpanded ? "register-row-tablet-expanded" : "",
+        ].filter(Boolean).join(" ")}
+        onClick={() => onSelectTransaction(transaction.id)}
+        onDoubleClick={() => onEditTransaction(transaction.id)}
+      >
+        <span className="register-tablet-select" aria-hidden="true">
+          <span className="register-checkbox" />
+        </span>
+
+        <div className="register-tablet-main">
+          <div className="register-tablet-primary-line">
+            <strong className="register-tablet-payee" title={transaction.payee}>
+              {transaction.payee}
+            </strong>
+            <span className={amountClassName}>{amountLabel}</span>
+          </div>
+
+          <div className="register-tablet-secondary-line">
+            <span className="register-tablet-category" title={hasSplitLines ? `Split (${splitLines.length})` : transaction.category}>
+              {hasSplitLines ? (
+                <button
+                  className="register-split-toggle"
+                  type="button"
+                  aria-label={
+                    isSplitExpanded
+                      ? "Collapse split transaction"
+                      : "Expand split transaction"
+                  }
+                  aria-expanded={isSplitExpanded}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setIsSplitExpanded((expanded) => !expanded);
+                  }}
+                >
+                  {isSplitExpanded ? (
+                    <ChevronDown size={15} />
+                  ) : (
+                    <ChevronRight size={15} />
+                  )}
+                </button>
+              ) : null}
+              <span>{hasSplitLines ? `Split (${splitLines.length})` : transaction.category}</span>
+            </span>
+
+            {isRegisterColumnVisible("memo", visibleColumns) && hasMemo ? (
+              <span className="register-tablet-memo" title={transaction.memo}>
+                {transaction.memo}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="register-tablet-meta-line">
+            <span>{formattedDate}</span>
+
+            {isRegisterColumnVisible("checkNumber", visibleColumns) && hasCheckNumber ? (
+              <span>#{transaction.checkNumber}</span>
+            ) : null}
+
+            {isRegisterColumnVisible("runningBalance", visibleColumns) ? (
+              <span>Balance {formatMoney(transaction.runningBalance, currencyCode)}</span>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="register-tablet-actions">
+          {isRegisterColumnVisible("flag", visibleColumns) ? (
+            <InlineFlagPicker
+              value={transaction.flag}
+              onChange={(flag) => onUpdateTransactionFlag(transaction, flag)}
+            />
+          ) : null}
+
+          {isRegisterColumnVisible("attachments", visibleColumns) ? (
+            <AttachmentIndicator
+              count={transaction.attachmentCount}
+              onClick={() => onManageTransactionAttachments(transaction.id)}
+            />
+          ) : null}
+
+          {isRegisterColumnVisible("status", visibleColumns) ? (
+            <TransactionStatus
+              transaction={transaction}
+              onToggleCleared={() => onToggleClearedTransaction(transaction.id)}
+            />
+          ) : null}
+        </div>
+      </button>
+
+      {hasSplitLines && isSplitExpanded
+        ? splitLines.map((line) => {
+            const hasSplitMemo = Boolean(line.memo?.trim());
+            const splitAmountLabel = line.outflow
+              ? formatMoney(line.outflow, currencyCode)
+              : line.inflow
+                ? formatMoney(line.inflow, currencyCode)
+                : "";
+            const splitAmountClassName = line.inflow
+              ? "register-tablet-split-amount register-money register-inflow"
+              : "register-tablet-split-amount register-money register-outflow";
+
+            return (
+              <button
+                className="register-row-tablet-split"
+                type="button"
+                key={line.id}
+                onClick={() => onSelectTransaction(transaction.id)}
+                onDoubleClick={() => onEditTransaction(transaction.id)}
+              >
+                <span className="register-tablet-split-icon" aria-hidden="true">
+                  <CornerDownRight size={14} />
+                </span>
+                <span className="register-tablet-split-main">
+                  <strong title={line.category}>{line.category}</strong>
+                  {hasSplitMemo ? <span title={line.memo}>{line.memo}</span> : null}
+                </span>
+                <span className={splitAmountClassName}>{splitAmountLabel}</span>
+              </button>
+            );
+          })
+        : null}
+    </>
+  );
+});
 
 function MobileTransactionRow(props: TransactionRowRendererProps) {
   return <DesktopTransactionRow {...props} />;
@@ -538,17 +692,15 @@ export const TransactionRow = memo(function TransactionRow({
   layoutMode,
   ...props
 }: TransactionRowProps) {
-  if (layoutMode === "compact") {
-    return <CompactTransactionRow {...props} />;
+  switch (layoutMode) {
+    case "compact":
+      return <CompactTransactionRow {...props} />;
+    case "tablet":
+      return <TabletTransactionRow {...props} />;
+    case "mobile":
+      return <MobileTransactionRow {...props} />;
+    case "desktop":
+    default:
+      return <DesktopTransactionRow {...props} />;
   }
-
-  if (layoutMode === "tablet") {
-    return <TabletTransactionRow {...props} />;
-  }
-
-  if (layoutMode === "mobile") {
-    return <MobileTransactionRow {...props} />;
-  }
-
-  return <DesktopTransactionRow {...props} />;
 });
