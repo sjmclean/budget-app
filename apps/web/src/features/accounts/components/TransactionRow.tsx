@@ -366,9 +366,163 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
   );
 });
 
-function CompactTransactionRow(props: TransactionRowRendererProps) {
-  return <DesktopTransactionRow {...props} />;
-}
+const CompactTransactionRow = memo(function CompactTransactionRow({
+  transaction,
+  currencyCode,
+  dateFormat,
+  isSelected,
+  onSelectTransaction,
+  onEditTransaction,
+  onToggleClearedTransaction,
+  onManageTransactionAttachments,
+  onUpdateTransactionFlag,
+  visibleColumns,
+}: TransactionRowRendererProps) {
+  const [isSplitExpanded, setIsSplitExpanded] = useState(false);
+  const splitLines = transaction.splitLines ?? [];
+  const hasSplitLines = splitLines.length > 0;
+  const formattedDate = formatDateForDisplay(transaction.date, dateFormat);
+  const hasMemo = Boolean(transaction.memo?.trim());
+  const amountLabel = transaction.outflow
+    ? formatMoney(transaction.outflow, currencyCode)
+    : transaction.inflow
+      ? formatMoney(transaction.inflow, currencyCode)
+      : "";
+  const amountClassName = transaction.inflow
+    ? "register-money register-inflow"
+    : "register-money register-outflow";
+
+  return (
+    <>
+      <button
+        type="button"
+        className={
+          isSelected
+            ? "register-row-compact register-row-selected"
+            : "register-row-compact"
+        }
+        onClick={() => onSelectTransaction(transaction.id)}
+        onDoubleClick={() => onEditTransaction(transaction.id)}
+      >
+        <span className="register-compact-select" aria-hidden="true">
+          <span className="register-checkbox" />
+        </span>
+
+        <span className="register-compact-date">{formattedDate}</span>
+
+        {isRegisterColumnVisible("flag", visibleColumns) ? (
+          <InlineFlagPicker
+            value={transaction.flag}
+            onChange={(flag) => onUpdateTransactionFlag(transaction, flag)}
+          />
+        ) : (
+          <span aria-hidden="true" />
+        )}
+
+        {isRegisterColumnVisible("attachments", visibleColumns) ? (
+          <AttachmentIndicator
+            count={transaction.attachmentCount}
+            onClick={() => onManageTransactionAttachments(transaction.id)}
+          />
+        ) : (
+          <span aria-hidden="true" />
+        )}
+
+        <div className="register-compact-main">
+          <strong>{transaction.payee}</strong>
+          <span className="register-compact-secondary">
+            {hasSplitLines ? (
+              <button
+                className="register-split-toggle"
+                type="button"
+                aria-label={
+                  isSplitExpanded
+                    ? "Collapse split transaction"
+                    : "Expand split transaction"
+                }
+                aria-expanded={isSplitExpanded}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setIsSplitExpanded((expanded) => !expanded);
+                }}
+              >
+                {isSplitExpanded ? (
+                  <ChevronDown size={14} />
+                ) : (
+                  <ChevronRight size={14} />
+                )}
+              </button>
+            ) : null}
+            <span>{hasSplitLines ? `Split (${splitLines.length})` : transaction.category}</span>
+            {hasMemo ? <span className="register-compact-dot">•</span> : null}
+            {hasMemo ? <span>{transaction.memo}</span> : null}
+          </span>
+        </div>
+
+        <div className="register-compact-money-stack">
+          <span className={amountClassName}>{amountLabel}</span>
+          {isRegisterColumnVisible("runningBalance", visibleColumns) ? (
+            <strong className="register-balance">
+              {formatMoney(transaction.runningBalance, currencyCode)}
+            </strong>
+          ) : null}
+        </div>
+
+        {isRegisterColumnVisible("status", visibleColumns) ? (
+          <TransactionStatus
+            transaction={transaction}
+            onToggleCleared={() => onToggleClearedTransaction(transaction.id)}
+          />
+        ) : null}
+      </button>
+
+      {hasSplitLines && isSplitExpanded
+        ? splitLines.map((line) => {
+            const hasSplitMemo = Boolean(line.memo?.trim());
+            const splitAmountLabel = line.outflow
+              ? formatMoney(line.outflow, currencyCode)
+              : line.inflow
+                ? formatMoney(line.inflow, currencyCode)
+                : "";
+            const splitAmountClassName = line.inflow
+              ? "register-money register-inflow"
+              : "register-money register-outflow";
+
+            return (
+              <button
+                className="register-row-compact register-row-compact-split"
+                type="button"
+                key={line.id}
+                onClick={() => onSelectTransaction(transaction.id)}
+                onDoubleClick={() => onEditTransaction(transaction.id)}
+              >
+                <span className="register-compact-select" aria-hidden="true" />
+                <span className="register-compact-date" aria-hidden="true" />
+                <span aria-hidden="true" />
+                <span aria-hidden="true" />
+
+                <div className="register-compact-main register-compact-split-main">
+                  <strong>
+                    <CornerDownRight size={13} aria-hidden="true" />
+                    {line.category}
+                  </strong>
+                  {hasSplitMemo ? (
+                    <span className="register-compact-secondary">{line.memo}</span>
+                  ) : null}
+                </div>
+
+                <div className="register-compact-money-stack">
+                  <span className={splitAmountClassName}>{splitAmountLabel}</span>
+                </div>
+
+                <span aria-hidden="true" />
+              </button>
+            );
+          })
+        : null}
+    </>
+  );
+});
 
 function TabletTransactionRow(props: TransactionRowRendererProps) {
   return <DesktopTransactionRow {...props} />;
