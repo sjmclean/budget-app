@@ -21,6 +21,7 @@ import {
   type RegisterColumnId,
 } from "../features/accounts/components/TransactionRow";
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
+import { useRegisterLayoutMode } from "../features/accounts/registerLayoutMode";
 import {
   REGISTER_DEFAULT_PAGE_SIZE,
   getRegisterPaginationState,
@@ -2169,6 +2170,8 @@ export function AccountRegisterPage() {
     setRegisterPage(1);
   }, [accountId]);
 
+  const registerLayoutMode = useRegisterLayoutMode();
+
   const registerTableLayout = useTableLayout<RegisterColumnId>({
     storageKeyPrefix: REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
     scopeId: activeBudgetId,
@@ -2670,7 +2673,7 @@ export function AccountRegisterPage() {
         </div>
       </section>
 
-      <Card className="register-table-card">
+      <Card className={`register-table-card register-layout-${registerLayoutMode}`}>
         <div className="register-toolbar register-toolbar-clean">
           <div className="register-toolbar-actions register-toolbar-actions-left">
             <button

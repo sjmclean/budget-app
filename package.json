@@ -330,7 +330,9 @@
     "test:v221:split-balance-readonly": "tsx tests/v221-split-balance-readonly.ts",
     "test:v221": "pnpm test:v221:split-balance-readonly",
     "test:v2211:split-editor-polish": "tsx tests/v2211-split-editor-polish.ts",
-    "test:v2211": "pnpm test:v2211:split-editor-polish"
+    "test:v2211": "pnpm test:v2211:split-editor-polish",
+    "test:v222:adaptive-register-foundation": "tsx tests/v222-adaptive-register-foundation.ts",
+    "test:v222": "pnpm test:v222:adaptive-register-foundation"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
