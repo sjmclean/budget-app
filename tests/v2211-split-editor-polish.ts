@@ -49,14 +49,30 @@ assert(
 );
 
 assert(
-  registerStyles.includes("grid-template-columns: 1.55rem") &&
-    registerStyles.includes("register-split-remove-button"),
-  "split editor styles should allocate a compact leading remove column",
+  registerPage.includes("visibleColumnIds={visibleColumnIds}") &&
+    registerPage.includes("rowStyle={rowStyle}"),
+  "split editor should receive the active register grid layout",
 );
 
 assert(
-  registerStyles.includes("padding: 0.75rem 1rem 0.85rem 28.2rem"),
-  "split editor should shift right so split categories align closer to the Category column",
+  registerPage.includes("renderSplitCell") &&
+    registerPage.includes('columnId === "category"') &&
+    registerPage.includes('columnId === "memo"') &&
+    registerPage.includes('columnId === "outflow"') &&
+    registerPage.includes('columnId === "inflow"'),
+  "split editor should render split fields into the register Category/Memo/Outflow/Inflow columns",
+);
+
+assert(
+  registerStyles.includes("register-split-grid-row") &&
+    registerStyles.includes("register-split-category-edit") &&
+    registerStyles.includes("register-split-remove-button"),
+  "split editor styles should align split rows to the register grid with a compact remove control",
+);
+
+assert(
+  !registerStyles.includes("padding: 0.75rem 1rem 0.85rem 28.2rem"),
+  "split editor should not rely on hard-coded left padding for alignment",
 );
 
 assert(

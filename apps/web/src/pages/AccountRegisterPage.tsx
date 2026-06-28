@@ -1071,6 +1071,8 @@ function SplitEditor({
   parentOutflow,
   parentInflow,
   currencyCode,
+  visibleColumnIds,
+  rowStyle,
   children,
 }: {
   splitLines: SplitLineDraft[];
@@ -1081,6 +1083,8 @@ function SplitEditor({
   parentOutflow: number;
   parentInflow: number;
   currencyCode: string;
+  visibleColumnIds: readonly RegisterColumnId[];
+  rowStyle: CSSProperties;
   children?: ReactNode;
 }) {
   if (splitLines.length === 0) {
@@ -1115,23 +1119,16 @@ function SplitEditor({
     });
   }
 
-  return (
-    <div
-      className={[
-        "register-split-editor",
-        balanceStatus.isBalanced
-          ? "register-split-editor-balanced"
-          : balanceStatus.isOverAssigned
-            ? "register-split-editor-over"
-            : "register-split-editor-unbalanced",
-      ].join(" ")}
-    >
-      <div className="register-split-header">
-        <strong>Split transaction</strong>
-      </div>
+  const balanceLabelColumn: RegisterColumnId = visibleColumnIds.includes("checkNumber")
+    ? "checkNumber"
+    : visibleColumnIds.includes("memo")
+      ? "memo"
+      : "category";
 
-      {splitLines.map((line) => (
-        <div className="register-split-line" key={line.id}>
+  function renderSplitCell(columnId: RegisterColumnId, line: SplitLineDraft) {
+    if (columnId === "category") {
+      return (
+        <div className="register-split-category-edit" key={columnId}>
           <button
             className="register-split-remove-button"
             type="button"
@@ -1164,55 +1161,86 @@ function SplitEditor({
             categoryOptions={categoryOptions}
             includeSplitOption={false}
           />
-          <input
-            value={line.memo}
-            onChange={(event) =>
-              setSplitLines((current) =>
-                current.map((item) =>
-                  item.id === line.id
-                    ? { ...item, memo: event.target.value }
-                    : item,
-                ),
-              )
-            }
-            placeholder="Split memo"
-          />
-          <input
-            className="register-money-input"
-            value={line.outflow}
-            onChange={(event) =>
-              setSplitLines((current) =>
-                current.map((item) =>
-                  item.id === line.id
-                    ? { ...item, outflow: event.target.value }
-                    : item,
-                ),
-              )
-            }
-            placeholder="Outflow"
-            inputMode="decimal"
-          />
-          <input
-            className="register-money-input"
-            value={line.inflow}
-            onChange={(event) =>
-              setSplitLines((current) =>
-                current.map((item) =>
-                  item.id === line.id
-                    ? { ...item, inflow: event.target.value }
-                    : item,
-                ),
-              )
-            }
-            placeholder="Inflow"
-            inputMode="decimal"
-          />
         </div>
-      ))}
+      );
+    }
 
-      <div className="register-split-footer">
+    if (columnId === "memo") {
+      return (
+        <input
+          key={columnId}
+          value={line.memo}
+          onChange={(event) =>
+            setSplitLines((current) =>
+              current.map((item) =>
+                item.id === line.id
+                  ? { ...item, memo: event.target.value }
+                  : item,
+              ),
+            )
+          }
+          placeholder="Split memo"
+        />
+      );
+    }
+
+    if (columnId === "outflow") {
+      return (
+        <input
+          className="register-money-input"
+          key={columnId}
+          value={line.outflow}
+          onChange={(event) =>
+            setSplitLines((current) =>
+              current.map((item) =>
+                item.id === line.id
+                  ? { ...item, outflow: event.target.value }
+                  : item,
+              ),
+            )
+          }
+          placeholder="Outflow"
+          inputMode="decimal"
+        />
+      );
+    }
+
+    if (columnId === "inflow") {
+      return (
+        <input
+          className="register-money-input"
+          key={columnId}
+          value={line.inflow}
+          onChange={(event) =>
+            setSplitLines((current) =>
+              current.map((item) =>
+                item.id === line.id
+                  ? { ...item, inflow: event.target.value }
+                  : item,
+              ),
+            )
+          }
+          placeholder="Inflow"
+          inputMode="decimal"
+        />
+      );
+    }
+
+    return (
+      <span
+        aria-hidden="true"
+        className="register-split-placeholder-cell"
+        key={columnId}
+      />
+    );
+  }
+
+  function renderSplitFooterCell(columnId: RegisterColumnId) {
+    if (columnId === "category") {
+      return (
         <button
-          className="button button-secondary"
+          className="button button-secondary register-split-add-button"
+          key={columnId}
           type="button"
           onClick={() =>
             setSplitLines((current) => [...current, createSplitLineDraft()])
@@ -1220,55 +1248,161 @@ function SplitEditor({
         >
           + Add another split
         </button>
+      );
+    }
 
-        <div className="register-split-balance-summary" aria-live="polite">
-          <span className="register-split-balance-label">Amount to assign</span>
-          <strong
-            className={[
-              "register-split-assign-amount",
-              "register-split-assign-outflow",
-              balanceStatus.activeSide === "outflow" && !balanceStatus.isBalanced
-                ? "register-split-assign-active"
-                : "",
-            ].join(" ")}
-          >
-            {balanceStatus.activeSide === "outflow"
-              ? formatMoney(
-                  balanceStatus.isBalanced
-                    ? 0
-                    : -Math.abs(balanceStatus.remaining),
-                  currencyCode,
-                )
-              : ""}
-          </strong>
-          <strong
-            className={[
-              "register-split-assign-amount",
-              "register-split-assign-inflow",
-              balanceStatus.activeSide === "inflow" && !balanceStatus.isBalanced
-                ? "register-split-assign-active"
-                : "",
-            ].join(" ")}
-          >
-            {balanceStatus.activeSide === "inflow"
-              ? formatMoney(Math.abs(balanceStatus.remaining), currencyCode)
-              : ""}
-          </strong>
+    if (columnId === balanceLabelColumn) {
+      return (
+        <span className="register-split-footer-status" key={columnId}>
+          {balanceStatus.isBalanced ? "✓ Balanced" : ""}
+        </span>
+      );
+    }
+
+    if (columnId === "outflow" && !balanceStatus.isBalanced) {
+      return (
+        <button
+          className="button button-secondary register-split-balance-button"
+          key={columnId}
+          type="button"
+          onClick={balanceLastSplit}
+        >
+          Balance last split
+        </button>
+      );
+    }
+
+    return (
+      <span
+        aria-hidden="true"
+        className="register-split-placeholder-cell"
+        key={columnId}
+      />
+    );
+  }
+
+  function renderAssignCell(columnId: RegisterColumnId) {
+    if (columnId === balanceLabelColumn) {
+      return (
+        <span className="register-split-balance-label" key={columnId}>
+          Amount to assign
+        </span>
+      );
+    }
+
+    if (columnId === "outflow") {
+      return (
+        <strong
+          className="register-split-assign-amount register-split-assign-outflow"
+          key={columnId}
+        >
+          {balanceStatus.activeSide === "outflow"
+            ? formatMoney(
+                balanceStatus.isBalanced
+                  ? 0
+                  : -Math.abs(balanceStatus.remaining),
+                currencyCode,
+              )
+            : ""}
+        </strong>
+      );
+    }
+
+    if (columnId === "inflow") {
+      return (
+        <strong
+          className="register-split-assign-amount register-split-assign-inflow"
+          key={columnId}
+        >
+          {balanceStatus.activeSide === "inflow"
+            ? formatMoney(Math.abs(balanceStatus.remaining), currencyCode)
+            : ""}
+        </strong>
+      );
+    }
+
+    return (
+      <span
+        aria-hidden="true"
+        className="register-split-placeholder-cell"
+        key={columnId}
+      />
+    );
+  }
+
+  function renderActionCell(columnId: RegisterColumnId) {
+    if (columnId === "outflow") {
+      return children ? (
+        <div className="register-split-commit-actions" key={columnId}>
+          {children}
+        </div>
+      ) : (
+        <span
+          aria-hidden="true"
+          className="register-split-placeholder-cell"
+          key={columnId}
+        />
+      );
+    }
+
+    if (columnId === "inflow") {
+      return null;
+    }
+
+    return (
+      <span
+        aria-hidden="true"
+        className="register-split-placeholder-cell"
+        key={columnId}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={[
+        "register-split-editor",
+        balanceStatus.isBalanced
+          ? "register-split-editor-balanced"
+          : balanceStatus.isOverAssigned
+            ? "register-split-editor-over"
+            : "register-split-editor-unbalanced",
+      ].join(" ")}
+    >
+      <div className="register-split-header register-split-grid-row" style={rowStyle}>
+        {visibleColumnIds.map((columnId) =>
+          columnId === "category" ? (
+            <strong key={columnId}>Split transaction</strong>
+          ) : (
+            <span
+              aria-hidden="true"
+              className="register-split-placeholder-cell"
+              key={columnId}
+            />
+          ),
+        )}
+      </div>
+
+      {splitLines.map((line) => (
+        <div className="register-split-line register-split-grid-row" key={line.id} style={rowStyle}>
+          {visibleColumnIds.map((columnId) => renderSplitCell(columnId, line))}
+        </div>
+      ))}
+
+      <div className="register-split-footer">
+        <div className="register-split-footer-row register-split-grid-row" style={rowStyle}>
+          {visibleColumnIds.map(renderSplitFooterCell)}
         </div>
 
-        {!balanceStatus.isBalanced ? (
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={balanceLastSplit}
-          >
-            Balance last split
-          </button>
-        ) : (
-          <span className="register-split-balanced-badge">✓ Balanced</span>
-        )}
+        <div className="register-split-balance-row register-split-grid-row" style={rowStyle} aria-live="polite">
+          {visibleColumnIds.map(renderAssignCell)}
+        </div>
 
-        {children ? <div className="register-split-commit-actions">{children}</div> : null}
+        {children ? (
+          <div className="register-split-action-row register-split-grid-row" style={rowStyle}>
+            {visibleColumnIds.map(renderActionCell)}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -1572,6 +1706,8 @@ function TransactionEntryRow({
         parentOutflow={parseMoney(outflow)}
         parentInflow={parseMoney(inflow)}
         currencyCode={currencyCode}
+        visibleColumnIds={visibleColumnIds}
+        rowStyle={rowStyle}
       />
     </>
   );
@@ -1804,6 +1940,8 @@ function TransactionEditRow({
           parentOutflow={parseMoney(outflow)}
           parentInflow={parseMoney(inflow)}
           currencyCode={currencyCode}
+          visibleColumnIds={visibleColumnIds}
+          rowStyle={rowStyle}
         >
           <button
             className="button button-primary"
