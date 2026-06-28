@@ -1015,7 +1015,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     targetCategoryId: string,
     targetGroupId: string,
   ) {
-    if (!categoryDragState || categoryDragState.groupId !== targetGroupId) {
+    if (!categoryDragState) {
       return;
     }
 
@@ -1038,7 +1038,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   function dropCategory(targetCategoryId: string, targetGroupId: string) {
     if (
       categoryDragState &&
-      categoryDragState.groupId === targetGroupId &&
       categoryDragState.categoryId !== targetCategoryId &&
       categoryDropTarget?.categoryId === targetCategoryId
     ) {

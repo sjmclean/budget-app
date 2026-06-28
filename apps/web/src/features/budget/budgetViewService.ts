@@ -817,64 +817,59 @@ export function createBudgetViewService(
       return current;
     }
 
-    let sourceGroupId: string | null = null;
-    let targetGroupId: string | null = null;
+    let categoryToMove: BudgetCategoryView | null = null;
 
-    for (const group of current.categoryGroups) {
-      if (group.categories.some((category) => category.id === categoryId)) {
-        sourceGroupId = group.id;
-      }
-
-      if (group.categories.some((category) => category.id === targetCategoryId)) {
-        targetGroupId = group.id;
-      }
-    }
-
-    if (!sourceGroupId || !targetGroupId) {
-      throw new Error("Category not found.");
-    }
-
-    if (sourceGroupId !== targetGroupId) {
-      return current;
-    }
-
-    const nextGroups = current.categoryGroups.map((group) => {
-      if (group.id !== sourceGroupId) {
-        return group;
-      }
-
+    const groupsWithoutSourceCategory = current.categoryGroups.map((group) => {
       const sourceIndex = group.categories.findIndex(
         (category) => category.id === categoryId,
       );
-      const targetIndex = group.categories.findIndex(
-        (category) => category.id === targetCategoryId,
-      );
 
-      if (sourceIndex === -1 || targetIndex === -1) {
+      if (sourceIndex === -1) {
         return group;
       }
 
       const categories = [...group.categories];
-      const [categoryToMove] = categories.splice(sourceIndex, 1);
-      const adjustedTargetIndex = categories.findIndex(
-        (category) => category.id === targetCategoryId,
-      );
-
-      if (adjustedTargetIndex === -1) {
-        return group;
-      }
-
-      const insertIndex = placement === "before"
-        ? adjustedTargetIndex
-        : adjustedTargetIndex + 1;
-
-      categories.splice(insertIndex, 0, categoryToMove);
+      [categoryToMove] = categories.splice(sourceIndex, 1);
 
       return {
         ...group,
         categories,
       };
     });
+
+    if (!categoryToMove) {
+      throw new Error("Category not found.");
+    }
+
+    const movedCategory = categoryToMove;
+    let inserted = false;
+
+    const nextGroups = groupsWithoutSourceCategory.map((group) => {
+      const targetIndex = group.categories.findIndex(
+        (category) => category.id === targetCategoryId,
+      );
+
+      if (targetIndex === -1) {
+        return group;
+      }
+
+      const categories = [...group.categories];
+      const insertIndex = placement === "before"
+        ? targetIndex
+        : targetIndex + 1;
+
+      categories.splice(insertIndex, 0, movedCategory);
+      inserted = true;
+
+      return {
+        ...group,
+        categories,
+      };
+    });
+
+    if (!inserted) {
+      throw new Error("Target category not found.");
+    }
 
     return saveBudgetView(dependencies,
       {
