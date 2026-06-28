@@ -26,8 +26,8 @@
   --warning-text: #854d0e;
   --warning-bg: #fef9c3;
 
-  --negative: #c2410c;
-  --negative-bg: #ffedd5;
+  --negative: #dc2626;
+  --negative-bg: #fee2e2;
 
   --radius-card: 14px;
   --radius-panel: 12px;
@@ -57,8 +57,8 @@
   --warning-text: #fcd34d;
   --warning-bg: rgba(217, 119, 6, 0.22);
 
-  --negative: #fca5a5;
-  --negative-bg: rgba(185, 28, 28, 0.25);
+  --negative: #f87171;
+  --negative-bg: rgba(220, 38, 38, 0.24);
 
   --shadow-sm: none;
   --shadow-md: none;
@@ -700,7 +700,7 @@ strong {
 
 .ready-to-assign-negative {
   background: var(--negative-bg);
-  border-color: rgba(185, 28, 28, 0.25);
+  border-color: rgba(220, 38, 38, 0.28);
 }
 
 .ready-to-assign-negative span,
@@ -813,9 +813,9 @@ strong {
 }
 
 .budget-workspace-group-header {
-  padding: 0.5rem 0.72rem;
-  border-bottom: 1px solid var(--border-soft);
-  background: var(--surface-subtle);
+  padding: 0.58rem 0.72rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 92%, var(--border-soft));
   font-size: 0.86rem;
 }
 
@@ -921,7 +921,7 @@ strong {
 
 .assigned-input-error {
   border-color: var(--negative);
-  box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.12);
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.14);
 }
 
 .available-pill {
@@ -2006,7 +2006,7 @@ strong {
 }
 
 .form-error {
-  border: 1px solid rgba(185, 28, 28, 0.24);
+  border: 1px solid rgba(220, 38, 38, 0.28);
   border-radius: 0.5rem;
   background: var(--negative-bg);
   color: var(--negative);
