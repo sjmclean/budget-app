@@ -102,7 +102,7 @@ const view = importBudgetView();
 
 assert.deepEqual(
   view.categoryGroups.map((group) => group.name),
-  ["Hidden Categories", "Monthly Bills", "Main Expenses"],
+  ["Monthly Bills", "Main Expenses", "Hidden Categories"],
 );
 
 const hiddenCategories = view.categoryGroups.find((group) => group.name === "Hidden Categories");

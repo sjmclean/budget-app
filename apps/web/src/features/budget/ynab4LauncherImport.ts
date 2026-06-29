@@ -407,10 +407,12 @@ function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategor
   const existingGroupIds = new Set<string>();
   const existingCategoryIds = new Set<string>();
   const drafts: CategoryGroupDraft[] = [];
-  for (const [groupIndex, group] of groups.entries()) {
+  const orderedGroups = orderYnab4CategoryGroupsForDisplay(groups);
+
+  for (const [groupIndex, group] of orderedGroups.entries()) {
     const groupName = firstString(group.name, group.masterCategoryName, group.displayName) ?? `Imported Group ${groupIndex + 1}`;
     const groupSourceIds = sourceIds(group, `categoryGroup:${groupIndex}`);
-    const subCategories = toRecords(group.subCategories);
+    const subCategories = orderYnab4SubCategoriesForDisplay(toRecords(group.subCategories));
     const groupIsArchived = isYnab4Tombstone(group);
 
     if (groupIsArchived && subCategories.length === 0) {
@@ -455,6 +457,52 @@ function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategor
   return drafts
     .filter((group) => group.categories.length > 0)
     .map(({ sourceIds: _sourceIds, ...group }) => group);
+}
+
+function orderYnab4CategoryGroupsForDisplay(groups: RecordMap[]): RecordMap[] {
+  const visibleGroups: RecordMap[] = [];
+  const hiddenGroups: RecordMap[] = [];
+
+  for (const group of groups) {
+    const groupName = firstString(group.name, group.masterCategoryName, group.displayName) ?? "";
+    if (isYnab4HiddenCategoriesGroup(group, groupName)) {
+      hiddenGroups.push(group);
+    } else {
+      visibleGroups.push(group);
+    }
+  }
+
+  return [
+    ...sortYnab4RecordsBySortableIndex(visibleGroups),
+    ...sortYnab4RecordsBySortableIndex(hiddenGroups),
+  ];
+}
+
+function orderYnab4SubCategoriesForDisplay(categories: RecordMap[]): RecordMap[] {
+  return sortYnab4RecordsBySortableIndex(categories);
+}
+
+function sortYnab4RecordsBySortableIndex(records: RecordMap[]): RecordMap[] {
+  return records
+    .map((record, index) => ({ record, index }))
+    .sort((left, right) => {
+      const leftIndex = ynab4SortableIndex(left.record);
+      const rightIndex = ynab4SortableIndex(right.record);
+
+      if (leftIndex !== rightIndex) return leftIndex - rightIndex;
+      return left.index - right.index;
+    })
+    .map(({ record }) => record);
+}
+
+function ynab4SortableIndex(record: RecordMap): number {
+  const value = record.sortableIndex;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return Number.MAX_SAFE_INTEGER;
 }
 
 function suppressDuplicateArchivedCategories(drafts: CategoryGroupDraft[], maps: ImportMaps): void {

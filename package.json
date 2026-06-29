@@ -348,7 +348,9 @@
     "test:v2332:budget-history-ui": "tsx tests/v2332-budget-history-ui.ts",
     "test:v2332": "pnpm test:v2332:budget-history-ui",
     "test:v2340:ynab4-category-view-fidelity": "tsx tests/v2340-ynab4-category-view-fidelity.ts",
-    "test:v2340": "pnpm test:v2340:ynab4-category-view-fidelity"
+    "test:v2340": "pnpm test:v2340:ynab4-category-view-fidelity",
+    "test:v2341:ynab4-category-sortable-index-fidelity": "tsx tests/v2341-ynab4-category-sortable-index-fidelity.ts",
+    "test:v2341": "pnpm test:v2340 && pnpm test:v2341:ynab4-category-sortable-index-fidelity"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
