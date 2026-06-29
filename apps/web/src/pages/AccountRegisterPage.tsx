@@ -3326,49 +3326,68 @@ export function AccountRegisterPage() {
         )}
 
         <div className="register-table">
-          <div
-            className="register-row register-head register-row-with-attachments"
-            style={registerTableLayout.rowStyle}
-          >
-            {registerTableLayout.visibleColumns.map((column) => (
-              <span
-                className={[
-                  column.id === "attachments" ? "register-head-icon" : "",
-                  column.id === "outflow" ||
-                  column.id === "inflow" ||
-                  column.id === "runningBalance"
-                    ? "register-head-money"
-                    : "",
-                  "table-layout-resizable-head-cell",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                key={column.id}
-                aria-label={
-                  column.id === "attachments" ? "Attachments" : undefined
-                }
-              >
-                {column.id === "attachments" ? (
-                  <Paperclip size={13} />
-                ) : column.id === "runningBalance" ? (
-                  "Balance"
-                ) : column.id === "status" ? (
-                  "C"
-                ) : column.id === "select" ? (
-                  ""
-                ) : (
-                  column.label
-                )}
-                <ColumnResizeHandle
-                  columnId={column.id}
-                  label={column.label}
-                  onResizeStart={registerTableLayout.startColumnResize}
-                  onNudgeColumnWidth={registerTableLayout.nudgeColumnWidth}
-                  onResetColumnWidth={registerTableLayout.resetColumnWidth}
-                />
+          {registerLayoutMode === "compact" ? (
+            <div
+              className="register-row-compact register-head register-head-compact"
+              aria-label="Register column headings"
+            >
+              <span className="register-compact-head-select" aria-label="Select" />
+              <span className="register-compact-head-date">Date</span>
+              <span className="register-compact-head-flag">Flag</span>
+              <span className="register-compact-head-attachments" aria-label="Attachments">
+                <Paperclip size={13} aria-hidden="true" />
               </span>
-            ))}
-          </div>
+              <span className="register-compact-head-transaction">
+                Payee / Category / Memo
+              </span>
+              <span className="register-compact-head-amount">Amount / Balance</span>
+              <span className="register-compact-head-status">C</span>
+            </div>
+          ) : registerLayoutMode === "desktop" ? (
+            <div
+              className="register-row register-head register-row-with-attachments"
+              style={registerTableLayout.rowStyle}
+            >
+              {registerTableLayout.visibleColumns.map((column) => (
+                <span
+                  className={[
+                    column.id === "attachments" ? "register-head-icon" : "",
+                    column.id === "outflow" ||
+                    column.id === "inflow" ||
+                    column.id === "runningBalance"
+                      ? "register-head-money"
+                      : "",
+                    "table-layout-resizable-head-cell",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  key={column.id}
+                  aria-label={
+                    column.id === "attachments" ? "Attachments" : undefined
+                  }
+                >
+                  {column.id === "attachments" ? (
+                    <Paperclip size={13} />
+                  ) : column.id === "runningBalance" ? (
+                    "Balance"
+                  ) : column.id === "status" ? (
+                    "C"
+                  ) : column.id === "select" ? (
+                    ""
+                  ) : (
+                    column.label
+                  )}
+                  <ColumnResizeHandle
+                    columnId={column.id}
+                    label={column.label}
+                    onResizeStart={registerTableLayout.startColumnResize}
+                    onNudgeColumnWidth={registerTableLayout.nudgeColumnWidth}
+                    onResetColumnWidth={registerTableLayout.resetColumnWidth}
+                  />
+                </span>
+              ))}
+            </div>
+          ) : null}
 
           {showEntryRow && (
             <TransactionEntryRow

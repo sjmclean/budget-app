@@ -2156,6 +2156,60 @@
   display: none;
 }
 
+
+/* v2.35.0 register column header for compact desktop layout */
+.register-layout-compact .register-head-compact {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1.8rem minmax(4.8rem, 6rem) 2.2rem 2.2rem minmax(0, 1fr) minmax(8.2rem, 11rem) 2.2rem;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.42rem 0.62rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-subtle) 88%, var(--border-soft));
+  box-shadow: 0 1px 0 var(--border-soft);
+  cursor: default;
+}
+
+.register-layout-compact .register-head-compact:hover {
+  background: color-mix(in srgb, var(--surface-subtle) 88%, var(--border-soft));
+}
+
+.register-layout-compact .register-head-compact > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 820;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.register-layout-compact .register-compact-head-select {
+  display: inline-block;
+  width: 0.82rem;
+  height: 0.82rem;
+  border: 1px solid var(--border);
+  border-radius: 0.22rem;
+  background: var(--surface);
+}
+
+.register-layout-compact .register-compact-head-flag,
+.register-layout-compact .register-compact-head-attachments,
+.register-layout-compact .register-compact-head-status {
+  text-align: center;
+}
+
+.register-layout-compact .register-compact-head-amount {
+  text-align: right;
+}
+
 .register-layout-compact .register-table {
   overflow-x: hidden;
 }
@@ -2749,9 +2803,14 @@
 }
 
 @media (max-width: 1120px) {
+  .register-split-allocation-panel {
+    overflow-x: auto;
+  }
+
   .register-split-allocation-grid {
-    grid-template-columns: 2.6rem minmax(11rem, 1.6fr) minmax(7rem, 0.75fr) minmax(6.5rem, 0.55fr) minmax(6.5rem, 0.55fr);
-    gap: 0.46rem;
+    min-width: 43rem;
+    grid-template-columns: 2.4rem minmax(16rem, 2fr) minmax(8rem, 0.8fr) minmax(7rem, 0.58fr) minmax(7rem, 0.58fr);
+    gap: 0.48rem;
   }
 }
 
@@ -2760,35 +2819,9 @@
     margin-inline: 0.45rem;
   }
 
-  .register-split-allocation-grid-heading {
-    display: none;
-  }
-
-  .register-split-allocation-line {
-    grid-template-columns: 2.25rem minmax(10rem, 1.1fr) minmax(8rem, 0.85fr);
-    grid-template-areas:
-      "remove category memo"
-      "remove outflow inflow";
-  }
-
-  .register-split-allocation-remove {
-    grid-area: remove;
-  }
-
-  .register-split-allocation-category {
-    grid-area: category;
-  }
-
-  .register-split-allocation-memo {
-    grid-area: memo;
-  }
-
-  .register-split-allocation-outflow {
-    grid-area: outflow;
-  }
-
-  .register-split-allocation-inflow {
-    grid-area: inflow;
+  .register-split-allocation-grid {
+    min-width: 40rem;
+    grid-template-columns: 2.2rem minmax(15rem, 2fr) minmax(7rem, 0.75fr) minmax(6.8rem, 0.58fr) minmax(6.8rem, 0.58fr);
   }
 
   .register-split-allocation-footer,

@@ -15,3 +15,8 @@ Keep the existing split transaction workflow, but make the split editor read as 
 - Amount fields stay compact and aligned.
 - The panel keeps the split allocation visually grouped with the transaction.
 - Behaviour is unchanged.
+
+
+## v2.34.3 corrective note
+
+At narrower desktop widths, the split allocation panel keeps a stable five-column child grid and scrolls within the panel if necessary. It should not switch into a two-line wrapped layout because that made the split child rows look broken and caused the fields to feel disconnected from each other.

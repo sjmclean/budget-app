@@ -32,8 +32,12 @@ assert(
   "desktop split allocation grid should prioritise category over memo",
 );
 assert(
-  css.includes("@media (max-width: 820px)") && css.includes("grid-template-areas"),
-  "split allocation panel should have a narrow-width wrapping layout",
+  css.includes("overflow-x: auto") && css.includes("min-width: 43rem"),
+  "split allocation panel should keep a stable grid and scroll at narrower widths",
+);
+assert(
+  !css.includes("grid-template-areas"),
+  "split allocation panel should not use the broken two-line wrapped grid",
 );
 
 console.log("v2.34.3 transaction split allocation panel checks passed");
