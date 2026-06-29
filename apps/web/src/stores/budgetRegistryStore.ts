@@ -10,6 +10,10 @@ import {
   type UpdateBudgetRegistryInput,
 } from "../features/budget/budgetRegistry";
 import { createYnab4LauncherBudgetImportWithBackend, type CreateYnab4LauncherBudgetImportInput, type Ynab4LauncherImportResult } from "../features/budget/ynab4LauncherImport";
+import {
+  createVersionHistorySnapshotAfterYnab4Import,
+  createVersionHistorySnapshotBeforeBudgetSwitch,
+} from "../features/budget/versionHistoryLifecycle";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 
 interface BudgetRegistryState {
@@ -33,6 +37,9 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
 
   importYnab4Budget: async (input) => {
     const result = await createYnab4LauncherBudgetImportWithBackend(browserLocalStorageKeyValueStorage, input);
+    createVersionHistorySnapshotAfterYnab4Import(browserLocalStorageKeyValueStorage, {
+      now: input.now,
+    });
     set({ budgets: result.budgets });
     return result;
   },
@@ -44,6 +51,8 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
   },
 
   markBudgetOpened: (budgetId) => {
+    createVersionHistorySnapshotBeforeBudgetSwitch(browserLocalStorageKeyValueStorage, budgetId);
+
     const budget = markBudgetRegistryOpened(browserLocalStorageKeyValueStorage, budgetId);
     set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
     return budget;

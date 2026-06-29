@@ -342,7 +342,9 @@
     "test:v2321:budget-launch-polish": "tsx tests/v2321-budget-launch-polish.ts",
     "test:v2321": "pnpm test:v2321:budget-launch-polish",
     "test:v2330:data-protection-architecture": "tsx tests/v2330-data-protection-architecture.ts",
-    "test:v2330": "pnpm test:v2330:data-protection-architecture"
+    "test:v2330": "pnpm test:v2330:data-protection-architecture",
+    "test:v2331:data-protection-lifecycle": "tsx tests/v2331-data-protection-lifecycle.ts",
+    "test:v2331": "pnpm test:v2331:data-protection-lifecycle"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
