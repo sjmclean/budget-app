@@ -344,7 +344,9 @@
     "test:v2330:data-protection-architecture": "tsx tests/v2330-data-protection-architecture.ts",
     "test:v2330": "pnpm test:v2330:data-protection-architecture",
     "test:v2331:data-protection-lifecycle": "tsx tests/v2331-data-protection-lifecycle.ts",
-    "test:v2331": "pnpm test:v2331:data-protection-lifecycle"
+    "test:v2331": "pnpm test:v2331:data-protection-lifecycle",
+    "test:v2332:budget-history-ui": "tsx tests/v2332-budget-history-ui.ts",
+    "test:v2332": "pnpm test:v2332:budget-history-ui"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

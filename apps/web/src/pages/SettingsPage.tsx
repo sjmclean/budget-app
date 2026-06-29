@@ -12,6 +12,14 @@ import {
   type BudgetDataRestorePreview,
 } from "../features/budget/budgetDataExport";
 import { deleteCurrentBudget, resetCurrentBudget } from "../features/budget/budgetLifecycle";
+import { resolveActiveBudget } from "../features/budget/activeBudget";
+import {
+  createVersionHistorySnapshot,
+  deleteVersionHistorySnapshot,
+  listVersionHistorySnapshots,
+  restoreVersionHistorySnapshot,
+  type VersionHistorySnapshotMetadata,
+} from "../features/budget/versionHistory";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { getPersistenceModeSummary } from "../features/persistence/persistenceMode";
 import {
@@ -32,6 +40,7 @@ import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore, type ThemeMode } from "../stores/uiStore";
 
 type SettingsSectionId = "general" | "budget" | "data" | "cloud" | "about";
+type DataSettingsView = "overview" | "budget-history";
 
 const settingsSections: Array<{
   id: SettingsSectionId;
@@ -101,14 +110,102 @@ function formatMoneyPreview(settings: SettingsPreferences): string {
   return `${settings.budget.currencySymbol}${unsigned} / -${settings.budget.currencySymbol}${negative}`;
 }
 
+function formatHistoryDateTime(isoTimestamp: string): string {
+  const date = new Date(isoTimestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return isoTimestamp;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatHistoryTime(isoTimestamp: string): string {
+  const date = new Date(isoTimestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return isoTimestamp;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function getHistoryGroupLabel(isoTimestamp: string, now = new Date()): string {
+  const date = new Date(isoTimestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Earlier";
+  }
+
+  const startOfDay = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+  const differenceInDays = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000);
+
+  if (differenceInDays === 0) {
+    return "Today";
+  }
+
+  if (differenceInDays === 1) {
+    return "Yesterday";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function describeSnapshot(snapshot: VersionHistorySnapshotMetadata): string {
+  if (snapshot.description) {
+    return snapshot.description;
+  }
+
+  if (snapshot.source === "manual") {
+    return "Created manually.";
+  }
+
+  return "Created automatically by Budget App.";
+}
+
+function groupSnapshotsByDate(
+  snapshots: VersionHistorySnapshotMetadata[],
+): Array<{ label: string; snapshots: VersionHistorySnapshotMetadata[] }> {
+  const groups: Array<{ label: string; snapshots: VersionHistorySnapshotMetadata[] }> = [];
+
+  for (const snapshot of snapshots) {
+    const label = getHistoryGroupLabel(snapshot.createdAt);
+    const currentGroup = groups[groups.length - 1];
+
+    if (currentGroup?.label === label) {
+      currentGroup.snapshots.push(snapshot);
+    } else {
+      groups.push({ label, snapshots: [snapshot] });
+    }
+  }
+
+  return groups;
+}
+
 export function SettingsPage() {
   const navigate = useNavigate();
   const theme = useUIStore((state) => state.theme);
   const setTheme = useUIStore((state) => state.setTheme);
   const clearSelectedBudget = useUIStore((state) => state.clearSelectedBudget);
+  const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const refreshBudgets = useBudgetRegistryStore((state) => state.refreshBudgets);
+  const budgets = useBudgetRegistryStore((state) => state.budgets);
   const persistenceMode = getPersistenceModeSummary();
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("general");
+  const [dataView, setDataView] = useState<DataSettingsView>("overview");
   const [settings, setSettings] = useState<SettingsPreferences>(() =>
     readSettingsPreferences(browserLocalStorageKeyValueStorage),
   );
@@ -116,6 +213,16 @@ export function SettingsPage() {
   const [dataStatusMessage, setDataStatusMessage] = useState("Export or back up the currently selected budget.");
   const [restorePreview, setRestorePreview] = useState<BudgetDataRestorePreview | null>(null);
   const [restorePackageRaw, setRestorePackageRaw] = useState<string | null>(null);
+  const [historySnapshots, setHistorySnapshots] = useState<VersionHistorySnapshotMetadata[]>(() =>
+    listVersionHistorySnapshots(browserLocalStorageKeyValueStorage),
+  );
+  const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
+  const [restorePointDescription, setRestorePointDescription] = useState("");
+  const currentSection = settingsSections.find((section) => section.id === activeSection) ?? settingsSections[0];
+  const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
+  const selectedSnapshot =
+    historySnapshots.find((snapshot) => snapshot.id === selectedSnapshotId) ?? historySnapshots[0] ?? null;
+  const snapshotGroups = groupSnapshotsByDate(historySnapshots);
 
   useEffect(() => {
     setSettings((current) => ({
@@ -127,6 +234,16 @@ export function SettingsPage() {
     }));
   }, [theme]);
 
+  useEffect(() => {
+    const snapshots = listVersionHistorySnapshots(browserLocalStorageKeyValueStorage, activeBudget?.id);
+    setHistorySnapshots(snapshots);
+    setSelectedSnapshotId((current) =>
+      current && snapshots.some((snapshot) => snapshot.id === current)
+        ? current
+        : snapshots[0]?.id ?? null,
+    );
+  }, [activeBudget?.id]);
+
   const preview = useMemo(
     () => ({
       date: formatDatePreview(settings.general.dateFormat),
@@ -134,8 +251,6 @@ export function SettingsPage() {
     }),
     [settings],
   );
-
-  const currentSection = settingsSections.find((section) => section.id === activeSection) ?? settingsSections[0];
 
   function persist(next: SettingsPreferences, message = "Settings saved locally.") {
     const saved = writeSettingsPreferences(browserLocalStorageKeyValueStorage, next);
@@ -269,6 +384,87 @@ export function SettingsPage() {
     );
     setRestorePreview(null);
     setRestorePackageRaw(null);
+  }
+
+  function refreshVersionHistory() {
+    const snapshots = listVersionHistorySnapshots(browserLocalStorageKeyValueStorage, activeBudget?.id);
+    setHistorySnapshots(snapshots);
+    setSelectedSnapshotId((current) =>
+      current && snapshots.some((snapshot) => snapshot.id === current)
+        ? current
+        : snapshots[0]?.id ?? null,
+    );
+  }
+
+  function createManualRestorePoint() {
+    const result = createVersionHistorySnapshot(browserLocalStorageKeyValueStorage, {
+      source: "manual",
+      description: restorePointDescription,
+    });
+
+    if (!result.created) {
+      setDataStatusMessage(result.errors[0] ?? "Could not create restore point.");
+      return;
+    }
+
+    setRestorePointDescription("");
+    refreshVersionHistory();
+    setSelectedSnapshotId(result.snapshot?.id ?? null);
+    setDataStatusMessage("Restore point created.");
+  }
+
+  function restoreSelectedSnapshot() {
+    if (!selectedSnapshot) {
+      setDataStatusMessage("Choose a restore point before restoring.");
+      return;
+    }
+
+    const confirmed = confirmDialog({
+      title: "Restore budget history point?",
+      message: `This will replace the current ${selectedSnapshot.budgetName} budget with the version from ${formatHistoryDateTime(selectedSnapshot.createdAt)}.`,
+    });
+
+    if (!confirmed) {
+      setDataStatusMessage("Restore cancelled. No data has been changed.");
+      return;
+    }
+
+    const result = restoreVersionHistorySnapshot(browserLocalStorageKeyValueStorage, selectedSnapshot.id);
+
+    if (!result.restored) {
+      setDataStatusMessage(result.errors[0] ?? "Restore point could not be restored.");
+      return;
+    }
+
+    refreshVersionHistory();
+    setDataStatusMessage(`Restored ${selectedSnapshot.budgetName} to ${formatHistoryDateTime(selectedSnapshot.createdAt)}.`);
+  }
+
+  function deleteSelectedSnapshot() {
+    if (!selectedSnapshot) {
+      setDataStatusMessage("Choose a restore point before deleting.");
+      return;
+    }
+
+    const confirmed = confirmDialog({
+      title: "Delete restore point?",
+      message: `Delete the restore point from ${formatHistoryDateTime(selectedSnapshot.createdAt)}? This does not change your current budget.`,
+    });
+
+    if (!confirmed) {
+      setDataStatusMessage("Delete cancelled. No data has been changed.");
+      return;
+    }
+
+    const deleted = deleteVersionHistorySnapshot(browserLocalStorageKeyValueStorage, selectedSnapshot.id);
+
+    if (!deleted) {
+      setDataStatusMessage("Restore point could not be deleted.");
+      return;
+    }
+
+    refreshVersionHistory();
+    setDataStatusMessage("Restore point deleted.");
   }
 
   function handleResetCurrentBudget() {
@@ -595,104 +791,235 @@ export function SettingsPage() {
 
         {activeSection === "data" ? (
           <Card className="settings-section-card">
-            <div className="settings-section-header">
-              <div>
-                <p className="eyebrow">Data</p>
-                <h2>Backup, export, and restore</h2>
-                <p className="muted">{dataStatusMessage}</p>
-              </div>
-            </div>
-            <div className="settings-action-grid">
-              <div className="settings-action-card">
-                <h3>Export Budget</h3>
-                <p className="muted">Download a portable JSON export for the currently selected budget.</p>
-                <Button type="button" variant="secondary" onClick={() => downloadBudgetData("export")}>
-                  Export JSON
-                </Button>
-              </div>
-              <div className="settings-action-card">
-                <h3>Backup Budget</h3>
-                <p className="muted">Create a restorable JSON backup package for the active budget.</p>
-                <Button type="button" variant="secondary" onClick={() => downloadBudgetData("backup")}>
-                  Backup JSON
-                </Button>
-              </div>
-              <div className="settings-action-card">
-                <h3>Restore Preview</h3>
-                <p className="muted">Validate a previous export or backup without changing app data.</p>
-                <label className="button button-secondary settings-file-button">
-                  Preview restore
-                  <input
-                    type="file"
-                    accept="application/json,.json"
-                    onChange={(event) => previewRestoreFile(event.target.files?.[0] ?? null)}
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="settings-action-grid settings-danger-grid">
-              <div className="settings-action-card settings-danger-card">
-                <h3>Reset Current Budget</h3>
-                <p className="muted">
-                  Remove budget data and recreate starter categories while preserving the budget entry and settings.
-                </p>
-                <Button type="button" variant="secondary" onClick={handleResetCurrentBudget}>
-                  Reset Budget
-                </Button>
-              </div>
-              <div className="settings-action-card settings-danger-card">
-                <h3>Delete Current Budget</h3>
-                <p className="muted">
-                  Permanently delete the selected budget and return to the budget selector. Other budgets are preserved.
-                </p>
-                <Button type="button" variant="secondary" onClick={handleDeleteCurrentBudget}>
-                  Delete Budget
-                </Button>
-              </div>
-            </div>
-
-            {restorePreview ? (
-              <div className={`settings-restore-preview${restorePreview.valid ? " valid" : " invalid"}`}>
-                <div>
-                  <p className="eyebrow">Restore preview</p>
-                  <h3>{restorePreview.valid ? "Package looks valid" : "Package needs attention"}</h3>
-                  <p className="muted">
-                    {restorePreview.budgetName ?? "Unknown budget"}
-                    {restorePreview.exportedAt ? ` · Exported ${restorePreview.exportedAt.slice(0, 10)}` : ""}
-                  </p>
+            {dataView === "overview" ? (
+              <>
+                <div className="settings-section-header">
+                  <div>
+                    <p className="eyebrow">Data</p>
+                    <h2>Data protection and portability</h2>
+                    <p className="muted">{dataStatusMessage}</p>
+                  </div>
                 </div>
 
-                {restorePreview.counts ? (
-                  <div className="settings-restore-counts">
-                    <span>{restorePreview.counts.accounts} accounts</span>
-                    <span>{restorePreview.counts.transactions} transactions</span>
-                    <span>{restorePreview.counts.payees} payees</span>
-                    <span>{restorePreview.counts.scheduledTransactions} scheduled</span>
-                    <span>{restorePreview.counts.budgetMonths} months</span>
+                <div className="settings-action-grid">
+                  <button
+                    type="button"
+                    className="settings-action-card settings-action-button-card"
+                    onClick={() => setDataView("budget-history")}
+                  >
+                    <h3>Budget History</h3>
+                    <p className="muted">Review and restore one of the rolling restore points for the active budget.</p>
+                    <strong>{historySnapshots.length} of 30 restore points</strong>
+                  </button>
+                  <div className="settings-action-card">
+                    <h3>External Backups</h3>
+                    <p className="muted">Create portable files for migration, archiving, or disaster recovery.</p>
+                    <div className="settings-action-row">
+                      <Button type="button" variant="secondary" onClick={() => downloadBudgetData("backup")}>
+                        Backup JSON
+                      </Button>
+                      <label className="button button-secondary settings-file-button">
+                        Preview restore
+                        <input
+                          type="file"
+                          accept="application/json,.json"
+                          onChange={(event) => previewRestoreFile(event.target.files?.[0] ?? null)}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                  <div className="settings-action-card">
+                    <h3>Export Budget</h3>
+                    <p className="muted">Download a portable JSON export for the currently selected budget.</p>
+                    <Button type="button" variant="secondary" onClick={() => downloadBudgetData("export")}>
+                      Export JSON
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="settings-action-grid settings-danger-grid">
+                  <div className="settings-action-card settings-danger-card">
+                    <h3>Reset Current Budget</h3>
+                    <p className="muted">
+                      Remove budget data and recreate starter categories while preserving the budget entry and settings.
+                    </p>
+                    <Button type="button" variant="secondary" onClick={handleResetCurrentBudget}>
+                      Reset Budget
+                    </Button>
+                  </div>
+                  <div className="settings-action-card settings-danger-card">
+                    <h3>Delete Current Budget</h3>
+                    <p className="muted">
+                      Permanently delete the selected budget and return to the budget selector. Other budgets are preserved.
+                    </p>
+                    <Button type="button" variant="secondary" onClick={handleDeleteCurrentBudget}>
+                      Delete Budget
+                    </Button>
+                  </div>
+                </div>
+
+                {restorePreview ? (
+                  <div className={`settings-restore-preview${restorePreview.valid ? " valid" : " invalid"}`}>
+                    <div>
+                      <p className="eyebrow">Restore preview</p>
+                      <h3>{restorePreview.valid ? "Package looks valid" : "Package needs attention"}</h3>
+                      <p className="muted">
+                        {restorePreview.budgetName ?? "Unknown budget"}
+                        {restorePreview.exportedAt ? ` · Exported ${restorePreview.exportedAt.slice(0, 10)}` : ""}
+                      </p>
+                    </div>
+
+                    {restorePreview.counts ? (
+                      <div className="settings-restore-counts">
+                        <span>{restorePreview.counts.accounts} accounts</span>
+                        <span>{restorePreview.counts.transactions} transactions</span>
+                        <span>{restorePreview.counts.payees} payees</span>
+                        <span>{restorePreview.counts.scheduledTransactions} scheduled</span>
+                        <span>{restorePreview.counts.budgetMonths} months</span>
+                      </div>
+                    ) : null}
+
+                    {[...restorePreview.errors, ...restorePreview.warnings].length ? (
+                      <ul className="settings-restore-messages">
+                        {[...restorePreview.errors, ...restorePreview.warnings].map((message) => (
+                          <li key={message}>{message}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+
+                    {restorePreview.valid ? (
+                      <div className="settings-restore-actions">
+                        <Button type="button" variant="secondary" onClick={commitRestorePreview}>
+                          Restore current budget
+                        </Button>
+                        <p className="muted">
+                          Restore replaces the currently selected budget only. Other budgets and global app preferences are left unchanged.
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
-
-                {[...restorePreview.errors, ...restorePreview.warnings].length ? (
-                  <ul className="settings-restore-messages">
-                    {[...restorePreview.errors, ...restorePreview.warnings].map((message) => (
-                      <li key={message}>{message}</li>
-                    ))}
-                  </ul>
-                ) : null}
-
-                {restorePreview.valid ? (
-                  <div className="settings-restore-actions">
-                    <Button type="button" variant="secondary" onClick={commitRestorePreview}>
-                      Restore current budget
-                    </Button>
+              </>
+            ) : (
+              <>
+                <div className="settings-section-header">
+                  <div>
+                    <p className="eyebrow">Data protection</p>
+                    <h2>Budget History</h2>
                     <p className="muted">
-                      Restore replaces the currently selected budget only. Other budgets and global app preferences are left unchanged.
+                      Budget App automatically keeps the last 30 versions of {activeBudget?.name ?? "the active budget"}.
+                      Create a restore point before making major changes if you want to add a description.
                     </p>
                   </div>
-                ) : null}
-              </div>
-            ) : null}
+                  <Button type="button" variant="ghost" onClick={() => setDataView("overview")}>
+                    Back to Data
+                  </Button>
+                </div>
+
+                <div className="settings-history-create">
+                  <label className="settings-field">
+                    <span>Create restore point</span>
+                    <input
+                      className="settings-input"
+                      value={restorePointDescription}
+                      onChange={(event) => setRestorePointDescription(event.target.value)}
+                      placeholder="Description optional, e.g. Before EOFY"
+                    />
+                    <small>This creates a normal history entry and counts toward the 30 restore point limit.</small>
+                  </label>
+                  <Button type="button" variant="secondary" onClick={createManualRestorePoint}>
+                    Create Restore Point
+                  </Button>
+                </div>
+
+                <div className="settings-history-layout">
+                  <div className="settings-history-list" aria-label="Budget history restore points">
+                    {snapshotGroups.length ? (
+                      snapshotGroups.map((group) => (
+                        <section key={group.label} className="settings-history-group">
+                          <h3>{group.label}</h3>
+                          <div className="settings-history-rows">
+                            {group.snapshots.map((snapshot, snapshotIndex) => (
+                              <button
+                                key={snapshot.id}
+                                type="button"
+                                className={`settings-history-row${selectedSnapshot?.id === snapshot.id ? " selected" : ""}`}
+                                onClick={() => setSelectedSnapshotId(snapshot.id)}
+                              >
+                                <span className="settings-history-dot" aria-hidden="true" />
+                                <span>
+                                  <strong>{formatHistoryTime(snapshot.createdAt)}</strong>
+                                  {snapshot.description ? <small>{snapshot.description}</small> : null}
+                                </span>
+                                {snapshotIndex === 0 && group.label === "Today" ? (
+                                  <em>Current</em>
+                                ) : null}
+                                <span aria-hidden="true">›</span>
+                              </button>
+                            ))}
+                          </div>
+                        </section>
+                      ))
+                    ) : (
+                      <div className="settings-history-empty">
+                        <h3>No restore points yet</h3>
+                        <p className="muted">Budget App will create restore points at meaningful moments such as budget switches and imports.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <aside className="settings-history-detail" aria-label="Selected restore point details">
+                    {selectedSnapshot ? (
+                      <>
+                        <div>
+                          <p className="eyebrow">Restore point</p>
+                          <h3>{getHistoryGroupLabel(selectedSnapshot.createdAt)}</h3>
+                          <strong>{formatHistoryTime(selectedSnapshot.createdAt)}</strong>
+                          {selectedSnapshot.description ? <p>{selectedSnapshot.description}</p> : null}
+                        </div>
+
+                        <dl>
+                          <div>
+                            <dt>Budget</dt>
+                            <dd>{selectedSnapshot.budgetName}</dd>
+                          </div>
+                          <div>
+                            <dt>Created</dt>
+                            <dd>{formatHistoryDateTime(selectedSnapshot.createdAt)}</dd>
+                          </div>
+                          <div>
+                            <dt>Description</dt>
+                            <dd>{describeSnapshot(selectedSnapshot)}</dd>
+                          </div>
+                        </dl>
+
+                        <p className="settings-history-warning">
+                          Restoring replaces your current budget with the selected version.
+                        </p>
+
+                        <div className="settings-history-actions">
+                          <Button type="button" variant="secondary" onClick={deleteSelectedSnapshot}>
+                            Delete
+                          </Button>
+                          <Button type="button" variant="primary" onClick={restoreSelectedSnapshot}>
+                            Restore
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="settings-history-empty">
+                        <h3>Select a restore point</h3>
+                        <p className="muted">Choose a point in time to see restore options.</p>
+                      </div>
+                    )}
+                  </aside>
+                </div>
+
+                <p className="settings-history-summary">
+                  Showing {historySnapshots.length} of 30 restore points. Older entries are removed automatically.
+                </p>
+              </>
+            )}
           </Card>
         ) : null}
 

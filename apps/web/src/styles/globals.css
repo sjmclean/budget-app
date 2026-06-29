@@ -4140,3 +4140,226 @@ strong {
     grid-template-columns: 1fr;
   }
 }
+
+.settings-action-button-card {
+  appearance: none;
+  display: grid;
+  gap: 0.55rem;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.settings-action-button-card:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--surface-subtle) 70%, var(--accent-soft));
+}
+
+.settings-action-button-card strong {
+  color: var(--accent);
+  font-size: 0.82rem;
+}
+
+.settings-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.settings-history-create {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.9rem;
+  align-items: end;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface-subtle) 82%, var(--accent-soft));
+  padding: 1rem;
+}
+
+.settings-history-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 0.85fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.settings-history-list,
+.settings-history-detail {
+  min-width: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.85rem;
+  background: var(--surface);
+}
+
+.settings-history-list {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.settings-history-group {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.settings-history-group h3 {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.settings-history-rows {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.settings-history-row {
+  width: 100%;
+  min-height: 3.35rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 0.8rem;
+  align-items: center;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.75rem;
+  background: var(--surface-subtle);
+  color: var(--text);
+  cursor: pointer;
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+  font: inherit;
+}
+
+.settings-history-row:hover,
+.settings-history-row.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--surface-subtle) 72%, var(--accent-soft));
+}
+
+.settings-history-row strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.settings-history-row small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+}
+
+.settings-history-row em {
+  border-radius: 999px;
+  background: var(--positive-bg);
+  color: var(--positive);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 800;
+  padding: 0.2rem 0.45rem;
+}
+
+.settings-history-dot {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.settings-history-row.selected .settings-history-dot {
+  background: var(--positive);
+  box-shadow: 0 0 0 4px var(--positive-bg);
+}
+
+.settings-history-detail {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: 1.1rem;
+  padding: 1.1rem;
+}
+
+.settings-history-detail h3 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.settings-history-detail > div > strong {
+  display: block;
+  font-size: 1.15rem;
+  margin-top: 0.15rem;
+}
+
+.settings-history-detail dl {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+}
+
+.settings-history-detail dl div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.settings-history-detail dt {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.settings-history-detail dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.settings-history-warning {
+  border: 1px solid var(--border-soft);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--surface-subtle) 80%, var(--warning-bg));
+  color: var(--text);
+  margin: 0;
+  padding: 0.8rem;
+}
+
+.settings-history-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.settings-history-empty {
+  border: 1px dashed var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface-subtle);
+  padding: 1.2rem;
+  text-align: center;
+}
+
+.settings-history-empty h3 {
+  margin: 0 0 0.35rem;
+}
+
+.settings-history-summary {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin: 0;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .settings-history-create,
+  .settings-history-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-history-detail {
+    position: static;
+  }
+}
