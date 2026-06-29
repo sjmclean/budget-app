@@ -17,6 +17,8 @@ const ynab4DirectoryInputProps = {
   directory: "",
 } as Record<string, string>;
 
+type LaunchMode = "list" | "choose" | "empty" | "ynab";
+
 export function BudgetSelectorPage() {
   const navigate = useNavigate();
   const budgets = useBudgetRegistryStore((state) => state.budgets);
@@ -28,6 +30,7 @@ export function BudgetSelectorPage() {
     (state) => state.markBudgetOpened,
   );
   const selectBudget = useUIStore((state) => state.selectBudget);
+  const [launchMode, setLaunchMode] = useState<LaunchMode>("list");
   const [budgetName, setBudgetName] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [ynabDiscovery, setYnabDiscovery] =
@@ -64,6 +67,12 @@ export function BudgetSelectorPage() {
     navigate("/dashboard");
   }
 
+  function handleReturnToBudgets() {
+    setLaunchMode("list");
+    setFormError(null);
+    setYnabError(null);
+  }
+
   function handleCreateBudget() {
     const name = budgetName.trim();
 
@@ -78,7 +87,6 @@ export function BudgetSelectorPage() {
     selectBudget(budget.id);
     navigate("/dashboard");
   }
-
 
   async function handleImportYnab4Budget() {
     setYnabError(null);
@@ -183,404 +191,513 @@ export function BudgetSelectorPage() {
         </header>
 
         <section className="budget-selector-premium-hero">
-          <p className="eyebrow">Welcome back</p>
-          <h1 id="budget-selector-title">Choose a budget</h1>
+          <p className="eyebrow">Budget launch experience</p>
+          <h1 id="budget-selector-title">
+            {launchMode === "list" ? "Choose a budget" : "Create a budget"}
+          </h1>
           <p>
-            Open an existing local budget, create a new blank budget, or preview
-            a YNAB4 package migration.
+            {launchMode === "list"
+              ? "Open an existing local budget or start a guided flow for a new budget, import, or restore."
+              : "Choose how you want to begin. The app will only ask for the details needed for that path."}
           </p>
         </section>
 
-        <Card className="budget-create-card budget-create-card-glass">
-          <div>
-            <h2>New budget</h2>
-            <p>
-              Currency, date format, start month, and other setup details will
-              be handled by the first-run setup flow later.
-            </p>
-          </div>
-
-          <div className="budget-create-inline-form">
-            <label className="form-field budget-name-field">
-              <span className="field-label">Budget name</span>
-              <input
-                className="text-input budget-selector-input"
-                value={budgetName}
-                onChange={(event) => {
-                  setBudgetName(event.target.value);
-                  setFormError(null);
-                }}
-                placeholder="Personal Budget"
-              />
-            </label>
-
-            <Button type="button" onClick={handleCreateBudget}>
-              + New budget
-            </Button>
-          </div>
-
-          {formError ? <p className="form-error">{formError}</p> : null}
-        </Card>
-
-        <section
-          className="budget-list-panel budget-list-panel-glass"
-          aria-label="Existing budgets"
-        >
-          <div className="budget-list-header budget-list-header-premium">
-            <div>
-              <h2>Your budgets</h2>
-              <p>Choose a budget to continue.</p>
-            </div>
-            <span>
-              {sortedBudgets.length} budget
-              {sortedBudgets.length === 1 ? "" : "s"}
-            </span>
-          </div>
-
-          <div className="budget-list budget-list-premium">
-            {sortedBudgets.length === 0 ? (
-              <div className="budget-row-card budget-row-card-premium budget-empty-card-premium">
-                <div className="budget-row-icon" aria-hidden="true">
-                  ▣
-                </div>
+        {launchMode === "list" ? (
+          <>
+            <section
+              className="budget-list-panel budget-list-panel-glass"
+              aria-label="Existing budgets"
+            >
+              <div className="budget-list-header budget-list-header-premium">
                 <div>
-                  <h2>No budgets yet</h2>
-                  <p>
-                    Create a budget above to get started or preview a YNAB4
-                    import below.
-                  </p>
+                  <h2>Your budgets</h2>
+                  <p>Choose a budget to continue.</p>
+                </div>
+                <span>
+                  {sortedBudgets.length} budget
+                  {sortedBudgets.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              <div className="budget-list budget-list-premium">
+                {sortedBudgets.length === 0 ? (
+                  <div className="budget-row-card budget-row-card-premium budget-empty-card-premium">
+                    <div className="budget-row-icon" aria-hidden="true">
+                      ▣
+                    </div>
+                    <div>
+                      <h2>No budgets yet</h2>
+                      <p>
+                        Start with a blank budget, import YNAB4, or restore a
+                        Budget App backup.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {sortedBudgets.map((budget) => (
+                  <button
+                    key={budget.id}
+                    type="button"
+                    className="budget-row-card budget-row-card-premium"
+                    onClick={() => handleOpenBudget(budget.id)}
+                  >
+                    <span className="budget-row-icon" aria-hidden="true">
+                      ▣
+                    </span>
+                    <span className="budget-row-main">
+                      <strong>{budget.name}</strong>
+                      <span>{budget.lastOpenedLabel}</span>
+                    </span>
+                    <span className="budget-row-chevron" aria-hidden="true">
+                      ›
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <Card className="budget-launch-card budget-create-card-glass">
+              <div className="budget-launch-copy">
+                <p className="eyebrow">New</p>
+                <h2>Start a budget</h2>
+                <p>
+                  Create a blank budget, import YNAB4, restore a backup, or
+                  see what import paths are coming next.
+                </p>
+              </div>
+              <Button type="button" onClick={() => setLaunchMode("choose")}>
+                + New budget…
+              </Button>
+            </Card>
+          </>
+        ) : null}
+
+        {launchMode === "choose" ? (
+          <Card className="budget-launch-picker budget-create-card-glass">
+            <div className="budget-launch-nav">
+              <button type="button" onClick={handleReturnToBudgets}>
+                ← Back to budgets
+              </button>
+            </div>
+            <div className="budget-launch-choice-header">
+              <h2>How would you like to begin?</h2>
+              <p>
+                Pick one path. The next step reuses the existing creation,
+                import, or restore workflow.
+              </p>
+            </div>
+
+            <div className="budget-launch-options">
+              <button
+                type="button"
+                className="budget-launch-option"
+                onClick={() => setLaunchMode("empty")}
+              >
+                <span className="budget-launch-option-icon" aria-hidden="true">
+                  +
+                </span>
+                <span>
+                  <strong>Empty budget</strong>
+                  <small>Create a brand new budget from scratch.</small>
+                </span>
+                <span aria-hidden="true">›</span>
+              </button>
+
+              <button
+                type="button"
+                className="budget-launch-option"
+                onClick={() => setLaunchMode("ynab")}
+              >
+                <span className="budget-launch-option-icon" aria-hidden="true">
+                  ⇪
+                </span>
+                <span>
+                  <strong>Import YNAB4</strong>
+                  <small>Import an existing YNAB4 package as a new budget.</small>
+                </span>
+                <span aria-hidden="true">›</span>
+              </button>
+
+              <button type="button" className="budget-launch-option" disabled>
+                <span className="budget-launch-option-icon" aria-hidden="true">
+                  ↺
+                </span>
+                <span>
+                  <strong>Restore backup</strong>
+                  <small>Restore a Budget App backup. Coming soon.</small>
+                </span>
+                <span aria-hidden="true">•</span>
+              </button>
+            </div>
+
+            <div className="budget-launch-coming-soon" aria-label="Coming soon">
+              <span>Coming soon</span>
+              <ul>
+                <li>Actual Budget import</li>
+                <li>Cloud budget</li>
+                <li>CSV import</li>
+                <li>Budget templates</li>
+              </ul>
+            </div>
+          </Card>
+        ) : null}
+
+        {launchMode === "empty" ? (
+          <Card className="budget-create-card budget-create-card-glass">
+            <div className="budget-launch-nav">
+              <button type="button" onClick={() => setLaunchMode("choose")}>
+                ← Back
+              </button>
+            </div>
+            <div>
+              <h2>Create empty budget</h2>
+              <p>
+                Currency, date format, start month, and other setup details will
+                be handled by the first-run setup flow later.
+              </p>
+            </div>
+
+            <div className="budget-create-inline-form">
+              <label className="form-field budget-name-field">
+                <span className="field-label">Budget name</span>
+                <input
+                  className="text-input budget-selector-input"
+                  value={budgetName}
+                  onChange={(event) => {
+                    setBudgetName(event.target.value);
+                    setFormError(null);
+                  }}
+                  placeholder="Personal Budget"
+                />
+              </label>
+
+              <Button type="button" onClick={handleCreateBudget}>
+                Create budget
+              </Button>
+            </div>
+
+            {formError ? <p className="form-error">{formError}</p> : null}
+          </Card>
+        ) : null}
+
+        {launchMode === "ynab" ? (
+          <section
+            className="ynab4-preview-panel"
+            aria-labelledby="ynab4-preview-title"
+          >
+            <div className="budget-launch-nav">
+              <button type="button" onClick={() => setLaunchMode("choose")}>
+                ← Back
+              </button>
+            </div>
+            <div className="ynab4-preview-header">
+              <div>
+                <p className="eyebrow">Migration preview</p>
+                <h2 id="ynab4-preview-title">Import YNAB4 budget</h2>
+                <p>
+                  Preview a real .ynab4 package before creating a new imported
+                  budget.
+                </p>
+              </div>
+              <label className="ynab4-file-button">
+                <input
+                  type="file"
+                  multiple
+                  onChange={(event) =>
+                    void handleYnab4PackageSelection(event.currentTarget.files)
+                  }
+                  {...ynab4DirectoryInputProps}
+                />
+                Select .ynab4 package folder
+              </label>
+            </div>
+
+            <div className="ynab4-import-mode-note">
+              <strong>Launcher imports always create a new budget.</strong>
+              <span>
+                Replacing the current budget remains a future Settings / Reset
+                workflow with destructive confirmation.
+              </span>
+            </div>
+
+            <p
+              className={
+                ynabError ? "ynab4-status ynab4-status-error" : "ynab4-status"
+              }
+            >
+              {isAnalysingYnab
+                ? "Analysing selected YNAB4 package…"
+                : isImportingYnab
+                  ? "Creating imported YNAB4 budget…"
+                  : (ynabError ?? ynabStatus)}
+            </p>
+
+            {ynabPreview ? (
+              <div className="ynab4-preview-context-note">
+                <strong>Preview lists are intentionally capped.</strong>
+                <span>
+                  They are samples to confirm the file has been understood, not a
+                  full browser for every YNAB4 record. Full counts are shown
+                  above.
+                </span>
+              </div>
+            ) : null}
+
+            {ynabPreview ? (
+              <div className="ynab4-preview-grid">
+                <div className="ynab4-preview-summary">
+                  <h3>{ynabPreview.budgetName ?? "YNAB4 Budget"}</h3>
+                  <p>New budget import preview</p>
+                  <div className="ynab4-summary-metrics">
+                    {ynabPreview.summaryItems.map((item) => (
+                      <div key={item.label} className="ynab4-summary-metric">
+                        <strong>{item.value.toLocaleString()}</strong>
+                        <span>{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {ynabDiscovery?.budgetDataPath ? (
+                    <p className="ynab4-data-path">
+                      Data source: {ynabDiscovery.budgetDataPath}
+                    </p>
+                  ) : null}
+                  {ynabPreview.warnings.length > 0 ? (
+                    <ul className="ynab4-warning-list">
+                      {ynabPreview.warnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+
+                  <div
+                    className="ynab4-drilldown-list"
+                    aria-label="YNAB4 package drill-down preview"
+                  >
+                    <Ynab4PreviewDetails
+                      title="Accounts"
+                      summary={detailLimitText(
+                        ynabPreview.details.accounts.length,
+                        getSummaryValue("Accounts"),
+                        "accounts",
+                      )}
+                      emptyMessage="No accounts detected yet."
+                    >
+                      {ynabPreview.details.accounts.map((account) => (
+                        <Ynab4PreviewLine
+                          key={account.id ?? account.name}
+                          primary={account.name}
+                          secondary={account.note}
+                        />
+                      ))}
+                    </Ynab4PreviewDetails>
+
+                    <Ynab4PreviewDetails
+                      title="Categories"
+                      summary={`${detailLimitText(
+                        ynabPreview.details.categoryGroups.length,
+                        getSummaryValue("Category groups"),
+                        "category groups",
+                      )} Showing up to ${ynabPreview.details.previewLimits.categoriesPerGroup} categories per group.`}
+                      emptyMessage="No categories detected yet."
+                    >
+                      {ynabPreview.details.categoryGroups.map((group) => (
+                        <div
+                          key={group.id ?? group.name}
+                          className="ynab4-category-group-preview"
+                        >
+                          <Ynab4PreviewLine
+                            primary={group.name}
+                            secondary={group.note}
+                          />
+                          {group.categories.length > 0 ? (
+                            <ul>
+                              {group.categories.map((category) => (
+                                <li key={category.id ?? category.name}>
+                                  <span>{category.name}</span>
+                                  {category.note ? (
+                                    <small>{category.note}</small>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </div>
+                      ))}
+                    </Ynab4PreviewDetails>
+
+                    <Ynab4PreviewDetails
+                      title="Payees"
+                      summary={detailLimitText(
+                        ynabPreview.details.payees.length,
+                        getSummaryValue("Payees"),
+                        "payees",
+                      )}
+                      emptyMessage="No payees detected yet."
+                    >
+                      {ynabPreview.details.payees.map((payee) => (
+                        <Ynab4PreviewLine
+                          key={payee.id ?? payee.name}
+                          primary={payee.name}
+                          secondary={payee.note}
+                        />
+                      ))}
+                    </Ynab4PreviewDetails>
+
+                    <Ynab4PreviewDetails
+                      title="Notes"
+                      summary={`Showing up to ${ynabPreview.details.previewLimits.notes} category notes and ${ynabPreview.details.previewLimits.notes} group notes.`}
+                      emptyMessage="No category or category group notes detected yet."
+                    >
+                      {ynabPreview.details.notes.categoryGroupNotes.map(
+                        (note) => (
+                          <Ynab4PreviewLine
+                            key={`group-${note.id ?? note.name}`}
+                            primary={`Group: ${note.name}`}
+                            secondary={note.note}
+                          />
+                        ),
+                      )}
+                      {ynabPreview.details.notes.categoryNotes.map((note) => (
+                        <Ynab4PreviewLine
+                          key={`category-${note.id ?? note.name}`}
+                          primary={`Category: ${note.name}`}
+                          secondary={note.note}
+                        />
+                      ))}
+                    </Ynab4PreviewDetails>
+
+                    <Ynab4PreviewDetails
+                      title="Scheduled transactions"
+                      summary={detailLimitText(
+                        ynabPreview.details.scheduledTransactions.length,
+                        getSummaryValue("Scheduled transactions"),
+                        "scheduled transactions",
+                      )}
+                      emptyMessage="No scheduled transactions detected yet."
+                    >
+                      {ynabPreview.details.scheduledTransactions.map(
+                        (transaction, index) => (
+                          <Ynab4PreviewLine
+                            key={transaction.id ?? `scheduled-${index}`}
+                            primary={
+                              transaction.payee ??
+                              transaction.memo ??
+                              "Scheduled transaction"
+                            }
+                            secondary={[
+                              transaction.date,
+                              transaction.amount,
+                              transaction.memo,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          />
+                        ),
+                      )}
+                    </Ynab4PreviewDetails>
+
+                    <Ynab4PreviewDetails
+                      title="Transaction samples"
+                      summary={`Showing first ${ynabPreview.details.firstTransactions.length} and recent ${ynabPreview.details.recentTransactions.length} of ${getSummaryValue("Transactions").toLocaleString()} transactions.`}
+                      emptyMessage="No transactions detected yet."
+                    >
+                      <p className="ynab4-drilldown-caption">
+                        First transactions
+                      </p>
+                      {ynabPreview.details.firstTransactions.map(
+                        (transaction, index) => (
+                          <Ynab4PreviewLine
+                            key={transaction.id ?? `first-${index}`}
+                            primary={
+                              transaction.payee ??
+                              transaction.memo ??
+                              "Transaction"
+                            }
+                            secondary={[
+                              transaction.date,
+                              transaction.amount,
+                              transaction.category,
+                              transaction.memo,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          />
+                        ),
+                      )}
+                      <p className="ynab4-drilldown-caption">
+                        Recent transactions
+                      </p>
+                      {ynabPreview.details.recentTransactions.map(
+                        (transaction, index) => (
+                          <Ynab4PreviewLine
+                            key={transaction.id ?? `recent-${index}`}
+                            primary={
+                              transaction.payee ??
+                              transaction.memo ??
+                              "Transaction"
+                            }
+                            secondary={[
+                              transaction.date,
+                              transaction.amount,
+                              transaction.category,
+                              transaction.memo,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          />
+                        ),
+                      )}
+                    </Ynab4PreviewDetails>
+                  </div>
+                </div>
+
+                <div
+                  className="ynab4-progress-preview"
+                  aria-label="Planned YNAB4 import progress"
+                >
+                  <h3>Planned progress indicator</h3>
+                  <ol>
+                    {ynabPreview.progressSteps.map((step, index) => (
+                      <li key={step.phase}>
+                        <span
+                          className={
+                            index < 4
+                              ? "ynab4-progress-dot ynab4-progress-dot-complete"
+                              : "ynab4-progress-dot"
+                          }
+                          aria-hidden="true"
+                        />
+                        <span>
+                          <strong>{step.label}</strong>
+                          <small>{step.detail}</small>
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               </div>
             ) : null}
 
-            {sortedBudgets.map((budget) => (
-              <button
-                key={budget.id}
+            <div className="ynab4-preview-actions">
+              <Button
                 type="button"
-                className="budget-row-card budget-row-card-premium"
-                onClick={() => handleOpenBudget(budget.id)}
+                disabled={
+                  !ynabPreview?.canContinue || isAnalysingYnab || isImportingYnab
+                }
+                onClick={handleImportYnab4Budget}
               >
-                <span className="budget-row-icon" aria-hidden="true">
-                  ▣
-                </span>
-                <span className="budget-row-main">
-                  <strong>{budget.name}</strong>
-                  <span>{budget.lastOpenedLabel}</span>
-                </span>
-                <span className="budget-row-chevron" aria-hidden="true">
-                  ›
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section
-          className="ynab4-preview-panel"
-          aria-labelledby="ynab4-preview-title"
-        >
-          <div className="ynab4-preview-header">
-            <div>
-              <p className="eyebrow">Migration preview</p>
-              <h2 id="ynab4-preview-title">Import YNAB4 budget</h2>
+                {isImportingYnab
+                  ? "Creating imported budget…"
+                  : "Create imported budget"}
+              </Button>
               <p>
-                Preview a real .ynab4 package before creating a new imported
-                budget.
+                v2.32.0 launches the existing YNAB4 import from the new budget
+                experience. Detailed import progress remains a later polish item.
               </p>
             </div>
-            <label className="ynab4-file-button">
-              <input
-                type="file"
-                multiple
-                onChange={(event) =>
-                  void handleYnab4PackageSelection(event.currentTarget.files)
-                }
-                {...ynab4DirectoryInputProps}
-              />
-              Select .ynab4 package folder
-            </label>
-          </div>
-
-          <div className="ynab4-import-mode-note">
-            <strong>Launcher imports always create a new budget.</strong>
-            <span>
-              Replacing the current budget remains a future Settings / Reset
-              workflow with destructive confirmation.
-            </span>
-          </div>
-
-          <p
-            className={
-              ynabError ? "ynab4-status ynab4-status-error" : "ynab4-status"
-            }
-          >
-            {isAnalysingYnab
-              ? "Analysing selected YNAB4 package…"
-              : isImportingYnab
-                ? "Creating imported YNAB4 budget…"
-                : (ynabError ?? ynabStatus)}
-          </p>
-
-          {ynabPreview ? (
-            <div className="ynab4-preview-context-note">
-              <strong>Preview lists are intentionally capped.</strong>
-              <span>
-                They are samples to confirm the file has been understood, not a
-                full browser for every YNAB4 record. Full counts are shown
-                above.
-              </span>
-            </div>
-          ) : null}
-
-          {ynabPreview ? (
-            <div className="ynab4-preview-grid">
-              <div className="ynab4-preview-summary">
-                <h3>{ynabPreview.budgetName ?? "YNAB4 Budget"}</h3>
-                <p>New budget import preview</p>
-                <div className="ynab4-summary-metrics">
-                  {ynabPreview.summaryItems.map((item) => (
-                    <div key={item.label} className="ynab4-summary-metric">
-                      <strong>{item.value.toLocaleString()}</strong>
-                      <span>{item.label}</span>
-                    </div>
-                  ))}
-                </div>
-                {ynabDiscovery?.budgetDataPath ? (
-                  <p className="ynab4-data-path">
-                    Data source: {ynabDiscovery.budgetDataPath}
-                  </p>
-                ) : null}
-                {ynabPreview.warnings.length > 0 ? (
-                  <ul className="ynab4-warning-list">
-                    {ynabPreview.warnings.map((warning) => (
-                      <li key={warning}>{warning}</li>
-                    ))}
-                  </ul>
-                ) : null}
-
-                <div
-                  className="ynab4-drilldown-list"
-                  aria-label="YNAB4 package drill-down preview"
-                >
-                  <Ynab4PreviewDetails
-                    title="Accounts"
-                    summary={detailLimitText(
-                      ynabPreview.details.accounts.length,
-                      getSummaryValue("Accounts"),
-                      "accounts",
-                    )}
-                    emptyMessage="No accounts detected yet."
-                  >
-                    {ynabPreview.details.accounts.map((account) => (
-                      <Ynab4PreviewLine
-                        key={account.id ?? account.name}
-                        primary={account.name}
-                        secondary={account.note}
-                      />
-                    ))}
-                  </Ynab4PreviewDetails>
-
-                  <Ynab4PreviewDetails
-                    title="Categories"
-                    summary={`${detailLimitText(
-                      ynabPreview.details.categoryGroups.length,
-                      getSummaryValue("Category groups"),
-                      "category groups",
-                    )} Showing up to ${ynabPreview.details.previewLimits.categoriesPerGroup} categories per group.`}
-                    emptyMessage="No categories detected yet."
-                  >
-                    {ynabPreview.details.categoryGroups.map((group) => (
-                      <div
-                        key={group.id ?? group.name}
-                        className="ynab4-category-group-preview"
-                      >
-                        <Ynab4PreviewLine
-                          primary={group.name}
-                          secondary={group.note}
-                        />
-                        {group.categories.length > 0 ? (
-                          <ul>
-                            {group.categories.map((category) => (
-                              <li key={category.id ?? category.name}>
-                                <span>{category.name}</span>
-                                {category.note ? (
-                                  <small>{category.note}</small>
-                                ) : null}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : null}
-                      </div>
-                    ))}
-                  </Ynab4PreviewDetails>
-
-                  <Ynab4PreviewDetails
-                    title="Payees"
-                    summary={detailLimitText(
-                      ynabPreview.details.payees.length,
-                      getSummaryValue("Payees"),
-                      "payees",
-                    )}
-                    emptyMessage="No payees detected yet."
-                  >
-                    {ynabPreview.details.payees.map((payee) => (
-                      <Ynab4PreviewLine
-                        key={payee.id ?? payee.name}
-                        primary={payee.name}
-                        secondary={payee.note}
-                      />
-                    ))}
-                  </Ynab4PreviewDetails>
-
-                  <Ynab4PreviewDetails
-                    title="Notes"
-                    summary={`Showing up to ${ynabPreview.details.previewLimits.notes} category notes and ${ynabPreview.details.previewLimits.notes} group notes.`}
-                    emptyMessage="No category or category group notes detected yet."
-                  >
-                    {ynabPreview.details.notes.categoryGroupNotes.map(
-                      (note) => (
-                        <Ynab4PreviewLine
-                          key={`group-${note.id ?? note.name}`}
-                          primary={`Group: ${note.name}`}
-                          secondary={note.note}
-                        />
-                      ),
-                    )}
-                    {ynabPreview.details.notes.categoryNotes.map((note) => (
-                      <Ynab4PreviewLine
-                        key={`category-${note.id ?? note.name}`}
-                        primary={`Category: ${note.name}`}
-                        secondary={note.note}
-                      />
-                    ))}
-                  </Ynab4PreviewDetails>
-
-                  <Ynab4PreviewDetails
-                    title="Scheduled transactions"
-                    summary={detailLimitText(
-                      ynabPreview.details.scheduledTransactions.length,
-                      getSummaryValue("Scheduled transactions"),
-                      "scheduled transactions",
-                    )}
-                    emptyMessage="No scheduled transactions detected yet."
-                  >
-                    {ynabPreview.details.scheduledTransactions.map(
-                      (transaction, index) => (
-                        <Ynab4PreviewLine
-                          key={transaction.id ?? `scheduled-${index}`}
-                          primary={
-                            transaction.payee ??
-                            transaction.memo ??
-                            "Scheduled transaction"
-                          }
-                          secondary={[
-                            transaction.date,
-                            transaction.amount,
-                            transaction.memo,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        />
-                      ),
-                    )}
-                  </Ynab4PreviewDetails>
-
-                  <Ynab4PreviewDetails
-                    title="Transaction samples"
-                    summary={`Showing first ${ynabPreview.details.firstTransactions.length} and recent ${ynabPreview.details.recentTransactions.length} of ${getSummaryValue("Transactions").toLocaleString()} transactions.`}
-                    emptyMessage="No transactions detected yet."
-                  >
-                    <p className="ynab4-drilldown-caption">
-                      First transactions
-                    </p>
-                    {ynabPreview.details.firstTransactions.map(
-                      (transaction, index) => (
-                        <Ynab4PreviewLine
-                          key={transaction.id ?? `first-${index}`}
-                          primary={
-                            transaction.payee ??
-                            transaction.memo ??
-                            "Transaction"
-                          }
-                          secondary={[
-                            transaction.date,
-                            transaction.amount,
-                            transaction.category,
-                            transaction.memo,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        />
-                      ),
-                    )}
-                    <p className="ynab4-drilldown-caption">
-                      Recent transactions
-                    </p>
-                    {ynabPreview.details.recentTransactions.map(
-                      (transaction, index) => (
-                        <Ynab4PreviewLine
-                          key={transaction.id ?? `recent-${index}`}
-                          primary={
-                            transaction.payee ??
-                            transaction.memo ??
-                            "Transaction"
-                          }
-                          secondary={[
-                            transaction.date,
-                            transaction.amount,
-                            transaction.category,
-                            transaction.memo,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        />
-                      ),
-                    )}
-                  </Ynab4PreviewDetails>
-                </div>
-              </div>
-
-              <div
-                className="ynab4-progress-preview"
-                aria-label="Planned YNAB4 import progress"
-              >
-                <h3>Planned progress indicator</h3>
-                <ol>
-                  {ynabPreview.progressSteps.map((step, index) => (
-                    <li key={step.phase}>
-                      <span
-                        className={
-                          index < 4
-                            ? "ynab4-progress-dot ynab4-progress-dot-complete"
-                            : "ynab4-progress-dot"
-                        }
-                        aria-hidden="true"
-                      />
-                      <span>
-                        <strong>{step.label}</strong>
-                        <small>{step.detail}</small>
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="ynab4-preview-actions">
-            <Button
-              type="button"
-              disabled={!ynabPreview?.canContinue || isAnalysingYnab || isImportingYnab}
-              onClick={handleImportYnab4Budget}
-            >
-              {isImportingYnab ? "Creating imported budget…" : "Create imported budget"}
-            </Button>
-            <p>
-              v1.71 creates a new launcher budget from the validated YNAB4
-              package and opens it. Fancy progress UI follows in v1.72.
-            </p>
-          </div>
-        </section>
+          </section>
+        ) : null}
       </section>
     </main>
   );
