@@ -3758,3 +3758,55 @@ strong {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* v2.30.1 Payee management polish */
+
+.payee-management-list-item-shell {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.payee-management-list-item-shell:not(:has(input[type="checkbox"])) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.payee-merge-badge {
+  color: var(--accent-strong);
+  font-weight: 750;
+}
+
+.payee-make-destination-button {
+  align-self: center;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent-strong);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 750;
+  padding: 0.28rem 0.48rem;
+  white-space: nowrap;
+}
+
+.payee-make-destination-button:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-soft));
+  background: var(--accent-soft);
+}
+
+.payee-bulk-merge-hint {
+  margin: -0.12rem 0 0;
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+@media (max-width: 680px) {
+  .payee-management-list-item-shell,
+  .payee-management-list-item-shell:not(:has(input[type="checkbox"])) {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .payee-make-destination-button {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

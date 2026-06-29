@@ -78,6 +78,14 @@ function suggestMergeDestination(
     .sort((left, right) => right.score - left.score)[0]?.payee.id ?? "";
 }
 
+function getMergeDestinationHint(payee: PayeeView | undefined): string {
+  if (!payee) {
+    return "";
+  }
+
+  return `Suggested destination: ${payee.name}`;
+}
+
 
 export function PayeeManagementPage() {
   const persistenceGateway = getAppPersistenceGateway();
@@ -198,6 +206,7 @@ export function PayeeManagementPage() {
   const bulkMergeNoteCount = bulkMergeSelectedPayees.filter((payee) =>
     payee.note?.trim(),
   ).length;
+  const bulkMergeDestinationHint = getMergeDestinationHint(bulkMergeTargetPayee);
 
   const hasUnsavedChanges =
     Boolean(selectedPayee) &&
@@ -348,6 +357,26 @@ export function PayeeManagementPage() {
     setBulkMergeTargetPayeeId(suggestMergeDestination(nextSelectedPayees, payees));
   }
 
+  function invertVisiblePayeesForMerge() {
+    const visiblePayeeIds = new Set(filteredPayees.map((payee) => payee.id));
+    const nextPayeeIds = [
+      ...selectedBulkMergePayeeIds.filter((payeeId) => !visiblePayeeIds.has(payeeId)),
+      ...filteredPayees
+        .filter((payee) => !selectedBulkMergePayeeIds.includes(payee.id))
+        .map((payee) => payee.id),
+    ];
+    const nextSelectedPayees = payees.filter((payee) => nextPayeeIds.includes(payee.id));
+
+    setSelectedBulkMergePayeeIds(nextPayeeIds);
+    setBulkMergeTargetPayeeId(suggestMergeDestination(nextSelectedPayees, payees));
+  }
+
+  function makeBulkMergeDestination(payee: PayeeView) {
+    const nextPayeeIds = selectedBulkMergePayeeIds.filter((payeeId) => payeeId !== payee.id);
+    setSelectedBulkMergePayeeIds(nextPayeeIds);
+    setBulkMergeTargetPayeeId(payee.id);
+  }
+
   async function mergeSelectedBulkPayees() {
     if (!bulkMergeTargetPayee || bulkMergeSelectedPayees.length === 0) {
       setStatusMessage("Choose source payees and a destination payee.");
@@ -415,7 +444,23 @@ export function PayeeManagementPage() {
   }
 
   return (
-    <div className="page-stack payee-management-page">
+    <div
+      className="page-stack payee-management-page"
+      onKeyDown={(event) => {
+        if (!isMergeMode) {
+          return;
+        }
+
+        if (event.key === "Escape") {
+          exitMergeMode();
+        }
+
+        if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "a") {
+          event.preventDefault();
+          selectVisiblePayeesForMerge();
+        }
+      }}
+    >
       <div className="workspace-header">
         <div>
           <h1>Payee Management</h1>
@@ -455,6 +500,9 @@ export function PayeeManagementPage() {
                 <>
                   <button className="button button-secondary" type="button" onClick={selectVisiblePayeesForMerge}>
                     Select visible
+                  </button>
+                  <button className="button button-secondary" type="button" onClick={invertVisiblePayeesForMerge}>
+                    Invert visible
                   </button>
                   <button
                     className="button button-secondary"
@@ -528,7 +576,11 @@ export function PayeeManagementPage() {
                   >
                     <strong>{payee.name}</strong>
                     <span>{payee.useCount} transactions</span>
-                    {payee.defaultCategoryName ? (
+                    {isMergeMode && bulkMergeTargetPayeeId === payee.id ? (
+                      <small className="payee-merge-badge">Destination</small>
+                    ) : selectedBulkMergePayeeIds.includes(payee.id) ? (
+                      <small className="payee-merge-badge">Selected for merge</small>
+                    ) : payee.defaultCategoryName ? (
                       <small title={payee.defaultCategoryName}>
                         {payee.defaultCategoryName}
                       </small>
@@ -536,6 +588,16 @@ export function PayeeManagementPage() {
                       <small title={payee.note}>Has note</small>
                     ) : null}
                   </button>
+
+                  {isMergeMode && selectedBulkMergePayeeIds.includes(payee.id) ? (
+                    <button
+                      className="payee-make-destination-button"
+                      type="button"
+                      onClick={() => makeBulkMergeDestination(payee)}
+                    >
+                      Keep this
+                    </button>
+                  ) : null}
                 </div>
               ))
             ) : (
@@ -564,6 +626,10 @@ export function PayeeManagementPage() {
                   </option>
                 ))}
               </select>
+
+              {bulkMergeDestinationHint ? (
+                <p className="payee-bulk-merge-hint">{bulkMergeDestinationHint}</p>
+              ) : null}
 
               <div className="payee-bulk-merge-actions">
                 <button
@@ -617,7 +683,8 @@ export function PayeeManagementPage() {
 
               <p className="muted">
                 Tip: search for a merchant name such as “wool”, then use Select
-                visible to select all matching payees at once.
+                visible to select all matching payees at once. Press Esc to exit
+                Merge Mode or Ctrl+A / Cmd+A to select visible payees.
               </p>
             </div>
           ) : selectedPayee ? (
