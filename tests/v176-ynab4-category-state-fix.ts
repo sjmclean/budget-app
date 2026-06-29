@@ -128,24 +128,23 @@ function testTombstonedMasterCategoriesDoNotBecomeEmptyGroups() {
   assert.equal(emptyGroupNames.includes("Pre-YNAB Debt"), false);
 }
 
-function testHiddenYnab4CategoriesAreArchivedUnderTheirOriginalGroups() {
+function testHiddenYnab4CategoriesStayInHiddenCategoriesGroup() {
   const view = importBudgetView();
   const names = categoryNames(view);
 
-  assert.equal(names.includes("Main Expenses > Child Care & Events"), true);
-  assert.equal(names.includes("Savings Goals > TV"), true);
-  assert.equal(names.includes("Giving > Tithing"), true);
+  assert.equal(names.includes("Hidden Categories > Child Care & Events"), true);
+  assert.equal(names.includes("Hidden Categories > TV"), true);
+  assert.equal(names.includes("Hidden Categories > Tithing"), true);
+  assert.equal(names.includes("Main Expenses > Child Care & Events"), false);
+  assert.equal(names.includes("Savings Goals > TV"), false);
+  assert.equal(names.includes("Giving > Tithing"), false);
 
-  const mainExpenses = view.categoryGroups.find((group) => group.name === "Main Expenses");
-  const savingsGoals = view.categoryGroups.find((group) => group.name === "Savings Goals");
-  const giving = view.categoryGroups.find((group) => group.name === "Giving");
-  assert.ok(mainExpenses);
-  assert.ok(savingsGoals);
-  assert.ok(giving);
+  const hiddenCategories = view.categoryGroups.find((group) => group.name === "Hidden Categories");
+  assert.ok(hiddenCategories);
 
-  assert.equal(mainExpenses.categories.find((category) => category.name === "Child Care & Events")?.isArchived, true);
-  assert.equal(savingsGoals.categories.find((category) => category.name === "TV")?.isArchived, true);
-  assert.equal(giving.categories.find((category) => category.name === "Tithing")?.isArchived, true);
+  assert.equal(hiddenCategories.categories.find((category) => category.name === "Child Care & Events")?.isArchived, true);
+  assert.equal(hiddenCategories.categories.find((category) => category.name === "TV")?.isArchived, true);
+  assert.equal(hiddenCategories.categories.find((category) => category.name === "Tithing")?.isArchived, true);
 }
 
 function testTombstonedSubcategoriesRemainArchivedForHistoricalReferences() {
@@ -158,7 +157,7 @@ function testTombstonedSubcategoriesRemainArchivedForHistoricalReferences() {
 }
 
 testTombstonedMasterCategoriesDoNotBecomeEmptyGroups();
-testHiddenYnab4CategoriesAreArchivedUnderTheirOriginalGroups();
+testHiddenYnab4CategoriesStayInHiddenCategoriesGroup();
 testTombstonedSubcategoriesRemainArchivedForHistoricalReferences();
 
 console.log("v1.76 YNAB4 category state fix passed");

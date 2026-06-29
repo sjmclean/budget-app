@@ -148,7 +148,7 @@ function findCategory(view: { categoryGroups: Array<{ name: string; categories: 
 }
 
 const january = readBudgetMonth("2015-01");
-const oldMortgageJanuary = findCategory(january, "Fortnight Two (2)", "Mortgage");
+const oldMortgageJanuary = findCategory(january, "Hidden Categories", "Mortgage");
 const activeMortgageJanuary = findCategory(january, "Main Expenses", "Mortgage ($955/f) $878");
 
 assert.equal(oldMortgageJanuary.isArchived, true);
@@ -162,7 +162,7 @@ assert.equal(activeMortgageJanuary.activity, 0);
 assert.equal(activeMortgageJanuary.available, 800);
 
 const february = readBudgetMonth("2015-02");
-const oldMortgageFebruary = findCategory(february, "Fortnight Two (2)", "Mortgage");
+const oldMortgageFebruary = findCategory(february, "Hidden Categories", "Mortgage");
 const activeMortgageFebruary = findCategory(february, "Main Expenses", "Mortgage ($955/f) $878");
 
 assert.equal(oldMortgageFebruary.previousAvailable, 0);

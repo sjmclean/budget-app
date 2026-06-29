@@ -407,30 +407,11 @@ function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategor
   const existingGroupIds = new Set<string>();
   const existingCategoryIds = new Set<string>();
   const drafts: CategoryGroupDraft[] = [];
-  const hiddenCategories: Array<{
-    record: RecordMap;
-    sourceIds: string[];
-    parsed: ParsedHiddenCategoryName;
-  }> = [];
-
   for (const [groupIndex, group] of groups.entries()) {
     const groupName = firstString(group.name, group.masterCategoryName, group.displayName) ?? `Imported Group ${groupIndex + 1}`;
     const groupSourceIds = sourceIds(group, `categoryGroup:${groupIndex}`);
     const subCategories = toRecords(group.subCategories);
     const groupIsArchived = isYnab4Tombstone(group);
-
-    if (isYnab4HiddenCategoriesGroup(group, groupName)) {
-      for (const [categoryIndex, category] of subCategories.entries()) {
-        const parsed = parseYnab4HiddenCategoryName(firstString(category.name, category.categoryName, category.displayName));
-        if (!parsed) continue;
-        hiddenCategories.push({
-          record: category,
-          sourceIds: sourceIds(category, `hiddenCategory:${groupIndex}:${categoryIndex}`),
-          parsed,
-        });
-      }
-      continue;
-    }
 
     if (groupIsArchived && subCategories.length === 0) {
       continue;
@@ -449,8 +430,14 @@ function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategor
       sourceIds: new Set(groupSourceIds),
     };
 
+    const isHiddenCategoriesGroup = isYnab4HiddenCategoriesGroup(group, groupName);
+
     for (const [categoryIndex, category] of subCategories.entries()) {
-      const categoryName = firstString(category.name, category.categoryName, category.displayName) ?? `Imported Category ${categoryIndex + 1}`;
+      const sourceCategoryName = firstString(category.name, category.categoryName, category.displayName);
+      const parsedHiddenName = isHiddenCategoriesGroup
+        ? parseYnab4HiddenCategoryName(sourceCategoryName)
+        : null;
+      const categoryName = parsedHiddenName?.categoryName ?? sourceCategoryName ?? `Imported Category ${categoryIndex + 1}`;
       addImportedCategoryToGroup({
         group: draft,
         category,
@@ -458,33 +445,13 @@ function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategor
         sourceIds: sourceIds(category, `category:${groupIndex}:${categoryIndex}`),
         existingCategoryIds,
         maps,
-        isArchived: groupIsArchived || isYnab4Tombstone(category),
+        isArchived: groupIsArchived || isHiddenCategoriesGroup || isYnab4Tombstone(category),
       });
     }
 
     drafts.push(draft);
   }
 
-  for (const hiddenCategory of hiddenCategories) {
-    const group = findOrCreateCategoryGroupDraft({
-      drafts,
-      groupName: hiddenCategory.parsed.groupName,
-      groupSourceId: hiddenCategory.parsed.groupSourceId,
-      existingGroupIds,
-    });
-
-    addImportedCategoryToGroup({
-      group,
-      category: hiddenCategory.record,
-      categoryName: hiddenCategory.parsed.categoryName,
-      sourceIds: hiddenCategory.sourceIds,
-      existingCategoryIds,
-      maps,
-      isArchived: true,
-    });
-  }
-
-  suppressDuplicateArchivedCategories(drafts, maps);
   return drafts
     .filter((group) => group.categories.length > 0)
     .map(({ sourceIds: _sourceIds, ...group }) => group);
