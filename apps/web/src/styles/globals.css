@@ -3611,3 +3611,79 @@ strong {
     justify-self: start;
   }
 }
+
+/* v2.29.4 Bulk payee merge */
+
+.payee-management-list-item-shell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  padding: 0.16rem;
+}
+
+.payee-management-list-item-shell input[type="checkbox"] {
+  margin: 0.68rem 0 0 0.35rem;
+}
+
+.payee-management-list-item-shell .payee-management-list-item {
+  border: 0;
+}
+
+.payee-management-list-item-shell:hover {
+  background: var(--surface);
+  border-color: var(--border-soft);
+}
+
+.payee-management-list-item-shell-selected {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border-soft));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.payee-management-list-item-shell-checked {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-soft));
+}
+
+.payee-bulk-merge-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border-soft));
+  border-radius: 0.75rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  padding: 0.65rem;
+}
+
+.payee-bulk-merge-bar > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.payee-bulk-merge-bar span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.payee-bulk-merge-bar select {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.45rem 0.55rem;
+}
+
+.payee-bulk-merge-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
