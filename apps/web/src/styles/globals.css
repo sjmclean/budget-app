@@ -3494,3 +3494,75 @@ strong {
     flex-wrap: wrap;
   }
 }
+
+/* v2.29.2 Payee import rules */
+
+.payee-rules-panel {
+  max-width: 42rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--surface-subtle) 62%, var(--surface));
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.payee-rules-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.payee-rules-header h3 {
+  font-size: 0.95rem;
+}
+
+.payee-rules-header .muted {
+  margin-top: 0.18rem;
+  font-size: 0.8rem;
+}
+
+.payee-rule-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.payee-rule-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 10rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.payee-rule-row select,
+.payee-rule-row input {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.48rem 0.55rem;
+}
+
+.payee-rule-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 680px) {
+  .payee-rules-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .payee-rule-row {
+    grid-template-columns: 1fr;
+  }
+
+  .payee-rule-row .button {
+    justify-self: start;
+  }
+}

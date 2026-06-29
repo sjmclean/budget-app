@@ -1,8 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "../components/ui/Card";
 import { getAppPersistenceGateway } from "../features/persistence";
-import type { PayeeView } from "../features/accounts/payeeService";
+import type {
+  PayeeImportRuleView,
+  PayeeRuleMatchType,
+  PayeeView,
+} from "../features/accounts/payeeService";
+import type { BudgetCategoryOption } from "../features/budget/budgetViewTypes";
 import { confirmDialog } from "../features/ui/appDialogService";
+import { resolveActiveBudgetId } from "../features/budget/activeBudget";
+import { getCurrentBudgetMonth } from "../features/budget/budgetMonthNavigation";
+import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
+import { useUIStore } from "../stores/uiStore";
+
+const ruleTypeLabels: Record<PayeeRuleMatchType, string> = {
+  equals: "Equals",
+  contains: "Contains",
+  startsWith: "Starts with",
+  endsWith: "Ends with",
+};
 
 function formatDate(value: string): string {
   if (!value) {
@@ -22,35 +38,31 @@ function formatDate(value: string): string {
   }).format(date);
 }
 
+function createDraftRule(payeeName = ""): PayeeImportRuleView {
+  return {
+    id: `rule-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    matchType: "contains",
+    text: payeeName,
+  };
+}
+
 export function PayeeManagementPage() {
-  const payeesPersistence = getAppPersistenceGateway().payees;
+  const persistenceGateway = getAppPersistenceGateway();
+  const payeesPersistence = persistenceGateway.payees;
+  const budgetViewPersistence = persistenceGateway.budgetView;
+  const budgets = useBudgetRegistryStore((state) => state.budgets);
+  const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const [payees, setPayees] = useState<PayeeView[]>([]);
   const [archivedPayees, setArchivedPayees] = useState<PayeeView[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<BudgetCategoryOption[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedPayeeId, setSelectedPayeeId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
   const [draftNote, setDraftNote] = useState("");
+  const [draftDefaultCategoryId, setDraftDefaultCategoryId] = useState("");
+  const [draftRules, setDraftRules] = useState<PayeeImportRuleView[]>([]);
   const [statusMessage, setStatusMessage] = useState("Select a payee to edit it.");
-
-  async function refreshPayees(nextSelectedPayeeId?: string | null) {
-    const [loadedPayees, loadedArchivedPayees] = await Promise.all([
-      payeesPersistence.listPayees(),
-      payeesPersistence.listArchivedPayees(),
-    ]);
-
-    setPayees(loadedPayees);
-    setArchivedPayees(loadedArchivedPayees);
-
-    const visiblePayees = showArchived ? loadedArchivedPayees : loadedPayees;
-    const selected =
-      nextSelectedPayeeId ??
-      selectedPayeeId ??
-      visiblePayees[0]?.id ??
-      null;
-
-    setSelectedPayeeId(selected);
-  }
 
   useEffect(() => {
     let active = true;
@@ -58,13 +70,26 @@ export function PayeeManagementPage() {
     Promise.all([
       payeesPersistence.listPayees(),
       payeesPersistence.listArchivedPayees(),
-    ]).then(([loadedPayees, loadedArchivedPayees]) => {
+      (() => {
+        const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
+
+        if (!activeBudgetId) {
+          return Promise.resolve([]);
+        }
+
+        return budgetViewPersistence.getCategoryOptions({
+          budgetId: activeBudgetId,
+          month: getCurrentBudgetMonth(),
+        });
+      })(),
+    ]).then(([loadedPayees, loadedArchivedPayees, loadedCategoryOptions]) => {
       if (!active) {
         return;
       }
 
       setPayees(loadedPayees);
       setArchivedPayees(loadedArchivedPayees);
+      setCategoryOptions(loadedCategoryOptions);
       setSelectedPayeeId((currentPayeeId) =>
         currentPayeeId ?? loadedPayees[0]?.id ?? null,
       );
@@ -73,7 +98,7 @@ export function PayeeManagementPage() {
     return () => {
       active = false;
     };
-  }, [payeesPersistence]);
+  }, [budgetViewPersistence, budgets, payeesPersistence, selectedBudgetId]);
 
   const visiblePayees = showArchived ? archivedPayees : payees;
 
@@ -97,12 +122,27 @@ export function PayeeManagementPage() {
   useEffect(() => {
     setDraftName(selectedPayee?.name ?? "");
     setDraftNote(selectedPayee?.note ?? "");
-  }, [selectedPayee?.id, selectedPayee?.name, selectedPayee?.note]);
+    setDraftDefaultCategoryId(selectedPayee?.defaultCategoryId ?? "");
+    setDraftRules(selectedPayee?.importRules ?? []);
+  }, [
+    selectedPayee?.id,
+    selectedPayee?.name,
+    selectedPayee?.note,
+    selectedPayee?.defaultCategoryId,
+    selectedPayee?.importRules,
+  ]);
+
+  const selectedCategory = categoryOptions.find(
+    (category) => category.id === draftDefaultCategoryId,
+  );
 
   const hasUnsavedChanges =
     Boolean(selectedPayee) &&
     (draftName.trim() !== selectedPayee?.name ||
-      draftNote.trim() !== (selectedPayee?.note ?? ""));
+      draftNote.trim() !== (selectedPayee?.note ?? "") ||
+      draftDefaultCategoryId !== (selectedPayee?.defaultCategoryId ?? "") ||
+      JSON.stringify(normaliseRulesForComparison(draftRules)) !==
+        JSON.stringify(normaliseRulesForComparison(selectedPayee?.importRules ?? [])));
 
   async function saveSelectedPayee() {
     if (!selectedPayee) {
@@ -116,10 +156,19 @@ export function PayeeManagementPage() {
       return;
     }
 
+    const nextRules = draftRules
+      .map((rule) => ({ ...rule, text: rule.text.trim() }))
+      .filter((rule) => rule.text.length > 0);
+
     const nextPayees = await payeesPersistence.updatePayee({
       id: selectedPayee.id,
       name: nextName,
       note: draftNote,
+      defaultCategoryId: selectedCategory?.id ?? "",
+      defaultCategoryName: selectedCategory
+        ? `${selectedCategory.groupName}: ${selectedCategory.name}`
+        : "",
+      importRules: nextRules,
     });
 
     setPayees(nextPayees);
@@ -173,6 +222,28 @@ export function PayeeManagementPage() {
     setStatusMessage(`Editing ${payee.name}.`);
   }
 
+  function updateRule(ruleId: string, updates: Partial<PayeeImportRuleView>) {
+    setDraftRules((rules) =>
+      rules.map((rule) => (rule.id === ruleId ? { ...rule, ...updates } : rule)),
+    );
+  }
+
+  function removeRule(ruleId: string) {
+    setDraftRules((rules) => rules.filter((rule) => rule.id !== ruleId));
+  }
+
+  function resetDrafts() {
+    if (!selectedPayee) {
+      return;
+    }
+
+    setDraftName(selectedPayee.name);
+    setDraftNote(selectedPayee.note ?? "");
+    setDraftDefaultCategoryId(selectedPayee.defaultCategoryId ?? "");
+    setDraftRules(selectedPayee.importRules ?? []);
+    setStatusMessage("Changes reverted.");
+  }
+
   return (
     <div className="page-stack payee-management-page">
       <div className="workspace-header">
@@ -180,7 +251,7 @@ export function PayeeManagementPage() {
           <h1>Payee Management</h1>
           <p className="muted">
             Clean up payees created by manual entry and imports. Rename, add
-            notes, archive, restore, and prepare payees for import rules.
+            notes, set default categories, and prepare import rules.
           </p>
         </div>
       </div>
@@ -232,7 +303,11 @@ export function PayeeManagementPage() {
                 >
                   <strong>{payee.name}</strong>
                   <span>{payee.useCount} transactions</span>
-                  {payee.note?.trim() ? (
+                  {payee.defaultCategoryName ? (
+                    <small title={payee.defaultCategoryName}>
+                      {payee.defaultCategoryName}
+                    </small>
+                  ) : payee.note?.trim() ? (
                     <small title={payee.note}>Has note</small>
                   ) : null}
                 </button>
@@ -250,8 +325,8 @@ export function PayeeManagementPage() {
                 <div>
                   <h2>{selectedPayee.name}</h2>
                   <p className="muted">
-                    Edit the selected payee. Import rules and merge actions will
-                    be added in follow-up releases.
+                    Edit the selected payee. Merge actions will be added in a
+                    follow-up release.
                   </p>
                 </div>
               </div>
@@ -267,16 +342,102 @@ export function PayeeManagementPage() {
                 </label>
 
                 <label>
+                  <span className="field-label">Default Category</span>
+                  <select
+                    className="payee-management-field"
+                    value={draftDefaultCategoryId}
+                    onChange={(event) => setDraftDefaultCategoryId(event.target.value)}
+                  >
+                    <option value="">No default category</option>
+                    {categoryOptions.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.groupName}: {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
                   <span className="field-label">Notes</span>
                   <textarea
                     className="payee-management-textarea"
                     value={draftNote}
                     onChange={(event) => setDraftNote(event.target.value)}
-                    rows={5}
+                    rows={4}
                     placeholder="Add internal notes about this payee..."
                   />
                 </label>
               </div>
+
+              <section className="payee-rules-panel">
+                <div className="payee-rules-header">
+                  <div>
+                    <h3>Import Rules</h3>
+                    <p className="muted">
+                      Match imported payee text and rename it to this payee.
+                    </p>
+                  </div>
+
+                  <button
+                    className="button button-secondary"
+                    type="button"
+                    onClick={() =>
+                      setDraftRules((rules) => [
+                        ...rules,
+                        createDraftRule(draftName || selectedPayee.name),
+                      ])
+                    }
+                  >
+                    + Add rule
+                  </button>
+                </div>
+
+                {draftRules.length > 0 ? (
+                  <div className="payee-rule-list">
+                    {draftRules.map((rule) => (
+                      <div className="payee-rule-row" key={rule.id}>
+                        <select
+                          value={rule.matchType}
+                          onChange={(event) =>
+                            updateRule(rule.id, {
+                              matchType: event.target.value as PayeeRuleMatchType,
+                            })
+                          }
+                        >
+                          {Object.entries(ruleTypeLabels).map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+
+                        <input
+                          value={rule.text}
+                          onChange={(event) =>
+                            updateRule(rule.id, { text: event.target.value })
+                          }
+                          placeholder="Imported payee text"
+                        />
+
+                        <button
+                          className="button button-ghost"
+                          type="button"
+                          onClick={() => removeRule(rule.id)}
+                          aria-label="Remove import rule"
+                          title="Remove import rule"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="payee-rule-empty">
+                    No import rules yet. Add a rule to automatically recognise
+                    imported versions of this payee.
+                  </p>
+                )}
+              </section>
 
               <div className="payee-management-stats">
                 <div>
@@ -319,11 +480,7 @@ export function PayeeManagementPage() {
                     className="button button-secondary"
                     type="button"
                     disabled={!hasUnsavedChanges}
-                    onClick={() => {
-                      setDraftName(selectedPayee.name);
-                      setDraftNote(selectedPayee.note ?? "");
-                      setStatusMessage("Changes reverted.");
-                    }}
+                    onClick={resetDrafts}
                   >
                     Revert
                   </button>
@@ -349,4 +506,13 @@ export function PayeeManagementPage() {
       </Card>
     </div>
   );
+}
+
+function normaliseRulesForComparison(rules: PayeeImportRuleView[]) {
+  return rules
+    .map((rule) => ({
+      matchType: rule.matchType,
+      text: rule.text.trim(),
+    }))
+    .filter((rule) => rule.text.length > 0);
 }

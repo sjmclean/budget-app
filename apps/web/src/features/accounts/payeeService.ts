@@ -1,5 +1,13 @@
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 
+export type PayeeRuleMatchType = "equals" | "contains" | "startsWith" | "endsWith";
+
+export interface PayeeImportRuleView {
+  id: string;
+  matchType: PayeeRuleMatchType;
+  text: string;
+}
+
 export interface PayeeView {
   id: string;
   name: string;
@@ -7,6 +15,9 @@ export interface PayeeView {
   lastUsedAt: string;
   useCount: number;
   note?: string;
+  defaultCategoryId?: string;
+  defaultCategoryName?: string;
+  importRules?: PayeeImportRuleView[];
   isArchived?: boolean;
 }
 
@@ -14,6 +25,9 @@ export interface UpdatePayeeInput {
   id: string;
   name: string;
   note: string;
+  defaultCategoryId?: string;
+  defaultCategoryName?: string;
+  importRules?: PayeeImportRuleView[];
 }
 
 export interface RenamePayeeInput {
@@ -161,6 +175,16 @@ class BrowserPersistentPayeeService {
                 ...payee,
                 name: duplicate.name,
                 note: payee.note?.trim() || nextNote || target.note || "",
+                defaultCategoryId:
+                  payee.defaultCategoryId || input.defaultCategoryId || target.defaultCategoryId || "",
+                defaultCategoryName:
+                  payee.defaultCategoryName || input.defaultCategoryName || target.defaultCategoryName || "",
+                importRules:
+                  payee.importRules?.length
+                    ? payee.importRules
+                    : input.importRules?.length
+                      ? input.importRules
+                      : target.importRules ?? [],
                 lastUsedAt: maxIsoDate(payee.lastUsedAt, target.lastUsedAt),
                 useCount: payee.useCount + target.useCount,
               }
@@ -177,6 +201,9 @@ class BrowserPersistentPayeeService {
             ...payee,
             name: nextName,
             note: nextNote,
+            defaultCategoryId: input.defaultCategoryId ?? "",
+            defaultCategoryName: input.defaultCategoryName ?? "",
+            importRules: normaliseImportRules(input.importRules ?? []),
           }
         : payee,
     );
@@ -306,8 +333,27 @@ function normalisePayees(payees: PayeeView[]): PayeeView[] {
       lastUsedAt: payee.lastUsedAt || payee.createdAt || new Date().toISOString(),
       useCount: Number.isFinite(payee.useCount) ? payee.useCount : 1,
       note: typeof payee.note === "string" ? payee.note : "",
+      defaultCategoryId:
+        typeof payee.defaultCategoryId === "string" ? payee.defaultCategoryId : "",
+      defaultCategoryName:
+        typeof payee.defaultCategoryName === "string" ? payee.defaultCategoryName : "",
+      importRules: normaliseImportRules(payee.importRules ?? []),
       isArchived: payee.isArchived === true,
     }));
+}
+
+function normaliseImportRules(rules: PayeeImportRuleView[]): PayeeImportRuleView[] {
+  return rules
+    .filter((rule) => typeof rule.text === "string" && rule.text.trim().length > 0)
+    .map((rule, index) => ({
+      id: rule.id || `rule-${index + 1}`,
+      matchType: isValidRuleMatchType(rule.matchType) ? rule.matchType : "contains",
+      text: rule.text.trim(),
+    }));
+}
+
+function isValidRuleMatchType(value: unknown): value is PayeeRuleMatchType {
+  return value === "equals" || value === "contains" || value === "startsWith" || value === "endsWith";
 }
 
 function sortPayees(payees: PayeeView[]): PayeeView[] {
