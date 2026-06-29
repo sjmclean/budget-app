@@ -11,10 +11,11 @@ import {
   Plus,
   RotateCcw,
   Settings,
+  Users,
   Trash2,
   WalletCards,
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { AddAccountModal } from "../components/accounts/AddAccountModal";
 import type {
@@ -26,6 +27,7 @@ import { getAppPersistenceGateway } from "../features/persistence";
 import { alertDialog, confirmDialog } from "../features/ui/appDialogService";
 
 export function Sidebar() {
+  const navigate = useNavigate();
   const accountsPersistence = getAppPersistenceGateway().accounts;
   const [accountsOpen, setAccountsOpen] = useState(true);
   const [closedAccountsOpen, setClosedAccountsOpen] = useState(false);
@@ -33,6 +35,7 @@ export function Sidebar() {
   const [editingAccount, setEditingAccount] = useState<SidebarAccount | null>(null);
   const [openMenuAccountId, setOpenMenuAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<SidebarAccount[]>([]);
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -107,7 +110,11 @@ export function Sidebar() {
     setAccounts(result.accounts);
     setOpenMenuAccountId(null);
   }
-  
+
+  function openSettingsDestination(path: string) {
+    setIsSettingsMenuOpen(false);
+    navigate(path);
+  }
 
   function renderAccount(account: SidebarAccount) {
     const isMenuOpen = openMenuAccountId === account.id;
@@ -285,10 +292,44 @@ export function Sidebar() {
         </nav>
 
         <div className="sidebar-settings">
-          <NavLink to="/settings" className="settings-button">
-            <Settings size={18} />
-            <span>Settings</span>
-          </NavLink>
+          <div className="sidebar-settings-menu">
+            {isSettingsMenuOpen ? (
+              <div className="sidebar-settings-menu-panel" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => openSettingsDestination("/settings")}
+                >
+                  <Settings size={16} />
+                  <span>Settings</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => openSettingsDestination("/payees")}
+                >
+                  <Users size={16} />
+                  <span>Payee Management</span>
+                </button>
+              </div>
+            ) : null}
+
+            <button
+              className="settings-button"
+              type="button"
+              aria-expanded={isSettingsMenuOpen}
+              aria-haspopup="menu"
+              onClick={() => setIsSettingsMenuOpen((isOpen) => !isOpen)}
+            >
+              <Settings size={18} />
+              <span>Settings</span>
+              <ChevronDown
+                size={15}
+                className={isSettingsMenuOpen ? "chevron-open" : "chevron-closed"}
+              />
+            </button>
+          </div>
         </div>
       </aside>
 
