@@ -19,6 +19,24 @@ const ynab4DirectoryInputProps = {
 
 type LaunchMode = "list" | "choose" | "empty" | "ynab";
 
+function formatBudgetCreatedLabel(createdAt: string) {
+  const createdDate = new Date(createdAt);
+
+  if (Number.isNaN(createdDate.getTime())) {
+    return "Created date unavailable";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    year: "numeric",
+  }).format(createdDate);
+}
+
+function formatBudgetLocation(packagePath: string) {
+  const parts = packagePath.split("/").filter(Boolean);
+  return parts.at(-1) ?? packagePath;
+}
+
 export function BudgetSelectorPage() {
   const navigate = useNavigate();
   const budgets = useBudgetRegistryStore((state) => state.budgets);
@@ -193,12 +211,12 @@ export function BudgetSelectorPage() {
         <section className="budget-selector-premium-hero">
           <p className="eyebrow">Budget launch experience</p>
           <h1 id="budget-selector-title">
-            {launchMode === "list" ? "Choose a budget" : "Create a budget"}
+            {launchMode === "list" ? "Budget Manager" : "Create a budget"}
           </h1>
           <p>
             {launchMode === "list"
-              ? "Open an existing local budget or start a guided flow for a new budget, import, or restore."
-              : "Choose how you want to begin. The app will only ask for the details needed for that path."}
+              ? "Open an existing local budget, or start one clear launch flow when you need something new."
+              : "Choose one starting point. The next step only asks for the details needed for that path."}
           </p>
         </section>
 
@@ -221,17 +239,22 @@ export function BudgetSelectorPage() {
 
               <div className="budget-list budget-list-premium">
                 {sortedBudgets.length === 0 ? (
-                  <div className="budget-row-card budget-row-card-premium budget-empty-card-premium">
-                    <div className="budget-row-icon" aria-hidden="true">
+                  <div className="budget-empty-state budget-empty-card-premium">
+                    <div className="budget-empty-state-icon" aria-hidden="true">
                       ▣
                     </div>
                     <div>
-                      <h2>No budgets yet</h2>
+                      <p className="eyebrow">No budgets yet</p>
+                      <h2>Create your first budget</h2>
                       <p>
-                        Start with a blank budget, import YNAB4, or restore a
-                        Budget App backup.
+                        Start with a blank budget or import your existing YNAB4
+                        history. Restore, cloud, CSV, and templates are queued
+                        as future launch paths.
                       </p>
                     </div>
+                    <Button type="button" onClick={() => setLaunchMode("choose")}>
+                      + New budget…
+                    </Button>
                   </div>
                 ) : null}
 
@@ -248,7 +271,13 @@ export function BudgetSelectorPage() {
                     <span className="budget-row-main">
                       <strong>{budget.name}</strong>
                       <span>{budget.lastOpenedLabel}</span>
+                      <span className="budget-row-meta">
+                        <span>{budget.currency}</span>
+                        <span>{formatBudgetCreatedLabel(budget.createdAt)}</span>
+                        <span>{formatBudgetLocation(budget.packagePath)}</span>
+                      </span>
                     </span>
+                    <span className="budget-row-open-label">Open</span>
                     <span className="budget-row-chevron" aria-hidden="true">
                       ›
                     </span>
@@ -281,10 +310,11 @@ export function BudgetSelectorPage() {
               </button>
             </div>
             <div className="budget-launch-choice-header">
-              <h2>How would you like to begin?</h2>
+              <p className="eyebrow">Create a new budget</p>
+              <h2>How would you like to get started?</h2>
               <p>
-                Pick one path. The next step reuses the existing creation,
-                import, or restore workflow.
+                Pick one path. The next step reuses the existing creation and
+                import workflows without showing every option at once.
               </p>
             </div>
 
@@ -325,7 +355,7 @@ export function BudgetSelectorPage() {
                 </span>
                 <span>
                   <strong>Restore backup</strong>
-                  <small>Restore a Budget App backup. Coming soon.</small>
+                  <small>Queued for the next launch-experience iteration.</small>
                 </span>
                 <span aria-hidden="true">•</span>
               </button>
@@ -335,7 +365,7 @@ export function BudgetSelectorPage() {
               <span>Coming soon</span>
               <ul>
                 <li>Actual Budget import</li>
-                <li>Cloud budget</li>
+                <li>Cloud budget continuation</li>
                 <li>CSV import</li>
                 <li>Budget templates</li>
               </ul>
@@ -692,8 +722,9 @@ export function BudgetSelectorPage() {
                   : "Create imported budget"}
               </Button>
               <p>
-                v2.32.0 launches the existing YNAB4 import from the new budget
-                experience. Detailed import progress remains a later polish item.
+                v2.32.1 keeps using the existing YNAB4 import engine from the
+                launch experience. Detailed import progress remains a later
+                polish item.
               </p>
             </div>
           </section>
