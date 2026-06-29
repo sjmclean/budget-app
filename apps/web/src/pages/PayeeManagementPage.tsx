@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type DragEvent, type MouseEvent } from "react";
 import { Card } from "../components/ui/Card";
 import { getAppPersistenceGateway } from "../features/persistence";
 import type {
@@ -47,45 +47,6 @@ function createDraftRule(payeeName = ""): PayeeImportRuleView {
 }
 
 
-function scoreMergeDestinationCandidate(payee: PayeeView): number {
-  const name = payee.name.trim();
-  const hasDigits = /\d/.test(name);
-  const isAllCaps = name === name.toLocaleUpperCase() && /[A-Z]/.test(name);
-  const wordCount = name.split(/\s+/).filter(Boolean).length;
-
-  return (
-    payee.useCount * 4 +
-    (hasDigits ? -60 : 0) +
-    (isAllCaps ? -30 : 0) +
-    (wordCount <= 2 ? 24 : 0) +
-    Math.max(0, 30 - name.length)
-  );
-}
-
-function suggestMergeDestination(
-  selectedPayees: PayeeView[],
-  availablePayees: PayeeView[],
-): string {
-  if (selectedPayees.length === 0) {
-    return "";
-  }
-
-  const selectedIds = new Set(selectedPayees.map((payee) => payee.id));
-  const candidates = [...selectedPayees, ...availablePayees.filter((payee) => !selectedIds.has(payee.id))];
-
-  return candidates
-    .map((payee) => ({ payee, score: scoreMergeDestinationCandidate(payee) }))
-    .sort((left, right) => right.score - left.score)[0]?.payee.id ?? "";
-}
-
-function getMergeDestinationHint(payee: PayeeView | undefined): string {
-  if (!payee) {
-    return "";
-  }
-
-  return `Suggested destination: ${payee.name}`;
-}
-
 
 export function PayeeManagementPage() {
   const persistenceGateway = getAppPersistenceGateway();
@@ -104,10 +65,10 @@ export function PayeeManagementPage() {
   const [draftDefaultCategoryId, setDraftDefaultCategoryId] = useState("");
   const [draftRules, setDraftRules] = useState<PayeeImportRuleView[]>([]);
   const [statusMessage, setStatusMessage] = useState("Select a payee to edit it.");
-  const [mergeTargetPayeeId, setMergeTargetPayeeId] = useState("");
-  const [selectedBulkMergePayeeIds, setSelectedBulkMergePayeeIds] = useState<string[]>([]);
-  const [bulkMergeTargetPayeeId, setBulkMergeTargetPayeeId] = useState("");
-  const [isMergeMode, setIsMergeMode] = useState(false);
+  const [selectedMergePayeeIds, setSelectedMergePayeeIds] = useState<string[]>([]);
+  const [lastSelectedMergePayeeId, setLastSelectedMergePayeeId] = useState<string | null>(null);
+  const [draggedMergePayeeId, setDraggedMergePayeeId] = useState<string | null>(null);
+  const [mergeDropTargetPayeeId, setMergeDropTargetPayeeId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -169,7 +130,7 @@ export function PayeeManagementPage() {
     setDraftNote(selectedPayee?.note ?? "");
     setDraftDefaultCategoryId(selectedPayee?.defaultCategoryId ?? "");
     setDraftRules(selectedPayee?.importRules ?? []);
-    setMergeTargetPayeeId("");
+    setMergeDropTargetPayeeId(null);
   }, [
     selectedPayee?.id,
     selectedPayee?.name,
@@ -182,31 +143,20 @@ export function PayeeManagementPage() {
     (category) => category.id === draftDefaultCategoryId,
   );
 
-  const mergeTargetOptions = payees.filter((payee) => payee.id !== selectedPayee?.id);
-  const mergeTargetPayee = mergeTargetOptions.find(
-    (payee) => payee.id === mergeTargetPayeeId,
+  const selectedMergePayees = payees.filter((payee) =>
+    selectedMergePayeeIds.includes(payee.id),
   );
-  const bulkMergeSelectedPayees = payees.filter((payee) =>
-    selectedBulkMergePayeeIds.includes(payee.id),
-  );
-  const bulkMergeTargetOptions = payees.filter(
-    (payee) => !selectedBulkMergePayeeIds.includes(payee.id),
-  );
-  const bulkMergeTargetPayee = bulkMergeTargetOptions.find(
-    (payee) => payee.id === bulkMergeTargetPayeeId,
-  );
-  const bulkMergeTransactionCount = bulkMergeSelectedPayees.reduce(
+  const selectedMergeTransactionCount = selectedMergePayees.reduce(
     (total, payee) => total + payee.useCount,
     0,
   );
-  const bulkMergeRuleCount = bulkMergeSelectedPayees.reduce(
+  const selectedMergeRuleCount = selectedMergePayees.reduce(
     (total, payee) => total + (payee.importRules?.length ?? 0),
     0,
   );
-  const bulkMergeNoteCount = bulkMergeSelectedPayees.filter((payee) =>
+  const selectedMergeNoteCount = selectedMergePayees.filter((payee) =>
     payee.note?.trim(),
   ).length;
-  const bulkMergeDestinationHint = getMergeDestinationHint(bulkMergeTargetPayee);
 
   const hasUnsavedChanges =
     Boolean(selectedPayee) &&
@@ -289,118 +239,130 @@ export function PayeeManagementPage() {
     setStatusMessage(`Restored ${selectedPayee.name}.`);
   }
 
-  async function mergeSelectedPayee() {
-    if (!selectedPayee || !mergeTargetPayee) {
-      setStatusMessage("Choose a payee to merge into.");
+  function selectPayeeForMerge(payee: PayeeView, event: MouseEvent<HTMLButtonElement>) {
+    if (showArchived) {
+      selectPayee(payee);
       return;
     }
 
-    const shouldMerge = confirmDialog({
-      title: `Merge "${selectedPayee.name}" into "${mergeTargetPayee.name}"?`,
-      message:
-        `${selectedPayee.useCount} transactions will be added to "${mergeTargetPayee.name}". ` +
-        `"${selectedPayee.name}" will be archived and can be restored later if needed.`,
-    });
+    if (event.shiftKey && lastSelectedMergePayeeId) {
+      const startIndex = filteredPayees.findIndex((item) => item.id === lastSelectedMergePayeeId);
+      const endIndex = filteredPayees.findIndex((item) => item.id === payee.id);
 
-    if (!shouldMerge) {
-      return;
-    }
+      if (startIndex >= 0 && endIndex >= 0) {
+        const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+        const rangeIds = filteredPayees.slice(from, to + 1).map((item) => item.id);
 
-    const nextPayees = await payeesPersistence.mergePayees({
-      sourcePayeeId: selectedPayee.id,
-      targetPayeeId: mergeTargetPayee.id,
-    });
-    const nextArchivedPayees = await payeesPersistence.listArchivedPayees();
-
-    setPayees(nextPayees);
-    setArchivedPayees(nextArchivedPayees);
-    setSelectedPayeeId(mergeTargetPayee.id);
-    setMergeTargetPayeeId("");
-    setStatusMessage(`Merged ${selectedPayee.name} into ${mergeTargetPayee.name}.`);
-  }
-
-  function toggleBulkMergePayee(payeeId: string) {
-    setSelectedBulkMergePayeeIds((payeeIds) => {
-      const nextPayeeIds = payeeIds.includes(payeeId)
-        ? payeeIds.filter((id) => id !== payeeId)
-        : [...payeeIds, payeeId];
-      const nextSelectedPayees = payees.filter((payee) => nextPayeeIds.includes(payee.id));
-
-      if (!bulkMergeTargetPayeeId || nextPayeeIds.includes(bulkMergeTargetPayeeId)) {
-        setBulkMergeTargetPayeeId(suggestMergeDestination(nextSelectedPayees, payees));
+        setSelectedMergePayeeIds((payeeIds) => Array.from(new Set([...payeeIds, ...rangeIds])));
+        setLastSelectedMergePayeeId(payee.id);
+        setStatusMessage(`${rangeIds.length} payees selected for merge.`);
+        return;
       }
+    }
 
-      return nextPayeeIds;
-    });
-  }
-
-  function enterMergeMode() {
-    setIsMergeMode(true);
-    setSelectedBulkMergePayeeIds([]);
-    setBulkMergeTargetPayeeId("");
-    setIsMergeMode(false);
-    setStatusMessage("Merge mode enabled. Search and select related payees to merge.");
-  }
-
-  function exitMergeMode() {
-    setIsMergeMode(false);
-    setSelectedBulkMergePayeeIds([]);
-    setBulkMergeTargetPayeeId("");
-    setStatusMessage("Merge mode closed.");
-  }
-
-  function selectVisiblePayeesForMerge() {
-    const nextPayeeIds = filteredPayees.map((payee) => payee.id);
-    const nextSelectedPayees = payees.filter((payee) => nextPayeeIds.includes(payee.id));
-
-    setSelectedBulkMergePayeeIds(nextPayeeIds);
-    setBulkMergeTargetPayeeId(suggestMergeDestination(nextSelectedPayees, payees));
-  }
-
-  function invertVisiblePayeesForMerge() {
-    const visiblePayeeIds = new Set(filteredPayees.map((payee) => payee.id));
-    const nextPayeeIds = [
-      ...selectedBulkMergePayeeIds.filter((payeeId) => !visiblePayeeIds.has(payeeId)),
-      ...filteredPayees
-        .filter((payee) => !selectedBulkMergePayeeIds.includes(payee.id))
-        .map((payee) => payee.id),
-    ];
-    const nextSelectedPayees = payees.filter((payee) => nextPayeeIds.includes(payee.id));
-
-    setSelectedBulkMergePayeeIds(nextPayeeIds);
-    setBulkMergeTargetPayeeId(suggestMergeDestination(nextSelectedPayees, payees));
-  }
-
-  function makeBulkMergeDestination(payee: PayeeView) {
-    const nextPayeeIds = selectedBulkMergePayeeIds.filter((payeeId) => payeeId !== payee.id);
-    setSelectedBulkMergePayeeIds(nextPayeeIds);
-    setBulkMergeTargetPayeeId(payee.id);
-  }
-
-  async function mergeSelectedBulkPayees() {
-    if (!bulkMergeTargetPayee || bulkMergeSelectedPayees.length === 0) {
-      setStatusMessage("Choose source payees and a destination payee.");
+    if (event.ctrlKey || event.metaKey) {
+      setSelectedMergePayeeIds((payeeIds) =>
+        payeeIds.includes(payee.id)
+          ? payeeIds.filter((id) => id !== payee.id)
+          : [...payeeIds, payee.id],
+      );
+      setLastSelectedMergePayeeId(payee.id);
+      setStatusMessage("Payee merge selection updated.");
       return;
     }
 
+    setSelectedMergePayeeIds([payee.id]);
+    setLastSelectedMergePayeeId(payee.id);
+    selectPayee(payee);
+  }
+
+  function clearMergeSelection() {
+    setSelectedMergePayeeIds([]);
+    setLastSelectedMergePayeeId(null);
+    setDraggedMergePayeeId(null);
+    setMergeDropTargetPayeeId(null);
+    setStatusMessage("Merge selection cleared.");
+  }
+
+  function getDragSourcePayees(payeeId: string): PayeeView[] {
+    if (selectedMergePayeeIds.includes(payeeId)) {
+      return payees.filter((payee) => selectedMergePayeeIds.includes(payee.id));
+    }
+
+    return payees.filter((payee) => payee.id === payeeId);
+  }
+
+  function startPayeeDrag(payee: PayeeView, event: DragEvent<HTMLElement>) {
+    const dragSourcePayees = getDragSourcePayees(payee.id);
+
+    setDraggedMergePayeeId(payee.id);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", payee.id);
+    event.dataTransfer.setData(
+      "application/budget-app-payee-ids",
+      JSON.stringify(dragSourcePayees.map((sourcePayee) => sourcePayee.id)),
+    );
+    setStatusMessage(
+      dragSourcePayees.length === 1
+        ? `Drag ${payee.name} onto the payee you want to keep.`
+        : `Drag ${dragSourcePayees.length} payees onto the payee you want to keep.`,
+    );
+  }
+
+  function endPayeeDrag() {
+    setDraggedMergePayeeId(null);
+    setMergeDropTargetPayeeId(null);
+  }
+
+  function dragOverPayee(payee: PayeeView, event: DragEvent<HTMLDivElement>) {
+    const sourcePayees = getDragSourcePayees(draggedMergePayeeId ?? "");
+    const sourceIds = new Set(sourcePayees.map((sourcePayee) => sourcePayee.id));
+
+    if (!draggedMergePayeeId || sourceIds.has(payee.id)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setMergeDropTargetPayeeId(payee.id);
+  }
+
+  async function dropPayeeForMerge(targetPayee: PayeeView, event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+
+    const sourcePayees = getDragSourcePayees(draggedMergePayeeId ?? "").filter(
+      (sourcePayee) => sourcePayee.id !== targetPayee.id,
+    );
+
+    if (sourcePayees.length === 0) {
+      endPayeeDrag();
+      return;
+    }
+
+    const transactionCount = sourcePayees.reduce((total, payee) => total + payee.useCount, 0);
+    const ruleCount = sourcePayees.reduce((total, payee) => total + (payee.importRules?.length ?? 0), 0);
+    const noteCount = sourcePayees.filter((payee) => payee.note?.trim()).length;
     const shouldMerge = confirmDialog({
-      title: `Merge ${bulkMergeSelectedPayees.length} payees into "${bulkMergeTargetPayee.name}"?`,
+      title:
+        sourcePayees.length === 1
+          ? `Merge "${sourcePayees[0].name}" into "${targetPayee.name}"?`
+          : `Merge ${sourcePayees.length} payees into "${targetPayee.name}"?`,
       message:
-        `${bulkMergeTransactionCount} transactions, ${bulkMergeRuleCount} import rules, and ` +
-        `${bulkMergeNoteCount} notes will be folded into "${bulkMergeTargetPayee.name}". ` +
-        "The selected source payees will be archived and can be restored later if needed.",
+        `${transactionCount} transactions, ${ruleCount} import rules, and ${noteCount} notes ` +
+        `will be folded into "${targetPayee.name}". Source payees will be archived.`,
     });
 
     if (!shouldMerge) {
+      endPayeeDrag();
       return;
     }
 
     let nextPayees = payees;
 
-    for (const sourcePayee of bulkMergeSelectedPayees) {
+    for (const sourcePayee of sourcePayees) {
       nextPayees = await payeesPersistence.mergePayees({
         sourcePayeeId: sourcePayee.id,
-        targetPayeeId: bulkMergeTargetPayee.id,
+        targetPayeeId: targetPayee.id,
       });
     }
 
@@ -408,11 +370,15 @@ export function PayeeManagementPage() {
 
     setPayees(nextPayees);
     setArchivedPayees(nextArchivedPayees);
-    setSelectedPayeeId(bulkMergeTargetPayee.id);
-    setSelectedBulkMergePayeeIds([]);
-    setBulkMergeTargetPayeeId("");
+    setSelectedPayeeId(targetPayee.id);
+    setSelectedMergePayeeIds([]);
+    setLastSelectedMergePayeeId(null);
+    setDraggedMergePayeeId(null);
+    setMergeDropTargetPayeeId(null);
     setStatusMessage(
-      `Merged ${bulkMergeSelectedPayees.length} payees into ${bulkMergeTargetPayee.name}.`,
+      sourcePayees.length === 1
+        ? `Merged ${sourcePayees[0].name} into ${targetPayee.name}.`
+        : `Merged ${sourcePayees.length} payees into ${targetPayee.name}.`,
     );
   }
 
@@ -447,17 +413,8 @@ export function PayeeManagementPage() {
     <div
       className="page-stack payee-management-page"
       onKeyDown={(event) => {
-        if (!isMergeMode) {
-          return;
-        }
-
         if (event.key === "Escape") {
-          exitMergeMode();
-        }
-
-        if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "a") {
-          event.preventDefault();
-          selectVisiblePayeesForMerge();
+          clearMergeSelection();
         }
       }}
     >
@@ -470,22 +427,6 @@ export function PayeeManagementPage() {
           </p>
         </div>
 
-        <div className="payee-management-header-actions">
-          {isMergeMode ? (
-            <button className="button button-secondary" type="button" onClick={exitMergeMode}>
-              Exit Merge Mode
-            </button>
-          ) : (
-            <button
-              className="button button-primary"
-              type="button"
-              disabled={showArchived}
-              onClick={enterMergeMode}
-            >
-              Merge Payees
-            </button>
-          )}
-        </div>
       </div>
 
       <Card className="payee-management-workspace">
@@ -496,25 +437,10 @@ export function PayeeManagementPage() {
             </label>
 
             <div className="payee-management-list-toolbar-actions">
-              {isMergeMode ? (
-                <>
-                  <button className="button button-secondary" type="button" onClick={selectVisiblePayeesForMerge}>
-                    Select visible
-                  </button>
-                  <button className="button button-secondary" type="button" onClick={invertVisiblePayeesForMerge}>
-                    Invert visible
-                  </button>
-                  <button
-                    className="button button-secondary"
-                    type="button"
-                    onClick={() => {
-                      setSelectedBulkMergePayeeIds([]);
-                      setBulkMergeTargetPayeeId("");
-                    }}
-                  >
-                    Clear
-                  </button>
-                </>
+              {selectedMergePayeeIds.length > 0 ? (
+                <button className="button button-secondary" type="button" onClick={clearMergeSelection}>
+                  Clear selection
+                </button>
               ) : null}
 
               <button
@@ -523,9 +449,10 @@ export function PayeeManagementPage() {
                 onClick={() => {
                   setShowArchived((value) => !value);
                   setSelectedPayeeId(null);
-                  setSelectedBulkMergePayeeIds([]);
-                  setBulkMergeTargetPayeeId("");
-                  setIsMergeMode(false);
+                  setSelectedMergePayeeIds([]);
+                  setLastSelectedMergePayeeId(null);
+                  setDraggedMergePayeeId(null);
+                  setMergeDropTargetPayeeId(null);
                 }}
               >
                 {showArchived ? "Show active" : "Show archived"}
@@ -551,35 +478,36 @@ export function PayeeManagementPage() {
                     selectedPayee?.id === payee.id
                       ? "payee-management-list-item-shell-selected"
                       : "",
-                    selectedBulkMergePayeeIds.includes(payee.id)
+                    selectedMergePayeeIds.includes(payee.id)
                       ? "payee-management-list-item-shell-checked"
+                      : "",
+                    mergeDropTargetPayeeId === payee.id
+                      ? "payee-management-list-item-shell-drop-target"
                       : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
+                  onDragOver={(event) => dragOverPayee(payee, event)}
+                  onDragLeave={() => setMergeDropTargetPayeeId(null)}
+                  onDrop={(event) => dropPayeeForMerge(payee, event)}
+                  draggable={!showArchived}
+                  onDragStart={(event) => startPayeeDrag(payee, event)}
+                  onDragEnd={endPayeeDrag}
+                  title={!showArchived ? "Drag onto another payee to merge" : undefined}
                 >
-                  {isMergeMode && !showArchived ? (
-                    <input
-                      type="checkbox"
-                      aria-label={`Select ${payee.name} for merge`}
-                      checked={selectedBulkMergePayeeIds.includes(payee.id)}
-                      onChange={() => toggleBulkMergePayee(payee.id)}
-                    />
-                  ) : null}
-
                   <button
                     className="payee-management-list-item"
                     type="button"
                     role="option"
                     aria-selected={selectedPayee?.id === payee.id}
-                    onClick={() => selectPayee(payee)}
+                    onClick={(event) => selectPayeeForMerge(payee, event)}
                   >
                     <strong>{payee.name}</strong>
                     <span>{payee.useCount} transactions</span>
-                    {isMergeMode && bulkMergeTargetPayeeId === payee.id ? (
-                      <small className="payee-merge-badge">Destination</small>
-                    ) : selectedBulkMergePayeeIds.includes(payee.id) ? (
-                      <small className="payee-merge-badge">Selected for merge</small>
+                    {mergeDropTargetPayeeId === payee.id ? (
+                      <small className="payee-merge-badge">Keep as main payee</small>
+                    ) : selectedMergePayeeIds.includes(payee.id) ? (
+                      <small className="payee-merge-badge">Selected · drag to merge</small>
                     ) : payee.defaultCategoryName ? (
                       <small title={payee.defaultCategoryName}>
                         {payee.defaultCategoryName}
@@ -588,16 +516,6 @@ export function PayeeManagementPage() {
                       <small title={payee.note}>Has note</small>
                     ) : null}
                   </button>
-
-                  {isMergeMode && selectedBulkMergePayeeIds.includes(payee.id) ? (
-                    <button
-                      className="payee-make-destination-button"
-                      type="button"
-                      onClick={() => makeBulkMergeDestination(payee)}
-                    >
-                      Keep this
-                    </button>
-                  ) : null}
                 </div>
               ))
             ) : (
@@ -605,89 +523,21 @@ export function PayeeManagementPage() {
             )}
           </div>
 
-          {isMergeMode && !showArchived && selectedBulkMergePayeeIds.length > 0 ? (
-            <div className="payee-bulk-merge-bar">
-              <div>
-                <strong>{selectedBulkMergePayeeIds.length} selected</strong>
-                <span>
-                  {bulkMergeTransactionCount} transactions · {bulkMergeRuleCount} rules ·{" "}
-                  {bulkMergeNoteCount} notes
-                </span>
-              </div>
-
-              <select
-                value={bulkMergeTargetPayeeId}
-                onChange={(event) => setBulkMergeTargetPayeeId(event.target.value)}
-              >
-                <option value="">Merge into...</option>
-                {bulkMergeTargetOptions.map((payee) => (
-                  <option key={payee.id} value={payee.id}>
-                    {payee.name} ({payee.useCount} transactions)
-                  </option>
-                ))}
-              </select>
-
-              {bulkMergeDestinationHint ? (
-                <p className="payee-bulk-merge-hint">{bulkMergeDestinationHint}</p>
-              ) : null}
-
-              <div className="payee-bulk-merge-actions">
-                <button
-                  className="button button-ghost"
-                  type="button"
-                  onClick={exitMergeMode}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="button button-primary"
-                  type="button"
-                  disabled={!bulkMergeTargetPayeeId}
-                  onClick={mergeSelectedBulkPayees}
-                >
-                  Merge
-                </button>
-              </div>
+          {!showArchived ? (
+            <div className="payee-drag-merge-help">
+              <strong>Merge payees by dragging</strong>
+              <span>
+                Select with Ctrl/Cmd-click or Shift-click, then drag a selected payee onto the payee to keep.
+                {selectedMergePayeeIds.length > 0
+                  ? ` ${selectedMergePayeeIds.length} selected · ${selectedMergeTransactionCount} transactions.`
+                  : ""}
+              </span>
             </div>
           ) : null}
         </aside>
 
         <section className="payee-management-detail-panel">
-          {isMergeMode ? (
-            <div className="payee-merge-mode-panel">
-              <h2>Merge Payees</h2>
-              <p className="muted">
-                Search for related payees, select the duplicates, then choose the
-                destination payee to keep. The selected source payees will be
-                archived after merging.
-              </p>
-
-              <div className="payee-merge-mode-summary">
-                <div>
-                  <span>Selected</span>
-                  <strong>{selectedBulkMergePayeeIds.length}</strong>
-                </div>
-                <div>
-                  <span>Transactions</span>
-                  <strong>{bulkMergeTransactionCount}</strong>
-                </div>
-                <div>
-                  <span>Rules</span>
-                  <strong>{bulkMergeRuleCount}</strong>
-                </div>
-                <div>
-                  <span>Notes</span>
-                  <strong>{bulkMergeNoteCount}</strong>
-                </div>
-              </div>
-
-              <p className="muted">
-                Tip: search for a merchant name such as “wool”, then use Select
-                visible to select all matching payees at once. Press Esc to exit
-                Merge Mode or Ctrl+A / Cmd+A to select visible payees.
-              </p>
-            </div>
-          ) : selectedPayee ? (
+          {selectedPayee ? (
             <>
               <div className="payee-management-detail-header">
                 <div>

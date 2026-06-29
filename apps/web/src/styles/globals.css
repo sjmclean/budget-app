@@ -3810,3 +3810,92 @@ strong {
     justify-self: start;
   }
 }
+
+/* v2.31.0 Payee drag-to-merge */
+
+.payee-management-list-item-shell {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.payee-management-list-item-shell:not(:has(input[type="checkbox"])) {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.payee-drag-handle {
+  align-self: stretch;
+  min-width: 1.85rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: grab;
+  font-weight: 800;
+  letter-spacing: -0.2rem;
+  opacity: 0.66;
+}
+
+.payee-drag-handle:hover,
+.payee-management-list-item-shell:hover .payee-drag-handle {
+  color: var(--accent-strong);
+  opacity: 1;
+}
+
+.payee-drag-handle:active {
+  cursor: grabbing;
+}
+
+.payee-management-list-item-shell-drop-target {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    0 0 0 3px color-mix(in srgb, var(--accent-soft) 72%, transparent);
+}
+
+.payee-drag-merge-help {
+  display: grid;
+  gap: 0.22rem;
+  margin-top: 0.45rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  padding: 0.65rem;
+}
+
+.payee-drag-merge-help span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.payee-merge-mode-panel,
+.payee-bulk-merge-bar,
+.payee-management-header-actions {
+  display: none;
+}
+
+@media (max-width: 680px) {
+  .payee-management-list-item-shell,
+  .payee-management-list-item-shell:not(:has(input[type="checkbox"])) {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+/* v2.31.1 Payee row drag-to-merge */
+
+.payee-management-list-item-shell {
+  cursor: grab;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.payee-management-list-item-shell:active {
+  cursor: grabbing;
+}
+
+.payee-management-list-item-shell .payee-management-list-item {
+  cursor: pointer;
+}
+
+.payee-drag-handle {
+  display: none;
+}
