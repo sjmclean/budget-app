@@ -1,4 +1,4 @@
-import type { MergePayeesInput, PayeeView, RenamePayeeInput } from "./payeeService";
+import type { MergePayeesInput, PayeeView, RenamePayeeInput, UpdatePayeeInput } from "./payeeService";
 
 /**
  * Browser-safe payee persistence boundary for the web UI.
@@ -13,6 +13,7 @@ export interface PayeePersistencePort {
   recordPayee(name: string): Promise<PayeeView[]>;
   recordPayees(names: string[]): Promise<PayeeView[]>;
   renamePayee(input: RenamePayeeInput): Promise<PayeeView[]>;
+  updatePayee(input: UpdatePayeeInput): Promise<PayeeView[]>;
   mergePayees(input: MergePayeesInput): Promise<PayeeView[]>;
   archivePayee(payeeId: string): Promise<PayeeView[]>;
   restorePayee(payeeId: string): Promise<PayeeView[]>;

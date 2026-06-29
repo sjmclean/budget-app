@@ -6,7 +6,14 @@ export interface PayeeView {
   createdAt: string;
   lastUsedAt: string;
   useCount: number;
+  note?: string;
   isArchived?: boolean;
+}
+
+export interface UpdatePayeeInput {
+  id: string;
+  name: string;
+  note: string;
 }
 
 export interface RenamePayeeInput {
@@ -124,6 +131,58 @@ class BrowserPersistentPayeeService {
 
     writePayees(this.dependencies.storage, renamed);
     return sortPayees(renamed.filter((payee) => !payee.isArchived));
+  }
+
+  async updatePayee(input: UpdatePayeeInput): Promise<PayeeView[]> {
+    const nextName = normalisePayeeName(input.name);
+    const nextNote = input.note.trim();
+
+    if (!nextName) {
+      return sortPayees(readPayees(this.dependencies.storage).filter((payee) => !payee.isArchived));
+    }
+
+    const payees = readPayees(this.dependencies.storage);
+    const target = payees.find((payee) => payee.id === input.id);
+
+    if (!target) {
+      return sortPayees(payees.filter((payee) => !payee.isArchived));
+    }
+
+    const duplicate = payees.find(
+      (payee) => payee.id !== input.id && samePayee(payee.name, nextName),
+    );
+
+    if (duplicate) {
+      const merged = payees
+        .filter((payee) => payee.id !== input.id)
+        .map((payee) =>
+          payee.id === duplicate.id
+            ? {
+                ...payee,
+                name: duplicate.name,
+                note: payee.note?.trim() || nextNote || target.note || "",
+                lastUsedAt: maxIsoDate(payee.lastUsedAt, target.lastUsedAt),
+                useCount: payee.useCount + target.useCount,
+              }
+            : payee,
+        );
+
+      writePayees(this.dependencies.storage, merged);
+      return sortPayees(merged.filter((payee) => !payee.isArchived));
+    }
+
+    const updated = payees.map((payee) =>
+      payee.id === input.id
+        ? {
+            ...payee,
+            name: nextName,
+            note: nextNote,
+          }
+        : payee,
+    );
+
+    writePayees(this.dependencies.storage, updated);
+    return sortPayees(updated.filter((payee) => !payee.isArchived));
   }
 
   async mergePayees(input: MergePayeesInput): Promise<PayeeView[]> {
@@ -246,6 +305,7 @@ function normalisePayees(payees: PayeeView[]): PayeeView[] {
       createdAt: payee.createdAt || new Date().toISOString(),
       lastUsedAt: payee.lastUsedAt || payee.createdAt || new Date().toISOString(),
       useCount: Number.isFinite(payee.useCount) ? payee.useCount : 1,
+      note: typeof payee.note === "string" ? payee.note : "",
       isArchived: payee.isArchived === true,
     }));
 }

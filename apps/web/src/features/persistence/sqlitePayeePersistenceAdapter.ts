@@ -1,5 +1,5 @@
 import type { PayeePersistencePort } from "../accounts/payeePersistencePort.js";
-import type { MergePayeesInput, PayeeView, RenamePayeeInput } from "../accounts/payeeService.js";
+import type { MergePayeesInput, PayeeView, RenamePayeeInput, UpdatePayeeInput } from "../accounts/payeeService.js";
 import { DEFAULT_SQLITE_BUDGET_ID } from "./sqliteAccountPersistenceAdapter.js";
 
 export interface SqlitePayeeRecord {
@@ -126,6 +126,46 @@ export class SqlitePayeePersistenceAdapter implements PayeePersistencePort {
 
     if (duplicate && duplicate.id !== input.id) {
       await this.options.repository.archive(target.id);
+      return this.listPayees();
+    }
+
+    await this.options.repository.update({
+      ...target,
+      name: nextName,
+      normalizedName,
+      updatedAt: this.now(),
+    });
+
+    return this.listPayees();
+  }
+
+
+  async updatePayee(input: UpdatePayeeInput): Promise<PayeeView[]> {
+    const nextName = normalisePayeeName(input.name);
+
+    if (!nextName) {
+      return this.listPayees();
+    }
+
+    const target = await this.options.repository.findById(input.id);
+
+    if (!target) {
+      return this.listPayees();
+    }
+
+    const normalizedName = normalizeForLookup(nextName);
+    const duplicate = await this.options.repository.findByNormalizedName(this.budgetId, normalizedName);
+
+    if (duplicate && duplicate.id !== input.id) {
+      await this.options.repository.archive(target.id);
+      await this.options.repository.update({
+        ...duplicate,
+        name: duplicate.name,
+        normalizedName: duplicate.normalizedName ?? normalizedName,
+        isArchived: false,
+        updatedAt: this.now(),
+      });
+
       return this.listPayees();
     }
 
