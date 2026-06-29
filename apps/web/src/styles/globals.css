@@ -3566,3 +3566,48 @@ strong {
     justify-self: start;
   }
 }
+
+/* v2.29.3 Payee merge */
+
+.payee-merge-panel {
+  max-width: 42rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8rem;
+  background: var(--surface);
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.payee-merge-panel h3 {
+  font-size: 0.95rem;
+}
+
+.payee-merge-panel .muted {
+  margin-top: 0.18rem;
+  font-size: 0.8rem;
+}
+
+.payee-merge-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.payee-merge-preview {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 680px) {
+  .payee-merge-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .payee-merge-controls .button {
+    justify-self: start;
+  }
+}

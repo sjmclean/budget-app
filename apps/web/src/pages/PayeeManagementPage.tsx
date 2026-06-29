@@ -63,6 +63,7 @@ export function PayeeManagementPage() {
   const [draftDefaultCategoryId, setDraftDefaultCategoryId] = useState("");
   const [draftRules, setDraftRules] = useState<PayeeImportRuleView[]>([]);
   const [statusMessage, setStatusMessage] = useState("Select a payee to edit it.");
+  const [mergeTargetPayeeId, setMergeTargetPayeeId] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -124,6 +125,7 @@ export function PayeeManagementPage() {
     setDraftNote(selectedPayee?.note ?? "");
     setDraftDefaultCategoryId(selectedPayee?.defaultCategoryId ?? "");
     setDraftRules(selectedPayee?.importRules ?? []);
+    setMergeTargetPayeeId("");
   }, [
     selectedPayee?.id,
     selectedPayee?.name,
@@ -134,6 +136,11 @@ export function PayeeManagementPage() {
 
   const selectedCategory = categoryOptions.find(
     (category) => category.id === draftDefaultCategoryId,
+  );
+
+  const mergeTargetOptions = payees.filter((payee) => payee.id !== selectedPayee?.id);
+  const mergeTargetPayee = mergeTargetOptions.find(
+    (payee) => payee.id === mergeTargetPayeeId,
   );
 
   const hasUnsavedChanges =
@@ -215,6 +222,36 @@ export function PayeeManagementPage() {
     setShowArchived(false);
     setSelectedPayeeId(selectedPayee.id);
     setStatusMessage(`Restored ${selectedPayee.name}.`);
+  }
+
+  async function mergeSelectedPayee() {
+    if (!selectedPayee || !mergeTargetPayee) {
+      setStatusMessage("Choose a payee to merge into.");
+      return;
+    }
+
+    const shouldMerge = confirmDialog({
+      title: `Merge "${selectedPayee.name}" into "${mergeTargetPayee.name}"?`,
+      message:
+        `${selectedPayee.useCount} transactions will be added to "${mergeTargetPayee.name}". ` +
+        `"${selectedPayee.name}" will be archived and can be restored later if needed.`,
+    });
+
+    if (!shouldMerge) {
+      return;
+    }
+
+    const nextPayees = await payeesPersistence.mergePayees({
+      sourcePayeeId: selectedPayee.id,
+      targetPayeeId: mergeTargetPayee.id,
+    });
+    const nextArchivedPayees = await payeesPersistence.listArchivedPayees();
+
+    setPayees(nextPayees);
+    setArchivedPayees(nextArchivedPayees);
+    setSelectedPayeeId(mergeTargetPayee.id);
+    setMergeTargetPayeeId("");
+    setStatusMessage(`Merged ${selectedPayee.name} into ${mergeTargetPayee.name}.`);
   }
 
   function selectPayee(payee: PayeeView) {
@@ -453,6 +490,50 @@ export function PayeeManagementPage() {
                   <strong>{formatDate(selectedPayee.lastUsedAt)}</strong>
                 </div>
               </div>
+
+              {!showArchived ? (
+                <section className="payee-merge-panel">
+                  <div>
+                    <h3>Merge Payee</h3>
+                    <p className="muted">
+                      Merge this payee into another one. The selected payee will
+                      be archived after its usage count, notes, default category,
+                      and import rules are folded into the destination.
+                    </p>
+                  </div>
+
+                  <div className="payee-merge-controls">
+                    <select
+                      className="payee-management-field"
+                      value={mergeTargetPayeeId}
+                      onChange={(event) => setMergeTargetPayeeId(event.target.value)}
+                    >
+                      <option value="">Choose destination payee...</option>
+                      {mergeTargetOptions.map((payee) => (
+                        <option key={payee.id} value={payee.id}>
+                          {payee.name} ({payee.useCount} transactions)
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      className="button button-secondary"
+                      type="button"
+                      disabled={!mergeTargetPayeeId}
+                      onClick={mergeSelectedPayee}
+                    >
+                      Merge...
+                    </button>
+                  </div>
+
+                  {mergeTargetPayee ? (
+                    <p className="payee-merge-preview">
+                      {selectedPayee.name} ({selectedPayee.useCount} transactions) will be
+                      merged into {mergeTargetPayee.name} ({mergeTargetPayee.useCount} transactions).
+                    </p>
+                  ) : null}
+                </section>
+              ) : null}
 
               <div className="payee-management-actions">
                 <p className="muted">{statusMessage}</p>

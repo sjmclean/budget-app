@@ -234,6 +234,10 @@ class BrowserPersistentPayeeService {
         return {
           ...payee,
           isArchived: false,
+          note: mergeNotes(payee.note ?? "", source.note ?? ""),
+          defaultCategoryId: payee.defaultCategoryId || source.defaultCategoryId || "",
+          defaultCategoryName: payee.defaultCategoryName || source.defaultCategoryName || "",
+          importRules: mergeImportRules(payee.importRules ?? [], source.importRules ?? []),
           lastUsedAt: maxIsoDate(payee.lastUsedAt, source.lastUsedAt),
           useCount: payee.useCount + source.useCount,
         };
@@ -340,6 +344,40 @@ function normalisePayees(payees: PayeeView[]): PayeeView[] {
       importRules: normaliseImportRules(payee.importRules ?? []),
       isArchived: payee.isArchived === true,
     }));
+}
+
+function mergeNotes(targetNote: string, sourceNote: string): string {
+  const cleanTargetNote = targetNote.trim();
+  const cleanSourceNote = sourceNote.trim();
+
+  if (!cleanTargetNote) {
+    return cleanSourceNote;
+  }
+
+  if (!cleanSourceNote || cleanTargetNote === cleanSourceNote) {
+    return cleanTargetNote;
+  }
+
+  return `${cleanTargetNote}\n\nMerged note:\n${cleanSourceNote}`;
+}
+
+function mergeImportRules(
+  targetRules: PayeeImportRuleView[],
+  sourceRules: PayeeImportRuleView[],
+): PayeeImportRuleView[] {
+  const existingKeys = new Set(
+    targetRules.map((rule) => `${rule.matchType}:${rule.text.trim().toLocaleLowerCase()}`),
+  );
+
+  return normaliseImportRules([
+    ...targetRules,
+    ...sourceRules
+      .filter((rule) => {
+        const key = `${rule.matchType}:${rule.text.trim().toLocaleLowerCase()}`;
+        return !existingKeys.has(key);
+      })
+      .map((rule) => ({ ...rule, id: `${rule.id}-merged` })),
+  ]);
 }
 
 function normaliseImportRules(rules: PayeeImportRuleView[]): PayeeImportRuleView[] {
