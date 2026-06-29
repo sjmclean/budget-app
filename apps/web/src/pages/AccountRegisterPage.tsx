@@ -1576,7 +1576,7 @@ function SplitEditor({
   return (
     <div
       className={[
-        "register-split-editor",
+        "register-split-editor register-split-allocation-panel",
         balanceStatus.isBalanced
           ? "register-split-editor-balanced"
           : balanceStatus.isOverAssigned
@@ -1584,41 +1584,144 @@ function SplitEditor({
             : "register-split-editor-unbalanced",
       ].join(" ")}
     >
-      <div className="register-split-header register-split-grid-row" style={rowStyle}>
-        {visibleColumnIds.map((columnId) =>
-          columnId === "category" ? (
-            <strong key={columnId}>Split transaction</strong>
-          ) : (
-            <span
-              aria-hidden="true"
-              className="register-split-placeholder-cell"
-              key={columnId}
-            />
-          ),
-        )}
+      <div className="register-split-allocation-header">
+        <strong>Split allocation</strong>
+        <span className="register-split-footer-status">
+          {balanceStatus.isBalanced ? "✓ Balanced" : ""}
+        </span>
+      </div>
+
+      <div className="register-split-allocation-grid register-split-allocation-grid-heading" aria-hidden="true">
+        <span>Remove</span>
+        <span>Category</span>
+        <span>Memo</span>
+        <span>Outflow</span>
+        <span>Inflow</span>
       </div>
 
       {splitLines.map((line) => (
-        <div className="register-split-line register-split-grid-row" key={line.id} style={rowStyle}>
-          {visibleColumnIds.map((columnId) => renderSplitCell(columnId, line))}
+        <div className="register-split-allocation-grid register-split-allocation-line" key={line.id}>
+          <div className="register-split-allocation-remove">
+            {renderSplitRemoveButton(line)}
+          </div>
+
+          <div className="register-split-allocation-category">
+            <CategoryInput
+              value={line.category}
+              onChange={(value) =>
+                setSplitLines((current) =>
+                  current.map((item) =>
+                    item.id === line.id
+                      ? {
+                          ...item,
+                          category: value,
+                          categoryId: findCategoryOption(value, categoryOptions)
+                            ?.id,
+                        }
+                      : item,
+                  ),
+                )
+              }
+              categoryOptions={categoryOptions}
+              includeSplitOption={false}
+            />
+          </div>
+
+          <input
+            className="register-split-allocation-memo"
+            value={line.memo}
+            onChange={(event) =>
+              setSplitLines((current) =>
+                current.map((item) =>
+                  item.id === line.id
+                    ? { ...item, memo: event.target.value }
+                    : item,
+                ),
+              )
+            }
+            placeholder="Split memo"
+          />
+
+          <input
+            className="register-money-input register-split-allocation-amount register-split-allocation-outflow"
+            value={line.outflow}
+            onChange={(event) =>
+              setSplitLines((current) =>
+                current.map((item) =>
+                  item.id === line.id
+                    ? { ...item, outflow: event.target.value }
+                    : item,
+                ),
+              )
+            }
+            placeholder="Outflow"
+            inputMode="decimal"
+            onKeyDown={(event) => addSplitOnTab(event, line)}
+          />
+
+          <input
+            className="register-money-input register-split-allocation-amount register-split-allocation-inflow"
+            value={line.inflow}
+            onChange={(event) =>
+              setSplitLines((current) =>
+                current.map((item) =>
+                  item.id === line.id
+                    ? { ...item, inflow: event.target.value }
+                    : item,
+                ),
+              )
+            }
+            placeholder="Inflow"
+            inputMode="decimal"
+            onKeyDown={(event) => addSplitOnTab(event, line)}
+          />
         </div>
       ))}
 
-      <div className="register-split-footer">
-        <div className="register-split-footer-row register-split-grid-row" style={rowStyle}>
-          {visibleColumnIds.map(renderSplitFooterCell)}
-        </div>
+      <div className="register-split-allocation-footer">
+        <button
+          className="button button-secondary register-split-add-button"
+          type="button"
+          onClick={() =>
+            setSplitLines((current) => [...current, createSplitLineDraft()])
+          }
+        >
+          + Add another split
+        </button>
 
-        <div className="register-split-balance-row register-split-grid-row" style={rowStyle} aria-live="polite">
-          {visibleColumnIds.map(renderAssignCell)}
+        <div className="register-split-allocation-balance" aria-live="polite">
+          <span className="register-split-balance-label">Amount to assign</span>
+          <strong className="register-split-assign-amount register-split-assign-outflow">
+            {balanceStatus.activeSide === "outflow"
+              ? formatMoney(
+                  balanceStatus.isBalanced
+                    ? 0
+                    : -Math.abs(balanceStatus.remaining),
+                  currencyCode,
+                )
+              : ""}
+          </strong>
+          <strong
+            className={[
+              "register-split-assign-amount register-split-assign-inflow",
+              balanceStatus.isOverAssigned ? "register-split-assign-over" : "",
+            ].join(" ")}
+          >
+            {balanceStatus.activeSide === "inflow"
+              ? formatMoney(
+                  balanceStatus.isBalanced ? 0 : balanceStatus.remaining,
+                  currencyCode,
+                )
+              : ""}
+          </strong>
         </div>
-
-        {children ? (
-          <div className="register-split-action-row register-split-grid-row" style={rowStyle}>
-            {visibleColumnIds.map(renderActionCell)}
-          </div>
-        ) : null}
       </div>
+
+      {children ? (
+        <div className="register-split-commit-actions register-split-allocation-actions">
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }

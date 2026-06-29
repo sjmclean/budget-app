@@ -350,7 +350,11 @@
     "test:v2340:ynab4-category-view-fidelity": "tsx tests/v2340-ynab4-category-view-fidelity.ts",
     "test:v2340": "pnpm test:v2340:ynab4-category-view-fidelity",
     "test:v2341:ynab4-category-sortable-index-fidelity": "tsx tests/v2341-ynab4-category-sortable-index-fidelity.ts",
-    "test:v2341": "pnpm test:v2340 && pnpm test:v2341:ynab4-category-sortable-index-fidelity"
+    "test:v2341": "pnpm test:v2340 && pnpm test:v2341:ynab4-category-sortable-index-fidelity",
+    "test:v2342:budget-category-header-definition": "tsx tests/v2342-budget-category-header-definition.ts",
+    "test:v2342": "pnpm test:v2342:budget-category-header-definition",
+    "test:v2343:transaction-split-allocation-panel": "tsx tests/v2343-transaction-split-allocation-panel.ts",
+    "test:v2343": "pnpm test:v2343:transaction-split-allocation-panel"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

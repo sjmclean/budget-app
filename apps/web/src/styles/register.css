@@ -2653,3 +2653,151 @@
     text-align: right;
   }
 }
+
+/* v2.34.3 split allocation panel */
+.register-split-allocation-panel {
+  min-width: 0;
+  margin: 0.42rem 0.72rem 0.7rem;
+  padding: 0.72rem 0.8rem 0.82rem;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent));
+  border-radius: 0.78rem;
+  box-shadow: 0 10px 26px rgb(15 23 42 / 0.06);
+  background: color-mix(in srgb, var(--surface) 82%, var(--surface-subtle));
+}
+
+.register-split-allocation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.66rem;
+}
+
+.register-split-allocation-header strong {
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 850;
+}
+
+.register-split-allocation-grid {
+  display: grid;
+  grid-template-columns: 3.6rem minmax(14rem, 1.7fr) minmax(8rem, 0.85fr) minmax(7rem, 0.55fr) minmax(7rem, 0.55fr);
+  align-items: center;
+  gap: 0.58rem;
+}
+
+.register-split-allocation-grid-heading {
+  margin-bottom: 0.32rem;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.register-split-allocation-line {
+  margin-bottom: 0.44rem;
+}
+
+.register-split-allocation-remove {
+  display: inline-flex;
+  justify-content: center;
+}
+
+.register-split-allocation-category,
+.register-split-allocation-category .category-input,
+.register-split-allocation-category input {
+  min-width: 0;
+}
+
+.register-split-allocation-line input {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.45rem 0.55rem;
+}
+
+.register-split-allocation-amount {
+  text-align: right;
+}
+
+.register-split-allocation-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.2rem;
+  padding-top: 0.62rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.register-split-allocation-balance {
+  display: grid;
+  grid-template-columns: auto minmax(5.8rem, auto) minmax(5.8rem, auto);
+  align-items: center;
+  gap: 0.58rem;
+}
+
+.register-split-allocation-actions {
+  justify-content: flex-end;
+  margin-top: 0.72rem;
+  padding-top: 0.72rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+@media (max-width: 1120px) {
+  .register-split-allocation-grid {
+    grid-template-columns: 2.6rem minmax(11rem, 1.6fr) minmax(7rem, 0.75fr) minmax(6.5rem, 0.55fr) minmax(6.5rem, 0.55fr);
+    gap: 0.46rem;
+  }
+}
+
+@media (max-width: 820px) {
+  .register-split-allocation-panel {
+    margin-inline: 0.45rem;
+  }
+
+  .register-split-allocation-grid-heading {
+    display: none;
+  }
+
+  .register-split-allocation-line {
+    grid-template-columns: 2.25rem minmax(10rem, 1.1fr) minmax(8rem, 0.85fr);
+    grid-template-areas:
+      "remove category memo"
+      "remove outflow inflow";
+  }
+
+  .register-split-allocation-remove {
+    grid-area: remove;
+  }
+
+  .register-split-allocation-category {
+    grid-area: category;
+  }
+
+  .register-split-allocation-memo {
+    grid-area: memo;
+  }
+
+  .register-split-allocation-outflow {
+    grid-area: outflow;
+  }
+
+  .register-split-allocation-inflow {
+    grid-area: inflow;
+  }
+
+  .register-split-allocation-footer,
+  .register-split-allocation-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .register-split-allocation-balance {
+    justify-content: end;
+  }
+}
