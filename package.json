@@ -360,7 +360,9 @@
     "test:v2351:sticky-register-header-stack": "tsx tests/v2351-sticky-register-header-stack.ts",
     "test:v2351": "pnpm test:v2351:sticky-register-header-stack",
     "test:v2352:sticky-budget-working-header": "tsx tests/v2352-sticky-budget-working-header.ts",
-    "test:v2352": "pnpm test:v2352:sticky-budget-working-header"
+    "test:v2352": "pnpm test:v2352:sticky-budget-working-header",
+    "test:v2352a:budget-sticky-stack-correction": "tsx tests/v2352a-budget-sticky-stack-correction.ts",
+    "test:v2352a": "pnpm test:v2352a:budget-sticky-stack-correction"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
