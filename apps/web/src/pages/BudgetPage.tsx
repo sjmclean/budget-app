@@ -79,6 +79,36 @@ function getAvailableClass(value: number, isOverassignedSource: boolean) {
   return "available-pill available-pill-positive";
 }
 
+function getDragPreviewSource(element: HTMLElement) {
+  return element.closest<HTMLElement>(
+    ".budget-workspace-row, .budget-workspace-group-header",
+  );
+}
+
+function setWholeRowDragPreview(event: DragEvent<HTMLElement>) {
+  const previewSource = getDragPreviewSource(event.currentTarget);
+
+  if (!previewSource) {
+    return;
+  }
+
+  const preview = previewSource.cloneNode(true) as HTMLElement;
+  preview.classList.add("budget-drag-preview");
+  preview.style.width = `${previewSource.getBoundingClientRect().width}px`;
+  preview.style.position = "fixed";
+  preview.style.top = "-1000px";
+  preview.style.left = "-1000px";
+  preview.style.pointerEvents = "none";
+  document.body.appendChild(preview);
+
+  event.dataTransfer.setDragImage(preview, 18, 18);
+
+  window.setTimeout(() => {
+    preview.remove();
+  }, 0);
+}
+
+
 function EditableAssignedCell({
   category,
   currencyCode,
@@ -189,7 +219,7 @@ function BudgetCategoryRow({
   onActivityClick: () => void;
   onDragStart: (categoryId: string, groupId: string) => void;
   onDragOverCategory: (
-    event: DragEvent<HTMLButtonElement>,
+    event: DragEvent<HTMLElement>,
     targetCategoryId: string,
     targetGroupId: string,
   ) => void;
@@ -219,20 +249,23 @@ function BudgetCategoryRow({
       onDragEnd={onDragEnd}
       style={rowStyle}
     >
-      <div className="budget-category-cell">
+      <div
+        className="budget-category-cell budget-category-drag-region"
+        draggable
+        title="Drag category name to reorder within this category group"
+        onClick={(event) => event.stopPropagation()}
+        onDragStart={(event) => {
+          event.stopPropagation();
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", category.id);
+          setWholeRowDragPreview(event);
+          onDragStart(category.id, groupId);
+        }}
+        aria-label={`Drag ${category.name} to reorder within ${groupId}`}
+      >
         <span
           className="drag-handle drag-handle-active"
-          title="Drag to reorder within this category group"
-          draggable
-          onClick={(event) => event.stopPropagation()}
-          onMouseDown={(event) => event.stopPropagation()}
-          onDragStart={(event) => {
-            event.stopPropagation();
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", category.id);
-            onDragStart(category.id, groupId);
-          }}
-          aria-label={`Drag ${category.name} to reorder within ${groupId}`}
+          aria-hidden="true"
         >
           ⋮⋮
         </span>
@@ -359,7 +392,7 @@ function BudgetGroup({
   onGroupDragEnd: () => void;
   onCategoryDragStart: (categoryId: string, groupId: string) => void;
   onCategoryDragOver: (
-    event: DragEvent<HTMLButtonElement>,
+    event: DragEvent<HTMLElement>,
     targetCategoryId: string,
     targetGroupId: string,
   ) => void;
@@ -392,22 +425,26 @@ function BudgetGroup({
         <div className="budget-group-title">
           <span
             className="drag-handle drag-handle-active budget-group-drag-handle"
-            title="Drag to reorder category groups"
-            draggable
-            onClick={(event) => event.stopPropagation()}
-            onMouseDown={(event) => event.stopPropagation()}
-            onDragStart={(event) => {
-              event.stopPropagation();
-              event.dataTransfer.effectAllowed = "move";
-              event.dataTransfer.setData("text/plain", group.id);
-              onGroupDragStart(group.id);
-            }}
-            aria-label={`Drag ${group.name} category group to reorder groups`}
+            aria-hidden="true"
           >
             ⋮⋮
           </span>
           <span>⌄</span>
-          <strong>{group.name}</strong>
+          <strong
+            className="budget-group-name-drag-region"
+            draggable
+            title="Drag category group name to reorder groups"
+            onDragStart={(event) => {
+              event.stopPropagation();
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", group.id);
+              setWholeRowDragPreview(event);
+              onGroupDragStart(group.id);
+            }}
+            aria-label={`Drag ${group.name} category group to reorder groups`}
+          >
+            {group.name}
+          </strong>
           {group.note?.trim() ? (
             <span
               className="category-note-indicator"
@@ -1011,7 +1048,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   }
 
   function updateCategoryDropTarget(
-    event: DragEvent<HTMLButtonElement>,
+    event: DragEvent<HTMLElement>,
     targetCategoryId: string,
     targetGroupId: string,
   ) {
