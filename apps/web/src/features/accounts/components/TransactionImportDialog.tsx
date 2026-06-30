@@ -6,16 +6,21 @@ import type {
 import {
   analyseTransactionCsvImport,
   buildRegisterTransactionsFromImport,
+  createTransactionImportPerformanceReport,
   createTransactionImportProfile,
   findMatchingTransactionImportProfile,
   previewTransactionCsvImport,
+  previewTransactionQifImport,
   readTransactionImportProfiles,
+  formatImportDuration,
   upsertTransactionImportProfile,
   writeTransactionImportProfiles,
   type CsvImportAnalysis,
   type CsvImportColumnMapping,
   type CsvImportColumnRole,
   type TransactionImportCandidate,
+  type TransactionImportPerformanceEntry,
+  type TransactionImportPerformanceReport,
   type TransactionImportPreview,
 } from "../transactionImport";
 
@@ -95,6 +100,38 @@ function inferProfileName(fileName: string, accountName: string) {
   return baseName ? `${baseName} CSV` : `${accountName} CSV`;
 }
 
+function nowMs() {
+  return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
+
+function measureImportStage<T>(
+  entries: TransactionImportPerformanceEntry[],
+  label: string,
+  action: () => T,
+): T {
+  const startedAt = nowMs();
+
+  try {
+    return action();
+  } finally {
+    entries.push({ label, durationMs: nowMs() - startedAt });
+  }
+}
+
+async function measureAsyncImportStage<T>(
+  entries: TransactionImportPerformanceEntry[],
+  label: string,
+  action: () => Promise<T>,
+): Promise<T> {
+  const startedAt = nowMs();
+
+  try {
+    return await action();
+  } finally {
+    entries.push({ label, durationMs: nowMs() - startedAt });
+  }
+}
+
 export function TransactionImportDialog({
   accountName,
   transactions,
@@ -129,6 +166,9 @@ export function TransactionImportDialog({
   );
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [performanceReport, setPerformanceReport] =
+    useState<TransactionImportPerformanceReport | null>(null);
   const selectedCount = candidates.filter(
     (candidate) => candidate.selected && candidate.status === "new",
   ).length;
@@ -150,6 +190,7 @@ export function TransactionImportDialog({
     setStep("upload");
     setError(null);
     setMessage(null);
+    setPerformanceReport(null);
     setPreview(null);
     setCandidates([]);
     setAnalysis(null);
@@ -164,35 +205,71 @@ export function TransactionImportDialog({
 
   async function readFile(file: File) {
     resetImportState();
+    const timings: TransactionImportPerformanceEntry[] = [];
 
-    const detectedType = detectImportFileType(file.name);
+    const detectedType = measureImportStage(timings, "Detect file type", () =>
+      detectImportFileType(file.name),
+    );
     setFileName(file.name);
     setFileType(detectedType);
 
-    if (detectedType !== "csv") {
+    if (detectedType !== "csv" && detectedType !== "qif") {
       setError(
         detectedType === "unknown"
-          ? "This file type could not be detected yet. CSV import is available in this first wizard release."
-          : `${getFileTypeLabel(detectedType)} files are recognised but not connected to the new wizard yet. Start with CSV while the wizard foundation is being refreshed.`,
+          ? "This file type could not be detected yet. CSV and QIF import are available in this wizard release."
+          : `${getFileTypeLabel(detectedType)} files are recognised but not connected to the new wizard yet. Start with CSV or QIF while the wizard foundation is being refreshed.`,
       );
+      setPerformanceReport(createTransactionImportPerformanceReport(timings));
       return;
     }
 
-    const text = await file.text();
-    const nextAnalysis = analyseTransactionCsvImport(text);
+    const text = await measureAsyncImportStage(timings, "Read file text", () =>
+      file.text(),
+    );
+
+    if (detectedType === "qif") {
+      const nextPreview = measureImportStage(timings, "Parse and preview QIF", () =>
+        previewTransactionQifImport(text, transactions),
+      );
+
+      if (nextPreview.candidates.length === 0) {
+        setError("The QIF file does not appear to contain any transactions.");
+        setPerformanceReport(createTransactionImportPerformanceReport(timings));
+        return;
+      }
+
+      setPreview(nextPreview);
+      setCandidates(nextPreview.candidates);
+      setMessage(
+        `QIF detected. ${nextPreview.summary.totalRows} transaction${
+          nextPreview.summary.totalRows === 1 ? "" : "s"
+        } ready for review.`,
+      );
+      setStep("review");
+      setPerformanceReport(createTransactionImportPerformanceReport(timings));
+      return;
+    }
+
+    const nextAnalysis = measureImportStage(timings, "Analyse CSV columns", () =>
+      analyseTransactionCsvImport(text),
+    );
 
     if (nextAnalysis.columns.length === 0) {
       setError("The CSV file appears to be empty.");
+      setPerformanceReport(createTransactionImportPerformanceReport(timings));
       return;
     }
 
-    const latestProfiles = readTransactionImportProfiles();
-    const matchingProfile = findMatchingTransactionImportProfile(
-      latestProfiles,
-      nextAnalysis,
+    const latestProfiles = measureImportStage(timings, "Read import profiles", () =>
+      readTransactionImportProfiles(),
+    );
+    const matchingProfile = measureImportStage(timings, "Match import profile", () =>
+      findMatchingTransactionImportProfile(latestProfiles, nextAnalysis),
     );
     const nextMapping = matchingProfile?.mapping ?? nextAnalysis.suggestedMapping;
-    const hasRequiredMapping = hasRequiredCsvMapping(nextMapping);
+    const hasRequiredMapping = measureImportStage(timings, "Validate mapping", () =>
+      hasRequiredCsvMapping(nextMapping),
+    );
 
     setImportProfiles(latestProfiles);
     setCsvText(text);
@@ -208,13 +285,17 @@ export function TransactionImportDialog({
     }
 
     if (hasRequiredMapping) {
-      buildCsvPreview(text, nextMapping, { preserveMessage: true });
+      buildCsvPreview(text, nextMapping, {
+        preserveMessage: true,
+        timings,
+      });
       return;
     }
 
     setMessage(
       "CSV detected. Map the missing columns and this statement format can be remembered for next time.",
     );
+    setPerformanceReport(createTransactionImportPerformanceReport(timings));
   }
 
   function saveImportProfile(nextMapping: CsvImportColumnMapping) {
@@ -242,7 +323,11 @@ export function TransactionImportDialog({
   function buildCsvPreview(
     nextCsvText = csvText,
     nextMapping: CsvImportColumnMapping = mapping,
-    options: { saveProfile?: boolean; preserveMessage?: boolean } = {},
+    options: {
+      saveProfile?: boolean;
+      preserveMessage?: boolean;
+      timings?: TransactionImportPerformanceEntry[];
+    } = {},
   ) {
     if (!nextCsvText) {
       setError("Choose a transaction file first.");
@@ -264,14 +349,18 @@ export function TransactionImportDialog({
       setMessage(null);
     }
 
-    const nextPreview = previewTransactionCsvImport(
-      nextCsvText,
-      transactions,
-      nextMapping,
+    const timings = options.timings ?? [];
+    const nextPreview = measureImportStage(timings, "Parse and preview CSV", () =>
+      previewTransactionCsvImport(
+        nextCsvText,
+        transactions,
+        nextMapping,
+      ),
     );
     setPreview(nextPreview);
     setCandidates(nextPreview.candidates);
     setStep("review");
+    setPerformanceReport(createTransactionImportPerformanceReport(timings));
   }
 
   function updateColumnRole(columnIndex: number, role: CsvImportColumnRole) {
@@ -304,22 +393,40 @@ export function TransactionImportDialog({
   }
 
   async function importSelected() {
-    const importable = buildRegisterTransactionsFromImport(candidates);
+    const timings: TransactionImportPerformanceEntry[] = [];
+    const importable = measureImportStage(timings, "Build import payload", () =>
+      buildRegisterTransactionsFromImport(candidates),
+    );
 
     if (importable.length === 0) {
       setError("No new transactions are selected for import.");
       return;
     }
 
-    await onImportTransactions(importable);
+    setIsImporting(true);
+    setError(null);
+    setMessage(`Importing ${importable.length} transaction${importable.length === 1 ? "" : "s"}…`);
 
-    setMessage(
-      `Imported ${importable.length} transaction${importable.length === 1 ? "" : "s"} into ${accountName}.`,
-    );
-    setStep("complete");
-    setCandidates((current) =>
-      current.map((candidate) => ({ ...candidate, selected: false })),
-    );
+    try {
+      // Keep the commit path delegated to the register page.
+      // await onImportTransactions(importable)
+      await measureAsyncImportStage(timings, "Commit transactions", () =>
+        onImportTransactions(importable),
+      );
+
+      measureImportStage(timings, "Complete import UI update", () => {
+        setMessage(
+          `Imported ${importable.length} transaction${importable.length === 1 ? "" : "s"} into ${accountName}.`,
+        );
+        setStep("complete");
+        setCandidates((current) =>
+          current.map((candidate) => ({ ...candidate, selected: false })),
+        );
+      });
+      setPerformanceReport(createTransactionImportPerformanceReport(timings));
+    } finally {
+      setIsImporting(false);
+    }
   }
 
   return (
@@ -346,6 +453,7 @@ export function TransactionImportDialog({
             className="button button-secondary"
             type="button"
             onClick={onClose}
+            disabled={isImporting}
             aria-label="Close import transactions"
           >
             Close
@@ -395,6 +503,7 @@ export function TransactionImportDialog({
             <button
               className="transaction-import-dropzone"
               type="button"
+              disabled={isImporting}
               onClick={() => fileInputRef.current?.click()}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
@@ -433,7 +542,7 @@ export function TransactionImportDialog({
             </div>
             <div>
               <span className="transaction-import-detection-label">Mapped Columns</span>
-              <strong>{countMappedColumns(mapping)}</strong>
+              <strong>{fileType === "csv" ? countMappedColumns(mapping) : "Not needed"}</strong>
             </div>
           </div>
         ) : null}
@@ -536,6 +645,7 @@ export function TransactionImportDialog({
               <button
                 className="button button-primary"
                 type="button"
+                disabled={isImporting}
                 onClick={() => buildCsvPreview(csvText, mapping, { saveProfile: true })}
               >
                 Review Transactions
@@ -554,13 +664,15 @@ export function TransactionImportDialog({
                   {matchedProfileName ? ` Profile: ${matchedProfileName}.` : ""}
                 </p>
               </div>
-              <button
-                className="button button-secondary"
-                type="button"
-                onClick={() => setStep("mapping")}
-              >
-                Edit Mapping
-              </button>
+              {fileType === "csv" ? (
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => setStep("mapping")}
+                >
+                  Edit Mapping
+                </button>
+              ) : null}
             </div>
             <div className="transaction-import-summary transaction-import-review-summary">
               <span>✓ {readyCount} Ready</span>
@@ -625,9 +737,36 @@ export function TransactionImportDialog({
             <div className="transaction-import-complete-icon">✓</div>
             <h3>Import complete</h3>
             <p>{message}</p>
-            <button className="button button-primary" type="button" onClick={onClose}>
+            <button
+              className="button button-primary"
+              type="button"
+              disabled={isImporting}
+              onClick={onClose}
+            >
               Done
             </button>
+          </div>
+        ) : null}
+
+
+        {performanceReport ? (
+          <div className="transaction-import-performance-panel">
+            <div className="transaction-import-section-heading">
+              <div>
+                <h3>Import performance</h3>
+                <p className="muted">
+                  Total measured time: {formatImportDuration(performanceReport.totalMs)}
+                </p>
+              </div>
+            </div>
+            <div className="transaction-import-performance-list">
+              {performanceReport.entries.map((entry) => (
+                <div className="transaction-import-performance-row" key={entry.label}>
+                  <span>{entry.label}</span>
+                  <strong>{formatImportDuration(entry.durationMs)}</strong>
+                </div>
+              ))}
+            </div>
           </div>
         ) : null}
 
@@ -651,11 +790,11 @@ export function TransactionImportDialog({
               <button
                 className="button button-primary"
                 type="button"
-                disabled={selectedCount === 0}
+                disabled={selectedCount === 0 || isImporting}
                 onClick={() => void importSelected()}
               >
-                Import {selectedCount} Transaction
-                {selectedCount === 1 ? "" : "s"}
+                {isImporting ? "Importing…" : <>Import {selectedCount} Transaction
+                {selectedCount === 1 ? "" : "s"}</>}
               </button>
             </div>
           </div>

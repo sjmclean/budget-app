@@ -20,6 +20,7 @@ interface UseAccountRegisterState {
   isSaving: boolean;
   error: string | null;
   addTransaction: (input: NewRegisterTransactionInput) => Promise<void>;
+  addTransactions: (inputs: NewRegisterTransactionInput[]) => Promise<void>;
   updateTransaction: (input: UpdateRegisterTransactionInput) => Promise<void>;
   toggleCleared: (transactionId: string) => Promise<void>;
   deleteTransaction: (transactionId: string) => Promise<void>;
@@ -115,6 +116,12 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     );
   }, [accountId, accountRegisters, runMutation]);
 
+  const addTransactions = useCallback(async (inputs: NewRegisterTransactionInput[]) => {
+    await runMutation(
+      () => accountRegisters.addTransactions({ accountId, transactions: inputs }),
+    );
+  }, [accountId, accountRegisters, runMutation]);
+
   const updateTransaction = useCallback(async (input: UpdateRegisterTransactionInput) => {
     await runMutation(
       () => accountRegisters.updateTransaction({ accountId, transaction: input }),
@@ -205,6 +212,7 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     isSaving,
     error,
     addTransaction,
+    addTransactions,
     updateTransaction,
     toggleCleared,
     deleteTransaction,

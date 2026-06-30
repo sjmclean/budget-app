@@ -93,14 +93,46 @@ class BrowserPersistentPayeeService {
   }
 
   async recordPayees(names: string[]): Promise<PayeeView[]> {
-    let latest = readPayees(this.dependencies.storage);
+    const payees = readPayees(this.dependencies.storage);
+    const now = new Date().toISOString();
+    let nextPayees = payees;
 
-    for (const name of names) {
-      await this.recordPayee(name);
-      latest = readPayees(this.dependencies.storage);
+    for (const rawName of names) {
+      const trimmed = normalisePayeeName(rawName);
+
+      if (!trimmed || isTransferPayee(trimmed)) {
+        continue;
+      }
+
+      const existing = nextPayees.find((payee) => samePayee(payee.name, trimmed));
+
+      nextPayees = existing
+        ? nextPayees.map((payee) =>
+            payee.id === existing.id
+              ? {
+                  ...payee,
+                  name: payee.name || trimmed,
+                  lastUsedAt: now,
+                  useCount: payee.useCount + 1,
+                  isArchived: false,
+                }
+              : payee,
+          )
+        : [
+            ...nextPayees,
+            {
+              id: createPayeeId(trimmed, nextPayees),
+              name: trimmed,
+              createdAt: now,
+              lastUsedAt: now,
+              useCount: 1,
+              isArchived: false,
+            },
+          ];
     }
 
-    return sortPayees(latest.filter((payee) => !payee.isArchived));
+    writePayees(this.dependencies.storage, nextPayees);
+    return sortPayees(nextPayees.filter((payee) => !payee.isArchived));
   }
 
   async renamePayee(input: RenamePayeeInput): Promise<PayeeView[]> {

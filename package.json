@@ -382,7 +382,13 @@
     "test:v2400:import-wizard": "tsx tests/v2400-import-wizard.ts",
     "test:v2400": "pnpm test:v2400:import-wizard",
     "test:v2401:import-profiles": "tsx tests/v2401-import-profiles.ts",
-    "test:v2401": "pnpm test:v2400 && pnpm test:v2401:import-profiles"
+    "test:v2401": "pnpm test:v2400 && pnpm test:v2401:import-profiles",
+    "test:v2402:qif-import": "tsx tests/v2402-qif-import.ts",
+    "test:v2402": "pnpm test:v2401 && pnpm test:v2402:qif-import",
+    "test:v2403:import-performance-analysis": "tsx tests/v2403-import-performance-analysis.ts",
+    "test:v2403": "pnpm test:v2402 && pnpm test:v2403:import-performance-analysis",
+    "test:v2404:batch-import-commit": "tsx tests/v2404-batch-import-commit.ts",
+    "test:v2404": "pnpm test:v2403 && pnpm test:v2404:batch-import-commit"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

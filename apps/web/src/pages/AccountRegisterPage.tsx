@@ -2841,6 +2841,7 @@ export function AccountRegisterPage() {
     isLoading,
     error,
     addTransaction,
+    addTransactions,
     updateTransaction,
     toggleCleared,
     deleteTransaction,
@@ -4200,9 +4201,7 @@ export function AccountRegisterPage() {
             currencyCode={data.currencyCode}
             onClose={() => setIsTransactionImportOpen(false)}
             onImportTransactions={async (transactions) => {
-              for (const transaction of transactions) {
-                await addTransaction(transaction);
-              }
+              await addTransactions(transactions);
             }}
           />
         )}

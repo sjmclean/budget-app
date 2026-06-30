@@ -23,6 +23,9 @@ const accountRegisterService = createAccountRegisterService({
   recordPayee: async (payeeName: string) => {
     await payeeService.recordPayee(payeeName);
   },
+  recordPayees: async (payeeNames: string[]) => {
+    await payeeService.recordPayees(payeeNames);
+  },
   findPayeeIdByName: (payeeName: string) => findPayeeIdByName(budgetScopedStorage, payeeName),
   readAccounts: () => readAccounts(budgetScopedStorage),
   getAccountById: (accountId: string) => accountService.getAccountById(accountId) ?? undefined,

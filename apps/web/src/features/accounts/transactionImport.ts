@@ -3,7 +3,8 @@ import type {
   RegisterTransactionView,
 } from "./accountRegisterTypes";
 
-export type TransactionImportMatchStatus = "exact-match" | "possible-match" | "new" | "invalid";
+export type TransactionImportMatchStatus =
+  "exact-match" | "possible-match" | "new" | "invalid";
 export type CsvImportColumnRole =
   | "date"
   | "payee"
@@ -29,6 +30,34 @@ export interface TransactionImportProfile {
 
 export const TRANSACTION_IMPORT_PROFILES_STORAGE_KEY =
   "budget-app.transaction-import-profiles.v1";
+
+
+export interface TransactionImportPerformanceEntry {
+  label: string;
+  durationMs: number;
+}
+
+export interface TransactionImportPerformanceReport {
+  totalMs: number;
+  entries: TransactionImportPerformanceEntry[];
+}
+
+export function createTransactionImportPerformanceReport(
+  entries: TransactionImportPerformanceEntry[],
+): TransactionImportPerformanceReport {
+  return {
+    totalMs: entries.reduce((total, entry) => total + entry.durationMs, 0),
+    entries,
+  };
+}
+
+export function formatImportDuration(durationMs: number) {
+  if (durationMs < 1000) {
+    return `${Math.round(durationMs)} ms`;
+  }
+
+  return `${(durationMs / 1000).toFixed(2)} s`;
+}
 
 export interface CsvImportColumnAnalysis {
   index: number;
@@ -78,19 +107,64 @@ export interface TransactionImportPreview {
   };
 }
 
-const DATE_HEADERS = ["date", "transaction date", "posted date", "posting date", "settled date", "effective date", "process date", "processed date", "value date"];
-const PAYEE_HEADERS = ["payee", "description", "merchant", "name", "narrative", "transaction details", "details"];
-const MEMO_HEADERS = ["memo", "notes", "reference", "description 2", "details 2"];
+const DATE_HEADERS = [
+  "date",
+  "transaction date",
+  "posted date",
+  "posting date",
+  "settled date",
+  "effective date",
+  "process date",
+  "processed date",
+  "value date",
+];
+const PAYEE_HEADERS = [
+  "payee",
+  "description",
+  "merchant",
+  "name",
+  "narrative",
+  "transaction details",
+  "details",
+];
+const MEMO_HEADERS = [
+  "memo",
+  "notes",
+  "reference",
+  "description 2",
+  "details 2",
+];
 const AMOUNT_HEADERS = ["amount", "value", "transaction amount"];
-const OUTFLOW_HEADERS = ["outflow", "debit", "withdrawal", "withdrawals", "spent", "money out"];
-const INFLOW_HEADERS = ["inflow", "credit", "deposit", "deposits", "received", "money in"];
+const OUTFLOW_HEADERS = [
+  "outflow",
+  "debit",
+  "withdrawal",
+  "withdrawals",
+  "spent",
+  "money out",
+];
+const INFLOW_HEADERS = [
+  "inflow",
+  "credit",
+  "deposit",
+  "deposits",
+  "received",
+  "money in",
+];
 const BALANCE_HEADERS = ["balance", "running balance", "account balance"];
 
-export function analyseTransactionCsvImport(csvText: string): CsvImportAnalysis {
+export function analyseTransactionCsvImport(
+  csvText: string,
+): CsvImportAnalysis {
   const rows = parseCsvRows(csvText);
 
   if (rows.length === 0) {
-    return { columns: [], sampleRows: [], suggestedMapping: {}, totalDataRows: 0 };
+    return {
+      columns: [],
+      sampleRows: [],
+      suggestedMapping: {},
+      totalDataRows: 0,
+    };
   }
 
   const headers = rows[0];
@@ -100,9 +174,12 @@ export function analyseTransactionCsvImport(csvText: string): CsvImportAnalysis 
   const columns = headers.map((header, index) => {
     const normalisedHeader = normaliseHeader(header);
     const baseRole = suggestColumnRole(normalisedHeader);
-    const suggestedRole = baseRole === "ignore" || baseRole === "balance" || !usedRoles.has(baseRole)
-      ? baseRole
-      : "ignore";
+    const suggestedRole =
+      baseRole === "ignore" ||
+      baseRole === "balance" ||
+      !usedRoles.has(baseRole)
+        ? baseRole
+        : "ignore";
 
     if (suggestedRole !== "ignore" && suggestedRole !== "balance") {
       usedRoles.add(suggestedRole);
@@ -112,7 +189,10 @@ export function analyseTransactionCsvImport(csvText: string): CsvImportAnalysis 
       index,
       header: header.trim() || `Column ${index + 1}`,
       normalisedHeader,
-      sampleValues: sampleRows.map((row) => row[index] ?? "").filter((value) => value.trim()).slice(0, 3),
+      sampleValues: sampleRows
+        .map((row) => row[index] ?? "")
+        .filter((value) => value.trim())
+        .slice(0, 3),
       suggestedRole,
     };
   });
@@ -133,18 +213,48 @@ export function previewTransactionCsvImport(
   existingTransactions: RegisterTransactionView[],
   mapping?: CsvImportColumnMapping,
 ): TransactionImportPreview {
-  const parsed = parseTransactionCsv(csvText, mapping);
-  const candidates = parsed.map((transaction) => classifyImportCandidate(transaction, existingTransactions));
+  return buildTransactionImportPreview(
+    parseTransactionCsv(csvText, mapping),
+    existingTransactions,
+  );
+}
+
+export function previewTransactionQifImport(
+  qifText: string,
+  existingTransactions: RegisterTransactionView[],
+): TransactionImportPreview {
+  return buildTransactionImportPreview(
+    parseTransactionQif(qifText),
+    existingTransactions,
+  );
+}
+
+function buildTransactionImportPreview(
+  parsedTransactions: ParsedImportTransaction[],
+  existingTransactions: RegisterTransactionView[],
+): TransactionImportPreview {
+  const candidates = parsedTransactions.map((transaction) =>
+    classifyImportCandidate(transaction, existingTransactions),
+  );
 
   return {
     candidates,
     summary: {
       totalRows: candidates.length,
-      newTransactions: candidates.filter((candidate) => candidate.status === "new").length,
-      exactMatches: candidates.filter((candidate) => candidate.status === "exact-match").length,
-      possibleMatches: candidates.filter((candidate) => candidate.status === "possible-match").length,
-      invalidRows: candidates.filter((candidate) => candidate.status === "invalid").length,
-      selectedForImport: candidates.filter((candidate) => candidate.selected).length,
+      newTransactions: candidates.filter(
+        (candidate) => candidate.status === "new",
+      ).length,
+      exactMatches: candidates.filter(
+        (candidate) => candidate.status === "exact-match",
+      ).length,
+      possibleMatches: candidates.filter(
+        (candidate) => candidate.status === "possible-match",
+      ).length,
+      invalidRows: candidates.filter(
+        (candidate) => candidate.status === "invalid",
+      ).length,
+      selectedForImport: candidates.filter((candidate) => candidate.selected)
+        .length,
     },
   };
 }
@@ -171,18 +281,26 @@ export function buildRegisterTransactionsFromImport(
     }));
 }
 
-export function parseTransactionCsv(csvText: string, mapping?: CsvImportColumnMapping): ParsedImportTransaction[] {
+export function parseTransactionCsv(
+  csvText: string,
+  mapping?: CsvImportColumnMapping,
+): ParsedImportTransaction[] {
   const rows = parseCsvRows(csvText);
 
   if (rows.length <= 1) {
     return [];
   }
 
-  const headers = rows[0].map((header, index) => header.trim() || `Column ${index + 1}`);
-  const resolvedMapping = mapping ?? analyseTransactionCsvImport(csvText).suggestedMapping;
+  const headers = rows[0].map(
+    (header, index) => header.trim() || `Column ${index + 1}`,
+  );
+  const resolvedMapping =
+    mapping ?? analyseTransactionCsvImport(csvText).suggestedMapping;
 
   return rows.slice(1).map((row, index) => {
-    const raw = Object.fromEntries(headers.map((header, headerIndex) => [header, row[headerIndex] ?? ""]));
+    const raw = Object.fromEntries(
+      headers.map((header, headerIndex) => [header, row[headerIndex] ?? ""]),
+    );
     const date = normaliseImportDate(readRole(row, resolvedMapping, "date"));
     const memoValue = readRole(row, resolvedMapping, "memo").trim();
     const payee = readImportPayee(row, resolvedMapping, memoValue);
@@ -199,6 +317,85 @@ export function parseTransactionCsv(csvText: string, mapping?: CsvImportColumnMa
       raw,
     };
   });
+}
+
+export function parseTransactionQif(
+  qifText: string,
+): ParsedImportTransaction[] {
+  const transactions: ParsedImportTransaction[] = [];
+  let record: Record<string, string> = {};
+  let rowNumber = 1;
+
+  function commitRecord() {
+    if (Object.keys(record).length === 0) {
+      return;
+    }
+
+    const amount = parseMoney(record.amount ?? "");
+    const payee = (record.payee ?? record.memo ?? "").trim();
+    const memo = record.memo?.trim() || undefined;
+
+    transactions.push({
+      rowNumber,
+      date: normaliseImportDate(record.date ?? ""),
+      payee,
+      memo,
+      outflow: amount < 0 ? Math.abs(amount) : 0,
+      inflow: amount > 0 ? Math.abs(amount) : 0,
+      raw: { ...record },
+    });
+
+    record = {};
+  }
+
+  for (const rawLine of qifText.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    rowNumber += 1;
+
+    if (!line || line.startsWith("!")) {
+      continue;
+    }
+
+    if (line === "^") {
+      commitRecord();
+      continue;
+    }
+
+    const code = line[0];
+    const value = line.slice(1).trim();
+
+    switch (code) {
+      case "D":
+        record.date = value;
+        break;
+      case "T":
+      case "U":
+        record.amount = value;
+        break;
+      case "P":
+        record.payee = value;
+        break;
+      case "M":
+        record.memo = value;
+        break;
+      case "L":
+        record.category = value;
+        break;
+      case "N":
+        record.number = value;
+        break;
+      case "C":
+        record.cleared = value;
+        break;
+      default:
+        record[`qif_${code}`] = value;
+        break;
+    }
+  }
+
+  commitRecord();
+
+  return transactions;
 }
 
 function suggestColumnRole(header: string): CsvImportColumnRole {
@@ -233,8 +430,14 @@ function suggestColumnRole(header: string): CsvImportColumnRole {
   return "ignore";
 }
 
-function readRole(row: string[], mapping: CsvImportColumnMapping, role: CsvImportColumnRole): string {
-  const entry = Object.entries(mapping).find(([, mappedRole]) => mappedRole === role);
+function readRole(
+  row: string[],
+  mapping: CsvImportColumnMapping,
+  role: CsvImportColumnRole,
+): string {
+  const entry = Object.entries(mapping).find(
+    ([, mappedRole]) => mappedRole === role,
+  );
   if (!entry) {
     return "";
   }
@@ -242,7 +445,11 @@ function readRole(row: string[], mapping: CsvImportColumnMapping, role: CsvImpor
   return row[Number(entry[0])] ?? "";
 }
 
-function readImportPayee(row: string[], mapping: CsvImportColumnMapping, memoValue: string): string {
+function readImportPayee(
+  row: string[],
+  mapping: CsvImportColumnMapping,
+  memoValue: string,
+): string {
   const primaryPayee = readRole(row, mapping, "payee").trim();
   if (primaryPayee) {
     return primaryPayee;
@@ -256,12 +463,18 @@ function readImportPayee(row: string[], mapping: CsvImportColumnMapping, memoVal
   return memoValue.trim();
 }
 
-function readMappedImportAmount(row: string[], mapping: CsvImportColumnMapping): { outflow: number; inflow: number } {
+function readMappedImportAmount(
+  row: string[],
+  mapping: CsvImportColumnMapping,
+): { outflow: number; inflow: number } {
   const explicitOutflow = parseMoney(readRole(row, mapping, "outflow"));
   const explicitInflow = parseMoney(readRole(row, mapping, "inflow"));
 
   if (explicitOutflow > 0 || explicitInflow > 0) {
-    return { outflow: Math.abs(explicitOutflow), inflow: Math.abs(explicitInflow) };
+    return {
+      outflow: Math.abs(explicitOutflow),
+      inflow: Math.abs(explicitInflow),
+    };
   }
 
   const amount = parseMoney(readRole(row, mapping, "amount"));
@@ -304,14 +517,17 @@ function classifyImportCandidate(
       status: "exact-match",
       matchedTransactionId: exact.id,
       matchedTransaction: exact,
-      reason: "Exact date, amount, and payee match already exists in this register.",
+      reason:
+        "Exact date, amount, and payee match already exists in this register.",
       selected: false,
       errors: [],
     };
   }
 
   const automaticNear = existingTransactions.find(
-    (transaction) => amountsEqual(transaction, parsed) && daysBetween(transaction.date, parsed.date) <= 3,
+    (transaction) =>
+      amountsEqual(transaction, parsed) &&
+      daysBetween(transaction.date, parsed.date) <= 3,
   );
 
   if (automaticNear) {
@@ -328,7 +544,9 @@ function classifyImportCandidate(
   }
 
   const possible = existingTransactions.find(
-    (transaction) => amountsEqual(transaction, parsed) && daysBetween(transaction.date, parsed.date) <= 7,
+    (transaction) =>
+      amountsEqual(transaction, parsed) &&
+      daysBetween(transaction.date, parsed.date) <= 7,
   );
 
   if (possible) {
@@ -338,7 +556,8 @@ function classifyImportCandidate(
       status: "possible-match",
       matchedTransactionId: possible.id,
       matchedTransaction: possible,
-      reason: "Possible match: same amount within 7 days. Review before importing as new.",
+      reason:
+        "Possible match: same amount within 7 days. Review before importing as new.",
       selected: false,
       errors: [],
     };
@@ -436,7 +655,10 @@ function parseMoney(value: string): number {
 }
 
 function normaliseImportDate(value: string): string {
-  const trimmed = value.trim().replace(/^['"]|['"]$/g, "");
+  const trimmed = value
+    .trim()
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/'(\d{2})$/, "/$1");
 
   if (!trimmed) {
     return "";
@@ -449,12 +671,20 @@ function normaliseImportDate(value: string): string {
   }
 
   if (/^\d{8}$/.test(withoutTime)) {
-    const yearFirst = normaliseDateParts(withoutTime.slice(6, 8), withoutTime.slice(4, 6), withoutTime.slice(0, 4));
+    const yearFirst = normaliseDateParts(
+      withoutTime.slice(6, 8),
+      withoutTime.slice(4, 6),
+      withoutTime.slice(0, 4),
+    );
     if (yearFirst) {
       return yearFirst;
     }
 
-    return normaliseDateParts(withoutTime.slice(0, 2), withoutTime.slice(2, 4), withoutTime.slice(4, 8));
+    return normaliseDateParts(
+      withoutTime.slice(0, 2),
+      withoutTime.slice(2, 4),
+      withoutTime.slice(4, 8),
+    );
   }
 
   const delimitedParts = withoutTime.split(/[\/\-.]/).filter(Boolean);
@@ -470,32 +700,61 @@ function normaliseImportDate(value: string): string {
     return normaliseDateParts(first, second, year);
   }
 
-  const monthNameMatch = trimmed.match(/^(\d{1,2})[\s\/-]([A-Za-z]{3,9})[\s\/-](\d{2,4})(?:\s|$)/);
+  const monthNameMatch = trimmed.match(
+    /^(\d{1,2})[\s\/-]([A-Za-z]{3,9})[\s\/-](\d{2,4})(?:\s|$)/,
+  );
   if (monthNameMatch) {
     const [, day, monthName, year] = monthNameMatch;
-    return normaliseDateParts(day, String(monthNumberFromName(monthName)), normaliseYear(year));
+    return normaliseDateParts(
+      day,
+      String(monthNumberFromName(monthName)),
+      normaliseYear(year),
+    );
   }
 
-  const monthFirstNameMatch = trimmed.match(/^([A-Za-z]{3,9})[\s\/-](\d{1,2})(?:,)?[\s\/-](\d{2,4})(?:\s|$)/);
+  const monthFirstNameMatch = trimmed.match(
+    /^([A-Za-z]{3,9})[\s\/-](\d{1,2})(?:,)?[\s\/-](\d{2,4})(?:\s|$)/,
+  );
   if (monthFirstNameMatch) {
     const [, monthName, day, year] = monthFirstNameMatch;
-    return normaliseDateParts(day, String(monthNumberFromName(monthName)), normaliseYear(year));
+    return normaliseDateParts(
+      day,
+      String(monthNumberFromName(monthName)),
+      normaliseYear(year),
+    );
   }
 
   return "";
 }
 
 function normaliseYear(value: string): string {
-  if (value.length === 2) {
-    return `20${value}`;
+  const cleaned = value.replace(/^'/, "");
+
+  if (cleaned.length === 2) {
+    return `20${cleaned}`;
   }
 
-  return value;
+  return cleaned;
 }
 
 function monthNumberFromName(value: string): number {
   const month = value.trim().slice(0, 3).toLowerCase();
-  return ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"].indexOf(month) + 1;
+  return (
+    [
+      "jan",
+      "feb",
+      "mar",
+      "apr",
+      "may",
+      "jun",
+      "jul",
+      "aug",
+      "sep",
+      "oct",
+      "nov",
+      "dec",
+    ].indexOf(month) + 1
+  );
 }
 
 function normaliseDateParts(day: string, month: string, year: string): string {
@@ -523,15 +782,27 @@ function normaliseDateParts(day: string, month: string, year: string): string {
 }
 
 function normaliseHeader(value: string): string {
-  return value.trim().toLowerCase().replace(/^\uFEFF/, "");
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^\uFEFF/, "");
 }
 
 function normalisePayee(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "").trim();
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .trim();
 }
 
-function amountsEqual(transaction: RegisterTransactionView, parsed: ParsedImportTransaction): boolean {
-  return cents(transaction.inflow) === cents(parsed.inflow) && cents(transaction.outflow) === cents(parsed.outflow);
+function amountsEqual(
+  transaction: RegisterTransactionView,
+  parsed: ParsedImportTransaction,
+): boolean {
+  return (
+    cents(transaction.inflow) === cents(parsed.inflow) &&
+    cents(transaction.outflow) === cents(parsed.outflow)
+  );
 }
 
 function cents(value: number): number {
@@ -561,7 +832,8 @@ export function findMatchingTransactionImportProfile(
 ): TransactionImportProfile | undefined {
   const signature = getCsvImportSignature(analysis);
   return profiles.find(
-    (profile) => profile.parserType === "csv" && profile.signature === signature,
+    (profile) =>
+      profile.parserType === "csv" && profile.signature === signature,
   );
 }
 

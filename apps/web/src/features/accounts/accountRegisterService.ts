@@ -16,6 +16,7 @@ type StoredRegisters = Record<string, AccountRegisterView>;
 export interface AccountRegisterServiceDependencies {
   storage: KeyValueStoragePort;
   recordPayee(payeeName: string): Promise<void>;
+  recordPayees?(payeeNames: string[]): Promise<void>;
   findPayeeIdByName(payeeName: string): string | undefined;
   readAccounts(): SidebarAccount[];
   getAccountById(accountId: string): SidebarAccount | undefined;
@@ -61,6 +62,90 @@ export class BrowserPersistentAccountRegisterService implements AccountRegisterS
     return updateRegister(this.dependencies, input.accountId, (register) => {
       register.transactions.unshift(createTransactionView(this.dependencies, { ...input.transaction, payeeId }));
     });
+  }
+
+
+  async addTransactions(input: {
+    accountId: string;
+    transactions: NewRegisterTransactionInput[];
+  }): Promise<AccountRegisterView> {
+    if (input.transactions.length === 0) {
+      return this.getAccountRegisterView({ accountId: input.accountId });
+    }
+
+    const payeeNames = Array.from(
+      new Set(
+        input.transactions
+          .map((transaction) => transaction.payee.trim())
+          .filter((payeeName) => payeeName && !findTransferTarget(this.dependencies, input.accountId, payeeName)),
+      ),
+    );
+
+    if (this.dependencies.recordPayees) {
+      await this.dependencies.recordPayees(payeeNames);
+    } else {
+      for (const payeeName of payeeNames) {
+        await this.dependencies.recordPayee(payeeName);
+      }
+    }
+
+    const registers = readRegisters(this.dependencies.storage);
+    const changedAccountIds = new Set<string>();
+    const getMutableRegister = (accountId: string) => {
+      const register = cloneRegister(
+        registers[accountId] ?? createEmptyRegister(this.dependencies, accountId),
+      );
+      registers[accountId] = register;
+      changedAccountIds.add(accountId);
+      return register;
+    };
+
+    const sourceRegister = getMutableRegister(input.accountId);
+
+    for (const transaction of input.transactions) {
+      const transferTarget = findTransferTarget(this.dependencies, input.accountId, transaction.payee);
+
+      if (transferTarget) {
+        const targetRegister = getMutableRegister(transferTarget.id);
+        const transferId = createId();
+        const sourceTransactionId = createId();
+        const targetTransactionId = createId();
+        const sourceTransaction: RegisterTransactionView = {
+          ...createTransactionView(this.dependencies, transaction),
+          id: sourceTransactionId,
+          payee: `Transfer: ${transferTarget.name}`,
+          category: "Transfer",
+          categoryId: undefined,
+          payeeId: undefined,
+          transferId,
+          transferAccountId: transferTarget.id,
+          transferTransactionId: targetTransactionId,
+        };
+        const targetTransaction = {
+          ...createOpposingTransferTransaction(
+            sourceTransaction,
+            input.accountId,
+            sourceRegister.accountName,
+          ),
+          id: targetTransactionId,
+          transferTransactionId: sourceTransactionId,
+        };
+
+        sourceRegister.transactions.unshift(sourceTransaction);
+        targetRegister.transactions.unshift(targetTransaction);
+        continue;
+      }
+
+      const payeeId = resolvePayeeId(this.dependencies, transaction.payee, transaction.payeeId);
+      sourceRegister.transactions.unshift(createTransactionView(this.dependencies, { ...transaction, payeeId }));
+    }
+
+    for (const accountId of changedAccountIds) {
+      registers[accountId] = recalculateRegister(this.dependencies, registers[accountId]);
+    }
+
+    writeRegisters(this.dependencies.storage, registers);
+    return cloneRegister(registers[input.accountId]);
   }
 
   async updateTransaction(input: {

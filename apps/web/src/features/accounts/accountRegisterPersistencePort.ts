@@ -30,6 +30,11 @@ export interface AccountRegisterPersistencePort {
     transaction: NewRegisterTransactionInput;
   }): Promise<AccountRegisterView>;
 
+  addTransactions(input: {
+    accountId: string;
+    transactions: NewRegisterTransactionInput[];
+  }): Promise<AccountRegisterView>;
+
   updateTransaction(input: {
     accountId: string;
     transaction: UpdateRegisterTransactionInput;

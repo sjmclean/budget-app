@@ -130,6 +130,81 @@ export class SqliteAccountRegisterPersistenceAdapter implements AccountRegisterP
     return this.getAccountRegisterView({ accountId: input.accountId });
   }
 
+
+  async addTransactions(input: {
+    accountId: string;
+    transactions: NewRegisterTransactionInput[];
+  }): Promise<AccountRegisterView> {
+    if (input.transactions.length === 0) {
+      return this.getAccountRegisterView({ accountId: input.accountId });
+    }
+
+    const account = await this.requireAccount(input.accountId);
+
+    for (const transaction of input.transactions) {
+      assertSupportedMutation(transaction);
+
+      if (isTransferPayee(transaction.payee)) {
+        const targetAccount = await this.requireTransferAccount(account, transaction.payee);
+        const now = this.now();
+        const amount = Math.abs(toSignedAmount(transaction));
+
+        if (amount <= 0) {
+          throw new Error("SQLite register adapter transfer amount must be non-zero.");
+        }
+
+        const sourceAmount = transaction.inflow > 0 ? amount : -amount;
+        const targetAmount = -sourceAmount;
+
+        await this.options.transactionRepository.create(createTransferTransaction({
+          id: this.createId(),
+          budgetId: account.budgetId,
+          accountId: account.id,
+          transferAccountId: targetAccount.id,
+          date: transaction.date,
+          memo: transaction.memo ?? null,
+          amount: sourceAmount,
+          now,
+        }));
+
+        await this.options.transactionRepository.create(createTransferTransaction({
+          id: this.createId(),
+          budgetId: account.budgetId,
+          accountId: targetAccount.id,
+          transferAccountId: account.id,
+          date: transaction.date,
+          memo: transaction.memo ?? null,
+          amount: targetAmount,
+          now,
+        }));
+        continue;
+      }
+
+      const payeeId = await this.resolvePayeeId(account.budgetId, transaction.payee, transaction.payeeId);
+      const now = this.now();
+
+      await this.options.transactionRepository.create({
+        id: this.createId(),
+        budgetId: account.budgetId,
+        accountId: account.id,
+        payeeId,
+        categoryId: transaction.categoryId ?? null,
+        transferAccountId: null,
+        type: TransactionType.Standard,
+        date: transaction.date,
+        memo: transaction.memo ?? null,
+        checkNumber: transaction.checkNumber ?? null,
+        amount: toSignedAmount(transaction),
+        clearedStatus: ClearedStatus.Uncleared,
+        isDeleted: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    return this.getAccountRegisterView({ accountId: input.accountId });
+  }
+
   async updateTransaction(input: {
     accountId: string;
     transaction: UpdateRegisterTransactionInput;

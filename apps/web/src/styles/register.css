@@ -3243,3 +3243,37 @@
   align-items: center;
   gap: 0.5rem !important;
 }
+
+.transaction-import-performance-panel {
+  margin: 1rem 0;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.03);
+  padding: 0.85rem;
+}
+
+.transaction-import-performance-panel .transaction-import-section-heading {
+  margin: 0 0 0.65rem;
+}
+
+.transaction-import-performance-list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.transaction-import-performance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  padding: 0.55rem 0.7rem;
+  color: var(--muted-foreground, #64748b);
+  font-size: 0.85rem;
+}
+
+.transaction-import-performance-row strong {
+  color: var(--foreground, #0f172a);
+  font-variant-numeric: tabular-nums;
+}
