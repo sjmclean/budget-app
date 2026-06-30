@@ -374,7 +374,11 @@
     "test:v2380:register-search-2": "tsx tests/v2380-register-search-2.ts",
     "test:v2380": "pnpm test:v2380:register-search-2",
     "test:v2381:register-search-enter-default": "tsx tests/v2381-register-search-enter-default.ts",
-    "test:v2381": "pnpm test:v2381:register-search-enter-default"
+    "test:v2381": "pnpm test:v2381:register-search-enter-default",
+    "test:v2382:register-amount-column": "tsx tests/v2382-register-amount-column.ts",
+    "test:v2382": "pnpm test:v2382:register-amount-column",
+    "test:v2390:register-multiselect": "tsx tests/v2390-register-multiselect.ts",
+    "test:v2390": "pnpm test:v2390:register-multiselect"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

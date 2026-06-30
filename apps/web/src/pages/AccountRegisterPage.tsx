@@ -7,6 +7,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type MouseEvent,
   type ReactNode,
 } from "react";
 import { useParams } from "react-router-dom";
@@ -30,6 +31,13 @@ import {
   getRegisterPaginationState,
   paginateRegisterItems,
 } from "../features/accounts/registerPagination";
+import {
+  emptyRegisterSelectionState,
+  pruneRegisterSelection,
+  selectRegisterTransactionRange,
+  selectSingleRegisterTransaction,
+  toggleRegisterTransactionSelection,
+} from "../features/accounts/registerSelection";
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
 import { confirmDialog } from "../features/ui/appDialogService";
@@ -2884,6 +2892,9 @@ export function AccountRegisterPage() {
   const [activeRegisterSearchSuggestionIndex, setActiveRegisterSearchSuggestionIndex] =
     useState<number | null>(null);
   const registerSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const [registerSelection, setRegisterSelection] = useState(
+    emptyRegisterSelectionState,
+  );
   const dateFormat = useDateFormatPreference();
   const developerPerformanceMode = useDeveloperPerformanceMode();
   const registerPerformanceTimingsRef = useRef<RegisterPerformanceTimings>({});
@@ -3070,6 +3081,36 @@ export function AccountRegisterPage() {
       developerPerformanceMode,
     ],
   );
+
+  const visibleTransactionIds = useMemo(
+    () => visibleTransactions.map((transaction) => transaction.id),
+    [visibleTransactions],
+  );
+
+  const selectedRegisterTransactionIds = registerSelection.selectedIds;
+  const selectedRegisterTransactionCount = selectedRegisterTransactionIds.length;
+  const hasBulkRegisterSelection = selectedRegisterTransactionCount > 0;
+  const selectedRegisterActionTransactionIds = useMemo(() => {
+    if (selectedRegisterTransactionIds.length > 0) {
+      return selectedRegisterTransactionIds;
+    }
+
+    return selectedTransactionId ? [selectedTransactionId] : [];
+  }, [selectedRegisterTransactionIds, selectedTransactionId]);
+  const selectedRegisterActionTransactionCount =
+    selectedRegisterActionTransactionIds.length;
+  const selectedRegisterActionTransactionId =
+    selectedRegisterActionTransactionIds[0] ?? null;
+  const hasRegisterActionSelection = selectedRegisterActionTransactionCount > 0;
+
+  useEffect(() => {
+    setRegisterSelection((currentSelection) =>
+      pruneRegisterSelection(
+        currentSelection,
+        registerTransactions.map((transaction) => transaction.id),
+      ),
+    );
+  }, [registerTransactions]);
 
   const transactionById = useMemo(
     () =>
@@ -3259,8 +3300,49 @@ export function AccountRegisterPage() {
   );
 
   const handleSelectTransaction = useCallback(
-    (transactionId: string) => {
+    (transactionId: string, event?: MouseEvent<HTMLElement>) => {
+      setEditingTransactionId(null);
+
+      if (event?.shiftKey) {
+        selectTransaction(null);
+        setRegisterSelection((currentSelection) =>
+          selectRegisterTransactionRange(
+            currentSelection,
+            visibleTransactionIds,
+            transactionId,
+          ),
+        );
+        return;
+      }
+
+      if (event?.metaKey || event?.ctrlKey) {
+        selectTransaction(null);
+        setRegisterSelection((currentSelection) =>
+          toggleRegisterTransactionSelection(currentSelection, transactionId),
+        );
+        return;
+      }
+
       selectTransaction(transactionId);
+      setRegisterSelection(emptyRegisterSelectionState);
+    },
+    [
+      selectTransaction,
+      selectedRegisterTransactionCount,
+      selectedRegisterTransactionIds,
+      visibleTransactionIds,
+    ],
+  );
+
+
+  const handleToggleTransactionSelection = useCallback(
+    (transactionId: string) => {
+      setEditingTransactionId(null);
+
+      selectTransaction(null);
+      setRegisterSelection((currentSelection) =>
+        toggleRegisterTransactionSelection(currentSelection, transactionId),
+      );
     },
     [selectTransaction],
   );
@@ -3268,6 +3350,7 @@ export function AccountRegisterPage() {
   const handleEditTransaction = useCallback(
     (transactionId: string) => {
       selectTransaction(transactionId);
+      setRegisterSelection(selectSingleRegisterTransaction(transactionId));
       setShowEntryRow(false);
       setEditingTransactionId(transactionId);
     },
@@ -3281,9 +3364,61 @@ export function AccountRegisterPage() {
     [toggleCleared],
   );
 
+  const clearRegisterSelection = useCallback(() => {
+    setRegisterSelection(emptyRegisterSelectionState);
+  }, []);
+
+  const handleSetSelectedTransactionsCleared = useCallback(
+    async (cleared: boolean) => {
+      const selectedTransactionIdSet = new Set(selectedRegisterActionTransactionIds);
+      const selectedTransactions = registerTransactions.filter((transaction) =>
+        selectedTransactionIdSet.has(transaction.id),
+      );
+
+      for (const transaction of selectedTransactions) {
+        if (transaction.cleared !== cleared) {
+          await toggleCleared(transaction.id);
+        }
+      }
+    },
+    [registerTransactions, selectedRegisterActionTransactionIds, toggleCleared],
+  );
+
+  const handleDeleteSelectedTransactions = useCallback(async () => {
+    if (selectedRegisterActionTransactionCount === 0) {
+      return;
+    }
+
+    const confirmed = confirmDialog({
+      message:
+        selectedRegisterActionTransactionCount === 1
+          ? "Delete this transaction? This cannot be undone yet."
+          : `Delete ${selectedRegisterActionTransactionCount} selected transactions? This cannot be undone yet.`,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    for (const transactionId of selectedRegisterActionTransactionIds) {
+      await deleteTransaction(transactionId);
+    }
+
+    clearRegisterSelection();
+    selectTransaction(null);
+    setEditingTransactionId(null);
+  }, [
+    clearRegisterSelection,
+    deleteTransaction,
+    selectTransaction,
+    selectedRegisterActionTransactionCount,
+    selectedRegisterActionTransactionIds,
+  ]);
+
   const handleManageTransactionAttachments = useCallback(
     (transactionId: string) => {
       selectTransaction(transactionId);
+      setRegisterSelection(selectSingleRegisterTransaction(transactionId));
       setAttachmentTransactionId(transactionId);
     },
     [selectTransaction],
@@ -3333,7 +3468,8 @@ export function AccountRegisterPage() {
       if (
         event.key !== "Enter" ||
         !selectedTransactionId ||
-        editingTransactionId
+        editingTransactionId ||
+        hasBulkRegisterSelection
       ) {
         return;
       }
@@ -3352,7 +3488,34 @@ export function AccountRegisterPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editingTransactionId, selectedTransactionId]);
+  }, [editingTransactionId, hasBulkRegisterSelection, selectedTransactionId]);
+
+  useEffect(() => {
+    function handleRegisterSelectionKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key !== "Escape" || selectedRegisterTransactionCount === 0) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      const isTypingTarget =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+
+      if (isTypingTarget) {
+        return;
+      }
+
+      event.preventDefault();
+      clearRegisterSelection();
+      selectTransaction(null);
+    }
+
+    window.addEventListener("keydown", handleRegisterSelectionKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleRegisterSelectionKeyDown);
+    };
+  }, [clearRegisterSelection, selectTransaction, selectedRegisterTransactionCount]);
 
   if (isLoading) {
     return (
@@ -3722,55 +3885,6 @@ export function AccountRegisterPage() {
             </div>
           </div>
 
-          {selectedTransactionId && !editingTransactionId && (
-            <div className="register-selection-bar">
-              <span>1 selected</span>
-              <button
-                type="button"
-                onClick={() => setEditingTransactionId(selectedTransactionId)}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setAttachmentTransactionId(selectedTransactionId)
-                }
-              >
-                Attach
-              </button>
-              <button type="button" disabled>
-                Duplicate
-              </button>
-              <button type="button" disabled>
-                Move
-              </button>
-              <button type="button" disabled>
-                Flag
-              </button>
-              <button type="button" disabled>
-                Add note
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const confirmed = confirmDialog({
-                    message:
-                      "Delete this transaction? This cannot be undone yet.",
-                  });
-
-                  if (!confirmed) {
-                    return;
-                  }
-
-                  deleteTransaction(selectedTransactionId);
-                  setEditingTransactionId(null);
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          )}
 
           {registerColumnHeader}
           {committedRegisterSearch ? (
@@ -4123,8 +4237,13 @@ export function AccountRegisterPage() {
                     transaction={transaction}
                     currencyCode={data.currencyCode}
                     dateFormat={dateFormat}
-                    isSelected={selectedTransactionId === transaction.id}
+                    isSelected={
+                      selectedRegisterTransactionIds.length > 0
+                        ? selectedRegisterTransactionIds.includes(transaction.id)
+                        : selectedTransactionId === transaction.id
+                    }
                     onSelectTransaction={handleSelectTransaction}
+                    onToggleTransactionSelection={handleToggleTransactionSelection}
                     onEditTransaction={handleEditTransaction}
                     onToggleClearedTransaction={handleToggleClearedTransaction}
                     onManageTransactionAttachments={
@@ -4140,6 +4259,69 @@ export function AccountRegisterPage() {
             );
           })}
         </div>
+
+        {hasRegisterActionSelection && !editingTransactionId ? (
+          <div
+            className="register-bulk-action-bar"
+            role="toolbar"
+            aria-label="Selected transaction actions"
+          >
+            <strong>
+              {selectedRegisterActionTransactionCount} selected
+            </strong>
+            {selectedRegisterActionTransactionCount === 1 &&
+            selectedRegisterActionTransactionId ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditingTransactionId(selectedRegisterActionTransactionId)
+                  }
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAttachmentTransactionId(selectedRegisterActionTransactionId)
+                  }
+                >
+                  Attach
+                </button>
+              </>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void handleSetSelectedTransactionsCleared(true)}
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleSetSelectedTransactionsCleared(false)}
+            >
+              Unclear
+            </button>
+            <button
+              className="register-bulk-action-danger"
+              type="button"
+              onClick={() => void handleDeleteSelectedTransactions()}
+            >
+              Delete
+            </button>
+            <button
+              className="register-bulk-action-close"
+              type="button"
+              aria-label="Clear selected transactions"
+              onClick={() => {
+                clearRegisterSelection();
+                selectTransaction(null);
+              }}
+            >
+              ×
+            </button>
+          </div>
+        ) : null}
 
         <div className="register-pagination" aria-label="Register pagination">
           <span>

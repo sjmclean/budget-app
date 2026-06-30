@@ -22,7 +22,7 @@ interface UseAccountRegisterState {
   error: string | null;
   selectedTransaction: RegisterTransactionView | null;
   selectedTransactionId: string | null;
-  selectTransaction: (transactionId: string) => void;
+  selectTransaction: (transactionId: string | null) => void;
   addTransaction: (input: NewRegisterTransactionInput) => Promise<void>;
   updateTransaction: (input: UpdateRegisterTransactionInput) => Promise<void>;
   toggleCleared: (transactionId: string) => Promise<void>;

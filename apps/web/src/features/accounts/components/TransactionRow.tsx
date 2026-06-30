@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, CornerDownRight, Paperclip } from "lucide-react";
-import { memo, useState, type CSSProperties } from "react";
+import { memo, useState, type CSSProperties, type MouseEvent } from "react";
 import type { RegisterLayoutMode } from "../registerLayoutMode";
 import type {
   RegisterTransactionView,
@@ -79,6 +79,31 @@ function getSignedAmountClassName(value: number, prefix = "register-money") {
   }
 
   return `${prefix} register-amount-neutral`;
+}
+
+
+function TransactionSelectionCheckbox({
+  transactionId,
+  isSelected,
+  onToggleTransactionSelection,
+}: {
+  transactionId: string;
+  isSelected: boolean;
+  onToggleTransactionSelection: (transactionId: string) => void;
+}) {
+  return (
+    <input
+      className="register-checkbox register-checkbox-input"
+      type="checkbox"
+      checked={isSelected}
+      aria-label={isSelected ? "Deselect transaction" : "Select transaction"}
+      onClick={(event) => event.stopPropagation()}
+      onChange={(event) => {
+        event.stopPropagation();
+        onToggleTransactionSelection(transactionId);
+      }}
+    />
+  );
 }
 
 function FlagDot({ flag }: { flag: TransactionFlag }) {
@@ -248,7 +273,8 @@ interface TransactionRowRendererProps {
   currencyCode: string;
   dateFormat: ReturnType<typeof useDateFormatPreference>;
   isSelected: boolean;
-  onSelectTransaction: (transactionId: string) => void;
+  onSelectTransaction: (transactionId: string, event: MouseEvent<HTMLElement>) => void;
+  onToggleTransactionSelection: (transactionId: string) => void;
   onEditTransaction: (transactionId: string) => void;
   onToggleClearedTransaction: (transactionId: string) => void;
   onManageTransactionAttachments: (transactionId: string) => void;
@@ -270,6 +296,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
   dateFormat,
   isSelected,
   onSelectTransaction,
+  onToggleTransactionSelection,
   onEditTransaction,
   onToggleClearedTransaction,
   onManageTransactionAttachments,
@@ -284,16 +311,26 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
 
   return (
     <>
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         className={
           isSelected ? "register-row register-row-selected" : "register-row"
         }
-        onClick={() => onSelectTransaction(transaction.id)}
+        onClick={(event) => onSelectTransaction(transaction.id, event)}
         onDoubleClick={() => onEditTransaction(transaction.id)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            onEditTransaction(transaction.id);
+          }
+        }}
         style={rowStyle}
       >
-        <span className="register-checkbox" aria-hidden="true" />
+        <TransactionSelectionCheckbox
+          transactionId={transaction.id}
+          isSelected={isSelected}
+          onToggleTransactionSelection={onToggleTransactionSelection}
+        />
         <span>{formatDateForDisplay(transaction.date, dateFormat)}</span>
         {isRegisterColumnVisible("flag", visibleColumns) ? (
           <InlineFlagPicker
@@ -356,7 +393,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
             onToggleCleared={() => onToggleClearedTransaction(transaction.id)}
           />
         ) : null}
-      </button>
+      </div>
 
       {hasSplitLines && isSplitExpanded
         ? splitLines.map((line) => (
@@ -365,7 +402,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
               type="button"
               key={line.id}
               style={rowStyle}
-              onClick={() => onSelectTransaction(transaction.id)}
+              onClick={(event) => onSelectTransaction(transaction.id, event)}
               onDoubleClick={() => onEditTransaction(transaction.id)}
             >
               <span className="register-split-readonly-spacer" aria-hidden="true" />
@@ -408,6 +445,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   dateFormat,
   isSelected,
   onSelectTransaction,
+  onToggleTransactionSelection,
   onEditTransaction,
   onToggleClearedTransaction,
   onManageTransactionAttachments,
@@ -425,18 +463,28 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
 
   return (
     <>
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         className={[
           "register-row-compact",
           isSelected ? "register-row-selected" : "",
           hasSplitLines && isSplitExpanded ? "register-row-compact-expanded" : "",
         ].filter(Boolean).join(" ")}
-        onClick={() => onSelectTransaction(transaction.id)}
+        onClick={(event) => onSelectTransaction(transaction.id, event)}
         onDoubleClick={() => onEditTransaction(transaction.id)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            onEditTransaction(transaction.id);
+          }
+        }}
       >
-        <span className="register-compact-select" aria-hidden="true">
-          <span className="register-checkbox" />
+        <span className="register-compact-select">
+          <TransactionSelectionCheckbox
+            transactionId={transaction.id}
+            isSelected={isSelected}
+            onToggleTransactionSelection={onToggleTransactionSelection}
+          />
         </span>
 
         <span className="register-compact-date">{formattedDate}</span>
@@ -507,7 +555,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
             onToggleCleared={() => onToggleClearedTransaction(transaction.id)}
           />
         ) : null}
-      </button>
+      </div>
 
       {hasSplitLines && isSplitExpanded
         ? splitLines.map((line) => {
@@ -525,7 +573,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
                 className="register-row-compact register-row-compact-split"
                 type="button"
                 key={line.id}
-                onClick={() => onSelectTransaction(transaction.id)}
+                onClick={(event) => onSelectTransaction(transaction.id, event)}
                 onDoubleClick={() => onEditTransaction(transaction.id)}
               >
                 <span className="register-compact-select" aria-hidden="true" />
@@ -562,6 +610,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
   dateFormat,
   isSelected,
   onSelectTransaction,
+  onToggleTransactionSelection,
   onEditTransaction,
   onToggleClearedTransaction,
   onManageTransactionAttachments,
@@ -583,18 +632,28 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
 
   return (
     <>
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         className={[
           "register-row-tablet",
           isSelected ? "register-row-selected" : "",
           hasSplitLines && isSplitExpanded ? "register-row-tablet-expanded" : "",
         ].filter(Boolean).join(" ")}
-        onClick={() => onSelectTransaction(transaction.id)}
+        onClick={(event) => onSelectTransaction(transaction.id, event)}
         onDoubleClick={() => onEditTransaction(transaction.id)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            onEditTransaction(transaction.id);
+          }
+        }}
       >
-        <span className="register-tablet-select" aria-hidden="true">
-          <span className="register-checkbox" />
+        <span className="register-tablet-select">
+          <TransactionSelectionCheckbox
+            transactionId={transaction.id}
+            isSelected={isSelected}
+            onToggleTransactionSelection={onToggleTransactionSelection}
+          />
         </span>
 
         <div className="register-tablet-main">
@@ -674,7 +733,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
             />
           ) : null}
         </div>
-      </button>
+      </div>
 
       {hasSplitLines && isSplitExpanded
         ? splitLines.map((line) => {
@@ -695,7 +754,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
                 className="register-row-tablet-split"
                 type="button"
                 key={line.id}
-                onClick={() => onSelectTransaction(transaction.id)}
+                onClick={(event) => onSelectTransaction(transaction.id, event)}
                 onDoubleClick={() => onEditTransaction(transaction.id)}
               >
                 <span className="register-tablet-split-icon" aria-hidden="true">
