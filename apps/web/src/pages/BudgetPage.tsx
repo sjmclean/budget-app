@@ -1118,97 +1118,97 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   return (
     <div className="budget-workspace-screen">
-      <section className="budget-workspace-topbar">
-        <div className="month-switcher">
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={() =>
-              setSelectedMonth((currentMonth) =>
-                getPreviousBudgetMonth(currentMonth),
-              )
-            }
-            title="Go to previous budget month"
-          >
-            ‹
-          </button>
-
-          <div>
-            <h1>{data.monthLabel}</h1>
-            <p className="muted">Interactive budget workspace</p>
-          </div>
-
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={() =>
-              setSelectedMonth((currentMonth) =>
-                getNextBudgetMonth(currentMonth),
-              )
-            }
-            title="Go to next budget month"
-          >
-            ›
-          </button>
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={() => setSelectedMonth(getCurrentBudgetMonth())}
-          >
-            Back to today
-          </button>
-        </div>
-
-        <div
-          className={
-            isBudgetOverassigned
-              ? "ready-to-assign-pill ready-to-assign-negative"
-              : "ready-to-assign-pill"
-          }
-        >
-          <span>Ready To Assign</span>
-          <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
-        </div>
-      </section>
-
       <div className="budget-workspace-layout budget-workspace-layout-interactive">
         <main className="budget-workspace-main">
-          <section className="budget-display-bar" aria-label="Budget display options">
-            <span className="budget-display-label">Display</span>
-            <button
-              className={
-                hideArchivedCategories
-                  ? "budget-filter budget-filter-active"
-                  : "budget-filter"
-              }
-              type="button"
-              onClick={() => setHideArchivedCategories((current) => !current)}
-              title={
-                hideArchivedCategories
-                  ? "Show archived categories"
-                  : "Hide archived categories"
-              }
-            >
-              {hideArchivedCategories
-                ? `Archived hidden (${hiddenArchivedCount})`
-                : `Hide archived (${hiddenArchivedCount})`}
-            </button>
+          <div className="budget-sticky-working-header">
+            <section className="budget-workspace-topbar">
+              <div className="month-switcher">
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() =>
+                    setSelectedMonth((currentMonth) =>
+                      getPreviousBudgetMonth(currentMonth),
+                    )
+                  }
+                  title="Go to previous budget month"
+                >
+                  ‹
+                </button>
 
-            <button
-              className="budget-filter budget-table-layout-reset"
-              type="button"
-              onClick={budgetTableLayout.resetColumnWidths}
-              title="Reset Budget column widths"
-            >
-              Reset column widths
-            </button>
+                <div>
+                  <h1>{data.monthLabel}</h1>
+                  <p className="muted">Interactive budget workspace</p>
+                </div>
 
-            <span className="budget-table-layout-help">
-              Drag header grips to resize columns.
-            </span>
-          </section>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() =>
+                    setSelectedMonth((currentMonth) =>
+                      getNextBudgetMonth(currentMonth),
+                    )
+                  }
+                  title="Go to next budget month"
+                >
+                  ›
+                </button>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => setSelectedMonth(getCurrentBudgetMonth())}
+                >
+                  Back to today
+                </button>
+              </div>
 
-          <Card className="budget-workspace-table-card">
+              <div
+                className={
+                  isBudgetOverassigned
+                    ? "ready-to-assign-pill ready-to-assign-negative"
+                    : "ready-to-assign-pill"
+                }
+              >
+                <span>Ready To Assign</span>
+                <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
+              </div>
+            </section>
+
+            <section className="budget-display-bar" aria-label="Budget display options">
+              <span className="budget-display-label">Display</span>
+              <button
+                className={
+                  hideArchivedCategories
+                    ? "budget-filter budget-filter-active"
+                    : "budget-filter"
+                }
+                type="button"
+                onClick={() => setHideArchivedCategories((current) => !current)}
+                title={
+                  hideArchivedCategories
+                    ? "Show archived categories"
+                    : "Hide archived categories"
+                }
+              >
+                {hideArchivedCategories
+                  ? `Archived hidden (${hiddenArchivedCount})`
+                  : `Hide archived (${hiddenArchivedCount})`}
+              </button>
+
+              <button
+                className="budget-filter budget-table-layout-reset"
+                type="button"
+                onClick={budgetTableLayout.resetColumnWidths}
+                title="Reset Budget column widths"
+              >
+                Reset column widths
+              </button>
+
+              <span className="budget-table-layout-help">
+                Drag header grips to resize columns.
+              </span>
+            </section>
+
             <div
               className="budget-workspace-table-head"
               style={budgetTableLayout.rowStyle}
@@ -1226,7 +1226,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 </span>
               ))}
             </div>
+          </div>
 
+          <Card className="budget-workspace-table-card">
             {visibleCategoryGroups.map((group) => (
               <BudgetGroup
                 key={group.id}

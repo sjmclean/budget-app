@@ -708,6 +708,33 @@ strong {
   color: var(--negative);
 }
 
+
+.budget-sticky-working-header {
+  position: sticky;
+  top: 0;
+  z-index: 35;
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.55rem 0 0.6rem;
+  background: color-mix(in srgb, var(--background) 94%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent);
+  box-shadow: 0 0.45rem 1rem rgba(15, 23, 42, 0.08);
+}
+
+.budget-sticky-working-header .budget-workspace-topbar {
+  min-height: 0;
+}
+
+.budget-sticky-working-header .budget-display-bar {
+  padding: 0 0.15rem;
+}
+
+.budget-sticky-working-header .budget-workspace-table-head {
+  border: 1px solid var(--border-soft);
+  border-radius: 0.65rem 0.65rem 0 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
+}
+
 .budget-workspace-layout,
 .budget-workspace-layout-interactive {
   display: grid;
