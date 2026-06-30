@@ -378,7 +378,11 @@
     "test:v2382:register-amount-column": "tsx tests/v2382-register-amount-column.ts",
     "test:v2382": "pnpm test:v2382:register-amount-column",
     "test:v2390:register-multiselect": "tsx tests/v2390-register-multiselect.ts",
-    "test:v2390": "pnpm test:v2390:register-multiselect"
+    "test:v2390": "pnpm test:v2390:register-multiselect",
+    "test:v2400:import-wizard": "tsx tests/v2400-import-wizard.ts",
+    "test:v2400": "pnpm test:v2400:import-wizard",
+    "test:v2401:import-profiles": "tsx tests/v2401-import-profiles.ts",
+    "test:v2401": "pnpm test:v2400 && pnpm test:v2401:import-profiles"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

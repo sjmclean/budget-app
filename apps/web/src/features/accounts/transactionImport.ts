@@ -16,6 +16,20 @@ export type CsvImportColumnRole =
   | "ignore";
 export type CsvImportColumnMapping = Record<number, CsvImportColumnRole>;
 
+export interface TransactionImportProfile {
+  id: string;
+  name: string;
+  parserType: "csv";
+  signature: string;
+  mapping: CsvImportColumnMapping;
+  defaultAccountName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const TRANSACTION_IMPORT_PROFILES_STORAGE_KEY =
+  "budget-app.transaction-import-profiles.v1";
+
 export interface CsvImportColumnAnalysis {
   index: number;
   header: string;
@@ -533,4 +547,105 @@ function daysBetween(left: string, right: string): number {
   }
 
   return Math.abs(Math.round((leftDate - rightDate) / 86_400_000));
+}
+
+export function getCsvImportSignature(analysis: CsvImportAnalysis): string {
+  return analysis.columns
+    .map((column) => column.normalisedHeader || `column-${column.index + 1}`)
+    .join("|");
+}
+
+export function findMatchingTransactionImportProfile(
+  profiles: TransactionImportProfile[],
+  analysis: CsvImportAnalysis,
+): TransactionImportProfile | undefined {
+  const signature = getCsvImportSignature(analysis);
+  return profiles.find(
+    (profile) => profile.parserType === "csv" && profile.signature === signature,
+  );
+}
+
+export function createTransactionImportProfile({
+  name,
+  analysis,
+  mapping,
+  defaultAccountName,
+}: {
+  name: string;
+  analysis: CsvImportAnalysis;
+  mapping: CsvImportColumnMapping;
+  defaultAccountName?: string;
+}): TransactionImportProfile {
+  const now = new Date().toISOString();
+
+  return {
+    id: `csv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: name.trim() || "CSV Import Profile",
+    parserType: "csv",
+    signature: getCsvImportSignature(analysis),
+    mapping,
+    defaultAccountName,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export function upsertTransactionImportProfile(
+  profiles: TransactionImportProfile[],
+  profile: TransactionImportProfile,
+): TransactionImportProfile[] {
+  const existingIndex = profiles.findIndex(
+    (existing) =>
+      existing.parserType === profile.parserType &&
+      existing.signature === profile.signature,
+  );
+
+  if (existingIndex === -1) {
+    return [...profiles, profile];
+  }
+
+  return profiles.map((existing, index) =>
+    index === existingIndex
+      ? {
+          ...existing,
+          name: profile.name,
+          mapping: profile.mapping,
+          defaultAccountName: profile.defaultAccountName,
+          updatedAt: profile.updatedAt,
+        }
+      : existing,
+  );
+}
+
+export function readTransactionImportProfiles(): TransactionImportProfile[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(
+      TRANSACTION_IMPORT_PROFILES_STORAGE_KEY,
+    );
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as TransactionImportProfile[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeTransactionImportProfiles(
+  profiles: TransactionImportProfile[],
+): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    TRANSACTION_IMPORT_PROFILES_STORAGE_KEY,
+    JSON.stringify(profiles),
+  );
 }
