@@ -17,6 +17,7 @@ export type RegisterColumnId =
   | "category"
   | "memo"
   | "checkNumber"
+  | "amount"
   | "outflow"
   | "inflow"
   | "runningBalance"
@@ -44,6 +45,40 @@ function formatMoney(value: number, currencyCode: string) {
     style: "currency",
     currency: currencyCode,
   }).format(value);
+}
+
+
+function getSignedTransactionAmount(transaction: RegisterTransactionView): number {
+  if (transaction.inflow > 0) {
+    return transaction.inflow;
+  }
+
+  if (transaction.outflow > 0) {
+    return -transaction.outflow;
+  }
+
+  return 0;
+}
+
+function formatSignedMoney(value: number, currencyCode: string) {
+  if (value === 0) {
+    return "";
+  }
+
+  const formatted = formatMoney(Math.abs(value), currencyCode);
+  return value > 0 ? `+${formatted}` : `-${formatted}`;
+}
+
+function getSignedAmountClassName(value: number, prefix = "register-money") {
+  if (value > 0) {
+    return `${prefix} register-inflow`;
+  }
+
+  if (value < 0) {
+    return `${prefix} register-outflow`;
+  }
+
+  return `${prefix} register-amount-neutral`;
 }
 
 function FlagDot({ flag }: { flag: TransactionFlag }) {
@@ -245,6 +280,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
   const [isSplitExpanded, setIsSplitExpanded] = useState(false);
   const splitLines = transaction.splitLines ?? [];
   const hasSplitLines = splitLines.length > 0;
+  const signedAmount = getSignedTransactionAmount(transaction);
 
   return (
     <>
@@ -302,17 +338,11 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
           </span>
         ) : null}
 
-        <span className="register-money register-outflow">
-          {transaction.outflow
-            ? formatMoney(transaction.outflow, currencyCode)
-            : ""}
-        </span>
-
-        <span className="register-money register-inflow">
-          {transaction.inflow
-            ? formatMoney(transaction.inflow, currencyCode)
-            : ""}
-        </span>
+        {isRegisterColumnVisible("amount", visibleColumns) ? (
+          <span className={getSignedAmountClassName(signedAmount)}>
+            {formatSignedMoney(signedAmount, currencyCode)}
+          </span>
+        ) : null}
 
         {isRegisterColumnVisible("runningBalance", visibleColumns) ? (
           <strong className="register-balance">
@@ -351,12 +381,18 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
                 <span className="register-memo-cell">{line.memo ?? ""}</span>
               ) : null}
               {isRegisterColumnVisible("checkNumber", visibleColumns) ? <span /> : null}
-              <span className="register-money register-outflow">
-                {line.outflow ? formatMoney(line.outflow, currencyCode) : ""}
-              </span>
-              <span className="register-money register-inflow">
-                {line.inflow ? formatMoney(line.inflow, currencyCode) : ""}
-              </span>
+              {isRegisterColumnVisible("amount", visibleColumns) ? (
+                <span
+                  className={getSignedAmountClassName(
+                    line.inflow ? line.inflow : line.outflow ? -line.outflow : 0,
+                  )}
+                >
+                  {formatSignedMoney(
+                    line.inflow ? line.inflow : line.outflow ? -line.outflow : 0,
+                    currencyCode,
+                  )}
+                </span>
+              ) : null}
               {isRegisterColumnVisible("runningBalance", visibleColumns) ? <span className="register-balance">-</span> : null}
               {isRegisterColumnVisible("status", visibleColumns) ? <span /> : null}
             </button>
@@ -383,14 +419,9 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   const hasSplitLines = splitLines.length > 0;
   const formattedDate = formatDateForDisplay(transaction.date, dateFormat);
   const hasMemo = Boolean(transaction.memo?.trim());
-  const amountLabel = transaction.outflow
-    ? formatMoney(transaction.outflow, currencyCode)
-    : transaction.inflow
-      ? formatMoney(transaction.inflow, currencyCode)
-      : "";
-  const amountClassName = transaction.inflow
-    ? "register-money register-inflow"
-    : "register-money register-outflow";
+  const signedAmount = getSignedTransactionAmount(transaction);
+  const amountLabel = formatSignedMoney(signedAmount, currencyCode);
+  const amountClassName = getSignedAmountClassName(signedAmount);
 
   return (
     <>
@@ -481,14 +512,13 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
       {hasSplitLines && isSplitExpanded
         ? splitLines.map((line) => {
             const hasSplitMemo = Boolean(line.memo?.trim());
-            const splitAmountLabel = line.outflow
-              ? formatMoney(line.outflow, currencyCode)
-              : line.inflow
-                ? formatMoney(line.inflow, currencyCode)
-                : "";
-            const splitAmountClassName = line.inflow
-              ? "register-money register-inflow"
-              : "register-money register-outflow";
+            const splitSignedAmount = line.inflow
+              ? line.inflow
+              : line.outflow
+                ? -line.outflow
+                : 0;
+            const splitAmountLabel = formatSignedMoney(splitSignedAmount, currencyCode);
+            const splitAmountClassName = getSignedAmountClassName(splitSignedAmount);
 
             return (
               <button
@@ -544,14 +574,12 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
   const formattedDate = formatDateForDisplay(transaction.date, dateFormat);
   const hasMemo = Boolean(transaction.memo?.trim());
   const hasCheckNumber = Boolean(transaction.checkNumber?.trim());
-  const amountLabel = transaction.outflow
-    ? formatMoney(transaction.outflow, currencyCode)
-    : transaction.inflow
-      ? formatMoney(transaction.inflow, currencyCode)
-      : formatMoney(0, currencyCode);
-  const amountClassName = transaction.inflow
-    ? "register-tablet-amount register-money register-inflow"
-    : "register-tablet-amount register-money register-outflow";
+  const signedAmount = getSignedTransactionAmount(transaction);
+  const amountLabel = formatSignedMoney(signedAmount, currencyCode);
+  const amountClassName = getSignedAmountClassName(
+    signedAmount,
+    "register-tablet-amount register-money",
+  );
 
   return (
     <>
@@ -651,14 +679,16 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
       {hasSplitLines && isSplitExpanded
         ? splitLines.map((line) => {
             const hasSplitMemo = Boolean(line.memo?.trim());
-            const splitAmountLabel = line.outflow
-              ? formatMoney(line.outflow, currencyCode)
-              : line.inflow
-                ? formatMoney(line.inflow, currencyCode)
-                : "";
-            const splitAmountClassName = line.inflow
-              ? "register-tablet-split-amount register-money register-inflow"
-              : "register-tablet-split-amount register-money register-outflow";
+            const splitSignedAmount = line.inflow
+              ? line.inflow
+              : line.outflow
+                ? -line.outflow
+                : 0;
+            const splitAmountLabel = formatSignedMoney(splitSignedAmount, currencyCode);
+            const splitAmountClassName = getSignedAmountClassName(
+              splitSignedAmount,
+              "register-tablet-split-amount register-money",
+            );
 
             return (
               <button
