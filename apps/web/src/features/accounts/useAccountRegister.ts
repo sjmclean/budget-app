@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getAppPersistenceGateway } from "../persistence";
 import type {
   AccountRegisterView,
   NewRegisterTransactionInput,
-  RegisterTransactionView,
   UpdateRegisterTransactionInput,
 } from "./accountRegisterTypes";
 
@@ -20,9 +19,6 @@ interface UseAccountRegisterState {
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
-  selectedTransaction: RegisterTransactionView | null;
-  selectedTransactionId: string | null;
-  selectTransaction: (transactionId: string | null) => void;
   addTransaction: (input: NewRegisterTransactionInput) => Promise<void>;
   updateTransaction: (input: UpdateRegisterTransactionInput) => Promise<void>;
   toggleCleared: (transactionId: string) => Promise<void>;
@@ -50,17 +46,8 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
-
   const applyRegisterView = useCallback((view: AccountRegisterView) => {
     setData(view);
-    setSelectedTransactionId((current) => {
-      if (current && view.transactions.some((transaction) => transaction.id === current)) {
-        return current;
-      }
-
-      return null;
-    });
   }, []);
 
   useEffect(() => {
@@ -102,25 +89,8 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     };
   }, [accountId, accountRegisters, applyRegisterView]);
 
-  const transactionById = useMemo(() => {
-    if (!data) {
-      return new Map<string, RegisterTransactionView>();
-    }
-
-    return new Map(data.transactions.map((transaction) => [transaction.id, transaction]));
-  }, [data]);
-
-  const selectedTransaction = useMemo(() => {
-    if (!selectedTransactionId) {
-      return null;
-    }
-
-    return transactionById.get(selectedTransactionId) ?? null;
-  }, [selectedTransactionId, transactionById]);
-
   const runMutation = useCallback(async (
     action: () => Promise<AccountRegisterView>,
-    selectTransactionId?: string,
   ) => {
     setIsSaving(true);
     setError(null);
@@ -128,10 +98,6 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     try {
       const result = await action();
       applyRegisterView(result);
-
-      if (selectTransactionId) {
-        setSelectedTransactionId(selectTransactionId);
-      }
     } catch (error) {
       setError(
         error instanceof Error
@@ -152,14 +118,12 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
   const updateTransaction = useCallback(async (input: UpdateRegisterTransactionInput) => {
     await runMutation(
       () => accountRegisters.updateTransaction({ accountId, transaction: input }),
-      input.id,
     );
   }, [accountId, accountRegisters, runMutation]);
 
   const toggleCleared = useCallback(async (transactionId: string) => {
     await runMutation(
       () => accountRegisters.toggleCleared({ accountId, transactionId }),
-      transactionId,
     );
   }, [accountId, accountRegisters, runMutation]);
 
@@ -195,7 +159,6 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
           contentDataUrl,
         },
       }),
-      transactionId,
     );
   }, [accountId, accountRegisters, runMutation]);
 
@@ -206,7 +169,6 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
         transactionId,
         attachmentId,
       }),
-      transactionId,
     );
   }, [accountId, accountRegisters, runMutation]);
 
@@ -242,9 +204,6 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     isLoading,
     isSaving,
     error,
-    selectedTransaction,
-    selectedTransactionId,
-    selectTransaction: setSelectedTransactionId,
     addTransaction,
     updateTransaction,
     toggleCleared,
