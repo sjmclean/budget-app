@@ -1,4 +1,20 @@
-import { useEffect, useMemo, useState, type CSSProperties, type DragEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  type DragEndEvent,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { confirmDialog } from "../features/ui/appDialogService";
@@ -25,26 +41,30 @@ import { ColumnResizeHandle } from "../features/tableLayout/ColumnResizeHandle";
 import { useTableLayout, type TableColumnDefinition } from "../features/tableLayout/tableLayout";
 
 type BudgetColumnId = "category" | "assigned" | "activity" | "available";
-type BudgetCategoryDropPosition = "before" | "after";
-type BudgetGroupDropPosition = "before" | "after";
+type BudgetSortableKind = "category" | "group";
 
-interface BudgetCategoryDragState {
-  categoryId: string;
-  groupId: string;
+function getCategorySortableId(categoryId: string) {
+  return `category:${categoryId}`;
 }
 
-interface BudgetCategoryDropTarget {
-  categoryId: string;
-  position: BudgetCategoryDropPosition;
+function getGroupSortableId(groupId: string) {
+  return `group:${groupId}`;
 }
 
-interface BudgetGroupDragState {
-  groupId: string;
+function getSortableKind(id: string): BudgetSortableKind | null {
+  if (id.startsWith("category:")) {
+    return "category";
+  }
+
+  if (id.startsWith("group:")) {
+    return "group";
+  }
+
+  return null;
 }
 
-interface BudgetGroupDropTarget {
-  groupId: string;
-  position: BudgetGroupDropPosition;
+function getSortableEntityId(id: string) {
+  return id.split(":").slice(1).join(":");
 }
 
 const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
@@ -78,36 +98,6 @@ function getAvailableClass(value: number, isOverassignedSource: boolean) {
 
   return "available-pill available-pill-positive";
 }
-
-function getDragPreviewSource(element: HTMLElement) {
-  return element.closest<HTMLElement>(
-    ".budget-workspace-row, .budget-workspace-group-header",
-  );
-}
-
-function setWholeRowDragPreview(event: DragEvent<HTMLElement>) {
-  const previewSource = getDragPreviewSource(event.currentTarget);
-
-  if (!previewSource) {
-    return;
-  }
-
-  const preview = previewSource.cloneNode(true) as HTMLElement;
-  preview.classList.add("budget-drag-preview");
-  preview.style.width = `${previewSource.getBoundingClientRect().width}px`;
-  preview.style.position = "fixed";
-  preview.style.top = "-1000px";
-  preview.style.left = "-1000px";
-  preview.style.pointerEvents = "none";
-  document.body.appendChild(preview);
-
-  event.dataTransfer.setDragImage(preview, 18, 18);
-
-  window.setTimeout(() => {
-    preview.remove();
-  }, 0);
-}
-
 
 function EditableAssignedCell({
   category,
@@ -193,16 +183,10 @@ function BudgetCategoryRow({
   currencyCode,
   isSelected,
   isOverassignedSource,
-  isDragSource,
-  dropPosition,
   onSelect,
   onOpenCategoryEditor,
   onAssignedChange,
   onActivityClick,
-  onDragStart,
-  onDragOverCategory,
-  onDropCategory,
-  onDragEnd,
   isBudgetColumnVisible,
   rowStyle,
 }: {
@@ -211,57 +195,54 @@ function BudgetCategoryRow({
   currencyCode: string;
   isSelected: boolean;
   isOverassignedSource: boolean;
-  isDragSource: boolean;
-  dropPosition: BudgetCategoryDropPosition | null;
   onSelect: () => void;
   onOpenCategoryEditor: () => void;
   onAssignedChange: (value: number) => void;
   onActivityClick: () => void;
-  onDragStart: (categoryId: string, groupId: string) => void;
-  onDragOverCategory: (
-    event: DragEvent<HTMLElement>,
-    targetCategoryId: string,
-    targetGroupId: string,
-  ) => void;
-  onDropCategory: (targetCategoryId: string, targetGroupId: string) => void;
-  onDragEnd: () => void;
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
   rowStyle: CSSProperties;
 }) {
   const categoryNotePreview = category.note?.trim().split(/\r?\n/)[0] ?? "";
+  const sortableId = getCategorySortableId(category.id);
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: sortableId,
+    data: {
+      type: "category",
+      categoryId: category.id,
+      groupId,
+    },
+  });
+  const sortableStyle: CSSProperties = {
+    ...rowStyle,
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   return (
     <button
+      ref={setNodeRef}
       type="button"
       className={[
         "budget-workspace-row interactive-budget-row",
         isSelected ? "budget-workspace-row-selected" : "",
-        isDragSource ? "budget-workspace-row-dragging" : "",
-        dropPosition === "before" ? "budget-workspace-row-drop-before" : "",
-        dropPosition === "after" ? "budget-workspace-row-drop-after" : "",
+        isDragging ? "budget-workspace-row-dragging budget-workspace-row-sortable-active" : "",
       ].filter(Boolean).join(" ")}
       onClick={onSelect}
-      onDragOver={(event) => onDragOverCategory(event, category.id, groupId)}
-      onDrop={(event) => {
-        event.preventDefault();
-        onDropCategory(category.id, groupId);
-      }}
-      onDragEnd={onDragEnd}
-      style={rowStyle}
+      style={sortableStyle}
     >
       <div
         className="budget-category-cell budget-category-drag-region"
-        draggable
-        title="Drag category name to reorder within this category group"
+        title="Drag category name to reorder"
         onClick={(event) => event.stopPropagation()}
-        onDragStart={(event) => {
-          event.stopPropagation();
-          event.dataTransfer.effectAllowed = "move";
-          event.dataTransfer.setData("text/plain", category.id);
-          setWholeRowDragPreview(event);
-          onDragStart(category.id, groupId);
-        }}
-        aria-label={`Drag ${category.name} to reorder within ${groupId}`}
+        {...attributes}
+        {...listeners}
       >
         <span
           className="drag-handle drag-handle-active"
@@ -356,18 +337,6 @@ function BudgetGroup({
   onOpenCategoryEditor,
   onAssignedChange,
   onActivityClick,
-  dragState,
-  dropTarget,
-  isGroupDragSource,
-  groupDropPosition,
-  onGroupDragStart,
-  onGroupDragOver,
-  onGroupDrop,
-  onGroupDragEnd,
-  onCategoryDragStart,
-  onCategoryDragOver,
-  onCategoryDrop,
-  onCategoryDragEnd,
   isBudgetColumnVisible,
   rowStyle,
 }: {
@@ -379,50 +348,47 @@ function BudgetGroup({
   onOpenCategoryEditor: (categoryId: string) => void;
   onAssignedChange: (categoryId: string, value: number) => void;
   onActivityClick: (categoryId: string) => void;
-  dragState: BudgetCategoryDragState | null;
-  dropTarget: BudgetCategoryDropTarget | null;
-  isGroupDragSource: boolean;
-  groupDropPosition: BudgetGroupDropPosition | null;
-  onGroupDragStart: (groupId: string) => void;
-  onGroupDragOver: (
-    event: DragEvent<HTMLDivElement>,
-    targetGroupId: string,
-  ) => void;
-  onGroupDrop: (targetGroupId: string) => void;
-  onGroupDragEnd: () => void;
-  onCategoryDragStart: (categoryId: string, groupId: string) => void;
-  onCategoryDragOver: (
-    event: DragEvent<HTMLElement>,
-    targetCategoryId: string,
-    targetGroupId: string,
-  ) => void;
-  onCategoryDrop: (targetCategoryId: string, targetGroupId: string) => void;
-  onCategoryDragEnd: () => void;
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
   rowStyle: CSSProperties;
 }) {
   const groupHasOverassignedCategory = group.categories.some((category) =>
     overassignedCategoryIds.includes(category.id),
   );
+  const sortableId = getGroupSortableId(group.id);
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: sortableId,
+    data: {
+      type: "group",
+      groupId: group.id,
+    },
+  });
+  const sectionStyle: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   return (
-    <section className="budget-workspace-group">
+    <section ref={setNodeRef} className="budget-workspace-group" style={sectionStyle}>
       <div
         className={[
           "budget-workspace-group-header",
-          isGroupDragSource ? "budget-workspace-group-header-dragging" : "",
-          groupDropPosition === "before" ? "budget-workspace-group-drop-before" : "",
-          groupDropPosition === "after" ? "budget-workspace-group-drop-after" : "",
+          isDragging ? "budget-workspace-group-header-dragging budget-workspace-row-sortable-active" : "",
         ].filter(Boolean).join(" ")}
         style={rowStyle}
-        onDragOver={(event) => onGroupDragOver(event, group.id)}
-        onDrop={(event) => {
-          event.preventDefault();
-          onGroupDrop(group.id);
-        }}
-        onDragEnd={onGroupDragEnd}
       >
-        <div className="budget-group-title">
+        <div
+          className="budget-group-title budget-group-name-drag-region"
+          title="Drag category group name to reorder groups"
+          {...attributes}
+          {...listeners}
+        >
           <span
             className="drag-handle drag-handle-active budget-group-drag-handle"
             aria-hidden="true"
@@ -430,19 +396,7 @@ function BudgetGroup({
             ⋮⋮
           </span>
           <span>⌄</span>
-          <strong
-            className="budget-group-name-drag-region"
-            draggable
-            title="Drag category group name to reorder groups"
-            onDragStart={(event) => {
-              event.stopPropagation();
-              event.dataTransfer.effectAllowed = "move";
-              event.dataTransfer.setData("text/plain", group.id);
-              setWholeRowDragPreview(event);
-              onGroupDragStart(group.id);
-            }}
-            aria-label={`Drag ${group.name} category group to reorder groups`}
-          >
+          <strong>
             {group.name}
           </strong>
           {group.note?.trim() ? (
@@ -474,36 +428,33 @@ function BudgetGroup({
         ) : null}
       </div>
 
-      {group.categories.map((category) => {
-        const isOverassignedSource = overassignedCategoryIds.includes(
-          category.id,
-        );
+      <SortableContext
+        items={group.categories.map((category) => getCategorySortableId(category.id))}
+        strategy={verticalListSortingStrategy}
+      >
+        {group.categories.map((category) => {
+          const isOverassignedSource = overassignedCategoryIds.includes(
+            category.id,
+          );
 
-        return (
-          <BudgetCategoryRow
-            key={category.id}
-            category={category}
-            groupId={group.id}
-            currencyCode={currencyCode}
-            isSelected={selectedCategoryId === category.id}
-            isOverassignedSource={isOverassignedSource}
-            isDragSource={dragState?.categoryId === category.id}
-            dropPosition={
-              dropTarget?.categoryId === category.id ? dropTarget.position : null
-            }
-            onSelect={() => onSelectCategory(category.id)}
-            onOpenCategoryEditor={() => onOpenCategoryEditor(category.id)}
-            onAssignedChange={(value) => onAssignedChange(category.id, value)}
-            onActivityClick={() => onActivityClick(category.id)}
-            onDragStart={onCategoryDragStart}
-            onDragOverCategory={onCategoryDragOver}
-            onDropCategory={onCategoryDrop}
-            onDragEnd={onCategoryDragEnd}
-            isBudgetColumnVisible={isBudgetColumnVisible}
-            rowStyle={rowStyle}
-          />
-        );
-      })}
+          return (
+            <BudgetCategoryRow
+              key={category.id}
+              category={category}
+              groupId={group.id}
+              currencyCode={currencyCode}
+              isSelected={selectedCategoryId === category.id}
+              isOverassignedSource={isOverassignedSource}
+              onSelect={() => onSelectCategory(category.id)}
+              onOpenCategoryEditor={() => onOpenCategoryEditor(category.id)}
+              onAssignedChange={(value) => onAssignedChange(category.id, value)}
+              onActivityClick={() => onActivityClick(category.id)}
+              isBudgetColumnVisible={isBudgetColumnVisible}
+              rowStyle={rowStyle}
+            />
+          );
+        })}
+      </SortableContext>
     </section>
   );
 }
@@ -923,14 +874,14 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const navigate = useNavigate();
   const [hideArchivedCategories, setHideArchivedCategories] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
-  const [categoryDragState, setCategoryDragState] =
-    useState<BudgetCategoryDragState | null>(null);
-  const [categoryDropTarget, setCategoryDropTarget] =
-    useState<BudgetCategoryDropTarget | null>(null);
-  const [groupDragState, setGroupDragState] =
-    useState<BudgetGroupDragState | null>(null);
-  const [groupDropTarget, setGroupDropTarget] =
-    useState<BudgetGroupDropTarget | null>(null);
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
   const [selectedMonth, setSelectedMonth] = useState(() =>
     getCurrentBudgetMonth(),
   );
@@ -1040,111 +991,61 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     0,
   );
 
-  function startCategoryDrag(categoryId: string, groupId: string) {
-    setGroupDragState(null);
-    setGroupDropTarget(null);
-    setCategoryDragState({ categoryId, groupId });
-    setCategoryDropTarget(null);
+  function findCategoryLocation(categoryId: string) {
+    for (const group of visibleCategoryGroups) {
+      const index = group.categories.findIndex((category) => category.id === categoryId);
+
+      if (index !== -1) {
+        return { groupId: group.id, index };
+      }
+    }
+
+    return null;
   }
 
-  function updateCategoryDropTarget(
-    event: DragEvent<HTMLElement>,
-    targetCategoryId: string,
-    targetGroupId: string,
-  ) {
-    if (!categoryDragState) {
+  function handleBudgetDragEnd(event: DragEndEvent) {
+    const activeId = String(event.active.id);
+    const overId = event.over ? String(event.over.id) : null;
+
+    if (!overId || activeId === overId) {
       return;
     }
 
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
+    const activeKind = getSortableKind(activeId);
+    const overKind = getSortableKind(overId);
 
-    if (categoryDragState.categoryId === targetCategoryId) {
-      setCategoryDropTarget(null);
+    if (activeKind === "category" && overKind === "category") {
+      const activeCategoryId = getSortableEntityId(activeId);
+      const targetCategoryId = getSortableEntityId(overId);
+      const activeLocation = findCategoryLocation(activeCategoryId);
+      const targetLocation = findCategoryLocation(targetCategoryId);
+
+      if (!activeLocation || !targetLocation) {
+        return;
+      }
+
+      const placement = activeLocation.groupId === targetLocation.groupId &&
+        activeLocation.index < targetLocation.index
+        ? "after"
+        : "before";
+
+      moveCategoryToPosition(activeCategoryId, targetCategoryId, placement);
       return;
     }
 
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const position = event.clientY < bounds.top + bounds.height / 2
-      ? "before"
-      : "after";
+    if (activeKind === "group" && overKind === "group") {
+      const activeGroupId = getSortableEntityId(activeId);
+      const targetGroupId = getSortableEntityId(overId);
+      const activeIndex = visibleCategoryGroups.findIndex((group) => group.id === activeGroupId);
+      const targetIndex = visibleCategoryGroups.findIndex((group) => group.id === targetGroupId);
 
-    setCategoryDropTarget({ categoryId: targetCategoryId, position });
-  }
+      if (activeIndex === -1 || targetIndex === -1) {
+        return;
+      }
 
-  function dropCategory(targetCategoryId: string, targetGroupId: string) {
-    if (
-      categoryDragState &&
-      categoryDragState.categoryId !== targetCategoryId &&
-      categoryDropTarget?.categoryId === targetCategoryId
-    ) {
-      moveCategoryToPosition(
-        categoryDragState.categoryId,
-        targetCategoryId,
-        categoryDropTarget.position,
-      );
+      const placement = activeIndex < targetIndex ? "after" : "before";
+      moveCategoryGroupToPosition(activeGroupId, targetGroupId, placement);
     }
-
-    setCategoryDragState(null);
-    setCategoryDropTarget(null);
-  }
-
-  function endCategoryDrag() {
-    setCategoryDragState(null);
-    setCategoryDropTarget(null);
-  }
-
-  function startCategoryGroupDrag(groupId: string) {
-    setCategoryDragState(null);
-    setCategoryDropTarget(null);
-    setGroupDragState({ groupId });
-    setGroupDropTarget(null);
-  }
-
-  function updateCategoryGroupDropTarget(
-    event: DragEvent<HTMLDivElement>,
-    targetGroupId: string,
-  ) {
-    if (!groupDragState) {
-      return;
-    }
-
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-
-    if (groupDragState.groupId === targetGroupId) {
-      setGroupDropTarget(null);
-      return;
-    }
-
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const position = event.clientY < bounds.top + bounds.height / 2
-      ? "before"
-      : "after";
-
-    setGroupDropTarget({ groupId: targetGroupId, position });
-  }
-
-  function dropCategoryGroup(targetGroupId: string) {
-    if (
-      groupDragState &&
-      groupDragState.groupId !== targetGroupId &&
-      groupDropTarget?.groupId === targetGroupId
-    ) {
-      moveCategoryGroupToPosition(
-        groupDragState.groupId,
-        targetGroupId,
-        groupDropTarget.position,
-      );
-    }
-
-    setGroupDragState(null);
-    setGroupDropTarget(null);
-  }
-
-  function endCategoryGroupDrag() {
-    setGroupDragState(null);
-    setGroupDropTarget(null);
   }
 
 
@@ -1266,35 +1167,32 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           </div>
 
           <Card className="budget-workspace-table-card">
-            {visibleCategoryGroups.map((group) => (
-              <BudgetGroup
-                key={group.id}
-                group={group}
-                currencyCode={data.currencyCode}
-                selectedCategoryId={visibleSelectedCategory?.id ?? null}
-                overassignedCategoryIds={overassignedCategoryIds}
-                onSelectCategory={selectCategory}
-                onOpenCategoryEditor={openCategoryEditor}
-                onAssignedChange={updateAssigned}
-                onActivityClick={openActivityDrilldown}
-                dragState={categoryDragState}
-                dropTarget={categoryDropTarget}
-                isGroupDragSource={groupDragState?.groupId === group.id}
-                groupDropPosition={
-                  groupDropTarget?.groupId === group.id ? groupDropTarget.position : null
-                }
-                onGroupDragStart={startCategoryGroupDrag}
-                onGroupDragOver={updateCategoryGroupDropTarget}
-                onGroupDrop={dropCategoryGroup}
-                onGroupDragEnd={endCategoryGroupDrag}
-                onCategoryDragStart={startCategoryDrag}
-                onCategoryDragOver={updateCategoryDropTarget}
-                onCategoryDrop={dropCategory}
-                onCategoryDragEnd={endCategoryDrag}
-                isBudgetColumnVisible={isBudgetColumnVisible}
-                rowStyle={budgetTableLayout.rowStyle}
-              />
-            ))}
+            <DndContext
+              sensors={dragSensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleBudgetDragEnd}
+            >
+              <SortableContext
+                items={visibleCategoryGroups.map((group) => getGroupSortableId(group.id))}
+                strategy={verticalListSortingStrategy}
+              >
+                {visibleCategoryGroups.map((group) => (
+                  <BudgetGroup
+                    key={group.id}
+                    group={group}
+                    currencyCode={data.currencyCode}
+                    selectedCategoryId={visibleSelectedCategory?.id ?? null}
+                    overassignedCategoryIds={overassignedCategoryIds}
+                    onSelectCategory={selectCategory}
+                    onOpenCategoryEditor={openCategoryEditor}
+                    onAssignedChange={updateAssigned}
+                    onActivityClick={openActivityDrilldown}
+                    isBudgetColumnVisible={isBudgetColumnVisible}
+                    rowStyle={budgetTableLayout.rowStyle}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           </Card>
         </main>
 
