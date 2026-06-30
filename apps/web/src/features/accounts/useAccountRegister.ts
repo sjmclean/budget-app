@@ -59,7 +59,7 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
         return current;
       }
 
-      return view.transactions[0]?.id ?? null;
+      return null;
     });
   }, []);
 

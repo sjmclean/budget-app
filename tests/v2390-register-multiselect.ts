@@ -53,11 +53,18 @@ const registerCss = readFileSync(
   "utf8",
 );
 
+const useAccountRegister = readFileSync(
+  join(process.cwd(), "apps/web/src/features/accounts/useAccountRegister.ts"),
+  "utf8",
+);
+
 assert.match(registerPage, /const hasRegisterActionSelection = selectedRegisterActionTransactionCount > 0;/);
 assert.match(registerPage, /handleSetSelectedTransactionsCleared/);
 assert.match(registerPage, /handleDeleteSelectedTransactions/);
 assert.match(registerPage, /register-bulk-action-bar/);
 assert.match(registerPage, /setRegisterSelection\(emptyRegisterSelectionState\)/);
+assert.match(registerPage, /selectedRegisterTransactionCount > 0/);
+assert.match(registerPage, /toggleRegisterTransactionSelection\(currentSelection, selectedTransactionId\)/);
 assert.doesNotMatch(registerPage, /register-selection-bar/);
 assert.match(registerPage, /aria-label="Selected transaction actions"/);
 assert.match(registerPage, /selectedRegisterActionTransactionCount === 1/);
@@ -66,5 +73,7 @@ assert.match(transactionRow, /onToggleTransactionSelection\(transactionId\)/);
 assert.match(transactionRow, /onSelectTransaction\(transaction\.id, event\)/);
 assert.match(registerCss, /\.register-bulk-action-bar/);
 assert.match(registerCss, /register-bulk-action-danger/);
+assert.match(useAccountRegister, /return null;/);
+assert.doesNotMatch(useAccountRegister, /return view\.transactions\[0\]\?\.id \?\? null;/);
 
 console.log("v2.39.0 register multi-select checks passed");

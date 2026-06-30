@@ -3323,6 +3323,25 @@ export function AccountRegisterPage() {
         return;
       }
 
+      if (selectedRegisterTransactionCount > 0) {
+        selectTransaction(null);
+        setRegisterSelection((currentSelection) =>
+          toggleRegisterTransactionSelection(currentSelection, transactionId),
+        );
+        return;
+      }
+
+      if (selectedTransactionId && selectedTransactionId !== transactionId) {
+        selectTransaction(null);
+        setRegisterSelection((currentSelection) =>
+          toggleRegisterTransactionSelection(
+            toggleRegisterTransactionSelection(currentSelection, selectedTransactionId),
+            transactionId,
+          ),
+        );
+        return;
+      }
+
       selectTransaction(transactionId);
       setRegisterSelection(emptyRegisterSelectionState);
     },
