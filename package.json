@@ -356,7 +356,9 @@
     "test:v2343:transaction-split-allocation-panel": "tsx tests/v2343-transaction-split-allocation-panel.ts",
     "test:v2343": "pnpm test:v2343:transaction-split-allocation-panel",
     "test:v2350:register-column-header": "tsx tests/v2350-register-column-header.ts",
-    "test:v2350": "pnpm test:v2350:register-column-header"
+    "test:v2350": "pnpm test:v2350:register-column-header",
+    "test:v2351:sticky-register-header-stack": "tsx tests/v2351-sticky-register-header-stack.ts",
+    "test:v2351": "pnpm test:v2351:sticky-register-header-stack"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

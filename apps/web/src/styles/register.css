@@ -41,6 +41,49 @@
   contain: inline-size;
 }
 
+/* v2.35.1 sticky register header stack */
+.register-sticky-stack {
+  position: sticky;
+  top: 0;
+  z-index: 18;
+  overflow: visible;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 94%, var(--surface-subtle));
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+.register-sticky-stack .register-clean-header {
+  padding: 0.72rem 0.82rem 0.58rem;
+  border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--surface) 96%, var(--surface-subtle));
+}
+
+.register-sticky-stack .register-toolbar {
+  background: var(--surface);
+}
+
+.register-sticky-stack .register-selection-bar {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.register-sticky-stack .register-head,
+.register-layout-compact .register-sticky-stack .register-head-compact {
+  position: static;
+  top: auto;
+  z-index: auto;
+  box-shadow: none;
+}
+
+.register-sticky-stack .register-head {
+  border-bottom: 0;
+}
+
+.register-sticky-stack .register-more-menu-panel,
+.register-sticky-stack .dropdown-menu-panel,
+.register-sticky-stack [role="menu"] {
+  z-index: 45;
+}
+
 .register-toolbar {
   min-width: 0;
   min-height: 3.35rem;

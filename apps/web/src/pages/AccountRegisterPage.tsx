@@ -21,7 +21,10 @@ import {
   type RegisterColumnId,
 } from "../features/accounts/components/TransactionRow";
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
-import { useRegisterLayoutMode, type RegisterLayoutMode } from "../features/accounts/registerLayoutMode";
+import {
+  useRegisterLayoutMode,
+  type RegisterLayoutMode,
+} from "../features/accounts/registerLayoutMode";
 import {
   REGISTER_DEFAULT_PAGE_SIZE,
   getRegisterPaginationState,
@@ -81,8 +84,20 @@ const REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX =
 
 const REGISTER_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumnId>[] =
   [
-    { id: "select", label: "Select", template: "1.8rem", widthRem: 1.8, minWidthRem: 1.6 },
-    { id: "date", label: "Date", template: "minmax(5.2rem, 6.4rem)", widthRem: 6.4, minWidthRem: 5.2 },
+    {
+      id: "select",
+      label: "Select",
+      template: "1.8rem",
+      widthRem: 1.8,
+      minWidthRem: 1.6,
+    },
+    {
+      id: "date",
+      label: "Date",
+      template: "minmax(5.2rem, 6.4rem)",
+      widthRem: 6.4,
+      minWidthRem: 5.2,
+    },
     {
       id: "flag",
       label: "Flag",
@@ -423,13 +438,21 @@ function RegisterDateField({
 }
 
 function getPayeeSuggestionSection(
-  suggestion: RankedAutocompleteOption<{ payeeId?: string; label: string; type: "payee" | "transfer" }>,
+  suggestion: RankedAutocompleteOption<{
+    payeeId?: string;
+    label: string;
+    type: "payee" | "transfer";
+  }>,
 ) {
   return suggestion.metadata?.type === "transfer" ? "Transfers" : "Payees";
 }
 
 function getPayeeSuggestionText(
-  suggestion: RankedAutocompleteOption<{ payeeId?: string; label: string; type: "payee" | "transfer" }>,
+  suggestion: RankedAutocompleteOption<{
+    payeeId?: string;
+    label: string;
+    type: "payee" | "transfer";
+  }>,
 ) {
   if (suggestion.metadata?.type !== "transfer") {
     return suggestion.value;
@@ -439,13 +462,16 @@ function getPayeeSuggestionText(
 }
 
 function getCategorySuggestionSection(
-  suggestion: RankedAutocompleteOption<{ label: string; groupName?: string; type: "category" | "special" }>,
+  suggestion: RankedAutocompleteOption<{
+    label: string;
+    groupName?: string;
+    type: "category" | "special";
+  }>,
 ) {
   return suggestion.metadata?.type === "special"
     ? "Special"
-    : suggestion.metadata?.groupName ?? suggestion.label ?? "Categories";
+    : (suggestion.metadata?.groupName ?? suggestion.label ?? "Categories");
 }
-
 
 function useRegisterAutocompletePopupStyle(isOpen: boolean) {
   const anchorRef = useRef<HTMLInputElement | null>(null);
@@ -506,12 +532,22 @@ function PayeeInput({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const autocompleteOptions = useMemo(
-    (): Array<AutocompleteOption<{ payeeId?: string; label: string; type: "payee" | "transfer" }>> => [
+    (): Array<
+      AutocompleteOption<{
+        payeeId?: string;
+        label: string;
+        type: "payee" | "transfer";
+      }>
+    > => [
       ...transferAccounts.map((account) => ({
         id: `transfer-${account.id}`,
         value: `Transfer: ${account.name}`,
         label: "Transfer",
-        metadata: { payeeId: undefined, label: "Transfer", type: "transfer" as const },
+        metadata: {
+          payeeId: undefined,
+          label: "Transfer",
+          type: "transfer" as const,
+        },
         ranking: { priority: 0 },
       })),
       ...payeeOptions.map((payee) => ({
@@ -549,13 +585,11 @@ function PayeeInput({
   );
   const shouldShowSuggestions = isOpen && suggestions.length > 0;
   const shouldShowGhost = shouldShowSuggestions && Boolean(ghostCompletion);
-  const { anchorRef, popupStyle } =
-    useRegisterAutocompletePopupStyle(shouldShowSuggestions);
+  const { anchorRef, popupStyle } = useRegisterAutocompletePopupStyle(
+    shouldShowSuggestions,
+  );
 
-  function selectSuggestion(
-    selectedValue: string,
-    selectedPayeeId?: string,
-  ) {
+  function selectSuggestion(selectedValue: string, selectedPayeeId?: string) {
     onChange(selectedValue);
     onPayeeIdChange?.(selectedPayeeId);
     setIsOpen(false);
@@ -669,12 +703,17 @@ function PayeeInput({
           {suggestions.map((suggestion, index) => {
             const section = getPayeeSuggestionSection(suggestion);
             const previousSection =
-              index > 0 ? getPayeeSuggestionSection(suggestions[index - 1]) : null;
+              index > 0
+                ? getPayeeSuggestionSection(suggestions[index - 1])
+                : null;
             const showSection = section !== previousSection;
             const isTransfer = suggestion.metadata?.type === "transfer";
 
             return (
-              <div key={suggestion.id} className="register-autocomplete-suggestion-block">
+              <div
+                key={suggestion.id}
+                className="register-autocomplete-suggestion-block"
+              >
                 {showSection ? (
                   <div className="register-autocomplete-section-heading">
                     {section}
@@ -700,11 +739,15 @@ function PayeeInput({
                   aria-selected={index === highlightedIndex}
                 >
                   <span className="register-autocomplete-primary">
-                    {isTransfer ? <span className="register-autocomplete-icon">↔</span> : null}
+                    {isTransfer ? (
+                      <span className="register-autocomplete-icon">↔</span>
+                    ) : null}
                     <span>{getPayeeSuggestionText(suggestion)}</span>
                   </span>
                   {isTransfer ? null : (
-                    <small>{suggestion.metadata?.label ?? suggestion.label}</small>
+                    <small>
+                      {suggestion.metadata?.label ?? suggestion.label}
+                    </small>
                   )}
                 </button>
               </div>
@@ -730,31 +773,38 @@ function CategoryInput({
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
-  const autocompleteOptions = useMemo(
-    (): Array<AutocompleteOption<{ label: string; groupName?: string; type: "category" | "special" }>> => {
-      const categorySuggestions = categoryOptions.map((category) => ({
-        id: category.id,
-        value: category.name,
+  const autocompleteOptions = useMemo((): Array<
+    AutocompleteOption<{
+      label: string;
+      groupName?: string;
+      type: "category" | "special";
+    }>
+  > => {
+    const categorySuggestions = categoryOptions.map((category) => ({
+      id: category.id,
+      value: category.name,
+      label: category.groupName,
+      metadata: {
         label: category.groupName,
-        metadata: { label: category.groupName, groupName: category.groupName, type: "category" as const },
-      }));
+        groupName: category.groupName,
+        type: "category" as const,
+      },
+    }));
 
-      const splitSuggestion = includeSplitOption
-        ? [
-            {
-              id: "__split",
-              value: SPLIT_CATEGORY_LABEL,
-              label: "Special",
-              metadata: { label: "Special", type: "special" as const },
-              ranking: { priority: 0 },
-            },
-          ]
-        : [];
+    const splitSuggestion = includeSplitOption
+      ? [
+          {
+            id: "__split",
+            value: SPLIT_CATEGORY_LABEL,
+            label: "Special",
+            metadata: { label: "Special", type: "special" as const },
+            ranking: { priority: 0 },
+          },
+        ]
+      : [];
 
-      return [...splitSuggestion, ...categorySuggestions];
-    },
-    [categoryOptions, includeSplitOption],
-  );
+    return [...splitSuggestion, ...categorySuggestions];
+  }, [categoryOptions, includeSplitOption]);
 
   const suggestions = useMemo(
     () =>
@@ -777,8 +827,9 @@ function CategoryInput({
   );
   const shouldShowSuggestions = isOpen && suggestions.length > 0;
   const shouldShowGhost = shouldShowSuggestions && Boolean(ghostCompletion);
-  const { anchorRef, popupStyle } =
-    useRegisterAutocompletePopupStyle(shouldShowSuggestions);
+  const { anchorRef, popupStyle } = useRegisterAutocompletePopupStyle(
+    shouldShowSuggestions,
+  );
 
   function selectSuggestion(nextValue: string) {
     onChange(nextValue);
@@ -879,11 +930,16 @@ function CategoryInput({
           {suggestions.map((suggestion, index) => {
             const section = getCategorySuggestionSection(suggestion);
             const previousSection =
-              index > 0 ? getCategorySuggestionSection(suggestions[index - 1]) : null;
+              index > 0
+                ? getCategorySuggestionSection(suggestions[index - 1])
+                : null;
             const showSection = section !== previousSection;
 
             return (
-              <div key={suggestion.id} className="register-autocomplete-suggestion-block">
+              <div
+                key={suggestion.id}
+                className="register-autocomplete-suggestion-block"
+              >
                 {showSection ? (
                   <div className="register-autocomplete-section-heading">
                     {section}
@@ -905,7 +961,9 @@ function CategoryInput({
                   role="option"
                   aria-selected={index === highlightedIndex}
                 >
-                  <span className="register-autocomplete-primary">{suggestion.value}</span>
+                  <span className="register-autocomplete-primary">
+                    {suggestion.value}
+                  </span>
                 </button>
               </div>
             );
@@ -1026,9 +1084,12 @@ function totalsFromSplitDrafts(splitLines: readonly SplitLineDraft[]): {
   );
 }
 
-function hasIncompleteSplitDrafts(splitLines: readonly SplitLineDraft[]): boolean {
+function hasIncompleteSplitDrafts(
+  splitLines: readonly SplitLineDraft[],
+): boolean {
   return splitLines.some((line) => {
-    const hasAmount = parseMoney(line.outflow) > 0 || parseMoney(line.inflow) > 0;
+    const hasAmount =
+      parseMoney(line.outflow) > 0 || parseMoney(line.inflow) > 0;
     return hasAmount && line.category.trim().length === 0;
   });
 }
@@ -1140,7 +1201,9 @@ function SplitEditor({
     ["category", "memo", "outflow", "inflow"].includes(columnId),
   );
   const splitRemoveColumn = visibleSplitInputColumns[0] ?? "category";
-  const balanceLabelColumn: RegisterColumnId = visibleColumnIds.includes("checkNumber")
+  const balanceLabelColumn: RegisterColumnId = visibleColumnIds.includes(
+    "checkNumber",
+  )
     ? "checkNumber"
     : visibleColumnIds.includes("memo")
       ? "memo"
@@ -1185,7 +1248,10 @@ function SplitEditor({
     );
   }
 
-  function addSplitOnTab(event: KeyboardEvent<HTMLInputElement>, line: SplitLineDraft) {
+  function addSplitOnTab(
+    event: KeyboardEvent<HTMLInputElement>,
+    line: SplitLineDraft,
+  ) {
     if (
       event.key !== "Tab" ||
       event.shiftKey ||
@@ -1194,7 +1260,8 @@ function SplitEditor({
       return;
     }
 
-    const hasAmount = parseMoney(line.outflow) > 0 || parseMoney(line.inflow) > 0;
+    const hasAmount =
+      parseMoney(line.outflow) > 0 || parseMoney(line.inflow) > 0;
 
     if (!hasAmount) {
       return;
@@ -1209,24 +1276,24 @@ function SplitEditor({
         columnId,
         line,
         <CategoryInput
-            value={line.category}
-            onChange={(value) =>
-              setSplitLines((current) =>
-                current.map((item) =>
-                  item.id === line.id
-                    ? {
-                        ...item,
-                        category: value,
-                        categoryId: findCategoryOption(value, categoryOptions)
-                          ?.id,
-                      }
-                    : item,
-                ),
-              )
-            }
-            categoryOptions={categoryOptions}
-            includeSplitOption={false}
-          />,
+          value={line.category}
+          onChange={(value) =>
+            setSplitLines((current) =>
+              current.map((item) =>
+                item.id === line.id
+                  ? {
+                      ...item,
+                      category: value,
+                      categoryId: findCategoryOption(value, categoryOptions)
+                        ?.id,
+                    }
+                  : item,
+              ),
+            )
+          }
+          categoryOptions={categoryOptions}
+          includeSplitOption={false}
+        />,
       );
     }
 
@@ -1455,8 +1522,10 @@ function SplitEditor({
                         ? {
                             ...item,
                             category: value,
-                            categoryId: findCategoryOption(value, categoryOptions)
-                              ?.id,
+                            categoryId: findCategoryOption(
+                              value,
+                              categoryOptions,
+                            )?.id,
                           }
                         : item,
                     ),
@@ -1537,7 +1606,9 @@ function SplitEditor({
           </div>
 
           <div className="register-split-compact-assign" aria-live="polite">
-            <span className="register-split-balance-label">Amount to assign</span>
+            <span className="register-split-balance-label">
+              Amount to assign
+            </span>
             <strong className="register-split-assign-amount register-split-assign-outflow">
               {balanceStatus.activeSide === "outflow"
                 ? formatMoney(
@@ -1551,7 +1622,9 @@ function SplitEditor({
             <strong
               className={[
                 "register-split-assign-amount register-split-assign-inflow",
-                balanceStatus.isOverAssigned ? "register-split-assign-over" : "",
+                balanceStatus.isOverAssigned
+                  ? "register-split-assign-over"
+                  : "",
               ].join(" ")}
             >
               {balanceStatus.activeSide === "inflow"
@@ -1591,7 +1664,10 @@ function SplitEditor({
         </span>
       </div>
 
-      <div className="register-split-allocation-grid register-split-allocation-grid-heading" aria-hidden="true">
+      <div
+        className="register-split-allocation-grid register-split-allocation-grid-heading"
+        aria-hidden="true"
+      >
         <span>Remove</span>
         <span>Category</span>
         <span>Memo</span>
@@ -1600,7 +1676,10 @@ function SplitEditor({
       </div>
 
       {splitLines.map((line) => (
-        <div className="register-split-allocation-grid register-split-allocation-line" key={line.id}>
+        <div
+          className="register-split-allocation-grid register-split-allocation-line"
+          key={line.id}
+        >
           <div className="register-split-allocation-remove">
             {renderSplitRemoveButton(line)}
           </div>
@@ -2040,7 +2119,11 @@ function TransactionEntryRow({
           type="button"
           onClick={saveAndAddAnother}
           disabled={
-            !isSplitDraftBalanced(parseMoney(outflow), parseMoney(inflow), splitLines)
+            !isSplitDraftBalanced(
+              parseMoney(outflow),
+              parseMoney(inflow),
+              splitLines,
+            )
           }
         >
           Save & add another
@@ -2050,7 +2133,11 @@ function TransactionEntryRow({
           type="button"
           onClick={save}
           disabled={
-            !isSplitDraftBalanced(parseMoney(outflow), parseMoney(inflow), splitLines)
+            !isSplitDraftBalanced(
+              parseMoney(outflow),
+              parseMoney(inflow),
+              splitLines,
+            )
           }
         >
           Save
@@ -2286,7 +2373,6 @@ function TransactionEditRow({
           placeholder="Inflow"
           inputMode="decimal"
         />
-
       </div>
       {splitLines.length > 0 ? (
         <SplitEditor
@@ -2305,7 +2391,11 @@ function TransactionEditRow({
             type="button"
             onClick={save}
             disabled={
-              !isSplitDraftBalanced(parseMoney(outflow), parseMoney(inflow), splitLines)
+              !isSplitDraftBalanced(
+                parseMoney(outflow),
+                parseMoney(inflow),
+                splitLines,
+              )
             }
           >
             Save
@@ -2460,7 +2550,6 @@ export function AccountRegisterPage() {
       ),
     [registerEditVisibleColumnIds, registerTableLayout.columnWidths],
   );
-
 
   const registerEntryVisibleColumnIds = useMemo(
     () => registerTableLayout.visibleColumns.map((column) => column.id),
@@ -2917,96 +3006,224 @@ export function AccountRegisterPage() {
     );
   }
 
+  const registerColumnHeader =
+    registerLayoutMode === "compact" ? (
+      <div
+        className="register-row-compact register-head register-head-compact"
+        aria-label="Register column headings"
+      >
+        <span className="register-compact-head-select" aria-label="Select" />
+        <span className="register-compact-head-date">Date</span>
+        <span className="register-compact-head-flag">Flag</span>
+        <span
+          className="register-compact-head-attachments"
+          aria-label="Attachments"
+        >
+          <Paperclip size={13} aria-hidden="true" />
+        </span>
+        <span className="register-compact-head-transaction">
+          Payee / Category / Memo
+        </span>
+        <span className="register-compact-head-amount">Amount / Balance</span>
+        <span className="register-compact-head-status">C</span>
+      </div>
+    ) : registerLayoutMode === "desktop" ? (
+      <div
+        className="register-row register-head register-row-with-attachments"
+        style={registerTableLayout.rowStyle}
+        aria-label="Register column headings"
+      >
+        {registerTableLayout.visibleColumns.map((column) => (
+          <span
+            className={[
+              column.id === "attachments" ? "register-head-icon" : "",
+              column.id === "outflow" ||
+              column.id === "inflow" ||
+              column.id === "runningBalance"
+                ? "register-head-money"
+                : "",
+              "table-layout-resizable-head-cell",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            key={column.id}
+            aria-label={column.id === "attachments" ? "Attachments" : undefined}
+          >
+            {column.id === "attachments" ? (
+              <Paperclip size={13} />
+            ) : column.id === "runningBalance" ? (
+              "Balance"
+            ) : column.id === "status" ? (
+              "C"
+            ) : column.id === "select" ? (
+              ""
+            ) : (
+              column.label
+            )}
+            <ColumnResizeHandle
+              columnId={column.id}
+              label={column.label}
+              onResizeStart={registerTableLayout.startColumnResize}
+              onNudgeColumnWidth={registerTableLayout.nudgeColumnWidth}
+              onResetColumnWidth={registerTableLayout.resetColumnWidth}
+            />
+          </span>
+        ))}
+      </div>
+    ) : null;
+
   return (
     <div className="register-workspace">
-      <section className="register-clean-header">
-        <div>
-          <h1>{data.accountName}</h1>
-          <p className="muted">
-            Keyboard-first date entry · Save & add another
-          </p>
-        </div>
+      <Card
+        className={`register-table-card register-layout-${registerLayoutMode}`}
+      >
+        <div className="register-sticky-stack">
+          <section className="register-clean-header">
+            <div>
+              <h1>{data.accountName}</h1>
+              <p className="muted">
+                Keyboard-first date entry · Save & add another
+              </p>
+            </div>
 
-        <div className="register-main-balance">
-          <span>Balance</span>
-          <strong>{formatMoney(data.workingBalance, data.currencyCode)}</strong>
-        </div>
-      </section>
+            <div className="register-main-balance">
+              <span>Balance</span>
+              <strong>
+                {formatMoney(data.workingBalance, data.currencyCode)}
+              </strong>
+            </div>
+          </section>
 
-      <Card className={`register-table-card register-layout-${registerLayoutMode}`}>
-        <div className="register-toolbar register-toolbar-clean">
-          <div className="register-toolbar-actions register-toolbar-actions-left">
-            <button
-              className="button button-primary"
-              type="button"
-              onClick={() => {
-                setEditingTransactionId(null);
-                setShowEntryRow((current) => !current);
-              }}
-            >
-              Add transaction
-            </button>
+          <div className="register-toolbar register-toolbar-clean">
+            <div className="register-toolbar-actions register-toolbar-actions-left">
+              <button
+                className="button button-primary"
+                type="button"
+                onClick={() => {
+                  setEditingTransactionId(null);
+                  setShowEntryRow((current) => !current);
+                }}
+              >
+                Add transaction
+              </button>
 
-            <input
-              className="register-search"
-              placeholder="Search transactions…"
-              aria-label="Search transactions"
-            />
+              <input
+                className="register-search"
+                placeholder="Search transactions…"
+                aria-label="Search transactions"
+              />
 
-            <ColumnVisibilityMenu
-              label="Columns ▾"
-              columns={REGISTER_COLUMN_DEFINITIONS}
-              visibleColumnSet={registerTableLayout.visibleColumnSet}
-              onToggleColumn={registerTableLayout.toggleColumn}
-              onReset={registerTableLayout.resetLayout}
-            />
+              <ColumnVisibilityMenu
+                label="Columns ▾"
+                columns={REGISTER_COLUMN_DEFINITIONS}
+                visibleColumnSet={registerTableLayout.visibleColumnSet}
+                onToggleColumn={registerTableLayout.toggleColumn}
+                onReset={registerTableLayout.resetLayout}
+              />
 
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={() => setIsTransactionImportOpen(true)}
-            >
-              Import
-            </button>
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={() => setIsTransactionImportOpen(true)}
+              >
+                Import
+              </button>
 
-            <button className="button button-secondary" type="button" disabled>
-              Reconcile
-            </button>
+              <button
+                className="button button-secondary"
+                type="button"
+                disabled
+              >
+                Reconcile
+              </button>
 
-            <DropdownMenu
-              label="More ▾"
-              ariaLabel="Register actions"
-              className="register-more-menu"
-              panelClassName="register-more-menu-panel"
-            >
-              {({ closeMenu }) => (
-                <>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setIsPayeeManagerOpen(true);
-                      closeMenu({ restoreFocus: true });
-                    }}
-                  >
-                    Manage Payees
-                  </button>
+              <DropdownMenu
+                label="More ▾"
+                ariaLabel="Register actions"
+                className="register-more-menu"
+                panelClassName="register-more-menu-panel"
+              >
+                {({ closeMenu }) => (
+                  <>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsPayeeManagerOpen(true);
+                        closeMenu({ restoreFocus: true });
+                      }}
+                    >
+                      Manage Payees
+                    </button>
 
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setIsScheduledOpen((current) => !current);
-                      closeMenu({ restoreFocus: true });
-                    }}
-                  >
-                    Scheduled Transactions
-                    {scheduledDueCount > 0 ? ` (${scheduledDueCount})` : ""}
-                  </button>
-                </>
-              )}
-            </DropdownMenu>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsScheduledOpen((current) => !current);
+                        closeMenu({ restoreFocus: true });
+                      }}
+                    >
+                      Scheduled Transactions
+                      {scheduledDueCount > 0 ? ` (${scheduledDueCount})` : ""}
+                    </button>
+                  </>
+                )}
+              </DropdownMenu>
+            </div>
           </div>
+
+          {selectedTransactionId && !editingTransactionId && (
+            <div className="register-selection-bar">
+              <span>1 selected</span>
+              <button
+                type="button"
+                onClick={() => setEditingTransactionId(selectedTransactionId)}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setAttachmentTransactionId(selectedTransactionId)
+                }
+              >
+                Attach
+              </button>
+              <button type="button" disabled>
+                Duplicate
+              </button>
+              <button type="button" disabled>
+                Move
+              </button>
+              <button type="button" disabled>
+                Flag
+              </button>
+              <button type="button" disabled>
+                Add note
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const confirmed = confirmDialog({
+                    message:
+                      "Delete this transaction? This cannot be undone yet.",
+                  });
+
+                  if (!confirmed) {
+                    return;
+                  }
+
+                  deleteTransaction(selectedTransactionId);
+                  setEditingTransactionId(null);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+
+          {registerColumnHeader}
         </div>
 
         <ScheduledTransactionsPanel
@@ -3276,119 +3493,7 @@ export function AccountRegisterPage() {
           />
         )}
 
-
-        {selectedTransactionId && !editingTransactionId && (
-          <div className="register-selection-bar">
-            <span>1 selected</span>
-            <button
-              type="button"
-              onClick={() => setEditingTransactionId(selectedTransactionId)}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={() => setAttachmentTransactionId(selectedTransactionId)}
-            >
-              Attach
-            </button>
-            <button type="button" disabled>
-              Duplicate
-            </button>
-            <button type="button" disabled>
-              Move
-            </button>
-            <button type="button" disabled>
-              Flag
-            </button>
-            <button type="button" disabled>
-              Add note
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const confirmed = confirmDialog({
-                  message:
-                    "Delete this transaction? This cannot be undone yet.",
-                });
-
-                if (!confirmed) {
-                  return;
-                }
-
-                deleteTransaction(selectedTransactionId);
-                setEditingTransactionId(null);
-              }}
-            >
-              Delete
-            </button>
-          </div>
-        )}
-
         <div className="register-table">
-          {registerLayoutMode === "compact" ? (
-            <div
-              className="register-row-compact register-head register-head-compact"
-              aria-label="Register column headings"
-            >
-              <span className="register-compact-head-select" aria-label="Select" />
-              <span className="register-compact-head-date">Date</span>
-              <span className="register-compact-head-flag">Flag</span>
-              <span className="register-compact-head-attachments" aria-label="Attachments">
-                <Paperclip size={13} aria-hidden="true" />
-              </span>
-              <span className="register-compact-head-transaction">
-                Payee / Category / Memo
-              </span>
-              <span className="register-compact-head-amount">Amount / Balance</span>
-              <span className="register-compact-head-status">C</span>
-            </div>
-          ) : registerLayoutMode === "desktop" ? (
-            <div
-              className="register-row register-head register-row-with-attachments"
-              style={registerTableLayout.rowStyle}
-            >
-              {registerTableLayout.visibleColumns.map((column) => (
-                <span
-                  className={[
-                    column.id === "attachments" ? "register-head-icon" : "",
-                    column.id === "outflow" ||
-                    column.id === "inflow" ||
-                    column.id === "runningBalance"
-                      ? "register-head-money"
-                      : "",
-                    "table-layout-resizable-head-cell",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  key={column.id}
-                  aria-label={
-                    column.id === "attachments" ? "Attachments" : undefined
-                  }
-                >
-                  {column.id === "attachments" ? (
-                    <Paperclip size={13} />
-                  ) : column.id === "runningBalance" ? (
-                    "Balance"
-                  ) : column.id === "status" ? (
-                    "C"
-                  ) : column.id === "select" ? (
-                    ""
-                  ) : (
-                    column.label
-                  )}
-                  <ColumnResizeHandle
-                    columnId={column.id}
-                    label={column.label}
-                    onResizeStart={registerTableLayout.startColumnResize}
-                    onNudgeColumnWidth={registerTableLayout.nudgeColumnWidth}
-                    onResetColumnWidth={registerTableLayout.resetColumnWidth}
-                  />
-                </span>
-              ))}
-            </div>
-          ) : null}
-
           {showEntryRow && (
             <TransactionEntryRow
               initialDate={lastEntryDate}
@@ -3415,14 +3520,19 @@ export function AccountRegisterPage() {
 
           {visibleTransactions.map((transaction, transactionIndex) => {
             const previousTransaction =
-              transactionIndex > 0 ? visibleTransactions[transactionIndex - 1] : null;
+              transactionIndex > 0
+                ? visibleTransactions[transactionIndex - 1]
+                : null;
             const showMonthSeparator =
               transactionIndex === 0 ||
               formatRegisterMonthSeparator(previousTransaction?.date ?? "") !==
                 formatRegisterMonthSeparator(transaction.date);
 
             return (
-              <div className="register-transaction-with-month" key={transaction.id}>
+              <div
+                className="register-transaction-with-month"
+                key={transaction.id}
+              >
                 {showMonthSeparator ? (
                   <div className="register-month-separator">
                     {formatRegisterMonthSeparator(transaction.date)}
