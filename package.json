@@ -368,7 +368,9 @@
     "test:v2361:budget-row-drag-interaction": "tsx tests/v2361-budget-row-drag-interaction.ts",
     "test:v2361": "pnpm test:v2361:budget-row-drag-interaction",
     "test:v2370:budget-dnd-kit": "tsx tests/v2370-budget-dnd-kit.ts",
-    "test:v2370": "pnpm test:v2370:budget-dnd-kit"
+    "test:v2370": "pnpm test:v2370:budget-dnd-kit",
+    "test:v2371:payee-dnd-kit-merge": "tsx tests/v2371-payee-dnd-kit-merge.ts",
+    "test:v2371": "pnpm test:v2371:payee-dnd-kit-merge"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

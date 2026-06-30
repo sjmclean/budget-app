@@ -1,4 +1,18 @@
-import { useEffect, useMemo, useState, type DragEvent, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { Card } from "../components/ui/Card";
 import { getAppPersistenceGateway } from "../features/persistence";
 import type {
@@ -46,7 +60,145 @@ function createDraftRule(payeeName = ""): PayeeImportRuleView {
   };
 }
 
+const payeeDragIdPrefix = "payee-drag:";
+const payeeDropIdPrefix = "payee-drop:";
 
+function getPayeeDragId(payeeId: string): string {
+  return `${payeeDragIdPrefix}${payeeId}`;
+}
+
+function getPayeeDropId(payeeId: string): string {
+  return `${payeeDropIdPrefix}${payeeId}`;
+}
+
+function getPayeeIdFromDndId(id: string): string {
+  if (id.startsWith(payeeDragIdPrefix)) {
+    return id.slice(payeeDragIdPrefix.length);
+  }
+
+  if (id.startsWith(payeeDropIdPrefix)) {
+    return id.slice(payeeDropIdPrefix.length);
+  }
+
+  return id;
+}
+
+function PayeeMergeListItem({
+  payee,
+  isSelected,
+  isChecked,
+  isDropTarget,
+  isDragSource,
+  disabled,
+  onSelect,
+}: {
+  payee: PayeeView;
+  isSelected: boolean;
+  isChecked: boolean;
+  isDropTarget: boolean;
+  isDragSource: boolean;
+  disabled: boolean;
+  onSelect: (payee: PayeeView, event: MouseEvent<HTMLButtonElement>) => void;
+}) {
+  const draggable = useDraggable({
+    id: getPayeeDragId(payee.id),
+    disabled,
+    data: {
+      type: "payee-merge-source",
+      payeeId: payee.id,
+    },
+  });
+  const droppable = useDroppable({
+    id: getPayeeDropId(payee.id),
+    disabled,
+    data: {
+      type: "payee-merge-target",
+      payeeId: payee.id,
+    },
+  });
+  const transform = draggable.transform
+    ? CSS.Transform.toString(draggable.transform)
+    : undefined;
+
+  return (
+    <div
+      ref={(node) => {
+        draggable.setNodeRef(node);
+        droppable.setNodeRef(node);
+      }}
+      className={[
+        "payee-management-list-item-shell",
+        isSelected ? "payee-management-list-item-shell-selected" : "",
+        isChecked ? "payee-management-list-item-shell-checked" : "",
+        isDropTarget ? "payee-management-list-item-shell-drop-target" : "",
+        isDragSource || draggable.isDragging
+          ? "payee-management-list-item-shell-dragging"
+          : "",
+        droppable.isOver && !isDropTarget
+          ? "payee-management-list-item-shell-drop-hover"
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={{ transform }}
+      title={!disabled ? "Drag onto another payee to merge" : undefined}
+      {...draggable.attributes}
+      {...draggable.listeners}
+    >
+      <button
+        className="payee-management-list-item"
+        type="button"
+        role="option"
+        aria-selected={isSelected}
+        onClick={(event) => onSelect(payee, event)}
+      >
+        <strong>{payee.name}</strong>
+        <span>{payee.useCount} transactions</span>
+        {isDropTarget ? (
+          <small className="payee-merge-badge">
+            Release to merge into this payee
+          </small>
+        ) : isChecked ? (
+          <small className="payee-merge-badge">Selected · drag to merge</small>
+        ) : payee.defaultCategoryName ? (
+          <small title={payee.defaultCategoryName}>
+            {payee.defaultCategoryName}
+          </small>
+        ) : payee.note?.trim() ? (
+          <small title={payee.note}>Has note</small>
+        ) : null}
+      </button>
+    </div>
+  );
+}
+
+function PayeeMergeDragOverlay({
+  sourcePayees,
+}: {
+  sourcePayees: PayeeView[];
+}) {
+  if (sourcePayees.length === 0) {
+    return null;
+  }
+
+  const [primaryPayee] = sourcePayees;
+  const transactionCount = sourcePayees.reduce(
+    (total, payee) => total + payee.useCount,
+    0,
+  );
+
+  return (
+    <div className="payee-merge-drag-overlay">
+      <strong>
+        {sourcePayees.length === 1
+          ? primaryPayee.name
+          : `${sourcePayees.length} payees selected`}
+      </strong>
+      <span>{transactionCount} transactions</span>
+      <small>Drop onto the payee you want to keep</small>
+    </div>
+  );
+}
 
 export function PayeeManagementPage() {
   const persistenceGateway = getAppPersistenceGateway();
@@ -56,7 +208,9 @@ export function PayeeManagementPage() {
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const [payees, setPayees] = useState<PayeeView[]>([]);
   const [archivedPayees, setArchivedPayees] = useState<PayeeView[]>([]);
-  const [categoryOptions, setCategoryOptions] = useState<BudgetCategoryOption[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<
+    BudgetCategoryOption[]
+  >([]);
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedPayeeId, setSelectedPayeeId] = useState<string | null>(null);
@@ -64,11 +218,28 @@ export function PayeeManagementPage() {
   const [draftNote, setDraftNote] = useState("");
   const [draftDefaultCategoryId, setDraftDefaultCategoryId] = useState("");
   const [draftRules, setDraftRules] = useState<PayeeImportRuleView[]>([]);
-  const [statusMessage, setStatusMessage] = useState("Select a payee to edit it.");
-  const [selectedMergePayeeIds, setSelectedMergePayeeIds] = useState<string[]>([]);
-  const [lastSelectedMergePayeeId, setLastSelectedMergePayeeId] = useState<string | null>(null);
-  const [draggedMergePayeeId, setDraggedMergePayeeId] = useState<string | null>(null);
-  const [mergeDropTargetPayeeId, setMergeDropTargetPayeeId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState(
+    "Select a payee to edit it.",
+  );
+  const [selectedMergePayeeIds, setSelectedMergePayeeIds] = useState<string[]>(
+    [],
+  );
+  const [lastSelectedMergePayeeId, setLastSelectedMergePayeeId] = useState<
+    string | null
+  >(null);
+  const [draggedMergePayeeId, setDraggedMergePayeeId] = useState<string | null>(
+    null,
+  );
+  const [mergeDropTargetPayeeId, setMergeDropTargetPayeeId] = useState<
+    string | null
+  >(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 6,
+      },
+    }),
+  );
 
   useEffect(() => {
     let active = true;
@@ -96,8 +267,8 @@ export function PayeeManagementPage() {
       setPayees(loadedPayees);
       setArchivedPayees(loadedArchivedPayees);
       setCategoryOptions(loadedCategoryOptions);
-      setSelectedPayeeId((currentPayeeId) =>
-        currentPayeeId ?? loadedPayees[0]?.id ?? null,
+      setSelectedPayeeId(
+        (currentPayeeId) => currentPayeeId ?? loadedPayees[0]?.id ?? null,
       );
     });
 
@@ -164,7 +335,9 @@ export function PayeeManagementPage() {
       draftNote.trim() !== (selectedPayee?.note ?? "") ||
       draftDefaultCategoryId !== (selectedPayee?.defaultCategoryId ?? "") ||
       JSON.stringify(normaliseRulesForComparison(draftRules)) !==
-        JSON.stringify(normaliseRulesForComparison(selectedPayee?.importRules ?? [])));
+        JSON.stringify(
+          normaliseRulesForComparison(selectedPayee?.importRules ?? []),
+        ));
 
   async function saveSelectedPayee() {
     if (!selectedPayee) {
@@ -239,21 +412,33 @@ export function PayeeManagementPage() {
     setStatusMessage(`Restored ${selectedPayee.name}.`);
   }
 
-  function selectPayeeForMerge(payee: PayeeView, event: MouseEvent<HTMLButtonElement>) {
+  function selectPayeeForMerge(
+    payee: PayeeView,
+    event: MouseEvent<HTMLButtonElement>,
+  ) {
     if (showArchived) {
       selectPayee(payee);
       return;
     }
 
     if (event.shiftKey && lastSelectedMergePayeeId) {
-      const startIndex = filteredPayees.findIndex((item) => item.id === lastSelectedMergePayeeId);
+      const startIndex = filteredPayees.findIndex(
+        (item) => item.id === lastSelectedMergePayeeId,
+      );
       const endIndex = filteredPayees.findIndex((item) => item.id === payee.id);
 
       if (startIndex >= 0 && endIndex >= 0) {
-        const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
-        const rangeIds = filteredPayees.slice(from, to + 1).map((item) => item.id);
+        const [from, to] =
+          startIndex < endIndex
+            ? [startIndex, endIndex]
+            : [endIndex, startIndex];
+        const rangeIds = filteredPayees
+          .slice(from, to + 1)
+          .map((item) => item.id);
 
-        setSelectedMergePayeeIds((payeeIds) => Array.from(new Set([...payeeIds, ...rangeIds])));
+        setSelectedMergePayeeIds((payeeIds) =>
+          Array.from(new Set([...payeeIds, ...rangeIds])),
+        );
         setLastSelectedMergePayeeId(payee.id);
         setStatusMessage(`${rangeIds.length} payees selected for merge.`);
         return;
@@ -292,19 +477,14 @@ export function PayeeManagementPage() {
     return payees.filter((payee) => payee.id === payeeId);
   }
 
-  function startPayeeDrag(payee: PayeeView, event: DragEvent<HTMLElement>) {
-    const dragSourcePayees = getDragSourcePayees(payee.id);
+  function startPayeeDrag(payeeId: string) {
+    const dragSourcePayees = getDragSourcePayees(payeeId);
+    const sourcePayee = dragSourcePayees[0];
 
-    setDraggedMergePayeeId(payee.id);
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", payee.id);
-    event.dataTransfer.setData(
-      "application/budget-app-payee-ids",
-      JSON.stringify(dragSourcePayees.map((sourcePayee) => sourcePayee.id)),
-    );
+    setDraggedMergePayeeId(payeeId);
     setStatusMessage(
       dragSourcePayees.length === 1
-        ? `Drag ${payee.name} onto the payee you want to keep.`
+        ? `Drag ${sourcePayee?.name ?? "this payee"} onto the payee you want to keep.`
         : `Drag ${dragSourcePayees.length} payees onto the payee you want to keep.`,
     );
   }
@@ -314,23 +494,70 @@ export function PayeeManagementPage() {
     setMergeDropTargetPayeeId(null);
   }
 
-  function dragOverPayee(payee: PayeeView, event: DragEvent<HTMLDivElement>) {
-    const sourcePayees = getDragSourcePayees(draggedMergePayeeId ?? "");
-    const sourceIds = new Set(sourcePayees.map((sourcePayee) => sourcePayee.id));
+  function handlePayeeDragStart(event: DragStartEvent) {
+    const payeeId = String(
+      event.active.data.current?.payeeId ??
+        getPayeeIdFromDndId(String(event.active.id)),
+    );
+    startPayeeDrag(payeeId);
+  }
 
-    if (!draggedMergePayeeId || sourceIds.has(payee.id)) {
+  function handlePayeeDragOver(event: DragOverEvent) {
+    const activePayeeId = String(
+      event.active.data.current?.payeeId ??
+        getPayeeIdFromDndId(String(event.active.id)),
+    );
+    const sourcePayees = getDragSourcePayees(activePayeeId);
+    const sourceIds = new Set(
+      sourcePayees.map((sourcePayee) => sourcePayee.id),
+    );
+    const targetPayeeId = event.over
+      ? String(
+          event.over.data.current?.payeeId ??
+            getPayeeIdFromDndId(String(event.over.id)),
+        )
+      : null;
+
+    if (!targetPayeeId || sourceIds.has(targetPayeeId)) {
+      setMergeDropTargetPayeeId(null);
       return;
     }
 
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    setMergeDropTargetPayeeId(payee.id);
+    setMergeDropTargetPayeeId(targetPayeeId);
   }
 
-  async function dropPayeeForMerge(targetPayee: PayeeView, event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
+  function handlePayeeDragEnd(event: DragEndEvent) {
+    const activePayeeId = String(
+      event.active.data.current?.payeeId ??
+        getPayeeIdFromDndId(String(event.active.id)),
+    );
+    const sourcePayees = getDragSourcePayees(activePayeeId);
+    const sourceIds = new Set(
+      sourcePayees.map((sourcePayee) => sourcePayee.id),
+    );
+    const targetPayeeId = event.over
+      ? String(
+          event.over.data.current?.payeeId ??
+            getPayeeIdFromDndId(String(event.over.id)),
+        )
+      : null;
+    const targetPayee = targetPayeeId
+      ? payees.find((payee) => payee.id === targetPayeeId)
+      : null;
 
-    const sourcePayees = getDragSourcePayees(draggedMergePayeeId ?? "").filter(
+    if (!targetPayee || sourceIds.has(targetPayee.id)) {
+      endPayeeDrag();
+      return;
+    }
+
+    void mergePayeesIntoTarget(targetPayee, activePayeeId);
+  }
+
+  async function mergePayeesIntoTarget(
+    targetPayee: PayeeView,
+    sourcePayeeId: string,
+  ) {
+    const sourcePayees = getDragSourcePayees(sourcePayeeId).filter(
       (sourcePayee) => sourcePayee.id !== targetPayee.id,
     );
 
@@ -339,8 +566,14 @@ export function PayeeManagementPage() {
       return;
     }
 
-    const transactionCount = sourcePayees.reduce((total, payee) => total + payee.useCount, 0);
-    const ruleCount = sourcePayees.reduce((total, payee) => total + (payee.importRules?.length ?? 0), 0);
+    const transactionCount = sourcePayees.reduce(
+      (total, payee) => total + payee.useCount,
+      0,
+    );
+    const ruleCount = sourcePayees.reduce(
+      (total, payee) => total + (payee.importRules?.length ?? 0),
+      0,
+    );
     const noteCount = sourcePayees.filter((payee) => payee.note?.trim()).length;
     const shouldMerge = confirmDialog({
       title:
@@ -389,7 +622,9 @@ export function PayeeManagementPage() {
 
   function updateRule(ruleId: string, updates: Partial<PayeeImportRuleView>) {
     setDraftRules((rules) =>
-      rules.map((rule) => (rule.id === ruleId ? { ...rule, ...updates } : rule)),
+      rules.map((rule) =>
+        rule.id === ruleId ? { ...rule, ...updates } : rule,
+      ),
     );
   }
 
@@ -426,7 +661,6 @@ export function PayeeManagementPage() {
             notes, set default categories, and prepare import rules.
           </p>
         </div>
-
       </div>
 
       <Card className="payee-management-workspace">
@@ -438,7 +672,11 @@ export function PayeeManagementPage() {
 
             <div className="payee-management-list-toolbar-actions">
               {selectedMergePayeeIds.length > 0 ? (
-                <button className="button button-secondary" type="button" onClick={clearMergeSelection}>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={clearMergeSelection}
+                >
                   Clear selection
                 </button>
               ) : null}
@@ -468,66 +706,60 @@ export function PayeeManagementPage() {
             placeholder="Search payees..."
           />
 
-          <div className="payee-management-list" role="listbox">
-            {filteredPayees.length > 0 ? (
-              filteredPayees.map((payee) => (
-                <div
-                  key={payee.id}
-                  className={[
-                    "payee-management-list-item-shell",
-                    selectedPayee?.id === payee.id
-                      ? "payee-management-list-item-shell-selected"
-                      : "",
-                    selectedMergePayeeIds.includes(payee.id)
-                      ? "payee-management-list-item-shell-checked"
-                      : "",
-                    mergeDropTargetPayeeId === payee.id
-                      ? "payee-management-list-item-shell-drop-target"
-                      : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onDragOver={(event) => dragOverPayee(payee, event)}
-                  onDragLeave={() => setMergeDropTargetPayeeId(null)}
-                  onDrop={(event) => dropPayeeForMerge(payee, event)}
-                  draggable={!showArchived}
-                  onDragStart={(event) => startPayeeDrag(payee, event)}
-                  onDragEnd={endPayeeDrag}
-                  title={!showArchived ? "Drag onto another payee to merge" : undefined}
-                >
-                  <button
-                    className="payee-management-list-item"
-                    type="button"
-                    role="option"
-                    aria-selected={selectedPayee?.id === payee.id}
-                    onClick={(event) => selectPayeeForMerge(payee, event)}
-                  >
-                    <strong>{payee.name}</strong>
-                    <span>{payee.useCount} transactions</span>
-                    {mergeDropTargetPayeeId === payee.id ? (
-                      <small className="payee-merge-badge">Keep as main payee</small>
-                    ) : selectedMergePayeeIds.includes(payee.id) ? (
-                      <small className="payee-merge-badge">Selected · drag to merge</small>
-                    ) : payee.defaultCategoryName ? (
-                      <small title={payee.defaultCategoryName}>
-                        {payee.defaultCategoryName}
-                      </small>
-                    ) : payee.note?.trim() ? (
-                      <small title={payee.note}>Has note</small>
-                    ) : null}
-                  </button>
-                </div>
-              ))
-            ) : (
-              <p className="payee-management-empty">No payees found.</p>
-            )}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={pointerWithin}
+            onDragStart={handlePayeeDragStart}
+            onDragOver={handlePayeeDragOver}
+            onDragEnd={handlePayeeDragEnd}
+            onDragCancel={endPayeeDrag}
+          >
+            <div className="payee-management-list" role="listbox">
+              {filteredPayees.length > 0 ? (
+                filteredPayees.map((payee) => (
+                  <PayeeMergeListItem
+                    key={payee.id}
+                    payee={payee}
+                    isSelected={selectedPayee?.id === payee.id}
+                    isChecked={selectedMergePayeeIds.includes(payee.id)}
+                    isDropTarget={mergeDropTargetPayeeId === payee.id}
+                    isDragSource={Boolean(
+                      draggedMergePayeeId &&
+                      getDragSourcePayees(draggedMergePayeeId).some(
+                        (sourcePayee) => sourcePayee.id === payee.id,
+                      ),
+                    )}
+                    disabled={showArchived}
+                    onSelect={selectPayeeForMerge}
+                  />
+                ))
+              ) : (
+                <p className="payee-management-empty">No payees found.</p>
+              )}
+            </div>
+
+            <DragOverlay
+              dropAnimation={{
+                duration: 170,
+                easing: "cubic-bezier(0.2, 0, 0, 1)",
+              }}
+            >
+              <PayeeMergeDragOverlay
+                sourcePayees={
+                  draggedMergePayeeId
+                    ? getDragSourcePayees(draggedMergePayeeId)
+                    : []
+                }
+              />
+            </DragOverlay>
+          </DndContext>
 
           {!showArchived ? (
             <div className="payee-drag-merge-help">
               <strong>Merge payees by dragging</strong>
               <span>
-                Select with Ctrl/Cmd-click or Shift-click, then drag a selected payee onto the payee to keep.
+                Select with Ctrl/Cmd-click or Shift-click, then drag a selected
+                payee onto the payee to keep.
                 {selectedMergePayeeIds.length > 0
                   ? ` ${selectedMergePayeeIds.length} selected · ${selectedMergeTransactionCount} transactions.`
                   : ""}
@@ -564,7 +796,9 @@ export function PayeeManagementPage() {
                   <select
                     className="payee-management-field"
                     value={draftDefaultCategoryId}
-                    onChange={(event) => setDraftDefaultCategoryId(event.target.value)}
+                    onChange={(event) =>
+                      setDraftDefaultCategoryId(event.target.value)
+                    }
                   >
                     <option value="">No default category</option>
                     {categoryOptions.map((category) => (
@@ -618,15 +852,18 @@ export function PayeeManagementPage() {
                           value={rule.matchType}
                           onChange={(event) =>
                             updateRule(rule.id, {
-                              matchType: event.target.value as PayeeRuleMatchType,
+                              matchType: event.target
+                                .value as PayeeRuleMatchType,
                             })
                           }
                         >
-                          {Object.entries(ruleTypeLabels).map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
+                          {Object.entries(ruleTypeLabels).map(
+                            ([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ),
+                          )}
                         </select>
 
                         <input
@@ -671,7 +908,6 @@ export function PayeeManagementPage() {
                   <strong>{formatDate(selectedPayee.lastUsedAt)}</strong>
                 </div>
               </div>
-
 
               <div className="payee-management-actions">
                 <p className="muted">{statusMessage}</p>

@@ -4486,3 +4486,49 @@ strong {
 .budget-drag-preview * {
   pointer-events: none !important;
 }
+
+/* v2.37.1 Payee dnd-kit merge interaction */
+.payee-management-list-item-shell {
+  touch-action: none;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+  will-change: transform;
+}
+
+.payee-management-list-item-shell-dragging {
+  opacity: 0.56;
+  box-shadow: var(--shadow-sm);
+}
+
+.payee-management-list-item-shell-drop-hover,
+.payee-management-list-item-shell-drop-target {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    0 0 0 3px color-mix(in srgb, var(--accent-soft) 72%, transparent);
+}
+
+.payee-merge-drag-overlay {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 16rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-soft));
+  border-radius: 0.75rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  cursor: grabbing;
+  padding: 0.72rem 0.85rem;
+  transform: scale(1.015);
+}
+
+.payee-merge-drag-overlay span,
+.payee-merge-drag-overlay small {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
