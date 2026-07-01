@@ -355,16 +355,18 @@ export function SettingsPage() {
     reader.readAsText(file);
   }
 
-  function commitRestorePreview() {
+  async function commitRestorePreview() {
     if (!restorePreview?.valid || !restorePackageRaw) {
       setDataStatusMessage("Load a valid restore preview before restoring.");
       return;
     }
 
-    const confirmed = confirmDialog({
+    const confirmed = await confirmDialog({
       title: "Restore current budget?",
       message:
         `This will replace the data in the currently selected budget with the backup for ${restorePreview.budgetName ?? "the selected package"}. Other budgets and global app preferences will not be restored.`,
+      confirmLabel: "Restore budget",
+      tone: "danger",
     });
 
     if (!confirmed) {
@@ -413,15 +415,17 @@ export function SettingsPage() {
     setDataStatusMessage("Restore point created.");
   }
 
-  function restoreSelectedSnapshot() {
+  async function restoreSelectedSnapshot() {
     if (!selectedSnapshot) {
       setDataStatusMessage("Choose a restore point before restoring.");
       return;
     }
 
-    const confirmed = confirmDialog({
+    const confirmed = await confirmDialog({
       title: "Restore budget history point?",
       message: `This will replace the current ${selectedSnapshot.budgetName} budget with the version from ${formatHistoryDateTime(selectedSnapshot.createdAt)}.`,
+      confirmLabel: "Restore point",
+      tone: "danger",
     });
 
     if (!confirmed) {
@@ -440,15 +444,17 @@ export function SettingsPage() {
     setDataStatusMessage(`Restored ${selectedSnapshot.budgetName} to ${formatHistoryDateTime(selectedSnapshot.createdAt)}.`);
   }
 
-  function deleteSelectedSnapshot() {
+  async function deleteSelectedSnapshot() {
     if (!selectedSnapshot) {
       setDataStatusMessage("Choose a restore point before deleting.");
       return;
     }
 
-    const confirmed = confirmDialog({
+    const confirmed = await confirmDialog({
       title: "Delete restore point?",
       message: `Delete the restore point from ${formatHistoryDateTime(selectedSnapshot.createdAt)}? This does not change your current budget.`,
+      confirmLabel: "Delete restore point",
+      tone: "danger",
     });
 
     if (!confirmed) {
@@ -467,11 +473,13 @@ export function SettingsPage() {
     setDataStatusMessage("Restore point deleted.");
   }
 
-  function handleResetCurrentBudget() {
-    const confirmed = confirmDialog({
+  async function handleResetCurrentBudget() {
+    const confirmed = await confirmDialog({
       title: "Reset current budget?",
       message:
         "This will permanently remove accounts, transactions, payees, scheduled transactions, attachments, and custom categories from the currently selected budget. Budget settings are preserved and starter categories will be recreated. Create a backup first if you need a recovery point.",
+      confirmLabel: "Reset budget",
+      tone: "danger",
     });
 
     if (!confirmed) {
@@ -494,11 +502,13 @@ export function SettingsPage() {
     );
   }
 
-  function handleDeleteCurrentBudget() {
-    const confirmed = confirmDialog({
+  async function handleDeleteCurrentBudget() {
+    const confirmed = await confirmDialog({
       title: "Delete current budget?",
       message:
         "This will permanently delete the currently selected budget and all data associated with it. Other budgets and global app preferences are preserved. Create a backup first if you need a recovery point. This action cannot be undone.",
+      confirmLabel: "Delete budget",
+      tone: "danger",
     });
 
     if (!confirmed) {

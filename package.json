@@ -402,7 +402,9 @@
     "test:v2414:import-review-skip-state": "tsx tests/v2414-import-review-skip-state.ts",
     "test:v2414": "pnpm test:v2413 && pnpm test:v2414:import-review-skip-state",
     "test:v2415:payee-alias-learning": "tsx tests/v2415-payee-alias-learning.ts",
-    "test:v2415": "pnpm test:v2414 && pnpm test:v2415:payee-alias-learning"
+    "test:v2415": "pnpm test:v2414 && pnpm test:v2415:payee-alias-learning",
+    "test:v2420:app-dialog-service": "tsx tests/v2420-app-dialog-service.ts",
+    "test:v2420": "pnpm test:v2415 && pnpm test:v2420:app-dialog-service"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

@@ -378,10 +378,11 @@ export function PayeeManagementPage() {
       return;
     }
 
-    const shouldArchive = confirmDialog({
+    const shouldArchive = await confirmDialog({
       title: `Archive "${selectedPayee.name}"?`,
       message:
         "Archived payees are hidden from the active payee list but can be restored later.",
+      confirmLabel: "Archive payee",
     });
 
     if (!shouldArchive) {
@@ -575,7 +576,7 @@ export function PayeeManagementPage() {
       0,
     );
     const noteCount = sourcePayees.filter((payee) => payee.note?.trim()).length;
-    const shouldMerge = confirmDialog({
+    const shouldMerge = await confirmDialog({
       title:
         sourcePayees.length === 1
           ? `Merge "${sourcePayees[0].name}" into "${targetPayee.name}"?`
@@ -583,6 +584,7 @@ export function PayeeManagementPage() {
       message:
         `${transactionCount} transactions, ${ruleCount} import rules, and ${noteCount} notes ` +
         `will be folded into "${targetPayee.name}". Source payees will be archived.`,
+      confirmLabel: "Merge payees",
     });
 
     if (!shouldMerge) {

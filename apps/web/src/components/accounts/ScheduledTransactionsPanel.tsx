@@ -107,12 +107,12 @@ export function ScheduledTransactionsPanel({
     const inflow = parseMoney(draft.inflow);
 
     if (outflow > 0 && inflow > 0) {
-      alertDialog({ message: "A scheduled transaction can have either an outflow or an inflow, not both." });
+      await alertDialog({ message: "A scheduled transaction can have either an outflow or an inflow, not both." });
       return;
     }
 
     if (outflow <= 0 && inflow <= 0) {
-      alertDialog({ message: "Enter either an outflow or an inflow amount." });
+      await alertDialog({ message: "Enter either an outflow or an inflow amount." });
       return;
     }
 
@@ -141,7 +141,11 @@ export function ScheduledTransactionsPanel({
   }
 
   async function deleteScheduled(transaction: ScheduledTransactionView) {
-    const confirmed = confirmDialog({ message: `Delete scheduled transaction "${transaction.payee}"?` });
+    const confirmed = await confirmDialog({
+      message: `Delete scheduled transaction "${transaction.payee}"?`,
+      confirmLabel: "Delete scheduled transaction",
+      tone: "danger",
+    });
 
     if (!confirmed) {
       return;

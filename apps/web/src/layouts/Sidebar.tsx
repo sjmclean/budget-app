@@ -70,10 +70,11 @@ export function Sidebar() {
   }
 
   async function closeAccount(account: SidebarAccount) {
-    const shouldClose = confirmDialog({
+    const shouldClose = await confirmDialog({
       title: `Close "${account.name}"?`,
       message:
         "Closed accounts are hidden from the main account list, but their transactions are preserved and the account can be reopened later.",
+      confirmLabel: "Close account",
     });
 
     if (!shouldClose) {
@@ -92,9 +93,11 @@ export function Sidebar() {
   }
 
   async function deleteAccount(account: SidebarAccount) {
-    const shouldDelete = confirmDialog({
+    const shouldDelete = await confirmDialog({
       title: `Delete "${account.name}"?`,
       message: "Only empty accounts can be permanently deleted. This cannot be undone.",
+      confirmLabel: "Delete account",
+      tone: "danger",
     });
 
     if (!shouldDelete) {
@@ -104,7 +107,7 @@ export function Sidebar() {
     const result = await accountsPersistence.deleteAccount(account.id);
 
     if (!result.deleted) {
-      alertDialog({ message: result.reason ?? "This account cannot be deleted." });
+      await alertDialog({ message: result.reason ?? "This account cannot be deleted." });
     }
 
     setAccounts(result.accounts);

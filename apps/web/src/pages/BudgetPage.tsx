@@ -17,7 +17,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/ui/Card";
-import { confirmDialog } from "../features/ui/appDialogService";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { evaluateAssignedInput } from "../features/budget/evaluateAssignedInput";
 import {

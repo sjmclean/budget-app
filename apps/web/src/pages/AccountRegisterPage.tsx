@@ -3384,11 +3384,13 @@ export function AccountRegisterPage() {
       return;
     }
 
-    const confirmed = confirmDialog({
+    const confirmed = await confirmDialog({
       message:
         selectedRegisterActionTransactionCount === 1
           ? "Delete this transaction? This cannot be undone yet."
           : `Delete ${selectedRegisterActionTransactionCount} selected transactions? This cannot be undone yet.`,
+      confirmLabel: selectedRegisterActionTransactionCount === 1 ? "Delete transaction" : "Delete transactions",
+      tone: "danger",
     });
 
     if (!confirmed) {
