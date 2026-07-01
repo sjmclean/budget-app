@@ -16,7 +16,7 @@ const preview = await service.fullBudgetPreviewAsync({
 if (!preview) throw new Error("Expected Actual ZIP preview");
 if (preview.providerId !== "actual-budget") throw new Error("Expected Actual provider");
 if (preview.sourceBudgetName !== "Actual Household") throw new Error("Expected metadata budget name");
-if (preview.canCommit) throw new Error("Actual ZIP explorer should remain preview-only");
+if (!preview.canCommit) throw new Error("Actual ZIP explorer should now produce a commit-capable preview after v2.44.5");
 if (preview.metadata.packageType !== "zip") throw new Error("Expected ZIP package metadata");
 if (preview.metadata.lastUploaded !== "2026-07-01") throw new Error("Expected Actual metadata lastUploaded value");
 if (!preview.entityCounts.some((item) => item.label === "db.sqlite" && item.count === 1 && item.supported)) {

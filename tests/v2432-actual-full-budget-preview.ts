@@ -72,7 +72,7 @@ if (fullBudgetPreview.transferCount !== 1) throw new Error("Expected transfer co
 if (!fullBudgetPreview.issues.some((issue) => issue.code === "ActualUnknownAccountReference")) throw new Error("Expected unknown account reference warning");
 if (!fullBudgetPreview.issues.some((issue) => issue.code === "ActualUnknownCategoryReference")) throw new Error("Expected unknown category reference warning");
 if (!fullBudgetPreview.issues.some((issue) => issue.code === "ActualUnknownPayeeReference")) throw new Error("Expected unknown payee reference warning");
-if (fullBudgetPreview.canCommit) throw new Error("Actual full-budget commit should remain disabled in v2.43.2");
+if (!fullBudgetPreview.canCommit) throw new Error("Actual full-budget previews should now be commit-capable after v2.44.5");
 
 const csvFullBudgetPreview = budgetService.fullBudgetPreview({
   fileName: "statement.csv",

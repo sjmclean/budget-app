@@ -39,7 +39,7 @@ const actualInspection = budgetService.inspect({ fileName: "household.actualbudg
 if (actualInspection.providerId !== "actual-budget") throw new Error("Expected Actual Budget provider detection");
 if (actualInspection.scope !== "full-budget") throw new Error("Actual Budget should be a full-budget import provider");
 if (!actualInspection.canPreviewFullBudget) throw new Error("Actual Budget should expose full-budget preview");
-if (actualInspection.canCommitFullBudget) throw new Error("Actual Budget full-budget commit should remain disabled in v2.43.1");
+if (actualInspection.canCommitFullBudget) throw new Error("Raw Actual inspection should not be commit-capable without a full preview");
 if (actualInspection.summary.find((item) => item.label === "Transactions")?.count !== 2) throw new Error("Expected Actual transactions to be counted");
 if (actualInspection.summary.find((item) => item.label === "Rules")?.supported !== false) throw new Error("Expected Actual rules to be reported as unsupported");
 if (!actualInspection.issues.some((issue) => issue.code === "ActualRulesPreviewOnly")) throw new Error("Expected Actual rules warning");
@@ -49,7 +49,7 @@ const fullBudgetPreview = budgetService.fullBudgetPreview({ fileName: "household
 if (!fullBudgetPreview) throw new Error("Expected Actual full-budget preview");
 if (fullBudgetPreview.format !== "actual-budget") throw new Error("Expected Actual full-budget preview format");
 if (fullBudgetPreview.sourceBudgetName !== "Household") throw new Error("Expected Actual source budget name");
-if (fullBudgetPreview.canCommit) throw new Error("Actual full-budget commit should remain disabled in v2.43.1");
+if (!fullBudgetPreview.canCommit) throw new Error("Actual full-budget previews should now be commit-capable after v2.44.5");
 if (fullBudgetPreview.entityCounts.find((item) => item.label === "Accounts")?.count !== 1) throw new Error("Expected Actual account count in full-budget preview");
 if (fullBudgetPreview.entityCounts.find((item) => item.label === "Transactions")?.count !== 2) throw new Error("Expected Actual transaction count in full-budget preview");
 

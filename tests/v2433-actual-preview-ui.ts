@@ -38,6 +38,6 @@ const preview = service.fullBudgetPreview({
 
 if (!preview) throw new Error("Expected Actual Budget full-budget preview");
 if (preview.sourceBudgetName !== "Household") throw new Error("Expected Actual Budget source budget name");
-if (preview.canCommit) throw new Error("Actual Budget UI should remain preview-only in v2.43.3");
+if (!preview.canCommit) throw new Error("Actual Budget previews should now be commit-capable after v2.44.5");
 
 console.log("v2.43.3 Actual Budget preview UI checks passed");

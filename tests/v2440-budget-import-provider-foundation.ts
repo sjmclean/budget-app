@@ -31,14 +31,14 @@ const budgetInspection = budgetService.inspect({ fileName: "household.actualbudg
 if (budgetInspection.providerId !== "actual-budget") throw new Error("Expected budget import service to detect Actual Budget");
 if (budgetInspection.scope !== "full-budget") throw new Error("Expected Actual Budget to be full-budget scoped");
 if (!budgetInspection.canPreviewFullBudget) throw new Error("Expected Actual Budget budget provider to support preview");
-if (budgetInspection.canCommitFullBudget) throw new Error("Actual Budget commit should remain disabled in v2.44.0");
+if (budgetInspection.canCommitFullBudget) throw new Error("Raw Actual inspection should not be commit-capable without a full preview");
 if (budgetInspection.summary.find((item) => item.label === "Transactions")?.count !== 1) throw new Error("Expected Actual transaction count");
 
 const fullBudgetPreview = budgetService.fullBudgetPreview({ fileName: "household.actualbudget", text: actualExport });
 if (!fullBudgetPreview) throw new Error("Expected Actual full-budget preview");
 if (fullBudgetPreview.accounts.length !== 1) throw new Error("Expected Actual account preview");
 if (fullBudgetPreview.transactions.length !== 1) throw new Error("Expected Actual transaction preview");
-if (fullBudgetPreview.canCommit) throw new Error("Actual full-budget commit should remain disabled in v2.44.0");
+if (!fullBudgetPreview.canCommit) throw new Error("Actual full-budget previews should now be commit-capable after v2.44.5");
 
 
 const actualZipInspection = budgetService.inspect({ fileName: "actual-export.zip", text: "PK\u0003\u0004db.sqlite metadata.json" });

@@ -48,6 +48,9 @@ export function BudgetSelectorPage() {
   const importYnab4Budget = useBudgetRegistryStore(
     (state) => state.importYnab4Budget,
   );
+  const importActualBudget = useBudgetRegistryStore(
+    (state) => state.importActualBudget,
+  );
   const markBudgetOpened = useBudgetRegistryStore(
     (state) => state.markBudgetOpened,
   );
@@ -73,6 +76,8 @@ export function BudgetSelectorPage() {
   );
   const [actualError, setActualError] = useState<string | null>(null);
   const [isAnalysingActual, setIsAnalysingActual] = useState(false);
+  const [isImportingActual, setIsImportingActual] = useState(false);
+  const [actualSourceFileName, setActualSourceFileName] = useState<string | null>(null);
 
   const sortedBudgets = useMemo(
     () =>
@@ -159,6 +164,7 @@ export function BudgetSelectorPage() {
   async function handleActualBudgetFileSelection(files: FileList | null) {
     setActualError(null);
     setActualPreview(null);
+    setActualSourceFileName(null);
 
     const file = files?.item(0);
     if (!file) {
@@ -191,6 +197,7 @@ export function BudgetSelectorPage() {
       }
 
       setActualPreview(preview);
+      setActualSourceFileName(file.name);
       setActualStatus(
         "Actual Budget export analysed. Review the full-budget preview before continuing.",
       );
@@ -203,6 +210,42 @@ export function BudgetSelectorPage() {
       setActualStatus("Actual Budget preview failed.");
     } finally {
       setIsAnalysingActual(false);
+    }
+  }
+
+  async function handleImportActualBudget() {
+    setActualError(null);
+
+    if (!actualPreview) {
+      setActualError("Preview a valid Actual Budget export before importing.");
+      return;
+    }
+
+    if (!actualPreview.canCommit) {
+      setActualError("Resolve Actual Budget preview warnings before importing.");
+      return;
+    }
+
+    setIsImportingActual(true);
+    setActualStatus("Creating imported Actual Budget…");
+
+    try {
+      const result = await importActualBudget({
+        preview: actualPreview,
+        sourceFileName: actualSourceFileName,
+      });
+      selectBudget(result.budget.id);
+      setActualStatus(`Imported ${result.budget.name}. Opening budget…`);
+      navigate("/dashboard");
+    } catch (error) {
+      setActualError(
+        error instanceof Error
+          ? error.message
+          : "Unable to create the imported Actual Budget.",
+      );
+      setActualStatus("Actual Budget import failed.");
+    } finally {
+      setIsImportingActual(false);
     }
   }
 
@@ -505,9 +548,9 @@ export function BudgetSelectorPage() {
                 <p className="eyebrow">Full-budget preview</p>
                 <h2 id="actual-budget-preview-title">Import Actual Budget</h2>
                 <p>
-                  Preview an Actual Budget export before creating a new imported
-                  budget. Commit remains disabled while the importer mapping is
-                  still being proven.
+                  Preview an Actual Budget export and create a new local budget
+                  after reviewing the imported accounts, categories, payees and
+                  transactions.
                 </p>
               </div>
               <label className="ynab4-file-button">
@@ -526,7 +569,7 @@ export function BudgetSelectorPage() {
               <strong>Actual Budget imports are full-budget migrations.</strong>
               <span>
                 This path is separate from CSV/QIF account transaction imports
-                and will create a new budget when commit support is added.
+                and creates a new local budget from the previewed export.
               </span>
             </div>
 
@@ -537,16 +580,18 @@ export function BudgetSelectorPage() {
             >
               {isAnalysingActual
                 ? "Analysing selected Actual Budget export…"
-                : (actualError ?? actualStatus)}
+                : isImportingActual
+                  ? "Creating imported Actual Budget…"
+                  : (actualError ?? actualStatus)}
             </p>
 
             {actualPreview ? (
               <div className="ynab4-preview-context-note">
-                <strong>Preview only.</strong>
+                <strong>Ready to create a new budget.</strong>
                 <span>
-                  v2.44.1 reads Actual export ZIP packages, extracts metadata,
-                  and verifies db.sqlite is present. Creating the imported budget
-                  remains disabled until table mapping and commit are implemented.
+                  v2.44.5 imports supported Actual Budget entities into a new
+                  local budget. Rules, schedules and attachments are reported
+                  but not imported yet.
                 </span>
               </div>
             ) : null}
@@ -709,7 +754,7 @@ export function BudgetSelectorPage() {
                       <span className="ynab4-progress-dot" aria-hidden="true" />
                       <span>
                         <strong>Create imported budget</strong>
-                        <small>Disabled until the commit path is implemented.</small>
+                        <small>Creates a new local budget from the previewed Actual export.</small>
                       </span>
                     </li>
                   </ol>
@@ -718,12 +763,16 @@ export function BudgetSelectorPage() {
             ) : null}
 
             <div className="ynab4-preview-actions">
-              <Button type="button" disabled>
-                Create imported budget
+              <Button
+                type="button"
+                disabled={!actualPreview?.canCommit || isAnalysingActual || isImportingActual}
+                onClick={() => void handleImportActualBudget()}
+              >
+                {isImportingActual ? "Creating imported budget…" : "Create imported budget"}
               </Button>
               <p>
-                Actual Budget commit is intentionally disabled in v2.44.1. This
-                screen validates the export package before data is written.
+                Actual Budget imports create a new local budget. Rules,
+                schedules and attachments are reported but not imported yet.
               </p>
             </div>
           </section>

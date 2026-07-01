@@ -161,7 +161,7 @@ export class ActualBudgetImportProvider implements BudgetImportProvider {
       payees: preview.payees,
       transactions: preview.transactions,
       transferCount: preview.transferCount,
-      canCommit: false,
+      canCommit: true,
     };
   }
 }

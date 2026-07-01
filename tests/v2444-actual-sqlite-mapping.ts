@@ -73,7 +73,7 @@ if (preview.accounts.length !== 2) throw new Error("Expected preview accounts fr
 if (preview.categories[0]?.name !== "Groceries") throw new Error("Expected preview categories from SQLite rows");
 if (preview.transactions.length !== 2) throw new Error("Expected preview transactions from SQLite rows");
 if (preview.transferCount !== 1) throw new Error("Expected preview transfer count from SQLite rows");
-if (preview.canCommit) throw new Error("Actual import commit must remain disabled in v2.44.4");
+if (!preview.canCommit) throw new Error("Actual import preview should now be commit-capable after v2.44.5");
 
 console.log("v2.44.4 Actual SQLite mapping checks passed");
 

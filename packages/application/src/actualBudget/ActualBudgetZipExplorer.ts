@@ -179,7 +179,7 @@ export async function inspectActualBudgetZipPackage(input: BudgetImportProviderI
     payees: mappedPreview?.payees ?? [],
     transactions: mappedPreview?.transactions ?? [],
     transferCount: mappedPreview?.transferCount ?? 0,
-    canCommit: false,
+    canCommit: true,
   };
 }
 
