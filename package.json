@@ -404,7 +404,9 @@
     "test:v2415:payee-alias-learning": "tsx tests/v2415-payee-alias-learning.ts",
     "test:v2415": "pnpm test:v2414 && pnpm test:v2415:payee-alias-learning",
     "test:v2420:app-dialog-service": "tsx tests/v2420-app-dialog-service.ts",
-    "test:v2420": "pnpm test:v2415 && pnpm test:v2420:app-dialog-service"
+    "test:v2420": "pnpm test:v2415 && pnpm test:v2420:app-dialog-service",
+    "test:v2430:import-provider-framework": "tsx tests/v2430-import-provider-framework.ts",
+    "test:v2430": "pnpm test:v2420 && pnpm test:v2430:import-provider-framework"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

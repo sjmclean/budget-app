@@ -45,6 +45,7 @@ export * from "./UndoRedoApplicationService.js";
 export * from "./IndexedTransactionSearchApplicationService.js";
 export * from "./PerformanceIndexApplicationService.js";
 export * from "./BankImportApplicationService.js";
+export * from "./BankImportProviderApplicationService.js";
 export * from "./TransactionMatchingApplicationService.js";
 export * from "./PayeeRuleApplicationService.js";
 export * from "./AutoCategorizationApplicationService.js";

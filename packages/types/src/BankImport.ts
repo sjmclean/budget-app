@@ -4,7 +4,42 @@
  * YNAB4 import remains the main migration path. These formats are for ongoing
  * bank statement imports after the user is already using the application.
  */
-export type BankImportFormat = "csv" | "qif" | "ofx" | "qfx";
+export type BankImportFormat = "csv" | "qif" | "ofx" | "qfx" | "actual-budget";
+
+
+export interface BankImportProviderInput {
+  fileName: string | null;
+  text: string;
+}
+
+export interface BankImportInspectionItem {
+  label: string;
+  count: number;
+  supported: boolean;
+  note?: string;
+}
+
+export interface BankImportInspection {
+  format: BankImportFormat | "unknown";
+  providerId: string | null;
+  providerLabel: string | null;
+  confidence: "high" | "medium" | "low" | "none";
+  isRecognized: boolean;
+  canPreviewTransactions: boolean;
+  canCommitTransactions: boolean;
+  summary: BankImportInspectionItem[];
+  issues: BankImportIssue[];
+  metadata: Record<string, string | number | boolean | null>;
+}
+
+export interface BankImportProvider {
+  id: string;
+  label: string;
+  format: BankImportFormat;
+  canImport(input: BankImportProviderInput): boolean;
+  inspect(input: BankImportProviderInput): BankImportInspection;
+  preview?(input: BankImportProviderInput): BankImportPreview;
+}
 
 /** A raw transaction row as provided by a bank file after format parsing. */
 export interface ImportedBankTransaction {
