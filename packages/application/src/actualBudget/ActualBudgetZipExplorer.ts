@@ -1,4 +1,5 @@
 import type { BankImportIssue, BudgetImportProviderInput, FullBudgetImportPreview } from "../../../types/src/index.js";
+import { inspectActualSQLiteDatabase, type ActualSQLiteRepositoryInspection } from "./ActualSQLiteRepository.js";
 
 interface ZipEntry {
   name: string;
@@ -12,6 +13,17 @@ interface ActualZipMetadata {
   budgetName: string | null;
   lastUploaded: string | null;
   raw: Record<string, string | number | boolean | null>;
+}
+
+interface ActualSQLiteHeaderInspection {
+  isValidSQLite: boolean;
+  pageSize: number | null;
+  pageCount: number | null;
+  schemaFormat: number | null;
+  textEncoding: string | null;
+  userVersion: number | null;
+  applicationId: number | null;
+  databaseBytes: number;
 }
 
 const textDecoder = new TextDecoder();
@@ -59,6 +71,9 @@ export async function inspectActualBudgetZipPackage(input: BudgetImportProviderI
     }
   }
 
+  let sqliteHeader: ActualSQLiteHeaderInspection | null = null;
+  let sqliteInspection: ActualSQLiteRepositoryInspection | null = null;
+
   if (!sqliteEntry) {
     issues.push({
       rowNumber: null,
@@ -67,12 +82,43 @@ export async function inspectActualBudgetZipPackage(input: BudgetImportProviderI
       message: "Actual Budget export package does not contain db.sqlite.",
     });
   } else {
-    issues.push({
-      rowNumber: null,
-      severity: "warning",
-      code: "ActualSQLiteTableInspectionPending",
-      message: "db.sqlite was found. Table-level account/category/payee/transaction inspection is the next Actual importer step.",
-    });
+    try {
+      const sqliteBytes = await extractZipEntry(bytes, sqliteEntry);
+      sqliteHeader = inspectActualSQLiteHeader(sqliteBytes);
+      if (!sqliteHeader.isValidSQLite) {
+        issues.push({
+          rowNumber: null,
+          severity: "error",
+          code: "ActualSQLiteInvalidHeader",
+          message: "db.sqlite was found, but it does not have a valid SQLite database header.",
+        });
+      } else {
+        sqliteInspection = inspectActualSQLiteDatabase(sqliteBytes);
+        for (const issue of sqliteInspection.issues) {
+          issues.push({
+            rowNumber: null,
+            severity: "warning",
+            code: "ActualSQLiteRepositoryInspectionWarning",
+            message: issue,
+          });
+        }
+        if (sqliteInspection.tables.length === 0) {
+          issues.push({
+            rowNumber: null,
+            severity: "warning",
+            code: "ActualSQLiteNoTablesFound",
+            message: "db.sqlite is valid, but no Actual data tables were discovered during SQLite inspection.",
+          });
+        }
+      }
+    } catch (error) {
+      issues.push({
+        rowNumber: null,
+        severity: "error",
+        code: "ActualSQLiteReadFailed",
+        message: error instanceof Error ? error.message : "Unable to read db.sqlite from the Actual Budget export.",
+      });
+    }
   }
 
   const canPreview = Boolean(metadataEntry && sqliteEntry && issues.every((issue) => issue.severity !== "error"));
@@ -86,11 +132,17 @@ export async function inspectActualBudgetZipPackage(input: BudgetImportProviderI
       { label: "Actual export package", count: 1, supported: true, note: "ZIP structure recognised" },
       { label: "Package entries", count: entries.length, supported: true, note: "metadata.json and db.sqlite expected" },
       { label: "metadata.json", count: metadataEntry ? 1 : 0, supported: Boolean(metadataEntry), note: metadata.lastUploaded ? `Last uploaded ${metadata.lastUploaded}` : "Budget metadata" },
-      { label: "db.sqlite", count: sqliteEntry ? 1 : 0, supported: Boolean(sqliteEntry), note: sqliteEntry ? `${formatBytes(sqliteEntry.uncompressedSize)} SQLite database detected` : "Required database missing" },
-      { label: "Accounts", count: 0, supported: false, note: "SQLite table read pending" },
-      { label: "Transactions", count: 0, supported: false, note: "SQLite table read pending" },
-      { label: "Payees", count: 0, supported: false, note: "SQLite table read pending" },
-      { label: "Categories", count: 0, supported: false, note: "SQLite table read pending" },
+      { label: "db.sqlite", count: sqliteEntry ? 1 : 0, supported: Boolean(sqliteHeader?.isValidSQLite), note: sqliteHeader?.isValidSQLite ? `${formatBytes(sqliteHeader.databaseBytes)} valid SQLite database` : sqliteEntry ? "SQLite header validation failed" : "Required database missing" },
+      { label: "SQLite pages", count: sqliteHeader?.pageCount ?? 0, supported: Boolean(sqliteHeader?.isValidSQLite), note: sqliteHeader?.pageSize ? `${sqliteHeader.pageSize} byte pages` : "SQLite header read pending" },
+      { label: "SQLite tables", count: sqliteInspection?.tables.length ?? 0, supported: Boolean(sqliteInspection), note: sqliteInspection ? "Schema discovered from sqlite_master" : "SQLite table read pending" },
+      { label: "Accounts", count: readActualTableCount(sqliteInspection, "accounts"), supported: Boolean(sqliteInspection), note: readActualTableCount(sqliteInspection, "accounts") > 0 ? "Read from Actual accounts table" : "Actual accounts table not found or empty" },
+      { label: "Transactions", count: readActualTableCount(sqliteInspection, "transactions"), supported: Boolean(sqliteInspection), note: readActualTableCount(sqliteInspection, "transactions") > 0 ? "Read from Actual transactions table" : "Actual transactions table not found or empty" },
+      { label: "Payees", count: readActualTableCount(sqliteInspection, "payees"), supported: Boolean(sqliteInspection), note: readActualTableCount(sqliteInspection, "payees") > 0 ? "Read from Actual payees table" : "Actual payees table not found or empty" },
+      { label: "Category groups", count: readActualTableCount(sqliteInspection, "category_groups"), supported: Boolean(sqliteInspection), note: readActualTableCount(sqliteInspection, "category_groups") > 0 ? "Read from Actual category_groups table" : "Actual category_groups table not found or empty" },
+      { label: "Categories", count: readActualTableCount(sqliteInspection, "categories"), supported: Boolean(sqliteInspection), note: readActualTableCount(sqliteInspection, "categories") > 0 ? "Read from Actual categories table" : "Actual categories table not found or empty" },
+      { label: "Rules", count: readActualTableCount(sqliteInspection, "rules"), supported: false, note: "Detected for future import support" },
+      { label: "Schedules", count: readActualTableCount(sqliteInspection, "schedules"), supported: false, note: "Detected for future import support" },
+      { label: "Notes", count: readActualTableCount(sqliteInspection, "notes"), supported: false, note: "Detected for future import support" },
     ],
     issues,
     metadata: {
@@ -99,7 +151,23 @@ export async function inspectActualBudgetZipPackage(input: BudgetImportProviderI
       budgetName: metadata.budgetName,
       lastUploaded: metadata.lastUploaded,
       zipEntryCount: entries.length,
-      sqliteBytes: sqliteEntry?.uncompressedSize ?? null,
+      sqliteBytes: sqliteHeader?.databaseBytes ?? sqliteEntry?.uncompressedSize ?? null,
+      sqliteValid: sqliteHeader?.isValidSQLite ?? false,
+      sqlitePageSize: sqliteHeader?.pageSize ?? null,
+      sqlitePageCount: sqliteHeader?.pageCount ?? null,
+      sqliteSchemaFormat: sqliteHeader?.schemaFormat ?? null,
+      sqliteTextEncoding: sqliteHeader?.textEncoding ?? null,
+      sqliteUserVersion: sqliteHeader?.userVersion ?? null,
+      sqliteApplicationId: sqliteHeader?.applicationId ?? null,
+      sqliteTableCount: sqliteInspection?.tables.length ?? null,
+      actualAccountCount: readActualTableCount(sqliteInspection, "accounts"),
+      actualTransactionCount: readActualTableCount(sqliteInspection, "transactions"),
+      actualPayeeCount: readActualTableCount(sqliteInspection, "payees"),
+      actualCategoryGroupCount: readActualTableCount(sqliteInspection, "category_groups"),
+      actualCategoryCount: readActualTableCount(sqliteInspection, "categories"),
+      actualRuleCount: readActualTableCount(sqliteInspection, "rules"),
+      actualScheduleCount: readActualTableCount(sqliteInspection, "schedules"),
+      actualNoteCount: readActualTableCount(sqliteInspection, "notes"),
       ...metadata.raw,
     },
     accounts: [],
@@ -110,6 +178,10 @@ export async function inspectActualBudgetZipPackage(input: BudgetImportProviderI
     transferCount: 0,
     canCommit: false,
   };
+}
+
+function readActualTableCount(inspection: ActualSQLiteRepositoryInspection | null, tableName: string): number {
+  return inspection?.knownCounts[tableName] ?? 0;
 }
 
 function actualZipPreviewFailure(input: BudgetImportProviderInput, message: string): FullBudgetImportPreview {
@@ -198,6 +270,48 @@ async function inflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
 function findEntry(entries: ZipEntry[], expectedName: string): ZipEntry | null {
   const normalizedExpectedName = expectedName.toLowerCase();
   return entries.find((entry) => entry.name.replace(/^\/+/, "").toLowerCase() === normalizedExpectedName) ?? null;
+}
+
+function inspectActualSQLiteHeader(bytes: Uint8Array): ActualSQLiteHeaderInspection {
+  const headerText = textDecoder.decode(bytes.slice(0, 16));
+  const isValidSQLite = headerText === "SQLite format 3\0";
+  if (!isValidSQLite || bytes.length < 100) {
+    return {
+      isValidSQLite,
+      pageSize: null,
+      pageCount: null,
+      schemaFormat: null,
+      textEncoding: null,
+      userVersion: null,
+      applicationId: null,
+      databaseBytes: bytes.length,
+    };
+  }
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const rawPageSize = view.getUint16(16, false);
+  const pageSize = rawPageSize === 1 ? 65536 : rawPageSize;
+  const pageCount = view.getUint32(28, false);
+  const schemaFormat = view.getUint32(44, false);
+  const textEncodingCode = view.getUint32(56, false);
+
+  return {
+    isValidSQLite,
+    pageSize,
+    pageCount,
+    schemaFormat,
+    textEncoding: describeSQLiteTextEncoding(textEncodingCode),
+    userVersion: view.getUint32(60, false),
+    applicationId: view.getUint32(68, false),
+    databaseBytes: bytes.length,
+  };
+}
+
+function describeSQLiteTextEncoding(code: number): string | null {
+  if (code === 1) return "UTF-8";
+  if (code === 2) return "UTF-16le";
+  if (code === 3) return "UTF-16be";
+  return code === 0 ? null : `Unknown (${code})`;
 }
 
 function parseActualMetadataJson(text: string): ActualZipMetadata {

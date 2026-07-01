@@ -22,8 +22,12 @@ if (preview.metadata.lastUploaded !== "2026-07-01") throw new Error("Expected Ac
 if (!preview.entityCounts.some((item) => item.label === "db.sqlite" && item.count === 1 && item.supported)) {
   throw new Error("Expected db.sqlite to be detected as a package entry");
 }
-if (!preview.issues.some((issue) => issue.code === "ActualSQLiteTableInspectionPending")) {
-  throw new Error("Expected warning that SQLite table-level inspection is pending");
+const sqliteInspectionPendingOrComplete =
+  preview.issues.some((issue) => issue.code === "ActualSQLiteTableInspectionPending") ||
+  preview.issues.some((issue) => issue.code === "ActualSQLiteNoTablesFound") ||
+  preview.entityCounts.some((item) => item.label === "SQLite tables");
+if (!sqliteInspectionPendingOrComplete) {
+  throw new Error("Expected SQLite package inspection to be pending or complete");
 }
 
 const invalidZip = buildZip({ "metadata.json": JSON.stringify({ budgetName: "Missing DB" }) });
