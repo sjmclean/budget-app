@@ -5,6 +5,7 @@ import type {
   BudgetImportProviderInput,
   FullBudgetImportPreview,
 } from "../../types/src/index.js";
+import { inspectActualBudgetZipPackage } from "./actualBudget/ActualBudgetZipExplorer.js";
 
 /**
  * Registry for full-budget import providers.
@@ -39,6 +40,13 @@ export class BudgetImportProviderApplicationService {
     const provider = this.detectProvider(input);
     if (!provider?.fullBudgetPreview) return null;
     return provider.fullBudgetPreview(input);
+  }
+
+  async fullBudgetPreviewAsync(input: BudgetImportProviderInput): Promise<FullBudgetImportPreview | null> {
+    const provider = this.detectProvider(input);
+    if (provider?.fullBudgetPreviewAsync) return provider.fullBudgetPreviewAsync(input);
+    if (provider?.fullBudgetPreview) return provider.fullBudgetPreview(input);
+    return null;
   }
 }
 
@@ -128,6 +136,11 @@ export class ActualBudgetImportProvider implements BudgetImportProvider {
       issues,
       metadata: extractActualMetadata(parsed, input.fileName),
     };
+  }
+
+  async fullBudgetPreviewAsync(input: BudgetImportProviderInput): Promise<FullBudgetImportPreview> {
+    if (isActualBudgetPackageFile(input.fileName)) return inspectActualBudgetZipPackage(input);
+    return this.fullBudgetPreview(input);
   }
 
   fullBudgetPreview(input: BudgetImportProviderInput): FullBudgetImportPreview {

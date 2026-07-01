@@ -12,6 +12,8 @@ export type BankImportProviderScope = "account-transactions";
 export interface BankImportProviderInput {
   fileName: string | null;
   text: string;
+  /** Optional binary payload for package formats such as Actual Budget ZIP exports. */
+  binary?: Uint8Array;
 }
 
 export interface BankImportInspectionItem {

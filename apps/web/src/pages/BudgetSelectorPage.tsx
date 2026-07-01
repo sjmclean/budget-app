@@ -172,10 +172,14 @@ export function BudgetSelectorPage() {
     setActualStatus("Reading Actual Budget export…");
 
     try {
-      const text = await file.text();
-      const preview = actualBudgetImportProviderService.fullBudgetPreview({
+      const binary = new Uint8Array(await file.arrayBuffer());
+      const text = file.name.toLowerCase().endsWith(".json")
+        ? await file.text()
+        : "";
+      const preview = await actualBudgetImportProviderService.fullBudgetPreviewAsync({
         fileName: file.name,
         text,
+        binary,
       });
 
       if (!preview) {
@@ -540,9 +544,9 @@ export function BudgetSelectorPage() {
               <div className="ynab4-preview-context-note">
                 <strong>Preview only.</strong>
                 <span>
-                  v2.43.3 exposes the Actual full-budget preview in the launch
-                  UI. Creating the imported budget remains disabled until the
-                  full-budget commit path is implemented.
+                  v2.44.1 reads Actual export ZIP packages, extracts metadata,
+                  and verifies db.sqlite is present. Creating the imported budget
+                  remains disabled until table mapping and commit are implemented.
                 </span>
               </div>
             ) : null}
@@ -718,8 +722,8 @@ export function BudgetSelectorPage() {
                 Create imported budget
               </Button>
               <p>
-                Actual Budget commit is intentionally disabled in v2.43.3. This
-                screen proves the full-budget preview before data is written.
+                Actual Budget commit is intentionally disabled in v2.44.1. This
+                screen validates the export package before data is written.
               </p>
             </div>
           </section>

@@ -34,4 +34,5 @@ export interface BudgetImportProvider {
   canImport(input: BudgetImportProviderInput): boolean;
   inspect(input: BudgetImportProviderInput): BudgetImportInspection;
   fullBudgetPreview?(input: BudgetImportProviderInput): FullBudgetImportPreview;
+  fullBudgetPreviewAsync?(input: BudgetImportProviderInput): Promise<FullBudgetImportPreview>;
 }

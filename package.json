@@ -414,7 +414,9 @@
     "test:v2433": "tsx tests/v2433-actual-preview-ui.ts",
     "test:v243x": "pnpm test:v2430 && pnpm test:v2431 && pnpm test:v2432 && pnpm test:v2433",
     "test:v2440:budget-import-provider-foundation": "tsx tests/v2440-budget-import-provider-foundation.ts",
-    "test:v2440": "pnpm test:v243x && pnpm test:v2440:budget-import-provider-foundation"
+    "test:v2440": "pnpm test:v243x && pnpm test:v2440:budget-import-provider-foundation",
+    "test:v2441:actual-budget-zip-explorer": "tsx tests/v2441-actual-budget-zip-explorer.ts",
+    "test:v2441": "pnpm test:v2440 && pnpm test:v2441:actual-budget-zip-explorer"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
