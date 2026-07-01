@@ -5,6 +5,20 @@ export interface ActualSQLiteTableSummary {
   rowCount: number | null;
 }
 
+export type ActualSQLiteValue = string | number | Uint8Array | null;
+
+export interface ActualSQLiteTableRow {
+  rowId: number | null;
+  values: Record<string, ActualSQLiteValue>;
+}
+
+export interface ActualSQLiteTableReadResult {
+  tableName: string;
+  columns: string[];
+  rows: ActualSQLiteTableRow[];
+  issues: string[];
+}
+
 export interface ActualSQLiteRepositoryInspection {
   tables: ActualSQLiteTableSummary[];
   knownCounts: Record<string, number>;
@@ -20,7 +34,8 @@ interface SQLiteSchemaRow {
 }
 
 interface ParsedRecord {
-  values: Array<string | number | Uint8Array | null>;
+  rowId: number | null;
+  values: ActualSQLiteValue[];
 }
 
 const SQLITE_HEADER = "SQLite format 3\0";
@@ -66,6 +81,29 @@ export class ActualSQLiteRepository {
     }
 
     return { tables, knownCounts, issues };
+  }
+
+
+  readTableRows(tableName: string): ActualSQLiteTableReadResult {
+    const issues: string[] = [];
+    const schemaRows = this.readSchemaRows(issues);
+    const schemaRow = schemaRows.find((row) => row.type === "table" && row.name === tableName && row.rootPage && row.rootPage > 0);
+    if (!schemaRow?.rootPage) {
+      return { tableName, columns: [], rows: [], issues: [`Actual SQLite table ${tableName} was not found.`] };
+    }
+
+    const columns = parseCreateTableColumns(schemaRow.sql);
+    const records = this.readTableRecords(schemaRow.rootPage, issues);
+    const rows = records.map((record) => {
+      const values: Record<string, ActualSQLiteValue> = {};
+      record.values.forEach((value, index) => {
+        const column = columns[index] ?? `column_${index + 1}`;
+        values[column] = value;
+      });
+      return { rowId: record.rowId, values };
+    });
+
+    return { tableName, columns, rows, issues };
   }
 
   private readSchemaRows(issues: string[]): SQLiteSchemaRow[] {
@@ -160,7 +198,8 @@ export class ActualSQLiteRepository {
     const rowId = readVarint(this.bytes, absoluteOffset);
     absoluteOffset += rowId.bytesRead;
     const payload = this.bytes.slice(absoluteOffset, absoluteOffset + payloadLength.value);
-    return parseRecord(payload);
+    const record = parseRecord(payload);
+    return { rowId: rowId.value, values: record.values };
   }
 
   private readPage(pageNumber: number): DataView {
@@ -174,6 +213,59 @@ export class ActualSQLiteRepository {
   private pageOffset(pageNumber: number): number {
     return (pageNumber - 1) * this.pageSize;
   }
+}
+
+
+function parseCreateTableColumns(sql: string | null): string[] {
+  if (!sql) return [];
+  const start = sql.indexOf("(");
+  const end = sql.lastIndexOf(")");
+  if (start < 0 || end <= start) return [];
+
+  const body = sql.slice(start + 1, end);
+  const parts: string[] = [];
+  let current = "";
+  let depth = 0;
+  let quote: string | null = null;
+
+  for (const char of body) {
+    if (quote) {
+      current += char;
+      if (char === quote) quote = null;
+      continue;
+    }
+    if (["'", '"', "`"].includes(char)) {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (char === "(") depth += 1;
+    if (char === ")" && depth > 0) depth -= 1;
+    if (char === "," && depth === 0) {
+      parts.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  if (current.trim()) parts.push(current.trim());
+
+  return parts
+    .map((part) => normalizeColumnName(part))
+    .filter((name): name is string => Boolean(name));
+}
+
+function normalizeColumnName(definition: string): string | null {
+  const trimmed = definition.trim();
+  if (!trimmed) return null;
+  const firstToken = trimmed.match(/^(?:\"([^\"]+)\"|`([^`]+)`|\[([^\]]+)\]|([^\s]+))/);
+  const rawName = firstToken?.[1] ?? firstToken?.[2] ?? firstToken?.[3] ?? firstToken?.[4] ?? null;
+  if (!rawName) return null;
+  const normalized = rawName.trim().replace(/^['\"]|['\"]$/g, "");
+  if (!normalized) return null;
+  const upper = normalized.toUpperCase();
+  if (["CONSTRAINT", "PRIMARY", "UNIQUE", "CHECK", "FOREIGN"].includes(upper)) return null;
+  return normalized;
 }
 
 export function inspectActualSQLiteDatabase(bytes: Uint8Array): ActualSQLiteRepositoryInspection {
@@ -211,7 +303,7 @@ function parseRecord(payload: Uint8Array): ParsedRecord {
     return parsed.value;
   });
 
-  return { values };
+  return { rowId: null, values };
 }
 
 function parseSerialValue(payload: Uint8Array, offset: number, serialType: number): { value: string | number | Uint8Array | null; bytesRead: number } {

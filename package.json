@@ -420,7 +420,9 @@
     "test:v2442:actual-sqlite-header-explorer": "tsx tests/v2442-actual-sqlite-header-explorer.ts",
     "test:v2442": "pnpm test:v2441 && pnpm test:v2442:actual-sqlite-header-explorer",
     "test:v2443:actual-sqlite-repository": "tsx tests/v2443-actual-sqlite-repository.ts",
-    "test:v2443": "pnpm test:v2442 && pnpm test:v2443:actual-sqlite-repository"
+    "test:v2443": "pnpm test:v2442 && pnpm test:v2443:actual-sqlite-repository",
+    "test:v2444:actual-sqlite-mapping": "tsx tests/v2444-actual-sqlite-mapping.ts",
+    "test:v2444": "pnpm test:v2443 && pnpm test:v2444:actual-sqlite-mapping"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

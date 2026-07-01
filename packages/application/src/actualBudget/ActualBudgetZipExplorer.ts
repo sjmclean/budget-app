@@ -1,5 +1,6 @@
 import type { BankImportIssue, BudgetImportProviderInput, FullBudgetImportPreview } from "../../../types/src/index.js";
-import { inspectActualSQLiteDatabase, type ActualSQLiteRepositoryInspection } from "./ActualSQLiteRepository.js";
+import { ActualSQLiteRepository, inspectActualSQLiteDatabase, type ActualSQLiteRepositoryInspection } from "./ActualSQLiteRepository.js";
+import { mapActualSQLiteRepositoryToFullBudgetPreview, type ActualBudgetMappingResult } from "./ActualBudgetMapper.js";
 
 interface ZipEntry {
   name: string;
@@ -73,6 +74,7 @@ export async function inspectActualBudgetZipPackage(input: BudgetImportProviderI
 
   let sqliteHeader: ActualSQLiteHeaderInspection | null = null;
   let sqliteInspection: ActualSQLiteRepositoryInspection | null = null;
+  let mappedPreview: ActualBudgetMappingResult | null = null;
 
   if (!sqliteEntry) {
     issues.push({
@@ -94,7 +96,8 @@ export async function inspectActualBudgetZipPackage(input: BudgetImportProviderI
         });
       } else {
         sqliteInspection = inspectActualSQLiteDatabase(sqliteBytes);
-        for (const issue of sqliteInspection.issues) {
+        mappedPreview = mapActualSQLiteRepositoryToFullBudgetPreview(new ActualSQLiteRepository(sqliteBytes));
+        for (const issue of [...sqliteInspection.issues, ...(mappedPreview?.issues.map((issue) => issue.message) ?? [])]) {
           issues.push({
             rowNumber: null,
             severity: "warning",
@@ -170,12 +173,12 @@ export async function inspectActualBudgetZipPackage(input: BudgetImportProviderI
       actualNoteCount: readActualTableCount(sqliteInspection, "notes"),
       ...metadata.raw,
     },
-    accounts: [],
-    categoryGroups: [],
-    categories: [],
-    payees: [],
-    transactions: [],
-    transferCount: 0,
+    accounts: mappedPreview?.accounts ?? [],
+    categoryGroups: mappedPreview?.categoryGroups ?? [],
+    categories: mappedPreview?.categories ?? [],
+    payees: mappedPreview?.payees ?? [],
+    transactions: mappedPreview?.transactions ?? [],
+    transferCount: mappedPreview?.transferCount ?? 0,
     canCommit: false,
   };
 }
