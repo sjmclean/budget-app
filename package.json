@@ -394,7 +394,9 @@
     "test:v2410:import-match-thresholds": "tsx tests/v2410-import-match-thresholds.ts",
     "test:v2410": "pnpm test:v2405 && pnpm test:v2410:import-match-thresholds",
     "test:v2411:import-review-ux": "tsx tests/v2411-import-review-ux.ts",
-    "test:v2411": "pnpm test:v2410 && pnpm test:v2411:import-review-ux"
+    "test:v2411": "pnpm test:v2410 && pnpm test:v2411:import-review-ux",
+    "test:v2412:import-review-polish": "tsx tests/v2412-import-review-polish.ts",
+    "test:v2412": "pnpm test:v2411 && pnpm test:v2412:import-review-polish"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

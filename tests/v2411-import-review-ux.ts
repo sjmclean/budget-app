@@ -58,14 +58,14 @@ assert.match(
 
 assert.match(
   dialogSource,
-  /Existing Transaction/,
-  "review cards should show the existing register transaction side of a match",
+  /In Register/,
+  "review cards should show the in-register transaction side of a match",
 );
 
 assert.match(
   dialogSource,
-  /acceptMatchedCandidate\(candidate\.id\)[\s\S]*>\s*Match\s*</,
-  "review cards should include a Match action",
+  /candidate.status === "possible-match"[\s\S]*acceptMatchedCandidate\(candidate\.id\)[\s\S]*>\s*Match\s*</,
+  "suggested match review cards should include a Match action",
 );
 
 assert.match(
@@ -88,8 +88,8 @@ assert.match(
 
 assert.match(
   registerCss,
-  /\.transaction-import-match-comparison/,
-  "matched rows should have comparison styling",
+  /\.transaction-import-match-stack/,
+  "matched rows should have stacked inline comparison styling",
 );
 
 assert.match(

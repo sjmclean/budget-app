@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { formatDateForDisplay } from "../../settings/dateFormatting";
+import { useDateFormatPreference } from "../../settings/useDateFormatPreference";
 import type {
   NewRegisterTransactionInput,
   RegisterTransactionView,
@@ -148,6 +150,7 @@ export function TransactionImportDialog({
   ) => Promise<void>;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const dateFormat = useDateFormatPreference();
   const [step, setStep] = useState<TransactionImportStep>("upload");
   const [csvText, setCsvText] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -443,6 +446,10 @@ export function TransactionImportDialog({
       ),
     );
     setError(null);
+  }
+
+  function formatImportReviewDate(date: string | undefined) {
+    return date ? formatDateForDisplay(date, dateFormat) : "—";
   }
 
   function getCandidateStatusLabel(candidate: TransactionImportCandidate) {
@@ -792,24 +799,21 @@ export function TransactionImportDialog({
                     ) : null}
                   </div>
 
-                  <div className="transaction-import-match-comparison">
-                    <div className="transaction-import-match-panel transaction-import-match-panel-imported">
+                  <div className="transaction-import-match-stack">
+                    <div className="transaction-import-match-row transaction-import-match-row-imported">
                       <span className="transaction-import-match-label">Imported</span>
-                      <strong>{candidate.parsed.payee || "Missing payee"}</strong>
-                      <dl>
-                        <div>
-                          <dt>Date</dt>
-                          <dd>{candidate.parsed.date || "—"}</dd>
-                        </div>
-                        <div>
-                          <dt>Amount</dt>
-                          <dd>{amountLabel}</dd>
-                        </div>
-                        <div>
-                          <dt>Memo</dt>
-                          <dd>{candidate.parsed.memo || "—"}</dd>
-                        </div>
-                      </dl>
+                      <span className="transaction-import-match-date">
+                        {formatImportReviewDate(candidate.parsed.date)}
+                      </span>
+                      <strong className="transaction-import-match-payee">
+                        {candidate.parsed.payee || "Missing payee"}
+                      </strong>
+                      <span className="transaction-import-match-detail">
+                        {candidate.parsed.memo || "—"}
+                      </span>
+                      <strong className="transaction-import-match-amount">
+                        {amountLabel}
+                      </strong>
                     </div>
 
                     {hasMatch ? (
@@ -817,36 +821,48 @@ export function TransactionImportDialog({
                         <div className="transaction-import-match-arrow" aria-hidden="true">
                           ↓
                         </div>
-                        <div className="transaction-import-match-panel transaction-import-match-panel-existing">
-                          <span className="transaction-import-match-label">
-                            Existing Transaction
+                        <div className="transaction-import-match-row transaction-import-match-row-existing">
+                          <span className="transaction-import-match-label">In Register</span>
+                          <span className="transaction-import-match-date">
+                            {formatImportReviewDate(candidate.matchedTransaction?.date)}
                           </span>
-                          <strong>{candidate.matchedTransaction?.payee || "—"}</strong>
-                          <dl>
-                            <div>
-                              <dt>Date</dt>
-                              <dd>{candidate.matchedTransaction?.date || "—"}</dd>
-                            </div>
-                            <div>
-                              <dt>Amount</dt>
-                              <dd>{matchAmountLabel}</dd>
-                            </div>
-                            <div>
-                              <dt>Category</dt>
-                              <dd>{candidate.matchedTransaction?.category || "—"}</dd>
-                            </div>
-                            <div>
-                              <dt>Memo</dt>
-                              <dd>{candidate.matchedTransaction?.memo || "—"}</dd>
-                            </div>
-                          </dl>
+                          <strong className="transaction-import-match-payee">
+                            {candidate.matchedTransaction?.payee || "—"}
+                          </strong>
+                          <span className="transaction-import-match-detail">
+                            {candidate.matchedTransaction?.category || "—"}
+                            {candidate.matchedTransaction?.memo
+                              ? ` · ${candidate.matchedTransaction.memo}`
+                              : ""}
+                          </span>
+                          <strong className="transaction-import-match-amount">
+                            {matchAmountLabel}
+                          </strong>
                         </div>
                       </>
                     ) : null}
                   </div>
 
-                  {candidate.status === "exact-match" ||
-                  candidate.status === "possible-match" ? (
+                  {candidate.status === "exact-match" ? (
+                    <div className="transaction-import-match-actions">
+                      <button
+                        className="button button-secondary"
+                        type="button"
+                        onClick={() => importMatchedCandidateAsNew(candidate.id)}
+                      >
+                        Import as New
+                      </button>
+                      <button
+                        className="button button-secondary"
+                        type="button"
+                        onClick={() => skipCandidate(candidate.id)}
+                      >
+                        Skip
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {candidate.status === "possible-match" ? (
                     <div className="transaction-import-match-actions">
                       <button
                         className="button button-primary"
