@@ -406,7 +406,9 @@
     "test:v2420:app-dialog-service": "tsx tests/v2420-app-dialog-service.ts",
     "test:v2420": "pnpm test:v2415 && pnpm test:v2420:app-dialog-service",
     "test:v2430:import-provider-framework": "tsx tests/v2430-import-provider-framework.ts",
-    "test:v2430": "pnpm test:v2420 && pnpm test:v2430:import-provider-framework"
+    "test:v2430": "pnpm test:v2420 && pnpm test:v2430:import-provider-framework",
+    "test:v2431:actual-full-budget-import-foundation": "tsx tests/v2431-actual-full-budget-import-foundation.ts",
+    "test:v2431": "pnpm test:v2430 && pnpm test:v2431:actual-full-budget-import-foundation"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

@@ -12,6 +12,8 @@ const csvInspection = service.inspect({
   text: "Date,Description,Amount\n2026-07-01,Cafe,-4.50",
 });
 if (csvInspection.providerId !== "csv") throw new Error("Expected CSV provider detection");
+if (csvInspection.scope !== "account-transactions") throw new Error("Expected CSV to remain account-level transaction import");
+if (csvInspection.canPreviewFullBudget) throw new Error("CSV should not be a full-budget import provider");
 if (!csvInspection.canCommitTransactions) throw new Error("Expected CSV provider to remain commit-capable");
 if (csvInspection.summary.find((item) => item.label === "Transactions")?.count !== 1) throw new Error("Expected CSV inspection to count transactions");
 
@@ -20,6 +22,7 @@ const qifInspection = service.inspect({
   text: "!Type:Bank\nD01/07/2026\nT-12.00\nPCafe\n^",
 });
 if (qifInspection.providerId !== "qif") throw new Error("Expected QIF provider detection");
+if (qifInspection.scope !== "account-transactions") throw new Error("Expected QIF to remain account-level transaction import");
 if (!qifInspection.canPreviewTransactions) throw new Error("Expected QIF provider to be preview-capable");
 
 const actualExport = JSON.stringify({
@@ -38,6 +41,8 @@ const actualExport = JSON.stringify({
 
 const actualInspection = service.inspect({ fileName: "household.actualbudget", text: actualExport });
 if (actualInspection.providerId !== "actual-budget") throw new Error("Expected Actual Budget provider detection");
+if (actualInspection.scope !== "full-budget") throw new Error("Expected Actual Budget to be detected as a full-budget import provider");
+if (!actualInspection.canPreviewFullBudget) throw new Error("Expected Actual Budget to support full-budget preview inspection");
 if (actualInspection.canCommitTransactions) throw new Error("Actual Budget should be inspection-only in v2.43.0");
 if (actualInspection.canPreviewTransactions) throw new Error("Actual Budget should not yet enter transaction preview in v2.43.0");
 if (actualInspection.summary.find((item) => item.label === "Transactions")?.count !== 2) throw new Error("Expected Actual transactions to be counted");

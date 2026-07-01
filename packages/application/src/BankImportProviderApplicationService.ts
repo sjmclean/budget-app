@@ -1,4 +1,4 @@
-import type { BankImportInspection, BankImportIssue, BankImportProvider, BankImportProviderInput, BankImportPreview, CsvBankImportMapping } from "../../types/src/index.js";
+import type { BankImportInspection, BankImportIssue, BankImportProvider, BankImportProviderInput, BankImportPreview, CsvBankImportMapping, FullBudgetImportPreview } from "../../types/src/index.js";
 import { BankImportApplicationService } from "./BankImportApplicationService.js";
 
 const DEFAULT_CSV_MAPPING: CsvBankImportMapping = {
@@ -53,12 +53,19 @@ export class BankImportProviderApplicationService {
     if (!provider?.preview) return null;
     return provider.preview(input);
   }
+
+  fullBudgetPreview(input: BankImportProviderInput): FullBudgetImportPreview | null {
+    const provider = this.detectProvider(input);
+    if (!provider?.fullBudgetPreview) return null;
+    return provider.fullBudgetPreview(input);
+  }
 }
 
 class CsvImportProvider implements BankImportProvider {
   id = "csv";
   label = "CSV";
   format = "csv" as const;
+  scope = "account-transactions" as const;
 
   constructor(private readonly service: BankImportApplicationService) {}
 
@@ -70,12 +77,15 @@ class CsvImportProvider implements BankImportProvider {
     const preview = this.preview(input);
     return {
       format: "csv",
+      scope: this.scope,
       providerId: this.id,
       providerLabel: this.label,
       confidence: hasExtension(input.fileName, ".csv") ? "high" : "medium",
       isRecognized: true,
       canPreviewTransactions: true,
       canCommitTransactions: true,
+      canPreviewFullBudget: false,
+      canCommitFullBudget: false,
       summary: [{ label: "Transactions", count: preview.transactions.length, supported: true }],
       issues: preview.issues,
       metadata: { fileName: input.fileName },
@@ -91,6 +101,7 @@ class QifImportProvider implements BankImportProvider {
   id = "qif";
   label = "QIF";
   format = "qif" as const;
+  scope = "account-transactions" as const;
 
   constructor(private readonly service: BankImportApplicationService) {}
 
@@ -102,12 +113,15 @@ class QifImportProvider implements BankImportProvider {
     const preview = this.preview(input);
     return {
       format: "qif",
+      scope: this.scope,
       providerId: this.id,
       providerLabel: this.label,
       confidence: hasExtension(input.fileName, ".qif") ? "high" : "medium",
       isRecognized: true,
       canPreviewTransactions: true,
       canCommitTransactions: true,
+      canPreviewFullBudget: false,
+      canCommitFullBudget: false,
       summary: [{ label: "Transactions", count: preview.transactions.length, supported: true }],
       issues: preview.issues,
       metadata: { fileName: input.fileName },
@@ -123,6 +137,7 @@ class OfxImportProvider implements BankImportProvider {
   id: "ofx" | "qfx";
   label: "OFX" | "QFX";
   format: "ofx" | "qfx";
+  scope = "account-transactions" as const;
 
   constructor(private readonly service: BankImportApplicationService, format: "ofx" | "qfx") {
     this.id = format;
@@ -138,12 +153,15 @@ class OfxImportProvider implements BankImportProvider {
     const preview = this.preview(input);
     return {
       format: this.format,
+      scope: this.scope,
       providerId: this.id,
       providerLabel: this.label,
       confidence: hasExtension(input.fileName, `.${this.format}`) ? "high" : "medium",
       isRecognized: true,
       canPreviewTransactions: true,
       canCommitTransactions: true,
+      canPreviewFullBudget: false,
+      canCommitFullBudget: false,
       summary: [{ label: "Transactions", count: preview.transactions.length, supported: true }],
       issues: preview.issues,
       metadata: { fileName: input.fileName },
@@ -159,6 +177,7 @@ export class ActualBudgetImportProvider implements BankImportProvider {
   id = "actual-budget";
   label = "Actual Budget";
   format = "actual-budget" as const;
+  scope = "full-budget" as const;
 
   canImport(input: BankImportProviderInput): boolean {
     if (hasExtension(input.fileName, ".actual") || hasExtension(input.fileName, ".actualbudget")) return true;
@@ -172,12 +191,15 @@ export class ActualBudgetImportProvider implements BankImportProvider {
     if (!parsed) {
       return {
         format: "actual-budget",
+        scope: this.scope,
         providerId: this.id,
         providerLabel: this.label,
         confidence: "low",
         isRecognized: hasExtension(input.fileName, ".actual") || hasExtension(input.fileName, ".actualbudget"),
         canPreviewTransactions: false,
         canCommitTransactions: false,
+        canPreviewFullBudget: true,
+        canCommitFullBudget: false,
         summary: [],
         issues: [{ rowNumber: null, severity: "error", code: "InvalidActualJson", message: "Could not parse the Actual Budget file as JSON." }],
         metadata: { fileName: input.fileName },
@@ -203,15 +225,18 @@ export class ActualBudgetImportProvider implements BankImportProvider {
 
     return {
       format: "actual-budget",
+      scope: this.scope,
       providerId: this.id,
       providerLabel: this.label,
       confidence: accounts && transactions ? "high" : "medium",
       isRecognized: true,
       canPreviewTransactions: false,
       canCommitTransactions: false,
+      canPreviewFullBudget: true,
+      canCommitFullBudget: false,
       summary: [
         { label: "Accounts", count: accounts?.length ?? 0, supported: true, note: "Inspection only in v2.43.0" },
-        { label: "Transactions", count: transactions?.length ?? 0, supported: true, note: "Mapping to review pipeline is planned next" },
+        { label: "Transactions", count: transactions?.length ?? 0, supported: true, note: "Full-budget transaction mapping is planned next" },
         { label: "Payees", count: payees?.length ?? 0, supported: true, note: "Inspection only in v2.43.0" },
         { label: "Category groups", count: categoryGroups?.length ?? 0, supported: true, note: "Inspection only in v2.43.0" },
         { label: "Categories", count: categories?.length ?? 0, supported: true, note: "Inspection only in v2.43.0" },
@@ -224,17 +249,34 @@ export class ActualBudgetImportProvider implements BankImportProvider {
       metadata: extractActualMetadata(parsed, input.fileName),
     };
   }
+
+  fullBudgetPreview(input: BankImportProviderInput): FullBudgetImportPreview {
+    const inspection = this.inspect(input);
+    return {
+      format: "actual-budget",
+      providerId: this.id,
+      providerLabel: this.label,
+      sourceBudgetName: typeof inspection.metadata.budgetName === "string" ? inspection.metadata.budgetName : typeof inspection.metadata.name === "string" ? inspection.metadata.name : null,
+      entityCounts: inspection.summary,
+      issues: inspection.issues,
+      metadata: inspection.metadata,
+      canCommit: false,
+    };
+  }
 }
 
 function unknownInspection(): BankImportInspection {
   return {
     format: "unknown",
+    scope: "unknown",
     providerId: null,
     providerLabel: null,
     confidence: "none",
     isRecognized: false,
     canPreviewTransactions: false,
     canCommitTransactions: false,
+    canPreviewFullBudget: false,
+    canCommitFullBudget: false,
     summary: [],
     issues: [{ rowNumber: null, severity: "error", code: "UnknownImportFormat", message: "No import provider recognized this file." }],
     metadata: {},

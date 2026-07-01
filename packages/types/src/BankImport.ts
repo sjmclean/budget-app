@@ -1,10 +1,13 @@
 /**
- * Supported external bank/import formats.
+ * Supported external import formats.
  *
- * YNAB4 import remains the main migration path. These formats are for ongoing
- * bank statement imports after the user is already using the application.
+ * Some formats are account-level bank statement imports, while migration
+ * formats such as Actual Budget represent a whole budget and must not be
+ * routed through the open-account transaction import flow.
  */
 export type BankImportFormat = "csv" | "qif" | "ofx" | "qfx" | "actual-budget";
+
+export type BankImportProviderScope = "account-transactions" | "full-budget";
 
 
 export interface BankImportProviderInput {
@@ -21,12 +24,15 @@ export interface BankImportInspectionItem {
 
 export interface BankImportInspection {
   format: BankImportFormat | "unknown";
+  scope: BankImportProviderScope | "unknown";
   providerId: string | null;
   providerLabel: string | null;
   confidence: "high" | "medium" | "low" | "none";
   isRecognized: boolean;
   canPreviewTransactions: boolean;
   canCommitTransactions: boolean;
+  canPreviewFullBudget: boolean;
+  canCommitFullBudget: boolean;
   summary: BankImportInspectionItem[];
   issues: BankImportIssue[];
   metadata: Record<string, string | number | boolean | null>;
@@ -36,9 +42,29 @@ export interface BankImportProvider {
   id: string;
   label: string;
   format: BankImportFormat;
+  scope: BankImportProviderScope;
   canImport(input: BankImportProviderInput): boolean;
   inspect(input: BankImportProviderInput): BankImportInspection;
   preview?(input: BankImportProviderInput): BankImportPreview;
+  fullBudgetPreview?(input: BankImportProviderInput): FullBudgetImportPreview;
+}
+
+export interface FullBudgetImportEntityCount {
+  label: string;
+  count: number;
+  supported: boolean;
+  note?: string;
+}
+
+export interface FullBudgetImportPreview {
+  format: "actual-budget";
+  providerId: string;
+  providerLabel: string;
+  sourceBudgetName: string | null;
+  entityCounts: FullBudgetImportEntityCount[];
+  issues: BankImportIssue[];
+  metadata: Record<string, string | number | boolean | null>;
+  canCommit: boolean;
 }
 
 /** A raw transaction row as provided by a bank file after format parsing. */
