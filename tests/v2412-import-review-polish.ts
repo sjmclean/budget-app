@@ -34,7 +34,7 @@ assert.match(
 
 assert.match(
   dialogSource,
-  /transaction-import-match-label">In Register/,
+  /transaction-import-match-label[\s\S]*In Register/,
   "matched import rows should label the existing transaction as In Register",
 );
 
@@ -46,7 +46,7 @@ assert.match(
 
 assert.match(
   dialogSource,
-  /candidate.status === "possible-match"[\s\S]*acceptMatchedCandidate\(candidate\.id\)[\s\S]*>\s*Match\s*</,
+  /candidate.status === "possible-match"[\s\S]*acceptMatchedCandidate\(candidate\.id\)[\s\S]*Match/,
   "suggested matches should still ask the user to confirm Match",
 );
 

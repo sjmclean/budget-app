@@ -86,6 +86,9 @@ export interface ParsedImportTransaction {
   raw: Record<string, string>;
 }
 
+export type TransactionImportReviewDecision =
+  "matched" | "skipped" | "import-as-new";
+
 export interface TransactionImportCandidate {
   id: string;
   parsed: ParsedImportTransaction;
@@ -94,6 +97,7 @@ export interface TransactionImportCandidate {
   matchedTransaction?: RegisterTransactionView;
   reason: string;
   selected: boolean;
+  reviewDecision?: TransactionImportReviewDecision;
   errors: string[];
 }
 
@@ -529,7 +533,8 @@ function classifyImportCandidate(
   const automaticNear = existingTransactions.find(
     (transaction) =>
       amountsEqual(transaction, parsed) &&
-      daysBetween(transaction.date, parsed.date) <= HIGH_CONFIDENCE_IMPORT_MATCH_DAYS,
+      daysBetween(transaction.date, parsed.date) <=
+        HIGH_CONFIDENCE_IMPORT_MATCH_DAYS,
   );
 
   if (automaticNear) {
@@ -558,8 +563,7 @@ function classifyImportCandidate(
       status: "possible-match",
       matchedTransactionId: possible.id,
       matchedTransaction: possible,
-      reason:
-        `Possible match: same amount within ${SUGGESTED_IMPORT_MATCH_DAYS} days. Review before importing as new.`,
+      reason: `Possible match: same amount within ${SUGGESTED_IMPORT_MATCH_DAYS} days. Review before importing as new.`,
       selected: false,
       errors: [],
     };

@@ -34,7 +34,8 @@ function formatMoney(value: number, currencyCode: string) {
 }
 
 type TransactionImportStep = "upload" | "mapping" | "review" | "complete";
-type TransactionImportFileType = "csv" | "qif" | "ofx" | "qfx" | "json" | "unknown";
+type TransactionImportFileType =
+  "csv" | "qif" | "ofx" | "qfx" | "json" | "unknown";
 
 const CSV_IMPORT_ROLE_OPTIONS: { value: CsvImportColumnRole; label: string }[] =
   [
@@ -154,13 +155,16 @@ export function TransactionImportDialog({
   const [step, setStep] = useState<TransactionImportStep>("upload");
   const [csvText, setCsvText] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [fileType, setFileType] = useState<TransactionImportFileType>("unknown");
+  const [fileType, setFileType] =
+    useState<TransactionImportFileType>("unknown");
   const [analysis, setAnalysis] = useState<CsvImportAnalysis | null>(null);
   const [mapping, setMapping] = useState<CsvImportColumnMapping>({});
   const [importProfiles, setImportProfiles] = useState(() =>
     readTransactionImportProfiles(),
   );
-  const [matchedProfileName, setMatchedProfileName] = useState<string | null>(null);
+  const [matchedProfileName, setMatchedProfileName] = useState<string | null>(
+    null,
+  );
   const [rememberProfile, setRememberProfile] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [preview, setPreview] = useState<TransactionImportPreview | null>(null);
@@ -183,10 +187,16 @@ export function TransactionImportDialog({
       0,
     );
   const readyCount = candidates.filter(
-    (candidate) => candidate.status === "new",
+    (candidate) => candidate.selected && candidate.status === "new",
+  ).length;
+  const skippedCount = candidates.filter(
+    (candidate) =>
+      candidate.reviewDecision === "skipped" ||
+      (candidate.status === "new" && !candidate.selected),
   ).length;
   const attentionCount = candidates.filter(
-    (candidate) => candidate.status !== "new",
+    (candidate) =>
+      candidate.status !== "new" && candidate.reviewDecision !== "skipped",
   ).length;
 
   function resetImportState() {
@@ -231,8 +241,10 @@ export function TransactionImportDialog({
     );
 
     if (detectedType === "qif") {
-      const nextPreview = measureImportStage(timings, "Parse and preview QIF", () =>
-        previewTransactionQifImport(text, transactions),
+      const nextPreview = measureImportStage(
+        timings,
+        "Parse and preview QIF",
+        () => previewTransactionQifImport(text, transactions),
       );
 
       if (nextPreview.candidates.length === 0) {
@@ -253,8 +265,10 @@ export function TransactionImportDialog({
       return;
     }
 
-    const nextAnalysis = measureImportStage(timings, "Analyse CSV columns", () =>
-      analyseTransactionCsvImport(text),
+    const nextAnalysis = measureImportStage(
+      timings,
+      "Analyse CSV columns",
+      () => analyseTransactionCsvImport(text),
     );
 
     if (nextAnalysis.columns.length === 0) {
@@ -263,15 +277,22 @@ export function TransactionImportDialog({
       return;
     }
 
-    const latestProfiles = measureImportStage(timings, "Read import profiles", () =>
-      readTransactionImportProfiles(),
+    const latestProfiles = measureImportStage(
+      timings,
+      "Read import profiles",
+      () => readTransactionImportProfiles(),
     );
-    const matchingProfile = measureImportStage(timings, "Match import profile", () =>
-      findMatchingTransactionImportProfile(latestProfiles, nextAnalysis),
+    const matchingProfile = measureImportStage(
+      timings,
+      "Match import profile",
+      () => findMatchingTransactionImportProfile(latestProfiles, nextAnalysis),
     );
-    const nextMapping = matchingProfile?.mapping ?? nextAnalysis.suggestedMapping;
-    const hasRequiredMapping = measureImportStage(timings, "Validate mapping", () =>
-      hasRequiredCsvMapping(nextMapping),
+    const nextMapping =
+      matchingProfile?.mapping ?? nextAnalysis.suggestedMapping;
+    const hasRequiredMapping = measureImportStage(
+      timings,
+      "Validate mapping",
+      () => hasRequiredCsvMapping(nextMapping),
     );
 
     setImportProfiles(latestProfiles);
@@ -284,7 +305,9 @@ export function TransactionImportDialog({
     setStep(hasRequiredMapping ? "review" : "mapping");
 
     if (matchingProfile) {
-      setMessage(`CSV detected. Import profile "${matchingProfile.name}" applied.`);
+      setMessage(
+        `CSV detected. Import profile "${matchingProfile.name}" applied.`,
+      );
     }
 
     if (hasRequiredMapping) {
@@ -353,12 +376,10 @@ export function TransactionImportDialog({
     }
 
     const timings = options.timings ?? [];
-    const nextPreview = measureImportStage(timings, "Parse and preview CSV", () =>
-      previewTransactionCsvImport(
-        nextCsvText,
-        transactions,
-        nextMapping,
-      ),
+    const nextPreview = measureImportStage(
+      timings,
+      "Parse and preview CSV",
+      () => previewTransactionCsvImport(nextCsvText, transactions, nextMapping),
     );
     setPreview(nextPreview);
     setCandidates(nextPreview.candidates);
@@ -404,6 +425,7 @@ export function TransactionImportDialog({
           ? {
               ...candidate,
               selected: false,
+              reviewDecision: "matched",
               reason:
                 "Matched to the existing register transaction. The imported row will not be added as a new transaction.",
             }
@@ -423,6 +445,7 @@ export function TransactionImportDialog({
               ...candidate,
               status: "new",
               selected: true,
+              reviewDecision: "import-as-new",
               reason:
                 "This imported row will be imported as a new transaction instead of using the suggested match.",
               errors: [],
@@ -440,10 +463,46 @@ export function TransactionImportDialog({
           ? {
               ...candidate,
               selected: false,
+              reviewDecision: "skipped",
               reason: "This imported row will be skipped.",
             }
           : candidate,
       ),
+    );
+    setError(null);
+  }
+
+  function restoreCandidate(candidateId: string) {
+    setCandidates((current) =>
+      current.map((candidate) => {
+        if (candidate.id !== candidateId) {
+          return candidate;
+        }
+
+        if (candidate.status === "new") {
+          return {
+            ...candidate,
+            selected: true,
+            reviewDecision:
+              candidate.reviewDecision === "skipped"
+                ? undefined
+                : candidate.reviewDecision,
+            reason: candidate.matchedTransaction
+              ? "This imported row will be imported as a new transaction instead of using the suggested match."
+              : "No matching transaction found in this register.",
+          };
+        }
+
+        return {
+          ...candidate,
+          selected: false,
+          reviewDecision: undefined,
+          reason:
+            candidate.status === "exact-match"
+              ? "Matched to an existing register transaction."
+              : "Possible match restored for review.",
+        };
+      }),
     );
     setError(null);
   }
@@ -453,6 +512,13 @@ export function TransactionImportDialog({
   }
 
   function getCandidateStatusLabel(candidate: TransactionImportCandidate) {
+    if (
+      candidate.reviewDecision === "skipped" ||
+      (candidate.status === "new" && !candidate.selected)
+    ) {
+      return "Skipped";
+    }
+
     switch (candidate.status) {
       case "exact-match":
         return "Matched";
@@ -480,7 +546,9 @@ export function TransactionImportDialog({
 
     setIsImporting(true);
     setError(null);
-    setMessage(`Importing ${importable.length} transaction${importable.length === 1 ? "" : "s"}…`);
+    setMessage(
+      `Importing ${importable.length} transaction${importable.length === 1 ? "" : "s"}…`,
+    );
 
     try {
       // Keep the commit path delegated to the register page.
@@ -536,10 +604,34 @@ export function TransactionImportDialog({
         </div>
 
         <ol className="transaction-import-steps" aria-label="Import steps">
-          <li className={step === "upload" ? "transaction-import-step-active" : ""}>1. File</li>
-          <li className={step === "mapping" ? "transaction-import-step-active" : ""}>2. Setup</li>
-          <li className={step === "review" ? "transaction-import-step-active" : ""}>3. Review</li>
-          <li className={step === "complete" ? "transaction-import-step-active" : ""}>4. Done</li>
+          <li
+            className={
+              step === "upload" ? "transaction-import-step-active" : ""
+            }
+          >
+            1. File
+          </li>
+          <li
+            className={
+              step === "mapping" ? "transaction-import-step-active" : ""
+            }
+          >
+            2. Setup
+          </li>
+          <li
+            className={
+              step === "review" ? "transaction-import-step-active" : ""
+            }
+          >
+            3. Review
+          </li>
+          <li
+            className={
+              step === "complete" ? "transaction-import-step-active" : ""
+            }
+          >
+            4. Done
+          </li>
         </ol>
 
         {error ? <p className="transaction-import-error">{error}</p> : null}
@@ -604,20 +696,32 @@ export function TransactionImportDialog({
               <strong>{fileName}</strong>
             </div>
             <div>
-              <span className="transaction-import-detection-label">Detected</span>
+              <span className="transaction-import-detection-label">
+                Detected
+              </span>
               <strong>{getFileTypeLabel(fileType)}</strong>
             </div>
             <div>
-              <span className="transaction-import-detection-label">Destination</span>
+              <span className="transaction-import-detection-label">
+                Destination
+              </span>
               <strong>{accountName}</strong>
             </div>
             <div>
-              <span className="transaction-import-detection-label">Profile</span>
+              <span className="transaction-import-detection-label">
+                Profile
+              </span>
               <strong>{matchedProfileName ?? "Not saved yet"}</strong>
             </div>
             <div>
-              <span className="transaction-import-detection-label">Mapped Columns</span>
-              <strong>{fileType === "csv" ? countMappedColumns(mapping) : "Not needed"}</strong>
+              <span className="transaction-import-detection-label">
+                Mapped Columns
+              </span>
+              <strong>
+                {fileType === "csv"
+                  ? countMappedColumns(mapping)
+                  : "Not needed"}
+              </strong>
             </div>
           </div>
         ) : null}
@@ -721,7 +825,9 @@ export function TransactionImportDialog({
                 className="button button-primary"
                 type="button"
                 disabled={isImporting}
-                onClick={() => buildCsvPreview(csvText, mapping, { saveProfile: true })}
+                onClick={() =>
+                  buildCsvPreview(csvText, mapping, { saveProfile: true })
+                }
               >
                 Review Transactions
               </button>
@@ -735,7 +841,8 @@ export function TransactionImportDialog({
               <div>
                 <h3>Review transactions</h3>
                 <p className="muted">
-                  Review new transactions and suggested matches before importing.
+                  Review new transactions and suggested matches before
+                  importing.
                   {matchedProfileName ? ` Profile: ${matchedProfileName}.` : ""}
                 </p>
               </div>
@@ -752,6 +859,7 @@ export function TransactionImportDialog({
             <div className="transaction-import-summary transaction-import-review-summary">
               <span>✓ {readyCount} Ready</span>
               <span>⚠ {attentionCount} Need Attention</span>
+              <span>Skipped: {skippedCount}</span>
               <span>Total rows: {preview.summary.totalRows}</span>
               <span>Matched: {preview.summary.exactMatches}</span>
               <span>Suggested: {preview.summary.possibleMatches}</span>
@@ -764,18 +872,27 @@ export function TransactionImportDialog({
           <div className="transaction-import-review-list">
             {candidates.map((candidate) => {
               const hasMatch = Boolean(candidate.matchedTransaction);
+              const isSkipped =
+                candidate.reviewDecision === "skipped" ||
+                (candidate.status === "new" && !candidate.selected);
               const amountLabel = candidate.parsed.outflow
                 ? formatMoney(candidate.parsed.outflow, currencyCode)
                 : formatMoney(candidate.parsed.inflow, currencyCode);
               const matchAmountLabel = candidate.matchedTransaction
                 ? candidate.matchedTransaction.outflow
-                  ? formatMoney(candidate.matchedTransaction.outflow, currencyCode)
-                  : formatMoney(candidate.matchedTransaction.inflow, currencyCode)
+                  ? formatMoney(
+                      candidate.matchedTransaction.outflow,
+                      currencyCode,
+                    )
+                  : formatMoney(
+                      candidate.matchedTransaction.inflow,
+                      currencyCode,
+                    )
                 : "";
 
               return (
                 <article
-                  className={`transaction-import-review-card transaction-import-review-card-${candidate.status}`}
+                  className={`transaction-import-review-card transaction-import-review-card-${candidate.status}${isSkipped ? " transaction-import-review-card-skipped" : ""}`}
                   key={candidate.id}
                 >
                   <div className="transaction-import-review-card-header">
@@ -803,7 +920,9 @@ export function TransactionImportDialog({
 
                   <div className="transaction-import-match-stack">
                     <div className="transaction-import-match-row transaction-import-match-row-imported">
-                      <span className="transaction-import-match-label">Imported</span>
+                      <span className="transaction-import-match-label">
+                        Imported
+                      </span>
                       <span className="transaction-import-match-date">
                         {formatImportReviewDate(candidate.parsed.date)}
                       </span>
@@ -820,13 +939,20 @@ export function TransactionImportDialog({
 
                     {hasMatch ? (
                       <>
-                        <div className="transaction-import-match-arrow" aria-hidden="true">
+                        <div
+                          className="transaction-import-match-arrow"
+                          aria-hidden="true"
+                        >
                           ↓
                         </div>
                         <div className="transaction-import-match-row transaction-import-match-row-existing">
-                          <span className="transaction-import-match-label">In Register</span>
+                          <span className="transaction-import-match-label">
+                            In Register
+                          </span>
                           <span className="transaction-import-match-date">
-                            {formatImportReviewDate(candidate.matchedTransaction?.date)}
+                            {formatImportReviewDate(
+                              candidate.matchedTransaction?.date,
+                            )}
                           </span>
                           <strong className="transaction-import-match-payee">
                             {candidate.matchedTransaction?.payee || "—"}
@@ -845,12 +971,26 @@ export function TransactionImportDialog({
                     ) : null}
                   </div>
 
-                  {candidate.status === "exact-match" ? (
+                  {isSkipped ? (
                     <div className="transaction-import-match-actions">
                       <button
                         className="button button-secondary"
                         type="button"
-                        onClick={() => importMatchedCandidateAsNew(candidate.id)}
+                        onClick={() => restoreCandidate(candidate.id)}
+                      >
+                        Restore
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {!isSkipped && candidate.status === "exact-match" ? (
+                    <div className="transaction-import-match-actions">
+                      <button
+                        className="button button-secondary"
+                        type="button"
+                        onClick={() =>
+                          importMatchedCandidateAsNew(candidate.id)
+                        }
                       >
                         Import as New
                       </button>
@@ -864,7 +1004,7 @@ export function TransactionImportDialog({
                     </div>
                   ) : null}
 
-                  {candidate.status === "possible-match" ? (
+                  {!isSkipped && candidate.status === "possible-match" ? (
                     <div className="transaction-import-match-actions">
                       <button
                         className="button button-primary"
@@ -876,7 +1016,9 @@ export function TransactionImportDialog({
                       <button
                         className="button button-secondary"
                         type="button"
-                        onClick={() => importMatchedCandidateAsNew(candidate.id)}
+                        onClick={() =>
+                          importMatchedCandidateAsNew(candidate.id)
+                        }
                       >
                         Import as New
                       </button>
@@ -890,7 +1032,7 @@ export function TransactionImportDialog({
                     </div>
                   ) : null}
 
-                  {candidate.status === "new" ? (
+                  {!isSkipped && candidate.status === "new" ? (
                     <div className="transaction-import-match-actions">
                       <button
                         className="button button-secondary"
@@ -923,20 +1065,23 @@ export function TransactionImportDialog({
           </div>
         ) : null}
 
-
         {performanceReport ? (
           <div className="transaction-import-performance-panel">
             <div className="transaction-import-section-heading">
               <div>
                 <h3>Import performance</h3>
                 <p className="muted">
-                  Total measured time: {formatImportDuration(performanceReport.totalMs)}
+                  Total measured time:{" "}
+                  {formatImportDuration(performanceReport.totalMs)}
                 </p>
               </div>
             </div>
             <div className="transaction-import-performance-list">
               {performanceReport.entries.map((entry) => (
-                <div className="transaction-import-performance-row" key={entry.label}>
+                <div
+                  className="transaction-import-performance-row"
+                  key={entry.label}
+                >
                   <span>{entry.label}</span>
                   <strong>{formatImportDuration(entry.durationMs)}</strong>
                 </div>
@@ -952,7 +1097,9 @@ export function TransactionImportDialog({
               <strong>
                 {selectedCount} Transaction{selectedCount === 1 ? "" : "s"}
               </strong>
-              <span className="muted">{formatMoney(selectedTotal, currencyCode)}</span>
+              <span className="muted">
+                {formatMoney(selectedTotal, currencyCode)}
+              </span>
             </div>
             <div className="transaction-import-footer-actions">
               <button
@@ -968,8 +1115,14 @@ export function TransactionImportDialog({
                 disabled={selectedCount === 0 || isImporting}
                 onClick={() => void importSelected()}
               >
-                {isImporting ? "Importing…" : <>Import {selectedCount} Transaction
-                {selectedCount === 1 ? "" : "s"}</>}
+                {isImporting ? (
+                  "Importing…"
+                ) : (
+                  <>
+                    Import {selectedCount} Transaction
+                    {selectedCount === 1 ? "" : "s"}
+                  </>
+                )}
               </button>
             </div>
           </div>

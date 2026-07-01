@@ -398,7 +398,9 @@
     "test:v2412:import-review-polish": "tsx tests/v2412-import-review-polish.ts",
     "test:v2412": "pnpm test:v2411 && pnpm test:v2412:import-review-polish",
     "test:v2413:compact-import-review": "tsx tests/v2413-compact-import-review.ts",
-    "test:v2413": "pnpm test:v2412 && pnpm test:v2413:compact-import-review"
+    "test:v2413": "pnpm test:v2412 && pnpm test:v2413:compact-import-review",
+    "test:v2414:import-review-skip-state": "tsx tests/v2414-import-review-skip-state.ts",
+    "test:v2414": "pnpm test:v2413 && pnpm test:v2414:import-review-skip-state"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

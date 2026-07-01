@@ -28,7 +28,7 @@ assert.match(
 
 assert.match(
   registerCss,
-  /transaction-import-match-row[\s\S]*grid-template-columns:\s*minmax\(5\.5rem,[\s\S]*minmax\(7rem,[\s\S]*minmax\(16rem,[\s\S]*minmax\(10rem,[\s\S]*minmax\(6\.5rem, auto\)/,
+  /transaction-import-match-row[\s\S]*grid-template-columns:[\s\S]*minmax\(5\.5rem,[\s\S]*minmax\(7rem,[\s\S]*minmax\([\s\S]*16rem,[\s\S]*minmax\(10rem,[\s\S]*minmax\(6\.5rem, auto\)/,
   "imported transaction comparison rows should use five compact columns: label, date, payee, detail, amount",
 );
 

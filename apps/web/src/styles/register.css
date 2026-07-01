@@ -117,7 +117,6 @@
   font-size: 0.84rem;
 }
 
-
 .register-more-menu {
   position: relative;
 }
@@ -611,7 +610,6 @@
   border-color: var(--accent);
 }
 
-
 .register-edit-actions-panel {
   display: grid;
   align-items: center;
@@ -643,7 +641,6 @@
   font-size: 0.76rem;
   white-space: nowrap;
 }
-
 
 .register-selection-bar button:not(:disabled) {
   color: var(--text);
@@ -1000,7 +997,10 @@
 
 .scheduled-form {
   display: grid;
-  grid-template-columns: 42px 142px 132px minmax(120px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) 104px 104px auto;
+  grid-template-columns: 42px 142px 132px minmax(120px, 1fr) minmax(
+      120px,
+      1fr
+    ) minmax(120px, 1fr) 104px 104px auto;
   align-items: center;
   gap: 8px;
   padding: 12px;
@@ -1094,7 +1094,10 @@
   }
 
   .scheduled-form {
-    grid-template-columns: 42px 142px 132px minmax(160px, 1fr) minmax(160px, 1fr);
+    grid-template-columns: 42px 142px 132px minmax(160px, 1fr) minmax(
+        160px,
+        1fr
+      );
   }
 
   .scheduled-form-actions {
@@ -1572,7 +1575,10 @@
 
 .transaction-import-row {
   display: grid;
-  grid-template-columns: 64px 110px minmax(180px, 1fr) minmax(160px, 0.8fr) 120px 120px 140px;
+  grid-template-columns: 64px 110px minmax(180px, 1fr) minmax(
+      160px,
+      0.8fr
+    ) 120px 120px 140px;
   gap: 0.45rem;
   align-items: center;
   padding: 0.7rem 0.8rem;
@@ -1909,7 +1915,6 @@
   background: var(--surface-subtle, #f8fafc) !important;
 }
 
-
 /* v2.10 responsive register containment */
 @media (max-width: 760px) {
   .register-clean-header,
@@ -1929,7 +1934,6 @@
     flex: 0 0 auto;
   }
 }
-
 
 /* v2.11 responsive app shell and dialog containment */
 @media (max-width: 760px) {
@@ -1979,7 +1983,9 @@
   text-transform: uppercase;
 }
 
-.register-autocomplete-suggestion-block + .register-autocomplete-suggestion-block .register-autocomplete-section-heading {
+.register-autocomplete-suggestion-block
+  + .register-autocomplete-suggestion-block
+  .register-autocomplete-section-heading {
   border-top: 1px solid var(--border-subtle);
   margin-top: 0.18rem;
   padding-top: 0.48rem;
@@ -2203,12 +2209,10 @@
   }
 }
 
-
 /* v2.22.2 compact desktop transaction rows */
 .register-layout-compact .register-head {
   display: none;
 }
-
 
 /* v2.35.0 register column header for compact desktop layout */
 .register-layout-compact .register-head-compact {
@@ -2218,7 +2222,10 @@
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: 1.8rem minmax(4.8rem, 6rem) 2.2rem 2.2rem minmax(0, 1fr) minmax(8.2rem, 11rem) 2.2rem;
+  grid-template-columns: 1.8rem minmax(4.8rem, 6rem) 2.2rem 2.2rem minmax(
+      0,
+      1fr
+    ) minmax(8.2rem, 11rem) 2.2rem;
   gap: 0.45rem;
   align-items: center;
   padding: 0.42rem 0.62rem;
@@ -2271,7 +2278,10 @@
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: 1.8rem minmax(4.8rem, 6rem) 2.2rem 2.2rem minmax(0, 1fr) minmax(8.2rem, 11rem) 2.2rem;
+  grid-template-columns: 1.8rem minmax(4.8rem, 6rem) 2.2rem 2.2rem minmax(
+      0,
+      1fr
+    ) minmax(8.2rem, 11rem) 2.2rem;
   gap: 0.45rem;
   align-items: center;
   border: 0;
@@ -2391,7 +2401,10 @@
 
 @media (max-width: 860px) {
   .register-row-compact {
-    grid-template-columns: 1.6rem minmax(4rem, 5.4rem) 2rem 2rem minmax(0, 1fr) minmax(6.8rem, 9rem) 2rem;
+    grid-template-columns: 1.6rem minmax(4rem, 5.4rem) 2rem 2rem minmax(
+        0,
+        1fr
+      ) minmax(6.8rem, 9rem) 2rem;
     gap: 0.34rem;
     padding-inline: 0.55rem;
   }
@@ -2425,11 +2438,18 @@
 }
 
 .register-row-compact-expanded {
-  border-bottom-color: color-mix(in srgb, var(--accent) 22%, var(--border-soft));
+  border-bottom-color: color-mix(
+    in srgb,
+    var(--accent) 22%,
+    var(--border-soft)
+  );
 }
 
 .register-row-compact-split {
-  grid-template-columns: 1.8rem minmax(4.8rem, 6rem) 2.2rem 2.2rem minmax(0, 1fr) minmax(8.2rem, 11rem) 2.2rem;
+  grid-template-columns: 1.8rem minmax(4.8rem, 6rem) 2.2rem 2.2rem minmax(
+      0,
+      1fr
+    ) minmax(8.2rem, 11rem) 2.2rem;
   padding-block: 0.34rem;
 }
 
@@ -2513,7 +2533,10 @@
 .register-split-compact-assign {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(6.5rem, 8rem) minmax(6.5rem, 8rem);
+  grid-template-columns: minmax(0, 1fr) minmax(6.5rem, 8rem) minmax(
+      6.5rem,
+      8rem
+    );
   gap: 0.45rem;
   align-items: center;
 }
@@ -2530,7 +2553,10 @@
 
 @media (max-width: 860px) {
   .register-row-compact-split {
-    grid-template-columns: 1.6rem minmax(4rem, 5.4rem) 2rem 2rem minmax(0, 1fr) minmax(6.8rem, 9rem) 2rem;
+    grid-template-columns: 1.6rem minmax(4rem, 5.4rem) 2rem 2rem minmax(
+        0,
+        1fr
+      ) minmax(6.8rem, 9rem) 2rem;
   }
 
   .register-split-compact-line {
@@ -2542,10 +2568,12 @@
   }
 
   .register-split-compact-assign {
-    grid-template-columns: minmax(0, 1fr) minmax(5.8rem, 7rem) minmax(5.8rem, 7rem);
+    grid-template-columns: minmax(0, 1fr) minmax(5.8rem, 7rem) minmax(
+        5.8rem,
+        7rem
+      );
   }
 }
-
 
 /* v2.23.0 tablet register display renderer */
 .register-row-tablet,
@@ -2581,7 +2609,11 @@
 }
 
 .register-row-tablet-expanded {
-  border-bottom-color: color-mix(in srgb, var(--accent) 20%, var(--border-soft));
+  border-bottom-color: color-mix(
+    in srgb,
+    var(--accent) 20%,
+    var(--border-soft)
+  );
 }
 
 .register-tablet-select {
@@ -2788,7 +2820,10 @@
 
 .register-split-allocation-grid {
   display: grid;
-  grid-template-columns: 3.6rem minmax(14rem, 1.7fr) minmax(8rem, 0.85fr) minmax(7rem, 0.55fr) minmax(7rem, 0.55fr);
+  grid-template-columns: 3.6rem minmax(14rem, 1.7fr) minmax(
+      8rem,
+      0.85fr
+    ) minmax(7rem, 0.55fr) minmax(7rem, 0.55fr);
   align-items: center;
   gap: 0.58rem;
 }
@@ -2862,7 +2897,10 @@
 
   .register-split-allocation-grid {
     min-width: 43rem;
-    grid-template-columns: 2.4rem minmax(16rem, 2fr) minmax(8rem, 0.8fr) minmax(7rem, 0.58fr) minmax(7rem, 0.58fr);
+    grid-template-columns: 2.4rem minmax(16rem, 2fr) minmax(8rem, 0.8fr) minmax(
+        7rem,
+        0.58fr
+      ) minmax(7rem, 0.58fr);
     gap: 0.48rem;
   }
 }
@@ -2874,7 +2912,10 @@
 
   .register-split-allocation-grid {
     min-width: 40rem;
-    grid-template-columns: 2.2rem minmax(15rem, 2fr) minmax(7rem, 0.75fr) minmax(6.8rem, 0.58fr) minmax(6.8rem, 0.58fr);
+    grid-template-columns: 2.2rem minmax(15rem, 2fr) minmax(
+        7rem,
+        0.75fr
+      ) minmax(6.8rem, 0.58fr) minmax(6.8rem, 0.58fr);
   }
 
   .register-split-allocation-footer,
@@ -3337,7 +3378,10 @@
 
 .transaction-import-match-row {
   display: grid;
-  grid-template-columns: minmax(7rem, 0.8fr) minmax(12rem, 1.7fr) minmax(9rem, 1fr) minmax(6.5rem, auto);
+  grid-template-columns: minmax(7rem, 0.8fr) minmax(12rem, 1.7fr) minmax(
+      9rem,
+      1fr
+    ) minmax(6.5rem, auto);
   align-items: center;
   gap: 0.7rem;
   border: 1px solid var(--border, #e2e8f0);
@@ -3401,7 +3445,6 @@
   }
 }
 
-
 /* v2.41.3 compact import review layout */
 .transaction-import-wizard .transaction-import-header {
   position: sticky;
@@ -3445,7 +3488,10 @@
 }
 
 .transaction-import-match-row {
-  grid-template-columns: minmax(5.5rem, 0.65fr) minmax(7rem, 0.85fr) minmax(16rem, 2.2fr) minmax(10rem, 1.35fr) minmax(6.5rem, auto);
+  grid-template-columns: minmax(5.5rem, 0.65fr) minmax(7rem, 0.85fr) minmax(
+      16rem,
+      2.2fr
+    ) minmax(10rem, 1.35fr) minmax(6.5rem, auto);
   gap: 0.65rem;
   min-height: 2.35rem;
   border-radius: 10px;
@@ -3495,7 +3541,10 @@
 
 @media (max-width: 940px) {
   .transaction-import-match-row {
-    grid-template-columns: minmax(5rem, 0.7fr) minmax(6.5rem, 0.8fr) minmax(12rem, 1.7fr) minmax(8rem, 1fr) minmax(5.75rem, auto);
+    grid-template-columns: minmax(5rem, 0.7fr) minmax(6.5rem, 0.8fr) minmax(
+        12rem,
+        1.7fr
+      ) minmax(8rem, 1fr) minmax(5.75rem, auto);
   }
 }
 
@@ -3533,4 +3582,20 @@
   .transaction-import-match-payee {
     white-space: normal;
   }
+}
+
+/* v2.41.4 import review skip state */
+.transaction-import-review-card-skipped {
+  opacity: 0.48;
+  background: #f8fafc;
+  border-style: dashed;
+}
+
+.transaction-import-review-card-skipped .transaction-import-match-row {
+  background: rgb(241 245 249 / 0.78);
+}
+
+.transaction-import-status-skipped {
+  background: #e2e8f0;
+  color: #475569;
 }

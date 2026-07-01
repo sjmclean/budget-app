@@ -52,7 +52,7 @@ assert.match(
 
 assert.match(
   dialogSource,
-  /transaction-import-match-label">Imported/,
+  /transaction-import-match-label[\s\S]*Imported/,
   "review cards should show the imported transaction side of a match",
 );
 
@@ -64,7 +64,7 @@ assert.match(
 
 assert.match(
   dialogSource,
-  /candidate.status === "possible-match"[\s\S]*acceptMatchedCandidate\(candidate\.id\)[\s\S]*>\s*Match\s*</,
+  /candidate.status === "possible-match"[\s\S]*acceptMatchedCandidate\(candidate\.id\)[\s\S]*Match/,
   "suggested match review cards should include a Match action",
 );
 
@@ -76,7 +76,7 @@ assert.match(
 
 assert.match(
   dialogSource,
-  /skipCandidate\(candidate\.id\)[\s\S]*>\s*Skip\s*</,
+  /skipCandidate\(candidate\.id\)[\s\S]*Skip/,
   "review cards should include a Skip action",
 );
 
