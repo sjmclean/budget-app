@@ -408,7 +408,13 @@
     "test:v2430:import-provider-framework": "tsx tests/v2430-import-provider-framework.ts",
     "test:v2430": "pnpm test:v2420 && pnpm test:v2430:import-provider-framework",
     "test:v2431:actual-full-budget-import-foundation": "tsx tests/v2431-actual-full-budget-import-foundation.ts",
-    "test:v2431": "pnpm test:v2430 && pnpm test:v2431:actual-full-budget-import-foundation"
+    "test:v2431": "pnpm test:v2430 && pnpm test:v2431:actual-full-budget-import-foundation",
+    "test:v2432:actual-full-budget-preview": "tsx tests/v2432-actual-full-budget-preview.ts",
+    "test:v2432": "pnpm test:v2431 && pnpm test:v2432:actual-full-budget-preview",
+    "test:v2433": "tsx tests/v2433-actual-preview-ui.ts",
+    "test:v243x": "pnpm test:v2430 && pnpm test:v2431 && pnpm test:v2432 && pnpm test:v2433",
+    "test:v2440:budget-import-provider-foundation": "tsx tests/v2440-budget-import-provider-foundation.ts",
+    "test:v2440": "pnpm test:v243x && pnpm test:v2440:budget-import-provider-foundation"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

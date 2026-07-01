@@ -1,13 +1,12 @@
 /**
  * Supported external import formats.
  *
- * Some formats are account-level bank statement imports, while migration
- * formats such as Actual Budget represent a whole budget and must not be
- * routed through the open-account transaction import flow.
+ * Account-level bank statement imports are routed through the transaction review,
+ * matching and commit pipeline. Full-budget migrations use BudgetImport instead.
  */
-export type BankImportFormat = "csv" | "qif" | "ofx" | "qfx" | "actual-budget";
+export type BankImportFormat = "csv" | "qif" | "ofx" | "qfx";
 
-export type BankImportProviderScope = "account-transactions" | "full-budget";
+export type BankImportProviderScope = "account-transactions";
 
 
 export interface BankImportProviderInput {
@@ -46,7 +45,6 @@ export interface BankImportProvider {
   canImport(input: BankImportProviderInput): boolean;
   inspect(input: BankImportProviderInput): BankImportInspection;
   preview?(input: BankImportProviderInput): BankImportPreview;
-  fullBudgetPreview?(input: BankImportProviderInput): FullBudgetImportPreview;
 }
 
 export interface FullBudgetImportEntityCount {
@@ -54,6 +52,49 @@ export interface FullBudgetImportEntityCount {
   count: number;
   supported: boolean;
   note?: string;
+}
+
+export interface FullBudgetImportPreviewAccount {
+  id: string;
+  name: string;
+  type: string | null;
+  closed: boolean;
+  offBudget: boolean;
+}
+
+export interface FullBudgetImportPreviewCategoryGroup {
+  id: string;
+  name: string;
+  hidden: boolean;
+}
+
+export interface FullBudgetImportPreviewCategory {
+  id: string;
+  name: string;
+  groupId: string | null;
+  groupName: string | null;
+  hidden: boolean;
+}
+
+export interface FullBudgetImportPreviewPayee {
+  id: string;
+  name: string;
+}
+
+export interface FullBudgetImportPreviewTransaction {
+  id: string;
+  accountId: string | null;
+  accountName: string | null;
+  date: string | null;
+  amount: number | null;
+  payeeId: string | null;
+  payeeName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  memo: string | null;
+  cleared: boolean | null;
+  transferId: string | null;
+  isTransfer: boolean;
 }
 
 export interface FullBudgetImportPreview {
@@ -64,6 +105,12 @@ export interface FullBudgetImportPreview {
   entityCounts: FullBudgetImportEntityCount[];
   issues: BankImportIssue[];
   metadata: Record<string, string | number | boolean | null>;
+  accounts: FullBudgetImportPreviewAccount[];
+  categoryGroups: FullBudgetImportPreviewCategoryGroup[];
+  categories: FullBudgetImportPreviewCategory[];
+  payees: FullBudgetImportPreviewPayee[];
+  transactions: FullBudgetImportPreviewTransaction[];
+  transferCount: number;
   canCommit: boolean;
 }
 

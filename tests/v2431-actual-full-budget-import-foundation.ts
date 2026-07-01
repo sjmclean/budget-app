@@ -1,6 +1,8 @@
 import { BankImportProviderApplicationService } from "../packages/application/src/BankImportProviderApplicationService.js";
+import { BudgetImportProviderApplicationService } from "../packages/application/src/BudgetImportProviderApplicationService.js";
 
 const service = new BankImportProviderApplicationService();
+const budgetService = new BudgetImportProviderApplicationService();
 
 const csvInspection = service.inspect({
   fileName: "statement.csv",
@@ -33,19 +35,17 @@ const actualExport = JSON.stringify({
   schedules: [{ id: "schedule-1" }],
 });
 
-const actualInspection = service.inspect({ fileName: "household.actualbudget", text: actualExport });
+const actualInspection = budgetService.inspect({ fileName: "household.actualbudget", text: actualExport });
 if (actualInspection.providerId !== "actual-budget") throw new Error("Expected Actual Budget provider detection");
 if (actualInspection.scope !== "full-budget") throw new Error("Actual Budget should be a full-budget import provider");
 if (!actualInspection.canPreviewFullBudget) throw new Error("Actual Budget should expose full-budget preview");
 if (actualInspection.canCommitFullBudget) throw new Error("Actual Budget full-budget commit should remain disabled in v2.43.1");
-if (actualInspection.canCommitTransactions) throw new Error("Actual Budget must not enter account-level transaction commit");
-if (actualInspection.canPreviewTransactions) throw new Error("Actual Budget must not enter account-level transaction preview");
 if (actualInspection.summary.find((item) => item.label === "Transactions")?.count !== 2) throw new Error("Expected Actual transactions to be counted");
 if (actualInspection.summary.find((item) => item.label === "Rules")?.supported !== false) throw new Error("Expected Actual rules to be reported as unsupported");
 if (!actualInspection.issues.some((issue) => issue.code === "ActualRulesPreviewOnly")) throw new Error("Expected Actual rules warning");
 if (actualInspection.metadata.budgetName !== "Household") throw new Error("Expected Actual metadata extraction");
 
-const fullBudgetPreview = service.fullBudgetPreview({ fileName: "household.actualbudget", text: actualExport });
+const fullBudgetPreview = budgetService.fullBudgetPreview({ fileName: "household.actualbudget", text: actualExport });
 if (!fullBudgetPreview) throw new Error("Expected Actual full-budget preview");
 if (fullBudgetPreview.format !== "actual-budget") throw new Error("Expected Actual full-budget preview format");
 if (fullBudgetPreview.sourceBudgetName !== "Household") throw new Error("Expected Actual source budget name");
@@ -53,7 +53,7 @@ if (fullBudgetPreview.canCommit) throw new Error("Actual full-budget commit shou
 if (fullBudgetPreview.entityCounts.find((item) => item.label === "Accounts")?.count !== 1) throw new Error("Expected Actual account count in full-budget preview");
 if (fullBudgetPreview.entityCounts.find((item) => item.label === "Transactions")?.count !== 2) throw new Error("Expected Actual transaction count in full-budget preview");
 
-const csvFullBudgetPreview = service.fullBudgetPreview({
+const csvFullBudgetPreview = budgetService.fullBudgetPreview({
   fileName: "statement.csv",
   text: "Date,Description,Amount\n2026-07-01,Cafe,-4.50",
 });

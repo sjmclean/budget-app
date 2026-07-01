@@ -1,11 +1,14 @@
 import { BankImportProviderApplicationService } from "../packages/application/src/BankImportProviderApplicationService.js";
+import { BudgetImportProviderApplicationService } from "../packages/application/src/BudgetImportProviderApplicationService.js";
 
 const service = new BankImportProviderApplicationService();
+const budgetService = new BudgetImportProviderApplicationService();
 
 const providers = service.listProviders().map((provider) => provider.id);
-for (const expected of ["csv", "qif", "ofx", "qfx", "actual-budget"]) {
+for (const expected of ["csv", "qif", "ofx", "qfx"]) {
   if (!providers.includes(expected)) throw new Error(`Expected provider registry to include ${expected}`);
 }
+if (providers.includes("actual-budget")) throw new Error("Actual Budget belongs to the budget import provider registry");
 
 const csvInspection = service.inspect({
   fileName: "statement.csv",
@@ -39,12 +42,10 @@ const actualExport = JSON.stringify({
   schedules: [{ id: "schedule-1" }],
 });
 
-const actualInspection = service.inspect({ fileName: "household.actualbudget", text: actualExport });
+const actualInspection = budgetService.inspect({ fileName: "household.actualbudget", text: actualExport });
 if (actualInspection.providerId !== "actual-budget") throw new Error("Expected Actual Budget provider detection");
 if (actualInspection.scope !== "full-budget") throw new Error("Expected Actual Budget to be detected as a full-budget import provider");
 if (!actualInspection.canPreviewFullBudget) throw new Error("Expected Actual Budget to support full-budget preview inspection");
-if (actualInspection.canCommitTransactions) throw new Error("Actual Budget should be inspection-only in v2.43.0");
-if (actualInspection.canPreviewTransactions) throw new Error("Actual Budget should not yet enter transaction preview in v2.43.0");
 if (actualInspection.summary.find((item) => item.label === "Transactions")?.count !== 2) throw new Error("Expected Actual transactions to be counted");
 if (actualInspection.summary.find((item) => item.label === "Rules")?.supported !== false) throw new Error("Expected Actual rules to be reported as unsupported");
 if (!actualInspection.issues.some((issue) => issue.code === "ActualRulesPreviewOnly")) throw new Error("Expected Actual rules warning");
