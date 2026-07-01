@@ -10,13 +10,17 @@ import {
   buildRegisterTransactionsFromImport,
   createTransactionImportPerformanceReport,
   createTransactionImportProfile,
+  createTransactionPayeeAlias,
   findMatchingTransactionImportProfile,
   previewTransactionCsvImport,
   previewTransactionQifImport,
   readTransactionImportProfiles,
+  readTransactionPayeeAliases,
   formatImportDuration,
   upsertTransactionImportProfile,
+  upsertTransactionPayeeAlias,
   writeTransactionImportProfiles,
+  writeTransactionPayeeAliases,
   type CsvImportAnalysis,
   type CsvImportColumnMapping,
   type CsvImportColumnRole,
@@ -161,6 +165,9 @@ export function TransactionImportDialog({
   const [mapping, setMapping] = useState<CsvImportColumnMapping>({});
   const [importProfiles, setImportProfiles] = useState(() =>
     readTransactionImportProfiles(),
+  );
+  const [payeeAliases, setPayeeAliases] = useState(() =>
+    readTransactionPayeeAliases(),
   );
   const [matchedProfileName, setMatchedProfileName] = useState<string | null>(
     null,
@@ -505,6 +512,57 @@ export function TransactionImportDialog({
       }),
     );
     setError(null);
+  }
+
+  function rememberPayeeAlias(candidateId: string) {
+    const candidate = candidates.find((entry) => entry.id === candidateId);
+
+    if (!candidate?.matchedTransaction) {
+      return;
+    }
+
+    const sourcePayee = candidate.parsed.originalPayee ?? candidate.parsed.payee;
+    const targetPayee = candidate.matchedTransaction.payee;
+
+    if (!sourcePayee.trim() || !targetPayee.trim() || sourcePayee === targetPayee) {
+      return;
+    }
+
+    const nextAlias = createTransactionPayeeAlias({
+      sourcePayee,
+      targetPayee,
+    });
+    const nextAliases = upsertTransactionPayeeAlias(payeeAliases, nextAlias);
+    setPayeeAliases(nextAliases);
+    writeTransactionPayeeAliases(nextAliases);
+    setCandidates((current) =>
+      current.map((entry) =>
+        (entry.parsed.originalPayee ?? entry.parsed.payee) === sourcePayee
+          ? {
+              ...entry,
+              parsed: {
+                ...entry.parsed,
+                originalPayee: sourcePayee,
+                payee: targetPayee,
+                payeeAliasId: nextAlias.id,
+              },
+            }
+          : entry,
+      ),
+    );
+    setMessage(`Payee alias saved: "${sourcePayee}" will import as "${targetPayee}" next time.`);
+    setError(null);
+  }
+
+  function canRememberPayeeAlias(candidate: TransactionImportCandidate) {
+    const sourcePayee = candidate.parsed.originalPayee ?? candidate.parsed.payee;
+    const targetPayee = candidate.matchedTransaction?.payee;
+
+    return Boolean(
+      targetPayee &&
+        sourcePayee.trim() &&
+        sourcePayee.trim().toLowerCase() !== targetPayee.trim().toLowerCase(),
+    );
   }
 
   function formatImportReviewDate(date: string | undefined) {
@@ -928,6 +986,11 @@ export function TransactionImportDialog({
                       </span>
                       <strong className="transaction-import-match-payee">
                         {candidate.parsed.payee || "Missing payee"}
+                        {candidate.parsed.originalPayee ? (
+                          <small className="transaction-import-payee-alias-note">
+                            Alias from {candidate.parsed.originalPayee}
+                          </small>
+                        ) : null}
                       </strong>
                       <span className="transaction-import-match-detail">
                         {candidate.parsed.memo || "—"}
@@ -994,6 +1057,15 @@ export function TransactionImportDialog({
                       >
                         Import as New
                       </button>
+                      {canRememberPayeeAlias(candidate) ? (
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          onClick={() => rememberPayeeAlias(candidate.id)}
+                        >
+                          Remember Alias
+                        </button>
+                      ) : null}
                       <button
                         className="button button-secondary"
                         type="button"
@@ -1022,6 +1094,15 @@ export function TransactionImportDialog({
                       >
                         Import as New
                       </button>
+                      {canRememberPayeeAlias(candidate) ? (
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          onClick={() => rememberPayeeAlias(candidate.id)}
+                        >
+                          Remember Alias
+                        </button>
+                      ) : null}
                       <button
                         className="button button-secondary"
                         type="button"

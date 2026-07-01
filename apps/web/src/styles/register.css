@@ -3599,3 +3599,11 @@
   background: #e2e8f0;
   color: #475569;
 }
+
+.transaction-import-payee-alias-note {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--muted-text);
+  font-size: 0.72rem;
+  font-weight: 500;
+}

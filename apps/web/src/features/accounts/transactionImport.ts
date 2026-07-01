@@ -31,6 +31,19 @@ export interface TransactionImportProfile {
 export const TRANSACTION_IMPORT_PROFILES_STORAGE_KEY =
   "budget-app.transaction-import-profiles.v1";
 
+export interface TransactionPayeeAlias {
+  id: string;
+  sourcePayee: string;
+  targetPayee: string;
+  normalisedSource: string;
+  useCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const TRANSACTION_PAYEE_ALIASES_STORAGE_KEY =
+  "budget-app.transaction-payee-aliases.v1";
+
 export const HIGH_CONFIDENCE_IMPORT_MATCH_DAYS = 5;
 export const SUGGESTED_IMPORT_MATCH_DAYS = 10;
 
@@ -80,6 +93,8 @@ export interface ParsedImportTransaction {
   rowNumber: number;
   date: string;
   payee: string;
+  originalPayee?: string;
+  payeeAliasId?: string;
   memo?: string;
   outflow: number;
   inflow: number;
@@ -220,7 +235,10 @@ export function previewTransactionCsvImport(
   mapping?: CsvImportColumnMapping,
 ): TransactionImportPreview {
   return buildTransactionImportPreview(
-    parseTransactionCsv(csvText, mapping),
+    applyTransactionPayeeAliases(
+      parseTransactionCsv(csvText, mapping),
+      readTransactionPayeeAliases(),
+    ),
     existingTransactions,
   );
 }
@@ -230,7 +248,10 @@ export function previewTransactionQifImport(
   existingTransactions: RegisterTransactionView[],
 ): TransactionImportPreview {
   return buildTransactionImportPreview(
-    parseTransactionQif(qifText),
+    applyTransactionPayeeAliases(
+      parseTransactionQif(qifText),
+      readTransactionPayeeAliases(),
+    ),
     existingTransactions,
   );
 }
@@ -892,6 +913,134 @@ export function upsertTransactionImportProfile(
           updatedAt: profile.updatedAt,
         }
       : existing,
+  );
+}
+
+
+export function normalisePayeeAliasSource(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\b\d{3,}\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function createTransactionPayeeAlias({
+  sourcePayee,
+  targetPayee,
+}: {
+  sourcePayee: string;
+  targetPayee: string;
+}): TransactionPayeeAlias {
+  const now = new Date().toISOString();
+
+  return {
+    id: `payee-alias-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    sourcePayee: sourcePayee.trim(),
+    targetPayee: targetPayee.trim(),
+    normalisedSource: normalisePayeeAliasSource(sourcePayee),
+    useCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export function upsertTransactionPayeeAlias(
+  aliases: TransactionPayeeAlias[],
+  alias: TransactionPayeeAlias,
+): TransactionPayeeAlias[] {
+  const existingIndex = aliases.findIndex(
+    (existing) => existing.normalisedSource === alias.normalisedSource,
+  );
+
+  if (existingIndex === -1) {
+    return [...aliases, alias];
+  }
+
+  return aliases.map((existing, index) =>
+    index === existingIndex
+      ? {
+          ...existing,
+          sourcePayee: alias.sourcePayee,
+          targetPayee: alias.targetPayee,
+          updatedAt: alias.updatedAt,
+        }
+      : existing,
+  );
+}
+
+export function findMatchingTransactionPayeeAlias(
+  payee: string,
+  aliases: TransactionPayeeAlias[],
+): TransactionPayeeAlias | undefined {
+  const normalisedPayee = normalisePayeeAliasSource(payee);
+
+  if (!normalisedPayee) {
+    return undefined;
+  }
+
+  return [...aliases]
+    .filter((alias) => alias.normalisedSource.length >= 3)
+    .sort((left, right) => right.normalisedSource.length - left.normalisedSource.length)
+    .find(
+      (alias) =>
+        normalisedPayee === alias.normalisedSource ||
+        normalisedPayee.includes(alias.normalisedSource) ||
+        alias.normalisedSource.includes(normalisedPayee),
+    );
+}
+
+export function applyTransactionPayeeAliases(
+  transactions: ParsedImportTransaction[],
+  aliases: TransactionPayeeAlias[],
+): ParsedImportTransaction[] {
+  return transactions.map((transaction) => {
+    const alias = findMatchingTransactionPayeeAlias(transaction.payee, aliases);
+
+    if (!alias || alias.targetPayee === transaction.payee) {
+      return transaction;
+    }
+
+    return {
+      ...transaction,
+      originalPayee: transaction.originalPayee ?? transaction.payee,
+      payee: alias.targetPayee,
+      payeeAliasId: alias.id,
+    };
+  });
+}
+
+export function readTransactionPayeeAliases(): TransactionPayeeAlias[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(
+      TRANSACTION_PAYEE_ALIASES_STORAGE_KEY,
+    );
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as TransactionPayeeAlias[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeTransactionPayeeAliases(
+  aliases: TransactionPayeeAlias[],
+): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    TRANSACTION_PAYEE_ALIASES_STORAGE_KEY,
+    JSON.stringify(aliases),
   );
 }
 
