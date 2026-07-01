@@ -143,6 +143,7 @@ export async function inspectActualBudgetZipPackage(input: BudgetImportProviderI
       { label: "Payees", count: readActualTableCount(sqliteInspection, "payees"), supported: Boolean(sqliteInspection), note: readActualTableCount(sqliteInspection, "payees") > 0 ? "Read from Actual payees table" : "Actual payees table not found or empty" },
       { label: "Category groups", count: readActualTableCount(sqliteInspection, "category_groups"), supported: Boolean(sqliteInspection), note: readActualTableCount(sqliteInspection, "category_groups") > 0 ? "Read from Actual category_groups table" : "Actual category_groups table not found or empty" },
       { label: "Categories", count: readActualTableCount(sqliteInspection, "categories"), supported: Boolean(sqliteInspection), note: readActualTableCount(sqliteInspection, "categories") > 0 ? "Read from Actual categories table" : "Actual categories table not found or empty" },
+      { label: "Budget months", count: readActualTableCount(sqliteInspection, "zero_budgets"), supported: Boolean(sqliteInspection), note: readActualTableCount(sqliteInspection, "zero_budgets") > 0 ? "Read from Actual zero_budgets table" : "Actual budget month table not found or empty" },
       { label: "Rules", count: readActualTableCount(sqliteInspection, "rules"), supported: false, note: "Detected for future import support" },
       { label: "Schedules", count: readActualTableCount(sqliteInspection, "schedules"), supported: false, note: "Detected for future import support" },
       { label: "Notes", count: readActualTableCount(sqliteInspection, "notes"), supported: false, note: "Detected for future import support" },
@@ -168,6 +169,7 @@ export async function inspectActualBudgetZipPackage(input: BudgetImportProviderI
       actualPayeeCount: readActualTableCount(sqliteInspection, "payees"),
       actualCategoryGroupCount: readActualTableCount(sqliteInspection, "category_groups"),
       actualCategoryCount: readActualTableCount(sqliteInspection, "categories"),
+      actualBudgetMonthCount: readActualTableCount(sqliteInspection, "zero_budgets"),
       actualRuleCount: readActualTableCount(sqliteInspection, "rules"),
       actualScheduleCount: readActualTableCount(sqliteInspection, "schedules"),
       actualNoteCount: readActualTableCount(sqliteInspection, "notes"),
@@ -178,6 +180,7 @@ export async function inspectActualBudgetZipPackage(input: BudgetImportProviderI
     categories: mappedPreview?.categories ?? [],
     payees: mappedPreview?.payees ?? [],
     transactions: mappedPreview?.transactions ?? [],
+    budgetMonths: mappedPreview?.budgetMonths ?? [],
     transferCount: mappedPreview?.transferCount ?? 0,
     canCommit: true,
   };
@@ -201,6 +204,7 @@ function actualZipPreviewFailure(input: BudgetImportProviderInput, message: stri
     categories: [],
     payees: [],
     transactions: [],
+    budgetMonths: [],
     transferCount: 0,
     canCommit: false,
   };

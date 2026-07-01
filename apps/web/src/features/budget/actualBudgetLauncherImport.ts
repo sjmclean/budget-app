@@ -256,7 +256,7 @@ function writeImportedActualBudgetData(
   const categoryGroups = mapActualCategoryGroups(preview, maps);
   const payees = mapActualPayees(preview, maps, nowIso);
   const registers = mapActualRegisters(preview, accounts, maps);
-  const monthViews = mapActualBudgetMonthViews(budget, categoryGroups, registers, now);
+  const monthViews = mapActualBudgetMonthViews(budget, categoryGroups, registers, preview, maps, now);
 
   writeScopedJson(storage, budget.id, ACCOUNTS_STORAGE_KEY, accounts);
   writeScopedJson(storage, budget.id, PAYEES_STORAGE_KEY, payees);
@@ -264,7 +264,7 @@ function writeImportedActualBudgetData(
   writeScopedJson(storage, budget.id, SCHEDULED_STORAGE_KEY, []);
 
   for (const [month, view] of monthViews) {
-    storage.setItem(`${BUDGET_VIEW_STORAGE_PREFIX}.${budget.id}.${month}`, JSON.stringify(view));
+    writeBudgetMonthView(storage, budget.id, month, view);
   }
 
   const unsupportedWarnings = preview.entityCounts
@@ -276,6 +276,19 @@ function writeImportedActualBudgetData(
 
 function writeScopedJson(storage: KeyValueStoragePort, budgetId: string, key: string, value: unknown): void {
   storage.setItem(getBudgetScopedStorageKey(budgetId, key), JSON.stringify(value));
+}
+
+function writeBudgetMonthView(
+  storage: KeyValueStoragePort,
+  budgetId: string,
+  month: string,
+  view: BudgetMonthView,
+): void {
+  const serialized = JSON.stringify(view);
+  const legacyKey = `${BUDGET_VIEW_STORAGE_PREFIX}.${budgetId}.${month}`;
+
+  storage.setItem(legacyKey, serialized);
+  storage.setItem(getBudgetScopedStorageKey(budgetId, legacyKey), serialized);
 }
 
 function mapActualAccounts(preview: FullBudgetImportPreview, maps: ActualImportMaps, nowIso: string): SidebarAccount[] {
@@ -305,13 +318,30 @@ function mapActualAccountType(type: string | null, offBudget: boolean): SidebarA
   return "on-budget";
 }
 
+function isActualHiddenCategoryGroupName(name: string | null | undefined): boolean {
+  return (name ?? "").trim().toLowerCase() === "hidden categories";
+}
+
+function isActualBudgetCategoryImportable(
+  category: FullBudgetImportPreview["categories"][number],
+  group: FullBudgetImportPreview["categoryGroups"][number] | null,
+): boolean {
+  if (category.hidden || category.isIncome === true) return false;
+  if (!group) return true;
+  if (group.hidden || group.isIncome === true) return false;
+  if (isActualHiddenCategoryGroupName(group.name)) return false;
+  return true;
+}
+
 function mapActualCategoryGroups(preview: FullBudgetImportPreview, maps: ActualImportMaps): BudgetCategoryGroupView[] {
   const existingGroupIds = new Set<string>();
   const existingCategoryIds = new Set<string>();
-  const groups = preview.categoryGroups.map((group, groupIndex) => {
+  const sortedGroups = [...preview.categoryGroups].sort(compareActualSortOrder);
+  const groups = sortedGroups.map((group, groupIndex) => {
     const groupId = uniqueSlug(group.name || group.id || `Actual Group ${groupIndex + 1}`, existingGroupIds, "group");
     const categories = preview.categories
-      .filter((category) => category.groupId === group.id)
+      .filter((category) => category.groupId === group.id && isActualBudgetCategoryImportable(category, group))
+      .sort(compareActualSortOrder)
       .map((category, categoryIndex) => {
         const categoryId = uniqueSlug(category.name || category.id || `Actual Category ${categoryIndex + 1}`, existingCategoryIds, "category");
         maps.categoryIdBySourceId.set(category.id, categoryId);
@@ -341,8 +371,10 @@ function mapActualCategoryGroups(preview: FullBudgetImportPreview, maps: ActualI
     };
   }).filter((group) => group.categories.length > 0);
 
-  const groupedCategoryIds = new Set(preview.categories.map((category) => category.groupId).filter(Boolean));
-  const ungrouped = preview.categories.filter((category) => !category.groupId || !groupedCategoryIds.has(category.groupId));
+  const knownGroupIds = new Set(preview.categoryGroups.map((group) => group.id));
+  const ungrouped = preview.categories
+    .filter((category) => (!category.groupId || !knownGroupIds.has(category.groupId)) && isActualBudgetCategoryImportable(category, null))
+    .sort(compareActualSortOrder);
   if (ungrouped.length > 0) {
     groups.push({
       id: uniqueSlug("Imported Categories", existingGroupIds, "group"),
@@ -372,6 +404,13 @@ function mapActualCategoryGroups(preview: FullBudgetImportPreview, maps: ActualI
   }
 
   return groups;
+}
+
+function compareActualSortOrder<T extends { sortOrder?: number | null; name?: string | null; id?: string | null }>(a: T, b: T): number {
+  const aSort = typeof a.sortOrder === "number" && Number.isFinite(a.sortOrder) ? a.sortOrder : Number.POSITIVE_INFINITY;
+  const bSort = typeof b.sortOrder === "number" && Number.isFinite(b.sortOrder) ? b.sortOrder : Number.POSITIVE_INFINITY;
+  if (aSort !== bSort) return aSort - bSort;
+  return (a.name ?? a.id ?? "").localeCompare(b.name ?? b.id ?? "");
 }
 
 function mapActualPayees(preview: FullBudgetImportPreview, maps: ActualImportMaps, nowIso: string): PayeeView[] {
@@ -417,6 +456,7 @@ function mapActualRegisters(
     registers[accountId].transactions.push(mapActualRegisterTransaction(transaction, index, maps));
   }
 
+
   for (const register of Object.values(registers)) {
     recalculateRegister(register);
   }
@@ -461,10 +501,12 @@ function mapActualRegisterTransaction(
     payeeId: transferAccountId ? undefined : payeeId,
     category: splitLines.length > 0
       ? "Split"
-      : transferAccountId
-        ? "Transfer"
-        : categoryId ? maps.categoryNameById.get(categoryId) ?? "Uncategorised" : READY_TO_ASSIGN_CATEGORY_NAME,
-    categoryId: splitLines.length > 0 || transferAccountId ? undefined : categoryId ?? READY_TO_ASSIGN_CATEGORY_ID,
+      : categoryId
+        ? maps.categoryNameById.get(categoryId) ?? "Uncategorised"
+        : transferAccountId
+          ? "Transfer"
+          : READY_TO_ASSIGN_CATEGORY_NAME,
+    categoryId: splitLines.length > 0 ? undefined : categoryId ?? READY_TO_ASSIGN_CATEGORY_ID,
     memo: transaction.memo ?? undefined,
     inflow: amount > 0 ? amount : 0,
     outflow: amount < 0 ? Math.abs(amount) : 0,
@@ -521,34 +563,48 @@ function mapActualBudgetMonthViews(
   budget: BudgetSummary,
   templateGroups: BudgetCategoryGroupView[],
   registers: Record<string, AccountRegisterView>,
+  preview: FullBudgetImportPreview,
+  maps: ActualImportMaps,
   now: Date,
 ): Map<string, BudgetMonthView> {
   const months = new Set<string>([now.toISOString().slice(0, 7)]);
+  for (const budgetMonth of preview.budgetMonths ?? []) {
+    if (/^\d{4}-\d{2}$/.test(budgetMonth.month)) months.add(budgetMonth.month);
+  }
+
   for (const register of Object.values(registers)) {
     for (const transaction of register.transactions) {
       months.add(transaction.date.slice(0, 7));
     }
   }
 
-  const activityByMonthCategory = buildActualActivityByMonthCategory(registers);
+  const activityByMonthCategory = buildActualActivityByMonthCategoryFromRegisters(registers);
+  const budgetDataByMonthCategory = buildActualBudgetDataByMonthCategory(preview, maps.categoryIdBySourceId);
   const views = new Map<string, BudgetMonthView>();
+
+  const previousAvailableByCategory = new Map<string, number>();
 
   for (const month of [...months].sort()) {
     const groups = cloneCategoryGroups(templateGroups);
     const categoryById = new Map(groups.flatMap((group) => group.categories.map((category) => [category.id, category] as const)));
     const activityByCategory = activityByMonthCategory.get(month) ?? new Map<string, number>();
+    const budgetDataByCategory = budgetDataByMonthCategory.get(month) ?? new Map<string, ActualBudgetCategoryMonthData>();
 
     for (const category of categoryById.values()) {
-      category.previousAvailable = 0;
-      category.assigned = 0;
+      const budgetData = budgetDataByCategory.get(category.id);
+      const previousAvailable = roundMoney(previousAvailableByCategory.get(category.id) ?? 0);
+      const shouldCarryForward = previousAvailable > 0 || Boolean(budgetData?.carryover);
+      category.previousAvailable = shouldCarryForward ? previousAvailable : 0;
+      category.assigned = roundMoney(budgetData?.assigned ?? 0);
       category.activity = roundMoney(activityByCategory.get(category.id) ?? 0);
-      category.available = normaliseMoney(category.activity);
+      category.available = normaliseMoney(category.previousAvailable + category.assigned + category.activity);
       category.isOverspent = isMoneyNegative(category.available);
+      previousAvailableByCategory.set(category.id, category.available);
     }
 
     for (const group of groups) {
-      group.previousAvailable = group.categories.reduce((sum, category) => sum + category.previousAvailable, 0);
-      group.assigned = group.categories.reduce((sum, category) => sum + category.assigned, 0);
+      group.previousAvailable = roundMoney(group.categories.reduce((sum, category) => sum + category.previousAvailable, 0));
+      group.assigned = roundMoney(group.categories.reduce((sum, category) => sum + category.assigned, 0));
       group.activity = roundMoney(group.categories.reduce((sum, category) => sum + category.activity, 0));
       group.available = normaliseMoney(group.categories.reduce((sum, category) => sum + category.available, 0));
     }
@@ -573,10 +629,42 @@ function mapActualBudgetMonthViews(
   return views;
 }
 
-function buildActualActivityByMonthCategory(registers: Record<string, AccountRegisterView>): Map<string, Map<string, number>> {
+
+interface ActualBudgetCategoryMonthData {
+  assigned: number;
+  carryover: boolean;
+}
+
+function buildActualBudgetDataByMonthCategory(
+  preview: FullBudgetImportPreview,
+  categoryIdBySourceId: Map<string, string>,
+): Map<string, Map<string, ActualBudgetCategoryMonthData>> {
+  const result = new Map<string, Map<string, ActualBudgetCategoryMonthData>>();
+
+  for (const budgetMonth of preview.budgetMonths ?? []) {
+    if (!budgetMonth.categoryId || typeof budgetMonth.assigned !== "number") continue;
+    const categoryId = categoryIdBySourceId.get(budgetMonth.categoryId);
+    if (!categoryId) continue;
+    const byCategory = result.get(budgetMonth.month) ?? new Map<string, ActualBudgetCategoryMonthData>();
+    const existing = byCategory.get(categoryId) ?? { assigned: 0, carryover: false };
+    byCategory.set(categoryId, {
+      assigned: roundMoney(existing.assigned + minorUnitsToDisplayAmount(budgetMonth.assigned)),
+      carryover: existing.carryover || Boolean(budgetMonth.carryover),
+    });
+    result.set(budgetMonth.month, byCategory);
+  }
+
+  return result;
+}
+
+function buildActualActivityByMonthCategoryFromRegisters(
+  registers: Record<string, AccountRegisterView>,
+): Map<string, Map<string, number>> {
   const result = new Map<string, Map<string, number>>();
+
   for (const register of Object.values(registers)) {
     for (const transaction of register.transactions) {
+      if (!transaction.date || !/^\d{4}-\d{2}/.test(transaction.date)) continue;
       const month = transaction.date.slice(0, 7);
       const byCategory = result.get(month) ?? new Map<string, number>();
 
@@ -590,12 +678,13 @@ function buildActualActivityByMonthCategory(registers: Record<string, AccountReg
         continue;
       }
 
-      if (!transaction.categoryId || transaction.categoryId === READY_TO_ASSIGN_CATEGORY_ID || transaction.transferAccountId) continue;
+      if (!transaction.categoryId || transaction.categoryId === READY_TO_ASSIGN_CATEGORY_ID) continue;
       const amount = transaction.inflow - transaction.outflow;
       byCategory.set(transaction.categoryId, roundMoney((byCategory.get(transaction.categoryId) ?? 0) + amount));
       result.set(month, byCategory);
     }
   }
+
   return result;
 }
 
@@ -632,7 +721,10 @@ function rollbackActualBudgetLauncherImport(
     storage.removeItem(getBudgetScopedStorageKey(snapshot.budgetId, SCHEDULED_STORAGE_KEY));
 
     for (const key of storage.listKeys?.() ?? []) {
-      if (key.startsWith(`${BUDGET_VIEW_STORAGE_PREFIX}.${snapshot.budgetId}.`)) {
+      if (
+        key.startsWith(`${BUDGET_VIEW_STORAGE_PREFIX}.${snapshot.budgetId}.`) ||
+        key.startsWith(getBudgetScopedStorageKey(snapshot.budgetId, `${BUDGET_VIEW_STORAGE_PREFIX}.`))
+      ) {
         storage.removeItem(key);
       }
     }

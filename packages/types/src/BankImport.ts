@@ -68,6 +68,8 @@ export interface FullBudgetImportPreviewCategoryGroup {
   id: string;
   name: string;
   hidden: boolean;
+  isIncome?: boolean;
+  sortOrder?: number | null;
 }
 
 export interface FullBudgetImportPreviewCategory {
@@ -76,6 +78,8 @@ export interface FullBudgetImportPreviewCategory {
   groupId: string | null;
   groupName: string | null;
   hidden: boolean;
+  isIncome?: boolean;
+  sortOrder?: number | null;
 }
 
 export interface FullBudgetImportPreviewPayee {
@@ -89,6 +93,14 @@ export interface FullBudgetImportPreviewSplitLine {
   categoryName: string | null;
   memo: string | null;
   amount: number | null;
+}
+
+export interface FullBudgetImportPreviewBudgetMonth {
+  id: string;
+  month: string;
+  categoryId: string | null;
+  assigned: number | null;
+  carryover: number | null;
 }
 
 export interface FullBudgetImportPreviewTransaction {
@@ -121,6 +133,7 @@ export interface FullBudgetImportPreview {
   categories: FullBudgetImportPreviewCategory[];
   payees: FullBudgetImportPreviewPayee[];
   transactions: FullBudgetImportPreviewTransaction[];
+  budgetMonths?: FullBudgetImportPreviewBudgetMonth[];
   transferCount: number;
   canCommit: boolean;
 }

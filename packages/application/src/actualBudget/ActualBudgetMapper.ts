@@ -6,6 +6,7 @@ import type {
   FullBudgetImportPreviewPayee,
   FullBudgetImportPreviewSplitLine,
   FullBudgetImportPreviewTransaction,
+  FullBudgetImportPreviewBudgetMonth,
 } from "../../../types/src/index.js";
 import type { ActualSQLiteRepository, ActualSQLiteTableRow, ActualSQLiteValue } from "./ActualSQLiteRepository.js";
 
@@ -15,6 +16,7 @@ export interface ActualBudgetMappingResult {
   categories: FullBudgetImportPreviewCategory[];
   payees: FullBudgetImportPreviewPayee[];
   transactions: FullBudgetImportPreviewTransaction[];
+  budgetMonths: FullBudgetImportPreviewBudgetMonth[];
   transferCount: number;
   issues: BankImportIssue[];
 }
@@ -25,6 +27,7 @@ const ACTUAL_TABLES = {
   categories: "categories",
   payees: "payees",
   transactions: "transactions",
+  budgetMonths: "zero_budgets",
 } as const;
 
 export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualSQLiteRepository): ActualBudgetMappingResult {
@@ -34,6 +37,7 @@ export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualS
   const categoriesRead = readTable(repository, ACTUAL_TABLES.categories, issues);
   const payeesRead = readTable(repository, ACTUAL_TABLES.payees, issues);
   const transactionsRead = readTable(repository, ACTUAL_TABLES.transactions, issues);
+  const budgetMonthsRead = readTable(repository, ACTUAL_TABLES.budgetMonths, issues);
 
   const accounts = accountsRead.map((row, index) => mapAccount(row, index));
   const accountById = new Map(accounts.map((account) => [account.id, account]));
@@ -55,6 +59,8 @@ export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualS
       })
       .filter((entry): entry is [string, string] => Boolean(entry)),
   );
+
+  const budgetMonths = budgetMonthsRead.map((row, index) => mapBudgetMonth(row, index, categoryById));
 
   const mappedTransactionRows = transactionsRead.map((row, index) =>
     mapTransaction(row, index, accountById, categoryById, payeeById, transferAccountByPayeeId),
@@ -111,6 +117,7 @@ export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualS
     categories,
     payees,
     transactions,
+    budgetMonths,
     transferCount: transactions.filter((transaction) => transaction.isTransfer).length,
     issues,
   };
@@ -141,6 +148,8 @@ function mapCategoryGroup(row: ActualSQLiteTableRow, index: number): FullBudgetI
     id,
     name: readString(row, ["name"], id),
     hidden: readBoolean(row, ["hidden", "is_hidden", "isHidden"]),
+    isIncome: readBoolean(row, ["is_income", "isIncome", "income"]),
+    sortOrder: readOptionalNumber(row, ["sort_order", "sortOrder", "sort"]),
   };
 }
 
@@ -153,6 +162,24 @@ function mapCategory(row: ActualSQLiteTableRow, index: number, categoryGroupById
     groupId,
     groupName: groupId ? categoryGroupById.get(groupId)?.name ?? null : null,
     hidden: readBoolean(row, ["hidden", "is_hidden", "isHidden"]),
+    isIncome: readBoolean(row, ["is_income", "isIncome", "income"]),
+    sortOrder: readOptionalNumber(row, ["sort_order", "sortOrder", "sort"]),
+  };
+}
+
+
+function mapBudgetMonth(
+  row: ActualSQLiteTableRow,
+  index: number,
+  categoryById: Map<string, FullBudgetImportPreviewCategory>,
+): FullBudgetImportPreviewBudgetMonth {
+  const categoryId = readOptionalString(row, ["category", "categoryId", "cat"]);
+  return {
+    id: readString(row, ["id"], `actual-budget-month-${index + 1}`),
+    month: readActualMonth(row, ["month"]),
+    categoryId,
+    assigned: readOptionalNumber(row, ["amount"]),
+    carryover: readOptionalNumber(row, ["carryover"]),
   };
 }
 
@@ -235,6 +262,20 @@ function resolveTransactionPayeeName(
   const resolvedPayeeName = payeeById.get(payeeId)?.name ?? null;
   if (!resolvedPayeeName || resolvedPayeeName === payeeId) return importedPayee ?? resolvedPayeeName;
   return resolvedPayeeName;
+}
+
+
+function readActualMonth(row: ActualSQLiteTableRow, names: string[]): string {
+  const raw = readOptionalValue(row, names);
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    const text = String(Math.trunc(raw));
+    if (/^\d{6}$/.test(text)) return `${text.slice(0, 4)}-${text.slice(4, 6)}`;
+  }
+  if (typeof raw === "string") {
+    if (/^\d{6}$/.test(raw)) return `${raw.slice(0, 4)}-${raw.slice(4, 6)}`;
+    if (/^\d{4}-\d{2}$/.test(raw)) return raw;
+  }
+  return "1970-01";
 }
 
 function readActualDate(row: ActualSQLiteTableRow, names: string[]): string | null {
