@@ -3400,3 +3400,137 @@
     justify-self: start;
   }
 }
+
+
+/* v2.41.3 compact import review layout */
+.transaction-import-wizard .transaction-import-header {
+  position: sticky;
+  top: -1.25rem;
+  z-index: 5;
+  margin: -1.25rem -1.25rem 0;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  background: rgb(255 255 255 / 0.96);
+  backdrop-filter: blur(10px);
+}
+
+.transaction-import-review-list {
+  gap: 0.45rem;
+  margin: 0.75rem 0 5.5rem;
+}
+
+.transaction-import-review-card {
+  gap: 0.4rem;
+  border-radius: 12px;
+  padding: 0.55rem 0.65rem;
+  box-shadow: none;
+}
+
+.transaction-import-review-card-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  min-height: 1.7rem;
+}
+
+.transaction-import-review-reason {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-import-match-stack {
+  gap: 0.25rem;
+}
+
+.transaction-import-match-row {
+  grid-template-columns: minmax(5.5rem, 0.65fr) minmax(7rem, 0.85fr) minmax(16rem, 2.2fr) minmax(10rem, 1.35fr) minmax(6.5rem, auto);
+  gap: 0.65rem;
+  min-height: 2.35rem;
+  border-radius: 10px;
+  padding: 0.35rem 0.55rem;
+}
+
+.transaction-import-match-row > * {
+  min-width: 0;
+}
+
+.transaction-import-match-label,
+.transaction-import-match-date,
+.transaction-import-match-detail,
+.transaction-import-match-payee {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-import-match-payee {
+  font-weight: 750;
+}
+
+.transaction-import-match-arrow {
+  height: 0.65rem;
+  font-size: 0.9rem;
+}
+
+.transaction-import-match-actions {
+  gap: 0.4rem;
+}
+
+.transaction-import-match-actions .button {
+  padding: 0.35rem 0.55rem;
+}
+
+.transaction-import-footer {
+  position: sticky;
+  bottom: -1.25rem;
+  z-index: 5;
+  margin: 0 -1.25rem -1.25rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--border, #e2e8f0);
+  background: rgb(255 255 255 / 0.96);
+  backdrop-filter: blur(10px);
+}
+
+@media (max-width: 940px) {
+  .transaction-import-match-row {
+    grid-template-columns: minmax(5rem, 0.7fr) minmax(6.5rem, 0.8fr) minmax(12rem, 1.7fr) minmax(8rem, 1fr) minmax(5.75rem, auto);
+  }
+}
+
+@media (max-width: 760px) {
+  .transaction-import-wizard .transaction-import-header,
+  .transaction-import-footer {
+    position: static;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .transaction-import-review-list {
+    margin-bottom: 1rem;
+  }
+
+  .transaction-import-review-card-header {
+    grid-template-columns: 1fr;
+  }
+
+  .transaction-import-review-reason {
+    white-space: normal;
+  }
+
+  .transaction-import-match-row {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .transaction-import-match-label,
+  .transaction-import-match-date,
+  .transaction-import-match-detail,
+  .transaction-import-match-payee {
+    white-space: normal;
+  }
+}

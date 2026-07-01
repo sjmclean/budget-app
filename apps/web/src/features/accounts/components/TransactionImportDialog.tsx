@@ -779,14 +779,16 @@ export function TransactionImportDialog({
                   key={candidate.id}
                 >
                   <div className="transaction-import-review-card-header">
-                    <div>
-                      <span
-                        className={`transaction-import-status transaction-import-status-${candidate.status}`}
-                      >
-                        {getCandidateStatusLabel(candidate)}
-                      </span>
-                      <p className="muted">{candidate.reason}</p>
-                    </div>
+                    <span
+                      className={`transaction-import-status transaction-import-status-${candidate.status}`}
+                    >
+                      {getCandidateStatusLabel(candidate)}
+                    </span>
+                    {candidate.status !== "new" || !candidate.selected ? (
+                      <p className="muted transaction-import-review-reason">
+                        {candidate.reason}
+                      </p>
+                    ) : null}
                     {candidate.status === "new" ? (
                       <label className="transaction-import-select-new">
                         <input
