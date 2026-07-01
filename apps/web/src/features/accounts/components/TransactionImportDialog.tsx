@@ -392,6 +392,74 @@ export function TransactionImportDialog({
     );
   }
 
+  function acceptMatchedCandidate(candidateId: string) {
+    setCandidates((current) =>
+      current.map((candidate) =>
+        candidate.id === candidateId &&
+        (candidate.status === "exact-match" ||
+          candidate.status === "possible-match")
+          ? {
+              ...candidate,
+              selected: false,
+              reason:
+                "Matched to the existing register transaction. The imported row will not be added as a new transaction.",
+            }
+          : candidate,
+      ),
+    );
+    setError(null);
+  }
+
+  function importMatchedCandidateAsNew(candidateId: string) {
+    setCandidates((current) =>
+      current.map((candidate) =>
+        candidate.id === candidateId &&
+        (candidate.status === "exact-match" ||
+          candidate.status === "possible-match")
+          ? {
+              ...candidate,
+              status: "new",
+              selected: true,
+              reason:
+                "This imported row will be imported as a new transaction instead of using the suggested match.",
+              errors: [],
+            }
+          : candidate,
+      ),
+    );
+    setError(null);
+  }
+
+  function skipCandidate(candidateId: string) {
+    setCandidates((current) =>
+      current.map((candidate) =>
+        candidate.id === candidateId
+          ? {
+              ...candidate,
+              selected: false,
+              reason: "This imported row will be skipped.",
+            }
+          : candidate,
+      ),
+    );
+    setError(null);
+  }
+
+  function getCandidateStatusLabel(candidate: TransactionImportCandidate) {
+    switch (candidate.status) {
+      case "exact-match":
+        return "Matched";
+      case "possible-match":
+        return "Suggested Match";
+      case "new":
+        return candidate.selected ? "New" : "Skipped";
+      case "invalid":
+        return "Needs Attention";
+      default:
+        return candidate.status;
+    }
+  }
+
   async function importSelected() {
     const timings: TransactionImportPerformanceEntry[] = [];
     const importable = measureImportStage(timings, "Build import payload", () =>
@@ -660,7 +728,7 @@ export function TransactionImportDialog({
               <div>
                 <h3>Review transactions</h3>
                 <p className="muted">
-                  Only selected new transactions will be imported.
+                  Review new transactions and suggested matches before importing.
                   {matchedProfileName ? ` Profile: ${matchedProfileName}.` : ""}
                 </p>
               </div>
@@ -679,56 +747,145 @@ export function TransactionImportDialog({
               <span>⚠ {attentionCount} Need Attention</span>
               <span>Total rows: {preview.summary.totalRows}</span>
               <span>Matched: {preview.summary.exactMatches}</span>
-              <span>Possible: {preview.summary.possibleMatches}</span>
+              <span>Suggested: {preview.summary.possibleMatches}</span>
               <span>Invalid: {preview.summary.invalidRows}</span>
             </div>
           </>
         ) : null}
 
         {candidates.length > 0 && step === "review" ? (
-          <div className="transaction-import-table">
-            <div className="transaction-import-row transaction-import-row-head">
-              <span>Import</span>
-              <span>Date</span>
-              <span>Payee</span>
-              <span>Memo</span>
-              <span>Outflow</span>
-              <span>Inflow</span>
-              <span>Status</span>
-            </div>
-            {candidates.map((candidate) => (
-              <label className="transaction-import-row" key={candidate.id}>
-                <span>
-                  <input
-                    type="checkbox"
-                    checked={candidate.selected}
-                    disabled={candidate.status !== "new"}
-                    onChange={() => toggleCandidate(candidate.id)}
-                  />
-                </span>
-                <span>{candidate.parsed.date || "—"}</span>
-                <span>
-                  <strong>{candidate.parsed.payee || "Missing payee"}</strong>
-                  <small>{candidate.reason}</small>
-                </span>
-                <span>{candidate.parsed.memo || "—"}</span>
-                <span>
-                  {candidate.parsed.outflow
-                    ? formatMoney(candidate.parsed.outflow, currencyCode)
-                    : ""}
-                </span>
-                <span>
-                  {candidate.parsed.inflow
-                    ? formatMoney(candidate.parsed.inflow, currencyCode)
-                    : ""}
-                </span>
-                <span
-                  className={`transaction-import-status transaction-import-status-${candidate.status}`}
+          <div className="transaction-import-review-list">
+            {candidates.map((candidate) => {
+              const hasMatch = Boolean(candidate.matchedTransaction);
+              const amountLabel = candidate.parsed.outflow
+                ? formatMoney(candidate.parsed.outflow, currencyCode)
+                : formatMoney(candidate.parsed.inflow, currencyCode);
+              const matchAmountLabel = candidate.matchedTransaction
+                ? candidate.matchedTransaction.outflow
+                  ? formatMoney(candidate.matchedTransaction.outflow, currencyCode)
+                  : formatMoney(candidate.matchedTransaction.inflow, currencyCode)
+                : "";
+
+              return (
+                <article
+                  className={`transaction-import-review-card transaction-import-review-card-${candidate.status}`}
+                  key={candidate.id}
                 >
-                  {candidate.status.replace("-", " ")}
-                </span>
-              </label>
-            ))}
+                  <div className="transaction-import-review-card-header">
+                    <div>
+                      <span
+                        className={`transaction-import-status transaction-import-status-${candidate.status}`}
+                      >
+                        {getCandidateStatusLabel(candidate)}
+                      </span>
+                      <p className="muted">{candidate.reason}</p>
+                    </div>
+                    {candidate.status === "new" ? (
+                      <label className="transaction-import-select-new">
+                        <input
+                          type="checkbox"
+                          checked={candidate.selected}
+                          onChange={() => toggleCandidate(candidate.id)}
+                        />
+                        Import
+                      </label>
+                    ) : null}
+                  </div>
+
+                  <div className="transaction-import-match-comparison">
+                    <div className="transaction-import-match-panel transaction-import-match-panel-imported">
+                      <span className="transaction-import-match-label">Imported</span>
+                      <strong>{candidate.parsed.payee || "Missing payee"}</strong>
+                      <dl>
+                        <div>
+                          <dt>Date</dt>
+                          <dd>{candidate.parsed.date || "—"}</dd>
+                        </div>
+                        <div>
+                          <dt>Amount</dt>
+                          <dd>{amountLabel}</dd>
+                        </div>
+                        <div>
+                          <dt>Memo</dt>
+                          <dd>{candidate.parsed.memo || "—"}</dd>
+                        </div>
+                      </dl>
+                    </div>
+
+                    {hasMatch ? (
+                      <>
+                        <div className="transaction-import-match-arrow" aria-hidden="true">
+                          ↓
+                        </div>
+                        <div className="transaction-import-match-panel transaction-import-match-panel-existing">
+                          <span className="transaction-import-match-label">
+                            Existing Transaction
+                          </span>
+                          <strong>{candidate.matchedTransaction?.payee || "—"}</strong>
+                          <dl>
+                            <div>
+                              <dt>Date</dt>
+                              <dd>{candidate.matchedTransaction?.date || "—"}</dd>
+                            </div>
+                            <div>
+                              <dt>Amount</dt>
+                              <dd>{matchAmountLabel}</dd>
+                            </div>
+                            <div>
+                              <dt>Category</dt>
+                              <dd>{candidate.matchedTransaction?.category || "—"}</dd>
+                            </div>
+                            <div>
+                              <dt>Memo</dt>
+                              <dd>{candidate.matchedTransaction?.memo || "—"}</dd>
+                            </div>
+                          </dl>
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+
+                  {candidate.status === "exact-match" ||
+                  candidate.status === "possible-match" ? (
+                    <div className="transaction-import-match-actions">
+                      <button
+                        className="button button-primary"
+                        type="button"
+                        onClick={() => acceptMatchedCandidate(candidate.id)}
+                      >
+                        Match
+                      </button>
+                      <button
+                        className="button button-secondary"
+                        type="button"
+                        onClick={() => importMatchedCandidateAsNew(candidate.id)}
+                      >
+                        Import as New
+                      </button>
+                      <button
+                        className="button button-secondary"
+                        type="button"
+                        onClick={() => skipCandidate(candidate.id)}
+                      >
+                        Skip
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {candidate.status === "new" ? (
+                    <div className="transaction-import-match-actions">
+                      <button
+                        className="button button-secondary"
+                        type="button"
+                        onClick={() => skipCandidate(candidate.id)}
+                      >
+                        Skip
+                      </button>
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
           </div>
         ) : null}
 

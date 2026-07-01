@@ -3277,3 +3277,131 @@
   color: var(--foreground, #0f172a);
   font-variant-numeric: tabular-nums;
 }
+
+/* v2.41.1 Import matching review cards */
+.transaction-import-review-list {
+  display: grid;
+  gap: 0.85rem;
+  margin: 1rem 0;
+}
+
+.transaction-import-review-card {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 16px;
+  padding: 0.9rem;
+  background: var(--surface, #fff);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.06);
+}
+
+.transaction-import-review-card-exact-match {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.transaction-import-review-card-possible-match {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.transaction-import-review-card-invalid {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.transaction-import-review-card-header,
+.transaction-import-match-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.transaction-import-review-card-header p {
+  margin: 0.35rem 0 0;
+}
+
+.transaction-import-select-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 700;
+}
+
+.transaction-import-match-comparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.transaction-import-match-panel {
+  display: grid;
+  gap: 0.45rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  padding: 0.8rem;
+  background: rgb(255 255 255 / 0.72);
+}
+
+.transaction-import-match-panel-imported {
+  background: rgb(248 250 252 / 0.92);
+}
+
+.transaction-import-match-panel-existing {
+  background: rgb(240 253 244 / 0.72);
+}
+
+.transaction-import-match-label {
+  color: var(--muted-foreground, #64748b);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.transaction-import-match-panel dl {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.transaction-import-match-panel dl div {
+  display: grid;
+  grid-template-columns: 5.25rem minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.transaction-import-match-panel dt {
+  color: var(--muted-foreground, #64748b);
+  font-size: 0.8rem;
+}
+
+.transaction-import-match-panel dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.transaction-import-match-arrow {
+  display: grid;
+  place-items: center;
+  color: var(--muted-foreground, #64748b);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.transaction-import-match-actions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 760px) {
+  .transaction-import-match-comparison {
+    grid-template-columns: 1fr;
+  }
+
+  .transaction-import-match-arrow {
+    transform: rotate(0deg);
+  }
+}
