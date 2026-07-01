@@ -31,6 +31,8 @@ export interface TransactionImportProfile {
 export const TRANSACTION_IMPORT_PROFILES_STORAGE_KEY =
   "budget-app.transaction-import-profiles.v1";
 
+export const HIGH_CONFIDENCE_IMPORT_MATCH_DAYS = 5;
+export const SUGGESTED_IMPORT_MATCH_DAYS = 10;
 
 export interface TransactionImportPerformanceEntry {
   label: string;
@@ -527,7 +529,7 @@ function classifyImportCandidate(
   const automaticNear = existingTransactions.find(
     (transaction) =>
       amountsEqual(transaction, parsed) &&
-      daysBetween(transaction.date, parsed.date) <= 3,
+      daysBetween(transaction.date, parsed.date) <= HIGH_CONFIDENCE_IMPORT_MATCH_DAYS,
   );
 
   if (automaticNear) {
@@ -537,7 +539,7 @@ function classifyImportCandidate(
       status: "exact-match",
       matchedTransactionId: automaticNear.id,
       matchedTransaction: automaticNear,
-      reason: "Matched by same amount within 3 days in this register.",
+      reason: `Matched by same amount within ${HIGH_CONFIDENCE_IMPORT_MATCH_DAYS} days in this register.`,
       selected: false,
       errors: [],
     };
@@ -546,7 +548,7 @@ function classifyImportCandidate(
   const possible = existingTransactions.find(
     (transaction) =>
       amountsEqual(transaction, parsed) &&
-      daysBetween(transaction.date, parsed.date) <= 7,
+      daysBetween(transaction.date, parsed.date) <= SUGGESTED_IMPORT_MATCH_DAYS,
   );
 
   if (possible) {
@@ -557,7 +559,7 @@ function classifyImportCandidate(
       matchedTransactionId: possible.id,
       matchedTransaction: possible,
       reason:
-        "Possible match: same amount within 7 days. Review before importing as new.",
+        `Possible match: same amount within ${SUGGESTED_IMPORT_MATCH_DAYS} days. Review before importing as new.`,
       selected: false,
       errors: [],
     };

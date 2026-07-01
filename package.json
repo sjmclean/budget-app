@@ -388,7 +388,11 @@
     "test:v2403:import-performance-analysis": "tsx tests/v2403-import-performance-analysis.ts",
     "test:v2403": "pnpm test:v2402 && pnpm test:v2403:import-performance-analysis",
     "test:v2404:batch-import-commit": "tsx tests/v2404-batch-import-commit.ts",
-    "test:v2404": "pnpm test:v2403 && pnpm test:v2404:batch-import-commit"
+    "test:v2404": "pnpm test:v2403 && pnpm test:v2404:batch-import-commit",
+    "test:v2405": "pnpm test:v2404 && pnpm test:v2405:large-import-commit",
+    "test:v2405:large-import-commit": "tsx tests/v2405-large-import-commit.ts",
+    "test:v2410:import-match-thresholds": "tsx tests/v2410-import-match-thresholds.ts",
+    "test:v2410": "pnpm test:v2405 && pnpm test:v2410:import-match-thresholds"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
