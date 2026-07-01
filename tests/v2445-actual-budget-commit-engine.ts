@@ -40,6 +40,25 @@ const preview: FullBudgetImportPreview = {
     { id: "tx-1", accountId: "acct-cheque", accountName: "Cheque", date: "2026-06-01", amount: -1234, payeeId: "payee-shop", payeeName: "Woolworths", categoryId: "cat-groceries", categoryName: "Groceries", memo: "weekly shop", cleared: true, transferId: null, isTransfer: false },
     { id: "tx-2", accountId: "acct-cheque", accountName: "Cheque", date: "2026-06-02", amount: 5000, payeeId: null, payeeName: "Salary", categoryId: null, categoryName: null, memo: null, cleared: false, transferId: null, isTransfer: false },
     { id: "tx-3", accountId: "acct-cheque", accountName: "Cheque", date: "2026-06-03", amount: -2500, payeeId: "payee-transfer", payeeName: "Transfer: Savings", categoryId: null, categoryName: null, memo: "save", cleared: true, transferId: "acct-savings", isTransfer: true },
+    {
+      id: "tx-4",
+      accountId: "acct-cheque",
+      accountName: "Cheque",
+      date: "2026-06-04",
+      amount: -3000,
+      payeeId: "payee-shop",
+      payeeName: "Woolworths",
+      categoryId: null,
+      categoryName: null,
+      memo: "split shop",
+      cleared: true,
+      transferId: null,
+      isTransfer: false,
+      splitLines: [
+        { id: "split-food", categoryId: "cat-groceries", categoryName: "Groceries", memo: "food", amount: -2000 },
+        { id: "split-household", categoryId: "cat-groceries", categoryName: "Groceries", memo: "household", amount: -1000 },
+      ],
+    },
   ],
   transferCount: 1,
   canCommit: true,
@@ -66,10 +85,14 @@ const chequeRegister = Object.values(registers).find((register) => register.tran
 if (!chequeRegister) throw new Error("Expected imported transactions in an account register");
 if (!chequeRegister.transactions.some((transaction) => transaction.payee === "Woolworths" && transaction.outflow === 12.34 && transaction.category === "Groceries")) throw new Error("Expected Actual expense transaction to be converted from minor units");
 if (!chequeRegister.transactions.some((transaction) => transaction.payee.startsWith("Transfer:") && transaction.transferAccountId)) throw new Error("Expected Actual transfer transaction to be preserved");
+const importedSplit = chequeRegister.transactions.find((transaction) => transaction.id === "tx-4");
+if (!importedSplit?.splitLines || importedSplit.splitLines.length !== 2) throw new Error("Expected Actual split transaction lines to be persisted");
+if (importedSplit.category !== "Split") throw new Error("Expected Actual split parent category to display as Split");
+if (importedSplit.splitLines.reduce((sum, line) => sum + line.inflow - line.outflow, 0) !== -30) throw new Error("Expected Actual split line amounts to be converted from minor units");
 
 const record = readActualBudgetLauncherImportRecord(storage, result.budget.id);
 if (!record) throw new Error("Expected Actual import report record");
-if (record.counts.transactions !== 3) throw new Error("Expected Actual import report transaction count");
+if (record.counts.transactions !== 4) throw new Error("Expected Actual import report transaction count");
 if (!record.skipped.some((item) => item.label === "Rules" && item.count === 4)) throw new Error("Expected unsupported Rules count in import report");
 
 const invalidStorage = new MemoryStorage();

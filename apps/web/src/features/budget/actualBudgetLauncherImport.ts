@@ -450,6 +450,8 @@ function mapActualRegisterTransaction(
     ? `Transfer: ${maps.accountNameById.get(transferAccountId) ?? "Account"}`
     : transaction.payeeName ?? (payeeId ? maps.payeeNameById.get(payeeId) : null) ?? "Imported Payee";
 
+  const splitLines = mapActualSplitLines(transaction, maps);
+
   return {
     id: transaction.id || `actual-transaction-${index + 1}`,
     date: transaction.date ?? "1970-01-01",
@@ -457,10 +459,12 @@ function mapActualRegisterTransaction(
     attachmentCount: 0,
     payee,
     payeeId: transferAccountId ? undefined : payeeId,
-    category: transferAccountId
-      ? "Transfer"
-      : categoryId ? maps.categoryNameById.get(categoryId) ?? "Uncategorised" : READY_TO_ASSIGN_CATEGORY_NAME,
-    categoryId: transferAccountId ? undefined : categoryId ?? READY_TO_ASSIGN_CATEGORY_ID,
+    category: splitLines.length > 0
+      ? "Split"
+      : transferAccountId
+        ? "Transfer"
+        : categoryId ? maps.categoryNameById.get(categoryId) ?? "Uncategorised" : READY_TO_ASSIGN_CATEGORY_NAME,
+    categoryId: splitLines.length > 0 || transferAccountId ? undefined : categoryId ?? READY_TO_ASSIGN_CATEGORY_ID,
     memo: transaction.memo ?? undefined,
     inflow: amount > 0 ? amount : 0,
     outflow: amount < 0 ? Math.abs(amount) : 0,
@@ -468,7 +472,26 @@ function mapActualRegisterTransaction(
     cleared: transaction.cleared === true,
     reconciled: false,
     transferAccountId,
+    splitLines: splitLines.length > 0 ? splitLines : undefined,
   };
+}
+
+function mapActualSplitLines(
+  transaction: FullBudgetImportPreview["transactions"][number],
+  maps: ActualImportMaps,
+): NonNullable<RegisterTransactionView["splitLines"]> {
+  return (transaction.splitLines ?? []).map((line, index) => {
+    const amount = minorUnitsToDisplayAmount(line.amount);
+    const categoryId = line.categoryId ? maps.categoryIdBySourceId.get(line.categoryId) : undefined;
+    return {
+      id: line.id || `${transaction.id}-split-${index + 1}`,
+      category: categoryId ? maps.categoryNameById.get(categoryId) ?? "Uncategorised" : READY_TO_ASSIGN_CATEGORY_NAME,
+      categoryId: categoryId ?? READY_TO_ASSIGN_CATEGORY_ID,
+      memo: line.memo ?? undefined,
+      inflow: amount > 0 ? amount : 0,
+      outflow: amount < 0 ? Math.abs(amount) : 0,
+    };
+  });
 }
 
 function minorUnitsToDisplayAmount(value: number | null): number {
@@ -554,10 +577,21 @@ function buildActualActivityByMonthCategory(registers: Record<string, AccountReg
   const result = new Map<string, Map<string, number>>();
   for (const register of Object.values(registers)) {
     for (const transaction of register.transactions) {
-      if (!transaction.categoryId || transaction.categoryId === READY_TO_ASSIGN_CATEGORY_ID || transaction.transferAccountId) continue;
       const month = transaction.date.slice(0, 7);
-      const amount = transaction.inflow - transaction.outflow;
       const byCategory = result.get(month) ?? new Map<string, number>();
+
+      if (transaction.splitLines?.length) {
+        for (const splitLine of transaction.splitLines) {
+          if (!splitLine.categoryId || splitLine.categoryId === READY_TO_ASSIGN_CATEGORY_ID) continue;
+          const amount = splitLine.inflow - splitLine.outflow;
+          byCategory.set(splitLine.categoryId, roundMoney((byCategory.get(splitLine.categoryId) ?? 0) + amount));
+        }
+        result.set(month, byCategory);
+        continue;
+      }
+
+      if (!transaction.categoryId || transaction.categoryId === READY_TO_ASSIGN_CATEGORY_ID || transaction.transferAccountId) continue;
+      const amount = transaction.inflow - transaction.outflow;
       byCategory.set(transaction.categoryId, roundMoney((byCategory.get(transaction.categoryId) ?? 0) + amount));
       result.set(month, byCategory);
     }

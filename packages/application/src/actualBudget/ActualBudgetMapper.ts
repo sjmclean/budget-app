@@ -4,6 +4,7 @@ import type {
   FullBudgetImportPreviewCategory,
   FullBudgetImportPreviewCategoryGroup,
   FullBudgetImportPreviewPayee,
+  FullBudgetImportPreviewSplitLine,
   FullBudgetImportPreviewTransaction,
 } from "../../../types/src/index.js";
 import type { ActualSQLiteRepository, ActualSQLiteTableRow, ActualSQLiteValue } from "./ActualSQLiteRepository.js";
@@ -55,7 +56,30 @@ export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualS
       .filter((entry): entry is [string, string] => Boolean(entry)),
   );
 
-  const transactions = transactionsRead.map((row, index) => mapTransaction(row, index, accountById, categoryById, payeeById, transferAccountByPayeeId));
+  const mappedTransactionRows = transactionsRead.map((row, index) =>
+    mapTransaction(row, index, accountById, categoryById, payeeById, transferAccountByPayeeId),
+  );
+  const splitLinesByParentId = new Map<string, FullBudgetImportPreviewSplitLine[]>();
+
+  for (const transaction of mappedTransactionRows) {
+    if (transaction.isChild && transaction.parentId) {
+      const splitLine = mapSplitLineFromChildTransaction(transaction);
+      splitLinesByParentId.set(transaction.parentId, [
+        ...(splitLinesByParentId.get(transaction.parentId) ?? []),
+        splitLine,
+      ]);
+    }
+  }
+
+  const transactions = mappedTransactionRows
+    .filter((transaction) => !transaction.isChild)
+    .map((transaction) => {
+      const splitLines = splitLinesByParentId.get(transaction.id) ?? [];
+      return stripActualTransactionMetadata({
+        ...transaction,
+        splitLines: splitLines.length > 0 ? splitLines : undefined,
+      });
+    });
 
   for (const transaction of transactions) {
     if (transaction.accountId && !accountById.has(transaction.accountId)) {
@@ -67,6 +91,18 @@ export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualS
     if (transaction.payeeId && !payeeById.has(transaction.payeeId)) {
       issues.push({ rowNumber: null, severity: "warning", code: "ActualUnknownPayeeReference", message: `Actual transaction ${transaction.id} references unknown payee ${transaction.payeeId}.` });
     }
+  }
+
+  const orphanSplitLineCount = [...splitLinesByParentId.keys()].filter(
+    (parentId) => !mappedTransactionRows.some((transaction) => transaction.id === parentId),
+  ).length;
+  if (orphanSplitLineCount > 0) {
+    issues.push({
+      rowNumber: null,
+      severity: "warning",
+      code: "ActualOrphanSplitChildren",
+      message: `${orphanSplitLineCount} Actual split parent references could not be resolved and were not imported as split lines.`,
+    });
   }
 
   return {
@@ -142,7 +178,7 @@ function mapTransaction(
   categoryById: Map<string, FullBudgetImportPreviewCategory>,
   payeeById: Map<string, FullBudgetImportPreviewPayee>,
   transferAccountByPayeeId: Map<string, string>,
-): FullBudgetImportPreviewTransaction {
+): ActualMappedTransaction {
   const id = readString(row, ["id"], `actual-transaction-${index + 1}`);
   const accountId = readOptionalString(row, ["acct", "account", "accountId"]);
   const categoryId = readOptionalString(row, ["category", "categoryId", "cat"]);
@@ -163,7 +199,31 @@ function mapTransaction(
     cleared: readOptionalBoolean(row, ["cleared", "is_cleared", "isCleared"]),
     transferId: transferAccountId,
     isTransfer: Boolean(transferAccountId),
+    isParent: readBoolean(row, ["isParent", "is_parent", "is_parent_transaction"]),
+    isChild: readBoolean(row, ["isChild", "is_child", "is_split_child"]),
+    parentId: readOptionalString(row, ["parent_id", "parentId", "parent"]),
   };
+}
+
+interface ActualMappedTransaction extends FullBudgetImportPreviewTransaction {
+  isParent: boolean;
+  isChild: boolean;
+  parentId: string | null;
+}
+
+function mapSplitLineFromChildTransaction(transaction: ActualMappedTransaction): FullBudgetImportPreviewSplitLine {
+  return {
+    id: transaction.id,
+    categoryId: transaction.categoryId,
+    categoryName: transaction.categoryName,
+    memo: transaction.memo,
+    amount: transaction.amount,
+  };
+}
+
+function stripActualTransactionMetadata(transaction: ActualMappedTransaction): FullBudgetImportPreviewTransaction {
+  const { isParent: _isParent, isChild: _isChild, parentId: _parentId, ...previewTransaction } = transaction;
+  return previewTransaction;
 }
 
 function resolveTransactionPayeeName(

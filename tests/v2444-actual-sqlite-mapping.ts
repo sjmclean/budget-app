@@ -27,10 +27,13 @@ const actualDatabase = buildActualSQLiteDatabase({
     ],
   },
   transactions: {
-    sql: "CREATE TABLE transactions(id TEXT, acct TEXT, category TEXT, amount INTEGER, description TEXT, imported_description TEXT, notes TEXT, date INTEGER, cleared INTEGER, reconciled INTEGER)",
+    sql: "CREATE TABLE transactions(id TEXT, isParent INTEGER, isChild INTEGER, acct TEXT, category TEXT, amount INTEGER, description TEXT, imported_description TEXT, notes TEXT, date INTEGER, cleared INTEGER, reconciled INTEGER, parent_id TEXT)",
     rows: [
-      ["tx-grocery", "acc-cheque", "cat-groceries", -4250, "payee-woolworths", "Woolworths Supermarket", "Weekly shop", 20260701, 1, 0],
-      ["tx-transfer", "acc-cheque", null, -10000, "payee-transfer-savings", null, null, 20260702, 1, 0],
+      ["tx-grocery", 0, 0, "acc-cheque", "cat-groceries", -4250, "payee-woolworths", "Woolworths Supermarket", "Weekly shop", 20260701, 1, 0, null],
+      ["tx-transfer", 0, 0, "acc-cheque", null, -10000, "payee-transfer-savings", null, null, 20260702, 1, 0, null],
+      ["tx-split", 1, 0, "acc-cheque", null, -3000, "payee-woolworths", "Woolworths Supermarket", "Split shop", 20260703, 1, 0, null],
+      ["tx-split-child-food", 0, 1, "acc-cheque", "cat-groceries", -2000, null, null, "Food", 20260703, 1, 0, "tx-split"],
+      ["tx-split-child-other", 0, 1, "acc-cheque", "cat-groceries", -1000, null, null, "Other", 20260703, 1, 0, "tx-split"],
     ],
   },
 });
@@ -48,7 +51,7 @@ if (mapped.categories[0]?.groupName !== "Everyday") throw new Error("Expected ma
 if (mapped.payees.length !== 2) throw new Error("Expected mapped payees");
 const transferPayee = mapped.payees.find((payee) => payee.id === "payee-transfer-savings");
 if (transferPayee?.name !== "Transfer: Savings") throw new Error("Expected blank Actual transfer payees to display using the transfer account name");
-if (mapped.transactions.length !== 2) throw new Error("Expected mapped transactions");
+if (mapped.transactions.length !== 3) throw new Error("Expected mapped transactions to exclude Actual split child rows but keep parent rows");
 const grocery = mapped.transactions.find((transaction) => transaction.id === "tx-grocery");
 if (!grocery) throw new Error("Expected grocery transaction");
 if (grocery.accountName !== "Cheque") throw new Error("Expected transaction account name");
@@ -61,6 +64,10 @@ if (grocery.cleared !== true) throw new Error("Expected transaction cleared stat
 const transfer = mapped.transactions.find((transaction) => transaction.id === "tx-transfer");
 if (!transfer?.isTransfer || transfer.transferId !== "acc-savings") throw new Error("Expected transfer detection from Actual payee transfer account");
 if (mapped.transferCount !== 1) throw new Error("Expected mapped transfer count");
+const split = mapped.transactions.find((transaction) => transaction.id === "tx-split");
+if (!split?.splitLines || split.splitLines.length !== 2) throw new Error("Expected Actual split child rows to attach to their parent transaction");
+if (split.splitLines.reduce((sum, line) => sum + (line.amount ?? 0), 0) !== split.amount) throw new Error("Expected Actual split lines to balance to the parent transaction amount");
+if (mapped.transactions.some((transaction) => transaction.id === "tx-split-child-food")) throw new Error("Expected Actual split child rows not to import as standalone transactions");
 
 const service = new BudgetImportProviderApplicationService();
 const actualZip = buildZip({
@@ -71,7 +78,7 @@ const preview = await service.fullBudgetPreviewAsync({ fileName: "actual-export.
 if (!preview) throw new Error("Expected Actual full-budget preview");
 if (preview.accounts.length !== 2) throw new Error("Expected preview accounts from SQLite rows");
 if (preview.categories[0]?.name !== "Groceries") throw new Error("Expected preview categories from SQLite rows");
-if (preview.transactions.length !== 2) throw new Error("Expected preview transactions from SQLite rows");
+if (preview.transactions.length !== 3) throw new Error("Expected preview transactions from SQLite rows with split children collapsed under parents");
 if (preview.transferCount !== 1) throw new Error("Expected preview transfer count from SQLite rows");
 if (!preview.canCommit) throw new Error("Actual import preview should now be commit-capable after v2.44.5");
 

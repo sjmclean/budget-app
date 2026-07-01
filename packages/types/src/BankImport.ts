@@ -83,6 +83,14 @@ export interface FullBudgetImportPreviewPayee {
   name: string;
 }
 
+export interface FullBudgetImportPreviewSplitLine {
+  id: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  memo: string | null;
+  amount: number | null;
+}
+
 export interface FullBudgetImportPreviewTransaction {
   id: string;
   accountId: string | null;
@@ -97,6 +105,7 @@ export interface FullBudgetImportPreviewTransaction {
   cleared: boolean | null;
   transferId: string | null;
   isTransfer: boolean;
+  splitLines?: FullBudgetImportPreviewSplitLine[];
 }
 
 export interface FullBudgetImportPreview {
