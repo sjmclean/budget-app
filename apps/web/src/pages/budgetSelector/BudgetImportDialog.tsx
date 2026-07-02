@@ -115,6 +115,7 @@ export function BudgetImportDialog({
   const [budgetImportResult, setBudgetImportResult] =
     useState<BudgetImportResultSummary | null>(null);
   const [isBudgetImportDragActive, setIsBudgetImportDragActive] = useState(false);
+  const budgetFileInputRef = useRef<HTMLInputElement | null>(null);
   const ynab4FolderInputRef = useRef<HTMLInputElement | null>(null);
 
   async function importYnab4PackagePreview(input: {
@@ -269,8 +270,8 @@ export function BudgetImportDialog({
     }
 
     const selectedFiles = Array.from(files);
-    if (selectedFiles.length > 1 || selectedFiles.some((file) => file.webkitRelativePath)) {
-      await handleYnab4PackageSelection(files);
+    if (selectedFilesLookLikeYnab4Package(selectedFiles)) {
+      await handleYnab4PackageSelection(selectedFiles);
       return;
     }
 
@@ -302,17 +303,18 @@ export function BudgetImportDialog({
     await handleBudgetImportSelection(dataTransfer.files);
   }
 
-  async function handleYnab4PackageSelection(files: FileList | null) {
+  async function handleYnab4PackageSelection(files: FileList | File[] | null) {
     setYnabError(null);
     setActualError(null);
     setBudgetImportResult(null);
 
-    if (!files || files.length === 0) {
+    const selectedFiles = files ? Array.from(files) : [];
+    if (selectedFiles.length === 0) {
       return;
     }
 
     try {
-      await handleYnab4PackageEntries(await readYnab4PackageEntries(Array.from(files)));
+      await handleYnab4PackageEntries(await readYnab4PackageEntriesFromFiles(selectedFiles));
     } catch (error) {
       setYnabError(
         error instanceof Error
@@ -370,9 +372,9 @@ export function BudgetImportDialog({
 
     if (directoryPicker) {
       try {
-        const directory = await directoryPicker();
+        const directory = await directoryPicker.call(window);
         const files = await readFilesFromDirectoryHandle(directory);
-        await handleYnab4PackageEntries(await readYnab4PackageEntriesFromFiles(files));
+        await handleYnab4PackageSelection(files);
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -453,7 +455,7 @@ export function BudgetImportDialog({
             <p>Drop or choose a budget export. The app will detect the provider and create a new local budget with a completion report.</p>
           </div>
 
-          <label
+          <div
             className={
               isBudgetImportDragActive
                 ? "budget-import-drop-zone budget-import-drop-zone-active"
@@ -469,36 +471,47 @@ export function BudgetImportDialog({
               void handleBudgetImportDrop(event.dataTransfer);
             }}
           >
-            <input
-              type="file"
-              accept=".zip,.actual,.actualbudget,.json,application/zip,application/x-zip-compressed,application/json"
-              onChange={(event) =>
-                void handleBudgetImportSelection(event.currentTarget.files)
-              }
-            />
             <span className="budget-import-drop-icon" aria-hidden="true">
               ⇧
             </span>
             <span>
               <strong>Drop your budget here or click to browse</strong>
-              <small>Actual Budget (.zip), Budget Backup (.json), YNAB4 folder/package. YNAB Online Planned.</small>
+              <small>Actual Budget (.zip), Budget Backup (.json), or YNAB4 folder/package. YNAB Online Planned.</small>
               <small>Transaction import remains separate.</small>
             </span>
-          </label>
-
-          <button
-            type="button"
-            className="ynab4-file-button budget-import-folder-button"
-            onClick={() => void handleManualYnab4FolderBrowse()}
-          >
-            Choose YNAB4 folder
-          </button>
+            <div className="budget-import-picker-actions">
+              <button
+                type="button"
+                className="ynab4-file-button"
+                onClick={() => budgetFileInputRef.current?.click()}
+              >
+                Choose file
+              </button>
+              <button
+                type="button"
+                className="ynab4-file-button"
+                onClick={() => void handleManualYnab4FolderBrowse()}
+              >
+                Choose YNAB4 folder/package
+              </button>
+            </div>
+          </div>
+          <input
+            ref={budgetFileInputRef}
+            className="budget-import-picker-input"
+            type="file"
+            accept=".zip,.actual,.actualbudget,.json,application/zip,application/x-zip-compressed,application/json"
+            onChange={(event) => {
+              void handleBudgetImportSelection(event.currentTarget.files);
+              event.currentTarget.value = "";
+            }}
+          />
           <input
             ref={(input) => {
               ynab4FolderInputRef.current = input;
               attachDirectoryPickerAttributes(input);
             }}
-            className="budget-import-folder-input"
+            className="budget-import-picker-input"
             type="file"
             multiple
             {...ynab4DirectoryInputProps}
@@ -545,6 +558,13 @@ async function readYnab4PackageEntries(
   files: File[],
 ): Promise<Ynab4PackageEntry[]> {
   return readYnab4PackageEntriesFromFiles(files);
+}
+
+function selectedFilesLookLikeYnab4Package(files: File[]): boolean {
+  return files.length > 1 || files.some((file) => {
+    const relativePath = file.webkitRelativePath || "";
+    return Boolean(relativePath) || /\.ynab4(?:\/|$)/i.test(relativePath);
+  });
 }
 
 async function readYnab4PackageEntriesFromFiles(

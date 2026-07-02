@@ -4665,13 +4665,19 @@ strong {
   font-weight: 800;
 }
 
-.budget-import-drop-zone input[type="file"] {
+.budget-import-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.budget-import-picker-input {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  inline-size: 1px;
+  block-size: 1px;
   opacity: 0;
-  cursor: pointer;
+  pointer-events: none;
 }
 
 .budget-import-drop-zone strong {
@@ -4685,18 +4691,6 @@ strong {
   color: var(--text-muted);
 }
 
-.budget-import-folder-button {
-  justify-self: center;
-  margin-top: 0.75rem;
-}
-
-.budget-import-folder-input {
-  position: absolute;
-  inline-size: 1px;
-  block-size: 1px;
-  opacity: 0;
-  pointer-events: auto;
-}
 
 .budget-import-progress-state {
   display: grid;
