@@ -3,24 +3,32 @@ import { BudgetImportProviderApplicationService } from "../packages/application/
 
 const pageSource = readFileSync("apps/web/src/pages/BudgetSelectorPage.tsx", "utf8");
 
-if (!pageSource.includes('type LaunchMode = "list" | "choose" | "empty" | "ynab" | "actual"')) {
-  throw new Error("Expected BudgetSelector launch mode to include Actual Budget");
+if (!pageSource.includes('type LaunchMode = "list" | "choose" | "empty" | "budgetImport"')) {
+  throw new Error("Expected BudgetSelector launch mode to include unified Budget Import");
 }
 
-if (!pageSource.includes('onClick={() => setLaunchMode("actual")}')) {
-  throw new Error("Expected Actual Budget launch option to be enabled");
+if (!pageSource.includes('<strong>Import Budget</strong>')) {
+  throw new Error("Expected BudgetSelector to expose a single Budget Import launcher");
 }
 
-if (!pageSource.includes("Select Actual export")) {
-  throw new Error("Expected Actual Budget file picker label");
+if (!pageSource.includes("Actual Budget") || !pageSource.includes("YNAB4") || !pageSource.includes("Budget Backup")) {
+  throw new Error("Expected unified Budget Import UI to list supported budget import providers");
+}
+
+if (!pageSource.includes("YNAB Online") || !pageSource.includes("Planned")) {
+  throw new Error("Expected unified Budget Import UI to list YNAB Online as planned");
+}
+
+if (!pageSource.includes("Drop your budget here")) {
+  throw new Error("Expected unified Budget Import file picker label");
 }
 
 if (!pageSource.includes("actualBudgetImportProviderService.fullBudgetPreview") || !pageSource.includes("BudgetImportProviderApplicationService")) {
   throw new Error("Expected Actual Budget UI to use the budget full-budget preview service");
 }
 
-if (!pageSource.includes("Actual Budget imports are full-budget migrations")) {
-  throw new Error("Expected Actual Budget UI to clarify full-budget import scope");
+if (!pageSource.includes("create a new local budget") || !pageSource.includes("completion report")) {
+  throw new Error("Expected Actual Budget UI to clarify direct full-budget import scope");
 }
 
 const service = new BudgetImportProviderApplicationService();

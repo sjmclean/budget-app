@@ -424,7 +424,9 @@
     "test:v2444:actual-sqlite-mapping": "tsx tests/v2444-actual-sqlite-mapping.ts",
     "test:v2444": "pnpm test:v2443 && pnpm test:v2444:actual-sqlite-mapping",
     "test:v2445:actual-budget-commit-engine": "tsx tests/v2445-actual-budget-commit-engine.ts",
-    "test:v2445": "pnpm test:v2444 && pnpm test:v2445:actual-budget-commit-engine"
+    "test:v2445": "pnpm test:v2444 && pnpm test:v2445:actual-budget-commit-engine",
+    "test:v2450:unified-budget-import-ux": "tsx tests/v2450-unified-budget-import-ux.ts",
+    "test:v2450": "pnpm test:v2445 && pnpm test:v2450:unified-budget-import-ux"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

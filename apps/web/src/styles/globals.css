@@ -4609,3 +4609,133 @@ strong {
 .button-danger:hover:not(:disabled) {
   background: #b91c1c;
 }
+
+/* v2.45 unified budget import */
+.budget-import-picker-option {
+  cursor: pointer;
+  position: relative;
+}
+
+.budget-import-picker-option input[type="file"] {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+
+/* v2.45.1 direct budget import drop zone */
+.budget-import-compact-card {
+  max-width: 44rem;
+  margin-inline: auto;
+}
+
+.budget-import-compact-header {
+  text-align: left;
+}
+
+.budget-import-drop-zone {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  border: 1px dashed var(--border-strong, var(--border));
+  border-radius: 1.25rem;
+  padding: 3rem 2rem;
+  text-align: center;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  cursor: pointer;
+  transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+}
+
+.budget-import-drop-zone-active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  transform: translateY(-1px);
+}
+
+.budget-import-drop-icon {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent);
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.budget-import-drop-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.budget-import-drop-zone strong {
+  display: block;
+  font-size: 1.1rem;
+}
+
+.budget-import-drop-zone small {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--text-muted);
+}
+
+.budget-import-folder-button {
+  justify-self: center;
+  margin-top: 0.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.budget-import-folder-button input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.budget-import-progress-state {
+  display: grid;
+  gap: 1rem;
+}
+
+.budget-import-progress-bar {
+  overflow: hidden;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.budget-import-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 180ms ease;
+}
+
+.budget-import-complete-report {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  background: var(--surface);
+}
+
+.budget-import-complete-icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--success, #16a34a) 14%, var(--surface));
+  color: var(--success, #16a34a);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
