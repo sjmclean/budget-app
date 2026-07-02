@@ -171,20 +171,34 @@ function readBudgetScopedValue(
   return null;
 }
 
-export function createBudgetDataExportPackage(
+function resolveBudgetForExport(
   storage: KeyValueStoragePort,
-  kind: BudgetDataExportKind,
-  now = new Date(),
-): BudgetDataExportPackage {
+  budgetId?: string,
+): BudgetSummary {
   const budgets = readBudgetRegistry(storage);
   const selectedBudgetId =
     storage.getItem(SELECTED_BUDGET_STORAGE_KEY)?.trim() || null;
-  const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
+  const activeBudget = budgetId
+    ? budgets.find((budget) => budget.id === budgetId) ?? null
+    : resolveActiveBudget(budgets, selectedBudgetId);
 
   if (!activeBudget) {
-    throw new Error("No active budget is available to export.");
+    throw new Error(
+      budgetId
+        ? "The requested budget is not available to export."
+        : "No active budget is available to export.",
+    );
   }
 
+  return activeBudget;
+}
+
+function createBudgetDataExportPackageFromBudget(
+  storage: KeyValueStoragePort,
+  kind: BudgetDataExportKind,
+  activeBudget: BudgetSummary,
+  now = new Date(),
+): BudgetDataExportPackage {
   const records: BudgetDataStorageRecord[] = [];
 
   for (const item of budgetScopedLogicalKeys) {
@@ -298,6 +312,34 @@ export function createBudgetDataFilename(pkg: BudgetDataExportPackage): string {
   return `${safeName}-${date}.${suffix}.json`;
 }
 
+
+export function createBudgetDataExportPackageForBudget(
+  storage: KeyValueStoragePort,
+  kind: BudgetDataExportKind,
+  budgetId: string,
+  now = new Date(),
+): BudgetDataExportPackage {
+  return createBudgetDataExportPackageFromBudget(
+    storage,
+    kind,
+    resolveBudgetForExport(storage, budgetId),
+    now,
+  );
+}
+
+export function createBudgetDataExportPackage(
+  storage: KeyValueStoragePort,
+  kind: BudgetDataExportKind,
+  now = new Date(),
+): BudgetDataExportPackage {
+  return createBudgetDataExportPackageFromBudget(
+    storage,
+    kind,
+    resolveBudgetForExport(storage),
+    now,
+  );
+}
+
 export function previewBudgetDataRestore(
   raw: string,
 ): BudgetDataRestorePreview {
@@ -334,14 +376,17 @@ export function previewBudgetDataRestore(
   const records = Array.isArray(parsed.records) ? parsed.records : null;
 
   const supportedSchema =
-    schema === BUDGET_DATA_EXPORT_SCHEMA || schema === LEGACY_BUDGET_DATA_EXPORT_SCHEMA;
+    schema === BUDGET_DATA_EXPORT_SCHEMA ||
+    schema === LEGACY_BUDGET_DATA_EXPORT_SCHEMA;
 
   if (!supportedSchema) {
     errors.push("Unsupported or missing budget backup schema.");
   }
 
   if (schema === LEGACY_BUDGET_DATA_EXPORT_SCHEMA) {
-    warnings.push("Package uses the legacy v1.49/v1.50 data-export schema name; it is still supported as a budget backup.");
+    warnings.push(
+      "Package uses the legacy v1.49/v1.50 data-export schema name; it is still supported as a budget backup.",
+    );
   }
 
   if (!budget) {

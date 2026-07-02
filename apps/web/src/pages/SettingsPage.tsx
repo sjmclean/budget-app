@@ -20,6 +20,10 @@ import {
   restoreVersionHistorySnapshot,
   type VersionHistorySnapshotMetadata,
 } from "../features/budget/versionHistory";
+import {
+  createVersionHistorySnapshotBeforeBudgetDelete,
+  createVersionHistorySnapshotBeforeBudgetReset,
+} from "../features/budget/versionHistoryLifecycle";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { getPersistenceModeSummary } from "../features/persistence/persistenceMode";
 import {
@@ -487,6 +491,7 @@ export function SettingsPage() {
       return;
     }
 
+    createVersionHistorySnapshotBeforeBudgetReset(browserLocalStorageKeyValueStorage);
     const result = resetCurrentBudget(browserLocalStorageKeyValueStorage);
     refreshBudgets();
 
@@ -514,6 +519,10 @@ export function SettingsPage() {
     if (!confirmed) {
       setDataStatusMessage("Delete cancelled. No data has been changed.");
       return;
+    }
+
+    if (activeBudget?.id) {
+      createVersionHistorySnapshotBeforeBudgetDelete(browserLocalStorageKeyValueStorage, activeBudget.id);
     }
 
     const result = deleteCurrentBudget(browserLocalStorageKeyValueStorage);

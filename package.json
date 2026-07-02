@@ -436,7 +436,9 @@
     "test:v2470:new-budget-wizard": "tsx tests/v2470-new-budget-wizard.ts",
     "test:v2470": "pnpm test:v2461 && pnpm test:v2470:new-budget-wizard",
     "test:v2471:new-budget-category-checklist": "tsx tests/v2471-new-budget-category-checklist.ts",
-    "test:v2471": "pnpm test:v2470 && pnpm test:v2471:new-budget-category-checklist"
+    "test:v2471": "pnpm test:v2470 && pnpm test:v2471:new-budget-category-checklist",
+    "test:v2480:version-history-lifecycle": "tsx tests/v2480-version-history-lifecycle-expansion.ts",
+    "test:v2480": "pnpm test:v2471 && pnpm test:v2480:version-history-lifecycle"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

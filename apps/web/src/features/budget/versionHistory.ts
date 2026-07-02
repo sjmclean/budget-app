@@ -1,5 +1,5 @@
 import {
-  createBudgetDataExportPackage,
+  createBudgetDataExportPackageForBudget,
   restoreBudgetDataPackage,
   type BudgetDataExportPackage,
   type BudgetDataRestoreResult,
@@ -73,6 +73,10 @@ function resolveCurrentBudget(storage: KeyValueStoragePort): BudgetSummary | nul
   const budgets = readBudgetRegistry(storage);
   const selectedBudgetId = storage.getItem(SELECTED_BUDGET_STORAGE_KEY)?.trim() || null;
   return resolveActiveBudget(budgets, selectedBudgetId);
+}
+
+function resolveBudgetById(storage: KeyValueStoragePort, budgetId: string): BudgetSummary | null {
+  return readBudgetRegistry(storage).find((budget) => budget.id === budgetId) ?? null;
 }
 
 function getVersionHistoryIndexStorageKey(budgetId: string): string {
@@ -203,19 +207,18 @@ export function listVersionHistorySnapshots(
   return readVersionHistoryIndex(storage, resolvedBudgetId).snapshots;
 }
 
-export function createVersionHistorySnapshot(
+function createVersionHistorySnapshotForResolvedBudget(
   storage: KeyValueStoragePort,
+  activeBudget: BudgetSummary | null,
   input: CreateVersionHistorySnapshotInput = {},
 ): CreateVersionHistorySnapshotResult {
-  const activeBudget = resolveCurrentBudget(storage);
-
   if (!activeBudget) {
     return {
       created: false,
       retainedSnapshots: 0,
       prunedSnapshots: [],
       warnings: [],
-      errors: ["No active budget is available for version history."],
+      errors: ["No budget is available for version history."],
     };
   }
 
@@ -234,7 +237,7 @@ export function createVersionHistorySnapshot(
     ...(description ? { description } : {}),
   };
 
-  const budgetPackage = createBudgetDataExportPackage(storage, "backup", now);
+  const budgetPackage = createBudgetDataExportPackageForBudget(storage, "backup", activeBudget.id, now);
   const snapshotPackage: VersionHistorySnapshotPackage = {
     schema: VERSION_HISTORY_SNAPSHOT_SCHEMA,
     metadata,
@@ -266,6 +269,37 @@ export function createVersionHistorySnapshot(
     warnings: prunedSnapshots.length > 0 ? [`Pruned ${prunedSnapshots.length} old version history snapshot(s).`] : [],
     errors: [],
   };
+}
+
+export function createVersionHistorySnapshot(
+  storage: KeyValueStoragePort,
+  input: CreateVersionHistorySnapshotInput = {},
+): CreateVersionHistorySnapshotResult {
+  return createVersionHistorySnapshotForResolvedBudget(storage, resolveCurrentBudget(storage), input);
+}
+
+export function createVersionHistorySnapshotForBudget(
+  storage: KeyValueStoragePort,
+  budgetId: string,
+  input: CreateVersionHistorySnapshotInput = {},
+): CreateVersionHistorySnapshotResult {
+  const resolvedBudgetId = budgetId.trim();
+
+  if (!resolvedBudgetId) {
+    return {
+      created: false,
+      retainedSnapshots: 0,
+      prunedSnapshots: [],
+      warnings: [],
+      errors: ["No budget id was provided for version history."],
+    };
+  }
+
+  return createVersionHistorySnapshotForResolvedBudget(
+    storage,
+    resolveBudgetById(storage, resolvedBudgetId),
+    input,
+  );
 }
 
 export function readVersionHistorySnapshotPackage(
