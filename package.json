@@ -428,7 +428,9 @@
     "test:v2450:unified-budget-import-ux": "tsx tests/v2450-unified-budget-import-ux.ts",
     "test:v2450": "pnpm test:v2445 && pnpm test:v2450:unified-budget-import-ux",
     "test:v2455:ynab4-folder-selection": "tsx tests/v2455-ynab4-folder-selection.ts",
-    "test:v2455": "pnpm test:v2450 && pnpm test:v2455:ynab4-folder-selection"
+    "test:v2455": "pnpm test:v2450 && pnpm test:v2455:ynab4-folder-selection",
+    "test:v2460:register-selection-controller": "tsx tests/v2460-register-selection-controller.ts",
+    "test:v2460": "pnpm test:v2455 && pnpm test:v2460:register-selection-controller"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

@@ -1,11 +1,13 @@
 export interface RegisterSelectionState {
   selectedIds: string[];
   anchorId: string | null;
+  focusedId: string | null;
 }
 
 export const emptyRegisterSelectionState: RegisterSelectionState = {
   selectedIds: [],
   anchorId: null,
+  focusedId: null,
 };
 
 function uniqueIds(ids: string[]): string[] {
@@ -19,12 +21,23 @@ export function isRegisterTransactionSelected(
   return state.selectedIds.includes(transactionId);
 }
 
+export function focusRegisterTransaction(
+  state: RegisterSelectionState,
+  transactionId: string | null,
+): RegisterSelectionState {
+  return {
+    ...state,
+    focusedId: transactionId,
+  };
+}
+
 export function selectSingleRegisterTransaction(
   transactionId: string,
 ): RegisterSelectionState {
   return {
     selectedIds: [transactionId],
     anchorId: transactionId,
+    focusedId: transactionId,
   };
 }
 
@@ -40,6 +53,7 @@ export function toggleRegisterTransactionSelection(
   return {
     selectedIds,
     anchorId: transactionId,
+    focusedId: transactionId,
   };
 }
 
@@ -63,7 +77,12 @@ export function selectRegisterTransactionRange(
   return {
     selectedIds: uniqueIds([...state.selectedIds, ...rangeIds]),
     anchorId,
+    focusedId: transactionId,
   };
+}
+
+export function clearRegisterSelection(): RegisterSelectionState {
+  return emptyRegisterSelectionState;
 }
 
 export function pruneRegisterSelection(
@@ -74,6 +93,10 @@ export function pruneRegisterSelection(
   const selectedIds = state.selectedIds.filter((transactionId) =>
     availableIdSet.has(transactionId),
   );
+  const focusedId =
+    state.focusedId && availableIdSet.has(state.focusedId)
+      ? state.focusedId
+      : selectedIds.at(-1) ?? null;
 
   return {
     selectedIds,
@@ -81,5 +104,6 @@ export function pruneRegisterSelection(
       state.anchorId && availableIdSet.has(state.anchorId)
         ? state.anchorId
         : selectedIds.at(-1) ?? null,
+    focusedId,
   };
 }

@@ -12,10 +12,12 @@ import {
 const selectedSingle = selectSingleRegisterTransaction("tx-2");
 assert.deepEqual(selectedSingle.selectedIds, ["tx-2"]);
 assert.equal(selectedSingle.anchorId, "tx-2");
+assert.equal(selectedSingle.focusedId, "tx-2");
 
 const toggledOn = toggleRegisterTransactionSelection(selectedSingle, "tx-4");
 assert.deepEqual(toggledOn.selectedIds, ["tx-2", "tx-4"]);
 assert.equal(toggledOn.anchorId, "tx-4");
+assert.equal(toggledOn.focusedId, "tx-4");
 
 const toggledOff = toggleRegisterTransactionSelection(toggledOn, "tx-2");
 assert.deepEqual(toggledOff.selectedIds, ["tx-4"]);
@@ -27,13 +29,15 @@ const ranged = selectRegisterTransactionRange(
 );
 assert.deepEqual(ranged.selectedIds, ["tx-2", "tx-3", "tx-4", "tx-5"]);
 assert.equal(ranged.anchorId, "tx-2");
+assert.equal(ranged.focusedId, "tx-5");
 
 const pruned = pruneRegisterSelection(
-  { selectedIds: ["tx-2", "tx-3", "tx-9"], anchorId: "tx-9" },
+  { selectedIds: ["tx-2", "tx-3", "tx-9"], anchorId: "tx-9", focusedId: "tx-9" },
   ["tx-1", "tx-2", "tx-3"],
 );
 assert.deepEqual(pruned.selectedIds, ["tx-2", "tx-3"]);
 assert.equal(pruned.anchorId, "tx-3");
+assert.equal(pruned.focusedId, "tx-3");
 
 assert.deepEqual(
   pruneRegisterSelection(emptyRegisterSelectionState, ["tx-1"]),
@@ -70,9 +74,10 @@ assert.match(registerPage, /icon: Trash2/);
 assert.doesNotMatch(registerPage, />\s*Unclear\s*<\/button>/);
 assert.match(registerPage, /handleDeleteSelectedTransactions/);
 assert.match(registerPage, /<SelectionBar/);
-assert.match(registerPage, /setRegisterSelection\(emptyRegisterSelectionState\)/);
+assert.match(registerPage, /useRegisterSelection/);
+assert.match(registerPage, /registerSelection\.clear/);
 assert.match(registerPage, /selectedRegisterTransactionCount > 0/);
-assert.match(registerPage, /setRegisterSelection\(selectSingleRegisterTransaction\(transactionId\)\)/);
+assert.match(registerPage, /registerSelection\.selectSingle\(transactionId\)/);
 assert.doesNotMatch(registerPage, /selectedTransactionId/);
 assert.doesNotMatch(registerPage, /selectTransaction/);
 assert.doesNotMatch(registerPage, /register-selection-bar/);

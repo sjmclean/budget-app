@@ -32,13 +32,7 @@ import {
   getRegisterPaginationState,
   paginateRegisterItems,
 } from "../features/accounts/registerPagination";
-import {
-  emptyRegisterSelectionState,
-  pruneRegisterSelection,
-  selectRegisterTransactionRange,
-  selectSingleRegisterTransaction,
-  toggleRegisterTransactionSelection,
-} from "../features/accounts/registerSelection";
+import { useRegisterSelection } from "../features/accounts/useRegisterSelection";
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
 import { confirmDialog } from "../features/ui/appDialogService";
@@ -2892,9 +2886,6 @@ export function AccountRegisterPage() {
   const [activeRegisterSearchSuggestionIndex, setActiveRegisterSearchSuggestionIndex] =
     useState<number | null>(null);
   const registerSearchInputRef = useRef<HTMLInputElement | null>(null);
-  const [registerSelection, setRegisterSelection] = useState(
-    emptyRegisterSelectionState,
-  );
   const dateFormat = useDateFormatPreference();
   const developerPerformanceMode = useDeveloperPerformanceMode();
   const registerPerformanceTimingsRef = useRef<RegisterPerformanceTimings>({});
@@ -3087,9 +3078,10 @@ export function AccountRegisterPage() {
     [visibleTransactions],
   );
 
+  const registerSelection = useRegisterSelection(visibleTransactionIds);
   const selectedRegisterTransactionIds = registerSelection.selectedIds;
-  const selectedRegisterTransactionCount = selectedRegisterTransactionIds.length;
-  const hasBulkRegisterSelection = selectedRegisterTransactionCount > 0;
+  const selectedRegisterTransactionCount = registerSelection.selectedCount;
+  const hasBulkRegisterSelection = registerSelection.hasSelection;
   const selectedRegisterActionTransactionIds = selectedRegisterTransactionIds;
   const selectedRegisterActionTransactionCount =
     selectedRegisterActionTransactionIds.length;
@@ -3111,13 +3103,8 @@ export function AccountRegisterPage() {
     selectedRegisterActionTransactions.every((transaction) => transaction.cleared);
 
   useEffect(() => {
-    setRegisterSelection((currentSelection) =>
-      pruneRegisterSelection(
-        currentSelection,
-        registerTransactions.map((transaction) => transaction.id),
-      ),
-    );
-  }, [registerTransactions]);
+    registerSelection.prune(registerTransactions.map((transaction) => transaction.id));
+  }, [registerSelection.prune, registerTransactions]);
 
   const transactionById = useMemo(
     () =>
@@ -3310,27 +3297,13 @@ export function AccountRegisterPage() {
     (transactionId: string, event?: MouseEvent<HTMLElement>) => {
       setEditingTransactionId(null);
 
-      if (event?.shiftKey) {
-        setRegisterSelection((currentSelection) =>
-          selectRegisterTransactionRange(
-            currentSelection,
-            visibleTransactionIds,
-            transactionId,
-          ),
-        );
-        return;
-      }
-
-      if (event?.metaKey || event?.ctrlKey || selectedRegisterTransactionCount > 0) {
-        setRegisterSelection((currentSelection) =>
-          toggleRegisterTransactionSelection(currentSelection, transactionId),
-        );
-        return;
-      }
-
-      setRegisterSelection(selectSingleRegisterTransaction(transactionId));
+      registerSelection.selectFromPointer(transactionId, {
+        shiftKey: event?.shiftKey,
+        metaKey: event?.metaKey,
+        ctrlKey: event?.ctrlKey,
+      });
     },
-    [selectedRegisterTransactionCount, visibleTransactionIds],
+    [registerSelection],
   );
 
 
@@ -3338,18 +3311,16 @@ export function AccountRegisterPage() {
     (transactionId: string) => {
       setEditingTransactionId(null);
 
-      setRegisterSelection((currentSelection) =>
-        toggleRegisterTransactionSelection(currentSelection, transactionId),
-      );
+      registerSelection.toggle(transactionId);
     },
-    [],
+    [registerSelection],
   );
 
   const handleEditTransaction = useCallback((transactionId: string) => {
-    setRegisterSelection(selectSingleRegisterTransaction(transactionId));
+    registerSelection.selectSingle(transactionId);
     setShowEntryRow(false);
     setEditingTransactionId(transactionId);
-  }, []);
+  }, [registerSelection]);
 
   const handleToggleClearedTransaction = useCallback(
     (transactionId: string) => {
@@ -3358,9 +3329,7 @@ export function AccountRegisterPage() {
     [toggleCleared],
   );
 
-  const clearRegisterSelection = useCallback(() => {
-    setRegisterSelection(emptyRegisterSelectionState);
-  }, []);
+  const clearRegisterSelection = registerSelection.clear;
 
   const handleSetSelectedTransactionsCleared = useCallback(
     async (cleared: boolean) => {
@@ -3462,9 +3431,9 @@ export function AccountRegisterPage() {
 
 
   const handleManageTransactionAttachments = useCallback((transactionId: string) => {
-    setRegisterSelection(selectSingleRegisterTransaction(transactionId));
+    registerSelection.selectSingle(transactionId);
     setAttachmentTransactionId(transactionId);
-  }, []);
+  }, [registerSelection]);
 
   const handleUpdateTransactionFlag = useCallback(
     (transaction: RegisterTransactionView, flag: TransactionFlag) => {
@@ -4278,7 +4247,7 @@ export function AccountRegisterPage() {
                     transaction={transaction}
                     currencyCode={data.currencyCode}
                     dateFormat={dateFormat}
-                    isSelected={selectedRegisterTransactionIds.includes(transaction.id)}
+                    isSelected={registerSelection.isSelected(transaction.id)}
                     onSelectTransaction={handleSelectTransaction}
                     onToggleTransactionSelection={handleToggleTransactionSelection}
                     onEditTransaction={handleEditTransaction}
