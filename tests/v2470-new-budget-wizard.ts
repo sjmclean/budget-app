@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createBudgetFromSetup } from "../apps/web/src/features/budget/newBudget/createBudgetFromSetup";
-import { budgetTemplates, defaultNewBudgetSetup } from "../apps/web/src/features/budget/newBudget/budgetTemplates";
+import { countSelectedCategories, defaultNewBudgetSetup } from "../apps/web/src/features/budget/newBudget/budgetTemplates";
 import { readBudgetRegistry } from "../apps/web/src/features/budget/budgetRegistry";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort";
 
@@ -30,15 +30,20 @@ function readSource(relativePath: string): string {
   return readFileSync(path.join(process.cwd(), relativePath), "utf8");
 }
 
-function testBudgetTemplatesAreExtensible() {
-  assert.ok(budgetTemplates.some((template) => template.id === "blank"), "Expected a blank budget template");
-  assert.ok(budgetTemplates.some((template) => template.id === "starter"), "Expected a starter budget template");
-  assert.ok(budgetTemplates.some((template) => template.id === "simple"), "Expected a simple budget template");
-  assert.ok(budgetTemplates.some((template) => template.id === "household"), "Expected a household budget template");
+function testDefaultCategorySetupIsEditableSeed() {
+  assert.ok(defaultNewBudgetSetup.categoryGroups.length > 0, "Expected starter category groups");
+  assert.ok(countSelectedCategories(defaultNewBudgetSetup.categoryGroups) > 0, "Expected selected starter categories");
 }
 
-function testCreateBudgetFromSetupPersistsRegistryAndTemplateView() {
+function testCreateBudgetFromSetupPersistsRegistryAndSelectedCategories() {
   const storage = new MemoryStorage();
+  const categoryGroups = defaultNewBudgetSetup.categoryGroups.map((group) => ({
+    ...group,
+    categories: group.categories.map((category, index) => ({
+      ...category,
+      selected: index === 0,
+    })),
+  }));
   const budget = createBudgetFromSetup(storage, {
     ...defaultNewBudgetSetup,
     name: "Holiday Budget",
@@ -46,7 +51,7 @@ function testCreateBudgetFromSetupPersistsRegistryAndTemplateView() {
     dateFormat: "YYYY-MM-DD",
     numberFormat: "1 234,56",
     firstDayOfWeek: "sunday",
-    templateId: "simple",
+    categoryGroups,
   }, new Date("2026-07-02T00:00:00.000Z"));
 
   const budgets = readBudgetRegistry(storage);
@@ -61,8 +66,8 @@ function testCreateBudgetFromSetupPersistsRegistryAndTemplateView() {
   const budgetView = JSON.parse(storage.getItem("budget-app.budget-view.v1.holiday-budget.2026-07") ?? "null");
   assert.equal(budgetView.budgetName, "Holiday Budget");
   assert.equal(budgetView.currencyCode, "NZD");
-  assert.equal(budgetView.categoryGroups.length, 4);
-  assert.equal(budgetView.categoryGroups[0].name, "Income");
+  assert.equal(budgetView.categoryGroups.length, categoryGroups.length);
+  assert.equal(budgetView.categoryGroups[0].categories.length, 1);
 }
 
 function testWizardKeepsFastPathAndCustomPath() {
@@ -70,7 +75,8 @@ function testWizardKeepsFastPathAndCustomPath() {
   assert.match(wizardSource, /Create budget/, "Expected a one-click create path after entering a name");
   assert.match(wizardSource, /Customise setup/, "Expected optional customisation rather than mandatory screens");
   assert.match(wizardSource, /Regional settings/, "Expected regional settings step");
-  assert.match(wizardSource, /Choose categories/, "Expected category template step");
+  assert.match(wizardSource, /Choose categories/, "Expected category setup step");
+  assert.match(wizardSource, /Add category/, "Expected users to add categories during setup");
 
   const selectorSource = readSource("apps/web/src/pages/BudgetSelectorPage.tsx");
   assert.match(selectorSource, /Create Budget/, "Expected selector copy to use Create Budget terminology");
@@ -79,8 +85,8 @@ function testWizardKeepsFastPathAndCustomPath() {
 }
 
 function run() {
-  testBudgetTemplatesAreExtensible();
-  testCreateBudgetFromSetupPersistsRegistryAndTemplateView();
+  testDefaultCategorySetupIsEditableSeed();
+  testCreateBudgetFromSetupPersistsRegistryAndSelectedCategories();
   testWizardKeepsFastPathAndCustomPath();
   console.log("v2.47.0 new budget setup wizard checks passed");
 }

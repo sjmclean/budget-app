@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
 import {
-  budgetTemplates,
+  cloneNewBudgetCategoryGroups,
+  countSelectedCategories,
   defaultNewBudgetSetup,
-  getBudgetTemplate,
-  type BudgetTemplateId,
+  type NewBudgetCategoryGroupSetup,
   type NewBudgetSetup,
 } from "./budgetTemplates";
 import { currencyOptions } from "../../settings/settingsPreferences";
@@ -15,7 +15,7 @@ export interface NewBudgetWizardProps {
   onCreateBudget: (setup: NewBudgetSetup) => void;
 }
 
-type WizardStep = "details" | "regional" | "template" | "review";
+type WizardStep = "details" | "regional" | "categories" | "review";
 
 const dateFormatOptions = ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"] as const;
 const numberFormatOptions = ["1,234.56", "1.234,56", "1 234,56"] as const;
@@ -29,7 +29,7 @@ function getStepTitle(step: WizardStep): string {
   switch (step) {
     case "regional":
       return "Regional settings";
-    case "template":
+    case "categories":
       return "Choose categories";
     case "review":
       return "Review setup";
@@ -39,19 +39,131 @@ function getStepTitle(step: WizardStep): string {
   }
 }
 
+function makeSlug(value: string): string {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || "category";
+}
+
+function makeUniqueCategoryId(group: NewBudgetCategoryGroupSetup, name: string): string {
+  const base = makeSlug(name);
+  const existing = new Set(group.categories.map((category) => category.id));
+
+  if (!existing.has(base)) {
+    return base;
+  }
+
+  let index = 2;
+  while (existing.has(`${base}-${index}`)) {
+    index += 1;
+  }
+
+  return `${base}-${index}`;
+}
+
 export function NewBudgetWizard({ onBack, onCreateBudget }: NewBudgetWizardProps) {
   const [step, setStep] = useState<WizardStep>("details");
-  const [setup, setSetup] = useState<NewBudgetSetup>(defaultNewBudgetSetup);
+  const [setup, setSetup] = useState<NewBudgetSetup>(() => ({
+    ...defaultNewBudgetSetup,
+    categoryGroups: cloneNewBudgetCategoryGroups(defaultNewBudgetSetup.categoryGroups),
+  }));
   const [formError, setFormError] = useState<string | null>(null);
+  const [newCategoryNames, setNewCategoryNames] = useState<Record<string, string>>({});
 
-  const selectedTemplate = useMemo(
-    () => getBudgetTemplate(setup.templateId),
-    [setup.templateId],
-  );
+  const selectedCategoryCount = countSelectedCategories(setup.categoryGroups);
 
   function updateSetup(next: Partial<NewBudgetSetup>) {
     setSetup((current) => ({ ...current, ...next }));
     setFormError(null);
+  }
+
+  function updateCategoryGroups(
+    updater: (groups: NewBudgetCategoryGroupSetup[]) => NewBudgetCategoryGroupSetup[],
+  ) {
+    setSetup((current) => ({
+      ...current,
+      categoryGroups: updater(current.categoryGroups),
+    }));
+    setFormError(null);
+  }
+
+  function toggleGroup(groupId: string) {
+    updateCategoryGroups((groups) =>
+      groups.map((group) => {
+        if (group.id !== groupId) {
+          return group;
+        }
+
+        const nextSelected = !group.selected;
+        return {
+          ...group,
+          selected: nextSelected,
+          categories: group.categories.map((category) => ({
+            ...category,
+            selected: nextSelected,
+          })),
+        };
+      }),
+    );
+  }
+
+  function toggleCategory(groupId: string, categoryId: string) {
+    updateCategoryGroups((groups) =>
+      groups.map((group) => {
+        if (group.id !== groupId) {
+          return group;
+        }
+
+        const categories = group.categories.map((category) =>
+          category.id === categoryId
+            ? { ...category, selected: !category.selected }
+            : category,
+        );
+        const selectedCount = categories.filter((category) => category.selected).length;
+
+        return {
+          ...group,
+          selected: selectedCount > 0,
+          categories,
+        };
+      }),
+    );
+  }
+
+  function addCategory(groupId: string) {
+    const name = (newCategoryNames[groupId] ?? "").trim();
+
+    if (!name) {
+      setFormError("Enter a category name before adding it.");
+      return;
+    }
+
+    updateCategoryGroups((groups) =>
+      groups.map((group) => {
+        if (group.id !== groupId) {
+          return group;
+        }
+
+        return {
+          ...group,
+          selected: true,
+          categories: [
+            ...group.categories,
+            {
+              id: makeUniqueCategoryId(group, name),
+              name,
+              selected: true,
+              custom: true,
+            },
+          ],
+        };
+      }),
+    );
+    setNewCategoryNames((current) => ({ ...current, [groupId]: "" }));
   }
 
   function createBudget() {
@@ -63,7 +175,11 @@ export function NewBudgetWizard({ onBack, onCreateBudget }: NewBudgetWizardProps
       return;
     }
 
-    onCreateBudget({ ...setup, name });
+    onCreateBudget({
+      ...setup,
+      name,
+      categoryGroups: cloneNewBudgetCategoryGroups(setup.categoryGroups),
+    });
   }
 
   return (
@@ -78,12 +194,12 @@ export function NewBudgetWizard({ onBack, onCreateBudget }: NewBudgetWizardProps
         <p className="eyebrow">New budget setup</p>
         <h2>{getStepTitle(step)}</h2>
         <p>
-          Start with just a name, or customise regional settings and starter categories before creating the budget.
+          Start with just a name, or customise regional settings and choose the categories you want before creating the budget.
         </p>
       </div>
 
       <div className="new-budget-stepper" aria-label="Budget setup steps">
-        {(["details", "regional", "template", "review"] as WizardStep[]).map((item, index) => (
+        {(["details", "regional", "categories", "review"] as WizardStep[]).map((item, index) => (
           <button
             key={item}
             type="button"
@@ -121,7 +237,7 @@ export function NewBudgetWizard({ onBack, onCreateBudget }: NewBudgetWizardProps
           </div>
 
           <p className="new-budget-default-summary">
-            Uses AUD, DD/MM/YYYY, Monday week start, and Starter Budget categories unless customised.
+            Uses AUD, DD/MM/YYYY, Monday week start, and {selectedCategoryCount} starter categories unless customised.
           </p>
         </div>
       ) : null}
@@ -184,32 +300,76 @@ export function NewBudgetWizard({ onBack, onCreateBudget }: NewBudgetWizardProps
 
           <div className="new-budget-actions-wide">
             <Button type="button" variant="secondary" onClick={() => setStep("details")}>Back</Button>
-            <Button type="button" onClick={() => setStep("template")}>Next: categories</Button>
+            <Button type="button" onClick={() => setStep("categories")}>Next: categories</Button>
           </div>
         </div>
       ) : null}
 
-      {step === "template" ? (
+      {step === "categories" ? (
         <div className="new-budget-step-panel">
-          <div className="new-budget-template-grid">
-            {budgetTemplates.map((template) => (
-              <button
-                key={template.id}
-                type="button"
-                className={template.id === setup.templateId ? "new-budget-template-card is-selected" : "new-budget-template-card"}
-                onClick={() => updateSetup({ templateId: template.id as BudgetTemplateId })}
-              >
-                <span className="new-budget-template-radio" aria-hidden="true">
-                  {template.id === setup.templateId ? "●" : "○"}
-                </span>
-                <span>
-                  <strong>{template.name}</strong>
-                  <small>{template.description}</small>
-                  <em>{template.summary}</em>
-                </span>
-              </button>
-            ))}
+          <div className="new-budget-category-intro">
+            <div>
+              <h3>Choose starter categories</h3>
+              <p>Untick anything you do not need. Add extra categories now, or create more later from the Budget screen.</p>
+            </div>
+            <strong>{selectedCategoryCount} selected</strong>
           </div>
+
+          <div className="new-budget-category-list">
+            {setup.categoryGroups.map((group) => {
+              const groupSelectedCount = group.categories.filter((category) => category.selected).length;
+
+              return (
+                <section key={group.id} className="new-budget-category-group">
+                  <label className="new-budget-category-group-header">
+                    <input
+                      type="checkbox"
+                      checked={group.selected}
+                      onChange={() => toggleGroup(group.id)}
+                    />
+                    <span>
+                      <strong>{group.name}</strong>
+                      <small>{groupSelectedCount} of {group.categories.length} selected</small>
+                    </span>
+                  </label>
+
+                  <div className="new-budget-category-items">
+                    {group.categories.map((category) => (
+                      <label key={category.id} className="new-budget-category-item">
+                        <input
+                          type="checkbox"
+                          checked={group.selected && category.selected}
+                          onChange={() => toggleCategory(group.id, category.id)}
+                        />
+                        <span>{category.name}</span>
+                        {category.custom ? <em>Added</em> : null}
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="new-budget-add-category-row">
+                    <input
+                      className="text-input"
+                      value={newCategoryNames[group.id] ?? ""}
+                      onChange={(event) => setNewCategoryNames((current) => ({ ...current, [group.id]: event.target.value }))}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          addCategory(group.id);
+                        }
+                      }}
+                      placeholder={`Add category to ${group.name}`}
+                    />
+                    <Button type="button" variant="secondary" onClick={() => addCategory(group.id)}>
+                      Add
+                    </Button>
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+
+          {formError ? <p className="form-error">{formError}</p> : null}
 
           <div className="new-budget-actions-wide">
             <Button type="button" variant="secondary" onClick={() => setStep("regional")}>Back</Button>
@@ -226,13 +386,13 @@ export function NewBudgetWizard({ onBack, onCreateBudget }: NewBudgetWizardProps
             <div><dt>Date format</dt><dd>{setup.dateFormat}</dd></div>
             <div><dt>Number format</dt><dd>{setup.numberFormat}</dd></div>
             <div><dt>Week starts</dt><dd>{firstDayOptions.find((option) => option.value === setup.firstDayOfWeek)?.label}</dd></div>
-            <div><dt>Categories</dt><dd>{selectedTemplate.name}</dd></div>
+            <div><dt>Categories</dt><dd>{selectedCategoryCount} selected</dd></div>
           </dl>
 
           {formError ? <p className="form-error">{formError}</p> : null}
 
           <div className="new-budget-actions-wide">
-            <Button type="button" variant="secondary" onClick={() => setStep("template")}>Back</Button>
+            <Button type="button" variant="secondary" onClick={() => setStep("categories")}>Back</Button>
             <Button type="button" onClick={createBudget}>Create budget</Button>
           </div>
         </div>

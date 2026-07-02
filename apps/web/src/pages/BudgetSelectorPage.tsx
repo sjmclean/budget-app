@@ -191,14 +191,10 @@ export function BudgetSelectorPage() {
                       <p className="eyebrow">No budgets yet</p>
                       <h2>Create your first budget</h2>
                       <p>
-                        Start with a blank budget or import your existing YNAB4
-                        history. Restore, cloud, CSV, and templates are queued
-                        as future launch paths.
+                        Use the Create Budget action below to start from scratch,
+                        or import an existing budget when you already have one.
                       </p>
                     </div>
-                    <Button type="button" onClick={() => setLaunchMode("choose")}>
-                      + New budget…
-                    </Button>
                   </div>
                 ) : null}
 
@@ -255,8 +251,7 @@ export function BudgetSelectorPage() {
                 <p className="eyebrow">New</p>
                 <h2>Start a budget</h2>
                 <p>
-                  Create a blank budget, import YNAB4, restore a backup, or
-                  see what import paths are coming next.
+                  Create a budget from scratch, or import an existing budget file.
                 </p>
               </div>
               <Button type="button" onClick={() => setLaunchMode("choose")}>
@@ -330,7 +325,7 @@ export function BudgetSelectorPage() {
               <ul>
                 <li>Cloud budget continuation</li>
                 <li>Transaction import remains separate from budget migration</li>
-                <li>More budget templates</li>
+                <li>More starter category suggestions</li>
               </ul>
             </div>
           </Card>
