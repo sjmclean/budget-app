@@ -13,6 +13,7 @@ export type CategoryPersistencePort = Pick<
   BudgetViewService,
   | "getBudgetMonthView"
   | "updateAssigned"
+  | "coverOverspending"
   | "renameCategory"
   | "setCategoryArchived"
   | "moveCategory"

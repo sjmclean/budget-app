@@ -4994,3 +4994,45 @@ strong {
     justify-content: flex-start;
   }
 }
+
+.overspending-resolution-panel {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid rgba(185, 28, 28, 0.2);
+  border-radius: 1rem;
+  background: rgba(254, 242, 242, 0.75);
+}
+
+.overspending-resolution-panel h3 {
+  margin: 0 0 0.25rem;
+  color: #991b1b;
+}
+
+.overspending-resolution-controls {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.overspending-resolution-field {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.overspending-resolution-field select,
+.overspending-resolution-field input {
+  border: 1px solid rgba(148, 163, 184, 0.55);
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  font: inherit;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.form-error-text {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.85rem;
+  font-weight: 700;
+}

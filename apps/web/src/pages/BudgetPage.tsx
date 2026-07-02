@@ -458,11 +458,151 @@ function BudgetGroup({
   );
 }
 
+
+interface OverspendingCoverOption {
+  id: string;
+  name: string;
+  groupName: string;
+  available: number;
+}
+
+function OverspendingResolutionPanel({
+  category,
+  currencyCode,
+  coverOptions,
+  onCoverOverspending,
+}: {
+  category: BudgetCategoryView;
+  currencyCode: string;
+  coverOptions: OverspendingCoverOption[];
+  onCoverOverspending: (input: {
+    overspentCategoryId: string;
+    coveringCategoryId: string;
+    amount: number;
+  }) => void;
+}) {
+  const overspentAmount = Math.abs(Math.min(0, category.available));
+  const availableCoverOptions = coverOptions.filter(
+    (option) => option.id !== category.id && option.available > 0,
+  );
+  const [coveringCategoryId, setCoveringCategoryId] = useState(
+    availableCoverOptions[0]?.id ?? "",
+  );
+  const [amountDraft, setAmountDraft] = useState(overspentAmount.toFixed(2));
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAmountDraft(overspentAmount.toFixed(2));
+    setCoveringCategoryId((current) =>
+      availableCoverOptions.some((option) => option.id === current)
+        ? current
+        : availableCoverOptions[0]?.id ?? "",
+    );
+    setError(null);
+  }, [category.id, overspentAmount, availableCoverOptions.map((option) => option.id).join("|")]);
+
+  const selectedCoveringCategory = availableCoverOptions.find(
+    (option) => option.id === coveringCategoryId,
+  );
+
+  function cover() {
+    const amount = Number(amountDraft);
+
+    if (!selectedCoveringCategory) {
+      setError("Choose a category with available money to cover this overspending.");
+      return;
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError("Enter a positive amount to cover.");
+      return;
+    }
+
+    if (amount > overspentAmount) {
+      setError("The cover amount cannot be more than the overspent amount.");
+      return;
+    }
+
+    if (amount > selectedCoveringCategory.available) {
+      setError("That category does not have enough available money.");
+      return;
+    }
+
+    setError(null);
+    onCoverOverspending({
+      overspentCategoryId: category.id,
+      coveringCategoryId,
+      amount,
+    });
+  }
+
+  if (overspentAmount <= 0) {
+    return null;
+  }
+
+  return (
+    <div className="overspending-resolution-panel">
+      <div>
+        <h3>Needs attention</h3>
+        <p className="muted">
+          {category.name} is overspent by {formatMoney(overspentAmount, currencyCode)}.
+          Cover it by moving money from another category.
+        </p>
+      </div>
+
+      {availableCoverOptions.length > 0 ? (
+        <div className="overspending-resolution-controls">
+          <label className="overspending-resolution-field">
+            <span>Cover from</span>
+            <select
+              value={coveringCategoryId}
+              onChange={(event) => {
+                setCoveringCategoryId(event.target.value);
+                setError(null);
+              }}
+            >
+              {availableCoverOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.groupName} / {option.name} · {formatMoney(option.available, currencyCode)} available
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="overspending-resolution-field">
+            <span>Amount</span>
+            <input
+              value={amountDraft}
+              onChange={(event) => {
+                setAmountDraft(event.target.value);
+                setError(null);
+              }}
+              inputMode="decimal"
+            />
+          </label>
+
+          {error ? <p className="form-error-text">{error}</p> : null}
+
+          <button className="button button-primary" type="button" onClick={cover}>
+            Cover overspending
+          </button>
+        </div>
+      ) : (
+        <p className="muted">
+          No other category currently has available money to cover this overspending.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function CategoryInspector({
   category,
   group,
   currencyCode,
   isOverassignedSource,
+  coverOptions,
+  onCoverOverspending,
   onSetCategoryArchived,
   onOpenManageCategory,
 }: {
@@ -470,6 +610,12 @@ function CategoryInspector({
   group: BudgetCategoryGroupView | null;
   currencyCode: string;
   isOverassignedSource: boolean;
+  coverOptions: OverspendingCoverOption[];
+  onCoverOverspending: (input: {
+    overspentCategoryId: string;
+    coveringCategoryId: string;
+    amount: number;
+  }) => void;
   onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   onOpenManageCategory: () => void;
 }) {
@@ -533,6 +679,15 @@ function CategoryInspector({
           <strong>{statusLabel}</strong>
         </div>
       </div>
+
+      {isMoneyNegative(category.available) ? (
+        <OverspendingResolutionPanel
+          category={category}
+          currencyCode={currencyCode}
+          coverOptions={coverOptions}
+          onCoverOverspending={onCoverOverspending}
+        />
+      ) : null}
 
       {hasCategoryNote || hasGroupNote ? (
         <div className="inspector-note category-details-note-summary">
@@ -894,6 +1049,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     overassignedCategoryIds,
     selectCategory,
     updateAssigned,
+    coverOverspending,
     renameCategory,
     setCategoryArchived,
     moveCategoryToPosition,
@@ -988,6 +1144,17 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
       count +
       group.categories.filter((category) => isMoneyNegative(category.available)).length,
     0,
+  );
+
+  const coverOptions = data.categoryGroups.flatMap((group) =>
+    group.categories
+      .filter((category) => !category.isArchived)
+      .map((category) => ({
+        id: category.id,
+        name: category.name,
+        groupName: group.name,
+        available: category.available,
+      })),
   );
 
   function findCategoryLocation(categoryId: string) {
@@ -1235,6 +1402,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             group={visibleSelectedGroup}
             currencyCode={data.currencyCode}
             isOverassignedSource={selectedCategoryIsOverassignedSource}
+            coverOptions={coverOptions}
+            onCoverOverspending={coverOverspending}
             onSetCategoryArchived={setCategoryArchived}
             onOpenManageCategory={() => setIsCategoryManagerOpen(true)}
           />

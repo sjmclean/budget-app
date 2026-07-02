@@ -677,6 +677,71 @@ export function createBudgetViewService(
     );
   },
 
+  async coverOverspending({ budgetId, month, overspentCategoryId, coveringCategoryId, amount }) {
+    if (amount <= 0) {
+      throw new Error("Cover amount must be positive.");
+    }
+
+    if (overspentCategoryId === coveringCategoryId) {
+      throw new Error("Choose a different category to cover overspending.");
+    }
+
+    const current = await loadBudgetView(dependencies, budgetId, month);
+    const overspentCategory = findCategoryById(current, overspentCategoryId);
+    const coveringCategory = findCategoryById(current, coveringCategoryId);
+
+    if (!overspentCategory) {
+      throw new Error("Overspent category was not found.");
+    }
+
+    if (!coveringCategory) {
+      throw new Error("Covering category was not found.");
+    }
+
+    const overspentAmount = Math.abs(Math.min(0, overspentCategory.available));
+
+    if (overspentAmount <= 0) {
+      throw new Error("Category is not overspent.");
+    }
+
+    if (amount > overspentAmount) {
+      throw new Error("Cover amount cannot exceed the overspent amount.");
+    }
+
+    if (coveringCategory.available < amount) {
+      throw new Error("Covering category has insufficient available funds.");
+    }
+
+    const nextGroups = current.categoryGroups.map((group) => ({
+      ...group,
+      categories: group.categories.map((category) => {
+        if (category.id === overspentCategoryId) {
+          return {
+            ...category,
+            assigned: normaliseMoney(category.assigned + amount),
+          };
+        }
+
+        if (category.id === coveringCategoryId) {
+          return {
+            ...category,
+            assigned: normaliseMoney(category.assigned - amount),
+          };
+        }
+
+        return category;
+      }),
+    }));
+
+    return saveBudgetView(dependencies,
+      {
+        ...current,
+        categoryGroups: nextGroups,
+      },
+      month,
+    );
+  },
+
   async renameCategory({ budgetId, month, categoryId, name }) {
     const trimmedName = name.trim();
 

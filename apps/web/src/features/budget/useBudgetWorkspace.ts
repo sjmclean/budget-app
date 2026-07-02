@@ -25,6 +25,11 @@ interface UseBudgetWorkspaceState {
   closeActivityDrilldown: () => void;
   selectCategory: (categoryId: string) => void;
   updateAssigned: (categoryId: string, assigned: number) => void;
+  coverOverspending: (input: {
+    overspentCategoryId: string;
+    coveringCategoryId: string;
+    amount: number;
+  }) => void;
   renameCategory: (categoryId: string, name: string) => void;
   setCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   moveCategory: (categoryId: string, direction: "up" | "down") => void;
@@ -178,6 +183,35 @@ export function useBudgetWorkspace(
           error instanceof Error
             ? error.message
             : "Failed to save category assignment.",
+        );
+      });
+  }
+
+  function coverOverspending(input: {
+    overspentCategoryId: string;
+    coveringCategoryId: string;
+    amount: number;
+  }) {
+    setLastEditedCategoryId(input.overspentCategoryId);
+    setSaveError(null);
+
+    void categoriesPersistence
+      .coverOverspending({
+        budgetId,
+        month,
+        overspentCategoryId: input.overspentCategoryId,
+        coveringCategoryId: input.coveringCategoryId,
+        amount: input.amount,
+      })
+      .then((nextData) => {
+        setEditedData(nextData);
+        setSelectedCategoryId(input.overspentCategoryId);
+      })
+      .catch((error) => {
+        setSaveError(
+          error instanceof Error
+            ? error.message
+            : "Failed to cover overspending.",
         );
       });
   }
@@ -443,6 +477,7 @@ export function useBudgetWorkspace(
     closeActivityDrilldown,
     selectCategory,
     updateAssigned,
+    coverOverspending,
     renameCategory,
     setCategoryArchived,
     moveCategory,

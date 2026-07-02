@@ -109,6 +109,14 @@ export interface BudgetViewService {
     assigned: number;
   }): Promise<BudgetMonthView>;
 
+  coverOverspending(input: {
+    budgetId: string;
+    month: string;
+    overspentCategoryId: string;
+    coveringCategoryId: string;
+    amount: number;
+  }): Promise<BudgetMonthView>;
+
   renameCategory(input: {
     budgetId: string;
     month: string;
