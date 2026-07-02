@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import {
   createBudgetRegistryEntry,
-  deleteBudgetRegistryEntry,
   markBudgetOpened as markBudgetRegistryOpened,
   readBudgetRegistry,
   updateBudgetRegistryEntry,
@@ -15,6 +14,7 @@ import {
   createVersionHistorySnapshotAfterYnab4Import,
   createVersionHistorySnapshotBeforeBudgetSwitch,
 } from "../features/budget/versionHistoryLifecycle";
+import { deleteBudgetById, type BudgetLifecycleResult } from "../features/budget/budgetLifecycle";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 
 interface BudgetRegistryState {
@@ -24,7 +24,7 @@ interface BudgetRegistryState {
   importActualBudget: (input: CreateActualBudgetLauncherImportInput) => Promise<ActualBudgetLauncherImportResult>;
   updateBudget: (budgetId: string, input: UpdateBudgetRegistryInput) => BudgetSummary | null;
   markBudgetOpened: (budgetId: string) => BudgetSummary | null;
-  deleteBudget: (budgetId: string) => void;
+  deleteBudget: (budgetId: string) => BudgetLifecycleResult;
   refreshBudgets: () => void;
 }
 
@@ -67,8 +67,9 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
   },
 
   deleteBudget: (budgetId) => {
-    const budgets = deleteBudgetRegistryEntry(browserLocalStorageKeyValueStorage, budgetId);
-    set({ budgets });
+    const result = deleteBudgetById(browserLocalStorageKeyValueStorage, budgetId);
+    set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
+    return result;
   },
 
   refreshBudgets: () => {

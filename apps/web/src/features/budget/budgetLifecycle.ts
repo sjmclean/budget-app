@@ -169,6 +169,40 @@ export function resetCurrentBudget(storage: KeyValueStoragePort, now = new Date(
   };
 }
 
+export function deleteBudgetById(storage: KeyValueStoragePort, budgetId: string): BudgetLifecycleResult {
+  const budgetToDelete = readBudgetRegistry(storage).find((budget) => budget.id === budgetId) ?? null;
+
+  if (!budgetToDelete) {
+    return {
+      completed: false,
+      removedRecords: 0,
+      writtenRecords: 0,
+      remainingBudgets: readBudgetRegistry(storage).length,
+      warnings: [],
+      errors: ["The selected budget could not be found."],
+    };
+  }
+
+  const removedRecords = removeBudgetScopedRecords(storage, budgetToDelete.id);
+  const remainingBudgets = deleteBudgetRegistryEntry(storage, budgetToDelete.id);
+  const selectedBudgetId = storage.getItem(SELECTED_BUDGET_STORAGE_KEY)?.trim() || null;
+
+  if (selectedBudgetId === budgetToDelete.id) {
+    storage.removeItem(SELECTED_BUDGET_STORAGE_KEY);
+  }
+
+  return {
+    completed: true,
+    budgetId: budgetToDelete.id,
+    budgetName: budgetToDelete.name,
+    removedRecords,
+    writtenRecords: 0,
+    remainingBudgets: remainingBudgets.length,
+    warnings: remainingBudgets.length === 0 ? ["No budgets remain. The budget selector will show the first-run state."] : [],
+    errors: [],
+  };
+}
+
 export function deleteCurrentBudget(storage: KeyValueStoragePort): BudgetLifecycleResult {
   const activeBudget = resolveCurrentBudget(storage);
 
@@ -183,18 +217,5 @@ export function deleteCurrentBudget(storage: KeyValueStoragePort): BudgetLifecyc
     };
   }
 
-  const removedRecords = removeBudgetScopedRecords(storage, activeBudget.id);
-  const remainingBudgets = deleteBudgetRegistryEntry(storage, activeBudget.id);
-  storage.removeItem(SELECTED_BUDGET_STORAGE_KEY);
-
-  return {
-    completed: true,
-    budgetId: activeBudget.id,
-    budgetName: activeBudget.name,
-    removedRecords,
-    writtenRecords: 0,
-    remainingBudgets: remainingBudgets.length,
-    warnings: remainingBudgets.length === 0 ? ["No budgets remain. The budget selector will show the first-run state."] : [],
-    errors: [],
-  };
+  return deleteBudgetById(storage, activeBudget.id);
 }

@@ -36,13 +36,19 @@ export function BudgetSelectorPage() {
   const importActualBudget = useBudgetRegistryStore(
     (state) => state.importActualBudget,
   );
+  const deleteBudget = useBudgetRegistryStore((state) => state.deleteBudget);
   const markBudgetOpened = useBudgetRegistryStore(
     (state) => state.markBudgetOpened,
   );
+  const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const selectBudget = useUIStore((state) => state.selectBudget);
+  const clearSelectedBudget = useUIStore((state) => state.clearSelectedBudget);
   const [launchMode, setLaunchMode] = useState<LaunchMode>("list");
   const [budgetName, setBudgetName] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [deleteBudgetId, setDeleteBudgetId] = useState<string | null>(null);
+  const [deleteConfirmationName, setDeleteConfirmationName] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const sortedBudgets = useMemo(
     () =>
@@ -51,6 +57,15 @@ export function BudgetSelectorPage() {
       ),
     [budgets],
   );
+
+  const budgetPendingDelete = useMemo(
+    () => budgets.find((budget) => budget.id === deleteBudgetId) ?? null,
+    [budgets, deleteBudgetId],
+  );
+
+  const deleteConfirmationMatches =
+    Boolean(budgetPendingDelete) &&
+    deleteConfirmationName.trim() === budgetPendingDelete?.name;
 
   function handleOpenBudget(budgetId: string) {
     markBudgetOpened(budgetId);
@@ -61,6 +76,52 @@ export function BudgetSelectorPage() {
   function handleReturnToBudgets() {
     setLaunchMode("list");
     setFormError(null);
+  }
+
+  function handleRequestDeleteBudget(budgetId: string) {
+    setDeleteBudgetId(budgetId);
+    setDeleteConfirmationName("");
+    setDeleteError(null);
+  }
+
+  function handleCancelDeleteBudget() {
+    setDeleteBudgetId(null);
+    setDeleteConfirmationName("");
+    setDeleteError(null);
+  }
+
+  function handleConfirmDeleteBudget() {
+    if (!budgetPendingDelete) {
+      setDeleteError("The selected budget could not be found.");
+      return;
+    }
+
+    if (!deleteConfirmationMatches) {
+      setDeleteError("Type the budget name exactly to confirm deletion.");
+      return;
+    }
+
+    const wasSelectedBudget = selectedBudgetId === budgetPendingDelete.id;
+    const nextBudget = sortedBudgets.find(
+      (budget) => budget.id !== budgetPendingDelete.id,
+    );
+    const result = deleteBudget(budgetPendingDelete.id);
+
+    if (!result.completed) {
+      setDeleteError(result.errors[0] ?? "The budget could not be deleted.");
+      return;
+    }
+
+    if (wasSelectedBudget) {
+      if (nextBudget) {
+        selectBudget(nextBudget.id);
+      } else {
+        clearSelectedBudget();
+      }
+    }
+
+    handleCancelDeleteBudget();
+    setLaunchMode("list");
   }
 
   function handleCreateBudget() {
@@ -151,11 +212,18 @@ export function BudgetSelectorPage() {
                 ) : null}
 
                 {sortedBudgets.map((budget) => (
-                  <button
+                  <div
                     key={budget.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     className="budget-row-card budget-row-card-premium"
                     onClick={() => handleOpenBudget(budget.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        handleOpenBudget(budget.id);
+                      }
+                    }}
                   >
                     <span className="budget-row-icon" aria-hidden="true">
                       ▣
@@ -170,10 +238,23 @@ export function BudgetSelectorPage() {
                       </span>
                     </span>
                     <span className="budget-row-open-label">Open</span>
+                    <button
+                      type="button"
+                      className="budget-row-delete-button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleRequestDeleteBudget(budget.id);
+                      }}
+                      onKeyDown={(event) => {
+                        event.stopPropagation();
+                      }}
+                    >
+                      Delete…
+                    </button>
                     <span className="budget-row-chevron" aria-hidden="true">
                       ›
                     </span>
-                  </button>
+                  </div>
                 ))}
               </div>
             </section>
@@ -310,6 +391,59 @@ export function BudgetSelectorPage() {
             onImportedBudgetSelected={selectBudget}
             onOpenBudget={handleOpenBudget}
           />
+        ) : null}
+
+        {budgetPendingDelete ? (
+          <div className="app-dialog-backdrop" role="presentation">
+            <section
+              className="app-dialog budget-delete-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="budget-delete-title"
+            >
+              <h2 id="budget-delete-title" className="app-dialog-title">
+                Delete “{budgetPendingDelete.name}”?
+              </h2>
+              <p className="app-dialog-message">
+                This permanently removes this budget's accounts, transactions,
+                categories, budget months, payees, and scheduled transactions.
+              </p>
+              {sortedBudgets.length === 1 ? (
+                <p className="budget-delete-warning">
+                  This is your last budget. After deletion, the Budget Selector
+                  will return to the empty state so you can create or import a
+                  new budget.
+                </p>
+              ) : null}
+              <label className="form-field budget-delete-confirm-field">
+                <span className="field-label">
+                  Type {budgetPendingDelete.name} to confirm
+                </span>
+                <input
+                  className="text-input"
+                  value={deleteConfirmationName}
+                  onChange={(event) => {
+                    setDeleteConfirmationName(event.target.value);
+                    setDeleteError(null);
+                  }}
+                />
+              </label>
+              {deleteError ? <p className="form-error">{deleteError}</p> : null}
+              <div className="app-dialog-actions">
+                <Button type="button" variant="secondary" onClick={handleCancelDeleteBudget}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="button-danger"
+                  disabled={!deleteConfirmationMatches}
+                  onClick={handleConfirmDeleteBudget}
+                >
+                  Delete Budget
+                </Button>
+              </div>
+            </section>
+          </div>
         ) : null}
       </section>
     </main>
