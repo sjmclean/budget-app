@@ -14,8 +14,6 @@ import {
 import { deleteCurrentBudget, resetCurrentBudget } from "../features/budget/budgetLifecycle";
 import { resolveActiveBudget } from "../features/budget/activeBudget";
 import {
-  createVersionHistorySnapshot,
-  deleteVersionHistorySnapshot,
   listVersionHistorySnapshots,
   restoreVersionHistorySnapshot,
   type VersionHistorySnapshotMetadata,
@@ -229,7 +227,6 @@ export function SettingsPage({
     listVersionHistorySnapshots(browserLocalStorageKeyValueStorage),
   );
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
-  const [restorePointDescription, setRestorePointDescription] = useState("");
   const currentSection = settingsSections.find((section) => section.id === activeSection) ?? settingsSections[0];
   const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
   const selectedSnapshot =
@@ -410,23 +407,6 @@ export function SettingsPage({
     );
   }
 
-  function createManualRestorePoint() {
-    const result = createVersionHistorySnapshot(browserLocalStorageKeyValueStorage, {
-      source: "manual",
-      description: restorePointDescription,
-    });
-
-    if (!result.created) {
-      setDataStatusMessage(result.errors[0] ?? "Could not create restore point.");
-      return;
-    }
-
-    setRestorePointDescription("");
-    refreshVersionHistory();
-    setSelectedSnapshotId(result.snapshot?.id ?? null);
-    setDataStatusMessage("Restore point created.");
-  }
-
   async function restoreSelectedSnapshot() {
     if (!selectedSnapshot) {
       setDataStatusMessage("Choose a restore point before restoring.");
@@ -434,9 +414,9 @@ export function SettingsPage({
     }
 
     const confirmed = await confirmDialog({
-      title: "Restore budget history point?",
+      title: "Restore budget from restore point?",
       message: `This will replace the current ${selectedSnapshot.budgetName} budget with the version from ${formatHistoryDateTime(selectedSnapshot.createdAt)}.`,
-      confirmLabel: "Restore point",
+      confirmLabel: "Restore",
       tone: "danger",
     });
 
@@ -454,35 +434,6 @@ export function SettingsPage({
 
     refreshVersionHistory();
     setDataStatusMessage(`Restored ${selectedSnapshot.budgetName} to ${formatHistoryDateTime(selectedSnapshot.createdAt)}.`);
-  }
-
-  async function deleteSelectedSnapshot() {
-    if (!selectedSnapshot) {
-      setDataStatusMessage("Choose a restore point before deleting.");
-      return;
-    }
-
-    const confirmed = await confirmDialog({
-      title: "Delete restore point?",
-      message: `Delete the restore point from ${formatHistoryDateTime(selectedSnapshot.createdAt)}? This does not change your current budget.`,
-      confirmLabel: "Delete restore point",
-      tone: "danger",
-    });
-
-    if (!confirmed) {
-      setDataStatusMessage("Delete cancelled. No data has been changed.");
-      return;
-    }
-
-    const deleted = deleteVersionHistorySnapshot(browserLocalStorageKeyValueStorage, selectedSnapshot.id);
-
-    if (!deleted) {
-      setDataStatusMessage("Restore point could not be deleted.");
-      return;
-    }
-
-    refreshVersionHistory();
-    setDataStatusMessage("Restore point deleted.");
   }
 
   async function handleResetCurrentBudget() {
@@ -935,7 +886,7 @@ export function SettingsPage({
                     <h2>Restore Points</h2>
                     <p className="muted">
                       Budget App automatically keeps the last 30 restore points for {activeBudget?.name ?? "the active budget"}.
-                      Create a restore point before making major changes if you want to add a description.
+                      Choose a point in time and restore when you need to recover your budget.
                     </p>
                   </div>
                   <Button type="button" variant="ghost" onClick={() => setDataView("overview")}>
@@ -943,21 +894,6 @@ export function SettingsPage({
                   </Button>
                 </div>
 
-                <div className="settings-history-create">
-                  <label className="settings-field">
-                    <span>Create restore point</span>
-                    <input
-                      className="settings-input"
-                      value={restorePointDescription}
-                      onChange={(event) => setRestorePointDescription(event.target.value)}
-                      placeholder="Description optional, e.g. Before EOFY"
-                    />
-                    <small>This creates a normal history entry and counts toward the 30 restore point limit.</small>
-                  </label>
-                  <Button type="button" variant="secondary" onClick={createManualRestorePoint}>
-                    Create Restore Point
-                  </Button>
-                </div>
 
                 <div className="settings-history-layout">
                   <div className="settings-history-list" aria-label="Budget history restore points">
@@ -1021,13 +957,10 @@ export function SettingsPage({
                         </dl>
 
                         <p className="settings-history-warning">
-                          Restoring replaces your current budget with the selected version.
+                          Restoring replaces your current budget with the selected version. Budget App creates safety restore points automatically before major changes.
                         </p>
 
-                        <div className="settings-history-actions">
-                          <Button type="button" variant="secondary" onClick={deleteSelectedSnapshot}>
-                            Delete
-                          </Button>
+                        <div className="settings-history-actions settings-history-actions--restore-only">
                           <Button type="button" variant="primary" onClick={restoreSelectedSnapshot}>
                             Restore
                           </Button>
