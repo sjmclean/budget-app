@@ -6,6 +6,9 @@ export interface BudgetSummary {
   id: string;
   name: string;
   currency: string;
+  dateFormat?: string;
+  numberFormat?: string;
+  firstDayOfWeek?: string;
   lastOpenedLabel: string;
   packagePath: string;
   createdAt: string;
@@ -15,6 +18,9 @@ export interface BudgetSummary {
 export interface CreateBudgetRegistryInput {
   name?: string;
   currency?: string;
+  dateFormat?: string;
+  numberFormat?: string;
+  firstDayOfWeek?: string;
   packagePath?: string;
   now?: Date;
 }
@@ -22,6 +28,9 @@ export interface CreateBudgetRegistryInput {
 export interface UpdateBudgetRegistryInput {
   name?: string;
   currency?: string;
+  dateFormat?: string;
+  numberFormat?: string;
+  firstDayOfWeek?: string;
   packagePath?: string;
   lastOpenedLabel?: string;
   now?: Date;
@@ -87,6 +96,9 @@ function normaliseBudgetSummary(value: unknown): BudgetSummary | null {
     id,
     name,
     currency,
+    dateFormat: readString(value.dateFormat, "DD/MM/YYYY"),
+    numberFormat: readString(value.numberFormat, "1,234.56"),
+    firstDayOfWeek: readString(value.firstDayOfWeek, "monday"),
     packagePath,
     createdAt,
     updatedAt,
@@ -102,6 +114,9 @@ export function createInitialBudgetRegistry(now = new Date()): BudgetSummary[] {
       id: "household",
       name: "Household Budget",
       currency: "AUD",
+      dateFormat: "DD/MM/YYYY",
+      numberFormat: "1,234.56",
+      firstDayOfWeek: "monday",
       lastOpenedLabel: "Not opened yet",
       packagePath: "~/Budgets/Household.budget",
       createdAt: timestamp,
@@ -155,6 +170,9 @@ export function createBudgetRegistryEntry(
     id,
     name,
     currency,
+    dateFormat: input.dateFormat?.trim() || "DD/MM/YYYY",
+    numberFormat: input.numberFormat?.trim() || "1,234.56",
+    firstDayOfWeek: input.firstDayOfWeek?.trim() || "monday",
     lastOpenedLabel: "Not opened yet",
     packagePath: input.packagePath?.trim() || `~/Budgets/${name.replace(/\s+/g, "")}.budget`,
     createdAt: timestamp,
@@ -183,6 +201,9 @@ export function updateBudgetRegistryEntry(
       ...budget,
       name: input.name?.trim() || budget.name,
       currency: input.currency?.trim().toUpperCase() || budget.currency,
+      dateFormat: input.dateFormat?.trim() || budget.dateFormat,
+      numberFormat: input.numberFormat?.trim() || budget.numberFormat,
+      firstDayOfWeek: input.firstDayOfWeek?.trim() || budget.firstDayOfWeek,
       packagePath: input.packagePath?.trim() || budget.packagePath,
       lastOpenedLabel: input.lastOpenedLabel?.trim() || budget.lastOpenedLabel,
       updatedAt: timestamp,

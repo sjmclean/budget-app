@@ -15,11 +15,14 @@ import {
   createVersionHistorySnapshotBeforeBudgetSwitch,
 } from "../features/budget/versionHistoryLifecycle";
 import { deleteBudgetById, type BudgetLifecycleResult } from "../features/budget/budgetLifecycle";
+import { createBudgetFromSetup } from "../features/budget/newBudget/createBudgetFromSetup";
+import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 
 interface BudgetRegistryState {
   budgets: BudgetSummary[];
   createBudget: (input?: CreateBudgetRegistryInput) => BudgetSummary;
+  createBudgetWithSetup: (setup: NewBudgetSetup) => BudgetSummary;
   importYnab4Budget: (input: CreateYnab4LauncherBudgetImportInput) => Promise<Ynab4LauncherImportResult>;
   importActualBudget: (input: CreateActualBudgetLauncherImportInput) => Promise<ActualBudgetLauncherImportResult>;
   updateBudget: (budgetId: string, input: UpdateBudgetRegistryInput) => BudgetSummary | null;
@@ -33,6 +36,12 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
 
   createBudget: (input) => {
     const budget = createBudgetRegistryEntry(browserLocalStorageKeyValueStorage, input);
+    set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
+    return budget;
+  },
+
+  createBudgetWithSetup: (setup) => {
+    const budget = createBudgetFromSetup(browserLocalStorageKeyValueStorage, setup);
     set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
     return budget;
   },

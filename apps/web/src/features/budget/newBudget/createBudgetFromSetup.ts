@@ -1,0 +1,79 @@
+import type { BudgetSummary } from "../budgetRegistry";
+import type { BudgetMonthView } from "../budgetViewTypes";
+import type { KeyValueStoragePort } from "../../persistence/keyValueStoragePort";
+import { createBudgetRegistryEntry } from "../budgetRegistry";
+import { cloneBudgetTemplateGroups, type NewBudgetSetup } from "./budgetTemplates";
+
+const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
+
+function getIsoMonth(now = new Date()): string {
+  return now.toISOString().slice(0, 7);
+}
+
+function monthLabelFromIsoMonth(month: string): string {
+  const [year, monthNumber] = month.split("-").map(Number);
+
+  if (!year || !monthNumber) {
+    return month;
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(year, monthNumber - 1, 1));
+}
+
+function createBudgetMonthView(budget: BudgetSummary, setup: NewBudgetSetup, now = new Date()): BudgetMonthView {
+  const month = getIsoMonth(now);
+  const categoryGroups = cloneBudgetTemplateGroups(setup.templateId).map((group) => ({
+    id: group.id,
+    name: group.name,
+    previousAvailable: 0,
+    assigned: 0,
+    activity: 0,
+    available: 0,
+    note: "",
+    categories: group.categories.map((category) => ({
+      id: category.id,
+      name: category.name,
+      previousAvailable: 0,
+      assigned: 0,
+      activity: 0,
+      available: 0,
+      isOverspent: false,
+      isArchived: false,
+      note: "",
+    })),
+  }));
+
+  return {
+    budgetId: budget.id,
+    budgetName: budget.name,
+    monthLabel: monthLabelFromIsoMonth(month),
+    currencyCode: setup.currency,
+    readyToAssign: 0,
+    totalAssigned: 0,
+    totalActivity: 0,
+    totalAvailable: 0,
+    categoryGroups,
+  };
+}
+
+export function createBudgetFromSetup(
+  storage: KeyValueStoragePort,
+  setup: NewBudgetSetup,
+  now = new Date(),
+): BudgetSummary {
+  const budget = createBudgetRegistryEntry(storage, {
+    name: setup.name,
+    currency: setup.currency,
+    dateFormat: setup.dateFormat,
+    numberFormat: setup.numberFormat,
+    firstDayOfWeek: setup.firstDayOfWeek,
+    now,
+  });
+  const month = getIsoMonth(now);
+  const view = createBudgetMonthView(budget, setup, now);
+  storage.setItem(`${BUDGET_VIEW_STORAGE_PREFIX}.${budget.id}.${month}`, JSON.stringify(view));
+  return budget;
+}

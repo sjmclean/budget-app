@@ -432,7 +432,9 @@
     "test:v2460:register-selection-controller": "tsx tests/v2460-register-selection-controller.ts",
     "test:v2460": "pnpm test:v2455 && pnpm test:v2460:register-selection-controller",
     "test:v2461:budget-selector-delete": "tsx tests/v2461-budget-selector-delete.ts",
-    "test:v2461": "pnpm test:v2460 && pnpm test:v2461:budget-selector-delete"
+    "test:v2461": "pnpm test:v2460 && pnpm test:v2461:budget-selector-delete",
+    "test:v2470:new-budget-wizard": "tsx tests/v2470-new-budget-wizard.ts",
+    "test:v2470": "pnpm test:v2461 && pnpm test:v2470:new-budget-wizard"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

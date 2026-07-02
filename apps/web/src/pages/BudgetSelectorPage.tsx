@@ -5,6 +5,8 @@ import { Card } from "../components/ui/Card";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import { BudgetImportDialog } from "./budgetSelector/BudgetImportDialog";
+import { NewBudgetWizard } from "../features/budget/newBudget/NewBudgetWizard";
+import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
 
 type LaunchMode = "list" | "choose" | "empty" | "budgetImport";
 
@@ -29,7 +31,7 @@ function formatBudgetLocation(packagePath: string) {
 export function BudgetSelectorPage() {
   const navigate = useNavigate();
   const budgets = useBudgetRegistryStore((state) => state.budgets);
-  const createBudget = useBudgetRegistryStore((state) => state.createBudget);
+  const createBudgetWithSetup = useBudgetRegistryStore((state) => state.createBudgetWithSetup);
   const importYnab4Budget = useBudgetRegistryStore(
     (state) => state.importYnab4Budget,
   );
@@ -44,8 +46,6 @@ export function BudgetSelectorPage() {
   const selectBudget = useUIStore((state) => state.selectBudget);
   const clearSelectedBudget = useUIStore((state) => state.clearSelectedBudget);
   const [launchMode, setLaunchMode] = useState<LaunchMode>("list");
-  const [budgetName, setBudgetName] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
   const [deleteBudgetId, setDeleteBudgetId] = useState<string | null>(null);
   const [deleteConfirmationName, setDeleteConfirmationName] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -75,7 +75,6 @@ export function BudgetSelectorPage() {
 
   function handleReturnToBudgets() {
     setLaunchMode("list");
-    setFormError(null);
   }
 
   function handleRequestDeleteBudget(budgetId: string) {
@@ -124,20 +123,12 @@ export function BudgetSelectorPage() {
     setLaunchMode("list");
   }
 
-  function handleCreateBudget() {
-    const name = budgetName.trim();
-
-    if (!name) {
-      setFormError("Enter a budget name before creating a budget.");
-      return;
-    }
-
-    const budget = createBudget({ name });
-    setBudgetName("");
-    setFormError(null);
+  function handleCreateBudget(setup: NewBudgetSetup) {
+    const budget = createBudgetWithSetup(setup);
     selectBudget(budget.id);
     navigate("/dashboard");
   }
+
 
   return (
     <main className="budget-selector-page budget-selector-page-premium">
@@ -301,8 +292,8 @@ export function BudgetSelectorPage() {
                   +
                 </span>
                 <span>
-                  <strong>Empty budget</strong>
-                  <small>Create a brand new budget from scratch.</small>
+                  <strong>Create Budget</strong>
+                  <small>Start quickly with a name, or customise settings and categories.</small>
                 </span>
                 <span aria-hidden="true">›</span>
               </button>
@@ -339,48 +330,17 @@ export function BudgetSelectorPage() {
               <ul>
                 <li>Cloud budget continuation</li>
                 <li>Transaction import remains separate from budget migration</li>
-                <li>Budget templates</li>
+                <li>More budget templates</li>
               </ul>
             </div>
           </Card>
         ) : null}
 
         {launchMode === "empty" ? (
-          <Card className="budget-create-card budget-create-card-glass">
-            <div className="budget-launch-nav">
-              <button type="button" onClick={() => setLaunchMode("choose")}>
-                ← Back
-              </button>
-            </div>
-            <div>
-              <h2>Create empty budget</h2>
-              <p>
-                Currency, date format, start month, and other setup details will
-                be handled by the first-run setup flow later.
-              </p>
-            </div>
-
-            <div className="budget-create-inline-form">
-              <label className="form-field budget-name-field">
-                <span className="field-label">Budget name</span>
-                <input
-                  className="text-input budget-selector-input"
-                  value={budgetName}
-                  onChange={(event) => {
-                    setBudgetName(event.target.value);
-                    setFormError(null);
-                  }}
-                  placeholder="Personal Budget"
-                />
-              </label>
-
-              <Button type="button" onClick={handleCreateBudget}>
-                Create budget
-              </Button>
-            </div>
-
-            {formError ? <p className="form-error">{formError}</p> : null}
-          </Card>
+          <NewBudgetWizard
+            onBack={() => setLaunchMode("choose")}
+            onCreateBudget={handleCreateBudget}
+          />
         ) : null}
 
         {launchMode === "budgetImport" ? (
