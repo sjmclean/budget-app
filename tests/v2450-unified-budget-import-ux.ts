@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
 
-const page = readFileSync("apps/web/src/pages/BudgetSelectorPage.tsx", "utf8");
+const page = [
+  readFileSync("apps/web/src/pages/BudgetSelectorPage.tsx", "utf8"),
+  readFileSync("apps/web/src/pages/budgetSelector/BudgetImportDialog.tsx", "utf8"),
+  readFileSync("apps/web/src/pages/budgetSelector/BudgetImportProgress.tsx", "utf8"),
+].join("\n");
 const styles = readFileSync("apps/web/src/styles/globals.css", "utf8");
 
 if (!page.includes('budgetImport')) {
@@ -33,6 +37,22 @@ if (!page.includes("BudgetImportProgressIndicator") || !styles.includes("budget-
 
 if (!page.includes("Drop your budget here or click to browse") || !page.includes("handleBudgetImportSelection")) {
   throw new Error("Expected Budget Import UX to support compact drag/drop direct import");
+}
+
+if (!page.includes("attachDirectoryPickerAttributes") || !page.includes('setAttribute("webkitdirectory"')) {
+  throw new Error("Expected YNAB4 folder picker to explicitly enable directory selection");
+}
+
+if (!page.includes("handleYnab4PackageSelection(event.currentTarget.files)")) {
+  throw new Error("Expected manual YNAB4 folder picker to use the YNAB4 package path instead of the generic file importer");
+}
+
+if (!page.includes("handleBudgetImportDrop") || !page.includes("readYnab4PackageEntriesFromDataTransfer") || !page.includes("webkitGetAsEntry")) {
+  throw new Error("Expected YNAB4 folder drag/drop to read dropped directory entries instead of relying only on dataTransfer.files");
+}
+
+if (!styles.includes("pointer-events: auto")) {
+  throw new Error("Expected YNAB4 folder picker input to remain clickable after compact drop-zone styling");
 }
 
 if (page.includes("Supported budget imports") || page.includes("Budget import providers")) {

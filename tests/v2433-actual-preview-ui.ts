@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
 import { BudgetImportProviderApplicationService } from "../packages/application/src/BudgetImportProviderApplicationService.js";
 
-const pageSource = readFileSync("apps/web/src/pages/BudgetSelectorPage.tsx", "utf8");
+const pageSource = [
+  readFileSync("apps/web/src/pages/BudgetSelectorPage.tsx", "utf8"),
+  readFileSync("apps/web/src/pages/budgetSelector/BudgetImportDialog.tsx", "utf8"),
+  readFileSync("apps/web/src/pages/budgetSelector/BudgetImportProgress.tsx", "utf8"),
+].join("\n");
 
 if (!pageSource.includes('type LaunchMode = "list" | "choose" | "empty" | "budgetImport"')) {
   throw new Error("Expected BudgetSelector launch mode to include unified Budget Import");

@@ -4688,15 +4688,14 @@ strong {
 .budget-import-folder-button {
   justify-self: center;
   margin-top: 0.75rem;
-  position: relative;
-  overflow: hidden;
 }
 
-.budget-import-folder-button input[type="file"] {
+.budget-import-folder-input {
   position: absolute;
-  inset: 0;
+  inline-size: 1px;
+  block-size: 1px;
   opacity: 0;
-  cursor: pointer;
+  pointer-events: auto;
 }
 
 .budget-import-progress-state {
