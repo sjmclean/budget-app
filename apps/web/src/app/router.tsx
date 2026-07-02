@@ -6,7 +6,7 @@ import { BudgetPage } from "../pages/BudgetPage";
 import { AccountsPage } from "../pages/AccountsPage";
 import { AccountRegisterPage } from "../pages/AccountRegisterPage";
 import { ReportsPage } from "../pages/ReportsPage";
-import { SettingsPage } from "../pages/SettingsPage";
+import { RestorePointsPage, SettingsPage } from "../pages/SettingsPage";
 import { PayeeManagementPage } from "../pages/PayeeManagementPage";
 
 export const router = createBrowserRouter([
@@ -40,6 +40,10 @@ export const router = createBrowserRouter([
       {
         path: "/settings",
         element: <SettingsPage />,
+      },
+      {
+        path: "/restore-points",
+        element: <RestorePointsPage />,
       },
       {
         path: "/payees",

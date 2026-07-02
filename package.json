@@ -438,7 +438,9 @@
     "test:v2471:new-budget-category-checklist": "tsx tests/v2471-new-budget-category-checklist.ts",
     "test:v2471": "pnpm test:v2470 && pnpm test:v2471:new-budget-category-checklist",
     "test:v2480:version-history-lifecycle": "tsx tests/v2480-version-history-lifecycle-expansion.ts",
-    "test:v2480": "pnpm test:v2471 && pnpm test:v2480:version-history-lifecycle"
+    "test:v2480": "pnpm test:v2471 && pnpm test:v2480:version-history-lifecycle",
+    "test:v2481:restore-points-settings-menu": "tsx tests/v2481-restore-points-settings-menu.ts",
+    "test:v2481": "pnpm test:v2480 && pnpm test:v2481:restore-points-settings-menu"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

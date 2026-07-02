@@ -199,7 +199,15 @@ function groupSnapshotsByDate(
   return groups;
 }
 
-export function SettingsPage() {
+interface SettingsPageProps {
+  initialSection?: SettingsSectionId;
+  initialDataView?: DataSettingsView;
+}
+
+export function SettingsPage({
+  initialSection = "general",
+  initialDataView = "overview",
+}: SettingsPageProps = {}) {
   const navigate = useNavigate();
   const theme = useUIStore((state) => state.theme);
   const setTheme = useUIStore((state) => state.setTheme);
@@ -208,8 +216,8 @@ export function SettingsPage() {
   const refreshBudgets = useBudgetRegistryStore((state) => state.refreshBudgets);
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const persistenceMode = getPersistenceModeSummary();
-  const [activeSection, setActiveSection] = useState<SettingsSectionId>("general");
-  const [dataView, setDataView] = useState<DataSettingsView>("overview");
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>(initialSection);
+  const [dataView, setDataView] = useState<DataSettingsView>(initialDataView);
   const [settings, setSettings] = useState<SettingsPreferences>(() =>
     readSettingsPreferences(browserLocalStorageKeyValueStorage),
   );
@@ -826,7 +834,7 @@ export function SettingsPage() {
                     className="settings-action-card settings-action-button-card"
                     onClick={() => setDataView("budget-history")}
                   >
-                    <h3>Budget History</h3>
+                    <h3>Restore Points</h3>
                     <p className="muted">Review and restore one of the rolling restore points for the active budget.</p>
                     <strong>{historySnapshots.length} of 30 restore points</strong>
                   </button>
@@ -924,9 +932,9 @@ export function SettingsPage() {
                 <div className="settings-section-header">
                   <div>
                     <p className="eyebrow">Data protection</p>
-                    <h2>Budget History</h2>
+                    <h2>Restore Points</h2>
                     <p className="muted">
-                      Budget App automatically keeps the last 30 versions of {activeBudget?.name ?? "the active budget"}.
+                      Budget App automatically keeps the last 30 restore points for {activeBudget?.name ?? "the active budget"}.
                       Create a restore point before making major changes if you want to add a description.
                     </p>
                   </div>
@@ -1086,4 +1094,9 @@ export function SettingsPage() {
       </section>
     </div>
   );
+}
+
+
+export function RestorePointsPage() {
+  return <SettingsPage initialSection="data" initialDataView="budget-history" />;
 }

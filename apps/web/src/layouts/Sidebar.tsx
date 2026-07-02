@@ -310,6 +310,15 @@ export function Sidebar() {
                 <button
                   type="button"
                   role="menuitem"
+                  onClick={() => openSettingsDestination("/restore-points")}
+                >
+                  <RotateCcw size={16} />
+                  <span>Restore Points</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
                   onClick={() => openSettingsDestination("/payees")}
                 >
                   <Users size={16} />
