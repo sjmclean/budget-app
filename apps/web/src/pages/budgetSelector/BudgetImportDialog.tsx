@@ -206,16 +206,19 @@ export function BudgetImportDialog({
     }
   }
 
-  async function handleActualBudgetFileSelection(files: FileList | null) {
-    const file = files?.item(0);
+  function resetBudgetImportState() {
+    setIsBudgetImportDragActive(false);
+    setActualError(null);
+    setYnabError(null);
+    setBudgetImportResult(null);
+  }
+
+  async function handleActualBudgetFileSelection(file: File | null) {
     if (!file) {
       setActualStatus("Drop a supported budget file here, or browse to choose one.");
       return;
     }
 
-    setActualError(null);
-    setYnabError(null);
-    setBudgetImportResult(null);
     setIsAnalysingActual(true);
     setBudgetImportProgressPhase("reading");
     setActualStatus("Reading budget file…");
@@ -258,31 +261,27 @@ export function BudgetImportDialog({
     }
   }
 
-  async function handleBudgetImportSelection(files: FileList | null) {
-    setIsBudgetImportDragActive(false);
-    setActualError(null);
-    setYnabError(null);
-    setBudgetImportResult(null);
-
-    if (!files || files.length === 0) {
+  async function importSelectedBudgetFiles(selectedFiles: File[]) {
+    if (selectedFiles.length === 0) {
       setActualStatus("Drop a supported budget file here, or browse to choose one.");
       return;
     }
 
-    const selectedFiles = Array.from(files);
     if (selectedFilesLookLikeYnab4Package(selectedFiles)) {
       await handleYnab4PackageSelection(selectedFiles);
       return;
     }
 
-    await handleActualBudgetFileSelection(files);
+    await handleActualBudgetFileSelection(selectedFiles[0] ?? null);
+  }
+
+  async function handleBudgetImportSelection(files: FileList | null) {
+    resetBudgetImportState();
+    await importSelectedBudgetFiles(files ? Array.from(files) : []);
   }
 
   async function handleBudgetImportDrop(dataTransfer: DataTransfer) {
-    setIsBudgetImportDragActive(false);
-    setActualError(null);
-    setYnabError(null);
-    setBudgetImportResult(null);
+    resetBudgetImportState();
 
     try {
       const droppedDirectoryEntries = await readYnab4PackageEntriesFromDataTransfer(dataTransfer);
@@ -300,7 +299,7 @@ export function BudgetImportDialog({
       return;
     }
 
-    await handleBudgetImportSelection(dataTransfer.files);
+    await importSelectedBudgetFiles(Array.from(dataTransfer.files ?? []));
   }
 
   async function handleYnab4PackageSelection(files: FileList | File[] | null) {
@@ -314,7 +313,8 @@ export function BudgetImportDialog({
     }
 
     try {
-      await handleYnab4PackageEntries(await readYnab4PackageEntriesFromFiles(selectedFiles));
+      const entries = await readYnab4PackageEntries(selectedFiles);
+      await handleYnab4PackageEntries(entries);
     } catch (error) {
       setYnabError(
         error instanceof Error
@@ -563,7 +563,7 @@ async function readYnab4PackageEntries(
 function selectedFilesLookLikeYnab4Package(files: File[]): boolean {
   return files.length > 1 || files.some((file) => {
     const relativePath = file.webkitRelativePath || "";
-    return Boolean(relativePath) || /\.ynab4(?:\/|$)/i.test(relativePath);
+    return isYnab4BudgetFile(file) || Boolean(relativePath) || /\.ynab4(?:\/|$)/i.test(relativePath);
   });
 }
 
