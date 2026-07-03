@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { CreditCardBehaviour } from "../../features/budget/budgetPreferences";
 
 type AccountType = "on-budget" | "credit-card" | "tracking";
 
@@ -18,6 +19,8 @@ interface AddAccountModalProps {
     type: AccountType;
     startingBalance: number;
   }) => void;
+  shouldAskCreditCardBehaviour?: boolean;
+  onCreditCardBehaviourSelected?: (behaviour: CreditCardBehaviour) => void;
   onUpdate?: (input: {
     id: string;
     name: string;
@@ -41,11 +44,16 @@ export function AddAccountModal({
   onClose,
   onCreate,
   onUpdate,
+  shouldAskCreditCardBehaviour = false,
+  onCreditCardBehaviourSelected,
 }: AddAccountModalProps) {
   const [name, setName] = useState("");
   const [type, setType] = useState<AccountType>("on-budget");
   const [startingBalance, setStartingBalance] = useState("");
+  const [creditCardBehaviour, setCreditCardBehaviour] = useState<CreditCardBehaviour>("normal");
+  const [isCreditCardExplanationOpen, setIsCreditCardExplanationOpen] = useState(false);
   const isEditing = Boolean(account);
+  const showCreditCardBehaviourChoice = !isEditing && type === "credit-card" && shouldAskCreditCardBehaviour;
 
   useEffect(() => {
     if (!isOpen) {
@@ -62,6 +70,8 @@ export function AddAccountModal({
     setName("");
     setType("on-budget");
     setStartingBalance("");
+    setCreditCardBehaviour("normal");
+    setIsCreditCardExplanationOpen(false);
   }, [account, isOpen]);
 
   if (!isOpen) {
@@ -83,6 +93,10 @@ export function AddAccountModal({
       return;
     }
 
+    if (showCreditCardBehaviourChoice) {
+      onCreditCardBehaviourSelected?.(creditCardBehaviour);
+    }
+
     onCreate({
       name: name.trim(),
       type,
@@ -92,6 +106,8 @@ export function AddAccountModal({
     setName("");
     setType("on-budget");
     setStartingBalance("");
+    setCreditCardBehaviour("normal");
+    setIsCreditCardExplanationOpen(false);
     onClose();
   }
 
@@ -152,6 +168,73 @@ export function AddAccountModal({
               disabled={isEditing}
             />
           </label>
+
+
+          {showCreditCardBehaviourChoice && (
+            <section className="credit-card-behaviour-panel" aria-label="Credit card behaviour">
+              <div>
+                <strong>This is the first credit card in this budget.</strong>
+                <p className="form-help-text">
+                  This choice applies to every credit card in this budget, including cards you add later.
+                </p>
+              </div>
+
+              <div className="credit-card-behaviour-options" role="radiogroup" aria-label="How should credit cards work?">
+                <label className="credit-card-behaviour-option">
+                  <input
+                    type="radio"
+                    name="credit-card-behaviour"
+                    value="normal"
+                    checked={creditCardBehaviour === "normal"}
+                    onChange={() => setCreditCardBehaviour("normal")}
+                  />
+                  <span>
+                    <strong>Treat credit cards like normal accounts</strong>
+                    <small>Purchases increase the card balance. Payments reduce the balance.</small>
+                  </span>
+                </label>
+
+                <label className="credit-card-behaviour-option">
+                  <input
+                    type="radio"
+                    name="credit-card-behaviour"
+                    value="payment-funding"
+                    checked={creditCardBehaviour === "payment-funding"}
+                    onChange={() => setCreditCardBehaviour("payment-funding")}
+                  />
+                  <span>
+                    <strong>Reserve money for credit card payments</strong>
+                    <small>Funded purchases set money aside for the next card payment.</small>
+                  </span>
+                </label>
+              </div>
+
+              <button
+                className="button button-link credit-card-explanation-toggle"
+                type="button"
+                onClick={() => setIsCreditCardExplanationOpen((isOpen) => !isOpen)}
+              >
+                ⓘ What's the difference?
+              </button>
+
+              {isCreditCardExplanationOpen && (
+                <div className="credit-card-behaviour-explanation">
+                  <div>
+                    <strong>Normal accounts</strong>
+                    <p>
+                      A $100 grocery purchase records $100 of grocery spending and increases the card balance.
+                    </p>
+                  </div>
+                  <div>
+                    <strong>Reserve money for payments</strong>
+                    <p>
+                      A funded $100 grocery purchase also reserves $100 so the money is ready for the card payment.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
 
           {isEditing && (
             <p className="form-help-text">

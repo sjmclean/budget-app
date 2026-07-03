@@ -5036,3 +5036,69 @@ strong {
   font-size: 0.85rem;
   font-weight: 700;
 }
+
+.credit-card-behaviour-panel {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: 16px;
+  background: rgba(59, 130, 246, 0.07);
+}
+
+.credit-card-behaviour-panel .form-help-text {
+  margin: 0.25rem 0 0;
+}
+
+.credit-card-behaviour-options {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.credit-card-behaviour-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  background: var(--surface-raised);
+  cursor: pointer;
+}
+
+.credit-card-behaviour-option input {
+  margin-top: 0.2rem;
+}
+
+.credit-card-behaviour-option span {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.credit-card-behaviour-option small {
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.credit-card-explanation-toggle {
+  justify-self: start;
+  padding-inline: 0;
+}
+
+.credit-card-behaviour-explanation {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 0.25rem;
+}
+
+.credit-card-behaviour-explanation div {
+  padding: 0.75rem;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.credit-card-behaviour-explanation p {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+  line-height: 1.45;
+}

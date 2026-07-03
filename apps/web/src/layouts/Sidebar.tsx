@@ -23,12 +23,20 @@ import type {
   SidebarAccount,
   UpdateAccountInput,
 } from "../features/accounts/accountService";
+import { resolveActiveBudgetId } from "../features/budget/activeBudget";
+import type { CreditCardBehaviour } from "../features/budget/budgetPreferences";
 import { getAppPersistenceGateway } from "../features/persistence";
 import { alertDialog, confirmDialog } from "../features/ui/appDialogService";
+import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
+import { useUIStore } from "../stores/uiStore";
 
 export function Sidebar() {
   const navigate = useNavigate();
   const accountsPersistence = getAppPersistenceGateway().accounts;
+  const budgets = useBudgetRegistryStore((state) => state.budgets);
+  const updateBudget = useBudgetRegistryStore((state) => state.updateBudget);
+  const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
+  const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
   const [accountsOpen, setAccountsOpen] = useState(true);
   const [closedAccountsOpen, setClosedAccountsOpen] = useState(false);
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
@@ -56,6 +64,18 @@ export function Sidebar() {
   const budgetAccounts = activeAccounts.filter((account) => account.type === "on-budget");
   const creditCards = activeAccounts.filter((account) => account.type === "credit-card");
   const trackingAccounts = activeAccounts.filter((account) => account.type === "tracking");
+
+  function chooseCreditCardBehaviour(behaviour: CreditCardBehaviour) {
+    if (!activeBudgetId) {
+      return;
+    }
+
+    updateBudget(activeBudgetId, {
+      preferences: {
+        creditCardBehaviour: behaviour,
+      },
+    });
+  }
 
   async function addAccount(input: CreateAccountInput) {
     const nextAccounts = await accountsPersistence.createAccount(input);
@@ -349,6 +369,8 @@ export function Sidebar() {
         isOpen={isAddAccountOpen}
         onClose={() => setIsAddAccountOpen(false)}
         onCreate={addAccount}
+        shouldAskCreditCardBehaviour={creditCards.length === 0}
+        onCreditCardBehaviourSelected={chooseCreditCardBehaviour}
       />
 
       <AddAccountModal

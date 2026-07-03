@@ -446,7 +446,9 @@
     "test:v2490:overspending-resolution": "tsx tests/v2490-overspending-resolution-workflow.ts",
     "test:v2490": "pnpm test:v2482 && pnpm test:v2490:overspending-resolution",
     "test:v2500:budget-preferences": "tsx tests/v2500-budget-preferences-foundation.ts",
-    "test:v2500": "pnpm test:v2490 && pnpm test:v2500:budget-preferences"
+    "test:v2500": "pnpm test:v2490 && pnpm test:v2500:budget-preferences",
+    "test:v2501:first-credit-card-experience": "tsx tests/v2501-first-credit-card-experience.ts",
+    "test:v2501": "pnpm test:v2500 && pnpm test:v2501:first-credit-card-experience"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
