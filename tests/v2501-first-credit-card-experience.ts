@@ -75,8 +75,8 @@ function testSidebarStoresBudgetWideCreditCardBehaviour() {
   );
   assert.match(
     source,
-    /shouldAskCreditCardBehaviour=\{creditCards\.length === 0\}/,
-    "The first-card prompt should not appear after a credit-card account already exists",
+    /const shouldAskCreditCardBehaviour =\s*creditCards\.length === 0 &&\s*activeBudget\?\.preferences\?\.creditCardBehaviour === undefined;/s,
+    "The first-card prompt should only appear before a credit card exists and before the budget behaviour is chosen",
   );
   assert.match(
     source,

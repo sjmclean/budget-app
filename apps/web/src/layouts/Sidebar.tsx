@@ -64,6 +64,9 @@ export function Sidebar() {
   const budgetAccounts = activeAccounts.filter((account) => account.type === "on-budget");
   const creditCards = activeAccounts.filter((account) => account.type === "credit-card");
   const trackingAccounts = activeAccounts.filter((account) => account.type === "tracking");
+  const activeBudget = budgets.find((budget) => budget.id === activeBudgetId);
+  const shouldAskCreditCardBehaviour =
+    creditCards.length === 0 && activeBudget?.preferences?.creditCardBehaviour === undefined;
 
   function chooseCreditCardBehaviour(behaviour: CreditCardBehaviour) {
     if (!activeBudgetId) {
@@ -369,7 +372,7 @@ export function Sidebar() {
         isOpen={isAddAccountOpen}
         onClose={() => setIsAddAccountOpen(false)}
         onCreate={addAccount}
-        shouldAskCreditCardBehaviour={creditCards.length === 0}
+        shouldAskCreditCardBehaviour={shouldAskCreditCardBehaviour}
         onCreditCardBehaviourSelected={chooseCreditCardBehaviour}
       />
 

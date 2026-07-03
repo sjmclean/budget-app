@@ -12,8 +12,12 @@ import type { BudgetActivityPersistencePort, BudgetActivityRegisterTransaction }
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import { readAccounts } from "../accounts/accountService";
 import { readSettingsPreferences } from "../settings/settingsPreferences";
-import { readBudgetRegistry } from "./budgetRegistry";
 import { cloneDefaultCategoryTemplate } from "./defaultCategoryTemplate";
+import {
+  readBudgetCreditCardBehaviour,
+  readCreditCardPaymentFundingEnabled,
+  shouldCreatePaymentCategories,
+} from "./creditCardBehaviourService";
 import { isMoneyNegative, normaliseMoney } from "./moneyMath";
 
 const STORAGE_KEY_PREFIX = "budget-app.budget-view.v1";
@@ -181,14 +185,6 @@ function createCreditCardPaymentCategory(accountId: string, accountName: string)
   };
 }
 
-function readCreditCardPaymentFundingEnabled(
-  dependencies: BudgetViewServiceDependencies,
-  budgetId: string,
-): boolean {
-  const budget = readBudgetRegistry(dependencies.storage).find((entry) => entry.id === budgetId);
-  return budget?.preferences.creditCardBehaviour === "payment-funding";
-}
-
 function ensureCreditCardPaymentCategories(
   dependencies: BudgetViewServiceDependencies,
   view: BudgetMonthView,
@@ -263,8 +259,12 @@ async function applyRegisterActivity(
   month: string,
 ): Promise<BudgetMonthView> {
   const transactions = await dependencies.budgetActivity.listRegisterTransactionsForBudgetActivity();
-  const isPaymentFundingEnabled = readCreditCardPaymentFundingEnabled(dependencies, view.budgetId);
-  const viewWithPaymentCategories = isPaymentFundingEnabled
+  const creditCardBehaviour = readBudgetCreditCardBehaviour(dependencies.storage, view.budgetId);
+  const shouldUsePaymentFunding = readCreditCardPaymentFundingEnabled(
+    dependencies.storage,
+    view.budgetId,
+  );
+  const viewWithPaymentCategories = shouldCreatePaymentCategories({ creditCardBehaviour })
     ? ensureCreditCardPaymentCategories(dependencies, view, transactions)
     : view;
   const categoryLookup = createCategoryLookup(viewWithPaymentCategories);
@@ -294,7 +294,7 @@ async function applyRegisterActivity(
   }
 
   function addCreditCardPaymentActivity(accountId: string, amount: number) {
-    if (!isPaymentFundingEnabled || amount === 0) {
+    if (!shouldUsePaymentFunding || amount === 0) {
       return;
     }
 
@@ -317,7 +317,7 @@ async function applyRegisterActivity(
     const amount = input.inflow - input.outflow;
     const runningAvailableBeforeActivity = runningAvailableByCategoryId.get(input.categoryId) ?? 0;
 
-    if (isPaymentFundingEnabled && input.accountType === "credit-card") {
+    if (shouldUsePaymentFunding && input.accountType === "credit-card") {
       if (input.outflow > 0) {
         addCreditCardPaymentActivity(
           input.accountId,
@@ -375,7 +375,7 @@ async function applyRegisterActivity(
           readyToAssignIncome += amount;
         }
 
-        if (isPaymentFundingEnabled && transferAccountType === "credit-card" && transaction.outflow > 0) {
+        if (shouldUsePaymentFunding && transferAccountType === "credit-card" && transaction.outflow > 0) {
           addCreditCardPaymentActivity(transaction.transferAccountId, -transaction.outflow);
         }
       }

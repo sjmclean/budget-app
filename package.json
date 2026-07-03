@@ -450,7 +450,9 @@
     "test:v2501:first-credit-card-experience": "tsx tests/v2501-first-credit-card-experience.ts",
     "test:v2501": "pnpm test:v2500 && pnpm test:v2501:first-credit-card-experience",
     "test:v2502:credit-card-engine-routing": "tsx tests/v2502-credit-card-engine-routing.ts",
-    "test:v2502": "pnpm test:v2501 && pnpm test:v2502:credit-card-engine-routing"
+    "test:v2502": "pnpm test:v2501 && pnpm test:v2502:credit-card-engine-routing",
+    "test:v2503:credit-card-behaviour-service": "tsx tests/v2503-credit-card-behaviour-service.ts",
+    "test:v2503": "pnpm test:v2502 && pnpm test:v2503:credit-card-behaviour-service"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
