@@ -1,4 +1,10 @@
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import {
+  DEFAULT_BUDGET_PREFERENCES,
+  mergeBudgetPreferences,
+  normaliseBudgetPreferences,
+  type BudgetPreferences,
+} from "./budgetPreferences";
 
 export const BUDGET_REGISTRY_STORAGE_KEY = "budget-app.budget-registry.v1";
 
@@ -9,6 +15,7 @@ export interface BudgetSummary {
   dateFormat?: string;
   numberFormat?: string;
   firstDayOfWeek?: string;
+  preferences: BudgetPreferences;
   lastOpenedLabel: string;
   packagePath: string;
   createdAt: string;
@@ -21,6 +28,7 @@ export interface CreateBudgetRegistryInput {
   dateFormat?: string;
   numberFormat?: string;
   firstDayOfWeek?: string;
+  preferences?: Partial<BudgetPreferences>;
   packagePath?: string;
   now?: Date;
 }
@@ -31,6 +39,7 @@ export interface UpdateBudgetRegistryInput {
   dateFormat?: string;
   numberFormat?: string;
   firstDayOfWeek?: string;
+  preferences?: Partial<BudgetPreferences>;
   packagePath?: string;
   lastOpenedLabel?: string;
   now?: Date;
@@ -99,6 +108,7 @@ function normaliseBudgetSummary(value: unknown): BudgetSummary | null {
     dateFormat: readString(value.dateFormat, "DD/MM/YYYY"),
     numberFormat: readString(value.numberFormat, "1,234.56"),
     firstDayOfWeek: readString(value.firstDayOfWeek, "monday"),
+    preferences: normaliseBudgetPreferences(value.preferences),
     packagePath,
     createdAt,
     updatedAt,
@@ -117,6 +127,7 @@ export function createInitialBudgetRegistry(now = new Date()): BudgetSummary[] {
       dateFormat: "DD/MM/YYYY",
       numberFormat: "1,234.56",
       firstDayOfWeek: "monday",
+      preferences: { ...DEFAULT_BUDGET_PREFERENCES },
       lastOpenedLabel: "Not opened yet",
       packagePath: "~/Budgets/Household.budget",
       createdAt: timestamp,
@@ -173,6 +184,7 @@ export function createBudgetRegistryEntry(
     dateFormat: input.dateFormat?.trim() || "DD/MM/YYYY",
     numberFormat: input.numberFormat?.trim() || "1,234.56",
     firstDayOfWeek: input.firstDayOfWeek?.trim() || "monday",
+    preferences: mergeBudgetPreferences(undefined, input.preferences),
     lastOpenedLabel: "Not opened yet",
     packagePath: input.packagePath?.trim() || `~/Budgets/${name.replace(/\s+/g, "")}.budget`,
     createdAt: timestamp,
@@ -204,6 +216,7 @@ export function updateBudgetRegistryEntry(
       dateFormat: input.dateFormat?.trim() || budget.dateFormat,
       numberFormat: input.numberFormat?.trim() || budget.numberFormat,
       firstDayOfWeek: input.firstDayOfWeek?.trim() || budget.firstDayOfWeek,
+      preferences: mergeBudgetPreferences(budget.preferences, input.preferences),
       packagePath: input.packagePath?.trim() || budget.packagePath,
       lastOpenedLabel: input.lastOpenedLabel?.trim() || budget.lastOpenedLabel,
       updatedAt: timestamp,

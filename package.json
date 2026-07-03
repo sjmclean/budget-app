@@ -444,7 +444,9 @@
     "test:v2482:restore-points-restore-only": "tsx tests/v2482-restore-points-restore-only.ts",
     "test:v2482": "pnpm test:v2481 && pnpm test:v2482:restore-points-restore-only",
     "test:v2490:overspending-resolution": "tsx tests/v2490-overspending-resolution-workflow.ts",
-    "test:v2490": "pnpm test:v2482 && pnpm test:v2490:overspending-resolution"
+    "test:v2490": "pnpm test:v2482 && pnpm test:v2490:overspending-resolution",
+    "test:v2500:budget-preferences": "tsx tests/v2500-budget-preferences-foundation.ts",
+    "test:v2500": "pnpm test:v2490 && pnpm test:v2500:budget-preferences"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
