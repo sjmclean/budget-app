@@ -8,15 +8,19 @@ import type {
   BudgetMonthView,
   BudgetViewService,
 } from "./budgetViewTypes";
-import type { BudgetActivityPersistencePort } from "./budgetActivityPersistencePort";
+import type { BudgetActivityPersistencePort, BudgetActivityRegisterTransaction } from "./budgetActivityPersistencePort";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import { readAccounts } from "../accounts/accountService";
 import { readSettingsPreferences } from "../settings/settingsPreferences";
+import { readBudgetRegistry } from "./budgetRegistry";
 import { cloneDefaultCategoryTemplate } from "./defaultCategoryTemplate";
 import { isMoneyNegative, normaliseMoney } from "./moneyMath";
 
 const STORAGE_KEY_PREFIX = "budget-app.budget-view.v1";
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
 const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
+const CREDIT_CARD_PAYMENT_GROUP_ID = "credit-card-payments";
+const CREDIT_CARD_PAYMENT_GROUP_NAME = "Credit Card Payments";
 
 export interface BudgetViewServiceDependencies {
   budgetActivity: BudgetActivityPersistencePort;
@@ -159,16 +163,173 @@ function readStoredBudgetView(
 }
 
 
+function getCreditCardPaymentCategoryId(accountId: string): string {
+  return `credit-card-payment-${accountId}`;
+}
+
+function createCreditCardPaymentCategory(accountId: string, accountName: string): BudgetCategoryView {
+  return {
+    id: getCreditCardPaymentCategoryId(accountId),
+    name: `Payment: ${accountName}`,
+    previousAvailable: 0,
+    assigned: 0,
+    activity: 0,
+    available: 0,
+    isOverspent: false,
+    isArchived: false,
+    note: "",
+  };
+}
+
+function readCreditCardPaymentFundingEnabled(
+  dependencies: BudgetViewServiceDependencies,
+  budgetId: string,
+): boolean {
+  const budget = readBudgetRegistry(dependencies.storage).find((entry) => entry.id === budgetId);
+  return budget?.preferences.creditCardBehaviour === "payment-funding";
+}
+
+function ensureCreditCardPaymentCategories(
+  dependencies: BudgetViewServiceDependencies,
+  view: BudgetMonthView,
+  transactions: BudgetActivityRegisterTransaction[],
+): BudgetMonthView {
+  const accountNames = new Map<string, string>();
+
+  for (const account of readAccounts(dependencies.storage)) {
+    if (account.type === "credit-card" && !account.closedAt) {
+      accountNames.set(account.id, account.name);
+    }
+  }
+
+  for (const transaction of transactions) {
+    if (transaction.accountType === "credit-card") {
+      accountNames.set(transaction.accountId, transaction.accountName ?? accountNames.get(transaction.accountId) ?? transaction.accountId);
+    }
+  }
+
+  if (accountNames.size === 0) {
+    return view;
+  }
+
+  const existingCategoryIds = new Set(
+    view.categoryGroups.flatMap((group) => group.categories.map((category) => category.id)),
+  );
+  const missingCategories = [...accountNames]
+    .filter(([accountId]) => !existingCategoryIds.has(getCreditCardPaymentCategoryId(accountId)))
+    .map(([accountId, accountName]) => createCreditCardPaymentCategory(accountId, accountName));
+
+  if (missingCategories.length === 0) {
+    return view;
+  }
+
+  const existingPaymentGroup = view.categoryGroups.find((group) => group.id === CREDIT_CARD_PAYMENT_GROUP_ID);
+
+  if (existingPaymentGroup) {
+    return {
+      ...view,
+      categoryGroups: view.categoryGroups.map((group) =>
+        group.id === CREDIT_CARD_PAYMENT_GROUP_ID
+          ? {
+              ...group,
+              categories: [...group.categories, ...missingCategories],
+            }
+          : group,
+      ),
+    };
+  }
+
+  return {
+    ...view,
+    categoryGroups: [
+      {
+        id: CREDIT_CARD_PAYMENT_GROUP_ID,
+        name: CREDIT_CARD_PAYMENT_GROUP_NAME,
+        previousAvailable: 0,
+        assigned: 0,
+        activity: 0,
+        available: 0,
+        note: "",
+        categories: missingCategories,
+      },
+      ...view.categoryGroups,
+    ],
+  };
+}
+
 async function applyRegisterActivity(
   dependencies: BudgetViewServiceDependencies,
   view: BudgetMonthView,
   month: string,
 ): Promise<BudgetMonthView> {
-  const categoryLookup = createCategoryLookup(view);
   const transactions = await dependencies.budgetActivity.listRegisterTransactionsForBudgetActivity();
+  const isPaymentFundingEnabled = readCreditCardPaymentFundingEnabled(dependencies, view.budgetId);
+  const viewWithPaymentCategories = isPaymentFundingEnabled
+    ? ensureCreditCardPaymentCategories(dependencies, view, transactions)
+    : view;
+  const categoryLookup = createCategoryLookup(viewWithPaymentCategories);
   const accountTypeById = new Map(transactions.map((transaction) => [transaction.accountId, transaction.accountType]));
   const activityByCategoryId = new Map<string, number>();
+  const runningAvailableByCategoryId = new Map<string, number>();
   let readyToAssignIncome = 0;
+
+  for (const group of viewWithPaymentCategories.categoryGroups) {
+    for (const category of group.categories) {
+      runningAvailableByCategoryId.set(
+        category.id,
+        normaliseMoney((category.previousAvailable ?? 0) + category.assigned),
+      );
+    }
+  }
+
+  function addCategoryActivity(categoryId: string, amount: number) {
+    activityByCategoryId.set(
+      categoryId,
+      normaliseMoney((activityByCategoryId.get(categoryId) ?? 0) + amount),
+    );
+    runningAvailableByCategoryId.set(
+      categoryId,
+      normaliseMoney((runningAvailableByCategoryId.get(categoryId) ?? 0) + amount),
+    );
+  }
+
+  function addCreditCardPaymentActivity(accountId: string, amount: number) {
+    if (!isPaymentFundingEnabled || amount === 0) {
+      return;
+    }
+
+    const paymentCategoryId = getCreditCardPaymentCategoryId(accountId);
+
+    if (!categoryLookup.has(normaliseCategoryKey(paymentCategoryId))) {
+      return;
+    }
+
+    addCategoryActivity(paymentCategoryId, amount);
+  }
+
+  function recordBudgetedActivity(input: {
+    accountId: string;
+    accountType?: string | null;
+    categoryId: string;
+    inflow: number;
+    outflow: number;
+  }) {
+    const amount = input.inflow - input.outflow;
+    const runningAvailableBeforeActivity = runningAvailableByCategoryId.get(input.categoryId) ?? 0;
+
+    if (isPaymentFundingEnabled && input.accountType === "credit-card") {
+      if (input.outflow > 0) {
+        addCreditCardPaymentActivity(
+          input.accountId,
+          Math.min(input.outflow, Math.max(0, runningAvailableBeforeActivity)),
+        );
+      } else if (input.inflow > 0) {
+        addCreditCardPaymentActivity(input.accountId, -input.inflow);
+      }
+    }
+
+    addCategoryActivity(input.categoryId, amount);
+  }
 
   for (const transaction of transactions) {
     if (!transaction.date.startsWith(month)) {
@@ -190,10 +351,13 @@ async function applyRegisterActivity(
           continue;
         }
 
-        activityByCategoryId.set(
-          splitCategoryId,
-          (activityByCategoryId.get(splitCategoryId) ?? 0) + splitAmount,
-        );
+        recordBudgetedActivity({
+          accountId: transaction.accountId,
+          accountType: transaction.accountType,
+          categoryId: splitCategoryId,
+          inflow: splitLine.inflow,
+          outflow: splitLine.outflow,
+        });
       }
 
       continue;
@@ -203,12 +367,16 @@ async function applyRegisterActivity(
     const categoryId = resolveStoredCategoryId(transaction, categoryLookup);
     const amount = transaction.inflow - transaction.outflow;
 
-    if (isTransferCategory(categoryKey)) {
+    if (transaction.transferAccountId || isTransferCategory(categoryKey)) {
       if (transaction.transferAccountId) {
         const transferAccountType = accountTypeById.get(transaction.transferAccountId);
 
         if (transferAccountType === "tracking") {
           readyToAssignIncome += amount;
+        }
+
+        if (isPaymentFundingEnabled && transferAccountType === "credit-card" && transaction.outflow > 0) {
+          addCreditCardPaymentActivity(transaction.transferAccountId, -transaction.outflow);
         }
       }
 
@@ -228,15 +396,18 @@ async function applyRegisterActivity(
       continue;
     }
 
-    activityByCategoryId.set(
+    recordBudgetedActivity({
+      accountId: transaction.accountId,
+      accountType: transaction.accountType,
       categoryId,
-      (activityByCategoryId.get(categoryId) ?? 0) + amount,
-    );
+      inflow: transaction.inflow,
+      outflow: transaction.outflow,
+    });
   }
 
   const recalculated = recalculateBudget({
-    ...view,
-    categoryGroups: view.categoryGroups.map((group) => ({
+    ...viewWithPaymentCategories,
+    categoryGroups: viewWithPaymentCategories.categoryGroups.map((group) => ({
       ...group,
       categories: group.categories.map((category) => ({
         ...category,
@@ -354,7 +525,7 @@ async function createCategoryActivityDrilldown(
     const categoryKey = normaliseCategoryKey(transaction.category);
     const transactionCategoryId = resolveStoredCategoryId(transaction, categoryLookup);
 
-    if (isTransferCategory(categoryKey)) {
+    if (transaction.transferAccountId || isTransferCategory(categoryKey)) {
       continue;
     }
 
