@@ -32,6 +32,7 @@ import {
 import { useRegisterSelection } from "../features/accounts/useRegisterSelection";
 import { useRegisterSelectionActions } from "../features/accounts/useRegisterSelectionActions";
 import { useRegisterCommands } from "../features/accounts/useRegisterCommands";
+import { usePayeeManagerWorkflow } from "../features/accounts/usePayeeManagerWorkflow";
 import {
   REGISTER_COLUMN_DEFINITIONS,
   REGISTER_COLUMN_LABELS,
@@ -54,8 +55,6 @@ import {
   buildTableRowStyle,
   useTableLayout,
 } from "../features/tableLayout/tableLayout";
-import type { PayeeView } from "../features/accounts/payeeService";
-import { buildPayeeRegisterSummaries } from "../features/accounts/payeeRegisterSummaries";
 import type {
   RegisterTransactionView,
   TransactionFlag,
@@ -111,14 +110,6 @@ function clampPageForTransactionCount(
   ).currentPage;
 }
 
-function normalisePayeeKey(name: string) {
-  return name.replace(/\s+/g, " ").trim().toLocaleLowerCase();
-}
-
-function hasSamePayeeName(left: string, right: string) {
-  return normalisePayeeKey(left) === normalisePayeeKey(right);
-}
-
 function formatPayeeLastUsed(
   value: string | undefined,
   dateFormat: ReturnType<typeof useDateFormatPreference>,
@@ -166,25 +157,11 @@ export function AccountRegisterPage() {
   const [categoryOptions, setCategoryOptions] = useState<
     BudgetCategoryOption[]
   >([]);
-  const [payeeOptions, setPayeeOptions] = useState<PayeeView[]>([]);
-  const [archivedPayeeOptions, setArchivedPayeeOptions] = useState<PayeeView[]>(
-    [],
-  );
   const [transferAccounts, setTransferAccounts] = useState<SidebarAccount[]>(
     [],
   );
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
-  const [isPayeeManagerOpen, setIsPayeeManagerOpen] = useState(false);
-  const [selectedPayeeId, setSelectedPayeeId] = useState<string | null>(null);
-  const [payeeRenameDraft, setPayeeRenameDraft] = useState("");
-  const [payeeMergeTargetId, setPayeeMergeTargetId] = useState("");
-  const [payeeManagerMessage, setPayeeManagerMessage] = useState<string | null>(
-    null,
-  );
-  const [payeeManagerError, setPayeeManagerError] = useState<string | null>(
-    null,
-  );
   const [attachmentTransactionId, setAttachmentTransactionId] = useState<
     string | null
   >(null);
@@ -283,35 +260,6 @@ export function AccountRegisterPage() {
       isMounted = false;
     };
   }, [activeBudgetId, categoriesPersistence]);
-
-  async function refreshPayees(): Promise<PayeeView[]> {
-    const [payees, archivedPayees] = await Promise.all([
-      payeesPersistence.listPayees(),
-      payeesPersistence.listArchivedPayees(),
-    ]);
-
-    setPayeeOptions(payees);
-    setArchivedPayeeOptions(archivedPayees);
-    return payees;
-  }
-
-  useEffect(() => {
-    let isMounted = true;
-
-    void Promise.all([
-      payeesPersistence.listPayees(),
-      payeesPersistence.listArchivedPayees(),
-    ]).then(([payees, archivedPayees]) => {
-      if (isMounted) {
-        setPayeeOptions(payees);
-        setArchivedPayeeOptions(archivedPayees);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [payeesPersistence]);
 
   useEffect(() => {
     let active = true;
@@ -433,59 +381,38 @@ export function AccountRegisterPage() {
     [registerTransactions, developerPerformanceMode],
   );
 
-  const allManagedPayees = useMemo(
-    () => [...payeeOptions, ...archivedPayeeOptions],
-    [payeeOptions, archivedPayeeOptions],
-  );
-
-  const payeeSummaries = useMemo(
-    () =>
-      isPayeeManagerOpen
-        ? measureRegisterPerformance(
-            developerPerformanceMode,
-            registerPerformanceTimingsRef.current,
-            "payee summary build",
-            () =>
-              buildPayeeRegisterSummaries(
-                allManagedPayees,
-                registerTransactions,
-              ),
-          )
-        : [],
-    [
-      allManagedPayees,
-      registerTransactions,
-      isPayeeManagerOpen,
-      developerPerformanceMode,
-    ],
-  );
-
-  const activePayeeSummaries = useMemo(
-    () => payeeSummaries.filter((summary) => !summary.payee.isArchived),
-    [payeeSummaries],
-  );
-
-  const archivedPayeeSummaries = useMemo(
-    () => payeeSummaries.filter((summary) => summary.payee.isArchived),
-    [payeeSummaries],
-  );
-
-  const selectedPayeeSummary = useMemo(
-    () =>
-      payeeSummaries.find((summary) => summary.payee.id === selectedPayeeId) ??
-      null,
-    [payeeSummaries, selectedPayeeId],
-  );
-
-  const mergeTargetOptions = useMemo(
-    () =>
-      selectedPayeeSummary
-        ? activePayeeSummaries.filter(
-            (summary) => summary.payee.id !== selectedPayeeSummary.payee.id,
-          )
-        : [],
-    [activePayeeSummaries, selectedPayeeSummary],
-  );
+  const {
+    payeeOptions,
+    isPayeeManagerOpen,
+    setIsPayeeManagerOpen,
+    selectedPayeeId,
+    setSelectedPayeeId,
+    payeeRenameDraft,
+    setPayeeRenameDraft,
+    payeeMergeTargetId,
+    setPayeeMergeTargetId,
+    payeeManagerMessage,
+    setPayeeManagerMessage,
+    payeeManagerError,
+    setPayeeManagerError,
+    payeeSummaries,
+    activePayeeSummaries,
+    archivedPayeeSummaries,
+    selectedPayeeSummary,
+    mergeTargetOptions,
+    handleRenamePayee,
+    handleArchiveSelectedPayee,
+    handleRestoreSelectedPayee,
+    handleMergeSelectedPayee,
+  } = usePayeeManagerWorkflow({
+    payeesPersistence,
+    scheduledTransactionsPersistence,
+    registerTransactions,
+    renamePayeeReferences,
+    reassignPayeeReferences,
+    developerPerformanceMode,
+    performanceTimingsRef: registerPerformanceTimingsRef,
+  });
 
   const registerPerformanceSnapshot = buildRegisterPerformanceSnapshot({
     enabled: developerPerformanceMode,
@@ -742,146 +669,6 @@ export function AccountRegisterPage() {
   const attachmentTransaction = attachmentTransactionId
     ? (transactionById.get(attachmentTransactionId) ?? null)
     : null;
-
-  async function handleRenamePayee() {
-    if (!selectedPayeeSummary) {
-      return;
-    }
-
-    const nextName = payeeRenameDraft.replace(/\s+/g, " ").trim();
-
-    setPayeeManagerMessage(null);
-    setPayeeManagerError(null);
-
-    if (!nextName) {
-      setPayeeManagerError("Enter a payee name before saving.");
-      return;
-    }
-
-    if (hasSamePayeeName(nextName, selectedPayeeSummary.payee.name)) {
-      setPayeeManagerMessage("Payee name is unchanged.");
-      return;
-    }
-
-    const duplicate = allManagedPayees.find(
-      (payee) =>
-        payee.id !== selectedPayeeSummary.payee.id &&
-        hasSamePayeeName(payee.name, nextName),
-    );
-
-    if (duplicate) {
-      setPayeeManagerError(
-        "Another payee already uses that name. Merge payees will be added separately.",
-      );
-      return;
-    }
-
-    const previousName = selectedPayeeSummary.payee.name;
-
-    await payeesPersistence.renamePayee({
-      id: selectedPayeeSummary.payee.id,
-      name: nextName,
-    });
-    await scheduledTransactionsPersistence.renamePayeeReferences({
-      payeeId: selectedPayeeSummary.payee.id,
-      previousName,
-      nextName,
-    });
-    await renamePayeeReferences({
-      payeeId: selectedPayeeSummary.payee.id,
-      previousName,
-      nextName,
-    });
-    await refreshPayees();
-
-    setPayeeRenameDraft(nextName);
-    setPayeeManagerMessage(`Renamed ${previousName} to ${nextName}.`);
-  }
-
-  async function handleArchiveSelectedPayee() {
-    if (!selectedPayeeSummary || selectedPayeeSummary.payee.isArchived) {
-      return;
-    }
-
-    setPayeeManagerMessage(null);
-    setPayeeManagerError(null);
-
-    const payeeName = selectedPayeeSummary.payee.name;
-    await payeesPersistence.archivePayee(selectedPayeeSummary.payee.id);
-    await refreshPayees();
-    setPayeeManagerMessage(
-      `Archived ${payeeName}. Existing transactions still keep this payee.`,
-    );
-  }
-
-  async function handleRestoreSelectedPayee() {
-    if (!selectedPayeeSummary || !selectedPayeeSummary.payee.isArchived) {
-      return;
-    }
-
-    setPayeeManagerMessage(null);
-    setPayeeManagerError(null);
-
-    const payeeName = selectedPayeeSummary.payee.name;
-    await payeesPersistence.restorePayee(selectedPayeeSummary.payee.id);
-    await refreshPayees();
-    setPayeeManagerMessage(
-      `Restored ${payeeName}. It will appear in payee suggestions again.`,
-    );
-  }
-
-  async function handleMergeSelectedPayee() {
-    if (!selectedPayeeSummary) {
-      return;
-    }
-
-    setPayeeManagerMessage(null);
-    setPayeeManagerError(null);
-
-    if (selectedPayeeSummary.payee.isArchived) {
-      setPayeeManagerError(
-        "Restore this payee before merging it into another payee.",
-      );
-      return;
-    }
-
-    const targetSummary = activePayeeSummaries.find(
-      (summary) => summary.payee.id === payeeMergeTargetId,
-    );
-
-    if (!targetSummary) {
-      setPayeeManagerError("Choose an active target payee before merging.");
-      return;
-    }
-
-    const sourcePayee = selectedPayeeSummary.payee;
-    const targetPayee = targetSummary.payee;
-
-    await payeesPersistence.mergePayees({
-      sourcePayeeId: sourcePayee.id,
-      targetPayeeId: targetPayee.id,
-    });
-    await scheduledTransactionsPersistence.reassignPayeeReferences({
-      sourcePayeeId: sourcePayee.id,
-      sourceName: sourcePayee.name,
-      targetPayeeId: targetPayee.id,
-      targetName: targetPayee.name,
-    });
-    await reassignPayeeReferences({
-      sourcePayeeId: sourcePayee.id,
-      sourceName: sourcePayee.name,
-      targetPayeeId: targetPayee.id,
-      targetName: targetPayee.name,
-    });
-    await refreshPayees();
-
-    setSelectedPayeeId(targetPayee.id);
-    setPayeeRenameDraft(targetPayee.name);
-    setPayeeMergeTargetId("");
-    setPayeeManagerMessage(
-      `Merged ${sourcePayee.name} into ${targetPayee.name}. Historical references now use ${targetPayee.name}.`,
-    );
-  }
 
   const registerColumnHeader =
     registerLayoutMode === "compact" ? (
