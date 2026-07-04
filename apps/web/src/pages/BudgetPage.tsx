@@ -68,6 +68,17 @@ function getSortableEntityId(id: string) {
 
 const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
 
+const CREDIT_CARD_PAYMENT_GROUP_ID = "credit-card-payments";
+const CREDIT_CARD_PAYMENT_CATEGORY_ID_PREFIX = "credit-card-payment-";
+
+function isCreditCardPaymentGroup(groupId: string): boolean {
+  return groupId === CREDIT_CARD_PAYMENT_GROUP_ID;
+}
+
+function isCreditCardPaymentCategory(categoryId: string): boolean {
+  return categoryId.startsWith(CREDIT_CARD_PAYMENT_CATEGORY_ID_PREFIX);
+}
+
 const BUDGET_COLUMN_DEFINITIONS: readonly TableColumnDefinition<BudgetColumnId>[] = [
   { id: "category", label: "Category Group", template: "minmax(15rem, 1fr)", widthRem: 15 },
   { id: "assigned", label: "Assigned", template: "7rem", widthRem: 7 },
@@ -188,6 +199,7 @@ function BudgetCategoryRow({
   onActivityClick,
   isBudgetColumnVisible,
   rowStyle,
+  isCreditCardPaymentCategory,
 }: {
   category: BudgetCategoryView;
   groupId: string;
@@ -200,6 +212,7 @@ function BudgetCategoryRow({
   onActivityClick: () => void;
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
   rowStyle: CSSProperties;
+  isCreditCardPaymentCategory: boolean;
 }) {
   const categoryNotePreview = category.note?.trim().split(/\r?\n/)[0] ?? "";
   const sortableId = getCategorySortableId(category.id);
@@ -212,6 +225,7 @@ function BudgetCategoryRow({
     isDragging,
   } = useSortable({
     id: sortableId,
+    disabled: isCreditCardPaymentCategory,
     data: {
       type: "category",
       categoryId: category.id,
@@ -232,23 +246,42 @@ function BudgetCategoryRow({
         "budget-workspace-row interactive-budget-row",
         isSelected ? "budget-workspace-row-selected" : "",
         isDragging ? "budget-workspace-row-dragging budget-workspace-row-sortable-active" : "",
+        isCreditCardPaymentCategory ? "budget-workspace-row-system" : "",
       ].filter(Boolean).join(" ")}
       onClick={onSelect}
       style={sortableStyle}
     >
       <div
-        className="budget-category-cell budget-category-drag-region"
-        title="Drag category name to reorder"
+        className={
+          isCreditCardPaymentCategory
+            ? "budget-category-cell budget-category-system-cell"
+            : "budget-category-cell budget-category-drag-region"
+        }
+        title={
+          isCreditCardPaymentCategory
+            ? "Credit card payment categories are managed by the budget"
+            : "Drag category name to reorder"
+        }
         onClick={(event) => event.stopPropagation()}
-        {...attributes}
-        {...listeners}
+        {...(isCreditCardPaymentCategory ? {} : attributes)}
+        {...(isCreditCardPaymentCategory ? {} : listeners)}
       >
-        <span
-          className="drag-handle drag-handle-active"
-          aria-hidden="true"
-        >
-          ⋮⋮
-        </span>
+        {isCreditCardPaymentCategory ? (
+          <span
+            className="budget-category-system-icon"
+            aria-hidden="true"
+            title="Managed credit card payment category"
+          >
+            •
+          </span>
+        ) : (
+          <span
+            className="drag-handle drag-handle-active"
+            aria-hidden="true"
+          >
+            ⋮⋮
+          </span>
+        )}
 
         <div className="budget-category-label-stack">
           <span className="budget-category-name-line">
@@ -256,16 +289,27 @@ function BudgetCategoryRow({
               className="budget-category-name-button"
               role="button"
               tabIndex={0}
-              title="Edit category name, note, or archive status"
+              title={
+                isCreditCardPaymentCategory
+                  ? "Managed by credit card payment funding"
+                  : "Edit category name, note, or archive status"
+              }
+              aria-disabled={isCreditCardPaymentCategory}
               onClick={(event) => {
                 event.stopPropagation();
-                onOpenCategoryEditor();
+
+                if (!isCreditCardPaymentCategory) {
+                  onOpenCategoryEditor();
+                }
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
                   event.stopPropagation();
-                  onOpenCategoryEditor();
+
+                  if (!isCreditCardPaymentCategory) {
+                    onOpenCategoryEditor();
+                  }
                 }
               }}
             >
@@ -273,6 +317,9 @@ function BudgetCategoryRow({
             </span>
             {category.isArchived ? (
               <span className="category-archived-badge">Archived</span>
+            ) : null}
+            {isCreditCardPaymentCategory ? (
+              <span className="category-system-badge">Managed</span>
             ) : null}
             {categoryNotePreview ? (
               <span
@@ -338,6 +385,7 @@ function BudgetGroup({
   onActivityClick,
   isBudgetColumnVisible,
   rowStyle,
+  isCreditCardPaymentGroup,
 }: {
   group: BudgetCategoryGroupView;
   currencyCode: string;
@@ -349,6 +397,7 @@ function BudgetGroup({
   onActivityClick: (categoryId: string) => void;
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
   rowStyle: CSSProperties;
+  isCreditCardPaymentGroup: boolean;
 }) {
   const groupHasOverassignedCategory = group.categories.some((category) =>
     overassignedCategoryIds.includes(category.id),
@@ -363,6 +412,7 @@ function BudgetGroup({
     isDragging,
   } = useSortable({
     id: sortableId,
+    disabled: isCreditCardPaymentGroup,
     data: {
       type: "group",
       groupId: group.id,
@@ -374,26 +424,51 @@ function BudgetGroup({
   };
 
   return (
-    <section ref={setNodeRef} className="budget-workspace-group" style={sectionStyle}>
+    <section
+      ref={setNodeRef}
+      className={[
+        "budget-workspace-group",
+        isCreditCardPaymentGroup ? "budget-workspace-group-system" : "",
+      ].filter(Boolean).join(" ")}
+      style={sectionStyle}
+    >
       <div
         className={[
           "budget-workspace-group-header",
           isDragging ? "budget-workspace-group-header-dragging budget-workspace-row-sortable-active" : "",
+          isCreditCardPaymentGroup ? "budget-workspace-group-header-system" : "",
         ].filter(Boolean).join(" ")}
         style={rowStyle}
       >
         <div
-          className="budget-group-title budget-group-name-drag-region"
-          title="Drag category group name to reorder groups"
-          {...attributes}
-          {...listeners}
+          className={
+            isCreditCardPaymentGroup
+              ? "budget-group-title budget-group-system-title"
+              : "budget-group-title budget-group-name-drag-region"
+          }
+          title={
+            isCreditCardPaymentGroup
+              ? "Money reserved to pay your credit cards"
+              : "Drag category group name to reorder groups"
+          }
+          {...(isCreditCardPaymentGroup ? {} : attributes)}
+          {...(isCreditCardPaymentGroup ? {} : listeners)}
         >
-          <span
-            className="drag-handle drag-handle-active budget-group-drag-handle"
-            aria-hidden="true"
-          >
-            ⋮⋮
-          </span>
+          {isCreditCardPaymentGroup ? (
+            <span
+              className="budget-group-system-icon"
+              aria-hidden="true"
+            >
+              •
+            </span>
+          ) : (
+            <span
+              className="drag-handle drag-handle-active budget-group-drag-handle"
+              aria-hidden="true"
+            >
+              ⋮⋮
+            </span>
+          )}
           <span>⌄</span>
           <strong>
             {group.name}
@@ -405,6 +480,15 @@ function BudgetGroup({
               aria-label="Category group has a note"
             >
               ✎
+            </span>
+          ) : null}
+          {isCreditCardPaymentGroup ? (
+            <span
+              className="budget-group-info-pill"
+              title="Money reserved to pay your credit cards"
+              aria-label="Money reserved to pay your credit cards"
+            >
+              Money reserved for card payments
             </span>
           ) : null}
         </div>
@@ -450,6 +534,7 @@ function BudgetGroup({
               onActivityClick={() => onActivityClick(category.id)}
               isBudgetColumnVisible={isBudgetColumnVisible}
               rowStyle={rowStyle}
+              isCreditCardPaymentCategory={isCreditCardPaymentCategory(category.id)}
             />
           );
         })}
@@ -605,6 +690,7 @@ function CategoryInspector({
   onCoverOverspending,
   onSetCategoryArchived,
   onOpenManageCategory,
+  isCreditCardPaymentCategory,
 }: {
   category: BudgetCategoryView | null;
   group: BudgetCategoryGroupView | null;
@@ -618,6 +704,7 @@ function CategoryInspector({
   }) => void;
   onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   onOpenManageCategory: () => void;
+  isCreditCardPaymentCategory: boolean;
 }) {
   if (!category || !group) {
     return (
@@ -650,6 +737,7 @@ function CategoryInspector({
           <p className="muted">
             {group.name}
             {category.isArchived ? " · Archived" : ""}
+            {isCreditCardPaymentCategory ? " · Managed" : ""}
           </p>
         </div>
       </div>
@@ -702,25 +790,35 @@ function CategoryInspector({
         </div>
       ) : null}
 
-      <div className="category-details-actions">
-        <button
-          className="button button-secondary category-archive-button"
-          type="button"
-          onClick={() =>
-            onSetCategoryArchived(category.id, !category.isArchived)
-          }
-        >
-          {category.isArchived ? "Restore category" : "Archive category"}
-        </button>
+      {isCreditCardPaymentCategory ? (
+        <div className="inspector-note category-details-note-summary">
+          <h3>Managed category</h3>
+          <p className="muted">
+            This category is created by credit card payment funding. It tracks
+            money reserved to pay this card and cannot be renamed or archived.
+          </p>
+        </div>
+      ) : (
+        <div className="category-details-actions">
+          <button
+            className="button button-secondary category-archive-button"
+            type="button"
+            onClick={() =>
+              onSetCategoryArchived(category.id, !category.isArchived)
+            }
+          >
+            {category.isArchived ? "Restore category" : "Archive category"}
+          </button>
 
-        <button
-          className="button button-primary"
-          type="button"
-          onClick={onOpenManageCategory}
-        >
-          Manage Category…
-        </button>
-      </div>
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={onOpenManageCategory}
+          >
+            Manage Category…
+          </button>
+        </div>
+      )}
     </Card>
   );
 }
@@ -781,7 +879,7 @@ function CategoryManagementDialog({
     }
   }
 
-  if (!isOpen || !category || !group) {
+  if (!isOpen || !category || !group || isCreditCardPaymentCategory(category.id)) {
     return null;
   }
 
@@ -1183,6 +1281,13 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     if (activeKind === "category" && overKind === "category") {
       const activeCategoryId = getSortableEntityId(activeId);
       const targetCategoryId = getSortableEntityId(overId);
+
+      if (
+        isCreditCardPaymentCategory(activeCategoryId) ||
+        isCreditCardPaymentCategory(targetCategoryId)
+      ) {
+        return;
+      }
       const activeLocation = findCategoryLocation(activeCategoryId);
       const targetLocation = findCategoryLocation(targetCategoryId);
 
@@ -1202,6 +1307,13 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     if (activeKind === "group" && overKind === "group") {
       const activeGroupId = getSortableEntityId(activeId);
       const targetGroupId = getSortableEntityId(overId);
+
+      if (
+        isCreditCardPaymentGroup(activeGroupId) ||
+        isCreditCardPaymentGroup(targetGroupId)
+      ) {
+        return;
+      }
       const activeIndex = visibleCategoryGroups.findIndex((group) => group.id === activeGroupId);
       const targetIndex = visibleCategoryGroups.findIndex((group) => group.id === targetGroupId);
 
@@ -1216,6 +1328,11 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
 
   function openCategoryEditor(categoryId: string) {
+    if (isCreditCardPaymentCategory(categoryId)) {
+      selectCategory(categoryId);
+      return;
+    }
+
     selectCategory(categoryId);
     setIsCategoryManagerOpen(true);
   }
@@ -1355,6 +1472,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                     onActivityClick={openActivityDrilldown}
                     isBudgetColumnVisible={isBudgetColumnVisible}
                     rowStyle={budgetTableLayout.rowStyle}
+                    isCreditCardPaymentGroup={isCreditCardPaymentGroup(group.id)}
                   />
                 ))}
               </SortableContext>
@@ -1406,6 +1524,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             onCoverOverspending={coverOverspending}
             onSetCategoryArchived={setCategoryArchived}
             onOpenManageCategory={() => setIsCategoryManagerOpen(true)}
+            isCreditCardPaymentCategory={
+              visibleSelectedCategory !== null &&
+              isCreditCardPaymentCategory(visibleSelectedCategory.id)
+            }
           />
 
           <Card className="budget-health-card">

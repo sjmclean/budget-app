@@ -5102,3 +5102,73 @@ strong {
   color: var(--text-muted);
   line-height: 1.45;
 }
+
+.budget-workspace-group-system .budget-workspace-group-header,
+.budget-workspace-group-header-system {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-subtle) 88%, var(--positive-bg)) 0%,
+      color-mix(in srgb, var(--surface-subtle) 95%, var(--border-soft)) 100%
+    );
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--positive) 62%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.58);
+}
+
+.budget-group-system-title,
+.budget-category-system-cell {
+  cursor: default;
+}
+
+.budget-group-system-icon,
+.budget-category-system-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--positive-bg) 72%, var(--surface));
+  color: var(--positive);
+  font-size: 0.92rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.budget-workspace-row-system {
+  background: color-mix(in srgb, var(--positive-bg) 15%, transparent);
+}
+
+.budget-workspace-row-system:hover {
+  background: color-mix(in srgb, var(--positive-bg) 28%, var(--surface));
+}
+
+.budget-workspace-row-system .budget-category-name-button {
+  cursor: default;
+  text-decoration: none;
+}
+
+.budget-workspace-row-system .budget-category-name-button:hover,
+.budget-workspace-row-system .budget-category-name-button:focus-visible {
+  color: var(--text);
+  text-decoration: none;
+  box-shadow: none;
+}
+
+.category-system-badge,
+.budget-group-info-pill {
+  border: 1px solid color-mix(in srgb, var(--positive) 24%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--positive-bg) 70%, var(--surface));
+  color: color-mix(in srgb, var(--positive) 84%, var(--text));
+  font-size: 0.68rem;
+  font-weight: 760;
+  padding: 0.08rem 0.46rem;
+  white-space: nowrap;
+}
+
+.budget-group-info-pill {
+  font-size: 0.72rem;
+  letter-spacing: 0;
+  text-transform: none;
+}

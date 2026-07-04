@@ -174,7 +174,7 @@ function getCreditCardPaymentCategoryId(accountId: string): string {
 function createCreditCardPaymentCategory(accountId: string, accountName: string): BudgetCategoryView {
   return {
     id: getCreditCardPaymentCategoryId(accountId),
-    name: `Payment: ${accountName}`,
+    name: accountName,
     previousAvailable: 0,
     assigned: 0,
     activity: 0,

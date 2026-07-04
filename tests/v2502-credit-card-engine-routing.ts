@@ -161,7 +161,7 @@ async function testPaymentFundingRoutesCreditCardPurchasesToPaymentCategory() {
 
   assert.equal(groceries?.activity, -2500);
   assert.equal(groceries?.available, 7500);
-  assert.equal(payment?.name, "Payment: Visa");
+  assert.equal(payment?.name, "Visa");
   assert.equal(payment?.activity, 2500);
   assert.equal(payment?.available, 2500);
 }
