@@ -21,7 +21,7 @@ interface UseRegisterCommandsInput {
   registerSelection: RegisterSelectionController;
   setEditingTransactionId: (transactionId: string | null) => void;
   setShowEntryRow: (isVisible: boolean) => void;
-  setAttachmentTransactionId: (transactionId: string | null) => void;
+  openAttachmentManager: (transactionId: string) => void;
   toggleCleared: (transactionId: string) => Promise<void>;
   updateTransaction: (input: {
     id: string;
@@ -58,7 +58,7 @@ export function useRegisterCommands({
   registerSelection,
   setEditingTransactionId,
   setShowEntryRow,
-  setAttachmentTransactionId,
+  openAttachmentManager,
   toggleCleared,
   updateTransaction,
 }: UseRegisterCommandsInput): UseRegisterCommandsResult {
@@ -102,9 +102,9 @@ export function useRegisterCommands({
   const manageTransactionAttachments = useCallback(
     (transactionId: string) => {
       registerSelection.selectSingle(transactionId);
-      setAttachmentTransactionId(transactionId);
+      openAttachmentManager(transactionId);
     },
-    [registerSelection, setAttachmentTransactionId],
+    [openAttachmentManager, registerSelection],
   );
 
   const updateTransactionFlag = useCallback(

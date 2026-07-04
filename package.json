@@ -474,7 +474,9 @@
     "test:v2526:register-transaction-editor-extraction": "tsx tests/v2526-register-transaction-editor-extraction.ts",
     "test:v2526": "pnpm test:v2525 && pnpm test:v2526:register-transaction-editor-extraction",
     "test:v2527:payee-manager-workflow-extraction": "tsx tests/v2527-payee-manager-workflow-extraction.ts",
-    "test:v2527": "pnpm test:v2526 && pnpm test:v2527:payee-manager-workflow-extraction"
+    "test:v2527": "pnpm test:v2526 && pnpm test:v2527:payee-manager-workflow-extraction",
+    "test:v2528:register-attachment-workflow-extraction": "tsx tests/v2528-register-attachment-workflow-extraction.ts",
+    "test:v2528": "pnpm test:v2527 && pnpm test:v2528:register-attachment-workflow-extraction"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

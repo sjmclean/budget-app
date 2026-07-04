@@ -33,6 +33,7 @@ import { useRegisterSelection } from "../features/accounts/useRegisterSelection"
 import { useRegisterSelectionActions } from "../features/accounts/useRegisterSelectionActions";
 import { useRegisterCommands } from "../features/accounts/useRegisterCommands";
 import { usePayeeManagerWorkflow } from "../features/accounts/usePayeeManagerWorkflow";
+import { useRegisterAttachmentWorkflow } from "../features/accounts/useRegisterAttachmentWorkflow";
 import {
   REGISTER_COLUMN_DEFINITIONS,
   REGISTER_COLUMN_LABELS,
@@ -162,9 +163,6 @@ export function AccountRegisterPage() {
   );
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
-  const [attachmentTransactionId, setAttachmentTransactionId] = useState<
-    string | null
-  >(null);
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
   const [registerPage, setRegisterPage] = useState(1);
   const [registerSearchDraft, setRegisterSearchDraft] = useState("");
@@ -364,22 +362,11 @@ export function AccountRegisterPage() {
     );
   }, [registerSelection.prune, registerTransactions]);
 
-  const transactionById = useMemo(
-    () =>
-      measureRegisterPerformance(
-        developerPerformanceMode,
-        registerPerformanceTimingsRef.current,
-        "transaction index",
-        () =>
-          new Map(
-            registerTransactions.map((transaction) => [
-              transaction.id,
-              transaction,
-            ]),
-          ),
-      ),
-    [registerTransactions, developerPerformanceMode],
-  );
+  const registerAttachmentWorkflow = useRegisterAttachmentWorkflow({
+    transactions: registerTransactions,
+    addAttachment,
+    removeAttachment,
+  });
 
   const {
     payeeOptions,
@@ -536,7 +523,7 @@ export function AccountRegisterPage() {
     registerSelection,
     setEditingTransactionId,
     setShowEntryRow,
-    setAttachmentTransactionId,
+    openAttachmentManager: registerAttachmentWorkflow.openAttachmentManager,
     toggleCleared,
     updateTransaction,
   });
@@ -665,10 +652,6 @@ export function AccountRegisterPage() {
       </div>
     );
   }
-
-  const attachmentTransaction = attachmentTransactionId
-    ? (transactionById.get(attachmentTransactionId) ?? null)
-    : null;
 
   const registerColumnHeader =
     registerLayoutMode === "compact" ? (
@@ -1256,16 +1239,12 @@ export function AccountRegisterPage() {
         ) : null}
       </Card>
 
-      {attachmentTransaction && (
+      {registerAttachmentWorkflow.attachmentTransaction && (
         <AttachmentManager
-          transaction={attachmentTransaction}
-          onClose={() => setAttachmentTransactionId(null)}
-          onAddAttachment={(file) =>
-            addAttachment(attachmentTransaction.id, file)
-          }
-          onRemoveAttachment={(attachmentId) =>
-            removeAttachment(attachmentTransaction.id, attachmentId)
-          }
+          transaction={registerAttachmentWorkflow.attachmentTransaction}
+          onClose={registerAttachmentWorkflow.closeAttachmentManager}
+          onAddAttachment={registerAttachmentWorkflow.handleAddAttachment}
+          onRemoveAttachment={registerAttachmentWorkflow.handleRemoveAttachment}
         />
       )}
 
