@@ -24,16 +24,12 @@ import {
 } from "../features/accounts/components/TransactionRow";
 import { useAccountRegister } from "../features/accounts/useAccountRegister";
 import { useRegisterLayoutMode } from "../features/accounts/registerLayoutMode";
-import {
-  REGISTER_DEFAULT_PAGE_SIZE,
-  getRegisterPaginationState,
-  paginateRegisterItems,
-} from "../features/accounts/registerPagination";
 import { useRegisterSelection } from "../features/accounts/useRegisterSelection";
 import { useRegisterSelectionActions } from "../features/accounts/useRegisterSelectionActions";
 import { useRegisterCommands } from "../features/accounts/useRegisterCommands";
 import { usePayeeManagerWorkflow } from "../features/accounts/usePayeeManagerWorkflow";
 import { useRegisterAttachmentWorkflow } from "../features/accounts/useRegisterAttachmentWorkflow";
+import { useRegisterViewModel } from "../features/accounts/useRegisterViewModel";
 import {
   REGISTER_COLUMN_DEFINITIONS,
   REGISTER_COLUMN_LABELS,
@@ -43,8 +39,6 @@ import {
 } from "../features/accounts/registerColumns";
 import {
   REGISTER_SEARCH_SCOPE_LABELS,
-  buildRegisterSearchSuggestions,
-  transactionMatchesSearch,
   type RegisterSearchCommit,
   type RegisterSearchSuggestion,
 } from "../features/accounts/registerSearch";
@@ -70,7 +64,6 @@ import {
   buildRegisterPerformanceSnapshot,
   formatPerformanceMs,
   getPerformanceNow,
-  measureRegisterPerformance,
   type RegisterPerformanceTimings,
 } from "../features/performance/registerPerformanceInstrumentation";
 
@@ -98,17 +91,6 @@ function formatMoney(value: number, currencyCode: string) {
     style: "currency",
     currency: currencyCode,
   }).format(value);
-}
-
-function clampPageForTransactionCount(
-  page: number,
-  transactionCount: number,
-): number {
-  return getRegisterPaginationState(
-    transactionCount,
-    page,
-    REGISTER_DEFAULT_PAGE_SIZE,
-  ).currentPage;
 }
 
 function formatPayeeLastUsed(
@@ -164,7 +146,6 @@ export function AccountRegisterPage() {
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
-  const [registerPage, setRegisterPage] = useState(1);
   const [registerSearchDraft, setRegisterSearchDraft] = useState("");
   const [committedRegisterSearch, setCommittedRegisterSearch] =
     useState<RegisterSearchCommit | null>(null);
@@ -276,68 +257,24 @@ export function AccountRegisterPage() {
   }, [accountId, accountsPersistence]);
 
   const registerTransactions = data?.transactions ?? [];
-  const registerSearchSuggestions = useMemo(
-    () =>
-      buildRegisterSearchSuggestions(registerTransactions, registerSearchDraft),
-    [registerTransactions, registerSearchDraft],
-  );
-  const searchedRegisterTransactions = useMemo(
-    () =>
-      committedRegisterSearch
-        ? registerTransactions.filter((transaction) =>
-            transactionMatchesSearch(transaction, committedRegisterSearch),
-          )
-        : registerTransactions,
-    [registerTransactions, committedRegisterSearch],
-  );
-  const registerPagination = getRegisterPaginationState(
-    searchedRegisterTransactions.length,
-    registerPage,
-    REGISTER_DEFAULT_PAGE_SIZE,
-  );
-
-  useEffect(() => {
-    setRegisterPage((currentPage) =>
-      clampPageForTransactionCount(
-        currentPage,
-        searchedRegisterTransactions.length,
-      ),
-    );
-  }, [searchedRegisterTransactions.length]);
-
-  useEffect(() => {
-    setRegisterPage(1);
-  }, [committedRegisterSearch]);
+  const {
+    setRegisterPage,
+    registerSearchSuggestions,
+    searchedRegisterTransactions,
+    registerPagination,
+    visibleTransactions,
+    visibleTransactionIds,
+  } = useRegisterViewModel({
+    transactions: registerTransactions,
+    searchDraft: registerSearchDraft,
+    committedSearch: committedRegisterSearch,
+    developerPerformanceMode,
+    performanceTimingsRef: registerPerformanceTimingsRef,
+  });
 
   useEffect(() => {
     setActiveRegisterSearchSuggestionIndex(null);
   }, [registerSearchDraft]);
-
-  const visibleTransactions = useMemo(
-    () =>
-      measureRegisterPerformance(
-        developerPerformanceMode,
-        registerPerformanceTimingsRef.current,
-        "visible pagination",
-        () =>
-          paginateRegisterItems(
-            searchedRegisterTransactions,
-            registerPagination.currentPage,
-            registerPagination.pageSize,
-          ),
-      ),
-    [
-      searchedRegisterTransactions,
-      registerPagination.currentPage,
-      registerPagination.pageSize,
-      developerPerformanceMode,
-    ],
-  );
-
-  const visibleTransactionIds = useMemo(
-    () => visibleTransactions.map((transaction) => transaction.id),
-    [visibleTransactions],
-  );
 
   const registerSelection = useRegisterSelection(visibleTransactionIds);
   const selectedRegisterTransactionIds = registerSelection.selectedIds;
