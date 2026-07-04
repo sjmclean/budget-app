@@ -65,12 +65,13 @@ const useRegisterSelection = readFileSync(
 );
 
 assert.match(registerPage, /useRegisterSelection\(visibleTransactionIds\)/);
+assert.match(registerPage, /useRegisterSelectionActions/);
+assert.match(registerPage, /useRegisterCommands/);
+
 assert.doesNotMatch(registerPage, /setRegisterSelection/);
 assert.doesNotMatch(registerPage, /selectRegisterTransactionRange/);
 assert.doesNotMatch(registerPage, /toggleRegisterTransactionSelection/);
-assert.match(registerPage, /registerSelection\.selectFromPointer/);
-assert.match(registerPage, /registerSelection\.selectSingle\(transactionId\)/);
-assert.match(registerPage, /registerSelection\.isSelected\(transaction\.id\)/);
+
 assert.match(useRegisterSelection, /export function useRegisterSelection/);
 assert.match(useRegisterSelection, /selectFromPointer/);
 assert.match(useRegisterSelection, /selectedCount/);

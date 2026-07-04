@@ -1,4 +1,4 @@
-import { CalendarDays, Paperclip } from "lucide-react";
+import { Paperclip } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -7,7 +7,6 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
-  type MouseEvent,
   type ReactNode,
 } from "react";
 import { useParams } from "react-router-dom";
@@ -16,6 +15,8 @@ import { SelectionBar } from "../components/ui/SelectionBar";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
 import { AttachmentManager } from "../features/accounts/components/AttachmentManager";
 import { TransactionImportDialog } from "../features/accounts/components/TransactionImportDialog";
+import { RegisterDateField } from "../features/accounts/components/RegisterDateField";
+import { RegisterToolbar } from "../features/accounts/components/RegisterToolbar";
 import {
   AttachmentIndicator,
   InlineFlagPicker,
@@ -34,6 +35,7 @@ import {
 } from "../features/accounts/registerPagination";
 import { useRegisterSelection } from "../features/accounts/useRegisterSelection";
 import { useRegisterSelectionActions } from "../features/accounts/useRegisterSelectionActions";
+import { useRegisterCommands } from "../features/accounts/useRegisterCommands";
 import {
   REGISTER_SEARCH_SCOPE_LABELS,
   buildRegisterSearchSuggestions,
@@ -49,10 +51,8 @@ import {
   type AutocompleteOption,
   type RankedAutocompleteOption,
 } from "../features/ui/autocomplete/autocompleteEngine";
-import { DropdownMenu } from "../features/ui/DropdownMenu";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { ColumnResizeHandle } from "../features/tableLayout/ColumnResizeHandle";
-import { ColumnVisibilityMenu } from "../features/tableLayout/ColumnVisibilityMenu";
 import {
   buildTableRowStyle,
   useTableLayout,
@@ -302,182 +302,10 @@ function formatPayeeLastUsed(
   return formatDateForDisplay(value.slice(0, 10), dateFormat);
 }
 
-function formatDateForInput(date: string) {
-  if (!date) {
-    return "";
-  }
-
-  const [year, month, day] = date.split("-");
-  return `${day}/${month}/${year}`;
-}
-
-function parseDateInput(value: string): string | null {
-  const trimmed = value.trim().toLowerCase();
-  const today = new Date();
-
-  if (["t", "today"].includes(trimmed)) {
-    return today.toISOString().slice(0, 10);
-  }
-
-  if (["y", "yesterday"].includes(trimmed)) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - 1);
-    return date.toISOString().slice(0, 10);
-  }
-
-  if (["tm", "tomorrow"].includes(trimmed)) {
-    const date = new Date(today);
-    date.setDate(date.getDate() + 1);
-    return date.toISOString().slice(0, 10);
-  }
-
-  if (/^[+-]\d+$/.test(trimmed)) {
-    const date = new Date(today);
-    date.setDate(date.getDate() + Number.parseInt(trimmed, 10));
-    return date.toISOString().slice(0, 10);
-  }
-
-  const compact = trimmed.replace(/[^0-9]/g, "");
-
-  if (compact.length === 6) {
-    const day = compact.slice(0, 2);
-    const month = compact.slice(2, 4);
-    const year = `20${compact.slice(4, 6)}`;
-    return normaliseDateParts(day, month, year);
-  }
-
-  const parts = trimmed.split(/[\/\-.]/).filter(Boolean);
-
-  if (parts.length === 3) {
-    const [day, month, rawYear] = parts;
-    const year = rawYear.length === 2 ? `20${rawYear}` : rawYear;
-    return normaliseDateParts(day, month, year);
-  }
-
-  return null;
-}
-
-function normaliseDateParts(
-  day: string,
-  month: string,
-  year: string,
-): string | null {
-  const numericDay = Number.parseInt(day, 10);
-  const numericMonth = Number.parseInt(month, 10);
-  const numericYear = Number.parseInt(year, 10);
-
-  if (
-    !Number.isFinite(numericDay) ||
-    !Number.isFinite(numericMonth) ||
-    !Number.isFinite(numericYear)
-  ) {
-    return null;
-  }
-
-  const date = new Date(numericYear, numericMonth - 1, numericDay);
-
-  if (
-    date.getFullYear() !== numericYear ||
-    date.getMonth() !== numericMonth - 1 ||
-    date.getDate() !== numericDay
-  ) {
-    return null;
-  }
-
-  return [
-    String(numericYear).padStart(4, "0"),
-    String(numericMonth).padStart(2, "0"),
-    String(numericDay).padStart(2, "0"),
-  ].join("-");
-}
-
 function parseMoney(value: string) {
   const cleaned = value.replace(/[$,\s]/g, "");
   const parsed = Number.parseFloat(cleaned);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function RegisterDateField({
-  value,
-  onChange,
-  autoFocus,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  autoFocus?: boolean;
-}) {
-  const [draft, setDraft] = useState(formatDateForInput(value));
-  const hiddenDateInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    setDraft(formatDateForInput(value));
-  }, [value]);
-
-  function commit() {
-    const parsed = parseDateInput(draft);
-
-    if (parsed) {
-      onChange(parsed);
-      setDraft(formatDateForInput(parsed));
-    }
-  }
-
-  return (
-    <div className="register-date-field">
-      <input
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            commit();
-          }
-        }}
-        placeholder="dd/mm/yy"
-        autoFocus={autoFocus}
-      />
-
-      <button
-        className="register-date-picker-button"
-        type="button"
-        title="Choose date"
-        aria-label="Choose date"
-        tabIndex={-1}
-        onClick={() => {
-          const input = hiddenDateInputRef.current;
-
-          if (!input) {
-            return;
-          }
-
-          const dateInput = input as HTMLInputElement & {
-            showPicker?: () => void;
-          };
-
-          if (typeof dateInput.showPicker === "function") {
-            dateInput.showPicker();
-          } else {
-            dateInput.click();
-          }
-        }}
-      >
-        <CalendarDays size={15} />
-      </button>
-
-      <input
-        ref={hiddenDateInputRef}
-        className="register-hidden-date-input"
-        type="date"
-        value={value}
-        onChange={(event) => {
-          onChange(event.target.value);
-          setDraft(formatDateForInput(event.target.value));
-        }}
-        tabIndex={-1}
-        aria-hidden="true"
-      />
-    </div>
-  );
 }
 
 function getPayeeSuggestionSection(
@@ -2489,93 +2317,6 @@ function clampPageForTransactionCount(
   ).currentPage;
 }
 
-function RegisterSearchDropdown({
-  query,
-  suggestions,
-  activeIndex,
-  onCommit,
-  onHighlight,
-}: {
-  query: string;
-  suggestions: readonly RegisterSearchSuggestion[];
-  activeIndex: number | null;
-  onCommit: (suggestion: RegisterSearchSuggestion) => void;
-  onHighlight: (index: number) => void;
-}) {
-  if (!query.trim() || suggestions.length === 0) {
-    return null;
-  }
-
-  const groups: Array<{
-    key: RegisterSearchSuggestion["group"];
-    label: string;
-    icon: string;
-  }> = [
-    { key: "search", label: "Search", icon: "🔎" },
-    { key: "payees", label: "Payees", icon: "👤" },
-    { key: "categories", label: "Categories", icon: "🏷" },
-    { key: "memos", label: "Memos", icon: "📝" },
-  ];
-
-  let renderedIndex = -1;
-
-  return (
-    <div className="register-search-dropdown" role="listbox">
-      {groups.map((group) => {
-        const items = suggestions.filter(
-          (suggestion) => suggestion.group === group.key,
-        );
-
-        if (items.length === 0) {
-          return null;
-        }
-
-        return (
-          <section className="register-search-group" key={group.key}>
-            <div className="register-search-group-title">{group.label}</div>
-            {items.map((suggestion) => {
-              renderedIndex += 1;
-              const suggestionIndex = renderedIndex;
-              const isActive = suggestionIndex === activeIndex;
-
-              return (
-                <button
-                  className={`register-search-suggestion${isActive ? " register-search-suggestion-active" : ""}`}
-                  key={suggestion.id}
-                  type="button"
-                  role="option"
-                  aria-selected={isActive}
-                  onMouseEnter={() => onHighlight(suggestionIndex)}
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    onCommit(suggestion);
-                  }}
-                >
-                  <span
-                    className="register-search-suggestion-icon"
-                    aria-hidden="true"
-                  >
-                    {group.icon}
-                  </span>
-                  <span className="register-search-suggestion-main">
-                    <strong>{suggestion.label}</strong>
-                    {suggestion.detail ? (
-                      <small>{suggestion.detail}</small>
-                    ) : null}
-                  </span>
-                  <span className="register-search-suggestion-count">
-                    {suggestion.count}
-                  </span>
-                </button>
-              );
-            })}
-          </section>
-        );
-      })}
-    </div>
-  );
-}
-
 export function AccountRegisterPage() {
   const { accountId = "everyday" } = useParams();
   const persistenceGateway = getAppPersistenceGateway();
@@ -3051,43 +2792,24 @@ export function AccountRegisterPage() {
     ],
   );
 
-  const handleSelectTransaction = useCallback(
-    (transactionId: string, event?: MouseEvent<HTMLElement>) => {
-      setEditingTransactionId(null);
+  const registerCommands = useRegisterCommands({
+    registerSelection,
+    setEditingTransactionId,
+    setShowEntryRow,
+    setAttachmentTransactionId,
+    toggleCleared,
+    updateTransaction,
+  });
 
-      registerSelection.selectFromPointer(transactionId, {
-        shiftKey: event?.shiftKey,
-        metaKey: event?.metaKey,
-        ctrlKey: event?.ctrlKey,
-      });
-    },
-    [registerSelection],
-  );
-
-  const handleToggleTransactionSelection = useCallback(
-    (transactionId: string) => {
-      setEditingTransactionId(null);
-
-      registerSelection.toggle(transactionId);
-    },
-    [registerSelection],
-  );
-
-  const handleEditTransaction = useCallback(
-    (transactionId: string) => {
-      registerSelection.selectSingle(transactionId);
-      setShowEntryRow(false);
-      setEditingTransactionId(transactionId);
-    },
-    [registerSelection],
-  );
-
-  const handleToggleClearedTransaction = useCallback(
-    (transactionId: string) => {
-      void toggleCleared(transactionId);
-    },
-    [toggleCleared],
-  );
+  const handleSelectTransaction = registerCommands.selectTransaction;
+  const handleToggleTransactionSelection =
+    registerCommands.toggleTransactionSelection;
+  const handleEditTransaction = registerCommands.editTransaction;
+  const handleToggleClearedTransaction =
+    registerCommands.toggleClearedTransaction;
+  const handleManageTransactionAttachments =
+    registerCommands.manageTransactionAttachments;
+  const handleUpdateTransactionFlag = registerCommands.updateTransactionFlag;
 
   const clearRegisterSelection = registerSelection.clear;
   const registerSelectionActions = useRegisterSelectionActions({
@@ -3099,38 +2821,6 @@ export function AccountRegisterPage() {
     editTransaction: setEditingTransactionId,
   });
   const hasRegisterActionSelection = registerSelectionActions.hasSelection;
-
-  const handleManageTransactionAttachments = useCallback(
-    (transactionId: string) => {
-      registerSelection.selectSingle(transactionId);
-      setAttachmentTransactionId(transactionId);
-    },
-    [registerSelection],
-  );
-
-  const handleUpdateTransactionFlag = useCallback(
-    (transaction: RegisterTransactionView, flag: TransactionFlag) => {
-      if (transaction.flag === flag) {
-        return;
-      }
-
-      void updateTransaction({
-        id: transaction.id,
-        date: transaction.date,
-        flag,
-        payee: transaction.payee,
-        payeeId: transaction.payeeId,
-        category: transaction.category,
-        categoryId: transaction.categoryId,
-        memo: transaction.memo,
-        checkNumber: transaction.checkNumber,
-        inflow: transaction.inflow,
-        outflow: transaction.outflow,
-        splitLines: transaction.splitLines,
-      });
-    },
-    [updateTransaction],
-  );
 
   useEffect(() => {
     function handleRegisterSearchShortcut(event: globalThis.KeyboardEvent) {
@@ -3450,128 +3140,36 @@ export function AccountRegisterPage() {
         className={`register-table-card register-layout-${registerLayoutMode}`}
       >
         <div className="register-sticky-stack">
-          <section className="register-clean-header">
-            <div>
-              <h1>{data.accountName}</h1>
-              <p className="muted">
-                Keyboard-first date entry · Save & add another
-              </p>
-            </div>
-
-            <div className="register-main-balance">
-              <span>Balance</span>
-              <strong>
-                {formatMoney(data.workingBalance, data.currencyCode)}
-              </strong>
-            </div>
-          </section>
-
-          <div className="register-toolbar register-toolbar-clean">
-            <div className="register-toolbar-actions register-toolbar-actions-left">
-              <button
-                className="button button-primary"
-                type="button"
-                onClick={() => {
-                  setEditingTransactionId(null);
-                  setShowEntryRow((current) => !current);
-                }}
-              >
-                Add transaction
-              </button>
-
-              <div className="register-search-shell">
-                <input
-                  ref={registerSearchInputRef}
-                  className="register-search"
-                  placeholder="Search payees, categories, memos or amounts…"
-                  aria-label="Search transactions"
-                  value={registerSearchDraft}
-                  onChange={(event) => {
-                    setRegisterSearchDraft(event.target.value);
-                    setIsRegisterSearchOpen(true);
-                  }}
-                  onFocus={() => setIsRegisterSearchOpen(true)}
-                  onKeyDown={handleRegisterSearchKeyDown}
-                />
-                {committedRegisterSearch ? (
-                  <button
-                    className="register-search-clear"
-                    type="button"
-                    onClick={clearRegisterSearch}
-                  >
-                    Clear
-                  </button>
-                ) : null}
-                {isRegisterSearchOpen ? (
-                  <RegisterSearchDropdown
-                    query={registerSearchDraft}
-                    suggestions={registerSearchSuggestions}
-                    activeIndex={activeRegisterSearchSuggestionIndex}
-                    onCommit={commitRegisterSearch}
-                    onHighlight={setActiveRegisterSearchSuggestionIndex}
-                  />
-                ) : null}
-              </div>
-
-              <ColumnVisibilityMenu
-                label="Columns ▾"
-                columns={REGISTER_COLUMN_DEFINITIONS}
-                visibleColumnSet={registerTableLayout.visibleColumnSet}
-                onToggleColumn={registerTableLayout.toggleColumn}
-                onReset={registerTableLayout.resetLayout}
-              />
-
-              <button
-                className="button button-secondary"
-                type="button"
-                onClick={() => setIsTransactionImportOpen(true)}
-              >
-                Import
-              </button>
-
-              <button
-                className="button button-secondary"
-                type="button"
-                disabled
-              >
-                Reconcile
-              </button>
-
-              <DropdownMenu
-                label="More ▾"
-                ariaLabel="Register actions"
-                className="register-more-menu"
-                panelClassName="register-more-menu-panel"
-              >
-                {({ closeMenu }) => (
-                  <>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsPayeeManagerOpen(true);
-                        closeMenu({ restoreFocus: true });
-                      }}
-                    >
-                      Manage Payees
-                    </button>
-
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsScheduledOpen((current) => !current);
-                        closeMenu({ restoreFocus: true });
-                      }}
-                    >
-                      Scheduled Transactions
-                      {scheduledDueCount > 0 ? ` (${scheduledDueCount})` : ""}
-                    </button>
-                  </>
-                )}
-              </DropdownMenu>
-            </div>
-          </div>
+          <RegisterToolbar
+            accountName={data.accountName}
+            workingBalance={data.workingBalance}
+            currencyCode={data.currencyCode}
+            formatMoney={formatMoney}
+            onToggleEntryRow={() => {
+              setEditingTransactionId(null);
+              setShowEntryRow((current) => !current);
+            }}
+            searchInputRef={registerSearchInputRef}
+            searchDraft={registerSearchDraft}
+            committedSearch={committedRegisterSearch}
+            isSearchOpen={isRegisterSearchOpen}
+            searchSuggestions={registerSearchSuggestions}
+            activeSearchSuggestionIndex={activeRegisterSearchSuggestionIndex}
+            onSearchDraftChange={setRegisterSearchDraft}
+            onSearchOpenChange={setIsRegisterSearchOpen}
+            onSearchKeyDown={handleRegisterSearchKeyDown}
+            onCommitSearch={commitRegisterSearch}
+            onHighlightSearchSuggestion={setActiveRegisterSearchSuggestionIndex}
+            onClearSearch={clearRegisterSearch}
+            columns={REGISTER_COLUMN_DEFINITIONS}
+            visibleColumnSet={registerTableLayout.visibleColumnSet}
+            onToggleColumn={registerTableLayout.toggleColumn}
+            onResetColumns={registerTableLayout.resetLayout}
+            onOpenImport={() => setIsTransactionImportOpen(true)}
+            onOpenPayeeManager={() => setIsPayeeManagerOpen(true)}
+            onToggleScheduled={() => setIsScheduledOpen((current) => !current)}
+            scheduledDueCount={scheduledDueCount}
+          />
 
           {registerColumnHeader}
           {committedRegisterSearch ? (

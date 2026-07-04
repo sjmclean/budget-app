@@ -462,7 +462,13 @@
     "test:v2520:register-selection-actions-refactor": "tsx tests/v2520-register-selection-actions-refactor.ts",
     "test:v2520": "pnpm test:v2510 && pnpm test:v2520:register-selection-actions-refactor",
     "test:v2521:register-search-extraction": "tsx tests/v2521-register-search-extraction.ts",
-    "test:v2521": "pnpm test:v2520 && pnpm test:v2521:register-search-extraction"
+    "test:v2521": "pnpm test:v2520 && pnpm test:v2521:register-search-extraction",
+    "test:v2522:register-commands-extraction": "tsx tests/v2522-register-commands-extraction.ts",
+    "test:v2522": "pnpm test:v2521 && pnpm test:v2522:register-commands-extraction",
+    "test:v2523:register-date-field-extraction": "tsx tests/v2523-register-date-field-extraction.ts",
+    "test:v2523": "pnpm test:v2522 && pnpm test:v2523:register-date-field-extraction",
+    "test:v2524:register-toolbar-extraction": "tsx tests/v2524-register-toolbar-extraction.ts",
+    "test:v2524": "pnpm test:v2523 && pnpm test:v2524:register-toolbar-extraction"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
