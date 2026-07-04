@@ -34,6 +34,13 @@ import {
 } from "../features/accounts/registerPagination";
 import { useRegisterSelection } from "../features/accounts/useRegisterSelection";
 import { useRegisterSelectionActions } from "../features/accounts/useRegisterSelectionActions";
+import {
+  REGISTER_SEARCH_SCOPE_LABELS,
+  buildRegisterSearchSuggestions,
+  transactionMatchesSearch,
+  type RegisterSearchCommit,
+  type RegisterSearchSuggestion,
+} from "../features/accounts/registerSearch";
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
 import {
@@ -172,26 +179,31 @@ const REGISTER_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumn
     },
   ];
 
-const REGISTER_OUTFLOW_COLUMN_DEFINITION: TableColumnDefinition<RegisterColumnId> = {
-  id: "outflow",
-  label: "Outflow",
-  template: "minmax(5.6rem, 7.2rem)",
-  widthRem: 7.2,
-  minWidthRem: 5.6,
-};
+const REGISTER_OUTFLOW_COLUMN_DEFINITION: TableColumnDefinition<RegisterColumnId> =
+  {
+    id: "outflow",
+    label: "Outflow",
+    template: "minmax(5.6rem, 7.2rem)",
+    widthRem: 7.2,
+    minWidthRem: 5.6,
+  };
 
-const REGISTER_INFLOW_COLUMN_DEFINITION: TableColumnDefinition<RegisterColumnId> = {
-  id: "inflow",
-  label: "Inflow",
-  template: "minmax(5.6rem, 7.2rem)",
-  widthRem: 7.2,
-  minWidthRem: 5.6,
-};
+const REGISTER_INFLOW_COLUMN_DEFINITION: TableColumnDefinition<RegisterColumnId> =
+  {
+    id: "inflow",
+    label: "Inflow",
+    template: "minmax(5.6rem, 7.2rem)",
+    widthRem: 7.2,
+    minWidthRem: 5.6,
+  };
 
 const REGISTER_EDIT_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumnId>[] =
   REGISTER_COLUMN_DEFINITIONS.flatMap((column) => {
     if (column.id === "amount") {
-      return [REGISTER_OUTFLOW_COLUMN_DEFINITION, REGISTER_INFLOW_COLUMN_DEFINITION];
+      return [
+        REGISTER_OUTFLOW_COLUMN_DEFINITION,
+        REGISTER_INFLOW_COLUMN_DEFINITION,
+      ];
     }
 
     if (column.id === "runningBalance" || column.id === "status") {
@@ -269,267 +281,6 @@ function formatMoney(value: number, currencyCode: string) {
     style: "currency",
     currency: currencyCode,
   }).format(value);
-}
-
-
-
-type RegisterSearchScope = "all" | "payee" | "category" | "memo" | "amount";
-
-interface RegisterSearchCommit {
-  query: string;
-  scope: RegisterSearchScope;
-  label: string;
-}
-
-interface RegisterSearchSuggestion {
-  id: string;
-  group: "payees" | "categories" | "memos" | "search";
-  label: string;
-  detail?: string;
-  query: string;
-  scope: RegisterSearchScope;
-  count: number;
-}
-
-const REGISTER_SEARCH_SCOPE_LABELS: Record<RegisterSearchScope, string> = {
-  all: "all fields",
-  payee: "payees",
-  category: "categories",
-  memo: "memos",
-  amount: "amounts",
-};
-
-function normaliseSearchText(value: string | undefined): string {
-  return (value ?? "").replace(/\s+/g, " ").trim().toLocaleLowerCase();
-}
-
-function amountSearchTokens(transaction: RegisterTransactionView): string[] {
-  const amounts = [transaction.outflow, transaction.inflow].filter(
-    (amount) => amount > 0,
-  );
-
-  return amounts.flatMap((amount) => {
-    const fixed = amount.toFixed(2);
-    return [fixed, fixed.replace(/\.00$/, ""), String(amount)];
-  });
-}
-
-function transactionMatchesSearch(
-  transaction: RegisterTransactionView,
-  search: RegisterSearchCommit,
-): boolean {
-  const query = normaliseSearchText(search.query);
-
-  if (!query) {
-    return true;
-  }
-
-  const splitCategories = transaction.splitLines?.map((line) => line.category) ?? [];
-  const splitMemos = transaction.splitLines?.map((line) => line.memo ?? "") ?? [];
-
-  const payeeText = normaliseSearchText(transaction.payee);
-  const categoryText = normaliseSearchText(
-    [transaction.category, ...splitCategories].join(" "),
-  );
-  const memoText = normaliseSearchText(
-    [transaction.memo, transaction.checkNumber, ...splitMemos].join(" "),
-  );
-  const amountText = amountSearchTokens(transaction).join(" ").toLocaleLowerCase();
-
-  switch (search.scope) {
-    case "payee":
-      return payeeText.includes(query);
-    case "category":
-      return categoryText.includes(query);
-    case "memo":
-      return memoText.includes(query);
-    case "amount":
-      return amountText.includes(query);
-    case "all":
-    default:
-      return (
-        payeeText.includes(query) ||
-        categoryText.includes(query) ||
-        memoText.includes(query) ||
-        amountText.includes(query)
-      );
-  }
-}
-
-function countMatchingTransactions(
-  transactions: readonly RegisterTransactionView[],
-  query: string,
-  scope: RegisterSearchScope,
-): number {
-  return transactions.filter((transaction) =>
-    transactionMatchesSearch(transaction, {
-      query,
-      scope,
-      label: query,
-    }),
-  ).length;
-}
-
-function buildRegisterSearchSuggestions(
-  transactions: readonly RegisterTransactionView[],
-  query: string,
-): RegisterSearchSuggestion[] {
-  const normalisedQuery = normaliseSearchText(query);
-
-  if (!normalisedQuery) {
-    return [];
-  }
-
-  const byPayee = new Map<string, { label: string; count: number }>();
-  const byCategory = new Map<string, { label: string; count: number }>();
-  const byMemo = new Map<string, { label: string; count: number }>();
-
-  for (const transaction of transactions) {
-    const payee = transaction.payee.trim();
-    if (payee && normaliseSearchText(payee).includes(normalisedQuery)) {
-      const key = normaliseSearchText(payee);
-      byPayee.set(key, {
-        label: payee,
-        count: (byPayee.get(key)?.count ?? 0) + 1,
-      });
-    }
-
-    const categoryNames = [
-      transaction.category,
-      ...(transaction.splitLines?.map((line) => line.category) ?? []),
-    ];
-
-    for (const category of categoryNames) {
-      const cleanCategory = category.trim();
-      if (
-        cleanCategory &&
-        normaliseSearchText(cleanCategory).includes(normalisedQuery)
-      ) {
-        const key = normaliseSearchText(cleanCategory);
-        byCategory.set(key, {
-          label: cleanCategory,
-          count: (byCategory.get(key)?.count ?? 0) + 1,
-        });
-      }
-    }
-
-    const memoValues = [
-      transaction.memo ?? "",
-      ...(transaction.splitLines?.map((line) => line.memo ?? "") ?? []),
-    ];
-
-    for (const memo of memoValues) {
-      const cleanMemo = memo.replace(/\s+/g, " ").trim();
-      if (cleanMemo && normaliseSearchText(cleanMemo).includes(normalisedQuery)) {
-        const key = normaliseSearchText(cleanMemo);
-        byMemo.set(key, {
-          label: cleanMemo,
-          count: (byMemo.get(key)?.count ?? 0) + 1,
-        });
-      }
-    }
-  }
-
-  const ranked = (entries: Iterable<{ label: string; count: number }>) =>
-    [...entries].sort((left, right) => {
-      const leftExact = normaliseSearchText(left.label) === normalisedQuery ? 1 : 0;
-      const rightExact = normaliseSearchText(right.label) === normalisedQuery ? 1 : 0;
-
-      if (leftExact !== rightExact) {
-        return rightExact - leftExact;
-      }
-
-      if (left.count !== right.count) {
-        return right.count - left.count;
-      }
-
-      return left.label.localeCompare(right.label);
-    });
-
-  const suggestions: RegisterSearchSuggestion[] = [
-    ...ranked(byPayee.values())
-      .slice(0, 8)
-      .map((match) => ({
-        id: `payee:${match.label}`,
-        group: "payees" as const,
-        label: match.label,
-        detail: `${match.count} transaction${match.count === 1 ? "" : "s"}`,
-        query: match.label,
-        scope: "payee" as const,
-        count: match.count,
-      })),
-    ...ranked(byCategory.values())
-      .slice(0, 6)
-      .map((match) => ({
-        id: `category:${match.label}`,
-        group: "categories" as const,
-        label: match.label,
-        detail: `${match.count} transaction${match.count === 1 ? "" : "s"}`,
-        query: match.label,
-        scope: "category" as const,
-        count: match.count,
-      })),
-    ...ranked(byMemo.values())
-      .slice(0, 4)
-      .map((match) => ({
-        id: `memo:${match.label}`,
-        group: "memos" as const,
-        label: match.label,
-        detail: `${match.count} transaction${match.count === 1 ? "" : "s"}`,
-        query: match.label,
-        scope: "memo" as const,
-        count: match.count,
-      })),
-  ];
-
-  const searchEverywhereAction: RegisterSearchSuggestion = {
-    id: "search:all",
-    group: "search",
-    label: `Search "${query.trim()}" in all fields`,
-    query: query.trim(),
-    scope: "all",
-    count: countMatchingTransactions(transactions, query, "all"),
-  };
-
-  const searchActions: RegisterSearchSuggestion[] = [
-    {
-      id: "search:payee",
-      group: "search",
-      label: `Find "${query.trim()}" in payees`,
-      query: query.trim(),
-      scope: "payee",
-      count: countMatchingTransactions(transactions, query, "payee"),
-    },
-    {
-      id: "search:category",
-      group: "search",
-      label: `Find "${query.trim()}" in categories`,
-      query: query.trim(),
-      scope: "category",
-      count: countMatchingTransactions(transactions, query, "category"),
-    },
-    {
-      id: "search:memo",
-      group: "search",
-      label: `Find "${query.trim()}" in memos`,
-      query: query.trim(),
-      scope: "memo",
-      count: countMatchingTransactions(transactions, query, "memo"),
-    },
-  ];
-
-  if (/^-?\d+(?:\.\d{1,2})?$/.test(query.trim())) {
-    searchActions.push({
-      id: "search:amount",
-      group: "search",
-      label: `Find amount "${query.trim()}"`,
-      query: query.trim(),
-      scope: "amount",
-      count: countMatchingTransactions(transactions, query, "amount"),
-    });
-  }
-
-  return [searchEverywhereAction, ...suggestions, ...searchActions];
 }
 
 function normalisePayeeKey(name: string) {
@@ -2738,7 +2489,6 @@ function clampPageForTransactionCount(
   ).currentPage;
 }
 
-
 function RegisterSearchDropdown({
   query,
   suggestions,
@@ -2772,7 +2522,9 @@ function RegisterSearchDropdown({
   return (
     <div className="register-search-dropdown" role="listbox">
       {groups.map((group) => {
-        const items = suggestions.filter((suggestion) => suggestion.group === group.key);
+        const items = suggestions.filter(
+          (suggestion) => suggestion.group === group.key,
+        );
 
         if (items.length === 0) {
           return null;
@@ -2799,12 +2551,17 @@ function RegisterSearchDropdown({
                     onCommit(suggestion);
                   }}
                 >
-                  <span className="register-search-suggestion-icon" aria-hidden="true">
+                  <span
+                    className="register-search-suggestion-icon"
+                    aria-hidden="true"
+                  >
                     {group.icon}
                   </span>
                   <span className="register-search-suggestion-main">
                     <strong>{suggestion.label}</strong>
-                    {suggestion.detail ? <small>{suggestion.detail}</small> : null}
+                    {suggestion.detail ? (
+                      <small>{suggestion.detail}</small>
+                    ) : null}
                   </span>
                   <span className="register-search-suggestion-count">
                     {suggestion.count}
@@ -2883,8 +2640,10 @@ export function AccountRegisterPage() {
   const [committedRegisterSearch, setCommittedRegisterSearch] =
     useState<RegisterSearchCommit | null>(null);
   const [isRegisterSearchOpen, setIsRegisterSearchOpen] = useState(false);
-  const [activeRegisterSearchSuggestionIndex, setActiveRegisterSearchSuggestionIndex] =
-    useState<number | null>(null);
+  const [
+    activeRegisterSearchSuggestionIndex,
+    setActiveRegisterSearchSuggestionIndex,
+  ] = useState<number | null>(null);
   const registerSearchInputRef = useRef<HTMLInputElement | null>(null);
   const dateFormat = useDateFormatPreference();
   const developerPerformanceMode = useDeveloperPerformanceMode();
@@ -2931,9 +2690,10 @@ export function AccountRegisterPage() {
   );
 
   const registerEntryVisibleColumnIds = useMemo(
-    () => buildRegisterEditVisibleColumnIds(
-      registerTableLayout.visibleColumns.map((column) => column.id),
-    ),
+    () =>
+      buildRegisterEditVisibleColumnIds(
+        registerTableLayout.visibleColumns.map((column) => column.id),
+      ),
     [registerTableLayout.visibleColumns],
   );
 
@@ -3017,7 +2777,8 @@ export function AccountRegisterPage() {
 
   const registerTransactions = data?.transactions ?? [];
   const registerSearchSuggestions = useMemo(
-    () => buildRegisterSearchSuggestions(registerTransactions, registerSearchDraft),
+    () =>
+      buildRegisterSearchSuggestions(registerTransactions, registerSearchDraft),
     [registerTransactions, registerSearchDraft],
   );
   const searchedRegisterTransactions = useMemo(
@@ -3087,14 +2848,18 @@ export function AccountRegisterPage() {
       return [];
     }
 
-    const selectedRegisterActionIdSet = new Set(selectedRegisterActionTransactionIds);
+    const selectedRegisterActionIdSet = new Set(
+      selectedRegisterActionTransactionIds,
+    );
     return registerTransactions.filter((transaction) =>
       selectedRegisterActionIdSet.has(transaction.id),
     );
   }, [registerTransactions, selectedRegisterActionTransactionIds]);
 
   useEffect(() => {
-    registerSelection.prune(registerTransactions.map((transaction) => transaction.id));
+    registerSelection.prune(
+      registerTransactions.map((transaction) => transaction.id),
+    );
   }, [registerSelection.prune, registerTransactions]);
 
   const transactionById = useMemo(
@@ -3183,7 +2948,6 @@ export function AccountRegisterPage() {
     timings: registerPerformanceTimingsRef.current,
   });
 
-
   const commitRegisterSearch = useCallback(
     (suggestion: RegisterSearchSuggestion | RegisterSearchCommit) => {
       const query = suggestion.query.trim();
@@ -3221,7 +2985,10 @@ export function AccountRegisterPage() {
         setActiveRegisterSearchSuggestionIndex((current) =>
           current === null
             ? 0
-            : Math.min(current + 1, Math.max(0, registerSearchSuggestions.length - 1)),
+            : Math.min(
+                current + 1,
+                Math.max(0, registerSearchSuggestions.length - 1),
+              ),
         );
         return;
       }
@@ -3297,7 +3064,6 @@ export function AccountRegisterPage() {
     [registerSelection],
   );
 
-
   const handleToggleTransactionSelection = useCallback(
     (transactionId: string) => {
       setEditingTransactionId(null);
@@ -3307,11 +3073,14 @@ export function AccountRegisterPage() {
     [registerSelection],
   );
 
-  const handleEditTransaction = useCallback((transactionId: string) => {
-    registerSelection.selectSingle(transactionId);
-    setShowEntryRow(false);
-    setEditingTransactionId(transactionId);
-  }, [registerSelection]);
+  const handleEditTransaction = useCallback(
+    (transactionId: string) => {
+      registerSelection.selectSingle(transactionId);
+      setShowEntryRow(false);
+      setEditingTransactionId(transactionId);
+    },
+    [registerSelection],
+  );
 
   const handleToggleClearedTransaction = useCallback(
     (transactionId: string) => {
@@ -3331,12 +3100,13 @@ export function AccountRegisterPage() {
   });
   const hasRegisterActionSelection = registerSelectionActions.hasSelection;
 
-
-
-  const handleManageTransactionAttachments = useCallback((transactionId: string) => {
-    registerSelection.selectSingle(transactionId);
-    setAttachmentTransactionId(transactionId);
-  }, [registerSelection]);
+  const handleManageTransactionAttachments = useCallback(
+    (transactionId: string) => {
+      registerSelection.selectSingle(transactionId);
+      setAttachmentTransactionId(transactionId);
+    },
+    [registerSelection],
+  );
 
   const handleUpdateTransactionFlag = useCallback(
     (transaction: RegisterTransactionView, flag: TransactionFlag) => {
@@ -3404,7 +3174,11 @@ export function AccountRegisterPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editingTransactionId, selectedRegisterTransactionCount, selectedRegisterTransactionIds]);
+  }, [
+    editingTransactionId,
+    selectedRegisterTransactionCount,
+    selectedRegisterTransactionIds,
+  ]);
 
   useEffect(() => {
     function handleRegisterSelectionKeyDown(event: globalThis.KeyboardEvent) {
@@ -3637,8 +3411,7 @@ export function AccountRegisterPage() {
           <span
             className={[
               column.id === "attachments" ? "register-head-icon" : "",
-              column.id === "amount" ||
-              column.id === "runningBalance"
+              column.id === "amount" || column.id === "runningBalance"
                 ? "register-head-money"
                 : "",
               "table-layout-resizable-head-cell",
@@ -3800,13 +3573,17 @@ export function AccountRegisterPage() {
             </div>
           </div>
 
-
           {registerColumnHeader}
           {committedRegisterSearch ? (
             <div className="register-search-status" role="status">
-              <strong>Searching {REGISTER_SEARCH_SCOPE_LABELS[committedRegisterSearch.scope]}</strong>
+              <strong>
+                Searching{" "}
+                {REGISTER_SEARCH_SCOPE_LABELS[committedRegisterSearch.scope]}
+              </strong>
               <span>
-                “{committedRegisterSearch.query}” · {searchedRegisterTransactions.length} of {registerTransactions.length} transactions
+                “{committedRegisterSearch.query}” ·{" "}
+                {searchedRegisterTransactions.length} of{" "}
+                {registerTransactions.length} transactions
               </span>
               <button type="button" onClick={clearRegisterSearch}>
                 Clear search
@@ -4152,7 +3929,9 @@ export function AccountRegisterPage() {
                     dateFormat={dateFormat}
                     isSelected={registerSelection.isSelected(transaction.id)}
                     onSelectTransaction={handleSelectTransaction}
-                    onToggleTransactionSelection={handleToggleTransactionSelection}
+                    onToggleTransactionSelection={
+                      handleToggleTransactionSelection
+                    }
                     onEditTransaction={handleEditTransaction}
                     onToggleClearedTransaction={handleToggleClearedTransaction}
                     onManageTransactionAttachments={

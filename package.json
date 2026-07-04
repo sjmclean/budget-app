@@ -460,7 +460,9 @@
     "test:v2510:credit-card-payment-category-cleanup": "tsx tests/v2510-credit-card-payment-category-cleanup.ts",
     "test:v2510": "pnpm test:v2505 && pnpm test:v2510:credit-card-payment-category-cleanup",
     "test:v2520:register-selection-actions-refactor": "tsx tests/v2520-register-selection-actions-refactor.ts",
-    "test:v2520": "pnpm test:v2510 && pnpm test:v2520:register-selection-actions-refactor"
+    "test:v2520": "pnpm test:v2510 && pnpm test:v2520:register-selection-actions-refactor",
+    "test:v2521:register-search-extraction": "tsx tests/v2521-register-search-extraction.ts",
+    "test:v2521": "pnpm test:v2520 && pnpm test:v2521:register-search-extraction"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
