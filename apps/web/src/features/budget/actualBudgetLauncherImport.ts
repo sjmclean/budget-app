@@ -10,6 +10,7 @@ import {
   getBudgetScopedStorageKey,
 } from "./budgetDataScope";
 import type { FullBudgetImportPreview } from "../../../../../packages/types/src/index";
+import type { CreditCardBehaviour } from "./budgetPreferences";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import type { SidebarAccount, SidebarAccountType } from "../accounts/accountService";
 import type { AccountRegisterView, RegisterTransactionView } from "../accounts/accountRegisterTypes";
@@ -56,6 +57,7 @@ export interface ActualBudgetLauncherImportRecord {
 export interface CreateActualBudgetLauncherImportInput {
   preview: FullBudgetImportPreview;
   sourceFileName?: string | null;
+  creditCardBehaviour?: CreditCardBehaviour;
   now?: Date;
 }
 
@@ -138,6 +140,9 @@ export function createActualBudgetLauncherImport(
       currency: readPreviewCurrency(input.preview),
       packagePath: input.sourceFileName
         ? `~/Budgets/${input.sourceFileName.replace(/\.zip$/i, "")}.budget`
+        : undefined,
+      preferences: input.creditCardBehaviour
+        ? { creditCardBehaviour: input.creditCardBehaviour }
         : undefined,
       now,
     });

@@ -10,6 +10,7 @@ import {
   getBudgetScopedStorageKey,
 } from "./budgetDataScope";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import type { CreditCardBehaviour } from "./budgetPreferences";
 import type { SidebarAccount, SidebarAccountType } from "../accounts/accountService";
 import type { AccountRegisterView, RegisterTransactionView } from "../accounts/accountRegisterTypes";
 import type { PayeeView } from "../accounts/payeeService";
@@ -72,6 +73,7 @@ export interface CreateYnab4LauncherBudgetImportInput {
   discovery: Ynab4PackageDiscoveryResult;
   preview: Ynab4PackageMigrationPreview;
   entries: Ynab4PackageEntry[];
+  creditCardBehaviour?: CreditCardBehaviour;
   now?: Date;
 }
 
@@ -170,6 +172,9 @@ export function createYnab4LauncherBudgetImport(
       currency: "AUD",
       packagePath: input.discovery.packageRoot
         ? `${input.discovery.packageRoot}.budget`
+        : undefined,
+      preferences: input.creditCardBehaviour
+        ? { creditCardBehaviour: input.creditCardBehaviour }
         : undefined,
       now,
     });

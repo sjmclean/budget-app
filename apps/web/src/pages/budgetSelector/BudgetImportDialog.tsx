@@ -16,6 +16,7 @@ import type {
   CreateYnab4LauncherBudgetImportInput,
   Ynab4LauncherImportResult,
 } from "../../features/budget/ynab4LauncherImport";
+import type { CreditCardBehaviour } from "../../features/budget/budgetPreferences";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import {
@@ -79,6 +80,12 @@ interface WindowWithDirectoryPicker extends Window {
   showDirectoryPicker?: () => Promise<BrowserFileSystemDirectoryHandle>;
 }
 
+interface PendingCreditCardBehaviourImport {
+  providerLabel: string;
+  creditCardBehaviour: CreditCardBehaviour;
+  continueImport: (behaviour: CreditCardBehaviour) => Promise<void>;
+}
+
 interface BudgetImportResultSummary {
   providerLabel: string;
   budgetId: string;
@@ -114,6 +121,8 @@ export function BudgetImportDialog({
     useState<BudgetImportProgressPhase>("idle");
   const [budgetImportResult, setBudgetImportResult] =
     useState<BudgetImportResultSummary | null>(null);
+  const [pendingCreditCardImport, setPendingCreditCardImport] =
+    useState<PendingCreditCardBehaviourImport | null>(null);
   const [isBudgetImportDragActive, setIsBudgetImportDragActive] = useState(false);
   const budgetFileInputRef = useRef<HTMLInputElement | null>(null);
   const ynab4FolderInputRef = useRef<HTMLInputElement | null>(null);
@@ -122,6 +131,7 @@ export function BudgetImportDialog({
     discovery: Ynab4PackageDiscoveryResult;
     preview: Ynab4PackageMigrationPreview;
     entries: Ynab4PackageEntry[];
+    creditCardBehaviour?: CreditCardBehaviour;
   }) {
     setBudgetImportProgressPhase("importing-accounts");
 
@@ -155,7 +165,11 @@ export function BudgetImportDialog({
     }
   }
 
-  async function importDetectedActualBudget(preview: FullBudgetImportPreview, sourceFileName: string | null) {
+  async function importDetectedActualBudget(
+    preview: FullBudgetImportPreview,
+    sourceFileName: string | null,
+    creditCardBehaviour?: CreditCardBehaviour,
+  ) {
     if (!preview.canCommit) {
       setActualError("The detected budget cannot be imported yet. Review the warning details and try a supported export.");
       setBudgetImportProgressPhase("failed");
@@ -173,6 +187,7 @@ export function BudgetImportDialog({
       const result = await importActualBudget({
         preview,
         sourceFileName,
+        creditCardBehaviour,
       });
       setBudgetImportProgressPhase("finalising");
       onImportedBudgetSelected(result.budget.id);
@@ -211,6 +226,7 @@ export function BudgetImportDialog({
     setActualError(null);
     setYnabError(null);
     setBudgetImportResult(null);
+    setPendingCreditCardImport(null);
   }
 
   async function handleActualBudgetFileSelection(file: File | null) {
@@ -245,6 +261,18 @@ export function BudgetImportDialog({
       }
 
       setBudgetImportProgressPhase("inspecting");
+
+      if (actualPreviewContainsCreditCards(preview)) {
+        setBudgetImportProgressPhase("idle");
+        setActualStatus(`${preview.providerLabel} detected. Choose how credit cards should work before importing.`);
+        setPendingCreditCardImport({
+          providerLabel: preview.providerLabel,
+          creditCardBehaviour: "normal",
+          continueImport: (behaviour) => importDetectedActualBudget(preview, file.name, behaviour),
+        });
+        return;
+      }
+
       setBudgetImportProgressPhase("preparing");
       setActualStatus(`${preview.providerLabel} detected. Importing into a new local budget…`);
       await importDetectedActualBudget(preview, file.name);
@@ -352,6 +380,18 @@ export function BudgetImportDialog({
         return;
       }
 
+      if (ynab4EntriesContainCreditCards(entries)) {
+        setBudgetImportProgressPhase("idle");
+        setActualStatus("YNAB4 detected. Choose how credit cards should work before importing.");
+        setPendingCreditCardImport({
+          providerLabel: "YNAB4",
+          creditCardBehaviour: "normal",
+          continueImport: (behaviour) =>
+            importYnab4PackagePreview({ discovery, preview, entries, creditCardBehaviour: behaviour }),
+        });
+        return;
+      }
+
       await importYnab4PackagePreview({ discovery, preview, entries });
     } catch (error) {
       setYnabError(
@@ -400,7 +440,61 @@ export function BudgetImportDialog({
         </button>
       </div>
 
-      {budgetImportResult ? (
+      {pendingCreditCardImport ? (
+        <div className="budget-import-credit-card-choice" aria-label="Credit card behaviour for imported budget">
+          <div className="budget-launch-choice-header">
+            <p className="eyebrow">Credit cards detected</p>
+            <h2>How should credit cards work?</h2>
+            <p>{pendingCreditCardImport.providerLabel} contains credit card accounts. This choice applies to every credit card in the imported budget.</p>
+          </div>
+
+          <div className="credit-card-behaviour-options" role="radiogroup" aria-label="How should credit cards work in this imported budget?">
+            <label className="credit-card-behaviour-option">
+              <input
+                type="radio"
+                name="budget-import-credit-card-behaviour"
+                value="normal"
+                checked={pendingCreditCardImport.creditCardBehaviour === "normal"}
+                onChange={() => setPendingCreditCardImport((current) => current ? { ...current, creditCardBehaviour: "normal" } : current)}
+              />
+              <span>
+                <strong>Treat credit cards like normal accounts</strong>
+                <small>Purchases increase the card balance. Payments reduce the balance.</small>
+              </span>
+            </label>
+
+            <label className="credit-card-behaviour-option">
+              <input
+                type="radio"
+                name="budget-import-credit-card-behaviour"
+                value="payment-funding"
+                checked={pendingCreditCardImport.creditCardBehaviour === "payment-funding"}
+                onChange={() => setPendingCreditCardImport((current) => current ? { ...current, creditCardBehaviour: "payment-funding" } : current)}
+              />
+              <span>
+                <strong>Reserve money for credit card payments</strong>
+                <small>Funded purchases set money aside for the next card payment.</small>
+              </span>
+            </label>
+          </div>
+
+          <div className="app-dialog-actions">
+            <Button type="button" variant="secondary" onClick={() => setPendingCreditCardImport(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                const pending = pendingCreditCardImport;
+                setPendingCreditCardImport(null);
+                void pending.continueImport(pending.creditCardBehaviour);
+              }}
+            >
+              Continue import
+            </Button>
+          </div>
+        </div>
+      ) : budgetImportResult ? (
         <div className="budget-import-complete-report" aria-label="Budget import completion report">
           <div className="budget-import-complete-icon" aria-hidden="true">
             ✓
@@ -528,6 +622,50 @@ export function BudgetImportDialog({
       ) : null}
     </Card>
   );
+}
+
+function actualPreviewContainsCreditCards(preview: FullBudgetImportPreview): boolean {
+  return preview.accounts.some((account) => {
+    if (account.offBudget) return false;
+    const normalisedType = (account.type ?? "").replace(/[\s_-]/g, "").toLowerCase();
+    return ["credit", "creditcard", "card"].includes(normalisedType);
+  });
+}
+
+function ynab4EntriesContainCreditCards(entries: Ynab4PackageEntry[]): boolean {
+  const budgetEntry = entries.find((entry) => {
+    const path = entry.path.replace(/\\/g, "/");
+    return path.endsWith("/Budget.yfull") || path.endsWith("/Budget.json") || path === "Budget.yfull" || path === "Budget.json";
+  });
+
+  if (!budgetEntry) return false;
+
+  try {
+    const parsed = JSON.parse(budgetEntry.text) as { accounts?: unknown };
+    return Array.isArray(parsed.accounts) && parsed.accounts.some(isYnab4CreditCardAccount);
+  } catch {
+    return false;
+  }
+}
+
+function isYnab4CreditCardAccount(account: unknown): boolean {
+  if (!account || typeof account !== "object" || Array.isArray(account)) {
+    return false;
+  }
+
+  const record = account as Record<string, unknown>;
+  if (record.onBudget === false || record.hidden === true || record.closed === true || record.isTombstone === true) {
+    return false;
+  }
+
+  const rawType = typeof record.accountType === "string"
+    ? record.accountType
+    : typeof record.type === "string"
+      ? record.type
+      : "";
+  const normalisedType = rawType.replace(/[\s_-]/g, "").toLowerCase();
+
+  return ["credit", "creditcard", "card"].includes(normalisedType);
 }
 
 async function readFilesFromDirectoryHandle(

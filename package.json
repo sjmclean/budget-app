@@ -454,7 +454,9 @@
     "test:v2503:credit-card-behaviour-service": "tsx tests/v2503-credit-card-behaviour-service.ts",
     "test:v2503": "pnpm test:v2502 && pnpm test:v2503:credit-card-behaviour-service",
     "test:v2504:credit-card-budget-ui": "tsx tests/v2504-credit-card-budget-ui.ts",
-    "test:v2504": "pnpm test:v2503 && pnpm test:v2504:credit-card-budget-ui"
+    "test:v2504": "pnpm test:v2503 && pnpm test:v2504:credit-card-budget-ui",
+    "test:v2505:credit-card-import-integration": "tsx tests/v2505-credit-card-import-integration.ts",
+    "test:v2505": "pnpm test:v2504 && pnpm test:v2505:credit-card-import-integration"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
