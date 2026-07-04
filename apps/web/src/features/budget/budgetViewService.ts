@@ -10,7 +10,6 @@ import type {
 } from "./budgetViewTypes";
 import type { BudgetActivityPersistencePort, BudgetActivityRegisterTransaction } from "./budgetActivityPersistencePort";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
-import { readAccounts } from "../accounts/accountService";
 import { readSettingsPreferences } from "../settings/settingsPreferences";
 import { cloneDefaultCategoryTemplate } from "./defaultCategoryTemplate";
 import {
@@ -18,13 +17,15 @@ import {
   readCreditCardPaymentFundingEnabled,
   shouldCreatePaymentCategories,
 } from "./creditCardBehaviourService";
+import {
+  ensureCreditCardPaymentCategories,
+  getCreditCardPaymentCategoryId,
+} from "./creditCardPaymentCategories";
 import { isMoneyNegative, normaliseMoney } from "./moneyMath";
 
 const STORAGE_KEY_PREFIX = "budget-app.budget-view.v1";
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
 const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
-const CREDIT_CARD_PAYMENT_GROUP_ID = "credit-card-payments";
-const CREDIT_CARD_PAYMENT_GROUP_NAME = "Credit Card Payments";
 
 export interface BudgetViewServiceDependencies {
   budgetActivity: BudgetActivityPersistencePort;
@@ -166,92 +167,6 @@ function readStoredBudgetView(
   }
 }
 
-
-function getCreditCardPaymentCategoryId(accountId: string): string {
-  return `credit-card-payment-${accountId}`;
-}
-
-function createCreditCardPaymentCategory(accountId: string, accountName: string): BudgetCategoryView {
-  return {
-    id: getCreditCardPaymentCategoryId(accountId),
-    name: accountName,
-    previousAvailable: 0,
-    assigned: 0,
-    activity: 0,
-    available: 0,
-    isOverspent: false,
-    isArchived: false,
-    note: "",
-  };
-}
-
-function ensureCreditCardPaymentCategories(
-  dependencies: BudgetViewServiceDependencies,
-  view: BudgetMonthView,
-  transactions: BudgetActivityRegisterTransaction[],
-): BudgetMonthView {
-  const accountNames = new Map<string, string>();
-
-  for (const account of readAccounts(dependencies.storage)) {
-    if (account.type === "credit-card" && !account.closedAt) {
-      accountNames.set(account.id, account.name);
-    }
-  }
-
-  for (const transaction of transactions) {
-    if (transaction.accountType === "credit-card") {
-      accountNames.set(transaction.accountId, transaction.accountName ?? accountNames.get(transaction.accountId) ?? transaction.accountId);
-    }
-  }
-
-  if (accountNames.size === 0) {
-    return view;
-  }
-
-  const existingCategoryIds = new Set(
-    view.categoryGroups.flatMap((group) => group.categories.map((category) => category.id)),
-  );
-  const missingCategories = [...accountNames]
-    .filter(([accountId]) => !existingCategoryIds.has(getCreditCardPaymentCategoryId(accountId)))
-    .map(([accountId, accountName]) => createCreditCardPaymentCategory(accountId, accountName));
-
-  if (missingCategories.length === 0) {
-    return view;
-  }
-
-  const existingPaymentGroup = view.categoryGroups.find((group) => group.id === CREDIT_CARD_PAYMENT_GROUP_ID);
-
-  if (existingPaymentGroup) {
-    return {
-      ...view,
-      categoryGroups: view.categoryGroups.map((group) =>
-        group.id === CREDIT_CARD_PAYMENT_GROUP_ID
-          ? {
-              ...group,
-              categories: [...group.categories, ...missingCategories],
-            }
-          : group,
-      ),
-    };
-  }
-
-  return {
-    ...view,
-    categoryGroups: [
-      {
-        id: CREDIT_CARD_PAYMENT_GROUP_ID,
-        name: CREDIT_CARD_PAYMENT_GROUP_NAME,
-        previousAvailable: 0,
-        assigned: 0,
-        activity: 0,
-        available: 0,
-        note: "",
-        categories: missingCategories,
-      },
-      ...view.categoryGroups,
-    ],
-  };
-}
 
 async function applyRegisterActivity(
   dependencies: BudgetViewServiceDependencies,

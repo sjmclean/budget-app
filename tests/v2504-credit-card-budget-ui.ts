@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 function testPaymentCategoryNaming() {
-  const serviceSource = readFileSync("apps/web/src/features/budget/budgetViewService.ts", "utf8");
+  const serviceSource = readFileSync("apps/web/src/features/budget/creditCardPaymentCategories.ts", "utf8");
 
   assert.match(
     serviceSource,
@@ -16,13 +16,13 @@ function testBudgetPageRecognisesPaymentCategories() {
 
   assert.match(
     budgetPage,
-    /const CREDIT_CARD_PAYMENT_GROUP_ID = "credit-card-payments"/,
-    "Budget UI should identify the generated credit-card payment group",
+    /isCreditCardPaymentGroup/,
+    "Budget UI should identify the generated credit-card payment group through the shared helper",
   );
   assert.match(
     budgetPage,
-    /const CREDIT_CARD_PAYMENT_CATEGORY_ID_PREFIX = "credit-card-payment-"/,
-    "Budget UI should identify generated credit-card payment categories",
+    /isCreditCardPaymentCategory/,
+    "Budget UI should identify generated credit-card payment categories through the shared helper",
   );
   assert.match(
     budgetPage,

@@ -456,7 +456,9 @@
     "test:v2504:credit-card-budget-ui": "tsx tests/v2504-credit-card-budget-ui.ts",
     "test:v2504": "pnpm test:v2503 && pnpm test:v2504:credit-card-budget-ui",
     "test:v2505:credit-card-import-integration": "tsx tests/v2505-credit-card-import-integration.ts",
-    "test:v2505": "pnpm test:v2504 && pnpm test:v2505:credit-card-import-integration"
+    "test:v2505": "pnpm test:v2504 && pnpm test:v2505:credit-card-import-integration",
+    "test:v2510:credit-card-payment-category-cleanup": "tsx tests/v2510-credit-card-payment-category-cleanup.ts",
+    "test:v2510": "pnpm test:v2505 && pnpm test:v2510:credit-card-payment-category-cleanup"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

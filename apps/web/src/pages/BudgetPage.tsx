@@ -38,6 +38,7 @@ import { formatDateForDisplay } from "../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../features/settings/useDateFormatPreference";
 import { ColumnResizeHandle } from "../features/tableLayout/ColumnResizeHandle";
 import { useTableLayout, type TableColumnDefinition } from "../features/tableLayout/tableLayout";
+import { isCreditCardPaymentCategory, isCreditCardPaymentGroup } from "../features/budget/creditCardPaymentCategories";
 
 type BudgetColumnId = "category" | "assigned" | "activity" | "available";
 type BudgetSortableKind = "category" | "group";
@@ -68,16 +69,6 @@ function getSortableEntityId(id: string) {
 
 const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
 
-const CREDIT_CARD_PAYMENT_GROUP_ID = "credit-card-payments";
-const CREDIT_CARD_PAYMENT_CATEGORY_ID_PREFIX = "credit-card-payment-";
-
-function isCreditCardPaymentGroup(groupId: string): boolean {
-  return groupId === CREDIT_CARD_PAYMENT_GROUP_ID;
-}
-
-function isCreditCardPaymentCategory(categoryId: string): boolean {
-  return categoryId.startsWith(CREDIT_CARD_PAYMENT_CATEGORY_ID_PREFIX);
-}
 
 const BUDGET_COLUMN_DEFINITIONS: readonly TableColumnDefinition<BudgetColumnId>[] = [
   { id: "category", label: "Category Group", template: "minmax(15rem, 1fr)", widthRem: 15 },

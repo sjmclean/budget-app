@@ -202,7 +202,11 @@ function testReleaseWiring() {
   const packageJson = readFileSync("package.json", "utf8");
 
   assert.match(serviceSource, /readCreditCardPaymentFundingEnabled/, "Budget view service should route credit-card behaviour through preferences");
-  assert.match(serviceSource, /credit-card-payment-\$\{accountId\}/, "Payment funding should use deterministic payment category ids");
+  assert.match(
+    serviceSource,
+    /getCreditCardPaymentCategoryId/,
+    "Payment funding should use the shared payment category id helper",
+  );
   assert.match(packageJson, /test:v2502/, "Release scripts should include v2.50.2 checks");
 }
 
