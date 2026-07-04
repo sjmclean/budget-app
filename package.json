@@ -468,7 +468,9 @@
     "test:v2523:register-date-field-extraction": "tsx tests/v2523-register-date-field-extraction.ts",
     "test:v2523": "pnpm test:v2522 && pnpm test:v2523:register-date-field-extraction",
     "test:v2524:register-toolbar-extraction": "tsx tests/v2524-register-toolbar-extraction.ts",
-    "test:v2524": "pnpm test:v2523 && pnpm test:v2524:register-toolbar-extraction"
+    "test:v2524": "pnpm test:v2523 && pnpm test:v2524:register-toolbar-extraction",
+    "test:v2525:register-columns-extraction": "tsx tests/v2525-register-columns-extraction.ts",
+    "test:v2525": "pnpm test:v2524 && pnpm test:v2525:register-columns-extraction"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
