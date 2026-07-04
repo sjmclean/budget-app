@@ -61,18 +61,22 @@ const useAccountRegister = readFileSync(
   join(process.cwd(), "apps/web/src/features/accounts/useAccountRegister.ts"),
   "utf8",
 );
+const selectionActionsHook = readFileSync(
+  join(process.cwd(), "apps/web/src/features/accounts/useRegisterSelectionActions.ts"),
+  "utf8",
+);
 
-assert.match(registerPage, /const hasRegisterActionSelection = selectedRegisterActionTransactionCount > 0;/);
-assert.match(registerPage, /handleSetSelectedTransactionsCleared/);
-assert.match(registerPage, /handleToggleSelectedTransactionsCleared/);
-assert.match(registerPage, /areAllSelectedRegisterTransactionsCleared/);
+assert.match(registerPage, /const hasRegisterActionSelection = registerSelectionActions\.hasSelection;/);
+assert.match(registerPage, /useRegisterSelectionActions/);
+assert.match(registerPage, /registerSelectionActions\.actions/);
+assert.match(registerPage, /registerSelectionActions\.selectedCount/);
 assert.match(registerPage, /SelectionBar/);
 assert.match(registerPage, /registerSelectionActions/);
-assert.match(registerPage, /icon: CheckCircle2/);
-assert.match(registerPage, /icon: Pencil/);
-assert.match(registerPage, /icon: Trash2/);
+assert.match(selectionActionsHook, /icon: CheckCircle2/);
+assert.match(selectionActionsHook, /icon: Pencil/);
+assert.match(selectionActionsHook, /icon: Trash2/);
 assert.doesNotMatch(registerPage, />\s*Unclear\s*<\/button>/);
-assert.match(registerPage, /handleDeleteSelectedTransactions/);
+assert.doesNotMatch(registerPage, /handleDeleteSelectedTransactions/);
 assert.match(registerPage, /<SelectionBar/);
 assert.match(registerPage, /useRegisterSelection/);
 assert.match(registerPage, /registerSelection\.clear/);
@@ -82,7 +86,7 @@ assert.doesNotMatch(registerPage, /selectedTransactionId/);
 assert.doesNotMatch(registerPage, /selectTransaction/);
 assert.doesNotMatch(registerPage, /register-selection-bar/);
 assert.match(registerPage, /ariaLabel="Selected transaction actions"/);
-assert.match(registerPage, /selectedRegisterActionTransactionCount === 1/);
+assert.match(selectionActionsHook, /selectedCount === 1/);
 assert.match(transactionRow, /type="checkbox"/);
 assert.match(transactionRow, /onToggleTransactionSelection\(transactionId\)/);
 assert.match(transactionRow, /onSelectTransaction\(transaction\.id, event\)/);

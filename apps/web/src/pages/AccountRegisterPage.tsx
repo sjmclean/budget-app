@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, Paperclip, Pencil, Trash2 } from "lucide-react";
+import { CalendarDays, Paperclip } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "../components/ui/Card";
-import { SelectionBar, type SelectionAction } from "../components/ui/SelectionBar";
+import { SelectionBar } from "../components/ui/SelectionBar";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
 import { AttachmentManager } from "../features/accounts/components/AttachmentManager";
 import { TransactionImportDialog } from "../features/accounts/components/TransactionImportDialog";
@@ -33,9 +33,9 @@ import {
   paginateRegisterItems,
 } from "../features/accounts/registerPagination";
 import { useRegisterSelection } from "../features/accounts/useRegisterSelection";
+import { useRegisterSelectionActions } from "../features/accounts/useRegisterSelectionActions";
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
-import { confirmDialog } from "../features/ui/appDialogService";
 import {
   getAutocompleteCompletion,
   rankAutocompleteOptions,
@@ -3081,13 +3081,7 @@ export function AccountRegisterPage() {
   const registerSelection = useRegisterSelection(visibleTransactionIds);
   const selectedRegisterTransactionIds = registerSelection.selectedIds;
   const selectedRegisterTransactionCount = registerSelection.selectedCount;
-  const hasBulkRegisterSelection = registerSelection.hasSelection;
   const selectedRegisterActionTransactionIds = selectedRegisterTransactionIds;
-  const selectedRegisterActionTransactionCount =
-    selectedRegisterActionTransactionIds.length;
-  const selectedRegisterActionTransactionId =
-    selectedRegisterActionTransactionIds[0] ?? null;
-  const hasRegisterActionSelection = selectedRegisterActionTransactionCount > 0;
   const selectedRegisterActionTransactions = useMemo(() => {
     if (selectedRegisterActionTransactionIds.length === 0) {
       return [];
@@ -3098,9 +3092,6 @@ export function AccountRegisterPage() {
       selectedRegisterActionIdSet.has(transaction.id),
     );
   }, [registerTransactions, selectedRegisterActionTransactionIds]);
-  const areAllSelectedRegisterTransactionsCleared =
-    selectedRegisterActionTransactions.length > 0 &&
-    selectedRegisterActionTransactions.every((transaction) => transaction.cleared);
 
   useEffect(() => {
     registerSelection.prune(registerTransactions.map((transaction) => transaction.id));
@@ -3330,104 +3321,16 @@ export function AccountRegisterPage() {
   );
 
   const clearRegisterSelection = registerSelection.clear;
-
-  const handleSetSelectedTransactionsCleared = useCallback(
-    async (cleared: boolean) => {
-      for (const transaction of selectedRegisterActionTransactions) {
-        if (transaction.cleared !== cleared) {
-          await toggleCleared(transaction.id);
-        }
-      }
-    },
-    [selectedRegisterActionTransactions, toggleCleared],
-  );
-
-  const handleToggleSelectedTransactionsCleared = useCallback(async () => {
-    await handleSetSelectedTransactionsCleared(
-      !areAllSelectedRegisterTransactionsCleared,
-    );
-  }, [areAllSelectedRegisterTransactionsCleared, handleSetSelectedTransactionsCleared]);
-
-  const handleDeleteSelectedTransactions = useCallback(async () => {
-    if (selectedRegisterActionTransactionCount === 0) {
-      return;
-    }
-
-    const confirmed = await confirmDialog({
-      message:
-        selectedRegisterActionTransactionCount === 1
-          ? "Delete this transaction? This cannot be undone yet."
-          : `Delete ${selectedRegisterActionTransactionCount} selected transactions? This cannot be undone yet.`,
-      confirmLabel: selectedRegisterActionTransactionCount === 1 ? "Delete transaction" : "Delete transactions",
-      tone: "danger",
-    });
-
-    if (!confirmed) {
-      return;
-    }
-
-    for (const transactionId of selectedRegisterActionTransactionIds) {
-      await deleteTransaction(transactionId);
-    }
-
-    clearRegisterSelection();
-    setEditingTransactionId(null);
-  }, [
-    clearRegisterSelection,
+  const registerSelectionActions = useRegisterSelectionActions({
+    selectedTransactionIds: selectedRegisterActionTransactionIds,
+    selectedTransactions: selectedRegisterActionTransactions,
+    toggleCleared,
     deleteTransaction,
-    selectedRegisterActionTransactionCount,
-    selectedRegisterActionTransactionIds,
-  ]);
+    clearSelection: clearRegisterSelection,
+    editTransaction: setEditingTransactionId,
+  });
+  const hasRegisterActionSelection = registerSelectionActions.hasSelection;
 
-  const registerSelectionActions = useMemo<SelectionAction[]>(() => {
-    const actions: SelectionAction[] = [];
-
-    if (
-      selectedRegisterActionTransactionCount === 1 &&
-      selectedRegisterActionTransactionId
-    ) {
-      actions.push({
-        id: "edit",
-        label: "Edit",
-        icon: Pencil,
-        onClick: () => {
-          setEditingTransactionId(selectedRegisterActionTransactionId);
-        },
-      });
-    }
-
-    actions.push({
-      id: "cleared",
-      label: "Cleared",
-      icon: CheckCircle2,
-      variant: "success",
-      pressed: areAllSelectedRegisterTransactionsCleared,
-      title: areAllSelectedRegisterTransactionsCleared
-        ? "Mark selected transactions uncleared"
-        : "Mark selected transactions cleared",
-      onClick: () => {
-        void handleToggleSelectedTransactionsCleared();
-      },
-    });
-
-    actions.push({
-      id: "delete",
-      label: "Delete",
-      icon: Trash2,
-      variant: "danger",
-      onClick: () => {
-        void handleDeleteSelectedTransactions();
-      },
-    });
-
-    return actions;
-  }, [
-    areAllSelectedRegisterTransactionsCleared,
-    handleDeleteSelectedTransactions,
-    handleToggleSelectedTransactionsCleared,
-    selectedRegisterActionTransactionCount,
-    selectedRegisterActionTransactionId,
-  ]);
 
 
   const handleManageTransactionAttachments = useCallback((transactionId: string) => {
@@ -4268,10 +4171,10 @@ export function AccountRegisterPage() {
 
         {hasRegisterActionSelection && !editingTransactionId ? (
           <SelectionBar
-            selectionCount={selectedRegisterActionTransactionCount}
+            selectionCount={registerSelectionActions.selectedCount}
             itemLabel="Transaction"
             ariaLabel="Selected transaction actions"
-            actions={registerSelectionActions}
+            actions={registerSelectionActions.actions}
             onClearSelection={clearRegisterSelection}
           />
         ) : null}

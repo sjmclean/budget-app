@@ -458,7 +458,9 @@
     "test:v2505:credit-card-import-integration": "tsx tests/v2505-credit-card-import-integration.ts",
     "test:v2505": "pnpm test:v2504 && pnpm test:v2505:credit-card-import-integration",
     "test:v2510:credit-card-payment-category-cleanup": "tsx tests/v2510-credit-card-payment-category-cleanup.ts",
-    "test:v2510": "pnpm test:v2505 && pnpm test:v2510:credit-card-payment-category-cleanup"
+    "test:v2510": "pnpm test:v2505 && pnpm test:v2510:credit-card-payment-category-cleanup",
+    "test:v2520:register-selection-actions-refactor": "tsx tests/v2520-register-selection-actions-refactor.ts",
+    "test:v2520": "pnpm test:v2510 && pnpm test:v2520:register-selection-actions-refactor"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
