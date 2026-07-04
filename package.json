@@ -470,7 +470,9 @@
     "test:v2524:register-toolbar-extraction": "tsx tests/v2524-register-toolbar-extraction.ts",
     "test:v2524": "pnpm test:v2523 && pnpm test:v2524:register-toolbar-extraction",
     "test:v2525:register-columns-extraction": "tsx tests/v2525-register-columns-extraction.ts",
-    "test:v2525": "pnpm test:v2524 && pnpm test:v2525:register-columns-extraction"
+    "test:v2525": "pnpm test:v2524 && pnpm test:v2525:register-columns-extraction",
+    "test:v2526:register-transaction-editor-extraction": "tsx tests/v2526-register-transaction-editor-extraction.ts",
+    "test:v2526": "pnpm test:v2525 && pnpm test:v2526:register-transaction-editor-extraction"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
