@@ -479,8 +479,8 @@
 }
 
 .transaction-flag {
-  width: 0.56rem;
-  height: 0.56rem;
+  width: 0.42rem;
+  height: 0.42rem;
   border-radius: 999px;
   display: inline-block;
 }
@@ -1021,13 +1021,13 @@
 
 .flag-colour-picker {
   position: relative;
-  width: 42px;
-  height: 38px;
+  width: 1.55rem;
+  height: 1.55rem;
 }
 
 .flag-colour-picker-button {
-  width: 42px;
-  height: 38px;
+  width: 1.55rem;
+  height: 1.55rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1249,16 +1249,19 @@
 }
 .flag-colour-picker {
   position: relative;
+  width: 1.55rem;
+  height: 1.55rem;
   display: inline-flex;
+  align-items: center;
   justify-content: center;
 }
 
 .flag-colour-picker-button {
-  width: 30px;
-  min-width: 30px;
-  height: 28px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  width: 1.55rem;
+  min-width: 1.55rem;
+  height: 1.55rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.45rem;
   background: var(--surface);
   display: inline-flex;
   align-items: center;
@@ -2395,8 +2398,8 @@
 
 .register-layout-compact .flag-colour-picker,
 .register-layout-compact .flag-colour-picker-button {
-  width: 2rem;
-  height: 2rem;
+  width: 1.55rem;
+  height: 1.55rem;
 }
 
 @media (max-width: 860px) {
@@ -2706,8 +2709,8 @@
 
 .register-row-tablet .flag-colour-picker,
 .register-row-tablet .flag-colour-picker-button {
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 1.55rem;
+  height: 1.55rem;
 }
 
 .register-row-tablet .attachment-indicator,

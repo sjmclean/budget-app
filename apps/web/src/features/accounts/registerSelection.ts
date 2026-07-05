@@ -93,17 +93,28 @@ export function pruneRegisterSelection(
   const selectedIds = state.selectedIds.filter((transactionId) =>
     availableIdSet.has(transactionId),
   );
+  const anchorId =
+    state.anchorId && availableIdSet.has(state.anchorId)
+      ? state.anchorId
+      : selectedIds.at(-1) ?? null;
   const focusedId =
     state.focusedId && availableIdSet.has(state.focusedId)
       ? state.focusedId
       : selectedIds.at(-1) ?? null;
 
-  return {
-    selectedIds,
-    anchorId:
-      state.anchorId && availableIdSet.has(state.anchorId)
-        ? state.anchorId
-        : selectedIds.at(-1) ?? null,
-    focusedId,
-  };
+  const selectionUnchanged =
+    selectedIds.length === state.selectedIds.length &&
+    selectedIds.every(
+      (selectedId, index) => selectedId === state.selectedIds[index],
+    ) &&
+    anchorId === state.anchorId &&
+    focusedId === state.focusedId;
+
+  return selectionUnchanged
+    ? state
+    : {
+        selectedIds,
+        anchorId,
+        focusedId,
+      };
 }

@@ -670,6 +670,16 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     }
   }, [selectedCategory?.id]);
 
+  const visibleCategoryGroups = data
+    ? getVisibleCategoryGroups(data.categoryGroups, hideArchivedCategories)
+    : [];
+
+  const budgetDragDrop = useBudgetDragDrop({
+    visibleCategoryGroups,
+    moveCategoryToPosition,
+    moveCategoryGroupToPosition,
+  });
+
   if (isLoading) {
     return (
       <div className="page-stack">
@@ -700,11 +710,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     );
   }
 
-  const visibleCategoryGroups = getVisibleCategoryGroups(
-    data.categoryGroups,
-    hideArchivedCategories,
-  );
-
   const hiddenArchivedCount = countArchivedCategories(data.categoryGroups);
 
   const {
@@ -723,12 +728,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const overspentCount = countOverspentCategories(data.categoryGroups);
 
   const coverOptions = buildOverspendingCoverOptions(data.categoryGroups);
-
-  const budgetDragDrop = useBudgetDragDrop({
-    visibleCategoryGroups,
-    moveCategoryToPosition,
-    moveCategoryGroupToPosition,
-  });
 
   function openCategoryEditor(categoryId: string) {
     if (isCreditCardPaymentCategory(categoryId)) {
