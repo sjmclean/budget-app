@@ -3450,6 +3450,11 @@
   color: #991b1b;
 }
 
+.transaction-import-evidence-neutral .transaction-import-evidence-marker {
+  background: var(--surface-subtle, #f8fafc);
+  color: var(--text-muted, #64748b);
+}
+
 .transaction-import-match-row-closest {
   border-style: dashed;
   opacity: 0.88;

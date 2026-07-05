@@ -482,7 +482,10 @@
     "test:v2600:register-split-drafts-extraction": "tsx tests/v2600-register-split-drafts-extraction.ts",
     "test:v2600": "pnpm test:v2529 && pnpm test:v2600:register-split-drafts-extraction",
     "test:v2601:budget-workspace-group-extraction": "tsx tests/v2601-budget-workspace-group-extraction.ts",
-    "test:v2601": "pnpm test:v2600 && pnpm test:v2601:budget-workspace-group-extraction"
+    "test:v2601": "pnpm test:v2600 && pnpm test:v2601:budget-workspace-group-extraction",
+    "test:transaction-intake:matching": "tsx tests/transaction-intake/matching/run.ts",
+    "test:transaction-intake:review": "tsx tests/transaction-intake/review/run.ts",
+    "test:transaction-intake": "pnpm test:transaction-intake:matching && pnpm test:transaction-intake:review"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
