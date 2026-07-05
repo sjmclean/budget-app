@@ -5,13 +5,8 @@ import type {
 } from "./accountRegisterTypes";
 import type { BudgetCategoryOption } from "../budget/budgetViewTypes";
 import { findCategoryOption } from "./registerCategoryMatching";
-import {
-  buildSplitLines,
-  hasIncompleteSplitDrafts,
-  isSplitDraftBalanced,
-  parseRegisterMoney,
-  type SplitLineDraft,
-} from "./registerSplitDrafts";
+import { type SplitLineDraft } from "./registerSplitDrafts";
+import { validateRegisterTransactionDraft } from "./registerTransactionValidation";
 
 export interface RegisterTransactionDraftInput {
   date: string;
@@ -65,29 +60,20 @@ function buildRegisterTransactionInput({
   categoryOptions,
   requireCompleteSplitDrafts = true,
 }: RegisterTransactionDraftInput): Omit<UpdateRegisterTransactionInput, "id"> | null {
-  if (!payee.trim()) {
+  const validation = validateRegisterTransactionDraft({
+    payee,
+    outflow,
+    inflow,
+    splitLines,
+    categoryOptions,
+    requireCompleteSplitDrafts,
+  });
+
+  if (!validation.isValid) {
     return null;
   }
 
-  const parsedSplitLines = buildSplitLines(splitLines, categoryOptions);
-
-  if (
-    splitLines.length > 0 &&
-    (parsedSplitLines.length === 0 ||
-      (requireCompleteSplitDrafts && hasIncompleteSplitDrafts(splitLines)))
-  ) {
-    return null;
-  }
-
-  const parsedOutflow = parseRegisterMoney(outflow);
-  const parsedInflow = parseRegisterMoney(inflow);
-
-  if (
-    splitLines.length > 0 &&
-    !isSplitDraftBalanced(parsedOutflow, parsedInflow, splitLines)
-  ) {
-    return null;
-  }
+  const { parsedOutflow, parsedInflow, parsedSplitLines } = validation;
 
   const categoryName = category.trim();
   const categoryOption = findCategoryOption(categoryName, categoryOptions);
