@@ -38,6 +38,15 @@ import { isCreditCardPaymentCategory, isCreditCardPaymentGroup } from "../featur
 import { formatMoney, getAvailableClass } from "../features/budget/budgetMoneyDisplay";
 import { isMoneyNegative } from "../features/budget/moneyMath";
 import {
+  buildOverspendingCoverOptions,
+  countArchivedCategories,
+  countOverspentCategories,
+  findCategoryLocation,
+  getVisibleCategoryGroups,
+  isSelectedCategoryVisible,
+  type OverspendingCoverOption,
+} from "../features/budget/budgetWorkspaceSelectors";
+import {
   BudgetGroup,
   getCategorySortableId,
   getGroupSortableId,
@@ -54,13 +63,6 @@ const BUDGET_COLUMN_DEFINITIONS: readonly TableColumnDefinition<BudgetColumnId>[
   { id: "activity", label: "Activity", template: "7rem", widthRem: 7 },
   { id: "available", label: "Available", template: "7rem", widthRem: 7 },
 ];
-
-interface OverspendingCoverOption {
-  id: string;
-  name: string;
-  groupName: string;
-  available: number;
-}
 
 function OverspendingResolutionPanel({
   category,
@@ -718,26 +720,17 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     );
   }
 
-  const visibleCategoryGroups = hideArchivedCategories
-    ? data.categoryGroups
-        .map((group) => ({
-          ...group,
-          categories: group.categories.filter(
-            (category) => !category.isArchived,
-          ),
-        }))
-        .filter((group) => group.categories.length > 0)
-    : data.categoryGroups;
-
-  const hiddenArchivedCount = data.categoryGroups.reduce(
-    (count, group) =>
-      count + group.categories.filter((category) => category.isArchived).length,
-    0,
+  const visibleCategoryGroups = getVisibleCategoryGroups(
+    data.categoryGroups,
+    hideArchivedCategories,
   );
 
-  const selectedCategoryVisible =
-    selectedCategory !== null &&
-    !(hideArchivedCategories && selectedCategory.isArchived);
+  const hiddenArchivedCount = countArchivedCategories(data.categoryGroups);
+
+  const selectedCategoryVisible = isSelectedCategoryVisible(
+    selectedCategory,
+    hideArchivedCategories,
+  );
   const visibleSelectedCategory = selectedCategoryVisible
     ? selectedCategory
     : null;
@@ -748,35 +741,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     visibleSelectedCategory !== null &&
     overassignedCategoryIds.includes(visibleSelectedCategory.id);
 
-  const overspentCount = data.categoryGroups.reduce(
-    (count, group) =>
-      count +
-      group.categories.filter((category) => isMoneyNegative(category.available)).length,
-    0,
-  );
+  const overspentCount = countOverspentCategories(data.categoryGroups);
 
-  const coverOptions = data.categoryGroups.flatMap((group) =>
-    group.categories
-      .filter((category) => !category.isArchived)
-      .map((category) => ({
-        id: category.id,
-        name: category.name,
-        groupName: group.name,
-        available: category.available,
-      })),
-  );
-
-  function findCategoryLocation(categoryId: string) {
-    for (const group of visibleCategoryGroups) {
-      const index = group.categories.findIndex((category) => category.id === categoryId);
-
-      if (index !== -1) {
-        return { groupId: group.id, index };
-      }
-    }
-
-    return null;
-  }
+  const coverOptions = buildOverspendingCoverOptions(data.categoryGroups);
 
   function handleBudgetDragEnd(event: DragEndEvent) {
     const activeId = String(event.active.id);
@@ -799,8 +766,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
       ) {
         return;
       }
-      const activeLocation = findCategoryLocation(activeCategoryId);
-      const targetLocation = findCategoryLocation(targetCategoryId);
+      const activeLocation = findCategoryLocation(visibleCategoryGroups, activeCategoryId);
+      const targetLocation = findCategoryLocation(visibleCategoryGroups, targetCategoryId);
 
       if (!activeLocation || !targetLocation) {
         return;
