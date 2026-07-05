@@ -84,6 +84,80 @@ function getFileTypeLabel(fileType: TransactionImportFileType) {
   }
 }
 
+
+function getImportRecommendationLabel(candidate: TransactionImportCandidate) {
+  if (
+    candidate.reviewDecision === "skipped" ||
+    (candidate.status === "new" && !candidate.selected)
+  ) {
+    return "Skip";
+  }
+
+  if (candidate.reviewDecision === "matched") {
+    return "Use existing";
+  }
+
+  if (candidate.reviewDecision === "import-as-new") {
+    return "Import as new";
+  }
+
+  switch (candidate.status) {
+    case "exact-match":
+      return "Use existing";
+    case "possible-match":
+      return "Review match";
+    case "new":
+      return candidate.selected ? "Import as new" : "Skip";
+    case "invalid":
+      return "Fix before import";
+    default:
+      return "Review";
+  }
+}
+
+function getImportConfidenceTone(confidence: number | undefined) {
+  if (typeof confidence !== "number") {
+    return "unknown";
+  }
+
+  if (confidence >= 90) {
+    return "high";
+  }
+
+  if (confidence >= 60) {
+    return "medium";
+  }
+
+  return "low";
+}
+
+function getImportConfidenceLabel(confidence: number | undefined) {
+  if (typeof confidence !== "number") {
+    return "No confidence score";
+  }
+
+  const tone = getImportConfidenceTone(confidence);
+  const label =
+    tone === "high"
+      ? "High confidence"
+      : tone === "medium"
+        ? "Medium confidence"
+        : "Low confidence";
+
+  return `${label} · ${confidence}%`;
+}
+
+function getImportEvidenceResultLabel(result: "positive" | "negative" | "neutral") {
+  switch (result) {
+    case "positive":
+      return "✓";
+    case "negative":
+      return "✕";
+    default:
+      return "•";
+  }
+}
+
 function hasRequiredCsvMapping(mapping: CsvImportColumnMapping) {
   const roles = Object.values(mapping);
   const hasAmount =
@@ -930,6 +1004,7 @@ export function TransactionImportDialog({
           <div className="transaction-import-review-list">
             {candidates.map((candidate) => {
               const hasMatch = Boolean(candidate.matchedTransaction);
+              const closestCandidate = candidate.matchCandidates?.[0];
               const isSkipped =
                 candidate.reviewDecision === "skipped" ||
                 (candidate.status === "new" && !candidate.selected);
@@ -947,6 +1022,11 @@ export function TransactionImportDialog({
                       currencyCode,
                     )
                 : "";
+              const closestCandidateAmountLabel = closestCandidate
+                ? closestCandidate.transaction.outflow
+                  ? formatMoney(closestCandidate.transaction.outflow, currencyCode)
+                  : formatMoney(closestCandidate.transaction.inflow, currencyCode)
+                : "";
 
               return (
                 <article
@@ -954,18 +1034,49 @@ export function TransactionImportDialog({
                   key={candidate.id}
                 >
                   <div className="transaction-import-review-card-header">
-                    <span
-                      className={`transaction-import-status transaction-import-status-${candidate.status}`}
-                    >
-                      {getCandidateStatusLabel(candidate)}
-                    </span>
+                    <div className="transaction-import-review-card-title">
+                      <span
+                        className={`transaction-import-status transaction-import-status-${candidate.status}`}
+                      >
+                        {getCandidateStatusLabel(candidate)}
+                      </span>
+                      <span className="transaction-import-recommendation">
+                        Recommendation: {getImportRecommendationLabel(candidate)}
+                      </span>
+                    </div>
                     <p className="muted transaction-import-review-reason">
                       {candidate.reason}
                     </p>
-                    {typeof candidate.confidence === "number" ? (
-                      <span className="transaction-import-confidence">
-                        Confidence: {candidate.confidence}%
-                      </span>
+                    <span
+                      className={`transaction-import-confidence transaction-import-confidence-${getImportConfidenceTone(candidate.confidence)}`}
+                    >
+                      {getImportConfidenceLabel(candidate.confidence)}
+                    </span>
+                    {candidate.evidence && candidate.evidence.length > 0 ? (
+                      <details className="transaction-import-evidence-panel">
+                        <summary>Why this recommendation?</summary>
+                        <ul
+                          className="transaction-import-evidence-list"
+                          aria-label="Import match evidence"
+                        >
+                          {candidate.evidence.map((item) => (
+                            <li
+                              className={`transaction-import-evidence transaction-import-evidence-${item.result}`}
+                              key={`${candidate.id}-${item.label}`}
+                            >
+                              <span
+                                className="transaction-import-evidence-marker"
+                                aria-hidden="true"
+                              >
+                                {getImportEvidenceResultLabel(item.result)}
+                              </span>
+                              <span>
+                                <strong>{item.label}</strong>: {item.detail}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
                     ) : null}
                     {candidate.status === "new" ? (
                       <label className="transaction-import-select-new">
@@ -1031,6 +1142,36 @@ export function TransactionImportDialog({
                           </span>
                           <strong className="transaction-import-match-amount">
                             {matchAmountLabel}
+                          </strong>
+                        </div>
+                      </>
+                    ) : null}
+
+                    {!hasMatch && closestCandidate ? (
+                      <>
+                        <div
+                          className="transaction-import-match-arrow"
+                          aria-hidden="true"
+                        >
+                          ↓
+                        </div>
+                        <div className="transaction-import-match-row transaction-import-match-row-existing transaction-import-match-row-closest">
+                          <span className="transaction-import-match-label">
+                            Closest candidate
+                          </span>
+                          <span className="transaction-import-match-date">
+                            {formatImportReviewDate(
+                              closestCandidate.transaction.date,
+                            )}
+                          </span>
+                          <strong className="transaction-import-match-payee">
+                            {closestCandidate.transaction.payee || "—"}
+                          </strong>
+                          <span className="transaction-import-match-detail">
+                            {closestCandidate.reason}
+                          </span>
+                          <strong className="transaction-import-match-amount">
+                            {closestCandidateAmountLabel}
                           </strong>
                         </div>
                       </>

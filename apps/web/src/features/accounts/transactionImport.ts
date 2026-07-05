@@ -2,6 +2,7 @@ import type {
   NewRegisterTransactionInput,
   RegisterTransactionView,
 } from "./accountRegisterTypes";
+import { normaliseMerchant } from "./merchantNormalisation";
 
 export type TransactionImportMatchStatus =
   "exact-match" | "possible-match" | "new" | "invalid";
@@ -119,6 +120,7 @@ export interface TransactionImportCandidate {
   reason: string;
   confidence?: number;
   evidence?: TransactionImportMatchEvidence[];
+  matchCandidates?: TransactionImportMatchCandidateAssessment[];
   selected: boolean;
   reviewDecision?: TransactionImportReviewDecision;
   errors: string[];
@@ -573,6 +575,7 @@ function classifyImportCandidate(
     reason: assessment.reason,
     confidence: assessment.confidence,
     evidence: assessment.evidence,
+    matchCandidates: assessment.candidates,
     selected: assessment.recommendation === "import",
     errors: [],
   };
@@ -666,7 +669,11 @@ function analyseImportMatchCandidate(
     parsed.payee,
   );
   const sameDate = transaction.date === parsed.date;
-  const exactPayee = normalisePayee(transaction.payee) === normalisePayee(parsed.payee);
+  const existingMerchant = normaliseMerchant(transaction.payee);
+  const importedMerchant = normaliseMerchant(parsed.payee);
+  const exactPayee =
+    existingMerchant.canonical.length > 0 &&
+    existingMerchant.canonical === importedMerchant.canonical;
   const withinHighConfidenceWindow =
     daysApart <= HIGH_CONFIDENCE_IMPORT_MATCH_DAYS;
   const withinSuggestedWindow = daysApart <= SUGGESTED_IMPORT_MATCH_DAYS;
@@ -793,8 +800,10 @@ function buildImportMatchEvidence({
 }
 
 function calculatePayeeSimilarity(left: string, right: string): number {
-  const leftNormalised = normalisePayee(left);
-  const rightNormalised = normalisePayee(right);
+  const leftMerchant = normaliseMerchant(left);
+  const rightMerchant = normaliseMerchant(right);
+  const leftNormalised = leftMerchant.canonical;
+  const rightNormalised = rightMerchant.canonical;
 
   if (!leftNormalised || !rightNormalised) {
     return 0;
@@ -810,8 +819,8 @@ function calculatePayeeSimilarity(left: string, right: string): number {
     return Math.round((shorter / longer) * 100);
   }
 
-  const leftTokens = normalisePayeeTokens(left);
-  const rightTokens = normalisePayeeTokens(right);
+  const leftTokens = leftMerchant.tokens;
+  const rightTokens = rightMerchant.tokens;
 
   if (leftTokens.length === 0 || rightTokens.length === 0) {
     return 0;

@@ -3374,6 +3374,87 @@
   font-weight: 700;
 }
 
+.transaction-import-review-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.transaction-import-recommendation {
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+  background: rgb(255 255 255 / 0.72);
+  color: var(--text-muted, #64748b);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+
+.transaction-import-evidence-panel {
+  grid-column: 1 / -1;
+  border: 1px solid var(--border-soft, #dbe3ef);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.62);
+  padding: 0.35rem 0.5rem;
+}
+
+.transaction-import-evidence-panel summary {
+  cursor: pointer;
+  color: var(--text-muted, #64748b);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.transaction-import-evidence-panel summary:hover {
+  color: var(--text-primary, #0f172a);
+}
+
+.transaction-import-evidence-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.45rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transaction-import-evidence {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.4rem;
+  align-items: start;
+  color: var(--text-muted, #64748b);
+  font-size: 0.75rem;
+}
+
+.transaction-import-evidence-marker {
+  display: inline-grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  background: var(--surface-subtle, #f8fafc);
+  font-size: 0.66rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.transaction-import-evidence-positive .transaction-import-evidence-marker {
+  background: rgb(220 252 231 / 0.9);
+  color: #166534;
+}
+
+.transaction-import-evidence-negative .transaction-import-evidence-marker {
+  background: rgb(254 226 226 / 0.9);
+  color: #991b1b;
+}
+
+.transaction-import-match-row-closest {
+  border-style: dashed;
+  opacity: 0.88;
+}
+
 .transaction-import-match-stack {
   display: grid;
   gap: 0.55rem;
@@ -3490,12 +3571,27 @@
   justify-self: end;
   align-self: center;
   border-radius: 999px;
-  padding: 0.12rem 0.4rem;
+  padding: 0.12rem 0.45rem;
   background: var(--surface-subtle, #f8fafc);
   color: var(--text-muted, #64748b);
   font-size: 0.72rem;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.transaction-import-confidence-high {
+  background: rgb(220 252 231 / 0.86);
+  color: #166534;
+}
+
+.transaction-import-confidence-medium {
+  background: rgb(254 243 199 / 0.92);
+  color: #92400e;
+}
+
+.transaction-import-confidence-low {
+  background: rgb(254 226 226 / 0.82);
+  color: #991b1b;
 }
 
 .transaction-import-match-stack {
@@ -3588,6 +3684,10 @@
 
   .transaction-import-confidence {
     justify-self: start;
+  }
+
+  .transaction-import-evidence-panel {
+    grid-column: 1;
   }
 
   .transaction-import-match-row {
