@@ -124,6 +124,27 @@ export interface TransactionImportCandidate {
   errors: string[];
 }
 
+export type TransactionImportRecommendation = "import" | "review" | "match";
+
+export interface TransactionImportMatchCandidateAssessment {
+  transaction: RegisterTransactionView;
+  confidence: number;
+  evidence: TransactionImportMatchEvidence[];
+  daysApart: number;
+  payeeSimilarity: number;
+  reason: string;
+}
+
+export interface TransactionImportMatchAssessment {
+  recommendation: TransactionImportRecommendation;
+  status: Exclude<TransactionImportMatchStatus, "invalid">;
+  confidence: number;
+  evidence?: TransactionImportMatchEvidence[];
+  reason: string;
+  candidates: TransactionImportMatchCandidateAssessment[];
+  selectedCandidate?: TransactionImportMatchCandidateAssessment;
+}
+
 export interface TransactionImportPreview {
   candidates: TransactionImportCandidate[];
   summary: {
@@ -538,55 +559,74 @@ function classifyImportCandidate(
     };
   }
 
+  const assessment = assessTransactionImportMatch(parsed, existingTransactions);
+  const selectedCandidate = assessment.selectedCandidate;
+
+  return {
+    id: `row-${parsed.rowNumber}`,
+    parsed,
+    status: assessment.status,
+    matchedTransactionId:
+      assessment.status === "new" ? undefined : selectedCandidate?.transaction.id,
+    matchedTransaction:
+      assessment.status === "new" ? undefined : selectedCandidate?.transaction,
+    reason: assessment.reason,
+    confidence: assessment.confidence,
+    evidence: assessment.evidence,
+    selected: assessment.recommendation === "import",
+    errors: [],
+  };
+}
+
+export function assessTransactionImportMatch(
+  parsed: ParsedImportTransaction,
+  existingTransactions: RegisterTransactionView[],
+): TransactionImportMatchAssessment {
   const matchAnalyses = existingTransactions
     .map((transaction) => analyseImportMatchCandidate(transaction, parsed))
     .filter((analysis) => analysis.amountMatches)
     .sort((left, right) => right.confidence - left.confidence);
   const bestMatch = matchAnalyses[0];
+  const candidates = matchAnalyses.map(toTransactionImportMatchCandidateAssessment);
 
   if (bestMatch?.isExactMatch) {
     return {
-      id: `row-${parsed.rowNumber}`,
-      parsed,
+      recommendation: "match",
       status: "exact-match",
-      matchedTransactionId: bestMatch.transaction.id,
-      matchedTransaction: bestMatch.transaction,
-      reason: bestMatch.reason,
       confidence: bestMatch.confidence,
       evidence: bestMatch.evidence,
-      selected: false,
-      errors: [],
+      reason: bestMatch.reason,
+      candidates,
+      selectedCandidate: toTransactionImportMatchCandidateAssessment(bestMatch),
     };
   }
 
   if (bestMatch?.isSuggestedMatch) {
     return {
-      id: `row-${parsed.rowNumber}`,
-      parsed,
+      recommendation: "review",
       status: "possible-match",
-      matchedTransactionId: bestMatch.transaction.id,
-      matchedTransaction: bestMatch.transaction,
-      reason: bestMatch.reason,
       confidence: bestMatch.confidence,
       evidence: bestMatch.evidence,
-      selected: false,
-      errors: [],
+      reason: bestMatch.reason,
+      candidates,
+      selectedCandidate: toTransactionImportMatchCandidateAssessment(bestMatch),
     };
   }
 
   return {
-    id: `row-${parsed.rowNumber}`,
-    parsed,
+    recommendation: "import",
     status: "new",
+    confidence: bestMatch?.confidence ?? 0,
+    evidence: bestMatch?.evidence,
     reason: bestMatch
       ? `No suitable match found. Closest same-amount candidate was ${formatImportDateDistance(
           bestMatch.daysApart,
         )} away with ${bestMatch.payeeSimilarity}% payee similarity.`
       : "No matching transaction found in this register.",
-    confidence: bestMatch?.confidence ?? 0,
-    evidence: bestMatch?.evidence,
-    selected: true,
-    errors: [],
+    candidates,
+    selectedCandidate: bestMatch
+      ? toTransactionImportMatchCandidateAssessment(bestMatch)
+      : undefined,
   };
 }
 
@@ -600,6 +640,19 @@ interface ImportMatchAnalysis {
   isExactMatch: boolean;
   isSuggestedMatch: boolean;
   reason: string;
+}
+
+function toTransactionImportMatchCandidateAssessment(
+  analysis: ImportMatchAnalysis,
+): TransactionImportMatchCandidateAssessment {
+  return {
+    transaction: analysis.transaction,
+    confidence: analysis.confidence,
+    evidence: analysis.evidence,
+    daysApart: analysis.daysApart,
+    payeeSimilarity: analysis.payeeSimilarity,
+    reason: analysis.reason,
+  };
 }
 
 function analyseImportMatchCandidate(
