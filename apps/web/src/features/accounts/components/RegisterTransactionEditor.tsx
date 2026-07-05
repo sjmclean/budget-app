@@ -33,6 +33,18 @@ import type {
   RegisterTransactionView,
   TransactionFlag,
 } from "../accountRegisterTypes";
+import {
+  buildSplitLines,
+  createSplitLineDraft,
+  getSplitBalanceStatus,
+  hasIncompleteSplitDrafts,
+  isSplitBalanced,
+  isSplitDraftBalanced,
+  parseRegisterMoney,
+  splitDraftsFromTransaction,
+  totalsFromSplitDrafts,
+  type SplitLineDraft,
+} from "../registerSplitDrafts";
 import type { BudgetCategoryOption } from "../../budget/budgetViewTypes";
 
 const SPLIT_CATEGORY_LABEL = "Split...";
@@ -85,10 +97,24 @@ function getCategorySuggestionSection(
     : (suggestion.metadata?.groupName ?? suggestion.label ?? "Categories");
 }
 
-function parseMoney(value: string) {
-  const cleaned = value.replace(/[$,\s]/g, "");
-  const parsed = Number.parseFloat(cleaned);
-  return Number.isFinite(parsed) ? parsed : 0;
+function findCategoryOption(
+  categoryName: string,
+  categoryOptions: BudgetCategoryOption[],
+): BudgetCategoryOption | undefined {
+  const normalised = normaliseCategoryName(categoryName);
+
+  return categoryOptions.find(
+    (category) =>
+      normaliseCategoryName(category.name) === normalised ||
+      normaliseCategoryName(category.id) === normalised,
+  );
+}
+
+function normaliseCategoryName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .trim();
 }
 
 function useRegisterAutocompletePopupStyle(isOpen: boolean) {
@@ -592,193 +618,6 @@ function CategoryInput({
   );
 }
 
-interface SplitLineDraft {
-  id: string;
-  category: string;
-  categoryId?: string;
-  memo: string;
-  outflow: string;
-  inflow: string;
-}
-
-function createSplitLineDraft(): SplitLineDraft {
-  return {
-    id: createLocalId(),
-    category: "",
-    memo: "",
-    outflow: "",
-    inflow: "",
-  };
-}
-
-function createLocalId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `split-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function splitDraftsFromTransaction(
-  transaction: RegisterTransactionView,
-): SplitLineDraft[] {
-  return (transaction.splitLines ?? []).map((line) => ({
-    id: line.id,
-    category: line.category,
-    categoryId: line.categoryId,
-    memo: line.memo ?? "",
-    outflow: line.outflow ? line.outflow.toFixed(2) : "",
-    inflow: line.inflow ? line.inflow.toFixed(2) : "",
-  }));
-}
-
-function buildSplitLines(
-  splitLines: SplitLineDraft[],
-  categoryOptions: BudgetCategoryOption[],
-): RegisterSplitLineView[] {
-  return splitLines
-    .map((line) => {
-      const categoryName = line.category.trim();
-      const categoryOption = findCategoryOption(categoryName, categoryOptions);
-
-      return {
-        id: line.id,
-        category: categoryOption?.name ?? categoryName,
-        categoryId: categoryOption?.id,
-        memo: line.memo.trim(),
-        outflow: parseMoney(line.outflow),
-        inflow: parseMoney(line.inflow),
-      };
-    })
-    .filter(
-      (line) =>
-        line.category.length > 0 && (line.outflow > 0 || line.inflow > 0),
-    );
-}
-
-function findCategoryOption(
-  categoryName: string,
-  categoryOptions: BudgetCategoryOption[],
-): BudgetCategoryOption | undefined {
-  const normalised = normaliseCategoryName(categoryName);
-
-  return categoryOptions.find(
-    (category) =>
-      normaliseCategoryName(category.name) === normalised ||
-      normaliseCategoryName(category.id) === normalised,
-  );
-}
-
-function normaliseCategoryName(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "")
-    .trim();
-}
-
-function totalsFromSplitLines(splitLines: RegisterSplitLineView[]): {
-  outflow: number;
-  inflow: number;
-} {
-  return splitLines.reduce(
-    (totals, line) => ({
-      outflow: totals.outflow + line.outflow,
-      inflow: totals.inflow + line.inflow,
-    }),
-    { outflow: 0, inflow: 0 },
-  );
-}
-
-function totalsFromSplitDrafts(splitLines: readonly SplitLineDraft[]): {
-  outflow: number;
-  inflow: number;
-} {
-  return splitLines.reduce(
-    (totals, line) => ({
-      outflow: totals.outflow + parseMoney(line.outflow),
-      inflow: totals.inflow + parseMoney(line.inflow),
-    }),
-    { outflow: 0, inflow: 0 },
-  );
-}
-
-function hasIncompleteSplitDrafts(
-  splitLines: readonly SplitLineDraft[],
-): boolean {
-  return splitLines.some((line) => {
-    const hasAmount =
-      parseMoney(line.outflow) > 0 || parseMoney(line.inflow) > 0;
-    return hasAmount && line.category.trim().length === 0;
-  });
-}
-
-const SPLIT_BALANCE_TOLERANCE = 0.005;
-
-function normaliseMoney(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-function getSplitBalanceStatus({
-  parentOutflow,
-  parentInflow,
-  splitOutflow,
-  splitInflow,
-}: {
-  parentOutflow: number;
-  parentInflow: number;
-  splitOutflow: number;
-  splitInflow: number;
-}): {
-  parentAmount: number;
-  splitAmount: number;
-  remaining: number;
-  isBalanced: boolean;
-  isOverAssigned: boolean;
-  activeSide: "outflow" | "inflow";
-} {
-  const activeSide = parentInflow > parentOutflow ? "inflow" : "outflow";
-  const parentAmount = activeSide === "inflow" ? parentInflow : parentOutflow;
-  const splitAmount = activeSide === "inflow" ? splitInflow : splitOutflow;
-  const remaining = normaliseMoney(parentAmount - splitAmount);
-
-  return {
-    parentAmount,
-    splitAmount,
-    remaining,
-    isBalanced: Math.abs(remaining) < SPLIT_BALANCE_TOLERANCE,
-    isOverAssigned: remaining < -SPLIT_BALANCE_TOLERANCE,
-    activeSide,
-  };
-}
-
-function isSplitBalanced(
-  parentOutflow: number,
-  parentInflow: number,
-  splitLines: RegisterSplitLineView[],
-): boolean {
-  const totals = totalsFromSplitLines(splitLines);
-  return getSplitBalanceStatus({
-    parentOutflow,
-    parentInflow,
-    splitOutflow: totals.outflow,
-    splitInflow: totals.inflow,
-  }).isBalanced;
-}
-
-function isSplitDraftBalanced(
-  parentOutflow: number,
-  parentInflow: number,
-  splitLines: readonly SplitLineDraft[],
-): boolean {
-  const totals = totalsFromSplitDrafts(splitLines);
-  return getSplitBalanceStatus({
-    parentOutflow,
-    parentInflow,
-    splitOutflow: totals.outflow,
-    splitInflow: totals.inflow,
-  }).isBalanced;
-}
-
 function SplitEditor({
   splitLines,
   setSplitLines,
@@ -879,7 +718,7 @@ function SplitEditor({
     }
 
     const hasAmount =
-      parseMoney(line.outflow) > 0 || parseMoney(line.inflow) > 0;
+      parseRegisterMoney(line.outflow) > 0 || parseRegisterMoney(line.inflow) > 0;
 
     if (!hasAmount) {
       return;
@@ -1474,8 +1313,8 @@ export function TransactionEntryRow({
       return null;
     }
 
-    const parsedOutflow = parseMoney(outflow);
-    const parsedInflow = parseMoney(inflow);
+    const parsedOutflow = parseRegisterMoney(outflow);
+    const parsedInflow = parseRegisterMoney(inflow);
 
     if (
       splitLines.length > 0 &&
@@ -1725,8 +1564,8 @@ export function TransactionEntryRow({
         splitLines={splitLines}
         setSplitLines={setSplitLines}
         categoryOptions={categoryOptions}
-        parentOutflow={parseMoney(outflow)}
-        parentInflow={parseMoney(inflow)}
+        parentOutflow={parseRegisterMoney(outflow)}
+        parentInflow={parseRegisterMoney(inflow)}
         currencyCode={currencyCode}
         visibleColumnIds={visibleColumnIds}
         rowStyle={rowStyle}
@@ -1738,8 +1577,8 @@ export function TransactionEntryRow({
           onClick={saveAndAddAnother}
           disabled={
             !isSplitDraftBalanced(
-              parseMoney(outflow),
-              parseMoney(inflow),
+              parseRegisterMoney(outflow),
+              parseRegisterMoney(inflow),
               splitLines,
             )
           }
@@ -1752,8 +1591,8 @@ export function TransactionEntryRow({
           onClick={save}
           disabled={
             !isSplitDraftBalanced(
-              parseMoney(outflow),
-              parseMoney(inflow),
+              parseRegisterMoney(outflow),
+              parseRegisterMoney(inflow),
               splitLines,
             )
           }
@@ -1870,8 +1709,8 @@ export function TransactionEditRow({
       return;
     }
 
-    const parsedOutflow = parseMoney(outflow);
-    const parsedInflow = parseMoney(inflow);
+    const parsedOutflow = parseRegisterMoney(outflow);
+    const parsedInflow = parseRegisterMoney(inflow);
 
     if (
       splitLines.length > 0 &&
@@ -1997,8 +1836,8 @@ export function TransactionEditRow({
           splitLines={splitLines}
           setSplitLines={setSplitLines}
           categoryOptions={categoryOptions}
-          parentOutflow={parseMoney(outflow)}
-          parentInflow={parseMoney(inflow)}
+          parentOutflow={parseRegisterMoney(outflow)}
+          parentInflow={parseRegisterMoney(inflow)}
           currencyCode={currencyCode}
           visibleColumnIds={visibleColumnIds}
           rowStyle={rowStyle}
@@ -2010,8 +1849,8 @@ export function TransactionEditRow({
             onClick={save}
             disabled={
               !isSplitDraftBalanced(
-                parseMoney(outflow),
-                parseMoney(inflow),
+                parseRegisterMoney(outflow),
+                parseRegisterMoney(inflow),
                 splitLines,
               )
             }
