@@ -27,6 +27,11 @@ import {
 import type { RegisterLayoutMode } from "../registerLayoutMode";
 import type { SidebarAccount } from "../accountService";
 import type { PayeeView } from "../payeeService";
+import {
+  buildPayeeAutocompleteOptions,
+  getPayeeSuggestionSection,
+  getPayeeSuggestionText,
+} from "../registerPayeeAutocomplete";
 import type {
   NewRegisterTransactionInput,
   RegisterSplitLineView,
@@ -58,30 +63,6 @@ function formatMoney(value: number, currencyCode: string) {
     style: "currency",
     currency: currencyCode,
   }).format(value);
-}
-
-function getPayeeSuggestionSection(
-  suggestion: RankedAutocompleteOption<{
-    payeeId?: string;
-    label: string;
-    type: "payee" | "transfer";
-  }>,
-) {
-  return suggestion.metadata?.type === "transfer" ? "Transfers" : "Payees";
-}
-
-function getPayeeSuggestionText(
-  suggestion: RankedAutocompleteOption<{
-    payeeId?: string;
-    label: string;
-    type: "payee" | "transfer";
-  }>,
-) {
-  if (suggestion.metadata?.type !== "transfer") {
-    return suggestion.value;
-  }
-
-  return suggestion.value.replace(/^Transfer:\s*/i, "");
 }
 
 function getCategorySuggestionSection(
@@ -155,36 +136,7 @@ function PayeeInput({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const autocompleteOptions = useMemo(
-    (): Array<
-      AutocompleteOption<{
-        payeeId?: string;
-        label: string;
-        type: "payee" | "transfer";
-      }>
-    > => [
-      ...transferAccounts.map((account) => ({
-        id: `transfer-${account.id}`,
-        value: `Transfer: ${account.name}`,
-        label: "Transfer",
-        metadata: {
-          payeeId: undefined,
-          label: "Transfer",
-          type: "transfer" as const,
-        },
-        ranking: { priority: 0 },
-      })),
-      ...payeeOptions.map((payee) => ({
-        id: `payee-${payee.id}`,
-        value: payee.name,
-        label: "Payee",
-        metadata: { payeeId: payee.id, label: "Payee", type: "payee" as const },
-        ranking: {
-          priority: 1,
-          recentAt: payee.lastUsedAt,
-          useCount: payee.useCount,
-        },
-      })),
-    ],
+    () => buildPayeeAutocompleteOptions({ transferAccounts, payeeOptions }),
     [payeeOptions, transferAccounts],
   );
 
