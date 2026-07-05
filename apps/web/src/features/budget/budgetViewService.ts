@@ -286,7 +286,15 @@ async function applyRegisterActivity(
       if (transaction.transferAccountId) {
         const transferAccountType = accountTypeById.get(transaction.transferAccountId);
 
-        if (transferAccountType === "tracking") {
+        if (categoryId && !isTransferCategory(categoryKey)) {
+          recordBudgetedActivity({
+            accountId: transaction.accountId,
+            accountType: transaction.accountType,
+            categoryId,
+            inflow: transaction.inflow,
+            outflow: transaction.outflow,
+          });
+        } else if (transferAccountType === "tracking") {
           readyToAssignIncome += amount;
         }
 
