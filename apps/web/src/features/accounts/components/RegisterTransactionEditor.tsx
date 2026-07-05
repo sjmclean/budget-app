@@ -45,14 +45,13 @@ import {
   totalsFromSplitDrafts,
   type SplitLineDraft,
 } from "../registerSplitDrafts";
+import {
+  findCategoryOption,
+  isSplitCategoryValue,
+  normaliseCategoryName,
+  SPLIT_CATEGORY_LABEL,
+} from "../registerCategoryMatching";
 import type { BudgetCategoryOption } from "../../budget/budgetViewTypes";
-
-const SPLIT_CATEGORY_LABEL = "Split...";
-
-function isSplitCategoryValue(value: string): boolean {
-  const normalised = value.trim().toLowerCase();
-  return normalised === "split" || normalised === "split...";
-}
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -95,26 +94,6 @@ function getCategorySuggestionSection(
   return suggestion.metadata?.type === "special"
     ? "Special"
     : (suggestion.metadata?.groupName ?? suggestion.label ?? "Categories");
-}
-
-function findCategoryOption(
-  categoryName: string,
-  categoryOptions: BudgetCategoryOption[],
-): BudgetCategoryOption | undefined {
-  const normalised = normaliseCategoryName(categoryName);
-
-  return categoryOptions.find(
-    (category) =>
-      normaliseCategoryName(category.name) === normalised ||
-      normaliseCategoryName(category.id) === normalised,
-  );
-}
-
-function normaliseCategoryName(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "")
-    .trim();
 }
 
 function useRegisterAutocompletePopupStyle(isOpen: boolean) {

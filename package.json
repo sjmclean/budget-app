@@ -480,7 +480,9 @@
     "test:v2529:register-view-model-extraction": "tsx tests/v2529-register-view-model-extraction.ts",
     "test:v2529": "pnpm test:v2528 && pnpm test:v2529:register-view-model-extraction",
     "test:v2600:register-split-drafts-extraction": "tsx tests/v2600-register-split-drafts-extraction.ts",
-    "test:v2600": "pnpm test:v2529 && pnpm test:v2600:register-split-drafts-extraction"
+    "test:v2600": "pnpm test:v2529 && pnpm test:v2600:register-split-drafts-extraction",
+    "test:v2601:budget-workspace-group-extraction": "tsx tests/v2601-budget-workspace-group-extraction.ts",
+    "test:v2601": "pnpm test:v2600 && pnpm test:v2601:budget-workspace-group-extraction"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
