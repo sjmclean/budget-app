@@ -104,6 +104,12 @@ export interface ParsedImportTransaction {
 export type TransactionImportReviewDecision =
   "matched" | "skipped" | "import-as-new";
 
+export interface TransactionImportMatchEvidence {
+  label: string;
+  result: "positive" | "negative" | "neutral";
+  detail: string;
+}
+
 export interface TransactionImportCandidate {
   id: string;
   parsed: ParsedImportTransaction;
@@ -111,6 +117,8 @@ export interface TransactionImportCandidate {
   matchedTransactionId?: string;
   matchedTransaction?: RegisterTransactionView;
   reason: string;
+  confidence?: number;
+  evidence?: TransactionImportMatchEvidence[];
   selected: boolean;
   reviewDecision?: TransactionImportReviewDecision;
   errors: string[];
@@ -530,61 +538,37 @@ function classifyImportCandidate(
     };
   }
 
-  const exact = existingTransactions.find(
-    (transaction) =>
-      transaction.date === parsed.date &&
-      amountsEqual(transaction, parsed) &&
-      normalisePayee(transaction.payee) === normalisePayee(parsed.payee),
-  );
+  const matchAnalyses = existingTransactions
+    .map((transaction) => analyseImportMatchCandidate(transaction, parsed))
+    .filter((analysis) => analysis.amountMatches)
+    .sort((left, right) => right.confidence - left.confidence);
+  const bestMatch = matchAnalyses[0];
 
-  if (exact) {
+  if (bestMatch?.isExactMatch) {
     return {
       id: `row-${parsed.rowNumber}`,
       parsed,
       status: "exact-match",
-      matchedTransactionId: exact.id,
-      matchedTransaction: exact,
-      reason:
-        "Exact date, amount, and payee match already exists in this register.",
+      matchedTransactionId: bestMatch.transaction.id,
+      matchedTransaction: bestMatch.transaction,
+      reason: bestMatch.reason,
+      confidence: bestMatch.confidence,
+      evidence: bestMatch.evidence,
       selected: false,
       errors: [],
     };
   }
 
-  const automaticNear = existingTransactions.find(
-    (transaction) =>
-      amountsEqual(transaction, parsed) &&
-      daysBetween(transaction.date, parsed.date) <=
-        HIGH_CONFIDENCE_IMPORT_MATCH_DAYS,
-  );
-
-  if (automaticNear) {
-    return {
-      id: `row-${parsed.rowNumber}`,
-      parsed,
-      status: "exact-match",
-      matchedTransactionId: automaticNear.id,
-      matchedTransaction: automaticNear,
-      reason: `Matched by same amount within ${HIGH_CONFIDENCE_IMPORT_MATCH_DAYS} days in this register.`,
-      selected: false,
-      errors: [],
-    };
-  }
-
-  const possible = existingTransactions.find(
-    (transaction) =>
-      amountsEqual(transaction, parsed) &&
-      daysBetween(transaction.date, parsed.date) <= SUGGESTED_IMPORT_MATCH_DAYS,
-  );
-
-  if (possible) {
+  if (bestMatch?.isSuggestedMatch) {
     return {
       id: `row-${parsed.rowNumber}`,
       parsed,
       status: "possible-match",
-      matchedTransactionId: possible.id,
-      matchedTransaction: possible,
-      reason: `Possible match: same amount within ${SUGGESTED_IMPORT_MATCH_DAYS} days. Review before importing as new.`,
+      matchedTransactionId: bestMatch.transaction.id,
+      matchedTransaction: bestMatch.transaction,
+      reason: bestMatch.reason,
+      confidence: bestMatch.confidence,
+      evidence: bestMatch.evidence,
       selected: false,
       errors: [],
     };
@@ -594,10 +578,219 @@ function classifyImportCandidate(
     id: `row-${parsed.rowNumber}`,
     parsed,
     status: "new",
-    reason: "No matching transaction found in this register.",
+    reason: bestMatch
+      ? `No suitable match found. Closest same-amount candidate was ${formatImportDateDistance(
+          bestMatch.daysApart,
+        )} away with ${bestMatch.payeeSimilarity}% payee similarity.`
+      : "No matching transaction found in this register.",
+    confidence: bestMatch?.confidence ?? 0,
+    evidence: bestMatch?.evidence,
     selected: true,
     errors: [],
   };
+}
+
+interface ImportMatchAnalysis {
+  transaction: RegisterTransactionView;
+  amountMatches: boolean;
+  daysApart: number;
+  payeeSimilarity: number;
+  confidence: number;
+  evidence: TransactionImportMatchEvidence[];
+  isExactMatch: boolean;
+  isSuggestedMatch: boolean;
+  reason: string;
+}
+
+function analyseImportMatchCandidate(
+  transaction: RegisterTransactionView,
+  parsed: ParsedImportTransaction,
+): ImportMatchAnalysis {
+  const amountMatches = amountsEqual(transaction, parsed);
+  const daysApart = daysBetween(transaction.date, parsed.date);
+  const payeeSimilarity = calculatePayeeSimilarity(
+    transaction.payee,
+    parsed.payee,
+  );
+  const sameDate = transaction.date === parsed.date;
+  const exactPayee = normalisePayee(transaction.payee) === normalisePayee(parsed.payee);
+  const withinHighConfidenceWindow =
+    daysApart <= HIGH_CONFIDENCE_IMPORT_MATCH_DAYS;
+  const withinSuggestedWindow = daysApart <= SUGGESTED_IMPORT_MATCH_DAYS;
+  const confidence = calculateImportMatchConfidence({
+    amountMatches,
+    daysApart,
+    payeeSimilarity,
+    sameDate,
+    exactPayee,
+  });
+  const evidence = buildImportMatchEvidence({
+    amountMatches,
+    daysApart,
+    payeeSimilarity,
+    sameDate,
+    exactPayee,
+  });
+  const isExactMatch =
+    amountMatches &&
+    ((sameDate && exactPayee) ||
+      (withinHighConfidenceWindow && payeeSimilarity >= 85));
+  const isSuggestedMatch =
+    !isExactMatch &&
+    amountMatches &&
+    withinSuggestedWindow &&
+    payeeSimilarity >= 60;
+
+  return {
+    transaction,
+    amountMatches,
+    daysApart,
+    payeeSimilarity,
+    confidence,
+    evidence,
+    isExactMatch,
+    isSuggestedMatch,
+    reason: isExactMatch
+      ? `High-confidence match: same amount, ${formatImportDateDistance(
+          daysApart,
+        )} apart, and ${payeeSimilarity}% payee similarity.`
+      : isSuggestedMatch
+        ? `Possible match: same amount, ${formatImportDateDistance(
+            daysApart,
+          )} apart, and ${payeeSimilarity}% payee similarity. Review before importing as new.`
+        : `Same amount but not enough evidence to match: ${formatImportDateDistance(
+            daysApart,
+          )} apart and ${payeeSimilarity}% payee similarity.`,
+  };
+}
+
+function calculateImportMatchConfidence({
+  amountMatches,
+  daysApart,
+  payeeSimilarity,
+  sameDate,
+  exactPayee,
+}: {
+  amountMatches: boolean;
+  daysApart: number;
+  payeeSimilarity: number;
+  sameDate: boolean;
+  exactPayee: boolean;
+}): number {
+  if (!amountMatches) {
+    return 0;
+  }
+
+  const dateScore = sameDate
+    ? 30
+    : daysApart <= 1
+      ? 25
+      : daysApart <= HIGH_CONFIDENCE_IMPORT_MATCH_DAYS
+        ? 18
+        : daysApart <= SUGGESTED_IMPORT_MATCH_DAYS
+          ? 8
+          : 0;
+  const payeeScore = exactPayee ? 40 : Math.round(payeeSimilarity * 0.4);
+
+  return Math.min(100, 30 + dateScore + payeeScore);
+}
+
+function buildImportMatchEvidence({
+  amountMatches,
+  daysApart,
+  payeeSimilarity,
+  sameDate,
+  exactPayee,
+}: {
+  amountMatches: boolean;
+  daysApart: number;
+  payeeSimilarity: number;
+  sameDate: boolean;
+  exactPayee: boolean;
+}): TransactionImportMatchEvidence[] {
+  return [
+    {
+      label: "Amount",
+      result: amountMatches ? "positive" : "negative",
+      detail: amountMatches ? "Exact amount match." : "Amount differs.",
+    },
+    {
+      label: "Date",
+      result: sameDate
+        ? "positive"
+        : daysApart <= SUGGESTED_IMPORT_MATCH_DAYS
+          ? "neutral"
+          : "negative",
+      detail: sameDate
+        ? "Same date."
+        : `${formatImportDateDistance(daysApart)} apart.`,
+    },
+    {
+      label: "Payee",
+      result: exactPayee
+        ? "positive"
+        : payeeSimilarity >= 60
+          ? "neutral"
+          : "negative",
+      detail: exactPayee
+        ? "Exact payee match."
+        : `${payeeSimilarity}% payee similarity.`,
+    },
+  ];
+}
+
+function calculatePayeeSimilarity(left: string, right: string): number {
+  const leftNormalised = normalisePayee(left);
+  const rightNormalised = normalisePayee(right);
+
+  if (!leftNormalised || !rightNormalised) {
+    return 0;
+  }
+
+  if (leftNormalised === rightNormalised) {
+    return 100;
+  }
+
+  if (leftNormalised.includes(rightNormalised) || rightNormalised.includes(leftNormalised)) {
+    const shorter = Math.min(leftNormalised.length, rightNormalised.length);
+    const longer = Math.max(leftNormalised.length, rightNormalised.length);
+    return Math.round((shorter / longer) * 100);
+  }
+
+  const leftTokens = normalisePayeeTokens(left);
+  const rightTokens = normalisePayeeTokens(right);
+
+  if (leftTokens.length === 0 || rightTokens.length === 0) {
+    return 0;
+  }
+
+  const rightTokenSet = new Set(rightTokens);
+  const overlap = leftTokens.filter((token) => rightTokenSet.has(token)).length;
+  const union = new Set([...leftTokens, ...rightTokens]).size;
+
+  return Math.round((overlap / union) * 100);
+}
+
+function normalisePayeeTokens(value: string): string[] {
+  return value
+    .toLowerCase()
+    .replace(/\b\d{3,}\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3);
+}
+
+function formatImportDateDistance(daysApart: number): string {
+  if (!Number.isFinite(daysApart)) {
+    return "an unknown number of days";
+  }
+
+  if (daysApart === 0) {
+    return "0 days";
+  }
+
+  return `${daysApart} ${daysApart === 1 ? "day" : "days"}`;
 }
 
 function validateParsedTransaction(parsed: ParsedImportTransaction): string[] {

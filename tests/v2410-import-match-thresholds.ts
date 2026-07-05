@@ -38,52 +38,64 @@ const existingTransactions: RegisterTransactionView[] = [
   createTransaction({
     id: "manual-five-day-delay",
     date: "2026-06-01",
-    payee: "Manual Groceries",
+    payee: "Woolworths 1234",
     outflow: 42.5,
   }),
   createTransaction({
     id: "manual-ten-day-delay",
     date: "2026-06-01",
-    payee: "Manual Fuel",
+    payee: "Ampol Fuel",
     outflow: 88.1,
   }),
   createTransaction({
     id: "manual-eleven-day-delay",
     date: "2026-06-01",
-    payee: "Manual Hardware",
+    payee: "Bunnings Hardware",
     outflow: 19.99,
+  }),
+  createTransaction({
+    id: "amount-only",
+    date: "2026-06-06",
+    payee: "Bakers Delight",
+    outflow: 6,
   }),
 ];
 
 const csv = [
   "Date,Description,Amount",
-  "2026-06-06,BANK GROCERIES,-42.50",
-  "2026-06-11,BANK FUEL,-88.10",
-  "2026-06-12,BANK HARDWARE,-19.99",
+  "2026-06-06,WOOLWORTHS AU,-42.50",
+  "2026-06-11,AMPOL FUEL AU,-88.10",
+  "2026-06-12,BUNNINGS HARDWARE,-19.99",
+  "2026-06-07,AFL RECORD SOUTHBANK,-6.00",
 ].join("\n");
 
 const preview = previewTransactionCsvImport(csv, existingTransactions);
 const byPayee = new Map(preview.candidates.map((candidate) => [candidate.parsed.payee, candidate]));
 
 assert.equal(
-  byPayee.get("BANK GROCERIES")?.status,
+  byPayee.get("WOOLWORTHS AU")?.status,
   "exact-match",
-  "same amount within five days should be treated as a high-confidence match",
+  "same amount within five days should only become high confidence when the payee is also similar",
 );
 assert.equal(
-  byPayee.get("BANK FUEL")?.status,
+  byPayee.get("AMPOL FUEL AU")?.status,
   "possible-match",
-  "same amount within ten days should be treated as a suggested/possible match",
+  "same amount within ten days should become suggested only when payee evidence is plausible",
 );
 assert.equal(
-  byPayee.get("BANK HARDWARE")?.status,
+  byPayee.get("BUNNINGS HARDWARE")?.status,
   "new",
   "same amount outside ten days should be treated as a new transaction",
+);
+assert.equal(
+  byPayee.get("AFL RECORD SOUTHBANK")?.status,
+  "new",
+  "same amount and nearby date alone should not be enough to suggest a match",
 );
 
 assert.equal(preview.summary.exactMatches, 1);
 assert.equal(preview.summary.possibleMatches, 1);
-assert.equal(preview.summary.newTransactions, 1);
-assert.equal(preview.summary.selectedForImport, 1);
+assert.equal(preview.summary.newTransactions, 2);
+assert.equal(preview.summary.selectedForImport, 2);
 
 console.log("v2.41.0 import match threshold checks passed");

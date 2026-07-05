@@ -959,10 +959,13 @@ export function TransactionImportDialog({
                     >
                       {getCandidateStatusLabel(candidate)}
                     </span>
-                    {candidate.status !== "new" || !candidate.selected ? (
-                      <p className="muted transaction-import-review-reason">
-                        {candidate.reason}
-                      </p>
+                    <p className="muted transaction-import-review-reason">
+                      {candidate.reason}
+                    </p>
+                    {typeof candidate.confidence === "number" ? (
+                      <span className="transaction-import-confidence">
+                        Confidence: {candidate.confidence}%
+                      </span>
                     ) : null}
                     {candidate.status === "new" ? (
                       <label className="transaction-import-select-new">

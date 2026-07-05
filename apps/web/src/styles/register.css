@@ -3486,6 +3486,18 @@
   white-space: nowrap;
 }
 
+.transaction-import-confidence {
+  justify-self: end;
+  align-self: center;
+  border-radius: 999px;
+  padding: 0.12rem 0.4rem;
+  background: var(--surface-subtle, #f8fafc);
+  color: var(--text-muted, #64748b);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .transaction-import-match-stack {
   gap: 0.25rem;
 }
@@ -3572,6 +3584,10 @@
 
   .transaction-import-review-reason {
     white-space: normal;
+  }
+
+  .transaction-import-confidence {
+    justify-self: start;
   }
 
   .transaction-import-match-row {
