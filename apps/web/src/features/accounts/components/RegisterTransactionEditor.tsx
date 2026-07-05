@@ -39,10 +39,8 @@ import type {
   TransactionFlag,
 } from "../accountRegisterTypes";
 import {
-  buildSplitLines,
   createSplitLineDraft,
   getSplitBalanceStatus,
-  hasIncompleteSplitDrafts,
   isSplitBalanced,
   isSplitDraftBalanced,
   parseRegisterMoney,
@@ -56,6 +54,10 @@ import {
   normaliseCategoryName,
   SPLIT_CATEGORY_LABEL,
 } from "../registerCategoryMatching";
+import {
+  buildNewRegisterTransactionInput,
+  buildUpdateRegisterTransactionInput,
+} from "../registerTransactionDrafts";
 import type { BudgetCategoryOption } from "../../budget/budgetViewTypes";
 
 function formatMoney(value: number, currencyCode: string) {
@@ -1231,57 +1233,18 @@ export function TransactionEntryRow({
   const [splitLines, setSplitLines] = useState<SplitLineDraft[]>([]);
 
   function buildInput(): NewRegisterTransactionInput | null {
-    if (!payee.trim()) {
-      return null;
-    }
-
-    const parsedSplitLines = buildSplitLines(splitLines, categoryOptions);
-
-    if (
-      splitLines.length > 0 &&
-      (parsedSplitLines.length === 0 || hasIncompleteSplitDrafts(splitLines))
-    ) {
-      return null;
-    }
-
-    const parsedOutflow = parseRegisterMoney(outflow);
-    const parsedInflow = parseRegisterMoney(inflow);
-
-    if (
-      splitLines.length > 0 &&
-      !isSplitDraftBalanced(parsedOutflow, parsedInflow, splitLines)
-    ) {
-      return null;
-    }
-
-    const categoryName = category.trim();
-    const categoryOption = findCategoryOption(categoryName, categoryOptions);
-    const fallbackCategory =
-      parsedInflow > 0 && parsedOutflow === 0
-        ? "Ready to Assign"
-        : "Uncategorised";
-
-    return {
+    return buildNewRegisterTransactionInput({
       date,
-      payee: payee.trim(),
+      payee,
       payeeId,
-      category:
-        parsedSplitLines.length > 0
-          ? "Split"
-          : (categoryOption?.name ?? (categoryName || fallbackCategory)),
-      categoryId:
-        parsedSplitLines.length > 0
-          ? undefined
-          : (categoryOption?.id ??
-            (fallbackCategory === "Ready to Assign"
-              ? "__ready_to_assign__"
-              : undefined)),
-      memo: memo.trim(),
-      checkNumber: checkNumber.trim(),
-      outflow: parsedOutflow,
-      inflow: parsedInflow,
-      splitLines: parsedSplitLines.length > 0 ? parsedSplitLines : undefined,
-    };
+      category,
+      memo,
+      checkNumber,
+      outflow,
+      inflow,
+      splitLines,
+      categoryOptions,
+    });
   }
 
   function clearForNext() {
@@ -1630,56 +1593,26 @@ export function TransactionEditRow({
   }
 
   function save() {
-    if (!payee.trim()) {
-      return;
-    }
-
-    const parsedSplitLines = buildSplitLines(splitLines, categoryOptions);
-
-    if (splitLines.length > 0 && parsedSplitLines.length === 0) {
-      return;
-    }
-
-    const parsedOutflow = parseRegisterMoney(outflow);
-    const parsedInflow = parseRegisterMoney(inflow);
-
-    if (
-      splitLines.length > 0 &&
-      !isSplitDraftBalanced(parsedOutflow, parsedInflow, splitLines)
-    ) {
-      return;
-    }
-
-    const categoryName = category.trim();
-    const categoryOption = findCategoryOption(categoryName, categoryOptions);
-    const fallbackCategory =
-      parsedInflow > 0 && parsedOutflow === 0
-        ? "Ready to Assign"
-        : "Uncategorised";
-
-    onSave({
+    const input = buildUpdateRegisterTransactionInput({
       id: transaction.id,
       date,
       flag,
-      payee: payee.trim(),
+      payee,
       payeeId,
-      category:
-        parsedSplitLines.length > 0
-          ? "Split"
-          : (categoryOption?.name ?? (categoryName || fallbackCategory)),
-      categoryId:
-        parsedSplitLines.length > 0
-          ? undefined
-          : (categoryOption?.id ??
-            (fallbackCategory === "Ready to Assign"
-              ? "__ready_to_assign__"
-              : undefined)),
-      memo: memo.trim(),
-      checkNumber: checkNumber.trim(),
-      outflow: parsedOutflow,
-      inflow: parsedInflow,
-      splitLines: parsedSplitLines.length > 0 ? parsedSplitLines : undefined,
+      category,
+      memo,
+      checkNumber,
+      outflow,
+      inflow,
+      splitLines,
+      categoryOptions,
     });
+
+    if (!input) {
+      return;
+    }
+
+    onSave(input);
   }
 
   const outflowColumnIndex = visibleColumnIds.indexOf("outflow");
