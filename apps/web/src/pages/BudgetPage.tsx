@@ -1,16 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  type DragEndEvent,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { DndContext } from "@dnd-kit/core";
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useNavigate } from "react-router-dom";
@@ -41,17 +32,14 @@ import {
   buildOverspendingCoverOptions,
   countArchivedCategories,
   countOverspentCategories,
-  findCategoryLocation,
   getVisibleCategoryGroups,
   type OverspendingCoverOption,
 } from "../features/budget/budgetWorkspaceSelectors";
 import { buildBudgetInspectorState } from "../features/budget/budgetInspectorState";
+import { useBudgetDragDrop } from "../features/budget/useBudgetDragDrop";
 import {
   BudgetGroup,
-  getCategorySortableId,
   getGroupSortableId,
-  getSortableEntityId,
-  getSortableKind,
   type BudgetColumnId,
 } from "../features/budget/BudgetWorkspaceGroup";
 
@@ -639,14 +627,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const navigate = useNavigate();
   const [hideArchivedCategories, setHideArchivedCategories] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
-  const dragSensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
   const [selectedMonth, setSelectedMonth] = useState(() =>
     getCurrentBudgetMonth(),
   );
@@ -744,65 +724,11 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   const coverOptions = buildOverspendingCoverOptions(data.categoryGroups);
 
-  function handleBudgetDragEnd(event: DragEndEvent) {
-    const activeId = String(event.active.id);
-    const overId = event.over ? String(event.over.id) : null;
-
-    if (!overId || activeId === overId) {
-      return;
-    }
-
-    const activeKind = getSortableKind(activeId);
-    const overKind = getSortableKind(overId);
-
-    if (activeKind === "category" && overKind === "category") {
-      const activeCategoryId = getSortableEntityId(activeId);
-      const targetCategoryId = getSortableEntityId(overId);
-
-      if (
-        isCreditCardPaymentCategory(activeCategoryId) ||
-        isCreditCardPaymentCategory(targetCategoryId)
-      ) {
-        return;
-      }
-      const activeLocation = findCategoryLocation(visibleCategoryGroups, activeCategoryId);
-      const targetLocation = findCategoryLocation(visibleCategoryGroups, targetCategoryId);
-
-      if (!activeLocation || !targetLocation) {
-        return;
-      }
-
-      const placement = activeLocation.groupId === targetLocation.groupId &&
-        activeLocation.index < targetLocation.index
-        ? "after"
-        : "before";
-
-      moveCategoryToPosition(activeCategoryId, targetCategoryId, placement);
-      return;
-    }
-
-    if (activeKind === "group" && overKind === "group") {
-      const activeGroupId = getSortableEntityId(activeId);
-      const targetGroupId = getSortableEntityId(overId);
-
-      if (
-        isCreditCardPaymentGroup(activeGroupId) ||
-        isCreditCardPaymentGroup(targetGroupId)
-      ) {
-        return;
-      }
-      const activeIndex = visibleCategoryGroups.findIndex((group) => group.id === activeGroupId);
-      const targetIndex = visibleCategoryGroups.findIndex((group) => group.id === targetGroupId);
-
-      if (activeIndex === -1 || targetIndex === -1) {
-        return;
-      }
-
-      const placement = activeIndex < targetIndex ? "after" : "before";
-      moveCategoryGroupToPosition(activeGroupId, targetGroupId, placement);
-    }
-  }
-
+  const budgetDragDrop = useBudgetDragDrop({
+    visibleCategoryGroups,
+    moveCategoryToPosition,
+    moveCategoryGroupToPosition,
+  });
 
   function openCategoryEditor(categoryId: string) {
     if (isCreditCardPaymentCategory(categoryId)) {
@@ -928,9 +854,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
           <Card className="budget-workspace-table-card">
             <DndContext
-              sensors={dragSensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleBudgetDragEnd}
+              sensors={budgetDragDrop.sensors}
+              collisionDetection={budgetDragDrop.collisionDetection}
+              onDragEnd={budgetDragDrop.onDragEnd}
             >
               <SortableContext
                 items={visibleCategoryGroups.map((group) => getGroupSortableId(group.id))}
