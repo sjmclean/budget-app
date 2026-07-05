@@ -43,9 +43,9 @@ import {
   countOverspentCategories,
   findCategoryLocation,
   getVisibleCategoryGroups,
-  isSelectedCategoryVisible,
   type OverspendingCoverOption,
 } from "../features/budget/budgetWorkspaceSelectors";
+import { buildBudgetInspectorState } from "../features/budget/budgetInspectorState";
 import {
   BudgetGroup,
   getCategorySortableId,
@@ -727,19 +727,18 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   const hiddenArchivedCount = countArchivedCategories(data.categoryGroups);
 
-  const selectedCategoryVisible = isSelectedCategoryVisible(
+  const {
+    visibleSelectedCategory,
+    visibleSelectedGroup,
+    selectedCategoryIsOverassignedSource,
+  } = buildBudgetInspectorState({
     selectedCategory,
+    selectedGroup,
     hideArchivedCategories,
-  );
-  const visibleSelectedCategory = selectedCategoryVisible
-    ? selectedCategory
-    : null;
-  const visibleSelectedGroup = selectedCategoryVisible ? selectedGroup : null;
+    overassignedCategoryIds,
+  });
 
   const isBudgetOverassigned = isMoneyNegative(data.readyToAssign);
-  const selectedCategoryIsOverassignedSource =
-    visibleSelectedCategory !== null &&
-    overassignedCategoryIds.includes(visibleSelectedCategory.id);
 
   const overspentCount = countOverspentCategories(data.categoryGroups);
 
