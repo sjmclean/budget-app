@@ -11,8 +11,8 @@ if (!page.includes('budgetImport')) {
   throw new Error("Expected Budget Selector to expose a unified budget import launch mode");
 }
 
-if (!page.includes("<strong>Import Budget</strong>")) {
-  throw new Error("Expected launcher to show a single Import Budget entry point");
+if (!page.includes("<strong>Migrate Budget</strong>") && !page.includes("<strong>Import Budget</strong>")) {
+  throw new Error("Expected launcher to show a single Budget Migration entry point");
 }
 
 if (page.includes("<strong>Import Actual Budget</strong>") || page.includes("<strong>Import YNAB4</strong>")) {

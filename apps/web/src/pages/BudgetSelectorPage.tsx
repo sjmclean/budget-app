@@ -12,7 +12,7 @@ import { BudgetImportDialog } from "./budgetSelector/BudgetImportDialog";
 import { NewBudgetWizard } from "../features/budget/newBudget/NewBudgetWizard";
 import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
 
-type LaunchMode = "list" | "choose" | "empty" | "budgetImport";
+type LaunchMode = "list" | "empty" | "budgetImport";
 
 const REGISTERS_STORAGE_KEY = "budget-app.account-registers.v1";
 
@@ -293,7 +293,7 @@ export function BudgetSelectorPage() {
             <section className="budget-manager-hero">
               <div>
                 <h1 id="budget-selector-title">Budget Manager</h1>
-                <p>Open an existing budget or create a new one.</p>
+                <p>Open an existing budget, start a new one, or migrate from another budgeting app.</p>
               </div>
               <div className="budget-manager-hero-actions">
                 <Button
@@ -304,8 +304,8 @@ export function BudgetSelectorPage() {
                 >
                   ↻ Refresh
                 </Button>
-                <Button type="button" onClick={() => setLaunchMode("choose")}>
-                  + Create Budget
+                <Button type="button" onClick={() => setLaunchMode("empty")}>
+                  + New Budget
                 </Button>
               </div>
             </section>
@@ -317,10 +317,10 @@ export function BudgetSelectorPage() {
                   <span className="budget-manager-empty-icon" aria-hidden="true">▣</span>
                   <div>
                     <h3>No budgets yet</h3>
-                    <p>Create your first budget, import a budget, or restore a backup.</p>
+                    <p>Create your first budget or migrate an existing budget from another app.</p>
                   </div>
-                  <Button type="button" onClick={() => setLaunchMode("choose")}>
-                    Create Budget
+                  <Button type="button" onClick={() => setLaunchMode("empty")}>
+                    New Budget
                   </Button>
                 </div>
               ) : (
@@ -431,9 +431,9 @@ export function BudgetSelectorPage() {
                   onClick={() => setLaunchMode("budgetImport")}
                 >
                   <span className="budget-manager-action-icon budget-manager-action-icon-purple" aria-hidden="true">⇩</span>
-                  <strong>Import Budget</strong>
-                  <span>Import a budget from YNAB4 or Actual Budget.</span>
-                  <em>Import Now →</em>
+                  <strong>Migrate Budget</strong>
+                  <span>Bring in a full budget from YNAB4 or Actual Budget.</span>
+                  <em>Start Migration →</em>
                 </button>
 
                 <button type="button" className="budget-manager-action-card" disabled>
@@ -463,79 +463,9 @@ export function BudgetSelectorPage() {
           </>
         ) : null}
 
-        {launchMode === "choose" ? (
-          <Card className="budget-launch-picker budget-create-card-glass">
-            <div className="budget-launch-nav">
-              <button type="button" onClick={handleReturnToBudgets}>
-                ← Back to budgets
-              </button>
-            </div>
-            <div className="budget-launch-choice-header">
-              <p className="eyebrow">Create a new budget</p>
-              <h2>How would you like to get started?</h2>
-              <p>
-                Pick one path. The next step reuses the existing creation and
-                import workflows without showing every option at once.
-              </p>
-            </div>
-
-            <div className="budget-launch-options">
-              <button
-                type="button"
-                className="budget-launch-option"
-                onClick={() => setLaunchMode("empty")}
-              >
-                <span className="budget-launch-option-icon" aria-hidden="true">
-                  +
-                </span>
-                <span>
-                  <strong>Create Budget</strong>
-                  <small>Start quickly with a name, or customise settings and categories.</small>
-                </span>
-                <span aria-hidden="true">›</span>
-              </button>
-
-              <button
-                type="button"
-                className="budget-launch-option"
-                onClick={() => setLaunchMode("budgetImport")}
-              >
-                <span className="budget-launch-option-icon" aria-hidden="true">
-                  ⇪
-                </span>
-                <span>
-                  <strong>Import Budget</strong>
-                  <small>Choose a supported budget file or YNAB4 package and let the app detect the provider.</small>
-                </span>
-                <span aria-hidden="true">›</span>
-              </button>
-
-              <button type="button" className="budget-launch-option" disabled>
-                <span className="budget-launch-option-icon" aria-hidden="true">
-                  ↺
-                </span>
-                <span>
-                  <strong>Restore backup</strong>
-                  <small>Queued for the next launch-experience iteration.</small>
-                </span>
-                <span aria-hidden="true">•</span>
-              </button>
-            </div>
-
-            <div className="budget-launch-coming-soon" aria-label="Coming soon">
-              <span>Coming soon</span>
-              <ul>
-                <li>Cloud budget continuation</li>
-                <li>Transaction import remains separate from budget migration</li>
-                <li>More starter category suggestions</li>
-              </ul>
-            </div>
-          </Card>
-        ) : null}
-
         {launchMode === "empty" ? (
           <NewBudgetWizard
-            onBack={() => setLaunchMode("choose")}
+            onBack={() => setLaunchMode("list")}
             onCreateBudget={handleCreateBudget}
           />
         ) : null}
@@ -544,7 +474,7 @@ export function BudgetSelectorPage() {
           <BudgetImportDialog
             importActualBudget={importActualBudget}
             importYnab4Budget={importYnab4Budget}
-            onBack={() => setLaunchMode("choose")}
+            onBack={() => setLaunchMode("list")}
             onImportedBudgetSelected={selectBudget}
             onOpenBudget={handleOpenBudget}
           />

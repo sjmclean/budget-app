@@ -7,7 +7,7 @@ const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 
 assert.match(
   budgetSelectorSource,
-  /type LaunchMode = "list" \| "choose" \| "empty" \| "ynab"/,
+  /type LaunchMode = "list" \| "empty" \| "budgetImport"/,
   "Budget selector should keep the launch experience as a small explicit state machine.",
 );
 
@@ -37,14 +37,14 @@ assert.match(
 
 assert.match(
   budgetSelectorSource,
-  /How would you like to get started\?/,
-  "The launch picker should use friendlier first-run copy.",
+  /onClick=\{\(\) => setLaunchMode\("empty"\)\}/,
+  "The launch state machine should go straight from Budget Manager into a dedicated workflow.",
 );
 
-assert.match(
+assert.doesNotMatch(
   budgetSelectorSource,
-  /Cloud budget continuation/,
-  "The future cloud path should be visible as a launch-experience placeholder.",
+  /How would you like to get started\?/,
+  "New Budget should start the new budget wizard directly instead of showing the old chooser.",
 );
 
 assert.match(
