@@ -17,6 +17,7 @@ import {
   readTransactionImportProfiles,
   readTransactionPayeeAliases,
   formatImportDuration,
+  suggestTransactionPayeeAliases,
   upsertTransactionImportProfile,
   upsertTransactionPayeeAlias,
   writeTransactionImportProfiles,
@@ -28,6 +29,7 @@ import {
   type TransactionImportPerformanceEntry,
   type TransactionImportPerformanceReport,
   type TransactionImportPreview,
+  type TransactionPayeeAliasSuggestion,
 } from "../transactionImport";
 
 function formatMoney(value: number, currencyCode: string) {
@@ -252,6 +254,9 @@ export function TransactionImportDialog({
   const [candidates, setCandidates] = useState<TransactionImportCandidate[]>(
     [],
   );
+  const [aliasSuggestions, setAliasSuggestions] = useState<
+    TransactionPayeeAliasSuggestion[]
+  >([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -287,6 +292,7 @@ export function TransactionImportDialog({
     setPerformanceReport(null);
     setPreview(null);
     setCandidates([]);
+    setAliasSuggestions([]);
     setAnalysis(null);
     setMapping({});
     setMatchedProfileName(null);
@@ -336,6 +342,13 @@ export function TransactionImportDialog({
 
       setPreview(nextPreview);
       setCandidates(nextPreview.candidates);
+      setAliasSuggestions(
+        suggestTransactionPayeeAliases({
+          candidates: nextPreview.candidates,
+          existingTransactions: transactions,
+          aliases: payeeAliases,
+        }),
+      );
       setMessage(
         `QIF detected. ${nextPreview.summary.totalRows} transaction${
           nextPreview.summary.totalRows === 1 ? "" : "s"
@@ -464,6 +477,13 @@ export function TransactionImportDialog({
     );
     setPreview(nextPreview);
     setCandidates(nextPreview.candidates);
+    setAliasSuggestions(
+      suggestTransactionPayeeAliases({
+        candidates: nextPreview.candidates,
+        existingTransactions: transactions,
+        aliases: payeeAliases,
+      }),
+    );
     setStep("review");
     setPerformanceReport(createTransactionImportPerformanceReport(timings));
   }
@@ -472,6 +492,7 @@ export function TransactionImportDialog({
     setMapping((current) => ({ ...current, [columnIndex]: role }));
     setPreview(null);
     setCandidates([]);
+    setAliasSuggestions([]);
     setMessage(null);
   }
 
@@ -483,6 +504,7 @@ export function TransactionImportDialog({
     setMapping(analysis.suggestedMapping);
     setPreview(null);
     setCandidates([]);
+    setAliasSuggestions([]);
     setMessage(null);
     setError(null);
   }
@@ -628,6 +650,48 @@ export function TransactionImportDialog({
     setError(null);
   }
 
+  function acceptAliasSuggestion(suggestionId: string) {
+    const suggestion = aliasSuggestions.find((entry) => entry.id === suggestionId);
+
+    if (!suggestion) {
+      return;
+    }
+
+    const nextAlias = createTransactionPayeeAlias({
+      sourcePayee: suggestion.sourcePayee,
+      targetPayee: suggestion.suggestedTargetPayee,
+    });
+    const nextAliases = upsertTransactionPayeeAlias(payeeAliases, nextAlias);
+    setPayeeAliases(nextAliases);
+    writeTransactionPayeeAliases(nextAliases);
+    setAliasSuggestions((current) =>
+      current.filter((entry) => entry.id !== suggestion.id),
+    );
+    setCandidates((current) =>
+      current.map((entry) => {
+        const sourcePayee = entry.parsed.originalPayee ?? entry.parsed.payee;
+
+        if (sourcePayee !== suggestion.sourcePayee) {
+          return entry;
+        }
+
+        return {
+          ...entry,
+          parsed: {
+            ...entry.parsed,
+            originalPayee: sourcePayee,
+            payee: suggestion.suggestedTargetPayee,
+            payeeAliasId: nextAlias.id,
+          },
+        };
+      }),
+    );
+    setMessage(
+      `Payee alias saved: "${suggestion.sourcePayee}" will import as "${suggestion.suggestedTargetPayee}" next time.`,
+    );
+    setError(null);
+  }
+
   function canRememberPayeeAlias(candidate: TransactionImportCandidate) {
     const sourcePayee = candidate.parsed.originalPayee ?? candidate.parsed.payee;
     const targetPayee = candidate.matchedTransaction?.payee;
@@ -769,6 +833,34 @@ export function TransactionImportDialog({
         {error ? <p className="transaction-import-error">{error}</p> : null}
         {message ? (
           <p className="transaction-import-message">{message}</p>
+        ) : null}
+
+        {step === "review" && aliasSuggestions.length > 0 ? (
+          <div className="transaction-import-alias-suggestions">
+            <strong>Alias suggestions</strong>
+            <p className="muted">
+              These are suggestions only. Create an alias when an imported
+              merchant clearly maps to one of your existing payees.
+            </p>
+            <ul>
+              {aliasSuggestions.map((suggestion) => (
+                <li key={suggestion.id}>
+                  <span>
+                    <strong>{suggestion.sourcePayee}</strong> → {" "}
+                    <strong>{suggestion.suggestedTargetPayee}</strong>
+                    <small>{suggestion.reason}</small>
+                  </span>
+                  <button
+                    className="button button-secondary"
+                    type="button"
+                    onClick={() => acceptAliasSuggestion(suggestion.id)}
+                  >
+                    Create Alias
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
 
         {step === "upload" ? (

@@ -5172,3 +5172,598 @@ strong {
   letter-spacing: 0;
   text-transform: none;
 }
+
+/* v2.62.8 Budget Manager mockup implementation */
+.budget-manager-page {
+  min-height: 100vh;
+  padding: clamp(1.25rem, 2vw, 2rem);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.08), transparent 28rem),
+    linear-gradient(180deg, #f8fbff 0%, #ffffff 58%, #f8fafc 100%);
+  color: #0f172a;
+}
+
+.budget-manager-shell {
+  width: min(100%, 88rem);
+  margin: 0 auto;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 1.45rem;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.09);
+  padding: clamp(1.25rem, 2.5vw, 2.25rem);
+}
+
+.budget-manager-brand-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.budget-manager-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.budget-manager-brand-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 0.65rem;
+  background: linear-gradient(135deg, #0b3b91, #155eef);
+  color: white;
+  font-weight: 900;
+  box-shadow: 0 10px 24px rgba(21, 94, 239, 0.28);
+}
+
+.budget-manager-brand strong,
+.budget-manager-brand span {
+  display: block;
+}
+
+.budget-manager-brand strong {
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+}
+
+.budget-manager-brand span {
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.budget-manager-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: clamp(1.15rem, 2.5vw, 1.75rem);
+}
+
+.budget-manager-hero h1 {
+  margin: 0;
+  font-size: clamp(1.9rem, 3.4vw, 2.7rem);
+  line-height: 1.02;
+  letter-spacing: -0.055em;
+}
+
+.budget-manager-hero p {
+  margin: 0.4rem 0 0;
+  color: #475569;
+  font-size: 0.98rem;
+}
+
+.budget-manager-hero-actions {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.budget-manager-hero-actions .button,
+.budget-manager-hero-actions button {
+  min-height: 3.05rem;
+  border-radius: 0.75rem;
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.budget-manager-refresh-button {
+  color: #0f172a;
+  background: white;
+}
+
+.budget-manager-section {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.45rem;
+}
+
+.budget-manager-section + .budget-manager-section {
+  padding-top: 1.55rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.budget-manager-section h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  letter-spacing: -0.025em;
+}
+
+.budget-manager-card-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.budget-manager-budget-grid {
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 24rem));
+  justify-content: start;
+}
+
+.budget-manager-action-grid {
+  grid-template-columns: repeat(auto-fit, minmax(13.5rem, 16rem));
+  justify-content: start;
+}
+
+.budget-manager-budget-card,
+.budget-manager-action-card,
+.budget-manager-empty-card,
+.budget-manager-storage-banner {
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.065);
+}
+
+.budget-manager-budget-card {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.budget-manager-budget-card:hover,
+.budget-manager-budget-card:focus-visible {
+  border-color: rgba(37, 99, 235, 0.42);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.105);
+  transform: translateY(-1px);
+}
+
+.budget-manager-budget-card:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.24);
+  outline-offset: 3px;
+}
+
+.budget-manager-budget-card-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.budget-manager-budget-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 999px;
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+
+.budget-manager-budget-icon-home {
+  background: #dbeafe;
+  color: #0b3b91;
+}
+
+.budget-manager-budget-icon-business {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.budget-manager-budget-title h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  letter-spacing: -0.025em;
+}
+
+.budget-manager-budget-title p {
+  margin: 0.22rem 0 0;
+  color: #475569;
+  font-size: 0.84rem;
+}
+
+.budget-manager-more-menu {
+  position: relative;
+}
+
+.budget-manager-more-menu-trigger {
+  display: inline-grid;
+  place-items: center;
+  width: 1.95rem;
+  height: 1.95rem;
+  list-style: none;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  border-radius: 0.55rem;
+  background: #fff;
+  cursor: pointer;
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+
+.budget-manager-more-menu-panel {
+  position: absolute;
+  z-index: 4;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  min-width: 11rem;
+  padding: 0.45rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.14);
+}
+
+.budget-manager-more-menu-panel button {
+  width: 100%;
+  border: 0;
+  border-radius: 0.55rem;
+  padding: 0.7rem 0.8rem;
+  background: transparent;
+  color: #0f172a;
+  text-align: left;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.budget-manager-more-menu-panel button:hover {
+  background: #f8fafc;
+}
+
+.budget-manager-more-menu-panel .budget-manager-more-menu-danger {
+  color: #991b1b;
+}
+
+.budget-manager-more-menu-panel .budget-manager-more-menu-danger:hover {
+  background: #fef2f2;
+}
+
+.budget-manager-more-menu-separator {
+  height: 1px;
+  margin: 0.35rem 0.2rem;
+  background: rgba(148, 163, 184, 0.24);
+}
+
+.budget-manager-budget-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0.65rem 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.budget-manager-budget-stats div {
+  display: grid;
+  gap: 0.16rem;
+  padding: 0 0.65rem;
+}
+
+.budget-manager-budget-stats div:first-child {
+  padding-left: 0;
+}
+
+.budget-manager-budget-stats div + div {
+  border-left: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.budget-manager-budget-stats dt {
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.budget-manager-budget-stats dd {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 850;
+}
+
+.budget-manager-budget-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.65rem;
+}
+
+.budget-manager-budget-actions .button {
+  border-radius: 0.75rem;
+  min-height: 2.55rem;
+  justify-content: center;
+}
+
+
+.budget-manager-action-card {
+  display: grid;
+  gap: 0.45rem;
+  min-height: 8.6rem;
+  padding: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.budget-manager-action-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.budget-manager-action-card strong {
+  margin-top: 0.2rem;
+  font-size: 0.98rem;
+}
+
+.budget-manager-action-card span:not(.budget-manager-action-icon) {
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.budget-manager-action-card em {
+  align-self: end;
+  color: #0b3b91;
+  font-size: 0.9rem;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.budget-manager-action-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  border-radius: 999px;
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.budget-manager-action-icon-purple {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.budget-manager-action-icon-amber {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.budget-manager-action-icon-blue {
+  background: #dbeafe;
+  color: #0b3b91;
+}
+
+.budget-manager-action-icon-red {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.budget-manager-storage-banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+  margin-top: 1rem;
+  padding: 0.8rem 1rem;
+  background: #eff6ff;
+}
+
+.budget-manager-storage-banner > span {
+  display: inline-grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 999px;
+  background: #155eef;
+  color: #fff;
+  font-weight: 900;
+}
+
+.budget-manager-storage-banner strong,
+.budget-manager-storage-banner p {
+  display: block;
+  margin: 0;
+}
+
+.budget-manager-storage-banner p {
+  margin-top: 0.2rem;
+  color: #475569;
+}
+
+.budget-manager-storage-banner button {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0.65rem;
+  background: #fff;
+  padding: 0.75rem 1rem;
+  color: #0b3b91;
+  font-weight: 850;
+}
+
+.budget-manager-empty-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.35rem;
+}
+
+.budget-manager-empty-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #0b3b91;
+  font-weight: 900;
+}
+
+.budget-manager-empty-card h3,
+.budget-manager-empty-card p {
+  margin: 0;
+}
+
+.budget-manager-empty-card p {
+  margin-top: 0.25rem;
+  color: #475569;
+}
+
+@media (max-width: 1100px) {
+  .budget-manager-budget-grid {
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 24rem));
+  }
+
+  .budget-manager-action-grid {
+    grid-template-columns: repeat(auto-fit, minmax(13.5rem, 16rem));
+  }
+}
+
+@media (max-width: 760px) {
+  .budget-manager-page {
+    padding: 0.75rem;
+  }
+
+  .budget-manager-shell {
+    padding: 1rem;
+    border-radius: 1rem;
+  }
+
+  .budget-manager-hero,
+  .budget-manager-storage-banner,
+  .budget-manager-empty-card {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .budget-manager-hero-actions,
+  .budget-manager-hero-actions .button,
+  .budget-manager-hero-actions button {
+    width: 100%;
+  }
+
+  .budget-manager-budget-grid,
+  .budget-manager-action-grid,
+  .budget-manager-budget-actions,
+  .budget-manager-budget-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-manager-budget-stats div {
+    padding: 0.75rem 0;
+  }
+
+  .budget-manager-budget-stats div + div {
+    border-left: 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.18);
+  }
+}
+
+/* v2.62.8 Budget Manager nested workflow contrast fix */
+.budget-manager-page .budget-create-card-glass,
+.budget-manager-page .budget-launch-picker,
+.budget-manager-page .new-budget-wizard-card,
+.budget-manager-page .budget-import-compact-card {
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  background: rgba(255, 255, 255, 0.98);
+  color: #0f172a;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.09);
+  backdrop-filter: none;
+}
+
+.budget-manager-page .budget-create-card-glass h2,
+.budget-manager-page .budget-list-panel-glass h2,
+.budget-manager-page .budget-launch-choice-header h2,
+.budget-manager-page .new-budget-wizard-header h2,
+.budget-manager-page .new-budget-category-intro h3 {
+  color: #0f172a;
+}
+
+.budget-manager-page .budget-create-card-glass p,
+.budget-manager-page .budget-list-panel-glass p,
+.budget-manager-page .budget-launch-choice-header p,
+.budget-manager-page .new-budget-default-summary,
+.budget-manager-page .new-budget-category-intro p,
+.budget-manager-page .new-budget-category-group-header small,
+.budget-manager-page .new-budget-review-list dt,
+.budget-manager-page .budget-import-drop-zone small {
+  color: #475569;
+}
+
+.budget-manager-page .budget-launch-nav button {
+  color: #0b3b91;
+}
+
+.budget-manager-page .budget-launch-nav button:hover,
+.budget-manager-page .budget-launch-nav button:focus-visible {
+  color: #155eef;
+}
+
+.budget-manager-page .budget-launch-option,
+.budget-manager-page .new-budget-category-group,
+.budget-manager-page .new-budget-review-list,
+.budget-manager-page .budget-import-drop-zone,
+.budget-manager-page .budget-import-complete-report {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.budget-manager-page .budget-launch-option:hover:not(:disabled),
+.budget-manager-page .budget-import-drop-zone:hover {
+  border-color: rgba(37, 99, 235, 0.35);
+  background: #f8fbff;
+}
+
+.budget-manager-page .budget-launch-option strong,
+.budget-manager-page .budget-launch-option-icon,
+.budget-manager-page .new-budget-category-item,
+.budget-manager-page .new-budget-review-list dd,
+.budget-manager-page .budget-import-drop-zone strong {
+  color: #0f172a;
+}
+
+.budget-manager-page .budget-launch-option small {
+  color: #64748b;
+}
+
+.budget-manager-page .budget-launch-option-icon,
+.budget-manager-page .budget-import-drop-icon {
+  background: #dbeafe;
+  color: #0b3b91;
+}
+
+.budget-manager-page .budget-launch-coming-soon {
+  border-top-color: rgba(148, 163, 184, 0.22);
+  color: #64748b;
+}
+
+.budget-manager-page .budget-launch-coming-soon li {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: #f8fafc;
+  color: #475569;
+}
+
+.budget-manager-page .new-budget-stepper button {
+  color: #475569;
+}
+
+.budget-manager-page .new-budget-stepper button.is-active {
+  color: #0f172a;
+}
+
+.budget-manager-page .new-budget-category-intro strong {
+  color: #0b3b91;
+}

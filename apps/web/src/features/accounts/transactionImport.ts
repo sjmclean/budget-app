@@ -42,11 +42,21 @@ export interface TransactionPayeeAlias {
   updatedAt: string;
 }
 
+export interface TransactionPayeeAliasSuggestion {
+  id: string;
+  sourcePayee: string;
+  suggestedTargetPayee: string;
+  normalisedSource: string;
+  reason: string;
+  occurrenceCount: number;
+}
+
 export const TRANSACTION_PAYEE_ALIASES_STORAGE_KEY =
   "budget-app.transaction-payee-aliases.v1";
 
 export const HIGH_CONFIDENCE_IMPORT_MATCH_DAYS = 5;
 export const SUGGESTED_IMPORT_MATCH_DAYS = 10;
+export const TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS = 14;
 
 export interface TransactionImportPerformanceEntry {
   label: string;
@@ -573,7 +583,8 @@ function classifyImportCandidate(
     matchedTransaction:
       assessment.status === "new" ? undefined : selectedCandidate?.transaction,
     reason: assessment.reason,
-    confidence: assessment.confidence,
+    confidence:
+      assessment.candidates.length > 0 ? assessment.confidence : undefined,
     evidence: assessment.evidence,
     matchCandidates: assessment.candidates,
     selected: assessment.recommendation === "import",
@@ -587,7 +598,10 @@ export function assessTransactionImportMatch(
 ): TransactionImportMatchAssessment {
   const matchAnalyses = existingTransactions
     .map((transaction) => analyseImportMatchCandidate(transaction, parsed))
-    .filter((analysis) => analysis.amountMatches)
+    .filter((analysis) =>
+      analysis.amountMatches &&
+      analysis.daysApart <= TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS,
+    )
     .sort((left, right) => right.confidence - left.confidence);
   const bestMatch = matchAnalyses[0];
   const candidates = matchAnalyses.map(toTransactionImportMatchCandidateAssessment);
@@ -622,10 +636,10 @@ export function assessTransactionImportMatch(
     confidence: bestMatch?.confidence ?? 0,
     evidence: bestMatch?.evidence,
     reason: bestMatch
-      ? `No suitable match found. Closest same-amount candidate was ${formatImportDateDistance(
+      ? `No suitable match found within ${TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS} days. Closest in-window same-amount candidate was ${formatImportDateDistance(
           bestMatch.daysApart,
         )} away with ${bestMatch.payeeSimilarity}% payee similarity.`
-      : "No matching transaction found in this register.",
+      : `No reasonable candidate found within ${TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS} days.`,
     candidates,
     selectedCandidate: bestMatch
       ? toTransactionImportMatchCandidateAssessment(bestMatch)
@@ -1181,6 +1195,10 @@ export function normalisePayeeAliasSource(value: string): string {
     .trim();
 }
 
+export function normalisePayeeAliasTarget(value: string): string {
+  return normalisePayeeAliasSource(value);
+}
+
 export function createTransactionPayeeAlias({
   sourcePayee,
   targetPayee,
@@ -1264,6 +1282,93 @@ export function applyTransactionPayeeAliases(
       payeeAliasId: alias.id,
     };
   });
+}
+
+export function suggestTransactionPayeeAliases({
+  candidates,
+  existingTransactions,
+  aliases,
+}: {
+  candidates: TransactionImportCandidate[];
+  existingTransactions: RegisterTransactionView[];
+  aliases: TransactionPayeeAlias[];
+}): TransactionPayeeAliasSuggestion[] {
+  const existingAliasSources = new Set(
+    aliases.map((alias) => alias.normalisedSource).filter(Boolean),
+  );
+  const knownPayees = [...existingTransactions]
+    .map((transaction) => transaction.payee.trim())
+    .filter(Boolean);
+
+  const knownPayeeByNormalised = new Map<string, string>();
+  for (const payee of knownPayees) {
+    const normalised = normalisePayeeAliasTarget(payee);
+    if (normalised && !knownPayeeByNormalised.has(normalised)) {
+      knownPayeeByNormalised.set(normalised, payee);
+    }
+  }
+
+  const grouped = new Map<
+    string,
+    { sourcePayee: string; targetPayee: string; occurrenceCount: number }
+  >();
+
+  for (const candidate of candidates) {
+    const sourcePayee = candidate.parsed.originalPayee ?? candidate.parsed.payee;
+    const normalisedSource = normalisePayeeAliasSource(sourcePayee);
+
+    if (!normalisedSource || existingAliasSources.has(normalisedSource)) {
+      continue;
+    }
+
+    const currentTarget = normalisePayeeAliasTarget(candidate.parsed.payee);
+    const directKnownPayee = knownPayeeByNormalised.get(normalisedSource);
+    const matchedKnownPayee = candidate.matchedTransaction?.payee.trim();
+    const matchedTarget = matchedKnownPayee
+      ? normalisePayeeAliasTarget(matchedKnownPayee)
+      : "";
+
+    const targetPayee =
+      directKnownPayee ??
+      (matchedKnownPayee && matchedTarget === normalisedSource
+        ? matchedKnownPayee
+        : undefined);
+
+    if (!targetPayee) {
+      continue;
+    }
+
+    if (sourcePayee.trim().toLowerCase() === targetPayee.trim().toLowerCase()) {
+      continue;
+    }
+
+    if (currentTarget && currentTarget !== normalisedSource) {
+      continue;
+    }
+
+    const existing = grouped.get(normalisedSource);
+    if (existing) {
+      existing.occurrenceCount += 1;
+    } else {
+      grouped.set(normalisedSource, {
+        sourcePayee,
+        targetPayee,
+        occurrenceCount: 1,
+      });
+    }
+  }
+
+  return [...grouped.entries()].map(([normalisedSource, suggestion]) => ({
+    id: `payee-alias-suggestion-${normalisedSource.replace(/[^a-z0-9]+/g, "-")}`,
+    sourcePayee: suggestion.sourcePayee,
+    suggestedTargetPayee: suggestion.targetPayee,
+    normalisedSource,
+    occurrenceCount: suggestion.occurrenceCount,
+    reason:
+      suggestion.occurrenceCount > 1
+        ? `Found ${suggestion.occurrenceCount} imported rows that look like ${suggestion.targetPayee}.`
+        : `This imported merchant looks like existing payee ${suggestion.targetPayee}.`,
+  }));
 }
 
 export function readTransactionPayeeAliases(): TransactionPayeeAlias[] {
