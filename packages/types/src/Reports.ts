@@ -15,3 +15,15 @@ export interface NetWorthReport {
   totalOffBudget: number;
   netWorth: number;
 }
+
+export type BudgetVsActualStatus = "on-track" | "fully-spent" | "overspent";
+
+export interface BudgetVsActualRow {
+  categoryId: string;
+  categoryName: string;
+  groupName: string;
+  assigned: number;
+  activity: number;
+  available: number;
+  status: BudgetVsActualStatus;
+}

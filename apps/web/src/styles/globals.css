@@ -1236,6 +1236,219 @@ strong {
   gap: 0.35rem;
 }
 
+
+
+/* v2.63.0 reporting foundation */
+
+.reports-page {
+  gap: 1rem;
+}
+
+.report-catalogue-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.report-catalogue-card {
+  min-height: 7.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.report-card-content {
+  display: flex;
+  gap: 0.7rem;
+}
+
+.report-card-icon {
+  align-items: center;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.75rem;
+  color: var(--accent);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-weight: 800;
+  height: 2rem;
+  justify-content: center;
+  width: 2rem;
+}
+
+.report-catalogue-card h2 {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+}
+
+.report-catalogue-card-active {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-soft));
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent-soft));
+}
+
+.report-status-pill {
+  width: fit-content;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.report-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.report-panel-header h2,
+.spending-report-detail h3 {
+  margin: 0 0 0.25rem;
+}
+
+.report-panel-header .eyebrow {
+  margin-bottom: 0.25rem;
+}
+
+.report-period-control {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.report-period-control input {
+  border: 1px solid var(--border-soft);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+}
+
+.spending-report-layout {
+  display: grid;
+  grid-template-columns: minmax(17rem, 0.9fr) minmax(0, 1.1fr);
+  gap: 1rem;
+}
+
+.spending-report-list,
+.spending-report-detail {
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  background: var(--surface-subtle);
+  padding: 0.75rem;
+}
+
+.spending-report-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  padding: 0.25rem 0.25rem 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.spending-report-total strong {
+  color: var(--text);
+  font-size: 1.1rem;
+}
+
+.spending-category-row {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.spending-category-row {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 0.85rem;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  padding: 0.7rem;
+  text-align: left;
+}
+
+.spending-category-row:hover,
+.spending-category-row-selected {
+  border-color: var(--border-soft);
+  background: var(--surface);
+}
+
+.spending-category-row span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.spending-category-row small,
+.spending-category-amount small {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.spending-category-amount {
+  align-items: end;
+  text-align: right;
+}
+
+.spending-report-detail {
+  background: var(--surface);
+}
+
+.spending-transaction-list {
+  display: grid;
+  gap: 0;
+  margin-top: 0.5rem;
+}
+
+.spending-transaction-row {
+  align-items: center;
+  border-bottom: 1px solid var(--border-soft);
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 7rem minmax(0, 1fr) minmax(5rem, auto);
+  padding: 0.65rem 0.25rem;
+}
+
+.spending-transaction-row strong:last-child,
+.spending-transaction-row span:last-child {
+  text-align: right;
+}
+
+.spending-transaction-row-heading {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.spending-transaction-row:last-child {
+  border-bottom: 0;
+}
+
+.report-empty-state {
+  border: 1px dashed var(--border-soft);
+  border-radius: 0.9rem;
+  color: var(--text-muted);
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 1rem;
+}
+
+.report-empty-state strong {
+  color: var(--text);
+}
+
 /* Responsive */
 
 @media (max-width: 1200px) {
@@ -1246,8 +1459,13 @@ strong {
 }
 
 @media (max-width: 900px) {
-  .report-grid {
+  .report-grid,
+  .report-catalogue-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .spending-report-layout {
+    grid-template-columns: 1fr;
   }
 
   .workspace-header,
@@ -1329,8 +1547,13 @@ strong {
     min-width: 0;
   }
 
-  .report-grid {
+  .report-grid,
+  .report-catalogue-grid {
     grid-template-columns: 1fr;
+  }
+
+  .report-panel-header {
+    flex-direction: column;
   }
 }
 /* v1.8.7 add account modal */
@@ -4780,6 +5003,11 @@ strong {
   gap: 1.25rem;
 }
 
+/* v2.62.9.1 — New Budget wizard layout polish */
+.budget-manager-page .new-budget-wizard-card {
+  width: min(40rem, 100%);
+}
+
 .new-budget-wizard-header {
   display: grid;
   gap: 0.35rem;
@@ -5766,4 +5994,428 @@ strong {
 
 .budget-manager-page .new-budget-category-intro strong {
   color: #0b3b91;
+}
+
+/* v2.63.3 budget vs actual report */
+
+.budget-vs-actual-layout {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.budget-vs-actual-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.budget-vs-actual-summary span {
+  border: 1px solid var(--border-soft);
+  border-radius: 0.9rem;
+  background: var(--surface-subtle);
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem;
+}
+
+.budget-vs-actual-summary small {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.budget-vs-actual-summary strong {
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.report-table {
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.report-table-row {
+  align-items: center;
+  border: 0;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text);
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(12rem, 1.4fr) repeat(3, minmax(6rem, 0.7fr)) minmax(7rem, 0.7fr);
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+  width: 100%;
+}
+
+.report-table-row:last-child {
+  border-bottom: 0;
+}
+
+.report-table-row-action {
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.report-table-row-action:hover,
+.report-table-row-action:focus-visible {
+  background: var(--surface-subtle);
+}
+
+.report-table-heading {
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.report-table-cell {
+  min-width: 0;
+}
+
+.report-table-cell-right {
+  text-align: right;
+}
+
+.report-table-cell-center {
+  text-align: center;
+}
+
+.report-table-primary-cell {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.report-table-primary-cell small {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.report-status-chip {
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.76rem;
+  font-weight: 800;
+  justify-content: center;
+  padding: 0.25rem 0.55rem;
+  white-space: nowrap;
+}
+
+.report-status-chip-on-track {
+  background: color-mix(in srgb, var(--positive) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--positive) 35%, var(--border-soft));
+  color: var(--positive);
+}
+
+.report-status-chip-fully-spent {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-soft));
+  color: var(--accent);
+}
+
+.report-status-chip-overspent {
+  background: color-mix(in srgb, var(--negative) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--negative) 35%, var(--border-soft));
+  color: var(--negative);
+}
+
+@media (max-width: 900px) {
+  .budget-vs-actual-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-table-row {
+    grid-template-columns: minmax(10rem, 1fr) repeat(2, minmax(5.5rem, auto));
+  }
+
+  .report-table-row .report-table-cell:nth-child(4),
+  .report-table-row .report-table-cell:nth-child(5) {
+    display: none;
+  }
+}
+
+.budget-vs-actual-drilldown {
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  background: var(--surface);
+  padding: 0.75rem;
+}
+
+.budget-vs-actual-drilldown h3 {
+  margin: 0 0 0.25rem;
+}
+
+/* v2.63.4 Financial Overview */
+
+.financial-overview-page {
+  display: grid;
+  gap: 1rem;
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 1.25rem;
+}
+
+.financial-overview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.financial-overview-header h1 {
+  margin-top: 0.25rem;
+}
+
+.financial-overview-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(18rem, 0.75fr);
+  gap: 1rem;
+}
+
+.financial-overview-lower-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(16rem, 0.7fr);
+  gap: 1rem;
+}
+
+.financial-overview-net-worth-card,
+.financial-overview-month-card,
+.financial-overview-attention-card,
+.financial-overview-insights-card,
+.financial-overview-quick-links-card,
+.financial-overview-empty-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.2rem;
+}
+
+.financial-overview-empty-card {
+  max-width: 34rem;
+}
+
+.financial-overview-error-card {
+  border-color: color-mix(in srgb, var(--negative) 30%, var(--border-soft));
+}
+
+.financial-overview-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.financial-overview-card-header.compact {
+  align-items: center;
+}
+
+.financial-overview-card-header strong {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: clamp(2.1rem, 4vw, 3.5rem);
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+.text-link {
+  color: var(--accent-strong);
+  font-size: 0.86rem;
+  font-weight: 750;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.text-link:hover {
+  text-decoration: underline;
+}
+
+.financial-overview-chart {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.financial-overview-chart svg {
+  width: 100%;
+  min-height: 12rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 45%, var(--surface)), var(--surface));
+  overflow: visible;
+}
+
+.financial-overview-chart-grid {
+  stroke: color-mix(in srgb, var(--border-soft) 80%, transparent);
+  stroke-width: 1;
+}
+
+.financial-overview-chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 5;
+}
+
+.financial-overview-chart-labels,
+.financial-overview-change-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.financial-overview-chart-labels {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.financial-overview-change {
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.75rem;
+  background: var(--surface-subtle);
+}
+
+.financial-overview-change span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.financial-overview-change strong {
+  font-size: 0.9rem;
+}
+
+.financial-overview-change.positive strong {
+  color: var(--positive);
+}
+
+.financial-overview-change.negative strong {
+  color: var(--negative);
+}
+
+.financial-overview-metric-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.financial-overview-metric-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 0.7rem;
+}
+
+.financial-overview-metric-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.financial-overview-metric-row span {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.financial-overview-metric-row strong {
+  text-align: right;
+}
+
+.financial-overview-metric-row.emphasis strong {
+  color: var(--accent-strong);
+}
+
+.financial-overview-action-list,
+.financial-overview-insight-list,
+.financial-overview-quick-links {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.financial-overview-action-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.9rem;
+  color: var(--text);
+  padding: 0.75rem;
+  text-decoration: none;
+}
+
+.financial-overview-action-row:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-soft));
+  background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface));
+}
+
+.financial-overview-action-row div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.financial-overview-action-row div span,
+.financial-overview-positive-state,
+.financial-overview-insight-list p {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.financial-overview-action-row > span {
+  color: var(--accent-strong);
+  font-size: 0.85rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.financial-overview-positive-state {
+  border: 1px solid color-mix(in srgb, var(--positive) 25%, var(--border-soft));
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--positive-bg) 50%, var(--surface));
+  padding: 0.8rem;
+}
+
+.financial-overview-quick-links a {
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8rem;
+  color: var(--text);
+  font-weight: 750;
+  padding: 0.7rem;
+  text-decoration: none;
+}
+
+.financial-overview-quick-links a:hover {
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border-soft));
+}
+
+@media (max-width: 1050px) {
+  .financial-overview-hero-grid,
+  .financial-overview-lower-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .financial-overview-page {
+    padding: 0.85rem;
+  }
+
+  .financial-overview-card-header,
+  .financial-overview-change-row {
+    flex-direction: column;
+  }
+
+  .financial-overview-chart svg {
+    min-height: 9rem;
+  }
 }

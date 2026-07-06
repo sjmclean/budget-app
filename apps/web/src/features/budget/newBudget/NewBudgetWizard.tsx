@@ -236,9 +236,6 @@ export function NewBudgetWizard({ onBack, onCreateBudget }: NewBudgetWizardProps
             </Button>
           </div>
 
-          <p className="new-budget-default-summary">
-            Uses AUD, DD/MM/YYYY, Monday week start, and {selectedCategoryCount} starter categories unless customised.
-          </p>
         </div>
       ) : null}
 
