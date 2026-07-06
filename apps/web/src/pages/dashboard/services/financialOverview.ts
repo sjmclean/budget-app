@@ -1,6 +1,7 @@
 import type { AccountRegisterView, RegisterTransactionView } from "../../../features/accounts/accountRegisterTypes";
 import type { SidebarAccount } from "../../../features/accounts/accountService";
 import type { BudgetMonthView } from "../../../features/budget/budgetViewTypes";
+import { buildFinancialSummary, isInternalMovement } from "./financialSummaryService";
 
 export interface NetWorthPoint {
   month: string;
@@ -55,8 +56,7 @@ export function buildFinancialOverviewSummary(input: {
   const previousNetWorth = netWorthTrend.at(-2)?.value ?? netWorth;
   const firstNetWorth = netWorthTrend.at(0)?.value ?? netWorth;
   const currentMonthTransactions = transactions.filter((transaction) => isTransactionInMonth(transaction, input.month));
-  const income = currentMonthTransactions.reduce((total, transaction) => total + transaction.inflow, 0);
-  const expenses = currentMonthTransactions.reduce((total, transaction) => total + transaction.outflow, 0);
+  const financialSummary = buildFinancialSummary(currentMonthTransactions);
 
   return {
     month: input.month,
@@ -66,9 +66,9 @@ export function buildFinancialOverviewSummary(input: {
     netWorthChangePeriod: netWorth - firstNetWorth,
     netWorthTrend,
     monthlySnapshot: {
-      income,
-      expenses,
-      savings: income - expenses,
+      income: financialSummary.income,
+      expenses: financialSummary.expenses,
+      savings: financialSummary.savings,
       readyToAssign: input.budgetView?.readyToAssign ?? 0,
     },
     attention: {
@@ -125,6 +125,7 @@ function countUncategorisedTransactions(
   return transactions.filter(
     (transaction) =>
       transaction.outflow > 0 &&
+      !isInternalMovement(transaction) &&
       !transaction.splitLines?.length &&
       (!transaction.categoryId || transaction.category.trim().length === 0 || transaction.category === "Uncategorised"),
   ).length;

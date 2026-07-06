@@ -61,6 +61,37 @@ const registers: AccountRegisterView[] = [
         cleared: true,
         reconciled: false,
       },
+
+      {
+        id: "category-income-june",
+        date: "2026-06-08",
+        flag: null,
+        attachmentCount: 0,
+        payee: "Grocery reimbursement",
+        category: "Groceries",
+        categoryId: "groceries",
+        inflow: 80,
+        outflow: 0,
+        runningBalance: 0,
+        cleared: true,
+        reconciled: false,
+      },
+      {
+        id: "transfer-to-savings-june",
+        date: "2026-06-10",
+        flag: null,
+        attachmentCount: 0,
+        payee: "Transfer: Savings",
+        category: "Transfer",
+        categoryId: undefined,
+        inflow: 0,
+        outflow: 500,
+        runningBalance: 0,
+        cleared: true,
+        reconciled: false,
+        transferAccountId: "savings",
+        transferTransactionId: "transfer-from-checking-june",
+      },
       {
         id: "uncategorised-june",
         date: "2026-06-06",
@@ -99,6 +130,23 @@ const registers: AccountRegisterView[] = [
     unclearedBalance: 0,
     workingBalance: 0,
     transactions: [
+
+      {
+        id: "transfer-from-checking-june",
+        date: "2026-06-10",
+        flag: null,
+        attachmentCount: 0,
+        payee: "Transfer: Checking",
+        category: "Transfer",
+        categoryId: undefined,
+        inflow: 500,
+        outflow: 0,
+        runningBalance: 0,
+        cleared: true,
+        reconciled: false,
+        transferAccountId: "checking",
+        transferTransactionId: "transfer-to-savings-june",
+      },
       {
         id: "interest-june",
         date: "2026-06-30",
@@ -162,11 +210,11 @@ const summary = buildFinancialOverviewSummary({
   monthsToShow: 3,
 });
 
-assert.equal(summary.netWorth, 8670);
-assert.equal(summary.netWorthChangeThisMonth, 2770);
-assert.equal(summary.monthlySnapshot.income, 3020);
+assert.equal(summary.netWorth, 8750);
+assert.equal(summary.netWorthChangeThisMonth, 2850);
+assert.equal(summary.monthlySnapshot.income, 3100);
 assert.equal(summary.monthlySnapshot.expenses, 250);
-assert.equal(summary.monthlySnapshot.savings, 2770);
+assert.equal(summary.monthlySnapshot.savings, 2850);
 assert.equal(summary.monthlySnapshot.readyToAssign, 125);
 assert.equal(summary.attention.overspentCategories, 1);
 assert.equal(summary.attention.uncategorisedTransactions, 1);
