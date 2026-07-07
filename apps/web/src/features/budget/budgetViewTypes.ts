@@ -56,6 +56,7 @@ export interface BudgetCategoryOption {
   id: string;
   name: string;
   groupName: string;
+  isArchived?: boolean;
 }
 
 export interface CategoryMergePreview {

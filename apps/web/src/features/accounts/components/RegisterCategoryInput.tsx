@@ -51,16 +51,18 @@ export function RegisterCategoryInput({
       type: "category" | "special";
     }>
   > => {
-    const categorySuggestions = categoryOptions.map((category) => ({
-      id: category.id,
-      value: category.name,
-      label: category.groupName,
-      metadata: {
+    const categorySuggestions = categoryOptions
+      .filter((category) => !category.isArchived)
+      .map((category) => ({
+        id: category.id,
+        value: category.name,
         label: category.groupName,
-        groupName: category.groupName,
-        type: "category" as const,
-      },
-    }));
+        metadata: {
+          label: category.groupName,
+          groupName: category.groupName,
+          type: "category" as const,
+        },
+      }));
 
     const splitSuggestion = includeSplitOption
       ? [
@@ -77,16 +79,21 @@ export function RegisterCategoryInput({
     return [...splitSuggestion, ...categorySuggestions];
   }, [categoryOptions, includeSplitOption]);
 
-  const suggestions = useMemo(
-    () =>
-      rankAutocompleteOptions({
-        inputValue: showAllSuggestions ? "" : value,
-        options: autocompleteOptions,
-        maxResults: showAllSuggestions ? autocompleteOptions.length : 8,
-        normalise: normaliseCategoryName,
-      }),
-    [autocompleteOptions, showAllSuggestions, value],
-  );
+  const suggestions = useMemo(() => {
+    if (showAllSuggestions || value.trim().length === 0) {
+      return autocompleteOptions.map((option) => ({
+        ...option,
+        matchType: "all" as const,
+      }));
+    }
+
+    return rankAutocompleteOptions({
+      inputValue: value,
+      options: autocompleteOptions,
+      maxResults: 8,
+      normalise: normaliseCategoryName,
+    });
+  }, [autocompleteOptions, showAllSuggestions, value]);
 
   const highlightedSuggestion =
     suggestions[

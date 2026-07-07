@@ -33,14 +33,14 @@ for (const [name, source] of [
 
   assert.match(
     source,
-    /inputValue: showAllSuggestions \? "" : value/,
-    `${name} dropdown should be able to show all choices instead of filtering by the existing value`,
+    /showAllSuggestions \|\| value\.trim\(\)\.length === 0[\s\S]*autocompleteOptions\.map/,
+    `${name} dropdown should show the complete unfiltered choice list when opened from the arrow or empty-field workflow`,
   );
 
   assert.match(
     source,
-    /maxResults: showAllSuggestions \? autocompleteOptions\.length : 8/,
-    `${name} dropdown should show the complete choice list when opened from the arrow or empty-field workflow`,
+    /maxResults: 8/,
+    `${name} typed filtering should still use the compact ranked suggestion list`,
   );
 
   assert.match(
@@ -54,6 +54,24 @@ assert.match(
   categoryInputSource,
   /openOnFocus[\s\S]*openSuggestionList\(true\)/,
   "category auto-focus from the uncategorised chip should open the full category list",
+);
+
+assert.match(
+  categoryInputSource,
+  /filter\(\(category\) => !category\.isArchived\)/,
+  "category choices should exclude archived or hidden categories",
+);
+
+assert.match(
+  categoryInputSource,
+  /showAllSuggestions \|\| value\.trim\(\)\.length === 0/,
+  "empty category dropdowns should show all available categories, not a shortened subset",
+);
+
+assert.match(
+  categoryInputSource,
+  /autocompleteOptions\.map\(\(option\) =>/,
+  "full category dropdowns should preserve budget group/category order instead of re-ranking categories and repeating group headings",
 );
 
 assert.match(

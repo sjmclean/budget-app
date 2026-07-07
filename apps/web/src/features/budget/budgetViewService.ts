@@ -599,6 +599,7 @@ function getCategoryOptions(view: BudgetMonthView): BudgetCategoryOption[] {
         id: category.id,
         name: category.name,
         groupName: group.name,
+        isArchived: category.isArchived,
       })),
     ),
   ];

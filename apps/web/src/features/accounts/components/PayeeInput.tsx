@@ -39,15 +39,20 @@ export function PayeeInput({
     [payeeOptions, transferAccounts],
   );
 
-  const suggestions = useMemo(
-    () =>
-      rankAutocompleteOptions({
-        inputValue: showAllSuggestions ? "" : value,
-        options: autocompleteOptions,
-        maxResults: showAllSuggestions ? autocompleteOptions.length : 8,
-      }),
-    [autocompleteOptions, showAllSuggestions, value],
-  );
+  const suggestions = useMemo(() => {
+    if (showAllSuggestions || value.trim().length === 0) {
+      return autocompleteOptions.map((option) => ({
+        ...option,
+        matchType: "all" as const,
+      }));
+    }
+
+    return rankAutocompleteOptions({
+      inputValue: value,
+      options: autocompleteOptions,
+      maxResults: 8,
+    });
+  }, [autocompleteOptions, showAllSuggestions, value]);
 
   const highlightedSuggestion =
     suggestions[
