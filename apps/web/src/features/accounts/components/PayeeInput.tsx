@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRegisterAutocompletePopupStyle } from "../useRegisterAutocompletePopupStyle";
 import {
   getAutocompleteCompletion,
@@ -19,6 +19,7 @@ export function PayeeInput({
   transferAccounts,
   payeeOptions,
   autoFocus,
+  openOnFocus = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -26,8 +27,11 @@ export function PayeeInput({
   transferAccounts: SidebarAccount[];
   payeeOptions: PayeeView[];
   autoFocus?: boolean;
+  openOnFocus?: boolean;
 }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const autocompleteOptions = useMemo(
@@ -38,11 +42,11 @@ export function PayeeInput({
   const suggestions = useMemo(
     () =>
       rankAutocompleteOptions({
-        inputValue: value,
+        inputValue: showAllSuggestions ? "" : value,
         options: autocompleteOptions,
-        maxResults: 8,
+        maxResults: showAllSuggestions ? autocompleteOptions.length : 8,
       }),
-    [autocompleteOptions, value],
+    [autocompleteOptions, showAllSuggestions, value],
   );
 
   const highlightedSuggestion =
@@ -54,7 +58,8 @@ export function PayeeInput({
     highlightedSuggestion?.value,
   );
   const shouldShowSuggestions = isOpen && suggestions.length > 0;
-  const shouldShowGhost = shouldShowSuggestions && Boolean(ghostCompletion);
+  const shouldShowGhost =
+    shouldShowSuggestions && !showAllSuggestions && Boolean(ghostCompletion);
   const { anchorRef, popupStyle } = useRegisterAutocompletePopupStyle(
     shouldShowSuggestions,
   );
@@ -63,7 +68,24 @@ export function PayeeInput({
     onChange(selectedValue);
     onPayeeIdChange?.(selectedPayeeId);
     setIsOpen(false);
+    setShowAllSuggestions(false);
     setHighlightedIndex(0);
+  }
+
+  function openSuggestionList(showAll = false) {
+    setIsOpen(true);
+    setShowAllSuggestions(showAll);
+    setHighlightedIndex(0);
+  }
+
+  function closeSuggestionList() {
+    setIsOpen(false);
+    setShowAllSuggestions(false);
+  }
+
+  function setInputElement(element: HTMLInputElement | null) {
+    inputRef.current = element;
+    anchorRef.current = element;
   }
 
   function acceptHighlightedSuggestion() {
@@ -81,18 +103,17 @@ export function PayeeInput({
   return (
     <div className="register-payee-autocomplete">
       <input
-        ref={anchorRef}
+        ref={setInputElement}
         value={value}
         onChange={(event) => {
           const nextValue = event.target.value;
 
           onChange(nextValue);
           onPayeeIdChange?.(undefined);
-          setIsOpen(nextValue.trim().length > 0);
-          setHighlightedIndex(0);
+          openSuggestionList(false);
         }}
-        onFocus={() => setIsOpen(false)}
-        onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
+        onFocus={() => openSuggestionList(openOnFocus || value.trim().length === 0)}
+        onBlur={() => window.setTimeout(closeSuggestionList, 120)}
         onKeyDown={(event) => {
           if (event.key === "Tab" && !event.shiftKey && shouldShowGhost) {
             acceptHighlightedSuggestion();
@@ -114,7 +135,7 @@ export function PayeeInput({
 
           if (event.key === "ArrowDown" && suggestions.length > 0) {
             event.preventDefault();
-            setIsOpen(true);
+            openSuggestionList(showAllSuggestions);
             setHighlightedIndex((current) =>
               shouldShowSuggestions && current < suggestions.length - 1
                 ? current + 1
@@ -125,7 +146,7 @@ export function PayeeInput({
 
           if (event.key === "ArrowUp" && suggestions.length > 0) {
             event.preventDefault();
-            setIsOpen(true);
+            openSuggestionList(showAllSuggestions);
             setHighlightedIndex((current) =>
               shouldShowSuggestions && current > 0
                 ? current - 1
@@ -147,7 +168,7 @@ export function PayeeInput({
 
           if (event.key === "Escape") {
             event.preventDefault();
-            setIsOpen(false);
+            closeSuggestionList();
           }
         }}
         placeholder="Payee"
@@ -156,6 +177,19 @@ export function PayeeInput({
         aria-autocomplete="list"
         aria-expanded={shouldShowSuggestions}
       />
+      <button
+        type="button"
+        className="register-combobox-arrow"
+        aria-label="Show payee choices"
+        aria-expanded={shouldShowSuggestions}
+        onMouseDown={(event) => {
+          event.preventDefault();
+          inputRef.current?.focus();
+          openSuggestionList(true);
+        }}
+      >
+        ▾
+      </button>
 
       {shouldShowGhost ? (
         <div className="register-payee-ghost" aria-hidden="true">

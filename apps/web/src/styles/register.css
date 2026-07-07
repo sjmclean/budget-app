@@ -1315,6 +1315,32 @@
   z-index: 2;
   width: 100%;
   background: transparent;
+  padding-right: 1.85rem;
+}
+
+.register-combobox-arrow {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  right: 0.22rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+}
+
+.register-combobox-arrow:hover,
+.register-combobox-arrow:focus-visible,
+.register-combobox-arrow[aria-expanded="true"] {
+  background: var(--surface-muted);
+  color: var(--text-primary);
 }
 
 .register-payee-ghost {

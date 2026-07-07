@@ -41,6 +41,7 @@ export function RegisterCategoryInput({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const autocompleteOptions = useMemo((): Array<
@@ -79,12 +80,12 @@ export function RegisterCategoryInput({
   const suggestions = useMemo(
     () =>
       rankAutocompleteOptions({
-        inputValue: value,
+        inputValue: showAllSuggestions ? "" : value,
         options: autocompleteOptions,
-        maxResults: 8,
+        maxResults: showAllSuggestions ? autocompleteOptions.length : 8,
         normalise: normaliseCategoryName,
       }),
-    [autocompleteOptions, value],
+    [autocompleteOptions, showAllSuggestions, value],
   );
 
   const highlightedSuggestion =
@@ -96,7 +97,8 @@ export function RegisterCategoryInput({
     highlightedSuggestion?.value,
   );
   const shouldShowSuggestions = isOpen && suggestions.length > 0;
-  const shouldShowGhost = shouldShowSuggestions && Boolean(ghostCompletion);
+  const shouldShowGhost =
+    shouldShowSuggestions && !showAllSuggestions && Boolean(ghostCompletion);
   const { anchorRef, popupStyle } = useRegisterAutocompletePopupStyle(
     shouldShowSuggestions,
   );
@@ -110,7 +112,7 @@ export function RegisterCategoryInput({
     inputRef.current?.select();
 
     if (openOnFocus) {
-      setIsOpen(true);
+      openSuggestionList(true);
     }
   }, [autoFocus, openOnFocus]);
 
@@ -122,7 +124,19 @@ export function RegisterCategoryInput({
   function selectSuggestion(nextValue: string) {
     onChange(nextValue);
     setIsOpen(false);
+    setShowAllSuggestions(false);
     setHighlightedIndex(0);
+  }
+
+  function openSuggestionList(showAll = false) {
+    setIsOpen(true);
+    setShowAllSuggestions(showAll);
+    setHighlightedIndex(0);
+  }
+
+  function closeSuggestionList() {
+    setIsOpen(false);
+    setShowAllSuggestions(false);
   }
 
   function acceptHighlightedSuggestion() {
@@ -143,11 +157,10 @@ export function RegisterCategoryInput({
           const nextValue = event.target.value;
 
           onChange(nextValue);
-          setIsOpen(nextValue.trim().length > 0);
-          setHighlightedIndex(0);
+          openSuggestionList(false);
         }}
-        onFocus={() => setIsOpen(openOnFocus)}
-        onBlur={() => setIsOpen(false)}
+        onFocus={() => openSuggestionList(openOnFocus || value.trim().length === 0)}
+        onBlur={() => window.setTimeout(closeSuggestionList, 120)}
         onKeyDown={(event) => {
           if (event.key === "Tab" && !event.shiftKey && shouldShowGhost) {
             acceptHighlightedSuggestion();
@@ -169,7 +182,7 @@ export function RegisterCategoryInput({
 
           if (event.key === "ArrowDown" && suggestions.length > 0) {
             event.preventDefault();
-            setIsOpen(true);
+            openSuggestionList(showAllSuggestions);
             setHighlightedIndex(
               (current) => (current + 1) % suggestions.length,
             );
@@ -178,7 +191,7 @@ export function RegisterCategoryInput({
 
           if (event.key === "ArrowUp" && suggestions.length > 0) {
             event.preventDefault();
-            setIsOpen(true);
+            openSuggestionList(showAllSuggestions);
             setHighlightedIndex((current) =>
               current === 0 ? suggestions.length - 1 : current - 1,
             );
@@ -193,7 +206,7 @@ export function RegisterCategoryInput({
 
           if (event.key === "Escape") {
             event.preventDefault();
-            setIsOpen(false);
+            closeSuggestionList();
           }
         }}
         placeholder="Category"
@@ -201,6 +214,19 @@ export function RegisterCategoryInput({
         aria-autocomplete="list"
         aria-expanded={shouldShowSuggestions}
       />
+      <button
+        type="button"
+        className="register-combobox-arrow"
+        aria-label="Show category choices"
+        aria-expanded={shouldShowSuggestions}
+        onMouseDown={(event) => {
+          event.preventDefault();
+          inputRef.current?.focus();
+          openSuggestionList(true);
+        }}
+      >
+        ▾
+      </button>
 
       {shouldShowGhost ? (
         <div className="register-payee-ghost" aria-hidden="true">
