@@ -487,7 +487,8 @@
     "test:transaction-intake:review": "tsx tests/transaction-intake/review/run.ts",
     "test:transaction-intake": "pnpm test:transaction-intake:matching && pnpm test:transaction-intake:review",
     "test:v2636": "tsx tests/v2636-uncategorised-transaction-workflow.ts",
-    "test:v2637": "tsx tests/v2637-register-editor-combobox-dropdowns.ts"
+    "test:v2637": "tsx tests/v2637-register-editor-combobox-dropdowns.ts",
+    "test:v2639": "tsx tests/v2639-category-icons.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

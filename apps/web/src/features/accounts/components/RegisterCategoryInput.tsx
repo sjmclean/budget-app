@@ -7,6 +7,7 @@ import {
   type RankedAutocompleteOption,
 } from "../../ui/autocomplete/autocompleteEngine";
 import type { BudgetCategoryOption } from "../../budget/budgetViewTypes";
+import { CategoryIcon } from "../../icons/CategoryIcon";
 import {
   normaliseCategoryName,
   SPLIT_CATEGORY_LABEL,
@@ -282,8 +283,11 @@ export function RegisterCategoryInput({
                   role="option"
                   aria-selected={index === highlightedIndex}
                 >
-                  <span className="register-autocomplete-primary">
-                    {suggestion.value}
+                  <span className="register-autocomplete-primary register-category-option-primary">
+                    {suggestion.metadata?.type === "category" ? (
+                      <CategoryIcon categoryName={suggestion.value} />
+                    ) : null}
+                    <span>{suggestion.value}</span>
                   </span>
                 </button>
               </div>

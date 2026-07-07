@@ -6419,3 +6419,43 @@ strong {
     min-height: 9rem;
   }
 }
+
+.category-label-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.category-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  line-height: 1;
+}
+
+.category-icon svg {
+  display: block;
+}
+
+.category-icon-green { color: #2f8f46; }
+.category-icon-blue { color: #2563eb; }
+.category-icon-amber { color: #d97706; }
+.category-icon-orange { color: #ea580c; }
+.category-icon-red { color: #dc2626; }
+.category-icon-purple { color: #7c3aed; }
+.category-icon-teal { color: #0f9f9a; }
+.category-icon-slate { color: #475569; }
+
+.register-category-option-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.budget-category-name .category-label-with-icon,
+.spending-category-row .category-label-with-icon,
+.spending-report-detail h3 .category-label-with-icon {
+  font-weight: inherit;
+}

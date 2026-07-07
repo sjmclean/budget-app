@@ -5,6 +5,7 @@ import { evaluateAssignedInput } from "./evaluateAssignedInput";
 import type { BudgetCategoryGroupView, BudgetCategoryView } from "./budgetViewTypes";
 import { isCreditCardPaymentCategory } from "./creditCardPaymentCategories";
 import { formatMoney, getAvailableClass } from "./budgetMoneyDisplay";
+import { CategoryLabel } from "../icons/CategoryIcon";
 
 export type BudgetColumnId = "category" | "assigned" | "activity" | "available";
 type BudgetSortableKind = "category" | "group";
@@ -237,7 +238,7 @@ function BudgetCategoryRow({
                 }
               }}
             >
-              <strong className="budget-category-name">{category.name}</strong>
+              <strong className="budget-category-name"><CategoryLabel categoryName={category.name} /></strong>
             </span>
             {category.isArchived ? (
               <span className="category-archived-badge">Archived</span>

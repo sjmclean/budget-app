@@ -2,6 +2,7 @@ import { Card } from "../../../components/ui/Card";
 import { ReportEmptyState } from "../components/ReportEmptyState";
 import { ReportHeader } from "../components/ReportHeader";
 import { currentReportMonth, type useReportsViewModel } from "../hooks/useReportsViewModel";
+import { CategoryLabel } from "../../../features/icons/CategoryIcon";
 
 type ReportsViewModel = ReturnType<typeof useReportsViewModel>;
 
@@ -67,7 +68,7 @@ export function SpendingByCategoryReport({ viewModel }: SpendingByCategoryReport
                     type="button"
                   >
                     <span>
-                      <strong>{row.categoryName}</strong>
+                      <strong><CategoryLabel categoryName={row.categoryName} /></strong>
                       <small>{row.groupName}</small>
                     </span>
                     <span className="spending-category-amount">
@@ -85,7 +86,7 @@ export function SpendingByCategoryReport({ viewModel }: SpendingByCategoryReport
               <>
                 <div className="panel-header">
                   <div>
-                    <h3>{selectedSpendingRow.categoryName}</h3>
+                    <h3><CategoryLabel categoryName={selectedSpendingRow.categoryName} /></h3>
                     <p className="muted">
                       {selectedSpendingRow.transactions.length} transactions · {formatMoney(selectedSpendingRow.total)}
                     </p>

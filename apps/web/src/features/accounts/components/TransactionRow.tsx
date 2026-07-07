@@ -8,6 +8,7 @@ import type {
 import { formatDateForDisplay } from "../../settings/dateFormatting";
 import { useDateFormatPreference } from "../../settings/useDateFormatPreference";
 import { isUncategorisedRegisterTransaction } from "../registerUncategorised";
+import { CategoryLabel } from "../../icons/CategoryIcon";
 
 export type RegisterColumnId =
   | "select"
@@ -268,7 +269,7 @@ function CategoryDisplay({
     );
   }
 
-  return <span>{transaction.category}</span>;
+  return <CategoryLabel categoryName={transaction.category} />;
 }
 
 function TransactionStatus({
@@ -465,7 +466,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
               <span className="register-split-readonly-payee" aria-hidden="true" />
               <span className="register-split-readonly-category">
                 <CornerDownRight size={13} aria-hidden="true" />
-                {line.category}
+                <CategoryLabel categoryName={line.category} />
               </span>
               {isRegisterColumnVisible("memo", visibleColumns) ? (
                 <span className="register-memo-cell">{line.memo ?? ""}</span>
@@ -607,7 +608,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
                   Uncategorised
                 </button>
               ) : (
-                transaction.category
+                <CategoryLabel categoryName={transaction.category} />
               )}
             </span>
             {hasMemo ? <span className="register-compact-dot">•</span> : null}
@@ -659,7 +660,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
                 <div className="register-compact-main register-compact-split-main">
                   <strong title={line.category}>
                     <CornerDownRight size={13} aria-hidden="true" />
-                    {line.category}
+                    <CategoryLabel categoryName={line.category} />
                   </strong>
                   {hasSplitMemo ? (
                     <span className="register-compact-secondary" title={line.memo}>{line.memo}</span>
@@ -784,7 +785,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
                   Uncategorised
                 </button>
                 ) : (
-                  transaction.category
+                  <CategoryLabel categoryName={transaction.category} />
                 )}
               </span>
             </span>
@@ -859,7 +860,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
                   <CornerDownRight size={14} />
                 </span>
                 <span className="register-tablet-split-main">
-                  <strong title={line.category}>{line.category}</strong>
+                  <strong title={line.category}><CategoryLabel categoryName={line.category} /></strong>
                   {hasSplitMemo ? <span title={line.memo}>{line.memo}</span> : null}
                 </span>
                 <span className={splitAmountClassName}>{splitAmountLabel}</span>
