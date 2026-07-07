@@ -1020,6 +1020,7 @@ export function TransactionEditRow({
   visibleColumnIds,
   rowStyle,
   layoutMode,
+  autoFocusField = "date",
 }: {
   transaction: RegisterTransactionView;
   categoryOptions: BudgetCategoryOption[];
@@ -1046,6 +1047,7 @@ export function TransactionEditRow({
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
+  autoFocusField?: "date" | "category";
 }) {
   const [date, setDate] = useState(transaction.date);
   const [flag, setFlag] = useState<TransactionFlag>(transaction.flag);
@@ -1143,7 +1145,11 @@ export function TransactionEditRow({
         }}
       >
         <span className="register-checkbox" aria-hidden="true" />
-        <RegisterDateField value={date} onChange={setDate} autoFocus />
+        <RegisterDateField
+          value={date}
+          onChange={setDate}
+          autoFocus={autoFocusField === "date"}
+        />
         {isRegisterColumnVisible("flag", visibleColumns) ? (
           <InlineFlagPicker value={flag} onChange={setFlag} />
         ) : null}
@@ -1167,6 +1173,8 @@ export function TransactionEditRow({
           value={category}
           onChange={handleCategoryChange}
           categoryOptions={categoryOptions}
+          autoFocus={autoFocusField === "category"}
+          openOnFocus={autoFocusField === "category"}
         />
         {isRegisterColumnVisible("memo", visibleColumns) ? (
           <input

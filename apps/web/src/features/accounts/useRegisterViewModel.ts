@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type MutableRefObject } from "react";
 import type { RegisterTransactionView } from "./accountRegisterTypes";
+import { isUncategorisedRegisterTransaction } from "./registerUncategorised";
 import {
   REGISTER_DEFAULT_PAGE_SIZE,
   getRegisterPaginationState,
@@ -19,6 +20,7 @@ interface UseRegisterViewModelInput {
   transactions: readonly RegisterTransactionView[];
   searchDraft: string;
   committedSearch: RegisterSearchCommit | null;
+  categoryFilter: "all" | "uncategorised";
   developerPerformanceMode: boolean;
   performanceTimingsRef: MutableRefObject<RegisterPerformanceTimings>;
 }
@@ -27,6 +29,7 @@ export function useRegisterViewModel({
   transactions,
   searchDraft,
   committedSearch,
+  categoryFilter,
   developerPerformanceMode,
   performanceTimingsRef,
 }: UseRegisterViewModelInput) {
@@ -47,8 +50,16 @@ export function useRegisterViewModel({
     [transactions, committedSearch],
   );
 
+  const categoryFilteredRegisterTransactions = useMemo(
+    () =>
+      categoryFilter === "uncategorised"
+        ? searchedRegisterTransactions.filter(isUncategorisedRegisterTransaction)
+        : searchedRegisterTransactions,
+    [categoryFilter, searchedRegisterTransactions],
+  );
+
   const registerPagination = getRegisterPaginationState(
-    searchedRegisterTransactions.length,
+    categoryFilteredRegisterTransactions.length,
     registerPage,
     REGISTER_DEFAULT_PAGE_SIZE,
   );
@@ -59,7 +70,7 @@ export function useRegisterViewModel({
 
   useEffect(() => {
     setRegisterPage(1);
-  }, [committedSearch]);
+  }, [committedSearch, categoryFilter]);
 
   const visibleTransactions = useMemo(
     () =>
@@ -69,13 +80,13 @@ export function useRegisterViewModel({
         "visible pagination",
         () =>
           paginateRegisterItems(
-            searchedRegisterTransactions,
+            categoryFilteredRegisterTransactions,
             registerPagination.currentPage,
             registerPagination.pageSize,
           ),
       ),
     [
-      searchedRegisterTransactions,
+      categoryFilteredRegisterTransactions,
       registerPagination.currentPage,
       registerPagination.pageSize,
       developerPerformanceMode,
@@ -92,6 +103,7 @@ export function useRegisterViewModel({
     setRegisterPage,
     registerSearchSuggestions,
     searchedRegisterTransactions,
+    categoryFilteredRegisterTransactions,
     registerPagination,
     visibleTransactions,
     visibleTransactionIds,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRegisterAutocompletePopupStyle } from "../useRegisterAutocompletePopupStyle";
 import {
   getAutocompleteCompletion,
@@ -29,12 +29,17 @@ export function RegisterCategoryInput({
   onChange,
   categoryOptions,
   includeSplitOption = true,
+  autoFocus = false,
+  openOnFocus = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   categoryOptions: BudgetCategoryOption[];
   includeSplitOption?: boolean;
+  autoFocus?: boolean;
+  openOnFocus?: boolean;
 }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
@@ -96,6 +101,24 @@ export function RegisterCategoryInput({
     shouldShowSuggestions,
   );
 
+  useEffect(() => {
+    if (!autoFocus) {
+      return;
+    }
+
+    inputRef.current?.focus();
+    inputRef.current?.select();
+
+    if (openOnFocus) {
+      setIsOpen(true);
+    }
+  }, [autoFocus, openOnFocus]);
+
+  function setInputElement(element: HTMLInputElement | null) {
+    inputRef.current = element;
+    anchorRef.current = element;
+  }
+
   function selectSuggestion(nextValue: string) {
     onChange(nextValue);
     setIsOpen(false);
@@ -114,7 +137,7 @@ export function RegisterCategoryInput({
   return (
     <div className="register-payee-autocomplete">
       <input
-        ref={anchorRef}
+        ref={setInputElement}
         value={value}
         onChange={(event) => {
           const nextValue = event.target.value;
@@ -123,7 +146,7 @@ export function RegisterCategoryInput({
           setIsOpen(nextValue.trim().length > 0);
           setHighlightedIndex(0);
         }}
-        onFocus={() => setIsOpen(false)}
+        onFocus={() => setIsOpen(openOnFocus)}
         onBlur={() => setIsOpen(false)}
         onKeyDown={(event) => {
           if (event.key === "Tab" && !event.shiftKey && shouldShowGhost) {

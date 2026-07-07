@@ -134,6 +134,8 @@ export function AccountRegisterPage() {
   const [editingTransactionId, setEditingTransactionId] = useState<
     string | null
   >(null);
+  const [editingTransactionFocusField, setEditingTransactionFocusField] =
+    useState<"date" | "category">("date");
   const [lastEntryDate, setLastEntryDate] = useState(
     new Date().toISOString().slice(0, 10),
   );
@@ -149,6 +151,7 @@ export function AccountRegisterPage() {
   const [registerSearchDraft, setRegisterSearchDraft] = useState("");
   const [committedRegisterSearch, setCommittedRegisterSearch] =
     useState<RegisterSearchCommit | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<"all" | "uncategorised">("all");
   const [isRegisterSearchOpen, setIsRegisterSearchOpen] = useState(false);
   const [
     activeRegisterSearchSuggestionIndex,
@@ -261,6 +264,7 @@ export function AccountRegisterPage() {
     setRegisterPage,
     registerSearchSuggestions,
     searchedRegisterTransactions,
+    categoryFilteredRegisterTransactions,
     registerPagination,
     visibleTransactions,
     visibleTransactionIds,
@@ -268,6 +272,7 @@ export function AccountRegisterPage() {
     transactions: registerTransactions,
     searchDraft: registerSearchDraft,
     committedSearch: committedRegisterSearch,
+    categoryFilter,
     developerPerformanceMode,
     performanceTimingsRef: registerPerformanceTimingsRef,
   });
@@ -468,7 +473,14 @@ export function AccountRegisterPage() {
   const handleSelectTransaction = registerCommands.selectTransaction;
   const handleToggleTransactionSelection =
     registerCommands.toggleTransactionSelection;
-  const handleEditTransaction = registerCommands.editTransaction;
+  const handleEditTransaction = (transactionId: string) => {
+    setEditingTransactionFocusField("date");
+    registerCommands.editTransaction(transactionId);
+  };
+  const handleEditTransactionCategory = (transactionId: string) => {
+    setEditingTransactionFocusField("category");
+    registerCommands.editTransaction(transactionId);
+  };
   const handleToggleClearedTransaction =
     registerCommands.toggleClearedTransaction;
   const handleManageTransactionAttachments =
@@ -482,7 +494,10 @@ export function AccountRegisterPage() {
     toggleCleared,
     deleteTransaction,
     clearSelection: clearRegisterSelection,
-    editTransaction: setEditingTransactionId,
+    editTransaction: (transactionId) => {
+      setEditingTransactionFocusField("date");
+      setEditingTransactionId(transactionId);
+    },
   });
   const hasRegisterActionSelection = registerSelectionActions.hasSelection;
 
@@ -629,7 +644,11 @@ export function AccountRegisterPage() {
               .filter(Boolean)
               .join(" ")}
             key={column.id}
-            aria-label={column.id === "attachments" ? "Attachments" : undefined}
+            aria-label={
+              column.id === "attachments"
+                ? "Attachments"
+                : undefined
+            }
           >
             {column.id === "attachments" ? (
               <Paperclip size={13} />
@@ -689,6 +708,8 @@ export function AccountRegisterPage() {
             onOpenPayeeManager={() => setIsPayeeManagerOpen(true)}
             onToggleScheduled={() => setIsScheduledOpen((current) => !current)}
             scheduledDueCount={scheduledDueCount}
+            categoryFilter={categoryFilter}
+            onCategoryFilterChange={setCategoryFilter}
           />
 
           {registerColumnHeader}
@@ -1030,8 +1051,12 @@ export function AccountRegisterPage() {
                     onSave={(input) => {
                       updateTransaction(input);
                       setEditingTransactionId(null);
+                      setEditingTransactionFocusField("date");
                     }}
-                    onCancel={() => setEditingTransactionId(null)}
+                    onCancel={() => {
+                      setEditingTransactionId(null);
+                      setEditingTransactionFocusField("date");
+                    }}
                     onManageTransactionAttachments={
                       handleManageTransactionAttachments
                     }
@@ -1039,6 +1064,7 @@ export function AccountRegisterPage() {
                     visibleColumnIds={registerEditVisibleColumnIds}
                     rowStyle={registerEditRowStyle}
                     layoutMode={registerLayoutMode}
+                    autoFocusField={editingTransactionFocusField}
                   />
                 ) : (
                   <TransactionRow
@@ -1051,6 +1077,7 @@ export function AccountRegisterPage() {
                       handleToggleTransactionSelection
                     }
                     onEditTransaction={handleEditTransaction}
+                    onEditTransactionCategory={handleEditTransactionCategory}
                     onToggleClearedTransaction={handleToggleClearedTransaction}
                     onManageTransactionAttachments={
                       handleManageTransactionAttachments

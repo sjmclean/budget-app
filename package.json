@@ -485,7 +485,8 @@
     "test:v2601": "pnpm test:v2600 && pnpm test:v2601:budget-workspace-group-extraction",
     "test:transaction-intake:matching": "tsx tests/transaction-intake/matching/run.ts",
     "test:transaction-intake:review": "tsx tests/transaction-intake/review/run.ts",
-    "test:transaction-intake": "pnpm test:transaction-intake:matching && pnpm test:transaction-intake:review"
+    "test:transaction-intake": "pnpm test:transaction-intake:matching && pnpm test:transaction-intake:review",
+    "test:v2636": "tsx tests/v2636-uncategorised-transaction-workflow.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

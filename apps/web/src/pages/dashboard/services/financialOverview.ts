@@ -1,7 +1,8 @@
 import type { AccountRegisterView, RegisterTransactionView } from "../../../features/accounts/accountRegisterTypes";
 import type { SidebarAccount } from "../../../features/accounts/accountService";
 import type { BudgetMonthView } from "../../../features/budget/budgetViewTypes";
-import { buildFinancialSummary, isInternalMovement } from "./financialSummaryService";
+import { isUncategorisedRegisterTransaction } from "../../../features/accounts/registerUncategorised";
+import { buildFinancialSummary } from "./financialSummaryService";
 
 export interface NetWorthPoint {
   month: string;
@@ -122,13 +123,7 @@ function countOverspentCategories(budgetView: BudgetMonthView | null): number {
 function countUncategorisedTransactions(
   transactions: Array<RegisterTransactionView & { accountId: string }>,
 ): number {
-  return transactions.filter(
-    (transaction) =>
-      transaction.outflow > 0 &&
-      !isInternalMovement(transaction) &&
-      !transaction.splitLines?.length &&
-      (!transaction.categoryId || transaction.category.trim().length === 0 || transaction.category === "Uncategorised"),
-  ).length;
+return transactions.filter(isUncategorisedRegisterTransaction).length;
 }
 
 function isTransactionInMonth(transaction: RegisterTransactionView, month: string): boolean {

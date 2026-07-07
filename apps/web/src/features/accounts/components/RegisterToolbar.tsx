@@ -123,6 +123,8 @@ interface RegisterToolbarProps {
   onOpenPayeeManager: () => void;
   onToggleScheduled: () => void;
   scheduledDueCount: number;
+  categoryFilter: "all" | "uncategorised";
+  onCategoryFilterChange: (filter: "all" | "uncategorised") => void;
 }
 
 export function RegisterToolbar({
@@ -151,6 +153,8 @@ export function RegisterToolbar({
   onOpenPayeeManager,
   onToggleScheduled,
   scheduledDueCount,
+  categoryFilter,
+  onCategoryFilterChange,
 }: RegisterToolbarProps) {
   return (
     <>
@@ -210,6 +214,23 @@ export function RegisterToolbar({
                 onHighlight={onHighlightSearchSuggestion}
               />
             ) : null}
+          </div>
+
+          <div className="register-category-filter" aria-label="Category filter">
+            <button
+              className={categoryFilter === "all" ? "register-filter-chip active" : "register-filter-chip"}
+              type="button"
+              onClick={() => onCategoryFilterChange("all")}
+            >
+              All
+            </button>
+            <button
+              className={categoryFilter === "uncategorised" ? "register-filter-chip active" : "register-filter-chip"}
+              type="button"
+              onClick={() => onCategoryFilterChange("uncategorised")}
+            >
+              Uncategorised
+            </button>
           </div>
 
           <ColumnVisibilityMenu
