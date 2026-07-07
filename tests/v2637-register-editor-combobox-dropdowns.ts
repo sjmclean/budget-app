@@ -98,4 +98,10 @@ assert.match(
   "register combobox arrow should have dedicated styling",
 );
 
+assert.match(
+  registerCssSource,
+  /\.register-category-suggestions \.register-autocomplete-section-heading[\s\S]*background: color-mix\(in srgb, var\(--surface-subtle\) 92%, var\(--surface\)\)/,
+  "category group headings should use subtle register-style shaded separators",
+);
+
 console.log("v2.63.7 register editor combobox dropdown checks passed");

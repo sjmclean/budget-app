@@ -2012,12 +2012,38 @@
   text-transform: uppercase;
 }
 
+.register-category-suggestions .register-autocomplete-section-heading {
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--surface-subtle) 92%, var(--surface));
+  color: var(--text);
+  letter-spacing: 0.04em;
+  margin: 0.25rem 0 0.18rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.register-category-suggestions
+  .register-autocomplete-suggestion-block:first-child
+  .register-autocomplete-section-heading {
+  margin-top: 0;
+}
+
 .register-autocomplete-suggestion-block
   + .register-autocomplete-suggestion-block
   .register-autocomplete-section-heading {
   border-top: 1px solid var(--border-subtle);
   margin-top: 0.18rem;
   padding-top: 0.48rem;
+}
+
+.register-category-suggestions
+  .register-autocomplete-suggestion-block
+  + .register-autocomplete-suggestion-block
+  .register-autocomplete-section-heading {
+  border-top: 1px solid var(--border-soft);
+  margin-top: 0.35rem;
+  padding-top: 0.45rem;
 }
 
 .register-autocomplete-popup .register-payee-suggestion {
