@@ -15,3 +15,9 @@ export type {
   OpenFloatingControllerOptions,
 } from "./useFloatingController";
 export { useFloatingController } from "./useFloatingController";
+export type {
+  FloatingMenuHeadingProps,
+  FloatingMenuListProps,
+  FloatingMenuProps,
+} from "./FloatingMenu";
+export { FloatingMenu, FloatingMenuHeading, FloatingMenuList } from "./FloatingMenu";
