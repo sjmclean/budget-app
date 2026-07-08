@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { MouseEvent } from "react";
 
 export type SelectionActionVariant = "default" | "success" | "danger";
 
@@ -10,5 +11,5 @@ export interface SelectionAction {
   pressed?: boolean;
   title?: string;
   disabled?: boolean;
-  onClick: () => void;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 }
