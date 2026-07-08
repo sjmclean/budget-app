@@ -52,6 +52,11 @@ assert.match(selectionActions, /MoveRight/);
 assert.match(page, /isMoveTransactionDialogOpen/);
 assert.match(page, /openMoveTransactions: openMoveTransactionDialog/);
 assert.match(page, /Destination account/);
+assert.match(
+  page,
+  /account\.id !== accountId && !account\.closedAt/,
+  "move account picker should exclude closed accounts",
+);
 assert.match(css, /\.register-move-overlay/);
 
 console.log("v2.64.1 register move transaction checks passed");

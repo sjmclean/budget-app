@@ -253,7 +253,9 @@ export function AccountRegisterPage() {
     accountsPersistence.listAccounts().then((loadedAccounts) => {
       if (active) {
         setTransferAccounts(
-          loadedAccounts.filter((account) => account.id !== accountId),
+          loadedAccounts.filter(
+            (account) => account.id !== accountId && !account.closedAt,
+          ),
         );
       }
     });
