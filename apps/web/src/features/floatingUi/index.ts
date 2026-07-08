@@ -21,3 +21,9 @@ export type {
   FloatingMenuProps,
 } from "./FloatingMenu";
 export { FloatingMenu, FloatingMenuHeading, FloatingMenuList } from "./FloatingMenu";
+export type {
+  FloatingMenuDividerProps,
+  FloatingMenuItemProps,
+  FloatingMenuItemVariant,
+} from "./FloatingMenuItem";
+export { FloatingMenuDivider, FloatingMenuItem } from "./FloatingMenuItem";
