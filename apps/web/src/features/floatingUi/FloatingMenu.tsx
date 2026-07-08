@@ -1,4 +1,5 @@
 import type { CSSProperties, MouseEvent, ReactNode, RefObject } from "react";
+import "./floatingMenu.css";
 
 export interface FloatingMenuProps {
   isOpen: boolean;
