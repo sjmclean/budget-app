@@ -54,6 +54,9 @@ export interface RegisterTransactionView {
   transferAccountId?: string;
   transferTransactionId?: string;
   splitLines?: RegisterSplitLineView[];
+  generatedFromSchedule?: boolean;
+  scheduledTransactionId?: string;
+  scheduledOccurrenceDate?: string;
 }
 
 export interface AccountRegisterView {
@@ -79,6 +82,9 @@ export interface NewRegisterTransactionInput {
   inflow: number;
   outflow: number;
   splitLines?: RegisterSplitLineView[];
+  generatedFromSchedule?: boolean;
+  scheduledTransactionId?: string;
+  scheduledOccurrenceDate?: string;
 }
 
 export interface UpdateRegisterTransactionInput {

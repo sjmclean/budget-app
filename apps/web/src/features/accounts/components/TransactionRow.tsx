@@ -116,6 +116,30 @@ function FlagDot({ flag }: { flag: TransactionFlag }) {
   return <span className={`transaction-flag transaction-flag-${flag}`} />;
 }
 
+function ScheduledTransactionBadge({
+  transaction,
+}: {
+  transaction: RegisterTransactionView;
+}) {
+  if (!transaction.generatedFromSchedule) {
+    return null;
+  }
+
+  return (
+    <span
+      className="register-scheduled-badge"
+      title={
+        transaction.scheduledOccurrenceDate
+          ? `Generated from scheduled transaction due ${transaction.scheduledOccurrenceDate}`
+          : "Generated from scheduled transaction"
+      }
+    >
+      <span aria-hidden="true">⏰</span>
+      Scheduled
+    </span>
+  );
+}
+
 export function InlineFlagPicker({
   value,
   onChange,
@@ -404,6 +428,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
 
         <div className="register-payee-cell">
           <strong>{transaction.payee}</strong>
+          <ScheduledTransactionBadge transaction={transaction} />
         </div>
 
         <CategoryDisplay
@@ -566,7 +591,10 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
         )}
 
         <div className="register-compact-main">
-          <strong title={transaction.payee}>{transaction.payee}</strong>
+          <span className="register-compact-payee-line">
+            <strong title={transaction.payee}>{transaction.payee}</strong>
+            <ScheduledTransactionBadge transaction={transaction} />
+          </span>
           <span className="register-compact-secondary">
             {hasSplitLines ? (
               <button
@@ -737,9 +765,12 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
 
         <div className="register-tablet-main">
           <div className="register-tablet-primary-line">
-            <strong className="register-tablet-payee" title={transaction.payee}>
-              {transaction.payee}
-            </strong>
+            <span className="register-tablet-payee-line">
+              <strong className="register-tablet-payee" title={transaction.payee}>
+                {transaction.payee}
+              </strong>
+              <ScheduledTransactionBadge transaction={transaction} />
+            </span>
             <span className={amountClassName}>{amountLabel}</span>
           </div>
 

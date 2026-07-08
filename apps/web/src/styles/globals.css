@@ -6461,3 +6461,45 @@ strong {
 .spending-report-detail h3 .category-label-with-icon {
   font-weight: inherit;
 }
+
+
+/* v2.65 scheduled transaction generation marker */
+
+.register-scheduled-badge {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.12rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-soft) 82%, var(--surface));
+  color: var(--accent-strong);
+  padding: 0.08rem 0.42rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.register-payee-cell,
+.register-compact-payee-line,
+.register-tablet-payee-line {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.register-compact-payee-line,
+.register-tablet-payee-line {
+  max-width: 100%;
+}
+
+.register-compact-payee-line strong,
+.register-tablet-payee-line strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

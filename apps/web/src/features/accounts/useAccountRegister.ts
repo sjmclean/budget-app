@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getAppPersistenceGateway } from "../persistence";
+import { generateDueScheduledTransactions } from "./scheduledTransactionGenerationService";
 import type {
   AccountRegisterView,
   NewRegisterTransactionInput,
@@ -63,6 +64,7 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
       setError(null);
 
       try {
+        await generateDueScheduledTransactions(getAppPersistenceGateway());
         const result = await accountRegisters.getAccountRegisterView({
           accountId,
         });
