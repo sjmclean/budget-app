@@ -1,0 +1,41 @@
+.floating-menu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10020;
+}
+
+.floating-menu-panel {
+  position: fixed;
+  min-width: 14rem;
+  max-width: min(24rem, calc(100vw - 1.5rem));
+  border: 1px solid var(--border-soft, #e2e8f0);
+  border-radius: 0.85rem;
+  background: var(--surface, #ffffff);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16);
+  color: var(--text, #0f172a);
+  overflow: hidden;
+  padding: 0.35rem;
+}
+
+.floating-menu-heading {
+  display: grid;
+  gap: 0.1rem;
+  border-bottom: 1px solid var(--border-soft, #e2e8f0);
+  margin: 0 -0.35rem 0.25rem;
+  padding: 0.6rem 0.75rem 0.55rem;
+}
+
+.floating-menu-heading strong {
+  color: var(--text, #0f172a);
+  font-size: 0.86rem;
+}
+
+.floating-menu-heading span {
+  color: var(--text-muted, #64748b);
+  font-size: 0.72rem;
+}
+
+.floating-menu-list {
+  display: grid;
+  gap: 0.15rem;
+}
