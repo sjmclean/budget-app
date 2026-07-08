@@ -359,6 +359,10 @@ interface TransactionRowRendererProps {
     transaction: RegisterTransactionView,
     flag: TransactionFlag,
   ) => void;
+  onOpenContextMenu: (
+    transactionId: string,
+    event: MouseEvent<HTMLElement>,
+  ) => void;
   visibleColumns: Set<RegisterColumnId>;
   rowStyle: CSSProperties;
 }
@@ -379,6 +383,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
   onToggleClearedTransaction,
   onManageTransactionAttachments,
   onUpdateTransactionFlag,
+  onOpenContextMenu,
   visibleColumns,
   rowStyle,
 }: TransactionRowRendererProps) {
@@ -400,6 +405,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
         ].filter(Boolean).join(" ")}
         onClick={(event) => onSelectTransaction(transaction.id, event)}
         onDoubleClick={() => onEditTransaction(transaction.id)}
+        onContextMenu={(event) => onOpenContextMenu(transaction.id, event)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             onEditTransaction(transaction.id);
@@ -530,6 +536,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   onToggleClearedTransaction,
   onManageTransactionAttachments,
   onUpdateTransactionFlag,
+  onOpenContextMenu,
   visibleColumns,
 }: TransactionRowRendererProps) {
   const [isSplitExpanded, setIsSplitExpanded] = useState(false);
@@ -555,6 +562,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
         ].filter(Boolean).join(" ")}
         onClick={(event) => onSelectTransaction(transaction.id, event)}
         onDoubleClick={() => onEditTransaction(transaction.id)}
+        onContextMenu={(event) => onOpenContextMenu(transaction.id, event)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             onEditTransaction(transaction.id);
@@ -720,6 +728,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
   onToggleClearedTransaction,
   onManageTransactionAttachments,
   onUpdateTransactionFlag,
+  onOpenContextMenu,
   visibleColumns,
 }: TransactionRowRendererProps) {
   const [isSplitExpanded, setIsSplitExpanded] = useState(false);
@@ -749,6 +758,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
         ].filter(Boolean).join(" ")}
         onClick={(event) => onSelectTransaction(transaction.id, event)}
         onDoubleClick={() => onEditTransaction(transaction.id)}
+        onContextMenu={(event) => onOpenContextMenu(transaction.id, event)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             onEditTransaction(transaction.id);

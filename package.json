@@ -491,7 +491,8 @@
     "test:v2639": "tsx tests/v2639-category-icons.ts",
     "test:v2640": "tsx tests/v2640-category-modal-layering.ts",
     "test:v2641": "tsx tests/v2641-register-move-transactions.ts",
-    "test:v265": "tsx tests/v265-scheduled-transaction-generation.ts"
+    "test:v265": "tsx tests/v265-scheduled-transaction-generation.ts",
+    "test:v266": "tsx tests/v266-register-context-menu.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

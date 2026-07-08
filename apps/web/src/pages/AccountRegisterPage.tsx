@@ -70,6 +70,29 @@ import {
 
 const ACTIVE_BUDGET_MONTH = "2026-06";
 
+interface RegisterContextMenuPosition {
+  transactionId: string;
+  top: number;
+  left: number;
+}
+
+function resolveRegisterContextMenuPosition(
+  event: MouseEvent<HTMLElement>,
+): Omit<RegisterContextMenuPosition, "transactionId"> {
+  const menuWidth = 230;
+  const viewportPadding = 12;
+  const left = Math.min(
+    Math.max(viewportPadding, event.clientX),
+    Math.max(viewportPadding, window.innerWidth - menuWidth - viewportPadding),
+  );
+
+  return {
+    top: Math.max(viewportPadding, event.clientY),
+    left,
+  };
+}
+
+
 function formatRegisterMonthSeparator(date: string) {
   if (!date) {
     return "Undated";
@@ -106,18 +129,34 @@ function formatPayeeLastUsed(
 }
 
 
-function resolveMoveAccountMenuPosition(event: MouseEvent<HTMLButtonElement>) {
-  const rect = event.currentTarget.getBoundingClientRect();
+function resolveMoveAccountMenuPositionFromPoint(point: {
+  top: number;
+  left: number;
+}) {
   const menuWidth = 280;
   const viewportPadding = 12;
   const left = Math.min(
-    Math.max(viewportPadding, rect.left),
+    Math.max(viewportPadding, point.left),
     Math.max(viewportPadding, window.innerWidth - menuWidth - viewportPadding),
   );
 
   return {
-    bottom: Math.max(viewportPadding, window.innerHeight - rect.top + 6),
+    bottom: Math.max(viewportPadding, window.innerHeight - point.top + 6),
     left,
+  };
+}
+
+function resolveMoveAccountMenuPositionFromSelectionBar() {
+  const menuWidth = 280;
+  const viewportPadding = 12;
+  const centeredLeft = (window.innerWidth - menuWidth) / 2;
+
+  return {
+    bottom: 86,
+    left: Math.min(
+      Math.max(viewportPadding, centeredLeft),
+      Math.max(viewportPadding, window.innerWidth - menuWidth - viewportPadding),
+    ),
   };
 }
 
@@ -180,6 +219,8 @@ export function AccountRegisterPage() {
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
+  const [registerContextMenuPosition, setRegisterContextMenuPosition] =
+    useState<RegisterContextMenuPosition | null>(null);
   const [registerSearchDraft, setRegisterSearchDraft] = useState("");
   const [committedRegisterSearch, setCommittedRegisterSearch] =
     useState<RegisterSearchCommit | null>(null);
@@ -521,6 +562,25 @@ export function AccountRegisterPage() {
     registerCommands.manageTransactionAttachments;
   const handleUpdateTransactionFlag = registerCommands.updateTransactionFlag;
 
+  const handleOpenRegisterContextMenu = useCallback(
+    (transactionId: string, event: MouseEvent<HTMLElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!registerSelection.isSelected(transactionId)) {
+        registerSelection.selectSingle(transactionId);
+      }
+
+      setEditingTransactionId(null);
+      setRegisterContextMenuPosition({
+        transactionId,
+        ...resolveRegisterContextMenuPosition(event),
+      });
+    },
+    [registerSelection],
+  );
+
+
   const clearRegisterSelection = registerSelection.clear;
 
   const moveableSelectedTransactions = useMemo(
@@ -547,19 +607,24 @@ export function AccountRegisterPage() {
       (transaction) => transaction.reconciled,
     ).length;
 
-  const openMoveTransactionDialog = useCallback(
-    (event: MouseEvent<HTMLButtonElement>) => {
-      if (
-        moveableSelectedTransactions.length === 0 ||
-        moveTargetAccounts.length === 0
-      ) {
-        return;
-      }
+  const openMoveTransactionDialog = useCallback(() => {
+    if (
+      moveableSelectedTransactions.length === 0 ||
+      moveTargetAccounts.length === 0
+    ) {
+      return;
+    }
 
-      setMoveAccountMenuPosition(resolveMoveAccountMenuPosition(event));
-    },
-    [moveTargetAccounts.length, moveableSelectedTransactions.length],
-  );
+    setMoveAccountMenuPosition(
+      registerContextMenuPosition
+        ? resolveMoveAccountMenuPositionFromPoint(registerContextMenuPosition)
+        : resolveMoveAccountMenuPositionFromSelectionBar(),
+    );
+  }, [
+    moveTargetAccounts.length,
+    moveableSelectedTransactions.length,
+    registerContextMenuPosition,
+  ]);
 
   const handleMoveSelectedTransactions = useCallback(
     async (targetAccountId: string) => {
@@ -683,6 +748,37 @@ export function AccountRegisterPage() {
       window.removeEventListener("keydown", handleMoveAccountMenuKeyDown);
     };
   }, [moveAccountMenuPosition]);
+
+
+  useEffect(() => {
+    if (!registerContextMenuPosition) {
+      return;
+    }
+
+    function closeRegisterContextMenu() {
+      setRegisterContextMenuPosition(null);
+    }
+
+    function handleRegisterContextMenuDismissKeyDown(
+      event: globalThis.KeyboardEvent,
+    ) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeRegisterContextMenu();
+      }
+    }
+
+    window.addEventListener("keydown", handleRegisterContextMenuDismissKeyDown);
+    window.addEventListener("scroll", closeRegisterContextMenu, true);
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleRegisterContextMenuDismissKeyDown,
+      );
+      window.removeEventListener("scroll", closeRegisterContextMenu, true);
+    };
+  }, [registerContextMenuPosition]);
 
   if (isLoading) {
     return (
@@ -1170,6 +1266,74 @@ export function AccountRegisterPage() {
           </div>
         ) : null}
 
+
+        {registerContextMenuPosition ? (
+          <div
+            className="register-context-menu-layer"
+            role="presentation"
+            onMouseDown={() => setRegisterContextMenuPosition(null)}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              setRegisterContextMenuPosition(null);
+            }}
+          >
+            <div
+              className="register-context-menu"
+              role="menu"
+              aria-label="Transaction actions"
+              style={{
+                top: registerContextMenuPosition.top,
+                left: registerContextMenuPosition.left,
+              }}
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <div className="register-context-menu-heading">
+                <strong>
+                  {registerSelectionActions.selectedCount === 1
+                    ? "Transaction"
+                    : `${registerSelectionActions.selectedCount} transactions`}
+                </strong>
+                <span>Actions</span>
+              </div>
+
+              <div className="register-context-menu-list">
+                {registerSelectionActions.actions.map((action) => {
+                  const Icon = action.icon ?? null;
+
+                  return (
+                    <button
+                      key={action.id}
+                      className={[
+                        "register-context-menu-item",
+                        action.variant === "danger"
+                          ? "register-context-menu-item-danger"
+                          : "",
+                        action.variant === "success"
+                          ? "register-context-menu-item-success"
+                          : "",
+                        action.pressed ? "register-context-menu-item-pressed" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      type="button"
+                      role="menuitem"
+                      aria-pressed={action.pressed ?? undefined}
+                      title={action.title}
+                      onClick={() => {
+                        setRegisterContextMenuPosition(null);
+                        action.onClick();
+                      }}
+                    >
+                      {Icon ? <Icon size={15} aria-hidden="true" /> : null}
+                      <span>{action.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <div className="register-table">
           {showEntryRow && (
             <TransactionEntryRow
@@ -1257,6 +1421,7 @@ export function AccountRegisterPage() {
                       handleManageTransactionAttachments
                     }
                     onUpdateTransactionFlag={handleUpdateTransactionFlag}
+                    onOpenContextMenu={handleOpenRegisterContextMenu}
                     visibleColumns={registerTableLayout.visibleColumnSet}
                     rowStyle={registerTableLayout.rowStyle}
                     layoutMode={registerLayoutMode}

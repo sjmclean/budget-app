@@ -1,5 +1,5 @@
 import { CheckCircle2, MoveRight, Pencil, Trash2 } from "lucide-react";
-import { useCallback, useMemo, type MouseEvent } from "react";
+import { useCallback, useMemo } from "react";
 import type { SelectionAction } from "../../components/ui/SelectionBar";
 import { confirmDialog } from "../ui/appDialogService";
 import type { RegisterTransactionView } from "./accountRegisterTypes";
@@ -11,7 +11,7 @@ interface UseRegisterSelectionActionsInput {
   deleteTransaction: (transactionId: string) => Promise<void>;
   clearSelection: () => void;
   editTransaction: (transactionId: string | null) => void;
-  openMoveTransactions?: (event: MouseEvent<HTMLButtonElement>) => void;
+  openMoveTransactions?: () => void;
 }
 
 interface UseRegisterSelectionActionsResult {
@@ -116,8 +116,8 @@ export function useRegisterSelectionActions({
           selectedTransferCount > 0
             ? "Transfer transactions cannot be moved between accounts"
             : "Move selected transactions to another account",
-        onClick: (event) => {
-          openMoveTransactions(event);
+        onClick: () => {
+          openMoveTransactions();
         },
       });
     }

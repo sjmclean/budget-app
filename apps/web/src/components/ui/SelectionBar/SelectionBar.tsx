@@ -51,7 +51,7 @@ export function SelectionBar({
               aria-pressed={action.pressed}
               title={action.title}
               disabled={action.disabled}
-              onClick={(event) => action.onClick(event)}
+              onClick={() => action.onClick()}
             >
               {Icon ? (
                 <Icon className="selection-bar-button-icon" size={15} aria-hidden="true" />

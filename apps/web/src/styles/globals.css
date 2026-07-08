@@ -6503,3 +6503,90 @@ strong {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+
+/* v2.66 register right-click context menu */
+
+.register-context-menu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: transparent;
+}
+
+.register-context-menu {
+  position: fixed;
+  width: min(230px, calc(100vw - 24px));
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
+  padding: 0.55rem;
+}
+
+.register-context-menu-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.2rem 0.35rem 0.55rem;
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 0.35rem;
+}
+
+.register-context-menu-heading strong {
+  font-size: 0.84rem;
+}
+
+.register-context-menu-heading span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.register-context-menu-list {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.register-context-menu-item {
+  width: 100%;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.58rem 0.65rem;
+  font: inherit;
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.register-context-menu-item:hover,
+.register-context-menu-item:focus-visible {
+  background: var(--surface-muted);
+  outline: none;
+}
+
+.register-context-menu-item-pressed {
+  background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface));
+  color: var(--accent-strong);
+}
+
+.register-context-menu-item-success {
+  color: var(--success-strong, var(--accent-strong));
+}
+
+.register-context-menu-item-danger {
+  color: var(--danger-strong, #b42318);
+}
+
+.register-context-menu-item-danger:hover,
+.register-context-menu-item-danger:focus-visible {
+  background: color-mix(in srgb, #fee4e2 70%, var(--surface));
+}
