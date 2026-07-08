@@ -78,6 +78,21 @@
   font-weight: 800;
 }
 
+/* v2.64.1 payee dropdown heading consistency */
+
+.register-payee-suggestions .register-autocomplete-section-heading {
+  margin: 0.2rem 0.15rem 0.18rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--surface-subtle) 88%, var(--border-soft));
+  color: var(--text-muted);
+  padding: 0.42rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 820;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
 @keyframes selection-bar-enter {
   from {
     opacity: 0;
