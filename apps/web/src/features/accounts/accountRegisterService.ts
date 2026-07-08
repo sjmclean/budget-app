@@ -442,6 +442,83 @@ export class BrowserPersistentAccountRegisterService
     return cloneRegister(registers[input.accountId]);
   }
 
+
+  async moveTransactions(input: {
+    sourceAccountId: string;
+    targetAccountId: string;
+    transactionIds: string[];
+  }): Promise<AccountRegisterView> {
+    if (
+      input.sourceAccountId === input.targetAccountId ||
+      input.transactionIds.length === 0
+    ) {
+      return this.getAccountRegisterView({ accountId: input.sourceAccountId });
+    }
+
+    const registers = readRegisters(this.dependencies.storage);
+    const sourceRegister = cloneRegister(
+      registers[input.sourceAccountId] ??
+        createEmptyRegister(this.dependencies, input.sourceAccountId),
+    );
+    const targetRegister = cloneRegister(
+      registers[input.targetAccountId] ??
+        createEmptyRegister(this.dependencies, input.targetAccountId),
+    );
+    const transactionIdSet = new Set(input.transactionIds);
+    const transactionsToMove = sourceRegister.transactions.filter((transaction) =>
+      transactionIdSet.has(transaction.id),
+    );
+
+    if (transactionsToMove.length === 0) {
+      return cloneRegister(recalculateRegister(this.dependencies, sourceRegister));
+    }
+
+    const blockedTransaction = transactionsToMove.find(
+      (transaction) =>
+        transaction.reconciled ||
+        transaction.transferId ||
+        transaction.transferAccountId ||
+        transaction.transferTransactionId,
+    );
+
+    if (blockedTransaction?.reconciled) {
+      throw new Error(
+        "Reconciled transactions cannot be moved between accounts.",
+      );
+    }
+
+    if (blockedTransaction) {
+      throw new Error(
+        "Transfer transactions cannot be moved between accounts. Edit or delete the transfer instead.",
+      );
+    }
+
+    sourceRegister.transactions = sourceRegister.transactions.filter(
+      (transaction) => !transactionIdSet.has(transaction.id),
+    );
+    targetRegister.transactions = [
+      ...transactionsToMove.map((transaction) => ({
+        ...transaction,
+        transferId: undefined,
+        transferAccountId: undefined,
+        transferTransactionId: undefined,
+      })),
+      ...targetRegister.transactions,
+    ];
+
+    registers[input.sourceAccountId] = recalculateRegister(
+      this.dependencies,
+      sourceRegister,
+    );
+    registers[input.targetAccountId] = recalculateRegister(
+      this.dependencies,
+      targetRegister,
+    );
+    writeRegisters(this.dependencies.storage, registers);
+
+    return cloneRegister(registers[input.sourceAccountId]);
+  }
+
   async addAttachment(input: {
     accountId: string;
     transactionId: string;

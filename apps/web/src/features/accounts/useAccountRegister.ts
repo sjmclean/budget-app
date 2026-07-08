@@ -24,6 +24,10 @@ interface UseAccountRegisterState {
   updateTransaction: (input: UpdateRegisterTransactionInput) => Promise<void>;
   toggleCleared: (transactionId: string) => Promise<void>;
   deleteTransaction: (transactionId: string) => Promise<void>;
+  moveTransactions: (
+    targetAccountId: string,
+    transactionIds: string[],
+  ) => Promise<void>;
   addAttachment: (transactionId: string, file: File) => Promise<void>;
   removeAttachment: (transactionId: string, attachmentId: string) => Promise<void>;
   renamePayeeReferences: (input: {
@@ -140,6 +144,20 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     );
   }, [accountId, accountRegisters, runMutation]);
 
+
+  const moveTransactions = useCallback(async (
+    targetAccountId: string,
+    transactionIds: string[],
+  ) => {
+    await runMutation(
+      () => accountRegisters.moveTransactions({
+        sourceAccountId: accountId,
+        targetAccountId,
+        transactionIds,
+      }),
+    );
+  }, [accountId, accountRegisters, runMutation]);
+
   const addAttachment = useCallback(async (transactionId: string, file: File) => {
     if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
       setError("Attachment is too large. Maximum supported size is 5 MB.");
@@ -216,6 +234,7 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     updateTransaction,
     toggleCleared,
     deleteTransaction,
+    moveTransactions,
     addAttachment,
     removeAttachment,
     renamePayeeReferences,

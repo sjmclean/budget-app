@@ -1,4 +1,4 @@
-import { CheckCircle2, Pencil, Trash2 } from "lucide-react";
+import { CheckCircle2, MoveRight, Pencil, Trash2 } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import type { SelectionAction } from "../../components/ui/SelectionBar";
 import { confirmDialog } from "../ui/appDialogService";
@@ -11,6 +11,7 @@ interface UseRegisterSelectionActionsInput {
   deleteTransaction: (transactionId: string) => Promise<void>;
   clearSelection: () => void;
   editTransaction: (transactionId: string | null) => void;
+  openMoveTransactions?: () => void;
 }
 
 interface UseRegisterSelectionActionsResult {
@@ -26,6 +27,7 @@ export function useRegisterSelectionActions({
   deleteTransaction,
   clearSelection,
   editTransaction,
+  openMoveTransactions,
 }: UseRegisterSelectionActionsInput): UseRegisterSelectionActionsResult {
   const selectedCount = selectedTransactionIds.length;
   const selectedTransactionId = selectedTransactionIds[0] ?? null;
@@ -96,6 +98,28 @@ export function useRegisterSelectionActions({
       });
     }
 
+    if (openMoveTransactions) {
+      const selectedTransferCount = selectedTransactions.filter(
+        (transaction) =>
+          transaction.transferId ||
+          transaction.transferAccountId ||
+          transaction.transferTransactionId,
+      ).length;
+
+      nextActions.push({
+        id: "move",
+        label: "Move",
+        icon: MoveRight,
+        disabled:
+          selectedCount === 0 || selectedTransferCount === selectedTransactions.length,
+        title:
+          selectedTransferCount > 0
+            ? "Transfer transactions cannot be moved between accounts"
+            : "Move selected transactions to another account",
+        onClick: openMoveTransactions,
+      });
+    }
+
     nextActions.push({
       id: "cleared",
       label: "Cleared",
@@ -125,8 +149,10 @@ export function useRegisterSelectionActions({
     areAllSelectedTransactionsCleared,
     deleteSelectedTransactions,
     editTransaction,
+    openMoveTransactions,
     selectedCount,
     selectedTransactionId,
+    selectedTransactions,
     toggleSelectedCleared,
   ]);
 

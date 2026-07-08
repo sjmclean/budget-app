@@ -126,6 +126,12 @@ export interface AccountRegisterService {
     transactionId: string;
   }): Promise<AccountRegisterView>;
 
+  moveTransactions(input: {
+    sourceAccountId: string;
+    targetAccountId: string;
+    transactionIds: string[];
+  }): Promise<AccountRegisterView>;
+
   addAttachment(input: {
     accountId: string;
     transactionId: string;

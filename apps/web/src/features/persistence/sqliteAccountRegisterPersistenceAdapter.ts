@@ -327,6 +327,50 @@ export class SqliteAccountRegisterPersistenceAdapter implements AccountRegisterP
     return this.getAccountRegisterView({ accountId: input.accountId });
   }
 
+  async moveTransactions(input: {
+    sourceAccountId: string;
+    targetAccountId: string;
+    transactionIds: string[];
+  }): Promise<AccountRegisterView> {
+    if (
+      input.sourceAccountId === input.targetAccountId ||
+      input.transactionIds.length === 0
+    ) {
+      return this.getAccountRegisterView({ accountId: input.sourceAccountId });
+    }
+
+    await this.requireAccount(input.sourceAccountId);
+    await this.requireAccount(input.targetAccountId);
+
+    const updatedAt = this.now();
+
+    for (const transactionId of input.transactionIds) {
+      const existing = await this.options.transactionRepository.getById(transactionId);
+
+      if (!existing || existing.accountId !== input.sourceAccountId || existing.isDeleted) {
+        continue;
+      }
+
+      if (existing.clearedStatus === ClearedStatus.Reconciled) {
+        throw new Error("Reconciled transactions cannot be moved between accounts.");
+      }
+
+      if (existing.type === TransactionType.Transfer || existing.transferAccountId) {
+        throw new Error(
+          "Transfer transactions cannot be moved between accounts. Edit or delete the transfer instead.",
+        );
+      }
+
+      await this.options.transactionRepository.update({
+        ...existing,
+        accountId: input.targetAccountId,
+        updatedAt,
+      });
+    }
+
+    return this.getAccountRegisterView({ accountId: input.sourceAccountId });
+  }
+
   async addAttachment(): Promise<AccountRegisterView> {
     throw new Error("SQLite register adapter v1.35 does not support attachment mutation yet.");
   }

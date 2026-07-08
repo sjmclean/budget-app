@@ -489,7 +489,8 @@
     "test:v2636": "tsx tests/v2636-uncategorised-transaction-workflow.ts",
     "test:v2637": "tsx tests/v2637-register-editor-combobox-dropdowns.ts",
     "test:v2639": "tsx tests/v2639-category-icons.ts",
-    "test:v2640": "tsx tests/v2640-category-modal-layering.ts"
+    "test:v2640": "tsx tests/v2640-category-modal-layering.ts",
+    "test:v2641": "tsx tests/v2641-register-move-transactions.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

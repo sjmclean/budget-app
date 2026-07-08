@@ -124,6 +124,7 @@ export function AccountRegisterPage() {
     updateTransaction,
     toggleCleared,
     deleteTransaction,
+    moveTransactions,
     addAttachment,
     removeAttachment,
     renamePayeeReferences,
@@ -145,6 +146,9 @@ export function AccountRegisterPage() {
   const [transferAccounts, setTransferAccounts] = useState<SidebarAccount[]>(
     [],
   );
+  const [moveTargetAccountId, setMoveTargetAccountId] = useState("");
+  const [isMoveTransactionDialogOpen, setIsMoveTransactionDialogOpen] =
+    useState(false);
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
@@ -488,6 +492,60 @@ export function AccountRegisterPage() {
   const handleUpdateTransactionFlag = registerCommands.updateTransactionFlag;
 
   const clearRegisterSelection = registerSelection.clear;
+
+  const moveableSelectedTransactions = useMemo(
+    () =>
+      selectedRegisterActionTransactions.filter(
+        (transaction) =>
+          !transaction.transferId &&
+          !transaction.transferAccountId &&
+          !transaction.transferTransactionId &&
+          !transaction.reconciled,
+      ),
+    [selectedRegisterActionTransactions],
+  );
+  const moveTargetAccounts = transferAccounts;
+  const selectedTransferTransactionCount =
+    selectedRegisterActionTransactions.filter(
+      (transaction) =>
+        transaction.transferId ||
+        transaction.transferAccountId ||
+        transaction.transferTransactionId,
+    ).length;
+  const selectedReconciledTransactionCount =
+    selectedRegisterActionTransactions.filter(
+      (transaction) => transaction.reconciled,
+    ).length;
+
+  const openMoveTransactionDialog = useCallback(() => {
+    if (moveableSelectedTransactions.length === 0) {
+      return;
+    }
+
+    setMoveTargetAccountId(moveTargetAccounts[0]?.id ?? "");
+    setIsMoveTransactionDialogOpen(true);
+  }, [moveTargetAccounts, moveableSelectedTransactions.length]);
+
+  const handleMoveSelectedTransactions = useCallback(async () => {
+    if (!moveTargetAccountId || moveableSelectedTransactions.length === 0) {
+      return;
+    }
+
+    await moveTransactions(
+      moveTargetAccountId,
+      moveableSelectedTransactions.map((transaction) => transaction.id),
+    );
+    setIsMoveTransactionDialogOpen(false);
+    setMoveTargetAccountId("");
+    clearRegisterSelection();
+    setEditingTransactionId(null);
+  }, [
+    clearRegisterSelection,
+    moveTargetAccountId,
+    moveTransactions,
+    moveableSelectedTransactions,
+  ]);
+
   const registerSelectionActions = useRegisterSelectionActions({
     selectedTransactionIds: selectedRegisterActionTransactionIds,
     selectedTransactions: selectedRegisterActionTransactions,
@@ -498,6 +556,7 @@ export function AccountRegisterPage() {
       setEditingTransactionFocusField("date");
       setEditingTransactionId(transactionId);
     },
+    openMoveTransactions: openMoveTransactionDialog,
   });
   const hasRegisterActionSelection = registerSelectionActions.hasSelection;
 
@@ -995,6 +1054,88 @@ export function AccountRegisterPage() {
             }}
           />
         )}
+
+
+        {isMoveTransactionDialogOpen ? (
+          <div className="register-move-overlay" role="presentation">
+            <Card className="register-move-panel">
+              <div className="register-move-header">
+                <div>
+                  <h2>
+                    Move transaction
+                    {moveableSelectedTransactions.length === 1 ? "" : "s"}
+                  </h2>
+                  <p>
+                    Move {moveableSelectedTransactions.length} selected
+                    transaction
+                    {moveableSelectedTransactions.length === 1 ? "" : "s"} from{" "}
+                    {data.accountName} to another account.
+                  </p>
+                </div>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => setIsMoveTransactionDialogOpen(false)}
+                >
+                  Close
+                </button>
+              </div>
+
+              {selectedTransferTransactionCount > 0 ? (
+                <p className="register-move-warning">
+                  {selectedTransferTransactionCount} transfer transaction
+                  {selectedTransferTransactionCount === 1 ? " was" : "s were"}{" "}
+                  excluded. Edit or delete transfers instead.
+                </p>
+              ) : null}
+
+              {selectedReconciledTransactionCount > 0 ? (
+                <p className="register-move-warning">
+                  {selectedReconciledTransactionCount} reconciled transaction
+                  {selectedReconciledTransactionCount === 1 ? " was" : "s were"}{" "}
+                  excluded. Reconciled history is locked.
+                </p>
+              ) : null}
+
+              <label className="register-move-field">
+                <span>Destination account</span>
+                <select
+                  value={moveTargetAccountId}
+                  onChange={(event) => setMoveTargetAccountId(event.target.value)}
+                >
+                  {moveTargetAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="register-move-actions">
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => setIsMoveTransactionDialogOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="button button-primary"
+                  type="button"
+                  disabled={
+                    !moveTargetAccountId ||
+                    moveableSelectedTransactions.length === 0
+                  }
+                  onClick={() => {
+                    void handleMoveSelectedTransactions();
+                  }}
+                >
+                  Move
+                </button>
+              </div>
+            </Card>
+          </div>
+        ) : null}
 
         <div className="register-table">
           {showEntryRow && (
