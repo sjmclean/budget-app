@@ -3951,3 +3951,76 @@
   justify-content: flex-end;
   gap: 0.55rem;
 }
+
+/* v2.64.2 anchored move account menu */
+
+.register-move-popover-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: transparent;
+}
+
+.register-move-popover {
+  position: fixed;
+  width: min(17.5rem, calc(100vw - 1.5rem));
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--surface);
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.2);
+}
+
+.register-move-popover-heading {
+  display: grid;
+  gap: 0.12rem;
+  padding: 0.42rem 0.55rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.register-move-popover-heading strong {
+  font-size: 0.82rem;
+}
+
+.register-move-popover-heading span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.register-move-account-list {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.register-move-account-list button {
+  width: 100%;
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1.45rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.55rem;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 650;
+  text-align: left;
+}
+
+.register-move-account-list button:hover,
+.register-move-account-list button:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  outline: none;
+}
+
+.register-move-account-icon {
+  display: inline-grid;
+  place-items: center;
+}

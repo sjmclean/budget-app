@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type MouseEvent,
 } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "../components/ui/Card";
@@ -104,6 +105,34 @@ function formatPayeeLastUsed(
   return formatDateForDisplay(value.slice(0, 10), dateFormat);
 }
 
+
+function resolveMoveAccountMenuPosition(event: MouseEvent<HTMLButtonElement>) {
+  const rect = event.currentTarget.getBoundingClientRect();
+  const menuWidth = 280;
+  const viewportPadding = 12;
+  const left = Math.min(
+    Math.max(viewportPadding, rect.left),
+    Math.max(viewportPadding, window.innerWidth - menuWidth - viewportPadding),
+  );
+
+  return {
+    bottom: Math.max(viewportPadding, window.innerHeight - rect.top + 6),
+    left,
+  };
+}
+
+function getMoveAccountIcon(account: SidebarAccount) {
+  if (account.type === "credit-card") {
+    return "💳";
+  }
+
+  if (account.type === "tracking") {
+    return "📈";
+  }
+
+  return "🏦";
+}
+
 export function AccountRegisterPage() {
   const { accountId = "everyday" } = useParams();
   const persistenceGateway = getAppPersistenceGateway();
@@ -146,9 +175,8 @@ export function AccountRegisterPage() {
   const [transferAccounts, setTransferAccounts] = useState<SidebarAccount[]>(
     [],
   );
-  const [moveTargetAccountId, setMoveTargetAccountId] = useState("");
-  const [isMoveTransactionDialogOpen, setIsMoveTransactionDialogOpen] =
-    useState(false);
+  const [moveAccountMenuPosition, setMoveAccountMenuPosition] =
+    useState<{ bottom: number; left: number } | null>(null);
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
@@ -519,34 +547,36 @@ export function AccountRegisterPage() {
       (transaction) => transaction.reconciled,
     ).length;
 
-  const openMoveTransactionDialog = useCallback(() => {
-    if (moveableSelectedTransactions.length === 0) {
-      return;
-    }
+  const openMoveTransactionDialog = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      if (
+        moveableSelectedTransactions.length === 0 ||
+        moveTargetAccounts.length === 0
+      ) {
+        return;
+      }
 
-    setMoveTargetAccountId(moveTargetAccounts[0]?.id ?? "");
-    setIsMoveTransactionDialogOpen(true);
-  }, [moveTargetAccounts, moveableSelectedTransactions.length]);
+      setMoveAccountMenuPosition(resolveMoveAccountMenuPosition(event));
+    },
+    [moveTargetAccounts.length, moveableSelectedTransactions.length],
+  );
 
-  const handleMoveSelectedTransactions = useCallback(async () => {
-    if (!moveTargetAccountId || moveableSelectedTransactions.length === 0) {
-      return;
-    }
+  const handleMoveSelectedTransactions = useCallback(
+    async (targetAccountId: string) => {
+      if (!targetAccountId || moveableSelectedTransactions.length === 0) {
+        return;
+      }
 
-    await moveTransactions(
-      moveTargetAccountId,
-      moveableSelectedTransactions.map((transaction) => transaction.id),
-    );
-    setIsMoveTransactionDialogOpen(false);
-    setMoveTargetAccountId("");
-    clearRegisterSelection();
-    setEditingTransactionId(null);
-  }, [
-    clearRegisterSelection,
-    moveTargetAccountId,
-    moveTransactions,
-    moveableSelectedTransactions,
-  ]);
+      await moveTransactions(
+        targetAccountId,
+        moveableSelectedTransactions.map((transaction) => transaction.id),
+      );
+      setMoveAccountMenuPosition(null);
+      clearRegisterSelection();
+      setEditingTransactionId(null);
+    },
+    [clearRegisterSelection, moveTransactions, moveableSelectedTransactions],
+  );
 
   const registerSelectionActions = useRegisterSelectionActions({
     selectedTransactionIds: selectedRegisterActionTransactionIds,
@@ -635,6 +665,24 @@ export function AccountRegisterPage() {
       window.removeEventListener("keydown", handleRegisterSelectionKeyDown);
     };
   }, [clearRegisterSelection, selectedRegisterTransactionCount]);
+
+  useEffect(() => {
+    if (!moveAccountMenuPosition) {
+      return;
+    }
+
+    function handleMoveAccountMenuKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMoveAccountMenuPosition(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleMoveAccountMenuKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleMoveAccountMenuKeyDown);
+    };
+  }, [moveAccountMenuPosition]);
 
   if (isLoading) {
     return (
@@ -1058,29 +1106,28 @@ export function AccountRegisterPage() {
         )}
 
 
-        {isMoveTransactionDialogOpen ? (
-          <div className="register-move-overlay" role="presentation">
-            <Card className="register-move-panel">
-              <div className="register-move-header">
-                <div>
-                  <h2>
-                    Move transaction
-                    {moveableSelectedTransactions.length === 1 ? "" : "s"}
-                  </h2>
-                  <p>
-                    Move {moveableSelectedTransactions.length} selected
-                    transaction
-                    {moveableSelectedTransactions.length === 1 ? "" : "s"} from{" "}
-                    {data.accountName} to another account.
-                  </p>
-                </div>
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  onClick={() => setIsMoveTransactionDialogOpen(false)}
-                >
-                  Close
-                </button>
+        {moveAccountMenuPosition ? (
+          <div
+            className="register-move-popover-layer"
+            role="presentation"
+            onMouseDown={() => setMoveAccountMenuPosition(null)}
+          >
+            <div
+              className="register-move-popover"
+              role="menu"
+              aria-label="Move selected transactions to account"
+              style={{
+                bottom: moveAccountMenuPosition.bottom,
+                left: moveAccountMenuPosition.left,
+              }}
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <div className="register-move-popover-heading">
+                <strong>Move to Account</strong>
+                <span>
+                  {moveableSelectedTransactions.length} transaction
+                  {moveableSelectedTransactions.length === 1 ? "" : "s"}
+                </span>
               </div>
 
               {selectedTransferTransactionCount > 0 ? (
@@ -1099,43 +1146,27 @@ export function AccountRegisterPage() {
                 </p>
               ) : null}
 
-              <label className="register-move-field">
-                <span>Destination account</span>
-                <select
-                  value={moveTargetAccountId}
-                  onChange={(event) => setMoveTargetAccountId(event.target.value)}
-                >
-                  {moveTargetAccounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="register-move-actions">
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  onClick={() => setIsMoveTransactionDialogOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="button button-primary"
-                  type="button"
-                  disabled={
-                    !moveTargetAccountId ||
-                    moveableSelectedTransactions.length === 0
-                  }
-                  onClick={() => {
-                    void handleMoveSelectedTransactions();
-                  }}
-                >
-                  Move
-                </button>
+              <div className="register-move-account-list">
+                {moveTargetAccounts.map((account) => (
+                  <button
+                    key={account.id}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      void handleMoveSelectedTransactions(account.id);
+                    }}
+                  >
+                    <span
+                      className="register-move-account-icon"
+                      aria-hidden="true"
+                    >
+                      {getMoveAccountIcon(account)}
+                    </span>
+                    <span>{account.name}</span>
+                  </button>
+                ))}
               </div>
-            </Card>
+            </div>
           </div>
         ) : null}
 
