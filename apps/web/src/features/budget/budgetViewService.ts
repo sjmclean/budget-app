@@ -449,6 +449,23 @@ async function createCategoryActivityDrilldown(
     const transactionCategoryId = resolveStoredCategoryId(transaction, categoryLookup);
 
     if (transaction.transferAccountId || isTransferCategory(categoryKey)) {
+      if (
+        transaction.transferAccountId &&
+        transactionCategoryId === categoryId &&
+        !isTransferCategory(categoryKey)
+      ) {
+        rows.push(
+          createActivityRow({
+            transaction,
+            categoryId: transactionCategoryId,
+            categoryName: transaction.category || category.name,
+            inflow: transaction.inflow,
+            outflow: transaction.outflow,
+            isSplit: false,
+          }),
+        );
+      }
+
       continue;
     }
 

@@ -73,14 +73,14 @@ async function validateCategoryActivityDrilldownRows(): Promise<void> {
   assert.equal(drilldown.categoryName, "Groceries", "drilldown should name the selected category");
   assert.deepEqual(
     drilldown.rows.map((row) => row.id),
-    ["tx-normal", "tx-split:split-groceries", "tx-refund"],
-    "drilldown should include normal, matching split, and refund rows in date order only",
+    ["tx-normal", "tx-split:split-groceries", "tx-refund", "tx-mortgage-transfer"],
+    "drilldown should include normal, matching split, refund, and categorised off-budget transfer rows in date order only",
   );
   assert.equal(drilldown.rows[1]?.isSplit, true, "matching split line should be identified as split activity");
   assert.equal(drilldown.rows[1]?.memo, "Produce", "split memo should be preferred over parent memo");
-  assert.equal(drilldown.totalOutflow, 6300, "total outflow should sum matching category activity only");
+  assert.equal(drilldown.totalOutflow, 8186, "total outflow should sum matching category activity only");
   assert.equal(drilldown.totalInflow, 500, "total inflow should sum matching category activity only");
-  assert.equal(drilldown.netActivity, -5800, "net activity should match the budget activity calculation");
+  assert.equal(drilldown.netActivity, -7686, "net activity should match the budget activity calculation");
 
   const budgetView = await service.getBudgetMonthView({
     budgetId: "household",
@@ -93,12 +93,13 @@ async function validateCategoryActivityDrilldownRows(): Promise<void> {
 function validateBudgetPageWiresActivityModal(): void {
   const budgetPage = readFileSync("apps/web/src/pages/BudgetPage.tsx", "utf8");
   const budgetViewTypes = readFileSync("apps/web/src/features/budget/budgetViewTypes.ts", "utf8");
+  const budgetWorkspaceGroup = readFileSync("apps/web/src/features/budget/BudgetWorkspaceGroup.tsx", "utf8");
   const releaseScripts = readFileSync("package.json", "utf8");
 
   assert.match(budgetViewTypes, /BudgetActivityDrilldownRow/, "budget view types should expose drilldown rows");
   assert.match(budgetViewTypes, /getCategoryActivityDrilldown/, "budget service port should expose activity drilldown query");
   assert.match(budgetPage, /BudgetActivityDrilldownModal/, "budget page should render an activity drilldown modal");
-  assert.match(budgetPage, /activity-drilldown-button/, "budget activity amount should be clickable");
+  assert.match(budgetWorkspaceGroup, /activity-drilldown-button/, "budget activity amount should be clickable");
   assert.match(budgetPage, /navigate\(`\/accounts\/\$\{row\.accountId\}`\)/, "activity row click should navigate to the account register");
   assert.match(releaseScripts, /test:v143/, "release scripts should include v1.43 validation");
 }
@@ -188,6 +189,20 @@ function createMemoryBudgetActivity(): BudgetActivityPersistencePort {
           memo: "Income",
           inflow: 100000,
           outflow: 0,
+        },
+        {
+          id: "tx-mortgage-transfer",
+          accountId: "checking",
+          accountName: "Everyday Account",
+          accountType: "on-budget",
+          transferAccountId: "home-loan",
+          date: "2026-06-12",
+          payee: "Transfer: Home Loan",
+          category: "Groceries",
+          categoryId: "groceries",
+          memo: "Categorised off-budget transfer",
+          inflow: 0,
+          outflow: 1886,
         },
       ];
     },
