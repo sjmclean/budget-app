@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type MouseEvent } from "react";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { evaluateAssignedInput } from "./evaluateAssignedInput";
@@ -120,6 +120,7 @@ function BudgetCategoryRow({
   isOverassignedSource,
   onSelect,
   onOpenCategoryEditor,
+  onOpenCategoryContextMenu,
   onAssignedChange,
   onActivityClick,
   isBudgetColumnVisible,
@@ -133,6 +134,7 @@ function BudgetCategoryRow({
   isOverassignedSource: boolean;
   onSelect: () => void;
   onOpenCategoryEditor: () => void;
+  onOpenCategoryContextMenu?: (event: MouseEvent<HTMLElement>) => void;
   onAssignedChange: (value: number) => void;
   onActivityClick: () => void;
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
@@ -174,6 +176,16 @@ function BudgetCategoryRow({
         isCreditCardPaymentCategory ? "budget-workspace-row-system" : "",
       ].filter(Boolean).join(" ")}
       onClick={onSelect}
+      onContextMenu={(event) => {
+        if (!onOpenCategoryContextMenu) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect();
+        onOpenCategoryContextMenu(event);
+      }}
       style={sortableStyle}
     >
       <div
@@ -306,6 +318,7 @@ export function BudgetGroup({
   overassignedCategoryIds,
   onSelectCategory,
   onOpenCategoryEditor,
+  onOpenCategoryContextMenu,
   onAssignedChange,
   onActivityClick,
   isBudgetColumnVisible,
@@ -318,6 +331,11 @@ export function BudgetGroup({
   overassignedCategoryIds: string[];
   onSelectCategory: (categoryId: string) => void;
   onOpenCategoryEditor: (categoryId: string) => void;
+  onOpenCategoryContextMenu?: (input: {
+    event: MouseEvent<HTMLElement>;
+    category: BudgetCategoryView;
+    group: BudgetCategoryGroupView;
+  }) => void;
   onAssignedChange: (categoryId: string, value: number) => void;
   onActivityClick: (categoryId: string) => void;
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
@@ -455,6 +473,16 @@ export function BudgetGroup({
               isOverassignedSource={isOverassignedSource}
               onSelect={() => onSelectCategory(category.id)}
               onOpenCategoryEditor={() => onOpenCategoryEditor(category.id)}
+              onOpenCategoryContextMenu={
+                onOpenCategoryContextMenu
+                  ? (event) =>
+                      onOpenCategoryContextMenu({
+                        event,
+                        category,
+                        group,
+                      })
+                  : undefined
+              }
               onAssignedChange={(value) => onAssignedChange(category.id, value)}
               onActivityClick={() => onActivityClick(category.id)}
               isBudgetColumnVisible={isBudgetColumnVisible}
