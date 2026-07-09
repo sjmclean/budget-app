@@ -1,4 +1,5 @@
 import type { KeyboardEvent, PointerEvent } from "react";
+import { getTableColumnResizeKeyAction } from "./tableLayoutResize";
 
 export function ColumnResizeHandle<TColumnId extends string>({
   columnId,
@@ -20,28 +21,30 @@ export function ColumnResizeHandle<TColumnId extends string>({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      onNudgeColumnWidth(columnId, -0.5);
+    const action = getTableColumnResizeKeyAction(event);
+
+    if (!action) {
+      return;
     }
 
-    if (event.key === "ArrowRight") {
-      event.preventDefault();
-      onNudgeColumnWidth(columnId, 0.5);
-    }
+    event.preventDefault();
+    event.stopPropagation();
 
-    if (event.key === "Home") {
-      event.preventDefault();
+    if (action.type === "reset") {
       onResetColumnWidth(columnId);
+      return;
     }
+
+    onNudgeColumnWidth(columnId, action.deltaRem);
   }
 
   return (
     <button
       className="table-layout-column-resize-handle"
       type="button"
-      aria-label={`Resize ${label} column. Drag, use left and right arrow keys, or double-click to reset.`}
-      title="Drag to resize. Use ←/→ to adjust. Double-click to reset width."
+      aria-label={`Resize ${label} column. Drag, use left and right arrow keys, hold Alt for fine adjustments, hold Shift for larger adjustments, or reset with Home or Enter.`}
+      aria-keyshortcuts="ArrowLeft ArrowRight Alt+ArrowLeft Alt+ArrowRight Shift+ArrowLeft Shift+ArrowRight Home Enter"
+      title="Drag to resize. Use ←/→ to adjust, Alt for fine steps, Shift for larger steps, Home/Enter to reset, or double-click to reset width."
       onPointerDown={handlePointerDown}
       onDoubleClick={(event) => {
         event.preventDefault();
