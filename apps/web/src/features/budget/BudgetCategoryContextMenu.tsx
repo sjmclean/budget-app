@@ -1,4 +1,4 @@
-import { Archive, BarChart3, Pencil, RotateCcw, Settings } from "lucide-react";
+import { Archive, ArrowRightLeft, BarChart3, Pencil, RotateCcw, Settings } from "lucide-react";
 import {
   FloatingMenu,
   FloatingMenuDivider,
@@ -8,6 +8,7 @@ import {
 } from "../floatingUi";
 import type { BudgetCategoryGroupView, BudgetCategoryView } from "./budgetViewTypes";
 import { isCreditCardPaymentCategory } from "./creditCardPaymentCategories";
+import { isMoneyNegative } from "./moneyMath";
 
 interface BudgetCategoryContextMenuProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface BudgetCategoryContextMenuProps {
   hasActivity: boolean;
   onClose: () => void;
   onOpenActivity: (categoryId: string) => void;
+  onOpenCoverOverspending: (categoryId: string) => void;
   onOpenManageCategory: (categoryId: string) => void;
   onRenameCategory: (categoryId: string) => void;
   onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
@@ -30,12 +32,16 @@ export function BudgetCategoryContextMenu({
   hasActivity,
   onClose,
   onOpenActivity,
+  onOpenCoverOverspending,
   onOpenManageCategory,
   onRenameCategory,
   onSetCategoryArchived,
 }: BudgetCategoryContextMenuProps) {
   const isManagedCategory = category
     ? isCreditCardPaymentCategory(category.id)
+    : false;
+  const canCoverOverspending = category
+    ? isMoneyNegative(category.available) && !isManagedCategory
     : false;
 
   if (!category || !group) {
@@ -67,6 +73,18 @@ export function BudgetCategoryContextMenu({
         }}
       >
         View Activity
+      </FloatingMenuItem>
+
+      <FloatingMenuItem
+        icon={ArrowRightLeft}
+        disabled={!canCoverOverspending}
+        title={canCoverOverspending ? "Cover overspending from another category" : "Only overspent editable categories can be covered"}
+        onClick={() => {
+          onClose();
+          onOpenCoverOverspending(category.id);
+        }}
+      >
+        Cover overspending from…
       </FloatingMenuItem>
 
       <FloatingMenuDivider />
