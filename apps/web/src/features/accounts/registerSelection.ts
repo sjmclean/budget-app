@@ -41,6 +41,19 @@ export function selectSingleRegisterTransaction(
   };
 }
 
+export function selectRegisterTransactions(
+  transactionIds: string[],
+): RegisterSelectionState {
+  const selectedIds = uniqueIds(transactionIds);
+  const focusedId = selectedIds.at(-1) ?? null;
+
+  return {
+    selectedIds,
+    anchorId: selectedIds[0] ?? null,
+    focusedId,
+  };
+}
+
 export function toggleRegisterTransactionSelection(
   state: RegisterSelectionState,
   transactionId: string,
