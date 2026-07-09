@@ -2,7 +2,9 @@ import type { SelectionAction } from "../../../components/ui/SelectionBar";
 import {
   FloatingMenu,
   FloatingMenuHeading,
+  FloatingMenuItem,
   FloatingMenuList,
+  type FloatingMenuItemVariant,
   type FloatingPosition,
 } from "../../floatingUi";
 
@@ -12,6 +14,16 @@ interface RegisterContextMenuProps {
   selectedCount: number;
   actions: SelectionAction[];
   onClose: () => void;
+}
+
+function resolveFloatingMenuItemVariant(
+  variant: SelectionAction["variant"],
+): FloatingMenuItemVariant {
+  if (variant === "danger" || variant === "success") {
+    return variant;
+  }
+
+  return "default";
 }
 
 export function RegisterContextMenu({
@@ -37,35 +49,23 @@ export function RegisterContextMenu({
       />
 
       <FloatingMenuList className="register-context-menu-list floating-menu-list">
-        {actions.map((action) => {
-          const Icon = action.icon ?? null;
-
-          return (
-            <button
-              key={action.id}
-              className={[
-                "register-context-menu-item",
-                action.variant === "danger" ? "register-context-menu-item-danger" : "",
-                action.variant === "success" ? "register-context-menu-item-success" : "",
-                action.pressed ? "register-context-menu-item-pressed" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              type="button"
-              role="menuitem"
-              aria-pressed={action.pressed ?? undefined}
-              disabled={action.disabled}
-              title={action.title}
-              onClick={() => {
-                onClose();
-                action.onClick();
-              }}
-            >
-              {Icon ? <Icon size={15} aria-hidden="true" /> : null}
-              <span>{action.label}</span>
-            </button>
-          );
-        })}
+        {actions.map((action) => (
+          <FloatingMenuItem
+            key={action.id}
+            className="register-context-menu-item"
+            icon={action.icon}
+            variant={resolveFloatingMenuItemVariant(action.variant)}
+            pressed={action.pressed}
+            disabled={action.disabled}
+            title={action.title}
+            onClick={() => {
+              onClose();
+              action.onClick();
+            }}
+          >
+            {action.label}
+          </FloatingMenuItem>
+        ))}
       </FloatingMenuList>
     </FloatingMenu>
   );
