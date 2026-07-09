@@ -29,6 +29,11 @@ assert.match(
 );
 assert.match(
   component,
+  /FloatingMenuItem/,
+  "Register context menu should use the shared floating menu item primitive.",
+);
+assert.match(
+  component,
   /register-context-menu-layer floating-menu-layer/,
   "Register context menu should keep register classes while adopting shared layer styling.",
 );
@@ -44,17 +49,12 @@ assert.match(
 );
 assert.match(
   component,
-  /action\.variant === "danger"/,
-  "Register context menu should preserve danger action styling.",
+  /resolveFloatingMenuItemVariant/,
+  "Register context menu should map selection action variants to floating menu item variants.",
 );
 assert.match(
   component,
-  /action\.variant === "success"/,
-  "Register context menu should preserve success action styling.",
-);
-assert.match(
-  component,
-  /action\.pressed/,
+  /pressed=\{action\.pressed\}/,
   "Register context menu should preserve pressed action state.",
 );
 assert.match(
