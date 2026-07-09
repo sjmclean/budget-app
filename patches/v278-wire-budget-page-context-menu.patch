@@ -1,0 +1,70 @@
+diff --git a/apps/web/src/pages/BudgetPage.tsx b/apps/web/src/pages/BudgetPage.tsx
+--- a/apps/web/src/pages/BudgetPage.tsx
++++ b/apps/web/src/pages/BudgetPage.tsx
+@@
+-import { useEffect, useMemo, useState } from "react";
++import { useEffect, useMemo, useState, type MouseEvent } from "react";
+@@
+ import { useBudgetDragDrop } from "../features/budget/useBudgetDragDrop";
++import { BudgetCategoryContextMenu } from "../features/budget/BudgetCategoryContextMenu";
++import { resolveFloatingPositionFromMouseEvent, type FloatingPosition } from "../features/floatingUi";
+@@
+ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
+@@
+   const [hideArchivedCategories, setHideArchivedCategories] = useState(false);
+   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
++  const [budgetContextMenu, setBudgetContextMenu] = useState<{
++    category: BudgetCategoryView;
++    group: BudgetCategoryGroupView;
++    position: Pick<FloatingPosition, "top" | "left">;
++  } | null>(null);
+@@
+   function openCategoryEditor(categoryId: string) {
+@@
+     setIsCategoryManagerOpen(true);
+   }
++
++  function closeBudgetContextMenu() {
++    setBudgetContextMenu(null);
++  }
++
++  function openBudgetContextMenu({
++    event,
++    category,
++    group,
++  }: {
++    event: MouseEvent<HTMLElement>;
++    category: BudgetCategoryView;
++    group: BudgetCategoryGroupView;
++  }) {
++    setBudgetContextMenu({
++      category,
++      group,
++      position: resolveFloatingPositionFromMouseEvent(event.nativeEvent, {
++        floatingSize: { width: 260, height: 260 },
++        viewport: { width: window.innerWidth, height: window.innerHeight },
++      }),
++    });
++  }
+@@
+                     onSelectCategory={selectCategory}
+                     onOpenCategoryEditor={openCategoryEditor}
++                    onOpenCategoryContextMenu={openBudgetContextMenu}
+                     onAssignedChange={updateAssigned}
+@@
+       <CategoryManagementDialog
+@@
+       />
++      <BudgetCategoryContextMenu
++        isOpen={Boolean(budgetContextMenu)}
++        position={budgetContextMenu?.position ?? null}
++        category={budgetContextMenu?.category ?? null}
++        group={budgetContextMenu?.group ?? null}
++        hasActivity={(budgetContextMenu?.category.activity ?? 0) !== 0}
++        onClose={closeBudgetContextMenu}
++        onOpenActivity={openActivityDrilldown}
++        onOpenManageCategory={openCategoryEditor}
++        onRenameCategory={openCategoryEditor}
++        onSetCategoryArchived={setCategoryArchived}
++      />
+       <BudgetActivityDrilldownModal
