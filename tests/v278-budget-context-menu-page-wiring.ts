@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const patch = readFileSync(
-  "patches/v278-wire-budget-page-context-menu.patch",
+const script = readFileSync(
+  "scripts/apply-v278-budget-context-menu-page-wiring.mjs",
   "utf8",
 );
 const groupComponent = readFileSync(
@@ -15,79 +15,79 @@ const contextMenu = readFileSync(
 );
 
 assert.match(
-  patch,
+  script,
   /BudgetCategoryContextMenu/,
-  "v278 patch should import and render the budget category context menu.",
+  "v278 script should import and render the budget category context menu.",
 );
 assert.match(
-  patch,
+  script,
   /resolveFloatingPositionFromMouseEvent/,
-  "v278 patch should use the shared floating positioning helper.",
+  "v278 script should use the shared floating positioning helper.",
 );
 assert.match(
-  patch,
+  script,
   /type FloatingPosition/,
-  "v278 patch should type the menu position using the shared floating UI type.",
+  "v278 script should type the menu position using the shared floating UI type.",
 );
 assert.match(
-  patch,
+  script,
   /type MouseEvent/,
-  "v278 patch should type the row context-menu event.",
+  "v278 script should type the row context-menu event.",
 );
 assert.match(
-  patch,
+  script,
   /budgetContextMenu/,
-  "v278 patch should add page-owned context menu state.",
+  "v278 script should add page-owned context menu state.",
 );
 assert.match(
-  patch,
+  script,
   /function closeBudgetContextMenu/,
-  "v278 patch should provide a close handler for the page-owned menu.",
+  "v278 script should provide a close handler for the page-owned menu.",
 );
 assert.match(
-  patch,
+  script,
   /function openBudgetContextMenu/,
-  "v278 patch should provide an open handler for row context-menu events.",
+  "v278 script should provide an open handler for row context-menu events.",
 );
 assert.match(
-  patch,
+  script,
   /event\.nativeEvent/,
-  "v278 patch should position the menu from the native mouse event.",
+  "v278 script should position the menu from the native mouse event.",
 );
 assert.match(
-  patch,
+  script,
   /viewport: \{ width: window\.innerWidth, height: window\.innerHeight \}/,
-  "v278 patch should provide viewport dimensions to the shared positioner.",
+  "v278 script should provide viewport dimensions to the shared positioner.",
 );
 assert.match(
-  patch,
+  script,
   /onOpenCategoryContextMenu=\{openBudgetContextMenu\}/,
-  "v278 patch should wire BudgetGroup rows to the page-level open handler.",
+  "v278 script should wire BudgetGroup rows to the page-level open handler.",
 );
 assert.match(
-  patch,
+  script,
   /onOpenActivity=\{openActivityDrilldown\}/,
-  "v278 patch should keep activity actions wired to the existing drilldown handler.",
+  "v278 script should keep activity actions wired to the existing drilldown handler.",
 );
 assert.match(
-  patch,
+  script,
   /onOpenManageCategory=\{openCategoryEditor\}/,
-  "v278 patch should keep manage actions wired to the existing category editor workflow.",
+  "v278 script should keep manage actions wired to the existing category editor workflow.",
 );
 assert.match(
-  patch,
+  script,
   /onSetCategoryArchived=\{setCategoryArchived\}/,
-  "v278 patch should keep archive actions wired to the existing archive workflow.",
+  "v278 script should keep archive actions wired to the existing archive workflow.",
 );
 assert.match(
   groupComponent,
   /onOpenCategoryContextMenu\?: \(input: \{/,
-  "BudgetGroup should expose the right-click payload required by the page patch.",
+  "BudgetGroup should expose the right-click payload required by the page script.",
 );
 assert.match(
   contextMenu,
   /BudgetCategoryContextMenu/,
-  "BudgetCategoryContextMenu should exist for the page patch to render.",
+  "BudgetCategoryContextMenu should exist for the page script to render.",
 );
 
-console.log("v2.78 budget context menu page wiring patch checks passed");
+console.log("v2.78 budget context menu page wiring script checks passed");
