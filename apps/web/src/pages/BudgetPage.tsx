@@ -38,6 +38,7 @@ import {
 import { buildBudgetInspectorState } from "../features/budget/budgetInspectorState";
 import { useBudgetDragDrop } from "../features/budget/useBudgetDragDrop";
 import { BudgetCategoryContextMenu } from "../features/budget/BudgetCategoryContextMenu";
+import { BudgetCoverOverspendingMenu } from "../features/budget/BudgetCoverOverspendingMenu";
 import { resolveFloatingPositionFromMouseEvent, type FloatingPosition } from "../features/floatingUi";
 import {
   BudgetGroup,
@@ -634,6 +635,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     group: BudgetCategoryGroupView;
     position: Pick<FloatingPosition, "top" | "left">;
   } | null>(null);
+  const [coverOverspendingMenu, setCoverOverspendingMenu] = useState<{
+    category: BudgetCategoryView;
+    position: Pick<FloatingPosition, "top" | "left">;
+  } | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(() =>
     getCurrentBudgetMonth(),
   );
@@ -750,6 +755,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     setBudgetContextMenu(null);
   }
 
+  function closeCoverOverspendingMenu() {
+    setCoverOverspendingMenu(null);
+  }
+
   function openBudgetContextMenu({
     event,
     category,
@@ -766,6 +775,19 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
         floatingSize: { width: 260, height: 260 },
         viewport: { width: window.innerWidth, height: window.innerHeight },
       }),
+    });
+  }
+
+  function openCoverOverspendingMenu(categoryId: string) {
+    const category = budgetContextMenu?.category;
+
+    if (!category || category.id !== categoryId) {
+      return;
+    }
+
+    setCoverOverspendingMenu({
+      category,
+      position: budgetContextMenu.position,
     });
   }
 
@@ -1011,9 +1033,22 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
         hasActivity={(budgetContextMenu?.category.activity ?? 0) !== 0}
         onClose={closeBudgetContextMenu}
         onOpenActivity={openActivityDrilldown}
+        onOpenCoverOverspending={openCoverOverspendingMenu}
         onOpenManageCategory={openCategoryEditor}
         onRenameCategory={openCategoryEditor}
         onSetCategoryArchived={setCategoryArchived}
+      />
+      <BudgetCoverOverspendingMenu
+        isOpen={Boolean(coverOverspendingMenu)}
+        position={coverOverspendingMenu?.position ?? null}
+        overspentCategory={coverOverspendingMenu?.category ?? null}
+        coverOptions={coverOptions}
+        currencyCode={data.currencyCode}
+        onClose={closeCoverOverspendingMenu}
+        onCoverOverspending={(input) => {
+          closeCoverOverspendingMenu();
+          coverOverspending(input);
+        }}
       />
       <BudgetActivityDrilldownModal
         drilldown={activityDrilldown}
