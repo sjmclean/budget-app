@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { DndContext } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -37,6 +37,8 @@ import {
 } from "../features/budget/budgetWorkspaceSelectors";
 import { buildBudgetInspectorState } from "../features/budget/budgetInspectorState";
 import { useBudgetDragDrop } from "../features/budget/useBudgetDragDrop";
+import { BudgetCategoryContextMenu } from "../features/budget/BudgetCategoryContextMenu";
+import { resolveFloatingPositionFromMouseEvent, type FloatingPosition } from "../features/floatingUi";
 import {
   BudgetGroup,
   getGroupSortableId,
@@ -627,6 +629,11 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const navigate = useNavigate();
   const [hideArchivedCategories, setHideArchivedCategories] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+  const [budgetContextMenu, setBudgetContextMenu] = useState<{
+    category: BudgetCategoryView;
+    group: BudgetCategoryGroupView;
+    position: Pick<FloatingPosition, "top" | "left">;
+  } | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(() =>
     getCurrentBudgetMonth(),
   );
@@ -737,6 +744,29 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
     selectCategory(categoryId);
     setIsCategoryManagerOpen(true);
+  }
+
+  function closeBudgetContextMenu() {
+    setBudgetContextMenu(null);
+  }
+
+  function openBudgetContextMenu({
+    event,
+    category,
+    group,
+  }: {
+    event: MouseEvent<HTMLElement>;
+    category: BudgetCategoryView;
+    group: BudgetCategoryGroupView;
+  }) {
+    setBudgetContextMenu({
+      category,
+      group,
+      position: resolveFloatingPositionFromMouseEvent(event.nativeEvent, {
+        floatingSize: { width: 260, height: 260 },
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+      }),
+    });
   }
 
   return (
@@ -870,6 +900,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                     overassignedCategoryIds={overassignedCategoryIds}
                     onSelectCategory={selectCategory}
                     onOpenCategoryEditor={openCategoryEditor}
+                    onOpenCategoryContextMenu={openBudgetContextMenu}
                     onAssignedChange={updateAssigned}
                     onActivityClick={openActivityDrilldown}
                     isBudgetColumnVisible={isBudgetColumnVisible}
@@ -971,6 +1002,18 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
         onRenameCategory={renameCategory}
         onSetCategoryArchived={setCategoryArchived}
         onUpdateCategoryNote={updateCategoryNote}
+      />
+      <BudgetCategoryContextMenu
+        isOpen={Boolean(budgetContextMenu)}
+        position={budgetContextMenu?.position ?? null}
+        category={budgetContextMenu?.category ?? null}
+        group={budgetContextMenu?.group ?? null}
+        hasActivity={(budgetContextMenu?.category.activity ?? 0) !== 0}
+        onClose={closeBudgetContextMenu}
+        onOpenActivity={openActivityDrilldown}
+        onOpenManageCategory={openCategoryEditor}
+        onRenameCategory={openCategoryEditor}
+        onSetCategoryArchived={setCategoryArchived}
       />
       <BudgetActivityDrilldownModal
         drilldown={activityDrilldown}
