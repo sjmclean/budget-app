@@ -1,9 +1,11 @@
-import type {
-  CSSProperties,
-  KeyboardEvent,
-  MouseEvent,
-  ReactNode,
-  RefObject,
+import {
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
 } from "react";
 import "./floatingMenu.css";
 
@@ -20,6 +22,7 @@ export interface FloatingMenuProps {
   } | null;
   onClose: () => void;
   floatingRef?: RefObject<HTMLElement | null>;
+  autoFocusFirstItem?: boolean;
 }
 
 function getFocusableMenuItems(menu: HTMLElement) {
@@ -39,6 +42,10 @@ function focusMenuItem(menu: HTMLElement, index: number) {
 
   const nextIndex = (index + items.length) % items.length;
   items[nextIndex]?.focus();
+}
+
+function focusFirstMenuItem(menu: HTMLElement) {
+  focusMenuItem(menu, 0);
 }
 
 function resolveFocusedMenuItemIndex(menu: HTMLElement) {
@@ -73,6 +80,22 @@ function handleFloatingMenuKeyDown(event: KeyboardEvent<HTMLElement>) {
   }
 }
 
+function useMergedFloatingRef(
+  externalRef: RefObject<HTMLElement | null> | undefined,
+) {
+  const internalRef = useRef<HTMLDivElement | null>(null);
+
+  const setRef = (node: HTMLDivElement | null) => {
+    internalRef.current = node;
+
+    if (externalRef && "current" in externalRef) {
+      (externalRef as { current: HTMLElement | null }).current = node;
+    }
+  };
+
+  return { internalRef, setRef };
+}
+
 export function FloatingMenu({
   isOpen,
   label,
@@ -83,7 +106,24 @@ export function FloatingMenu({
   position,
   onClose,
   floatingRef,
+  autoFocusFirstItem = true,
 }: FloatingMenuProps) {
+  const { internalRef, setRef } = useMergedFloatingRef(floatingRef);
+
+  useEffect(() => {
+    if (!isOpen || !position || !autoFocusFirstItem) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      const menu = internalRef.current;
+
+      if (menu) {
+        focusFirstMenuItem(menu);
+      }
+    });
+  }, [autoFocusFirstItem, internalRef, isOpen, position]);
+
   if (!isOpen || !position) {
     return null;
   }
@@ -108,7 +148,7 @@ export function FloatingMenu({
         role="menu"
         aria-label={label}
         style={panelStyle}
-        ref={floatingRef as RefObject<HTMLDivElement> | undefined}
+        ref={setRef}
         tabIndex={-1}
         onKeyDown={handleFloatingMenuKeyDown}
         onMouseDown={(event) => event.stopPropagation()}
