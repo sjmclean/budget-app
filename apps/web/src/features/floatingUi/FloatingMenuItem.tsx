@@ -1,11 +1,13 @@
-import type { ButtonHTMLAttributes, ComponentType, ReactNode } from "react";
+import type { ButtonHTMLAttributes, ComponentType, SVGProps, ReactNode } from "react";
 
 export type FloatingMenuItemVariant = "default" | "success" | "danger";
+
+type FloatingMenuItemIcon = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>;
 
 export interface FloatingMenuItemProps
   extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
   children: ReactNode;
-  icon?: ComponentType<{ size?: number; "aria-hidden"?: string | boolean }>;
+  icon?: FloatingMenuItemIcon;
   variant?: FloatingMenuItemVariant;
   pressed?: boolean;
 }
