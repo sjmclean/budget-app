@@ -29,6 +29,11 @@ assert.match(
 );
 assert.match(
   component,
+  /FloatingMenuItem/,
+  "Move transactions menu should use the shared floating menu item primitive.",
+);
+assert.match(
+  component,
   /register-move-popover-layer floating-menu-layer/,
   "Move transactions menu should keep move popover classes while adopting shared layer styling.",
 );
