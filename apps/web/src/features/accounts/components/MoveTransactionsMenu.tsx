@@ -2,6 +2,7 @@ import type { SidebarAccount } from "../accountService";
 import {
   FloatingMenu,
   FloatingMenuHeading,
+  FloatingMenuItem,
   FloatingMenuList,
   type FloatingPosition,
 } from "../../floatingUi";
@@ -72,10 +73,9 @@ export function MoveTransactionsMenu({
 
       <FloatingMenuList className="register-move-account-list floating-menu-list">
         {accounts.map((account) => (
-          <button
+          <FloatingMenuItem
             key={account.id}
-            type="button"
-            role="menuitem"
+            className="register-move-account-item"
             onClick={() => {
               onClose();
               onMoveTransactions(account.id);
@@ -85,7 +85,7 @@ export function MoveTransactionsMenu({
               {getMoveAccountIcon(account)}
             </span>
             <span>{account.name}</span>
-          </button>
+          </FloatingMenuItem>
         ))}
       </FloatingMenuList>
     </FloatingMenu>
