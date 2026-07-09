@@ -5,6 +5,7 @@ import {
   focusRegisterTransaction,
   isRegisterTransactionSelected,
   pruneRegisterSelection,
+  selectRegisterTransactions,
   selectRegisterTransactionRange,
   selectSingleRegisterTransaction,
   toggleRegisterTransactionSelection,
@@ -26,6 +27,7 @@ export interface RegisterSelectionController {
   hasSelection: boolean;
   isSelected: (transactionId: string) => boolean;
   selectSingle: (transactionId: string) => void;
+  selectAll: (transactionIds: string[]) => void;
   toggle: (transactionId: string) => void;
   selectRange: (transactionId: string) => void;
   selectFromPointer: (
@@ -47,6 +49,10 @@ export function useRegisterSelection(
 
   const selectSingle = useCallback((transactionId: string) => {
     setState(selectSingleRegisterTransaction(transactionId));
+  }, []);
+
+  const selectAll = useCallback((transactionIds: string[]) => {
+    setState(selectRegisterTransactions(transactionIds));
   }, []);
 
   const toggle = useCallback((transactionId: string) => {
@@ -118,6 +124,7 @@ export function useRegisterSelection(
       isSelected: (transactionId: string) =>
         isRegisterTransactionSelected(state, transactionId),
       selectSingle,
+      selectAll,
       toggle,
       selectRange,
       selectFromPointer,
@@ -131,6 +138,7 @@ export function useRegisterSelection(
       prune,
       selectFromPointer,
       selectRange,
+      selectAll,
       selectSingle,
       selectedCount,
       selectedIds,

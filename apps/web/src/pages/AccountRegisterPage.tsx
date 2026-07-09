@@ -656,6 +656,30 @@ export function AccountRegisterPage() {
     openMoveTransactions: openMoveTransactionDialog,
   });
   const hasRegisterActionSelection = registerSelectionActions.hasSelection;
+  const visibleSelectedRegisterTransactionCount = visibleTransactionIds.filter(
+    (transactionId) => registerSelection.isSelected(transactionId),
+  ).length;
+  const areAllVisibleRegisterTransactionsSelected =
+    visibleTransactionIds.length > 0 &&
+    visibleSelectedRegisterTransactionCount === visibleTransactionIds.length;
+  const isVisibleRegisterSelectionPartial =
+    visibleSelectedRegisterTransactionCount > 0 &&
+    !areAllVisibleRegisterTransactionsSelected;
+  const handleToggleVisibleRegisterSelection = useCallback(() => {
+    setEditingTransactionId(null);
+
+    if (areAllVisibleRegisterTransactionsSelected) {
+      clearRegisterSelection();
+      return;
+    }
+
+    registerSelection.selectAll(visibleTransactionIds);
+  }, [
+    areAllVisibleRegisterTransactionsSelected,
+    clearRegisterSelection,
+    registerSelection,
+    visibleTransactionIds,
+  ]);
 
   useEffect(() => {
     function handleRegisterSearchShortcut(event: globalThis.KeyboardEvent) {
@@ -816,7 +840,29 @@ export function AccountRegisterPage() {
         className="register-row-compact register-head register-head-compact"
         aria-label="Register column headings"
       >
-        <span className="register-compact-head-select" aria-label="Select" />
+        <span className="register-compact-head-select">
+          <input
+            className="register-checkbox register-checkbox-input register-head-select-checkbox"
+            type="checkbox"
+            checked={areAllVisibleRegisterTransactionsSelected}
+            aria-label={
+              areAllVisibleRegisterTransactionsSelected
+                ? "Deselect visible transactions"
+                : "Select visible transactions"
+            }
+            aria-checked={
+              isVisibleRegisterSelectionPartial
+                ? "mixed"
+                : areAllVisibleRegisterTransactionsSelected
+            }
+            ref={(node) => {
+              if (node) {
+                node.indeterminate = isVisibleRegisterSelectionPartial;
+              }
+            }}
+            onChange={handleToggleVisibleRegisterSelection}
+          />
+        </span>
         <span className="register-compact-head-date">Date</span>
         <span className="register-compact-head-flag">Flag</span>
         <span
@@ -862,7 +908,27 @@ export function AccountRegisterPage() {
             ) : column.id === "status" ? (
               "C"
             ) : column.id === "select" ? (
-              ""
+              <input
+                className="register-checkbox register-checkbox-input register-head-select-checkbox"
+                type="checkbox"
+                checked={areAllVisibleRegisterTransactionsSelected}
+                aria-label={
+                  areAllVisibleRegisterTransactionsSelected
+                    ? "Deselect visible transactions"
+                    : "Select visible transactions"
+                }
+                aria-checked={
+                  isVisibleRegisterSelectionPartial
+                    ? "mixed"
+                    : areAllVisibleRegisterTransactionsSelected
+                }
+                ref={(node) => {
+                  if (node) {
+                    node.indeterminate = isVisibleRegisterSelectionPartial;
+                  }
+                }}
+                onChange={handleToggleVisibleRegisterSelection}
+              />
             ) : (
               column.label
             )}

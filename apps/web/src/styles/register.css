@@ -404,6 +404,15 @@
   accent-color: var(--accent);
 }
 
+.register-head-select-checkbox {
+  justify-self: center;
+}
+
+.register-head-select-checkbox:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  outline-offset: 2px;
+}
+
 .register-payee-cell {
   display: grid;
   gap: 0.12rem;
