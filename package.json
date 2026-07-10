@@ -495,7 +495,8 @@
     "test:v266": "tsx tests/v266-register-context-menu.ts",
     "test:v282": "tsx tests/v282-register-header-multiselect-ux.ts",
     "test:v283:version-history-metadata-retention": "tsx tests/v283-version-history-metadata-retention.ts",
-    "test:v283": "pnpm test:v282 && pnpm test:v283:version-history-metadata-retention"
+    "test:v283": "pnpm test:v282 && pnpm test:v283:version-history-metadata-retention",
+    "test:v284": "tsx tests/v284-undo-redo-architecture.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
