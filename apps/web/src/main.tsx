@@ -7,6 +7,7 @@ import "./styles/globals.css";
 import "./styles/register.css";
 import "./styles/budgetCoverOverspending.css";
 import "./styles/topBarUndoRedo.css";
+import "./styles/budgetImportUx.css";
 
 async function bootstrapApp() {
   bootstrapHostPersistenceGateway();
