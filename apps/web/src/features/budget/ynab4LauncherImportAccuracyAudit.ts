@@ -903,6 +903,7 @@ function sourceBudgetMonthCategoryValues(
 ): Record<string, BudgetMonthCategoryValues> {
   const values: Record<string, BudgetMonthCategoryValues> = {};
   for (const row of toRecords(month.monthlySubCategoryBudgets)) {
+    if (isDeleted(row)) continue;
     const categoryId = firstString(
       row.categoryId,
       row.subCategoryId,
@@ -939,7 +940,7 @@ function budgetMonthSourceRowSchema(
   monthlyBudgets: RecordMap[],
 ): BudgetMonthSourceRowSchemaSummary {
   const rows = monthlyBudgets.flatMap((month) =>
-    toRecords(month.monthlySubCategoryBudgets),
+    toRecords(month.monthlySubCategoryBudgets).filter((row) => !isDeleted(row)),
   );
   return {
     totalRows: rows.length,
