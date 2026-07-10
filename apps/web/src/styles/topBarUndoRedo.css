@@ -1,0 +1,28 @@
+.topbar-history-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.topbar-history-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 5rem;
+}
+
+.topbar-history-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+@media (max-width: 680px) {
+  .topbar-history-controls {
+    width: 100%;
+  }
+
+  .topbar-history-button {
+    flex: 1 1 0;
+  }
+}
