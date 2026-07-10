@@ -110,6 +110,15 @@ export interface BudgetViewService {
     assigned: number;
   }): Promise<BudgetMonthView>;
 
+  setCategoryAssignedValues(input: {
+    budgetId: string;
+    month: string;
+    assignments: Array<{
+      categoryId: string;
+      assigned: number;
+    }>;
+  }): Promise<BudgetMonthView>;
+
   coverOverspending(input: {
     budgetId: string;
     month: string;

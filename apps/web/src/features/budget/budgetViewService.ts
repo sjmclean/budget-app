@@ -21,6 +21,7 @@ import {
   ensureCreditCardPaymentCategories,
   getCreditCardPaymentCategoryId,
 } from "./creditCardPaymentCategories";
+import { applyCategoryAssignedValues } from "./budgetMoneyMovement";
 import { isMoneyNegative, normaliseMoney } from "./moneyMath";
 
 const STORAGE_KEY_PREFIX = "budget-app.budget-view.v1";
@@ -789,6 +790,16 @@ export function createBudgetViewService(
     );
   },
 
+  async setCategoryAssignedValues({ budgetId, month, assignments }) {
+    const current = await loadBudgetView(dependencies, budgetId, month);
+
+    return saveBudgetView(
+      dependencies,
+      applyCategoryAssignedValues(current, assignments),
+      month,
+    );
+  },
+
   async coverOverspending({ budgetId, month, overspentCategoryId, coveringCategoryId, amount }) {
     if (amount <= 0) {
       throw new Error("Cover amount must be positive.");
@@ -824,32 +835,18 @@ export function createBudgetViewService(
       throw new Error("Covering category has insufficient available funds.");
     }
 
-    const nextGroups = current.categoryGroups.map((group) => ({
-      ...group,
-      categories: group.categories.map((category) => {
-        if (category.id === overspentCategoryId) {
-          return {
-            ...category,
-            assigned: normaliseMoney(category.assigned + amount),
-          };
-        }
-
-        if (category.id === coveringCategoryId) {
-          return {
-            ...category,
-            assigned: normaliseMoney(category.assigned - amount),
-          };
-        }
-
-        return category;
-      }),
-    }));
-
-    return saveBudgetView(dependencies,
-      {
-        ...current,
-        categoryGroups: nextGroups,
-      },
+    return saveBudgetView(
+      dependencies,
+      applyCategoryAssignedValues(current, [
+        {
+          categoryId: overspentCategoryId,
+          assigned: normaliseMoney(overspentCategory.assigned + amount),
+        },
+        {
+          categoryId: coveringCategoryId,
+          assigned: normaliseMoney(coveringCategory.assigned - amount),
+        },
+      ]),
       month,
     );
   },
