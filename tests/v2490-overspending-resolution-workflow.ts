@@ -141,8 +141,9 @@ function testBudgetPageExposesOverspendingResolutionUi() {
 
   assert.match(budgetTypes, /coverOverspending/, "Budget service should expose an atomic cover overspending command");
   assert.match(workspaceHook, /coverOverspending/, "Budget workspace hook should expose overspending resolution");
-  assert.match(budgetPage, /OverspendingResolutionPanel/, "Budget page should render the overspending resolution panel");
-  assert.match(budgetPage, /Cover overspending/, "Budget page should offer a clear cover action");
+  assert.doesNotMatch(budgetPage, /OverspendingResolutionPanel/, "Budget page should not embed overspending resolution in the inspector panel");
+  assert.match(budgetPage, /BudgetCoverOverspendingMenu/, "Budget page should render overspending resolution as a floating menu");
+  assert.match(budgetPage, /onOpenCoverOverspending=\{openCoverOverspendingMenuFromRow\}/, "Budget rows should offer a direct non-context-menu cover action");
   assert.match(packageJson, /test:v2490/, "Release scripts should include v2.49.0 checks");
 }
 

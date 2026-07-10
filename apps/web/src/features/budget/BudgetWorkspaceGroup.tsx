@@ -1,4 +1,5 @@
 import { useState, type CSSProperties, type MouseEvent } from "react";
+import { ArrowRightLeft } from "lucide-react";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { evaluateAssignedInput } from "./evaluateAssignedInput";
@@ -6,6 +7,7 @@ import type { BudgetCategoryGroupView, BudgetCategoryView } from "./budgetViewTy
 import { isCreditCardPaymentCategory } from "./creditCardPaymentCategories";
 import { formatMoney, getAvailableClass } from "./budgetMoneyDisplay";
 import { CategoryLabel } from "../icons/CategoryIcon";
+import { isMoneyNegative } from "./moneyMath";
 
 export type BudgetColumnId = "category" | "assigned" | "activity" | "available";
 type BudgetSortableKind = "category" | "group";
@@ -121,6 +123,7 @@ function BudgetCategoryRow({
   onSelect,
   onOpenCategoryEditor,
   onOpenCategoryContextMenu,
+  onOpenCoverOverspending,
   onAssignedChange,
   onActivityClick,
   isBudgetColumnVisible,
@@ -135,6 +138,7 @@ function BudgetCategoryRow({
   onSelect: () => void;
   onOpenCategoryEditor: () => void;
   onOpenCategoryContextMenu?: (event: MouseEvent<HTMLElement>) => void;
+  onOpenCoverOverspending?: (event: MouseEvent<HTMLElement>) => void;
   onAssignedChange: (value: number) => void;
   onActivityClick: () => void;
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
@@ -164,6 +168,10 @@ function BudgetCategoryRow({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+  const canCoverOverspending =
+    isMoneyNegative(category.available) &&
+    !isCreditCardPaymentCategory &&
+    Boolean(onOpenCoverOverspending);
 
   return (
     <button
@@ -301,11 +309,29 @@ function BudgetCategoryRow({
       ) : null}
 
       {isBudgetColumnVisible("available") ? (
-        <strong
-          className={getAvailableClass(category.available, isOverassignedSource)}
-        >
-          {formatMoney(category.available, currencyCode)}
-        </strong>
+        <span className="budget-available-action-cell">
+          <strong
+            className={getAvailableClass(category.available, isOverassignedSource)}
+          >
+            {formatMoney(category.available, currencyCode)}
+          </strong>
+          {canCoverOverspending ? (
+            <button
+              className="budget-cover-overspending-trigger"
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect();
+                onOpenCoverOverspending?.(event);
+              }}
+              title={`Cover overspending for ${category.name}`}
+              aria-label={`Cover overspending for ${category.name}`}
+            >
+              <ArrowRightLeft size={14} aria-hidden="true" />
+              <span className="visually-hidden">Cover overspending</span>
+            </button>
+          ) : null}
+        </span>
       ) : null}
     </button>
   );
@@ -319,6 +345,7 @@ export function BudgetGroup({
   onSelectCategory,
   onOpenCategoryEditor,
   onOpenCategoryContextMenu,
+  onOpenCoverOverspending,
   onAssignedChange,
   onActivityClick,
   isBudgetColumnVisible,
@@ -335,6 +362,10 @@ export function BudgetGroup({
     event: MouseEvent<HTMLElement>;
     category: BudgetCategoryView;
     group: BudgetCategoryGroupView;
+  }) => void;
+  onOpenCoverOverspending?: (input: {
+    event: MouseEvent<HTMLElement>;
+    category: BudgetCategoryView;
   }) => void;
   onAssignedChange: (categoryId: string, value: number) => void;
   onActivityClick: (categoryId: string) => void;
@@ -480,6 +511,15 @@ export function BudgetGroup({
                         event,
                         category,
                         group,
+                      })
+                  : undefined
+              }
+              onOpenCoverOverspending={
+                onOpenCoverOverspending
+                  ? (event) =>
+                      onOpenCoverOverspending({
+                        event,
+                        category,
                       })
                   : undefined
               }

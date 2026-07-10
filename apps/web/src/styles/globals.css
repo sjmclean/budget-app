@@ -68,6 +68,18 @@
   box-sizing: border-box;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -1134,6 +1146,43 @@ strong {
 .available-pill-negative {
   background: var(--negative-bg);
   color: var(--negative);
+}
+
+.budget-available-action-cell {
+  justify-self: start;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.budget-available-action-cell .available-pill {
+  min-width: 0;
+}
+
+.budget-cover-overspending-trigger {
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid color-mix(in srgb, var(--negative) 32%, var(--border));
+  border-radius: 999px;
+  background: var(--negative-bg);
+  color: var(--negative);
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+.budget-cover-overspending-trigger:hover,
+.budget-cover-overspending-trigger:focus-visible {
+  background: color-mix(in srgb, var(--negative-bg) 72%, var(--surface));
+  border-color: var(--negative);
+  outline: none;
+}
+
+.budget-cover-overspending-trigger:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--negative) 22%, transparent);
 }
 
 .budget-month-panel {
@@ -5223,41 +5272,6 @@ strong {
   .new-budget-stepper button {
     justify-content: flex-start;
   }
-}
-
-.overspending-resolution-panel {
-  display: grid;
-  gap: 0.85rem;
-  padding: 1rem;
-  border: 1px solid rgba(185, 28, 28, 0.2);
-  border-radius: 1rem;
-  background: rgba(254, 242, 242, 0.75);
-}
-
-.overspending-resolution-panel h3 {
-  margin: 0 0 0.25rem;
-  color: #991b1b;
-}
-
-.overspending-resolution-controls {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.overspending-resolution-field {
-  display: grid;
-  gap: 0.35rem;
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.overspending-resolution-field select,
-.overspending-resolution-field input {
-  border: 1px solid rgba(148, 163, 184, 0.55);
-  border-radius: 0.75rem;
-  padding: 0.65rem 0.75rem;
-  font: inherit;
-  background: rgba(255, 255, 255, 0.95);
 }
 
 .form-error-text {
