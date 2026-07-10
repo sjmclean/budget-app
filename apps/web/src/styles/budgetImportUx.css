@@ -1,0 +1,210 @@
+.budget-import-complete-report,
+.budget-import-progress-state {
+  color: var(--text);
+}
+
+.budget-import-complete-report {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: 0 0.65rem 1.6rem rgba(15, 23, 42, 0.08);
+}
+
+.budget-import-complete-report h2,
+.budget-import-complete-report p,
+.budget-import-complete-report span,
+.budget-import-complete-report li,
+.budget-import-progress-state h2,
+.budget-import-progress-state p,
+.budget-import-progress-panel h3,
+.budget-import-progress-panel p,
+.budget-import-progress-panel strong,
+.budget-import-progress-panel small {
+  color: inherit;
+}
+
+.budget-import-complete-report .eyebrow,
+.budget-import-progress-state .eyebrow {
+  color: var(--accent-strong);
+}
+
+.budget-import-complete-icon {
+  display: inline-grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--positive-bg);
+  color: var(--positive);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.ynab4-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.65rem;
+}
+
+.ynab4-summary-metric {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8rem;
+  background: var(--surface-subtle);
+}
+
+.ynab4-summary-metric strong {
+  color: var(--text);
+  font-size: 1.1rem;
+}
+
+.ynab4-summary-metric span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.ynab4-warning-list {
+  margin: 0;
+  padding: 0.8rem 0.8rem 0.8rem 1.8rem;
+  border: 1px solid color-mix(in srgb, var(--warning) 34%, var(--border-soft));
+  border-radius: 0.8rem;
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
+
+.budget-import-progress-state {
+  display: grid;
+  gap: 1rem;
+}
+
+.budget-import-progress-panel {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.budget-import-progress-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.budget-import-progress-heading h3,
+.budget-import-progress-heading p {
+  margin: 0;
+}
+
+.budget-import-progress-heading p {
+  margin-top: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.budget-import-progress-heading > strong {
+  color: var(--accent-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-import-progress-bar {
+  height: 0.55rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+}
+
+.budget-import-progress-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 220ms ease;
+}
+
+.budget-import-progress-steps {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.budget-import-progress-step {
+  display: grid;
+  grid-template-columns: 1.65rem minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border-soft);
+  opacity: 0.58;
+}
+
+.budget-import-progress-step:last-child {
+  border-bottom: 0;
+}
+
+.budget-import-progress-step > span:last-child {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.budget-import-progress-step strong {
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.budget-import-progress-step small {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.budget-import-progress-step-marker {
+  display: inline-grid;
+  width: 1.35rem;
+  height: 1.35rem;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.budget-import-progress-step-current,
+.budget-import-progress-step-complete {
+  opacity: 1;
+}
+
+.budget-import-progress-step-current .budget-import-progress-step-marker {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.budget-import-progress-step-complete .budget-import-progress-step-marker {
+  border-color: color-mix(in srgb, var(--positive) 45%, var(--border));
+  background: var(--positive-bg);
+  color: var(--positive);
+}
+
+@media (max-width: 42rem) {
+  .ynab4-summary-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .budget-import-progress-panel,
+  .budget-import-complete-report {
+    padding: 0.8rem;
+  }
+}
