@@ -1,0 +1,105 @@
+.budget-cover-menu {
+  width: min(28rem, calc(100vw - 1rem));
+  max-height: min(30rem, calc(100vh - 1rem));
+  overflow: hidden;
+}
+
+.budget-cover-menu-heading {
+  flex: 0 0 auto;
+}
+
+.budget-cover-source-list {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.25rem 0.35rem 0.45rem;
+}
+
+.budget-cover-source-group {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.budget-cover-source-group + .budget-cover-source-group {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.budget-cover-source-group-heading {
+  padding: 0.45rem 0.55rem 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.budget-cover-source-item {
+  min-width: 0;
+}
+
+.budget-cover-source-item > span {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.budget-cover-source-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.budget-cover-source-amount {
+  color: var(--positive);
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.budget-cover-menu-empty {
+  margin: 0;
+  padding: 0.9rem 1rem 1rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.budget-available-action-cell {
+  justify-self: start;
+  min-width: 0;
+}
+
+.budget-available-cover-button {
+  border: 1px solid transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.budget-available-cover-button:hover {
+  border-color: color-mix(in srgb, var(--negative) 42%, var(--border));
+  filter: brightness(0.98);
+}
+
+.budget-available-cover-button:focus-visible {
+  border-color: var(--negative);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--negative) 22%, transparent);
+}
+
+@media (max-width: 520px) {
+  .budget-cover-menu {
+    width: calc(100vw - 0.75rem);
+    max-height: calc(100vh - 0.75rem);
+  }
+
+  .budget-cover-source-item > span {
+    gap: 0.65rem;
+  }
+}
