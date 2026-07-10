@@ -11,20 +11,35 @@ import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 
 export const VERSION_HISTORY_INDEX_SCHEMA = "budget-app.version-history-index.v1";
 export const VERSION_HISTORY_SNAPSHOT_SCHEMA = "budget-app.version-history-snapshot.v1";
-export const VERSION_HISTORY_RELEASE = "v2.33.0";
+export const VERSION_HISTORY_RELEASE = "v2.83.0";
 export const DEFAULT_VERSION_HISTORY_LIMIT = 30;
 
 const VERSION_HISTORY_INDEX_LOGICAL_KEY = "budget-app.version-history-index.v1";
 const VERSION_HISTORY_SNAPSHOT_LOGICAL_PREFIX = "budget-app.version-history-snapshot.v1";
 
 export type VersionHistorySnapshotSource = "automatic" | "manual";
+export type VersionHistorySnapshotOrigin = "automatic" | "manual";
+export type VersionHistoryCheckpointReason =
+  | "manual-version"
+  | "timed-dirty-budget-checkpoint"
+  | "daily-checkpoint"
+  | "before-delete"
+  | "before-reset"
+  | "before-import"
+  | "after-import"
+  | "before-budget-switch";
 
 export interface VersionHistorySnapshotMetadata {
   id: string;
   budgetId: string;
   budgetName: string;
   createdAt: string;
+  timestamp: string;
   release: typeof VERSION_HISTORY_RELEASE;
+  reason: VersionHistoryCheckpointReason;
+  changedAreas: string[];
+  approximateChanges: string;
+  origin: VersionHistorySnapshotOrigin;
   source: VersionHistorySnapshotSource;
   description?: string;
 }
@@ -44,6 +59,10 @@ export interface VersionHistorySnapshotPackage {
 
 export interface CreateVersionHistorySnapshotInput {
   description?: string;
+  reason?: VersionHistoryCheckpointReason;
+  changedAreas?: string[];
+  approximateChanges?: string;
+  origin?: VersionHistorySnapshotOrigin;
   source?: VersionHistorySnapshotSource;
   now?: Date;
   retentionLimit?: number;
@@ -92,6 +111,37 @@ function normaliseDescription(description?: string): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+function normaliseReason(value: unknown, origin: VersionHistorySnapshotOrigin): VersionHistoryCheckpointReason {
+  switch (value) {
+    case "timed-dirty-budget-checkpoint":
+    case "daily-checkpoint":
+    case "before-delete":
+    case "before-reset":
+    case "before-import":
+    case "after-import":
+    case "before-budget-switch":
+    case "manual-version":
+      return value;
+    default:
+      return origin === "manual" ? "manual-version" : "timed-dirty-budget-checkpoint";
+  }
+}
+
+function normaliseChangedAreas(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return [...new Set(value
+    .map((area) => typeof area === "string" ? area.trim() : "")
+    .filter(Boolean))];
+}
+
+function normaliseApproximateChanges(value: unknown): string {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  return trimmed || "unknown";
+}
+
 function createSnapshotId(now: Date): string {
   const timestamp = now.toISOString().replace(/[^0-9]/g, "").slice(0, 14);
   const random = Math.random().toString(36).slice(2, 10);
@@ -110,9 +160,19 @@ function normaliseSnapshotMetadata(value: unknown): VersionHistorySnapshotMetada
   const id = typeof value.id === "string" ? value.id.trim() : "";
   const budgetId = typeof value.budgetId === "string" ? value.budgetId.trim() : "";
   const budgetName = typeof value.budgetName === "string" ? value.budgetName.trim() : "";
-  const createdAt = typeof value.createdAt === "string" ? value.createdAt.trim() : "";
-  const source = value.source === "manual" ? "manual" : "automatic";
+  const createdAt = typeof value.createdAt === "string"
+    ? value.createdAt.trim()
+    : typeof value.timestamp === "string"
+      ? value.timestamp.trim()
+      : "";
+  const origin: VersionHistorySnapshotOrigin = value.origin === "manual" || value.source === "manual"
+    ? "manual"
+    : "automatic";
+  const source: VersionHistorySnapshotSource = origin;
   const description = normaliseDescription(typeof value.description === "string" ? value.description : undefined);
+  const changedAreas = normaliseChangedAreas(value.changedAreas);
+  const approximateChanges = normaliseApproximateChanges(value.approximateChanges);
+  const reason = normaliseReason(value.reason, origin);
 
   if (!id || !budgetId || !budgetName || !createdAt) {
     return null;
@@ -123,7 +183,12 @@ function normaliseSnapshotMetadata(value: unknown): VersionHistorySnapshotMetada
     budgetId,
     budgetName,
     createdAt,
+    timestamp: createdAt,
     release: VERSION_HISTORY_RELEASE,
+    reason,
+    changedAreas,
+    approximateChanges,
+    origin,
     source,
     ...(description ? { description } : {}),
   };
@@ -141,6 +206,77 @@ function sortSnapshotsOldestFirst(snapshots: VersionHistorySnapshotMetadata[]): 
     const byDate = left.createdAt.localeCompare(right.createdAt);
     return byDate !== 0 ? byDate : left.id.localeCompare(right.id);
   });
+}
+
+function getAgeHours(createdAt: string, now: Date): number {
+  const created = new Date(createdAt).getTime();
+  if (!Number.isFinite(created)) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return Math.max(0, (now.getTime() - created) / 3_600_000);
+}
+
+function getIsoWeekBucket(date: Date): string {
+  const utc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = utc.getUTCDay() || 7;
+  utc.setUTCDate(utc.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((utc.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
+  return `${utc.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+function retentionBucketForSnapshot(snapshot: VersionHistorySnapshotMetadata, now: Date): string {
+  const date = new Date(snapshot.createdAt);
+  if (!Number.isFinite(date.getTime())) {
+    return `unknown:${snapshot.id}`;
+  }
+
+  const ageHours = getAgeHours(snapshot.createdAt, now);
+  const iso = date.toISOString();
+
+  if (ageHours < 24) {
+    return `hour:${iso.slice(0, 13)}`;
+  }
+
+  if (ageHours < 24 * 7) {
+    return `day:${iso.slice(0, 10)}`;
+  }
+
+  if (ageHours < 24 * 35) {
+    return `week:${getIsoWeekBucket(date)}`;
+  }
+
+  return `month:${iso.slice(0, 7)}`;
+}
+
+export function applyVersionHistoryTimeBucketRetention(
+  snapshots: VersionHistorySnapshotMetadata[],
+  retentionLimit = DEFAULT_VERSION_HISTORY_LIMIT,
+  now: Date = new Date(),
+): { retainedSnapshots: VersionHistorySnapshotMetadata[]; prunedSnapshots: VersionHistorySnapshotMetadata[] } {
+  const limit = Math.max(1, Math.floor(retentionLimit));
+  const newestFirst = sortSnapshotsNewestFirst(snapshots);
+  const retainedIds = new Set<string>();
+  const seenBuckets = new Set<string>();
+
+  for (const snapshot of newestFirst) {
+    const bucket = retentionBucketForSnapshot(snapshot, now);
+    if (!seenBuckets.has(bucket)) {
+      retainedIds.add(snapshot.id);
+      seenBuckets.add(bucket);
+    }
+  }
+
+  const bucketRetained = newestFirst.filter((snapshot) => retainedIds.has(snapshot.id));
+  const retainedSnapshots = bucketRetained.slice(0, limit);
+  const finalRetainedIds = new Set(retainedSnapshots.map((snapshot) => snapshot.id));
+  const prunedSnapshots = sortSnapshotsOldestFirst(newestFirst.filter((snapshot) => !finalRetainedIds.has(snapshot.id)));
+
+  return {
+    retainedSnapshots,
+    prunedSnapshots,
+  };
 }
 
 function readVersionHistoryIndex(storage: KeyValueStoragePort, budgetId: string): VersionHistoryIndex {
@@ -227,17 +363,26 @@ function createVersionHistorySnapshotForResolvedBudget(
   const retentionLimit = Math.max(1, Math.floor(input.retentionLimit ?? DEFAULT_VERSION_HISTORY_LIMIT));
   const snapshotId = input.snapshotId?.trim() || createSnapshotId(now);
   const description = normaliseDescription(input.description);
+  const origin: VersionHistorySnapshotOrigin = input.origin ?? input.source ?? (description ? "manual" : "automatic");
+  const reason = normaliseReason(input.reason, origin);
+  const changedAreas = normaliseChangedAreas(input.changedAreas);
+  const approximateChanges = normaliseApproximateChanges(input.approximateChanges);
   const metadata: VersionHistorySnapshotMetadata = {
     id: snapshotId,
     budgetId: activeBudget.id,
     budgetName: activeBudget.name,
     createdAt,
+    timestamp: createdAt,
     release: VERSION_HISTORY_RELEASE,
-    source: input.source ?? (description ? "manual" : "automatic"),
+    reason,
+    changedAreas,
+    approximateChanges,
+    origin,
+    source: origin,
     ...(description ? { description } : {}),
   };
 
-  const budgetPackage = createBudgetDataExportPackageForBudget(storage, "backup", activeBudget.id, now);
+  const budgetPackage = createBudgetDataExportPackageForBudget(storage, "export", activeBudget.id, now);
   const snapshotPackage: VersionHistorySnapshotPackage = {
     schema: VERSION_HISTORY_SNAPSHOT_SCHEMA,
     metadata,
@@ -249,9 +394,11 @@ function createVersionHistorySnapshotForResolvedBudget(
   const index = readVersionHistoryIndex(storage, activeBudget.id);
   const withoutDuplicate = index.snapshots.filter((snapshot) => snapshot.id !== snapshotId);
   const snapshots = sortSnapshotsNewestFirst([...withoutDuplicate, metadata]);
-  const prunedSnapshots = sortSnapshotsOldestFirst(snapshots).slice(0, Math.max(0, snapshots.length - retentionLimit));
-  const prunedIds = new Set(prunedSnapshots.map((snapshot) => snapshot.id));
-  const retainedSnapshots = snapshots.filter((snapshot) => !prunedIds.has(snapshot.id));
+  const { retainedSnapshots, prunedSnapshots } = applyVersionHistoryTimeBucketRetention(
+    snapshots,
+    retentionLimit,
+    now,
+  );
 
   pruneSnapshotPayloads(storage, activeBudget.id, prunedSnapshots);
   writeVersionHistoryIndex(storage, {

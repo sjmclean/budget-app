@@ -2,6 +2,7 @@ import { SELECTED_BUDGET_STORAGE_KEY, getBudgetScopedStorageKey } from "./budget
 import {
   createVersionHistorySnapshot,
   createVersionHistorySnapshotForBudget,
+  type VersionHistoryCheckpointReason,
   type CreateVersionHistorySnapshotResult,
 } from "./versionHistory";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
@@ -9,6 +10,7 @@ import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 export const VERSION_HISTORY_LIFECYCLE_RELEASE = "v2.48.0";
 
 export type VersionHistoryLifecycleEvent =
+  | "timed-dirty-budget-checkpoint"
   | "budget-switch"
   | "ynab4-import-completed"
   | "actual-import-completed"
@@ -25,6 +27,8 @@ export interface VersionHistoryLifecycleSnapshotResult extends CreateVersionHist
 export interface VersionHistoryLifecycleSnapshotInput {
   now?: Date;
   description?: string;
+  changedAreas?: string[];
+  approximateChanges?: string;
 }
 
 const DAILY_SNAPSHOT_LOGICAL_KEY = "budget-app.version-history-daily-marker.v1";
@@ -68,6 +72,8 @@ function descriptionForEvent(event: VersionHistoryLifecycleEvent, description?: 
   }
 
   switch (event) {
+    case "timed-dirty-budget-checkpoint":
+      return "Timed automatic restore point for unsaved budget changes.";
     case "budget-switch":
       return "Automatic restore point before switching budgets.";
     case "ynab4-import-completed":
@@ -85,6 +91,72 @@ function descriptionForEvent(event: VersionHistoryLifecycleEvent, description?: 
   }
 }
 
+function reasonForEvent(event: VersionHistoryLifecycleEvent): VersionHistoryCheckpointReason {
+  switch (event) {
+    case "timed-dirty-budget-checkpoint":
+      return "timed-dirty-budget-checkpoint";
+    case "budget-switch":
+      return "before-budget-switch";
+    case "ynab4-import-completed":
+    case "actual-import-completed":
+      return "after-import";
+    case "budget-import-start":
+      return "before-import";
+    case "budget-reset":
+      return "before-reset";
+    case "budget-delete":
+      return "before-delete";
+    case "daily-app-open":
+      return "daily-checkpoint";
+  }
+}
+
+function changedAreasForEvent(event: VersionHistoryLifecycleEvent, changedAreas?: string[]): string[] {
+  if (changedAreas?.length) {
+    return changedAreas;
+  }
+
+  switch (event) {
+    case "timed-dirty-budget-checkpoint":
+      return ["budget data"];
+    case "budget-switch":
+      return ["active budget"];
+    case "ynab4-import-completed":
+      return ["YNAB4 import", "budget data"];
+    case "actual-import-completed":
+      return ["Actual Budget import", "budget data"];
+    case "budget-import-start":
+      return ["budget data", "import"];
+    case "budget-reset":
+      return ["budget data", "settings"];
+    case "budget-delete":
+      return ["budget registry", "budget data"];
+    case "daily-app-open":
+      return ["budget data"];
+  }
+}
+
+function approximateChangesForEvent(event: VersionHistoryLifecycleEvent, approximateChanges?: string): string {
+  if (approximateChanges?.trim()) {
+    return approximateChanges.trim();
+  }
+
+  switch (event) {
+    case "timed-dirty-budget-checkpoint":
+      return "dirty-budget interval";
+    case "budget-switch":
+    case "daily-app-open":
+      return "low";
+    case "budget-import-start":
+    case "budget-reset":
+    case "budget-delete":
+      return "potentially high";
+    case "ynab4-import-completed":
+    case "actual-import-completed":
+      return "import-sized";
+  }
+}
+
 function createAutomaticLifecycleSnapshot(
   storage: KeyValueStoragePort,
   event: VersionHistoryLifecycleEvent,
@@ -95,7 +167,11 @@ function createAutomaticLifecycleSnapshot(
       event,
       ...createVersionHistorySnapshot(storage, {
         source: "automatic",
+        origin: "automatic",
+        reason: reasonForEvent(event),
         description: descriptionForEvent(event, input.description),
+        changedAreas: changedAreasForEvent(event, input.changedAreas),
+        approximateChanges: approximateChangesForEvent(event, input.approximateChanges),
         now: input.now,
       }),
     };
@@ -115,7 +191,11 @@ function createAutomaticLifecycleSnapshotForBudget(
       event,
       ...createVersionHistorySnapshotForBudget(storage, budgetId, {
         source: "automatic",
+        origin: "automatic",
+        reason: reasonForEvent(event),
         description: descriptionForEvent(event, input.description),
+        changedAreas: changedAreasForEvent(event, input.changedAreas),
+        approximateChanges: approximateChangesForEvent(event, input.approximateChanges),
         now: input.now,
       }),
     };
@@ -224,4 +304,26 @@ export function createDailyVersionHistorySnapshotOnAppOpen(
   }
 
   return result;
+}
+
+export function createTimedDirtyBudgetVersionHistoryCheckpoint(
+  storage: KeyValueStoragePort,
+  input: VersionHistoryLifecycleSnapshotInput = {},
+): VersionHistoryLifecycleSnapshotResult {
+  try {
+    return {
+      event: "timed-dirty-budget-checkpoint",
+      ...createVersionHistorySnapshot(storage, {
+        source: "automatic",
+        origin: "automatic",
+        reason: "timed-dirty-budget-checkpoint",
+        description: input.description ?? "Timed automatic restore point for unsaved budget changes.",
+        changedAreas: input.changedAreas ?? ["budget data"],
+        approximateChanges: input.approximateChanges ?? "dirty-budget interval",
+        now: input.now,
+      }),
+    };
+  } catch (error) {
+    return failed("timed-dirty-budget-checkpoint", error);
+  }
 }

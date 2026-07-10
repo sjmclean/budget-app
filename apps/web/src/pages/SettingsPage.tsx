@@ -178,6 +178,21 @@ function describeSnapshot(snapshot: VersionHistorySnapshotMetadata): string {
   return "Created automatically by Budget App.";
 }
 
+function formatSnapshotReason(snapshot: VersionHistorySnapshotMetadata): string {
+  return snapshot.reason
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function formatSnapshotOrigin(snapshot: VersionHistorySnapshotMetadata): string {
+  return snapshot.origin === "manual" ? "Manual" : "Automatic";
+}
+
+function formatSnapshotChangedAreas(snapshot: VersionHistorySnapshotMetadata): string {
+  return snapshot.changedAreas.length ? snapshot.changedAreas.join(", ") : "Not specified";
+}
+
 function groupSnapshotsByDate(
   snapshots: VersionHistorySnapshotMetadata[],
 ): Array<{ label: string; snapshots: VersionHistorySnapshotMetadata[] }> {
@@ -886,7 +901,8 @@ export function SettingsPage({
                     <h2>Restore Points</h2>
                     <p className="muted">
                       Budget App automatically keeps the last 30 restore points for {activeBudget?.name ?? "the active budget"}.
-                      Choose a point in time and restore when you need to recover your budget.
+                      Choose a point in time and restore when you need to recover your budget. Version History is separate from
+                      Undo/Redo and exported backup packages.
                     </p>
                   </div>
                   <Button type="button" variant="ghost" onClick={() => setDataView("overview")}>
@@ -954,6 +970,22 @@ export function SettingsPage({
                             <dt>Description</dt>
                             <dd>{describeSnapshot(selectedSnapshot)}</dd>
                           </div>
+                          <div>
+                            <dt>Origin</dt>
+                            <dd>{formatSnapshotOrigin(selectedSnapshot)}</dd>
+                          </div>
+                          <div>
+                            <dt>Reason</dt>
+                            <dd>{formatSnapshotReason(selectedSnapshot)}</dd>
+                          </div>
+                          <div>
+                            <dt>Changed areas</dt>
+                            <dd>{formatSnapshotChangedAreas(selectedSnapshot)}</dd>
+                          </div>
+                          <div>
+                            <dt>Approximate changes</dt>
+                            <dd>{selectedSnapshot.approximateChanges}</dd>
+                          </div>
                         </dl>
 
                         <p className="settings-history-warning">
@@ -976,7 +1008,7 @@ export function SettingsPage({
                 </div>
 
                 <p className="settings-history-summary">
-                  Showing {historySnapshots.length} of 30 restore points. Older entries are removed automatically.
+                  Showing {historySnapshots.length} of 30 restore points. Older entries are thinned by time bucket automatically.
                 </p>
               </>
             )}
