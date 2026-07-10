@@ -5,6 +5,7 @@ import { bootstrapHostPersistenceGateway } from "./features/persistence";
 import { hydrateBrowserStorageBackend } from "./features/persistence/keyValueStoragePort";
 import "./styles/globals.css";
 import "./styles/register.css";
+import "./styles/budgetCoverOverspending.css";
 
 async function bootstrapApp() {
   bootstrapHostPersistenceGateway();
