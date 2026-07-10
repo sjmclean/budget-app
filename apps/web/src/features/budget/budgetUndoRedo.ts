@@ -9,10 +9,15 @@ import {
   type BudgetMoneyMovementContext,
   type MoveBudgetMoneyCommandInput,
 } from "./budgetMoneyMovement";
+import {
+  executeBudgetAssignmentChangesWithUndo,
+  type BudgetAssignmentChangesCommandInput,
+} from "./budgetAssignmentEditing";
 
 interface BudgetUndoRedoOwner {
   key: string;
   context: BudgetMoneyMovementContext;
+  flushPending?: () => void | Promise<void>;
 }
 
 let owner: BudgetUndoRedoOwner | null = null;
@@ -40,12 +45,13 @@ const EMPTY_SNAPSHOT: UndoRedoSnapshot = {
 export function registerBudgetUndoRedoContext(
   key: string,
   context: BudgetMoneyMovementContext,
+  options: { flushPending?: () => void | Promise<void> } = {},
 ): () => void {
   if (owner?.key !== key) {
     controller.clear();
   }
 
-  owner = { key, context };
+  owner = { key, context, flushPending: options.flushPending };
 
   return () => {
     if (owner?.key === key) {
@@ -61,11 +67,23 @@ export function executeUndoableBudgetMoneyMovement(
   return moveBudgetMoneyWithUndo(controller, input);
 }
 
-export function undoBudgetAction(): Promise<UndoRedoResult> {
+export function executeUndoableBudgetAssignmentChanges(
+  input: BudgetAssignmentChangesCommandInput,
+): Promise<UndoRedoResult> {
+  return executeBudgetAssignmentChangesWithUndo(controller, input);
+}
+
+async function flushPendingBudgetEdits(): Promise<void> {
+  await owner?.flushPending?.();
+}
+
+export async function undoBudgetAction(): Promise<UndoRedoResult> {
+  await flushPendingBudgetEdits();
   return controller.undo();
 }
 
-export function redoBudgetAction(): Promise<UndoRedoResult> {
+export async function redoBudgetAction(): Promise<UndoRedoResult> {
+  await flushPendingBudgetEdits();
   return controller.redo();
 }
 
