@@ -459,6 +459,8 @@ function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategor
     drafts.push(draft);
   }
 
+  suppressDuplicateArchivedCategories(drafts, maps);
+
   return drafts
     .filter((group) => group.categories.length > 0)
     .map(({ sourceIds: _sourceIds, ...group }) => group);
