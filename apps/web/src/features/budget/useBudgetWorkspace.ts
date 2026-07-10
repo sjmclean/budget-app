@@ -9,6 +9,10 @@ import type {
   CategoryMergePreview,
 } from "./budgetViewTypes";
 import { isMoneyNegative } from "./moneyMath";
+import {
+  executeUndoableBudgetMoneyMovement,
+  registerBudgetUndoRedoContext,
+} from "./budgetUndoRedo";
 
 interface UseBudgetWorkspaceState {
   data: BudgetMonthView | null;
@@ -59,7 +63,9 @@ export function useBudgetWorkspace(
   budgetId: string,
   month: string,
 ): UseBudgetWorkspaceState {
-  const categoriesPersistence = getAppPersistenceGateway().categories;
+  const persistenceGateway = getAppPersistenceGateway();
+  const categoriesPersistence = persistenceGateway.categories;
+  const budgetViewPersistence = persistenceGateway.budgetView;
   const budgetView = useBudgetView(budgetId, month);
   const [editedData, setEditedData] = useState<BudgetMonthView | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
@@ -77,6 +83,26 @@ export function useBudgetWorkspace(
     useState<BudgetActivityDrilldown | null>(null);
   const [isActivityDrilldownLoading, setIsActivityDrilldownLoading] =
     useState(false);
+
+  useEffect(() =>
+    registerBudgetUndoRedoContext(`${budgetId}:${month}`, {
+      getBudgetMonthView(requestedMonth) {
+        return budgetViewPersistence.getBudgetMonthView({
+          budgetId,
+          month: requestedMonth,
+        });
+      },
+      async setCategoryAssignedValues({ month: requestedMonth, assignments }) {
+        const nextData = await budgetViewPersistence.setCategoryAssignedValues({
+          budgetId,
+          month: requestedMonth,
+          assignments,
+        });
+        setEditedData(nextData);
+        return nextData;
+      },
+    }),
+  [budgetId, budgetViewPersistence, month]);
 
   useEffect(() => {
     setEditedData(null);
@@ -195,25 +221,41 @@ export function useBudgetWorkspace(
     setLastEditedCategoryId(input.overspentCategoryId);
     setSaveError(null);
 
-    void categoriesPersistence
-      .coverOverspending({
-        budgetId,
-        month,
-        overspentCategoryId: input.overspentCategoryId,
-        coveringCategoryId: input.coveringCategoryId,
-        amount: input.amount,
-      })
-      .then((nextData) => {
-        setEditedData(nextData);
+    const coveringCategory = data?.categoryGroups
+      .flatMap((group) => group.categories)
+      .find((category) => category.id === input.coveringCategoryId);
+    const overspentCategory = data?.categoryGroups
+      .flatMap((group) => group.categories)
+      .find((category) => category.id === input.overspentCategoryId);
+
+    if (!coveringCategory || !overspentCategory) {
+      setSaveError("Unable to find the categories required to cover overspending.");
+      return;
+    }
+
+    if (!Number.isFinite(input.amount) || input.amount <= 0) {
+      setSaveError("Cover amount must be positive.");
+      return;
+    }
+
+    if (coveringCategory.available < input.amount) {
+      setSaveError("Covering category has insufficient available funds.");
+      return;
+    }
+
+    void executeUndoableBudgetMoneyMovement({
+      month,
+      sourceCategoryId: input.coveringCategoryId,
+      destinationCategoryId: input.overspentCategoryId,
+      amount: input.amount,
+    }).then((result) => {
+      if (result.performed) {
         setSelectedCategoryId(input.overspentCategoryId);
-      })
-      .catch((error) => {
-        setSaveError(
-          error instanceof Error
-            ? error.message
-            : "Failed to cover overspending.",
-        );
-      });
+        return;
+      }
+
+      setSaveError(result.error ?? "Failed to cover overspending.");
+    });
   }
 
   function renameCategory(categoryId: string, name: string) {

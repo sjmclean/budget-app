@@ -26,7 +26,14 @@ export function TopBar() {
   } = useBudgetUndoRedo();
 
   useEffect(() => {
-    const handleKeyDown = createUndoRedoKeyboardHandler({ undo, redo });
+    const handleKeyDown = createUndoRedoKeyboardHandler({
+      undo: async () => {
+        await undo();
+      },
+      redo: async () => {
+        await redo();
+      },
+    });
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
