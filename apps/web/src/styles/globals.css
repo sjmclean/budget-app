@@ -1148,43 +1148,6 @@ strong {
   color: var(--negative);
 }
 
-.budget-available-action-cell {
-  justify-self: start;
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.budget-available-action-cell .available-pill {
-  min-width: 0;
-}
-
-.budget-cover-overspending-trigger {
-  width: 1.85rem;
-  height: 1.85rem;
-  border: 1px solid color-mix(in srgb, var(--negative) 32%, var(--border));
-  border-radius: 999px;
-  background: var(--negative-bg);
-  color: var(--negative);
-  cursor: pointer;
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 auto;
-  padding: 0;
-}
-
-.budget-cover-overspending-trigger:hover,
-.budget-cover-overspending-trigger:focus-visible {
-  background: color-mix(in srgb, var(--negative-bg) 72%, var(--surface));
-  border-color: var(--negative);
-  outline: none;
-}
-
-.budget-cover-overspending-trigger:focus-visible {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--negative) 22%, transparent);
-}
-
 .budget-month-panel {
   display: grid;
   gap: 0.75rem;

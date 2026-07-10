@@ -1,5 +1,4 @@
 import { useState, type CSSProperties, type MouseEvent } from "react";
-import { ArrowRightLeft } from "lucide-react";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { evaluateAssignedInput } from "./evaluateAssignedInput";
@@ -310,14 +309,12 @@ function BudgetCategoryRow({
 
       {isBudgetColumnVisible("available") ? (
         <span className="budget-available-action-cell">
-          <strong
-            className={getAvailableClass(category.available, isOverassignedSource)}
-          >
-            {formatMoney(category.available, currencyCode)}
-          </strong>
           {canCoverOverspending ? (
             <button
-              className="budget-cover-overspending-trigger"
+              className={`${getAvailableClass(
+                category.available,
+                isOverassignedSource,
+              )} budget-available-cover-button`}
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
@@ -327,10 +324,18 @@ function BudgetCategoryRow({
               title={`Cover overspending for ${category.name}`}
               aria-label={`Cover overspending for ${category.name}`}
             >
-              <ArrowRightLeft size={14} aria-hidden="true" />
-              <span className="visually-hidden">Cover overspending</span>
+              {formatMoney(category.available, currencyCode)}
             </button>
-          ) : null}
+          ) : (
+            <strong
+              className={getAvailableClass(
+                category.available,
+                isOverassignedSource,
+              )}
+            >
+              {formatMoney(category.available, currencyCode)}
+            </strong>
+          )}
         </span>
       ) : null}
     </button>
