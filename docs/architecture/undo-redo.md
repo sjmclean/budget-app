@@ -10,11 +10,11 @@ Undoable commands live in `apps/web/src/features/history`. Each command has a st
 
 Commands should capture only the state required to reverse their own action. For example, a future rename command should capture the previous and next names, not a whole budget snapshot. Commands should not hold React state, component instances, storage handles for persistence, or Version History data.
 
-Large workflows can later be represented as composite commands that execute and undo smaller commands in a deliberate order. v284 only establishes the shared infrastructure and a test command; it does not migrate existing production workflows.
+Large workflows can later be represented as composite commands that execute and undo smaller commands in a deliberate order.
 
 ## Production Example: Money Movement
 
-The money movement command is the first production-grade command. It moves assigned money between two budget categories, is created by `createMoveBudgetMoneyCommand` in `apps/web/src/features/budget/budgetMoneyMovement.ts`, and is executed through the v284 controller like any other `UndoableCommand`.
+The money movement command moves assigned money between two budget categories and is created by `createMoveBudgetMoneyCommand` in `apps/web/src/features/budget/budgetMoneyMovement.ts`.
 
 The command captures only the state required to reverse itself: month, source category ID, destination category ID, movement amount, original source assigned amount, and original destination assigned amount. It does not store a whole budget snapshot.
 
@@ -24,9 +24,24 @@ Execute applies the intended movement:
 - destination assigned increases by the movement amount
 - total assigned money remains unchanged
 
-Undo restores the captured original assigned amounts exactly. It does not subtract the reverse amount from the current values, because later recalculation, decimal precision, or another local mutation could make reverse arithmetic restore the wrong values. The captured originals are the authoritative pre-command state.
+Undo restores the captured original assigned amounts exactly. Redo reapplies the deterministic target amounts derived from those captured originals and the original movement amount.
 
-Redo reapplies the deterministic target amounts derived from those captured originals and the original movement amount. Failed execute operations do not enter the undo stack; failed undo and redo operations leave their command on the stack they came from.
+## Grouped Manual Assignment Editing
+
+Manual edits to Assigned values use a separate `BudgetAssignmentChangesCommand`. The budget grid remains fluid: each edit is reflected optimistically, while edits made within a short idle window are collected into one assignment-edit session.
+
+For example:
+
+- Emergency Fund: 500 to 450
+- Mobile: 100 to 150
+
+becomes one history entry: `Change 2 budget assignments`.
+
+The command captures the original and final Assigned value for every touched category. Undo restores all original values atomically, and Redo reapplies all final values atomically. Repeated edits to the same category retain the first original value and the latest final value. Returning a category to its original value removes it from the pending session.
+
+Explicit Move Money and Cover Overspending remain separate commands with more descriptive labels. Both command types share the same controller and history stack.
+
+Pending manual edits are flushed before Undo or Redo, so an immediate keyboard shortcut reverses the complete pending assignment session rather than missing uncommitted grid edits.
 
 ## Controller
 
@@ -37,5 +52,3 @@ The undo stack is not persisted. Closing or refreshing the app clears session-le
 ## Boundaries
 
 Persistence, automatic snapshots, Version History, and backup packages must not depend on the undo stack. Undo/Redo is for short-lived action reversal. Version History is for point-in-time recovery. Backup packages are for portability and disaster recovery.
-
-Keyboard shortcuts are resolved through the history helper but are not globally registered in v284. Future callers may wire Ctrl+Z/Cmd+Z and redo shortcuts into specific app shells when that can be done without changing existing editing behavior.
