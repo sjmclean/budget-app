@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getAppPersistenceGateway } from "../persistence";
 import { useBudgetView } from "./useBudgetView";
 import type {
@@ -9,7 +9,10 @@ import type {
   CategoryMergePreview,
 } from "./budgetViewTypes";
 import { isMoneyNegative } from "./moneyMath";
+import { applyCategoryAssignedValues } from "./budgetMoneyMovement";
+import { createBudgetAssignmentEditSession } from "./budgetAssignmentEditing";
 import {
+  executeUndoableBudgetAssignmentChanges,
   executeUndoableBudgetMoneyMovement,
   registerBudgetUndoRedoContext,
 } from "./budgetUndoRedo";
@@ -83,6 +86,9 @@ export function useBudgetWorkspace(
     useState<BudgetActivityDrilldown | null>(null);
   const [isActivityDrilldownLoading, setIsActivityDrilldownLoading] =
     useState(false);
+  const assignmentEditSessionRef = useRef(createBudgetAssignmentEditSession());
+  const assignmentEditTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dataRef = useRef<BudgetMonthView | null>(null);
 
   useEffect(() =>
     registerBudgetUndoRedoContext(`${budgetId}:${month}`, {
@@ -101,6 +107,8 @@ export function useBudgetWorkspace(
         setEditedData(nextData);
         return nextData;
       },
+    }, {
+      flushPending: () => flushPendingAssignmentEdits(),
     }),
   [budgetId, budgetViewPersistence, month]);
 
@@ -115,6 +123,24 @@ export function useBudgetWorkspace(
   }, [budgetId, month]);
 
   const data = editedData ?? budgetView.data;
+  dataRef.current = data;
+
+  async function flushPendingAssignmentEdits() {
+    if (assignmentEditTimerRef.current) {
+      clearTimeout(assignmentEditTimerRef.current);
+      assignmentEditTimerRef.current = null;
+    }
+
+    const changes = assignmentEditSessionRef.current.consume();
+    if (changes.length === 0) {
+      return;
+    }
+
+    const result = await executeUndoableBudgetAssignmentChanges({ month, changes });
+    if (!result.performed) {
+      setSaveError(result.error ?? "Failed to save budget assignment changes.");
+    }
+  }
 
   const selected = useMemo(() => {
     if (!data || !selectedCategoryId) {
@@ -191,26 +217,36 @@ export function useBudgetWorkspace(
   }
 
   function updateAssigned(categoryId: string, assigned: number) {
+    const currentData = dataRef.current;
+    const category = currentData?.categoryGroups
+      .flatMap((group) => group.categories)
+      .find((item) => item.id === categoryId);
+
+    if (!currentData || !category) {
+      setSaveError("Unable to find the category being edited.");
+      return;
+    }
+
     setLastEditedCategoryId(categoryId);
     setSaveError(null);
+    assignmentEditSessionRef.current.record({
+      categoryId,
+      categoryName: category.name,
+      originalAssigned: category.assigned,
+      finalAssigned: assigned,
+    });
 
-    void categoriesPersistence
-      .updateAssigned({
-        budgetId,
-        month,
-        categoryId,
-        assigned,
-      })
-      .then((nextData) => {
-        setEditedData(nextData);
-      })
-      .catch((error) => {
-        setSaveError(
-          error instanceof Error
-            ? error.message
-            : "Failed to save category assignment.",
-        );
-      });
+    setEditedData(
+      applyCategoryAssignedValues(currentData, [{ categoryId, assigned }]),
+    );
+
+    if (assignmentEditTimerRef.current) {
+      clearTimeout(assignmentEditTimerRef.current);
+    }
+
+    assignmentEditTimerRef.current = setTimeout(() => {
+      void flushPendingAssignmentEdits();
+    }, 1800);
   }
 
   function coverOverspending(input: {
