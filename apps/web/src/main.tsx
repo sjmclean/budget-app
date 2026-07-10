@@ -6,6 +6,7 @@ import { hydrateBrowserStorageBackend } from "./features/persistence/keyValueSto
 import "./styles/globals.css";
 import "./styles/register.css";
 import "./styles/budgetCoverOverspending.css";
+import "./styles/topBarUndoRedo.css";
 
 async function bootstrapApp() {
   bootstrapHostPersistenceGateway();
