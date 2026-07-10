@@ -873,6 +873,7 @@ function mapBudgetMonthViews(
     const categoryById = new Map(groups.flatMap((group) => group.categories.map((category) => [category.id, category] as const)));
 
     for (const row of toRecords(monthlyBudget.monthlySubCategoryBudgets)) {
+      if (isYnab4Tombstone(row)) continue;
       const categoryId = mappedId(maps.categoryIdBySourceId, row.categoryId, row.subCategoryId);
       const category = categoryId ? categoryById.get(categoryId) : undefined;
       if (!category) continue;
@@ -968,6 +969,7 @@ function buildBudgetedCategoryIdsByMonth(
     if (!month) continue;
 
     for (const row of toRecords(monthlyBudget.monthlySubCategoryBudgets)) {
+      if (isYnab4Tombstone(row)) continue;
       const categoryId = mappedId(maps.categoryIdBySourceId, row.categoryId, row.subCategoryId);
       if (!categoryId) continue;
       const categoryIds = budgetedCategoryIdsByMonth.get(month) ?? new Set<string>();
