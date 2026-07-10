@@ -21,6 +21,7 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import {
   BudgetImportProgressIndicator,
+  type BudgetImportProgressCounts,
   type BudgetImportProgressPhase,
 } from "./BudgetImportProgress";
 
@@ -37,6 +38,18 @@ function attachDirectoryPickerAttributes(input: HTMLInputElement | null) {
 }
 
 const actualBudgetImportProviderService = new BudgetImportProviderApplicationService();
+
+const IMPORT_PHASE_DWELL_MS = 240;
+
+async function showImportPhase(
+  setPhase: (phase: BudgetImportProgressPhase) => void,
+  phase: BudgetImportProgressPhase,
+): Promise<void> {
+  setPhase(phase);
+  await new Promise<void>((resolve) => {
+    window.setTimeout(resolve, IMPORT_PHASE_DWELL_MS);
+  });
+}
 
 interface BrowserFileSystemEntry {
   readonly isFile: boolean;
@@ -121,6 +134,8 @@ export function BudgetImportDialog({
     useState<BudgetImportProgressPhase>("idle");
   const [budgetImportResult, setBudgetImportResult] =
     useState<BudgetImportResultSummary | null>(null);
+  const [budgetImportProgressCounts, setBudgetImportProgressCounts] =
+    useState<BudgetImportProgressCounts | null>(null);
   const [pendingCreditCardImport, setPendingCreditCardImport] =
     useState<PendingCreditCardBehaviourImport | null>(null);
   const [isBudgetImportDragActive, setIsBudgetImportDragActive] = useState(false);
@@ -133,12 +148,13 @@ export function BudgetImportDialog({
     entries: Ynab4PackageEntry[];
     creditCardBehaviour?: CreditCardBehaviour;
   }) {
-    setBudgetImportProgressPhase("importing-accounts");
-
     try {
+      await showImportPhase(setBudgetImportProgressPhase, "importing-accounts");
+      await showImportPhase(setBudgetImportProgressPhase, "importing-categories");
+      await showImportPhase(setBudgetImportProgressPhase, "importing-payees");
       setBudgetImportProgressPhase("importing-transactions");
       const result = await importYnab4Budget(input);
-      setBudgetImportProgressPhase("finalising");
+      await showImportPhase(setBudgetImportProgressPhase, "finalising");
       onImportedBudgetSelected(result.budget.id);
       setBudgetImportProgressPhase("complete");
       setBudgetImportResult({
@@ -177,19 +193,19 @@ export function BudgetImportDialog({
     }
 
     setIsImportingActual(true);
-    setBudgetImportProgressPhase("importing-accounts");
     setActualStatus(`Importing ${preview.providerLabel}…`);
 
     try {
-      setBudgetImportProgressPhase("importing-categories");
-      setBudgetImportProgressPhase("importing-payees");
+      await showImportPhase(setBudgetImportProgressPhase, "importing-accounts");
+      await showImportPhase(setBudgetImportProgressPhase, "importing-categories");
+      await showImportPhase(setBudgetImportProgressPhase, "importing-payees");
       setBudgetImportProgressPhase("importing-transactions");
       const result = await importActualBudget({
         preview,
         sourceFileName,
         creditCardBehaviour,
       });
-      setBudgetImportProgressPhase("finalising");
+      await showImportPhase(setBudgetImportProgressPhase, "finalising");
       onImportedBudgetSelected(result.budget.id);
       setBudgetImportProgressPhase("complete");
       setBudgetImportResult({
@@ -226,6 +242,7 @@ export function BudgetImportDialog({
     setActualError(null);
     setYnabError(null);
     setBudgetImportResult(null);
+    setBudgetImportProgressCounts(null);
     setPendingCreditCardImport(null);
   }
 
@@ -261,6 +278,13 @@ export function BudgetImportDialog({
       }
 
       setBudgetImportProgressPhase("inspecting");
+      setBudgetImportProgressCounts({
+        accounts: preview.accounts.length,
+        categoryGroups: preview.categoryGroups.length,
+        categories: preview.categories.length,
+        payees: preview.payees.length,
+        transactions: preview.transactions.length,
+      });
 
       if (actualPreviewContainsCreditCards(preview)) {
         setBudgetImportProgressPhase("idle");
@@ -362,6 +386,14 @@ export function BudgetImportDialog({
     try {
       setBudgetImportProgressPhase("detecting");
       const discovery = discoverYnab4Package(entries);
+      setBudgetImportProgressCounts({
+        accounts: discovery.counts.accounts,
+        categoryGroups: discovery.counts.masterCategories,
+        categories: discovery.counts.categories,
+        payees: discovery.counts.payees,
+        transactions: discovery.counts.transactions,
+        scheduledTransactions: discovery.counts.scheduledTransactions,
+      });
       setBudgetImportProgressPhase("inspecting");
       const preview = createYnab4PackageMigrationPreview(
         discovery,
@@ -419,13 +451,9 @@ export function BudgetImportDialog({
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
 
-        setYnabError(
-          error instanceof Error
-            ? error.message
-            : "Unable to read the selected YNAB4 folder.",
-        );
-        setBudgetImportProgressPhase("failed");
-        return;
+        // Some browsers expose showDirectoryPicker but block it outside a secure
+        // context or after a permissions failure. Fall back to the widely
+        // supported webkitdirectory input instead of leaving folder browsing unusable.
       }
     }
 
@@ -539,7 +567,10 @@ export function BudgetImportDialog({
             <h2>{isImportingActual || isAnalysingActual ? "Importing budget…" : "Preparing import…"}</h2>
             <p>{actualStatus}</p>
           </div>
-          <BudgetImportProgressIndicator phase={budgetImportProgressPhase} />
+          <BudgetImportProgressIndicator
+            phase={budgetImportProgressPhase}
+            counts={budgetImportProgressCounts}
+          />
         </div>
       ) : (
         <>
