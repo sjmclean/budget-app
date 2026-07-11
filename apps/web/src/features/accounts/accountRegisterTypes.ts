@@ -37,6 +37,7 @@ export interface RegisterTransactionView {
   id: string;
   date: string;
   flag: TransactionFlag;
+  tagIds?: string[];
   attachmentCount: number;
   attachments?: RegisterAttachmentView[];
   payee: string;
@@ -73,6 +74,7 @@ export interface AccountRegisterView {
 export interface NewRegisterTransactionInput {
   date: string;
   flag?: TransactionFlag;
+  tagIds?: string[];
   payee: string;
   payeeId?: string;
   category: string;
@@ -91,6 +93,7 @@ export interface UpdateRegisterTransactionInput {
   id: string;
   date: string;
   flag?: TransactionFlag;
+  tagIds?: string[];
   payee: string;
   payeeId?: string;
   category: string;
