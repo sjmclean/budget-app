@@ -286,6 +286,10 @@ export class BrowserPersistentAccountRegisterService
           input.transaction.flag === undefined
             ? existing.flag
             : input.transaction.flag,
+        tagIds:
+          input.transaction.tagIds === undefined
+            ? normaliseTagIds(existing.tagIds)
+            : normaliseTagIds(input.transaction.tagIds),
         payee: existing.payee,
         category: "Transfer",
         memo: input.transaction.memo,
@@ -339,6 +343,10 @@ export class BrowserPersistentAccountRegisterService
             input.transaction.flag === undefined
               ? transaction.flag
               : input.transaction.flag,
+          tagIds:
+            input.transaction.tagIds === undefined
+              ? normaliseTagIds(transaction.tagIds)
+              : normaliseTagIds(input.transaction.tagIds),
           payee: input.transaction.payee,
           payeeId,
           category: input.transaction.category,
@@ -767,6 +775,7 @@ function createTransactionView(
     id: createId(),
     date: input.date,
     flag: input.flag ?? null,
+    tagIds: normaliseTagIds(input.tagIds),
     attachmentCount: 0,
     attachments: [],
     payee: input.payee,
@@ -1017,6 +1026,7 @@ function createEmptyRegister(
               id: `${accountId}-opening-balance`,
               date: new Date().toISOString().slice(0, 10),
               flag: null,
+              tagIds: [],
               attachmentCount: 0,
               attachments: [],
               payee: "Starting Balance",
@@ -1071,6 +1081,7 @@ function recalculateRegister(
 
       return {
         ...transaction,
+        tagIds: normaliseTagIds(transaction.tagIds),
         attachments,
         attachmentCount: attachments.length || transaction.attachmentCount || 0,
         payeeId:
@@ -1120,6 +1131,7 @@ function cloneRegister(register: AccountRegisterView): AccountRegisterView {
     ...register,
     transactions: register.transactions.map((transaction) => ({
       ...transaction,
+      tagIds: normaliseTagIds(transaction.tagIds),
       attachments: normaliseAttachments(transaction.attachments),
       attachmentCount:
         normaliseAttachments(transaction.attachments).length ||
@@ -1160,6 +1172,16 @@ function createId(): string {
   }
 
   return `tx-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function normaliseTagIds(tagIds: readonly string[] | undefined): string[] {
+  return Array.from(
+    new Set(
+      (tagIds ?? [])
+        .map((tagId) => tagId.trim())
+        .filter(Boolean),
+    ),
+  );
 }
 
 function normaliseCheckNumber(

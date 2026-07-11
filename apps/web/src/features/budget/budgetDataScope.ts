@@ -9,6 +9,7 @@ const BUDGET_SCOPED_EXACT_KEYS = new Set([
   "budget-app.account-registers.v1",
   "budget-app.payees.v1",
   "budget-app.scheduled-transactions.v1",
+  "budget-app.transaction-tags.v1",
 ]);
 
 const BUDGET_SCOPED_KEY_PREFIXES = [
