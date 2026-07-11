@@ -121,6 +121,7 @@ interface RegisterToolbarProps {
   onResetColumns: () => void;
   onOpenImport: () => void;
   onOpenPayeeManager: () => void;
+  onOpenTagManager: () => void;
   onToggleScheduled: () => void;
   scheduledDueCount: number;
   categoryFilter: "all" | "uncategorised";
@@ -151,6 +152,7 @@ export function RegisterToolbar({
   onResetColumns,
   onOpenImport,
   onOpenPayeeManager,
+  onOpenTagManager,
   onToggleScheduled,
   scheduledDueCount,
   categoryFilter,
@@ -270,6 +272,17 @@ export function RegisterToolbar({
                   }}
                 >
                   Manage Payees
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    onOpenTagManager();
+                    closeMenu({ restoreFocus: true });
+                  }}
+                >
+                  Manage Tags
                 </button>
 
                 <button

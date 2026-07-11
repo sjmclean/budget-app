@@ -45,7 +45,13 @@ import {
 } from "../features/accounts/registerSearch";
 import type { SidebarAccount } from "../features/accounts/accountService";
 import { getAppPersistenceGateway } from "../features/persistence";
+import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
+import { createBudgetScopedStorage } from "../features/budget/budgetDataScope";
+import {
+  TransactionTagManager,
+  createTransactionTagService,
+} from "../features/tags";
 import { ColumnResizeHandle } from "../features/tableLayout/ColumnResizeHandle";
 import {
   buildTableRowStyle,
@@ -178,6 +184,13 @@ export function AccountRegisterPage() {
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
+  const transactionTagService = useMemo(
+    () =>
+      createTransactionTagService({
+        storage: createBudgetScopedStorage(browserLocalStorageKeyValueStorage),
+      }),
+    [activeBudgetId],
+  );
   const accountsPersistence = persistenceGateway.accounts;
   const payeesPersistence = persistenceGateway.payees;
   const categoriesPersistence = persistenceGateway.categories;
@@ -218,6 +231,8 @@ export function AccountRegisterPage() {
     useState<{ bottom: number; left: number } | null>(null);
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
+  const [isTransactionTagManagerOpen, setIsTransactionTagManagerOpen] =
+    useState(false);
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
   const [registerContextMenuPosition, setRegisterContextMenuPosition] =
     useState<RegisterContextMenuPosition | null>(null);
@@ -977,6 +992,7 @@ export function AccountRegisterPage() {
             onResetColumns={registerTableLayout.resetLayout}
             onOpenImport={() => setIsTransactionImportOpen(true)}
             onOpenPayeeManager={() => setIsPayeeManagerOpen(true)}
+            onOpenTagManager={() => setIsTransactionTagManagerOpen(true)}
             onToggleScheduled={() => setIsScheduledOpen((current) => !current)}
             scheduledDueCount={scheduledDueCount}
             categoryFilter={categoryFilter}
@@ -1014,6 +1030,27 @@ export function AccountRegisterPage() {
             await addTransaction(input);
           }}
         />
+
+        {isTransactionTagManagerOpen ? (
+          <div className="payee-manager-overlay" role="presentation">
+            <Card className="payee-manager-panel transaction-tag-manager-panel">
+              <div className="payee-manager-header">
+                <div>
+                  <h2>Manage Tags</h2>
+                  <p>Create and maintain reusable transaction tags.</p>
+                </div>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => setIsTransactionTagManagerOpen(false)}
+                >
+                  Close
+                </button>
+              </div>
+              <TransactionTagManager service={transactionTagService} />
+            </Card>
+          </div>
+        ) : null}
 
         {isPayeeManagerOpen && (
           <div className="payee-manager-overlay" role="presentation">
