@@ -61,10 +61,7 @@ import {
   buildTableRowStyle,
   useTableLayout,
 } from "../features/tableLayout/tableLayout";
-import type {
-  RegisterTransactionView,
-  TransactionFlag,
-} from "../features/accounts/accountRegisterTypes";
+import type { RegisterTransactionView } from "../features/accounts/accountRegisterTypes";
 import type { BudgetCategoryOption } from "../features/budget/budgetViewTypes";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
@@ -202,6 +199,10 @@ export function AccountRegisterPage() {
           removeTransactionTagReferences(transactionTagStorage, tagId),
       }),
     [transactionTagStorage],
+  );
+  const transactionTags = useMemo(
+    () => transactionTagService.listTags(),
+    [transactionTagService],
   );
   const accountsPersistence = persistenceGateway.accounts;
   const payeesPersistence = persistenceGateway.payees;
@@ -587,7 +588,6 @@ export function AccountRegisterPage() {
     registerCommands.toggleClearedTransaction;
   const handleManageTransactionAttachments =
     registerCommands.manageTransactionAttachments;
-  const handleUpdateTransactionFlag = registerCommands.updateTransactionFlag;
 
   const handleOpenRegisterContextMenu = useCallback(
     (transactionId: string, event: MouseEvent<HTMLElement>) => {
@@ -891,7 +891,7 @@ export function AccountRegisterPage() {
           />
         </span>
         <span className="register-compact-head-date">Date</span>
-        <span className="register-compact-head-flag">Flag</span>
+        <span className="register-compact-head-tags">Tags</span>
         <span
           className="register-compact-head-attachments"
           aria-label="Attachments"
@@ -1535,7 +1535,7 @@ export function AccountRegisterPage() {
                     onManageTransactionAttachments={
                       handleManageTransactionAttachments
                     }
-                    onUpdateTransactionFlag={handleUpdateTransactionFlag}
+                    tags={transactionTags}
                     onOpenContextMenu={handleOpenRegisterContextMenu}
                     visibleColumns={registerTableLayout.visibleColumnSet}
                     rowStyle={registerTableLayout.rowStyle}

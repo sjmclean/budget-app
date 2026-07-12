@@ -8,7 +8,7 @@ export const REGISTER_COLUMN_DEFINITIONS: readonly TableColumnDefinition<Registe
   [
     { id: "select", label: "Select", template: "1.8rem", widthRem: 1.8, minWidthRem: 1.6 },
     { id: "date", label: "Date", template: "minmax(5.2rem, 6.4rem)", widthRem: 6.4, minWidthRem: 5.2 },
-    { id: "flag", label: "Flag", template: "2.2rem", widthRem: 2.2, minWidthRem: 2, canHide: true },
+    { id: "tags", label: "Tags", template: "2.2rem", widthRem: 2.2, minWidthRem: 2, canHide: true },
     { id: "attachments", label: "Attachments", template: "2.2rem", widthRem: 2.2, minWidthRem: 2, canHide: true },
     { id: "payee", label: "Payee", template: "minmax(6.5rem, 1.45fr)", widthRem: 11, minWidthRem: 6.5 },
     { id: "category", label: "Category", template: "minmax(6.5rem, 1.2fr)", widthRem: 10, minWidthRem: 6.5 },

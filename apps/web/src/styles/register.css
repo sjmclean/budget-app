@@ -487,6 +487,55 @@
   color: var(--accent-strong);
 }
 
+
+.transaction-tag-indicator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  color: var(--text-muted);
+}
+
+.transaction-tag-indicator-assigned {
+  color: currentColor;
+}
+
+.transaction-tag-count {
+  position: absolute;
+  right: -0.1rem;
+  bottom: -0.05rem;
+  min-width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  background: var(--surface-raised, var(--surface));
+  color: var(--text);
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 0.85rem;
+  text-align: center;
+}
+
+:root {
+  --tag-red: #dc5548;
+  --tag-gray: #747b88;
+  --tag-orange: #ed7d2b;
+  --tag-yellow: #e7b72d;
+  --tag-lime: #8bc735;
+  --tag-green: #60bd67;
+  --tag-emerald: #57b484;
+  --tag-teal: #55aca4;
+  --tag-cyan: #56afd0;
+  --tag-blue: #4f7fe8;
+  --tag-indigo: #5c63df;
+  --tag-purple: #a755d1;
+  --tag-pink: #df5795;
+  --tag-brown: #936646;
+  --tag-slate: #425166;
+  --tag-black: #24272d;
+}
+
 .transaction-flag {
   width: 0.42rem;
   height: 0.42rem;
@@ -2324,7 +2373,7 @@
   background: var(--surface);
 }
 
-.register-layout-compact .register-compact-head-flag,
+.register-layout-compact .register-compact-head-tags,
 .register-layout-compact .register-compact-head-attachments,
 .register-layout-compact .register-compact-head-status {
   text-align: center;

@@ -1,18 +1,17 @@
-import { ChevronDown, ChevronRight, CornerDownRight, Paperclip } from "lucide-react";
+import { ChevronDown, ChevronRight, CornerDownRight, Paperclip, Tag } from "lucide-react";
 import { memo, useState, type CSSProperties, type MouseEvent } from "react";
 import type { RegisterLayoutMode } from "../registerLayoutMode";
-import type {
-  RegisterTransactionView,
-  TransactionFlag,
-} from "../accountRegisterTypes";
+import type { RegisterTransactionView } from "../accountRegisterTypes";
 import { formatDateForDisplay } from "../../settings/dateFormatting";
 import { useDateFormatPreference } from "../../settings/useDateFormatPreference";
 import { isUncategorisedRegisterTransaction } from "../registerUncategorised";
 import { CategoryLabel } from "../../icons/CategoryIcon";
+import type { TransactionTagDefinition } from "../../tags/transactionTagTypes";
 
 export type RegisterColumnId =
   | "select"
   | "date"
+  | "tags"
   | "flag"
   | "attachments"
   | "payee"
@@ -25,15 +24,6 @@ export type RegisterColumnId =
   | "runningBalance"
   | "status"
   | "actions";
-
-const REGISTER_FLAG_OPTIONS: Array<Exclude<TransactionFlag, null>> = [
-  "red",
-  "orange",
-  "yellow",
-  "green",
-  "blue",
-  "purple",
-];
 
 function isRegisterColumnVisible(
   column: RegisterColumnId,
@@ -108,14 +98,40 @@ function TransactionSelectionCheckbox({
   );
 }
 
-function FlagDot({ flag }: { flag: TransactionFlag }) {
-  if (!flag) {
-    return <span className="transaction-flag transaction-flag-empty" />;
-  }
+function TransactionTagIndicator({
+  transaction,
+  tags,
+}: {
+  transaction: RegisterTransactionView;
+  tags: readonly TransactionTagDefinition[];
+}) {
+  const assignedTags = tags.filter((tag) =>
+    transaction.tagIds?.includes(tag.id),
+  );
+  const primaryTag = assignedTags[0];
+  const title =
+    assignedTags.length > 0
+      ? assignedTags.map((tag) => tag.name).join(", ")
+      : "No tags";
 
-  return <span className={`transaction-flag transaction-flag-${flag}`} />;
+  return (
+    <span
+      className={
+        primaryTag
+          ? "transaction-tag-indicator transaction-tag-indicator-assigned"
+          : "transaction-tag-indicator"
+      }
+      style={primaryTag ? { color: `var(--tag-${primaryTag.colour})` } : undefined}
+      title={title}
+      aria-label={title}
+    >
+      <Tag size={15} fill={primaryTag ? "currentColor" : "none"} />
+      {assignedTags.length > 1 ? (
+        <span className="transaction-tag-count">{assignedTags.length}</span>
+      ) : null}
+    </span>
+  );
 }
-
 function ScheduledTransactionBadge({
   transaction,
 }: {
@@ -137,83 +153,6 @@ function ScheduledTransactionBadge({
       <span aria-hidden="true">⏰</span>
       Scheduled
     </span>
-  );
-}
-
-export function InlineFlagPicker({
-  value,
-  onChange,
-}: {
-  value: TransactionFlag;
-  onChange: (flag: TransactionFlag) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  function chooseFlag(flag: TransactionFlag) {
-    onChange(flag);
-    setIsOpen(false);
-  }
-
-  return (
-    <div className="flag-colour-picker" title="Flag">
-      <button
-        className="flag-colour-picker-button"
-        type="button"
-        aria-label={value ? `${value} flag` : "No flag"}
-        aria-expanded={isOpen}
-        onClick={(event) => {
-          event.stopPropagation();
-          setIsOpen((open) => !open);
-        }}
-      >
-        <FlagDot flag={value} />
-      </button>
-
-      {isOpen ? (
-        <div
-          className="flag-colour-picker-menu"
-          role="listbox"
-          aria-label="Choose flag colour"
-        >
-          <button
-            className="flag-colour-picker-option"
-            type="button"
-            role="option"
-            aria-selected={value === null}
-            title="No flag"
-            onClick={(event) => {
-              event.stopPropagation();
-              chooseFlag(null);
-            }}
-          >
-            <span
-              className="transaction-flag transaction-flag-empty"
-              aria-hidden="true"
-            />
-          </button>
-
-          {REGISTER_FLAG_OPTIONS.map((flag) => (
-            <button
-              className="flag-colour-picker-option"
-              type="button"
-              role="option"
-              aria-selected={value === flag}
-              title={`${flag[0].toUpperCase()}${flag.slice(1)} flag`}
-              key={flag}
-              onClick={(event) => {
-                event.stopPropagation();
-                chooseFlag(flag);
-              }}
-            >
-              <span
-                className={`transaction-flag transaction-flag-${flag}`}
-                aria-hidden="true"
-              />
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
   );
 }
 
@@ -355,10 +294,7 @@ interface TransactionRowRendererProps {
   onEditTransactionCategory: (transactionId: string) => void;
   onToggleClearedTransaction: (transactionId: string) => void;
   onManageTransactionAttachments: (transactionId: string) => void;
-  onUpdateTransactionFlag: (
-    transaction: RegisterTransactionView,
-    flag: TransactionFlag,
-  ) => void;
+  tags: readonly TransactionTagDefinition[];
   onOpenContextMenu: (
     transactionId: string,
     event: MouseEvent<HTMLElement>,
@@ -382,7 +318,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
   onEditTransactionCategory,
   onToggleClearedTransaction,
   onManageTransactionAttachments,
-  onUpdateTransactionFlag,
+  tags,
   onOpenContextMenu,
   visibleColumns,
   rowStyle,
@@ -419,11 +355,8 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
           onToggleTransactionSelection={onToggleTransactionSelection}
         />
         <span>{formatDateForDisplay(transaction.date, dateFormat)}</span>
-        {isRegisterColumnVisible("flag", visibleColumns) ? (
-          <InlineFlagPicker
-            value={transaction.flag}
-            onChange={(flag) => onUpdateTransactionFlag(transaction, flag)}
-          />
+        {isRegisterColumnVisible("tags", visibleColumns) ? (
+          <TransactionTagIndicator transaction={transaction} tags={tags} />
         ) : null}
         {isRegisterColumnVisible("attachments", visibleColumns) ? (
           <AttachmentIndicator
@@ -492,7 +425,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
             >
               <span className="register-split-readonly-spacer" aria-hidden="true" />
               <span />
-              {isRegisterColumnVisible("flag", visibleColumns) ? <span /> : null}
+              {isRegisterColumnVisible("tags", visibleColumns) ? <span /> : null}
               {isRegisterColumnVisible("attachments", visibleColumns) ? <span /> : null}
               <span className="register-split-readonly-payee" aria-hidden="true" />
               <span className="register-split-readonly-category">
@@ -535,7 +468,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   onEditTransactionCategory,
   onToggleClearedTransaction,
   onManageTransactionAttachments,
-  onUpdateTransactionFlag,
+  tags,
   onOpenContextMenu,
   visibleColumns,
 }: TransactionRowRendererProps) {
@@ -580,11 +513,8 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
         <span className="register-compact-date">{formattedDate}</span>
 
 
-        {isRegisterColumnVisible("flag", visibleColumns) ? (
-          <InlineFlagPicker
-            value={transaction.flag}
-            onChange={(flag) => onUpdateTransactionFlag(transaction, flag)}
-          />
+        {isRegisterColumnVisible("tags", visibleColumns) ? (
+          <TransactionTagIndicator transaction={transaction} tags={tags} />
         ) : (
           <span aria-hidden="true" />
         )}
@@ -727,7 +657,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
   onEditTransactionCategory,
   onToggleClearedTransaction,
   onManageTransactionAttachments,
-  onUpdateTransactionFlag,
+  tags,
   onOpenContextMenu,
   visibleColumns,
 }: TransactionRowRendererProps) {
@@ -852,11 +782,8 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
         </div>
 
         <div className="register-tablet-actions">
-          {isRegisterColumnVisible("flag", visibleColumns) ? (
-            <InlineFlagPicker
-              value={transaction.flag}
-              onChange={(flag) => onUpdateTransactionFlag(transaction, flag)}
-            />
+          {isRegisterColumnVisible("tags", visibleColumns) ? (
+            <TransactionTagIndicator transaction={transaction} tags={tags} />
           ) : null}
 
           {isRegisterColumnVisible("attachments", visibleColumns) ? (

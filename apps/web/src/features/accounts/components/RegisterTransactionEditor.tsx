@@ -6,7 +6,6 @@ import {
 } from "react";
 import {
   AttachmentIndicator,
-  InlineFlagPicker,
   type RegisterColumnId,
 } from "./TransactionRow";
 import { RegisterDateField } from "./RegisterDateField";
@@ -1150,8 +1149,8 @@ export function TransactionEditRow({
           onChange={setDate}
           autoFocus={autoFocusField === "date"}
         />
-        {isRegisterColumnVisible("flag", visibleColumns) ? (
-          <InlineFlagPicker value={flag} onChange={setFlag} />
+        {isRegisterColumnVisible("tags", visibleColumns) ? (
+          <span className="register-entry-placeholder-cell" aria-hidden="true" />
         ) : null}
         {isRegisterColumnVisible("attachments", visibleColumns) ? (
           <AttachmentIndicator

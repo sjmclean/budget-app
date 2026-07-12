@@ -1,8 +1,5 @@
 import { useCallback, type MouseEvent } from "react";
-import type {
-  RegisterTransactionView,
-  TransactionFlag,
-} from "./accountRegisterTypes";
+import type { RegisterTransactionView } from "./accountRegisterTypes";
 
 interface RegisterSelectionController {
   selectFromPointer: (
@@ -26,7 +23,6 @@ interface UseRegisterCommandsInput {
   updateTransaction: (input: {
     id: string;
     date: string;
-    flag?: TransactionFlag;
     payee: string;
     payeeId?: string;
     category: string;
@@ -48,10 +44,6 @@ interface UseRegisterCommandsResult {
   editTransaction: (transactionId: string) => void;
   toggleClearedTransaction: (transactionId: string) => void;
   manageTransactionAttachments: (transactionId: string) => void;
-  updateTransactionFlag: (
-    transaction: RegisterTransactionView,
-    flag: TransactionFlag,
-  ) => void;
 }
 
 export function useRegisterCommands({
@@ -107,29 +99,7 @@ export function useRegisterCommands({
     [openAttachmentManager, registerSelection],
   );
 
-  const updateTransactionFlag = useCallback(
-    (transaction: RegisterTransactionView, flag: TransactionFlag) => {
-      if (transaction.flag === flag) {
-        return;
-      }
 
-      void updateTransaction({
-        id: transaction.id,
-        date: transaction.date,
-        flag,
-        payee: transaction.payee,
-        payeeId: transaction.payeeId,
-        category: transaction.category,
-        categoryId: transaction.categoryId,
-        memo: transaction.memo,
-        checkNumber: transaction.checkNumber,
-        inflow: transaction.inflow,
-        outflow: transaction.outflow,
-        splitLines: transaction.splitLines,
-      });
-    },
-    [updateTransaction],
-  );
 
   return {
     selectTransaction,
@@ -137,6 +107,5 @@ export function useRegisterCommands({
     editTransaction,
     toggleClearedTransaction,
     manageTransactionAttachments,
-    updateTransactionFlag,
   };
 }
