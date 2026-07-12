@@ -55,6 +55,8 @@ export function TransactionTagManager({
   const [search, setSearch] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [draft, setDraft] = useState<NewTagDraft>(emptyDraft);
+  const [draggedTagId, setDraggedTagId] = useState<string | null>(null);
+  const [dragOverTagId, setDragOverTagId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState(
     "Create and organise reusable labels for your transactions.",
   );
@@ -66,8 +68,37 @@ export function TransactionTagManager({
       : tags;
   }, [search, tags]);
 
+  const canReorder = search.trim().length === 0;
+
   function refreshTags() {
     setTags(service.listTags());
+  }
+
+  function reorderTag(draggedId: string, targetId: string) {
+    if (draggedId === targetId) {
+      return;
+    }
+
+    const sourceIndex = tags.findIndex((tag) => tag.id === draggedId);
+    const targetIndex = tags.findIndex((tag) => tag.id === targetId);
+
+    if (sourceIndex < 0 || targetIndex < 0) {
+      return;
+    }
+
+    const nextTags = [...tags];
+    const [draggedTag] = nextTags.splice(sourceIndex, 1);
+    nextTags.splice(targetIndex, 0, draggedTag);
+
+    try {
+      setTags(service.reorderTags(nextTags.map((tag) => tag.id)));
+      setStatusMessage("Tag order saved.");
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : "Could not reorder tags.",
+      );
+      refreshTags();
+    }
   }
 
   function createTag() {
@@ -234,8 +265,60 @@ export function TransactionTagManager({
         {visibleTags.map((tag) => {
           const usage = service.getUsage(tag.id);
           return (
-            <div className="transaction-tag-row" key={tag.id}>
-              <span className="transaction-tag-grip" aria-hidden="true">⠿</span>
+            <div
+              className={`transaction-tag-row${
+                draggedTagId === tag.id ? " transaction-tag-row-dragging" : ""
+              }${
+                dragOverTagId === tag.id ? " transaction-tag-row-drop-target" : ""
+              }`}
+              key={tag.id}
+              onDragOver={(event) => {
+                if (!canReorder || draggedTagId === tag.id) {
+                  return;
+                }
+
+                event.preventDefault();
+                setDragOverTagId(tag.id);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                const sourceId =
+                  draggedTagId || event.dataTransfer.getData("text/plain");
+
+                if (canReorder && sourceId) {
+                  reorderTag(sourceId, tag.id);
+                }
+
+                setDraggedTagId(null);
+                setDragOverTagId(null);
+              }}
+            >
+              <span
+                className="transaction-tag-grip"
+                draggable={canReorder}
+                aria-label={`Drag ${tag.name} to reorder`}
+                title={
+                  canReorder
+                    ? "Drag to reorder"
+                    : "Clear search to reorder tags"
+                }
+                onDragStart={(event) => {
+                  if (!canReorder) {
+                    event.preventDefault();
+                    return;
+                  }
+
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", tag.id);
+                  setDraggedTagId(tag.id);
+                }}
+                onDragEnd={() => {
+                  setDraggedTagId(null);
+                  setDragOverTagId(null);
+                }}
+              >
+                ⠿
+              </span>
               <TagColourSelect
                 value={tag.colour}
                 onChange={(colour) => updateTag(tag, { colour })}

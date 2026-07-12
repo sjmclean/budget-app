@@ -42,6 +42,7 @@ export interface TransactionTagService {
   updateTag(input: UpdateTransactionTagInput): TransactionTagDefinition;
   archiveTag(tagId: string): TransactionTagDefinition;
   restoreTag(tagId: string): TransactionTagDefinition;
+  reorderTags(tagIds: readonly string[]): TransactionTagDefinition[];
   deleteTag(tagId: string): void;
   getUsage(tagId: string): TransactionTagUsage;
 }
@@ -137,13 +138,7 @@ export function createTransactionTagService(
         ? tags
         : tags.filter((tag) => !tag.archived);
 
-      return visible
-        .slice()
-        .sort((left, right) =>
-          left.name.localeCompare(right.name, undefined, {
-            sensitivity: "base",
-          }),
-        );
+      return visible.map((tag) => ({ ...tag }));
     },
 
     createTag(input) {
@@ -220,6 +215,29 @@ export function createTransactionTagService(
 
       replaceTag(tags, restored);
       return { ...restored };
+    },
+
+    reorderTags(tagIds) {
+      const tags = listAllTags();
+      const requestedIds = Array.from(
+        new Set(tagIds.map((tagId) => tagId.trim()).filter(Boolean)),
+      );
+      const tagById = new Map(tags.map((tag) => [tag.id, tag]));
+      const orderedTags = requestedIds
+        .map((tagId) => tagById.get(tagId))
+        .filter(
+          (tag): tag is TransactionTagDefinition => tag !== undefined,
+        );
+      const orderedIdSet = new Set(orderedTags.map((tag) => tag.id));
+      const nextTags = [
+        ...orderedTags,
+        ...tags.filter((tag) => !orderedIdSet.has(tag.id)),
+      ];
+
+      writeTags(nextTags);
+      return nextTags
+        .filter((tag) => !tag.archived)
+        .map((tag) => ({ ...tag }));
     },
 
     deleteTag(tagId) {
