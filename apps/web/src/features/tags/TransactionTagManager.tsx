@@ -1,41 +1,48 @@
 import { useMemo, useState } from "react";
 import { Button } from "../../components/ui/Button";
-import type {
-  TransactionTagService,
-  UpdateTransactionTagInput,
-} from "./transactionTagService";
+import type { TransactionTagService } from "./transactionTagService";
 import type {
   TransactionTagColour,
   TransactionTagDefinition,
 } from "./transactionTagTypes";
+import "./transactionTagManager.css";
 
 export const transactionTagColourOptions: ReadonlyArray<{
   value: TransactionTagColour;
   label: string;
+  swatch: string;
 }> = [
-  { value: "red", label: "Red" },
-  { value: "orange", label: "Orange" },
-  { value: "yellow", label: "Yellow" },
-  { value: "green", label: "Green" },
-  { value: "blue", label: "Blue" },
-  { value: "purple", label: "Purple" },
+  { value: "red", label: "Red", swatch: "#dc5548" },
+  { value: "gray", label: "Gray", swatch: "#747b88" },
+  { value: "orange", label: "Orange", swatch: "#ed7d2b" },
+  { value: "yellow", label: "Yellow", swatch: "#e7b72d" },
+  { value: "lime", label: "Lime", swatch: "#8bc735" },
+  { value: "green", label: "Green", swatch: "#60bd67" },
+  { value: "emerald", label: "Emerald", swatch: "#57b484" },
+  { value: "teal", label: "Teal", swatch: "#55aca4" },
+  { value: "cyan", label: "Cyan", swatch: "#56afd0" },
+  { value: "blue", label: "Blue", swatch: "#4f7fe8" },
+  { value: "indigo", label: "Indigo", swatch: "#5c63df" },
+  { value: "purple", label: "Purple", swatch: "#a755d1" },
+  { value: "pink", label: "Pink", swatch: "#df5795" },
+  { value: "brown", label: "Brown", swatch: "#936646" },
+  { value: "slate", label: "Slate", swatch: "#425166" },
+  { value: "black", label: "Black", swatch: "#24272d" },
 ];
 
 interface TransactionTagManagerProps {
   service: TransactionTagService;
 }
 
-interface TransactionTagDraft {
+interface NewTagDraft {
   name: string;
-  description: string;
   colour: TransactionTagColour;
   autoTagImportedTransactions: boolean;
 }
 
-const emptyDraft: TransactionTagDraft = {
+const emptyDraft: NewTagDraft = {
   name: "",
-  description: "",
-  colour: "blue",
+  colour: "gray",
   autoTagImportedTransactions: false,
 };
 
@@ -43,90 +50,70 @@ export function TransactionTagManager({
   service,
 }: TransactionTagManagerProps) {
   const [tags, setTags] = useState<TransactionTagDefinition[]>(() =>
-    service.listTags({ includeArchived: true }),
+    service.listTags(),
   );
-  const [draft, setDraft] = useState<TransactionTagDraft>(emptyDraft);
-  const [editingTagId, setEditingTagId] = useState<string | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
+  const [search, setSearch] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+  const [draft, setDraft] = useState<NewTagDraft>(emptyDraft);
   const [statusMessage, setStatusMessage] = useState(
-    "Create tags that can be applied to transactions.",
+    "Create and organise reusable labels for your transactions.",
   );
 
-  const visibleTags = useMemo(
-    () => tags.filter((tag) => showArchived || !tag.archived),
-    [showArchived, tags],
-  );
+  const visibleTags = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return query
+      ? tags.filter((tag) => tag.name.toLocaleLowerCase().includes(query))
+      : tags;
+  }, [search, tags]);
 
   function refreshTags() {
-    setTags(service.listTags({ includeArchived: true }));
+    setTags(service.listTags());
   }
 
-  function beginCreate() {
-    setEditingTagId(null);
-    setDraft(emptyDraft);
-    setStatusMessage("Enter the details for the new tag.");
-  }
-
-  function beginEdit(tag: TransactionTagDefinition) {
-    setEditingTagId(tag.id);
-    setDraft({
-      name: tag.name,
-      description: tag.description ?? "",
-      colour: tag.colour,
-      autoTagImportedTransactions: tag.autoTagImportedTransactions,
-    });
-    setStatusMessage(`Editing ${tag.name}.`);
-  }
-
-  function saveTag() {
+  function createTag() {
     try {
-      if (editingTagId) {
-        const input: UpdateTransactionTagInput = {
-          id: editingTagId,
-          name: draft.name,
-          description: draft.description,
-          colour: draft.colour,
-          autoTagImportedTransactions:
-            draft.autoTagImportedTransactions,
-        };
-        const updated = service.updateTag(input);
-        setStatusMessage(`${updated.name} updated.`);
-      } else {
-        const created = service.createTag({
-          name: draft.name,
-          description: draft.description,
-          colour: draft.colour,
-          autoTagImportedTransactions:
-            draft.autoTagImportedTransactions,
-        });
-        setStatusMessage(`${created.name} created.`);
-      }
-
-      setEditingTagId(null);
+      const created = service.createTag({
+        name: draft.name,
+        colour: draft.colour,
+        autoTagImportedTransactions: draft.autoTagImportedTransactions,
+      });
+      setStatusMessage(`${created.name} created.`);
       setDraft(emptyDraft);
+      setIsAdding(false);
       refreshTags();
     } catch (error) {
       setStatusMessage(
-        error instanceof Error ? error.message : "Could not save the tag.",
+        error instanceof Error ? error.message : "Could not create the tag.",
       );
     }
   }
 
-  function toggleArchived(tag: TransactionTagDefinition) {
+  function updateTag(
+    tag: TransactionTagDefinition,
+    changes: Partial<
+      Pick<
+        TransactionTagDefinition,
+        "name" | "colour" | "autoTagImportedTransactions"
+      >
+    >,
+  ) {
     try {
-      const updated = tag.archived
-        ? service.restoreTag(tag.id)
-        : service.archiveTag(tag.id);
-      setStatusMessage(
-        `${updated.name} ${updated.archived ? "archived" : "restored"}.`,
-      );
+      const updated = service.updateTag({
+        id: tag.id,
+        name: changes.name ?? tag.name,
+        description: tag.description,
+        colour: changes.colour ?? tag.colour,
+        autoTagImportedTransactions:
+          changes.autoTagImportedTransactions ??
+          tag.autoTagImportedTransactions,
+      });
+      setStatusMessage(`${updated.name} saved.`);
       refreshTags();
     } catch (error) {
       setStatusMessage(
-        error instanceof Error
-          ? error.message
-          : "Could not update the tag.",
+        error instanceof Error ? error.message : "Could not update the tag.",
       );
+      refreshTags();
     }
   }
 
@@ -134,9 +121,6 @@ export function TransactionTagManager({
     try {
       service.deleteTag(tag.id);
       setStatusMessage(`${tag.name} deleted.`);
-      if (editingTagId === tag.id) {
-        beginCreate();
-      }
       refreshTags();
     } catch (error) {
       setStatusMessage(
@@ -146,200 +130,192 @@ export function TransactionTagManager({
   }
 
   return (
-    <div className="transaction-tag-manager">
-      <div className="settings-section-header">
+    <div className="transaction-tag-manager transaction-tag-manager-simple">
+      <div className="transaction-tag-manager-heading">
         <div>
-          <p className="eyebrow">Transactions</p>
-          <h2>Transaction tags</h2>
+          <h2>Tags</h2>
           <p className="muted">{statusMessage}</p>
         </div>
-        <Button type="button" variant="secondary" onClick={beginCreate}>
-          New tag
-        </Button>
       </div>
 
-      <div className="settings-panel-grid">
-        <label className="settings-field">
-          <span>Label</span>
-          <input
-            className="settings-input"
-            value={draft.name}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                name: event.target.value,
-              }))
-            }
-            placeholder="Tax, Reimbursable, Household…"
-          />
-        </label>
-
-        <label className="settings-field">
-          <span>Colour</span>
-          <select
-            className="select"
-            value={draft.colour}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                colour: event.target.value as TransactionTagColour,
-              }))
-            }
-          >
-            {transactionTagColourOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="settings-field settings-field-wide">
-          <span>Description</span>
-          <input
-            className="settings-input"
-            value={draft.description}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                description: event.target.value,
-              }))
-            }
-            placeholder="Optional note describing how this tag is used"
-          />
-        </label>
-
-        <label className="settings-field settings-field-wide settings-checkbox-field">
-          <input
-            type="checkbox"
-            checked={draft.autoTagImportedTransactions}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                autoTagImportedTransactions: event.target.checked,
-              }))
-            }
-          />
-          <span>
-            Auto-tag imported transactions
-            <small>
-              Apply this tag automatically to imported transactions for
-              review or approval.
-            </small>
-          </span>
-        </label>
+      <div className="transaction-tag-manager-toolbar">
+        <Button
+          type="button"
+          onClick={() => {
+            setDraft(emptyDraft);
+            setIsAdding(true);
+          }}
+        >
+          + Add tag
+        </Button>
+        <input
+          className="transaction-tag-search"
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search tags…"
+          aria-label="Search tags"
+        />
       </div>
 
-      <div className="settings-action-row">
-        <Button type="button" onClick={saveTag}>
-          {editingTagId ? "Save changes" : "Create tag"}
-        </Button>
-        {editingTagId ? (
-          <Button type="button" variant="ghost" onClick={beginCreate}>
-            Cancel
-          </Button>
+      <div className="transaction-tag-list" aria-label="Transaction tags">
+        {isAdding ? (
+          <div className="transaction-tag-row transaction-tag-row-editing">
+            <span className="transaction-tag-grip" aria-hidden="true">⠿</span>
+            <TagColourSelect
+              value={draft.colour}
+              onChange={(colour) =>
+                setDraft((current) => ({ ...current, colour }))
+              }
+            />
+            <input
+              className="transaction-tag-name-input"
+              value={draft.name}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  name: event.target.value,
+                }))
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Enter") createTag();
+                if (event.key === "Escape") setIsAdding(false);
+              }}
+              placeholder="Tag name"
+              autoFocus
+            />
+            <label className="transaction-tag-auto-control">
+              <input
+                type="checkbox"
+                checked={draft.autoTagImportedTransactions}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    autoTagImportedTransactions: event.target.checked,
+                  }))
+                }
+              />
+              <span>Auto</span>
+            </label>
+            <div className="transaction-tag-row-actions">
+              <Button type="button" onClick={createTag}>Add</Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsAdding(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
         ) : null}
-        <label className="settings-checkbox-field">
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={(event) => setShowArchived(event.target.checked)}
-          />
-          <span>Show archived tags</span>
-        </label>
-      </div>
 
-      <div className="settings-list" aria-label="Transaction tags">
-        {visibleTags.length === 0 ? (
-          <p className="muted">No transaction tags have been created yet.</p>
-        ) : (
-          visibleTags.map((tag) => {
-            const usage = service.getUsage(tag.id);
+        {visibleTags.length === 0 && !isAdding ? (
+          <div className="transaction-tag-empty">
+            {search.trim()
+              ? "No tags match your search."
+              : "No tags yet. Add one when you need a reusable transaction label."}
+          </div>
+        ) : null}
 
-            return (
-              <div className="settings-list-row" key={tag.id}>
-                <TransactionTagIcon
-                  colour={tag.colour}
-                  filled={!tag.archived}
+        {visibleTags.map((tag) => {
+          const usage = service.getUsage(tag.id);
+          return (
+            <div className="transaction-tag-row" key={tag.id}>
+              <span className="transaction-tag-grip" aria-hidden="true">⠿</span>
+              <TagColourSelect
+                value={tag.colour}
+                onChange={(colour) => updateTag(tag, { colour })}
+              />
+              <input
+                className="transaction-tag-name-input"
+                defaultValue={tag.name}
+                aria-label={`Tag name for ${tag.name}`}
+                onBlur={(event) => {
+                  if (event.target.value.trim() !== tag.name) {
+                    updateTag(tag, { name: event.target.value });
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.currentTarget.blur();
+                  if (event.key === "Escape") {
+                    event.currentTarget.value = tag.name;
+                    event.currentTarget.blur();
+                  }
+                }}
+              />
+              <span className="transaction-tag-usage">
+                {usage.transactionCount}
+              </span>
+              <label className="transaction-tag-auto-control">
+                <input
+                  type="checkbox"
+                  checked={tag.autoTagImportedTransactions}
+                  onChange={(event) =>
+                    updateTag(tag, {
+                      autoTagImportedTransactions: event.target.checked,
+                    })
+                  }
                 />
-                <div className="settings-list-row-content">
-                  <strong>{tag.name}</strong>
-                  <span className="muted">
-                    {tag.description || "No description"}
-                  </span>
-                  <small>
-                    {usage.transactionCount}{" "}
-                    {usage.transactionCount === 1
-                      ? "transaction"
-                      : "transactions"}
-                    {tag.autoTagImportedTransactions
-                      ? " · Auto-tag imports"
-                      : ""}
-                    {tag.archived ? " · Archived" : ""}
-                  </small>
-                </div>
-                <div className="settings-action-row">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => beginEdit(tag)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => toggleArchived(tag)}
-                  >
-                    {tag.archived ? "Restore" : "Archive"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => deleteTag(tag)}
-                    disabled={usage.transactionCount > 0}
-                    title={
-                      usage.transactionCount > 0
-                        ? "Archive tags that are already used by transactions."
-                        : "Delete this unused tag."
-                    }
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            );
-          })
-        )}
+                <span>Auto</span>
+              </label>
+              <button
+                className="transaction-tag-delete"
+                type="button"
+                onClick={() => deleteTag(tag)}
+                aria-label={`Delete ${tag.name}`}
+                title={
+                  usage.transactionCount > 0
+                    ? "This tag is in use and cannot be deleted yet."
+                    : "Delete tag"
+                }
+                disabled={usage.transactionCount > 0}
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
       </div>
+
+      <p className="transaction-tag-manager-tip">
+        Auto-tags are automatically applied to imported transactions for review
+        or approval.
+      </p>
     </div>
   );
 }
 
-interface TransactionTagIconProps {
-  colour: TransactionTagColour;
-  filled: boolean;
+interface TagColourSelectProps {
+  value: TransactionTagColour;
+  onChange: (colour: TransactionTagColour) => void;
 }
 
-function TransactionTagIcon({
-  colour,
-  filled,
-}: TransactionTagIconProps) {
+function TagColourSelect({ value, onChange }: TagColourSelectProps) {
+  const selected =
+    transactionTagColourOptions.find((option) => option.value === value) ??
+    transactionTagColourOptions[0];
+
   return (
-    <svg
-      className={`transaction-tag-icon transaction-tag-icon-${colour}`}
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M20.6 13.6 13.7 20.5a2 2 0 0 1-2.8 0L3.5 13.1A2 2 0 0 1 3 11.7V5a2 2 0 0 1 2-2h6.7a2 2 0 0 1 1.4.6l7.5 7.2a2 2 0 0 1 0 2.8Z" />
-      <circle cx="8" cy="8" r="1.2" fill={filled ? "white" : "none"} />
-    </svg>
+    <label className="transaction-tag-colour-control">
+      <span
+        className="transaction-tag-colour-swatch"
+        style={{ backgroundColor: selected.swatch }}
+        aria-hidden="true"
+      />
+      <select
+        value={value}
+        onChange={(event) =>
+          onChange(event.target.value as TransactionTagColour)
+        }
+        aria-label="Tag colour"
+      >
+        {transactionTagColourOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
