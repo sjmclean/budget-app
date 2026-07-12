@@ -1707,42 +1707,7 @@ export function AccountRegisterPage() {
         />
       )}
 
-      <div className="register-legend">
-        <span>
-          <span className="transaction-flag transaction-flag-red" /> Needs
-          attention
-        </span>
-        <span>
-          <span className="transaction-flag transaction-flag-orange" /> Waiting
-          for receipt
-        </span>
-        <span>
-          <span className="transaction-flag transaction-flag-yellow" /> Tax
-          related
-        </span>
-        <span>
-          <span className="transaction-flag transaction-flag-green" />{" "}
-          Reimbursable
-        </span>
-        <span>
-          <span className="transaction-flag transaction-flag-blue" /> Business
-        </span>
-        <span>
-          <span className="transaction-flag transaction-flag-purple" /> Review
-          later
-        </span>
-        <span className="register-legend-spacer" />
-        <span>
-          <Paperclip size={13} /> Attachment
-        </span>
-        <span>
-          <span className="register-status register-status-cleared">C</span>{" "}
-          Cleared
-        </span>
-        <span>
-          <span className="register-status register-status-empty" /> Uncleared
-        </span>
-      </div>
+
     </div>
   );
 }

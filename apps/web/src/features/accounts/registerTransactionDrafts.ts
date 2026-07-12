@@ -1,6 +1,5 @@
 import type {
   NewRegisterTransactionInput,
-  TransactionFlag,
   UpdateRegisterTransactionInput,
 } from "./accountRegisterTypes";
 import type { BudgetCategoryOption } from "../budget/budgetViewTypes";
@@ -10,7 +9,6 @@ import { validateRegisterTransactionDraft } from "./registerTransactionValidatio
 
 export interface RegisterTransactionDraftInput {
   date: string;
-  flag?: TransactionFlag;
   payee: string;
   payeeId?: string;
   category: string;
@@ -48,7 +46,6 @@ export function buildUpdateRegisterTransactionInput({
 
 function buildRegisterTransactionInput({
   date,
-  flag,
   payee,
   payeeId,
   category,
@@ -84,7 +81,6 @@ function buildRegisterTransactionInput({
 
   return {
     date,
-    flag,
     payee: payee.trim(),
     payeeId,
     category:

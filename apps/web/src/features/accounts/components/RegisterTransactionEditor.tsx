@@ -22,7 +22,6 @@ import type {
   NewRegisterTransactionInput,
   RegisterSplitLineView,
   RegisterTransactionView,
-  TransactionFlag,
 } from "../accountRegisterTypes";
 import {
   createSplitLineDraft,
@@ -1029,7 +1028,6 @@ export function TransactionEditRow({
   onSave: (input: {
     id: string;
     date: string;
-    flag?: TransactionFlag;
     payee: string;
     payeeId?: string;
     category: string;
@@ -1049,7 +1047,6 @@ export function TransactionEditRow({
   autoFocusField?: "date" | "category";
 }) {
   const [date, setDate] = useState(transaction.date);
-  const [flag, setFlag] = useState<TransactionFlag>(transaction.flag);
   const [payee, setPayee] = useState(transaction.payee);
   const [payeeId, setPayeeId] = useState<string | undefined>(
     transaction.payeeId,
@@ -1099,7 +1096,6 @@ export function TransactionEditRow({
     const input = buildUpdateRegisterTransactionInput({
       id: transaction.id,
       date,
-      flag,
       payee,
       payeeId,
       category,
