@@ -200,10 +200,13 @@ export function AccountRegisterPage() {
       }),
     [transactionTagStorage],
   );
-  const transactionTags = useMemo(
-    () => transactionTagService.listTags(),
-    [transactionTagService],
+  const [transactionTags, setTransactionTags] = useState(() =>
+    transactionTagService.listTags(),
   );
+
+  useEffect(() => {
+    setTransactionTags(transactionTagService.listTags());
+  }, [transactionTagService]);
   const accountsPersistence = persistenceGateway.accounts;
   const payeesPersistence = persistenceGateway.payees;
   const categoriesPersistence = persistenceGateway.categories;
@@ -588,6 +591,25 @@ export function AccountRegisterPage() {
     registerCommands.toggleClearedTransaction;
   const handleManageTransactionAttachments =
     registerCommands.manageTransactionAttachments;
+  const handleUpdateTransactionTags = useCallback(
+    (transaction: RegisterTransactionView, tagIds: string[]) => {
+      void updateTransaction({
+        id: transaction.id,
+        date: transaction.date,
+        tagIds,
+        payee: transaction.payee,
+        payeeId: transaction.payeeId,
+        category: transaction.category,
+        categoryId: transaction.categoryId,
+        memo: transaction.memo,
+        checkNumber: transaction.checkNumber,
+        inflow: transaction.inflow,
+        outflow: transaction.outflow,
+        splitLines: transaction.splitLines,
+      });
+    },
+    [updateTransaction],
+  );
 
   const handleOpenRegisterContextMenu = useCallback(
     (transactionId: string, event: MouseEvent<HTMLElement>) => {
@@ -1054,7 +1076,10 @@ export function AccountRegisterPage() {
                 <button
                   className="button button-secondary"
                   type="button"
-                  onClick={() => setIsTransactionTagManagerOpen(false)}
+                  onClick={() => {
+                    setTransactionTags(transactionTagService.listTags());
+                    setIsTransactionTagManagerOpen(false);
+                  }}
                 >
                   Close
                 </button>
@@ -1536,6 +1561,7 @@ export function AccountRegisterPage() {
                       handleManageTransactionAttachments
                     }
                     tags={transactionTags}
+                    onUpdateTransactionTags={handleUpdateTransactionTags}
                     onOpenContextMenu={handleOpenRegisterContextMenu}
                     visibleColumns={registerTableLayout.visibleColumnSet}
                     rowStyle={registerTableLayout.rowStyle}
