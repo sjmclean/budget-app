@@ -33,6 +33,7 @@ export interface TransactionTagServiceDependencies {
   now?: () => string;
   createId?: () => string;
   countUsage?: (tagId: string) => number;
+  removeTagReferences?: (tagId: string) => number;
 }
 
 export interface TransactionTagService {
@@ -64,7 +65,7 @@ export class TransactionTagInUseError extends Error {
     super(
       `Transaction tag ${tagId} is used by ${transactionCount} transaction${
         transactionCount === 1 ? "" : "s"
-      }. Archive it instead of deleting it.`,
+      } and could not be removed from every transaction.`,
     );
     this.name = "TransactionTagInUseError";
   }
@@ -227,7 +228,17 @@ export function createTransactionTagService(
       const transactionCount = normaliseUsageCount(countUsage(existing.id));
 
       if (transactionCount > 0) {
-        throw new TransactionTagInUseError(existing.id, transactionCount);
+        if (!dependencies.removeTagReferences) {
+          throw new TransactionTagInUseError(existing.id, transactionCount);
+        }
+
+        const removedReferenceCount = normaliseUsageCount(
+          dependencies.removeTagReferences(existing.id),
+        );
+
+        if (removedReferenceCount < transactionCount) {
+          throw new TransactionTagInUseError(existing.id, transactionCount);
+        }
       }
 
       writeTags(tags.filter((tag) => tag.id !== existing.id));

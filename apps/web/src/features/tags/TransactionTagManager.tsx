@@ -118,6 +118,19 @@ export function TransactionTagManager({
   }
 
   function deleteTag(tag: TransactionTagDefinition) {
+    const usage = service.getUsage(tag.id);
+
+    if (
+      usage.transactionCount > 0 &&
+      !window.confirm(
+        `Delete "${tag.name}"? This will remove it from ${usage.transactionCount} transaction${
+          usage.transactionCount === 1 ? "" : "s"
+        }.`,
+      )
+    ) {
+      return;
+    }
+
     try {
       service.deleteTag(tag.id);
       setStatusMessage(`${tag.name} deleted.`);
@@ -266,10 +279,11 @@ export function TransactionTagManager({
                 aria-label={`Delete ${tag.name}`}
                 title={
                   usage.transactionCount > 0
-                    ? "This tag is in use and cannot be deleted yet."
+                    ? `Delete tag and remove it from ${usage.transactionCount} transaction${
+                        usage.transactionCount === 1 ? "" : "s"
+                      }`
                     : "Delete tag"
                 }
-                disabled={usage.transactionCount > 0}
               >
                 ×
               </button>

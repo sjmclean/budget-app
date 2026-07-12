@@ -44,6 +44,10 @@ import {
   type RegisterSearchSuggestion,
 } from "../features/accounts/registerSearch";
 import type { SidebarAccount } from "../features/accounts/accountService";
+import {
+  countTransactionTagReferences,
+  removeTransactionTagReferences,
+} from "../features/accounts/accountRegisterService";
 import { getAppPersistenceGateway } from "../features/persistence";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
@@ -184,12 +188,20 @@ export function AccountRegisterPage() {
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
+  const transactionTagStorage = useMemo(
+    () => createBudgetScopedStorage(browserLocalStorageKeyValueStorage),
+    [activeBudgetId],
+  );
   const transactionTagService = useMemo(
     () =>
       createTransactionTagService({
-        storage: createBudgetScopedStorage(browserLocalStorageKeyValueStorage),
+        storage: transactionTagStorage,
+        countUsage: (tagId) =>
+          countTransactionTagReferences(transactionTagStorage, tagId),
+        removeTagReferences: (tagId) =>
+          removeTransactionTagReferences(transactionTagStorage, tagId),
       }),
-    [activeBudgetId],
+    [transactionTagStorage],
   );
   const accountsPersistence = persistenceGateway.accounts;
   const payeesPersistence = persistenceGateway.payees;

@@ -1105,6 +1105,65 @@ function recalculateRegister(
   };
 }
 
+export function countTransactionTagReferences(
+  storage: KeyValueStoragePort,
+  tagId: string,
+): number {
+  const normalisedTagId = tagId.trim();
+
+  if (!normalisedTagId) {
+    return 0;
+  }
+
+  return Object.values(readRegisters(storage)).reduce(
+    (count, register) =>
+      count +
+      register.transactions.filter((transaction) =>
+        transaction.tagIds?.includes(normalisedTagId),
+      ).length,
+    0,
+  );
+}
+
+export function removeTransactionTagReferences(
+  storage: KeyValueStoragePort,
+  tagId: string,
+): number {
+  const normalisedTagId = tagId.trim();
+
+  if (!normalisedTagId) {
+    return 0;
+  }
+
+  const registers = readRegisters(storage);
+  let removedReferenceCount = 0;
+
+  for (const register of Object.values(registers)) {
+    for (const transaction of register.transactions) {
+      const currentTagIds = transaction.tagIds ?? [];
+      const nextTagIds = currentTagIds.filter((candidate) => {
+        const shouldRemove = candidate === normalisedTagId;
+
+        if (shouldRemove) {
+          removedReferenceCount += 1;
+        }
+
+        return !shouldRemove;
+      });
+
+      if (nextTagIds.length !== currentTagIds.length) {
+        transaction.tagIds = nextTagIds;
+      }
+    }
+  }
+
+  if (removedReferenceCount > 0) {
+    writeRegisters(storage, registers);
+  }
+
+  return removedReferenceCount;
+}
+
 function readRegisters(storage: KeyValueStoragePort): StoredRegisters {
   const value = storage.getItem(STORAGE_KEY);
 
