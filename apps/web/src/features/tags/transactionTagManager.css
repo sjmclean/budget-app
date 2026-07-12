@@ -1,0 +1,185 @@
+.transaction-tag-manager-simple {
+  display: grid;
+  gap: 1rem;
+}
+
+.transaction-tag-manager-heading,
+.transaction-tag-manager-toolbar,
+.transaction-tag-row {
+  display: flex;
+  align-items: center;
+}
+
+.transaction-tag-manager-heading {
+  justify-content: space-between;
+}
+
+.transaction-tag-manager-heading h2 {
+  font-size: 1.25rem;
+  margin-bottom: 0.2rem;
+}
+
+.transaction-tag-manager-toolbar {
+  gap: 0.75rem;
+}
+
+.transaction-tag-search {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.65rem 0.75rem;
+}
+
+.transaction-tag-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.transaction-tag-row {
+  min-height: 3.25rem;
+  gap: 0.65rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.7rem;
+  background: var(--surface);
+  padding: 0.45rem 0.6rem;
+}
+
+.transaction-tag-row-editing {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent-soft));
+}
+
+.transaction-tag-grip {
+  color: var(--text-muted);
+  cursor: grab;
+  font-size: 1rem;
+  opacity: 0.65;
+  user-select: none;
+}
+
+.transaction-tag-grip:active {
+  cursor: grabbing;
+}
+
+.transaction-tag-row-dragging {
+  opacity: 0.5;
+}
+
+.transaction-tag-row-drop-target {
+  border-color: var(--accent);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.transaction-tag-name-input {
+  min-width: 8rem;
+  flex: 1;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--text);
+  font-weight: 700;
+  padding: 0.45rem 0.5rem;
+}
+
+.transaction-tag-name-input:hover,
+.transaction-tag-name-input:focus {
+  border-color: var(--border);
+  background: var(--surface);
+  outline: none;
+}
+
+.transaction-tag-colour-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 8.25rem;
+}
+
+.transaction-tag-colour-control select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.45rem 0.55rem 0.45rem 2rem;
+}
+
+.transaction-tag-colour-swatch {
+  position: absolute;
+  left: 0.6rem;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 0.25rem;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.transaction-tag-usage {
+  min-width: 2.5rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.transaction-tag-auto-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.transaction-tag-row-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.transaction-tag-delete {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--negative);
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.transaction-tag-delete:hover:not(:disabled) {
+  background: var(--negative-bg);
+}
+
+.transaction-tag-delete:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.transaction-tag-empty {
+  border: 1px dashed var(--border);
+  border-radius: 0.7rem;
+  color: var(--text-muted);
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.transaction-tag-manager-tip {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+@media (max-width: 720px) {
+  .transaction-tag-manager-toolbar,
+  .transaction-tag-row {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .transaction-tag-search,
+  .transaction-tag-name-input {
+    flex-basis: 100%;
+  }
+}

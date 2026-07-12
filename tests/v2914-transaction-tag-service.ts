@@ -66,8 +66,8 @@ const review = service.createTag({
 assert.equal(review.id, "tag-2");
 assert.deepEqual(
   service.listTags().map((tag) => tag.name),
-  ["Needs Review", "Tax Expenses"],
-  "active tags should be listed alphabetically",
+  ["Tax Expenses", "Needs Review"],
+  "active tags should retain their persisted order",
 );
 
 assert.throws(
@@ -106,7 +106,8 @@ assert.deepEqual(
 );
 assert.deepEqual(
   service.listTags({ includeArchived: true }).map((tag) => tag.id),
-  [review.id, tax.id],
+  [tax.id, review.id],
+  "including archived tags should retain their persisted order",
 );
 
 const restoredReview = service.restoreTag(review.id);

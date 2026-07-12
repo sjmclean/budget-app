@@ -8,11 +8,21 @@ export const TRANSACTION_TAGS_STORAGE_KEY = "budget-app.transaction-tags.v1";
 
 const TRANSACTION_TAG_COLOURS = new Set<TransactionTagColour>([
   "red",
+  "gray",
   "orange",
   "yellow",
+  "lime",
   "green",
+  "emerald",
+  "teal",
+  "cyan",
   "blue",
+  "indigo",
   "purple",
+  "pink",
+  "brown",
+  "slate",
+  "black",
 ]);
 
 const FALLBACK_TIMESTAMP = "1970-01-01T00:00:00.000Z";

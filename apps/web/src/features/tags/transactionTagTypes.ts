@@ -1,10 +1,20 @@
 export type TransactionTagColour =
   | "red"
+  | "gray"
   | "orange"
   | "yellow"
+  | "lime"
   | "green"
+  | "emerald"
+  | "teal"
+  | "cyan"
   | "blue"
-  | "purple";
+  | "indigo"
+  | "purple"
+  | "pink"
+  | "brown"
+  | "slate"
+  | "black";
 
 export interface TransactionTagDefinition {
   id: string;
