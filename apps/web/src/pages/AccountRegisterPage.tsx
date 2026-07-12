@@ -1,4 +1,4 @@
-import { Paperclip } from "lucide-react";
+import { Paperclip, Tag } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -33,6 +33,7 @@ import { useRegisterAttachmentWorkflow } from "../features/accounts/useRegisterA
 import { useRegisterViewModel } from "../features/accounts/useRegisterViewModel";
 import {
   REGISTER_COLUMN_DEFINITIONS,
+  REGISTER_COLUMN_ID_ALIASES,
   REGISTER_COLUMN_LABELS,
   REGISTER_EDIT_COLUMN_DEFINITIONS,
   REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
@@ -281,6 +282,7 @@ export function AccountRegisterPage() {
     storageKeyPrefix: REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
     scopeId: activeBudgetId,
     columns: REGISTER_COLUMN_DEFINITIONS,
+    columnIdAliases: REGISTER_COLUMN_ID_ALIASES,
     minimumWidthRem: 58,
   });
 
@@ -913,7 +915,13 @@ export function AccountRegisterPage() {
           />
         </span>
         <span className="register-compact-head-date">Date</span>
-        <span className="register-compact-head-tags">Tags</span>
+        <span
+          className="register-compact-head-tags register-head-icon"
+          aria-label="Tags"
+          title="Tags"
+        >
+          <Tag size={14} aria-hidden="true" />
+        </span>
         <span
           className="register-compact-head-attachments"
           aria-label="Attachments"
@@ -935,7 +943,9 @@ export function AccountRegisterPage() {
         {registerTableLayout.visibleColumns.map((column) => (
           <span
             className={[
-              column.id === "attachments" ? "register-head-icon" : "",
+              column.id === "attachments" || column.id === "tags"
+                ? "register-head-icon"
+                : "",
               column.id === "amount" || column.id === "runningBalance"
                 ? "register-head-money"
                 : "",
@@ -947,11 +957,16 @@ export function AccountRegisterPage() {
             aria-label={
               column.id === "attachments"
                 ? "Attachments"
-                : undefined
+                : column.id === "tags"
+                  ? "Tags"
+                  : undefined
             }
+            title={column.id === "tags" ? "Tags" : undefined}
           >
             {column.id === "attachments" ? (
-              <Paperclip size={13} />
+              <Paperclip size={13} aria-hidden="true" />
+            ) : column.id === "tags" ? (
+              <Tag size={14} aria-hidden="true" />
             ) : column.id === "runningBalance" ? (
               "Balance"
             ) : column.id === "status" ? (

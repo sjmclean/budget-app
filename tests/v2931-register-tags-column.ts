@@ -25,7 +25,8 @@ assert.match(row, /aria-haspopup="menu"/);
 assert.match(row, /assignedTags\.length > 1/);
 assert.doesNotMatch(row, /InlineFlagPicker|REGISTER_FLAG_OPTIONS|onUpdateTransactionFlag/);
 assert.match(row, /onUpdateTransactionTags\(transaction, tagIds\)/);
-assert.match(page, /register-compact-head-tags">Tags/);
+assert.match(page, /register-compact-head-tags register-head-icon/);
+assert.match(page, /<Tag size=\{14\} aria-hidden="true" \/>/);
 assert.match(page, /tags=\{transactionTags\}/);
 assert.doesNotMatch(commands, /updateTransactionFlag|TransactionFlag/);
 

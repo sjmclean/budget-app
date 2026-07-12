@@ -21,6 +21,7 @@ export interface UseTableLayoutOptions<TColumnId extends string> {
   storageKeyPrefix: string;
   scopeId?: string | null;
   columns: readonly TableColumnDefinition<TColumnId>[];
+  columnIdAliases?: Readonly<Record<string, TColumnId>>;
   minimumWidthRem?: number;
 }
 
@@ -70,6 +71,7 @@ export function readVisibleTableColumns<TColumnId extends string>(
   storageKeyPrefix: string,
   columns: readonly TableColumnDefinition<TColumnId>[],
   scopeId?: string | null,
+  columnIdAliases: Readonly<Record<string, TColumnId>> = {},
 ): TColumnId[] {
   const defaultVisibleColumns = getDefaultVisibleTableColumns(columns);
 
@@ -93,9 +95,13 @@ export function readVisibleTableColumns<TColumnId extends string>(
     }
 
     const knownColumnIds = new Set(columns.map((column) => column.id));
-    const visibleColumns = parsed.filter((column): column is TColumnId =>
-      knownColumnIds.has(column as TColumnId),
-    );
+    const visibleColumns = parsed
+      .map((column) =>
+        typeof column === "string" ? columnIdAliases[column] ?? column : column,
+      )
+      .filter((column): column is TColumnId =>
+        knownColumnIds.has(column as TColumnId),
+      );
 
     const requiredColumns = columns
       .filter((column) => column.canHide !== true)
@@ -149,6 +155,7 @@ export function readTableColumnWidths<TColumnId extends string>(
   storageKeyPrefix: string,
   columns: readonly TableColumnDefinition<TColumnId>[],
   scopeId?: string | null,
+  columnIdAliases: Readonly<Record<string, TColumnId>> = {},
 ): TableColumnWidths<TColumnId> {
   if (typeof window === "undefined") {
     return {};
@@ -172,7 +179,8 @@ export function readTableColumnWidths<TColumnId extends string>(
     const columnMap = new Map(columns.map((column) => [column.id, column]));
     const nextWidths: TableColumnWidths<TColumnId> = {};
 
-    for (const [columnId, rawWidth] of Object.entries(parsed)) {
+    for (const [storedColumnId, rawWidth] of Object.entries(parsed)) {
+      const columnId = columnIdAliases[storedColumnId] ?? storedColumnId;
       const column = columnMap.get(columnId as TColumnId);
       const width = Number(rawWidth);
 
@@ -245,19 +253,45 @@ export function useTableLayout<TColumnId extends string>({
   storageKeyPrefix,
   scopeId,
   columns,
+  columnIdAliases = {},
   minimumWidthRem = 0,
 }: UseTableLayoutOptions<TColumnId>): TableLayoutState<TColumnId> {
   const [visibleColumnIds, setVisibleColumnIds] = useState<TColumnId[]>(() =>
-    readVisibleTableColumns(storageKeyPrefix, columns, scopeId),
+    readVisibleTableColumns(
+      storageKeyPrefix,
+      columns,
+      scopeId,
+      columnIdAliases,
+    ),
   );
   const [columnWidths, setColumnWidths] = useState<TableColumnWidths<TColumnId>>(
-    () => readTableColumnWidths(storageKeyPrefix, columns, scopeId),
+    () =>
+      readTableColumnWidths(
+        storageKeyPrefix,
+        columns,
+        scopeId,
+        columnIdAliases,
+      ),
   );
 
   useEffect(() => {
-    setVisibleColumnIds(readVisibleTableColumns(storageKeyPrefix, columns, scopeId));
-    setColumnWidths(readTableColumnWidths(storageKeyPrefix, columns, scopeId));
-  }, [columns, scopeId, storageKeyPrefix]);
+    setVisibleColumnIds(
+      readVisibleTableColumns(
+        storageKeyPrefix,
+        columns,
+        scopeId,
+        columnIdAliases,
+      ),
+    );
+    setColumnWidths(
+      readTableColumnWidths(
+        storageKeyPrefix,
+        columns,
+        scopeId,
+        columnIdAliases,
+      ),
+    );
+  }, [columnIdAliases, columns, scopeId, storageKeyPrefix]);
 
   const visibleColumnSet = useMemo(
     () => new Set<TColumnId>(visibleColumnIds),

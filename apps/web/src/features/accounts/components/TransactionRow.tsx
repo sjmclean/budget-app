@@ -12,7 +12,6 @@ export type RegisterColumnId =
   | "select"
   | "date"
   | "tags"
-  | "flag"
   | "attachments"
   | "payee"
   | "category"

@@ -4,6 +4,10 @@ import type { TableColumnDefinition } from "../tableLayout/tableLayout";
 export const REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX =
   "budget-app.register-columns.v1";
 
+export const REGISTER_COLUMN_ID_ALIASES: Readonly<Record<string, RegisterColumnId>> = {
+  flag: "tags",
+};
+
 export const REGISTER_COLUMN_DEFINITIONS: readonly TableColumnDefinition<RegisterColumnId>[] =
   [
     { id: "select", label: "Select", template: "1.8rem", widthRem: 1.8, minWidthRem: 1.6 },
