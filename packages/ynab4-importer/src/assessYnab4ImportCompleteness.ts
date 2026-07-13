@@ -147,12 +147,12 @@ const ITEMS: Ynab4CompletenessItem[] = [
     id: "transaction-flags",
     area: "Transaction Flags",
     ynab4Data: "Transactions may include flag values.",
-    currentAppCapability: "TransactionFlag type and schema exist, but YNAB4 flag mapping and UI surfacing are not proven.",
-    status: "partial",
-    risk: "medium",
-    importImpact: "Flag data could be represented but may still be dropped by the importer if not explicitly mapped.",
+    currentAppCapability: "YNAB4 transaction flag colours are converted into reusable transaction tags and assigned through tagIds during import.",
+    status: "supported",
+    risk: "low",
+    importImpact: "Legacy flag meaning is preserved as coloured transaction tags without retaining the removed flag model.",
     requiredBeforeFullImport: false,
-    recommendedAction: "Map YNAB4 flags into TransactionFlag and add preview/import tests."
+    recommendedAction: "Keep the flags-to-tags import regression coverage and legacy source-field parsing while YNAB4 migration remains supported."
   },
   {
     id: "reconciliation",

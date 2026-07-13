@@ -10,7 +10,6 @@ import {
   importRuns,
   payees,
   splitTransactionLines,
-  transactionFlags,
   transactionNotes,
   transactions
 } from "../../database/src/schema.js";
@@ -18,7 +17,6 @@ import { AccountType } from "../../types/src/AccountType.js";
 import { BudgetParticipation } from "../../types/src/BudgetParticipation.js";
 import { ClearedStatus } from "../../types/src/ClearedStatus.js";
 import { ImportSource } from "../../types/src/ImportRun.js";
-import { TransactionFlagColour } from "../../types/src/TransactionFlag.js";
 import { TransactionType } from "../../types/src/TransactionType.js";
 import { normalizePayeeName } from "../../budget-engine/src/services/payeeNormalization.js";
 import { previewYnab4Import, Ynab4ImportInput } from "./importYnab4.js";
@@ -42,7 +40,6 @@ export interface Ynab4DatabaseImportResult {
     payees: number;
     transactions: number;
     splitLines: number;
-    transactionFlags: number;
     transactionNotes: number;
     budgetMonths: number;
     categoryMonths: number;
@@ -74,16 +71,6 @@ function mapClearedStatus(value: string): ClearedStatus {
   if (value === "reconciled") return ClearedStatus.Reconciled;
   if (value === "cleared") return ClearedStatus.Cleared;
   return ClearedStatus.Uncleared;
-}
-
-function mapFlagColour(value: string): TransactionFlagColour {
-  const normalized = value.trim().toLowerCase();
-  if (normalized.includes("orange")) return TransactionFlagColour.Orange;
-  if (normalized.includes("yellow")) return TransactionFlagColour.Yellow;
-  if (normalized.includes("green")) return TransactionFlagColour.Green;
-  if (normalized.includes("blue")) return TransactionFlagColour.Blue;
-  if (normalized.includes("purple")) return TransactionFlagColour.Purple;
-  return TransactionFlagColour.Red;
 }
 
 function monthKey(value: string): string {
@@ -126,7 +113,6 @@ export class Ynab4DatabaseImportService {
       payees: 0,
       transactions: 0,
       splitLines: 0,
-      transactionFlags: 0,
       transactionNotes: 0,
       budgetMonths: 0,
       categoryMonths: 0,
@@ -320,11 +306,6 @@ export class Ynab4DatabaseImportService {
           sortOrder: 0
         }).run();
         created.splitLines++;
-      }
-
-      if (row.flag) {
-        this.db.insert(transactionFlags).values({ id: randomUUID(), transactionId, colour: mapFlagColour(row.flag), label: row.flag, createdAt: now }).run();
-        created.transactionFlags++;
       }
 
       if (row.memo) {

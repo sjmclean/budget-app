@@ -82,8 +82,6 @@ export * from "./DeletedItemRepository.js";
 export * from "./SqliteDeletedItemRepository.js";
 export * from "./SchemaMigrationRepository.js";
 export * from "./SqliteSchemaMigrationRepository.js";
-export * from "./TransactionFlagRepository.js";
-export * from "./SqliteTransactionFlagRepository.js";
 export * from "./TransactionTagRepository.js";
 export * from "./SqliteTransactionTagRepository.js";
 export * from "./TransactionTagAssignmentRepository.js";

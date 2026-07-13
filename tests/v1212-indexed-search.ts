@@ -21,16 +21,12 @@ const insert = sqlite.prepare(`INSERT INTO transactions (id, budget_id, account_
 for (let i = 1; i <= 5; i += 1) {
   insert.run(`t${i}`, "b1", "a1", "p1", null, "outflow", `2026-06-${String(i).padStart(2, "0")}`, i === 3 ? "weekly shop" : "", -1000 * i, i % 2 === 0 ? "cleared" : "uncleared", 0, Date.now() + i, Date.now() + i);
 }
-sqlite.prepare("INSERT INTO transaction_flags (id, transaction_id, colour, label, created_at) VALUES (?, ?, ?, ?, ?)").run("f1", "t3", "red", "Check", Date.now());
 sqlite.prepare("INSERT INTO transaction_tag_assignments (id, transaction_id, tag_id, created_at) VALUES (?, ?, ?, ?)").run("ta1", "t3", "tag1", Date.now());
 
 const search = new IndexedTransactionSearchApplicationService(sqlite);
 const page = search.search({ budgetId: "b1", limit: 2, offset: 1, sortBy: "date", sortDirection: "asc" });
 assert(page.total === 5, "Expected total count independent of pagination");
 assert(page.rows.length === 2 && page.rows[0].id === "t2", "Expected deterministic paginated date sort");
-
-const flagged = search.search({ budgetId: "b1", flagColour: "red" });
-assert(flagged.rows.length === 1 && flagged.rows[0].id === "t3", "Expected flag filter to find flagged transaction");
 
 const taggedText = search.search({ budgetId: "b1", tagId: "tag1", text: "weekly" });
 assert(taggedText.rows.length === 1 && taggedText.rows[0].id === "t3", "Expected combined tag/text search to work");

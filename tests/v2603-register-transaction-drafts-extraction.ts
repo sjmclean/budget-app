@@ -58,7 +58,6 @@ function testNewTransactionDraftBuildsCanonicalInput() {
 
   assert.deepEqual(input, {
     date: "2026-07-05",
-    flag: undefined,
     payee: "Market",
     payeeId: "payee-market",
     category: "Groceries",
@@ -125,11 +124,10 @@ function testInvalidDraftsReturnNull() {
   );
 }
 
-function testUpdateDraftKeepsTransactionIdAndFlag() {
+function testUpdateDraftKeepsTransactionId() {
   const input = buildUpdateRegisterTransactionInput({
     id: "transaction-1",
     date: "2026-07-05",
-    flag: "green",
     payee: "Market",
     category: "Groceries",
     memo: "",
@@ -141,7 +139,7 @@ function testUpdateDraftKeepsTransactionIdAndFlag() {
   });
 
   assert.equal(input?.id, "transaction-1");
-  assert.equal(input?.flag, "green");
+  assert.equal("flag" in (input ?? {}), false);
 }
 
 function testUpdateDraftPreservesExistingSplitDraftPermissiveness() {
@@ -174,7 +172,7 @@ function run() {
   testNewTransactionDraftBuildsCanonicalInput();
   testIncomeFallsBackToReadyToAssign();
   testInvalidDraftsReturnNull();
-  testUpdateDraftKeepsTransactionIdAndFlag();
+  testUpdateDraftKeepsTransactionId();
   testUpdateDraftPreservesExistingSplitDraftPermissiveness();
   console.log("v2.60.3 register transaction draft extraction checks passed");
 }

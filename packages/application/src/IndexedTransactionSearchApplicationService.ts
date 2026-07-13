@@ -8,7 +8,6 @@ export interface IndexedTransactionSearchFilters {
   categoryId?: string;
   payeeId?: string;
   clearedStatus?: string;
-  flagColour?: string;
   tagId?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -54,11 +53,6 @@ export class IndexedTransactionSearchApplicationService {
     if (filters.dateTo) { where.push("t.date <= @dateTo"); params.dateTo = filters.dateTo; }
     if (filters.amountMin !== undefined) { where.push("t.amount >= @amountMin"); params.amountMin = filters.amountMin; }
     if (filters.amountMax !== undefined) { where.push("t.amount <= @amountMax"); params.amountMax = filters.amountMax; }
-    if (filters.flagColour) {
-      joins.push("INNER JOIN transaction_flags tf ON tf.transaction_id = t.id");
-      where.push("tf.colour = @flagColour");
-      params.flagColour = filters.flagColour;
-    }
     if (filters.tagId) {
       joins.push("INNER JOIN transaction_tag_assignments tta ON tta.transaction_id = t.id");
       where.push("tta.tag_id = @tagId");

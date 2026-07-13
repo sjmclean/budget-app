@@ -1,22 +1,7 @@
 import { randomUUID } from "crypto";
-import { TransactionFlag, TransactionFlagColour } from "../../../types/src/TransactionFlag.js";
 import { TransactionNote } from "../../../types/src/TransactionNote.js";
 import { TransactionTag } from "../../../types/src/TransactionTag.js";
 import { TransactionTagAssignment } from "../../../types/src/TransactionTagAssignment.js";
-
-export function createTransactionFlag(
-  transactionId: string,
-  colour: TransactionFlagColour,
-  label: string | null = null
-): TransactionFlag {
-  return {
-    id: randomUUID(),
-    transactionId,
-    colour,
-    label,
-    createdAt: new Date()
-  };
-}
 
 export function createTransactionNote(transactionId: string, note: string): TransactionNote {
   const now = new Date();

@@ -24,7 +24,7 @@ SQLite foreign keys are enabled during database initialization. v1.2.14 also inc
 | `payee_rules` | Persisted auto-categorisation and payee matching rules. |
 | `transactions` | Register transactions, including transfers and deleted state. |
 | `split_transaction_lines` | Split transaction line items. |
-| `transaction_flags` | User-visible transaction flags. |
+| `transaction_flags` | Legacy compatibility table retained temporarily; current transaction classification uses `transaction_tags` and `transaction_tag_assignments`. |
 | `transaction_tags` | Tag definitions. |
 | `transaction_tag_assignments` | Many-to-many link between transactions and tags. |
 | `transaction_notes` | Transaction notes/comments. |

@@ -23,7 +23,7 @@ function testRegisterCommandsHookExists() {
   assert.match(registerCommandsSource, /editTransaction/);
   assert.match(registerCommandsSource, /toggleClearedTransaction/);
   assert.match(registerCommandsSource, /manageTransactionAttachments/);
-  assert.match(registerCommandsSource, /updateTransactionFlag/);
+  assert.doesNotMatch(registerCommandsSource, /updateTransactionFlag|TransactionFlag/);
 }
 
 function testRegisterPageUsesCommandsHook() {
@@ -39,8 +39,8 @@ function testRegisterPageUsesCommandsHook() {
   );
   assert.doesNotMatch(
     registerPageSource,
-    /const handleUpdateTransactionFlag = useCallback/,
-    "Register page should not own transaction flag command orchestration",
+    /handleUpdateTransactionFlag|onUpdateTransactionFlag/,
+    "Register page should not retain transaction flag command orchestration",
   );
   assert.doesNotMatch(
     registerPageSource,

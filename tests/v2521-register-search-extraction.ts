@@ -33,7 +33,7 @@ function createTransaction(
     outflow: input.outflow ?? 42.5,
     inflow: input.inflow ?? 0,
     cleared: input.cleared ?? false,
-    flag: input.flag,
+    tagIds: input.tagIds,
     runningBalance: input.runningBalance ?? 0,
     attachmentCount: input.attachmentCount ?? 0,
     splitLines: input.splitLines,

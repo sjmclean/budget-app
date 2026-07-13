@@ -10,12 +10,9 @@ import { PayeeRepository } from "../../repository/src/PayeeRepository.js";
 import { TransactionAttachmentRepository } from "../../repository/src/TransactionAttachmentRepository.js";
 import { TransactionRepository } from "../../repository/src/TransactionRepository.js";
 
-export type RegisterTransactionFlag = "red" | "orange" | "yellow" | "green" | "blue" | "purple" | null;
-
 export interface RegisterTransactionView {
   id: string;
   date: string;
-  flag: RegisterTransactionFlag;
   attachmentCount: number;
   payee: string;
   category: string;
@@ -156,7 +153,6 @@ function toRegisterTransactionView(input: {
   return {
     id: input.transaction.id,
     date: input.transaction.date,
-    flag: null,
     attachmentCount: input.attachmentCount,
     payee: input.transaction.transferAccountId
       ? `Transfer: ${input.transferAccountName ?? "Account"}`

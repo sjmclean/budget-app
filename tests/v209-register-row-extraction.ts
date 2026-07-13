@@ -40,8 +40,8 @@ assert(
   "TransactionStatus should live beside the extracted TransactionRow component.",
 );
 assert(
-  transactionRow.includes("export function InlineFlagPicker"),
-  "InlineFlagPicker should remain available to the edit row via the extracted component module.",
+  transactionRow.includes("function TransactionTagPicker"),
+  "TransactionTagPicker should live beside the extracted TransactionRow component.",
 );
 assert(
   transactionRow.includes("export function AttachmentIndicator"),

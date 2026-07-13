@@ -5,7 +5,6 @@ import { TransactionRepository } from "../../repository/src/TransactionRepositor
 export interface BulkTransactionChangeInput {
   transactionIds: string[];
   clearedStatus?: ClearedStatus;
-  flagColour?: string | null;
   categoryId?: string | null;
   payeeId?: string | null;
   forceReconciledEdit?: boolean;

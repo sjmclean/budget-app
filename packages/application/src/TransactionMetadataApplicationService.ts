@@ -1,12 +1,10 @@
 import { randomUUID } from "crypto";
 import { ClearedStatus } from "../../types/src/ClearedStatus.js";
 import { Transaction } from "../../types/src/Transaction.js";
-import { TransactionFlag, TransactionFlagColour } from "../../types/src/TransactionFlag.js";
 import { TransactionNote } from "../../types/src/TransactionNote.js";
 import { TransactionTag } from "../../types/src/TransactionTag.js";
 import { TransactionTagAssignment } from "../../types/src/TransactionTagAssignment.js";
 import { TransactionRepository } from "../../repository/src/TransactionRepository.js";
-import { TransactionFlagRepository } from "../../repository/src/TransactionFlagRepository.js";
 import { TransactionNoteRepository } from "../../repository/src/TransactionNoteRepository.js";
 import { TransactionTagRepository } from "../../repository/src/TransactionTagRepository.js";
 import { TransactionTagAssignmentRepository } from "../../repository/src/TransactionTagAssignmentRepository.js";
@@ -18,7 +16,6 @@ function normalizeTagName(name: string): string {
 export class TransactionMetadataApplicationService {
   constructor(
     private transactionRepo: TransactionRepository,
-    private flagRepo: TransactionFlagRepository,
     private noteRepo: TransactionNoteRepository,
     private tagRepo: TransactionTagRepository,
     private tagAssignmentRepo: TransactionTagAssignmentRepository
@@ -28,30 +25,6 @@ export class TransactionMetadataApplicationService {
     const transaction = await this.transactionRepo.getById(transactionId);
     if (!transaction) throw new Error(`Transaction not found: ${transactionId}`);
     return transaction;
-  }
-
-  async setFlag(transactionId: string, colour: TransactionFlagColour, label: string | null = null): Promise<TransactionFlag> {
-    await this.requireTransaction(transactionId);
-    await this.flagRepo.deleteByTransactionId(transactionId);
-    const flag: TransactionFlag = {
-      id: randomUUID(),
-      transactionId,
-      colour,
-      label: label?.trim() || null,
-      createdAt: new Date()
-    };
-    await this.flagRepo.create(flag);
-    return flag;
-  }
-
-  async clearFlag(transactionId: string): Promise<void> {
-    await this.requireTransaction(transactionId);
-    await this.flagRepo.deleteByTransactionId(transactionId);
-  }
-
-  async getFlags(transactionId: string): Promise<TransactionFlag[]> {
-    await this.requireTransaction(transactionId);
-    return await this.flagRepo.findByTransactionId(transactionId);
   }
 
   async addNote(transactionId: string, note: string): Promise<TransactionNote> {

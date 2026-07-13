@@ -58,7 +58,6 @@ export * from "./LanguageCode.js";
 export * from "./BudgetSettings.js";
 export * from "./AccountSettings.js";
 export * from "./CategorySettings.js";
-export * from "./TransactionFlag.js";
 export * from "./TransactionTag.js";
 export * from "./TransactionTagAssignment.js";
 export * from "./TransactionNote.js";
