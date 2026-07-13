@@ -81,11 +81,21 @@ export class BrowserPersistentAccountRegisterService
     }
 
     return updateRegister(this.dependencies, input.accountId, (register) => {
+      if (findScheduledOccurrence(register, input.transaction)) {
+        return;
+      }
+
+      const transaction = createTransactionView(this.dependencies, {
+        ...input.transaction,
+        payeeId,
+      });
+      const scheduledId = createScheduledOccurrenceTransactionId(
+        input.accountId,
+        input.transaction,
+      );
+
       register.transactions.unshift(
-        createTransactionView(this.dependencies, {
-          ...input.transaction,
-          payeeId,
-        }),
+        scheduledId ? { ...transaction, id: scheduledId } : transaction,
       );
     });
   }
@@ -694,9 +704,25 @@ function addTransferTransaction(
     registers[targetAccount.id] ??
       createEmptyRegister(dependencies, targetAccount.id),
   );
-  const transferId = createId();
-  const sourceTransactionId = createId();
-  const targetTransactionId = createId();
+  const existingOccurrence = findScheduledOccurrence(
+    sourceRegister,
+    input,
+  );
+  if (existingOccurrence) {
+    return cloneRegister(recalculateRegister(dependencies, sourceRegister));
+  }
+
+  const scheduledSourceId = createScheduledOccurrenceTransactionId(
+    sourceAccountId,
+    input,
+  );
+  const sourceTransactionId = scheduledSourceId ?? createId();
+  const targetTransactionId = scheduledSourceId
+    ? `${scheduledSourceId}:transfer-target`
+    : createId();
+  const transferId = scheduledSourceId
+    ? `${scheduledSourceId}:transfer`
+    : createId();
 
   const sourceTransaction: RegisterTransactionView = {
     ...createTransactionView(dependencies, input),
@@ -734,6 +760,47 @@ function addTransferTransaction(
   writeRegisters(dependencies.storage, registers);
 
   return cloneRegister(registers[sourceAccountId]);
+}
+
+
+function findScheduledOccurrence(
+  register: AccountRegisterView,
+  input: NewRegisterTransactionInput,
+): RegisterTransactionView | undefined {
+  if (
+    input.generatedFromSchedule !== true ||
+    !input.scheduledTransactionId ||
+    !input.scheduledOccurrenceDate
+  ) {
+    return undefined;
+  }
+
+  return register.transactions.find(
+    (transaction) =>
+      transaction.generatedFromSchedule === true &&
+      transaction.scheduledTransactionId === input.scheduledTransactionId &&
+      transaction.scheduledOccurrenceDate === input.scheduledOccurrenceDate,
+  );
+}
+
+function createScheduledOccurrenceTransactionId(
+  accountId: string,
+  input: NewRegisterTransactionInput,
+): string | undefined {
+  if (
+    input.generatedFromSchedule !== true ||
+    !input.scheduledTransactionId ||
+    !input.scheduledOccurrenceDate
+  ) {
+    return undefined;
+  }
+
+  return [
+    "scheduled",
+    encodeURIComponent(accountId),
+    encodeURIComponent(input.scheduledTransactionId),
+    encodeURIComponent(input.scheduledOccurrenceDate),
+  ].join(":");
 }
 
 function isPayeeReferenceMatch(
