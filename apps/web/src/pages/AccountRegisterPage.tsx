@@ -1,4 +1,4 @@
-import { Paperclip } from "lucide-react";
+import { Paperclip, Tag } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -33,6 +33,7 @@ import { useRegisterAttachmentWorkflow } from "../features/accounts/useRegisterA
 import { useRegisterViewModel } from "../features/accounts/useRegisterViewModel";
 import {
   REGISTER_COLUMN_DEFINITIONS,
+  REGISTER_COLUMN_ID_ALIASES,
   REGISTER_COLUMN_LABELS,
   REGISTER_EDIT_COLUMN_DEFINITIONS,
   REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
@@ -200,10 +201,13 @@ export function AccountRegisterPage() {
       }),
     [transactionTagStorage],
   );
-  const transactionTags = useMemo(
-    () => transactionTagService.listTags(),
-    [transactionTagService],
+  const [transactionTags, setTransactionTags] = useState(() =>
+    transactionTagService.listTags(),
   );
+
+  useEffect(() => {
+    setTransactionTags(transactionTagService.listTags());
+  }, [transactionTagService]);
   const accountsPersistence = persistenceGateway.accounts;
   const payeesPersistence = persistenceGateway.payees;
   const categoriesPersistence = persistenceGateway.categories;
@@ -278,6 +282,7 @@ export function AccountRegisterPage() {
     storageKeyPrefix: REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
     scopeId: activeBudgetId,
     columns: REGISTER_COLUMN_DEFINITIONS,
+    columnIdAliases: REGISTER_COLUMN_ID_ALIASES,
     minimumWidthRem: 58,
   });
 
@@ -588,6 +593,25 @@ export function AccountRegisterPage() {
     registerCommands.toggleClearedTransaction;
   const handleManageTransactionAttachments =
     registerCommands.manageTransactionAttachments;
+  const handleUpdateTransactionTags = useCallback(
+    (transaction: RegisterTransactionView, tagIds: string[]) => {
+      void updateTransaction({
+        id: transaction.id,
+        date: transaction.date,
+        tagIds,
+        payee: transaction.payee,
+        payeeId: transaction.payeeId,
+        category: transaction.category,
+        categoryId: transaction.categoryId,
+        memo: transaction.memo,
+        checkNumber: transaction.checkNumber,
+        inflow: transaction.inflow,
+        outflow: transaction.outflow,
+        splitLines: transaction.splitLines,
+      });
+    },
+    [updateTransaction],
+  );
 
   const handleOpenRegisterContextMenu = useCallback(
     (transactionId: string, event: MouseEvent<HTMLElement>) => {
@@ -891,7 +915,13 @@ export function AccountRegisterPage() {
           />
         </span>
         <span className="register-compact-head-date">Date</span>
-        <span className="register-compact-head-tags">Tags</span>
+        <span
+          className="register-compact-head-tags register-head-icon"
+          aria-label="Tags"
+          title="Tags"
+        >
+          <Tag size={14} aria-hidden="true" />
+        </span>
         <span
           className="register-compact-head-attachments"
           aria-label="Attachments"
@@ -913,7 +943,9 @@ export function AccountRegisterPage() {
         {registerTableLayout.visibleColumns.map((column) => (
           <span
             className={[
-              column.id === "attachments" ? "register-head-icon" : "",
+              column.id === "attachments" || column.id === "tags"
+                ? "register-head-icon"
+                : "",
               column.id === "amount" || column.id === "runningBalance"
                 ? "register-head-money"
                 : "",
@@ -925,11 +957,16 @@ export function AccountRegisterPage() {
             aria-label={
               column.id === "attachments"
                 ? "Attachments"
-                : undefined
+                : column.id === "tags"
+                  ? "Tags"
+                  : undefined
             }
+            title={column.id === "tags" ? "Tags" : undefined}
           >
             {column.id === "attachments" ? (
-              <Paperclip size={13} />
+              <Paperclip size={13} aria-hidden="true" />
+            ) : column.id === "tags" ? (
+              <Tag size={14} aria-hidden="true" />
             ) : column.id === "runningBalance" ? (
               "Balance"
             ) : column.id === "status" ? (
@@ -1036,6 +1073,7 @@ export function AccountRegisterPage() {
           categoryOptions={categoryOptions}
           transferAccounts={transferAccounts}
           payeeOptions={payeeOptions}
+          tags={transactionTags}
           onClose={() => setIsScheduledOpen(false)}
           onDueCountChange={setScheduledDueCount}
           onEnter={async (input) => {
@@ -1054,7 +1092,10 @@ export function AccountRegisterPage() {
                 <button
                   className="button button-secondary"
                   type="button"
-                  onClick={() => setIsTransactionTagManagerOpen(false)}
+                  onClick={() => {
+                    setTransactionTags(transactionTagService.listTags());
+                    setIsTransactionTagManagerOpen(false);
+                  }}
                 >
                   Close
                 </button>
@@ -1536,6 +1577,7 @@ export function AccountRegisterPage() {
                       handleManageTransactionAttachments
                     }
                     tags={transactionTags}
+                    onUpdateTransactionTags={handleUpdateTransactionTags}
                     onOpenContextMenu={handleOpenRegisterContextMenu}
                     visibleColumns={registerTableLayout.visibleColumnSet}
                     rowStyle={registerTableLayout.rowStyle}
@@ -1666,42 +1708,7 @@ export function AccountRegisterPage() {
         />
       )}
 
-      <div className="register-legend">
-        <span>
-          <span className="transaction-flag transaction-flag-red" /> Needs
-          attention
-        </span>
-        <span>
-          <span className="transaction-flag transaction-flag-orange" /> Waiting
-          for receipt
-        </span>
-        <span>
-          <span className="transaction-flag transaction-flag-yellow" /> Tax
-          related
-        </span>
-        <span>
-          <span className="transaction-flag transaction-flag-green" />{" "}
-          Reimbursable
-        </span>
-        <span>
-          <span className="transaction-flag transaction-flag-blue" /> Business
-        </span>
-        <span>
-          <span className="transaction-flag transaction-flag-purple" /> Review
-          later
-        </span>
-        <span className="register-legend-spacer" />
-        <span>
-          <Paperclip size={13} /> Attachment
-        </span>
-        <span>
-          <span className="register-status register-status-cleared">C</span>{" "}
-          Cleared
-        </span>
-        <span>
-          <span className="register-status register-status-empty" /> Uncleared
-        </span>
-      </div>
+
     </div>
   );
 }

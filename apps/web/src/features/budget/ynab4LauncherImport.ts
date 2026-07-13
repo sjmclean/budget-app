@@ -27,6 +27,11 @@ import type {
   Ynab4PackageMigrationPreview,
 } from "../../../../../packages/ynab4-importer/src/analyzeYnab4Package";
 import { isMoneyNegative, normaliseMoney } from "./moneyMath";
+import { TRANSACTION_TAGS_STORAGE_KEY } from "../tags/transactionTagPersistence";
+import type {
+  TransactionTagColour,
+  TransactionTagDefinition,
+} from "../tags/transactionTagTypes";
 
 export const YNAB4_LAUNCHER_IMPORT_STORAGE_PREFIX =
   "budget-app.ynab4-launcher-import.v1";
@@ -332,15 +337,36 @@ function writeImportedBudgetData(
     payeeNameById: new Map(),
   };
 
+  const transactionRecords = toRecords(data.transactions);
+  const scheduledTransactionRecords = toRecords(data.scheduledTransactions);
   const accounts = mapAccounts(toRecords(data.accounts), maps, nowIso);
   const categoryGroups = mapCategoryGroups(toRecords(data.masterCategories), maps);
   const payees = mapPayees(toRecords(data.payees), maps, nowIso);
-  const registers = mapRegisters(toRecords(data.transactions), accounts, maps);
-  const scheduled = mapScheduledTransactions(toRecords(data.scheduledTransactions), maps, nowIso);
+  const importedFlagTags = mapImportedFlagTags(
+    [...transactionRecords, ...scheduledTransactionRecords],
+    nowIso,
+  );
+  const registers = mapRegisters(
+    transactionRecords,
+    accounts,
+    maps,
+    importedFlagTags.tagIdByColour,
+  );
+  const scheduled = mapScheduledTransactions(
+    scheduledTransactionRecords,
+    maps,
+    nowIso,
+  );
   const monthViews = mapBudgetMonthViews(budget, toRecords(data.monthlyBudgets), categoryGroups, maps, registers, now);
 
   writeScopedJson(storage, budget.id, ACCOUNTS_STORAGE_KEY, accounts);
   writeScopedJson(storage, budget.id, PAYEES_STORAGE_KEY, payees);
+  writeScopedJson(
+    storage,
+    budget.id,
+    TRANSACTION_TAGS_STORAGE_KEY,
+    importedFlagTags.tags,
+  );
   writeScopedJson(storage, budget.id, REGISTERS_STORAGE_KEY, registers);
   writeScopedJson(storage, budget.id, SCHEDULED_STORAGE_KEY, scheduled);
 
@@ -658,6 +684,7 @@ function mapRegisters(
   transactions: RecordMap[],
   accounts: SidebarAccount[],
   maps: ImportMaps,
+  importedFlagTagIdByColour: ReadonlyMap<TransactionTagColour, string>,
 ): Record<string, AccountRegisterView> {
   const registers: Record<string, AccountRegisterView> = {};
   for (const account of accounts) {
@@ -668,7 +695,14 @@ function mapRegisters(
     if (transaction.isTombstone === true || transaction.deleted === true) continue;
     const accountId = mappedId(maps.accountIdBySourceId, transaction.accountId, transaction.accountEntityId);
     if (!accountId || !registers[accountId]) continue;
-    registers[accountId].transactions.push(mapRegisterTransaction(transaction, index, maps));
+    registers[accountId].transactions.push(
+      mapRegisterTransaction(
+        transaction,
+        index,
+        maps,
+        importedFlagTagIdByColour,
+      ),
+    );
   }
 
   for (const register of Object.values(registers)) {
@@ -691,13 +725,24 @@ function createEmptyRegister(account: SidebarAccount): AccountRegisterView {
   };
 }
 
-function mapRegisterTransaction(transaction: RecordMap, index: number, maps: ImportMaps): RegisterTransactionView {
+function mapRegisterTransaction(
+  transaction: RecordMap,
+  index: number,
+  maps: ImportMaps,
+  importedFlagTagIdByColour: ReadonlyMap<TransactionTagColour, string>,
+): RegisterTransactionView {
   const amount = transactionAmountToDisplayUnits(transaction.amount, transaction.amountMilliUnits, transaction.inflow, transaction.outflow) ?? 0;
   const transferAccountId = mappedId(maps.accountIdBySourceId, transaction.targetAccountId, transaction.transferAccountId);
   const payeeId = mappedId(maps.payeeIdBySourceId, transaction.payeeId);
   const categoryId = mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
   const transferAccountType = transferAccountId ? maps.accountTypeById.get(transferAccountId) : undefined;
   const isCategorisedOffBudgetTransfer = Boolean(transferAccountId && categoryId && transferAccountType === "tracking");
+  const importedFlagColour = normaliseImportedFlagColour(
+    firstString(transaction.flag, transaction.flagColor),
+  );
+  const importedFlagTagId = importedFlagColour
+    ? importedFlagTagIdByColour.get(importedFlagColour)
+    : undefined;
   const payeeName = transferAccountId
     ? `Transfer: ${maps.accountNameById.get(transferAccountId) ?? "Account"}`
     : firstString(transaction.payeeName, transaction.payee) ?? (payeeId ? maps.payeeNameById.get(payeeId) : null) ?? "Imported Payee";
@@ -705,7 +750,7 @@ function mapRegisterTransaction(transaction: RecordMap, index: number, maps: Imp
   return {
     id: firstString(transaction.entityId, transaction.id, transaction.transactionId) ?? `imported-transaction-${index}`,
     date: normaliseDate(firstString(transaction.date, transaction.dateString, transaction.acceptedDate)) ?? "1970-01-01",
-    flag: mapFlag(firstString(transaction.flag, transaction.flagColor)),
+    ...(importedFlagTagId ? { tagIds: [importedFlagTagId] } : {}),
     attachmentCount: 0,
     attachments: [],
     payee: payeeName,
@@ -791,10 +836,15 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
     const transferAccountId = mappedId(maps.accountIdBySourceId, transaction.targetAccountId, transaction.transferAccountId);
     const payeeId = mappedId(maps.payeeIdBySourceId, transaction.payeeId);
     const categoryId = mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
+    const importedFlagColour = normaliseImportedFlagColour(
+      firstString(transaction.flag, transaction.flagColor),
+    );
     return [{
       id: firstString(transaction.entityId, transaction.id, transaction.scheduledTransactionId) ?? `imported-scheduled-${index}`,
       accountId,
-      flag: mapFlag(firstString(transaction.flag, transaction.flagColor)),
+      ...(importedFlagColour
+        ? { tagIds: [`ynab4-imported-flag-${importedFlagColour}`] }
+        : {}),
       nextDueDate: normaliseDate(firstString(transaction.nextDueDate, transaction.date, transaction.dateString)) ?? "1970-01-01",
       frequency: mapFrequency(firstString(transaction.frequency, transaction.repeat, transaction.recurrence)),
       payee: transferAccountId
@@ -1139,12 +1189,63 @@ function mapAccountType(value: string | null, onBudget: unknown): SidebarAccount
   return "on-budget";
 }
 
-function mapFlag(value: string | null): RegisterTransactionView["flag"] {
-  const normalized = value?.trim().toLowerCase();
-  if (["red", "orange", "yellow", "green", "blue", "purple"].includes(normalized ?? "")) {
-    return normalized as RegisterTransactionView["flag"];
+const IMPORTED_FLAG_COLOURS: readonly TransactionTagColour[] = [
+  "red",
+  "orange",
+  "yellow",
+  "green",
+  "blue",
+  "purple",
+];
+
+function normaliseImportedFlagColour(
+  value: string | null,
+): TransactionTagColour | null {
+  const normalised = value?.trim().toLowerCase();
+  return IMPORTED_FLAG_COLOURS.includes(normalised as TransactionTagColour)
+    ? (normalised as TransactionTagColour)
+    : null;
+}
+
+function mapImportedFlagTags(
+  transactions: readonly RecordMap[],
+  nowIso: string,
+): {
+  tags: TransactionTagDefinition[];
+  tagIdByColour: ReadonlyMap<TransactionTagColour, string>;
+} {
+  const colours = new Set<TransactionTagColour>();
+
+  for (const transaction of transactions) {
+    if (transaction.isTombstone === true || transaction.deleted === true) {
+      continue;
+    }
+
+    const colour = normaliseImportedFlagColour(
+      firstString(transaction.flag, transaction.flagColor),
+    );
+    if (colour) {
+      colours.add(colour);
+    }
   }
-  return null;
+
+  const tags = IMPORTED_FLAG_COLOURS.filter((colour) => colours.has(colour)).map(
+    (colour): TransactionTagDefinition => ({
+      id: `ynab4-imported-flag-${colour}`,
+      name: `${colour[0].toUpperCase()}${colour.slice(1)} flag`,
+      description: "Imported from a YNAB4 transaction flag.",
+      colour,
+      autoTagImportedTransactions: false,
+      archived: false,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    }),
+  );
+
+  return {
+    tags,
+    tagIdByColour: new Map(tags.map((tag) => [tag.colour, tag.id])),
+  };
 }
 
 function mapFrequency(value: string | null): ScheduledFrequency {

@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, CornerDownRight, Paperclip, Tag } from "lucide-react";
-import { memo, useState, type CSSProperties, type MouseEvent } from "react";
+import { memo, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import type { RegisterLayoutMode } from "../registerLayoutMode";
 import type { RegisterTransactionView } from "../accountRegisterTypes";
 import { formatDateForDisplay } from "../../settings/dateFormatting";
@@ -12,7 +12,6 @@ export type RegisterColumnId =
   | "select"
   | "date"
   | "tags"
-  | "flag"
   | "attachments"
   | "payee"
   | "category"
@@ -98,38 +97,110 @@ function TransactionSelectionCheckbox({
   );
 }
 
-function TransactionTagIndicator({
+function TransactionTagPicker({
   transaction,
   tags,
+  onChange,
 }: {
   transaction: RegisterTransactionView;
   tags: readonly TransactionTagDefinition[];
+  onChange: (tagIds: string[]) => void;
 }) {
-  const assignedTags = tags.filter((tag) =>
-    transaction.tagIds?.includes(tag.id),
-  );
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const assignedTagIds = transaction.tagIds ?? [];
+  const assignedTags = tags.filter((tag) => assignedTagIds.includes(tag.id));
   const primaryTag = assignedTags[0];
   const title =
     assignedTags.length > 0
       ? assignedTags.map((tag) => tag.name).join(", ")
       : "No tags";
 
-  return (
-    <span
-      className={
-        primaryTag
-          ? "transaction-tag-indicator transaction-tag-indicator-assigned"
-          : "transaction-tag-indicator"
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
       }
-      style={primaryTag ? { color: `var(--tag-${primaryTag.colour})` } : undefined}
-      title={title}
-      aria-label={title}
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  function toggleTag(tagId: string) {
+    const nextTagIds = assignedTagIds.includes(tagId)
+      ? assignedTagIds.filter((candidate) => candidate !== tagId)
+      : [...assignedTagIds, tagId];
+
+    onChange(nextTagIds);
+  }
+
+  return (
+    <div
+      className="transaction-tag-picker"
+      ref={containerRef}
+      onClick={(event) => event.stopPropagation()}
     >
-      <Tag size={15} fill={primaryTag ? "currentColor" : "none"} />
-      {assignedTags.length > 1 ? (
-        <span className="transaction-tag-count">{assignedTags.length}</span>
+      <button
+        className={
+          primaryTag
+            ? "transaction-tag-indicator transaction-tag-indicator-assigned"
+            : "transaction-tag-indicator"
+        }
+        style={primaryTag ? { color: `var(--tag-${primaryTag.colour})` } : undefined}
+        type="button"
+        title={title}
+        aria-label={assignedTags.length > 0 ? `Edit tags: ${title}` : "Add tags"}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        <Tag size={15} fill={primaryTag ? "currentColor" : "none"} />
+        {assignedTags.length > 1 ? (
+          <span className="transaction-tag-count">{assignedTags.length}</span>
+        ) : null}
+      </button>
+
+      {isOpen ? (
+        <div className="transaction-tag-picker-menu" role="menu" aria-label="Transaction tags">
+          {tags.length > 0 ? (
+            tags.map((tag) => (
+              <label className="transaction-tag-picker-option" key={tag.id}>
+                <input
+                  type="checkbox"
+                  checked={assignedTagIds.includes(tag.id)}
+                  onChange={() => toggleTag(tag.id)}
+                />
+                <span
+                  className="transaction-tag-picker-swatch"
+                  style={{ backgroundColor: `var(--tag-${tag.colour})` }}
+                  aria-hidden="true"
+                />
+                <span>{tag.name}</span>
+              </label>
+            ))
+          ) : (
+            <p className="transaction-tag-picker-empty">
+              No tags yet. Create tags from More → Manage Tags.
+            </p>
+          )}
+        </div>
       ) : null}
-    </span>
+    </div>
   );
 }
 function ScheduledTransactionBadge({
@@ -295,6 +366,10 @@ interface TransactionRowRendererProps {
   onToggleClearedTransaction: (transactionId: string) => void;
   onManageTransactionAttachments: (transactionId: string) => void;
   tags: readonly TransactionTagDefinition[];
+  onUpdateTransactionTags: (
+    transaction: RegisterTransactionView,
+    tagIds: string[],
+  ) => void;
   onOpenContextMenu: (
     transactionId: string,
     event: MouseEvent<HTMLElement>,
@@ -319,6 +394,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
   onToggleClearedTransaction,
   onManageTransactionAttachments,
   tags,
+  onUpdateTransactionTags,
   onOpenContextMenu,
   visibleColumns,
   rowStyle,
@@ -356,7 +432,11 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
         />
         <span>{formatDateForDisplay(transaction.date, dateFormat)}</span>
         {isRegisterColumnVisible("tags", visibleColumns) ? (
-          <TransactionTagIndicator transaction={transaction} tags={tags} />
+          <TransactionTagPicker
+            transaction={transaction}
+            tags={tags}
+            onChange={(tagIds) => onUpdateTransactionTags(transaction, tagIds)}
+          />
         ) : null}
         {isRegisterColumnVisible("attachments", visibleColumns) ? (
           <AttachmentIndicator
@@ -469,6 +549,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   onToggleClearedTransaction,
   onManageTransactionAttachments,
   tags,
+  onUpdateTransactionTags,
   onOpenContextMenu,
   visibleColumns,
 }: TransactionRowRendererProps) {
@@ -514,7 +595,11 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
 
 
         {isRegisterColumnVisible("tags", visibleColumns) ? (
-          <TransactionTagIndicator transaction={transaction} tags={tags} />
+          <TransactionTagPicker
+            transaction={transaction}
+            tags={tags}
+            onChange={(tagIds) => onUpdateTransactionTags(transaction, tagIds)}
+          />
         ) : (
           <span aria-hidden="true" />
         )}
@@ -658,6 +743,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
   onToggleClearedTransaction,
   onManageTransactionAttachments,
   tags,
+  onUpdateTransactionTags,
   onOpenContextMenu,
   visibleColumns,
 }: TransactionRowRendererProps) {
@@ -783,7 +869,11 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
 
         <div className="register-tablet-actions">
           {isRegisterColumnVisible("tags", visibleColumns) ? (
-            <TransactionTagIndicator transaction={transaction} tags={tags} />
+            <TransactionTagPicker
+            transaction={transaction}
+            tags={tags}
+            onChange={(tagIds) => onUpdateTransactionTags(transaction, tagIds)}
+          />
           ) : null}
 
           {isRegisterColumnVisible("attachments", visibleColumns) ? (

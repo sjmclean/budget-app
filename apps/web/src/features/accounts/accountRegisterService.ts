@@ -282,10 +282,6 @@ export class BrowserPersistentAccountRegisterService
       const updatedSource = {
         ...existing,
         date: input.transaction.date,
-        flag:
-          input.transaction.flag === undefined
-            ? existing.flag
-            : input.transaction.flag,
         tagIds:
           input.transaction.tagIds === undefined
             ? normaliseTagIds(existing.tagIds)
@@ -339,10 +335,6 @@ export class BrowserPersistentAccountRegisterService
         return {
           ...transaction,
           date: input.transaction.date,
-          flag:
-            input.transaction.flag === undefined
-              ? transaction.flag
-              : input.transaction.flag,
           tagIds:
             input.transaction.tagIds === undefined
               ? normaliseTagIds(transaction.tagIds)
@@ -774,7 +766,6 @@ function createTransactionView(
   return {
     id: createId(),
     date: input.date,
-    flag: input.flag ?? null,
     tagIds: normaliseTagIds(input.tagIds),
     attachmentCount: 0,
     attachments: [],
@@ -1025,7 +1016,6 @@ function createEmptyRegister(
             {
               id: `${accountId}-opening-balance`,
               date: new Date().toISOString().slice(0, 10),
-              flag: null,
               tagIds: [],
               attachmentCount: 0,
               attachments: [],
@@ -1188,16 +1178,22 @@ function writeRegisters(
 function cloneRegister(register: AccountRegisterView): AccountRegisterView {
   return {
     ...register,
-    transactions: register.transactions.map((transaction) => ({
-      ...transaction,
-      tagIds: normaliseTagIds(transaction.tagIds),
-      attachments: normaliseAttachments(transaction.attachments),
-      attachmentCount:
-        normaliseAttachments(transaction.attachments).length ||
-        transaction.attachmentCount ||
-        0,
-      splitLines: cloneSplitLines(transaction.splitLines),
-    })),
+    transactions: register.transactions.map((transaction) => {
+      const currentTransaction = { ...transaction } as RegisterTransactionView & {
+        flag?: unknown;
+      };
+      delete currentTransaction.flag;
+      const attachments = normaliseAttachments(currentTransaction.attachments);
+
+      return {
+        ...currentTransaction,
+        tagIds: normaliseTagIds(currentTransaction.tagIds),
+        attachments,
+        attachmentCount:
+          attachments.length || currentTransaction.attachmentCount || 0,
+        splitLines: cloneSplitLines(currentTransaction.splitLines),
+      };
+    }),
   };
 }
 

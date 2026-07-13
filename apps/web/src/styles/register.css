@@ -502,6 +502,74 @@
   color: currentColor;
 }
 
+.transaction-tag-picker {
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.transaction-tag-indicator {
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.transaction-tag-indicator:hover,
+.transaction-tag-indicator[aria-expanded="true"] {
+  background: var(--surface-subtle);
+}
+
+.transaction-tag-picker-menu {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  left: 0;
+  z-index: 40;
+  display: grid;
+  min-width: 13rem;
+  max-height: 16rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--surface-raised, var(--surface));
+  box-shadow: var(--shadow-lg);
+  padding: 0.4rem;
+}
+
+.transaction-tag-picker-option {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 0.45rem;
+  color: var(--text);
+  cursor: pointer;
+  padding: 0.5rem 0.55rem;
+}
+
+.transaction-tag-picker-option:hover {
+  background: var(--surface-subtle);
+}
+
+.transaction-tag-picker-option input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.transaction-tag-picker-swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 0.22rem;
+}
+
+.transaction-tag-picker-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  padding: 0.65rem;
+}
+
 .transaction-tag-count {
   position: absolute;
   right: -0.1rem;
@@ -536,41 +604,6 @@
   --tag-black: #24272d;
 }
 
-.transaction-flag {
-  width: 0.42rem;
-  height: 0.42rem;
-  border-radius: 999px;
-  display: inline-block;
-}
-
-.transaction-flag-empty {
-  border: 1px solid var(--border);
-  background: transparent;
-}
-
-.transaction-flag-red {
-  background: #dc2626;
-}
-
-.transaction-flag-orange {
-  background: #f97316;
-}
-
-.transaction-flag-yellow {
-  background: #eab308;
-}
-
-.transaction-flag-green {
-  background: #16a34a;
-}
-
-.transaction-flag-blue {
-  background: #2563eb;
-}
-
-.transaction-flag-purple {
-  background: #7c3aed;
-}
 
 .register-legend {
   min-height: 2.25rem;
@@ -1077,63 +1110,6 @@
   background: #fff;
 }
 
-.flag-colour-picker {
-  position: relative;
-  width: 1.55rem;
-  height: 1.55rem;
-}
-
-.flag-colour-picker-button {
-  width: 1.55rem;
-  height: 1.55rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(15, 23, 42, 0.16);
-  border-radius: 10px;
-  background: #fff;
-  cursor: pointer;
-}
-
-.flag-colour-picker-button:focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.flag-colour-picker-menu {
-  position: absolute;
-  z-index: 70;
-  top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  display: grid;
-  grid-template-columns: repeat(4, 32px);
-  gap: 4px;
-  padding: 8px;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 18px 35px rgba(15, 23, 42, 0.18);
-}
-
-.flag-colour-picker-option {
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: transparent;
-  cursor: pointer;
-}
-
-.flag-colour-picker-option:hover,
-.flag-colour-picker-option[aria-selected="true"] {
-  border-color: rgba(15, 23, 42, 0.16);
-  background: #f1f5f9;
-}
 
 .scheduled-form-actions {
   display: flex;
@@ -1304,61 +1280,6 @@
 
 .scheduled-split-line-amounts .positive {
   color: #047857;
-}
-.flag-colour-picker {
-  position: relative;
-  width: 1.55rem;
-  height: 1.55rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.flag-colour-picker-button {
-  width: 1.55rem;
-  min-width: 1.55rem;
-  height: 1.55rem;
-  border: 1px solid var(--border-soft);
-  border-radius: 0.45rem;
-  background: var(--surface);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.flag-colour-picker-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 80;
-  min-width: 34px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.flag-colour-picker-option {
-  width: 26px;
-  height: 26px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.flag-colour-picker-option:hover,
-.flag-colour-picker-option[aria-selected="true"] {
-  background: var(--surface-muted);
 }
 
 /* v1.15c register inline payee suggestions */
@@ -2506,11 +2427,6 @@
   font-size: 0.82rem;
 }
 
-.register-layout-compact .flag-colour-picker,
-.register-layout-compact .flag-colour-picker-button {
-  width: 1.55rem;
-  height: 1.55rem;
-}
 
 @media (max-width: 860px) {
   .register-row-compact {
@@ -2817,11 +2733,6 @@
   gap: 0.24rem;
 }
 
-.register-row-tablet .flag-colour-picker,
-.register-row-tablet .flag-colour-picker-button {
-  width: 1.55rem;
-  height: 1.55rem;
-}
 
 .register-row-tablet .attachment-indicator,
 .register-row-tablet .register-status {
@@ -4081,4 +3992,33 @@
 .register-move-account-icon {
   display: inline-grid;
   place-items: center;
+}
+
+.scheduled-tag-select {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  min-width: 12rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  padding: 0.45rem 0.6rem 0.55rem;
+}
+
+.scheduled-tag-select legend {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 0 0.25rem;
+}
+
+.scheduled-tag-select label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+}
+
+.scheduled-tag-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 0.2rem;
 }

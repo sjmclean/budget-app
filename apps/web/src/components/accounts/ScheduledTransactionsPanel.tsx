@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { NewRegisterTransactionInput, TransactionFlag } from "../../features/accounts/accountRegisterTypes";
+import type { NewRegisterTransactionInput } from "../../features/accounts/accountRegisterTypes";
 import { alertDialog, confirmDialog } from "../../features/ui/appDialogService";
 import type {
   ScheduledFrequency,
@@ -12,6 +12,7 @@ import type { PayeeView } from "../../features/accounts/payeeService";
 import type { BudgetCategoryOption } from "../../features/budget/budgetViewTypes";
 import { formatDateForDisplay } from "../../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../../features/settings/useDateFormatPreference";
+import type { TransactionTagDefinition } from "../../features/tags/transactionTagTypes";
 
 interface ScheduledTransactionsPanelProps {
   accountId: string;
@@ -19,6 +20,7 @@ interface ScheduledTransactionsPanelProps {
   categoryOptions: BudgetCategoryOption[];
   transferAccounts: SidebarAccount[];
   payeeOptions: PayeeView[];
+  tags: readonly TransactionTagDefinition[];
   onClose: () => void;
   onEnter: (transaction: NewRegisterTransactionInput) => Promise<void>;
   onDueCountChange?: (count: number) => void;
@@ -26,7 +28,7 @@ interface ScheduledTransactionsPanelProps {
 
 interface ScheduledFormDraft {
   id?: string;
-  flag: TransactionFlag;
+  tagIds: string[];
   splitLines?: ScheduledTransactionView["splitLines"];
   nextDueDate: string;
   frequency: ScheduledFrequency;
@@ -37,15 +39,6 @@ interface ScheduledFormDraft {
   outflow: string;
   inflow: string;
 }
-
-const flagOptions: Array<Exclude<TransactionFlag, null>> = [
-  "red",
-  "orange",
-  "yellow",
-  "green",
-  "blue",
-  "purple",
-];
 
 const frequencyLabels: Record<ScheduledFrequency, string> = {
   once: "Once",
@@ -61,6 +54,7 @@ export function ScheduledTransactionsPanel({
   categoryOptions,
   transferAccounts,
   payeeOptions,
+  tags,
   onClose,
   onEnter,
   onDueCountChange,
@@ -119,7 +113,7 @@ export function ScheduledTransactionsPanel({
     const input: UpsertScheduledTransactionInput = {
       id: draft.id,
       accountId,
-      flag: draft.flag,
+      tagIds: draft.tagIds,
       nextDueDate: draft.nextDueDate,
       frequency: draft.frequency,
       payee: draft.payee.trim(),
@@ -183,6 +177,7 @@ export function ScheduledTransactionsPanel({
             categoryOptions={categoryOptions}
             transferAccounts={transferAccounts}
             payeeOptions={payeeOptions}
+            tags={tags}
             onCancel={() => setDraft(null)}
             onSave={saveDraft}
           />
@@ -230,6 +225,7 @@ function ScheduledForm({
   categoryOptions,
   transferAccounts,
   payeeOptions,
+  tags,
   onCancel,
   onSave,
 }: {
@@ -238,6 +234,7 @@ function ScheduledForm({
   categoryOptions: BudgetCategoryOption[];
   transferAccounts: SidebarAccount[];
   payeeOptions: PayeeView[];
+  tags: readonly TransactionTagDefinition[];
   onCancel: () => void;
   onSave: () => void;
 }) {
@@ -259,14 +256,10 @@ function ScheduledForm({
 
   return (
     <div className="scheduled-form">
-      <FlagColourSelect
-        value={draft.flag}
-        onChange={(flag) =>
-          setDraft({
-            ...draft,
-            flag,
-          })
-        }
+      <ScheduledTagSelect
+        value={draft.tagIds}
+        tags={tags}
+        onChange={(tagIds) => setDraft({ ...draft, tagIds })}
       />
 
       <input
@@ -348,74 +341,46 @@ function ScheduledForm({
   );
 }
 
-function FlagColourSelect({
+function ScheduledTagSelect({
   value,
+  tags,
   onChange,
 }: {
-  value: TransactionFlag;
-  onChange: (flag: TransactionFlag) => void;
+  value: readonly string[];
+  tags: readonly TransactionTagDefinition[];
+  onChange: (tagIds: string[]) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  function chooseFlag(flag: TransactionFlag) {
-    onChange(flag);
-    setIsOpen(false);
+  function toggleTag(tagId: string) {
+    onChange(
+      value.includes(tagId)
+        ? value.filter((candidate) => candidate !== tagId)
+        : [...value, tagId],
+    );
   }
 
   return (
-    <div className="flag-colour-picker" title="Flag">
-      <button
-        className="flag-colour-picker-button"
-        type="button"
-        aria-label="Flag"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen((open) => !open)}
-      >
-        <FlagPickerDot flag={value} />
-      </button>
-
-      {isOpen ? (
-        <div className="flag-colour-picker-menu" role="listbox" aria-label="Choose flag colour">
-          <button
-            className="flag-colour-picker-option"
-            type="button"
-            role="option"
-            aria-selected={value === null}
-            title="No flag"
-            onClick={() => chooseFlag(null)}
-          >
-            <span className="transaction-flag transaction-flag-empty" aria-hidden="true" />
-          </button>
-
-          {flagOptions.map((flag) => (
-            <button
-              className="flag-colour-picker-option"
-              type="button"
-              role="option"
-              aria-selected={value === flag}
-              title={`${flag[0].toUpperCase()}${flag.slice(1)} flag`}
-              key={flag}
-              onClick={() => chooseFlag(flag)}
-            >
-              <span className={`transaction-flag transaction-flag-${flag}`} aria-hidden="true" />
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function FlagPickerDot({ flag }: { flag: TransactionFlag }) {
-  return (
-    <span
-      className={
-        flag
-          ? `transaction-flag transaction-flag-${flag}`
-          : "transaction-flag transaction-flag-empty"
-      }
-      aria-hidden="true"
-    />
+    <fieldset className="scheduled-tag-select">
+      <legend>Tags</legend>
+      {tags.length > 0 ? (
+        tags.map((tag) => (
+          <label key={tag.id}>
+            <input
+              type="checkbox"
+              checked={value.includes(tag.id)}
+              onChange={() => toggleTag(tag.id)}
+            />
+            <span
+              className="scheduled-tag-swatch"
+              style={{ backgroundColor: `var(--tag-${tag.colour})` }}
+              aria-hidden="true"
+            />
+            <span>{tag.name}</span>
+          </label>
+        ))
+      ) : (
+        <span className="muted">Create tags from More → Manage Tags.</span>
+      )}
+    </fieldset>
   );
 }
 
@@ -533,7 +498,7 @@ function ScheduledSplitDetails({
 
 function createEmptyDraft(): ScheduledFormDraft {
   return {
-    flag: null,
+    tagIds: [],
     nextDueDate: new Date().toISOString().slice(0, 10),
     frequency: "monthly",
     payee: "",
@@ -549,7 +514,7 @@ function createEmptyDraft(): ScheduledFormDraft {
 function draftFromScheduled(transaction: ScheduledTransactionView): ScheduledFormDraft {
   return {
     id: transaction.id,
-    flag: transaction.flag,
+    tagIds: [...(transaction.tagIds ?? [])],
     nextDueDate: transaction.nextDueDate,
     frequency: transaction.frequency,
     payee: transaction.payee,

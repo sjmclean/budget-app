@@ -30,7 +30,7 @@ assert.deepEqual(
   [
     "select",
     "date",
-    "flag",
+    "tags",
     "attachments",
     "payee",
     "category",
@@ -44,7 +44,7 @@ assert.deepEqual(
 
 assert.deepEqual(
   REGISTER_EDIT_COLUMN_DEFINITIONS.map((column) => column.id),
-  ["select", "date", "flag", "attachments", "payee", "category", "memo", "checkNumber", "outflow", "inflow"],
+  ["select", "date", "tags", "attachments", "payee", "category", "memo", "checkNumber", "outflow", "inflow"],
 );
 
 assert.deepEqual(

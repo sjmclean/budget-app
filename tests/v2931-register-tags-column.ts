@@ -17,12 +17,16 @@ const commands = readFileSync(
 
 assert.match(columns, /id: "tags", label: "Tags"/);
 assert.doesNotMatch(columns, /id: "flag"|label: "Flag"/);
-assert.match(row, /function TransactionTagIndicator/);
-assert.match(row, /transaction\.tagIds\?\.includes\(tag\.id\)/);
+assert.match(row, /function TransactionTagPicker/);
+assert.match(row, /const assignedTagIds = transaction\.tagIds \?\? \[\]/);
+assert.match(row, /checked=\{assignedTagIds\.includes\(tag\.id\)\}/);
 assert.match(row, /<Tag size=\{15\}/);
+assert.match(row, /aria-haspopup="menu"/);
 assert.match(row, /assignedTags\.length > 1/);
 assert.doesNotMatch(row, /InlineFlagPicker|REGISTER_FLAG_OPTIONS|onUpdateTransactionFlag/);
-assert.match(page, /register-compact-head-tags">Tags/);
+assert.match(row, /onUpdateTransactionTags\(transaction, tagIds\)/);
+assert.match(page, /register-compact-head-tags register-head-icon/);
+assert.match(page, /<Tag size=\{14\} aria-hidden="true" \/>/);
 assert.match(page, /tags=\{transactionTags\}/);
 assert.doesNotMatch(commands, /updateTransactionFlag|TransactionFlag/);
 

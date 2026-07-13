@@ -1,12 +1,3 @@
-export type TransactionFlag =
-  | "red"
-  | "orange"
-  | "yellow"
-  | "green"
-  | "blue"
-  | "purple"
-  | null;
-
 export interface RegisterSplitLineView {
   id: string;
   category: string;
@@ -36,7 +27,6 @@ export interface RegisterAttachmentView {
 export interface RegisterTransactionView {
   id: string;
   date: string;
-  flag: TransactionFlag;
   tagIds?: string[];
   attachmentCount: number;
   attachments?: RegisterAttachmentView[];
@@ -73,7 +63,6 @@ export interface AccountRegisterView {
 
 export interface NewRegisterTransactionInput {
   date: string;
-  flag?: TransactionFlag;
   tagIds?: string[];
   payee: string;
   payeeId?: string;
@@ -92,7 +81,6 @@ export interface NewRegisterTransactionInput {
 export interface UpdateRegisterTransactionInput {
   id: string;
   date: string;
-  flag?: TransactionFlag;
   tagIds?: string[];
   payee: string;
   payeeId?: string;
