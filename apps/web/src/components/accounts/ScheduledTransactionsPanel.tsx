@@ -35,6 +35,7 @@ interface ScheduledFormDraft {
   payee: string;
   payeeId?: string;
   category: string;
+  categoryId?: string;
   memo: string;
   outflow: string;
   inflow: string;
@@ -119,6 +120,7 @@ export function ScheduledTransactionsPanel({
       payee: draft.payee.trim(),
       payeeId: draft.payeeId,
       category: draft.category.trim(),
+      categoryId: draft.categoryId,
       memo: draft.memo.trim(),
       outflow,
       inflow,
@@ -299,7 +301,13 @@ function ScheduledForm({
 
       <input
         value={draft.category}
-        onChange={(event) => setDraft({ ...draft, category: event.target.value })}
+        onChange={(event) => {
+          const category = event.target.value;
+          const categoryId = categoryOptions.find(
+            (option) => option.name === category,
+          )?.id;
+          setDraft({ ...draft, category, categoryId });
+        }}
         placeholder="Category"
         list="scheduled-category-options"
       />
@@ -504,6 +512,7 @@ function createEmptyDraft(): ScheduledFormDraft {
     payee: "",
     payeeId: undefined,
     category: "",
+    categoryId: undefined,
     memo: "",
     outflow: "",
     inflow: "",
@@ -520,6 +529,7 @@ function draftFromScheduled(transaction: ScheduledTransactionView): ScheduledFor
     payee: transaction.payee,
     payeeId: transaction.payeeId,
     category: transaction.category,
+    categoryId: transaction.categoryId,
     memo: transaction.memo ?? "",
     outflow: transaction.outflow ? transaction.outflow.toFixed(2) : "",
     inflow: transaction.inflow ? transaction.inflow.toFixed(2) : "",

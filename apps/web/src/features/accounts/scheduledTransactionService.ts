@@ -13,6 +13,7 @@ export interface ScheduledTransactionView {
   payee: string;
   payeeId?: string;
   category: string;
+  categoryId?: string;
   memo?: string;
   outflow: number;
   inflow: number;
@@ -30,6 +31,7 @@ export interface UpsertScheduledTransactionInput {
   payee: string;
   payeeId?: string;
   category: string;
+  categoryId?: string;
   memo?: string;
   outflow: number;
   inflow: number;
@@ -73,6 +75,7 @@ export class BrowserPersistentScheduledTransactionService {
       payee: input.payee,
       payeeId,
       category: normaliseScheduledCategory(input),
+      categoryId: input.categoryId,
       memo: input.memo,
       outflow: input.outflow,
       inflow: input.inflow,
@@ -104,6 +107,11 @@ export class BrowserPersistentScheduledTransactionService {
         payee: input.payee,
         payeeId,
         category: normaliseScheduledCategory(input),
+        categoryId:
+          input.categoryId ??
+          (normaliseScheduledCategory(input) === transaction.category
+            ? transaction.categoryId
+            : undefined),
         memo: input.memo,
         outflow: input.outflow,
         inflow: input.inflow,
@@ -167,6 +175,7 @@ export class BrowserPersistentScheduledTransactionService {
       payee: transaction.payee,
       payeeId: transaction.payeeId,
       category: transaction.category,
+      categoryId: transaction.categoryId,
       memo: transaction.memo,
       outflow: transaction.outflow,
       inflow: transaction.inflow,

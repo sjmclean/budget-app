@@ -4,6 +4,11 @@ import type { ScheduledTransactionView } from "./scheduledTransactionService";
 
 const MAX_OCCURRENCES_PER_RUN = 120;
 
+const generationInFlightByGateway = new WeakMap<
+  AppPersistenceGateway,
+  Promise<ScheduledTransactionGenerationResult>
+>();
+
 export interface ScheduledTransactionGenerationInput {
   today?: string;
 }
@@ -22,9 +27,29 @@ export interface ScheduledTransactionGenerationResult {
   warnings: string[];
 }
 
-export async function generateDueScheduledTransactions(
+export function generateDueScheduledTransactions(
   gateway: AppPersistenceGateway,
   input: ScheduledTransactionGenerationInput = {},
+): Promise<ScheduledTransactionGenerationResult> {
+  const existing = generationInFlightByGateway.get(gateway);
+  if (existing) {
+    return existing;
+  }
+
+  const run = generateDueScheduledTransactionsInternal(gateway, input);
+  generationInFlightByGateway.set(gateway, run);
+  const clearInFlightRun = () => {
+    if (generationInFlightByGateway.get(gateway) === run) {
+      generationInFlightByGateway.delete(gateway);
+    }
+  };
+  void run.then(clearInFlightRun, clearInFlightRun);
+  return run;
+}
+
+async function generateDueScheduledTransactionsInternal(
+  gateway: AppPersistenceGateway,
+  input: ScheduledTransactionGenerationInput,
 ): Promise<ScheduledTransactionGenerationResult> {
   const today = normaliseIsoDate(input.today ?? new Date().toISOString().slice(0, 10));
   const accounts = await gateway.accounts.listAccounts();

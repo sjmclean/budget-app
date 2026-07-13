@@ -854,6 +854,12 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
       category: splitLines && splitLines.length > 0
         ? "Split"
         : transferAccountId ? "Transfer" : categoryId ? maps.categoryNameById.get(categoryId) ?? "Uncategorised" : READY_TO_ASSIGN_CATEGORY_NAME,
+      categoryId:
+        splitLines && splitLines.length > 0
+          ? undefined
+          : transferAccountId
+            ? undefined
+            : categoryId ?? READY_TO_ASSIGN_CATEGORY_ID,
       memo: firstString(transaction.memo, transaction.note, transaction.notes) ?? undefined,
       outflow: amount < 0 ? Math.abs(amount) : 0,
       inflow: amount > 0 ? amount : 0,
