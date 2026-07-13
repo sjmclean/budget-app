@@ -338,17 +338,25 @@ function writeImportedBudgetData(
   };
 
   const transactionRecords = toRecords(data.transactions);
+  const scheduledTransactionRecords = toRecords(data.scheduledTransactions);
   const accounts = mapAccounts(toRecords(data.accounts), maps, nowIso);
   const categoryGroups = mapCategoryGroups(toRecords(data.masterCategories), maps);
   const payees = mapPayees(toRecords(data.payees), maps, nowIso);
-  const importedFlagTags = mapImportedFlagTags(transactionRecords, nowIso);
+  const importedFlagTags = mapImportedFlagTags(
+    [...transactionRecords, ...scheduledTransactionRecords],
+    nowIso,
+  );
   const registers = mapRegisters(
     transactionRecords,
     accounts,
     maps,
     importedFlagTags.tagIdByColour,
   );
-  const scheduled = mapScheduledTransactions(toRecords(data.scheduledTransactions), maps, nowIso);
+  const scheduled = mapScheduledTransactions(
+    scheduledTransactionRecords,
+    maps,
+    nowIso,
+  );
   const monthViews = mapBudgetMonthViews(budget, toRecords(data.monthlyBudgets), categoryGroups, maps, registers, now);
 
   writeScopedJson(storage, budget.id, ACCOUNTS_STORAGE_KEY, accounts);
@@ -742,7 +750,6 @@ function mapRegisterTransaction(
   return {
     id: firstString(transaction.entityId, transaction.id, transaction.transactionId) ?? `imported-transaction-${index}`,
     date: normaliseDate(firstString(transaction.date, transaction.dateString, transaction.acceptedDate)) ?? "1970-01-01",
-    flag: null,
     ...(importedFlagTagId ? { tagIds: [importedFlagTagId] } : {}),
     attachmentCount: 0,
     attachments: [],
@@ -829,12 +836,15 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
     const transferAccountId = mappedId(maps.accountIdBySourceId, transaction.targetAccountId, transaction.transferAccountId);
     const payeeId = mappedId(maps.payeeIdBySourceId, transaction.payeeId);
     const categoryId = mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
+    const importedFlagColour = normaliseImportedFlagColour(
+      firstString(transaction.flag, transaction.flagColor),
+    );
     return [{
       id: firstString(transaction.entityId, transaction.id, transaction.scheduledTransactionId) ?? `imported-scheduled-${index}`,
       accountId,
-      flag: mapLegacyScheduledFlag(
-        firstString(transaction.flag, transaction.flagColor),
-      ),
+      ...(importedFlagColour
+        ? { tagIds: [`ynab4-imported-flag-${importedFlagColour}`] }
+        : {}),
       nextDueDate: normaliseDate(firstString(transaction.nextDueDate, transaction.date, transaction.dateString)) ?? "1970-01-01",
       frequency: mapFrequency(firstString(transaction.frequency, transaction.repeat, transaction.recurrence)),
       payee: transferAccountId
@@ -1236,12 +1246,6 @@ function mapImportedFlagTags(
     tags,
     tagIdByColour: new Map(tags.map((tag) => [tag.colour, tag.id])),
   };
-}
-
-function mapLegacyScheduledFlag(
-  value: string | null,
-): RegisterTransactionView["flag"] {
-  return normaliseImportedFlagColour(value) as RegisterTransactionView["flag"];
 }
 
 function mapFrequency(value: string | null): ScheduledFrequency {

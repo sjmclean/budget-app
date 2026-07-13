@@ -1,4 +1,4 @@
-import type { NewRegisterTransactionInput, RegisterTransactionView, TransactionFlag } from "./accountRegisterTypes";
+import type { NewRegisterTransactionInput, RegisterTransactionView } from "./accountRegisterTypes";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 
 
@@ -7,7 +7,7 @@ export type ScheduledFrequency = "once" | "weekly" | "fortnightly" | "monthly" |
 export interface ScheduledTransactionView {
   id: string;
   accountId: string;
-  flag: TransactionFlag;
+  tagIds?: string[];
   nextDueDate: string;
   frequency: ScheduledFrequency;
   payee: string;
@@ -24,7 +24,7 @@ export interface ScheduledTransactionView {
 export interface UpsertScheduledTransactionInput {
   id?: string;
   accountId: string;
-  flag: TransactionFlag;
+  tagIds?: string[];
   nextDueDate: string;
   frequency: ScheduledFrequency;
   payee: string;
@@ -67,7 +67,7 @@ export class BrowserPersistentScheduledTransactionService {
     const next: ScheduledTransactionView = {
       id: createId(),
       accountId: input.accountId,
-      flag: input.flag,
+      tagIds: normaliseTagIds(input.tagIds),
       nextDueDate: input.nextDueDate,
       frequency: input.frequency,
       payee: input.payee,
@@ -98,7 +98,7 @@ export class BrowserPersistentScheduledTransactionService {
       return {
         ...transaction,
         accountId: input.accountId,
-        flag: input.flag,
+        tagIds: normaliseTagIds(input.tagIds),
         nextDueDate: input.nextDueDate,
         frequency: input.frequency,
         payee: input.payee,
@@ -163,7 +163,7 @@ export class BrowserPersistentScheduledTransactionService {
   toRegisterInput(transaction: ScheduledTransactionView): NewRegisterTransactionInput {
     return {
       date: transaction.nextDueDate,
-      flag: transaction.flag,
+      tagIds: normaliseTagIds(transaction.tagIds),
       payee: transaction.payee,
       payeeId: transaction.payeeId,
       category: transaction.category,
@@ -280,15 +280,47 @@ function normaliseStoredScheduledTransaction(
   transaction: ScheduledTransactionView,
   dependencies?: ScheduledTransactionServiceDependencies,
 ): ScheduledTransactionView {
+  const { flag: legacyFlag, ...currentTransaction } = transaction as
+    ScheduledTransactionView & { flag?: unknown };
+  const legacyTagId = legacyFlagTagId(legacyFlag);
+
   return {
-    ...transaction,
-    flag: transaction.flag ?? null,
-    memo: transaction.memo ?? "",
-    payeeId: transaction.payeeId ?? dependencies?.findPayeeIdByName(transaction.payee),
-    outflow: Number.isFinite(transaction.outflow) ? transaction.outflow : 0,
-    inflow: Number.isFinite(transaction.inflow) ? transaction.inflow : 0,
-    splitLines: cloneSplitLines(transaction.splitLines),
+    ...currentTransaction,
+    tagIds: normaliseTagIds([
+      ...(currentTransaction.tagIds ?? []),
+      ...(legacyTagId ? [legacyTagId] : []),
+    ]),
+    memo: currentTransaction.memo ?? "",
+    payeeId:
+      currentTransaction.payeeId ??
+      dependencies?.findPayeeIdByName(currentTransaction.payee),
+    outflow: Number.isFinite(currentTransaction.outflow)
+      ? currentTransaction.outflow
+      : 0,
+    inflow: Number.isFinite(currentTransaction.inflow)
+      ? currentTransaction.inflow
+      : 0,
+    splitLines: cloneSplitLines(currentTransaction.splitLines),
   };
+}
+
+function legacyFlagTagId(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const colour = value.trim().toLocaleLowerCase();
+  return ["red", "orange", "yellow", "green", "blue", "purple"].includes(
+    colour,
+  )
+    ? `ynab4-imported-flag-${colour}`
+    : undefined;
+}
+
+function normaliseTagIds(tagIds: readonly string[] | undefined): string[] {
+  return Array.from(
+    new Set((tagIds ?? []).map((tagId) => tagId.trim()).filter(Boolean)),
+  );
 }
 
 function resolvePayeeId(

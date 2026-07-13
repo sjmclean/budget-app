@@ -500,7 +500,6 @@ function mapActualRegisterTransaction(
   return {
     id: transaction.id || `actual-transaction-${index + 1}`,
     date: transaction.date ?? "1970-01-01",
-    flag: null,
     attachmentCount: 0,
     payee,
     payeeId: transferAccountId ? undefined : payeeId,

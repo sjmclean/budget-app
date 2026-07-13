@@ -1073,6 +1073,7 @@ export function AccountRegisterPage() {
           categoryOptions={categoryOptions}
           transferAccounts={transferAccounts}
           payeeOptions={payeeOptions}
+          tags={transactionTags}
           onClose={() => setIsScheduledOpen(false)}
           onDueCountChange={setScheduledDueCount}
           onEnter={async (input) => {

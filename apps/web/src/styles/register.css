@@ -3993,3 +3993,32 @@
   display: inline-grid;
   place-items: center;
 }
+
+.scheduled-tag-select {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  min-width: 12rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  padding: 0.45rem 0.6rem 0.55rem;
+}
+
+.scheduled-tag-select legend {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 0 0.25rem;
+}
+
+.scheduled-tag-select label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+}
+
+.scheduled-tag-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 0.2rem;
+}

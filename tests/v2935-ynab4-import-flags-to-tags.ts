@@ -79,6 +79,10 @@ assert.deepEqual(byId.get("red-1")?.tagIds, ["ynab4-imported-flag-red"]);
 assert.deepEqual(byId.get("red-2")?.tagIds, ["ynab4-imported-flag-red"]);
 assert.deepEqual(byId.get("blue-1")?.tagIds, ["ynab4-imported-flag-blue"]);
 assert.equal(byId.get("unknown")?.tagIds, undefined);
-assert.equal(byId.get("red-1")?.flag, null, "legacy register flags should not be retained");
+assert.equal(
+  "flag" in (byId.get("red-1") ?? {}),
+  false,
+  "legacy register flags should be removed from imported transactions",
+);
 
 console.log("v2.93.5 YNAB4 flags-to-tags import checks passed");
