@@ -3,24 +3,32 @@ import type {
   TransactionTagColour,
   TransactionTagDefinition,
 } from "./transactionTagTypes";
+import { isTransactionTagIcon } from "./transactionTagIconTypes";
 
 export const TRANSACTION_TAGS_STORAGE_KEY = "budget-app.transaction-tags.v1";
 
 const TRANSACTION_TAG_COLOURS = new Set<TransactionTagColour>([
   "red",
+  "rose",
   "gray",
   "orange",
+  "amber",
   "yellow",
   "lime",
   "green",
   "emerald",
   "teal",
   "cyan",
+  "sky",
   "blue",
+  "navy",
   "indigo",
+  "violet",
   "purple",
+  "fuchsia",
   "pink",
   "brown",
+  "sand",
   "slate",
   "black",
 ]);
@@ -95,6 +103,7 @@ function normaliseTransactionTag(
   }
 
   const description = readTrimmedString(record.description);
+  const icon = isTransactionTagIcon(record.icon) ? record.icon : undefined;
   const createdAt = readTrimmedString(record.createdAt) ?? FALLBACK_TIMESTAMP;
   const updatedAt = readTrimmedString(record.updatedAt) ?? createdAt;
 
@@ -103,6 +112,7 @@ function normaliseTransactionTag(
     name,
     ...(description ? { description } : {}),
     colour: colour as TransactionTagColour,
+    ...(icon ? { icon } : {}),
     autoTagImportedTransactions:
       record.autoTagImportedTransactions === true,
     archived: record.archived === true,

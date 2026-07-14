@@ -1,5 +1,14 @@
-import { ChevronDown, ChevronRight, CornerDownRight, Paperclip, Plus, Tag } from "lucide-react";
-import { memo, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { ChevronDown, ChevronRight, CornerDownRight, Paperclip, Plus } from "lucide-react";
+import {
+  memo,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent,
+} from "react";
 import type { RegisterLayoutMode } from "../registerLayoutMode";
 import type { RegisterTransactionView } from "../accountRegisterTypes";
 import { formatDateForDisplay } from "../../settings/dateFormatting";
@@ -7,6 +16,7 @@ import { useDateFormatPreference } from "../../settings/useDateFormatPreference"
 import { isUncategorisedRegisterTransaction } from "../registerUncategorised";
 import { CategoryLabel } from "../../icons/CategoryIcon";
 import type { TransactionTagDefinition } from "../../tags/transactionTagTypes";
+import { TransactionTagIconGraphic } from "../../tags/transactionTagIcons";
 
 const EMPTY_TRANSACTION_TAG_IDS: readonly string[] = Object.freeze([]);
 
@@ -116,6 +126,8 @@ function TransactionTagPicker({
     transaction.tagIds ?? [],
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeOptionIndex, setActiveOptionIndex] = useState(-1);
+  const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const assignedTagIds = transaction.tagIds ?? EMPTY_TRANSACTION_TAG_IDS;
@@ -135,6 +147,11 @@ function TransactionTagPicker({
       )
     : tags;
   const canCreateTag = normalisedQuery.length > 0 && !exactMatch;
+  const optionCount = filteredTags.length + (canCreateTag ? 1 : 0);
+  const activeOptionId =
+    activeOptionIndex >= 0
+      ? `${listboxId}-option-${activeOptionIndex}`
+      : undefined;
 
   useEffect(() => {
     if (!isOpen) {
@@ -167,6 +184,7 @@ function TransactionTagPicker({
     setDraftTagIds([...assignedTagIds]);
     setQuery("");
     setErrorMessage(null);
+    setActiveOptionIndex(-1);
     setIsOpen(true);
   }
 
@@ -189,6 +207,7 @@ function TransactionTagPicker({
           : [...currentTagIds, createdTag.id],
       );
       setQuery("");
+      setActiveOptionIndex(-1);
       setErrorMessage(null);
       window.requestAnimationFrame(() => searchInputRef.current?.focus());
     } catch (error) {
@@ -201,6 +220,82 @@ function TransactionTagPicker({
   function saveTags() {
     onChange(draftTagIds);
     setIsOpen(false);
+  }
+
+  function activateOption(index: number) {
+    if (index < filteredTags.length) {
+      const tag = filteredTags[index];
+      if (tag) toggleTag(tag.id);
+      return;
+    }
+
+    if (canCreateTag && index === filteredTags.length) {
+      createAndSelectTag();
+    }
+  }
+
+  function moveActiveOption(direction: 1 | -1) {
+    if (optionCount === 0) {
+      setActiveOptionIndex(-1);
+      return;
+    }
+
+    setActiveOptionIndex((currentIndex) => {
+      if (currentIndex < 0) {
+        return direction === 1 ? 0 : optionCount - 1;
+      }
+
+      return (currentIndex + direction + optionCount) % optionCount;
+    });
+  }
+
+  function handlePickerKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      saveTags();
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      moveActiveOption(1);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      moveActiveOption(-1);
+      return;
+    }
+
+    if (event.key === "Home" && optionCount > 0) {
+      event.preventDefault();
+      setActiveOptionIndex(0);
+      return;
+    }
+
+    if (event.key === "End" && optionCount > 0) {
+      event.preventDefault();
+      setActiveOptionIndex(optionCount - 1);
+      return;
+    }
+
+    if (event.key === " " && activeOptionIndex >= 0) {
+      event.preventDefault();
+      activateOption(activeOptionIndex);
+      return;
+    }
+
+    if (event.key === "Enter" && activeOptionIndex >= 0) {
+      event.preventDefault();
+      activateOption(activeOptionIndex);
+      return;
+    }
+
+    if (event.key === "Enter" && canCreateTag) {
+      event.preventDefault();
+      createAndSelectTag();
+    }
   }
 
   return (
@@ -229,7 +324,11 @@ function TransactionTagPicker({
           }
         }}
       >
-        <Tag size={15} fill={primaryTag ? "currentColor" : "none"} />
+        <TransactionTagIconGraphic
+          icon={primaryTag?.icon}
+          size={15}
+          fill={primaryTag ? "currentColor" : "none"}
+        />
         {assignedTags.length > 1 ? (
           <span className="transaction-tag-count">{assignedTags.length}</span>
         ) : null}
@@ -240,6 +339,7 @@ function TransactionTagPicker({
           className="transaction-tag-picker-menu"
           role="dialog"
           aria-label="Edit transaction tags"
+          onKeyDown={handlePickerKeyDown}
         >
           <input
             ref={searchInputRef}
@@ -248,27 +348,42 @@ function TransactionTagPicker({
             value={query}
             placeholder="Search or create tag…"
             aria-label="Search or create tag"
+            aria-controls={listboxId}
+            aria-activedescendant={activeOptionId}
             onChange={(event) => {
               setQuery(event.target.value);
+              setActiveOptionIndex(-1);
               setErrorMessage(null);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && canCreateTag) {
-                event.preventDefault();
-                createAndSelectTag();
-              }
             }}
           />
 
-          <div className="transaction-tag-picker-results">
-            {filteredTags.map((tag) => (
-              <label className="transaction-tag-picker-option" key={tag.id}>
+          <div
+            className="transaction-tag-picker-results"
+            id={listboxId}
+            role="listbox"
+            aria-label="Available tags"
+            aria-multiselectable="true"
+          >
+            {filteredTags.map((tag, index) => (
+              <label
+                className={
+                  activeOptionIndex === index
+                    ? "transaction-tag-picker-option transaction-tag-picker-option-active"
+                    : "transaction-tag-picker-option"
+                }
+                id={`${listboxId}-option-${index}`}
+                key={tag.id}
+                role="option"
+                aria-selected={draftTagIds.includes(tag.id)}
+                onMouseEnter={() => setActiveOptionIndex(index)}
+              >
                 <input
                   type="checkbox"
                   checked={draftTagIds.includes(tag.id)}
                   onChange={() => toggleTag(tag.id)}
                 />
-                <Tag
+                <TransactionTagIconGraphic
+                  icon={tag.icon}
                   className="transaction-tag-picker-icon"
                   size={18}
                   style={{ color: `var(--tag-${tag.colour})` }}
@@ -280,8 +395,16 @@ function TransactionTagPicker({
 
             {canCreateTag ? (
               <button
-                className="transaction-tag-picker-create"
+                className={
+                  activeOptionIndex === filteredTags.length
+                    ? "transaction-tag-picker-create transaction-tag-picker-option-active"
+                    : "transaction-tag-picker-create"
+                }
+                id={`${listboxId}-option-${filteredTags.length}`}
                 type="button"
+                role="option"
+                aria-selected="false"
+                onMouseEnter={() => setActiveOptionIndex(filteredTags.length)}
                 onClick={createAndSelectTag}
               >
                 <Plus size={16} aria-hidden="true" />

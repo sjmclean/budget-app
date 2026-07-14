@@ -639,19 +639,26 @@
 
 :root {
   --tag-red: #dc5548;
+  --tag-rose: #e34f76;
   --tag-gray: #747b88;
   --tag-orange: #ed7d2b;
+  --tag-amber: #f0a000;
   --tag-yellow: #e7b72d;
   --tag-lime: #8bc735;
   --tag-green: #60bd67;
   --tag-emerald: #57b484;
   --tag-teal: #55aca4;
   --tag-cyan: #56afd0;
+  --tag-sky: #3e9be8;
   --tag-blue: #4f7fe8;
+  --tag-navy: #36558f;
   --tag-indigo: #5c63df;
+  --tag-violet: #7f5ce1;
   --tag-purple: #a755d1;
+  --tag-fuchsia: #cf4bc5;
   --tag-pink: #df5795;
   --tag-brown: #936646;
+  --tag-sand: #ad8b62;
   --tag-slate: #425166;
   --tag-black: #24272d;
 }
@@ -4073,4 +4080,17 @@
   width: 0.7rem;
   height: 0.7rem;
   border-radius: 0.2rem;
+}
+
+.transaction-tag-picker-option-active {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.transaction-tag-picker-option-active:hover {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+}
+
+.scheduled-tag-icon {
+  flex: 0 0 auto;
 }

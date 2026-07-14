@@ -1,3 +1,29 @@
+:root {
+  --tag-red: #dc5548;
+  --tag-rose: #e34f76;
+  --tag-gray: #747b88;
+  --tag-orange: #ed7d2b;
+  --tag-amber: #f0a000;
+  --tag-yellow: #e7b72d;
+  --tag-lime: #8bc735;
+  --tag-green: #60bd67;
+  --tag-emerald: #57b484;
+  --tag-teal: #55aca4;
+  --tag-cyan: #56afd0;
+  --tag-sky: #3e9be8;
+  --tag-blue: #4f7fe8;
+  --tag-navy: #36558f;
+  --tag-indigo: #5c63df;
+  --tag-violet: #7f5ce1;
+  --tag-purple: #a755d1;
+  --tag-fuchsia: #cf4bc5;
+  --tag-pink: #df5795;
+  --tag-brown: #936646;
+  --tag-sand: #ad8b62;
+  --tag-slate: #425166;
+  --tag-black: #24272d;
+}
+
 .transaction-tag-manager-simple {
   display: grid;
   gap: 1rem;
@@ -181,5 +207,179 @@
   .transaction-tag-search,
   .transaction-tag-name-input {
     flex-basis: 100%;
+  }
+}
+
+
+.transaction-tag-appearance-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.transaction-tag-appearance-button:hover {
+  border-color: var(--accent);
+  background: var(--surface-subtle);
+}
+
+.transaction-tag-appearance-preview {
+  display: inline-grid;
+  place-items: center;
+}
+
+.transaction-tag-appearance-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 0.42);
+}
+
+.transaction-tag-appearance-dialog {
+  width: min(40rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface-raised, var(--surface));
+  box-shadow: var(--shadow-lg);
+  padding: 1.5rem;
+}
+
+.transaction-tag-appearance-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.transaction-tag-appearance-header h3 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.transaction-tag-appearance-close {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.transaction-tag-appearance-close:hover {
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+
+.transaction-tag-icon-search {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 0.65rem;
+  padding: 0.15rem 0.75rem;
+  color: var(--text-muted);
+}
+
+.transaction-tag-icon-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.transaction-tag-icon-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  padding: 0.75rem 0;
+}
+
+.transaction-tag-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(2.25rem, 1fr));
+  gap: 0.35rem;
+  margin-top: 1.15rem;
+}
+
+.transaction-tag-icon-option {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 0.55rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.transaction-tag-icon-option:hover {
+  background: var(--surface-subtle);
+}
+
+.transaction-tag-icon-option-selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.transaction-tag-appearance-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 1.25rem 0;
+}
+
+.transaction-tag-colour-palette {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  color: var(--text-muted);
+}
+
+.transaction-tag-colour-option {
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.transaction-tag-colour-option-selected {
+  outline: 2px solid var(--surface-raised, var(--surface));
+  box-shadow: 0 0 0 4px var(--border-strong, var(--border));
+}
+
+.transaction-tag-appearance-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1.4rem;
+}
+
+.transaction-tag-appearance-actions .button {
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .transaction-tag-appearance-dialog {
+    padding: 1rem;
+  }
+
+  .transaction-tag-icon-grid {
+    grid-template-columns: repeat(6, minmax(2.25rem, 1fr));
   }
 }

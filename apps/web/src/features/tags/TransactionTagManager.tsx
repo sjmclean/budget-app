@@ -5,30 +5,9 @@ import type {
   TransactionTagColour,
   TransactionTagDefinition,
 } from "./transactionTagTypes";
+import type { TransactionTagIcon } from "./transactionTagIconTypes";
+import { TransactionTagAppearancePicker } from "./TransactionTagAppearancePicker";
 import "./transactionTagManager.css";
-
-export const transactionTagColourOptions: ReadonlyArray<{
-  value: TransactionTagColour;
-  label: string;
-  swatch: string;
-}> = [
-  { value: "red", label: "Red", swatch: "#dc5548" },
-  { value: "gray", label: "Gray", swatch: "#747b88" },
-  { value: "orange", label: "Orange", swatch: "#ed7d2b" },
-  { value: "yellow", label: "Yellow", swatch: "#e7b72d" },
-  { value: "lime", label: "Lime", swatch: "#8bc735" },
-  { value: "green", label: "Green", swatch: "#60bd67" },
-  { value: "emerald", label: "Emerald", swatch: "#57b484" },
-  { value: "teal", label: "Teal", swatch: "#55aca4" },
-  { value: "cyan", label: "Cyan", swatch: "#56afd0" },
-  { value: "blue", label: "Blue", swatch: "#4f7fe8" },
-  { value: "indigo", label: "Indigo", swatch: "#5c63df" },
-  { value: "purple", label: "Purple", swatch: "#a755d1" },
-  { value: "pink", label: "Pink", swatch: "#df5795" },
-  { value: "brown", label: "Brown", swatch: "#936646" },
-  { value: "slate", label: "Slate", swatch: "#425166" },
-  { value: "black", label: "Black", swatch: "#24272d" },
-];
 
 interface TransactionTagManagerProps {
   service: TransactionTagService;
@@ -37,6 +16,7 @@ interface TransactionTagManagerProps {
 interface NewTagDraft {
   name: string;
   colour: TransactionTagColour;
+  icon?: TransactionTagIcon;
   autoTagImportedTransactions: boolean;
 }
 
@@ -106,6 +86,7 @@ export function TransactionTagManager({
       const created = service.createTag({
         name: draft.name,
         colour: draft.colour,
+        icon: draft.icon,
         autoTagImportedTransactions: draft.autoTagImportedTransactions,
       });
       setStatusMessage(`${created.name} created.`);
@@ -126,7 +107,7 @@ export function TransactionTagManager({
         TransactionTagDefinition,
         "name" | "colour" | "autoTagImportedTransactions"
       >
-    >,
+    > & { icon?: TransactionTagIcon | null },
   ) {
     try {
       const updated = service.updateTag({
@@ -134,6 +115,7 @@ export function TransactionTagManager({
         name: changes.name ?? tag.name,
         description: tag.description,
         colour: changes.colour ?? tag.colour,
+        icon: changes.icon === undefined ? tag.icon : changes.icon,
         autoTagImportedTransactions:
           changes.autoTagImportedTransactions ??
           tag.autoTagImportedTransactions,
@@ -206,10 +188,16 @@ export function TransactionTagManager({
         {isAdding ? (
           <div className="transaction-tag-row transaction-tag-row-editing">
             <span className="transaction-tag-grip" aria-hidden="true">⠿</span>
-            <TagColourSelect
-              value={draft.colour}
-              onChange={(colour) =>
-                setDraft((current) => ({ ...current, colour }))
+            <TransactionTagAppearancePicker
+              colour={draft.colour}
+              icon={draft.icon}
+              label={draft.name || "new tag"}
+              onChange={(appearance) =>
+                setDraft((current) => ({
+                  ...current,
+                  colour: appearance.colour,
+                  icon: appearance.icon ?? undefined,
+                }))
               }
             />
             <input
@@ -319,9 +307,11 @@ export function TransactionTagManager({
               >
                 ⠿
               </span>
-              <TagColourSelect
-                value={tag.colour}
-                onChange={(colour) => updateTag(tag, { colour })}
+              <TransactionTagAppearancePicker
+                colour={tag.colour}
+                icon={tag.icon}
+                label={tag.name}
+                onChange={(appearance) => updateTag(tag, appearance)}
               />
               <input
                 className="transaction-tag-name-input"
@@ -383,36 +373,3 @@ export function TransactionTagManager({
   );
 }
 
-interface TagColourSelectProps {
-  value: TransactionTagColour;
-  onChange: (colour: TransactionTagColour) => void;
-}
-
-function TagColourSelect({ value, onChange }: TagColourSelectProps) {
-  const selected =
-    transactionTagColourOptions.find((option) => option.value === value) ??
-    transactionTagColourOptions[0];
-
-  return (
-    <label className="transaction-tag-colour-control">
-      <span
-        className="transaction-tag-colour-swatch"
-        style={{ backgroundColor: selected.swatch }}
-        aria-hidden="true"
-      />
-      <select
-        value={value}
-        onChange={(event) =>
-          onChange(event.target.value as TransactionTagColour)
-        }
-        aria-label="Tag colour"
-      >
-        {transactionTagColourOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}

@@ -523,7 +523,11 @@
     "test:v3040:budget-collapse-resize-markers": "tsx tests/v3040-budget-collapse-resize-markers.ts",
     "test:v3040": "pnpm test:v3040:budget-collapse-resize-markers",
     "test:v3050:register-inline-tag-creation": "tsx tests/v3050-register-inline-tag-creation.ts",
-    "test:v3050": "pnpm test:v3050:register-inline-tag-creation"
+    "test:v3050": "pnpm test:v3050:register-inline-tag-creation",
+    "test:v3051:register-tag-keyboard-navigation": "tsx tests/v3051-register-tag-keyboard-navigation.ts",
+    "test:v3051": "pnpm test:v3050 && pnpm test:v3051:register-tag-keyboard-navigation",
+    "test:v3060:tag-icons-colours": "tsx tests/v3060-tag-icons-colours.ts",
+    "test:v3060": "pnpm test:v3051 && pnpm test:v3060:tag-icons-colours"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

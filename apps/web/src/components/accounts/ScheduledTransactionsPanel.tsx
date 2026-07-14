@@ -13,6 +13,7 @@ import type { BudgetCategoryOption } from "../../features/budget/budgetViewTypes
 import { formatDateForDisplay } from "../../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../../features/settings/useDateFormatPreference";
 import type { TransactionTagDefinition } from "../../features/tags/transactionTagTypes";
+import { TransactionTagIconGraphic } from "../../features/tags/transactionTagIcons";
 
 interface ScheduledTransactionsPanelProps {
   accountId: string;
@@ -377,9 +378,11 @@ function ScheduledTagSelect({
               checked={value.includes(tag.id)}
               onChange={() => toggleTag(tag.id)}
             />
-            <span
-              className="scheduled-tag-swatch"
-              style={{ backgroundColor: `var(--tag-${tag.colour})` }}
+            <TransactionTagIconGraphic
+              icon={tag.icon}
+              className="scheduled-tag-icon"
+              size={16}
+              style={{ color: `var(--tag-${tag.colour})` }}
               aria-hidden="true"
             />
             <span>{tag.name}</span>

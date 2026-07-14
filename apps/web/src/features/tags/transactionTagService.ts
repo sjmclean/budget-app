@@ -7,11 +7,13 @@ import type {
   TransactionTagColour,
   TransactionTagDefinition,
 } from "./transactionTagTypes";
+import type { TransactionTagIcon } from "./transactionTagIconTypes";
 
 export interface CreateTransactionTagInput {
   name: string;
   description?: string;
   colour: TransactionTagColour;
+  icon?: TransactionTagIcon;
   autoTagImportedTransactions?: boolean;
 }
 
@@ -20,6 +22,7 @@ export interface UpdateTransactionTagInput {
   name: string;
   description?: string;
   colour: TransactionTagColour;
+  icon?: TransactionTagIcon | null;
   autoTagImportedTransactions: boolean;
 }
 
@@ -154,6 +157,7 @@ export function createTransactionTagService(
           ? { description: normaliseDescription(input.description) }
           : {}),
         colour: input.colour,
+        ...(input.icon ? { icon: input.icon } : {}),
         autoTagImportedTransactions:
           input.autoTagImportedTransactions === true,
         archived: false,
@@ -177,6 +181,7 @@ export function createTransactionTagService(
         name,
         ...(description ? { description } : {}),
         colour: input.colour,
+        ...(input.icon ? { icon: input.icon } : {}),
         autoTagImportedTransactions:
           input.autoTagImportedTransactions,
         updatedAt: now(),
@@ -184,6 +189,13 @@ export function createTransactionTagService(
 
       if (!description) {
         delete updated.description;
+      }
+
+      if (input.icon === undefined && existing.icon) {
+        updated.icon = existing.icon;
+      }
+      if (input.icon === null) {
+        delete updated.icon;
       }
 
       replaceTag(tags, updated);

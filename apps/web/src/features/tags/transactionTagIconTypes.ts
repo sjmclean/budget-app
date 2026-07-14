@@ -1,0 +1,55 @@
+export const TRANSACTION_TAG_ICON_IDS = [
+  "tag",
+  "money",
+  "credit-card",
+  "shopping",
+  "coffee",
+  "food",
+  "car",
+  "plane",
+  "home",
+  "briefcase",
+  "heart",
+  "star",
+  "gift",
+  "calendar",
+  "trending",
+  "wallet",
+  "file",
+  "music",
+  "movie",
+  "gaming",
+  "book",
+  "fitness",
+  "bike",
+  "package",
+  "layers",
+  "grid",
+  "list",
+  "complete",
+  "cancelled",
+  "warning",
+  "info",
+  "idea",
+  "tools",
+  "settings",
+  "notification",
+  "mail",
+  "phone",
+  "camera",
+  "image",
+  "video",
+  "headphones",
+  "radio",
+  "television",
+  "building",
+  "help",
+] as const;
+
+export type TransactionTagIcon = (typeof TRANSACTION_TAG_ICON_IDS)[number];
+
+const TRANSACTION_TAG_ICON_ID_SET = new Set<string>(TRANSACTION_TAG_ICON_IDS);
+
+export function isTransactionTagIcon(value: unknown): value is TransactionTagIcon {
+  return typeof value === "string" && TRANSACTION_TAG_ICON_ID_SET.has(value);
+}
