@@ -39,6 +39,47 @@ import {
 } from "../features/budget/BudgetWorkspaceGroup";
 
 const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
+const BUDGET_COLLAPSED_GROUPS_STORAGE_KEY_PREFIX =
+  "budget-app.budget-collapsed-groups.v1";
+
+function readCollapsedBudgetGroupIds(budgetId: string): Set<string> {
+  if (typeof window === "undefined") {
+    return new Set();
+  }
+
+  const stored = window.localStorage.getItem(
+    `${BUDGET_COLLAPSED_GROUPS_STORAGE_KEY_PREFIX}.${budgetId}`,
+  );
+
+  if (!stored) {
+    return new Set();
+  }
+
+  try {
+    const parsed = JSON.parse(stored);
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.filter((value): value is string => typeof value === "string")
+        : [],
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+function writeCollapsedBudgetGroupIds(
+  budgetId: string,
+  collapsedGroupIds: ReadonlySet<string>,
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    `${BUDGET_COLLAPSED_GROUPS_STORAGE_KEY_PREFIX}.${budgetId}`,
+    JSON.stringify([...collapsedGroupIds]),
+  );
+}
 
 const BUDGET_COLUMN_DEFINITIONS: readonly TableColumnDefinition<BudgetColumnId>[] = [
   { id: "category", label: "Category Group", template: "minmax(15rem, 1fr)", widthRem: 15 },
@@ -487,6 +528,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const [selectedMonth, setSelectedMonth] = useState(() =>
     getCurrentBudgetMonth(),
   );
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(() =>
+    readCollapsedBudgetGroupIds(budgetId),
+  );
 
   const {
     data,
@@ -526,6 +570,25 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
       setIsCategoryManagerOpen(false);
     }
   }, [selectedCategory?.id]);
+
+  useEffect(() => {
+    setCollapsedGroupIds(readCollapsedBudgetGroupIds(budgetId));
+  }, [budgetId]);
+
+  function toggleBudgetGroup(groupId: string) {
+    setCollapsedGroupIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+
+      writeCollapsedBudgetGroupIds(budgetId, next);
+      return next;
+    });
+  }
 
   const visibleCategoryGroups = data
     ? getVisibleCategoryGroups(data.categoryGroups, hideArchivedCategories)
@@ -776,6 +839,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                     isBudgetColumnVisible={isBudgetColumnVisible}
                     rowStyle={budgetTableLayout.rowStyle}
                     isCreditCardPaymentGroup={isCreditCardPaymentGroup(group.id)}
+                    isCollapsed={collapsedGroupIds.has(group.id)}
+                    onToggleCollapsed={() => toggleBudgetGroup(group.id)}
                   />
             ))}
           </Card>

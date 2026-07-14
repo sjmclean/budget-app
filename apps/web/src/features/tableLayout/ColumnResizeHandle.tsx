@@ -53,8 +53,8 @@ export function ColumnResizeHandle<TColumnId extends string>({
       }}
       onKeyDown={handleKeyDown}
     >
-      <span className="table-layout-column-resize-grip" aria-hidden="true">
-        ⋮⋮
+      <span className="table-layout-column-resize-indicator" aria-hidden="true">
+        ↔
       </span>
     </button>
   );

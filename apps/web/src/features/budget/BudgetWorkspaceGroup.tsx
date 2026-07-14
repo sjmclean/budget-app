@@ -328,6 +328,8 @@ export function BudgetGroup({
   isBudgetColumnVisible,
   rowStyle,
   isCreditCardPaymentGroup,
+  isCollapsed,
+  onToggleCollapsed,
 }: {
   group: BudgetCategoryGroupView;
   currencyCode: string;
@@ -349,6 +351,8 @@ export function BudgetGroup({
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
   rowStyle: CSSProperties;
   isCreditCardPaymentGroup: boolean;
+  isCollapsed: boolean;
+  onToggleCollapsed: () => void;
 }) {
   const groupHasOverassignedCategory = group.categories.some((category) =>
     overassignedCategoryIds.includes(category.id),
@@ -394,10 +398,30 @@ export function BudgetGroup({
               ⋮⋮
             </span>
           )}
-          <span>⌄</span>
-          <strong>
-            {group.name}
-          </strong>
+          <button
+            className="budget-group-collapse-button"
+            type="button"
+            aria-expanded={!isCollapsed}
+            aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${group.name}`}
+            title={`${isCollapsed ? "Expand" : "Collapse"} ${group.name}`}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onToggleCollapsed();
+            }}
+          >
+            <span
+              className={
+                isCollapsed
+                  ? "budget-group-collapse-chevron budget-group-collapse-chevron-collapsed"
+                  : "budget-group-collapse-chevron"
+              }
+              aria-hidden="true"
+            >
+              ▾
+            </span>
+          </button>
+          <strong>{group.name}</strong>
           {group.note?.trim() ? (
             <span
               className="category-note-indicator"
@@ -436,7 +460,8 @@ export function BudgetGroup({
         ) : null}
       </div>
 
-      {group.categories.map((category) => {
+      {!isCollapsed
+        ? group.categories.map((category) => {
           const isOverassignedSource = overassignedCategoryIds.includes(
             category.id,
           );
@@ -477,7 +502,8 @@ export function BudgetGroup({
               isCreditCardPaymentCategory={isCreditCardPaymentCategory(category.id)}
             />
           );
-        })}
+          })
+        : null}
     </section>
   );
 }

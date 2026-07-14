@@ -1,4 +1,5 @@
 import { Paperclip, Tag } from "lucide-react";
+import "../styles/register.css";
 import {
   useCallback,
   useEffect,

@@ -517,7 +517,11 @@
     "performance:analyze": "tsx tools/performance/analyze-vite-build.ts",
     "build:performance": "pnpm --filter @budget-app/web build && pnpm performance:analyze",
     "test:v3020:build-performance-budget": "tsx tests/v3020-build-performance-budget.ts",
-    "test:v3020": "pnpm test:v3020:build-performance-budget"
+    "test:v3020": "pnpm test:v3020:build-performance-budget",
+    "test:v3030:route-specific-css": "tsx tests/v3030-route-specific-css-loading.ts",
+    "test:v3030": "pnpm test:v3030:route-specific-css",
+    "test:v3040:budget-collapse-resize-markers": "tsx tests/v3040-budget-collapse-resize-markers.ts",
+    "test:v3040": "pnpm test:v3040:budget-collapse-resize-markers"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

@@ -892,6 +892,41 @@ strong {
   letter-spacing: 0.005em;
 }
 
+.budget-group-collapse-button {
+  flex: 0 0 auto;
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+}
+
+.budget-group-collapse-button:hover {
+  background: color-mix(in srgb, var(--accent-soft, #dbeafe) 72%, transparent);
+}
+
+.budget-group-collapse-button:focus-visible {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: 1px;
+}
+
+.budget-group-collapse-chevron {
+  display: inline-block;
+  font-size: 0.82rem;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 140ms ease;
+}
+
+.budget-group-collapse-chevron-collapsed {
+  transform: rotate(-90deg);
+}
+
 .budget-workspace-group + .budget-workspace-group .budget-workspace-group-header {
   margin-top: 0.22rem;
 }
@@ -3302,80 +3337,81 @@ strong {
   background: var(--surface-subtle, #f8fafc) !important;
 }
 
-/* v2.07 shared table column resizing */
+/* Shared table column resizing — high-contrast hover boundary */
 .table-layout-resizable-head-cell {
   position: relative;
   min-width: 0;
-  overflow: hidden;
-  padding-right: 1.45rem;
+  overflow: visible;
+  padding-right: 0.85rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .table-layout-column-resize-handle {
   position: absolute;
-  top: 0.12rem;
-  right: 0.05rem;
-  bottom: 0.12rem;
-  width: 1.2rem;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface, #fff) 72%, transparent);
-  color: var(--text-muted, #64748b);
+  z-index: 3;
+  top: 0;
+  right: -0.42rem;
+  bottom: 0;
+  width: 0.85rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent-strong, #1d4ed8);
   cursor: col-resize;
-  display: inline-grid;
+  display: grid;
   place-items: center;
   padding: 0;
-  opacity: 0.72;
-  transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease,
-    opacity 120ms ease;
 }
 
-.table-layout-column-resize-handle::after {
+.table-layout-column-resize-handle::before {
   position: absolute;
-  top: 0.15rem;
-  right: 0.03rem;
-  bottom: 0.15rem;
+  top: 0;
+  right: 0.4rem;
+  bottom: 0;
   width: 2px;
-  border-radius: 999px;
   background: var(--border, #cbd5e1);
   content: "";
-  opacity: 0.6;
-  transition: opacity 120ms ease, background 120ms ease;
+  opacity: 0.28;
+  transition: background 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
 }
 
-.table-layout-column-resize-grip {
-  position: relative;
-  z-index: 1;
-  transform: rotate(90deg);
-  font-size: 0.82rem;
-  font-weight: 900;
-  letter-spacing: -0.32rem;
-  line-height: 1;
+.table-layout-column-resize-indicator {
+  position: absolute;
+  top: 50%;
+  right: -0.22rem;
+  min-width: 1.35rem;
+  transform: translateY(-50%);
+  border: 1px solid var(--accent, #2563eb);
+  border-radius: 999px;
+  background: var(--surface, #fff);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, #2563eb) 24%, transparent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1rem;
+  opacity: 0;
   pointer-events: none;
+  text-align: center;
+  transition: opacity 120ms ease, transform 120ms ease;
 }
 
-.table-layout-resizable-head-cell:hover .table-layout-column-resize-handle,
-.table-layout-column-resize-handle:focus-visible,
-.table-layout-resizing .table-layout-column-resize-handle {
-  background: var(--accent-soft, #dbeafe);
-  border-color: var(--accent, #2563eb);
-  color: var(--accent-strong, #1d4ed8);
-  opacity: 1;
-}
-
-.table-layout-resizable-head-cell:hover .table-layout-column-resize-handle::after,
-.table-layout-column-resize-handle:focus-visible::after,
-.table-layout-resizing .table-layout-column-resize-handle::after {
+.table-layout-resizable-head-cell:hover .table-layout-column-resize-handle::before,
+.table-layout-column-resize-handle:focus-visible::before,
+.table-layout-resizing .table-layout-column-resize-handle::before {
   background: var(--accent, #2563eb);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent, #2563eb) 28%, transparent);
   opacity: 1;
+}
+
+.table-layout-resizable-head-cell:hover .table-layout-column-resize-indicator,
+.table-layout-column-resize-handle:focus-visible .table-layout-column-resize-indicator,
+.table-layout-resizing .table-layout-column-resize-indicator {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.02);
 }
 
 .table-layout-column-resize-handle:focus-visible {
-  outline: 2px solid var(--accent-soft, #bfdbfe);
+  outline: 2px solid var(--accent, #2563eb);
   outline-offset: 1px;
 }
 
