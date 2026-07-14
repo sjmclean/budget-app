@@ -10,7 +10,10 @@ import {
 } from "./TransactionRow";
 import { RegisterDateField } from "./RegisterDateField";
 import { PayeeInput } from "./PayeeInput";
-import { RegisterCategoryInput } from "./RegisterCategoryInput";
+import {
+  RegisterCategoryInput,
+  type RegisterInlineCategoryCreateInput,
+} from "./RegisterCategoryInput";
 import {
   isRegisterColumnVisible,
   isRegisterEntryInputColumn,
@@ -60,6 +63,7 @@ function SplitEditor({
   visibleColumnIds,
   rowStyle,
   layoutMode,
+  onCreateCategory,
   children,
 }: {
   splitLines: SplitLineDraft[];
@@ -73,6 +77,9 @@ function SplitEditor({
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
+  onCreateCategory?: (
+    input: RegisterInlineCategoryCreateInput,
+  ) => Promise<BudgetCategoryOption>;
   children?: ReactNode;
 }) {
   if (splitLines.length === 0) {
@@ -183,6 +190,7 @@ function SplitEditor({
           }
           categoryOptions={categoryOptions}
           includeSplitOption={false}
+          onCreateCategory={onCreateCategory}
         />,
       );
     }
@@ -708,6 +716,7 @@ export function TransactionEntryRow({
   visibleColumnIds,
   rowStyle,
   layoutMode,
+  onCreateCategory,
 }: {
   initialDate: string;
   categoryOptions: BudgetCategoryOption[];
@@ -721,6 +730,9 @@ export function TransactionEntryRow({
   onSave: (input: NewRegisterTransactionInput) => void;
   onSaveAndAddAnother: (input: NewRegisterTransactionInput) => void;
   onCancel: () => void;
+  onCreateCategory?: (
+    input: RegisterInlineCategoryCreateInput,
+  ) => Promise<BudgetCategoryOption>;
 }) {
   const [date, setDate] = useState(initialDate);
   const [payee, setPayee] = useState("");
@@ -849,6 +861,7 @@ export function TransactionEntryRow({
                 value={category}
                 onChange={handleCategoryChange}
                 categoryOptions={categoryOptions}
+                onCreateCategory={onCreateCategory}
               />
             );
           }
@@ -943,6 +956,7 @@ export function TransactionEntryRow({
         visibleColumnIds={visibleColumnIds}
         rowStyle={rowStyle}
         layoutMode={layoutMode}
+        onCreateCategory={onCreateCategory}
       >
         <button
           className="button button-primary"

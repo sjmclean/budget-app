@@ -605,17 +605,44 @@ async function loadBudgetView(
   return saveBudgetView(dependencies, applyStoredSettings(dependencies, starter), month);
 }
 
+function slugifyCategoryIdentifier(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function createUniqueCategoryIdentifier(
+  name: string,
+  existingIds: Set<string>,
+  fallback: string,
+): string {
+  const base = slugifyCategoryIdentifier(name) || fallback;
+  let candidate = base;
+  let suffix = 2;
+
+  while (existingIds.has(candidate)) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+
+  return candidate;
+}
+
 function getCategoryOptions(view: BudgetMonthView): BudgetCategoryOption[] {
   return [
     {
       id: READY_TO_ASSIGN_CATEGORY_ID,
       name: READY_TO_ASSIGN_CATEGORY_NAME,
+      groupId: "__income__",
       groupName: "Income",
     },
     ...view.categoryGroups.flatMap((group) =>
       group.categories.map((category) => ({
         id: category.id,
         name: category.name,
+        groupId: group.id,
         groupName: group.name,
         isArchived: category.isArchived,
       })),
@@ -690,6 +717,116 @@ export function createBudgetViewService(
   return {
   async getBudgetMonthView({ budgetId, month }) {
     return loadBudgetView(dependencies, budgetId, month);
+  },
+
+  async createCategory({ budgetId, month, name, groupId, groupName }) {
+    const trimmedName = name.trim();
+    const trimmedGroupName = groupName?.trim() ?? "";
+
+    if (!trimmedName) {
+      throw new Error("Category name cannot be blank.");
+    }
+
+    const current = await loadBudgetView(dependencies, budgetId, month);
+    const categoryNameKey = normaliseCategoryKey(trimmedName);
+
+    for (const group of current.categoryGroups) {
+      if (
+        group.categories.some(
+          (category) => normaliseCategoryKey(category.name) === categoryNameKey,
+        )
+      ) {
+        throw new Error("A category with that name already exists.");
+      }
+    }
+
+    let targetGroup = groupId
+      ? current.categoryGroups.find((group) => group.id === groupId)
+      : undefined;
+
+    const nextGroups = current.categoryGroups.map((group) => ({
+      ...group,
+      categories: [...group.categories],
+    }));
+
+    if (!targetGroup && trimmedGroupName) {
+      targetGroup = current.categoryGroups.find(
+        (group) =>
+          normaliseCategoryKey(group.name) ===
+          normaliseCategoryKey(trimmedGroupName),
+      );
+    }
+
+    let targetGroupId = targetGroup?.id;
+
+    if (!targetGroupId) {
+      if (!trimmedGroupName) {
+        throw new Error("Choose a category group.");
+      }
+
+      const existingGroupIds = new Set(nextGroups.map((group) => group.id));
+      targetGroupId = createUniqueCategoryIdentifier(
+        trimmedGroupName,
+        existingGroupIds,
+        "category-group",
+      );
+      nextGroups.push({
+        id: targetGroupId,
+        name: trimmedGroupName,
+        previousAvailable: 0,
+        assigned: 0,
+        activity: 0,
+        available: 0,
+        note: "",
+        categories: [],
+      });
+    }
+
+    const existingCategoryIds = new Set(
+      nextGroups.flatMap((group) =>
+        group.categories.map((category) => category.id),
+      ),
+    );
+    const categoryId = createUniqueCategoryIdentifier(
+      trimmedName,
+      existingCategoryIds,
+      "category",
+    );
+
+    const targetGroupIndex = nextGroups.findIndex(
+      (group) => group.id === targetGroupId,
+    );
+    if (targetGroupIndex < 0) {
+      throw new Error("Category group was not found.");
+    }
+
+    const target = nextGroups[targetGroupIndex];
+    nextGroups[targetGroupIndex] = {
+      ...target,
+      categories: [
+        ...target.categories,
+        {
+          id: categoryId,
+          name: trimmedName,
+          previousAvailable: 0,
+          assigned: 0,
+          activity: 0,
+          available: 0,
+          isOverspent: false,
+          isArchived: false,
+          note: "",
+        },
+      ],
+    };
+
+    return saveBudgetView(
+      dependencies,
+      {
+        ...current,
+        categoryGroups: nextGroups,
+      },
+      month,
+    );
   },
 
   async getCategoryMergePreview({ budgetId, month, sourceCategoryId, targetCategoryId }) {

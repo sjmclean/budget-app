@@ -20,6 +20,7 @@ import {
   TransactionEditRow,
   TransactionEntryRow,
 } from "../features/accounts/components/RegisterTransactionEditor";
+import type { RegisterInlineCategoryCreateInput } from "../features/accounts/components/RegisterCategoryInput";
 import {
   TransactionRow,
   type RegisterColumnId,
@@ -365,6 +366,49 @@ export function AccountRegisterPage() {
       isMounted = false;
     };
   }, [activeBudgetId, categoriesPersistence, currentBudgetMonth]);
+
+  const createInlineCategory = useCallback(
+    async (
+      input: RegisterInlineCategoryCreateInput,
+    ): Promise<BudgetCategoryOption> => {
+      if (!activeBudgetId) {
+        throw new Error("Open a budget before creating a category.");
+      }
+
+      await categoriesPersistence.createCategory({
+        budgetId: activeBudgetId,
+        month: currentBudgetMonth,
+        ...input,
+      });
+
+      const nextOptions = await categoriesPersistence.getCategoryOptions({
+        budgetId: activeBudgetId,
+        month: currentBudgetMonth,
+      });
+      setCategoryOptions(nextOptions);
+
+      const created = nextOptions.find(
+        (option) =>
+          option.name.trim().toLowerCase() ===
+            input.name.trim().toLowerCase() &&
+          (!input.groupId || option.groupId === input.groupId) &&
+          (!input.groupName ||
+            option.groupName.trim().toLowerCase() ===
+              input.groupName.trim().toLowerCase()),
+      );
+
+      if (!created) {
+        throw new Error("The category was created but could not be selected.");
+      }
+
+      return created;
+    },
+    [
+      activeBudgetId,
+      categoriesPersistence,
+      currentBudgetMonth,
+    ],
+  );
 
   useEffect(() => {
     let active = true;
@@ -1575,6 +1619,7 @@ export function AccountRegisterPage() {
               visibleColumnIds={registerEntryVisibleColumnIds}
               rowStyle={registerEntryRowStyle}
               layoutMode={registerLayoutMode}
+              onCreateCategory={createInlineCategory}
               onSave={(input) => {
                 addTransaction(input);
                 setLastEntryDate(input.date);

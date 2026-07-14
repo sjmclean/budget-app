@@ -55,8 +55,17 @@ export interface BudgetActivityDrilldown {
 export interface BudgetCategoryOption {
   id: string;
   name: string;
+  groupId?: string;
   groupName: string;
   isArchived?: boolean;
+}
+
+export interface CreateBudgetCategoryInput {
+  budgetId: string;
+  month: string;
+  name: string;
+  groupId?: string;
+  groupName?: string;
 }
 
 export interface CategoryMergePreview {
@@ -126,6 +135,8 @@ export interface BudgetViewService {
     coveringCategoryId: string;
     amount: number;
   }): Promise<BudgetMonthView>;
+
+  createCategory(input: CreateBudgetCategoryInput): Promise<BudgetMonthView>;
 
   renameCategory(input: {
     budgetId: string;

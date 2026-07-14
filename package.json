@@ -533,7 +533,9 @@
     "test:v3080:archived-categories-section": "tsx tests/v3080-archived-categories-section.ts",
     "test:v3080": "pnpm test:v3080:archived-categories-section",
     "test:v3090:remove-add-transaction-split-button": "tsx tests/v3090-remove-add-transaction-split-button.ts",
-    "test:v3090": "pnpm test:v3090:remove-add-transaction-split-button"
+    "test:v3090": "pnpm test:v3090:remove-add-transaction-split-button",
+    "test:v3100:inline-category-creation": "tsx tests/v3100-inline-category-creation.ts",
+    "test:v3100": "pnpm test:v3100:inline-category-creation"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
