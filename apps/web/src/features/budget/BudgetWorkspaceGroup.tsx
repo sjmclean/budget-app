@@ -1,6 +1,4 @@
 import { useState, type CSSProperties, type MouseEvent } from "react";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { evaluateAssignedInput } from "./evaluateAssignedInput";
 import type { BudgetCategoryGroupView, BudgetCategoryView } from "./budgetViewTypes";
 import { isCreditCardPaymentCategory } from "./creditCardPaymentCategories";
@@ -145,28 +143,6 @@ function BudgetCategoryRow({
   isCreditCardPaymentCategory: boolean;
 }) {
   const categoryNotePreview = category.note?.trim().split(/\r?\n/)[0] ?? "";
-  const sortableId = getCategorySortableId(category.id);
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: sortableId,
-    disabled: isCreditCardPaymentCategory,
-    data: {
-      type: "category",
-      categoryId: category.id,
-      groupId,
-    },
-  });
-  const sortableStyle: CSSProperties = {
-    ...rowStyle,
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
   const canCoverOverspending =
     isMoneyNegative(category.available) &&
     !isCreditCardPaymentCategory &&
@@ -174,12 +150,10 @@ function BudgetCategoryRow({
 
   return (
     <button
-      ref={setNodeRef}
       type="button"
       className={[
         "budget-workspace-row interactive-budget-row",
         isSelected ? "budget-workspace-row-selected" : "",
-        isDragging ? "budget-workspace-row-dragging budget-workspace-row-sortable-active" : "",
         isCreditCardPaymentCategory ? "budget-workspace-row-system" : "",
       ].filter(Boolean).join(" ")}
       onClick={onSelect}
@@ -193,7 +167,7 @@ function BudgetCategoryRow({
         onSelect();
         onOpenCategoryContextMenu(event);
       }}
-      style={sortableStyle}
+      style={rowStyle}
     >
       <div
         className={
@@ -207,8 +181,6 @@ function BudgetCategoryRow({
             : "Drag category name to reorder"
         }
         onClick={(event) => event.stopPropagation()}
-        {...(isCreditCardPaymentCategory ? {} : attributes)}
-        {...(isCreditCardPaymentCategory ? {} : listeners)}
       >
         {isCreditCardPaymentCategory ? (
           <span
@@ -381,40 +353,16 @@ export function BudgetGroup({
   const groupHasOverassignedCategory = group.categories.some((category) =>
     overassignedCategoryIds.includes(category.id),
   );
-  const sortableId = getGroupSortableId(group.id);
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: sortableId,
-    disabled: isCreditCardPaymentGroup,
-    data: {
-      type: "group",
-      groupId: group.id,
-    },
-  });
-  const sectionStyle: CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
   return (
     <section
-      ref={setNodeRef}
       className={[
         "budget-workspace-group",
         isCreditCardPaymentGroup ? "budget-workspace-group-system" : "",
       ].filter(Boolean).join(" ")}
-      style={sectionStyle}
     >
       <div
         className={[
           "budget-workspace-group-header",
-          isDragging ? "budget-workspace-group-header-dragging budget-workspace-row-sortable-active" : "",
           isCreditCardPaymentGroup ? "budget-workspace-group-header-system" : "",
         ].filter(Boolean).join(" ")}
         style={rowStyle}
@@ -430,8 +378,6 @@ export function BudgetGroup({
               ? "Money reserved to pay your credit cards"
               : "Drag category group name to reorder groups"
           }
-          {...(isCreditCardPaymentGroup ? {} : attributes)}
-          {...(isCreditCardPaymentGroup ? {} : listeners)}
         >
           {isCreditCardPaymentGroup ? (
             <span
@@ -490,11 +436,7 @@ export function BudgetGroup({
         ) : null}
       </div>
 
-      <SortableContext
-        items={group.categories.map((category) => getCategorySortableId(category.id))}
-        strategy={verticalListSortingStrategy}
-      >
-        {group.categories.map((category) => {
+      {group.categories.map((category) => {
           const isOverassignedSource = overassignedCategoryIds.includes(
             category.id,
           );
@@ -536,7 +478,6 @@ export function BudgetGroup({
             />
           );
         })}
-      </SortableContext>
     </section>
   );
 }

@@ -1,9 +1,4 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
-import { DndContext } from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
@@ -35,13 +30,11 @@ import {
   getVisibleCategoryGroups,
 } from "../features/budget/budgetWorkspaceSelectors";
 import { buildBudgetInspectorState } from "../features/budget/budgetInspectorState";
-import { useBudgetDragDrop } from "../features/budget/useBudgetDragDrop";
 import { BudgetCategoryContextMenu } from "../features/budget/BudgetCategoryContextMenu";
 import { BudgetCoverOverspendingMenu } from "../features/budget/BudgetCoverOverspendingMenu";
 import { resolveFloatingPositionFromMouseEvent, type FloatingPosition } from "../features/floatingUi";
 import {
   BudgetGroup,
-  getGroupSortableId,
   type BudgetColumnId,
 } from "../features/budget/BudgetWorkspaceGroup";
 
@@ -538,12 +531,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     ? getVisibleCategoryGroups(data.categoryGroups, hideArchivedCategories)
     : [];
 
-  const budgetDragDrop = useBudgetDragDrop({
-    visibleCategoryGroups,
-    moveCategoryToPosition,
-    moveCategoryGroupToPosition,
-  });
-
   if (isLoading) {
     return (
       <div className="page-stack">
@@ -773,16 +760,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           </div>
 
           <Card className="budget-workspace-table-card">
-            <DndContext
-              sensors={budgetDragDrop.sensors}
-              collisionDetection={budgetDragDrop.collisionDetection}
-              onDragEnd={budgetDragDrop.onDragEnd}
-            >
-              <SortableContext
-                items={visibleCategoryGroups.map((group) => getGroupSortableId(group.id))}
-                strategy={verticalListSortingStrategy}
-              >
-                {visibleCategoryGroups.map((group) => (
+            {visibleCategoryGroups.map((group) => (
                   <BudgetGroup
                     key={group.id}
                     group={group}
@@ -799,9 +777,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                     rowStyle={budgetTableLayout.rowStyle}
                     isCreditCardPaymentGroup={isCreditCardPaymentGroup(group.id)}
                   />
-                ))}
-              </SortableContext>
-            </DndContext>
+            ))}
           </Card>
         </main>
 

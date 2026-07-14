@@ -6,6 +6,9 @@ import {
   type CSSProperties,
 } from "react";
 
+const EMPTY_COLUMN_ID_ALIASES: Readonly<Record<string, never>> =
+  Object.freeze({});
+
 export interface TableColumnDefinition<TColumnId extends string> {
   id: TColumnId;
   label: string;
@@ -253,15 +256,17 @@ export function useTableLayout<TColumnId extends string>({
   storageKeyPrefix,
   scopeId,
   columns,
-  columnIdAliases = {},
+  columnIdAliases,
   minimumWidthRem = 0,
 }: UseTableLayoutOptions<TColumnId>): TableLayoutState<TColumnId> {
+  const resolvedColumnIdAliases =
+    columnIdAliases ?? EMPTY_COLUMN_ID_ALIASES;
   const [visibleColumnIds, setVisibleColumnIds] = useState<TColumnId[]>(() =>
     readVisibleTableColumns(
       storageKeyPrefix,
       columns,
       scopeId,
-      columnIdAliases,
+      resolvedColumnIdAliases,
     ),
   );
   const [columnWidths, setColumnWidths] = useState<TableColumnWidths<TColumnId>>(
@@ -270,7 +275,7 @@ export function useTableLayout<TColumnId extends string>({
         storageKeyPrefix,
         columns,
         scopeId,
-        columnIdAliases,
+        resolvedColumnIdAliases,
       ),
   );
 
@@ -280,7 +285,7 @@ export function useTableLayout<TColumnId extends string>({
         storageKeyPrefix,
         columns,
         scopeId,
-        columnIdAliases,
+        resolvedColumnIdAliases,
       ),
     );
     setColumnWidths(
@@ -288,10 +293,10 @@ export function useTableLayout<TColumnId extends string>({
         storageKeyPrefix,
         columns,
         scopeId,
-        columnIdAliases,
+        resolvedColumnIdAliases,
       ),
     );
-  }, [columnIdAliases, columns, scopeId, storageKeyPrefix]);
+  }, [columns, resolvedColumnIdAliases, scopeId, storageKeyPrefix]);
 
   const visibleColumnSet = useMemo(
     () => new Set<TColumnId>(visibleColumnIds),

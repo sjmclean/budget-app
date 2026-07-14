@@ -497,7 +497,9 @@
     "test:v283:version-history-metadata-retention": "tsx tests/v283-version-history-metadata-retention.ts",
     "test:v283": "pnpm test:v282 && pnpm test:v283:version-history-metadata-retention",
     "test:v284": "tsx tests/v284-undo-redo-architecture.ts",
-    "test:v285": "tsx tests/v285-undoable-budget-money-movement.ts"
+    "test:v285": "tsx tests/v285-undoable-budget-money-movement.ts",
+    "test:v2940:react-hook-stability": "tsx tests/v2940-react-hook-stability-audit.ts",
+    "test:v2940": "pnpm test:v2940:react-hook-stability"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
