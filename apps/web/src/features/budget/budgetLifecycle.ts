@@ -1,4 +1,5 @@
 import { resolveActiveBudget } from "./activeBudget";
+import { getCurrentBudgetMonth } from "./budgetMonthNavigation";
 import {
   deleteBudgetRegistryEntry,
   readBudgetRegistry,
@@ -37,10 +38,6 @@ export interface BudgetLifecycleResult {
 
 function listStorageKeys(storage: KeyValueStoragePort): string[] {
   return typeof storage.listKeys === "function" ? storage.listKeys() : [];
-}
-
-function getIsoMonth(now = new Date()): string {
-  return now.toISOString().slice(0, 7);
 }
 
 function monthLabelFromIsoMonth(month: string): string {
@@ -131,7 +128,7 @@ function createStarterBudgetMonthValue(budget: BudgetSummary, month: string): st
 }
 
 function writeStarterBudgetMonth(storage: KeyValueStoragePort, budget: BudgetSummary, now = new Date()): string {
-  const month = getIsoMonth(now);
+  const month = getCurrentBudgetMonth(now);
   const key = `${BUDGET_VIEW_STORAGE_PREFIX}.${budget.id}.${month}`;
   storage.setItem(key, createStarterBudgetMonthValue(budget, month));
   return key;

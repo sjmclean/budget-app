@@ -2,7 +2,7 @@ import { Card } from "../../../components/ui/Card";
 import { ReportEmptyState } from "../components/ReportEmptyState";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportTableColumn } from "../components/ReportTable";
-import { currentReportMonth, type useReportsViewModel } from "../hooks/useReportsViewModel";
+import { getCurrentReportMonth, type useReportsViewModel } from "../hooks/useReportsViewModel";
 import type { BudgetVsActualRow } from "../services/budgetVsActualReport";
 
 type ReportsViewModel = ReturnType<typeof useReportsViewModel>;
@@ -87,7 +87,7 @@ export function BudgetVsActualReport({ viewModel }: BudgetVsActualReportProps) {
         }
         month={month}
         onMonthChange={setMonth}
-        fallbackMonth={currentReportMonth}
+        fallbackMonth={getCurrentReportMonth()}
       />
 
       {error ? <ReportEmptyState title="Unable to load report" description={error} /> : null}

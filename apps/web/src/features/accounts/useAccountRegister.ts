@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getAppPersistenceGateway } from "../persistence";
 import { generateDueScheduledTransactions } from "./scheduledTransactionGenerationService";
 import type {
@@ -52,12 +52,29 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const activeAccountIdRef = useRef(accountId);
+  const mutationVersionRef = useRef(0);
+
+  activeAccountIdRef.current = accountId;
+
   const applyRegisterView = useCallback((view: AccountRegisterView) => {
     setData(view);
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      mutationVersionRef.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
+    mutationVersionRef.current += 1;
+    setIsSaving(false);
 
     async function loadRegister() {
       setIsLoading(true);
@@ -99,22 +116,44 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
   const runMutation = useCallback(async (
     action: () => Promise<AccountRegisterView>,
   ) => {
+    const mutationAccountId = accountId;
+    const mutationVersion = ++mutationVersionRef.current;
     setIsSaving(true);
     setError(null);
 
     try {
       const result = await action();
-      applyRegisterView(result);
+
+      if (
+        mountedRef.current &&
+        activeAccountIdRef.current === mutationAccountId &&
+        mutationVersionRef.current === mutationVersion
+      ) {
+        applyRegisterView(result);
+      }
     } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to update account register.",
-      );
+      if (
+        mountedRef.current &&
+        activeAccountIdRef.current === mutationAccountId &&
+        mutationVersionRef.current === mutationVersion
+      ) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Failed to update account register.",
+        );
+      }
     } finally {
-      setIsSaving(false);
+      if (
+        mountedRef.current &&
+        activeAccountIdRef.current === mutationAccountId &&
+        mutationVersionRef.current === mutationVersion
+      ) {
+        setIsSaving(false);
+      }
     }
-  }, [applyRegisterView]);
+  }, [accountId, applyRegisterView]);
+
 
   const addTransaction = useCallback(async (input: NewRegisterTransactionInput) => {
     await runMutation(

@@ -89,6 +89,49 @@ export function useBudgetWorkspace(
   const assignmentEditSessionRef = useRef(createBudgetAssignmentEditSession());
   const assignmentEditTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dataRef = useRef<BudgetMonthView | null>(null);
+  const mountedRef = useRef(true);
+  const workspaceIdentityRef = useRef(`${budgetId}:${month}`);
+  const activityRequestVersionRef = useRef(0);
+  const mergePreviewRequestVersionRef = useRef(0);
+  const mutationVersionRef = useRef(0);
+
+  workspaceIdentityRef.current = `${budgetId}:${month}`;
+
+  function isWorkspaceCurrent(identity: string): boolean {
+    return mountedRef.current && workspaceIdentityRef.current === identity;
+  }
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      activityRequestVersionRef.current += 1;
+      mergePreviewRequestVersionRef.current += 1;
+      mutationVersionRef.current += 1;
+
+      if (assignmentEditTimerRef.current) {
+        clearTimeout(assignmentEditTimerRef.current);
+        assignmentEditTimerRef.current = null;
+      }
+
+      const pendingChanges = assignmentEditSessionRef.current.consume();
+      if (pendingChanges.length > 0) {
+        void budgetViewPersistence
+          .setCategoryAssignedValues({
+            budgetId,
+            month,
+            assignments: pendingChanges.map((change) => ({
+              categoryId: change.categoryId,
+              assigned: change.finalAssigned,
+            })),
+          })
+          .catch((error) => {
+            console.error("Failed to flush pending Budget assignments.", error);
+          });
+      }
+    };
+  }, [budgetId, budgetViewPersistence, month]);
 
   useEffect(() =>
     registerBudgetUndoRedoContext(`${budgetId}:${month}`, {
@@ -99,12 +142,17 @@ export function useBudgetWorkspace(
         });
       },
       async setCategoryAssignedValues({ month: requestedMonth, assignments }) {
+        const workspaceIdentity = `${budgetId}:${requestedMonth}`;
         const nextData = await budgetViewPersistence.setCategoryAssignedValues({
           budgetId,
           month: requestedMonth,
           assignments,
         });
-        setEditedData(nextData);
+
+        if (isWorkspaceCurrent(workspaceIdentity)) {
+          setEditedData(nextData);
+        }
+
         return nextData;
       },
     }, {
@@ -126,6 +174,7 @@ export function useBudgetWorkspace(
   dataRef.current = data;
 
   async function flushPendingAssignmentEdits() {
+    const workspaceIdentity = workspaceIdentityRef.current;
     if (assignmentEditTimerRef.current) {
       clearTimeout(assignmentEditTimerRef.current);
       assignmentEditTimerRef.current = null;
@@ -137,7 +186,7 @@ export function useBudgetWorkspace(
     }
 
     const result = await executeUndoableBudgetAssignmentChanges({ month, changes });
-    if (!result.performed) {
+    if (!result.performed && isWorkspaceCurrent(workspaceIdentity)) {
       setSaveError(result.error ?? "Failed to save budget assignment changes.");
     }
   }
@@ -176,6 +225,8 @@ export function useBudgetWorkspace(
 
 
   function openActivityDrilldown(categoryId: string) {
+    const workspaceIdentity = workspaceIdentityRef.current;
+    const requestVersion = ++activityRequestVersionRef.current;
     setSaveError(null);
     setIsActivityDrilldownLoading(true);
 
@@ -186,9 +237,21 @@ export function useBudgetWorkspace(
         categoryId,
       })
       .then((drilldown) => {
-        setActivityDrilldown(drilldown);
+        if (
+          isWorkspaceCurrent(workspaceIdentity) &&
+          activityRequestVersionRef.current === requestVersion
+        ) {
+          setActivityDrilldown(drilldown);
+        }
       })
       .catch((error) => {
+        if (
+          !isWorkspaceCurrent(workspaceIdentity) ||
+          activityRequestVersionRef.current !== requestVersion
+        ) {
+          return;
+        }
+
         setSaveError(
           error instanceof Error
             ? error.message
@@ -197,11 +260,17 @@ export function useBudgetWorkspace(
         setActivityDrilldown(null);
       })
       .finally(() => {
-        setIsActivityDrilldownLoading(false);
+        if (
+          isWorkspaceCurrent(workspaceIdentity) &&
+          activityRequestVersionRef.current === requestVersion
+        ) {
+          setIsActivityDrilldownLoading(false);
+        }
       });
   }
 
   function closeActivityDrilldown() {
+    activityRequestVersionRef.current += 1;
     setActivityDrilldown(null);
     setIsActivityDrilldownLoading(false);
   }
@@ -249,6 +318,36 @@ export function useBudgetWorkspace(
     }, 1800);
   }
 
+  function runWorkspaceMutation(
+    action: () => Promise<BudgetMonthView>,
+    onSuccess: (nextData: BudgetMonthView) => void,
+    fallbackError: string,
+  ) {
+    const workspaceIdentity = workspaceIdentityRef.current;
+    const mutationVersion = ++mutationVersionRef.current;
+    setSaveError(null);
+
+    void action()
+      .then((nextData) => {
+        if (
+          isWorkspaceCurrent(workspaceIdentity) &&
+          mutationVersionRef.current === mutationVersion
+        ) {
+          onSuccess(nextData);
+        }
+      })
+      .catch((error) => {
+        if (
+          !isWorkspaceCurrent(workspaceIdentity) ||
+          mutationVersionRef.current !== mutationVersion
+        ) {
+          return;
+        }
+
+        setSaveError(error instanceof Error ? error.message : fallbackError);
+      });
+  }
+
   function coverOverspending(input: {
     overspentCategoryId: string;
     coveringCategoryId: string;
@@ -279,12 +378,22 @@ export function useBudgetWorkspace(
       return;
     }
 
+    const workspaceIdentity = workspaceIdentityRef.current;
+    const mutationVersion = ++mutationVersionRef.current;
+
     void executeUndoableBudgetMoneyMovement({
       month,
       sourceCategoryId: input.coveringCategoryId,
       destinationCategoryId: input.overspentCategoryId,
       amount: input.amount,
     }).then((result) => {
+      if (
+        !isWorkspaceCurrent(workspaceIdentity) ||
+        mutationVersionRef.current !== mutationVersion
+      ) {
+        return;
+      }
+
       if (result.performed) {
         setSelectedCategoryId(input.overspentCategoryId);
         return;
@@ -295,68 +404,36 @@ export function useBudgetWorkspace(
   }
 
   function renameCategory(categoryId: string, name: string) {
-    setSaveError(null);
-
-    void categoriesPersistence
-      .renameCategory({
-        budgetId,
-        month,
-        categoryId,
-        name,
-      })
-      .then((nextData) => {
+    runWorkspaceMutation(
+      () => categoriesPersistence.renameCategory({ budgetId, month, categoryId, name }),
+      (nextData) => {
         setEditedData(nextData);
         setSelectedCategoryId(categoryId);
-      })
-      .catch((error) => {
-        setSaveError(
-          error instanceof Error ? error.message : "Failed to rename category.",
-        );
-      });
+      },
+      "Failed to rename category.",
+    );
   }
 
   function setCategoryArchived(categoryId: string, isArchived: boolean) {
-    setSaveError(null);
-
-    void categoriesPersistence
-      .setCategoryArchived({
-        budgetId,
-        month,
-        categoryId,
-        isArchived,
-      })
-      .then((nextData) => {
+    runWorkspaceMutation(
+      () => categoriesPersistence.setCategoryArchived({ budgetId, month, categoryId, isArchived }),
+      (nextData) => {
         setEditedData(nextData);
         setSelectedCategoryId(categoryId);
-      })
-      .catch((error) => {
-        setSaveError(
-          error instanceof Error
-            ? error.message
-            : "Failed to update category archive status.",
-        );
-      });
+      },
+      "Failed to update category archive status.",
+    );
   }
 
   function moveCategory(categoryId: string, direction: "up" | "down") {
-    setSaveError(null);
-
-    void categoriesPersistence
-      .moveCategory({
-        budgetId,
-        month,
-        categoryId,
-        direction,
-      })
-      .then((nextData) => {
+    runWorkspaceMutation(
+      () => categoriesPersistence.moveCategory({ budgetId, month, categoryId, direction }),
+      (nextData) => {
         setEditedData(nextData);
         setSelectedCategoryId(categoryId);
-      })
-      .catch((error) => {
-        setSaveError(
-          error instanceof Error ? error.message : "Failed to move category.",
-        );
-      });
+      },
+      "Failed to move category.",
+    );
   }
 
   function moveCategoryToPosition(
@@ -364,130 +441,73 @@ export function useBudgetWorkspace(
     targetCategoryId: string,
     placement: "before" | "after",
   ) {
-    setSaveError(null);
-
-    void categoriesPersistence
-      .moveCategoryToPosition({
+    runWorkspaceMutation(
+      () => categoriesPersistence.moveCategoryToPosition({
         budgetId,
         month,
         categoryId,
         targetCategoryId,
         placement,
-      })
-      .then((nextData) => {
+      }),
+      (nextData) => {
         setEditedData(nextData);
         setSelectedCategoryId(categoryId);
-      })
-      .catch((error) => {
-        setSaveError(
-          error instanceof Error ? error.message : "Failed to move category.",
-        );
-      });
+      },
+      "Failed to move category.",
+    );
   }
 
   function moveCategoryGroup(groupId: string, direction: "up" | "down") {
-    setSaveError(null);
-
-    void categoriesPersistence
-      .moveCategoryGroup({
-        budgetId,
-        month,
-        groupId,
-        direction,
-      })
-      .then((nextData) => {
-        setEditedData(nextData);
-        setSelectedCategoryId((currentCategoryId) => currentCategoryId);
-      })
-      .catch((error) => {
-        setSaveError(
-          error instanceof Error
-            ? error.message
-            : "Failed to move category group.",
-        );
-      });
+    runWorkspaceMutation(
+      () => categoriesPersistence.moveCategoryGroup({ budgetId, month, groupId, direction }),
+      (nextData) => setEditedData(nextData),
+      "Failed to move category group.",
+    );
   }
-
-
 
   function moveCategoryGroupToPosition(
     groupId: string,
     targetGroupId: string,
     placement: "before" | "after",
   ) {
-    setSaveError(null);
-
-    void categoriesPersistence
-      .moveCategoryGroupToPosition({
+    runWorkspaceMutation(
+      () => categoriesPersistence.moveCategoryGroupToPosition({
         budgetId,
         month,
         groupId,
         targetGroupId,
         placement,
-      })
-      .then((nextData) => {
-        setEditedData(nextData);
-        setSelectedCategoryId((currentCategoryId) => currentCategoryId);
-      })
-      .catch((error) => {
-        setSaveError(
-          error instanceof Error
-            ? error.message
-            : "Failed to move category group.",
-        );
-      });
+      }),
+      (nextData) => setEditedData(nextData),
+      "Failed to move category group.",
+    );
   }
 
-
   function updateCategoryNote(categoryId: string, note: string) {
-    setSaveError(null);
-
-    void categoriesPersistence
-      .updateCategoryNote({
-        budgetId,
-        month,
-        categoryId,
-        note,
-      })
-      .then((nextData) => {
+    runWorkspaceMutation(
+      () => categoriesPersistence.updateCategoryNote({ budgetId, month, categoryId, note }),
+      (nextData) => {
         setEditedData(nextData);
         setSelectedCategoryId(categoryId);
-      })
-      .catch((error) => {
-        setSaveError(
-          error instanceof Error
-            ? error.message
-            : "Failed to update category note.",
-        );
-      });
+      },
+      "Failed to update category note.",
+    );
   }
 
   function updateCategoryGroupNote(groupId: string, note: string) {
-    setSaveError(null);
-
-    void categoriesPersistence
-      .updateCategoryGroupNote({
-        budgetId,
-        month,
-        groupId,
-        note,
-      })
-      .then((nextData) => {
-        setEditedData(nextData);
-      })
-      .catch((error) => {
-        setSaveError(
-          error instanceof Error
-            ? error.message
-            : "Failed to update category group note.",
-        );
-      });
+    runWorkspaceMutation(
+      () => categoriesPersistence.updateCategoryGroupNote({ budgetId, month, groupId, note }),
+      (nextData) => setEditedData(nextData),
+      "Failed to update category group note.",
+    );
   }
 
   function previewCategoryMerge(
     sourceCategoryId: string,
     targetCategoryId: string,
   ) {
+    const workspaceIdentity = workspaceIdentityRef.current;
+    const requestVersion = ++mergePreviewRequestVersionRef.current;
     setSaveError(null);
     setIsCategoryMergePreviewLoading(true);
 
@@ -499,9 +519,21 @@ export function useBudgetWorkspace(
         targetCategoryId,
       })
       .then((preview) => {
-        setCategoryMergePreview(preview);
+        if (
+          isWorkspaceCurrent(workspaceIdentity) &&
+          mergePreviewRequestVersionRef.current === requestVersion
+        ) {
+          setCategoryMergePreview(preview);
+        }
       })
       .catch((error) => {
+        if (
+          !isWorkspaceCurrent(workspaceIdentity) ||
+          mergePreviewRequestVersionRef.current !== requestVersion
+        ) {
+          return;
+        }
+
         setSaveError(
           error instanceof Error
             ? error.message
@@ -510,34 +542,36 @@ export function useBudgetWorkspace(
         setCategoryMergePreview(null);
       })
       .finally(() => {
-        setIsCategoryMergePreviewLoading(false);
+        if (
+          isWorkspaceCurrent(workspaceIdentity) &&
+          mergePreviewRequestVersionRef.current === requestVersion
+        ) {
+          setIsCategoryMergePreviewLoading(false);
+        }
       });
   }
 
   function mergeCategory(sourceCategoryId: string, targetCategoryId: string) {
-    setSaveError(null);
-
-    void categoriesPersistence
-      .mergeCategory({
+    runWorkspaceMutation(
+      () => categoriesPersistence.mergeCategory({
         budgetId,
         month,
         sourceCategoryId,
         targetCategoryId,
-      })
-      .then((nextData) => {
+      }),
+      (nextData) => {
         setEditedData(nextData);
         setSelectedCategoryId(targetCategoryId);
         setCategoryMergePreview(null);
-      })
-      .catch((error) => {
-        setSaveError(
-          error instanceof Error ? error.message : "Failed to merge categories.",
-        );
-      });
+      },
+      "Failed to merge categories.",
+    );
   }
 
   function clearCategoryMergePreview() {
+    mergePreviewRequestVersionRef.current += 1;
     setCategoryMergePreview(null);
+    setIsCategoryMergePreviewLoading(false);
   }
 
   return {

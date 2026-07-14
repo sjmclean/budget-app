@@ -17,6 +17,7 @@ import type { AccountRegisterView, RegisterTransactionView } from "../accounts/a
 import type { PayeeView } from "../accounts/payeeService";
 import type { BudgetCategoryGroupView, BudgetMonthView } from "./budgetViewTypes";
 import { isMoneyNegative, normaliseMoney } from "./moneyMath";
+import { getCurrentBudgetMonth } from "./budgetMonthNavigation";
 
 export const ACTUAL_BUDGET_LAUNCHER_IMPORT_STORAGE_PREFIX =
   "budget-app.actual-budget-launcher-import.v1";
@@ -571,7 +572,7 @@ function mapActualBudgetMonthViews(
   maps: ActualImportMaps,
   now: Date,
 ): Map<string, BudgetMonthView> {
-  const months = new Set<string>([now.toISOString().slice(0, 7)]);
+  const months = new Set<string>([getCurrentBudgetMonth(now)]);
   for (const budgetMonth of preview.budgetMonths ?? []) {
     if (/^\d{4}-\d{2}$/.test(budgetMonth.month)) months.add(budgetMonth.month);
   }

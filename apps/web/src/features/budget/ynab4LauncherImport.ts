@@ -27,6 +27,7 @@ import type {
   Ynab4PackageMigrationPreview,
 } from "../../../../../packages/ynab4-importer/src/analyzeYnab4Package";
 import { isMoneyNegative, normaliseMoney } from "./moneyMath";
+import { getCurrentBudgetMonth } from "./budgetMonthNavigation";
 import { TRANSACTION_TAGS_STORAGE_KEY } from "../tags/transactionTagPersistence";
 import type {
   TransactionTagColour,
@@ -916,10 +917,10 @@ function mapBudgetMonthViews(
   const views = new Map<string, BudgetMonthView>();
   const budgetedCategoryIdsByMonth = buildBudgetedCategoryIdsByMonth(monthlyBudgets, maps);
   const activityByMonthCategory = buildBudgetActivityByMonthCategory(registers, templateGroups, maps, budgetedCategoryIdsByMonth);
-  const sourceMonths = (monthlyBudgets.length > 0 ? monthlyBudgets : [{ month: now.toISOString().slice(0, 7), monthlySubCategoryBudgets: [] }])
+  const sourceMonths = (monthlyBudgets.length > 0 ? monthlyBudgets : [{ month: getCurrentBudgetMonth(now), monthlySubCategoryBudgets: [] }])
     .map((monthlyBudget) => ({
       monthlyBudget,
-      month: monthKey(firstString(monthlyBudget.month, monthlyBudget.date, monthlyBudget.monthName)) ?? now.toISOString().slice(0, 7),
+      month: monthKey(firstString(monthlyBudget.month, monthlyBudget.date, monthlyBudget.monthName)) ?? getCurrentBudgetMonth(now),
     }))
     .sort((left, right) => left.month.localeCompare(right.month));
   const previousAvailableByCategoryId = new Map<string, number>();

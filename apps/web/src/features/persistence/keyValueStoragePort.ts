@@ -12,8 +12,40 @@ const INDEXED_DB_POINTER_PREFIX = "__budget_app_indexed_db_value__:";
 const LOCAL_STORAGE_POINTER_VALUE = `${INDEXED_DB_POINTER_PREFIX}v1`;
 
 const indexedDbMirror = new Map<string, string>();
+const pendingIndexedDbDeletes = new Set<string>();
 let indexedDbHydrated = false;
-let pendingIndexedDbWrites: Promise<void>[] = [];
+let lifecycleFlushInstalled = false;
+
+export interface SerializedWriteCoordinator {
+  queue(operation: () => Promise<void>): void;
+  flush(): Promise<void>;
+}
+
+export function createSerializedWriteCoordinator(): SerializedWriteCoordinator {
+  let writeTail = Promise.resolve();
+  let firstWriteError: unknown = null;
+
+  return {
+    queue(operation) {
+      const write = writeTail.then(operation);
+      writeTail = write.catch((error: unknown) => {
+        firstWriteError ??= error;
+      });
+    },
+
+    async flush() {
+      await writeTail;
+
+      if (firstWriteError !== null) {
+        const error = firstWriteError;
+        firstWriteError = null;
+        throw error;
+      }
+    },
+  };
+}
+
+const indexedDbWrites = createSerializedWriteCoordinator();
 
 function canUseBrowserStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -114,8 +146,26 @@ function deleteIndexedDbValue(key: string): Promise<void> {
   }));
 }
 
-function queueIndexedDbWrite(operation: Promise<void>): void {
-  pendingIndexedDbWrites.push(operation);
+function removeDanglingIndexedDbPointers(): void {
+  if (!canUseBrowserStorage()) {
+    return;
+  }
+
+  for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+    const key = window.localStorage.key(index);
+
+    if (!key) {
+      continue;
+    }
+
+    const value = window.localStorage.getItem(key);
+    if (
+      value?.startsWith(INDEXED_DB_POINTER_PREFIX) &&
+      !indexedDbMirror.has(key)
+    ) {
+      window.localStorage.removeItem(key);
+    }
+  }
 }
 
 export async function hydrateBrowserStorageBackend(): Promise<void> {
@@ -125,17 +175,52 @@ export async function hydrateBrowserStorageBackend(): Promise<void> {
   for (const [key, value] of values) {
     indexedDbMirror.set(key, value);
   }
+  removeDanglingIndexedDbPointers();
   indexedDbHydrated = true;
 }
 
 export async function flushBrowserStorageBackend(): Promise<void> {
-  const writes = pendingIndexedDbWrites;
-  pendingIndexedDbWrites = [];
-  await Promise.all(writes);
+  await indexedDbWrites.flush();
+}
+
+export function installBrowserStorageLifecycleFlush(): () => void {
+  if (
+    lifecycleFlushInstalled ||
+    typeof window === "undefined" ||
+    typeof document === "undefined"
+  ) {
+    return () => undefined;
+  }
+
+  lifecycleFlushInstalled = true;
+
+  const flushPendingWrites = () => {
+    void flushBrowserStorageBackend().catch((error: unknown) => {
+      console.error("Unable to flush browser storage writes.", error);
+    });
+  };
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "hidden") {
+      flushPendingWrites();
+    }
+  };
+
+  window.addEventListener("pagehide", flushPendingWrites);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+
+  return () => {
+    window.removeEventListener("pagehide", flushPendingWrites);
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+    lifecycleFlushInstalled = false;
+  };
 }
 
 export const browserLocalStorageKeyValueStorage: KeyValueStoragePort = {
   getItem(key: string): string | null {
+    if (pendingIndexedDbDeletes.has(key)) {
+      return null;
+    }
+
     if (indexedDbMirror.has(key)) {
       return indexedDbMirror.get(key) ?? null;
     }
@@ -158,9 +243,12 @@ export const browserLocalStorageKeyValueStorage: KeyValueStoragePort = {
     }
 
     if (shouldUseIndexedDbForKey(key)) {
+      pendingIndexedDbDeletes.delete(key);
       indexedDbMirror.set(key, value);
-      window.localStorage.setItem(key, LOCAL_STORAGE_POINTER_VALUE);
-      queueIndexedDbWrite(putIndexedDbValue(key, value));
+      indexedDbWrites.queue(async () => {
+        await putIndexedDbValue(key, value);
+        window.localStorage.setItem(key, LOCAL_STORAGE_POINTER_VALUE);
+      });
       return;
     }
 
@@ -169,12 +257,18 @@ export const browserLocalStorageKeyValueStorage: KeyValueStoragePort = {
 
   removeItem(key: string): void {
     indexedDbMirror.delete(key);
+    pendingIndexedDbDeletes.add(key);
 
-    if (canUseBrowserStorage()) {
-      window.localStorage.removeItem(key);
-    }
+    indexedDbWrites.queue(async () => {
+      await deleteIndexedDbValue(key);
 
-    queueIndexedDbWrite(deleteIndexedDbValue(key));
+      if (pendingIndexedDbDeletes.has(key)) {
+        if (canUseBrowserStorage()) {
+          window.localStorage.removeItem(key);
+        }
+        pendingIndexedDbDeletes.delete(key);
+      }
+    });
   },
 
   listKeys(): string[] {
@@ -185,6 +279,10 @@ export const browserLocalStorageKeyValueStorage: KeyValueStoragePort = {
         const key = window.localStorage.key(index);
         if (key) keys.add(key);
       }
+    }
+
+    for (const key of pendingIndexedDbDeletes) {
+      keys.delete(key);
     }
 
     return [...keys].sort();

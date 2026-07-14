@@ -6567,3 +6567,81 @@ strong {
 .register-context-menu-item-danger:focus-visible {
   background: color-mix(in srgb, #fee4e2 70%, var(--surface));
 }
+
+/* v2.97 application error containment and recovery */
+.app-recovery-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background: var(--page-bg);
+  color: var(--text);
+}
+
+.app-recovery-card {
+  width: min(44rem, 100%);
+  display: grid;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: 0 1.5rem 4rem rgb(15 23 42 / 0.14);
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+}
+
+.app-recovery-card h1,
+.app-recovery-card p {
+  margin: 0;
+}
+
+.app-recovery-eyebrow {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.app-recovery-error-summary {
+  display: grid;
+  gap: 0.3rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.75rem;
+  padding: 0.9rem 1rem;
+  background: var(--surface-subtle);
+}
+
+.app-recovery-error-summary span {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.app-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.app-recovery-details {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 1rem;
+}
+
+.app-recovery-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.app-recovery-details pre {
+  max-height: 18rem;
+  overflow: auto;
+  margin: 0.75rem 0 0;
+  border-radius: 0.65rem;
+  padding: 0.85rem;
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

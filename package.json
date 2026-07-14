@@ -499,7 +499,15 @@
     "test:v284": "tsx tests/v284-undo-redo-architecture.ts",
     "test:v285": "tsx tests/v285-undoable-budget-money-movement.ts",
     "test:v2940:react-hook-stability": "tsx tests/v2940-react-hook-stability-audit.ts",
-    "test:v2940": "pnpm test:v2940:react-hook-stability"
+    "test:v2940": "pnpm test:v2940:react-hook-stability",
+    "test:v2950:browser-storage-durability": "tsx tests/v2950-browser-storage-durability.ts",
+    "test:v2950": "pnpm test:v2950:browser-storage-durability",
+    "test:v2960:local-calendar-month": "tsx tests/v2960-local-calendar-month.ts",
+    "test:v2960": "pnpm test:v2960:local-calendar-month",
+    "test:v2970:error-containment": "tsx tests/v2970-error-containment.ts",
+    "test:v2970": "pnpm test:v2970:error-containment",
+    "test:v2980:async-lifecycle-safety": "tsx tests/v2980-async-lifecycle-safety.ts",
+    "test:v2980": "pnpm test:v2980:async-lifecycle-safety"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

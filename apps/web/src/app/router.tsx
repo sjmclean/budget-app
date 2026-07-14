@@ -8,14 +8,17 @@ import { AccountRegisterPage } from "../pages/AccountRegisterPage";
 import { ReportsPage } from "../pages/ReportsPage";
 import { RestorePointsPage, SettingsPage } from "../pages/SettingsPage";
 import { PayeeManagementPage } from "../pages/PayeeManagementPage";
+import { RouteErrorScreen } from "./errors/RouteErrorScreen";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <BudgetSelectorPage />,
+    errorElement: <RouteErrorScreen />,
   },
   {
     element: <AppShell />,
+    errorElement: <RouteErrorScreen />,
     children: [
       {
         path: "/dashboard",

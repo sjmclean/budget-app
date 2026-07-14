@@ -1,7 +1,7 @@
 import { Card } from "../../../components/ui/Card";
 import { ReportEmptyState } from "../components/ReportEmptyState";
 import { ReportHeader } from "../components/ReportHeader";
-import { currentReportMonth, type useReportsViewModel } from "../hooks/useReportsViewModel";
+import { getCurrentReportMonth, type useReportsViewModel } from "../hooks/useReportsViewModel";
 import { CategoryLabel } from "../../../features/icons/CategoryIcon";
 
 type ReportsViewModel = ReturnType<typeof useReportsViewModel>;
@@ -36,7 +36,7 @@ export function SpendingByCategoryReport({ viewModel }: SpendingByCategoryReport
         }
         month={month}
         onMonthChange={setMonth}
-        fallbackMonth={currentReportMonth}
+        fallbackMonth={getCurrentReportMonth()}
       />
 
       {error ? <ReportEmptyState title="Unable to load report" description={error} /> : null}

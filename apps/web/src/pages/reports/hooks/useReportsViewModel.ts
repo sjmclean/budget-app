@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { resolveActiveBudget } from "../../../features/budget/activeBudget";
+import { getCurrentBudgetMonth } from "../../../features/budget/budgetMonthNavigation";
 import { getAppPersistenceGateway } from "../../../features/persistence/appPersistenceGatewayFactory";
 import { useBudgetRegistryStore } from "../../../stores/budgetRegistryStore";
 import { useUIStore } from "../../../stores/uiStore";
@@ -7,14 +8,14 @@ import { calculateSpendingTotal, buildSpendingByCategoryRows, type SpendingCateg
 import { buildBudgetVsActualRows, calculateBudgetVsActualTotals, type BudgetVsActualRow } from "../services/budgetVsActualReport";
 import { formatCurrency, formatMonth } from "../services/reportFormatting";
 
-export const currentReportMonth = new Date().toISOString().slice(0, 7);
+export const getCurrentReportMonth = getCurrentBudgetMonth;
 
 export function useReportsViewModel() {
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
   const currencyCode = activeBudget?.currency ?? "AUD";
-  const [month, setMonth] = useState(currentReportMonth);
+  const [month, setMonth] = useState(() => getCurrentReportMonth());
   const [spendingRows, setSpendingRows] = useState<SpendingCategoryRow[]>([]);
   const [budgetVsActualRows, setBudgetVsActualRows] = useState<BudgetVsActualRow[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
