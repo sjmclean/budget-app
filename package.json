@@ -527,7 +527,9 @@
     "test:v3051:register-tag-keyboard-navigation": "tsx tests/v3051-register-tag-keyboard-navigation.ts",
     "test:v3051": "pnpm test:v3050 && pnpm test:v3051:register-tag-keyboard-navigation",
     "test:v3060:tag-icons-colours": "tsx tests/v3060-tag-icons-colours.ts",
-    "test:v3060": "pnpm test:v3051 && pnpm test:v3060:tag-icons-colours"
+    "test:v3060": "pnpm test:v3051 && pnpm test:v3060:tag-icons-colours",
+    "test:v3070:register-column-sorting": "tsx tests/v3070-register-column-sorting.ts",
+    "test:v3070": "pnpm test:v3070:register-column-sorting"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

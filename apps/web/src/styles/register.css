@@ -385,6 +385,51 @@
   text-align: right;
 }
 
+
+.register-sort-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: inherit;
+  gap: 0.22rem;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  padding: 0.16rem 0.12rem;
+}
+
+.register-sort-button:hover,
+.register-sort-button[aria-pressed="true"] {
+  color: var(--accent-strong);
+}
+
+.register-sort-button:focus-visible {
+  border-radius: 0.25rem;
+  outline: 2px solid color-mix(in srgb, var(--accent) 36%, transparent);
+  outline-offset: 1px;
+}
+
+.register-sort-button svg {
+  flex: 0 0 auto;
+  stroke-width: 2.25;
+}
+
+.register-sort-money-pair {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.register-sort-money-pair .register-sort-button {
+  font-size: 0.62rem;
+}
+
 .register-money-input {
   text-align: right;
   font-variant-numeric: tabular-nums;

@@ -1,4 +1,4 @@
-import { Paperclip, Tag } from "lucide-react";
+import { ArrowDown, ArrowUp, Paperclip, Tag } from "lucide-react";
 import "../styles/register.css";
 import {
   useCallback,
@@ -32,6 +32,13 @@ import { useRegisterCommands } from "../features/accounts/useRegisterCommands";
 import { usePayeeManagerWorkflow } from "../features/accounts/usePayeeManagerWorkflow";
 import { useRegisterAttachmentWorkflow } from "../features/accounts/useRegisterAttachmentWorkflow";
 import { useRegisterViewModel } from "../features/accounts/useRegisterViewModel";
+import {
+  nextRegisterSort,
+  readRegisterSort,
+  writeRegisterSort,
+  type RegisterSortColumn,
+  type RegisterSortState,
+} from "../features/accounts/registerSorting";
 import {
   REGISTER_COLUMN_DEFINITIONS,
   REGISTER_COLUMN_ID_ALIASES,
@@ -259,6 +266,10 @@ export function AccountRegisterPage() {
   const [committedRegisterSearch, setCommittedRegisterSearch] =
     useState<RegisterSearchCommit | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<"all" | "uncategorised">("all");
+  const registerSortScopeId = `${activeBudgetId ?? "unscoped"}.${accountId}`;
+  const [registerSort, setRegisterSort] = useState<RegisterSortState>(() =>
+    readRegisterSort(registerSortScopeId),
+  );
   const [isRegisterSearchOpen, setIsRegisterSearchOpen] = useState(false);
   const [
     activeRegisterSearchSuggestionIndex,
@@ -273,6 +284,10 @@ export function AccountRegisterPage() {
   if (developerPerformanceMode) {
     registerPerformanceTimingsRef.current = {};
   }
+
+  useEffect(() => {
+    setRegisterSort(readRegisterSort(registerSortScopeId));
+  }, [registerSortScopeId]);
 
   useEffect(() => {
     setRegisterPage(1);
@@ -383,6 +398,7 @@ export function AccountRegisterPage() {
     searchDraft: registerSearchDraft,
     committedSearch: committedRegisterSearch,
     categoryFilter,
+    sort: registerSort,
     developerPerformanceMode,
     performanceTimingsRef: registerPerformanceTimingsRef,
   });
@@ -899,6 +915,36 @@ export function AccountRegisterPage() {
     );
   }
 
+  const handleRegisterSort = (column: RegisterSortColumn) => {
+    setRegisterSort((current) => {
+      const next = nextRegisterSort(current, column);
+      writeRegisterSort(registerSortScopeId, next);
+      return next;
+    });
+  };
+
+  const renderRegisterSortIndicator = (column: RegisterSortColumn) => {
+    if (registerSort.column !== column) return null;
+    return registerSort.direction === "ascending" ? (
+      <ArrowUp size={12} aria-hidden="true" />
+    ) : (
+      <ArrowDown size={12} aria-hidden="true" />
+    );
+  };
+
+  const sortableHeader = (column: RegisterSortColumn, label: string) => (
+    <button
+      type="button"
+      className="register-sort-button"
+      aria-label={`Sort by ${label}`}
+      aria-pressed={registerSort.column === column}
+      onClick={() => handleRegisterSort(column)}
+    >
+      <span>{label}</span>
+      {renderRegisterSortIndicator(column)}
+    </button>
+  );
+
   const registerColumnHeader =
     registerLayoutMode === "compact" ? (
       <div
@@ -928,7 +974,7 @@ export function AccountRegisterPage() {
             onChange={handleToggleVisibleRegisterSelection}
           />
         </span>
-        <span className="register-compact-head-date">Date</span>
+        <span className="register-compact-head-date">{sortableHeader("date", "Date")}</span>
         <span
           className="register-compact-head-tags register-head-icon"
           aria-label="Tags"
@@ -943,9 +989,12 @@ export function AccountRegisterPage() {
           <Paperclip size={13} aria-hidden="true" />
         </span>
         <span className="register-compact-head-transaction">
-          Payee / Category / Memo
+          {sortableHeader("payee", "Payee / Category / Memo")}
         </span>
-        <span className="register-compact-head-amount">Amount / Balance</span>
+        <span className="register-compact-head-amount register-sort-money-pair">
+          {sortableHeader("outflow", "Outflow")}
+          {sortableHeader("inflow", "Inflow")}
+        </span>
         <span className="register-compact-head-status">C</span>
       </div>
     ) : registerLayoutMode === "desktop" ? (
@@ -1007,6 +1056,16 @@ export function AccountRegisterPage() {
                 }}
                 onChange={handleToggleVisibleRegisterSelection}
               />
+            ) : column.id === "date" ||
+              column.id === "payee" ||
+              column.id === "category" ||
+              column.id === "memo" ? (
+              sortableHeader(column.id, column.label)
+            ) : column.id === "amount" ? (
+              <span className="register-sort-money-pair">
+                {sortableHeader("outflow", "Outflow")}
+                {sortableHeader("inflow", "Inflow")}
+              </span>
             ) : (
               column.label
             )}
