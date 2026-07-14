@@ -717,6 +717,7 @@ export function TransactionEntryRow({
   rowStyle,
   layoutMode,
   onCreateCategory,
+  onCreatePayee,
 }: {
   initialDate: string;
   categoryOptions: BudgetCategoryOption[];
@@ -733,6 +734,7 @@ export function TransactionEntryRow({
   onCreateCategory?: (
     input: RegisterInlineCategoryCreateInput,
   ) => Promise<BudgetCategoryOption>;
+  onCreatePayee?: (name: string) => Promise<PayeeView>;
 }) {
   const [date, setDate] = useState(initialDate);
   const [payee, setPayee] = useState("");
@@ -849,6 +851,7 @@ export function TransactionEntryRow({
                 onPayeeIdChange={setPayeeId}
                 transferAccounts={transferAccounts}
                 payeeOptions={payeeOptions}
+                onCreatePayee={onCreatePayee}
                 autoFocus
               />
             );
@@ -1012,6 +1015,7 @@ export function TransactionEditRow({
   rowStyle,
   layoutMode,
   autoFocusField = "date",
+  onCreatePayee,
 }: {
   transaction: RegisterTransactionView;
   categoryOptions: BudgetCategoryOption[];
@@ -1038,6 +1042,7 @@ export function TransactionEditRow({
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
   autoFocusField?: "date" | "category";
+  onCreatePayee?: (name: string) => Promise<PayeeView>;
 }) {
   const [date, setDate] = useState(transaction.date);
   const [payee, setPayee] = useState(transaction.payee);
@@ -1156,6 +1161,7 @@ export function TransactionEditRow({
           onPayeeIdChange={setPayeeId}
           transferAccounts={transferAccounts}
           payeeOptions={payeeOptions}
+          onCreatePayee={onCreatePayee}
         />
         <RegisterCategoryInput
           value={category}

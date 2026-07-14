@@ -482,6 +482,7 @@ export function AccountRegisterPage() {
 
   const {
     payeeOptions,
+    createInlinePayee,
     isPayeeManagerOpen,
     setIsPayeeManagerOpen,
     selectedPayeeId,
@@ -1614,6 +1615,7 @@ export function AccountRegisterPage() {
               categoryOptions={categoryOptions}
               transferAccounts={transferAccounts}
               payeeOptions={payeeOptions}
+              onCreatePayee={createInlinePayee}
               currencyCode={data.currencyCode}
               visibleColumns={registerEntryColumnSet}
               visibleColumnIds={registerEntryVisibleColumnIds}
@@ -1659,6 +1661,7 @@ export function AccountRegisterPage() {
                     categoryOptions={categoryOptions}
                     transferAccounts={transferAccounts}
                     payeeOptions={payeeOptions}
+                    onCreatePayee={createInlinePayee}
                     currencyCode={data.currencyCode}
                     onSave={(input) => {
                       updateTransaction(input);

@@ -535,7 +535,9 @@
     "test:v3090:remove-add-transaction-split-button": "tsx tests/v3090-remove-add-transaction-split-button.ts",
     "test:v3090": "pnpm test:v3090:remove-add-transaction-split-button",
     "test:v3100:inline-category-creation": "tsx tests/v3100-inline-category-creation.ts",
-    "test:v3100": "pnpm test:v3100:inline-category-creation"
+    "test:v3100": "pnpm test:v3100:inline-category-creation",
+    "test:v3110:inline-payee-creation": "tsx tests/v3110-inline-payee-creation.ts",
+    "test:v3110": "pnpm test:v3110:inline-payee-creation"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

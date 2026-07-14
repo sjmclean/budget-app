@@ -10,6 +10,7 @@ import {
 
 interface PayeeManagerPayeesPersistence {
   listPayees(): Promise<PayeeView[]>;
+  recordPayee(name: string): Promise<PayeeView[]>;
   listArchivedPayees(): Promise<PayeeView[]>;
   renamePayee(input: { id: string; name: string }): Promise<PayeeView[]>;
   archivePayee(id: string): Promise<PayeeView[]>;
@@ -164,6 +165,34 @@ export function usePayeeManagerWorkflow({
     [activePayeeSummaries, selectedPayeeSummary],
   );
 
+
+  async function createInlinePayee(name: string): Promise<PayeeView> {
+    const normalisedName = name.replace(/\s+/g, " ").trim();
+    if (!normalisedName) {
+      throw new Error("Enter a payee name.");
+    }
+    if (normalisedName.toLocaleLowerCase().startsWith("transfer:")) {
+      throw new Error("Transfer payees are created by choosing an account.");
+    }
+
+    const duplicate = payeeOptions.find((payee) =>
+      hasSamePayeeName(payee.name, normalisedName),
+    );
+    if (duplicate) {
+      return duplicate;
+    }
+
+    const nextPayees = await payeesPersistence.recordPayee(normalisedName);
+    setPayeeOptions(nextPayees);
+    const created = nextPayees.find((payee) =>
+      hasSamePayeeName(payee.name, normalisedName),
+    );
+    if (!created) {
+      throw new Error("Unable to create payee.");
+    }
+    return created;
+  }
+
   async function handleRenamePayee() {
     if (!selectedPayeeSummary) {
       return;
@@ -309,6 +338,7 @@ export function usePayeeManagerWorkflow({
   payeeOptions,
   archivedPayeeOptions,
   refreshPayees,
+  createInlinePayee,
 
   isPayeeManagerOpen,
   setIsPayeeManagerOpen,
