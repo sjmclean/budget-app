@@ -521,7 +521,9 @@
     "test:v3030:route-specific-css": "tsx tests/v3030-route-specific-css-loading.ts",
     "test:v3030": "pnpm test:v3030:route-specific-css",
     "test:v3040:budget-collapse-resize-markers": "tsx tests/v3040-budget-collapse-resize-markers.ts",
-    "test:v3040": "pnpm test:v3040:budget-collapse-resize-markers"
+    "test:v3040": "pnpm test:v3040:budget-collapse-resize-markers",
+    "test:v3050:register-inline-tag-creation": "tsx tests/v3050-register-inline-tag-creation.ts",
+    "test:v3050": "pnpm test:v3050:register-inline-tag-creation"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

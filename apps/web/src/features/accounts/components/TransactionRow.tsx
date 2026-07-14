@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, CornerDownRight, Paperclip, Tag } from "lucide-react";
+import { ChevronDown, ChevronRight, CornerDownRight, Paperclip, Plus, Tag } from "lucide-react";
 import { memo, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import type { RegisterLayoutMode } from "../registerLayoutMode";
 import type { RegisterTransactionView } from "../accountRegisterTypes";
@@ -7,6 +7,8 @@ import { useDateFormatPreference } from "../../settings/useDateFormatPreference"
 import { isUncategorisedRegisterTransaction } from "../registerUncategorised";
 import { CategoryLabel } from "../../icons/CategoryIcon";
 import type { TransactionTagDefinition } from "../../tags/transactionTagTypes";
+
+const EMPTY_TRANSACTION_TAG_IDS: readonly string[] = Object.freeze([]);
 
 export type RegisterColumnId =
   | "select"
@@ -101,25 +103,45 @@ function TransactionTagPicker({
   transaction,
   tags,
   onChange,
+  onCreateTag,
 }: {
   transaction: RegisterTransactionView;
   tags: readonly TransactionTagDefinition[];
   onChange: (tagIds: string[]) => void;
+  onCreateTag: (name: string) => TransactionTagDefinition;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [draftTagIds, setDraftTagIds] = useState<string[]>(
+    transaction.tagIds ?? [],
+  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const assignedTagIds = transaction.tagIds ?? [];
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const assignedTagIds = transaction.tagIds ?? EMPTY_TRANSACTION_TAG_IDS;
   const assignedTags = tags.filter((tag) => assignedTagIds.includes(tag.id));
   const primaryTag = assignedTags[0];
   const title =
     assignedTags.length > 0
       ? assignedTags.map((tag) => tag.name).join(", ")
       : "No tags";
+  const normalisedQuery = query.trim();
+  const exactMatch = tags.find(
+    (tag) => tag.name.localeCompare(normalisedQuery, undefined, { sensitivity: "accent" }) === 0,
+  );
+  const filteredTags = normalisedQuery
+    ? tags.filter((tag) =>
+        tag.name.toLocaleLowerCase().includes(normalisedQuery.toLocaleLowerCase()),
+      )
+    : tags;
+  const canCreateTag = normalisedQuery.length > 0 && !exactMatch;
 
   useEffect(() => {
     if (!isOpen) {
       return;
     }
+
+    searchInputRef.current?.focus();
 
     function handlePointerDown(event: PointerEvent) {
       if (!containerRef.current?.contains(event.target as Node)) {
@@ -139,14 +161,46 @@ function TransactionTagPicker({
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, transaction.id]);
+
+  function openPicker() {
+    setDraftTagIds([...assignedTagIds]);
+    setQuery("");
+    setErrorMessage(null);
+    setIsOpen(true);
+  }
 
   function toggleTag(tagId: string) {
-    const nextTagIds = assignedTagIds.includes(tagId)
-      ? assignedTagIds.filter((candidate) => candidate !== tagId)
-      : [...assignedTagIds, tagId];
+    setDraftTagIds((currentTagIds) =>
+      currentTagIds.includes(tagId)
+        ? currentTagIds.filter((candidate) => candidate !== tagId)
+        : [...currentTagIds, tagId],
+    );
+  }
 
-    onChange(nextTagIds);
+  function createAndSelectTag() {
+    if (!canCreateTag) return;
+
+    try {
+      const createdTag = onCreateTag(normalisedQuery);
+      setDraftTagIds((currentTagIds) =>
+        currentTagIds.includes(createdTag.id)
+          ? currentTagIds
+          : [...currentTagIds, createdTag.id],
+      );
+      setQuery("");
+      setErrorMessage(null);
+      window.requestAnimationFrame(() => searchInputRef.current?.focus());
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unable to create this tag.",
+      );
+    }
+  }
+
+  function saveTags() {
+    onChange(draftTagIds);
+    setIsOpen(false);
   }
 
   return (
@@ -165,9 +219,15 @@ function TransactionTagPicker({
         type="button"
         title={title}
         aria-label={assignedTags.length > 0 ? `Edit tags: ${title}` : "Add tags"}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={isOpen}
-        onClick={() => setIsOpen((open) => !open)}
+        onClick={() => {
+          if (isOpen) {
+            setIsOpen(false);
+          } else {
+            openPicker();
+          }
+        }}
       >
         <Tag size={15} fill={primaryTag ? "currentColor" : "none"} />
         {assignedTags.length > 1 ? (
@@ -176,28 +236,79 @@ function TransactionTagPicker({
       </button>
 
       {isOpen ? (
-        <div className="transaction-tag-picker-menu" role="menu" aria-label="Transaction tags">
-          {tags.length > 0 ? (
-            tags.map((tag) => (
+        <div
+          className="transaction-tag-picker-menu"
+          role="dialog"
+          aria-label="Edit transaction tags"
+        >
+          <input
+            ref={searchInputRef}
+            className="transaction-tag-picker-search"
+            type="text"
+            value={query}
+            placeholder="Search or create tag…"
+            aria-label="Search or create tag"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setErrorMessage(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && canCreateTag) {
+                event.preventDefault();
+                createAndSelectTag();
+              }
+            }}
+          />
+
+          <div className="transaction-tag-picker-results">
+            {filteredTags.map((tag) => (
               <label className="transaction-tag-picker-option" key={tag.id}>
                 <input
                   type="checkbox"
-                  checked={assignedTagIds.includes(tag.id)}
+                  checked={draftTagIds.includes(tag.id)}
                   onChange={() => toggleTag(tag.id)}
                 />
-                <span
-                  className="transaction-tag-picker-swatch"
-                  style={{ backgroundColor: `var(--tag-${tag.colour})` }}
+                <Tag
+                  className="transaction-tag-picker-icon"
+                  size={18}
+                  style={{ color: `var(--tag-${tag.colour})` }}
                   aria-hidden="true"
                 />
                 <span>{tag.name}</span>
               </label>
-            ))
-          ) : (
-            <p className="transaction-tag-picker-empty">
-              No tags yet. Create tags from More → Manage Tags.
+            ))}
+
+            {canCreateTag ? (
+              <button
+                className="transaction-tag-picker-create"
+                type="button"
+                onClick={createAndSelectTag}
+              >
+                <Plus size={16} aria-hidden="true" />
+                <span>Create “{normalisedQuery}”</span>
+              </button>
+            ) : null}
+
+            {filteredTags.length === 0 && !canCreateTag ? (
+              <p className="transaction-tag-picker-empty">No matching tags.</p>
+            ) : null}
+          </div>
+
+          {errorMessage ? (
+            <p className="transaction-tag-picker-error" role="alert">
+              {errorMessage}
             </p>
-          )}
+          ) : null}
+
+          <div className="transaction-tag-picker-footer">
+            <button
+              className="button button-primary transaction-tag-picker-save"
+              type="button"
+              onClick={saveTags}
+            >
+              Save
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
@@ -370,6 +481,7 @@ interface TransactionRowRendererProps {
     transaction: RegisterTransactionView,
     tagIds: string[],
   ) => void;
+  onCreateTransactionTag: (name: string) => TransactionTagDefinition;
   onOpenContextMenu: (
     transactionId: string,
     event: MouseEvent<HTMLElement>,
@@ -395,6 +507,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
   onManageTransactionAttachments,
   tags,
   onUpdateTransactionTags,
+  onCreateTransactionTag,
   onOpenContextMenu,
   visibleColumns,
   rowStyle,
@@ -436,6 +549,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
             transaction={transaction}
             tags={tags}
             onChange={(tagIds) => onUpdateTransactionTags(transaction, tagIds)}
+            onCreateTag={onCreateTransactionTag}
           />
         ) : null}
         {isRegisterColumnVisible("attachments", visibleColumns) ? (
@@ -550,6 +664,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   onManageTransactionAttachments,
   tags,
   onUpdateTransactionTags,
+  onCreateTransactionTag,
   onOpenContextMenu,
   visibleColumns,
 }: TransactionRowRendererProps) {
@@ -599,6 +714,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
             transaction={transaction}
             tags={tags}
             onChange={(tagIds) => onUpdateTransactionTags(transaction, tagIds)}
+            onCreateTag={onCreateTransactionTag}
           />
         ) : (
           <span aria-hidden="true" />
@@ -744,6 +860,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
   onManageTransactionAttachments,
   tags,
   onUpdateTransactionTags,
+  onCreateTransactionTag,
   onOpenContextMenu,
   visibleColumns,
 }: TransactionRowRendererProps) {
@@ -873,6 +990,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
             transaction={transaction}
             tags={tags}
             onChange={(tagIds) => onUpdateTransactionTags(transaction, tagIds)}
+            onCreateTag={onCreateTransactionTag}
           />
           ) : null}
 

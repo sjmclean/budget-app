@@ -595,6 +595,18 @@ export function AccountRegisterPage() {
     registerCommands.toggleClearedTransaction;
   const handleManageTransactionAttachments =
     registerCommands.manageTransactionAttachments;
+  const handleCreateTransactionTag = useCallback(
+    (name: string) => {
+      const tag = transactionTagService.createTag({
+        name,
+        colour: "blue",
+      });
+      setTransactionTags(transactionTagService.listTags());
+      return tag;
+    },
+    [transactionTagService],
+  );
+
   const handleUpdateTransactionTags = useCallback(
     (transaction: RegisterTransactionView, tagIds: string[]) => {
       void updateTransaction({
@@ -1580,6 +1592,7 @@ export function AccountRegisterPage() {
                     }
                     tags={transactionTags}
                     onUpdateTransactionTags={handleUpdateTransactionTags}
+                    onCreateTransactionTag={handleCreateTransactionTag}
                     onOpenContextMenu={handleOpenRegisterContextMenu}
                     visibleColumns={registerTableLayout.visibleColumnSet}
                     rowStyle={registerTableLayout.rowStyle}
