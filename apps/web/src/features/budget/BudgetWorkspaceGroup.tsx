@@ -126,6 +126,8 @@ function BudgetCategoryRow({
   isBudgetColumnVisible,
   rowStyle,
   isCreditCardPaymentCategory,
+  isArchivedCollection,
+  originalGroupName,
 }: {
   category: BudgetCategoryView;
   groupId: string;
@@ -141,6 +143,8 @@ function BudgetCategoryRow({
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
   rowStyle: CSSProperties;
   isCreditCardPaymentCategory: boolean;
+  isArchivedCollection: boolean;
+  originalGroupName?: string;
 }) {
   const categoryNotePreview = category.note?.trim().split(/\r?\n/)[0] ?? "";
   const canCoverOverspending =
@@ -173,12 +177,16 @@ function BudgetCategoryRow({
         className={
           isCreditCardPaymentCategory
             ? "budget-category-cell budget-category-system-cell"
-            : "budget-category-cell budget-category-drag-region"
+            : isArchivedCollection
+              ? "budget-category-cell budget-category-archived-collection-cell"
+              : "budget-category-cell budget-category-drag-region"
         }
         title={
           isCreditCardPaymentCategory
             ? "Credit card payment categories are managed by the budget"
-            : "Drag category name to reorder"
+            : isArchivedCollection
+              ? `Archived category${originalGroupName ? ` from ${originalGroupName}` : ""}`
+              : "Drag category name to reorder"
         }
         onClick={(event) => event.stopPropagation()}
       >
@@ -189,6 +197,10 @@ function BudgetCategoryRow({
             title="Managed credit card payment category"
           >
             •
+          </span>
+        ) : isArchivedCollection ? (
+          <span className="budget-category-archived-icon" aria-hidden="true">
+            ↳
           </span>
         ) : (
           <span
@@ -247,6 +259,11 @@ function BudgetCategoryRow({
               </span>
             ) : null}
           </span>
+          {isArchivedCollection && originalGroupName ? (
+            <span className="budget-category-original-group">
+              Originally in {originalGroupName}
+            </span>
+          ) : null}
 
         </div>
       </div>
@@ -328,6 +345,8 @@ export function BudgetGroup({
   isBudgetColumnVisible,
   rowStyle,
   isCreditCardPaymentGroup,
+  isArchivedCategoriesGroup,
+  originalGroupByCategoryId,
   isCollapsed,
   onToggleCollapsed,
 }: {
@@ -351,6 +370,8 @@ export function BudgetGroup({
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
   rowStyle: CSSProperties;
   isCreditCardPaymentGroup: boolean;
+  isArchivedCategoriesGroup: boolean;
+  originalGroupByCategoryId: ReadonlyMap<string, BudgetCategoryGroupView>;
   isCollapsed: boolean;
   onToggleCollapsed: () => void;
 }) {
@@ -362,12 +383,14 @@ export function BudgetGroup({
       className={[
         "budget-workspace-group",
         isCreditCardPaymentGroup ? "budget-workspace-group-system" : "",
+        isArchivedCategoriesGroup ? "budget-workspace-group-archived" : "",
       ].filter(Boolean).join(" ")}
     >
       <div
         className={[
           "budget-workspace-group-header",
           isCreditCardPaymentGroup ? "budget-workspace-group-header-system" : "",
+          isArchivedCategoriesGroup ? "budget-workspace-group-header-archived" : "",
         ].filter(Boolean).join(" ")}
         style={rowStyle}
       >
@@ -375,12 +398,16 @@ export function BudgetGroup({
           className={
             isCreditCardPaymentGroup
               ? "budget-group-title budget-group-system-title"
-              : "budget-group-title budget-group-name-drag-region"
+              : isArchivedCategoriesGroup
+                ? "budget-group-title budget-group-archived-title"
+                : "budget-group-title budget-group-name-drag-region"
           }
           title={
             isCreditCardPaymentGroup
               ? "Money reserved to pay your credit cards"
-              : "Drag category group name to reorder groups"
+              : isArchivedCategoriesGroup
+                ? "Archived categories from all category groups"
+                : "Drag category group name to reorder groups"
           }
         >
           {isCreditCardPaymentGroup ? (
@@ -389,6 +416,10 @@ export function BudgetGroup({
               aria-hidden="true"
             >
               •
+            </span>
+          ) : isArchivedCategoriesGroup ? (
+            <span className="budget-group-archived-icon" aria-hidden="true">
+              ◫
             </span>
           ) : (
             <span
@@ -482,7 +513,7 @@ export function BudgetGroup({
                       onOpenCategoryContextMenu({
                         event,
                         category,
-                        group,
+                        group: originalGroupByCategoryId.get(category.id) ?? group,
                       })
                   : undefined
               }
@@ -500,6 +531,8 @@ export function BudgetGroup({
               isBudgetColumnVisible={isBudgetColumnVisible}
               rowStyle={rowStyle}
               isCreditCardPaymentCategory={isCreditCardPaymentCategory(category.id)}
+              isArchivedCollection={isArchivedCategoriesGroup}
+              originalGroupName={originalGroupByCategoryId.get(category.id)?.name}
             />
           );
           })

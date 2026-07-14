@@ -24,10 +24,12 @@ import { isCreditCardPaymentCategory, isCreditCardPaymentGroup } from "../featur
 import { formatMoney, getAvailableClass } from "../features/budget/budgetMoneyDisplay";
 import { isMoneyNegative } from "../features/budget/moneyMath";
 import {
+  ARCHIVED_CATEGORIES_GROUP_ID,
+  buildArchivedCategoriesGroup,
+  buildArchivedCategorySourceGroupMap,
   buildOverspendingCoverOptions,
-  countArchivedCategories,
   countOverspentCategories,
-  getVisibleCategoryGroups,
+  getActiveCategoryGroups,
 } from "../features/budget/budgetWorkspaceSelectors";
 import { buildBudgetInspectorState } from "../features/budget/budgetInspectorState";
 import { BudgetCategoryContextMenu } from "../features/budget/BudgetCategoryContextMenu";
@@ -41,6 +43,8 @@ import {
 const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
 const BUDGET_COLLAPSED_GROUPS_STORAGE_KEY_PREFIX =
   "budget-app.budget-collapsed-groups.v1";
+const BUDGET_ARCHIVED_CATEGORIES_EXPANDED_STORAGE_KEY_PREFIX =
+  "budget-app.budget-archived-categories-expanded.v1";
 
 function readCollapsedBudgetGroupIds(budgetId: string): Set<string> {
   if (typeof window === "undefined") {
@@ -78,6 +82,21 @@ function writeCollapsedBudgetGroupIds(
   window.localStorage.setItem(
     `${BUDGET_COLLAPSED_GROUPS_STORAGE_KEY_PREFIX}.${budgetId}`,
     JSON.stringify([...collapsedGroupIds]),
+  );
+}
+
+function readArchivedCategoriesExpanded(budgetId: string): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(
+    `${BUDGET_ARCHIVED_CATEGORIES_EXPANDED_STORAGE_KEY_PREFIX}.${budgetId}`,
+  ) === "true";
+}
+
+function writeArchivedCategoriesExpanded(budgetId: string, isExpanded: boolean) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(
+    `${BUDGET_ARCHIVED_CATEGORIES_EXPANDED_STORAGE_KEY_PREFIX}.${budgetId}`,
+    String(isExpanded),
   );
 }
 
@@ -514,7 +533,6 @@ export function BudgetPage() {
 
 function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const navigate = useNavigate();
-  const [hideArchivedCategories, setHideArchivedCategories] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [budgetContextMenu, setBudgetContextMenu] = useState<{
     category: BudgetCategoryView;
@@ -530,6 +548,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   );
   const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(() =>
     readCollapsedBudgetGroupIds(budgetId),
+  );
+  const [archivedCategoriesExpanded, setArchivedCategoriesExpanded] = useState(() =>
+    readArchivedCategoriesExpanded(budgetId),
   );
 
   const {
@@ -573,6 +594,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   useEffect(() => {
     setCollapsedGroupIds(readCollapsedBudgetGroupIds(budgetId));
+    setArchivedCategoriesExpanded(readArchivedCategoriesExpanded(budgetId));
   }, [budgetId]);
 
   function toggleBudgetGroup(groupId: string) {
@@ -590,9 +612,18 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     });
   }
 
-  const visibleCategoryGroups = data
-    ? getVisibleCategoryGroups(data.categoryGroups, hideArchivedCategories)
+  const activeCategoryGroups = data
+    ? getActiveCategoryGroups(data.categoryGroups)
     : [];
+  const archivedCategoriesGroup = data
+    ? buildArchivedCategoriesGroup(data.categoryGroups)
+    : null;
+  const archivedCategorySourceGroupById = data
+    ? buildArchivedCategorySourceGroupMap(data.categoryGroups)
+    : new Map<string, BudgetCategoryGroupView>();
+  const visibleCategoryGroups = archivedCategoriesGroup
+    ? [...activeCategoryGroups, archivedCategoriesGroup]
+    : activeCategoryGroups;
 
   if (isLoading) {
     return (
@@ -624,8 +655,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     );
   }
 
-  const hiddenArchivedCount = countArchivedCategories(data.categoryGroups);
-
   const {
     visibleSelectedCategory,
     visibleSelectedGroup,
@@ -633,7 +662,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   } = buildBudgetInspectorState({
     selectedCategory,
     selectedGroup,
-    hideArchivedCategories,
+    hideArchivedCategories: false,
     overassignedCategoryIds,
   });
 
@@ -771,25 +800,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             <section className="budget-display-bar" aria-label="Budget display options">
               <span className="budget-display-label">Display</span>
               <button
-                className={
-                  hideArchivedCategories
-                    ? "budget-filter budget-filter-active"
-                    : "budget-filter"
-                }
-                type="button"
-                onClick={() => setHideArchivedCategories((current) => !current)}
-                title={
-                  hideArchivedCategories
-                    ? "Show archived categories"
-                    : "Hide archived categories"
-                }
-              >
-                {hideArchivedCategories
-                  ? `Archived hidden (${hiddenArchivedCount})`
-                  : `Hide archived (${hiddenArchivedCount})`}
-              </button>
-
-              <button
                 className="budget-filter budget-table-layout-reset"
                 type="button"
                 onClick={budgetTableLayout.resetColumnWidths}
@@ -839,8 +849,24 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                     isBudgetColumnVisible={isBudgetColumnVisible}
                     rowStyle={budgetTableLayout.rowStyle}
                     isCreditCardPaymentGroup={isCreditCardPaymentGroup(group.id)}
-                    isCollapsed={collapsedGroupIds.has(group.id)}
-                    onToggleCollapsed={() => toggleBudgetGroup(group.id)}
+                    isArchivedCategoriesGroup={group.id === ARCHIVED_CATEGORIES_GROUP_ID}
+                    originalGroupByCategoryId={archivedCategorySourceGroupById}
+                    isCollapsed={
+                      group.id === ARCHIVED_CATEGORIES_GROUP_ID
+                        ? !archivedCategoriesExpanded
+                        : collapsedGroupIds.has(group.id)
+                    }
+                    onToggleCollapsed={() => {
+                      if (group.id === ARCHIVED_CATEGORIES_GROUP_ID) {
+                        setArchivedCategoriesExpanded((current) => {
+                          const next = !current;
+                          writeArchivedCategoriesExpanded(budgetId, next);
+                          return next;
+                        });
+                        return;
+                      }
+                      toggleBudgetGroup(group.id);
+                    }}
                   />
             ))}
           </Card>

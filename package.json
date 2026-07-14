@@ -529,7 +529,9 @@
     "test:v3060:tag-icons-colours": "tsx tests/v3060-tag-icons-colours.ts",
     "test:v3060": "pnpm test:v3051 && pnpm test:v3060:tag-icons-colours",
     "test:v3070:register-column-sorting": "tsx tests/v3070-register-column-sorting.ts",
-    "test:v3070": "pnpm test:v3070:register-column-sorting"
+    "test:v3070": "pnpm test:v3070:register-column-sorting",
+    "test:v3080:archived-categories-section": "tsx tests/v3080-archived-categories-section.ts",
+    "test:v3080": "pnpm test:v3080:archived-categories-section"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
