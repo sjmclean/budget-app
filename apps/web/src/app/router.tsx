@@ -1,13 +1,6 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "../layouts/AppShell";
 import { BudgetSelectorPage } from "../pages/BudgetSelectorPage";
-import { DashboardPage } from "../pages/DashboardPage";
-import { BudgetPage } from "../pages/BudgetPage";
-import { AccountsPage } from "../pages/AccountsPage";
-import { AccountRegisterPage } from "../pages/AccountRegisterPage";
-import { ReportsPage } from "../pages/ReportsPage";
-import { RestorePointsPage, SettingsPage } from "../pages/SettingsPage";
-import { PayeeManagementPage } from "../pages/PayeeManagementPage";
 import { RouteErrorScreen } from "./errors/RouteErrorScreen";
 
 export const router = createBrowserRouter([
@@ -22,35 +15,63 @@ export const router = createBrowserRouter([
     children: [
       {
         path: "/dashboard",
-        element: <DashboardPage />,
+        lazy: async () => {
+          const { DashboardPage } = await import("../pages/DashboardPage");
+          return { Component: DashboardPage };
+        },
       },
       {
         path: "/budget",
-        element: <BudgetPage />,
+        lazy: async () => {
+          const { BudgetPage } = await import("../pages/BudgetPage");
+          return { Component: BudgetPage };
+        },
       },
       {
         path: "/accounts",
-        element: <AccountsPage />,
+        lazy: async () => {
+          const { AccountsPage } = await import("../pages/AccountsPage");
+          return { Component: AccountsPage };
+        },
       },
       {
         path: "/accounts/:accountId",
-        element: <AccountRegisterPage />,
+        lazy: async () => {
+          const { AccountRegisterPage } = await import(
+            "../pages/AccountRegisterPage"
+          );
+          return { Component: AccountRegisterPage };
+        },
       },
       {
         path: "/reports",
-        element: <ReportsPage />,
+        lazy: async () => {
+          const { ReportsPage } = await import("../pages/ReportsPage");
+          return { Component: ReportsPage };
+        },
       },
       {
         path: "/settings",
-        element: <SettingsPage />,
+        lazy: async () => {
+          const { SettingsPage } = await import("../pages/SettingsPage");
+          return { Component: SettingsPage };
+        },
       },
       {
         path: "/restore-points",
-        element: <RestorePointsPage />,
+        lazy: async () => {
+          const { RestorePointsPage } = await import("../pages/SettingsPage");
+          return { Component: RestorePointsPage };
+        },
       },
       {
         path: "/payees",
-        element: <PayeeManagementPage />,
+        lazy: async () => {
+          const { PayeeManagementPage } = await import(
+            "../pages/PayeeManagementPage"
+          );
+          return { Component: PayeeManagementPage };
+        },
       },
     ],
   },

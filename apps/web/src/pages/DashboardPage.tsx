@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { resolveActiveBudget } from "../features/budget/activeBudget";
-import { getCurrentBudgetMonth } from "../features/budget/budgetMonthNavigation";
+import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
 import { getAppPersistenceGateway } from "../features/persistence/appPersistenceGatewayFactory";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
@@ -19,9 +19,7 @@ export function DashboardPage() {
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
   const currencyCode = activeBudget?.currency ?? "AUD";
-  const [overviewMonth, setOverviewMonth] = useState(() =>
-    getCurrentBudgetMonth(),
-  );
+  const overviewMonth = useCurrentBudgetMonth();
   const [summary, setSummary] = useState<FinancialOverviewSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,25 +75,6 @@ export function DashboardPage() {
     };
   }, [activeBudget, overviewMonth]);
 
-  useEffect(() => {
-    function refreshCurrentMonth() {
-      setOverviewMonth(getCurrentBudgetMonth());
-    }
-
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        refreshCurrentMonth();
-      }
-    }
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", refreshCurrentMonth);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", refreshCurrentMonth);
-    };
-  }, []);
 
   const formatMoney = useMemo(() => {
     return (amount: number) => formatCurrency(amount, currencyCode);

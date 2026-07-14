@@ -4,6 +4,10 @@ import type {
 } from "./appPersistenceGateway";
 
 import { browserLocalStoragePersistenceGateway } from "./browserLocalStoragePersistenceGateway";
+import {
+  resetConfiguredPersistenceMetadata,
+  setConfiguredPersistenceMetadata,
+} from "./persistenceRuntimeMetadata";
 
 let configuredGateway: AppPersistenceGateway | null = null;
 
@@ -16,10 +20,12 @@ let configuredGateway: AppPersistenceGateway | null = null;
  */
 export function configureAppPersistenceGateway(gateway: AppPersistenceGateway): void {
   configuredGateway = gateway;
+  setConfiguredPersistenceMetadata(gateway.metadata);
 }
 
 export function resetAppPersistenceGateway(): void {
   configuredGateway = null;
+  resetConfiguredPersistenceMetadata();
 }
 
 /**

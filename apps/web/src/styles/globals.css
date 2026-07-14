@@ -6645,3 +6645,21 @@ strong {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+
+/* Lazy budget workflow loading state */
+.budget-workflow-loading {
+  min-height: 12rem;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
+.route-loading-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  color: var(--text-muted);
+  background: var(--page-bg);
+}

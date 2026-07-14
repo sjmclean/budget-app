@@ -1,4 +1,4 @@
-import { getAppPersistenceGateway } from "./appPersistenceGatewayFactory";
+import { getConfiguredPersistenceMetadata } from "./persistenceRuntimeMetadata";
 
 export type PersistenceMode =
   | "browser-local-storage"
@@ -28,13 +28,13 @@ export function getDefaultPersistenceBackend(): PersistenceMode {
  * distinction clearly while the DB-backed adapter is introduced incrementally.
  */
 export function getPersistenceModeSummary(): PersistenceModeSummary {
-  const gateway = getAppPersistenceGateway();
+  const metadata = getConfiguredPersistenceMetadata();
 
   return {
-    mode: gateway.metadata.kind,
-    label: gateway.metadata.label,
-    description: gateway.metadata.description,
-    risk: gateway.metadata.isProductionPersistence
+    mode: metadata.kind,
+    label: metadata.label,
+    description: metadata.description,
+    risk: metadata.isProductionPersistence
       ? "production-ready"
       : "prototype",
   };

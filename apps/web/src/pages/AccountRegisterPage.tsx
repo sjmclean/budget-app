@@ -52,6 +52,7 @@ import {
 import { getAppPersistenceGateway } from "../features/persistence";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
+import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
 import { createBudgetScopedStorage } from "../features/budget/budgetDataScope";
 import {
   TransactionTagManager,
@@ -76,7 +77,6 @@ import {
   type RegisterPerformanceTimings,
 } from "../features/performance/registerPerformanceInstrumentation";
 
-const ACTIVE_BUDGET_MONTH = "2026-06";
 
 interface RegisterContextMenuPosition {
   transactionId: string;
@@ -186,6 +186,7 @@ export function AccountRegisterPage() {
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
+  const currentBudgetMonth = useCurrentBudgetMonth();
   const transactionTagStorage = useMemo(
     () => createBudgetScopedStorage(browserLocalStorageKeyValueStorage),
     [activeBudgetId],
@@ -336,7 +337,7 @@ export function AccountRegisterPage() {
     void categoriesPersistence
       .getCategoryOptions({
         budgetId: activeBudgetId,
-        month: ACTIVE_BUDGET_MONTH,
+        month: currentBudgetMonth,
       })
       .then((options) => {
         if (isMounted) {
@@ -347,7 +348,7 @@ export function AccountRegisterPage() {
     return () => {
       isMounted = false;
     };
-  }, [activeBudgetId, categoriesPersistence]);
+  }, [activeBudgetId, categoriesPersistence, currentBudgetMonth]);
 
   useEffect(() => {
     let active = true;

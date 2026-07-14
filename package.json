@@ -507,7 +507,17 @@
     "test:v2970:error-containment": "tsx tests/v2970-error-containment.ts",
     "test:v2970": "pnpm test:v2970:error-containment",
     "test:v2980:async-lifecycle-safety": "tsx tests/v2980-async-lifecycle-safety.ts",
-    "test:v2980": "pnpm test:v2980:async-lifecycle-safety"
+    "test:v2980": "pnpm test:v2980:async-lifecycle-safety",
+    "test:v2990:current-month-consistency": "tsx tests/v2990-current-month-consistency.ts",
+    "test:v2990": "pnpm test:v2990:current-month-consistency",
+    "test:v3000:route-code-splitting": "tsx tests/v3000-route-code-splitting.ts",
+    "test:v3000": "pnpm test:v3000:route-code-splitting",
+    "test:v3010:startup-import-decoupling": "tsx tests/v3010-startup-import-decoupling.ts",
+    "test:v3010": "pnpm test:v3010:startup-import-decoupling",
+    "performance:analyze": "tsx tools/performance/analyze-vite-build.ts",
+    "build:performance": "pnpm --filter @budget-app/web build && pnpm performance:analyze",
+    "test:v3020:build-performance-budget": "tsx tests/v3020-build-performance-budget.ts",
+    "test:v3020": "pnpm test:v3020:build-performance-budget"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

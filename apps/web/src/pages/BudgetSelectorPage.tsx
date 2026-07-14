@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -8,13 +8,31 @@ import { getBudgetScopedStorageKey } from "../features/budget/budgetDataScope";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { useBudgetRegistryStore, type BudgetSummary } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
-import { BudgetImportDialog } from "./budgetSelector/BudgetImportDialog";
-import { NewBudgetWizard } from "../features/budget/newBudget/NewBudgetWizard";
 import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
 
 type LaunchMode = "list" | "empty" | "budgetImport";
 
 const REGISTERS_STORAGE_KEY = "budget-app.account-registers.v1";
+
+const LazyBudgetImportDialog = lazy(() =>
+  import("./budgetSelector/BudgetImportDialog").then((module) => ({
+    default: module.BudgetImportDialog,
+  })),
+);
+
+const LazyNewBudgetWizard = lazy(() =>
+  import("../features/budget/newBudget/NewBudgetWizard").then((module) => ({
+    default: module.NewBudgetWizard,
+  })),
+);
+
+function BudgetWorkflowLoading() {
+  return (
+    <Card className="budget-workflow-loading" aria-live="polite">
+      Loading budget workflow…
+    </Card>
+  );
+}
 
 function formatBudgetCreatedLabel(createdAt: string) {
   const createdDate = new Date(createdAt);
@@ -464,20 +482,24 @@ export function BudgetSelectorPage() {
         ) : null}
 
         {launchMode === "empty" ? (
-          <NewBudgetWizard
-            onBack={() => setLaunchMode("list")}
-            onCreateBudget={handleCreateBudget}
-          />
+          <Suspense fallback={<BudgetWorkflowLoading />}>
+            <LazyNewBudgetWizard
+              onBack={() => setLaunchMode("list")}
+              onCreateBudget={handleCreateBudget}
+            />
+          </Suspense>
         ) : null}
 
         {launchMode === "budgetImport" ? (
-          <BudgetImportDialog
-            importActualBudget={importActualBudget}
-            importYnab4Budget={importYnab4Budget}
-            onBack={() => setLaunchMode("list")}
-            onImportedBudgetSelected={selectBudget}
-            onOpenBudget={handleOpenBudget}
-          />
+          <Suspense fallback={<BudgetWorkflowLoading />}>
+            <LazyBudgetImportDialog
+              importActualBudget={importActualBudget}
+              importYnab4Budget={importYnab4Budget}
+              onBack={() => setLaunchMode("list")}
+              onImportedBudgetSelected={selectBudget}
+              onOpenBudget={handleOpenBudget}
+            />
+          </Suspense>
         ) : null}
 
         {budgetPendingRename ? (

@@ -89,12 +89,12 @@ function validateHostGatewayIsConfiguredBeforeRuntimeUse(): void {
 function validateMainBootstrapsHostPersistenceBeforeRendering(): void {
   const source = readFileSync("apps/web/src/main.tsx", "utf8");
   const bootstrapIndex = source.indexOf("bootstrapHostPersistenceGateway();");
-  const renderIndex = source.indexOf("ReactDOM.createRoot");
+  const applicationRenderIndex = source.indexOf("<App />");
 
   assert.ok(bootstrapIndex >= 0, "main.tsx should call bootstrapHostPersistenceGateway");
-  assert.ok(renderIndex >= 0, "main.tsx should still render React");
+  assert.ok(applicationRenderIndex >= 0, "main.tsx should still render the application");
   assert.ok(
-    bootstrapIndex < renderIndex,
+    bootstrapIndex < applicationRenderIndex,
     "host persistence bootstrap must run before React renders",
   );
 }

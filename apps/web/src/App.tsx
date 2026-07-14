@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { RouterProvider } from "react-router-dom";
 import { router } from "./app/router";
 import { ThemeBootstrap } from "./app/ThemeBootstrap";
@@ -9,7 +10,15 @@ export function App() {
     <AppErrorBoundary>
       <ThemeBootstrap>
         <>
-          <RouterProvider router={router} />
+          <Suspense
+            fallback={
+              <div className="route-loading-screen" role="status" aria-live="polite">
+                Loading application…
+              </div>
+            }
+          >
+            <RouterProvider router={router} />
+          </Suspense>
           <AppDialogsProvider />
         </>
       </ThemeBootstrap>

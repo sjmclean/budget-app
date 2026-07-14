@@ -25,13 +25,14 @@ function getApplicationRoot(): HTMLElement {
 
 export async function bootstrapApp() {
   const root = getApplicationRoot();
-  const reactRoot = ReactDOM.createRoot(root);
+  let reactRoot: ReturnType<typeof ReactDOM.createRoot> | null = null;
 
   try {
     bootstrapHostPersistenceGateway();
     await hydrateBrowserStorageBackend();
     installBrowserStorageLifecycleFlush();
 
+    reactRoot = ReactDOM.createRoot(root);
     reactRoot.render(
       <React.StrictMode>
         <App />
@@ -39,6 +40,7 @@ export async function bootstrapApp() {
     );
   } catch (error) {
     console.error("Budget App startup failed.", error);
+    reactRoot = reactRoot ?? ReactDOM.createRoot(root);
     reactRoot.render(<StartupRecoveryScreen error={error} />);
   }
 }
