@@ -531,7 +531,9 @@
     "test:v3070:register-column-sorting": "tsx tests/v3070-register-column-sorting.ts",
     "test:v3070": "pnpm test:v3070:register-column-sorting",
     "test:v3080:archived-categories-section": "tsx tests/v3080-archived-categories-section.ts",
-    "test:v3080": "pnpm test:v3080:archived-categories-section"
+    "test:v3080": "pnpm test:v3080:archived-categories-section",
+    "test:v3090:remove-add-transaction-split-button": "tsx tests/v3090-remove-add-transaction-split-button.ts",
+    "test:v3090": "pnpm test:v3090:remove-add-transaction-split-button"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

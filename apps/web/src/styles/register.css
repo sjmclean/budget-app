@@ -271,6 +271,10 @@
   background: var(--surface-subtle);
 }
 
+.register-entry-actions-panel-commit-only {
+  justify-content: flex-end;
+}
+
 .register-entry-commit-actions {
   justify-content: flex-end;
 }

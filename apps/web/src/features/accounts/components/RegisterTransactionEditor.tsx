@@ -772,20 +772,6 @@ export function TransactionEntryRow({
     setCategory(value);
   }
 
-  function toggleSplitEditor() {
-    setSplitLines((current) => {
-      if (current.length > 0) {
-        setCategory((currentCategory) =>
-          isSplitCategoryValue(currentCategory) ? "" : currentCategory,
-        );
-        return [];
-      }
-
-      setCategory(SPLIT_CATEGORY_LABEL);
-      return [createSplitLineDraft(), createSplitLineDraft()];
-    });
-  }
-
   function save() {
     const input = buildInput();
 
@@ -920,14 +906,7 @@ export function TransactionEntryRow({
       </div>
 
       {splitLines.length === 0 ? (
-        <div className="register-entry-actions-panel">
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={toggleSplitEditor}
-          >
-            Split
-          </button>
+        <div className="register-entry-actions-panel register-entry-actions-panel-commit-only">
           <div className="register-entry-actions register-entry-commit-actions">
             <button
               className="button button-primary"
