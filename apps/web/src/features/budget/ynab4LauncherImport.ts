@@ -44,6 +44,9 @@ const SCHEDULED_STORAGE_KEY = "budget-app.scheduled-transactions.v1";
 const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
 const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
+const YNAB4_SPLIT_CATEGORY_ID = "Category/__Split__";
+const YNAB4_IMMEDIATE_INCOME_CATEGORY_ID = "Category/__ImmediateIncome__";
+const YNAB4_DEFERRED_INCOME_CATEGORY_ID = "Category/__DeferredIncome__";
 
 export interface Ynab4LauncherImportRecord {
   budgetId: string;
@@ -163,6 +166,8 @@ export function createYnab4LauncherBudgetImport(
   if (!activeData) {
     throw new Error("Cannot import YNAB4 package because the active Budget.yfull data could not be read.");
   }
+
+  validateYnab4TransferIntegrity(activeData);
 
   const registryBeforeImport = storage.getItem(BUDGET_REGISTRY_STORAGE_KEY);
   const selectedBudgetBeforeImport = storage.getItem(SELECTED_BUDGET_STORAGE_KEY);
@@ -320,6 +325,83 @@ export function createImportedBudgetName(sourceName: string | null): string {
   return `${baseName} Imported`;
 }
 
+function validateYnab4TransferIntegrity(data: Ynab4ImportData): void {
+  const transactions = toRecords(data.transactions).filter((transaction) => !isYnab4Tombstone(transaction));
+  const transactionById = new Map<string, RecordMap>();
+
+  for (const transaction of transactions) {
+    const transactionId = firstString(transaction.entityId, transaction.id, transaction.transactionId);
+    if (transactionId) transactionById.set(transactionId, transaction);
+  }
+
+  const errors: string[] = [];
+  for (const transaction of transactions) {
+    const transactionId = firstString(transaction.entityId, transaction.id, transaction.transactionId);
+    const pairedTransactionId = firstString(transaction.transferTransactionId);
+    if (!transactionId || !pairedTransactionId) continue;
+
+    const pair = transactionById.get(pairedTransactionId);
+    if (!pair) {
+      errors.push(`${transactionId}: transfer pair ${pairedTransactionId} was not found.`);
+      continue;
+    }
+
+    const reciprocalId = firstString(pair.transferTransactionId);
+    if (reciprocalId !== transactionId) {
+      errors.push(`${transactionId}: transfer pair ${pairedTransactionId} does not link back reciprocally.`);
+    }
+
+    const sourceAccountId = firstString(transaction.accountId, transaction.accountEntityId);
+    const targetAccountId = firstString(transaction.targetAccountId, transaction.transferAccountId);
+    const pairAccountId = firstString(pair.accountId, pair.accountEntityId);
+    const pairTargetAccountId = firstString(pair.targetAccountId, pair.transferAccountId);
+    if (!sourceAccountId || !targetAccountId || !pairAccountId || !pairTargetAccountId) {
+      errors.push(`${transactionId}: transfer account relationship is incomplete.`);
+    } else {
+      if (sourceAccountId === targetAccountId) {
+        errors.push(`${transactionId}: transfer source and target accounts must differ.`);
+      }
+      if (targetAccountId !== pairAccountId || pairTargetAccountId !== sourceAccountId) {
+        errors.push(`${transactionId}: transfer account relationship does not match its pair.`);
+      }
+    }
+
+    const amount = transactionAmountToDisplayUnits(
+      transaction.amount,
+      transaction.amountMilliUnits,
+      transaction.inflow,
+      transaction.outflow,
+    );
+    const pairAmount = transactionAmountToDisplayUnits(
+      pair.amount,
+      pair.amountMilliUnits,
+      pair.inflow,
+      pair.outflow,
+    );
+    if (amount === null || pairAmount === null || roundMoney(amount + pairAmount) !== 0) {
+      errors.push(`${transactionId}: transfer amounts are not equal and opposite.`);
+    }
+
+    const date = normaliseDate(firstString(transaction.date, transaction.dateString, transaction.acceptedDate));
+    const pairDate = normaliseDate(firstString(pair.date, pair.dateString, pair.acceptedDate));
+    if (date && pairDate && date !== pairDate) {
+      errors.push(`${transactionId}: transfer pair dates do not match.`);
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`YNAB4 transfer integrity validation failed:\n- ${errors.join("\n- ")}`);
+  }
+}
+
+function createImportedTransferId(
+  transactionId: string | null,
+  pairedTransactionId: string | null,
+): string | undefined {
+  if (!transactionId || !pairedTransactionId) return undefined;
+  return `ynab4-transfer-${[transactionId, pairedTransactionId].sort().join("--")}`;
+}
+
 function writeImportedBudgetData(
   storage: KeyValueStoragePort,
   budget: BudgetSummary,
@@ -341,7 +423,10 @@ function writeImportedBudgetData(
   const transactionRecords = toRecords(data.transactions);
   const scheduledTransactionRecords = toRecords(data.scheduledTransactions);
   const accounts = mapAccounts(toRecords(data.accounts), maps, nowIso);
-  const categoryGroups = mapCategoryGroups(toRecords(data.masterCategories), maps);
+  const categoryGroups = mapCategoryGroups(
+    toRecords(data.masterCategories),
+    maps,
+  );
   const payees = mapPayees(toRecords(data.payees), maps, nowIso);
   const importedFlagTags = mapImportedFlagTags(
     [...transactionRecords, ...scheduledTransactionRecords],
@@ -400,7 +485,7 @@ function mapAccounts(accounts: RecordMap[], maps: ImportMaps, nowIso: string): S
   return accounts.map((account, index) => {
     const name = firstString(account.name, account.accountName, account.displayName) ?? `Imported Account ${index + 1}`;
     const id = uniqueSlug(name, existingIds, "account");
-    for (const sourceId of sourceIds(account, `account:${index}`)) {
+    for (const sourceId of accountSourceIds(account, `account:${index}`)) {
       maps.accountIdBySourceId.set(sourceId, id);
     }
     const type = mapAccountType(firstString(account.accountType, account.type), account.onBudget);
@@ -410,11 +495,19 @@ function mapAccounts(accounts: RecordMap[], maps: ImportMaps, nowIso: string): S
       id,
       name,
       type,
-      startingBalance: amountToDisplayUnits(account.startingBalance, account.balance, account.clearedBalance) ?? 0,
+      startingBalance: explicitYnab4OpeningBalance(account),
       createdAt: nowIso,
       closedAt: isYnab4ClosedAccount(account) ? nowIso : null,
     };
   });
+}
+
+function explicitYnab4OpeningBalance(account: RecordMap): number {
+  return amountToDisplayUnits(
+    account.startingBalance,
+    account.openingBalance,
+    account.initialBalance,
+  ) ?? 0;
 }
 
 function isYnab4ClosedAccount(account: RecordMap): boolean {
@@ -429,13 +522,10 @@ type CategoryGroupDraft = BudgetCategoryGroupView & {
   sourceIds: Set<string>;
 };
 
-type ParsedHiddenCategoryName = {
-  groupName: string;
-  categoryName: string;
-  groupSourceId: string | null;
-};
-
-function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategoryGroupView[] {
+function mapCategoryGroups(
+  groups: RecordMap[],
+  maps: ImportMaps,
+): BudgetCategoryGroupView[] {
   const existingGroupIds = new Set<string>();
   const existingCategoryIds = new Set<string>();
   const drafts: CategoryGroupDraft[] = [];
@@ -443,11 +533,13 @@ function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategor
 
   for (const [groupIndex, group] of orderedGroups.entries()) {
     const groupName = firstString(group.name, group.masterCategoryName, group.displayName) ?? `Imported Group ${groupIndex + 1}`;
-    const groupSourceIds = sourceIds(group, `categoryGroup:${groupIndex}`);
+    const groupSourceIds = categoryGroupSourceIds(group, `categoryGroup:${groupIndex}`);
     const subCategories = orderYnab4SubCategoriesForDisplay(toRecords(group.subCategories));
     const groupIsArchived = isYnab4Tombstone(group);
 
-    if (groupIsArchived && subCategories.length === 0) {
+    // Match Actual Budget's YNAB4 importer: deleted category groups are not
+    // imported or used as category-identity fallbacks.
+    if (groupIsArchived) {
       continue;
     }
 
@@ -467,26 +559,31 @@ function mapCategoryGroups(groups: RecordMap[], maps: ImportMaps): BudgetCategor
     const isHiddenCategoriesGroup = isYnab4HiddenCategoriesGroup(group, groupName);
 
     for (const [categoryIndex, category] of subCategories.entries()) {
+      const categorySourceIds = importedCategorySourceIds(category, `category:${groupIndex}:${categoryIndex}`);
+      const categoryIsTombstone = isYnab4Tombstone(category);
+      // Actual Budget deliberately drops tombstoned categories. Transactions
+      // and budget rows resolve only through IDs mapped for live categories.
+      if (categoryIsTombstone) {
+        continue;
+      }
+
       const sourceCategoryName = firstString(category.name, category.categoryName, category.displayName);
-      const parsedHiddenName = isHiddenCategoriesGroup
-        ? parseYnab4HiddenCategoryName(sourceCategoryName)
-        : null;
-      const categoryName = parsedHiddenName?.categoryName ?? sourceCategoryName ?? `Imported Category ${categoryIndex + 1}`;
+      const categoryName = isHiddenCategoriesGroup
+        ? ynab4HiddenCategoryDisplayName(sourceCategoryName)
+        : sourceCategoryName ?? `Imported Category ${categoryIndex + 1}`;
       addImportedCategoryToGroup({
         group: draft,
         category,
         categoryName,
-        sourceIds: sourceIds(category, `category:${groupIndex}:${categoryIndex}`),
+        sourceIds: categorySourceIds,
         existingCategoryIds,
         maps,
-        isArchived: groupIsArchived || isHiddenCategoriesGroup || isYnab4Tombstone(category),
+        isArchived: isHiddenCategoriesGroup,
       });
     }
 
     drafts.push(draft);
   }
-
-  suppressDuplicateArchivedCategories(drafts, maps);
 
   return drafts
     .filter((group) => group.categories.length > 0)
@@ -539,41 +636,6 @@ function ynab4SortableIndex(record: RecordMap): number {
   return Number.MAX_SAFE_INTEGER;
 }
 
-function suppressDuplicateArchivedCategories(drafts: CategoryGroupDraft[], maps: ImportMaps): void {
-  const activeCategoryIdByName = new Map<string, string>();
-  const ambiguousActiveNames = new Set<string>();
-
-  for (const group of drafts) {
-    for (const category of group.categories) {
-      if (category.isArchived) continue;
-      const key = normaliseCategoryStateName(category.name);
-      const existing = activeCategoryIdByName.get(key);
-      if (existing && existing !== category.id) {
-        ambiguousActiveNames.add(key);
-        continue;
-      }
-      activeCategoryIdByName.set(key, category.id);
-    }
-  }
-
-  for (const group of drafts) {
-    group.categories = group.categories.filter((category) => {
-      if (!category.isArchived) return true;
-      const key = normaliseCategoryStateName(category.name);
-      if (ambiguousActiveNames.has(key)) return true;
-      const canonicalId = activeCategoryIdByName.get(key);
-      if (!canonicalId || canonicalId === category.id) return true;
-
-      for (const [sourceId, mappedCategoryId] of maps.categoryIdBySourceId.entries()) {
-        if (mappedCategoryId === category.id) {
-          maps.categoryIdBySourceId.set(sourceId, canonicalId);
-        }
-      }
-      return false;
-    });
-  }
-}
-
 function addImportedCategoryToGroup(input: {
   group: CategoryGroupDraft;
   category: RecordMap;
@@ -592,6 +654,7 @@ function addImportedCategoryToGroup(input: {
   input.group.categories.push({
     id,
     name: input.categoryName,
+    sourceCategoryId: input.sourceIds[0],
     previousAvailable: 0,
     assigned: 0,
     activity: 0,
@@ -643,15 +706,14 @@ function isYnab4Tombstone(record: RecordMap): boolean {
   return record.isTombstone === true || record.deleted === true;
 }
 
-function parseYnab4HiddenCategoryName(name: string | null): ParsedHiddenCategoryName | null {
-  if (!name) return null;
+function ynab4HiddenCategoryDisplayName(name: string | null): string {
+  if (!name) return "Imported Hidden Category";
   const parts = name.split("`").map((part) => part.trim()).filter(Boolean);
-  if (parts.length < 2) return null;
-  return {
-    groupName: parts[0],
-    categoryName: parts[1],
-    groupSourceId: parts[2] ?? null,
-  };
+  if (parts.length < 2) return name;
+  // YNAB4 appends the original master-category entity ID. Actual Budget
+  // removes only that suffix and retains the group/category path as display
+  // text; it never uses the suffix to redirect identity.
+  return parts.slice(0, -1).join("/").trim();
 }
 
 function normaliseCategoryStateName(name: string): string {
@@ -666,7 +728,7 @@ function mapPayees(payees: RecordMap[], maps: ImportMaps, nowIso: string): Payee
       return [];
     }
     const id = uniqueSlug(name, existingIds, "payee");
-    for (const sourceId of sourceIds(payee, `payee:${index}`)) {
+    for (const sourceId of payeeSourceIds(payee, `payee:${index}`)) {
       maps.payeeIdBySourceId.set(sourceId, id);
     }
     maps.payeeNameById.set(id, name);
@@ -702,6 +764,7 @@ function mapRegisters(
         index,
         maps,
         importedFlagTagIdByColour,
+        maps.accountTypeById.get(accountId) ?? "on-budget",
       ),
     );
   }
@@ -731,11 +794,25 @@ function mapRegisterTransaction(
   index: number,
   maps: ImportMaps,
   importedFlagTagIdByColour: ReadonlyMap<TransactionTagColour, string>,
+  owningAccountType: SidebarAccountType,
 ): RegisterTransactionView {
   const amount = transactionAmountToDisplayUnits(transaction.amount, transaction.amountMilliUnits, transaction.inflow, transaction.outflow) ?? 0;
   const transferAccountId = mappedId(maps.accountIdBySourceId, transaction.targetAccountId, transaction.transferAccountId);
   const payeeId = mappedId(maps.payeeIdBySourceId, transaction.payeeId);
-  const categoryId = mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
+  const sourceCategoryKind = ynab4CategoryKind(transaction.categoryId, transaction.subCategoryId);
+  const mappedCategoryId = mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
+  const categoryId = sourceCategoryKind === "income"
+    ? READY_TO_ASSIGN_CATEGORY_ID
+    : sourceCategoryKind === "split"
+      ? null
+      : mappedCategoryId;
+  const isTrackingAccount = owningAccountType === "tracking";
+  const splitLines = mapSplitLines(
+    toRecords(transaction.subTransactions),
+    maps,
+    isTrackingAccount,
+  );
+  const hasSplitLines = Boolean(splitLines && splitLines.length > 0);
   const transferAccountType = transferAccountId ? maps.accountTypeById.get(transferAccountId) : undefined;
   const isCategorisedOffBudgetTransfer = Boolean(transferAccountId && categoryId && transferAccountType === "tracking");
   const importedFlagColour = normaliseImportedFlagColour(
@@ -756,10 +833,18 @@ function mapRegisterTransaction(
     attachments: [],
     payee: payeeName,
     payeeId: transferAccountId ? undefined : payeeId ?? undefined,
-    category: categoryId && (!transferAccountId || isCategorisedOffBudgetTransfer)
-      ? maps.categoryNameById.get(categoryId) ?? "Uncategorised"
-      : transferAccountId ? "Transfer" : READY_TO_ASSIGN_CATEGORY_NAME,
-    categoryId: categoryId ?? (transferAccountId ? undefined : READY_TO_ASSIGN_CATEGORY_ID),
+    category: isTrackingAccount
+      ? transferAccountId ? "Transfer" : "Uncategorised"
+      : hasSplitLines
+        ? "Split"
+        : categoryId && (!transferAccountId || isCategorisedOffBudgetTransfer)
+          ? maps.categoryNameById.get(categoryId) ?? READY_TO_ASSIGN_CATEGORY_NAME
+          : transferAccountId ? "Transfer" : READY_TO_ASSIGN_CATEGORY_NAME,
+    categoryId: isTrackingAccount
+      ? undefined
+      : hasSplitLines
+        ? undefined
+        : categoryId ?? (transferAccountId ? undefined : READY_TO_ASSIGN_CATEGORY_ID),
     memo: firstString(transaction.memo, transaction.note, transaction.notes) ?? undefined,
     checkNumber: firstString(transaction.checkNumber, transaction.check, transaction.number) ?? undefined,
     inflow: amount > 0 ? amount : 0,
@@ -767,21 +852,35 @@ function mapRegisterTransaction(
     runningBalance: 0,
     cleared: isCleared(transaction),
     reconciled: isReconciled(transaction),
+    transferId: createImportedTransferId(
+      firstString(transaction.entityId, transaction.id, transaction.transactionId),
+      firstString(transaction.transferTransactionId),
+    ),
     transferAccountId: transferAccountId ?? undefined,
     transferTransactionId: firstString(transaction.transferTransactionId) ?? undefined,
-    splitLines: mapSplitLines(toRecords(transaction.subTransactions), maps),
+    splitLines,
   };
 }
 
-function mapSplitLines(lines: RecordMap[], maps: ImportMaps): RegisterTransactionView["splitLines"] {
-  if (lines.length === 0) return undefined;
-  return lines.map((line, index) => {
+function mapSplitLines(
+  lines: RecordMap[],
+  maps: ImportMaps,
+  suppressBudgetCategories = false,
+): RegisterTransactionView["splitLines"] {
+  const activeLines = lines.filter((line) => !isYnab4Tombstone(line));
+  if (activeLines.length === 0) return undefined;
+  return activeLines.map((line, index) => {
     const amount = transactionAmountToDisplayUnits(line.amount, line.amountMilliUnits, line.inflow, line.outflow) ?? 0;
-    const categoryId = mappedId(maps.categoryIdBySourceId, line.categoryId, line.subCategoryId) ?? READY_TO_ASSIGN_CATEGORY_ID;
+    const sourceCategoryKind = ynab4CategoryKind(line.categoryId, line.subCategoryId);
+    const categoryId = sourceCategoryKind === "income" || sourceCategoryKind === "split"
+      ? READY_TO_ASSIGN_CATEGORY_ID
+      : mappedId(maps.categoryIdBySourceId, line.categoryId, line.subCategoryId) ?? READY_TO_ASSIGN_CATEGORY_ID;
     return {
       id: firstString(line.entityId, line.id) ?? `split-${index}`,
-      category: maps.categoryNameById.get(categoryId) ?? READY_TO_ASSIGN_CATEGORY_NAME,
-      categoryId,
+      category: suppressBudgetCategories
+        ? "Uncategorised"
+        : maps.categoryNameById.get(categoryId) ?? READY_TO_ASSIGN_CATEGORY_NAME,
+      categoryId: suppressBudgetCategories ? undefined : categoryId,
       memo: firstString(line.memo, line.note, line.notes) ?? undefined,
       inflow: amount > 0 ? amount : 0,
       outflow: amount < 0 ? Math.abs(amount) : 0,
@@ -832,11 +931,23 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
     if (transaction.isTombstone === true || transaction.deleted === true) return [];
     const accountId = mappedId(maps.accountIdBySourceId, transaction.accountId, transaction.accountEntityId);
     if (!accountId) return [];
-    const splitLines = mapScheduledSplitLines(toRecords(transaction.subTransactions), maps);
+    const owningAccountType = maps.accountTypeById.get(accountId) ?? "on-budget";
+    const isTrackingAccount = owningAccountType === "tracking";
+    const splitLines = mapScheduledSplitLines(
+      toRecords(transaction.subTransactions),
+      maps,
+      isTrackingAccount,
+    );
     const amount = scheduledAmountToDisplayUnits(transaction.amount, transaction.amountMilliUnits, transaction.inflow, transaction.outflow) ?? 0;
     const transferAccountId = mappedId(maps.accountIdBySourceId, transaction.targetAccountId, transaction.transferAccountId);
     const payeeId = mappedId(maps.payeeIdBySourceId, transaction.payeeId);
-    const categoryId = mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
+    const sourceCategoryKind = ynab4CategoryKind(transaction.categoryId, transaction.subCategoryId);
+    const mappedCategoryId = mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
+    const categoryId = sourceCategoryKind === "income"
+      ? READY_TO_ASSIGN_CATEGORY_ID
+      : sourceCategoryKind === "split"
+        ? null
+        : mappedCategoryId;
     const importedFlagColour = normaliseImportedFlagColour(
       firstString(transaction.flag, transaction.flagColor),
     );
@@ -852,11 +963,20 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
         ? `Transfer: ${maps.accountNameById.get(transferAccountId) ?? "Account"}`
         : firstString(transaction.payeeName, transaction.payee) ?? (payeeId ? maps.payeeNameById.get(payeeId) : null) ?? "Imported Payee",
       payeeId: transferAccountId ? undefined : payeeId ?? undefined,
-      category: splitLines && splitLines.length > 0
-        ? "Split"
-        : transferAccountId ? "Transfer" : categoryId ? maps.categoryNameById.get(categoryId) ?? "Uncategorised" : READY_TO_ASSIGN_CATEGORY_NAME,
-      categoryId:
-        splitLines && splitLines.length > 0
+      category: isTrackingAccount
+        ? transferAccountId ? "Transfer" : "Uncategorised"
+        : splitLines && splitLines.length > 0
+          ? "Split"
+          : transferAccountId
+            ? "Transfer"
+            : categoryId === READY_TO_ASSIGN_CATEGORY_ID
+              ? READY_TO_ASSIGN_CATEGORY_NAME
+              : categoryId
+                ? maps.categoryNameById.get(categoryId) ?? "Uncategorised"
+                : READY_TO_ASSIGN_CATEGORY_NAME,
+      categoryId: isTrackingAccount
+        ? undefined
+        : splitLines && splitLines.length > 0
           ? undefined
           : transferAccountId
             ? undefined
@@ -871,15 +991,25 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
   });
 }
 
-function mapScheduledSplitLines(lines: RecordMap[], maps: ImportMaps): RegisterTransactionView["splitLines"] {
-  if (lines.length === 0) return undefined;
-  return lines.map((line, index) => {
+function mapScheduledSplitLines(
+  lines: RecordMap[],
+  maps: ImportMaps,
+  suppressBudgetCategories = false,
+): RegisterTransactionView["splitLines"] {
+  const activeLines = lines.filter((line) => !isYnab4Tombstone(line));
+  if (activeLines.length === 0) return undefined;
+  return activeLines.map((line, index) => {
     const amount = scheduledAmountToDisplayUnits(line.amount, line.amountMilliUnits, line.inflow, line.outflow) ?? 0;
-    const categoryId = mappedId(maps.categoryIdBySourceId, line.categoryId, line.subCategoryId) ?? READY_TO_ASSIGN_CATEGORY_ID;
+    const sourceCategoryKind = ynab4CategoryKind(line.categoryId, line.subCategoryId);
+    const categoryId = sourceCategoryKind === "income" || sourceCategoryKind === "split"
+      ? READY_TO_ASSIGN_CATEGORY_ID
+      : mappedId(maps.categoryIdBySourceId, line.categoryId, line.subCategoryId) ?? READY_TO_ASSIGN_CATEGORY_ID;
     return {
       id: firstString(line.entityId, line.id) ?? `scheduled-split-${index}`,
-      category: maps.categoryNameById.get(categoryId) ?? READY_TO_ASSIGN_CATEGORY_NAME,
-      categoryId,
+      category: suppressBudgetCategories
+        ? "Uncategorised"
+        : maps.categoryNameById.get(categoryId) ?? READY_TO_ASSIGN_CATEGORY_NAME,
+      categoryId: suppressBudgetCategories ? undefined : categoryId,
       memo: firstString(line.memo, line.note, line.notes) ?? undefined,
       inflow: amount > 0 ? amount : 0,
       outflow: amount < 0 ? Math.abs(amount) : 0,
@@ -915,8 +1045,7 @@ function mapBudgetMonthViews(
   now: Date,
 ): Map<string, BudgetMonthView> {
   const views = new Map<string, BudgetMonthView>();
-  const budgetedCategoryIdsByMonth = buildBudgetedCategoryIdsByMonth(monthlyBudgets, maps);
-  const activityByMonthCategory = buildBudgetActivityByMonthCategory(registers, templateGroups, maps, budgetedCategoryIdsByMonth);
+  const activityByMonthCategory = buildBudgetActivityByMonthCategory(registers);
   const sourceMonths = (monthlyBudgets.length > 0 ? monthlyBudgets : [{ month: getCurrentBudgetMonth(now), monthlySubCategoryBudgets: [] }])
     .map((monthlyBudget) => ({
       monthlyBudget,
@@ -928,18 +1057,27 @@ function mapBudgetMonthViews(
   for (const { monthlyBudget, month } of sourceMonths) {
     const groups = cloneCategoryGroups(templateGroups);
     const categoryById = new Map(groups.flatMap((group) => group.categories.map((category) => [category.id, category] as const)));
+    const carryoverByCategoryId = new Map<string, boolean>();
 
     for (const row of toRecords(monthlyBudget.monthlySubCategoryBudgets)) {
       if (isYnab4Tombstone(row)) continue;
       const categoryId = mappedId(maps.categoryIdBySourceId, row.categoryId, row.subCategoryId);
       const category = categoryId ? categoryById.get(categoryId) : undefined;
-      if (!category) continue;
+      if (!category || !categoryId) continue;
       category.assigned = amountToDisplayUnits(row.budgeted, row.assigned) ?? 0;
+      carryoverByCategoryId.set(
+        categoryId,
+        ynab4OverspendingHandlingCarriesNegativeBalance(
+          firstString(row.overspendingHandling),
+        ),
+      );
     }
 
     const activityByCategory = activityByMonthCategory.get(month) ?? new Map<string, number>();
     for (const category of categoryById.values()) {
-      category.previousAvailable = roundMoney(previousAvailableByCategoryId.get(category.id) ?? 0);
+      const previousAvailable = roundMoney(previousAvailableByCategoryId.get(category.id) ?? 0);
+      const shouldCarryForward = previousAvailable > 0 || Boolean(carryoverByCategoryId.get(category.id));
+      category.previousAvailable = shouldCarryForward ? previousAvailable : 0;
       category.activity = roundMoney(activityByCategory.get(category.id) ?? 0);
       category.available = normaliseMoney(roundMoney(category.previousAvailable + category.assigned + category.activity));
       category.isOverspent = isMoneyNegative(category.available);
@@ -973,16 +1111,19 @@ function mapBudgetMonthViews(
 }
 
 
+function ynab4OverspendingHandlingCarriesNegativeBalance(
+  value: string | null,
+): boolean {
+  return value?.replace(/[\s_-]/g, "").toLowerCase() === "confined";
+}
+
 function buildBudgetActivityByMonthCategory(
   registers: Record<string, AccountRegisterView>,
-  templateGroups: BudgetCategoryGroupView[],
-  maps: ImportMaps,
-  budgetedCategoryIdsByMonth: Map<string, Set<string>>,
 ): Map<string, Map<string, number>> {
   const activityByMonthCategory = new Map<string, Map<string, number>>();
-  const canonicalCategoryIdById = buildBudgetActivityCanonicalCategoryMap(templateGroups, maps);
 
   for (const register of Object.values(registers)) {
+    if (register.accountType === "Tracking") continue;
     for (const transaction of register.transactions) {
       const month = transaction.date.slice(0, 7);
       if (!/^\d{4}-\d{2}$/.test(month)) continue;
@@ -993,7 +1134,7 @@ function buildBudgetActivityByMonthCategory(
             addBudgetActivity(
               activityByMonthCategory,
               month,
-              resolveBudgetActivityCategoryId(month, splitLine.categoryId, canonicalCategoryIdById, budgetedCategoryIdsByMonth),
+              splitLine.categoryId,
               splitLine.inflow - splitLine.outflow,
             );
           }
@@ -1005,7 +1146,7 @@ function buildBudgetActivityByMonthCategory(
       addBudgetActivity(
         activityByMonthCategory,
         month,
-        resolveBudgetActivityCategoryId(month, transaction.categoryId, canonicalCategoryIdById, budgetedCategoryIdsByMonth),
+        transaction.categoryId,
         transaction.inflow - transaction.outflow,
       );
     }
@@ -1014,93 +1155,6 @@ function buildBudgetActivityByMonthCategory(
   return activityByMonthCategory;
 }
 
-
-function buildBudgetedCategoryIdsByMonth(
-  monthlyBudgets: RecordMap[],
-  maps: ImportMaps,
-): Map<string, Set<string>> {
-  const budgetedCategoryIdsByMonth = new Map<string, Set<string>>();
-
-  for (const monthlyBudget of monthlyBudgets) {
-    const month = monthKey(firstString(monthlyBudget.month, monthlyBudget.date, monthlyBudget.monthName));
-    if (!month) continue;
-
-    for (const row of toRecords(monthlyBudget.monthlySubCategoryBudgets)) {
-      if (isYnab4Tombstone(row)) continue;
-      const categoryId = mappedId(maps.categoryIdBySourceId, row.categoryId, row.subCategoryId);
-      if (!categoryId) continue;
-      const categoryIds = budgetedCategoryIdsByMonth.get(month) ?? new Set<string>();
-      categoryIds.add(categoryId);
-      budgetedCategoryIdsByMonth.set(month, categoryIds);
-    }
-  }
-
-  return budgetedCategoryIdsByMonth;
-}
-
-function resolveBudgetActivityCategoryId(
-  month: string,
-  categoryId: string,
-  canonicalCategoryIdById: Map<string, string>,
-  budgetedCategoryIdsByMonth: Map<string, Set<string>>,
-): string {
-  if (budgetedCategoryIdsByMonth.get(month)?.has(categoryId)) {
-    return categoryId;
-  }
-
-  return canonicalCategoryIdById.get(categoryId) ?? categoryId;
-}
-
-function buildBudgetActivityCanonicalCategoryMap(
-  templateGroups: BudgetCategoryGroupView[],
-  maps: ImportMaps,
-): Map<string, string> {
-  const activeCategoryIdsByName = new Map<string, Set<string>>();
-
-  for (const group of templateGroups) {
-    for (const category of group.categories) {
-      if (category.isArchived) continue;
-      const key = normaliseCategoryStateName(category.name);
-      const ids = activeCategoryIdsByName.get(key) ?? new Set<string>();
-      ids.add(category.id);
-      activeCategoryIdsByName.set(key, ids);
-    }
-  }
-
-  const canonicalById = new Map<string, string>();
-  for (const [categoryId, categoryName] of maps.categoryNameById.entries()) {
-    if (!maps.categoryIsArchivedById.get(categoryId)) continue;
-    const categoryKey = normaliseCategoryStateName(categoryName);
-    const activeIds = activeCategoryIdsByName.get(categoryKey);
-    if (activeIds && activeIds.size === 1) {
-      const [canonicalId] = [...activeIds];
-      if (canonicalId && canonicalId !== categoryId) {
-        canonicalById.set(categoryId, canonicalId);
-        continue;
-      }
-    }
-
-    if (categoryKey === "mortgage") {
-      const mortgageCanonicalId = findSingleActiveCategoryIdByNamePrefix(activeCategoryIdsByName, "mortgage");
-      if (mortgageCanonicalId && mortgageCanonicalId !== categoryId) {
-        canonicalById.set(categoryId, mortgageCanonicalId);
-      }
-    }
-  }
-
-  return canonicalById;
-}
-
-function findSingleActiveCategoryIdByNamePrefix(
-  activeCategoryIdsByName: Map<string, Set<string>>,
-  prefix: string,
-): string | null {
-  const matches = [...activeCategoryIdsByName.entries()]
-    .filter(([name]) => name === prefix || name.startsWith(`${prefix} `))
-    .flatMap(([, ids]) => [...ids]);
-
-  return matches.length === 1 ? matches[0] ?? null : null;
-}
 
 function addBudgetActivity(
   activityByMonthCategory: Map<string, Map<string, number>>,
@@ -1277,6 +1331,20 @@ function isTransferPayee(payee: RecordMap, name: string): boolean {
   return Boolean(firstString(payee.targetAccountId, payee.transferAccountId)) || name.toLowerCase().startsWith("transfer:");
 }
 
+type Ynab4CategoryKind = "split" | "income" | "ordinary";
+
+function ynab4CategoryKind(...values: unknown[]): Ynab4CategoryKind {
+  const sourceCategoryId = firstString(...values);
+  if (sourceCategoryId === YNAB4_SPLIT_CATEGORY_ID) return "split";
+  if (
+    sourceCategoryId === YNAB4_IMMEDIATE_INCOME_CATEGORY_ID ||
+    sourceCategoryId === YNAB4_DEFERRED_INCOME_CATEGORY_ID
+  ) {
+    return "income";
+  }
+  return "ordinary";
+}
+
 function mappedId(map: Map<string, string>, ...values: unknown[]): string | null {
   for (const value of values) {
     const key = firstString(value);
@@ -1285,17 +1353,38 @@ function mappedId(map: Map<string, string>, ...values: unknown[]): string | null
   return null;
 }
 
-function sourceIds(record: RecordMap, fallback: string): string[] {
+function accountSourceIds(record: RecordMap, fallback: string): string[] {
+  return ownEntitySourceIds(record, fallback, record.accountId);
+}
+
+function categoryGroupSourceIds(record: RecordMap, fallback: string): string[] {
+  return ownEntitySourceIds(record, fallback, record.masterCategoryId);
+}
+
+function importedCategorySourceIds(record: RecordMap, fallback: string): string[] {
+  return ownEntitySourceIds(
+    record,
+    fallback,
+    record.categoryId,
+    record.subCategoryId,
+  );
+}
+
+function payeeSourceIds(record: RecordMap, fallback: string): string[] {
+  return ownEntitySourceIds(record, fallback, record.payeeId);
+}
+
+function ownEntitySourceIds(
+  record: RecordMap,
+  fallback: string,
+  ...entitySpecificIds: unknown[]
+): string[] {
   const ids = [
     firstString(record.entityId),
     firstString(record.id),
-    firstString(record.accountId),
-    firstString(record.categoryId),
-    firstString(record.subCategoryId),
-    firstString(record.masterCategoryId),
-    firstString(record.payeeId),
+    ...entitySpecificIds.map((value) => firstString(value)),
   ].filter((value): value is string => Boolean(value));
-  return ids.length > 0 ? ids : [fallback];
+  return [...new Set(ids.length > 0 ? ids : [fallback])];
 }
 
 function uniqueSlug(name: string, existingIds: Set<string>, fallback: string): string {

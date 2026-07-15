@@ -8,31 +8,23 @@ const source = readFileSync(
 
 assert.match(
   source,
-  /function suppressDuplicateArchivedCategories\(drafts: CategoryGroupDraft\[\], maps: ImportMaps\): void/,
-  "The importer must retain the duplicate archived category remapping helper.",
+  /function collectReferencedYnab4CategorySourceIds\(/,
+  "The importer must collect category references before deciding which tombstones to retain.",
 );
-
-const mapCategoryGroupsStart = source.indexOf("function mapCategoryGroups(");
-const helperStart = source.indexOf("function suppressDuplicateArchivedCategories(");
-assert.ok(mapCategoryGroupsStart >= 0 && helperStart > mapCategoryGroupsStart);
-
-const mapCategoryGroupsSource = source.slice(mapCategoryGroupsStart, helperStart);
-assert.match(
-  mapCategoryGroupsSource,
-  /suppressDuplicateArchivedCategories\(drafts, maps\);\s*return drafts/,
-  "Hidden/archived duplicate categories must be remapped before imported groups are returned.",
-);
-
 assert.match(
   source,
-  /if \(mappedCategoryId === category\.id\) \{\s*maps\.categoryIdBySourceId\.set\(sourceId, canonicalId\);/,
-  "Every source ID for a suppressed hidden duplicate must point to the visible canonical category.",
+  /categoryIsTombstone[\s\S]*categorySourceIds\.some[\s\S]*referencedCategorySourceIds\.has/,
+  "Only unreferenced category tombstones should be omitted.",
 );
-
+assert.doesNotMatch(
+  source,
+  /suppressDuplicateArchivedCategories|findSingleActiveCategoryIdByNamePrefix|categoryKey\s*===\s*["']mortgage["']/,
+  "Category identity must never be repaired through display-name or budget-specific matching.",
+);
 assert.match(
   source,
-  /firstString\(record\.subCategoryId\)/,
-  "YNAB4 subCategoryId values must participate in category identity mapping.",
+  /mappedId\([\s\S]*maps\.categoryIdBySourceId,[\s\S]*transaction\.categoryId,[\s\S]*transaction\.subCategoryId[\s\S]*\)/,
+  "YNAB4 categoryId and subCategoryId values must both resolve through source identity.",
 );
 
-console.log("v2.88.1 YNAB4 hidden category activity fidelity checks passed");
+console.log("v2.88.1 YNAB4 hidden category source-ID fidelity checks passed");

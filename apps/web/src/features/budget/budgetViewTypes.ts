@@ -1,6 +1,8 @@
 export interface BudgetCategoryView {
   id: string;
   name: string;
+  /** Original category identity when created by a source importer. */
+  sourceCategoryId?: string;
   previousAvailable: number;
   assigned: number;
   activity: number;

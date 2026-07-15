@@ -560,7 +560,7 @@ function buildSourceAudit(
       onBudget: boolOrNull(account.onBudget),
       hidden: boolOrNull(account.hidden),
     };
-    for (const sourceId of sourceIds(account, `account:${index}`)) {
+    for (const sourceId of accountSourceIds(account, `account:${index}`)) {
       accountBySourceId.set(sourceId, info);
     }
   }
@@ -634,10 +634,8 @@ function buildSourceAudit(
   }
 
   const categoryGroups = toRecords(data.masterCategories);
-  const categories = categoryGroups.reduce(
-    (sum, group) => sum + toRecords(group.subCategories).length,
-    0,
-  );
+  const importableCategoryIds = importableYnab4CategoryIds(categoryGroups);
+  const categories = importableCategoryIds.size;
   const monthlyBudgets = toRecords(data.monthlyBudgets);
 
   return {
@@ -657,7 +655,7 @@ function buildSourceAudit(
     budgetMonthTotals: Object.fromEntries(
       monthlyBudgets.map((month) => [
         sourceMonthKey(month),
-        sourceBudgetMonthTotals(month),
+        sourceBudgetMonthTotals(month, importableCategoryIds),
       ]),
     ),
     budgetMonthCategoryValues: Object.fromEntries(
@@ -666,6 +664,7 @@ function buildSourceAudit(
         sourceBudgetMonthCategoryValues(
           month,
           categoryNameById(categoryGroups),
+          importableCategoryIds,
         ),
       ]),
     ),
@@ -674,6 +673,7 @@ function buildSourceAudit(
         data,
         accountBySourceId,
         categoryNameById(categoryGroups),
+        importableCategoryIds,
       ),
     transactionsByAccountName,
     accountTransactionFidelity,
@@ -700,6 +700,16 @@ function buildImportedAudit(
     [],
   );
   const monthViews = readBudgetMonthViews(storage, budgetId);
+  const sourceCategoryIdByImportedId = new Map<string, string>();
+  for (const { view } of monthViews) {
+    for (const group of view.categoryGroups) {
+      for (const category of group.categories) {
+        if (category.sourceCategoryId) {
+          sourceCategoryIdByImportedId.set(category.id, category.sourceCategoryId);
+        }
+      }
+    }
+  }
   const accountById = new Map(
     accounts.map((account) => [account.id, account] as const),
   );
@@ -773,7 +783,10 @@ function buildImportedAudit(
       ]),
     ),
     budgetMonthCategoryActivityContributions:
-      importedBudgetMonthCategoryActivityContributions(registers),
+      importedBudgetMonthCategoryActivityContributions(
+        registers,
+        sourceCategoryIdByImportedId,
+      ),
     transactionsByAccountName,
     accountTransactionFidelity,
   };
@@ -891,15 +904,25 @@ function readBudgetMonthViews(
     });
 }
 
-function sourceBudgetMonthTotals(month: RecordMap): BudgetMonthTotals {
+function sourceBudgetMonthTotals(
+  month: RecordMap,
+  importableCategoryIds: ReadonlySet<string>,
+): BudgetMonthTotals {
   return sumBudgetMonthCategoryValues(
-    Object.values(sourceBudgetMonthCategoryValues(month, new Map())),
+    Object.values(
+      sourceBudgetMonthCategoryValues(
+        month,
+        new Map(),
+        importableCategoryIds,
+      ),
+    ),
   );
 }
 
 function sourceBudgetMonthCategoryValues(
   month: RecordMap,
   categoryNamesById: Map<string, string>,
+  importableCategoryIds: ReadonlySet<string>,
 ): Record<string, BudgetMonthCategoryValues> {
   const values: Record<string, BudgetMonthCategoryValues> = {};
   for (const row of toRecords(month.monthlySubCategoryBudgets)) {
@@ -909,11 +932,12 @@ function sourceBudgetMonthCategoryValues(
       row.subCategoryId,
       row.categoryEntityId,
     );
+    if (!categoryId || !importableCategoryIds.has(categoryId)) continue;
     const categoryName =
       firstString(row.categoryName, row.name) ??
       (categoryId ? categoryNamesById.get(categoryId) : null) ??
       "Unknown Category";
-    const key = categoryAuditKey(categoryName);
+    const key = categoryIdentityAuditKey(categoryId, categoryName);
     const assigned = amountToDisplayUnits(row.budgeted, row.assigned) ?? 0;
     const activity = amountToDisplayUnits(row.activity, row.outflows);
     const available = amountToDisplayUnits(row.balance, row.available);
@@ -978,7 +1002,10 @@ function importedBudgetMonthCategoryValues(
   const values: Record<string, BudgetMonthCategoryValues> = {};
   for (const group of view.categoryGroups) {
     for (const category of group.categories) {
-      const key = categoryAuditKey(category.name);
+      const key = categoryIdentityAuditKey(
+        category.sourceCategoryId ?? null,
+        category.name,
+      );
       values[key] = {
         categoryId: category.id,
         categoryName: category.name,
@@ -1000,6 +1027,7 @@ function sourceBudgetMonthCategoryActivityContributions(
   data: RecordMap,
   accountBySourceId: Map<string, SourceAccountAuditInfo>,
   categoryNamesById: Map<string, string>,
+  importableCategoryIds: ReadonlySet<string>,
 ): Record<string, Record<string, BudgetActivityContribution[]>> {
   const contributions: Record<
     string,
@@ -1020,6 +1048,7 @@ function sourceBudgetMonthCategoryActivityContributions(
       transaction.accountEntityId,
     );
     const account = accountId ? accountBySourceId.get(accountId) : undefined;
+    if (account?.onBudget === false) continue;
     const accountName = account?.name ?? "Unknown Account";
     const transactionId =
       firstString(
@@ -1041,7 +1070,9 @@ function sourceBudgetMonthCategoryActivityContributions(
     const transferAccount = transferAccountId
       ? accountBySourceId.get(transferAccountId)
       : undefined;
-    const splitLines = toRecords(transaction.subTransactions);
+    const splitLines = toRecords(transaction.subTransactions).filter(
+      (line) => !isDeleted(line),
+    );
 
     if (splitLines.length > 0) {
       for (const [index, line] of splitLines.entries()) {
@@ -1050,7 +1081,7 @@ function sourceBudgetMonthCategoryActivityContributions(
           line.subCategoryId,
           line.categoryEntityId,
         );
-        if (!categoryId) continue;
+        if (!categoryId || !importableCategoryIds.has(categoryId)) continue;
         const amount =
           amountToDisplayUnits(
             line.amount,
@@ -1086,7 +1117,7 @@ function sourceBudgetMonthCategoryActivityContributions(
           transferAccountName: transferAccount?.name ?? null,
           transferAccountType: transferAccount?.accountType ?? null,
           transferAccountOnBudget: transferAccount?.onBudget ?? null,
-        });
+        }, categoryIdentityAuditKey(categoryId, categoryNamesById.get(categoryId) ?? null));
       }
       continue;
     }
@@ -1096,7 +1127,7 @@ function sourceBudgetMonthCategoryActivityContributions(
       transaction.subCategoryId,
       transaction.categoryEntityId,
     );
-    if (!categoryId) continue;
+    if (!categoryId || !importableCategoryIds.has(categoryId)) continue;
     const amount =
       amountToDisplayUnits(
         transaction.amount,
@@ -1130,19 +1161,21 @@ function sourceBudgetMonthCategoryActivityContributions(
       transferAccountName: transferAccount?.name ?? null,
       transferAccountType: transferAccount?.accountType ?? null,
       transferAccountOnBudget: transferAccount?.onBudget ?? null,
-    });
+    }, categoryIdentityAuditKey(categoryId, categoryNamesById.get(categoryId) ?? null));
   }
   return contributions;
 }
 
 function importedBudgetMonthCategoryActivityContributions(
   registers: Record<string, AccountRegisterView>,
+  sourceCategoryIdByImportedId: ReadonlyMap<string, string>,
 ): Record<string, Record<string, BudgetActivityContribution[]>> {
   const contributions: Record<
     string,
     Record<string, BudgetActivityContribution[]>
   > = {};
   for (const register of Object.values(registers)) {
+    if (register.accountType === "Tracking") continue;
     for (const transaction of register.transactions) {
       const month = monthKey(transaction.date);
       if (!month) continue;
@@ -1165,7 +1198,10 @@ function importedBudgetMonthCategoryActivityContributions(
             transferAccountName: null,
             transferAccountType: null,
             transferAccountOnBudget: null,
-          });
+          }, categoryIdentityAuditKey(
+            sourceCategoryIdByImportedId.get(splitLine.categoryId ?? "") ?? null,
+            categoryName,
+          ));
         }
         continue;
       }
@@ -1186,7 +1222,10 @@ function importedBudgetMonthCategoryActivityContributions(
         transferAccountName: null,
         transferAccountType: null,
         transferAccountOnBudget: null,
-      });
+      }, categoryIdentityAuditKey(
+        sourceCategoryIdByImportedId.get(transaction.categoryId ?? "") ?? null,
+        categoryName,
+      ));
     }
   }
   return contributions;
@@ -1196,9 +1235,9 @@ function addActivityContribution(
   contributions: Record<string, Record<string, BudgetActivityContribution[]>>,
   month: string,
   contribution: BudgetActivityContribution,
+  key = categoryAuditKey(contribution.categoryName),
 ): void {
   const monthContributions = contributions[month] ?? {};
-  const key = categoryAuditKey(contribution.categoryName);
   const categoryContributions = monthContributions[key] ?? [];
   categoryContributions.push({
     ...contribution,
@@ -1443,22 +1482,58 @@ function sumBudgetMonthCategoryValues(
   };
 }
 
+function importableYnab4CategoryIds(
+  categoryGroups: RecordMap[],
+): Set<string> {
+  const ids = new Set<string>();
+  for (const group of categoryGroups) {
+    if (isDeleted(group)) continue;
+    for (const category of toRecords(group.subCategories)) {
+      if (isDeleted(category)) continue;
+      for (const id of categorySourceIds(category, `category:${ids.size + 1}`)) {
+        ids.add(id);
+      }
+    }
+  }
+  return ids;
+}
+
 function categoryNameById(categoryGroups: RecordMap[]): Map<string, string> {
   const names = new Map<string, string>();
   for (const group of categoryGroups) {
+    const groupName = firstString(group.name, group.masterCategoryName, group.displayName) ?? "";
+    const isHiddenGroup =
+      groupName === "Hidden Categories" ||
+      categoryGroupSourceIds(group, "").includes("MasterCategory/__Hidden__");
     for (const category of toRecords(group.subCategories)) {
-      const name = firstString(
+      const rawName = firstString(
         category.name,
         category.categoryName,
         category.displayName,
       );
+      const name = isHiddenGroup ? hiddenCategoryDisplayName(rawName) : rawName;
       if (!name) continue;
-      for (const id of sourceIds(category, `category:${names.size + 1}`)) {
+      for (const id of categorySourceIds(category, `category:${names.size + 1}`)) {
         names.set(id, name);
       }
     }
   }
   return names;
+}
+
+function categoryIdentityAuditKey(
+  categoryId: string | null,
+  categoryName: string | null,
+): string {
+  return categoryId
+    ? `source:${categoryId}`
+    : categoryAuditKey(categoryName ?? "Unknown Category");
+}
+
+function hiddenCategoryDisplayName(name: string | null): string | null {
+  if (!name) return null;
+  const parts = name.split(" ` ").map((part) => part.trim()).filter(Boolean);
+  return parts.length >= 2 ? parts.at(-2) ?? name : name;
 }
 
 function budgetMonthCategoryDifferences(
@@ -1673,16 +1748,34 @@ function amountToDisplayUnits(...values: unknown[]): number | null {
   return null;
 }
 
-function sourceIds(record: RecordMap, fallback: string): string[] {
+function accountSourceIds(record: RecordMap, fallback: string): string[] {
+  return ownEntitySourceIds(record, fallback, record.accountId);
+}
+
+function categoryGroupSourceIds(record: RecordMap, fallback: string): string[] {
+  return ownEntitySourceIds(record, fallback, record.masterCategoryId);
+}
+
+function categorySourceIds(record: RecordMap, fallback: string): string[] {
+  return ownEntitySourceIds(
+    record,
+    fallback,
+    record.categoryId,
+    record.subCategoryId,
+  );
+}
+
+function ownEntitySourceIds(
+  record: RecordMap,
+  fallback: string,
+  ...entitySpecificIds: unknown[]
+): string[] {
   const ids = [
     firstString(record.entityId),
     firstString(record.id),
-    firstString(record.accountId),
-    firstString(record.categoryId),
-    firstString(record.masterCategoryId),
-    firstString(record.payeeId),
+    ...entitySpecificIds.map((value) => firstString(value)),
   ].filter((value): value is string => Boolean(value));
-  return ids.length > 0 ? ids : [fallback];
+  return [...new Set(ids.length > 0 ? ids : [fallback])];
 }
 
 function isClosed(record: RecordMap): boolean {
