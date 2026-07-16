@@ -1,23 +1,60 @@
-import type {
-  NewRegisterTransactionInput,
-  RegisterTransactionView,
-} from "./accountRegisterTypes";
+import type { RegisterTransactionView } from "./accountRegisterTypes";
 import { normaliseMerchant } from "./merchantNormalisation";
+import { buildRegisterTransactionsFromImport } from "./transactionImportCommit";
+import { parseTransactionOfx } from "./transactionImportParser";
+import {
+  validateParsedImportTransaction,
+  validateQifTransferDestinations,
+} from "./transactionImportValidator";
+import {
+  detectQifImportFormat,
+  inspectTransactionCsvImport,
+  inspectTransactionQifImport,
+  inspectTransactionOfxImport,
+  parseQifDateValue,
+  parseQifMoneyValue,
+  parseTransactionImportCsvRows,
+} from "./transactionImportInspection";
+import type {
+  CsvImportAnalysis,
+  CsvImportColumnMapping,
+  CsvImportColumnRole,
+  QifAmountFormat,
+  QifDateFormat,
+} from "./transactionImportInspection";
+
+export {
+  detectQifImportFormat,
+  inspectTransactionCsvImport,
+  inspectTransactionQifImport,
+  inspectTransactionOfxImport,
+  QIF_DATE_FORMAT_OPTIONS,
+} from "./transactionImportInspection";
+export { validateParsedImportTransaction, validateQifTransferDestinations } from "./transactionImportValidator";
+export { buildRegisterTransactionsFromImport } from "./transactionImportCommit";
+export { parseTransactionOfx } from "./transactionImportParser";
+
+export type {
+  CsvImportAnalysis,
+  CsvImportColumnAnalysis,
+  CsvImportColumnMapping,
+  CsvImportColumnRole,
+  CsvImportInspection,
+  ImportFileType,
+  ImportInspectionDiagnostic,
+  ImportInspectionResult,
+  ImportInspectionSetting,
+  ImportSettingSource,
+  QifAmountFormat,
+  QifDateFormat,
+  QifImportDetection,
+  QifImportInspection,
+  OfxImportInspection,
+  OfxImportInspectionDetails,
+} from "./transactionImportInspection";
 
 export type TransactionImportMatchStatus =
   "exact-match" | "possible-match" | "new" | "invalid";
-export type CsvImportColumnRole =
-  | "date"
-  | "payee"
-  | "payeeFallback"
-  | "memo"
-  | "amount"
-  | "outflow"
-  | "inflow"
-  | "balance"
-  | "ignore";
-export type CsvImportColumnMapping = Record<number, CsvImportColumnRole>;
-
 export interface TransactionImportProfile {
   id: string;
   name: string;
@@ -85,21 +122,6 @@ export function formatImportDuration(durationMs: number) {
   return `${(durationMs / 1000).toFixed(2)} s`;
 }
 
-export interface CsvImportColumnAnalysis {
-  index: number;
-  header: string;
-  normalisedHeader: string;
-  sampleValues: string[];
-  suggestedRole: CsvImportColumnRole;
-}
-
-export interface CsvImportAnalysis {
-  columns: CsvImportColumnAnalysis[];
-  sampleRows: string[][];
-  suggestedMapping: CsvImportColumnMapping;
-  totalDataRows: number;
-}
-
 export interface ParsedImportTransaction {
   rowNumber: number;
   date: string;
@@ -107,6 +129,8 @@ export interface ParsedImportTransaction {
   originalPayee?: string;
   payeeAliasId?: string;
   memo?: string;
+  importedCategoryName?: string;
+  transferAccountName?: string;
   outflow: number;
   inflow: number;
   raw: Record<string, string>;
@@ -169,105 +193,10 @@ export interface TransactionImportPreview {
   };
 }
 
-const DATE_HEADERS = [
-  "date",
-  "transaction date",
-  "posted date",
-  "posting date",
-  "settled date",
-  "effective date",
-  "process date",
-  "processed date",
-  "value date",
-];
-const PAYEE_HEADERS = [
-  "payee",
-  "description",
-  "merchant",
-  "name",
-  "narrative",
-  "transaction details",
-  "details",
-];
-const MEMO_HEADERS = [
-  "memo",
-  "notes",
-  "reference",
-  "description 2",
-  "details 2",
-];
-const AMOUNT_HEADERS = ["amount", "value", "transaction amount"];
-const OUTFLOW_HEADERS = [
-  "outflow",
-  "debit",
-  "withdrawal",
-  "withdrawals",
-  "spent",
-  "money out",
-];
-const INFLOW_HEADERS = [
-  "inflow",
-  "credit",
-  "deposit",
-  "deposits",
-  "received",
-  "money in",
-];
-const BALANCE_HEADERS = ["balance", "running balance", "account balance"];
-
 export function analyseTransactionCsvImport(
   csvText: string,
 ): CsvImportAnalysis {
-  const rows = parseCsvRows(csvText);
-
-  if (rows.length === 0) {
-    return {
-      columns: [],
-      sampleRows: [],
-      suggestedMapping: {},
-      totalDataRows: 0,
-    };
-  }
-
-  const headers = rows[0];
-  const dataRows = rows.slice(1);
-  const sampleRows = dataRows.slice(0, 5);
-  const usedRoles = new Set<CsvImportColumnRole>();
-  const columns = headers.map((header, index) => {
-    const normalisedHeader = normaliseHeader(header);
-    const baseRole = suggestColumnRole(normalisedHeader);
-    const suggestedRole =
-      baseRole === "ignore" ||
-      baseRole === "balance" ||
-      !usedRoles.has(baseRole)
-        ? baseRole
-        : "ignore";
-
-    if (suggestedRole !== "ignore" && suggestedRole !== "balance") {
-      usedRoles.add(suggestedRole);
-    }
-
-    return {
-      index,
-      header: header.trim() || `Column ${index + 1}`,
-      normalisedHeader,
-      sampleValues: sampleRows
-        .map((row) => row[index] ?? "")
-        .filter((value) => value.trim())
-        .slice(0, 3),
-      suggestedRole,
-    };
-  });
-  const suggestedMapping = Object.fromEntries(
-    columns.map((column) => [column.index, column.suggestedRole]),
-  ) as CsvImportColumnMapping;
-
-  return {
-    columns,
-    sampleRows,
-    suggestedMapping,
-    totalDataRows: dataRows.length,
-  };
+  return inspectTransactionCsvImport(csvText).details.analysis;
 }
 
 export function previewTransactionCsvImport(
@@ -284,17 +213,38 @@ export function previewTransactionCsvImport(
   );
 }
 
-export function previewTransactionQifImport(
-  qifText: string,
+export function previewTransactionOfxImport(
+  ofxText: string,
   existingTransactions: RegisterTransactionView[],
 ): TransactionImportPreview {
   return buildTransactionImportPreview(
     applyTransactionPayeeAliases(
-      parseTransactionQif(qifText),
+      parseTransactionOfx(ofxText),
       readTransactionPayeeAliases(),
     ),
     existingTransactions,
   );
+}
+
+export function previewTransactionQifImport(
+  qifText: string,
+  existingTransactions: RegisterTransactionView[],
+  options?: {
+    sourceAccountName?: string;
+    availableTransferAccountNames?: string[];
+    dateFormat?: QifDateFormat;
+    amountFormat?: QifAmountFormat;
+  },
+): TransactionImportPreview {
+  const preview = buildTransactionImportPreview(
+    applyTransactionPayeeAliases(
+      parseTransactionQif(qifText, options),
+      readTransactionPayeeAliases(),
+    ),
+    existingTransactions,
+  );
+
+  return validateQifTransferDestinations(preview, options);
 }
 
 function buildTransactionImportPreview(
@@ -327,33 +277,11 @@ function buildTransactionImportPreview(
   };
 }
 
-export function buildRegisterTransactionsFromImport(
-  candidates: TransactionImportCandidate[],
-): NewRegisterTransactionInput[] {
-  return candidates
-    .filter((candidate) => candidate.selected && candidate.status === "new")
-    .map((candidate) => ({
-      date: candidate.parsed.date,
-      payee: candidate.parsed.payee,
-      category:
-        candidate.parsed.inflow > 0 && candidate.parsed.outflow === 0
-          ? "Ready to Assign"
-          : "Uncategorised",
-      categoryId:
-        candidate.parsed.inflow > 0 && candidate.parsed.outflow === 0
-          ? "__ready_to_assign__"
-          : undefined,
-      memo: candidate.parsed.memo,
-      outflow: candidate.parsed.outflow,
-      inflow: candidate.parsed.inflow,
-    }));
-}
-
 export function parseTransactionCsv(
   csvText: string,
   mapping?: CsvImportColumnMapping,
 ): ParsedImportTransaction[] {
-  const rows = parseCsvRows(csvText);
+  const rows = parseTransactionImportCsvRows(csvText);
 
   if (rows.length <= 1) {
     return [];
@@ -389,7 +317,13 @@ export function parseTransactionCsv(
 
 export function parseTransactionQif(
   qifText: string,
+  options?: { dateFormat?: QifDateFormat; amountFormat?: QifAmountFormat },
 ): ParsedImportTransaction[] {
+  const detectedFormat = detectQifImportFormat(qifText);
+  const dateFormat: QifDateFormat =
+    options?.dateFormat ?? detectedFormat.dateFormat;
+  const amountFormat: QifAmountFormat =
+    options?.amountFormat ?? detectedFormat.amountFormat;
   const transactions: ParsedImportTransaction[] = [];
   let record: Record<string, string> = {};
   let rowNumber = 1;
@@ -399,15 +333,21 @@ export function parseTransactionQif(
       return;
     }
 
-    const amount = parseMoney(record.amount ?? "");
+    const amount = parseQifMoneyValue(record.amount ?? "", amountFormat);
     const payee = (record.payee ?? record.memo ?? "").trim();
     const memo = record.memo?.trim() || undefined;
+    const importedCategoryName = record.category?.trim() || undefined;
+    const transferAccountName = extractQifTransferAccountName(
+      importedCategoryName,
+    );
 
     transactions.push({
       rowNumber,
-      date: normaliseImportDate(record.date ?? ""),
+      date: parseQifDateValue(record.date ?? "", dateFormat),
       payee,
       memo,
+      importedCategoryName,
+      transferAccountName,
       outflow: amount < 0 ? Math.abs(amount) : 0,
       inflow: amount > 0 ? Math.abs(amount) : 0,
       raw: { ...record },
@@ -466,36 +406,22 @@ export function parseTransactionQif(
   return transactions;
 }
 
-function suggestColumnRole(header: string): CsvImportColumnRole {
-  if (DATE_HEADERS.includes(header)) {
-    return "date";
+
+/**
+ * QIF represents account transfers in the category field using square
+ * brackets, for example `L[Savings]`. Keep this interpretation deliberately
+ * narrow: ordinary category names must never be guessed to be transfers.
+ */
+export function extractQifTransferAccountName(
+  category: string | undefined,
+): string | undefined {
+  if (!category) {
+    return undefined;
   }
 
-  if (PAYEE_HEADERS.includes(header)) {
-    return "payee";
-  }
-
-  if (MEMO_HEADERS.includes(header)) {
-    return "memo";
-  }
-
-  if (OUTFLOW_HEADERS.includes(header)) {
-    return "outflow";
-  }
-
-  if (INFLOW_HEADERS.includes(header)) {
-    return "inflow";
-  }
-
-  if (AMOUNT_HEADERS.includes(header)) {
-    return "amount";
-  }
-
-  if (BALANCE_HEADERS.includes(header)) {
-    return "balance";
-  }
-
-  return "ignore";
+  const match = category.trim().match(/^\[([^\]]+)\]$/);
+  const accountName = match?.[1]?.trim();
+  return accountName || undefined;
 }
 
 function readRole(
@@ -558,7 +484,7 @@ function classifyImportCandidate(
   parsed: ParsedImportTransaction,
   existingTransactions: RegisterTransactionView[],
 ): TransactionImportCandidate {
-  const errors = validateParsedTransaction(parsed);
+  const errors = validateParsedImportTransaction(parsed);
 
   if (errors.length > 0) {
     return {
@@ -867,75 +793,6 @@ function formatImportDateDistance(daysApart: number): string {
   }
 
   return `${daysApart} ${daysApart === 1 ? "day" : "days"}`;
-}
-
-function validateParsedTransaction(parsed: ParsedImportTransaction): string[] {
-  const errors: string[] = [];
-
-  if (!parsed.date) {
-    errors.push("Missing or invalid date.");
-  }
-
-  if (!parsed.payee) {
-    errors.push("Missing payee/description.");
-  }
-
-  if (parsed.inflow <= 0 && parsed.outflow <= 0) {
-    errors.push("Missing amount.");
-  }
-
-  return errors;
-}
-
-function parseCsvRows(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cell = "";
-  let inQuotes = false;
-
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    const next = text[index + 1];
-
-    if (char === '"') {
-      if (inQuotes && next === '"') {
-        cell += '"';
-        index += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (char === "," && !inQuotes) {
-      row.push(cell.trim());
-      cell = "";
-      continue;
-    }
-
-    if ((char === "\n" || char === "\r") && !inQuotes) {
-      if (char === "\r" && next === "\n") {
-        index += 1;
-      }
-
-      row.push(cell.trim());
-      if (row.some((value) => value.length > 0)) {
-        rows.push(row);
-      }
-      row = [];
-      cell = "";
-      continue;
-    }
-
-    cell += char;
-  }
-
-  row.push(cell.trim());
-  if (row.some((value) => value.length > 0)) {
-    rows.push(row);
-  }
-
-  return rows;
 }
 
 function parseMoney(value: string): number {

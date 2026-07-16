@@ -1,1 +1,1 @@
-import "../../v2620-transaction-import-review-card-header.js";
+import "../../v3154-neutral-import-review.js";

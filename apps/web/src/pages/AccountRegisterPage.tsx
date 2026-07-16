@@ -86,7 +86,6 @@ import {
   type RegisterPerformanceTimings,
 } from "../features/performance/registerPerformanceInstrumentation";
 
-
 interface RegisterContextMenuPosition {
   transactionId: string;
   top: number;
@@ -108,7 +107,6 @@ function resolveRegisterContextMenuPosition(
     left,
   };
 }
-
 
 function formatRegisterMonthSeparator(date: string) {
   if (!date) {
@@ -145,7 +143,6 @@ function formatPayeeLastUsed(
   return formatDateForDisplay(value.slice(0, 10), dateFormat);
 }
 
-
 function resolveMoveAccountMenuPositionFromPoint(point: {
   top: number;
   left: number;
@@ -172,7 +169,10 @@ function resolveMoveAccountMenuPositionFromSelectionBar() {
     bottom: 86,
     left: Math.min(
       Math.max(viewportPadding, centeredLeft),
-      Math.max(viewportPadding, window.innerWidth - menuWidth - viewportPadding),
+      Math.max(
+        viewportPadding,
+        window.innerWidth - menuWidth - viewportPadding,
+      ),
     ),
   };
 }
@@ -254,8 +254,10 @@ export function AccountRegisterPage() {
   const [transferAccounts, setTransferAccounts] = useState<SidebarAccount[]>(
     [],
   );
-  const [moveAccountMenuPosition, setMoveAccountMenuPosition] =
-    useState<{ bottom: number; left: number } | null>(null);
+  const [moveAccountMenuPosition, setMoveAccountMenuPosition] = useState<{
+    bottom: number;
+    left: number;
+  } | null>(null);
   const [isScheduledOpen, setIsScheduledOpen] = useState(false);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
   const [isTransactionTagManagerOpen, setIsTransactionTagManagerOpen] =
@@ -266,7 +268,9 @@ export function AccountRegisterPage() {
   const [registerSearchDraft, setRegisterSearchDraft] = useState("");
   const [committedRegisterSearch, setCommittedRegisterSearch] =
     useState<RegisterSearchCommit | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<"all" | "uncategorised">("all");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | "uncategorised">(
+    "all",
+  );
   const registerSortScopeId = `${activeBudgetId ?? "unscoped"}.${accountId}`;
   const [registerSort, setRegisterSort] = useState<RegisterSortState>(() =>
     readRegisterSort(registerSortScopeId),
@@ -403,11 +407,7 @@ export function AccountRegisterPage() {
 
       return created;
     },
-    [
-      activeBudgetId,
-      categoriesPersistence,
-      currentBudgetMonth,
-    ],
+    [activeBudgetId, categoriesPersistence, currentBudgetMonth],
   );
 
   useEffect(() => {
@@ -706,7 +706,6 @@ export function AccountRegisterPage() {
     [registerSelection],
   );
 
-
   const clearRegisterSelection = registerSelection.clear;
 
   const moveableSelectedTransactions = useMemo(
@@ -899,7 +898,6 @@ export function AccountRegisterPage() {
     };
   }, [moveAccountMenuPosition]);
 
-
   useEffect(() => {
     if (!registerContextMenuPosition) {
       return;
@@ -1019,7 +1017,9 @@ export function AccountRegisterPage() {
             onChange={handleToggleVisibleRegisterSelection}
           />
         </span>
-        <span className="register-compact-head-date">{sortableHeader("date", "Date")}</span>
+        <span className="register-compact-head-date">
+          {sortableHeader("date", "Date")}
+        </span>
         <span
           className="register-compact-head-tags register-head-icon"
           aria-label="Tags"
@@ -1465,16 +1465,41 @@ export function AccountRegisterPage() {
 
         {isTransactionImportOpen && (
           <TransactionImportDialog
-            accountName={data.accountName}
-            transactions={data.transactions}
+            initialAccountId={accountId}
+            accounts={[
+              { id: accountId, name: data.accountName },
+              ...transferAccounts
+                .filter(
+                  (account) => account.id !== accountId && !account.closedAt,
+                )
+                .map((account) => ({ id: account.id, name: account.name })),
+            ]}
             currencyCode={data.currencyCode}
             onClose={() => setIsTransactionImportOpen(false)}
-            onImportTransactions={async (transactions) => {
-              await addTransactions(transactions);
+            loadAccountTransactions={async (destinationAccountId) => {
+              const view =
+                await persistenceGateway.accountRegisters.getAccountRegisterView(
+                  {
+                    accountId: destinationAccountId,
+                  },
+                );
+              return view.transactions;
+            }}
+            onImportTransactions={async (
+              destinationAccountId,
+              transactions,
+            ) => {
+              if (destinationAccountId === accountId) {
+                await addTransactions(transactions);
+                return;
+              }
+              await persistenceGateway.accountRegisters.addTransactions({
+                accountId: destinationAccountId,
+                transactions,
+              });
             }}
           />
         )}
-
 
         {moveAccountMenuPosition ? (
           <div
@@ -1503,7 +1528,9 @@ export function AccountRegisterPage() {
               {selectedTransferTransactionCount > 0 ? (
                 <p className="register-move-warning">
                   {selectedTransferTransactionCount} transfer transaction
-                  {selectedTransferTransactionCount === 1 ? " was" : "s were"}{" "}
+                  {selectedTransferTransactionCount === 1
+                    ? " was"
+                    : "s were"}{" "}
                   excluded. Edit or delete transfers instead.
                 </p>
               ) : null}
@@ -1511,7 +1538,9 @@ export function AccountRegisterPage() {
               {selectedReconciledTransactionCount > 0 ? (
                 <p className="register-move-warning">
                   {selectedReconciledTransactionCount} reconciled transaction
-                  {selectedReconciledTransactionCount === 1 ? " was" : "s were"}{" "}
+                  {selectedReconciledTransactionCount === 1
+                    ? " was"
+                    : "s were"}{" "}
                   excluded. Reconciled history is locked.
                 </p>
               ) : null}
@@ -1539,7 +1568,6 @@ export function AccountRegisterPage() {
             </div>
           </div>
         ) : null}
-
 
         {registerContextMenuPosition ? (
           <div
@@ -1585,7 +1613,9 @@ export function AccountRegisterPage() {
                         action.variant === "success"
                           ? "register-context-menu-item-success"
                           : "",
-                        action.pressed ? "register-context-menu-item-pressed" : "",
+                        action.pressed
+                          ? "register-context-menu-item-pressed"
+                          : "",
                       ]
                         .filter(Boolean)
                         .join(" ")}
@@ -1829,8 +1859,6 @@ export function AccountRegisterPage() {
           onRemoveAttachment={registerAttachmentWorkflow.handleRemoveAttachment}
         />
       )}
-
-
     </div>
   );
 }

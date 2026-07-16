@@ -86,6 +86,6 @@ const dialogSource = readFileSync(
   "utf8",
 );
 assert.match(dialogSource, /Closest candidate/);
-assert.match(dialogSource, /Import match evidence/);
+assert.doesNotMatch(dialogSource, /Import match evidence|Why this recommendation/);
 
 console.log("v2.61.8 transaction intake ranked candidate checks passed");

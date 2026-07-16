@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatDateForDisplay } from "../../settings/dateFormatting";
 import { useDateFormatPreference } from "../../settings/useDateFormatPreference";
 import type {
@@ -9,18 +9,18 @@ import {
   analyseTransactionCsvImport,
   buildRegisterTransactionsFromImport,
   createTransactionImportPerformanceReport,
-  createTransactionImportProfile,
   createTransactionPayeeAlias,
-  findMatchingTransactionImportProfile,
+  detectQifImportFormat,
+  inspectTransactionOfxImport,
+  QIF_DATE_FORMAT_OPTIONS,
   previewTransactionCsvImport,
   previewTransactionQifImport,
-  readTransactionImportProfiles,
+  previewTransactionOfxImport,
   readTransactionPayeeAliases,
   formatImportDuration,
+  getCsvImportSignature,
   suggestTransactionPayeeAliases,
-  upsertTransactionImportProfile,
   upsertTransactionPayeeAlias,
-  writeTransactionImportProfiles,
   writeTransactionPayeeAliases,
   type CsvImportAnalysis,
   type CsvImportColumnMapping,
@@ -30,7 +30,19 @@ import {
   type TransactionImportPerformanceReport,
   type TransactionImportPreview,
   type TransactionPayeeAliasSuggestion,
+  type QifAmountFormat,
+  type QifDateFormat,
+  type QifImportDetection,
+  type OfxImportInspection,
 } from "../transactionImport";
+import {
+  createImportFileHash,
+  createQifStructureSignature,
+  findAccountImportKnowledge,
+  findImportedFileFingerprint,
+  rememberAccountImportKnowledge,
+  rememberImportedFileFingerprint,
+} from "../transactionImportKnowledge";
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -55,8 +67,6 @@ const CSV_IMPORT_ROLE_OPTIONS: { value: CsvImportColumnRole; label: string }[] =
     { value: "inflow", label: "Inflow / Credit" },
     { value: "balance", label: "Balance" },
   ];
-
-const SUPPORTED_IMPORT_FORMATS = ["CSV", "QIF", "OFX/QFX", "JSON"];
 
 function detectImportFileType(fileName: string): TransactionImportFileType {
   const lowerName = fileName.toLowerCase();
@@ -86,80 +96,6 @@ function getFileTypeLabel(fileType: TransactionImportFileType) {
   }
 }
 
-
-function getImportRecommendationLabel(candidate: TransactionImportCandidate) {
-  if (
-    candidate.reviewDecision === "skipped" ||
-    (candidate.status === "new" && !candidate.selected)
-  ) {
-    return "Skip";
-  }
-
-  if (candidate.reviewDecision === "matched") {
-    return "Use existing";
-  }
-
-  if (candidate.reviewDecision === "import-as-new") {
-    return "Import as new";
-  }
-
-  switch (candidate.status) {
-    case "exact-match":
-      return "Use existing";
-    case "possible-match":
-      return "Review match";
-    case "new":
-      return candidate.selected ? "Import as new" : "Skip";
-    case "invalid":
-      return "Fix before import";
-    default:
-      return "Review";
-  }
-}
-
-function getImportConfidenceTone(confidence: number | undefined) {
-  if (typeof confidence !== "number") {
-    return "unknown";
-  }
-
-  if (confidence >= 90) {
-    return "high";
-  }
-
-  if (confidence >= 60) {
-    return "medium";
-  }
-
-  return "low";
-}
-
-function getImportConfidenceLabel(confidence: number | undefined) {
-  if (typeof confidence !== "number") {
-    return "No confidence score";
-  }
-
-  const tone = getImportConfidenceTone(confidence);
-  const label =
-    tone === "high"
-      ? "High confidence"
-      : tone === "medium"
-        ? "Medium confidence"
-        : "Low confidence";
-
-  return `${label} · ${confidence}%`;
-}
-
-function getImportEvidenceResultLabel(result: "positive" | "negative" | "neutral") {
-  switch (result) {
-    case "positive":
-      return "✓";
-    case "negative":
-      return "✕";
-    default:
-      return "•";
-  }
-}
-
 function hasRequiredCsvMapping(mapping: CsvImportColumnMapping) {
   const roles = Object.values(mapping);
   const hasAmount =
@@ -172,15 +108,6 @@ function hasRequiredCsvMapping(mapping: CsvImportColumnMapping) {
 
 function countMappedColumns(mapping: CsvImportColumnMapping) {
   return Object.values(mapping).filter((role) => role !== "ignore").length;
-}
-
-function inferProfileName(fileName: string, accountName: string) {
-  const baseName = fileName
-    .replace(/\.[^.]+$/, "")
-    .replace(/[-_]+/g, " ")
-    .trim();
-
-  return baseName ? `${baseName} CSV` : `${accountName} CSV`;
 }
 
 function nowMs() {
@@ -216,40 +143,62 @@ async function measureAsyncImportStage<T>(
 }
 
 export function TransactionImportDialog({
-  accountName,
-  transactions,
+  initialAccountId,
+  accounts,
   currencyCode,
   onClose,
+  loadAccountTransactions,
   onImportTransactions,
 }: {
-  accountName: string;
-  transactions: RegisterTransactionView[];
+  initialAccountId: string;
+  accounts: { id: string; name: string }[];
   currencyCode: string;
   onClose: () => void;
+  loadAccountTransactions: (
+    accountId: string,
+  ) => Promise<RegisterTransactionView[]>;
   onImportTransactions: (
+    accountId: string,
     transactions: NewRegisterTransactionInput[],
   ) => Promise<void>;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const dateFormat = useDateFormatPreference();
+  const [selectedAccountId, setSelectedAccountId] = useState(initialAccountId);
+  const selectedAccount =
+    accounts.find((account) => account.id === selectedAccountId) ?? accounts[0];
+  const accountName = selectedAccount?.name ?? "Selected account";
+  const transferAccountNames = accounts
+    .filter((account) => account.id !== selectedAccountId)
+    .map((account) => account.name);
+  const [transactions, setTransactions] = useState<RegisterTransactionView[]>(
+    [],
+  );
+  const [fileHash, setFileHash] = useState<string | null>(null);
+  const [duplicateFileMessage, setDuplicateFileMessage] = useState<
+    string | null
+  >(null);
   const [step, setStep] = useState<TransactionImportStep>("upload");
   const [csvText, setCsvText] = useState<string | null>(null);
+  const [qifText, setQifText] = useState<string | null>(null);
+  const [ofxText, setOfxText] = useState<string | null>(null);
+  const [ofxInspection, setOfxInspection] =
+    useState<OfxImportInspection | null>(null);
+  const [qifDetection, setQifDetection] = useState<QifImportDetection | null>(
+    null,
+  );
+  const [qifDateFormat, setQifDateFormat] = useState<QifDateFormat>("DD/MM/YY");
+  const [qifAmountFormat, setQifAmountFormat] =
+    useState<QifAmountFormat>("decimal-dot");
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileType, setFileType] =
     useState<TransactionImportFileType>("unknown");
   const [analysis, setAnalysis] = useState<CsvImportAnalysis | null>(null);
   const [mapping, setMapping] = useState<CsvImportColumnMapping>({});
-  const [importProfiles, setImportProfiles] = useState(() =>
-    readTransactionImportProfiles(),
-  );
   const [payeeAliases, setPayeeAliases] = useState(() =>
     readTransactionPayeeAliases(),
   );
-  const [matchedProfileName, setMatchedProfileName] = useState<string | null>(
-    null,
-  );
-  const [rememberProfile, setRememberProfile] = useState(false);
-  const [profileName, setProfileName] = useState("");
+  const [knowledgeApplied, setKnowledgeApplied] = useState(false);
   const [preview, setPreview] = useState<TransactionImportPreview | null>(null);
   const [candidates, setCandidates] = useState<TransactionImportCandidate[]>(
     [],
@@ -262,6 +211,16 @@ export function TransactionImportDialog({
   const [isImporting, setIsImporting] = useState(false);
   const [performanceReport, setPerformanceReport] =
     useState<TransactionImportPerformanceReport | null>(null);
+  useEffect(() => {
+    let active = true;
+    void loadAccountTransactions(selectedAccountId).then((nextTransactions) => {
+      if (active) setTransactions(nextTransactions);
+    });
+    return () => {
+      active = false;
+    };
+  }, [loadAccountTransactions, selectedAccountId]);
+
   const selectedCount = candidates.filter(
     (candidate) => candidate.selected && candidate.status === "new",
   ).length;
@@ -295,12 +254,144 @@ export function TransactionImportDialog({
     setAliasSuggestions([]);
     setAnalysis(null);
     setMapping({});
-    setMatchedProfileName(null);
-    setRememberProfile(false);
-    setProfileName("");
+    setKnowledgeApplied(false);
+    setFileHash(null);
+    setDuplicateFileMessage(null);
     setCsvText(null);
+    setQifText(null);
+    setOfxText(null);
+    setOfxInspection(null);
+    setQifDetection(null);
+    setQifDateFormat("DD/MM/YY");
+    setQifAmountFormat("decimal-dot");
     setFileName(null);
     setFileType("unknown");
+  }
+
+  function applyPreview(
+    nextPreview: TransactionImportPreview,
+    existingTransactions: RegisterTransactionView[],
+    nextMessage: string,
+  ) {
+    setPreview(nextPreview);
+    setCandidates(nextPreview.candidates);
+    setAliasSuggestions(
+      suggestTransactionPayeeAliases({
+        candidates: nextPreview.candidates,
+        existingTransactions,
+        aliases: payeeAliases,
+      }),
+    );
+    setError(null);
+    setMessage(nextMessage);
+    setStep("review");
+  }
+
+  async function changeDestinationAccount(accountId: string) {
+    const nextAccount =
+      accounts.find((account) => account.id === accountId) ?? accounts[0];
+    const nextAccountName = nextAccount?.name ?? "Selected account";
+    const nextTransactions = await loadAccountTransactions(accountId);
+
+    setSelectedAccountId(accountId);
+    setTransactions(nextTransactions);
+    setPreview(null);
+    setCandidates([]);
+    setAliasSuggestions([]);
+    setKnowledgeApplied(false);
+    setDuplicateFileMessage(
+      fileHash
+        ? (() => {
+            const priorImport = findImportedFileFingerprint(
+              accountId,
+              fileHash,
+            );
+            return priorImport
+              ? `This exact file was previously imported into ${nextAccountName} on ${new Date(priorImport.importedAt).toLocaleDateString()}.`
+              : null;
+          })()
+        : null,
+    );
+
+    if (!fileName) return;
+
+    if (fileType === "qif" && qifText && qifDetection) {
+      const knowledge = findAccountImportKnowledge({
+        accountId,
+        fileType: "qif",
+        structureSignature: createQifStructureSignature(qifText),
+      });
+      const nextDateFormat =
+        (qifDetection.dateFormatNeedsConfirmation &&
+          knowledge?.qifDateFormat) ||
+        qifDetection.dateFormat;
+      const nextAmountFormat =
+        (qifDetection.amountFormatNeedsConfirmation &&
+          knowledge?.qifAmountFormat) ||
+        qifDetection.amountFormat;
+      setQifDateFormat(nextDateFormat);
+      setQifAmountFormat(nextAmountFormat);
+      setKnowledgeApplied(Boolean(knowledge));
+      const nextPreview = previewTransactionQifImport(
+        qifText,
+        nextTransactions,
+        {
+          sourceAccountName: nextAccountName,
+          availableTransferAccountNames: accounts
+            .filter((account) => account.id !== accountId)
+            .map((account) => account.name),
+          dateFormat: nextDateFormat,
+          amountFormat: nextAmountFormat,
+        },
+      );
+      applyPreview(
+        nextPreview,
+        nextTransactions,
+        `${nextPreview.summary.totalRows} QIF transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
+      );
+      return;
+    }
+
+    if ((fileType === "ofx" || fileType === "qfx") && ofxText) {
+      const nextPreview = previewTransactionOfxImport(
+        ofxText,
+        nextTransactions,
+      );
+      applyPreview(
+        nextPreview,
+        nextTransactions,
+        `${nextPreview.summary.totalRows} ${getFileTypeLabel(fileType)} transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
+      );
+      return;
+    }
+
+    if (fileType === "csv" && csvText && analysis) {
+      const knowledge = findAccountImportKnowledge({
+        accountId,
+        fileType: "csv",
+        structureSignature: getCsvImportSignature(analysis),
+      });
+      const nextMapping = knowledge?.csvMapping ?? analysis.suggestedMapping;
+      setMapping(nextMapping);
+      setKnowledgeApplied(Boolean(knowledge));
+      if (hasRequiredCsvMapping(nextMapping)) {
+        const nextPreview = previewTransactionCsvImport(
+          csvText,
+          nextTransactions,
+          nextMapping,
+        );
+        applyPreview(
+          nextPreview,
+          nextTransactions,
+          `${nextPreview.summary.totalRows} CSV transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
+        );
+      } else {
+        setStep("mapping");
+        setMessage(
+          "Map the missing CSV columns before reviewing transactions.",
+        );
+      }
+    }
   }
 
   async function readFile(file: File) {
@@ -313,11 +404,11 @@ export function TransactionImportDialog({
     setFileName(file.name);
     setFileType(detectedType);
 
-    if (detectedType !== "csv" && detectedType !== "qif") {
+    if (!["csv", "qif", "ofx", "qfx"].includes(detectedType)) {
       setError(
         detectedType === "unknown"
-          ? "This file type could not be detected yet. CSV and QIF import are available in this wizard release."
-          : `${getFileTypeLabel(detectedType)} files are recognised but not connected to the new wizard yet. Start with CSV or QIF while the wizard foundation is being refreshed.`,
+          ? "This file type could not be detected. Choose a CSV, QIF, OFX, or QFX transaction file."
+          : `${getFileTypeLabel(detectedType)} import is not available in this transaction wizard.`,
       );
       setPerformanceReport(createTransactionImportPerformanceReport(timings));
       return;
@@ -326,35 +417,68 @@ export function TransactionImportDialog({
     const text = await measureAsyncImportStage(timings, "Read file text", () =>
       file.text(),
     );
+    const nextFileHash = createImportFileHash(text);
+    setFileHash(nextFileHash);
+    const priorImport = findImportedFileFingerprint(
+      selectedAccountId,
+      nextFileHash,
+    );
+    setDuplicateFileMessage(
+      priorImport
+        ? `This exact file was previously imported into ${accountName} on ${new Date(priorImport.importedAt).toLocaleDateString()}.`
+        : null,
+    );
 
     if (detectedType === "qif") {
-      const nextPreview = measureImportStage(
+      const detection = measureImportStage(timings, "Detect QIF format", () =>
+        detectQifImportFormat(text, { preferredDateFormat: dateFormat }),
+      );
+      const qifSignature = createQifStructureSignature(text);
+      const knowledge = findAccountImportKnowledge({
+        accountId: selectedAccountId,
+        fileType: "qif",
+        structureSignature: qifSignature,
+      });
+      const useKnownDate =
+        detection.dateFormatNeedsConfirmation && knowledge?.qifDateFormat;
+      const useKnownAmount =
+        detection.amountFormatNeedsConfirmation && knowledge?.qifAmountFormat;
+      const nextDateFormat = useKnownDate || detection.dateFormat;
+      const nextAmountFormat = useKnownAmount || detection.amountFormat;
+      setQifText(text);
+      setQifDetection(detection);
+      setQifDateFormat(nextDateFormat);
+      setQifAmountFormat(nextAmountFormat);
+      setKnowledgeApplied(Boolean(useKnownDate || useKnownAmount));
+      const nextPreview = previewTransactionQifImport(text, transactions, {
+        sourceAccountName: accountName,
+        availableTransferAccountNames: transferAccountNames,
+        dateFormat: nextDateFormat,
+        amountFormat: nextAmountFormat,
+      });
+      applyPreview(
+        nextPreview,
+        transactions,
+        `${nextPreview.summary.totalRows} QIF transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
+      );
+      setPerformanceReport(createTransactionImportPerformanceReport(timings));
+      return;
+    }
+
+    if (detectedType === "ofx" || detectedType === "qfx") {
+      const inspection = measureImportStage(
         timings,
-        "Parse and preview QIF",
-        () => previewTransactionQifImport(text, transactions),
+        "Inspect OFX/QFX file",
+        () => inspectTransactionOfxImport(text, detectedType),
       );
-
-      if (nextPreview.candidates.length === 0) {
-        setError("The QIF file does not appear to contain any transactions.");
-        setPerformanceReport(createTransactionImportPerformanceReport(timings));
-        return;
-      }
-
-      setPreview(nextPreview);
-      setCandidates(nextPreview.candidates);
-      setAliasSuggestions(
-        suggestTransactionPayeeAliases({
-          candidates: nextPreview.candidates,
-          existingTransactions: transactions,
-          aliases: payeeAliases,
-        }),
+      setOfxText(text);
+      setOfxInspection(inspection);
+      const nextPreview = previewTransactionOfxImport(text, transactions);
+      applyPreview(
+        nextPreview,
+        transactions,
+        `${nextPreview.summary.totalRows} ${getFileTypeLabel(detectedType)} transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
       );
-      setMessage(
-        `QIF detected. ${nextPreview.summary.totalRows} transaction${
-          nextPreview.summary.totalRows === 1 ? "" : "s"
-        } ready for review.`,
-      );
-      setStep("review");
       setPerformanceReport(createTransactionImportPerformanceReport(timings));
       return;
     }
@@ -371,36 +495,33 @@ export function TransactionImportDialog({
       return;
     }
 
-    const latestProfiles = measureImportStage(
+    const structureSignature = getCsvImportSignature(nextAnalysis);
+    const knowledge = measureImportStage(
       timings,
-      "Read import profiles",
-      () => readTransactionImportProfiles(),
+      "Read account import knowledge",
+      () =>
+        findAccountImportKnowledge({
+          accountId: selectedAccountId,
+          fileType: "csv",
+          structureSignature,
+        }),
     );
-    const matchingProfile = measureImportStage(
-      timings,
-      "Match import profile",
-      () => findMatchingTransactionImportProfile(latestProfiles, nextAnalysis),
-    );
-    const nextMapping =
-      matchingProfile?.mapping ?? nextAnalysis.suggestedMapping;
+    const nextMapping = knowledge?.csvMapping ?? nextAnalysis.suggestedMapping;
     const hasRequiredMapping = measureImportStage(
       timings,
       "Validate mapping",
       () => hasRequiredCsvMapping(nextMapping),
     );
 
-    setImportProfiles(latestProfiles);
     setCsvText(text);
     setAnalysis(nextAnalysis);
     setMapping(nextMapping);
-    setMatchedProfileName(matchingProfile?.name ?? null);
-    setRememberProfile(!matchingProfile && !hasRequiredMapping);
-    setProfileName(inferProfileName(file.name, accountName));
+    setKnowledgeApplied(Boolean(knowledge));
     setStep(hasRequiredMapping ? "review" : "mapping");
 
-    if (matchingProfile) {
+    if (knowledge) {
       setMessage(
-        `CSV detected. Import profile "${matchingProfile.name}" applied.`,
+        `CSV detected. Previous successful settings for ${accountName} were applied.`,
       );
     }
 
@@ -413,38 +534,93 @@ export function TransactionImportDialog({
     }
 
     setMessage(
-      "CSV detected. Map the missing columns and this statement format can be remembered for next time.",
+      "CSV detected. Map the missing columns. These choices will be reused automatically for similar files imported into this account.",
     );
     setPerformanceReport(createTransactionImportPerformanceReport(timings));
   }
 
-  function saveImportProfile(nextMapping: CsvImportColumnMapping) {
-    if (!analysis || !rememberProfile) {
+  function updateQifInterpretation(
+    nextDateFormat: QifDateFormat,
+    nextAmountFormat: QifAmountFormat,
+  ) {
+    if (!qifText) return;
+
+    setQifDateFormat(nextDateFormat);
+    setQifAmountFormat(nextAmountFormat);
+    const nextPreview = previewTransactionQifImport(qifText, transactions, {
+      sourceAccountName: accountName,
+      availableTransferAccountNames: transferAccountNames,
+      dateFormat: nextDateFormat,
+      amountFormat: nextAmountFormat,
+    });
+    applyPreview(
+      nextPreview,
+      transactions,
+      `${nextPreview.summary.totalRows} QIF transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
+    );
+  }
+
+  function buildQifPreview() {
+    if (!qifText) {
+      setError("Choose a QIF file first.");
       return;
     }
-
-    const nextProfile = createTransactionImportProfile({
-      name: profileName,
-      analysis,
-      mapping: nextMapping,
-      defaultAccountName: accountName,
+    const nextPreview = previewTransactionQifImport(qifText, transactions, {
+      sourceAccountName: accountName,
+      availableTransferAccountNames: transferAccountNames,
+      dateFormat: qifDateFormat,
+      amountFormat: qifAmountFormat,
     });
-    const nextProfiles = upsertTransactionImportProfile(
-      readTransactionImportProfiles(),
-      nextProfile,
+    if (nextPreview.candidates.length === 0) {
+      setError("The QIF file does not appear to contain any transactions.");
+      return;
+    }
+    setPreview(nextPreview);
+    setCandidates(nextPreview.candidates);
+    setAliasSuggestions(
+      suggestTransactionPayeeAliases({
+        candidates: nextPreview.candidates,
+        existingTransactions: transactions,
+        aliases: payeeAliases,
+      }),
     );
+    setError(null);
+    setMessage(
+      `${nextPreview.summary.totalRows} QIF transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
+    );
+    setStep("review");
+  }
 
-    setImportProfiles(nextProfiles);
-    setMatchedProfileName(nextProfile.name);
-    writeTransactionImportProfiles(nextProfiles);
-    setMessage(`Import profile saved: ${nextProfile.name}.`);
+  function buildOfxPreview() {
+    if (!ofxText || (fileType !== "ofx" && fileType !== "qfx")) {
+      setError("Choose an OFX or QFX file first.");
+      return;
+    }
+    const nextPreview = previewTransactionOfxImport(ofxText, transactions);
+    if (nextPreview.candidates.length === 0) {
+      setError("The OFX/QFX file does not appear to contain any transactions.");
+      return;
+    }
+    setPreview(nextPreview);
+    setCandidates(nextPreview.candidates);
+    setAliasSuggestions(
+      suggestTransactionPayeeAliases({
+        candidates: nextPreview.candidates,
+        existingTransactions: transactions,
+        aliases: payeeAliases,
+      }),
+    );
+    setError(null);
+    setMessage(
+      `${nextPreview.summary.totalRows} ${getFileTypeLabel(fileType)} transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
+    );
+    setStep("review");
   }
 
   function buildCsvPreview(
     nextCsvText = csvText,
     nextMapping: CsvImportColumnMapping = mapping,
     options: {
-      saveProfile?: boolean;
       preserveMessage?: boolean;
       timings?: TransactionImportPerformanceEntry[];
     } = {},
@@ -463,9 +639,7 @@ export function TransactionImportDialog({
     }
 
     setError(null);
-    if (options.saveProfile) {
-      saveImportProfile(nextMapping);
-    } else if (!matchedProfileName && !options.preserveMessage) {
+    if (!options.preserveMessage) {
       setMessage(null);
     }
 
@@ -617,10 +791,15 @@ export function TransactionImportDialog({
       return;
     }
 
-    const sourcePayee = candidate.parsed.originalPayee ?? candidate.parsed.payee;
+    const sourcePayee =
+      candidate.parsed.originalPayee ?? candidate.parsed.payee;
     const targetPayee = candidate.matchedTransaction.payee;
 
-    if (!sourcePayee.trim() || !targetPayee.trim() || sourcePayee === targetPayee) {
+    if (
+      !sourcePayee.trim() ||
+      !targetPayee.trim() ||
+      sourcePayee === targetPayee
+    ) {
       return;
     }
 
@@ -646,12 +825,16 @@ export function TransactionImportDialog({
           : entry,
       ),
     );
-    setMessage(`Payee alias saved: "${sourcePayee}" will import as "${targetPayee}" next time.`);
+    setMessage(
+      `Payee alias saved: "${sourcePayee}" will import as "${targetPayee}" next time.`,
+    );
     setError(null);
   }
 
   function acceptAliasSuggestion(suggestionId: string) {
-    const suggestion = aliasSuggestions.find((entry) => entry.id === suggestionId);
+    const suggestion = aliasSuggestions.find(
+      (entry) => entry.id === suggestionId,
+    );
 
     if (!suggestion) {
       return;
@@ -693,13 +876,14 @@ export function TransactionImportDialog({
   }
 
   function canRememberPayeeAlias(candidate: TransactionImportCandidate) {
-    const sourcePayee = candidate.parsed.originalPayee ?? candidate.parsed.payee;
+    const sourcePayee =
+      candidate.parsed.originalPayee ?? candidate.parsed.payee;
     const targetPayee = candidate.matchedTransaction?.payee;
 
     return Boolean(
       targetPayee &&
-        sourcePayee.trim() &&
-        sourcePayee.trim().toLowerCase() !== targetPayee.trim().toLowerCase(),
+      sourcePayee.trim() &&
+      sourcePayee.trim().toLowerCase() !== targetPayee.trim().toLowerCase(),
     );
   }
 
@@ -750,9 +934,36 @@ export function TransactionImportDialog({
       // Keep the commit path delegated to the register page.
       // await onImportTransactions(importable)
       await measureAsyncImportStage(timings, "Commit transactions", () =>
-        onImportTransactions(importable),
+        onImportTransactions(selectedAccountId, importable),
       );
 
+      measureImportStage(timings, "Remember import knowledge", () => {
+        if (fileType === "csv" && analysis) {
+          rememberAccountImportKnowledge({
+            accountId: selectedAccountId,
+            fileType: "csv",
+            structureSignature: getCsvImportSignature(analysis),
+            csvMapping: mapping,
+          });
+        } else if (fileType === "qif" && qifDetection) {
+          rememberAccountImportKnowledge({
+            accountId: selectedAccountId,
+            fileType: "qif",
+            structureSignature: createQifStructureSignature(qifText ?? ""),
+            qifDateFormat,
+            qifAmountFormat,
+          });
+        }
+        if (fileHash && fileName) {
+          rememberImportedFileFingerprint({
+            accountId: selectedAccountId,
+            fileHash,
+            fileName,
+            importedAt: new Date().toISOString(),
+            transactionCount: importable.length,
+          });
+        }
+      });
       measureImportStage(timings, "Complete import UI update", () => {
         setMessage(
           `Imported ${importable.length} transaction${importable.length === 1 ? "" : "s"} into ${accountName}.`,
@@ -785,7 +996,7 @@ export function TransactionImportDialog({
           <div>
             <h2 id="transaction-import-title">Import Transactions</h2>
             <p className="muted">
-              Upload, review, and import transactions into {accountName}.
+              Select a file, check the preview, then import.
             </p>
           </div>
           <button
@@ -799,40 +1010,12 @@ export function TransactionImportDialog({
           </button>
         </div>
 
-        <ol className="transaction-import-steps" aria-label="Import steps">
-          <li
-            className={
-              step === "upload" ? "transaction-import-step-active" : ""
-            }
-          >
-            1. File
-          </li>
-          <li
-            className={
-              step === "mapping" ? "transaction-import-step-active" : ""
-            }
-          >
-            2. Setup
-          </li>
-          <li
-            className={
-              step === "review" ? "transaction-import-step-active" : ""
-            }
-          >
-            3. Review
-          </li>
-          <li
-            className={
-              step === "complete" ? "transaction-import-step-active" : ""
-            }
-          >
-            4. Done
-          </li>
-        </ol>
-
         {error ? <p className="transaction-import-error">{error}</p> : null}
         {message ? (
           <p className="transaction-import-message">{message}</p>
+        ) : null}
+        {duplicateFileMessage ? (
+          <p className="transaction-import-error">{duplicateFileMessage}</p>
         ) : null}
 
         {step === "review" && aliasSuggestions.length > 0 ? (
@@ -846,7 +1029,7 @@ export function TransactionImportDialog({
               {aliasSuggestions.map((suggestion) => (
                 <li key={suggestion.id}>
                   <span>
-                    <strong>{suggestion.sourcePayee}</strong> → {" "}
+                    <strong>{suggestion.sourcePayee}</strong> →{" "}
                     <strong>{suggestion.suggestedTargetPayee}</strong>
                     <small>{suggestion.reason}</small>
                   </span>
@@ -865,19 +1048,6 @@ export function TransactionImportDialog({
 
         {step === "upload" ? (
           <div className="transaction-import-upload-step">
-            <div className="transaction-import-format-grid">
-              {SUPPORTED_IMPORT_FORMATS.map((format) => (
-                <div className="transaction-import-format-card" key={format}>
-                  <strong>{format}</strong>
-                  <span>
-                    {format === "CSV"
-                      ? "Available now"
-                      : "Recognised for the refreshed import workflow"}
-                  </span>
-                </div>
-              ))}
-            </div>
-
             <input
               ref={fileInputRef}
               type="file"
@@ -914,11 +1084,32 @@ export function TransactionImportDialog({
         ) : null}
 
         {fileName && step !== "upload" ? (
-          <div className="transaction-import-detection-panel">
-            <div>
+          <div className="transaction-import-preview-toolbar">
+            <div className="transaction-import-file-summary">
               <span className="transaction-import-detection-label">File</span>
-              <strong>{fileName}</strong>
+              <strong title={fileName}>{fileName}</strong>
             </div>
+            <label className="transaction-import-account-selector">
+              <span>Destination account</span>
+              <select
+                value={selectedAccountId}
+                disabled={isImporting}
+                onChange={(event) =>
+                  void changeDestinationAccount(event.target.value)
+                }
+              >
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null}
+
+        {fileName && step !== "upload" ? (
+          <div className="transaction-import-detection-panel">
             <div>
               <span className="transaction-import-detection-label">
                 Detected
@@ -927,15 +1118,13 @@ export function TransactionImportDialog({
             </div>
             <div>
               <span className="transaction-import-detection-label">
-                Destination
+                Interpretation
               </span>
-              <strong>{accountName}</strong>
-            </div>
-            <div>
-              <span className="transaction-import-detection-label">
-                Profile
-              </span>
-              <strong>{matchedProfileName ?? "Not saved yet"}</strong>
+              <strong>
+                {knowledgeApplied
+                  ? "Previous account settings"
+                  : "Detected from file"}
+              </strong>
             </div>
             <div>
               <span className="transaction-import-detection-label">
@@ -946,6 +1135,263 @@ export function TransactionImportDialog({
                   ? countMappedColumns(mapping)
                   : "Not needed"}
               </strong>
+            </div>
+          </div>
+        ) : null}
+
+        {qifText && qifDetection && step === "review" ? (
+          <div className="transaction-import-inline-settings">
+            <label>
+              <span>Date format</span>
+              <select
+                value={qifDateFormat}
+                onChange={(event) =>
+                  updateQifInterpretation(
+                    event.target.value as QifDateFormat,
+                    qifAmountFormat,
+                  )
+                }
+              >
+                {QIF_DATE_FORMAT_OPTIONS.map((format) => (
+                  <option key={format} value={format}>
+                    {format}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Amount format</span>
+              <select
+                value={qifAmountFormat}
+                onChange={(event) =>
+                  updateQifInterpretation(
+                    qifDateFormat,
+                    event.target.value as QifAmountFormat,
+                  )
+                }
+              >
+                <option value="decimal-dot">1,234.56</option>
+                <option value="decimal-comma">1.234,56</option>
+              </select>
+            </label>
+          </div>
+        ) : null}
+
+        {qifText && qifDetection && step === "mapping" ? (
+          <div className="transaction-import-mapping">
+            <div className="transaction-import-section-heading">
+              <div>
+                <h3>Confirm QIF file settings</h3>
+                <p className="muted">
+                  The importer inspected the complete file. Check the detected
+                  formats before reviewing transactions.
+                </p>
+              </div>
+            </div>
+            <div className="transaction-import-profile-card">
+              <label>
+                <span>File date format</span>
+                <select
+                  value={qifDateFormat}
+                  onChange={(event) =>
+                    setQifDateFormat(event.target.value as QifDateFormat)
+                  }
+                >
+                  {QIF_DATE_FORMAT_OPTIONS.map((format) => (
+                    <option key={format} value={format}>
+                      {format}
+                    </option>
+                  ))}
+                </select>
+                <small>
+                  {qifDetection.dateFormatSource === "file"
+                    ? "Detected from the dates in this file."
+                    : qifDetection.dateFormatSource === "application"
+                      ? "Multiple formats are possible. The application date setting was used."
+                      : "Needs confirmation: the file did not provide a single unambiguous date format."}
+                </small>
+              </label>
+              <label>
+                <span>File amounts</span>
+                <select
+                  value={qifAmountFormat}
+                  onChange={(event) =>
+                    setQifAmountFormat(event.target.value as QifAmountFormat)
+                  }
+                >
+                  <option value="decimal-dot">1,234.56</option>
+                  <option value="decimal-comma">1.234,56</option>
+                </select>
+                <small>
+                  {qifDetection.amountFormatNeedsConfirmation
+                    ? "Needs confirmation: the file does not contain enough separator evidence."
+                    : "Detected from the amounts in this file."}
+                </small>
+              </label>
+              <label>
+                <span>Destination account</span>
+                <input type="text" value={accountName} disabled />
+              </label>
+            </div>
+            <div className="transaction-import-column-grid">
+              <div className="transaction-import-column-row transaction-import-column-head">
+                <span>Sample</span>
+                <span>File value</span>
+                <span>Parsed value</span>
+              </div>
+              {qifDetection.sampleDates.slice(0, 3).map((value, index) => {
+                const sample =
+                  previewTransactionQifImport(
+                    `D${value}\nT1.00\nPDate sample\n^`,
+                    [],
+                    {
+                      dateFormat: qifDateFormat,
+                      amountFormat: qifAmountFormat,
+                    },
+                  ).candidates[0]?.parsed.date ?? "Invalid";
+                return (
+                  <div
+                    className="transaction-import-column-row"
+                    key={`${value}-${index}`}
+                  >
+                    <span>Date</span>
+                    <span>{value}</span>
+                    <span>{sample || "Invalid"}</span>
+                  </div>
+                );
+              })}
+              {qifDetection.sampleAmounts.slice(0, 3).map((value, index) => {
+                const sample = previewTransactionQifImport(
+                  `D01/01/26\nT${value}\nPAmount sample\n^`,
+                  [],
+                  { dateFormat: "DD/MM/YY", amountFormat: qifAmountFormat },
+                ).candidates[0]?.parsed;
+                return (
+                  <div
+                    className="transaction-import-column-row"
+                    key={`${value}-${index}`}
+                  >
+                    <span>Amount</span>
+                    <span>{value}</span>
+                    <span>
+                      {sample
+                        ? formatMoney(
+                            sample.inflow || sample.outflow,
+                            currencyCode,
+                          )
+                        : "Invalid"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="transaction-import-step-actions">
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={resetImportState}
+              >
+                Back
+              </button>
+              <button
+                className="button button-primary"
+                type="button"
+                onClick={buildQifPreview}
+              >
+                Review Transactions
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {ofxText && ofxInspection && step === "mapping" ? (
+          <div className="transaction-import-mapping">
+            <div className="transaction-import-section-heading">
+              <div>
+                <h3>Confirm {getFileTypeLabel(fileType)} statement</h3>
+                <p className="muted">
+                  OFX/QFX provides its own transaction structure, so no column
+                  mapping or date-format selection is required.
+                </p>
+              </div>
+            </div>
+            <div className="transaction-import-profile-card">
+              <label>
+                <span>Transactions</span>
+                <input
+                  type="text"
+                  value={ofxInspection.statistics.recordCount}
+                  disabled
+                />
+              </label>
+              <label>
+                <span>Statement currency</span>
+                <input
+                  type="text"
+                  value={ofxInspection.details.currencyCode ?? "Not provided"}
+                  disabled
+                />
+              </label>
+              <label>
+                <span>Source account ID</span>
+                <input
+                  type="text"
+                  value={ofxInspection.details.accountId ?? "Not provided"}
+                  disabled
+                />
+              </label>
+              <label>
+                <span>Statement period</span>
+                <input
+                  type="text"
+                  value={
+                    [
+                      ofxInspection.details.statementStartDate,
+                      ofxInspection.details.statementEndDate,
+                    ]
+                      .filter(Boolean)
+                      .join(" to ") || "Not provided"
+                  }
+                  disabled
+                />
+              </label>
+              <label>
+                <span>Destination account</span>
+                <input type="text" value={accountName} disabled />
+              </label>
+            </div>
+            {ofxInspection.diagnostics.length > 0 ? (
+              <div className="transaction-import-column-grid">
+                {ofxInspection.diagnostics.map((diagnostic) => (
+                  <div
+                    className="transaction-import-column-row"
+                    key={diagnostic.code}
+                  >
+                    <span>{diagnostic.severity}</span>
+                    <span>{diagnostic.code}</span>
+                    <span>{diagnostic.message}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <div className="transaction-import-step-actions">
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={resetImportState}
+              >
+                Back
+              </button>
+              <button
+                className="button button-primary"
+                type="button"
+                onClick={buildOfxPreview}
+                disabled={ofxInspection.diagnostics.some(
+                  (diagnostic) => diagnostic.severity === "error",
+                )}
+              >
+                Review Transactions
+              </button>
             </div>
           </div>
         ) : null}
@@ -961,8 +1407,9 @@ export function TransactionImportDialog({
                   columns the importer could not confidently identify.
                 </p>
                 <p className="muted transaction-import-help">
-                  These choices can be saved as an import profile and reused
-                  automatically when this statement format appears again.
+                  The importer will remember successful choices for this account
+                  and reuse them automatically when a similar file appears
+                  again.
                 </p>
               </div>
               <button
@@ -972,26 +1419,6 @@ export function TransactionImportDialog({
               >
                 Reset Auto Mapping
               </button>
-            </div>
-
-            <div className="transaction-import-profile-card">
-              <label className="transaction-import-remember-profile">
-                <input
-                  type="checkbox"
-                  checked={rememberProfile}
-                  onChange={(event) => setRememberProfile(event.target.checked)}
-                />
-                Remember this mapping for future imports
-              </label>
-              <label>
-                <span>Profile name</span>
-                <input
-                  type="text"
-                  value={profileName}
-                  disabled={!rememberProfile}
-                  onChange={(event) => setProfileName(event.target.value)}
-                />
-              </label>
             </div>
 
             <div className="transaction-import-column-grid">
@@ -1049,9 +1476,7 @@ export function TransactionImportDialog({
                 className="button button-primary"
                 type="button"
                 disabled={isImporting}
-                onClick={() =>
-                  buildCsvPreview(csvText, mapping, { saveProfile: true })
-                }
+                onClick={() => buildCsvPreview(csvText, mapping)}
               >
                 Review Transactions
               </button>
@@ -1067,16 +1492,19 @@ export function TransactionImportDialog({
                 <p className="muted">
                   Review new transactions and suggested matches before
                   importing.
-                  {matchedProfileName ? ` Profile: ${matchedProfileName}.` : ""}
                 </p>
               </div>
-              {fileType === "csv" ? (
+              {["csv", "qif", "ofx", "qfx"].includes(fileType) ? (
                 <button
                   className="button button-secondary"
                   type="button"
                   onClick={() => setStep("mapping")}
                 >
-                  Edit Mapping
+                  {fileType === "csv"
+                    ? "Edit Mapping"
+                    : fileType === "qif"
+                      ? "Edit File Settings"
+                      : "View Statement Details"}
                 </button>
               ) : null}
             </div>
@@ -1116,8 +1544,14 @@ export function TransactionImportDialog({
                 : "";
               const closestCandidateAmountLabel = closestCandidate
                 ? closestCandidate.transaction.outflow
-                  ? formatMoney(closestCandidate.transaction.outflow, currencyCode)
-                  : formatMoney(closestCandidate.transaction.inflow, currencyCode)
+                  ? formatMoney(
+                      closestCandidate.transaction.outflow,
+                      currencyCode,
+                    )
+                  : formatMoney(
+                      closestCandidate.transaction.inflow,
+                      currencyCode,
+                    )
                 : "";
 
               return (
@@ -1132,44 +1566,7 @@ export function TransactionImportDialog({
                       >
                         {getCandidateStatusLabel(candidate)}
                       </span>
-                      <span className="transaction-import-recommendation">
-                        Recommendation: {getImportRecommendationLabel(candidate)}
-                      </span>
                     </div>
-                    <p className="muted transaction-import-review-reason">
-                      {candidate.reason}
-                    </p>
-                    <span
-                      className={`transaction-import-confidence transaction-import-confidence-${getImportConfidenceTone(candidate.confidence)}`}
-                    >
-                      {getImportConfidenceLabel(candidate.confidence)}
-                    </span>
-                    {candidate.evidence && candidate.evidence.length > 0 ? (
-                      <details className="transaction-import-evidence-panel">
-                        <summary>Why this recommendation?</summary>
-                        <ul
-                          className="transaction-import-evidence-list"
-                          aria-label="Import match evidence"
-                        >
-                          {candidate.evidence.map((item) => (
-                            <li
-                              className={`transaction-import-evidence transaction-import-evidence-${item.result}`}
-                              key={`${candidate.id}-${item.label}`}
-                            >
-                              <span
-                                className="transaction-import-evidence-marker"
-                                aria-hidden="true"
-                              >
-                                {getImportEvidenceResultLabel(item.result)}
-                              </span>
-                              <span>
-                                <strong>{item.label}</strong>: {item.detail}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    ) : null}
                     {candidate.status === "new" ? (
                       <label className="transaction-import-select-new">
                         <input
@@ -1260,7 +1657,10 @@ export function TransactionImportDialog({
                             {closestCandidate.transaction.payee || "—"}
                           </strong>
                           <span className="transaction-import-match-detail">
-                            {closestCandidate.reason}
+                            {closestCandidate.transaction.category || "—"}
+                            {closestCandidate.transaction.memo
+                              ? ` · ${closestCandidate.transaction.memo}`
+                              : ""}
                           </span>
                           <strong className="transaction-import-match-amount">
                             {closestCandidateAmountLabel}
