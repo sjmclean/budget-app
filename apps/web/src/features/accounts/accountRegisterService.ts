@@ -8,6 +8,7 @@ import type {
 } from "./accountRegisterTypes";
 import type { SidebarAccount, SidebarAccountType } from "./accountService";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import { RegisterTransactionBatchCommitError } from "./accountRegisterPersistencePort";
 
 const STORAGE_KEY = "budget-app.account-registers.v1";
 
@@ -261,6 +262,80 @@ export class BrowserPersistentAccountRegisterService
 
     logRegisterBatchCommitTimings(input.transactions.length, timings);
     return result;
+  }
+
+  async commitTransactionBatch(input: {
+    accountId: string;
+    additions: NewRegisterTransactionInput[];
+    updates: UpdateRegisterTransactionInput[];
+  }) {
+    const storageSnapshot = this.dependencies.storage.getItem(STORAGE_KEY);
+    const beforeRegister = await this.getAccountRegisterView({
+      accountId: input.accountId,
+    });
+    const beforeById = new Map(
+      beforeRegister.transactions.map((transaction) => [transaction.id, transaction]),
+    );
+
+    try {
+      if (input.additions.length > 0) {
+        await this.addTransactions({
+          accountId: input.accountId,
+          transactions: input.additions,
+        });
+      }
+      for (const transaction of input.updates) {
+        await this.updateTransaction({
+          accountId: input.accountId,
+          transaction,
+        });
+      }
+
+      const register = await this.getAccountRegisterView({
+        accountId: input.accountId,
+      });
+      const afterById = new Map(
+        register.transactions.map((transaction) => [transaction.id, transaction]),
+      );
+      const updatedIds = new Set(input.updates.map((transaction) => transaction.id));
+
+      return {
+        register,
+        changeSet: {
+          accountId: input.accountId,
+          addedTransactionIds: register.transactions
+            .filter((transaction) => !beforeById.has(transaction.id))
+            .map((transaction) => transaction.id),
+          beforeUpdatedTransactions: beforeRegister.transactions.filter(
+            (transaction) => updatedIds.has(transaction.id),
+          ),
+          afterUpdatedTransactions: register.transactions.filter(
+            (transaction) => updatedIds.has(transaction.id) && afterById.has(transaction.id),
+          ),
+        },
+        rollbackMode: "storage-snapshot" as const,
+      };
+    } catch (error) {
+      let rollbackSucceeded = false;
+      try {
+        if (storageSnapshot === null) {
+          this.dependencies.storage.removeItem(STORAGE_KEY);
+        } else {
+          this.dependencies.storage.setItem(STORAGE_KEY, storageSnapshot);
+        }
+        rollbackSucceeded = true;
+      } catch {
+        rollbackSucceeded = false;
+      }
+      throw new RegisterTransactionBatchCommitError(
+        rollbackSucceeded
+          ? "Register batch failed and the previous register state was restored."
+          : "Register batch failed and the previous register state could not be restored.",
+        true,
+        rollbackSucceeded,
+        error,
+      );
+    }
   }
 
   async updateTransaction(input: {

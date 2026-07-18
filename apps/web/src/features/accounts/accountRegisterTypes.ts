@@ -108,6 +108,21 @@ export interface AccountRegisterService {
     transactions: NewRegisterTransactionInput[];
   }): Promise<AccountRegisterView>;
 
+  commitTransactionBatch?(input: {
+    accountId: string;
+    additions: NewRegisterTransactionInput[];
+    updates: UpdateRegisterTransactionInput[];
+  }): Promise<{
+    register: AccountRegisterView;
+    changeSet: {
+      accountId: string;
+      addedTransactionIds: readonly string[];
+      beforeUpdatedTransactions: readonly RegisterTransactionView[];
+      afterUpdatedTransactions: readonly RegisterTransactionView[];
+    };
+    rollbackMode: "storage-snapshot" | "adapter-transaction" | "unsupported";
+  }>;
+
   updateTransaction(input: {
     accountId: string;
     transaction: UpdateRegisterTransactionInput;

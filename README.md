@@ -159,6 +159,9 @@ Notes:
 This release adds the backend documentation set under `docs/`:
 
 - `docs/architecture.md`
+- `docs/application-engines.md`
+- `docs/merchant-knowledge.md`
+- `docs/design-principles.md`
 - `docs/database-schema.md`
 - `docs/budget-engine.md`
 - `docs/budget-package-format.md`

@@ -29,13 +29,18 @@ assert.match(
 );
 assert.match(
   dialogSource,
-  />\s*Match\s*</,
+  /candidate\.status === "exact-match"[\s\S]*?>\s*Use Existing\s*</,
+  "exact matches should let the user keep the existing register transaction",
+);
+assert.match(
+  dialogSource,
+  /candidate\.status === "possible-match"[\s\S]*?>\s*Match\s*</,
   "possible matches should retain an explicit Match action",
 );
 assert.match(
   dialogSource,
-  />\s*Import as New\s*</,
-  "possible matches should retain an explicit Import as New action",
+  /candidate\.status === "(?:exact-match|possible-match)"[\s\S]*?>\s*Not a Match\s*</,
+  "matched candidates should let the user reject the match",
 );
 assert.match(
   dialogSource,

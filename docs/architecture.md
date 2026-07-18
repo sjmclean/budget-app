@@ -55,6 +55,19 @@ SQLite / budget.db
 
 The UI should not talk directly to SQLite. Repositories should not contain budgeting policy. The budget engine should not know about Drizzle or files. Application services coordinate workflows such as importing, merging payees, committing bank imports, undo/redo, reconciliation, and scheduled transaction execution.
 
+## Application engines
+
+The current and planned business responsibilities are described in [Application Engine Boundaries](application-engines.md). The major boundaries are:
+
+- Budget Engine owns budgeting mathematics.
+- Register Engine owns committed transactions.
+- Import Engine owns file interpretation and the temporary import-review session.
+- Merchant Knowledge owns merchant identity and objective usage evidence.
+- Reporting Engine consumes canonical data without mutating it.
+
+Merchant identity and learning rules are documented separately in [Merchant Knowledge](merchant-knowledge.md).
+Product and interaction decisions should follow the [Product and Interaction Design Principles](design-principles.md).
+
 ## Local-first storage model
 
 Each budget is a folder-style package:

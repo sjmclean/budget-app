@@ -17,6 +17,14 @@ const ACCOUNT_REGISTER_STORAGE_KEY = "budget-app.account-registers.v1";
 const PAYEE_STORAGE_KEY = "budget-app.payees.v1";
 const SCHEDULED_TRANSACTION_STORAGE_KEY = "budget-app.scheduled-transactions.v1";
 const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
+const YNAB4_IMPORT_STORAGE_PREFIX = "budget-app.ynab4-launcher-import.v1";
+const ACTUAL_IMPORT_STORAGE_PREFIX = "budget-app.actual-budget-launcher-import.v1";
+const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
+const BUDGET_COLLAPSED_GROUPS_STORAGE_KEY_PREFIX = "budget-app.budget-collapsed-groups.v1";
+const BUDGET_ARCHIVED_CATEGORIES_EXPANDED_STORAGE_KEY_PREFIX =
+  "budget-app.budget-archived-categories-expanded.v1";
+const REGISTER_SORT_STORAGE_KEY_PREFIX = "budget-app.register-sort.v1";
+const REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.register-columns.v1";
 
 const budgetScopedLogicalKeys = [
   ACCOUNT_STORAGE_KEY,
@@ -59,11 +67,65 @@ function resolveCurrentBudget(storage: KeyValueStoragePort): BudgetSummary | nul
   return resolveActiveBudget(budgets, selectedBudgetId);
 }
 
+function readBudgetAccountIds(storage: KeyValueStoragePort, budgetId: string): string[] {
+  const raw = storage.getItem(getBudgetScopedStorageKey(budgetId, ACCOUNT_STORAGE_KEY));
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((entry) =>
+        entry && typeof entry === "object" && typeof (entry as { id?: unknown }).id === "string"
+          ? (entry as { id: string }).id
+          : null,
+      )
+      .filter((id): id is string => Boolean(id));
+  } catch {
+    return [];
+  }
+}
+
 export function collectBudgetScopedStorageKeys(storage: KeyValueStoragePort, budgetId: string): string[] {
   const keysToRemove = new Set<string>();
+  const accountIds = readBudgetAccountIds(storage, budgetId);
+  const namespacePrefix = getBudgetScopedStorageKey(budgetId, "");
+  const legacyBudgetViewPrefix = `${BUDGET_VIEW_STORAGE_PREFIX}.${budgetId}.`;
+  const exactBudgetKeys = new Set([
+    `${YNAB4_IMPORT_STORAGE_PREFIX}.${budgetId}`,
+    `${ACTUAL_IMPORT_STORAGE_PREFIX}.${budgetId}`,
+    `${BUDGET_COLLAPSED_GROUPS_STORAGE_KEY_PREFIX}.${budgetId}`,
+    `${BUDGET_ARCHIVED_CATEGORIES_EXPANDED_STORAGE_KEY_PREFIX}.${budgetId}`,
+    `${BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX}.${budgetId}`,
+    `${BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX}.${budgetId}.widths`,
+  ]);
 
   for (const logicalKey of budgetScopedLogicalKeys) {
     keysToRemove.add(getBudgetScopedStorageKey(budgetId, logicalKey));
+  }
+
+  // Remove the entire namespace, including importer identities, Merchant
+  // Knowledge, resumable sessions, diagnostics, version history and any future
+  // budget-scoped records that are introduced later.
+  for (const key of listStorageKeys(storage)) {
+    if (
+      key.startsWith(namespacePrefix) ||
+      key.startsWith(legacyBudgetViewPrefix) ||
+      exactBudgetKeys.has(key)
+    ) {
+      keysToRemove.add(key);
+      continue;
+    }
+
+    for (const accountId of accountIds) {
+      if (
+        key === `${REGISTER_SORT_STORAGE_KEY_PREFIX}.${accountId}` ||
+        key === `${REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX}.${accountId}` ||
+        key === `${REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX}.${accountId}.widths`
+      ) {
+        keysToRemove.add(key);
+      }
+    }
   }
 
   // v1.48 kept a legacy bridge for the original starter budget. Lifecycle
@@ -71,13 +133,6 @@ export function collectBudgetScopedStorageKeys(storage: KeyValueStoragePort, bud
   if (budgetId === "household") {
     for (const logicalKey of budgetScopedLogicalKeys) {
       keysToRemove.add(logicalKey);
-    }
-  }
-
-  const budgetViewPrefix = `${BUDGET_VIEW_STORAGE_PREFIX}.${budgetId}.`;
-  for (const key of listStorageKeys(storage)) {
-    if (key.startsWith(budgetViewPrefix)) {
-      keysToRemove.add(key);
     }
   }
 

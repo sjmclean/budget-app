@@ -58,6 +58,13 @@ export const router = createBrowserRouter([
         },
       },
       {
+        path: "/developer/import-diagnostics",
+        lazy: async () => {
+          const { ImportDiagnosticsPage } = await import("../pages/ImportDiagnosticsPage");
+          return { Component: ImportDiagnosticsPage };
+        },
+      },
+      {
         path: "/restore-points",
         lazy: async () => {
           const { RestorePointsPage } = await import("../pages/SettingsPage");

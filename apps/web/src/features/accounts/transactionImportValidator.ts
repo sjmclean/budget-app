@@ -103,9 +103,35 @@ function validateQifTransferCandidate(
   sourceAccountName: string | undefined,
   availableTransferAccounts: Set<string>,
 ): TransactionImportCandidate {
-  const transferAccountName = candidate.parsed.transferAccountName?.trim();
+  const transferAccountName =
+    candidate.lifecycle.proposal.transferAccountName?.trim();
   if (!transferAccountName) {
     return candidate;
+  }
+
+  // QIF can name an account that is outside the current budget. That is not
+  // an invalid internal transfer: from this budget's perspective it is an
+  // ordinary transaction. Reconciliation records the unresolved destination
+  // as `missing`; clear the transfer proposal here as a final guard before
+  // semantic validation and commit preparation.
+  if (candidate.transferResolution?.status === "missing") {
+    const rawPayee = candidate.lifecycle.source.rawPayee.trim();
+    return {
+      ...candidate,
+      lifecycle: {
+        ...candidate.lifecycle,
+        merchant: {
+          ...candidate.lifecycle.merchant,
+          canonicalPayee: rawPayee,
+          transferAccountName: null,
+        },
+        proposal: {
+          ...candidate.lifecycle.proposal,
+          payee: rawPayee,
+          transferAccountName: null,
+        },
+      },
+    };
   }
 
   const normalisedTransferAccountName = transferAccountName.toLocaleLowerCase();
@@ -138,7 +164,7 @@ function summariseCandidates(
     totalRows: candidates.length,
     newTransactions: candidates.filter((candidate) => candidate.status === "new").length,
     exactMatches: candidates.filter((candidate) => candidate.status === "exact-match").length,
-    possibleMatches: candidates.filter((candidate) => candidate.status === "possible-match").length,
+    possibleMatches: 0,
     invalidRows: candidates.filter((candidate) => candidate.status === "invalid").length,
     selectedForImport: candidates.filter((candidate) => candidate.selected).length,
   };

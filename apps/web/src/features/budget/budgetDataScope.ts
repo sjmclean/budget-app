@@ -10,10 +10,15 @@ const BUDGET_SCOPED_EXACT_KEYS = new Set([
   "budget-app.payees.v1",
   "budget-app.scheduled-transactions.v1",
   "budget-app.transaction-tags.v1",
+  "budget-app.account-import-knowledge.v1",
+  "budget-app.imported-file-fingerprints.v1",
+  "budget-app.imported-transaction-fingerprints.v1",
+  "budget-app.merchant-knowledge.v1",
 ]);
 
 const BUDGET_SCOPED_KEY_PREFIXES = [
   "budget-app.register.",
+  "budget-app.transaction-import-session.v1.",
 ];
 
 export function isBudgetScopedStorageKey(key: string): boolean {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {
-  applyTransactionPayeeAliases,
+  resolveTransactionPayeeAlias,
   createTransactionPayeeAlias,
   findMatchingTransactionPayeeAlias,
   normalisePayeeAliasSource,
@@ -38,10 +38,14 @@ const imported: ParsedImportTransaction[] = [
   },
 ];
 
-const aliased = applyTransactionPayeeAliases(imported, [alias]);
-assert.equal(aliased[0].payee, "Woolworths");
-assert.equal(aliased[0].originalPayee, "PAYPAL *WOOLWORTHSL 5173827733");
-assert.equal(aliased[0].payeeAliasId, alias.id);
+const sourceBeforeAliasResolution = structuredClone(imported[0]);
+const resolvedAlias = resolveTransactionPayeeAlias(imported[0], [alias]);
+assert.equal(resolvedAlias?.targetPayee, "Woolworths");
+assert.deepEqual(
+  imported[0],
+  sourceBeforeAliasResolution,
+  "alias resolution must not rewrite parsed bank data",
+);
 
 const updated = upsertTransactionPayeeAlias([alias], {
   ...alias,

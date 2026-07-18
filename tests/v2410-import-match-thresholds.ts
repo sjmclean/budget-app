@@ -31,8 +31,8 @@ function createTransaction(input: {
   };
 }
 
-assert.equal(HIGH_CONFIDENCE_IMPORT_MATCH_DAYS, 5);
-assert.equal(SUGGESTED_IMPORT_MATCH_DAYS, 10);
+assert.equal(HIGH_CONFIDENCE_IMPORT_MATCH_DAYS, 7);
+assert.equal(SUGGESTED_IMPORT_MATCH_DAYS, 7);
 
 const existingTransactions: RegisterTransactionView[] = [
   createTransaction({

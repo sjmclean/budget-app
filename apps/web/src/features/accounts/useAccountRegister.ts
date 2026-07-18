@@ -22,6 +22,10 @@ interface UseAccountRegisterState {
   error: string | null;
   addTransaction: (input: NewRegisterTransactionInput) => Promise<void>;
   addTransactions: (inputs: NewRegisterTransactionInput[]) => Promise<void>;
+  commitTransactionBatch: (input: {
+    additions: NewRegisterTransactionInput[];
+    updates: UpdateRegisterTransactionInput[];
+  }) => Promise<void>;
   updateTransaction: (input: UpdateRegisterTransactionInput) => Promise<void>;
   toggleCleared: (transactionId: string) => Promise<void>;
   deleteTransaction: (transactionId: string) => Promise<void>;
@@ -167,6 +171,31 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     );
   }, [accountId, accountRegisters, runMutation]);
 
+  const commitTransactionBatch = useCallback(async (input: {
+    additions: NewRegisterTransactionInput[];
+    updates: UpdateRegisterTransactionInput[];
+  }) => {
+    if (!accountRegisters.commitTransactionBatch) {
+      await runMutation(async () => {
+        if (input.additions.length > 0) {
+          await accountRegisters.addTransactions({
+            accountId,
+            transactions: input.additions,
+          });
+        }
+        for (const transaction of input.updates) {
+          await accountRegisters.updateTransaction({ accountId, transaction });
+        }
+        return accountRegisters.getAccountRegisterView({ accountId });
+      });
+      return;
+    }
+
+    await runMutation(async () =>
+      (await accountRegisters.commitTransactionBatch!({ accountId, ...input })).register,
+    );
+  }, [accountId, accountRegisters, runMutation]);
+
   const updateTransaction = useCallback(async (input: UpdateRegisterTransactionInput) => {
     await runMutation(
       () => accountRegisters.updateTransaction({ accountId, transaction: input }),
@@ -272,6 +301,7 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     error,
     addTransaction,
     addTransactions,
+    commitTransactionBatch,
     updateTransaction,
     toggleCleared,
     deleteTransaction,

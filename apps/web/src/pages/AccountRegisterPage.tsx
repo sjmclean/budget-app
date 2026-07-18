@@ -229,6 +229,7 @@ export function AccountRegisterPage() {
     error,
     addTransaction,
     addTransactions,
+    commitTransactionBatch,
     updateTransaction,
     toggleCleared,
     deleteTransaction,
@@ -263,6 +264,7 @@ export function AccountRegisterPage() {
   const [isTransactionTagManagerOpen, setIsTransactionTagManagerOpen] =
     useState(false);
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
+  const [isTransactionImportOpening, setIsTransactionImportOpening] = useState(false);
   const [registerContextMenuPosition, setRegisterContextMenuPosition] =
     useState<RegisterContextMenuPosition | null>(null);
   const [registerSearchDraft, setRegisterSearchDraft] = useState("");
@@ -1157,7 +1159,15 @@ export function AccountRegisterPage() {
             visibleColumnSet={registerTableLayout.visibleColumnSet}
             onToggleColumn={registerTableLayout.toggleColumn}
             onResetColumns={registerTableLayout.resetLayout}
-            onOpenImport={() => setIsTransactionImportOpen(true)}
+            onOpenImport={() => {
+              setIsTransactionImportOpening(true);
+              window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => {
+                  setIsTransactionImportOpen(true);
+                  setIsTransactionImportOpening(false);
+                });
+              });
+            }}
             onOpenPayeeManager={() => setIsPayeeManagerOpen(true)}
             onOpenTagManager={() => setIsTransactionTagManagerOpen(true)}
             onToggleScheduled={() => setIsScheduledOpen((current) => !current)}
@@ -1463,6 +1473,38 @@ export function AccountRegisterPage() {
           </div>
         )}
 
+        {isTransactionImportOpening && !isTransactionImportOpen ? (
+          <div className="transaction-import-backdrop" role="presentation">
+            <section
+              className="transaction-import-dialog transaction-import-wizard"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="transaction-import-opening-title"
+            >
+              <div className="transaction-import-header">
+                <div>
+                  <h2 id="transaction-import-opening-title">Import Transactions</h2>
+                </div>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => setIsTransactionImportOpening(false)}
+                >
+                  Close
+                </button>
+              </div>
+              <div className="transaction-import-upload-step">
+                <div className="transaction-import-dropzone" aria-hidden="true">
+                  <span className="transaction-import-dropzone-icon">↑</span>
+                  <strong>Drop your transaction file here</strong>
+                  <span>or click to browse files</span>
+                  <small>Supports CSV, QIF, and OFX/QFX files</small>
+                </div>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
         {isTransactionImportOpen && (
           <TransactionImportDialog
             initialAccountId={accountId}
@@ -1475,7 +1517,14 @@ export function AccountRegisterPage() {
                 .map((account) => ({ id: account.id, name: account.name })),
             ]}
             currencyCode={data.currencyCode}
-            onClose={() => setIsTransactionImportOpen(false)}
+            payeeOptions={payeeOptions}
+            categoryOptions={categoryOptions}
+            transferAccounts={transferAccounts}
+            onCreatePayee={createInlinePayee}
+            onCreateCategory={createInlineCategory}
+            onClose={() => {
+              setIsTransactionImportOpen(false);
+            }}
             loadAccountTransactions={async (destinationAccountId) => {
               const view =
                 await persistenceGateway.accountRegisters.getAccountRegisterView(
@@ -1497,6 +1546,84 @@ export function AccountRegisterPage() {
                 accountId: destinationAccountId,
                 transactions,
               });
+            }}
+            onCommitRegisterChanges={async (
+              destinationAccountId,
+              additions,
+              transactions,
+            ) => {
+              const updates = transactions.map((transaction) => ({
+                id: transaction.id,
+                date: transaction.date,
+                tagIds: transaction.tagIds,
+                payee: transaction.payee,
+                payeeId: transaction.payeeId,
+                category: transaction.category,
+                categoryId: transaction.categoryId,
+                memo: transaction.memo,
+                checkNumber: transaction.checkNumber,
+                inflow: transaction.inflow,
+                outflow: transaction.outflow,
+                splitLines: transaction.splitLines,
+              }));
+
+              if (destinationAccountId === accountId) {
+                await commitTransactionBatch({ additions, updates });
+                return;
+              }
+
+              const adapter = persistenceGateway.accountRegisters;
+              if (adapter.commitTransactionBatch) {
+                await adapter.commitTransactionBatch({
+                  accountId: destinationAccountId,
+                  additions,
+                  updates,
+                });
+                return;
+              }
+
+              if (additions.length > 0) {
+                await adapter.addTransactions({
+                  accountId: destinationAccountId,
+                  transactions: additions,
+                });
+              }
+              for (const transaction of updates) {
+                await adapter.updateTransaction({
+                  accountId: destinationAccountId,
+                  transaction,
+                });
+              }
+            }}
+            onUpdateMatchedTransactionDates={async (
+              destinationAccountId,
+              transactions,
+            ) => {
+              for (const transaction of transactions) {
+                const update = {
+                  id: transaction.id,
+                  date: transaction.date,
+                  tagIds: transaction.tagIds,
+                  payee: transaction.payee,
+                  payeeId: transaction.payeeId,
+                  category: transaction.category,
+                  categoryId: transaction.categoryId,
+                  memo: transaction.memo,
+                  checkNumber: transaction.checkNumber,
+                  inflow: transaction.inflow,
+                  outflow: transaction.outflow,
+                  splitLines: transaction.splitLines,
+                };
+
+                if (destinationAccountId === accountId) {
+                  await updateTransaction(update);
+                } else {
+                  await persistenceGateway.accountRegisters.updateTransaction({
+                    accountId: destinationAccountId,
+                    transaction: update,
+                  });
+                }
+              }
             }}
           />
         )}

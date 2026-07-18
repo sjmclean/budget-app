@@ -40,6 +40,9 @@ export function RegisterCategoryInput({
   autoFocus = false,
   openOnFocus = false,
   onCreateCategory,
+  onSelection,
+  onCancel,
+  onBlurOutside,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -50,6 +53,9 @@ export function RegisterCategoryInput({
   onCreateCategory?: (
     input: RegisterInlineCategoryCreateInput,
   ) => Promise<BudgetCategoryOption>;
+  onSelection?: (value: string) => void;
+  onCancel?: () => void;
+  onBlurOutside?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const popupRef = useRef<HTMLDivElement | null>(null);
@@ -197,6 +203,7 @@ export function RegisterCategoryInput({
 
   function selectSuggestion(nextValue: string) {
     onChange(nextValue);
+    onSelection?.(nextValue);
     setIsOpen(false);
     setShowAllSuggestions(false);
     setHighlightedIndex(0);
@@ -293,6 +300,7 @@ export function RegisterCategoryInput({
           window.setTimeout(() => {
             if (!popupRef.current?.contains(document.activeElement)) {
               closeSuggestionList();
+              onBlurOutside?.();
             }
           }, 120)
         }
@@ -352,6 +360,7 @@ export function RegisterCategoryInput({
           if (event.key === "Escape") {
             event.preventDefault();
             closeSuggestionList();
+            onCancel?.();
           }
         }}
         placeholder="Category"

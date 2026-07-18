@@ -13,17 +13,15 @@ import type {
 } from "./transactionImportInspection";
 
 export interface ParsedImportTransaction {
-  rowNumber: number;
-  date: string;
-  payee: string;
-  originalPayee?: string;
-  payeeAliasId?: string;
-  memo?: string;
-  importedCategoryName?: string;
-  transferAccountName?: string;
-  outflow: number;
-  inflow: number;
-  raw: Record<string, string>;
+  readonly rowNumber: number;
+  readonly date: string;
+  readonly payee: string;
+  readonly memo?: string;
+  readonly importedCategoryName?: string;
+  readonly transferAccountName?: string;
+  readonly outflow: number;
+  readonly inflow: number;
+  readonly raw: Readonly<Record<string, string>>;
 }
 
 export function parseTransactionCsv(

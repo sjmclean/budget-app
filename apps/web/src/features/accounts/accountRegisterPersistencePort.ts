@@ -5,6 +5,31 @@ import type {
   UpdateRegisterTransactionInput,
 } from "./accountRegisterTypes";
 
+export class RegisterTransactionBatchCommitError extends Error {
+  constructor(
+    message: string,
+    readonly rollbackAttempted: boolean,
+    readonly rollbackSucceeded: boolean,
+    readonly causeValue: unknown,
+  ) {
+    super(message);
+    this.name = "RegisterTransactionBatchCommitError";
+  }
+}
+
+export interface RegisterTransactionBatchChangeSet {
+  readonly accountId: string;
+  readonly addedTransactionIds: readonly string[];
+  readonly beforeUpdatedTransactions: readonly RegisterTransactionView[];
+  readonly afterUpdatedTransactions: readonly RegisterTransactionView[];
+}
+
+export interface RegisterTransactionBatchCommitResult {
+  readonly register: AccountRegisterView;
+  readonly changeSet: RegisterTransactionBatchChangeSet;
+  readonly rollbackMode: "storage-snapshot" | "adapter-transaction" | "unsupported";
+}
+
 export type {
   AccountRegisterView,
   NewRegisterTransactionInput,
@@ -34,6 +59,18 @@ export interface AccountRegisterPersistencePort {
     accountId: string;
     transactions: NewRegisterTransactionInput[];
   }): Promise<AccountRegisterView>;
+
+  /**
+   * Applies an importer/register change set as one logical operation.
+   * Implementations should either commit every register mutation or restore the
+   * pre-operation state before rejecting. The returned change set is the future
+   * command-history/Undo boundary; it is not yet exposed as user-facing Undo.
+   */
+  commitTransactionBatch?(input: {
+    accountId: string;
+    additions: NewRegisterTransactionInput[];
+    updates: UpdateRegisterTransactionInput[];
+  }): Promise<RegisterTransactionBatchCommitResult>;
 
   updateTransaction(input: {
     accountId: string;

@@ -1,7 +1,17 @@
 import type { RegisterTransactionView } from "./accountRegisterTypes";
-import { normaliseMerchant } from "./merchantNormalisation";
 import { buildRegisterTransactionsFromImport } from "./transactionImportCommit";
 import { parseTransactionOfx } from "./transactionImportParser";
+import type { ParsedImportTransaction } from "./transactionImportParser";
+import type { TransactionImportTraceEntry } from "./transactionImportTrace";
+import { reconcileTransactionImportCandidate } from "./transactionImportReconciliation";
+import type {
+  TransactionImportMatchCandidateAssessment,
+  TransactionImportMatchEvidence,
+  TransactionImportMerchantResolution,
+  TransactionImportReconciliationKind,
+  TransactionImportTransferAccount,
+  TransactionImportTransferResolution,
+} from "./transactionImportReconciliation";
 import {
   validateParsedImportTransaction,
   validateQifTransferDestinations,
@@ -33,6 +43,23 @@ export {
 export { validateParsedImportTransaction, validateQifTransferDestinations } from "./transactionImportValidator";
 export { buildRegisterTransactionsFromImport } from "./transactionImportCommit";
 export { parseTransactionOfx } from "./transactionImportParser";
+export type { ParsedImportTransaction } from "./transactionImportParser";
+export {
+  assessTransactionImportMatch,
+  HIGH_CONFIDENCE_IMPORT_MATCH_DAYS,
+  SUGGESTED_IMPORT_MATCH_DAYS,
+  TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS,
+} from "./transactionImportReconciliation";
+export type {
+  TransactionImportMatchAssessment,
+  TransactionImportMatchCandidateAssessment,
+  TransactionImportMatchEvidence,
+  TransactionImportMerchantResolution,
+  TransactionImportRecommendation,
+  TransactionImportReconciliationKind,
+  TransactionImportTransferAccount,
+  TransactionImportTransferResolution,
+} from "./transactionImportReconciliation";
 
 export type {
   CsvImportAnalysis,
@@ -54,7 +81,7 @@ export type {
 } from "./transactionImportInspection";
 
 export type TransactionImportMatchStatus =
-  "exact-match" | "possible-match" | "new" | "invalid";
+  "exact-match" | "new" | "invalid";
 export interface TransactionImportProfile {
   id: string;
   name: string;
@@ -91,59 +118,30 @@ export interface TransactionPayeeAliasSuggestion {
 export const TRANSACTION_PAYEE_ALIASES_STORAGE_KEY =
   "budget-app.transaction-payee-aliases.v1";
 
-export const HIGH_CONFIDENCE_IMPORT_MATCH_DAYS = 5;
-export const SUGGESTED_IMPORT_MATCH_DAYS = 10;
-export const TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS = 14;
-
-export interface TransactionImportPerformanceEntry {
-  label: string;
-  durationMs: number;
+export interface TransactionImportSourceSnapshot {
+  readonly rowNumber: number;
+  readonly date: string;
+  readonly rawPayee: string;
+  readonly memo?: string;
+  readonly importedCategoryName?: string;
+  readonly transferAccountName?: string;
+  readonly outflow: number;
+  readonly inflow: number;
 }
 
-export interface TransactionImportPerformanceReport {
-  totalMs: number;
-  entries: TransactionImportPerformanceEntry[];
-}
-
-export function createTransactionImportPerformanceReport(
-  entries: TransactionImportPerformanceEntry[],
-): TransactionImportPerformanceReport {
-  return {
-    totalMs: entries.reduce((total, entry) => total + entry.durationMs, 0),
-    entries,
-  };
-}
-
-export function formatImportDuration(durationMs: number) {
-  if (durationMs < 1000) {
-    return `${Math.round(durationMs)} ms`;
-  }
-
-  return `${(durationMs / 1000).toFixed(2)} s`;
-}
-
-export interface ParsedImportTransaction {
-  rowNumber: number;
-  date: string;
+export interface TransactionImportProposal {
   payee: string;
-  originalPayee?: string;
-  payeeAliasId?: string;
-  memo?: string;
-  importedCategoryName?: string;
-  transferAccountName?: string;
-  outflow: number;
-  inflow: number;
-  raw: Record<string, string>;
+  categoryName: string | null;
+  transferAccountName: string | null;
 }
 
-export type TransactionImportReviewDecision =
-  "matched" | "skipped" | "import-as-new";
-
-export interface TransactionImportMatchEvidence {
-  label: string;
-  result: "positive" | "negative" | "neutral";
-  detail: string;
+export interface TransactionImportLifecycle {
+  readonly source: TransactionImportSourceSnapshot;
+  merchant: TransactionImportMerchantResolution;
+  proposal: TransactionImportProposal;
 }
+
+export type TransactionImportReviewDecision = "import-as-new" | "skipped";
 
 export interface TransactionImportCandidate {
   id: string;
@@ -152,34 +150,55 @@ export interface TransactionImportCandidate {
   matchedTransactionId?: string;
   matchedTransaction?: RegisterTransactionView;
   reason: string;
-  confidence?: number;
   evidence?: TransactionImportMatchEvidence[];
   matchCandidates?: TransactionImportMatchCandidateAssessment[];
   selected: boolean;
   reviewDecision?: TransactionImportReviewDecision;
   errors: string[];
+  lifecycle: TransactionImportLifecycle;
+  reconciliationKind?: TransactionImportReconciliationKind;
+  transferResolution?: TransactionImportTransferResolution;
+  trace?: readonly TransactionImportTraceEntry[];
 }
 
-export type TransactionImportRecommendation = "import" | "review" | "match";
-
-export interface TransactionImportMatchCandidateAssessment {
-  transaction: RegisterTransactionView;
-  confidence: number;
-  evidence: TransactionImportMatchEvidence[];
-  daysApart: number;
-  payeeSimilarity: number;
-  reason: string;
+export interface TransactionImportPerformanceEntry {
+  label: string;
+  durationMs: number;
 }
 
-export interface TransactionImportMatchAssessment {
-  recommendation: TransactionImportRecommendation;
-  status: Exclude<TransactionImportMatchStatus, "invalid">;
-  confidence: number;
-  evidence?: TransactionImportMatchEvidence[];
-  reason: string;
-  candidates: TransactionImportMatchCandidateAssessment[];
-  selectedCandidate?: TransactionImportMatchCandidateAssessment;
+export interface TransactionImportPerformanceReport {
+  entries: TransactionImportPerformanceEntry[];
+  totalMs: number;
 }
+
+export function createTransactionImportPerformanceReport(
+  entries: readonly TransactionImportPerformanceEntry[],
+): TransactionImportPerformanceReport {
+  const normalisedEntries = entries.map((entry) => ({
+    label: entry.label,
+    durationMs: entry.durationMs,
+  }));
+
+  return {
+    entries: normalisedEntries,
+    totalMs: normalisedEntries.reduce(
+      (total, entry) => total + entry.durationMs,
+      0,
+    ),
+  };
+}
+
+export function formatImportDuration(durationMs: number): string {
+  if (durationMs < 1000) {
+    return `${Math.round(durationMs)} ms`;
+  }
+
+  return `${(durationMs / 1000).toFixed(2)} s`;
+}
+
+export type TransactionImportMerchantResolver = (
+  rawPayee: string,
+) => string | Partial<TransactionImportMerchantResolution> | undefined;
 
 export interface TransactionImportPreview {
   candidates: TransactionImportCandidate[];
@@ -203,26 +222,26 @@ export function previewTransactionCsvImport(
   csvText: string,
   existingTransactions: RegisterTransactionView[],
   mapping?: CsvImportColumnMapping,
+  resolveMerchant?: TransactionImportMerchantResolver,
 ): TransactionImportPreview {
   return buildTransactionImportPreview(
-    applyTransactionPayeeAliases(
-      parseTransactionCsv(csvText, mapping),
-      readTransactionPayeeAliases(),
-    ),
+    parseTransactionCsv(csvText, mapping),
     existingTransactions,
+    resolveMerchant,
+    readTransactionPayeeAliases(),
   );
 }
 
 export function previewTransactionOfxImport(
   ofxText: string,
   existingTransactions: RegisterTransactionView[],
+  resolveMerchant?: TransactionImportMerchantResolver,
 ): TransactionImportPreview {
   return buildTransactionImportPreview(
-    applyTransactionPayeeAliases(
-      parseTransactionOfx(ofxText),
-      readTransactionPayeeAliases(),
-    ),
+    parseTransactionOfx(ofxText),
     existingTransactions,
+    resolveMerchant,
+    readTransactionPayeeAliases(),
   );
 }
 
@@ -232,16 +251,18 @@ export function previewTransactionQifImport(
   options?: {
     sourceAccountName?: string;
     availableTransferAccountNames?: string[];
+    transferAccounts?: TransactionImportTransferAccount[];
     dateFormat?: QifDateFormat;
     amountFormat?: QifAmountFormat;
   },
+  resolveMerchant?: TransactionImportMerchantResolver,
 ): TransactionImportPreview {
   const preview = buildTransactionImportPreview(
-    applyTransactionPayeeAliases(
-      parseTransactionQif(qifText, options),
-      readTransactionPayeeAliases(),
-    ),
+    parseTransactionQif(qifText, options),
     existingTransactions,
+    resolveMerchant,
+    readTransactionPayeeAliases(),
+    { transferAccounts: options?.transferAccounts },
   );
 
   return validateQifTransferDestinations(preview, options);
@@ -250,10 +271,30 @@ export function previewTransactionQifImport(
 function buildTransactionImportPreview(
   parsedTransactions: ParsedImportTransaction[],
   existingTransactions: RegisterTransactionView[],
+  resolveMerchant?: TransactionImportMerchantResolver,
+  aliases: TransactionPayeeAlias[] = [],
+  reconciliationContext: {
+    transferAccounts?: readonly TransactionImportTransferAccount[];
+  } = {},
 ): TransactionImportPreview {
-  const candidates = parsedTransactions.map((transaction) =>
-    classifyImportCandidate(transaction, existingTransactions),
-  );
+  const usedMatchedTransactionIds = new Set<string>();
+  const candidates = parsedTransactions.map((transaction) => {
+    const candidate = classifyImportCandidate(
+      transaction,
+      existingTransactions,
+      usedMatchedTransactionIds,
+      resolveMerchant,
+      aliases,
+      reconciliationContext,
+    );
+    if (
+      candidate.status === "exact-match" &&
+      candidate.matchedTransactionId
+    ) {
+      usedMatchedTransactionIds.add(candidate.matchedTransactionId);
+    }
+    return candidate;
+  });
 
   return {
     candidates,
@@ -265,9 +306,7 @@ function buildTransactionImportPreview(
       exactMatches: candidates.filter(
         (candidate) => candidate.status === "exact-match",
       ).length,
-      possibleMatches: candidates.filter(
-        (candidate) => candidate.status === "possible-match",
-      ).length,
+      possibleMatches: 0,
       invalidRows: candidates.filter(
         (candidate) => candidate.status === "invalid",
       ).length,
@@ -480,11 +519,105 @@ function readMappedImportAmount(
   return { outflow: 0, inflow: Math.abs(amount) };
 }
 
+function createTransactionImportLifecycle(
+  parsed: ParsedImportTransaction,
+  resolveMerchant?: TransactionImportMerchantResolver,
+  aliases: TransactionPayeeAlias[] = [],
+): TransactionImportLifecycle {
+  const rawPayee = parsed.payee;
+  const alias = findMatchingTransactionPayeeAlias(rawPayee, aliases);
+  const merchantInputPayee = alias?.targetPayee ?? rawPayee;
+  const rawResolution = resolveMerchant?.(merchantInputPayee);
+  const resolution =
+    typeof rawResolution === "string"
+      ? { canonicalPayee: rawResolution }
+      : rawResolution;
+  const transferAccountName =
+    resolution?.transferAccountName?.trim() ||
+    parsed.transferAccountName?.trim() ||
+    null;
+  const canonicalPayee =
+    resolution?.canonicalPayee?.trim() ||
+    (transferAccountName
+      ? `Transfer: ${transferAccountName}`
+      : merchantInputPayee.trim());
+
+  return {
+    source: {
+      rowNumber: parsed.rowNumber,
+      date: parsed.date,
+      rawPayee,
+      memo: parsed.memo,
+      importedCategoryName: parsed.importedCategoryName,
+      transferAccountName: parsed.transferAccountName,
+      outflow: parsed.outflow,
+      inflow: parsed.inflow,
+    },
+    merchant: {
+      canonicalPayee,
+      suggestedCategoryName:
+        resolution?.suggestedCategoryName?.trim() || null,
+      transferAccountName,
+      aliasId: alias?.id,
+      aliasSourcePayee: alias ? rawPayee : undefined,
+    },
+    proposal: {
+      payee: canonicalPayee,
+      categoryName:
+        transferAccountName
+          ? null
+          : resolution?.suggestedCategoryName?.trim() ||
+            parsed.importedCategoryName?.trim() ||
+            null,
+      transferAccountName,
+    },
+  };
+}
+
+function downgradeUnresolvedExternalTransfer(
+  lifecycle: TransactionImportLifecycle,
+  parsed: ParsedImportTransaction,
+) {
+  lifecycle.merchant.transferAccountName = null;
+  lifecycle.proposal.transferAccountName = null;
+
+  // Once the destination is known to be outside this budget, the transaction
+  // must no longer carry any synthetic or learned internal-transfer payee.
+  // Keeping a value beginning with `Transfer: ` causes commit verification to
+  // reinterpret the ordinary transaction as an invalid internal transfer.
+  const fallbackPayee = parsed.payee.trim();
+  lifecycle.merchant.canonicalPayee = fallbackPayee;
+  lifecycle.proposal.payee = fallbackPayee;
+}
+
 function classifyImportCandidate(
   parsed: ParsedImportTransaction,
   existingTransactions: RegisterTransactionView[],
+  excludedTransactionIds: ReadonlySet<string> = new Set(),
+  resolveMerchant?: TransactionImportMerchantResolver,
+  aliases: TransactionPayeeAlias[] = [],
+  reconciliationContext: {
+    transferAccounts?: readonly TransactionImportTransferAccount[];
+  } = {},
 ): TransactionImportCandidate {
+  const sourceTrace: TransactionImportTraceEntry = {
+    stage: "source",
+    timestamp: new Date().toISOString(),
+    input: { rowNumber: parsed.rowNumber },
+    output: {
+      date: parsed.date,
+      payee: parsed.payee,
+      inflow: parsed.inflow,
+      outflow: parsed.outflow,
+      importedCategoryName: parsed.importedCategoryName ?? null,
+      transferAccountName: parsed.transferAccountName ?? null,
+    },
+  };
+  const validationStartedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
   const errors = validateParsedImportTransaction(parsed);
+  const validationDurationMs =
+    (typeof performance !== "undefined" ? performance.now() : Date.now()) -
+    validationStartedAt;
 
   if (errors.length > 0) {
     return {
@@ -494,10 +627,38 @@ function classifyImportCandidate(
       reason: errors.join(" "),
       selected: false,
       errors,
+      lifecycle: createTransactionImportLifecycle(parsed, resolveMerchant, aliases),
+      reconciliationKind: "new",
+      trace: [
+        sourceTrace,
+        {
+          stage: "validation",
+          timestamp: new Date().toISOString(),
+          durationMs: validationDurationMs,
+          output: { valid: false, errors },
+        },
+      ],
     };
   }
 
-  const assessment = assessTransactionImportMatch(parsed, existingTransactions);
+  const merchantStartedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const lifecycle = createTransactionImportLifecycle(parsed, resolveMerchant, aliases);
+  const merchantDurationMs =
+    (typeof performance !== "undefined" ? performance.now() : Date.now()) - merchantStartedAt;
+  const reconciliationStartedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const assessment = reconcileTransactionImportCandidate({
+    parsed,
+    existingTransactions,
+    excludedTransactionIds,
+    merchantResolution: lifecycle.merchant,
+    transferAccounts: reconciliationContext.transferAccounts,
+  });
+  if (assessment.transfer?.status === "missing") {
+    downgradeUnresolvedExternalTransfer(lifecycle, parsed);
+  }
+  const reconciliationDurationMs =
+    (typeof performance !== "undefined" ? performance.now() : Date.now()) -
+    reconciliationStartedAt;
   const selectedCandidate = assessment.selectedCandidate;
 
   return {
@@ -509,290 +670,53 @@ function classifyImportCandidate(
     matchedTransaction:
       assessment.status === "new" ? undefined : selectedCandidate?.transaction,
     reason: assessment.reason,
-    confidence:
-      assessment.candidates.length > 0 ? assessment.confidence : undefined,
     evidence: assessment.evidence,
     matchCandidates: assessment.candidates,
     selected: assessment.recommendation === "import",
     errors: [],
+    lifecycle,
+    reconciliationKind: assessment.kind,
+    transferResolution: assessment.transfer,
+    trace: [
+      sourceTrace,
+      {
+        stage: "validation",
+        timestamp: new Date().toISOString(),
+        durationMs: validationDurationMs,
+        output: { valid: true, errors: [] },
+      },
+      {
+        stage: "merchant-resolution",
+        timestamp: new Date().toISOString(),
+        durationMs: merchantDurationMs,
+        input: { rawPayee: lifecycle.source.rawPayee },
+        output: {
+          canonicalPayee: lifecycle.merchant.canonicalPayee,
+          suggestedCategoryName: lifecycle.merchant.suggestedCategoryName,
+          transferAccountName: lifecycle.merchant.transferAccountName,
+          aliasId: lifecycle.merchant.aliasId ?? null,
+        },
+      },
+      {
+        stage: "reconciliation",
+        timestamp: new Date().toISOString(),
+        durationMs: reconciliationDurationMs,
+        output: {
+          kind: assessment.kind,
+          status: assessment.status,
+          candidateCount: assessment.candidates.length,
+          selectedTransactionId: assessment.selectedCandidate?.transaction.id ?? null,
+          reason: assessment.reason,
+          evidence: assessment.evidence ?? [],
+        },
+      },
+      {
+        stage: "proposal",
+        timestamp: new Date().toISOString(),
+        output: { ...lifecycle.proposal },
+      },
+    ],
   };
-}
-
-export function assessTransactionImportMatch(
-  parsed: ParsedImportTransaction,
-  existingTransactions: RegisterTransactionView[],
-): TransactionImportMatchAssessment {
-  const matchAnalyses = existingTransactions
-    .map((transaction) => analyseImportMatchCandidate(transaction, parsed))
-    .filter((analysis) =>
-      analysis.amountMatches &&
-      analysis.daysApart <= TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS,
-    )
-    .sort((left, right) => right.confidence - left.confidence);
-  const bestMatch = matchAnalyses[0];
-  const candidates = matchAnalyses.map(toTransactionImportMatchCandidateAssessment);
-
-  if (bestMatch?.isExactMatch) {
-    return {
-      recommendation: "match",
-      status: "exact-match",
-      confidence: bestMatch.confidence,
-      evidence: bestMatch.evidence,
-      reason: bestMatch.reason,
-      candidates,
-      selectedCandidate: toTransactionImportMatchCandidateAssessment(bestMatch),
-    };
-  }
-
-  if (bestMatch?.isSuggestedMatch) {
-    return {
-      recommendation: "review",
-      status: "possible-match",
-      confidence: bestMatch.confidence,
-      evidence: bestMatch.evidence,
-      reason: bestMatch.reason,
-      candidates,
-      selectedCandidate: toTransactionImportMatchCandidateAssessment(bestMatch),
-    };
-  }
-
-  return {
-    recommendation: "import",
-    status: "new",
-    confidence: bestMatch?.confidence ?? 0,
-    evidence: bestMatch?.evidence,
-    reason: bestMatch
-      ? `No suitable match found within ${TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS} days. Closest in-window same-amount candidate was ${formatImportDateDistance(
-          bestMatch.daysApart,
-        )} away with ${bestMatch.payeeSimilarity}% payee similarity.`
-      : `No reasonable candidate found within ${TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS} days.`,
-    candidates,
-    selectedCandidate: bestMatch
-      ? toTransactionImportMatchCandidateAssessment(bestMatch)
-      : undefined,
-  };
-}
-
-interface ImportMatchAnalysis {
-  transaction: RegisterTransactionView;
-  amountMatches: boolean;
-  daysApart: number;
-  payeeSimilarity: number;
-  confidence: number;
-  evidence: TransactionImportMatchEvidence[];
-  isExactMatch: boolean;
-  isSuggestedMatch: boolean;
-  reason: string;
-}
-
-function toTransactionImportMatchCandidateAssessment(
-  analysis: ImportMatchAnalysis,
-): TransactionImportMatchCandidateAssessment {
-  return {
-    transaction: analysis.transaction,
-    confidence: analysis.confidence,
-    evidence: analysis.evidence,
-    daysApart: analysis.daysApart,
-    payeeSimilarity: analysis.payeeSimilarity,
-    reason: analysis.reason,
-  };
-}
-
-function analyseImportMatchCandidate(
-  transaction: RegisterTransactionView,
-  parsed: ParsedImportTransaction,
-): ImportMatchAnalysis {
-  const amountMatches = amountsEqual(transaction, parsed);
-  const daysApart = daysBetween(transaction.date, parsed.date);
-  const payeeSimilarity = calculatePayeeSimilarity(
-    transaction.payee,
-    parsed.payee,
-  );
-  const sameDate = transaction.date === parsed.date;
-  const existingMerchant = normaliseMerchant(transaction.payee);
-  const importedMerchant = normaliseMerchant(parsed.payee);
-  const exactPayee =
-    existingMerchant.canonical.length > 0 &&
-    existingMerchant.canonical === importedMerchant.canonical;
-  const withinHighConfidenceWindow =
-    daysApart <= HIGH_CONFIDENCE_IMPORT_MATCH_DAYS;
-  const withinSuggestedWindow = daysApart <= SUGGESTED_IMPORT_MATCH_DAYS;
-  const confidence = calculateImportMatchConfidence({
-    amountMatches,
-    daysApart,
-    payeeSimilarity,
-    sameDate,
-    exactPayee,
-  });
-  const evidence = buildImportMatchEvidence({
-    amountMatches,
-    daysApart,
-    payeeSimilarity,
-    sameDate,
-    exactPayee,
-  });
-  const isExactMatch =
-    amountMatches &&
-    ((sameDate && exactPayee) ||
-      (withinHighConfidenceWindow && payeeSimilarity >= 85));
-  const isSuggestedMatch =
-    !isExactMatch &&
-    amountMatches &&
-    withinSuggestedWindow &&
-    payeeSimilarity >= 60;
-
-  return {
-    transaction,
-    amountMatches,
-    daysApart,
-    payeeSimilarity,
-    confidence,
-    evidence,
-    isExactMatch,
-    isSuggestedMatch,
-    reason: isExactMatch
-      ? `High-confidence match: same amount, ${formatImportDateDistance(
-          daysApart,
-        )} apart, and ${payeeSimilarity}% payee similarity.`
-      : isSuggestedMatch
-        ? `Possible match: same amount, ${formatImportDateDistance(
-            daysApart,
-          )} apart, and ${payeeSimilarity}% payee similarity. Review before importing as new.`
-        : `Same amount but not enough evidence to match: ${formatImportDateDistance(
-            daysApart,
-          )} apart and ${payeeSimilarity}% payee similarity.`,
-  };
-}
-
-function calculateImportMatchConfidence({
-  amountMatches,
-  daysApart,
-  payeeSimilarity,
-  sameDate,
-  exactPayee,
-}: {
-  amountMatches: boolean;
-  daysApart: number;
-  payeeSimilarity: number;
-  sameDate: boolean;
-  exactPayee: boolean;
-}): number {
-  if (!amountMatches) {
-    return 0;
-  }
-
-  const dateScore = sameDate
-    ? 30
-    : daysApart <= 1
-      ? 25
-      : daysApart <= HIGH_CONFIDENCE_IMPORT_MATCH_DAYS
-        ? 18
-        : daysApart <= SUGGESTED_IMPORT_MATCH_DAYS
-          ? 8
-          : 0;
-  const payeeScore = exactPayee ? 40 : Math.round(payeeSimilarity * 0.4);
-
-  return Math.min(100, 30 + dateScore + payeeScore);
-}
-
-function buildImportMatchEvidence({
-  amountMatches,
-  daysApart,
-  payeeSimilarity,
-  sameDate,
-  exactPayee,
-}: {
-  amountMatches: boolean;
-  daysApart: number;
-  payeeSimilarity: number;
-  sameDate: boolean;
-  exactPayee: boolean;
-}): TransactionImportMatchEvidence[] {
-  return [
-    {
-      label: "Amount",
-      result: amountMatches ? "positive" : "negative",
-      detail: amountMatches ? "Exact amount match." : "Amount differs.",
-    },
-    {
-      label: "Date",
-      result: sameDate
-        ? "positive"
-        : daysApart <= SUGGESTED_IMPORT_MATCH_DAYS
-          ? "neutral"
-          : "negative",
-      detail: sameDate
-        ? "Same date."
-        : `${formatImportDateDistance(daysApart)} apart.`,
-    },
-    {
-      label: "Payee",
-      result: exactPayee
-        ? "positive"
-        : payeeSimilarity >= 60
-          ? "neutral"
-          : "negative",
-      detail: exactPayee
-        ? "Exact payee match."
-        : `${payeeSimilarity}% payee similarity.`,
-    },
-  ];
-}
-
-function calculatePayeeSimilarity(left: string, right: string): number {
-  const leftMerchant = normaliseMerchant(left);
-  const rightMerchant = normaliseMerchant(right);
-  const leftNormalised = leftMerchant.canonical;
-  const rightNormalised = rightMerchant.canonical;
-
-  if (!leftNormalised || !rightNormalised) {
-    return 0;
-  }
-
-  if (leftNormalised === rightNormalised) {
-    return 100;
-  }
-
-  if (leftNormalised.includes(rightNormalised) || rightNormalised.includes(leftNormalised)) {
-    const shorter = Math.min(leftNormalised.length, rightNormalised.length);
-    const longer = Math.max(leftNormalised.length, rightNormalised.length);
-    return Math.round((shorter / longer) * 100);
-  }
-
-  const leftTokens = leftMerchant.tokens;
-  const rightTokens = rightMerchant.tokens;
-
-  if (leftTokens.length === 0 || rightTokens.length === 0) {
-    return 0;
-  }
-
-  const rightTokenSet = new Set(rightTokens);
-  const overlap = leftTokens.filter((token) => rightTokenSet.has(token)).length;
-  const union = new Set([...leftTokens, ...rightTokens]).size;
-
-  return Math.round((overlap / union) * 100);
-}
-
-function normalisePayeeTokens(value: string): string[] {
-  return value
-    .toLowerCase()
-    .replace(/\b\d{3,}\b/g, " ")
-    .replace(/[^a-z0-9]+/g, " ")
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter((token) => token.length >= 3);
-}
-
-function formatImportDateDistance(daysApart: number): string {
-  if (!Number.isFinite(daysApart)) {
-    return "an unknown number of days";
-  }
-
-  if (daysApart === 0) {
-    return "0 days";
-  }
-
-  return `${daysApart} ${daysApart === 1 ? "day" : "days"}`;
 }
 
 function parseMoney(value: string): number {
@@ -948,31 +872,6 @@ function normalisePayee(value: string): string {
     .trim();
 }
 
-function amountsEqual(
-  transaction: RegisterTransactionView,
-  parsed: ParsedImportTransaction,
-): boolean {
-  return (
-    cents(transaction.inflow) === cents(parsed.inflow) &&
-    cents(transaction.outflow) === cents(parsed.outflow)
-  );
-}
-
-function cents(value: number): number {
-  return Math.round(value * 100);
-}
-
-function daysBetween(left: string, right: string): number {
-  const leftDate = Date.parse(`${left}T00:00:00.000Z`);
-  const rightDate = Date.parse(`${right}T00:00:00.000Z`);
-
-  if (!Number.isFinite(leftDate) || !Number.isFinite(rightDate)) {
-    return Number.POSITIVE_INFINITY;
-  }
-
-  return Math.abs(Math.round((leftDate - rightDate) / 86_400_000));
-}
-
 export function getCsvImportSignature(analysis: CsvImportAnalysis): string {
   return analysis.columns
     .map((column) => column.normalisedHeader || `column-${column.index + 1}`)
@@ -1121,25 +1020,13 @@ export function findMatchingTransactionPayeeAlias(
     );
 }
 
-export function applyTransactionPayeeAliases(
-  transactions: ParsedImportTransaction[],
+export function resolveTransactionPayeeAlias(
+  transaction: ParsedImportTransaction,
   aliases: TransactionPayeeAlias[],
-): ParsedImportTransaction[] {
-  return transactions.map((transaction) => {
-    const alias = findMatchingTransactionPayeeAlias(transaction.payee, aliases);
-
-    if (!alias || alias.targetPayee === transaction.payee) {
-      return transaction;
-    }
-
-    return {
-      ...transaction,
-      originalPayee: transaction.originalPayee ?? transaction.payee,
-      payee: alias.targetPayee,
-      payeeAliasId: alias.id,
-    };
-  });
+): TransactionPayeeAlias | undefined {
+  return findMatchingTransactionPayeeAlias(transaction.payee, aliases);
 }
+
 
 export function suggestTransactionPayeeAliases({
   candidates,
@@ -1171,7 +1058,7 @@ export function suggestTransactionPayeeAliases({
   >();
 
   for (const candidate of candidates) {
-    const sourcePayee = candidate.parsed.originalPayee ?? candidate.parsed.payee;
+    const sourcePayee = candidate.lifecycle.source.rawPayee;
     const normalisedSource = normalisePayeeAliasSource(sourcePayee);
 
     if (!normalisedSource || existingAliasSources.has(normalisedSource)) {

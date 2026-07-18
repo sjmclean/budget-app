@@ -53,28 +53,19 @@ function readString(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
-function slugify(value: string): string {
-  const slug = value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return slug || "budget";
-}
-
-function createBudgetId(name: string, existingIds: Set<string>): string {
-  const base = slugify(name);
-
-  if (!existingIds.has(base)) {
-    return base;
+function createRandomBudgetId(): string {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return `budget-${globalThis.crypto.randomUUID()}`;
   }
 
-  let counter = 2;
-  let candidate = `${base}-${counter}`;
+  return `budget-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+export function createUniqueBudgetId(existingIds: ReadonlySet<string>): string {
+  let candidate = createRandomBudgetId();
 
   while (existingIds.has(candidate)) {
-    counter += 1;
-    candidate = `${base}-${counter}`;
+    candidate = createRandomBudgetId();
   }
 
   return candidate;
@@ -176,7 +167,7 @@ export function createBudgetRegistryEntry(
   const name = input.name?.trim() || `New Budget ${budgets.length + 1}`;
   const currency = (input.currency?.trim() || "AUD").toUpperCase();
   const timestamp = getIsoTimestamp(input.now);
-  const id = createBudgetId(name, new Set(budgets.map((budget) => budget.id)));
+  const id = createUniqueBudgetId(new Set(budgets.map((budget) => budget.id)));
   const budget: BudgetSummary = {
     id,
     name,

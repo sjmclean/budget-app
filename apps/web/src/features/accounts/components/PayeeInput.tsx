@@ -21,6 +21,9 @@ export function PayeeInput({
   autoFocus,
   openOnFocus = false,
   onCreatePayee,
+  onSelection,
+  onCancel,
+  onBlurOutside,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -30,6 +33,9 @@ export function PayeeInput({
   autoFocus?: boolean;
   openOnFocus?: boolean;
   onCreatePayee?: (name: string) => Promise<PayeeView>;
+  onSelection?: (value: string) => void;
+  onCancel?: () => void;
+  onBlurOutside?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const popupRef = useRef<HTMLDivElement | null>(null);
@@ -91,6 +97,7 @@ export function PayeeInput({
   function selectSuggestion(selectedValue: string, selectedPayeeId?: string) {
     onChange(selectedValue);
     onPayeeIdChange?.(selectedPayeeId);
+    onSelection?.(selectedValue);
     setIsOpen(false);
     setShowAllSuggestions(false);
     setHighlightedIndex(0);
@@ -171,6 +178,7 @@ export function PayeeInput({
           window.setTimeout(() => {
             if (!popupRef.current?.contains(document.activeElement)) {
               closeSuggestionList();
+              onBlurOutside?.();
             }
           }, 120)
         }
@@ -232,6 +240,7 @@ export function PayeeInput({
           if (event.key === "Escape") {
             event.preventDefault();
             closeSuggestionList();
+            onCancel?.();
           }
         }}
         placeholder="Payee"

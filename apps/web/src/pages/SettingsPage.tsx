@@ -683,9 +683,16 @@ export function SettingsPage({
                 />
                 <span>
                   Developer performance mode
-                  <small>Show register timing diagnostics and large-data counters while profiling.</small>
+                  <small>Show application performance diagnostics and large-data counters while profiling.</small>
                 </span>
               </label>
+              {settings.general.developerPerformanceMode ? (
+                <div className="settings-field settings-field-wide">
+                  <span>Importer diagnostics</span>
+                  <small>Inspect persisted completed and failed import traces.</small>
+                  <Button type="button" variant="secondary" onClick={() => navigate("/developer/import-diagnostics")}>Open importer diagnostics</Button>
+                </div>
+              ) : null}
             </div>
           </Card>
         ) : null}

@@ -1,0 +1,277 @@
+!Type:Bank
+D16/07/2026
+T-12.50
+PNew Merchant A
+MNew transaction A
+LDining Out
+^
+D17/07/2026
+T-88.10
+PNew Merchant B
+MNew transaction B
+LHousehold
+^
+D18/07/2026
+T250.00
+PSalary Adjustment
+MNew inflow
+LIncome: Ready to Assign
+^
+D19/07/2026
+T-6.75
+PNew Merchant C
+MNew transaction C
+LTransport
+^
+D20/07/2026
+T-31.20
+PNew Merchant D
+MNew transaction D
+LGroceries
+^
+D01/06/2026
+T-6.17
+PMerchant 01
+MBaseline transaction 01
+LTransport
+^
+D02/06/2026
+T-7.34
+PMerchant 02
+MBaseline transaction 02
+LDining Out
+^
+D03/06/2026
+T-8.51
+PMerchant 03
+MBaseline transaction 03
+LHousehold
+^
+D04/06/2026
+T-9.68
+PMerchant 04
+MBaseline transaction 04
+LGroceries
+^
+D05/06/2026
+T-10.85
+PMerchant 05
+MBaseline transaction 05
+LTransport
+^
+D06/06/2026
+T-12.02
+PMerchant 06
+MBaseline transaction 06
+LDining Out
+^
+D07/06/2026
+T-13.19
+PMerchant 07
+MBaseline transaction 07
+LHousehold
+^
+D08/06/2026
+T-14.36
+PMerchant 08
+MBaseline transaction 08
+LGroceries
+^
+D09/06/2026
+T-15.53
+PMerchant 09
+MBaseline transaction 09
+LTransport
+^
+D10/06/2026
+T-16.70
+PMerchant 10
+MBaseline transaction 10
+LDining Out
+^
+D11/06/2026
+T-17.87
+PMerchant 11
+MBaseline transaction 11
+LHousehold
+^
+D12/06/2026
+T-19.04
+PMerchant 12
+MBaseline transaction 12
+LGroceries
+^
+D13/06/2026
+T-20.21
+PMerchant 13
+MBaseline transaction 13
+LTransport
+^
+D14/06/2026
+T-21.38
+PMerchant 14
+MBaseline transaction 14
+LDining Out
+^
+D15/06/2026
+T-22.55
+PMerchant 15
+MBaseline transaction 15
+LHousehold
+^
+D16/06/2026
+T-23.72
+PMerchant 16
+MBaseline transaction 16
+LGroceries
+^
+D17/06/2026
+T-24.89
+PMerchant 17
+MBaseline transaction 17
+LTransport
+^
+D18/06/2026
+T-26.06
+PMerchant 18
+MBaseline transaction 18
+LDining Out
+^
+D19/06/2026
+T-27.23
+PMerchant 19
+MBaseline transaction 19
+LHousehold
+^
+D20/06/2026
+T-28.40
+PMerchant 20
+MBaseline transaction 20
+LGroceries
+^
+D21/06/2026
+T-29.57
+PMerchant 21
+MBaseline transaction 21
+LTransport
+^
+D22/06/2026
+T-30.74
+PMerchant 22
+MBaseline transaction 22
+LDining Out
+^
+D23/06/2026
+T-31.91
+PMerchant 23
+MBaseline transaction 23
+LHousehold
+^
+D24/06/2026
+T-33.08
+PMerchant 24
+MBaseline transaction 24
+LGroceries
+^
+D25/06/2026
+T-34.25
+PMerchant 25
+MBaseline transaction 25
+LTransport
+^
+D26/06/2026
+T-35.42
+PMerchant 26
+MBaseline transaction 26
+LDining Out
+^
+D27/06/2026
+T-36.59
+PMerchant 27
+MBaseline transaction 27
+LHousehold
+^
+D28/06/2026
+T-37.76
+PMerchant 28
+MBaseline transaction 28
+LGroceries
+^
+D01/07/2026
+T-38.93
+PMerchant 29
+MBaseline transaction 29
+LTransport
+^
+D02/07/2026
+T-40.10
+PMerchant 30
+MBaseline transaction 30
+LDining Out
+^
+D03/07/2026
+T-41.27
+PMerchant 31
+MBaseline transaction 31
+LHousehold
+^
+D04/07/2026
+T-42.44
+PMerchant 32
+MBaseline transaction 32
+LGroceries
+^
+D05/07/2026
+T-43.61
+PMerchant 33
+MBaseline transaction 33
+LTransport
+^
+D06/07/2026
+T-44.78
+PMerchant 34
+MBaseline transaction 34
+LDining Out
+^
+D07/07/2026
+T-45.95
+PMerchant 35
+MBaseline transaction 35
+LHousehold
+^
+D08/07/2026
+T-47.12
+PMerchant 36
+MBaseline transaction 36
+LGroceries
+^
+D09/07/2026
+T-48.29
+PMerchant 37
+MBaseline transaction 37
+LTransport
+^
+D10/07/2026
+T-49.46
+PMerchant 38
+MBaseline transaction 38
+LDining Out
+^
+D11/07/2026
+T-50.63
+PMerchant 39
+MBaseline transaction 39
+LHousehold
+^
+D15/07/2026
+T-42.35
+PAldi Duplicate
+MRepeated card purchase
+LGroceries
+^
+D15/07/2026
+T-42.35
+PAldi Duplicate
+MRepeated card purchase
+LGroceries
+^

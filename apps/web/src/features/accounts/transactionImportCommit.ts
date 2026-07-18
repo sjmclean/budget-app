@@ -6,38 +6,56 @@ import type { TransactionImportCandidate } from "./transactionImport";
  * by the account-register service. This module is deliberately persistence
  * agnostic: the existing register service remains the single owner of writes.
  */
+export interface BuildRegisterTransactionsFromImportOptions {
+  includeMemos?: boolean;
+  categories?: Array<{ id: string; name: string }>;
+}
+
 export function buildRegisterTransactionsFromImport(
   candidates: TransactionImportCandidate[],
+  options: BuildRegisterTransactionsFromImportOptions = {},
 ): NewRegisterTransactionInput[] {
   return candidates
     .filter((candidate) => candidate.selected && candidate.status === "new")
-    .map((candidate) => toRegisterTransactionInput(candidate));
+    .map((candidate) => toRegisterTransactionInput(candidate, options));
 }
 
 function toRegisterTransactionInput(
   candidate: TransactionImportCandidate,
+  options: BuildRegisterTransactionsFromImportOptions,
 ): NewRegisterTransactionInput {
   const { parsed } = candidate;
-  const isTransfer = Boolean(parsed.transferAccountName);
+  const proposal = candidate.lifecycle.proposal;
+  const isTransfer = Boolean(proposal.transferAccountName);
   const isReadyToAssignIncome =
     !isTransfer && parsed.inflow > 0 && parsed.outflow === 0;
+
+  const requestedCategoryName = proposal.categoryName?.trim() || null;
+  const resolvedCategory = requestedCategoryName
+    ? options.categories?.find(
+        (category) =>
+          category.name.trim().toLocaleLowerCase() ===
+          requestedCategoryName.toLocaleLowerCase(),
+      )
+    : undefined;
+  const categoryName = isTransfer
+    ? "Transfer"
+    : isReadyToAssignIncome
+      ? "Ready to Assign"
+      : resolvedCategory?.name ?? "Uncategorised";
 
   return {
     date: parsed.date,
     payee: isTransfer
-      ? `Transfer: ${parsed.transferAccountName}`
-      : parsed.payee,
-    category: isTransfer
-      ? "Transfer"
-      : isReadyToAssignIncome
-        ? "Ready to Assign"
-        : "Uncategorised",
+      ? `Transfer: ${proposal.transferAccountName}`
+      : proposal.payee,
+    category: categoryName,
     categoryId: isTransfer
       ? undefined
       : isReadyToAssignIncome
         ? "__ready_to_assign__"
-        : undefined,
-    memo: parsed.memo,
+        : resolvedCategory?.id,
+    memo: options.includeMemos === false ? undefined : parsed.memo,
     outflow: parsed.outflow,
     inflow: parsed.inflow,
   };

@@ -6730,3 +6730,96 @@ strong {
   font-size: 0.72rem;
   line-height: 1.2;
 }
+
+
+.transaction-import-duplicate-warning {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.85rem 1.25rem 0;
+  padding: 1rem 1.1rem;
+  border: 2px solid #c2410c;
+  border-radius: 0.75rem;
+  background: #fff7ed;
+  color: #7c2d12;
+  box-shadow: 0 0 0 3px rgb(194 65 12 / 10%);
+}
+
+.transaction-import-duplicate-warning strong {
+  font-size: 1rem;
+}
+
+.transaction-import-duplicate-warning span:last-child {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.import-diagnostics-page {
+  width: min(1500px, calc(100vw - 48px));
+  margin: 24px auto;
+}
+
+.import-diagnostics-toolbar,
+.import-diagnostics-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.import-diagnostics-toolbar {
+  margin-bottom: 16px;
+}
+
+.import-diagnostics-toolbar .settings-input {
+  min-width: 260px;
+  flex: 1;
+}
+
+.import-diagnostics-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.import-diagnostics-session-list,
+.import-diagnostics-detail {
+  min-height: 560px;
+}
+
+.import-diagnostics-session {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  margin-bottom: 8px;
+}
+
+.import-diagnostics-session.active {
+  border-color: var(--accent);
+  background: var(--surface-subtle);
+}
+
+.import-diagnostics-candidate-summary {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.import-diagnostics-detail pre {
+  max-height: 420px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .import-diagnostics-layout {
+    grid-template-columns: 1fr;
+  }
+}
