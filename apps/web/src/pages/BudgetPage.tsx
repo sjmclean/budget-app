@@ -848,6 +848,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                     <dd>{formatMoney(-data.totalAssigned, data.currencyCode)}</dd>
                   </div>
                 </dl>
+                <div className="budget-ready-summary-total">
+                  <span>Ready to Assign</span>
+                  <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
+                </div>
               </div>
 
               <nav className="budget-planning-tabs" aria-label="Budget workspace views">

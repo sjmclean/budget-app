@@ -7295,12 +7295,19 @@ strong {
 .budget-ready-summary {
   grid-area: summary;
   justify-self: end;
-  width: min(19rem, 100%);
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
-  border-radius: 0.8rem;
-  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
-  padding: 0.7rem 0.8rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.68);
+  width: min(20rem, 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, var(--border));
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--accent-soft) 82%, var(--surface)),
+      color-mix(in srgb, var(--accent-soft) 42%, var(--surface))
+    );
+  padding: 0.88rem 0.95rem 0.78rem;
+  box-shadow:
+    0 10px 28px color-mix(in srgb, var(--accent) 10%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 
 .budget-ready-summary-heading {
@@ -7312,21 +7319,24 @@ strong {
 
 .budget-ready-summary-heading span {
   color: var(--text-muted);
-  font-size: 0.74rem;
-  font-weight: 760;
+  color: var(--accent-strong);
+  font-size: 0.76rem;
+  font-weight: 820;
+  letter-spacing: 0.01em;
 }
 
 .budget-ready-summary-heading strong {
   color: var(--accent-strong);
-  font-size: 1.45rem;
+  font-size: 1.82rem;
+  line-height: 1.05;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
 }
 
 .budget-ready-summary dl {
   display: grid;
-  gap: 0.22rem;
-  margin: 0.52rem 0 0;
+  gap: 0.3rem;
+  margin: 0.62rem 0 0;
 }
 
 .budget-ready-summary dl > div {
@@ -7339,7 +7349,7 @@ strong {
 .budget-ready-summary dt,
 .budget-ready-summary dd {
   margin: 0;
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -7353,12 +7363,36 @@ strong {
   text-align: right;
 }
 
+
+.budget-ready-summary-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-top: 0.68rem;
+  padding-top: 0.62rem;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border-soft));
+  color: var(--accent-strong);
+}
+
+.budget-ready-summary-total span {
+  font-size: 0.78rem;
+  font-weight: 820;
+}
+
+.budget-ready-summary-total strong {
+  font-size: 0.94rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
 .budget-ready-summary-negative {
   border-color: color-mix(in srgb, var(--negative) 35%, var(--border));
   background: color-mix(in srgb, var(--negative-bg) 64%, var(--surface));
 }
 
 .budget-ready-summary-negative .budget-ready-summary-heading strong,
+.budget-ready-summary-negative .budget-ready-summary-total,
 .budget-ready-summary-negative-value {
   color: var(--negative) !important;
 }
