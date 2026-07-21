@@ -1,4 +1,6 @@
-import { unlinkSync } from "fs";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createDatabase } from "../packages/database/src/db.js";
 import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
 import { createAccount } from "../packages/budget-engine/src/services/createAccount.js";
@@ -17,9 +19,10 @@ import { BudgetRegistryApplicationService } from "../packages/application/src/Bu
 import { SearchFilterApplicationService } from "../packages/application/src/SearchFilterApplicationService.js";
 import { ImportReviewApplicationService } from "../packages/application/src/ImportReviewApplicationService.js";
 
-const dbPath = "/tmp/budget-v126-registry.sqlite";
-try { unlinkSync(dbPath); } catch {}
+const tempDir = mkdtempSync(join(tmpdir(), "budget-app-v126-"));
+const dbPath = join(tempDir, "registry.sqlite");
 const db = createDatabase(dbPath);
+try {
 const budgetRepo = new SqliteBudgetRepository(db);
 const accountRepo = new SqliteAccountRepository(db);
 const txRepo = new SqliteTransactionRepository(db);
@@ -43,3 +46,7 @@ await importRunRepo.create(run);
 const completed = await review.completeImportRun(run, { accounts: 1, transactions: 1 });
 if (completed.status !== "completed" || review.getSummary(completed).accounts !== 1) throw new Error("Expected import review summary");
 console.log("v1.2.6 budget registry, import review, and search filters OK");
+} finally {
+  db.$client.close();
+  rmSync(tempDir, { recursive: true, force: true });
+}

@@ -28,6 +28,7 @@ try {
   await validateSqliteRegisterAdapterFoundation();
   console.log("v1.35 SQLite register adapter foundation checks OK");
 } finally {
+  db.$client.close();
   rmSync(tempDir, { recursive: true, force: true });
 }
 

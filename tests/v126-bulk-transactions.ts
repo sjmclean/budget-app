@@ -1,5 +1,4 @@
-import { unlinkSync } from "fs";
-import { createDatabase } from "../packages/database/src/db.js";
+import { createTemporaryDatabase } from "./support/persistence/temporaryDatabase.js";
 import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
 import { createAccount } from "../packages/budget-engine/src/services/createAccount.js";
 import { createTransaction } from "../packages/budget-engine/src/services/createTransaction.js";
@@ -11,9 +10,7 @@ import { SqliteAccountRepository } from "../packages/repository/src/SqliteAccoun
 import { SqliteTransactionRepository } from "../packages/repository/src/SqliteTransactionRepository.js";
 import { BulkTransactionApplicationService } from "../packages/application/src/BulkTransactionApplicationService.js";
 
-const dbPath = "/tmp/budget-v126-bulk.sqlite";
-try { unlinkSync(dbPath); } catch {}
-const db = createDatabase(dbPath);
+const { db, cleanup } = createTemporaryDatabase("budget-v126-bulk");
 const budgetRepo = new SqliteBudgetRepository(db);
 const accountRepo = new SqliteAccountRepository(db);
 const txRepo = new SqliteTransactionRepository(db);
@@ -32,3 +29,4 @@ if (updated?.clearedStatus !== ClearedStatus.Cleared) throw new Error("Expected 
 const del = await bulk.bulkDelete([t1.id, "missing"]);
 if (del.updated.length !== 1 || del.skipped.length !== 1) throw new Error("Expected partial bulk delete result");
 console.log("v1.2.6 bulk transaction actions OK");
+cleanup();

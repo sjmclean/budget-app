@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
 import { createYnab4LauncherBudgetImport } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
 import {
@@ -112,8 +111,5 @@ const februaryPositive = readCategory("2020-02", "Positive category");
 assert.equal(februaryPositive.previousAvailable, 25, "Positive balances must continue to roll forward without an explicit flag.");
 assert.equal(februaryPositive.available, 25);
 
-const importerSource = readFileSync("apps/web/src/features/budget/ynab4LauncherImport.ts", "utf8");
-assert.match(importerSource, /overspendingHandling/);
-assert.match(importerSource, /confined/i);
 
 console.log("v3.14.3 YNAB4 overspending carryover semantics passed");

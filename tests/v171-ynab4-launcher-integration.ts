@@ -85,10 +85,22 @@ const entries: Ynab4PackageEntry[] = [
       payees: [{ entityId: "p1", name: "Landlord" }],
       monthlyBudgets: [{ entityId: "mb1", month: "2026-06" }],
       transactions: [
-        { entityId: "t1", accountId: "checking", payeeId: "p1", amount: -120000 },
+        {
+          entityId: "t1",
+          accountId: "checking",
+          payeeId: "p1",
+          amount: -120000,
+          date: "2026-06-15",
+        },
       ],
       scheduledTransactions: [
-        { entityId: "s1", accountId: "checking", payeeId: "p1", amount: -120000 },
+        {
+          entityId: "s1",
+          accountId: "checking",
+          payeeId: "p1",
+          amount: -120000,
+          date: "2026-07-01",
+        },
       ],
     }),
   },

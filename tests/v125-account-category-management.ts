@@ -1,5 +1,4 @@
-import { unlinkSync } from "fs";
-import { createDatabase } from "../packages/database/src/db.js";
+import { createTemporaryDatabase } from "./support/persistence/temporaryDatabase.js";
 import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
 import { createAccount } from "../packages/budget-engine/src/services/createAccount.js";
 import { createAccountSettings } from "../packages/budget-engine/src/services/createAccountSettings.js";
@@ -18,9 +17,7 @@ import { SqliteCategorySettingsRepository } from "../packages/repository/src/Sql
 import { AccountManagementApplicationService } from "../packages/application/src/AccountManagementApplicationService.js";
 import { CategoryManagementApplicationService } from "../packages/application/src/CategoryManagementApplicationService.js";
 
-const dbPath = "/tmp/budget-v125-account-category.sqlite";
-try { unlinkSync(dbPath); } catch {}
-const db = createDatabase(dbPath);
+const { db, cleanup } = createTemporaryDatabase("budget-v125-account-category");
 const budgetRepo = new SqliteBudgetRepository(db);
 const accountRepo = new SqliteAccountRepository(db);
 const accountSettingsRepo = new SqliteAccountSettingsRepository(db);
@@ -66,3 +63,4 @@ const pinned = await categoryService.setPinned(category.id, true);
 if (!pinned.pinned) throw new Error("Expected category pin");
 
 console.log("v1.2.5 account/category management OK");
+cleanup();

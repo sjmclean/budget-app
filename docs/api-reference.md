@@ -33,7 +33,7 @@ This is a high-level developer reference for the backend service surface. It is 
 
 ## Import and matching services
 
-- `Ynab4DatabaseImportService`
+- YNAB4 package import is a launcher workflow; see `docs/ynab4-import.md`.
 - `ImportReviewApplicationService`
 - `ImportRollbackApplicationService`
 - `BankImportApplicationService`

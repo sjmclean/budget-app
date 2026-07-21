@@ -1,11 +1,15 @@
 import {
   Archive,
+  ArrowLeftRight,
   BarChart3,
   ChevronDown,
   CreditCard,
   FolderOpen,
   Gauge,
   MoreHorizontal,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pin,
   Pencil,
   PiggyBank,
   Plus,
@@ -14,8 +18,9 @@ import {
   Users,
   Trash2,
   WalletCards,
+  X,
 } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { AddAccountModal } from "../components/accounts/AddAccountModal";
 import type {
@@ -29,9 +34,36 @@ import { getAppPersistenceGateway } from "../features/persistence";
 import { alertDialog, confirmDialog } from "../features/ui/appDialogService";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
+import { navigationModel, type NavigationIcon } from "./navigationModel";
+import type { AdaptiveNavigationMode } from "./useAdaptiveNavigation";
 
-export function Sidebar() {
+interface SidebarProps {
+  mode: AdaptiveNavigationMode;
+  collapsed: boolean;
+  drawerOpen: boolean;
+  onToggleExpanded: () => void;
+  onCloseDrawer: () => void;
+}
+
+const navigationIcons: Record<NavigationIcon, typeof WalletCards> = {
+  budget: WalletCards,
+  dashboard: Gauge,
+  reports: BarChart3,
+  settings: Settings,
+  restore: RotateCcw,
+  payees: Users,
+  switch: ArrowLeftRight,
+};
+
+export function Sidebar({
+  mode,
+  collapsed,
+  drawerOpen,
+  onToggleExpanded,
+  onCloseDrawer,
+}: SidebarProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const accountsPersistence = getAppPersistenceGateway().accounts;
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const updateBudget = useBudgetRegistryStore((state) => state.updateBudget);
@@ -44,6 +76,33 @@ export function Sidebar() {
   const [openMenuAccountId, setOpenMenuAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<SidebarAccount[]>([]);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (mode === "drawer") {
+      onCloseDrawer();
+    }
+  }, [location.pathname, mode, onCloseDrawer]);
+
+  useEffect(() => {
+    if (mode !== "drawer" || !drawerOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onCloseDrawer();
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [drawerOpen, mode, onCloseDrawer]);
 
   useEffect(() => {
     let active = true;
@@ -206,60 +265,131 @@ export function Sidebar() {
     );
   }
 
+  function renderNavigationDestination(path: string) {
+    const destination = navigationModel.primary.find(
+      (item) => item.kind === "destination" && item.path === path,
+    );
+
+    if (!destination || destination.kind !== "destination") {
+      return null;
+    }
+
+    const Icon = navigationIcons[destination.icon];
+
+    return (
+      <NavLink
+        key={destination.path}
+        to={destination.path}
+        className="sidebar-link"
+        title={collapsed ? destination.label : undefined}
+      >
+        <Icon size={18} />
+        <span>{destination.label}</span>
+      </NavLink>
+    );
+  }
+
   return (
     <>
-      <aside className="sidebar">
-        <NavLink to="/" className="sidebar-brand sidebar-brand-link">
+      {mode === "drawer" && drawerOpen ? (
+        <button
+          className="navigation-drawer-backdrop"
+          type="button"
+          aria-label="Close navigation"
+          onClick={onCloseDrawer}
+        />
+      ) : null}
+
+      <aside
+        className={[
+          "sidebar",
+          collapsed ? "sidebar-collapsed" : "",
+          mode === "drawer" ? "sidebar-drawer" : "",
+          drawerOpen ? "sidebar-drawer-open" : "",
+        ].filter(Boolean).join(" ")}
+        aria-label="Primary navigation"
+        aria-hidden={mode === "drawer" && !drawerOpen}
+        inert={mode === "drawer" && !drawerOpen}
+      >
+        <div className="sidebar-brand">
+          <WalletCards className="sidebar-brand-icon" size={20} />
           <div>
             <h2>Budget App</h2>
-            <p className="sidebar-subtitle">Budgets</p>
+            <p className="sidebar-subtitle">
+              {mode === "drawer" ? "Navigation" : "Budgets"}
+            </p>
           </div>
-        </NavLink>
+        </div>
+
+        {mode === "drawer" ? (
+          <button
+            className="navigation-mode-button navigation-drawer-close"
+            type="button"
+            aria-label="Close navigation"
+            onClick={onCloseDrawer}
+          >
+            <X size={18} />
+          </button>
+        ) : (
+          <button
+            className="navigation-mode-button"
+            type="button"
+            aria-label={
+              collapsed
+                ? mode === "desktop"
+                  ? "Pin expanded navigation"
+                  : "Expand navigation"
+                : "Collapse navigation"
+            }
+            title={
+              collapsed
+                ? mode === "desktop"
+                  ? "Pin expanded navigation"
+                  : "Expand navigation"
+                : "Collapse navigation"
+            }
+            onClick={onToggleExpanded}
+          >
+            {collapsed ? (
+              mode === "desktop" ? <Pin size={17} /> : <PanelLeftOpen size={17} />
+            ) : (
+              <PanelLeftClose size={17} />
+            )}
+          </button>
+        )}
 
         <nav className="sidebar-nav">
-          <NavLink to="/budget" className="sidebar-link">
-            <WalletCards size={18} />
-            <span>Budget</span>
-          </NavLink>
+          {renderNavigationDestination("/budget")}
 
           <div className="accounts-block">
-            <button
-              className="accounts-header"
-              type="button"
-              onClick={() => setAccountsOpen(!accountsOpen)}
-            >
-              <div>
+            <div className="accounts-header-row">
+              <button
+                className="accounts-header"
+                type="button"
+                aria-expanded={accountsOpen}
+                aria-controls="primary-navigation-accounts"
+                onClick={() => setAccountsOpen(!accountsOpen)}
+              >
                 <ChevronDown
                   size={16}
                   className={accountsOpen ? "chevron-open" : "chevron-closed"}
                 />
                 <span>Accounts</span>
-              </div>
+              </button>
 
-              <span
-                role="button"
-                tabIndex={0}
+              <button
+                type="button"
                 className="account-add-button"
                 title="Add account"
                 aria-label="Add account"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setIsAddAccountOpen(true);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setIsAddAccountOpen(true);
-                  }
-                }}
+                onClick={() => setIsAddAccountOpen(true)}
               >
                 <Plus size={15} />
-              </span>
-            </button>
+              </button>
+            </div>
 
             {accountsOpen && (
-              <div className="account-tree">
+              <div className="account-tree" id="primary-navigation-accounts">
                 <div className="account-section">
                   <FolderOpen size={14} />
                   <span>Budget Accounts</span>
@@ -280,6 +410,16 @@ export function Sidebar() {
                 </div>
 
                 {trackingAccounts.map(renderAccount)}
+
+                {activeAccounts.length === 0 && closedAccounts.length === 0 ? (
+                  <div className="account-tree-empty">
+                    <span>No accounts yet</span>
+                    <button type="button" onClick={() => setIsAddAccountOpen(true)}>
+                      <Plus size={14} />
+                      <span>Add your first account</span>
+                    </button>
+                  </div>
+                ) : null}
 
                 {closedAccounts.length > 0 && (
                   <>
@@ -306,47 +446,29 @@ export function Sidebar() {
             )}
           </div>
 
-          <NavLink to="/dashboard" className="sidebar-link">
-            <Gauge size={18} />
-            <span>Dashboard</span>
-          </NavLink>
-
-          <NavLink to="/reports" className="sidebar-link">
-            <BarChart3 size={18} />
-            <span>Reports</span>
-          </NavLink>
+          {renderNavigationDestination("/dashboard")}
+          {renderNavigationDestination("/reports")}
         </nav>
 
         <div className="sidebar-settings">
           <div className="sidebar-settings-menu">
             {isSettingsMenuOpen ? (
               <div className="sidebar-settings-menu-panel" role="menu">
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => openSettingsDestination("/settings")}
-                >
-                  <Settings size={16} />
-                  <span>Settings</span>
-                </button>
+                {navigationModel.settings.map((destination) => {
+                  const Icon = navigationIcons[destination.icon];
 
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => openSettingsDestination("/restore-points")}
-                >
-                  <RotateCcw size={16} />
-                  <span>Restore Points</span>
-                </button>
-
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => openSettingsDestination("/payees")}
-                >
-                  <Users size={16} />
-                  <span>Payee Management</span>
-                </button>
+                  return (
+                    <button
+                      key={destination.path}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => openSettingsDestination(destination.path)}
+                    >
+                      <Icon size={16} />
+                      <span>{destination.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             ) : null}
 

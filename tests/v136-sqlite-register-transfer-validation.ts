@@ -29,6 +29,7 @@ try {
   await validateSqliteRegisterTransferWorkflow();
   console.log("v1.36 SQLite register transfer validation checks OK");
 } finally {
+  db.$client.close();
   rmSync(tempDir, { recursive: true, force: true });
 }
 

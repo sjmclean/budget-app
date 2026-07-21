@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Redo2, Undo2 } from "lucide-react";
+import { Menu, Redo2, Undo2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { resolveActiveBudget } from "../features/budget/activeBudget";
@@ -8,7 +8,11 @@ import { createUndoRedoKeyboardHandler } from "../features/history";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore, type ThemeMode } from "../stores/uiStore";
 
-export function TopBar() {
+interface TopBarProps {
+  onOpenNavigation: () => void;
+}
+
+export function TopBar({ onOpenNavigation }: TopBarProps) {
   const navigate = useNavigate();
   const theme = useUIStore((state) => state.theme);
   const setTheme = useUIStore((state) => state.setTheme);
@@ -50,7 +54,16 @@ export function TopBar() {
 
   return (
     <header className="topbar">
-      <div>
+      <button
+        className="navigation-drawer-trigger"
+        type="button"
+        aria-label="Open navigation"
+        onClick={onOpenNavigation}
+      >
+        <Menu size={20} />
+      </button>
+
+      <div className="topbar-identity">
         <h1 className="topbar-title">
           {activeBudget?.name ?? "Budget App"}
         </h1>

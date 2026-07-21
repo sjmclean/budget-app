@@ -2,7 +2,10 @@ import type { NewRegisterTransactionInput, RegisterTransactionView } from "./acc
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 
 
-export type ScheduledFrequency = "once" | "weekly" | "fortnightly" | "monthly" | "yearly";
+export type ScheduledFrequency = "once" | "daily" | "weekly" | "fortnightly" | "monthly" | "yearly" | "custom";
+export type ScheduledRecurrenceUnit = "day" | "week" | "month" | "year";
+export type ScheduledEndCondition = "never" | "on-date" | "after-occurrences";
+export type ScheduledWeekendPolicy = "same-day" | "previous-business-day" | "next-business-day" | "skip";
 
 export interface ScheduledTransactionView {
   id: string;
@@ -10,6 +13,14 @@ export interface ScheduledTransactionView {
   tagIds?: string[];
   nextDueDate: string;
   frequency: ScheduledFrequency;
+  recurrenceInterval?: number;
+  recurrenceUnit?: ScheduledRecurrenceUnit;
+  recurrenceAnchorDate?: string;
+  endCondition?: ScheduledEndCondition;
+  endDate?: string;
+  occurrenceCount?: number;
+  occurrencesCompleted?: number;
+  weekendPolicy?: ScheduledWeekendPolicy;
   payee: string;
   payeeId?: string;
   category: string;
@@ -28,6 +39,14 @@ export interface UpsertScheduledTransactionInput {
   tagIds?: string[];
   nextDueDate: string;
   frequency: ScheduledFrequency;
+  recurrenceInterval?: number;
+  recurrenceUnit?: ScheduledRecurrenceUnit;
+  recurrenceAnchorDate?: string;
+  endCondition?: ScheduledEndCondition;
+  endDate?: string;
+  occurrenceCount?: number;
+  occurrencesCompleted?: number;
+  weekendPolicy?: ScheduledWeekendPolicy;
   payee: string;
   payeeId?: string;
   category: string;
@@ -65,13 +84,31 @@ export class BrowserPersistentScheduledTransactionService {
     const payeeId = resolvePayeeId(this.dependencies, input.payee, input.payeeId);
 
     const transactions = readScheduledTransactions(this.dependencies);
+    const recurrence = {
+      interval: normaliseRecurrenceInterval(input.recurrenceInterval ?? recurrenceFromFrequency(input.frequency).interval),
+      unit: input.recurrenceUnit ?? recurrenceFromFrequency(input.frequency).unit,
+    };
+    const occurrence = resolveOccurrenceDate(
+      input.recurrenceAnchorDate ?? input.nextDueDate,
+      recurrence.interval,
+      recurrence.unit,
+      input.weekendPolicy ?? "same-day",
+    );
     const now = new Date().toISOString();
     const next: ScheduledTransactionView = {
       id: createId(),
       accountId: input.accountId,
       tagIds: normaliseTagIds(input.tagIds),
-      nextDueDate: input.nextDueDate,
+      nextDueDate: occurrence.dueDate,
       frequency: input.frequency,
+      recurrenceInterval: recurrence.interval,
+      recurrenceUnit: recurrence.unit,
+      recurrenceAnchorDate: occurrence.anchorDate,
+      endCondition: input.endCondition ?? "never",
+      endDate: input.endDate,
+      occurrenceCount: normaliseOccurrenceCount(input.occurrenceCount),
+      occurrencesCompleted: input.occurrencesCompleted ?? 0,
+      weekendPolicy: input.weekendPolicy ?? "same-day",
       payee: input.payee,
       payeeId,
       category: normaliseScheduledCategory(input),
@@ -98,12 +135,31 @@ export class BrowserPersistentScheduledTransactionService {
         return transaction;
       }
 
+      const recurrence = {
+        interval: normaliseRecurrenceInterval(input.recurrenceInterval ?? transaction.recurrenceInterval ?? recurrenceFromFrequency(input.frequency).interval),
+        unit: input.recurrenceUnit ?? transaction.recurrenceUnit ?? recurrenceFromFrequency(input.frequency).unit,
+      };
+      const occurrence = resolveOccurrenceDate(
+        input.recurrenceAnchorDate ?? input.nextDueDate,
+        recurrence.interval,
+        recurrence.unit,
+        input.weekendPolicy ?? transaction.weekendPolicy ?? "same-day",
+      );
+
       return {
         ...transaction,
         accountId: input.accountId,
         tagIds: normaliseTagIds(input.tagIds),
-        nextDueDate: input.nextDueDate,
+        nextDueDate: occurrence.dueDate,
         frequency: input.frequency,
+        recurrenceInterval: recurrence.interval,
+        recurrenceUnit: recurrence.unit,
+        recurrenceAnchorDate: occurrence.anchorDate,
+        endCondition: input.endCondition ?? transaction.endCondition ?? "never",
+        endDate: input.endDate,
+        occurrenceCount: normaliseOccurrenceCount(input.occurrenceCount ?? transaction.occurrenceCount),
+        occurrencesCompleted: input.occurrencesCompleted ?? transaction.occurrencesCompleted ?? 0,
+        weekendPolicy: input.weekendPolicy ?? transaction.weekendPolicy ?? "same-day",
         payee: input.payee,
         payeeId,
         category: normaliseScheduledCategory(input),
@@ -143,7 +199,31 @@ export class BrowserPersistentScheduledTransactionService {
       return this.listByAccount(accountId);
     }
 
-    if (target.frequency === "once") {
+    const completed = (target.occurrencesCompleted ?? 0) + 1;
+    const shouldComplete =
+      target.frequency === "once" ||
+      (target.endCondition === "after-occurrences" && completed >= (target.occurrenceCount ?? 1));
+
+    if (shouldComplete) {
+      writeScheduledTransactions(
+        this.dependencies.storage,
+        transactions.filter((transaction) => transaction.id !== scheduledTransactionId),
+      );
+      return this.listByAccount(accountId);
+    }
+
+    const recurrence = resolveRecurrence(target);
+    const currentAnchor = target.recurrenceAnchorDate ?? target.nextDueDate;
+    const candidateAnchor = advanceDateByRule(currentAnchor, recurrence.interval, recurrence.unit);
+    const occurrence = resolveOccurrenceDate(
+      candidateAnchor,
+      recurrence.interval,
+      recurrence.unit,
+      target.weekendPolicy ?? "same-day",
+    );
+    const nextAnchor = occurrence.anchorDate;
+
+    if (target.endCondition === "on-date" && target.endDate && nextAnchor > target.endDate) {
       writeScheduledTransactions(
         this.dependencies.storage,
         transactions.filter((transaction) => transaction.id !== scheduledTransactionId),
@@ -158,7 +238,9 @@ export class BrowserPersistentScheduledTransactionService {
         transaction.id === scheduledTransactionId
           ? {
               ...transaction,
-              nextDueDate: advanceDate(transaction.nextDueDate, transaction.frequency),
+              recurrenceAnchorDate: nextAnchor,
+              nextDueDate: occurrence.dueDate,
+              occurrencesCompleted: completed,
               updatedAt: now,
             }
           : transaction,
@@ -300,6 +382,14 @@ function normaliseStoredScheduledTransaction(
       ...(legacyTagId ? [legacyTagId] : []),
     ]),
     memo: currentTransaction.memo ?? "",
+    recurrenceInterval: normaliseRecurrenceInterval(currentTransaction.recurrenceInterval),
+    recurrenceUnit: currentTransaction.recurrenceUnit ?? recurrenceFromFrequency(currentTransaction.frequency).unit,
+    recurrenceAnchorDate: currentTransaction.recurrenceAnchorDate ?? currentTransaction.nextDueDate,
+    endCondition: currentTransaction.endCondition ?? "never",
+    endDate: currentTransaction.endDate,
+    occurrenceCount: normaliseOccurrenceCount(currentTransaction.occurrenceCount),
+    occurrencesCompleted: currentTransaction.occurrencesCompleted ?? 0,
+    weekendPolicy: currentTransaction.weekendPolicy ?? "same-day",
     payeeId:
       currentTransaction.payeeId ??
       dependencies?.findPayeeIdByName(currentTransaction.payee),
@@ -359,25 +449,128 @@ function compareScheduledTransactions(
   return a.payee.localeCompare(b.payee);
 }
 
-function advanceDate(date: string, frequency: ScheduledFrequency): string {
+export function resolveRecurrence(
+  transaction: Pick<ScheduledTransactionView, "frequency" | "recurrenceInterval" | "recurrenceUnit">,
+): { interval: number; unit: ScheduledRecurrenceUnit } {
+  const fallback = recurrenceFromFrequency(transaction.frequency);
+  return {
+    interval: normaliseRecurrenceInterval(transaction.recurrenceInterval ?? fallback.interval),
+    unit: transaction.recurrenceUnit ?? fallback.unit,
+  };
+}
+
+export function recurrenceFromFrequency(
+  frequency: ScheduledFrequency,
+): { interval: number; unit: ScheduledRecurrenceUnit } {
+  switch (frequency) {
+    case "daily": return { interval: 1, unit: "day" };
+    case "weekly": return { interval: 1, unit: "week" };
+    case "fortnightly": return { interval: 2, unit: "week" };
+    case "yearly": return { interval: 1, unit: "year" };
+    case "once":
+    case "monthly":
+    case "custom":
+    default:
+      return { interval: 1, unit: "month" };
+  }
+}
+
+export function frequencyFromRecurrence(interval: number, unit: ScheduledRecurrenceUnit): ScheduledFrequency {
+  if (unit === "day" && interval === 1) return "daily";
+  if (unit === "week" && interval === 1) return "weekly";
+  if (unit === "week" && interval === 2) return "fortnightly";
+  if (unit === "month" && interval === 1) return "monthly";
+  if (unit === "year" && interval === 1) return "yearly";
+  return "custom";
+}
+
+export function advanceDateByRule(
+  date: string,
+  interval: number,
+  unit: ScheduledRecurrenceUnit,
+): string {
   const [year, month, day] = date.split("-").map(Number);
   const next = new Date(year, month - 1, day);
+  const safeInterval = normaliseRecurrenceInterval(interval);
 
-  if (frequency === "weekly") {
-    next.setDate(next.getDate() + 7);
-  } else if (frequency === "fortnightly") {
-    next.setDate(next.getDate() + 14);
-  } else if (frequency === "monthly") {
-    next.setMonth(next.getMonth() + 1);
-  } else if (frequency === "yearly") {
-    next.setFullYear(next.getFullYear() + 1);
+  if (unit === "day") next.setDate(next.getDate() + safeInterval);
+  if (unit === "week") next.setDate(next.getDate() + (safeInterval * 7));
+  if (unit === "month") next.setMonth(next.getMonth() + safeInterval);
+  if (unit === "year") next.setFullYear(next.getFullYear() + safeInterval);
+
+  return formatIsoDate(next);
+}
+
+export function resolveOccurrenceDate(
+  anchorDate: string,
+  _interval: number,
+  _unit: ScheduledRecurrenceUnit,
+  policy: ScheduledWeekendPolicy,
+): { anchorDate: string; dueDate: string } {
+  return {
+    anchorDate,
+    dueDate: adjustOccurrenceDueDate(anchorDate, policy),
+  };
+}
+
+export function shouldSkipOccurrence(
+  anchorDate: string,
+  policy: ScheduledWeekendPolicy,
+): boolean {
+  return policy === "skip" && isWeekend(anchorDate);
+}
+
+export function adjustOccurrenceDueDate(
+  anchorDate: string,
+  policy: ScheduledWeekendPolicy,
+): string {
+  const date = anchorDate;
+  if (policy === "same-day") return date;
+
+  const parsed = parseIsoDate(date);
+  const day = parsed.getDay();
+  if (day !== 0 && day !== 6) return date;
+
+  if (policy === "skip") return date;
+
+  if (policy === "previous-business-day") {
+    parsed.setDate(parsed.getDate() - (day === 6 ? 1 : 2));
+    return formatIsoDate(parsed);
   }
 
+  parsed.setDate(parsed.getDate() + (day === 6 ? 2 : 1));
+  return formatIsoDate(parsed);
+}
+
+/** Compatibility export for existing UI and stored schedule workflows. */
+export function applyWeekendPolicy(date: string, policy: ScheduledWeekendPolicy): string {
+  return adjustOccurrenceDueDate(date, policy);
+}
+
+function isWeekend(date: string): boolean {
+  const day = parseIsoDate(date).getDay();
+  return day === 0 || day === 6;
+}
+
+function parseIsoDate(date: string): Date {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatIsoDate(date: Date): string {
   return [
-    String(next.getFullYear()).padStart(4, "0"),
-    String(next.getMonth() + 1).padStart(2, "0"),
-    String(next.getDate()).padStart(2, "0"),
+    String(date.getFullYear()).padStart(4, "0"),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
   ].join("-");
+}
+
+function normaliseRecurrenceInterval(value: number | undefined): number {
+  return Number.isFinite(value) ? Math.max(1, Math.floor(value ?? 1)) : 1;
+}
+
+function normaliseOccurrenceCount(value: number | undefined): number | undefined {
+  return Number.isFinite(value) ? Math.max(1, Math.floor(value ?? 1)) : undefined;
 }
 
 function createId(): string {

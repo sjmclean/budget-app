@@ -1,6 +1,5 @@
-import { unlinkSync } from "fs";
 import { randomUUID } from "crypto";
-import { createDatabase } from "../packages/database/src/db.js";
+import { createTemporaryDatabase } from "./support/persistence/temporaryDatabase.js";
 import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
 import { DomainEventType } from "../packages/types/src/DomainEventType.js";
 import { SqliteBudgetRepository } from "../packages/repository/src/SqliteBudgetRepository.js";
@@ -10,9 +9,7 @@ import { AuditApplicationService } from "../packages/application/src/AuditApplic
 import { UndoService } from "../packages/application/src/UndoService.js";
 import { CommandHistoryApplicationService } from "../packages/application/src/CommandHistoryApplicationService.js";
 
-const dbPath = "/tmp/budget-v128-undo-redo.sqlite";
-try { unlinkSync(dbPath); } catch {}
-const db = createDatabase(dbPath);
+const { db, cleanup } = createTemporaryDatabase("budget-v128-undo-redo");
 const budgetRepo = new SqliteBudgetRepository(db);
 const eventRepo = new SqliteDomainEventRepository(db);
 const undoRepo = new SqliteUndoRecordRepository(db);
@@ -30,3 +27,4 @@ const preview = await history.previewUndo(budget.id);
 if (!preview || preview.event?.id !== event.id) throw new Error("Expected undo preview to reference last audited event");
 if ((preview.reversePayload as any).transactionId !== transactionId) throw new Error("Expected reverse payload to be persisted");
 console.log("v1.2.8 command history undo/redo foundation OK");
+cleanup();

@@ -13,22 +13,49 @@ function candidate(
   } = {},
 ): TransactionImportCandidate {
   const { parsed: parsedOverrides, ...candidateOverrides } = overrides;
+  const parsed = {
+    rowNumber: 2,
+    date: "2026-07-16",
+    payee: "Example",
+    outflow: 12.34,
+    inflow: 0,
+    raw: {},
+    ...parsedOverrides,
+  };
+  const transferAccountName = parsed.transferAccountName?.trim() || null;
+  const proposedPayee = transferAccountName
+    ? `Transfer: ${transferAccountName}`
+    : parsed.payee;
 
   return {
     id: "row-2",
-    parsed: {
-      rowNumber: 2,
-      date: "2026-07-16",
-      payee: "Example",
-      outflow: 12.34,
-      inflow: 0,
-      raw: {},
-      ...parsedOverrides,
-    },
+    parsed,
     status: "new",
     reason: "New transaction.",
     selected: true,
     errors: [],
+    lifecycle: {
+      source: {
+        rowNumber: parsed.rowNumber,
+        date: parsed.date,
+        rawPayee: parsed.payee,
+        memo: parsed.memo,
+        importedCategoryName: parsed.importedCategoryName,
+        transferAccountName: parsed.transferAccountName,
+        outflow: parsed.outflow,
+        inflow: parsed.inflow,
+      },
+      merchant: {
+        canonicalPayee: proposedPayee,
+        suggestedCategoryName: parsed.importedCategoryName?.trim() || null,
+        transferAccountName,
+      },
+      proposal: {
+        payee: proposedPayee,
+        categoryName: parsed.importedCategoryName?.trim() || null,
+        transferAccountName,
+      },
+    },
     ...candidateOverrides,
   };
 }

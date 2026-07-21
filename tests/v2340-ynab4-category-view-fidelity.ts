@@ -109,7 +109,7 @@ const hiddenCategories = view.categoryGroups.find((group) => group.name === "Hid
 assert.ok(hiddenCategories);
 assert.deepEqual(
   hiddenCategories.categories.map((category) => category.name),
-  ["Groceries", "Child Care & Events"],
+  ["Old Group/Groceries", "Main Expenses/Child Care & Events"],
 );
 assert.equal(hiddenCategories.categories.every((category) => category.isArchived), true);
 
@@ -117,9 +117,13 @@ const monthlyBills = view.categoryGroups.find((group) => group.name === "Monthly
 assert.ok(monthlyBills);
 assert.deepEqual(
   monthlyBills.categories.map((category) => category.name),
-  ["Phone", "Cable TV"],
+  ["Phone"],
 );
-assert.equal(monthlyBills.categories.find((category) => category.name === "Cable TV")?.isArchived, true);
+assert.equal(
+  monthlyBills.categories.some((category) => category.name === "Cable TV"),
+  false,
+  "Actual-compatible migration drops tombstoned categories",
+);
 
 const mainExpenses = view.categoryGroups.find((group) => group.name === "Main Expenses");
 assert.ok(mainExpenses);

@@ -5,11 +5,15 @@ export type ThemeMode = "light" | "dark" | "system";
 
 interface UIState {
   sidebarCollapsed: boolean;
+  navigationPinned: boolean;
+  navigationDrawerOpen: boolean;
   theme: ThemeMode;
   selectedBudgetId: string | null;
 
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  setNavigationPinned: (pinned: boolean) => void;
+  setNavigationDrawerOpen: (open: boolean) => void;
   setTheme: (theme: ThemeMode) => void;
   selectBudget: (budgetId: string) => void;
   clearSelectedBudget: () => void;
@@ -17,6 +21,15 @@ interface UIState {
 
 const themeStorageKey = "budget-app-theme";
 const selectedBudgetStorageKey = SELECTED_BUDGET_STORAGE_KEY;
+const navigationPinnedStorageKey = "budget-app-navigation-pinned";
+
+function getInitialNavigationPinned(): boolean {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  return window.localStorage.getItem(navigationPinnedStorageKey) !== "false";
+}
 
 function getInitialSelectedBudgetId(): string | null {
   if (typeof window === "undefined") {
@@ -48,6 +61,8 @@ function getInitialTheme(): ThemeMode {
 export const useUIStore = create<UIState>((set) => ({
   // Always start expanded
   sidebarCollapsed: false,
+  navigationPinned: getInitialNavigationPinned(),
+  navigationDrawerOpen: false,
 
   theme: getInitialTheme(),
   selectedBudgetId: getInitialSelectedBudgetId(),
@@ -61,6 +76,16 @@ export const useUIStore = create<UIState>((set) => ({
     set({
       sidebarCollapsed: collapsed,
     }),
+
+  setNavigationPinned: (pinned) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(navigationPinnedStorageKey, String(pinned));
+    }
+
+    set({ navigationPinned: pinned });
+  },
+
+  setNavigationDrawerOpen: (open) => set({ navigationDrawerOpen: open }),
 
   setTheme: (theme) => {
     if (typeof window !== "undefined") {

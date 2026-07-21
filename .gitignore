@@ -5,3 +5,9 @@ dist
 .DS_Store
 # Temporary development patches
 *.patch
+
+# Generated test reports
+test-results/
+
+# Generated test output
+test-results/

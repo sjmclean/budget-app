@@ -1,50 +1,74 @@
-# YNAB4 Import
+# YNAB4 import
 
-YNAB4 import is implemented in `packages/ynab4-importer` and coordinated with repositories/application services.
+The application has one supported YNAB4 import path. It imports a complete
+zipped `.ynab4` package from the budget launcher into a newly created budget.
+CSV-based YNAB4 import and direct SQLite YNAB4 import are not supported.
 
-## Import stages
+## Operational path
 
-1. Parse CSV/export data.
-2. Detect known YNAB4 columns.
-3. Preview accounts, category groups, categories, payees, transactions, splits, flags, notes, and budget months.
-4. Produce issues/warnings.
-5. Write records to SQLite inside a transaction for database imports.
-6. Store `import_runs` and `import_maps` for traceability and rollback.
+1. `BudgetImportDialog.tsx` reads the selected ZIP/folder into package entries.
+2. `analyzeYnab4Package.ts` validates `Budget.ymeta`, locates the active data
+   folder, selects the newest device with complete knowledge, and prepares the
+   migration preview.
+3. `budgetRegistryStore.ts` invokes
+   `createYnab4LauncherBudgetImportWithBackend()`.
+4. `ynab4LauncherImport.ts` maps and atomically persists the new budget.
+5. `ynab4LauncherImportAccuracyAudit.ts` compares the persisted result with
+   the exact selected source snapshot. A failed audit rolls the import back.
 
-## Important files
+No other YNAB4 writer is exported or reachable from the application.
 
-- `parseCsv.ts` parses CSV content.
-- `detectYnab4Columns.ts` detects column shapes.
-- `mapYnab4Rows.ts` maps source rows into internal concepts.
-- `importYnab4.ts` creates preview/report output.
-- `Ynab4DatabaseImportService.ts` writes the import into SQLite.
+## Imported data and decisions
 
-## Import maps
+- Live accounts are imported; hidden accounts become closed accounts.
+- Explicit opening balances are preserved. Current-balance snapshots are not
+  reused as opening balances because transaction history supplies balances.
+- Live outflow category groups and categories are imported in source order.
+- Tombstoned groups, categories, transactions, and split lines are excluded.
+- Hidden categories are archived and retain a readable qualified name.
+- Ordinary payees are imported. Transfer payees are represented by linked
+  account transfers, not ordinary spending payees.
+- Transactions preserve dates, amounts, memos, check numbers, cleared and
+  reconciled state, splits, transfers, and supported coloured flags as tags.
+- Tracking-account activity is excluded from envelope budget activity.
+- Monthly assigned amounts are imported. Activity is derived from imported
+  transactions. `Confined` overspending carries a negative balance forward.
+- Scheduled transactions are imported when their recurrence can be represented
+  exactly. Unknown or non-uniform recurrence rules fail rather than silently
+  changing frequency.
+- Valid `budgetMetaData.currencyISOSymbol` is used. Missing metadata falls back
+  to AUD for compatibility and records a warning.
 
-Import maps link source entities to internal IDs. This is important for:
+## Safety guarantees
 
-- Auditability.
-- Import review.
-- Rollback/undo.
-- Debugging bad mappings.
+- ZIP order is never used to choose between device snapshots.
+- Transfer pairs must be reciprocal, target the expected accounts, have equal
+  and opposite amounts, and share a date.
+- The importer creates a new budget; it does not merge into an existing one.
+- Storage writes are rolled back on persistence or accuracy-audit failure.
+- The source snapshot selected during discovery is also used by the audit.
 
-## Transactions and rollback
+## Test coverage
 
-Database-writing import is intended to be all-or-nothing. `better-sqlite3` transactions must be synchronous; do not use `async` callbacks inside `db.transaction()`.
+Production-path tests cover package discovery, previews, multi-device snapshot
+selection, currency, storage rollback, diagnostic auditing, accounts, category
+identity/order/tombstones, payees, transaction amounts, splits, transfers,
+tracking accounts, monthly activity/carryover, flags/tags, schedules, opening
+balances, folder selection, and complete budget deletion.
 
-Failed imports should not leave partial accounts/categories/transactions behind. Completed imports are tracked so they can be reviewed and, where supported, undone.
+Run the focused suite with:
 
-## YNAB4 edge cases to test with real data
+```sh
+pnpm test:ynab4-import
+```
 
-- Old budgets with many years of history.
-- Deleted/hidden categories.
-- Transfers with renamed accounts.
-- Split transactions with unusual totals.
-- Missing payees or memo-only rows.
-- Reconciled/cleared state quirks.
-- Non-standard CSV encodings.
-- Historic budget-month data.
+Run the complete verification gate with:
 
-## Bank import relationship
+```sh
+pnpm verify:ynab4-import
+```
 
-YNAB4 import is separate from bank import. Bank import handles CSV/QIF/OFX/QFX statement data, matching/deduplication, payee rules, and commit/undo batch workflows.
+## Relationship to bank import
+
+YNAB4 package import is separate from CSV/QIF/OFX/QFX bank-statement import.
+Bank import owns matching, deduplication, payee rules, review, and commit/undo.

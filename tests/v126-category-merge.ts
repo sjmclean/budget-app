@@ -1,5 +1,4 @@
-import { unlinkSync } from "fs";
-import { createDatabase } from "../packages/database/src/db.js";
+import { createTemporaryDatabase } from "./support/persistence/temporaryDatabase.js";
 import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
 import { createAccount } from "../packages/budget-engine/src/services/createAccount.js";
 import { createCategoryGroup } from "../packages/budget-engine/src/services/createCategoryGroup.js";
@@ -15,9 +14,7 @@ import { SqliteCategoryMonthRepository } from "../packages/repository/src/Sqlite
 import { SqliteTransactionRepository } from "../packages/repository/src/SqliteTransactionRepository.js";
 import { CategoryMergeApplicationService } from "../packages/application/src/CategoryMergeApplicationService.js";
 
-const dbPath = "/tmp/budget-v126-category-merge.sqlite";
-try { unlinkSync(dbPath); } catch {}
-const db = createDatabase(dbPath);
+const { db, cleanup } = createTemporaryDatabase("budget-v126-category-merge");
 const budgetRepo = new SqliteBudgetRepository(db);
 const accountRepo = new SqliteAccountRepository(db);
 const groupRepo = new SqliteCategoryGroupRepository(db);
@@ -39,3 +36,4 @@ if (result.movedTransactions !== 1) throw new Error("Expected transaction reassi
 const moved = await txRepo.getById(tx.id);
 if (moved?.categoryId !== target.id) throw new Error("Expected transaction category to move to target");
 console.log("v1.2.6 category merge foundation OK");
+cleanup();

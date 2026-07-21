@@ -1,5 +1,4 @@
-import { unlinkSync } from "fs";
-import { createDatabase } from "../packages/database/src/db.js";
+import { createTemporaryDatabase } from "./support/persistence/temporaryDatabase.js";
 import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
 import { createBudgetMonth } from "../packages/budget-engine/src/services/createBudgetMonth.js";
 import { createCategoryMonth } from "../packages/budget-engine/src/services/createCategoryMonth.js";
@@ -16,9 +15,7 @@ import { SqliteTransactionRepository } from "../packages/repository/src/SqliteTr
 import { SqliteGoalRepository } from "../packages/repository/src/SqliteGoalRepository.js";
 import { CategoryMergeApplicationService } from "../packages/application/src/CategoryMergeApplicationService.js";
 
-const dbPath = "/tmp/budget-v128-category-merge-full.sqlite";
-try { unlinkSync(dbPath); } catch {}
-const db = createDatabase(dbPath);
+const { db, cleanup } = createTemporaryDatabase("budget-v128-category-merge-full");
 const budgetRepo = new SqliteBudgetRepository(db);
 const budgetMonthRepo = new SqliteBudgetMonthRepository(db);
 const categoryMonthRepo = new SqliteCategoryMonthRepository(db);
@@ -43,3 +40,4 @@ if (!mergedMonth || mergedMonth.assigned !== 6000 || mergedMonth.activity !== -1
 const goals = await goalRepo.findByCategory(target.id);
 if (goals.length !== 1) throw new Error("Expected goal to move to target category");
 console.log("v1.2.8 full category merge moves budget values and goals OK");
+cleanup();

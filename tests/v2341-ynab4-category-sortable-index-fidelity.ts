@@ -115,7 +115,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   view.categoryGroups.find((group) => group.name === "Hidden Categories")?.categories.map((category) => category.name),
-  ["Hidden Alpha", "Hidden Beta"],
+  ["Old Group/Hidden Alpha", "Old Group/Hidden Beta"],
 );
 assert.equal(
   view.categoryGroups.find((group) => group.name === "Hidden Categories")?.categories.every((category) => category.isArchived),

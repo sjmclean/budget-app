@@ -58,3 +58,17 @@ For any new backend feature:
 ## Test data rule
 
 Use realistic domain values where possible: real account types, real transaction states, real import-like rows. Avoid tests that only prove a function can be called.
+
+## Consolidated test entry points (current migration)
+
+The repository is migrating from milestone-named standalone scripts to feature-based suites.
+
+- `pnpm test:legacy:list` discovers and lists every legacy `.ts` and `.mjs` test outside `tests/suites` and `tests/support`.
+- `pnpm test:legacy` runs that discovered legacy set sequentially and writes `test-results/legacy-tests.json`.
+- `pnpm test:node` runs the new feature-based suites using Node's test runner through `tsx`.
+- `pnpm test:all` runs both the complete discovered legacy suite and the new suites.
+- `pnpm test:legacy:registered` preserves the previous manually chained aggregate command temporarily for comparison only. It is incomplete and must not be treated as the full suite.
+
+Empty historical placeholders are explicitly documented in `tests/legacy-test-manifest.json`. Any new empty test file that is not quarantined causes legacy discovery to fail.
+
+The first migrated domain is scheduled transactions. New tests live in `tests/suites/scheduled-transactions`, with shared setup in `tests/support/scheduledTransactionHarness.ts`. Historical tests remain in place during the migration so behaviour is not silently discarded.

@@ -11,6 +11,12 @@ import {
 } from "react";
 import { useParams } from "react-router-dom";
 import { Card } from "../components/ui/Card";
+import {
+  WorkspaceBody,
+  WorkspaceHeader,
+  WorkspaceLayout,
+  WorkspaceStickyHeader,
+} from "../components/workspace";
 import { SelectionBar } from "../components/ui/SelectionBar";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
 import { AttachmentManager } from "../features/accounts/components/AttachmentManager";
@@ -932,31 +938,26 @@ export function AccountRegisterPage() {
 
   if (isLoading) {
     return (
-      <div className="page-stack">
-        <section className="workspace-header">
-          <div>
-            <h1>Account Register</h1>
-            <p className="muted">Loading account register…</p>
-          </div>
-        </section>
-
-        <Card>Loading account register.</Card>
-      </div>
+      <WorkspaceLayout className="page-stack">
+        <WorkspaceHeader title="Account Register" subtitle="Loading account register…" />
+        <WorkspaceBody>
+          <Card>Loading account register.</Card>
+        </WorkspaceBody>
+      </WorkspaceLayout>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="page-stack">
-        <section className="workspace-header">
-          <div>
-            <h1>Account Register</h1>
-            <p className="muted">Unable to load account register.</p>
-          </div>
-        </section>
-
-        <Card>{error ?? "Unknown error."}</Card>
-      </div>
+      <WorkspaceLayout className="page-stack">
+        <WorkspaceHeader
+          title="Account Register"
+          subtitle="Unable to load account register."
+        />
+        <WorkspaceBody>
+          <Card>{error ?? "Unknown error."}</Card>
+        </WorkspaceBody>
+      </WorkspaceLayout>
     );
   }
 
@@ -1129,11 +1130,12 @@ export function AccountRegisterPage() {
     ) : null;
 
   return (
-    <div className="register-workspace">
+    <WorkspaceLayout className="register-workspace">
+      <WorkspaceBody className="register-workspace-body">
       <Card
         className={`register-table-card register-layout-${registerLayoutMode}`}
       >
-        <div className="register-sticky-stack">
+        <WorkspaceStickyHeader className="register-sticky-stack">
           <RegisterToolbar
             accountName={data.accountName}
             workingBalance={data.workingBalance}
@@ -1193,7 +1195,7 @@ export function AccountRegisterPage() {
               </button>
             </div>
           ) : null}
-        </div>
+        </WorkspaceStickyHeader>
 
         <ScheduledTransactionsPanel
           accountId={accountId}
@@ -1202,6 +1204,7 @@ export function AccountRegisterPage() {
           transferAccounts={transferAccounts}
           payeeOptions={payeeOptions}
           tags={transactionTags}
+          onCreateTag={handleCreateTransactionTag}
           onClose={() => setIsScheduledOpen(false)}
           onDueCountChange={setScheduledDueCount}
           onEnter={async (input) => {
@@ -1986,6 +1989,7 @@ export function AccountRegisterPage() {
           onRemoveAttachment={registerAttachmentWorkflow.handleRemoveAttachment}
         />
       )}
-    </div>
+      </WorkspaceBody>
+    </WorkspaceLayout>
   );
 }

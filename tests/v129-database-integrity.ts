@@ -1,10 +1,12 @@
-import { unlinkSync } from "fs";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import Database from "better-sqlite3";
 import { initDatabase } from "../packages/database/src/initDatabase.js";
 import { DatabaseIntegrityApplicationService } from "../packages/application/src/DatabaseIntegrityApplicationService.js";
 
-const dbPath = "/tmp/budget-v129-integrity.sqlite";
-try { unlinkSync(dbPath); } catch {}
+const tempDir = mkdtempSync(join(tmpdir(), "budget-v129-integrity-"));
+const dbPath = join(tempDir, "integrity.sqlite");
 
 const sqlite = new Database(dbPath);
 initDatabase(sqlite);
@@ -42,4 +44,5 @@ if (!damaged.orphanIssues.some((issue) => issue.code === "orphan_transaction_acc
 }
 
 sqlite.close();
+rmSync(tempDir, { recursive: true, force: true });
 console.log("v1.2.9 database integrity checks OK");

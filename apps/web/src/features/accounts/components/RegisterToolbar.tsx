@@ -1,4 +1,5 @@
 import type { KeyboardEvent, RefObject } from "react";
+import { WorkspaceActions, WorkspaceHeader } from "../../../components/workspace";
 import { DropdownMenu } from "../../ui/DropdownMenu";
 import { ColumnVisibilityMenu } from "../../tableLayout/ColumnVisibilityMenu";
 import type { TableColumnDefinition } from "../../tableLayout/tableLayout";
@@ -160,22 +161,24 @@ export function RegisterToolbar({
 }: RegisterToolbarProps) {
   return (
     <>
-      <section className="register-clean-header">
-        <div>
-          <h1>{accountName}</h1>
-          <p className="muted">
-            Keyboard-first date entry · Save & add another
-          </p>
-        </div>
-
-        <div className="register-main-balance">
-          <span>Balance</span>
-          <strong>{formatMoney(workingBalance, currencyCode)}</strong>
-        </div>
-      </section>
+      <WorkspaceHeader
+        className="register-clean-header"
+        title={accountName}
+        subtitle="Keyboard-first date entry · Save & add another"
+        secondaryActions={
+          <div className="register-main-balance">
+            <span>Balance</span>
+            <strong>{formatMoney(workingBalance, currencyCode)}</strong>
+          </div>
+        }
+      />
 
       <div className="register-toolbar register-toolbar-clean">
-        <div className="register-toolbar-actions register-toolbar-actions-left">
+        <WorkspaceActions
+          className="register-toolbar-actions register-toolbar-actions-left"
+          tabletOverflow="scroll"
+          aria-label="Register actions"
+        >
           <button
             className="button button-primary"
             type="button"
@@ -299,7 +302,7 @@ export function RegisterToolbar({
               </>
             )}
           </DropdownMenu>
-        </div>
+        </WorkspaceActions>
       </div>
     </>
   );

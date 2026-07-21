@@ -109,13 +109,15 @@ function TransactionSelectionCheckbox({
   );
 }
 
-function TransactionTagPicker({
-  transaction,
+export function TransactionTagPicker({
+  selectedTagIds,
+  identity,
   tags,
   onChange,
   onCreateTag,
 }: {
-  transaction: RegisterTransactionView;
+  selectedTagIds: readonly string[];
+  identity?: string;
   tags: readonly TransactionTagDefinition[];
   onChange: (tagIds: string[]) => void;
   onCreateTag: (name: string) => TransactionTagDefinition;
@@ -123,14 +125,14 @@ function TransactionTagPicker({
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [draftTagIds, setDraftTagIds] = useState<string[]>(
-    transaction.tagIds ?? [],
+    [...selectedTagIds],
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeOptionIndex, setActiveOptionIndex] = useState(-1);
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const assignedTagIds = transaction.tagIds ?? EMPTY_TRANSACTION_TAG_IDS;
+  const assignedTagIds = selectedTagIds.length > 0 ? selectedTagIds : EMPTY_TRANSACTION_TAG_IDS;
   const assignedTags = tags.filter((tag) => assignedTagIds.includes(tag.id));
   const primaryTag = assignedTags[0];
   const title =
@@ -178,7 +180,7 @@ function TransactionTagPicker({
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, transaction.id]);
+  }, [identity, isOpen]);
 
   function openPicker() {
     setDraftTagIds([...assignedTagIds]);
@@ -669,7 +671,8 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
         <span>{formatDateForDisplay(transaction.date, dateFormat)}</span>
         {isRegisterColumnVisible("tags", visibleColumns) ? (
           <TransactionTagPicker
-            transaction={transaction}
+            selectedTagIds={transaction.tagIds ?? EMPTY_TRANSACTION_TAG_IDS}
+            identity={transaction.id}
             tags={tags}
             onChange={(tagIds) => onUpdateTransactionTags(transaction, tagIds)}
             onCreateTag={onCreateTransactionTag}
@@ -834,7 +837,8 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
 
         {isRegisterColumnVisible("tags", visibleColumns) ? (
           <TransactionTagPicker
-            transaction={transaction}
+            selectedTagIds={transaction.tagIds ?? EMPTY_TRANSACTION_TAG_IDS}
+            identity={transaction.id}
             tags={tags}
             onChange={(tagIds) => onUpdateTransactionTags(transaction, tagIds)}
             onCreateTag={onCreateTransactionTag}
@@ -1110,7 +1114,8 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
         <div className="register-tablet-actions">
           {isRegisterColumnVisible("tags", visibleColumns) ? (
             <TransactionTagPicker
-            transaction={transaction}
+            selectedTagIds={transaction.tagIds ?? EMPTY_TRANSACTION_TAG_IDS}
+            identity={transaction.id}
             tags={tags}
             onChange={(tagIds) => onUpdateTransactionTags(transaction, tagIds)}
             onCreateTag={onCreateTransactionTag}

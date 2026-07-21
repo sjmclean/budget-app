@@ -69,7 +69,7 @@ const missing = reconcileTransactionImportCandidate({
   },
   transferAccounts: [],
 });
-assert.equal(missing.kind, "transfer");
+assert.equal(missing.kind, "new");
 assert.equal(missing.status, "new");
 assert.equal(missing.transfer?.status, "missing");
 

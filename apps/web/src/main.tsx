@@ -8,7 +8,6 @@ import {
   installBrowserStorageLifecycleFlush,
 } from "./features/persistence/keyValueStoragePort";
 import "./styles/globals.css";
-import "./styles/topBarUndoRedo.css";
 
 function getApplicationRoot(): HTMLElement {
   const root = document.getElementById("root");

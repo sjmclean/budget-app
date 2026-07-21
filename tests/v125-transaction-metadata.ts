@@ -1,5 +1,4 @@
-import { unlinkSync } from "fs";
-import { createDatabase } from "../packages/database/src/db.js";
+import { createTemporaryDatabase } from "./support/persistence/temporaryDatabase.js";
 import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
 import { createAccount } from "../packages/budget-engine/src/services/createAccount.js";
 import { createTransaction } from "../packages/budget-engine/src/services/createTransaction.js";
@@ -14,9 +13,7 @@ import { SqliteTransactionTagAssignmentRepository } from "../packages/repository
 import { TransactionMetadataApplicationService } from "../packages/application/src/TransactionMetadataApplicationService.js";
 import { ClearedStatus } from "../packages/types/src/ClearedStatus.js";
 
-const dbPath = "/tmp/budget-v125-metadata.sqlite";
-try { unlinkSync(dbPath); } catch {}
-const db = createDatabase(dbPath);
+const { db, cleanup } = createTemporaryDatabase("budget-v125-metadata");
 
 const budgetRepo = new SqliteBudgetRepository(db);
 const accountRepo = new SqliteAccountRepository(db);
@@ -53,3 +50,4 @@ const cleared = await metadataService.setClearedStatus(transaction.id, ClearedSt
 if (cleared.clearedStatus !== ClearedStatus.Cleared) throw new Error("Expected cleared status update");
 
 console.log("v1.2.5 transaction metadata OK");
+cleanup();

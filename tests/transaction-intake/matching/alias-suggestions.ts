@@ -24,7 +24,7 @@ function registerTransaction(overrides: Partial<RegisterTransactionView>): Regis
 }
 
 function importCandidate(overrides: Partial<TransactionImportCandidate>): TransactionImportCandidate {
-  return {
+  const candidate: TransactionImportCandidate = {
     id: "candidate-1",
     parsed: {
       rowNumber: 2,
@@ -40,6 +40,29 @@ function importCandidate(overrides: Partial<TransactionImportCandidate>): Transa
     errors: [],
     ...overrides,
   };
+  candidate.lifecycle = {
+    source: {
+      rowNumber: candidate.parsed.rowNumber,
+      date: candidate.parsed.date,
+      rawPayee: candidate.parsed.payee,
+      memo: candidate.parsed.memo,
+      importedCategoryName: candidate.parsed.importedCategoryName,
+      transferAccountName: candidate.parsed.transferAccountName,
+      outflow: candidate.parsed.outflow,
+      inflow: candidate.parsed.inflow,
+    },
+    merchant: {
+      canonicalPayee: candidate.parsed.payee,
+      suggestedCategoryName: candidate.parsed.importedCategoryName ?? null,
+      transferAccountName: candidate.parsed.transferAccountName ?? null,
+    },
+    proposal: {
+      payee: candidate.parsed.payee,
+      categoryName: candidate.parsed.importedCategoryName ?? null,
+      transferAccountName: candidate.parsed.transferAccountName ?? null,
+    },
+  };
+  return candidate;
 }
 
 const suggestions = suggestTransactionPayeeAliases({

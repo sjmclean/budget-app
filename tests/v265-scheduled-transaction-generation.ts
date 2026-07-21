@@ -11,9 +11,35 @@ async function main() {
   await validatesAutomaticDueGeneration();
   await validatesDuplicateProtectionForExistingGeneratedOccurrence();
   await validatesDuplicateProtectionForExistingLegacyOccurrenceAndCatchup();
+  await validatesWeekendSkipAdvancesWithoutMaterialising();
   validatesIntegrationAndMarker();
 
   console.log("v2.65 scheduled transaction generation checks passed");
+}
+
+async function validatesWeekendSkipAdvancesWithoutMaterialising() {
+  const fixture = createFixture({
+    schedules: [
+      createSchedule({
+        id: "weekend-skip",
+        nextDueDate: "2026-07-25",
+        recurrenceAnchorDate: "2026-07-25",
+        frequency: "weekly",
+        weekendPolicy: "skip",
+        payee: "Saturday bill",
+        outflow: 25,
+      }),
+    ],
+  });
+
+  const result = await generateDueScheduledTransactions(fixture.gateway, {
+    today: "2026-07-25",
+  });
+
+  assert.equal(result.createdTransactions.length, 0, "skip policy should suppress weekend materialisation");
+  assert.equal(fixture.registers.everyday.transactions.length, 0, "skip policy should not create a register row");
+  assert.equal(fixture.schedules[0]?.nextDueDate, "2026-08-01", "skip policy should advance one weekly recurrence");
+  assert.deepEqual(result.advancedScheduleIds, ["weekend-skip"]);
 }
 
 async function validatesAutomaticDueGeneration() {
@@ -274,6 +300,14 @@ function createSchedule(input: Partial<ScheduledTransactionView> & {
     flag: input.flag ?? null,
     nextDueDate: input.nextDueDate,
     frequency: input.frequency,
+    recurrenceInterval: input.recurrenceInterval,
+    recurrenceUnit: input.recurrenceUnit,
+    recurrenceAnchorDate: input.recurrenceAnchorDate,
+    endCondition: input.endCondition,
+    endDate: input.endDate,
+    occurrenceCount: input.occurrenceCount,
+    occurrencesCompleted: input.occurrencesCompleted,
+    weekendPolicy: input.weekendPolicy,
     payee: input.payee,
     payeeId: input.payeeId,
     category: input.category ?? (input.splitLines ? "Split" : "Bills"),

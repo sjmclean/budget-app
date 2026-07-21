@@ -1,8 +1,21 @@
-import { createDatabase } from "../packages/database/src/db.js";
-import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
-import { createPayee } from "../packages/budget-engine/src/services/createPayee.js";
-import { SqliteBudgetRepository } from "../packages/repository/src/SqliteBudgetRepository.js";
-import { SqlitePayeeRepository } from "../packages/repository/src/SqlitePayeeRepository.js";
-import { resetDatabase } from "./reset.js";
-async function main() { resetDatabase(); const db = createDatabase("Test.budget"); const budgetRepo = new SqliteBudgetRepository(db); const payeeRepo = new SqlitePayeeRepository(db); const budget = createBudget("Household Budget"); await budgetRepo.create(budget); await payeeRepo.create(createPayee(budget.id, "Woolworths")); console.log(await payeeRepo.findByBudget(budget.id)); }
+import assert from "node:assert/strict";
+import { SqliteBudgetScenario } from "./support/persistence/sqliteBudgetScenario.js";
+
+async function main() {
+  const scenario = SqliteBudgetScenario.create();
+  try {
+    const budget = await scenario.budget();
+    const payee = await scenario.payee(budget, "Woolworths");
+
+    const persisted = await scenario.payees.findByBudget(budget.id);
+    assert.equal(persisted.length, 1);
+    assert.equal(persisted[0]?.id, payee.id);
+    assert.equal(persisted[0]?.budgetId, budget.id);
+    assert.equal(persisted[0]?.name, "Woolworths");
+    assert.equal(persisted[0]?.normalizedName, "woolworths");
+  } finally {
+    scenario.cleanup();
+  }
+}
+
 main();

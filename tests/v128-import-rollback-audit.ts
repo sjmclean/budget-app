@@ -1,4 +1,6 @@
-import { unlinkSync } from "fs";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createDatabase } from "../packages/database/src/db.js";
 import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
 import { createAccount } from "../packages/budget-engine/src/services/createAccount.js";
@@ -17,9 +19,10 @@ import { SqliteDomainEventRepository } from "../packages/repository/src/SqliteDo
 import { AuditApplicationService } from "../packages/application/src/AuditApplicationService.js";
 import { ImportRollbackApplicationService } from "../packages/application/src/ImportRollbackApplicationService.js";
 
-const dbPath = "/tmp/budget-v128-import-rollback.sqlite";
-try { unlinkSync(dbPath); } catch {}
+const tempDir = mkdtempSync(join(tmpdir(), "budget-app-v128-"));
+const dbPath = join(tempDir, "import-rollback.sqlite");
 const db = createDatabase(dbPath);
+try {
 const budgetRepo = new SqliteBudgetRepository(db);
 const accountRepo = new SqliteAccountRepository(db);
 const txRepo = new SqliteTransactionRepository(db);
@@ -47,3 +50,7 @@ if ((await accountRepo.getById(account.id)) !== null) throw new Error("Expected 
 const events = await audit.history(budget.id);
 if (events.length !== 1) throw new Error("Expected audit event to be recorded");
 console.log("v1.2.8 import rollback and audit wiring OK");
+} finally {
+  db.$client.close();
+  rmSync(tempDir, { recursive: true, force: true });
+}

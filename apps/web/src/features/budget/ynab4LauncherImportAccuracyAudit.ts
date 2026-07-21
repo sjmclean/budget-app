@@ -4,6 +4,11 @@ import type { SidebarAccount } from "../accounts/accountService";
 import type { AccountRegisterView } from "../accounts/accountRegisterTypes";
 import type { BudgetMonthView } from "./budgetViewTypes";
 import type { Ynab4PackageEntry } from "../../../../../packages/ynab4-importer/src/analyzeYnab4Package";
+import { readYnab4BudgetData } from "../../../../../packages/ynab4-importer/src/package/readBudget";
+import {
+  decodeYnabAmount,
+  firstYnabDisplayAmount,
+} from "../../../../../packages/ynab4-importer/src/money/decodeYnabAmount";
 
 const ACCOUNTS_STORAGE_KEY = "budget-app.accounts.v1";
 const REGISTERS_STORAGE_KEY = "budget-app.account-registers.v1";
@@ -13,6 +18,7 @@ const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
 export interface Ynab4LauncherImportAccuracyAuditInput {
   entries: Ynab4PackageEntry[];
   budgetId: string;
+  budgetDataPath?: string | null;
 }
 
 export interface Ynab4LauncherImportAccuracyAuditResult {
@@ -153,7 +159,7 @@ export function auditYnab4LauncherImportAccuracy(
   storage: KeyValueStoragePort,
   input: Ynab4LauncherImportAccuracyAuditInput,
 ): Ynab4LauncherImportAccuracyAuditResult {
-  const data = readActiveYnab4BudgetData(input.entries);
+  const data = readActiveYnab4BudgetData(input.entries, input.budgetDataPath);
   if (!data) {
     return {
       status: "fail",
@@ -581,12 +587,12 @@ function buildSourceAudit(
     const account = accountId ? accountBySourceId.get(accountId) : undefined;
     const accountName = account?.name ?? "Unknown Account";
     const amount =
-      amountToDisplayUnits(
-        transaction.amount,
-        transaction.amountMilliUnits,
-        transaction.inflow,
-        transaction.outflow,
-      ) ?? 0;
+      decodeYnabAmount({
+        amount: transaction.amount,
+        amountMilliUnits: transaction.amountMilliUnits,
+        inflow: transaction.inflow,
+        outflow: transaction.outflow,
+      }) ?? 0;
     const date = monthDate(
       firstString(
         transaction.date,
@@ -938,9 +944,9 @@ function sourceBudgetMonthCategoryValues(
       (categoryId ? categoryNamesById.get(categoryId) : null) ??
       "Unknown Category";
     const key = categoryIdentityAuditKey(categoryId, categoryName);
-    const assigned = amountToDisplayUnits(row.budgeted, row.assigned) ?? 0;
-    const activity = amountToDisplayUnits(row.activity, row.outflows);
-    const available = amountToDisplayUnits(row.balance, row.available);
+    const assigned = firstYnabDisplayAmount(row.budgeted, row.assigned) ?? 0;
+    const activity = decodeYnabAmount({ amount: row.activity, outflow: row.outflows });
+    const available = firstYnabDisplayAmount(row.balance, row.available);
     const existing = values[key];
     const overspendingHandling = firstString(row.overspendingHandling);
     values[key] = {
@@ -1076,6 +1082,9 @@ function sourceBudgetMonthCategoryActivityContributions(
 
     if (splitLines.length > 0) {
       for (const [index, line] of splitLines.entries()) {
+        if (firstString(line.transferTransactionId, line.targetAccountId, line.transferAccountId)) {
+          continue;
+        }
         const categoryId = firstString(
           line.categoryId,
           line.subCategoryId,
@@ -1083,12 +1092,12 @@ function sourceBudgetMonthCategoryActivityContributions(
         );
         if (!categoryId || !importableCategoryIds.has(categoryId)) continue;
         const amount =
-          amountToDisplayUnits(
-            line.amount,
-            line.amountMilliUnits,
-            line.inflow,
-            line.outflow,
-          ) ?? 0;
+          decodeYnabAmount({
+            amount: line.amount,
+            amountMilliUnits: line.amountMilliUnits,
+            inflow: line.inflow,
+            outflow: line.outflow,
+          }) ?? 0;
         addActivityContribution(contributions, month, {
           id:
             firstString(line.entityId, line.id) ??
@@ -1129,12 +1138,12 @@ function sourceBudgetMonthCategoryActivityContributions(
     );
     if (!categoryId || !importableCategoryIds.has(categoryId)) continue;
     const amount =
-      amountToDisplayUnits(
-        transaction.amount,
-        transaction.amountMilliUnits,
-        transaction.inflow,
-        transaction.outflow,
-      ) ?? 0;
+      decodeYnabAmount({
+        amount: transaction.amount,
+        amountMilliUnits: transaction.amountMilliUnits,
+        inflow: transaction.inflow,
+        outflow: transaction.outflow,
+      }) ?? 0;
     addActivityContribution(contributions, month, {
       id: transactionId,
       date:
@@ -1181,6 +1190,9 @@ function importedBudgetMonthCategoryActivityContributions(
       if (!month) continue;
       if (transaction.splitLines && transaction.splitLines.length > 0) {
         for (const splitLine of transaction.splitLines) {
+          if (splitLine.transferAccountId || splitLine.transferTransactionId) {
+            continue;
+          }
           const categoryName = splitLine.category || "Unknown Category";
           addActivityContribution(contributions, month, {
             id: splitLine.id,
@@ -1684,48 +1696,9 @@ function readJson<T>(
 
 function readActiveYnab4BudgetData(
   entries: Ynab4PackageEntry[],
+  selectedBudgetDataPath?: string | null,
 ): RecordMap | null {
-  const normalisedEntries = entries.map((entry) => ({
-    path: normalisePath(entry.path),
-    text: entry.text,
-  }));
-  const metadataEntry = normalisedEntries.find(
-    (entry) =>
-      entry.path.endsWith("/Budget.ymeta") || entry.path === "Budget.ymeta",
-  );
-  if (!metadataEntry) return null;
-
-  let metadata: RecordMap;
-  try {
-    metadata = JSON.parse(metadataEntry.text) as RecordMap;
-  } catch {
-    return null;
-  }
-
-  const relativeDataFolderName = firstString(metadata.relativeDataFolderName);
-  if (!relativeDataFolderName) return null;
-
-  const packageRoot = inferPackageRoot(metadataEntry.path);
-  const activeDataFolderPath = packageRoot
-    ? `${packageRoot}/${relativeDataFolderName}`
-    : relativeDataFolderName;
-  const activePrefix = `${activeDataFolderPath}/`;
-  const budgetDataEntry = normalisedEntries
-    .filter((entry) => entry.path.startsWith(activePrefix))
-    .find(
-      (entry) =>
-        entry.path.endsWith("/Budget.yfull") ||
-        entry.path.endsWith("/Budget.json"),
-    );
-
-  if (!budgetDataEntry) return null;
-
-  try {
-    const parsed = JSON.parse(budgetDataEntry.text);
-    return isRecord(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
+  return readYnab4BudgetData(entries, selectedBudgetDataPath).data;
 }
 
 function sourceMonthKey(month: RecordMap): string {
@@ -1733,19 +1706,6 @@ function sourceMonthKey(month: RecordMap): string {
     monthKey(firstString(month.month, month.date, month.monthName)) ??
     "unknown-month"
   );
-}
-
-function amountToDisplayUnits(...values: unknown[]): number | null {
-  for (const value of values) {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return Math.round(value * 100) / 100;
-    }
-    if (typeof value === "string" && value.trim()) {
-      const parsed = Number(value.replace(/[$,]/g, ""));
-      if (Number.isFinite(parsed)) return Math.round(parsed * 100) / 100;
-    }
-  }
-  return null;
 }
 
 function accountSourceIds(record: RecordMap, fallback: string): string[] {
@@ -1829,14 +1789,6 @@ function monthDate(value: string | null): string | null {
   return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
 }
 
-function normalisePath(path: string): string {
-  return path.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+/g, "/");
-}
-
-function inferPackageRoot(path: string): string | null {
-  const parts = normalisePath(path).split("/");
-  return parts.length > 1 ? parts[0] || null : null;
-}
 
 function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;

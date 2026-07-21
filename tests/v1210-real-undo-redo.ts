@@ -1,6 +1,5 @@
-import { unlinkSync } from "fs";
 import { randomUUID } from "crypto";
-import { createDatabase } from "../packages/database/src/db.js";
+import { createTemporaryDatabase } from "./support/persistence/temporaryDatabase.js";
 import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
 import { createAccount } from "../packages/budget-engine/src/services/createAccount.js";
 import { createTransaction } from "../packages/budget-engine/src/services/createTransaction.js";
@@ -14,9 +13,7 @@ import { SqliteTransactionRepository } from "../packages/repository/src/SqliteTr
 import { SqliteCommandHistoryRepository } from "../packages/repository/src/SqliteCommandHistoryRepository.js";
 import { UndoRedoApplicationService } from "../packages/application/src/UndoRedoApplicationService.js";
 
-const dbPath = "/tmp/budget-v1210-real-undo-redo.sqlite";
-try { unlinkSync(dbPath); } catch {}
-const db = createDatabase(dbPath);
+const { db, cleanup } = createTemporaryDatabase("budget-v1210-real-undo-redo");
 
 const budgetRepo = new SqliteBudgetRepository(db);
 const accountRepo = new SqliteAccountRepository(db);
@@ -80,3 +77,4 @@ const restored = await txRepo.getById(transaction.id);
 if (!restored || restored.isDeleted) throw new Error("Undo should restore a soft-deleted transaction");
 
 console.log("v1.2.10 real undo/redo execution OK");
+cleanup();

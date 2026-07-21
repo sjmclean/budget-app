@@ -5,6 +5,9 @@ export interface RegisterSplitLineView {
   memo?: string;
   inflow: number;
   outflow: number;
+  transferId?: string;
+  transferAccountId?: string;
+  transferTransactionId?: string;
 }
 
 export interface RegisterAttachmentView {

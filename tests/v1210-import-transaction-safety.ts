@@ -1,4 +1,6 @@
-import { unlinkSync } from "fs";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { sql } from "drizzle-orm";
 import { createDatabase } from "../packages/database/src/db.js";
 import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
@@ -7,9 +9,10 @@ import { Ynab4DatabaseImportService } from "../packages/ynab4-importer/src/Ynab4
 import { accounts, transactions } from "../packages/database/src/schema.js";
 import { eq } from "drizzle-orm";
 
-const dbPath = "/tmp/budget-v1210-import-transaction-safety.sqlite";
-try { unlinkSync(dbPath); } catch {}
+const tempDir = mkdtempSync(join(tmpdir(), "budget-app-v1210-"));
+const dbPath = join(tempDir, "import-transaction-safety.sqlite");
 const db = createDatabase(dbPath);
+try {
 const budgetRepo = new SqliteBudgetRepository(db);
 const budget = createBudget("v1.2.10 Import Transaction", "AUD");
 await budgetRepo.create(budget);
@@ -46,3 +49,7 @@ if (importedAccounts.length !== 0 || importedTransactions.length !== 0) {
 }
 
 console.log("v1.2.10 import transaction rollback safety OK");
+} finally {
+  db.$client.close();
+  rmSync(tempDir, { recursive: true, force: true });
+}

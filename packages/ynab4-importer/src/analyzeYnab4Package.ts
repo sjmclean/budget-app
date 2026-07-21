@@ -1,4 +1,25 @@
-import type { Ynab4JsonImportProgressStep } from "./analyzeYnab4Json.js";
+import { readYnab4BudgetData, type Ynab4PackageEntry } from "./package/readBudget.js";
+import { decodeYnabAmount } from "./money/decodeYnabAmount.js";
+
+export type Ynab4PackageProgressPhase =
+  | "read-file"
+  | "validate-json"
+  | "analyse-structure"
+  | "preview-migration"
+  | "prepare-target-budget"
+  | "import-accounts"
+  | "import-categories"
+  | "import-payees"
+  | "import-transactions"
+  | "import-scheduled-transactions"
+  | "validate-result"
+  | "complete";
+
+export type Ynab4PackageProgressStep = {
+  phase: Ynab4PackageProgressPhase;
+  label: string;
+  detail: string;
+};
 
 export type Ynab4PackageImportMode = "new-budget" | "replace-current-budget";
 
@@ -52,14 +73,11 @@ export type Ynab4PackageMigrationPreview = {
   budgetName: string | null;
   summaryItems: Array<{ label: string; value: number }>;
   warnings: string[];
-  progressSteps: Ynab4JsonImportProgressStep[];
+  progressSteps: Ynab4PackageProgressStep[];
   details: Ynab4PackageDetailedPreview;
 };
 
-export type Ynab4PackageEntry = {
-  path: string;
-  text: string;
-};
+export type { Ynab4PackageEntry } from "./package/readBudget.js";
 
 export type Ynab4PackageCounts = {
   accounts: number;
@@ -108,7 +126,7 @@ export type Ynab4PackageDiscoveryResult = {
   topLevelKeys: string[];
   counts: Ynab4PackageCounts;
   warnings: string[];
-  progressSteps: Ynab4JsonImportProgressStep[];
+  progressSteps: Ynab4PackageProgressStep[];
   details: Ynab4PackageDetailedPreview;
 };
 
@@ -154,7 +172,7 @@ const EMPTY_DETAILS: Ynab4PackageDetailedPreview = {
   previewLimits: { ...YNAB4_PACKAGE_PREVIEW_LIMITS },
 };
 
-const DISCOVERY_PROGRESS_STEPS: Ynab4JsonImportProgressStep[] = [
+const DISCOVERY_PROGRESS_STEPS: Ynab4PackageProgressStep[] = [
   {
     phase: "read-file",
     label: "Reading YNAB4 package",
@@ -216,7 +234,7 @@ export function createYnab4PackageMigrationPreview(
 
 export function getYnab4PackageMigrationProgressSteps(
   mode: Ynab4PackageImportMode = "new-budget",
-): Ynab4JsonImportProgressStep[] {
+): Ynab4PackageProgressStep[] {
   const targetBudgetDetail =
     mode === "replace-current-budget"
       ? "Replacing the current budget after a destructive confirmation from Settings/Reset."
@@ -338,7 +356,7 @@ export function auditYnab4PackageExtraction(
       notes: [
         `On-budget accounts: ${accounts.filter((account) => account.onBudget === true).length}`,
         `Off-budget accounts: ${accounts.filter((account) => account.onBudget === false).length}`,
-        `Hidden accounts: ${accounts.filter((account) => account.hidden === true).length}`,
+        `Closed accounts (source hidden flag): ${accounts.filter((account) => account.hidden === true).length}`,
       ],
     }),
     createAuditItem({
@@ -449,106 +467,31 @@ export function discoverYnab4Package(
   entries: Ynab4PackageEntry[],
 ): Ynab4PackageDiscoveryResult {
   const warnings: string[] = [];
-  const normalisedEntries = entries.map((entry) => ({
-    path: normalisePath(entry.path),
-    text: entry.text,
-  }));
-
-  const metadataEntry = normalisedEntries.find(
-    (entry) =>
-      entry.path.endsWith("/Budget.ymeta") || entry.path === "Budget.ymeta",
-  );
-
-  if (!metadataEntry) {
-    return createResult({
-      warnings: [
-        "Budget.ymeta was not found. YNAB4 package import expects the real .ynab4 package structure, not a CSV export.",
-      ],
-    });
-  }
-
-  const packageRoot = inferPackageRoot(metadataEntry.path);
+  const budgetRead = readYnab4BudgetData(entries);
+  const packageRoot = budgetRead.packageRoot;
   const budgetName = inferBudgetName(packageRoot);
-  let metadata: Ynab4PackageMetadata;
 
-  try {
-    metadata = JSON.parse(metadataEntry.text) as Ynab4PackageMetadata;
-  } catch {
+  if (!budgetRead.data) {
     return createResult({
       packageRoot,
       budgetName,
-      metadataPath: metadataEntry.path,
-      warnings: ["Budget.ymeta is not valid JSON."],
+      metadataPath: budgetRead.metadataPath,
+      relativeDataFolderName: budgetRead.relativeDataFolderName,
+      activeDataFolderPath: budgetRead.activeDataFolderPath,
+      budgetDataPath: budgetRead.budgetDataPath,
+      budgetDataFormat: budgetRead.budgetDataFormat,
+      warnings:
+        budgetRead.warnings.length > 0
+          ? budgetRead.warnings.map((warning) =>
+              warning === "Budget.ymeta was not found."
+                ? "Budget.ymeta was not found. YNAB4 package import expects the real .ynab4 package structure, not a CSV export."
+                : warning,
+            )
+          : [],
     });
   }
 
-  const relativeDataFolderName =
-    typeof metadata.relativeDataFolderName === "string"
-      ? metadata.relativeDataFolderName
-      : null;
-
-  if (!relativeDataFolderName) {
-    return createResult({
-      packageRoot,
-      budgetName,
-      metadataPath: metadataEntry.path,
-      warnings: [
-        "Budget.ymeta does not contain a relativeDataFolderName value.",
-      ],
-    });
-  }
-
-  const activeDataFolderPath = packageRoot
-    ? `${packageRoot}/${relativeDataFolderName}`
-    : relativeDataFolderName;
-  const budgetDataEntry = findActiveBudgetDataEntry(
-    normalisedEntries,
-    activeDataFolderPath,
-  );
-
-  if (!budgetDataEntry) {
-    return createResult({
-      packageRoot,
-      budgetName,
-      metadataPath: metadataEntry.path,
-      relativeDataFolderName,
-      activeDataFolderPath,
-      warnings: [
-        `No Budget.yfull or Budget.json file was found under ${activeDataFolderPath}.`,
-      ],
-    });
-  }
-
-  let budgetData: unknown;
-  try {
-    budgetData = JSON.parse(budgetDataEntry.text);
-  } catch {
-    return createResult({
-      packageRoot,
-      budgetName,
-      metadataPath: metadataEntry.path,
-      relativeDataFolderName,
-      activeDataFolderPath,
-      budgetDataPath: budgetDataEntry.path,
-      budgetDataFormat: inferBudgetDataFormat(budgetDataEntry.path),
-      warnings: ["The active YNAB4 budget data file is not valid JSON."],
-    });
-  }
-
-  const budgetObject = isRecord(budgetData) ? budgetData : null;
-  if (!budgetObject) {
-    return createResult({
-      packageRoot,
-      budgetName,
-      metadataPath: metadataEntry.path,
-      relativeDataFolderName,
-      activeDataFolderPath,
-      budgetDataPath: budgetDataEntry.path,
-      budgetDataFormat: inferBudgetDataFormat(budgetDataEntry.path),
-      warnings: ["The active YNAB4 budget data root is not an object."],
-    });
-  }
-
+  const budgetObject = budgetRead.data;
   const counts = countYnab4BudgetData(budgetObject);
   const details = createDetailedPreview(budgetObject);
   const topLevelKeys = Object.keys(budgetObject).sort();
@@ -563,15 +506,15 @@ export function discoverYnab4Package(
     isYnab4Package: true,
     packageRoot,
     budgetName,
-    metadataPath: metadataEntry.path,
-    relativeDataFolderName,
-    activeDataFolderPath,
-    budgetDataPath: budgetDataEntry.path,
-    budgetDataFormat: inferBudgetDataFormat(budgetDataEntry.path),
+    metadataPath: budgetRead.metadataPath,
+    relativeDataFolderName: budgetRead.relativeDataFolderName,
+    activeDataFolderPath: budgetRead.activeDataFolderPath,
+    budgetDataPath: budgetRead.budgetDataPath,
+    budgetDataFormat: budgetRead.budgetDataFormat,
     topLevelKeys,
     counts,
     details,
-    warnings,
+    warnings: [...budgetRead.warnings, ...warnings],
   });
 }
 
@@ -594,31 +537,6 @@ function createResult(
     details: cloneDetails(EMPTY_DETAILS),
     ...overrides,
   };
-}
-
-function findActiveBudgetDataEntry(
-  entries: Ynab4PackageEntry[],
-  activeDataFolderPath: string,
-): Ynab4PackageEntry | undefined {
-  const activePrefix = `${activeDataFolderPath}/`;
-  const activeEntries = entries.filter((entry) =>
-    entry.path.startsWith(activePrefix),
-  );
-
-  return (
-    activeEntries.find((entry) => entry.path.endsWith("/Budget.yfull")) ??
-    activeEntries.find((entry) => entry.path.endsWith("/Budget.json"))
-  );
-}
-
-function inferBudgetDataFormat(path: string): "yfull" | "json" | null {
-  if (path.endsWith("Budget.yfull")) {
-    return "yfull";
-  }
-  if (path.endsWith("Budget.json")) {
-    return "json";
-  }
-  return null;
 }
 
 function countYnab4BudgetData(
@@ -755,12 +673,12 @@ function toTransactionPreviewItem(
     memo: firstString(record.memo, record.note, record.notes) ?? null,
     amount:
       firstString(record.amount, record.amountText) ??
-      firstNumber(
-        record.amount,
-        record.amountMilliUnits,
-        record.outflow,
-        record.inflow,
-      ),
+      decodeYnabAmount({
+        amount: record.amount,
+        amountMilliUnits: record.amountMilliUnits,
+        inflow: record.inflow,
+        outflow: record.outflow,
+      }),
     category:
       firstString(
         record.categoryName,
@@ -774,69 +692,8 @@ function readActiveYnab4BudgetData(entries: Ynab4PackageEntry[]): {
   data: Record<string, unknown> | null;
   warnings: string[];
 } {
-  const normalisedEntries = entries.map((entry) => ({
-    path: normalisePath(entry.path),
-    text: entry.text,
-  }));
-  const metadataEntry = normalisedEntries.find(
-    (entry) =>
-      entry.path.endsWith("/Budget.ymeta") || entry.path === "Budget.ymeta",
-  );
-
-  if (!metadataEntry) {
-    return { data: null, warnings: ["Budget.ymeta was not found."] };
-  }
-
-  let metadata: Ynab4PackageMetadata;
-  try {
-    metadata = JSON.parse(metadataEntry.text) as Ynab4PackageMetadata;
-  } catch {
-    return { data: null, warnings: ["Budget.ymeta is not valid JSON."] };
-  }
-
-  const relativeDataFolderName =
-    typeof metadata.relativeDataFolderName === "string"
-      ? metadata.relativeDataFolderName
-      : null;
-  if (!relativeDataFolderName) {
-    return {
-      data: null,
-      warnings: ["Budget.ymeta does not contain a relativeDataFolderName value."],
-    };
-  }
-
-  const packageRoot = inferPackageRoot(metadataEntry.path);
-  const activeDataFolderPath = packageRoot
-    ? `${packageRoot}/${relativeDataFolderName}`
-    : relativeDataFolderName;
-  const budgetDataEntry = findActiveBudgetDataEntry(
-    normalisedEntries,
-    activeDataFolderPath,
-  );
-
-  if (!budgetDataEntry) {
-    return {
-      data: null,
-      warnings: [
-        `No Budget.yfull or Budget.json file was found under ${activeDataFolderPath}.`,
-      ],
-    };
-  }
-
-  try {
-    const data = JSON.parse(budgetDataEntry.text);
-    return {
-      data: isRecord(data) ? data : null,
-      warnings: isRecord(data)
-        ? []
-        : ["The active YNAB4 budget data root is not an object."],
-    };
-  } catch {
-    return {
-      data: null,
-      warnings: ["The active YNAB4 budget data file is not valid JSON."],
-    };
-  }
+  const result = readYnab4BudgetData(entries);
+  return { data: result.data, warnings: result.warnings };
 }
 
 function createAuditItem(input: {

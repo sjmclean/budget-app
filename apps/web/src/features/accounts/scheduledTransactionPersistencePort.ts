@@ -1,13 +1,19 @@
 import type { NewRegisterTransactionInput } from "./accountRegisterTypes";
 import type {
+  ScheduledEndCondition,
   ScheduledFrequency,
+  ScheduledRecurrenceUnit,
   ScheduledTransactionView,
+  ScheduledWeekendPolicy,
   UpsertScheduledTransactionInput,
 } from "./scheduledTransactionService";
 
 export type {
+  ScheduledEndCondition,
   ScheduledFrequency,
+  ScheduledRecurrenceUnit,
   ScheduledTransactionView,
+  ScheduledWeekendPolicy,
   UpsertScheduledTransactionInput,
 } from "./scheduledTransactionService";
 

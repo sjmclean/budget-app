@@ -1,20 +1,11 @@
-import {
-  BUDGET_REGISTRY_STORAGE_KEY,
-  createBudgetRegistryEntry,
-  markBudgetOpened,
-  readBudgetRegistry,
-  type BudgetSummary,
-} from "./budgetRegistry";
-import {
-  SELECTED_BUDGET_STORAGE_KEY,
-  getBudgetScopedStorageKey,
-} from "./budgetDataScope";
+import { createBudgetRegistryEntry, type BudgetSummary } from "./budgetRegistry";
+import { getBudgetScopedStorageKey } from "./budgetDataScope";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import type { CreditCardBehaviour } from "./budgetPreferences";
 import type { SidebarAccount, SidebarAccountType } from "../accounts/accountService";
 import type { AccountRegisterView, RegisterTransactionView } from "../accounts/accountRegisterTypes";
 import type { PayeeView } from "../accounts/payeeService";
-import type { ScheduledTransactionView, ScheduledFrequency } from "../accounts/scheduledTransactionService";
+import type { ScheduledTransactionView } from "../accounts/scheduledTransactionService";
 import type { BudgetMonthView, BudgetCategoryGroupView } from "./budgetViewTypes";
 import {
   auditYnab4LauncherImportAccuracy,
@@ -26,57 +17,54 @@ import type {
   Ynab4PackageEntry,
   Ynab4PackageMigrationPreview,
 } from "../../../../../packages/ynab4-importer/src/analyzeYnab4Package";
-import { isMoneyNegative, normaliseMoney } from "./moneyMath";
-import { getCurrentBudgetMonth } from "./budgetMonthNavigation";
+import { readYnab4BudgetData } from "../../../../../packages/ynab4-importer/src/package/readBudget";
+import {
+  decodeYnabAmount,
+  firstYnabDisplayAmount,
+} from "../../../../../packages/ynab4-importer/src/money/decodeYnabAmount";
+import { validateYnab4TransferIntegrity } from "../../../../../packages/ynab4-importer/src/transfers/validateYnab4TransferIntegrity";
+import { mapYnab4Recurrence } from "../../../../../packages/ynab4-importer/src/scheduled/mapYnab4Recurrence";
+import { mapYnab4BudgetMonths } from "./ynab4/mapYnab4BudgetMonths";
+import {
+  createImportedTransferId,
+  mapYnab4Transactions,
+  resolveYnab4CategoryId,
+} from "./ynab4/mapYnab4Transactions";
+import { validateYnab4SourceIdentities } from "./ynab4/validateYnab4SourceIdentities";
+import {
+  commitYnab4LauncherImport,
+  getYnab4LauncherImportStorageKey,
+  readYnab4LauncherImportRecord,
+  type Ynab4LauncherImportRecord,
+} from "./ynab4/finaliseYnab4Import";
+import {
+  captureYnab4LauncherImportRollbackSnapshot,
+  rollbackYnab4LauncherImport,
+} from "./ynab4/rollbackYnab4Import";
+import {
+  YNAB4_ACCOUNTS_STORAGE_KEY,
+  YNAB4_BUDGET_VIEW_STORAGE_PREFIX,
+  YNAB4_PAYEES_STORAGE_KEY,
+  YNAB4_REGISTERS_STORAGE_KEY,
+  YNAB4_SCHEDULED_STORAGE_KEY,
+} from "./ynab4/importStorageKeys";
 import { TRANSACTION_TAGS_STORAGE_KEY } from "../tags/transactionTagPersistence";
 import type {
   TransactionTagColour,
   TransactionTagDefinition,
 } from "../tags/transactionTagTypes";
 
-export const YNAB4_LAUNCHER_IMPORT_STORAGE_PREFIX =
-  "budget-app.ynab4-launcher-import.v1";
+export {
+  getYnab4LauncherImportStorageKey,
+  readYnab4LauncherImportRecord,
+  type Ynab4LauncherImportRecord,
+} from "./ynab4/finaliseYnab4Import";
 
-const ACCOUNTS_STORAGE_KEY = "budget-app.accounts.v1";
-const REGISTERS_STORAGE_KEY = "budget-app.account-registers.v1";
-const PAYEES_STORAGE_KEY = "budget-app.payees.v1";
-const SCHEDULED_STORAGE_KEY = "budget-app.scheduled-transactions.v1";
-const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
 const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
 const YNAB4_SPLIT_CATEGORY_ID = "Category/__Split__";
 const YNAB4_IMMEDIATE_INCOME_CATEGORY_ID = "Category/__ImmediateIncome__";
 const YNAB4_DEFERRED_INCOME_CATEGORY_ID = "Category/__DeferredIncome__";
-
-export interface Ynab4LauncherImportRecord {
-  budgetId: string;
-  budgetName: string;
-  sourceBudgetName: string | null;
-  sourcePackageRoot: string | null;
-  sourceDataPath: string | null;
-  mode: "new-budget";
-  status: "completed";
-  importedAt: string;
-  counts: {
-    accounts: number;
-    categoryGroups: number;
-    categories: number;
-    payees: number;
-    monthlyBudgets: number;
-    transactions: number;
-    scheduledTransactions: number;
-    categoryNotes: number;
-    categoryGroupNotes: number;
-  };
-  warnings: string[];
-  progressSteps: Array<{
-    phase: string;
-    label: string;
-    detail?: string;
-  }>;
-  accuracyAudit?: Ynab4LauncherImportAccuracyAuditResult;
-  accuracyAuditReport?: string;
-}
 
 export interface CreateYnab4LauncherBudgetImportInput {
   discovery: Ynab4PackageDiscoveryResult;
@@ -104,19 +92,30 @@ type ImportMaps = {
   categoryIsArchivedById: Map<string, boolean>;
   payeeIdBySourceId: Map<string, string>;
   payeeNameById: Map<string, string>;
+  nonImportableCategorySourceIds: Set<string>;
 };
 
-export function getYnab4LauncherImportStorageKey(budgetId: string): string {
-  return `${YNAB4_LAUNCHER_IMPORT_STORAGE_PREFIX}.${budgetId}`;
+/**
+ * Canonical, persistence-independent output of the YNAB4 launcher mapping
+ * stage. Building this plan must not mutate storage. The writer below is the
+ * only layer that knows the browser persistence keys used by the budget app.
+ */
+export interface Ynab4LauncherImportPlan {
+  budgetId: string;
+  accounts: SidebarAccount[];
+  payees: PayeeView[];
+  transactionTags: TransactionTagDefinition[];
+  registers: Record<string, AccountRegisterView>;
+  scheduledTransactions: ScheduledTransactionView[];
+  budgetMonths: Map<string, BudgetMonthView>;
+  warnings: string[];
 }
 
 export async function createYnab4LauncherBudgetImportWithBackend(
   storage: KeyValueStoragePort,
   input: CreateYnab4LauncherBudgetImportInput,
 ): Promise<Ynab4LauncherImportResult> {
-  const registryBeforeImport = storage.getItem(BUDGET_REGISTRY_STORAGE_KEY);
-  const selectedBudgetBeforeImport = storage.getItem(SELECTED_BUDGET_STORAGE_KEY);
-  const keysBeforeImport = new Set(storage.listKeys?.() ?? []);
+  const rollbackSnapshot = captureYnab4LauncherImportRollbackSnapshot(storage);
   let result: Ynab4LauncherImportResult | null = null;
 
   try {
@@ -125,28 +124,11 @@ export async function createYnab4LauncherBudgetImportWithBackend(
     return result;
   } catch (error) {
     rollbackYnab4LauncherImport(storage, {
+      ...rollbackSnapshot,
       budgetId: result?.budget.id ?? null,
-      keysBeforeImport,
-      registryBeforeImport,
-      selectedBudgetBeforeImport,
     });
     await storage.flush?.();
     throw error;
-  }
-}
-
-export function readYnab4LauncherImportRecord(
-  storage: KeyValueStoragePort,
-  budgetId: string,
-): Ynab4LauncherImportRecord | null {
-  const raw = storage.getItem(getYnab4LauncherImportStorageKey(budgetId));
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw) as Ynab4LauncherImportRecord;
-    return parsed && parsed.budgetId === budgetId ? parsed : null;
-  } catch {
-    return null;
   }
 }
 
@@ -154,109 +136,24 @@ export function createYnab4LauncherBudgetImport(
   storage: KeyValueStoragePort,
   input: CreateYnab4LauncherBudgetImportInput,
 ): Ynab4LauncherImportResult {
-  if (!input.discovery.isYnab4Package || !input.preview.canContinue) {
-    throw new Error("Cannot import YNAB4 package from launcher until preview validation passes.");
-  }
-
-  if (input.preview.mode !== "new-budget") {
-    throw new Error("Launcher YNAB4 imports must create a new budget.");
-  }
-
-  const activeData = readActiveYnab4BudgetData(input.entries);
-  if (!activeData) {
-    throw new Error("Cannot import YNAB4 package because the active Budget.yfull data could not be read.");
-  }
-
-  validateYnab4TransferIntegrity(activeData);
-
-  const registryBeforeImport = storage.getItem(BUDGET_REGISTRY_STORAGE_KEY);
-  const selectedBudgetBeforeImport = storage.getItem(SELECTED_BUDGET_STORAGE_KEY);
-  const keysBeforeImport = new Set(storage.listKeys?.() ?? []);
-
+  const rollbackSnapshot = captureYnab4LauncherImportRollbackSnapshot(storage);
   const now = input.now ?? new Date();
+  const pipeline = createYnab4LauncherImportPipeline(storage, input, now);
   let budget: BudgetSummary | null = null;
 
   try {
-    const budgetName = createImportedBudgetName(input.preview.budgetName);
-    budget = createBudgetRegistryEntry(storage, {
-      name: budgetName,
-      currency: "AUD",
-      packagePath: input.discovery.packageRoot
-        ? `${input.discovery.packageRoot}.budget`
-        : undefined,
-      preferences: input.creditCardBehaviour
-        ? { creditCardBehaviour: input.creditCardBehaviour }
-        : undefined,
-      now,
-    });
+    const activeData = pipeline.validate();
+    const preparedContext = pipeline.buildContext(activeData);
+    budget = preparedContext.budget;
 
-    const persistenceWarnings = writeImportedBudgetData(storage, budget, activeData, now);
-    const accuracyAudit = auditYnab4LauncherImportAccuracy(storage, {
-      entries: input.entries,
-      budgetId: budget.id,
-    });
-    const accuracyAuditReport = formatYnab4LauncherImportAccuracyAuditReport(accuracyAudit);
+    pipeline.persist(preparedContext);
+    const auditedContext = pipeline.audit(preparedContext);
 
-    if (accuracyAudit.status !== "pass") {
-      logYnab4LauncherImportDiagnosticReport(accuracyAuditReport, accuracyAudit.status);
-      throw new Error(
-        `YNAB4 import accuracy audit failed. The imported data did not match the source package; no budget was saved.\n\n${accuracyAuditReport}`,
-      );
-    }
-
-    markBudgetOpened(storage, budget.id, now);
-    storage.setItem(SELECTED_BUDGET_STORAGE_KEY, budget.id);
-
-    const record: Ynab4LauncherImportRecord = {
-      budgetId: budget.id,
-      budgetName: budget.name,
-      sourceBudgetName: input.preview.budgetName,
-      sourcePackageRoot: input.discovery.packageRoot,
-      sourceDataPath: input.discovery.budgetDataPath,
-      mode: "new-budget",
-      status: "completed",
-      importedAt: now.toISOString(),
-      counts: {
-        accounts: input.discovery.counts.accounts,
-        categoryGroups: input.discovery.counts.masterCategories,
-        categories: input.discovery.counts.categories,
-        payees: input.discovery.counts.payees,
-        monthlyBudgets: input.discovery.counts.monthlyBudgets,
-        transactions: input.discovery.counts.transactions,
-        scheduledTransactions: input.discovery.counts.scheduledTransactions,
-        categoryNotes: input.discovery.counts.categoryNotes,
-        categoryGroupNotes: input.discovery.counts.categoryGroupNotes,
-      },
-      warnings: [...input.preview.warnings, ...persistenceWarnings],
-      progressSteps: input.preview.progressSteps.map((step) => ({
-        phase: step.phase,
-        label: step.label,
-        detail: step.detail,
-      })),
-      accuracyAudit,
-      accuracyAuditReport,
-    };
-
-    logYnab4LauncherImportDiagnosticReport(accuracyAuditReport, accuracyAudit.status);
-
-    storage.setItem(
-      getYnab4LauncherImportStorageKey(budget.id),
-      JSON.stringify(record),
-    );
-
-    const openedBudget = markBudgetOpened(storage, budget.id, now) ?? budget;
-
-    return {
-      budget: openedBudget,
-      record,
-      budgets: readBudgetRegistry(storage),
-    };
+    return pipeline.commit(auditedContext);
   } catch (error) {
     rollbackYnab4LauncherImport(storage, {
+      ...rollbackSnapshot,
       budgetId: budget?.id ?? null,
-      keysBeforeImport,
-      registryBeforeImport,
-      selectedBudgetBeforeImport,
     });
 
     if (isStorageQuotaError(error)) {
@@ -270,49 +167,136 @@ export function createYnab4LauncherBudgetImport(
   }
 }
 
-interface Ynab4LauncherImportRollbackSnapshot {
-  budgetId: string | null;
-  keysBeforeImport: Set<string>;
-  registryBeforeImport: string | null;
-  selectedBudgetBeforeImport: string | null;
+interface Ynab4PreparedImportExecutionContext {
+  budget: BudgetSummary;
+  activeData: Ynab4ImportData;
+  importPlan: Ynab4LauncherImportPlan;
+  persistenceWarnings: string[];
 }
 
-function rollbackYnab4LauncherImport(
+interface Ynab4AuditedImportExecutionContext
+  extends Ynab4PreparedImportExecutionContext {
+  accuracyAudit: Ynab4LauncherImportAccuracyAuditResult;
+  accuracyAuditReport: string;
+}
+
+interface Ynab4LauncherImportPipeline {
+  validate(): Ynab4ImportData;
+  buildContext(activeData: Ynab4ImportData): Ynab4PreparedImportExecutionContext;
+  persist(context: Ynab4PreparedImportExecutionContext): void;
+  audit(context: Ynab4PreparedImportExecutionContext): Ynab4AuditedImportExecutionContext;
+  commit(context: Ynab4AuditedImportExecutionContext): Ynab4LauncherImportResult;
+}
+
+function createYnab4LauncherImportPipeline(
   storage: KeyValueStoragePort,
-  snapshot: Ynab4LauncherImportRollbackSnapshot,
-): void {
-  const keysAfterImport = storage.listKeys?.() ?? [];
-  for (const key of keysAfterImport) {
-    if (!snapshot.keysBeforeImport.has(key)) {
-      storage.removeItem(key);
-    }
-  }
-
-  if (snapshot.budgetId) {
-    storage.removeItem(getYnab4LauncherImportStorageKey(snapshot.budgetId));
-    storage.removeItem(getBudgetScopedStorageKey(snapshot.budgetId, ACCOUNTS_STORAGE_KEY));
-    storage.removeItem(getBudgetScopedStorageKey(snapshot.budgetId, REGISTERS_STORAGE_KEY));
-    storage.removeItem(getBudgetScopedStorageKey(snapshot.budgetId, PAYEES_STORAGE_KEY));
-    storage.removeItem(getBudgetScopedStorageKey(snapshot.budgetId, SCHEDULED_STORAGE_KEY));
-
-    for (const key of storage.listKeys?.() ?? []) {
-      if (key.startsWith(`${BUDGET_VIEW_STORAGE_PREFIX}.${snapshot.budgetId}.`)) {
-        storage.removeItem(key);
+  input: CreateYnab4LauncherBudgetImportInput,
+  now: Date,
+): Ynab4LauncherImportPipeline {
+  return {
+    validate(): Ynab4ImportData {
+      if (!input.discovery.isYnab4Package || !input.preview.canContinue) {
+        throw new Error(
+          "Cannot import YNAB4 package from launcher until preview validation passes.",
+        );
       }
-    }
-  }
 
-  restoreStorageValue(storage, BUDGET_REGISTRY_STORAGE_KEY, snapshot.registryBeforeImport);
-  restoreStorageValue(storage, SELECTED_BUDGET_STORAGE_KEY, snapshot.selectedBudgetBeforeImport);
-}
+      if (input.preview.mode !== "new-budget") {
+        throw new Error("Launcher YNAB4 imports must create a new budget.");
+      }
 
-function restoreStorageValue(storage: KeyValueStoragePort, key: string, value: string | null): void {
-  if (value === null) {
-    storage.removeItem(key);
-    return;
-  }
+      const activeData = readActiveYnab4BudgetData(
+        input.entries,
+        input.discovery.budgetDataPath,
+      );
+      if (!activeData) {
+        throw new Error(
+          "Cannot import YNAB4 package because the active Budget.yfull data could not be read.",
+        );
+      }
 
-  storage.setItem(key, value);
+      validateYnab4TransferIntegrity(activeData);
+      return activeData;
+    },
+
+    buildContext(activeData): Ynab4PreparedImportExecutionContext {
+      const budgetName = createImportedBudgetName(input.preview.budgetName);
+      const sourceCurrency = ynab4CurrencyCode(activeData);
+      const budget = createBudgetRegistryEntry(storage, {
+        name: budgetName,
+        currency: sourceCurrency ?? "AUD",
+        packagePath: input.discovery.packageRoot
+          ? `${input.discovery.packageRoot}.budget`
+          : undefined,
+        preferences: input.creditCardBehaviour
+          ? { creditCardBehaviour: input.creditCardBehaviour }
+          : undefined,
+        now,
+      });
+
+      const importPlan = buildYnab4LauncherImportPlan(budget, activeData, now);
+      const persistenceWarnings = [...importPlan.warnings];
+      if (!sourceCurrency) {
+        persistenceWarnings.push(
+          "YNAB4 currency metadata was missing or invalid; AUD was used as the compatibility fallback.",
+        );
+      }
+
+      return {
+        budget,
+        activeData,
+        importPlan,
+        persistenceWarnings,
+      };
+    },
+
+    persist(context): void {
+      writeYnab4LauncherImportPlan(storage, context.importPlan);
+    },
+
+    audit(context): Ynab4AuditedImportExecutionContext {
+      const accuracyAudit = auditYnab4LauncherImportAccuracy(storage, {
+        entries: input.entries,
+        budgetId: context.budget.id,
+        budgetDataPath: input.discovery.budgetDataPath,
+      });
+      const accuracyAuditReport =
+        formatYnab4LauncherImportAccuracyAuditReport(accuracyAudit);
+
+      if (accuracyAudit.status !== "pass") {
+        logYnab4LauncherImportDiagnosticReport(
+          accuracyAuditReport,
+          accuracyAudit.status,
+        );
+        throw new Error(
+          `YNAB4 import accuracy audit failed. The imported data did not match the source package; no budget was saved.\n\n${accuracyAuditReport}`,
+        );
+      }
+
+      return {
+        ...context,
+        accuracyAudit,
+        accuracyAuditReport,
+      };
+    },
+
+    commit(context): Ynab4LauncherImportResult {
+      logYnab4LauncherImportDiagnosticReport(
+        context.accuracyAuditReport,
+        context.accuracyAudit.status,
+      );
+
+      return commitYnab4LauncherImport(storage, {
+        budget: context.budget,
+        discovery: input.discovery,
+        preview: input.preview,
+        persistenceWarnings: context.persistenceWarnings,
+        accuracyAudit: context.accuracyAudit,
+        accuracyAuditReport: context.accuracyAuditReport,
+        now,
+      });
+    },
+  };
 }
 
 function logYnab4LauncherImportDiagnosticReport(report: string, status: "pass" | "fail"): void {
@@ -325,89 +309,11 @@ export function createImportedBudgetName(sourceName: string | null): string {
   return `${baseName} Imported`;
 }
 
-function validateYnab4TransferIntegrity(data: Ynab4ImportData): void {
-  const transactions = toRecords(data.transactions).filter((transaction) => !isYnab4Tombstone(transaction));
-  const transactionById = new Map<string, RecordMap>();
-
-  for (const transaction of transactions) {
-    const transactionId = firstString(transaction.entityId, transaction.id, transaction.transactionId);
-    if (transactionId) transactionById.set(transactionId, transaction);
-  }
-
-  const errors: string[] = [];
-  for (const transaction of transactions) {
-    const transactionId = firstString(transaction.entityId, transaction.id, transaction.transactionId);
-    const pairedTransactionId = firstString(transaction.transferTransactionId);
-    if (!transactionId || !pairedTransactionId) continue;
-
-    const pair = transactionById.get(pairedTransactionId);
-    if (!pair) {
-      errors.push(`${transactionId}: transfer pair ${pairedTransactionId} was not found.`);
-      continue;
-    }
-
-    const reciprocalId = firstString(pair.transferTransactionId);
-    if (reciprocalId !== transactionId) {
-      errors.push(`${transactionId}: transfer pair ${pairedTransactionId} does not link back reciprocally.`);
-    }
-
-    const sourceAccountId = firstString(transaction.accountId, transaction.accountEntityId);
-    const targetAccountId = firstString(transaction.targetAccountId, transaction.transferAccountId);
-    const pairAccountId = firstString(pair.accountId, pair.accountEntityId);
-    const pairTargetAccountId = firstString(pair.targetAccountId, pair.transferAccountId);
-    if (!sourceAccountId || !targetAccountId || !pairAccountId || !pairTargetAccountId) {
-      errors.push(`${transactionId}: transfer account relationship is incomplete.`);
-    } else {
-      if (sourceAccountId === targetAccountId) {
-        errors.push(`${transactionId}: transfer source and target accounts must differ.`);
-      }
-      if (targetAccountId !== pairAccountId || pairTargetAccountId !== sourceAccountId) {
-        errors.push(`${transactionId}: transfer account relationship does not match its pair.`);
-      }
-    }
-
-    const amount = transactionAmountToDisplayUnits(
-      transaction.amount,
-      transaction.amountMilliUnits,
-      transaction.inflow,
-      transaction.outflow,
-    );
-    const pairAmount = transactionAmountToDisplayUnits(
-      pair.amount,
-      pair.amountMilliUnits,
-      pair.inflow,
-      pair.outflow,
-    );
-    if (amount === null || pairAmount === null || roundMoney(amount + pairAmount) !== 0) {
-      errors.push(`${transactionId}: transfer amounts are not equal and opposite.`);
-    }
-
-    const date = normaliseDate(firstString(transaction.date, transaction.dateString, transaction.acceptedDate));
-    const pairDate = normaliseDate(firstString(pair.date, pair.dateString, pair.acceptedDate));
-    if (date && pairDate && date !== pairDate) {
-      errors.push(`${transactionId}: transfer pair dates do not match.`);
-    }
-  }
-
-  if (errors.length > 0) {
-    throw new Error(`YNAB4 transfer integrity validation failed:\n- ${errors.join("\n- ")}`);
-  }
-}
-
-function createImportedTransferId(
-  transactionId: string | null,
-  pairedTransactionId: string | null,
-): string | undefined {
-  if (!transactionId || !pairedTransactionId) return undefined;
-  return `ynab4-transfer-${[transactionId, pairedTransactionId].sort().join("--")}`;
-}
-
-function writeImportedBudgetData(
-  storage: KeyValueStoragePort,
+export function buildYnab4LauncherImportPlan(
   budget: BudgetSummary,
   data: Ynab4ImportData,
   now: Date,
-): string[] {
+): Ynab4LauncherImportPlan {
   const nowIso = now.toISOString();
   const maps: ImportMaps = {
     accountIdBySourceId: new Map(),
@@ -418,7 +324,10 @@ function writeImportedBudgetData(
     categoryIsArchivedById: new Map(),
     payeeIdBySourceId: new Map(),
     payeeNameById: new Map(),
+    nonImportableCategorySourceIds: new Set(),
   };
+
+  validateYnab4SourceIdentities(data);
 
   const transactionRecords = toRecords(data.transactions);
   const scheduledTransactionRecords = toRecords(data.scheduledTransactions);
@@ -432,35 +341,65 @@ function writeImportedBudgetData(
     [...transactionRecords, ...scheduledTransactionRecords],
     nowIso,
   );
-  const registers = mapRegisters(
-    transactionRecords,
+  const registers = mapYnab4Transactions({
+    transactions: transactionRecords,
     accounts,
     maps,
-    importedFlagTags.tagIdByColour,
-  );
-  const scheduled = mapScheduledTransactions(
+    currencyCode: budget.currency,
+    importedFlagTagIdByColour: importedFlagTags.tagIdByColour,
+  });
+  const scheduledTransactions = mapScheduledTransactions(
     scheduledTransactionRecords,
     maps,
     nowIso,
   );
-  const monthViews = mapBudgetMonthViews(budget, toRecords(data.monthlyBudgets), categoryGroups, maps, registers, now);
+  const budgetMonths = mapYnab4BudgetMonths({
+    budget,
+    monthlyBudgets: toRecords(data.monthlyBudgets),
+    templateGroups: categoryGroups,
+    categoryIdBySourceId: maps.categoryIdBySourceId,
+    registers,
+    now,
+  });
 
-  writeScopedJson(storage, budget.id, ACCOUNTS_STORAGE_KEY, accounts);
-  writeScopedJson(storage, budget.id, PAYEES_STORAGE_KEY, payees);
+  return {
+    budgetId: budget.id,
+    accounts,
+    payees,
+    transactionTags: importedFlagTags.tags,
+    registers,
+    scheduledTransactions,
+    budgetMonths,
+    warnings: [],
+  };
+}
+
+export function writeYnab4LauncherImportPlan(
+  storage: KeyValueStoragePort,
+  plan: Ynab4LauncherImportPlan,
+): void {
+  writeScopedJson(storage, plan.budgetId, YNAB4_ACCOUNTS_STORAGE_KEY, plan.accounts);
+  writeScopedJson(storage, plan.budgetId, YNAB4_PAYEES_STORAGE_KEY, plan.payees);
   writeScopedJson(
     storage,
-    budget.id,
+    plan.budgetId,
     TRANSACTION_TAGS_STORAGE_KEY,
-    importedFlagTags.tags,
+    plan.transactionTags,
   );
-  writeScopedJson(storage, budget.id, REGISTERS_STORAGE_KEY, registers);
-  writeScopedJson(storage, budget.id, SCHEDULED_STORAGE_KEY, scheduled);
+  writeScopedJson(storage, plan.budgetId, YNAB4_REGISTERS_STORAGE_KEY, plan.registers);
+  writeScopedJson(
+    storage,
+    plan.budgetId,
+    YNAB4_SCHEDULED_STORAGE_KEY,
+    plan.scheduledTransactions,
+  );
 
-  for (const [month, view] of monthViews) {
-    storage.setItem(`${BUDGET_VIEW_STORAGE_PREFIX}.${budget.id}.${month}`, JSON.stringify(view));
+  for (const [month, view] of plan.budgetMonths) {
+    storage.setItem(
+      `${YNAB4_BUDGET_VIEW_STORAGE_PREFIX}.${plan.budgetId}.${month}`,
+      JSON.stringify(view),
+    );
   }
-
-  return [];
 }
 
 function writeScopedJson(storage: KeyValueStoragePort, budgetId: string, key: string, value: unknown): void {
@@ -482,7 +421,8 @@ function isStorageQuotaError(error: unknown): boolean {
 
 function mapAccounts(accounts: RecordMap[], maps: ImportMaps, nowIso: string): SidebarAccount[] {
   const existingIds = new Set<string>();
-  return accounts.map((account, index) => {
+  return accounts.flatMap((account, index) => {
+    if (isYnab4Tombstone(account)) return [];
     const name = firstString(account.name, account.accountName, account.displayName) ?? `Imported Account ${index + 1}`;
     const id = uniqueSlug(name, existingIds, "account");
     for (const sourceId of accountSourceIds(account, `account:${index}`)) {
@@ -491,19 +431,19 @@ function mapAccounts(accounts: RecordMap[], maps: ImportMaps, nowIso: string): S
     const type = mapAccountType(firstString(account.accountType, account.type), account.onBudget);
     maps.accountNameById.set(id, name);
     maps.accountTypeById.set(id, type);
-    return {
+    return [{
       id,
       name,
       type,
       startingBalance: explicitYnab4OpeningBalance(account),
       createdAt: nowIso,
       closedAt: isYnab4ClosedAccount(account) ? nowIso : null,
-    };
+    }];
   });
 }
 
 function explicitYnab4OpeningBalance(account: RecordMap): number {
-  return amountToDisplayUnits(
+  return firstYnabDisplayAmount(
     account.startingBalance,
     account.openingBalance,
     account.initialBalance,
@@ -511,11 +451,7 @@ function explicitYnab4OpeningBalance(account: RecordMap): number {
 }
 
 function isYnab4ClosedAccount(account: RecordMap): boolean {
-  return (
-    account.isTombstone === true ||
-    account.closed === true ||
-    account.hidden === true
-  );
+  return account.closed === true || account.hidden === true;
 }
 
 type CategoryGroupDraft = BudgetCategoryGroupView & {
@@ -534,12 +470,16 @@ function mapCategoryGroups(
   for (const [groupIndex, group] of orderedGroups.entries()) {
     const groupName = firstString(group.name, group.masterCategoryName, group.displayName) ?? `Imported Group ${groupIndex + 1}`;
     const groupSourceIds = categoryGroupSourceIds(group, `categoryGroup:${groupIndex}`);
+    for (const sourceId of groupSourceIds) {
+      maps.nonImportableCategorySourceIds.add(sourceId);
+    }
     const subCategories = orderYnab4SubCategoriesForDisplay(toRecords(group.subCategories));
     const groupIsArchived = isYnab4Tombstone(group);
+    const groupType = firstString(group.type)?.toUpperCase();
 
     // Match Actual Budget's YNAB4 importer: deleted category groups are not
     // imported or used as category-identity fallbacks.
-    if (groupIsArchived) {
+    if (groupIsArchived || (groupType && groupType !== "OUTFLOW")) {
       continue;
     }
 
@@ -564,6 +504,7 @@ function mapCategoryGroups(
       // Actual Budget deliberately drops tombstoned categories. Transactions
       // and budget rows resolve only through IDs mapped for live categories.
       if (categoryIsTombstone) {
+        for (const sourceId of categorySourceIds) maps.nonImportableCategorySourceIds.add(sourceId);
         continue;
       }
 
@@ -665,38 +606,6 @@ function addImportedCategoryToGroup(input: {
   });
 }
 
-function findOrCreateCategoryGroupDraft(input: {
-  drafts: CategoryGroupDraft[];
-  groupName: string;
-  groupSourceId: string | null;
-  existingGroupIds: Set<string>;
-}): CategoryGroupDraft {
-  const normalisedGroupName = normaliseCategoryStateName(input.groupName);
-  const existing = input.drafts.find((group) =>
-    (input.groupSourceId && group.sourceIds.has(input.groupSourceId)) ||
-    normaliseCategoryStateName(group.name) === normalisedGroupName,
-  );
-
-  if (existing) {
-    if (input.groupSourceId) existing.sourceIds.add(input.groupSourceId);
-    return existing;
-  }
-
-  const group: CategoryGroupDraft = {
-    id: uniqueSlug(input.groupName, input.existingGroupIds, "group"),
-    name: input.groupName,
-    previousAvailable: 0,
-    assigned: 0,
-    activity: 0,
-    available: 0,
-    note: "",
-    categories: [],
-    sourceIds: new Set(input.groupSourceId ? [input.groupSourceId] : []),
-  };
-  input.drafts.push(group);
-  return group;
-}
-
 function isYnab4HiddenCategoriesGroup(group: RecordMap, groupName: string): boolean {
   return groupName.toLowerCase() === "hidden categories" ||
     firstString(group.entityId, group.id, group.masterCategoryId) === "MasterCategory/__Hidden__";
@@ -716,13 +625,10 @@ function ynab4HiddenCategoryDisplayName(name: string | null): string {
   return parts.slice(0, -1).join("/").trim();
 }
 
-function normaliseCategoryStateName(name: string): string {
-  return name.replace(/\s+/g, " ").trim().toLowerCase();
-}
-
 function mapPayees(payees: RecordMap[], maps: ImportMaps, nowIso: string): PayeeView[] {
   const existingIds = new Set<string>();
   return payees.flatMap((payee, index) => {
+    if (isYnab4Tombstone(payee)) return [];
     const name = firstString(payee.name, payee.payeeName, payee.displayName) ?? `Imported Payee ${index + 1}`;
     if (isTransferPayee(payee, name)) {
       return [];
@@ -738,199 +644,19 @@ function mapPayees(payees: RecordMap[], maps: ImportMaps, nowIso: string): Payee
       createdAt: nowIso,
       lastUsedAt: nowIso,
       useCount: 1,
-      isArchived: payee.isTombstone === true || payee.hidden === true,
+      isArchived: payee.hidden === true,
     }];
   });
-}
-
-function mapRegisters(
-  transactions: RecordMap[],
-  accounts: SidebarAccount[],
-  maps: ImportMaps,
-  importedFlagTagIdByColour: ReadonlyMap<TransactionTagColour, string>,
-): Record<string, AccountRegisterView> {
-  const registers: Record<string, AccountRegisterView> = {};
-  for (const account of accounts) {
-    registers[account.id] = createEmptyRegister(account);
-  }
-
-  for (const [index, transaction] of transactions.entries()) {
-    if (transaction.isTombstone === true || transaction.deleted === true) continue;
-    const accountId = mappedId(maps.accountIdBySourceId, transaction.accountId, transaction.accountEntityId);
-    if (!accountId || !registers[accountId]) continue;
-    registers[accountId].transactions.push(
-      mapRegisterTransaction(
-        transaction,
-        index,
-        maps,
-        importedFlagTagIdByColour,
-        maps.accountTypeById.get(accountId) ?? "on-budget",
-      ),
-    );
-  }
-
-  for (const register of Object.values(registers)) {
-    recalculateRegister(register);
-  }
-
-  return registers;
-}
-
-function createEmptyRegister(account: SidebarAccount): AccountRegisterView {
-  return {
-    accountId: account.id,
-    accountName: account.name,
-    accountType: account.type === "credit-card" ? "Credit card" : account.type === "tracking" ? "Tracking" : "On budget",
-    currencyCode: "AUD",
-    clearedBalance: 0,
-    unclearedBalance: 0,
-    workingBalance: 0,
-    transactions: [],
-  };
-}
-
-function mapRegisterTransaction(
-  transaction: RecordMap,
-  index: number,
-  maps: ImportMaps,
-  importedFlagTagIdByColour: ReadonlyMap<TransactionTagColour, string>,
-  owningAccountType: SidebarAccountType,
-): RegisterTransactionView {
-  const amount = transactionAmountToDisplayUnits(transaction.amount, transaction.amountMilliUnits, transaction.inflow, transaction.outflow) ?? 0;
-  const transferAccountId = mappedId(maps.accountIdBySourceId, transaction.targetAccountId, transaction.transferAccountId);
-  const payeeId = mappedId(maps.payeeIdBySourceId, transaction.payeeId);
-  const sourceCategoryKind = ynab4CategoryKind(transaction.categoryId, transaction.subCategoryId);
-  const mappedCategoryId = mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
-  const categoryId = sourceCategoryKind === "income"
-    ? READY_TO_ASSIGN_CATEGORY_ID
-    : sourceCategoryKind === "split"
-      ? null
-      : mappedCategoryId;
-  const isTrackingAccount = owningAccountType === "tracking";
-  const splitLines = mapSplitLines(
-    toRecords(transaction.subTransactions),
-    maps,
-    isTrackingAccount,
-  );
-  const hasSplitLines = Boolean(splitLines && splitLines.length > 0);
-  const transferAccountType = transferAccountId ? maps.accountTypeById.get(transferAccountId) : undefined;
-  const isCategorisedOffBudgetTransfer = Boolean(transferAccountId && categoryId && transferAccountType === "tracking");
-  const importedFlagColour = normaliseImportedFlagColour(
-    firstString(transaction.flag, transaction.flagColor),
-  );
-  const importedFlagTagId = importedFlagColour
-    ? importedFlagTagIdByColour.get(importedFlagColour)
-    : undefined;
-  const payeeName = transferAccountId
-    ? `Transfer: ${maps.accountNameById.get(transferAccountId) ?? "Account"}`
-    : firstString(transaction.payeeName, transaction.payee) ?? (payeeId ? maps.payeeNameById.get(payeeId) : null) ?? "Imported Payee";
-
-  return {
-    id: firstString(transaction.entityId, transaction.id, transaction.transactionId) ?? `imported-transaction-${index}`,
-    date: normaliseDate(firstString(transaction.date, transaction.dateString, transaction.acceptedDate)) ?? "1970-01-01",
-    ...(importedFlagTagId ? { tagIds: [importedFlagTagId] } : {}),
-    attachmentCount: 0,
-    attachments: [],
-    payee: payeeName,
-    payeeId: transferAccountId ? undefined : payeeId ?? undefined,
-    category: isTrackingAccount
-      ? transferAccountId ? "Transfer" : "Uncategorised"
-      : hasSplitLines
-        ? "Split"
-        : categoryId && (!transferAccountId || isCategorisedOffBudgetTransfer)
-          ? maps.categoryNameById.get(categoryId) ?? READY_TO_ASSIGN_CATEGORY_NAME
-          : transferAccountId ? "Transfer" : READY_TO_ASSIGN_CATEGORY_NAME,
-    categoryId: isTrackingAccount
-      ? undefined
-      : hasSplitLines
-        ? undefined
-        : categoryId ?? (transferAccountId ? undefined : READY_TO_ASSIGN_CATEGORY_ID),
-    memo: firstString(transaction.memo, transaction.note, transaction.notes) ?? undefined,
-    checkNumber: firstString(transaction.checkNumber, transaction.check, transaction.number) ?? undefined,
-    inflow: amount > 0 ? amount : 0,
-    outflow: amount < 0 ? Math.abs(amount) : 0,
-    runningBalance: 0,
-    cleared: isCleared(transaction),
-    reconciled: isReconciled(transaction),
-    transferId: createImportedTransferId(
-      firstString(transaction.entityId, transaction.id, transaction.transactionId),
-      firstString(transaction.transferTransactionId),
-    ),
-    transferAccountId: transferAccountId ?? undefined,
-    transferTransactionId: firstString(transaction.transferTransactionId) ?? undefined,
-    splitLines,
-  };
-}
-
-function mapSplitLines(
-  lines: RecordMap[],
-  maps: ImportMaps,
-  suppressBudgetCategories = false,
-): RegisterTransactionView["splitLines"] {
-  const activeLines = lines.filter((line) => !isYnab4Tombstone(line));
-  if (activeLines.length === 0) return undefined;
-  return activeLines.map((line, index) => {
-    const amount = transactionAmountToDisplayUnits(line.amount, line.amountMilliUnits, line.inflow, line.outflow) ?? 0;
-    const sourceCategoryKind = ynab4CategoryKind(line.categoryId, line.subCategoryId);
-    const categoryId = sourceCategoryKind === "income" || sourceCategoryKind === "split"
-      ? READY_TO_ASSIGN_CATEGORY_ID
-      : mappedId(maps.categoryIdBySourceId, line.categoryId, line.subCategoryId) ?? READY_TO_ASSIGN_CATEGORY_ID;
-    return {
-      id: firstString(line.entityId, line.id) ?? `split-${index}`,
-      category: suppressBudgetCategories
-        ? "Uncategorised"
-        : maps.categoryNameById.get(categoryId) ?? READY_TO_ASSIGN_CATEGORY_NAME,
-      categoryId: suppressBudgetCategories ? undefined : categoryId,
-      memo: firstString(line.memo, line.note, line.notes) ?? undefined,
-      inflow: amount > 0 ? amount : 0,
-      outflow: amount < 0 ? Math.abs(amount) : 0,
-    };
-  });
-}
-
-
-function transactionAmountToDisplayUnits(
-  amount: unknown,
-  amountMilliUnits: unknown,
-  ...fallbackValues: unknown[]
-): number | null {
-  const displayAmount = parseDisplayAmount(amount);
-  if (displayAmount !== null) return displayAmount;
-
-  const milliUnitAmount = parseMilliUnitAmount(amountMilliUnits);
-  if (milliUnitAmount !== null) return milliUnitAmount;
-
-  for (const value of fallbackValues) {
-    const parsed = parseDisplayAmount(value);
-    if (parsed !== null) return parsed;
-  }
-
-  return null;
-}
-
-function recalculateRegister(register: AccountRegisterView): void {
-  const chronological = [...register.transactions].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
-  let runningBalance = 0;
-  const runningBalanceById = new Map<string, number>();
-  for (const transaction of chronological) {
-    runningBalance += transaction.inflow - transaction.outflow;
-    runningBalanceById.set(transaction.id, runningBalance);
-  }
-  register.transactions = register.transactions
-    .map((transaction) => ({ ...transaction, runningBalance: runningBalanceById.get(transaction.id) ?? 0 }))
-    .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
-  register.clearedBalance = register.transactions
-    .filter((transaction) => transaction.cleared || transaction.reconciled)
-    .reduce((sum, transaction) => sum + transaction.inflow - transaction.outflow, 0);
-  register.workingBalance = register.transactions.reduce((sum, transaction) => sum + transaction.inflow - transaction.outflow, 0);
-  register.unclearedBalance = register.workingBalance - register.clearedBalance;
 }
 
 function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, nowIso: string): ScheduledTransactionView[] {
   return transactions.flatMap((transaction, index) => {
     if (transaction.isTombstone === true || transaction.deleted === true) return [];
-    const accountId = mappedId(maps.accountIdBySourceId, transaction.accountId, transaction.accountEntityId);
-    if (!accountId) return [];
+    const accountId = requireMappedYnab4Account(
+      maps.accountIdBySourceId,
+      transaction,
+      `scheduled transaction ${sourceEntityLabel(transaction, index)}`,
+    );
     const owningAccountType = maps.accountTypeById.get(accountId) ?? "on-budget";
     const isTrackingAccount = owningAccountType === "tracking";
     const splitLines = mapScheduledSplitLines(
@@ -938,27 +664,60 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
       maps,
       isTrackingAccount,
     );
-    const amount = scheduledAmountToDisplayUnits(transaction.amount, transaction.amountMilliUnits, transaction.inflow, transaction.outflow) ?? 0;
+    const amount = requireYnab4Amount(
+      decodeYnabAmount({
+        amount: transaction.amount,
+        amountMilliUnits: transaction.amountMilliUnits,
+        inflow: transaction.inflow,
+        outflow: transaction.outflow,
+      }),
+      `scheduled transaction ${sourceEntityLabel(transaction, index)}`,
+    );
     const transferAccountId = mappedId(maps.accountIdBySourceId, transaction.targetAccountId, transaction.transferAccountId);
+    const transferAccountType = transferAccountId
+      ? maps.accountTypeById.get(transferAccountId)
+      : undefined;
     const payeeId = mappedId(maps.payeeIdBySourceId, transaction.payeeId);
     const sourceCategoryKind = ynab4CategoryKind(transaction.categoryId, transaction.subCategoryId);
-    const mappedCategoryId = mappedId(maps.categoryIdBySourceId, transaction.categoryId, transaction.subCategoryId);
-    const categoryId = sourceCategoryKind === "income"
-      ? READY_TO_ASSIGN_CATEGORY_ID
-      : sourceCategoryKind === "split"
-        ? null
-        : mappedCategoryId;
+    const mappedCategoryId =
+      sourceCategoryKind === "ordinary"
+        ? resolveYnab4CategoryId(
+            maps,
+            transaction,
+            `scheduled transaction ${sourceEntityLabel(transaction, index)}`,
+          )
+        : null;
+    const categoryId = isTrackingAccount
+      ? null
+      : sourceCategoryKind === "income"
+        ? READY_TO_ASSIGN_CATEGORY_ID
+        : sourceCategoryKind === "split"
+          ? null
+          : mappedCategoryId;
+    const isCategorisedOffBudgetTransfer = Boolean(
+      transferAccountId && categoryId && transferAccountType === "tracking",
+    );
     const importedFlagColour = normaliseImportedFlagColour(
       firstString(transaction.flag, transaction.flagColor),
     );
+    const recurrence = mapYnab4Recurrence(transaction);
     return [{
       id: firstString(transaction.entityId, transaction.id, transaction.scheduledTransactionId) ?? `imported-scheduled-${index}`,
       accountId,
       ...(importedFlagColour
         ? { tagIds: [`ynab4-imported-flag-${importedFlagColour}`] }
         : {}),
-      nextDueDate: normaliseDate(firstString(transaction.nextDueDate, transaction.date, transaction.dateString)) ?? "1970-01-01",
-      frequency: mapFrequency(firstString(transaction.frequency, transaction.repeat, transaction.recurrence)),
+      nextDueDate: requireYnab4Date(
+        firstString(transaction.nextDueDate, transaction.date, transaction.dateString),
+        `scheduled transaction ${sourceEntityLabel(transaction, index)}`,
+      ),
+      frequency: recurrence.frequency,
+      recurrenceInterval: recurrence.interval,
+      recurrenceUnit: recurrence.unit,
+      recurrenceAnchorDate: requireYnab4Date(
+        firstString(transaction.nextDueDate, transaction.date, transaction.dateString),
+        `scheduled transaction ${sourceEntityLabel(transaction, index)}`,
+      ),
       payee: transferAccountId
         ? `Transfer: ${maps.accountNameById.get(transferAccountId) ?? "Account"}`
         : firstString(transaction.payeeName, transaction.payee) ?? (payeeId ? maps.payeeNameById.get(payeeId) : null) ?? "Imported Payee",
@@ -967,20 +726,18 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
         ? transferAccountId ? "Transfer" : "Uncategorised"
         : splitLines && splitLines.length > 0
           ? "Split"
-          : transferAccountId
-            ? "Transfer"
-            : categoryId === READY_TO_ASSIGN_CATEGORY_ID
-              ? READY_TO_ASSIGN_CATEGORY_NAME
-              : categoryId
-                ? maps.categoryNameById.get(categoryId) ?? "Uncategorised"
-                : READY_TO_ASSIGN_CATEGORY_NAME,
+          : categoryId && (!transferAccountId || isCategorisedOffBudgetTransfer)
+            ? maps.categoryNameById.get(categoryId) ??
+              READY_TO_ASSIGN_CATEGORY_NAME
+            : transferAccountId
+              ? "Transfer"
+              : READY_TO_ASSIGN_CATEGORY_NAME,
       categoryId: isTrackingAccount
         ? undefined
         : splitLines && splitLines.length > 0
           ? undefined
-          : transferAccountId
-            ? undefined
-            : categoryId ?? READY_TO_ASSIGN_CATEGORY_ID,
+          : categoryId ??
+            (transferAccountId ? undefined : READY_TO_ASSIGN_CATEGORY_ID),
       memo: firstString(transaction.memo, transaction.note, transaction.notes) ?? undefined,
       outflow: amount < 0 ? Math.abs(amount) : 0,
       inflow: amount > 0 ? amount : 0,
@@ -999,247 +756,60 @@ function mapScheduledSplitLines(
   const activeLines = lines.filter((line) => !isYnab4Tombstone(line));
   if (activeLines.length === 0) return undefined;
   return activeLines.map((line, index) => {
-    const amount = scheduledAmountToDisplayUnits(line.amount, line.amountMilliUnits, line.inflow, line.outflow) ?? 0;
+    const amount = requireYnab4Amount(
+      decodeYnabAmount({
+        amount: line.amount,
+        amountMilliUnits: line.amountMilliUnits,
+        inflow: line.inflow,
+        outflow: line.outflow,
+      }),
+      `scheduled split ${sourceEntityLabel(line, index)}`,
+    );
     const sourceCategoryKind = ynab4CategoryKind(line.categoryId, line.subCategoryId);
-    const categoryId = sourceCategoryKind === "income" || sourceCategoryKind === "split"
-      ? READY_TO_ASSIGN_CATEGORY_ID
-      : mappedId(maps.categoryIdBySourceId, line.categoryId, line.subCategoryId) ?? READY_TO_ASSIGN_CATEGORY_ID;
+    const transferAccountId = mappedId(
+      maps.accountIdBySourceId,
+      line.targetAccountId,
+      line.transferAccountId,
+    );
+    const transferTransactionId = firstString(line.transferTransactionId);
+    const lineId =
+      firstString(line.entityId, line.id) ?? `scheduled-split-${index}`;
+    const categoryId = suppressBudgetCategories || transferAccountId
+      ? null
+      : sourceCategoryKind === "income" || sourceCategoryKind === "split"
+        ? READY_TO_ASSIGN_CATEGORY_ID
+        : resolveYnab4CategoryId(
+            maps,
+            line,
+            `scheduled split ${sourceEntityLabel(line, index)}`,
+          ) ?? READY_TO_ASSIGN_CATEGORY_ID;
     return {
-      id: firstString(line.entityId, line.id) ?? `scheduled-split-${index}`,
+      id: lineId,
       category: suppressBudgetCategories
-        ? "Uncategorised"
-        : maps.categoryNameById.get(categoryId) ?? READY_TO_ASSIGN_CATEGORY_NAME,
-      categoryId: suppressBudgetCategories ? undefined : categoryId,
+        ? transferAccountId
+          ? "Transfer"
+          : "Uncategorised"
+        : transferAccountId
+          ? "Transfer"
+          : maps.categoryNameById.get(categoryId!) ??
+            READY_TO_ASSIGN_CATEGORY_NAME,
+      categoryId:
+        suppressBudgetCategories || transferAccountId ? undefined : categoryId!,
       memo: firstString(line.memo, line.note, line.notes) ?? undefined,
       inflow: amount > 0 ? amount : 0,
       outflow: amount < 0 ? Math.abs(amount) : 0,
+      transferId: createImportedTransferId(lineId, transferTransactionId),
+      transferAccountId: transferAccountId ?? undefined,
+      transferTransactionId: transferTransactionId ?? undefined,
     };
   });
 }
 
-function scheduledAmountToDisplayUnits(
-  amount: unknown,
-  amountMilliUnits: unknown,
-  ...fallbackValues: unknown[]
-): number | null {
-  const displayAmount = parseDisplayAmount(amount);
-  if (displayAmount !== null) return displayAmount;
-
-  const milliUnitAmount = parseMilliUnitAmount(amountMilliUnits);
-  if (milliUnitAmount !== null) return milliUnitAmount;
-
-  for (const value of fallbackValues) {
-    const parsed = parseDisplayAmount(value);
-    if (parsed !== null) return parsed;
-  }
-
-  return null;
-}
-
-function mapBudgetMonthViews(
-  budget: BudgetSummary,
-  monthlyBudgets: RecordMap[],
-  templateGroups: BudgetCategoryGroupView[],
-  maps: ImportMaps,
-  registers: Record<string, AccountRegisterView>,
-  now: Date,
-): Map<string, BudgetMonthView> {
-  const views = new Map<string, BudgetMonthView>();
-  const activityByMonthCategory = buildBudgetActivityByMonthCategory(registers);
-  const sourceMonths = (monthlyBudgets.length > 0 ? monthlyBudgets : [{ month: getCurrentBudgetMonth(now), monthlySubCategoryBudgets: [] }])
-    .map((monthlyBudget) => ({
-      monthlyBudget,
-      month: monthKey(firstString(monthlyBudget.month, monthlyBudget.date, monthlyBudget.monthName)) ?? getCurrentBudgetMonth(now),
-    }))
-    .sort((left, right) => left.month.localeCompare(right.month));
-  const previousAvailableByCategoryId = new Map<string, number>();
-
-  for (const { monthlyBudget, month } of sourceMonths) {
-    const groups = cloneCategoryGroups(templateGroups);
-    const categoryById = new Map(groups.flatMap((group) => group.categories.map((category) => [category.id, category] as const)));
-    const carryoverByCategoryId = new Map<string, boolean>();
-
-    for (const row of toRecords(monthlyBudget.monthlySubCategoryBudgets)) {
-      if (isYnab4Tombstone(row)) continue;
-      const categoryId = mappedId(maps.categoryIdBySourceId, row.categoryId, row.subCategoryId);
-      const category = categoryId ? categoryById.get(categoryId) : undefined;
-      if (!category || !categoryId) continue;
-      category.assigned = amountToDisplayUnits(row.budgeted, row.assigned) ?? 0;
-      carryoverByCategoryId.set(
-        categoryId,
-        ynab4OverspendingHandlingCarriesNegativeBalance(
-          firstString(row.overspendingHandling),
-        ),
-      );
-    }
-
-    const activityByCategory = activityByMonthCategory.get(month) ?? new Map<string, number>();
-    for (const category of categoryById.values()) {
-      const previousAvailable = roundMoney(previousAvailableByCategoryId.get(category.id) ?? 0);
-      const shouldCarryForward = previousAvailable > 0 || Boolean(carryoverByCategoryId.get(category.id));
-      category.previousAvailable = shouldCarryForward ? previousAvailable : 0;
-      category.activity = roundMoney(activityByCategory.get(category.id) ?? 0);
-      category.available = normaliseMoney(roundMoney(category.previousAvailable + category.assigned + category.activity));
-      category.isOverspent = isMoneyNegative(category.available);
-      previousAvailableByCategoryId.set(category.id, category.available);
-    }
-
-    for (const group of groups) {
-      group.previousAvailable = group.categories.reduce((sum, category) => sum + category.previousAvailable, 0);
-      group.assigned = group.categories.reduce((sum, category) => sum + category.assigned, 0);
-      group.activity = group.categories.reduce((sum, category) => sum + category.activity, 0);
-      group.available = group.categories.reduce((sum, category) => sum + category.available, 0);
-    }
-
-    const totalAssigned = groups.reduce((sum, group) => sum + group.assigned, 0);
-    const totalActivity = groups.reduce((sum, group) => sum + group.activity, 0);
-    const totalAvailable = groups.reduce((sum, group) => sum + group.available, 0);
-    views.set(month, {
-      budgetId: budget.id,
-      budgetName: budget.name,
-      monthLabel: monthLabelFromIsoMonth(month),
-      currencyCode: budget.currency,
-      readyToAssign: amountToDisplayUnits(monthlyBudget.availableToBudget, monthlyBudget.buffered, monthlyBudget.income) ?? 0,
-      totalAssigned,
-      totalActivity,
-      totalAvailable,
-      categoryGroups: groups,
-    });
-  }
-
-  return views;
-}
-
-
-function ynab4OverspendingHandlingCarriesNegativeBalance(
-  value: string | null,
-): boolean {
-  return value?.replace(/[\s_-]/g, "").toLowerCase() === "confined";
-}
-
-function buildBudgetActivityByMonthCategory(
-  registers: Record<string, AccountRegisterView>,
-): Map<string, Map<string, number>> {
-  const activityByMonthCategory = new Map<string, Map<string, number>>();
-
-  for (const register of Object.values(registers)) {
-    if (register.accountType === "Tracking") continue;
-    for (const transaction of register.transactions) {
-      const month = transaction.date.slice(0, 7);
-      if (!/^\d{4}-\d{2}$/.test(month)) continue;
-
-      if (transaction.splitLines && transaction.splitLines.length > 0) {
-        for (const splitLine of transaction.splitLines) {
-          if (splitLine.categoryId) {
-            addBudgetActivity(
-              activityByMonthCategory,
-              month,
-              splitLine.categoryId,
-              splitLine.inflow - splitLine.outflow,
-            );
-          }
-        }
-        continue;
-      }
-
-      if (!transaction.categoryId) continue;
-      addBudgetActivity(
-        activityByMonthCategory,
-        month,
-        transaction.categoryId,
-        transaction.inflow - transaction.outflow,
-      );
-    }
-  }
-
-  return activityByMonthCategory;
-}
-
-
-function addBudgetActivity(
-  activityByMonthCategory: Map<string, Map<string, number>>,
-  month: string,
-  categoryId: string | undefined,
-  amount: number,
-): void {
-  if (!categoryId || categoryId === READY_TO_ASSIGN_CATEGORY_ID) return;
-
-  const byCategory = activityByMonthCategory.get(month) ?? new Map<string, number>();
-  byCategory.set(categoryId, roundMoney((byCategory.get(categoryId) ?? 0) + amount));
-  activityByMonthCategory.set(month, byCategory);
-}
-
-function cloneCategoryGroups(groups: BudgetCategoryGroupView[]): BudgetCategoryGroupView[] {
-  return groups.map((group) => ({
-    ...group,
-    categories: group.categories.map((category) => ({ ...category })),
-  }));
-}
-
-function readActiveYnab4BudgetData(entries: Ynab4PackageEntry[]): Ynab4ImportData | null {
-  const normalisedEntries = entries.map((entry) => ({ path: normalisePath(entry.path), text: entry.text }));
-  const metadataEntry = normalisedEntries.find((entry) => entry.path.endsWith("/Budget.ymeta") || entry.path === "Budget.ymeta");
-  if (!metadataEntry) return null;
-
-  let metadata: RecordMap;
-  try {
-    metadata = JSON.parse(metadataEntry.text) as RecordMap;
-  } catch {
-    return null;
-  }
-
-  const relativeDataFolderName = firstString(metadata.relativeDataFolderName);
-  if (!relativeDataFolderName) return null;
-
-  const packageRoot = inferPackageRoot(metadataEntry.path);
-  const activeDataFolderPath = packageRoot ? `${packageRoot}/${relativeDataFolderName}` : relativeDataFolderName;
-  const activePrefix = `${activeDataFolderPath}/`;
-  const budgetDataEntry = normalisedEntries
-    .filter((entry) => entry.path.startsWith(activePrefix))
-    .find((entry) => entry.path.endsWith("/Budget.yfull") || entry.path.endsWith("/Budget.json"));
-
-  if (!budgetDataEntry) return null;
-
-  try {
-    const parsed = JSON.parse(budgetDataEntry.text);
-    return isRecord(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function amountToDisplayUnits(...values: unknown[]): number | null {
-  for (const value of values) {
-    const parsed = parseDisplayAmount(value);
-    if (parsed !== null) return parsed;
-  }
-  return null;
-}
-
-function parseDisplayAmount(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return roundMoney(value);
-  }
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value.replace(/[$,]/g, ""));
-    if (Number.isFinite(parsed)) return roundMoney(parsed);
-  }
-  return null;
-}
-
-function parseMilliUnitAmount(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return roundMoney(value / 1000);
-  }
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value.replace(/[$,]/g, ""));
-    if (Number.isFinite(parsed)) return roundMoney(parsed / 1000);
-  }
-  return null;
-}
-
-function roundMoney(value: number): number {
-  return Math.round(value * 100) / 100;
+function readActiveYnab4BudgetData(
+  entries: Ynab4PackageEntry[],
+  selectedBudgetDataPath: string | null,
+): Ynab4ImportData | null {
+  return readYnab4BudgetData(entries, selectedBudgetDataPath).data;
 }
 
 function mapAccountType(value: string | null, onBudget: unknown): SidebarAccountType {
@@ -1309,24 +879,6 @@ function mapImportedFlagTags(
   };
 }
 
-function mapFrequency(value: string | null): ScheduledFrequency {
-  const normalized = value?.replace(/[\s_-]/g, "").toLowerCase();
-  if (normalized === "weekly") return "weekly";
-  if (normalized === "fortnightly" || normalized === "everyotherweek") return "fortnightly";
-  if (normalized === "yearly" || normalized === "annually") return "yearly";
-  if (normalized === "once" || normalized === "never") return "once";
-  return "monthly";
-}
-
-function isCleared(row: RecordMap): boolean {
-  const value = firstString(row.cleared, row.clearedStatus, row.accepted)?.toLowerCase();
-  return value === "cleared" || value === "reconciled" || value === "accepted" || row.cleared === true || row.accepted === true;
-}
-
-function isReconciled(row: RecordMap): boolean {
-  return firstString(row.cleared, row.clearedStatus)?.toLowerCase() === "reconciled";
-}
-
 function isTransferPayee(payee: RecordMap, name: string): boolean {
   return Boolean(firstString(payee.targetAccountId, payee.transferAccountId)) || name.toLowerCase().startsWith("transfer:");
 }
@@ -1343,6 +895,27 @@ function ynab4CategoryKind(...values: unknown[]): Ynab4CategoryKind {
     return "income";
   }
   return "ordinary";
+}
+
+function requireMappedYnab4Account(
+  map: ReadonlyMap<string, string>,
+  record: RecordMap,
+  source: string,
+): string {
+  const sourceAccountId = firstString(
+    record.accountId,
+    record.accountEntityId,
+  );
+  if (!sourceAccountId) {
+    throw new Error(`Missing YNAB4 account reference for ${source}.`);
+  }
+  const accountId = map.get(sourceAccountId);
+  if (!accountId) {
+    throw new Error(
+      `Unresolved YNAB4 account "${sourceAccountId}" for ${source}.`,
+    );
+  }
+  return accountId;
 }
 
 function mappedId(map: Map<string, string>, ...values: unknown[]): string | null {
@@ -1413,18 +986,40 @@ function monthKey(value: string | null): string | null {
   return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function monthLabelFromIsoMonth(month: string): string {
-  const [year, monthNumber] = month.split("-").map(Number);
-  if (!year || !monthNumber) return month;
-  return new Intl.DateTimeFormat("en-AU", { month: "long", year: "numeric" }).format(new Date(year, monthNumber - 1, 1));
-}
-
 function normaliseDate(value: string | null): string | null {
   if (!value) return null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
+  if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toISOString().slice(0, 10);
+}
+
+function requireYnab4Date(value: string | null, source: string): string {
+  if (value === null) throw new Error(`Invalid or missing YNAB4 date for ${source}.`);
+  const date = normaliseDate(value);
+  if (!date) throw new Error(`Invalid or missing YNAB4 date for ${source}.`);
+  return date;
+}
+
+function requireYnab4Amount(value: number | null, source: string): number {
+  if (value === null) throw new Error(`Invalid or missing YNAB4 amount for ${source}.`);
+  if (!Number.isFinite(value)) {
+    throw new Error(`Invalid or missing YNAB4 amount for ${source}.`);
+  }
+  return value;
+}
+
+function sourceEntityLabel(record: RecordMap, index: number): string {
+  return firstString(record.entityId, record.id, record.transactionId) ?? `at index ${index}`;
+}
+
+function ynab4CurrencyCode(data: Ynab4ImportData): string | null {
+  const metadata = isRecord(data.budgetMetaData) ? data.budgetMetaData : null;
+  const raw = metadata
+    ? firstString(metadata.currencyISOSymbol, metadata.currencyCode)
+    : null;
+  const currency = raw?.toUpperCase();
+  return currency && /^[A-Z]{3}$/.test(currency) ? currency : null;
 }
 
 function firstString(...values: unknown[]): string | null {
@@ -1441,13 +1036,4 @@ function toRecords(value: unknown): RecordMap[] {
 
 function isRecord(value: unknown): value is RecordMap {
   return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function normalisePath(path: string): string {
-  return path.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+/g, "/");
-}
-
-function inferPackageRoot(path: string): string | null {
-  const parts = normalisePath(path).split("/");
-  return parts.length > 1 ? parts[0] || null : null;
 }

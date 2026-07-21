@@ -33,6 +33,7 @@ try {
   await validateRuntimeActivationAssessment();
   console.log("v1.37 runtime activation assessment checks OK");
 } finally {
+  db.$client.close();
   rmSync(tempDir, { recursive: true, force: true });
 }
 

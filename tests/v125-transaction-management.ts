@@ -1,5 +1,4 @@
-import { unlinkSync } from "fs";
-import { createDatabase } from "../packages/database/src/db.js";
+import { createTemporaryDatabase } from "./support/persistence/temporaryDatabase.js";
 import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
 import { createAccount } from "../packages/budget-engine/src/services/createAccount.js";
 import { createTransaction } from "../packages/budget-engine/src/services/createTransaction.js";
@@ -11,9 +10,7 @@ import { SqliteAccountRepository } from "../packages/repository/src/SqliteAccoun
 import { SqliteTransactionRepository } from "../packages/repository/src/SqliteTransactionRepository.js";
 import { TransactionManagementApplicationService } from "../packages/application/src/TransactionManagementApplicationService.js";
 
-const dbPath = "/tmp/budget-v125-management.sqlite";
-try { unlinkSync(dbPath); } catch {}
-const db = createDatabase(dbPath);
+const { db, cleanup } = createTemporaryDatabase("budget-v125-management");
 const budgetRepo = new SqliteBudgetRepository(db);
 const accountRepo = new SqliteAccountRepository(db);
 const transactionRepo = new SqliteTransactionRepository(db);
@@ -49,3 +46,4 @@ const overridden = await transactionRepo.getById(transaction.id);
 if (overridden?.memo !== "Override ok") throw new Error("Expected explicit reconciled edit override");
 
 console.log("v1.2.5 transaction management OK");
+cleanup();

@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/ui/Card";
+import { DropdownMenu } from "../features/ui/DropdownMenu";
+import {
+  WorkspaceActions,
+  WorkspaceBody,
+  WorkspaceHeader,
+  WorkspaceLayout,
+  WorkspaceStickyHeader,
+} from "../components/workspace";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import {
   getCurrentBudgetMonth,
@@ -515,16 +523,12 @@ export function BudgetPage() {
 
   if (!activeBudgetId) {
     return (
-      <div className="page-stack">
-        <section className="workspace-header">
-          <div>
-            <h1>Budget</h1>
-            <p className="muted">No active budget is selected.</p>
-          </div>
-        </section>
-
-        <Card>Open or create a budget before editing categories.</Card>
-      </div>
+      <WorkspaceLayout className="page-stack">
+        <WorkspaceHeader title="Budget" subtitle="No active budget is selected." />
+        <WorkspaceBody>
+          <Card>Open or create a budget before editing categories.</Card>
+        </WorkspaceBody>
+      </WorkspaceLayout>
     );
   }
 
@@ -627,31 +631,26 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   if (isLoading) {
     return (
-      <div className="page-stack">
-        <section className="workspace-header">
-          <div>
-            <h1>Budget</h1>
-            <p className="muted">Loading budget workspace…</p>
-          </div>
-        </section>
-
-        <Card>Loading budget workspace.</Card>
-      </div>
+      <WorkspaceLayout className="page-stack">
+        <WorkspaceHeader title="Budget" subtitle="Loading budget workspace…" />
+        <WorkspaceBody>
+          <Card>Loading budget workspace.</Card>
+        </WorkspaceBody>
+      </WorkspaceLayout>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="page-stack">
-        <section className="workspace-header">
-          <div>
-            <h1>Budget</h1>
-            <p className="muted">Unable to load budget workspace.</p>
-          </div>
-        </section>
-
-        <Card>{error ?? "Unknown error."}</Card>
-      </div>
+      <WorkspaceLayout className="page-stack">
+        <WorkspaceHeader
+          title="Budget"
+          subtitle="Unable to load budget workspace."
+        />
+        <WorkspaceBody>
+          <Card>{error ?? "Unknown error."}</Card>
+        </WorkspaceBody>
+      </WorkspaceLayout>
     );
   }
 
@@ -740,78 +739,90 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   }
 
   return (
-    <div className="budget-workspace-screen">
-      <div className="budget-workspace-layout budget-workspace-layout-interactive">
+    <>
+      <WorkspaceLayout className="budget-workspace-screen budget-workspace-layout">
         <main className="budget-workspace-main">
-          <div className="budget-sticky-working-header">
-            <section className="budget-workspace-topbar">
-              <div className="month-switcher">
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  onClick={() =>
-                    setSelectedMonth((currentMonth) =>
-                      getPreviousBudgetMonth(currentMonth),
-                    )
-                  }
-                  title="Go to previous budget month"
+          <WorkspaceStickyHeader className="budget-sticky-working-header">
+            <WorkspaceHeader
+              title="Budget"
+              subtitle={data.monthLabel}
+              primaryActions={
+                <WorkspaceActions
+                  className="budget-header-month-actions"
+                  tabletOverflow="scroll"
+                  aria-label="Budget month navigation"
                 >
-                  ‹
-                </button>
-
-                <div>
-                  <h1>{data.monthLabel}</h1>
-                  <p className="muted">Interactive budget workspace</p>
-                </div>
-
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  onClick={() =>
-                    setSelectedMonth((currentMonth) =>
-                      getNextBudgetMonth(currentMonth),
-                    )
-                  }
-                  title="Go to next budget month"
-                >
-                  ›
-                </button>
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  onClick={() => setSelectedMonth(getCurrentBudgetMonth())}
-                >
-                  Back to today
-                </button>
-              </div>
-
-              <div
-                className={
-                  isBudgetOverassigned
-                    ? "ready-to-assign-pill ready-to-assign-negative"
-                    : "ready-to-assign-pill"
-                }
-              >
-                <span>Ready To Assign</span>
-                <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
-              </div>
-            </section>
-
-            <section className="budget-display-bar" aria-label="Budget display options">
-              <span className="budget-display-label">Display</span>
-              <button
-                className="budget-filter budget-table-layout-reset"
-                type="button"
-                onClick={budgetTableLayout.resetColumnWidths}
-                title="Reset Budget column widths"
-              >
-                Reset column widths
-              </button>
-
-              <span className="budget-table-layout-help">
-                Drag header grips to resize columns.
-              </span>
-            </section>
+                  <button
+                    className="button button-secondary budget-month-step"
+                    type="button"
+                    onClick={() =>
+                      setSelectedMonth((currentMonth) =>
+                        getPreviousBudgetMonth(currentMonth),
+                      )
+                    }
+                    aria-label="Go to previous budget month"
+                    title="Go to previous budget month"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    className="button button-secondary budget-month-step"
+                    type="button"
+                    onClick={() =>
+                      setSelectedMonth((currentMonth) =>
+                        getNextBudgetMonth(currentMonth),
+                      )
+                    }
+                    aria-label="Go to next budget month"
+                    title="Go to next budget month"
+                  >
+                    ›
+                  </button>
+                  <button
+                    className="button button-secondary"
+                    type="button"
+                    onClick={() => setSelectedMonth(getCurrentBudgetMonth())}
+                  >
+                    Back to today
+                  </button>
+                </WorkspaceActions>
+              }
+              secondaryActions={
+                <>
+                  <div
+                    className={
+                      isBudgetOverassigned
+                        ? "ready-to-assign-pill ready-to-assign-negative"
+                        : "ready-to-assign-pill"
+                    }
+                  >
+                    <span>Ready To Assign</span>
+                    <strong>
+                      {formatMoney(data.readyToAssign, data.currencyCode)}
+                    </strong>
+                  </div>
+                  <DropdownMenu
+                    label="More ▾"
+                    ariaLabel="Budget administrative actions"
+                    className="dropdown-menu budget-header-overflow"
+                    panelClassName="dropdown-menu-panel budget-header-overflow-panel"
+                  >
+                    {({ closeMenu }) => (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          budgetTableLayout.resetColumnWidths();
+                          closeMenu({ restoreFocus: true });
+                        }}
+                      >
+                        Reset column widths
+                      </button>
+                    )}
+                  </DropdownMenu>
+                </>
+              }
+            />
 
             <div
               className="budget-workspace-table-head"
@@ -830,7 +841,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 </span>
               ))}
             </div>
-          </div>
+          </WorkspaceStickyHeader>
 
           <Card className="budget-workspace-table-card">
             {visibleCategoryGroups.map((group) => (
@@ -948,8 +959,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             </div>
           </Card>
         </aside>
-      </div>
-
+      </WorkspaceLayout>
 
       <CategoryManagementDialog
         category={visibleSelectedCategory}
@@ -994,6 +1004,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           void navigate(`/accounts/${row.accountId}`);
         }}
       />
-    </div>
+    </>
   );
 }

@@ -87,9 +87,13 @@ const budgetLifecycle = readFileSync(
 assert.match(budgetLifecycle, /export function deleteBudgetById/);
 assert.match(budgetRegistryStore, /deleteBudgetById/);
 assert.match(selectorPage, /handleRequestDeleteBudget/);
-assert.match(selectorPage, /Type \{budgetPendingDelete\.name\} to confirm/);
+assert.doesNotMatch(
+  selectorPage,
+  /Type \{budgetPendingDelete\.name\} to confirm/,
+);
 assert.match(selectorPage, /Delete Budget/);
+assert.match(selectorPage, /This action cannot be undone/);
 assert.match(selectorPage, /clearSelectedBudget\(\)/);
-assert.match(selectorPage, /This is your last budget/);
+assert.doesNotMatch(selectorPage, /This is your last budget/);
 
 console.log("v2.46.1 budget selector delete checks passed");

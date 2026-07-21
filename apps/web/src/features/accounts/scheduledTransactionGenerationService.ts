@@ -1,6 +1,9 @@
 import type { AppPersistenceGateway } from "../persistence/appPersistenceGateway";
 import type { NewRegisterTransactionInput, RegisterSplitLineView, RegisterTransactionView } from "./accountRegisterTypes";
-import type { ScheduledTransactionView } from "./scheduledTransactionService";
+import {
+  shouldSkipOccurrence,
+  type ScheduledTransactionView,
+} from "./scheduledTransactionService";
 
 const MAX_OCCURRENCES_PER_RUN = 120;
 
@@ -73,14 +76,24 @@ async function generateDueScheduledTransactionsInternal(
       }
 
       const occurrenceDate = dueSchedule.nextDueDate;
-      const existingRegister = await gateway.accountRegisters.getAccountRegisterView({
-        accountId: dueSchedule.accountId,
-      });
-      const alreadyExists = existingRegister.transactions.some((transaction) =>
-        isExistingScheduledOccurrence(transaction, dueSchedule, occurrenceDate),
+      const anchorDate = dueSchedule.recurrenceAnchorDate ?? occurrenceDate;
+      const skipOccurrence = shouldSkipOccurrence(
+        anchorDate,
+        dueSchedule.weekendPolicy ?? "same-day",
       );
+      const existingRegister = skipOccurrence
+        ? null
+        : await gateway.accountRegisters.getAccountRegisterView({
+            accountId: dueSchedule.accountId,
+          });
+      const alreadyExists = existingRegister?.transactions.some((transaction) =>
+        isExistingScheduledOccurrence(transaction, dueSchedule, occurrenceDate),
+      ) ?? false;
 
-      if (alreadyExists) {
+      if (skipOccurrence) {
+        // The recurrence still exists and counts toward its end condition; only
+        // materialisation is suppressed for this anchored occurrence.
+      } else if (alreadyExists) {
         result.skippedDuplicateOccurrences.push({
           accountId: dueSchedule.accountId,
           scheduledTransactionId: dueSchedule.id,

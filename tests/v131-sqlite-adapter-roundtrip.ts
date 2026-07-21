@@ -19,6 +19,7 @@ try {
   await validatePayeeAdapterRoundTrip();
   console.log("v1.31 SQLite adapter round-trip checks OK");
 } finally {
+  db.$client.close();
   rmSync(tempDir, { recursive: true, force: true });
 }
 

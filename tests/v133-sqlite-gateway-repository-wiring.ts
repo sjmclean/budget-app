@@ -21,6 +21,7 @@ try {
   await validateSqliteGatewayUsesRealRepositories();
   console.log("v1.33 SQLite gateway repository wiring checks OK");
 } finally {
+  db.$client.close();
   rmSync(tempDir, { recursive: true, force: true });
 }
 

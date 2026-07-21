@@ -40,6 +40,26 @@ const preview: TransactionImportPreview = {
       reason: "New transaction.",
       selected: true,
       errors: [],
+      lifecycle: {
+        source: {
+          rowNumber: valid.rowNumber,
+          date: valid.date,
+          rawPayee: valid.payee,
+          transferAccountName: "Savings",
+          outflow: valid.outflow,
+          inflow: valid.inflow,
+        },
+        merchant: {
+          canonicalPayee: "Transfer: Savings",
+          suggestedCategoryName: null,
+          transferAccountName: "Savings",
+        },
+        proposal: {
+          payee: "Transfer: Savings",
+          categoryName: null,
+          transferAccountName: "Savings",
+        },
+      },
     },
   ],
   summary: {

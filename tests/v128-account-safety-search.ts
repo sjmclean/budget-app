@@ -1,5 +1,4 @@
-import { unlinkSync } from "fs";
-import { createDatabase } from "../packages/database/src/db.js";
+import { createTemporaryDatabase } from "./support/persistence/temporaryDatabase.js";
 import { createBudget } from "../packages/budget-engine/src/services/createBudget.js";
 import { createAccount } from "../packages/budget-engine/src/services/createAccount.js";
 import { createTransaction } from "../packages/budget-engine/src/services/createTransaction.js";
@@ -12,9 +11,7 @@ import { SqliteTransactionRepository } from "../packages/repository/src/SqliteTr
 import { AccountSafetyApplicationService } from "../packages/application/src/AccountSafetyApplicationService.js";
 import { DbBackedSearchApplicationService } from "../packages/application/src/DbBackedSearchApplicationService.js";
 
-const dbPath = "/tmp/budget-v128-account-safety.sqlite";
-try { unlinkSync(dbPath); } catch {}
-const db = createDatabase(dbPath);
+const { db, cleanup } = createTemporaryDatabase("budget-v128-account-safety");
 const budgetRepo = new SqliteBudgetRepository(db);
 const accountRepo = new SqliteAccountRepository(db);
 const txRepo = new SqliteTransactionRepository(db);
@@ -32,3 +29,4 @@ if (report.canClose) throw new Error("Expected account with transactions to be u
 const found = await search.searchTransactions({ budgetId: budget.id, accountId: account.id, clearedStatus: ClearedStatus.Cleared, dateFrom: "2026-06-01", dateTo: "2026-06-30", amountMax: -1000 });
 if (found.length !== 1 || found[0].id !== tx.id) throw new Error("Expected indexed DB-backed transaction search result");
 console.log("v1.2.8 account safety and DB-backed search OK");
+cleanup();
