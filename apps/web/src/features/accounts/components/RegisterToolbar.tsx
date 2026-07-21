@@ -81,6 +81,8 @@ function RegisterSearchDropdown({
 interface RegisterToolbarProps {
   accountName: string;
   workingBalance: number;
+  clearedBalance: number;
+  unclearedBalance: number;
   currencyCode: string;
   formatMoney: (value: number, currencyCode: string) => string;
   activeView: RegisterView;
@@ -118,7 +120,7 @@ interface RegisterToolbarProps {
 
 export function RegisterToolbar(props: RegisterToolbarProps) {
   const {
-    accountName, workingBalance, currencyCode, formatMoney, activeView, onViewChange,
+    accountName, workingBalance, clearedBalance, unclearedBalance, currencyCode, formatMoney, activeView, onViewChange,
     onToggleEntryRow, searchInputRef, searchDraft, committedSearch, isSearchOpen,
     searchSuggestions, activeSearchSuggestionIndex, onSearchDraftChange, onSearchOpenChange,
     onSearchKeyDown, onCommitSearch, onHighlightSearchSuggestion, onClearSearch,
@@ -133,9 +135,22 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
         className="register-clean-header"
         title={accountName}
         secondaryActions={
-          <div className="register-main-balance">
-            <span>Current balance</span>
+          <div
+            className={`register-main-balance ${
+              workingBalance < 0
+                ? "register-main-balance-negative"
+                : workingBalance > 0
+                  ? "register-main-balance-positive"
+                  : "register-main-balance-neutral"
+            }`}
+            aria-label={`Current balance ${formatMoney(workingBalance, currencyCode)}. Cleared ${formatMoney(clearedBalance, currencyCode)}. Uncleared ${formatMoney(unclearedBalance, currencyCode)}.`}
+          >
+            <span className="register-main-balance-label">Current balance</span>
             <strong>{formatMoney(workingBalance, currencyCode)}</strong>
+            <div className="register-balance-breakdown" aria-hidden="true">
+              <span>Cleared <b>{formatMoney(clearedBalance, currencyCode)}</b></span>
+              <span>Uncleared <b>{formatMoney(unclearedBalance, currencyCode)}</b></span>
+            </div>
           </div>
         }
       />

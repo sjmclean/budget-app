@@ -1143,6 +1143,8 @@ export function AccountRegisterPage() {
           <RegisterToolbar
             accountName={data.accountName}
             workingBalance={data.workingBalance}
+            clearedBalance={data.clearedBalance}
+            unclearedBalance={data.unclearedBalance}
             currencyCode={data.currencyCode}
             formatMoney={formatMoney}
             activeView={activeRegisterView}

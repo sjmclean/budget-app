@@ -6130,3 +6130,97 @@
     flex: 1 1 auto;
   }
 }
+
+/* Responsive account balance status card */
+.register-main-balance {
+  min-width: 18rem;
+  padding: 0.62rem 0.82rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--surface);
+  text-align: center;
+}
+
+.register-main-balance-positive {
+  border-color: color-mix(in srgb, #15803d 62%, var(--border));
+  background: color-mix(in srgb, #dcfce7 38%, var(--surface));
+}
+
+.register-main-balance-negative {
+  border-color: color-mix(in srgb, #b91c1c 62%, var(--border));
+  background: color-mix(in srgb, #fee2e2 42%, var(--surface));
+}
+
+.register-main-balance-neutral {
+  border-color: var(--border);
+  background: var(--surface-subtle);
+}
+
+.register-main-balance-label {
+  display: block;
+}
+
+.register-main-balance strong {
+  display: block;
+  font-size: 1.3rem;
+  line-height: 1.15;
+}
+
+.register-main-balance-positive > strong {
+  color: #15803d;
+}
+
+.register-main-balance-negative > strong {
+  color: #b91c1c;
+}
+
+.register-balance-breakdown {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.38rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.register-balance-breakdown span + span {
+  padding-left: 0.75rem;
+  border-left: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+}
+
+.register-balance-breakdown b {
+  color: var(--text);
+  font-weight: 750;
+}
+
+@media (max-width: 760px) {
+  .register-main-balance {
+    width: auto;
+    min-width: min(18rem, 100%);
+    margin-left: auto;
+    text-align: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .register-clean-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .register-main-balance {
+    width: 100%;
+    min-width: 0;
+    margin-left: 0;
+  }
+
+  .register-balance-breakdown {
+    gap: 0.45rem;
+    font-size: 0.68rem;
+  }
+
+  .register-balance-breakdown span + span {
+    padding-left: 0.45rem;
+  }
+}
