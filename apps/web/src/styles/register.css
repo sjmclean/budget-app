@@ -6224,3 +6224,23 @@
     padding-left: 0.45rem;
   }
 }
+
+/* Keep the account status card pinned to the register's right edge. */
+.register-clean-header {
+  width: 100%;
+  max-width: none;
+}
+
+.register-clean-header .workspace-header-controls {
+  margin-left: auto;
+}
+
+.register-clean-header .workspace-header-secondary-actions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 760px) {
+  .register-clean-header .workspace-header-controls {
+    margin-left: 0;
+  }
+}
