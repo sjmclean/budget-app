@@ -551,11 +551,17 @@ export function BudgetImportDialog({
             </ul>
           ) : null}
           {budgetImportResult.warnings.length > 0 ? (
-            <ul className="ynab4-warning-list">
-              {budgetImportResult.warnings.map((warning) => (
-                <li key={warning}>{warning}</li>
-              ))}
-            </ul>
+            <aside className="budget-import-note" aria-label="Import notes">
+              <div className="budget-import-note-icon" aria-hidden="true">i</div>
+              <div>
+                <strong>Import note</strong>
+                <ul>
+                  {budgetImportResult.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            </aside>
           ) : null}
           <Button type="button" onClick={() => onOpenBudget(budgetImportResult.budgetId)}>
             Open imported budget

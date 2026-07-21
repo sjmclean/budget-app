@@ -73,6 +73,30 @@ function testUnsupportedScheduleDoesNotSilentlyBecomeMonthly(): void {
   );
 }
 
+
+function testLocaleCurrencyFallback(): void {
+  const entries = packageEntries().map(entry => {
+    if (!entry.path.endsWith("/Budget.yfull")) return entry;
+    const data = JSON.parse(entry.text ?? "{}");
+    data.budgetMetaData = {
+      currencyISOSymbol: null,
+      currencyLocale: "en_AU",
+      dateLocale: "en_AU",
+    };
+    return { ...entry, text: JSON.stringify(data) };
+  });
+  const discovery = discoverYnab4Package(entries);
+  const preview = createYnab4PackageMigrationPreview(discovery, "new-budget");
+  const result = createYnab4LauncherBudgetImport(storage(), { discovery, preview, entries });
+
+  assert.equal(result.budget.currency, "AUD");
+  assert.equal(
+    result.record.warnings.some(warning => warning.includes("currency metadata")),
+    false,
+  );
+}
+
 testLatestCompleteDeviceCurrencyAndCustomSchedule();
 testUnsupportedScheduleDoesNotSilentlyBecomeMonthly();
+testLocaleCurrencyFallback();
 console.log("v3.23.6 YNAB4 import hardening passed");

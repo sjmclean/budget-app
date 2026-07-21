@@ -13,7 +13,6 @@ const styles = readFileSync(
   "apps/web/src/styles/budgetImportUx.css",
   "utf8",
 );
-const main = readFileSync("apps/web/src/main.tsx", "utf8");
 
 assert.match(
   dialog,
@@ -66,7 +65,17 @@ assert.match(
 );
 assert.match(styles, /background: var\(--surface\)/);
 assert.match(styles, /\.ynab4-summary-metric/);
+assert.match(
+  dialog,
+  /className="budget-import-note" aria-label="Import notes"/,
+  "completion warnings should be presented as explanatory import notes",
+);
+assert.match(styles, /\.budget-import-note[\s\S]*background: var\(--warning-bg\)/);
 assert.match(styles, /\.budget-import-progress-step-current/);
-assert.match(main, /budgetImportUx\.css/);
+assert.match(
+  dialog,
+  /import ["']\.\.\/\.\.\/styles\/budgetImportUx\.css["'];/,
+  "budget import UX styles must be loaded by the budget import dialog",
+);
 
 console.log("v2.88 budget import UX polish checks passed");

@@ -1015,11 +1015,40 @@ function sourceEntityLabel(record: RecordMap, index: number): string {
 
 function ynab4CurrencyCode(data: Ynab4ImportData): string | null {
   const metadata = isRecord(data.budgetMetaData) ? data.budgetMetaData : null;
-  const raw = metadata
-    ? firstString(metadata.currencyISOSymbol, metadata.currencyCode)
-    : null;
-  const currency = raw?.toUpperCase();
-  return currency && /^[A-Z]{3}$/.test(currency) ? currency : null;
+  if (!metadata) return null;
+
+  const explicitCurrency = firstString(
+    metadata.currencyISOSymbol,
+    metadata.currencyCode,
+  )?.toUpperCase();
+  if (explicitCurrency && /^[A-Z]{3}$/.test(explicitCurrency)) {
+    return explicitCurrency;
+  }
+
+  return currencyCodeFromYnab4Locale(
+    firstString(metadata.currencyLocale, metadata.dateLocale),
+  );
+}
+
+function currencyCodeFromYnab4Locale(locale: string | null): string | null {
+  if (!locale) return null;
+
+  const normalisedLocale = locale.replace(/_/g, "-");
+  let region: string | undefined;
+  try {
+    region = new Intl.Locale(normalisedLocale).region;
+  } catch {
+    return null;
+  }
+
+  const currencyByRegion: Record<string, string> = {
+    AU: "AUD",
+    GB: "GBP",
+    IE: "EUR",
+    NZ: "NZD",
+    US: "USD",
+  };
+  return region ? currencyByRegion[region] ?? null : null;
 }
 
 function firstString(...values: unknown[]): string | null {
