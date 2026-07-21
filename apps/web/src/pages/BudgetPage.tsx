@@ -15,6 +15,7 @@ import {
   getPreviousBudgetMonth,
 } from "../features/budget/budgetMonthNavigation";
 import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
+import { useBudgetUndoRedo } from "../features/budget/budgetUndoRedo";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import type {
@@ -571,11 +572,14 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     moveCategoryToPosition,
     moveCategoryGroupToPosition,
     updateCategoryNote,
+    createCategory,
     activityDrilldown,
     isActivityDrilldownLoading,
     openActivityDrilldown,
     closeActivityDrilldown,
   } = useBudgetWorkspace(budgetId, selectedMonth);
+
+  const budgetUndoRedo = useBudgetUndoRedo();
 
   const budgetTableLayout = useTableLayout({
     storageKeyPrefix: BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
@@ -845,28 +849,80 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 </dl>
               </div>
 
-              <div className="budget-planning-section-label">Budget</div>
+              <nav className="budget-planning-tabs" aria-label="Budget workspace views">
+                <button className="budget-planning-tab budget-planning-tab-active" type="button">
+                  Budget
+                </button>
+                <button
+                  className="budget-planning-tab"
+                  type="button"
+                  disabled
+                  title="Goals workspace is planned for a future update"
+                >
+                  Goals
+                </button>
+              </nav>
 
               <div className="budget-planning-toolbar">
-                <DropdownMenu
-                  label="More ▾"
-                  ariaLabel="Budget administrative actions"
-                  className="dropdown-menu budget-header-overflow"
-                  panelClassName="dropdown-menu-panel budget-header-overflow-panel"
-                >
-                  {({ closeMenu }) => (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        budgetTableLayout.resetColumnWidths();
-                        closeMenu({ restoreFocus: true });
-                      }}
-                    >
-                      Reset column widths
-                    </button>
-                  )}
-                </DropdownMenu>
+                <div className="budget-planning-toolbar-left">
+                  <button className="button button-secondary" type="button" disabled title="Auto Assign is not yet available">
+                    Auto Assign
+                  </button>
+                  <button
+                    className="button button-secondary"
+                    type="button"
+                    onClick={() => void budgetUndoRedo.undo()}
+                    disabled={!budgetUndoRedo.canUndo}
+                  >
+                    Undo
+                  </button>
+                  <button
+                    className="button button-secondary"
+                    type="button"
+                    onClick={() => void budgetUndoRedo.redo()}
+                    disabled={!budgetUndoRedo.canRedo}
+                  >
+                    Redo
+                  </button>
+                </div>
+
+                <div className="budget-planning-toolbar-right">
+                  <button
+                    className="button button-secondary budget-add-category-button"
+                    type="button"
+                    onClick={() => {
+                      const group = visibleCategoryGroups.find((candidate) =>
+                        candidate.id !== ARCHIVED_CATEGORIES_GROUP_ID &&
+                        !isCreditCardPaymentGroup(candidate.id),
+                      );
+                      if (!group) return;
+                      const name = window.prompt(`New category in ${group.name}`)?.trim();
+                      if (!name) return;
+                      void createCategory({ name, groupId: group.id, groupName: group.name });
+                    }}
+                  >
+                    + Category
+                  </button>
+                  <DropdownMenu
+                    label="More ▾"
+                    ariaLabel="Budget administrative actions"
+                    className="dropdown-menu budget-header-overflow"
+                    panelClassName="dropdown-menu-panel budget-header-overflow-panel"
+                  >
+                    {({ closeMenu }) => (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          budgetTableLayout.resetColumnWidths();
+                          closeMenu({ restoreFocus: true });
+                        }}
+                      >
+                        Reset column widths
+                      </button>
+                    )}
+                  </DropdownMenu>
+                </div>
               </div>
             </section>
 

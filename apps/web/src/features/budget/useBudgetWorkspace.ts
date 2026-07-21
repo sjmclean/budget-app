@@ -60,6 +60,7 @@ interface UseBudgetWorkspaceState {
   mergeCategory: (sourceCategoryId: string, targetCategoryId: string) => void;
   clearCategoryMergePreview: () => void;
   clearSelection: () => void;
+  createCategory: (input: { name: string; groupId: string; groupName: string }) => Promise<void>;
 }
 
 export function useBudgetWorkspace(
@@ -574,6 +575,19 @@ export function useBudgetWorkspace(
     setIsCategoryMergePreviewLoading(false);
   }
 
+  async function createCategory(input: {
+    name: string;
+    groupId: string;
+    groupName: string;
+  }) {
+    const nextView = await categoriesPersistence.createCategory({
+      budgetId,
+      month,
+      ...input,
+    });
+    setEditedData(nextView);
+  }
+
   return {
     data,
     isLoading: budgetView.isLoading,
@@ -602,5 +616,6 @@ export function useBudgetWorkspace(
     mergeCategory,
     clearCategoryMergePreview,
     clearSelection,
+    createCategory,
   };
 }

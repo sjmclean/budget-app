@@ -7416,3 +7416,88 @@ strong {
     justify-self: end;
   }
 }
+
+/* Budget workspace header refinement */
+.budget-planning-tabs {
+  grid-area: tabs;
+  align-self: end;
+  display: flex;
+  align-items: flex-end;
+  gap: 1.25rem;
+  min-height: 2.15rem;
+}
+
+.budget-planning-tab {
+  min-height: 2.15rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 780;
+  padding: 0.55rem 0.1rem 0.35rem;
+}
+
+.budget-planning-tab-active {
+  border-bottom-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.budget-planning-tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.budget-planning-section-label {
+  display: none;
+}
+
+.budget-planning-toolbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.budget-planning-toolbar-left,
+.budget-planning-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.budget-add-category-button {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.budget-header-overflow {
+  position: relative;
+}
+
+.budget-header-overflow-panel {
+  top: auto !important;
+  right: 0;
+  bottom: calc(100% + 0.45rem);
+  z-index: 80;
+}
+
+@media (max-width: 760px) {
+  .budget-planning-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .budget-planning-toolbar-left,
+  .budget-planning-toolbar-right {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .budget-planning-toolbar-right {
+    justify-content: flex-end;
+  }
+}
