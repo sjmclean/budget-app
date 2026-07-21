@@ -6231,16 +6231,30 @@
   max-width: none;
 }
 
-.register-clean-header .workspace-header-controls {
-  margin-left: auto;
-}
+@media (min-width: 521px) {
+  /*
+   * Older responsive register rules switch this header to a column below
+   * 900px. Keep the account heading and balance card on one row for tablet
+   * and desktop widths.
+   */
+  .register-clean-header {
+    flex-direction: row;
+    align-items: flex-start;
+  }
 
-.register-clean-header .workspace-header-secondary-actions {
-  justify-content: flex-end;
-}
-
-@media (max-width: 760px) {
   .register-clean-header .workspace-header-controls {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .register-clean-header .workspace-header-secondary-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 520px) {
+  .register-clean-header .workspace-header-controls {
+    width: 100%;
     margin-left: 0;
   }
 }
