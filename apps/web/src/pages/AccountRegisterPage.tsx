@@ -68,6 +68,7 @@ import { getAppPersistenceGateway } from "../features/persistence";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
+import { useBudgetUndoRedo } from "../features/budget/budgetUndoRedo";
 import { createBudgetScopedStorage } from "../features/budget/budgetDataScope";
 import {
   TransactionTagManager,
@@ -202,6 +203,9 @@ export function AccountRegisterPage() {
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
   const currentBudgetMonth = useCurrentBudgetMonth();
+  const { canUndo, canRedo, undoLabel, redoLabel, isBusy: isHistoryBusy, undo, redo } = useBudgetUndoRedo();
+  const undoTitle = canUndo && undoLabel ? `Undo ${undoLabel}` : "Nothing to undo";
+  const redoTitle = canRedo && redoLabel ? `Redo ${redoLabel}` : "Nothing to redo";
   const transactionTagStorage = useMemo(
     () => createBudgetScopedStorage(browserLocalStorageKeyValueStorage),
     [activeBudgetId],
@@ -265,7 +269,7 @@ export function AccountRegisterPage() {
     bottom: number;
     left: number;
   } | null>(null);
-  const [isScheduledOpen, setIsScheduledOpen] = useState(false);
+  const [activeRegisterView, setActiveRegisterView] = useState<"register" | "scheduled">("register");
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
   const [isTransactionTagManagerOpen, setIsTransactionTagManagerOpen] =
     useState(false);
@@ -1133,7 +1137,7 @@ export function AccountRegisterPage() {
     <WorkspaceLayout className="register-workspace">
       <WorkspaceBody className="register-workspace-body">
       <Card
-        className={`register-table-card register-layout-${registerLayoutMode}`}
+        className={`register-table-card register-layout-${registerLayoutMode} register-view-${activeRegisterView}`}
       >
         <WorkspaceStickyHeader className="register-sticky-stack">
           <RegisterToolbar
@@ -1141,6 +1145,8 @@ export function AccountRegisterPage() {
             workingBalance={data.workingBalance}
             currencyCode={data.currencyCode}
             formatMoney={formatMoney}
+            activeView={activeRegisterView}
+            onViewChange={setActiveRegisterView}
             onToggleEntryRow={() => {
               setEditingTransactionId(null);
               setShowEntryRow((current) => !current);
@@ -1170,16 +1176,21 @@ export function AccountRegisterPage() {
                 });
               });
             }}
-            onOpenPayeeManager={() => setIsPayeeManagerOpen(true)}
             onOpenTagManager={() => setIsTransactionTagManagerOpen(true)}
-            onToggleScheduled={() => setIsScheduledOpen((current) => !current)}
             scheduledDueCount={scheduledDueCount}
             categoryFilter={categoryFilter}
             onCategoryFilterChange={setCategoryFilter}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            isHistoryBusy={isHistoryBusy}
+            undoTitle={undoTitle}
+            redoTitle={redoTitle}
+            onUndo={() => void undo()}
+            onRedo={() => void redo()}
           />
 
-          {registerColumnHeader}
-          {committedRegisterSearch ? (
+          {activeRegisterView === "register" ? registerColumnHeader : null}
+          {activeRegisterView === "register" && committedRegisterSearch ? (
             <div className="register-search-status" role="status">
               <strong>
                 Searching{" "}
@@ -1199,13 +1210,14 @@ export function AccountRegisterPage() {
 
         <ScheduledTransactionsPanel
           accountId={accountId}
-          isOpen={isScheduledOpen}
+          isOpen={activeRegisterView === "scheduled"}
           categoryOptions={categoryOptions}
           transferAccounts={transferAccounts}
           payeeOptions={payeeOptions}
           tags={transactionTags}
           onCreateTag={handleCreateTransactionTag}
-          onClose={() => setIsScheduledOpen(false)}
+          onClose={() => setActiveRegisterView("register")}
+          presentation="workspace"
           onDueCountChange={setScheduledDueCount}
           onEnter={async (input) => {
             await addTransaction(input);

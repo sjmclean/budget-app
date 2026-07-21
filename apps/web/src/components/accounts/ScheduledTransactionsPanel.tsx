@@ -39,6 +39,7 @@ interface ScheduledTransactionsPanelProps {
   onClose: () => void;
   onEnter: (transaction: NewRegisterTransactionInput) => Promise<void>;
   onDueCountChange?: (count: number) => void;
+  presentation?: "overlay" | "workspace";
 }
 
 interface ScheduledFormDraft {
@@ -79,6 +80,7 @@ export function ScheduledTransactionsPanel({
   onClose,
   onEnter,
   onDueCountChange,
+  presentation = "overlay",
 }: ScheduledTransactionsPanelProps) {
   const scheduledTransactionsPersistence = getAppPersistenceGateway().scheduledTransactions;
   const dateFormat = useDateFormatPreference();
@@ -212,17 +214,26 @@ export function ScheduledTransactionsPanel({
     onDueCountChange?.(countDue(next));
   }
 
+  const isWorkspace = presentation === "workspace";
+
   return (
-    <div className="scheduled-panel-overlay" role="dialog" aria-modal="false">
-      <div className="scheduled-panel">
+    <div
+      className={isWorkspace ? "scheduled-panel-workspace" : "scheduled-panel-overlay"}
+      role={isWorkspace ? "region" : "dialog"}
+      aria-label={isWorkspace ? "Scheduled transactions" : undefined}
+      aria-modal={isWorkspace ? undefined : false}
+    >
+      <div className={`scheduled-panel${isWorkspace ? " scheduled-panel-inline" : ""}`}>
         <div className="scheduled-panel-header">
           <div>
             <h2>Scheduled Transactions</h2>
             <p>View upcoming repeating transactions and inspect imported split allocations.</p>
           </div>
-          <button className="button button-secondary" type="button" onClick={onClose}>
-            Close
-          </button>
+          {!isWorkspace ? (
+            <button className="button button-secondary" type="button" onClick={onClose}>
+              Close
+            </button>
+          ) : null}
         </div>
 
         {!draft ? (
