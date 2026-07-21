@@ -7,7 +7,6 @@ import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import { useAdaptiveNavigation } from "./useAdaptiveNavigation";
 import { useBudgetKeyboardShortcuts } from "./useBudgetKeyboardShortcuts";
-import { ApplicationBar } from "./ApplicationBar";
 
 export function AppShell() {
   useBudgetKeyboardShortcuts();
@@ -77,8 +76,6 @@ export function AppShell() {
             : "app-content"
         }
       >
-        {navigationMode !== "drawer" ? <ApplicationBar /> : null}
-
         {navigationMode === "drawer" ? (
           <button
             className="navigation-drawer-trigger navigation-drawer-trigger-shell"

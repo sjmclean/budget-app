@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { BarChart3, CalendarDays } from "lucide-react";
 import { Card } from "../components/ui/Card";
 import { DropdownMenu } from "../features/ui/DropdownMenu";
 import {
@@ -109,7 +110,7 @@ function writeArchivedCategoriesExpanded(budgetId: string, isExpanded: boolean) 
 }
 
 const BUDGET_COLUMN_DEFINITIONS: readonly TableColumnDefinition<BudgetColumnId>[] = [
-  { id: "category", label: "Category Group", template: "minmax(15rem, 1fr)", widthRem: 15 },
+  { id: "category", label: "Category", template: "minmax(15rem, 1fr)", widthRem: 15 },
   { id: "assigned", label: "Assigned", template: "7rem", widthRem: 7 },
   { id: "activity", label: "Activity", template: "7rem", widthRem: 7 },
   { id: "available", label: "Available", template: "7rem", widthRem: 7 },
@@ -770,10 +771,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           <WorkspaceStickyHeader className="budget-sticky-working-header">
             <section className="budget-planning-header" aria-label="Budget month workspace">
               <div className="budget-planning-title">
-                <span className="budget-planning-icon" aria-hidden="true">▥</span>
+                <span className="budget-planning-icon" aria-hidden="true"><BarChart3 size={19} /></span>
                 <div>
-                  <h1>{data.budgetName}</h1>
-                  <span>Monthly budget</span>
+                  <h1>My Budget</h1>
+                  <span>Monthly Budget</span>
                 </div>
               </div>
 
@@ -797,7 +798,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   onClick={() => setSelectedMonth(getCurrentBudgetMonth())}
                   title="Return to the current month"
                 >
-                  <span aria-hidden="true">▣</span>
+                  <CalendarDays size={16} aria-hidden="true" />
                   {data.monthLabel}
                 </button>
                 <button
