@@ -1,3 +1,5 @@
+export type OverspendingHandling = "reduce-next-month" | "carry-category";
+
 export interface BudgetCategoryView {
   id: string;
   name: string;
@@ -9,6 +11,7 @@ export interface BudgetCategoryView {
   available: number;
   isOverspent: boolean;
   isArchived: boolean;
+  overspendingHandling?: OverspendingHandling;
   note: string;
 }
 
@@ -102,6 +105,12 @@ export interface BudgetMonthView {
   monthLabel: string;
   currencyCode: string;
   readyToAssign: number;
+  /** Ready to Assign carried from the immediately preceding month. */
+  carriedForwardReadyToAssign?: number;
+  /** Signed overspending from the preceding month that reduces this month. */
+  previousOverspending?: number;
+  /** Marks a month whose opening balances were generated from this source month. */
+  rolloverSourceMonth?: string;
   totalAssigned: number;
   totalActivity: number;
   totalAvailable: number;
@@ -128,6 +137,13 @@ export interface BudgetViewService {
       categoryId: string;
       assigned: number;
     }>;
+  }): Promise<BudgetMonthView>;
+
+  setCategoryOverspendingHandling(input: {
+    budgetId: string;
+    month: string;
+    categoryId: string;
+    overspendingHandling: OverspendingHandling;
   }): Promise<BudgetMonthView>;
 
   coverOverspending(input: {

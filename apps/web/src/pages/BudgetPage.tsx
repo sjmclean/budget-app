@@ -16,6 +16,7 @@ import {
   getPreviousBudgetMonth,
 } from "../features/budget/budgetMonthNavigation";
 import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
+import { useBudgetView } from "../features/budget/useBudgetView";
 import { useBudgetUndoRedo } from "../features/budget/budgetUndoRedo";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
@@ -567,6 +568,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     overassignedCategoryIds,
     selectCategory,
     updateAssigned,
+    setCategoryOverspendingHandling,
     coverOverspending,
     renameCategory,
     setCategoryArchived,
@@ -579,6 +581,11 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     openActivityDrilldown,
     closeActivityDrilldown,
   } = useBudgetWorkspace(budgetId, selectedMonth);
+
+  const previousMonthBudget = useBudgetView(
+    budgetId,
+    getPreviousBudgetMonth(selectedMonth),
+  );
 
   const budgetUndoRedo = useBudgetUndoRedo();
 
@@ -675,27 +682,28 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   const coverOptions = buildOverspendingCoverOptions(data.categoryGroups);
   const monthName = data.monthLabel.split(" ")[0] ?? data.monthLabel;
-  const carriedForward = data.categoryGroups.reduce(
-    (total, group) =>
-      total +
-      group.categories.reduce(
-        (groupTotal, category) =>
-          groupTotal + Math.max(category.previousAvailable ?? 0, 0),
-        0,
-      ),
-    0,
-  );
-  const previousOverspending = data.categoryGroups.reduce(
-    (total, group) =>
-      total +
-      group.categories.reduce(
-        (groupTotal, category) =>
-          groupTotal + Math.min(category.previousAvailable ?? 0, 0),
-        0,
-      ),
-    0,
-  );
-  const incomeForMonth = data.readyToAssign + data.totalAssigned;
+  const carriedForward =
+    data.carriedForwardReadyToAssign ?? previousMonthBudget.data?.readyToAssign ?? 0;
+  const previousOverspending =
+    data.previousOverspending ??
+    previousMonthBudget.data?.categoryGroups.reduce(
+      (total, group) =>
+        total +
+        group.categories.reduce((groupTotal, category) => {
+          if (
+            category.available >= 0 ||
+            (category.overspendingHandling ?? "reduce-next-month") === "carry-category"
+          ) {
+            return groupTotal;
+          }
+
+          return groupTotal + category.available;
+        }, 0),
+      0,
+    ) ??
+    0;
+  const incomeForMonth =
+    data.readyToAssign - carriedForward - previousOverspending + data.totalAssigned;
 
   function openCategoryEditor(categoryId: string) {
     if (isCreditCardPaymentCategory(categoryId)) {
@@ -1066,6 +1074,17 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
         onCoverOverspending={(input) => {
           closeCoverOverspendingMenu();
           coverOverspending(input);
+        }}
+        onSetOverspendingHandling={(categoryId, overspendingHandling) => {
+          setCoverOverspendingMenu((current) =>
+            current
+              ? {
+                  ...current,
+                  category: { ...current.category, overspendingHandling },
+                }
+              : current,
+          );
+          setCategoryOverspendingHandling(categoryId, overspendingHandling);
         }}
       />
       <BudgetActivityDrilldownModal
