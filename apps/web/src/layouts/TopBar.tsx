@@ -116,6 +116,7 @@ export function TopBar({ onOpenNavigation }: TopBarProps) {
           <option value="system">System</option>
           <option value="light">Light</option>
           <option value="dark">Dark</option>
+          <option value="blueprint">Blueprint</option>
         </select>
       </div>
     </header>

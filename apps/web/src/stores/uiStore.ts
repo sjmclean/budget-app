@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { SELECTED_BUDGET_STORAGE_KEY } from "../features/budget/budgetDataScope";
 
-export type ThemeMode = "light" | "dark" | "system";
+export type ThemeMode = "light" | "dark" | "blueprint" | "system";
 
 interface UIState {
   sidebarCollapsed: boolean;
@@ -50,6 +50,7 @@ function getInitialTheme(): ThemeMode {
   if (
     storedTheme === "light" ||
     storedTheme === "dark" ||
+    storedTheme === "blueprint" ||
     storedTheme === "system"
   ) {
     return storedTheme;

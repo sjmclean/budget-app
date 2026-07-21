@@ -64,6 +64,56 @@
   --shadow-md: none;
 }
 
+
+:root[data-theme="blueprint"] {
+  color-scheme: light;
+
+  --page-bg: #f5f8fd;
+  --surface: #ffffff;
+  --surface-subtle: #f1f5fb;
+  --border: #cfd9e8;
+  --border-soft: #e2e8f2;
+
+  --text: #14213d;
+  --text-muted: #60708a;
+
+  --accent: #1769e0;
+  --accent-strong: #0b4fb8;
+  --accent-soft: #e9f1ff;
+
+  --positive: #15803d;
+  --positive-bg: #e3f6e8;
+
+  --warning: #d97706;
+  --warning-text: #92400e;
+  --warning-bg: #fff4d6;
+
+  --negative: #dc2626;
+  --negative-bg: #fee9e7;
+
+  --radius-card: 12px;
+  --radius-panel: 10px;
+
+  --shadow-sm: 0 1px 3px rgba(20, 33, 61, 0.07);
+  --shadow-md: 0 8px 24px rgba(20, 33, 61, 0.09);
+}
+
+:root[data-theme="blueprint"] body {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(23, 105, 224, 0.045), transparent 28rem),
+    var(--page-bg);
+}
+
+:root[data-theme="blueprint"] .button-primary {
+  box-shadow: 0 5px 14px rgba(23, 105, 224, 0.2);
+}
+
+:root[data-theme="blueprint"] .sidebar,
+:root[data-theme="blueprint"] .app-sidebar,
+:root[data-theme="blueprint"] .navigation-sidebar {
+  background: color-mix(in srgb, var(--surface) 97%, var(--accent-soft));
+}
+
 * {
   box-sizing: border-box;
 }

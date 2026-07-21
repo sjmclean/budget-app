@@ -77,6 +77,7 @@ export function ApplicationBar() {
             <option value="system">System</option>
             <option value="light">Light</option>
             <option value="dark">Dark</option>
+            <option value="blueprint">Blueprint</option>
           </select>
         </label>
       </div>
