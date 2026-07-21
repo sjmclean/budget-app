@@ -114,6 +114,27 @@
   background: color-mix(in srgb, var(--surface) 97%, var(--accent-soft));
 }
 
+/* Blueprint keeps the working budget and inspector surfaces crisp white. */
+:root[data-theme="blueprint"] .budget-workspace-table-card,
+:root[data-theme="blueprint"] .budget-workspace-table-head,
+:root[data-theme="blueprint"] .budget-workspace-group-header,
+:root[data-theme="blueprint"] .budget-workspace-row,
+:root[data-theme="blueprint"] .interactive-budget-row {
+  background: var(--surface);
+}
+
+:root[data-theme="blueprint"] .budget-month-panel {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  padding: 0.75rem;
+}
+
+:root[data-theme="blueprint"] .budget-month-panel > .card {
+  background: var(--surface);
+}
+
 * {
   box-sizing: border-box;
 }
