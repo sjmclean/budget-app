@@ -6231,19 +6231,30 @@
   max-width: none;
 }
 
+/*
+ * WorkspaceHeader renders an inner content row. The register header itself is
+ * a flex container, so without an explicit width this row shrink-wraps around
+ * the account name and balance card instead of spanning the register.
+ */
+.register-clean-header > .workspace-header-content {
+  width: 100%;
+  flex: 1 1 100%;
+}
+
 @media (min-width: 521px) {
-  /*
-   * Older responsive register rules switch this header to a column below
-   * 900px. Keep the account heading and balance card on one row for tablet
-   * and desktop widths.
-   */
-  .register-clean-header {
+  .register-clean-header > .workspace-header-content {
     flex-direction: row;
     align-items: flex-start;
   }
 
+  .register-clean-header .workspace-header-main {
+    flex: 1 1 auto;
+  }
+
   .register-clean-header .workspace-header-controls {
+    width: auto;
     flex: 0 0 auto;
+    align-items: center;
     margin-left: auto;
   }
 
@@ -6253,6 +6264,10 @@
 }
 
 @media (max-width: 520px) {
+  .register-clean-header > .workspace-header-content {
+    flex-direction: column;
+  }
+
   .register-clean-header .workspace-header-controls {
     width: 100%;
     margin-left: 0;
