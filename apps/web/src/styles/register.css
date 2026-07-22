@@ -6273,3 +6273,265 @@
     margin-left: 0;
   }
 }
+
+
+/* Register responsive adaptation: mirror the Budget workspace's stacked small-screen surfaces. */
+.register-layout-mobile .register-head,
+.register-layout-mobile .register-table {
+  overflow-x: visible;
+}
+
+.register-row-mobile {
+  min-width: 0;
+  margin: 0.55rem 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.85rem;
+  background: var(--surface);
+  box-shadow: 0 5px 18px rgb(15 23 42 / 0.05);
+  cursor: pointer;
+}
+
+.register-row-mobile.register-row-selected {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent-soft) 62%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--accent), 0 5px 18px rgb(15 23 42 / 0.05);
+}
+
+.register-mobile-card-topline {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.register-mobile-payee-wrap {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.register-mobile-payee {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.98rem;
+}
+
+.register-mobile-amount {
+  font-size: 0.98rem;
+  font-weight: 820;
+  white-space: nowrap;
+}
+
+.register-mobile-category-line {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.48rem 0 0 2.05rem;
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.register-mobile-memo {
+  margin: 0.35rem 0 0 2.05rem;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.register-mobile-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.55rem;
+  margin: 0.45rem 0 0 2.05rem;
+  color: var(--text-muted);
+  font-size: 0.73rem;
+}
+
+.register-mobile-meta-row span + span::before {
+  content: "•";
+  margin-right: 0.55rem;
+}
+
+.register-mobile-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.3rem;
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.register-mobile-edit-action {
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+}
+
+.register-row-mobile-split {
+  width: calc(100% - 2.8rem);
+  margin: -0.3rem 0.65rem 0.55rem 2.15rem;
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  align-items: center;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.7rem;
+  padding: 0.55rem 0.65rem;
+  background: var(--surface-subtle);
+  color: var(--text);
+  text-align: left;
+}
+
+.register-row-mobile-split > span {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.register-row-mobile-split small {
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .register-editor-tablet,
+  .register-editor-mobile {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.55rem;
+    margin: 0.55rem 0.65rem 0;
+    padding: 0.75rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 0.85rem;
+    background: var(--surface-subtle);
+  }
+
+  .register-editor-tablet > *,
+  .register-editor-mobile > * {
+    min-width: 0;
+    grid-column: auto !important;
+  }
+
+  .register-editor-tablet .register-entry-placeholder-cell,
+  .register-editor-mobile .register-entry-placeholder-cell,
+  .register-editor-tablet > .register-checkbox,
+  .register-editor-mobile > .register-checkbox {
+    display: none;
+  }
+
+  .register-entry-actions-panel,
+  .register-edit-actions-panel {
+    padding-inline: 0.65rem;
+  }
+
+  .register-entry-commit-actions,
+  .register-edit-commit-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 680px) {
+  .register-sticky-stack {
+    position: static;
+    box-shadow: none;
+  }
+
+  .register-table-card {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .register-sticky-stack .register-clean-header {
+    padding: 0.7rem 0.65rem;
+  }
+
+  .register-toolbar {
+    padding: 0.55rem 0.65rem 0.7rem;
+  }
+
+  .register-view-tabs {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .register-month-separator {
+    position: static;
+    margin: 0.75rem 0.65rem 0.15rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .register-editor-mobile {
+    grid-template-columns: 1fr !important;
+  }
+
+  .register-entry-actions,
+  .register-edit-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .register-entry-actions .button:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .register-pagination {
+    align-items: stretch;
+    gap: 0.55rem;
+    padding-inline: 0.65rem;
+  }
+
+  .register-pagination-controls {
+    width: 100%;
+  }
+
+  .register-pagination-controls .button {
+    flex: 1 1 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .register-row-mobile {
+    margin-inline: 0.45rem;
+    padding: 0.65rem;
+  }
+
+  .register-mobile-card-topline {
+    grid-template-columns: 1.35rem minmax(0, 1fr);
+  }
+
+  .register-mobile-amount {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .register-mobile-category-line,
+  .register-mobile-memo,
+  .register-mobile-meta-row {
+    margin-left: 1.9rem;
+  }
+
+  .register-mobile-card-actions {
+    justify-content: space-between;
+  }
+}
