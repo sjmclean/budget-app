@@ -1,0 +1,13 @@
+{
+  "name": "@budget-app/server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.mjs",
+    "start": "node src/server.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1"
+  }
+}
