@@ -59,3 +59,4 @@ export {
 } from "./hostPersistenceGateway";
 export { createSqlitePersistenceGateway } from "./sqlitePersistenceGateway";
 export type { SqlitePersistenceGatewayDependencies } from "./sqlitePersistenceGateway";
+export { installPersistenceProviderLifecycle } from "./persistenceProviderLifecycle";

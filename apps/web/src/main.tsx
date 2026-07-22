@@ -6,10 +6,7 @@ import {
   bootstrapHostBudgetPersistenceProvider,
   getBudgetPersistenceProvider,
 } from "./features/persistence";
-import {
-  hydrateBrowserStorageBackend,
-  installBrowserStorageLifecycleFlush,
-} from "./features/persistence/keyValueStoragePort";
+import { installPersistenceProviderLifecycle } from "./features/persistence/persistenceProviderLifecycle";
 import "./styles/globals.css";
 
 function getApplicationRoot(): HTMLElement {
@@ -30,8 +27,7 @@ export async function bootstrapApp() {
     bootstrapHostBudgetPersistenceProvider();
     const persistenceProvider = getBudgetPersistenceProvider();
     await persistenceProvider.initialize?.();
-    await hydrateBrowserStorageBackend();
-    installBrowserStorageLifecycleFlush();
+    installPersistenceProviderLifecycle(persistenceProvider);
 
     reactRoot = ReactDOM.createRoot(root);
     reactRoot.render(

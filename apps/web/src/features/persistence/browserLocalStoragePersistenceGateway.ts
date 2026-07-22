@@ -5,7 +5,11 @@ import { createScheduledTransactionService } from "../accounts/scheduledTransact
 import { createBudgetViewService } from "../budget/budgetViewService";
 import { createBrowserLocalStorageBudgetActivityPersistence } from "./browserLocalStorageBudgetActivityPersistence";
 import { createBudgetScopedStorage } from "../budget/budgetDataScope";
-import { browserLocalStorageKeyValueStorage } from "./keyValueStoragePort";
+import {
+  browserLocalStorageKeyValueStorage,
+  flushBrowserStorageBackend,
+  hydrateBrowserStorageBackend,
+} from "./keyValueStoragePort";
 import type { AppPersistenceGateway } from "./appPersistenceGateway";
 
 const budgetScopedStorage = createBudgetScopedStorage(browserLocalStorageKeyValueStorage);
@@ -64,4 +68,6 @@ export const browserLocalStoragePersistenceGateway: AppPersistenceGateway = {
   categories: budgetViewService,
   payees: payeeService,
   scheduledTransactions: scheduledTransactionService,
+  initialize: hydrateBrowserStorageBackend,
+  flush: flushBrowserStorageBackend,
 };
