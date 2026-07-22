@@ -2,7 +2,10 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import { StartupRecoveryScreen } from "./app/errors/StartupRecoveryScreen";
-import { bootstrapHostPersistenceGateway } from "./features/persistence";
+import {
+  bootstrapHostBudgetPersistenceProvider,
+  getBudgetPersistenceProvider,
+} from "./features/persistence";
 import {
   hydrateBrowserStorageBackend,
   installBrowserStorageLifecycleFlush,
@@ -24,7 +27,9 @@ export async function bootstrapApp() {
   let reactRoot: ReturnType<typeof ReactDOM.createRoot> | null = null;
 
   try {
-    bootstrapHostPersistenceGateway();
+    bootstrapHostBudgetPersistenceProvider();
+    const persistenceProvider = getBudgetPersistenceProvider();
+    await persistenceProvider.initialize?.();
     await hydrateBrowserStorageBackend();
     installBrowserStorageLifecycleFlush();
 

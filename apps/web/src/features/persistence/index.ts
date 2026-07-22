@@ -4,6 +4,11 @@ export type {
   PersistenceProviderCapabilities,
   PersistenceProviderMetadata,
 } from "./budgetPersistenceProvider";
+export {
+  configureBudgetPersistenceProvider,
+  getBudgetPersistenceProvider,
+  resetBudgetPersistenceProvider,
+} from "./budgetPersistenceProviderFactory";
 export type {
   AppPersistenceGateway,
   PersistenceBackendKind,
@@ -47,7 +52,9 @@ export type {
   SqlitePayeeRepositoryLike,
 } from "./sqlitePayeePersistenceAdapter";
 export {
+  bootstrapHostBudgetPersistenceProvider,
   bootstrapHostPersistenceGateway,
+  getHostBudgetPersistenceProvider,
   getHostPersistenceGateway,
 } from "./hostPersistenceGateway";
 export { createSqlitePersistenceGateway } from "./sqlitePersistenceGateway";

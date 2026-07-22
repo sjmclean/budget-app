@@ -77,8 +77,8 @@ function validateExplicitBackendSelectionStillWorks(): void {
 
   assert.throws(
     () => getAppPersistenceGateway("sqlite-adapter"),
-    /SQLite gateway requested but no sqlite gateway instance was supplied/,
-    "explicit SQLite selection without a gateway should remain guarded",
+    /SQLite provider requested but no SQLite provider instance was supplied/,
+    "explicit SQLite selection without a provider should remain guarded",
   );
 }
 
@@ -96,14 +96,14 @@ function validateUiModulesDoNotCaptureOldGatewayAtModuleLoad(): void {
 
     assert.doesNotMatch(
       source,
-      /^const\s+\w*Persistence\w*\s*=\s*getAppPersistenceGateway\(/m,
+      /^const\s+\w*Persistence\w*\s*=\s*get(?:AppPersistenceGateway|BudgetPersistenceProvider)\(/m,
       `${file} should not capture persistence directly at module load`,
     );
 
     assert.doesNotMatch(
       source,
-      /^const\s+persistenceGateway\s*=\s*getAppPersistenceGateway\(\);/m,
-      `${file} should not capture the gateway at module load`,
+      /^const\s+persistence(?:Gateway|Provider)\s*=\s*get(?:AppPersistenceGateway|BudgetPersistenceProvider)\(\);/m,
+      `${file} should not capture the active provider at module load`,
     );
   }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { resolveActiveBudget } from "../../../features/budget/activeBudget";
 import { getCurrentBudgetMonth } from "../../../features/budget/budgetMonthNavigation";
-import { getAppPersistenceGateway } from "../../../features/persistence/appPersistenceGatewayFactory";
+import { getBudgetPersistenceProvider } from "../../../features/persistence/budgetPersistenceProviderFactory";
 import { useBudgetRegistryStore } from "../../../stores/budgetRegistryStore";
 import { useUIStore } from "../../../stores/uiStore";
 import { calculateSpendingTotal, buildSpendingByCategoryRows, type SpendingCategoryRow } from "../services/spendingByCategoryReport";
@@ -37,7 +37,7 @@ export function useReportsViewModel() {
       setError(null);
 
       try {
-        const gateway = getAppPersistenceGateway();
+        const gateway = getBudgetPersistenceProvider();
         const accounts = await gateway.accounts.listAccounts();
         const registers = await Promise.all(
           accounts.map((account) => gateway.accountRegisters.getAccountRegisterView({ accountId: account.id })),

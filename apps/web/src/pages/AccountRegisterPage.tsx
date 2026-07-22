@@ -64,7 +64,7 @@ import {
   countTransactionTagReferences,
   removeTransactionTagReferences,
 } from "../features/accounts/accountRegisterService";
-import { getAppPersistenceGateway } from "../features/persistence";
+import { getBudgetPersistenceProvider } from "../features/persistence";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
@@ -198,7 +198,7 @@ function getMoveAccountIcon(account: SidebarAccount) {
 
 export function AccountRegisterPage() {
   const { accountId = "everyday" } = useParams();
-  const persistenceGateway = getAppPersistenceGateway();
+  const persistenceGateway = getBudgetPersistenceProvider();
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);

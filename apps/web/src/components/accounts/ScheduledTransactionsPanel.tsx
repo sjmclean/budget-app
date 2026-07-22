@@ -19,7 +19,7 @@ import {
 } from "../../features/accounts/scheduledTransactionService";
 import type { RegisterSplitLineView } from "../../features/accounts/accountRegisterTypes";
 import { getSplitBalanceStatus } from "../../features/accounts/registerSplitDrafts";
-import { getAppPersistenceGateway } from "../../features/persistence";
+import { getBudgetPersistenceProvider } from "../../features/persistence";
 import type { SidebarAccount } from "../../features/accounts/accountService";
 import type { PayeeView } from "../../features/accounts/payeeService";
 import type { BudgetCategoryOption } from "../../features/budget/budgetViewTypes";
@@ -82,7 +82,7 @@ export function ScheduledTransactionsPanel({
   onDueCountChange,
   presentation = "overlay",
 }: ScheduledTransactionsPanelProps) {
-  const scheduledTransactionsPersistence = getAppPersistenceGateway().scheduledTransactions;
+  const scheduledTransactionsPersistence = getBudgetPersistenceProvider().scheduledTransactions;
   const dateFormat = useDateFormatPreference();
   const [scheduledTransactions, setScheduledTransactions] = useState<ScheduledTransactionView[]>([]);
   const [draft, setDraft] = useState<ScheduledFormDraft | null>(null);

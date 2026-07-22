@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getAppPersistenceGateway } from "../persistence";
+import { getBudgetPersistenceProvider } from "../persistence";
 import { useBudgetView } from "./useBudgetView";
 import type {
   BudgetActivityDrilldown,
@@ -69,7 +69,7 @@ export function useBudgetWorkspace(
   budgetId: string,
   month: string,
 ): UseBudgetWorkspaceState {
-  const persistenceGateway = getAppPersistenceGateway();
+  const persistenceGateway = getBudgetPersistenceProvider();
   const categoriesPersistence = persistenceGateway.categories;
   const budgetViewPersistence = persistenceGateway.budgetView;
   const budgetView = useBudgetView(budgetId, month);

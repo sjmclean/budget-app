@@ -34,7 +34,7 @@ import type {
 } from "../features/accounts/accountService";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import type { CreditCardBehaviour } from "../features/budget/budgetPreferences";
-import { getAppPersistenceGateway } from "../features/persistence";
+import { getBudgetPersistenceProvider } from "../features/persistence";
 import { alertDialog, confirmDialog } from "../features/ui/appDialogService";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
@@ -76,7 +76,7 @@ export function Sidebar({
 }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const accountsPersistence = getAppPersistenceGateway().accounts;
+  const accountsPersistence = getBudgetPersistenceProvider().accounts;
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const updateBudget = useBudgetRegistryStore((state) => state.updateBudget);
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
@@ -168,7 +168,7 @@ export function Sidebar({
       const summaryEntries = await Promise.all(
         loadedAccounts.map(async (account) => {
           try {
-            const register = await getAppPersistenceGateway().accountRegisters.getAccountRegisterView({
+            const register = await getBudgetPersistenceProvider().accountRegisters.getAccountRegisterView({
               accountId: account.id,
             });
             return [account.id, buildAccountNavigationSummary(register)] as const;
