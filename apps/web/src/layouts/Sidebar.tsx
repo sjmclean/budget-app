@@ -2,7 +2,7 @@ import {
   AlertTriangle,
   Archive,
   ArrowLeftRight,
-  ChartColumnIncreasing,
+  ChartSpline,
   ChevronDown,
   CreditCard,
   Folder,
@@ -16,7 +16,7 @@ import {
   Pencil,
   Plus,
   RotateCcw,
-  Settings,
+  Settings2,
   Users,
   Trash2,
   WalletCards,
@@ -60,8 +60,8 @@ const ACCOUNT_NAVIGATION_UPDATED_EVENT = "budget-app:account-navigation-updated"
 const navigationIcons: Record<NavigationIcon, typeof WalletCards> = {
   budget: WalletCards,
   dashboard: Gauge,
-  reports: ChartColumnIncreasing,
-  settings: Settings,
+  reports: ChartSpline,
+  settings: Settings2,
   restore: RotateCcw,
   payees: Users,
   switch: ArrowLeftRight,
@@ -295,22 +295,24 @@ export function Sidebar({
         <NavLink to={`/accounts/${account.id}`} className="account-link">
           <span className="account-row-bullet" aria-hidden="true" />
           <span className="account-link-name">{account.name}</span>
-          {summary?.hasUncategorisedTransactions ? (
+          <span className="account-financial-status">
+            {summary?.hasUncategorisedTransactions ? (
+              <span
+                className="account-warning"
+                role="img"
+                aria-label="Contains uncategorised transactions"
+                title="Contains uncategorised transactions"
+              >
+                <AlertTriangle size={15} strokeWidth={2.2} />
+              </span>
+            ) : null}
             <span
-              className="account-warning"
-              role="img"
-              aria-label="Contains uncategorised transactions"
-              title="Contains uncategorised transactions"
+              className={["account-balance", balance < 0 ? "account-balance-negative" : ""]
+                .filter(Boolean)
+                .join(" ")}
             >
-              <AlertTriangle size={15} strokeWidth={2.2} />
+              {formattedBalance}
             </span>
-          ) : null}
-          <span
-            className={["account-balance", balance < 0 ? "account-balance-negative" : ""]
-              .filter(Boolean)
-              .join(" ")}
-          >
-            {formattedBalance}
           </span>
         </NavLink>
 
@@ -613,7 +615,7 @@ export function Sidebar({
               aria-haspopup="menu"
               onClick={() => setIsSettingsMenuOpen((isOpen) => !isOpen)}
             >
-              <Settings size={18} />
+              <Settings2 size={18} />
               <span>Settings</span>
               <ChevronDown
                 size={15}
@@ -649,9 +651,11 @@ function buildAccountNavigationSummary(
   return {
     currencyCode: register.currencyCode,
     workingBalance: register.workingBalance,
-    hasUncategorisedTransactions: register.transactions.some(
-      isUncategorisedRegisterTransaction,
-    ),
+    hasUncategorisedTransactions:
+      register.accountType !== "Tracking" &&
+      register.transactions.some((transaction) =>
+        isUncategorisedRegisterTransaction(transaction, register.accountType),
+      ),
   };
 }
 

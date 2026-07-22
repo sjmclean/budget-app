@@ -25,6 +25,7 @@ interface UseRegisterViewModelInput {
   searchDraft: string;
   committedSearch: RegisterSearchCommit | null;
   categoryFilter: "all" | "uncategorised";
+  categoriesEnabled: boolean;
   sort: RegisterSortState;
   developerPerformanceMode: boolean;
   performanceTimingsRef: MutableRefObject<RegisterPerformanceTimings>;
@@ -35,6 +36,7 @@ export function useRegisterViewModel({
   searchDraft,
   committedSearch,
   categoryFilter,
+  categoriesEnabled,
   sort,
   developerPerformanceMode,
   performanceTimingsRef,
@@ -58,10 +60,12 @@ export function useRegisterViewModel({
 
   const categoryFilteredRegisterTransactions = useMemo(
     () =>
-      categoryFilter === "uncategorised"
-        ? searchedRegisterTransactions.filter(isUncategorisedRegisterTransaction)
+      categoriesEnabled && categoryFilter === "uncategorised"
+        ? searchedRegisterTransactions.filter((transaction) =>
+            isUncategorisedRegisterTransaction(transaction),
+          )
         : searchedRegisterTransactions,
-    [categoryFilter, searchedRegisterTransactions],
+    [categoriesEnabled, categoryFilter, searchedRegisterTransactions],
   );
 
   const sortedRegisterTransactions = useMemo(

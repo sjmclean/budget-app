@@ -460,6 +460,7 @@ export function AccountRegisterPage() {
     searchDraft: registerSearchDraft,
     committedSearch: committedRegisterSearch,
     categoryFilter,
+    categoriesEnabled: data?.accountType !== "Tracking",
     sort: registerSort,
     developerPerformanceMode,
     performanceTimingsRef: registerPerformanceTimingsRef,
@@ -468,6 +469,12 @@ export function AccountRegisterPage() {
   useEffect(() => {
     setActiveRegisterSearchSuggestionIndex(null);
   }, [registerSearchDraft]);
+
+  useEffect(() => {
+    if (data?.accountType === "Tracking" && categoryFilter !== "all") {
+      setCategoryFilter("all");
+    }
+  }, [categoryFilter, data?.accountType]);
 
   const registerSelection = useRegisterSelection(visibleTransactionIds);
   const selectedRegisterTransactionIds = registerSelection.selectedIds;
@@ -1061,7 +1068,7 @@ export function AccountRegisterPage() {
         style={registerTableLayout.rowStyle}
         aria-label="Register column headings"
       >
-        {registerTableLayout.visibleColumns.map((column) => (
+        {registerTableLayout.visibleColumns.filter((column) => data.accountType !== "Tracking" || column.id !== "category").map((column) => (
           <span
             className={[
               column.id === "attachments" || column.id === "tags"
@@ -1171,8 +1178,8 @@ export function AccountRegisterPage() {
             onCommitSearch={commitRegisterSearch}
             onHighlightSearchSuggestion={setActiveRegisterSearchSuggestionIndex}
             onClearSearch={clearRegisterSearch}
-            columns={REGISTER_COLUMN_DEFINITIONS}
-            visibleColumnSet={registerTableLayout.visibleColumnSet}
+            columns={data.accountType === "Tracking" ? REGISTER_COLUMN_DEFINITIONS.filter((column) => column.id !== "category") : REGISTER_COLUMN_DEFINITIONS}
+            visibleColumnSet={data.accountType === "Tracking" ? new Set([...registerTableLayout.visibleColumnSet].filter((columnId) => columnId !== "category")) : registerTableLayout.visibleColumnSet}
             onToggleColumn={registerTableLayout.toggleColumn}
             onResetColumns={registerTableLayout.resetLayout}
             onOpenImport={() => {
@@ -1187,6 +1194,7 @@ export function AccountRegisterPage() {
             onOpenTagManager={() => setIsTransactionTagManagerOpen(true)}
             scheduledDueCount={scheduledDueCount}
             categoryFilter={categoryFilter}
+            categoriesEnabled={data.accountType !== "Tracking"}
             onCategoryFilterChange={setCategoryFilter}
             canUndo={canUndo}
             canRedo={canRedo}
@@ -1797,8 +1805,8 @@ export function AccountRegisterPage() {
               payeeOptions={payeeOptions}
               onCreatePayee={createInlinePayee}
               currencyCode={data.currencyCode}
-              visibleColumns={registerEntryColumnSet}
-              visibleColumnIds={registerEntryVisibleColumnIds}
+              visibleColumns={data.accountType === "Tracking" ? new Set([...registerEntryColumnSet].filter((columnId) => columnId !== "category")) : registerEntryColumnSet}
+              visibleColumnIds={data.accountType === "Tracking" ? registerEntryVisibleColumnIds.filter((columnId) => columnId !== "category") : registerEntryVisibleColumnIds}
               rowStyle={registerEntryRowStyle}
               layoutMode={registerLayoutMode}
               onCreateCategory={createInlineCategory}
@@ -1855,8 +1863,8 @@ export function AccountRegisterPage() {
                     onManageTransactionAttachments={
                       handleManageTransactionAttachments
                     }
-                    visibleColumns={registerEditColumnSet}
-                    visibleColumnIds={registerEditVisibleColumnIds}
+                    visibleColumns={data.accountType === "Tracking" ? new Set([...registerEditColumnSet].filter((columnId) => columnId !== "category")) : registerEditColumnSet}
+                    visibleColumnIds={data.accountType === "Tracking" ? registerEditVisibleColumnIds.filter((columnId) => columnId !== "category") : registerEditVisibleColumnIds}
                     rowStyle={registerEditRowStyle}
                     layoutMode={registerLayoutMode}
                     autoFocusField={editingTransactionFocusField}
@@ -1881,9 +1889,10 @@ export function AccountRegisterPage() {
                     onUpdateTransactionTags={handleUpdateTransactionTags}
                     onCreateTransactionTag={handleCreateTransactionTag}
                     onOpenContextMenu={handleOpenRegisterContextMenu}
-                    visibleColumns={registerTableLayout.visibleColumnSet}
+                    visibleColumns={data.accountType === "Tracking" ? new Set([...registerTableLayout.visibleColumnSet].filter((columnId) => columnId !== "category")) : registerTableLayout.visibleColumnSet}
                     rowStyle={registerTableLayout.rowStyle}
                     layoutMode={registerLayoutMode}
+                    categoriesEnabled={data.accountType !== "Tracking"}
                   />
                 )}
               </div>
