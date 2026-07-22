@@ -25,6 +25,11 @@ import {
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { getPersistenceModeSummary } from "../features/persistence/persistenceMode";
 import {
+  inspectBrowserToSharedServerMigration,
+  migrateBrowserBudgetToSharedServer,
+  type BrowserToSharedServerMigrationInspection,
+} from "../features/persistence/browserToSharedServerMigration";
+import {
   currencyOptions,
   currencySymbolOptions,
   defaultSettingsPreferences,
@@ -236,6 +241,12 @@ export function SettingsPage({
   );
   const [statusMessage, setStatusMessage] = useState("Settings saved locally.");
   const [dataStatusMessage, setDataStatusMessage] = useState("Export or back up the currently selected budget.");
+  const [sharedMigrationInspection, setSharedMigrationInspection] =
+    useState<BrowserToSharedServerMigrationInspection | null>(null);
+  const [sharedMigrationStatus, setSharedMigrationStatus] = useState(
+    "Check whether this browser budget can be moved to the shared server.",
+  );
+  const [sharedMigrationBusy, setSharedMigrationBusy] = useState(false);
   const [restorePreview, setRestorePreview] = useState<BudgetDataRestorePreview | null>(null);
   const [restorePackageRaw, setRestorePackageRaw] = useState<string | null>(null);
   const [historySnapshots, setHistorySnapshots] = useState<VersionHistorySnapshotMetadata[]>(() =>
@@ -267,6 +278,43 @@ export function SettingsPage({
         : snapshots[0]?.id ?? null,
     );
   }, [activeBudget?.id]);
+
+  useEffect(() => {
+    if (
+      activeSection !== "cloud" ||
+      persistenceMode.mode !== "browser-local-storage"
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    setSharedMigrationBusy(true);
+
+    void inspectBrowserToSharedServerMigration()
+      .then((inspection) => {
+        if (cancelled) return;
+        setSharedMigrationInspection(inspection);
+        setSharedMigrationStatus(inspection.message);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setSharedMigrationInspection(null);
+        setSharedMigrationStatus(
+          error instanceof Error
+            ? error.message
+            : "Could not inspect the shared budget server.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSharedMigrationBusy(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSection, persistenceMode.mode]);
 
   const preview = useMemo(
     () => ({
@@ -510,6 +558,61 @@ export function SettingsPage({
 
     setDataStatusMessage(`Deleted ${result.budgetName}. Returning to the budget selector.`);
     navigate("/");
+  }
+
+  async function handleSharedServerMigration() {
+    const inspection = sharedMigrationInspection;
+
+    if (!inspection?.canMigrate) {
+      setSharedMigrationStatus(
+        inspection?.message ?? "Migration is not currently available.",
+      );
+      return;
+    }
+
+    const confirmed = await confirmDialog({
+      title: "Move browser budget to shared server?",
+      message:
+        `This will copy ${inspection.browserKeyCount} Budget App records to the empty shared server. ` +
+        "The browser copy will be preserved. After migration, enable shared-server persistence and reload the app.",
+      confirmLabel: "Move to shared server",
+      tone: "default",
+    });
+
+    if (!confirmed) {
+      setSharedMigrationStatus("Migration cancelled. No data was changed.");
+      return;
+    }
+
+    setSharedMigrationBusy(true);
+    setSharedMigrationStatus("Copying browser budget to the shared server...");
+
+    try {
+      const result = await migrateBrowserBudgetToSharedServer();
+      setSharedMigrationInspection((current) =>
+        current
+          ? {
+              ...current,
+              serverKeyCount: result.importedKeys,
+              serverRevision: result.revision,
+              canMigrate: false,
+              message: "Migration complete.",
+            }
+          : current,
+      );
+      setSharedMigrationStatus(
+        `Migration complete: ${result.importedKeys} records copied. ` +
+          "Your browser copy remains unchanged. Enable shared-server mode and reload to use the shared budget.",
+      );
+    } catch (error) {
+      setSharedMigrationStatus(
+        error instanceof Error
+          ? error.message
+          : "Could not migrate the browser budget.",
+      );
+    } finally {
+      setSharedMigrationBusy(false);
+    }
   }
 
   function closeSettings() {
@@ -1027,13 +1130,53 @@ export function SettingsPage({
           <Card className="settings-section-card">
             <div className="settings-section-header">
               <div>
-                <p className="eyebrow">Cloud</p>
-                <h2>Cloud sync</h2>
+                <p className="eyebrow">Shared budget</p>
+                <h2>Self-hosted shared storage</h2>
+                <p className="muted">{sharedMigrationStatus}</p>
+              </div>
+            </div>
+
+            <div className="settings-action-grid">
+              <div className="settings-action-card">
+                <h3>Current persistence</h3>
+                <p className="muted">{persistenceMode.description}</p>
+                <strong>{persistenceMode.label}</strong>
+              </div>
+
+              <div className="settings-action-card">
+                <h3>Move browser budget</h3>
                 <p className="muted">
-                  Cloud sync is not configured. Future setup will support file sync providers such as Dropbox, Google Drive, and iCloud.
+                  Copy this device&apos;s browser budget to an empty shared server.
+                  The local browser copy is kept as a safety fallback.
+                </p>
+                {sharedMigrationInspection ? (
+                  <p className="muted">
+                    {sharedMigrationInspection.browserKeyCount} browser records ·{" "}
+                    {sharedMigrationInspection.serverKeyCount} server records
+                  </p>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={
+                    sharedMigrationBusy ||
+                    persistenceMode.mode !== "browser-local-storage" ||
+                    !sharedMigrationInspection?.canMigrate
+                  }
+                  onClick={handleSharedServerMigration}
+                >
+                  {sharedMigrationBusy ? "Checking..." : "Move to shared server"}
+                </Button>
+              </div>
+
+              <div className="settings-action-card">
+                <h3>After migration</h3>
+                <p className="muted">
+                  Set VITE_BUDGET_PERSISTENCE_MODE=shared-server, rebuild, and
+                  reload the application. Do not delete the browser copy until
+                  you have confirmed the shared budget on another device.
                 </p>
               </div>
-              <Button type="button" variant="secondary" disabled>Configure...</Button>
             </div>
           </Card>
         ) : null}

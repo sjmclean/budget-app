@@ -11,6 +11,7 @@ import {
   hydrateBrowserStorageBackend,
 } from "./keyValueStoragePort";
 import type { AppPersistenceGateway } from "./appPersistenceGateway";
+import { exportBudgetPersistenceSnapshot } from "./persistenceSnapshot";
 
 const budgetScopedStorage = createBudgetScopedStorage(browserLocalStorageKeyValueStorage);
 
@@ -70,4 +71,5 @@ export const browserLocalStoragePersistenceGateway: AppPersistenceGateway = {
   scheduledTransactions: scheduledTransactionService,
   initialize: hydrateBrowserStorageBackend,
   flush: flushBrowserStorageBackend,
+  exportSnapshot: () => exportBudgetPersistenceSnapshot(browserLocalStorageKeyValueStorage),
 };

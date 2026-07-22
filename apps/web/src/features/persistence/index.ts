@@ -90,3 +90,18 @@ export type {
   RuntimePersistenceConfiguration,
   RuntimePersistenceMode,
 } from "./configuredPersistenceProvider";
+export {
+  collectBrowserBudgetEntries,
+  collectBrowserBudgetSnapshot,
+  partitionEntries,
+  inspectBrowserToSharedServerMigration,
+  migrateBrowserBudgetToSharedServer,
+} from "./browserToSharedServerMigration";
+export type {
+  BrowserToSharedServerMigrationInspection,
+  BrowserToSharedServerMigrationOptions,
+  BrowserToSharedServerMigrationResult,
+} from "./browserToSharedServerMigration";
+
+export { exportBudgetPersistenceSnapshot, isCanonicalBudgetStorageKey } from "./persistenceSnapshot";
+export type { BudgetPersistenceSnapshot } from "./persistenceSnapshot";

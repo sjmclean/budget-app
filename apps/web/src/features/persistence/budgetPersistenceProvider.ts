@@ -4,6 +4,7 @@ import type { PayeePersistencePort } from "../accounts/payeePersistencePort";
 import type { ScheduledTransactionPersistencePort } from "../accounts/scheduledTransactionPersistencePort";
 import type { CategoryPersistencePort } from "../budget/categoryPersistencePort";
 import type { BudgetViewService } from "../budget/budgetViewTypes";
+import type { BudgetPersistenceSnapshot } from "./persistenceSnapshot";
 
 export type PersistenceBackendKind =
   | "browser-local-storage"
@@ -46,4 +47,5 @@ export interface BudgetPersistenceProvider {
   initialize?(): Promise<void>;
   flush?(): Promise<void>;
   watch?(listener: PersistenceChangeListener): () => void;
+  exportSnapshot?(): BudgetPersistenceSnapshot | Promise<BudgetPersistenceSnapshot>;
 }
