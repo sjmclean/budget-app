@@ -1,17 +1,19 @@
 import {
+  AlertTriangle,
   Archive,
   ArrowLeftRight,
-  BarChart3,
+  ChartColumnIncreasing,
   ChevronDown,
   CreditCard,
-  FolderOpen,
+  Folder,
+  House,
+  Landmark,
   Gauge,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   Pin,
   Pencil,
-  PiggyBank,
   Plus,
   RotateCcw,
   Settings,
@@ -23,6 +25,8 @@ import {
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { AddAccountModal } from "../components/accounts/AddAccountModal";
+import { isUncategorisedRegisterTransaction } from "../features/accounts/registerUncategorised";
+import type { AccountRegisterView } from "../features/accounts/accountRegisterTypes";
 import type {
   CreateAccountInput,
   SidebarAccount,
@@ -37,6 +41,12 @@ import { useUIStore } from "../stores/uiStore";
 import { navigationModel, type NavigationIcon } from "./navigationModel";
 import type { AdaptiveNavigationMode } from "./useAdaptiveNavigation";
 
+interface AccountNavigationSummary {
+  currencyCode: string;
+  workingBalance: number;
+  hasUncategorisedTransactions: boolean;
+}
+
 interface SidebarProps {
   mode: AdaptiveNavigationMode;
   collapsed: boolean;
@@ -45,10 +55,12 @@ interface SidebarProps {
   onCloseDrawer: () => void;
 }
 
+const ACCOUNT_NAVIGATION_UPDATED_EVENT = "budget-app:account-navigation-updated";
+
 const navigationIcons: Record<NavigationIcon, typeof WalletCards> = {
   budget: WalletCards,
   dashboard: Gauge,
-  reports: BarChart3,
+  reports: ChartColumnIncreasing,
   settings: Settings,
   restore: RotateCcw,
   payees: Users,
@@ -75,6 +87,8 @@ export function Sidebar({
   const [editingAccount, setEditingAccount] = useState<SidebarAccount | null>(null);
   const [openMenuAccountId, setOpenMenuAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<SidebarAccount[]>([]);
+  const [accountSummaries, setAccountSummaries] = useState<Record<string, AccountNavigationSummary>>({});
+  const [accountNavigationRevision, setAccountNavigationRevision] = useState(0);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const drawerRef = useRef<HTMLElement | null>(null);
 
@@ -136,18 +150,53 @@ export function Sidebar({
   }, [drawerOpen, mode, onCloseDrawer]);
 
   useEffect(() => {
+    const refreshAccountNavigation = () => {
+      setAccountNavigationRevision((revision) => revision + 1);
+    };
+
+    window.addEventListener(ACCOUNT_NAVIGATION_UPDATED_EVENT, refreshAccountNavigation);
+    return () => {
+      window.removeEventListener(ACCOUNT_NAVIGATION_UPDATED_EVENT, refreshAccountNavigation);
+    };
+  }, []);
+
+  useEffect(() => {
     let active = true;
 
-    accountsPersistence.listAccounts().then((loadedAccounts) => {
+    async function loadAccountNavigation() {
+      const loadedAccounts = await accountsPersistence.listAccounts();
+      const summaryEntries = await Promise.all(
+        loadedAccounts.map(async (account) => {
+          try {
+            const register = await getAppPersistenceGateway().accountRegisters.getAccountRegisterView({
+              accountId: account.id,
+            });
+            return [account.id, buildAccountNavigationSummary(register)] as const;
+          } catch {
+            return [
+              account.id,
+              {
+                currencyCode: "AUD",
+                workingBalance: account.startingBalance,
+                hasUncategorisedTransactions: false,
+              },
+            ] as const;
+          }
+        }),
+      );
+
       if (active) {
         setAccounts(loadedAccounts);
+        setAccountSummaries(Object.fromEntries(summaryEntries));
       }
-    });
+    }
+
+    void loadAccountNavigation();
 
     return () => {
       active = false;
     };
-  }, [accountsPersistence]);
+  }, [accountsPersistence, location.pathname, accountNavigationRevision]);
 
   const activeAccounts = accounts.filter((account) => !account.closedAt);
   const closedAccounts = accounts.filter((account) => account.closedAt);
@@ -234,17 +283,43 @@ export function Sidebar({
 
   function renderAccount(account: SidebarAccount) {
     const isMenuOpen = openMenuAccountId === account.id;
+    const summary = accountSummaries[account.id];
+    const balance = summary?.workingBalance ?? account.startingBalance;
+    const formattedBalance = formatAccountBalance(
+      balance,
+      summary?.currencyCode ?? "AUD",
+    );
 
     return (
       <div className="account-row" key={account.id}>
         <NavLink to={`/accounts/${account.id}`} className="account-link">
+          <span className="account-row-bullet" aria-hidden="true" />
           <span className="account-link-name">{account.name}</span>
+          {summary?.hasUncategorisedTransactions ? (
+            <span
+              className="account-warning"
+              role="img"
+              aria-label="Contains uncategorised transactions"
+              title="Contains uncategorised transactions"
+            >
+              <AlertTriangle size={15} strokeWidth={2.2} />
+            </span>
+          ) : null}
+          <span
+            className={["account-balance", balance < 0 ? "account-balance-negative" : ""]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {formattedBalance}
+          </span>
         </NavLink>
 
         <button
           className="account-menu-button"
           type="button"
           aria-label={`Manage ${account.name}`}
+          aria-expanded={isMenuOpen}
+          aria-haspopup="menu"
           title={`Manage ${account.name}`}
           onClick={(event) => {
             event.preventDefault();
@@ -306,6 +381,7 @@ export function Sidebar({
     }
 
     const Icon = navigationIcons[destination.icon];
+    const isBudgetDestination = destination.icon === "budget";
 
     return (
       <NavLink
@@ -314,7 +390,16 @@ export function Sidebar({
         className="sidebar-link"
         title={collapsed ? destination.label : undefined}
       >
-        <Icon size={18} />
+        {isBudgetDestination ? (
+          <img
+            className="sidebar-budget-icon"
+            src="/budget-navigation-icon.png"
+            alt=""
+            aria-hidden="true"
+          />
+        ) : (
+          <Icon size={19} />
+        )}
         <span>{destination.label}</span>
       </NavLink>
     );
@@ -399,17 +484,21 @@ export function Sidebar({
           <div className="accounts-block">
             <div className="accounts-header-row">
               <button
-                className="accounts-header"
+                className={[
+                  "accounts-header",
+                  location.pathname.startsWith("/accounts/") ? "accounts-header-active" : "",
+                ].filter(Boolean).join(" ")}
                 type="button"
                 aria-expanded={accountsOpen}
                 aria-controls="primary-navigation-accounts"
                 onClick={() => setAccountsOpen(!accountsOpen)}
               >
+                <Landmark size={19} />
+                <span>Accounts</span>
                 <ChevronDown
-                  size={16}
+                  size={15}
                   className={accountsOpen ? "chevron-open" : "chevron-closed"}
                 />
-                <span>Accounts</span>
               </button>
 
               <button
@@ -425,26 +514,35 @@ export function Sidebar({
 
             {accountsOpen && (
               <div className="account-tree" id="primary-navigation-accounts">
-                <div className="account-section">
-                  <FolderOpen size={14} />
-                  <span>Budget Accounts</span>
-                </div>
+                {budgetAccounts.length > 0 ? (
+                  <>
+                    <div className="account-section">
+                      <Folder size={15} />
+                      <span>Budget Accounts</span>
+                    </div>
+                    {budgetAccounts.map(renderAccount)}
+                  </>
+                ) : null}
 
-                {budgetAccounts.map(renderAccount)}
+                {creditCards.length > 0 ? (
+                  <>
+                    <div className="account-section">
+                      <CreditCard size={15} />
+                      <span>Credit Cards</span>
+                    </div>
+                    {creditCards.map(renderAccount)}
+                  </>
+                ) : null}
 
-                <div className="account-section">
-                  <CreditCard size={14} />
-                  <span>Credit Cards</span>
-                </div>
-
-                {creditCards.map(renderAccount)}
-
-                <div className="account-section">
-                  <PiggyBank size={14} />
-                  <span>Tracking</span>
-                </div>
-
-                {trackingAccounts.map(renderAccount)}
+                {trackingAccounts.length > 0 ? (
+                  <>
+                    <div className="account-section">
+                      <House size={15} />
+                      <span>Tracking</span>
+                    </div>
+                    {trackingAccounts.map(renderAccount)}
+                  </>
+                ) : null}
 
                 {activeAccounts.length === 0 && closedAccounts.length === 0 ? (
                   <div className="account-tree-empty">
@@ -463,11 +561,12 @@ export function Sidebar({
                       type="button"
                       onClick={() => setClosedAccountsOpen(!closedAccountsOpen)}
                     >
+                      <Archive size={15} />
+                      <span>Closed accounts ({closedAccounts.length})</span>
                       <ChevronDown
                         size={14}
                         className={closedAccountsOpen ? "chevron-open" : "chevron-closed"}
                       />
-                      <span>Closed accounts ({closedAccounts.length})</span>
                     </button>
 
                     {closedAccountsOpen && (
@@ -542,4 +641,32 @@ export function Sidebar({
       />
     </>
   );
+}
+
+function buildAccountNavigationSummary(
+  register: AccountRegisterView,
+): AccountNavigationSummary {
+  return {
+    currencyCode: register.currencyCode,
+    workingBalance: register.workingBalance,
+    hasUncategorisedTransactions: register.transactions.some(
+      isUncategorisedRegisterTransaction,
+    ),
+  };
+}
+
+function formatAccountBalance(amount: number, currencyCode: string): string {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: currencyCode,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return amount.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
 }

@@ -250,6 +250,12 @@ export function AccountRegisterPage() {
     reassignPayeeReferences,
   } = useAccountRegister(accountId);
 
+  useEffect(() => {
+    if (data) {
+      window.dispatchEvent(new Event("budget-app:account-navigation-updated"));
+    }
+  }, [data]);
+
   const [showEntryRow, setShowEntryRow] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState<
     string | null
