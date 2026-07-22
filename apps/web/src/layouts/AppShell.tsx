@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
@@ -20,6 +20,8 @@ export function AppShell() {
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
   const [railExpanded, setRailExpanded] = useState(false);
+  const drawerTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const wasDrawerOpen = useRef(false);
   const navigationCollapsed =
     (navigationMode === "rail" && !railExpanded) ||
     (navigationMode === "desktop" && !navigationPinned);
@@ -46,6 +48,20 @@ export function AppShell() {
       setRailExpanded(false);
     }
   }, [navigationMode]);
+
+
+  useEffect(() => {
+    if (navigationMode !== "drawer") {
+      wasDrawerOpen.current = false;
+      return;
+    }
+
+    if (wasDrawerOpen.current && !navigationDrawerOpen) {
+      window.requestAnimationFrame(() => drawerTriggerRef.current?.focus());
+    }
+
+    wasDrawerOpen.current = navigationDrawerOpen;
+  }, [navigationDrawerOpen, navigationMode]);
 
   useEffect(() => {
     if (activeBudgetId && activeBudgetId !== selectedBudgetId) {
@@ -78,9 +94,11 @@ export function AppShell() {
       >
         {navigationMode === "drawer" ? (
           <button
+            ref={drawerTriggerRef}
             className="navigation-drawer-trigger navigation-drawer-trigger-shell"
             type="button"
             aria-label="Open navigation"
+            aria-expanded={navigationDrawerOpen}
             onClick={() => setNavigationDrawerOpen(true)}
           >
             <Menu size={20} />

@@ -94,3 +94,46 @@
   margin: 0.25rem 0.3rem;
   background: var(--border-soft, #e2e8f0);
 }
+
+@media (max-width: 680px) {
+  .floating-menu-layer {
+    background: rgba(15, 23, 42, 0.38);
+  }
+
+  .floating-menu-panel {
+    inset: auto 0 0 !important;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    max-height: min(72dvh, 36rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 1rem 1rem 0 0;
+    padding: 0.55rem max(0.55rem, env(safe-area-inset-right, 0px))
+      calc(0.55rem + env(safe-area-inset-bottom, 0px))
+      max(0.55rem, env(safe-area-inset-left, 0px));
+    box-shadow: 0 -1rem 3rem rgba(15, 23, 42, 0.22);
+  }
+
+  .floating-menu-heading {
+    position: sticky;
+    top: -0.55rem;
+    z-index: 1;
+    background: var(--surface, #ffffff);
+    padding-top: 0.8rem;
+  }
+
+  .floating-menu-item {
+    min-height: 2.85rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-menu-panel {
+    scroll-behavior: auto;
+  }
+}

@@ -21,7 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AddAccountModal } from "../components/accounts/AddAccountModal";
 import type {
   CreateAccountInput,
@@ -76,6 +76,7 @@ export function Sidebar({
   const [openMenuAccountId, setOpenMenuAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<SidebarAccount[]>([]);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const drawerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (mode === "drawer") {
@@ -89,18 +90,48 @@ export function Sidebar({
     }
 
     const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event: KeyboardEvent) => {
+    const drawer = drawerRef.current;
+    const focusableSelector =
+      'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         onCloseDrawer();
+        return;
+      }
+
+      if (event.key !== "Tab" || !drawer) {
+        return;
+      }
+
+      const focusable = Array.from(drawer.querySelectorAll<HTMLElement>(focusableSelector));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        drawer.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
     document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("keydown", handleKeyDown);
+    window.requestAnimationFrame(() => {
+      drawer?.querySelector<HTMLElement>(".navigation-drawer-close")?.focus();
+    });
 
     return () => {
       document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [drawerOpen, mode, onCloseDrawer]);
 
@@ -301,6 +332,7 @@ export function Sidebar({
       ) : null}
 
       <aside
+        ref={drawerRef}
         className={[
           "sidebar",
           collapsed ? "sidebar-collapsed" : "",
@@ -309,6 +341,9 @@ export function Sidebar({
         ].filter(Boolean).join(" ")}
         aria-label="Primary navigation"
         aria-hidden={mode === "drawer" && !drawerOpen}
+        aria-modal={mode === "drawer" && drawerOpen ? true : undefined}
+        role={mode === "drawer" ? "dialog" : undefined}
+        tabIndex={mode === "drawer" ? -1 : undefined}
         inert={mode === "drawer" && !drawerOpen}
       >
         <div className="sidebar-brand">

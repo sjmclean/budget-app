@@ -111,6 +111,19 @@ export function FloatingMenu({
   const { internalRef, setRef } = useMergedFloatingRef(floatingRef);
 
   useEffect(() => {
+    if (!isOpen || !position || !window.matchMedia("(max-width: 680px)").matches) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen, position]);
+
+  useEffect(() => {
     if (!isOpen || !position || !autoFocusFirstItem) {
       return;
     }
