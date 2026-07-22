@@ -4,6 +4,7 @@ import { App } from "./App";
 import { StartupRecoveryScreen } from "./app/errors/StartupRecoveryScreen";
 import {
   bootstrapHostBudgetPersistenceProvider,
+  configureBudgetPersistenceProviderFromRuntime,
   getBudgetPersistenceProvider,
 } from "./features/persistence";
 import { installPersistenceProviderLifecycle } from "./features/persistence/persistenceProviderLifecycle";
@@ -24,7 +25,11 @@ export async function bootstrapApp() {
   let reactRoot: ReturnType<typeof ReactDOM.createRoot> | null = null;
 
   try {
-    bootstrapHostBudgetPersistenceProvider();
+    const hostProvider = bootstrapHostBudgetPersistenceProvider();
+    if (!hostProvider) {
+      configureBudgetPersistenceProviderFromRuntime();
+    }
+
     const persistenceProvider = getBudgetPersistenceProvider();
     await persistenceProvider.initialize?.();
     installPersistenceProviderLifecycle(persistenceProvider);

@@ -82,3 +82,11 @@ export type {
 
 export { createSharedServerPersistenceProvider } from "./sharedServerPersistenceProvider";
 export type { SharedServerPersistenceProviderOptions } from "./sharedServerPersistenceProvider";
+export {
+  configureBudgetPersistenceProviderFromRuntime,
+  createConfiguredBudgetPersistenceProvider,
+} from "./configuredPersistenceProvider";
+export type {
+  RuntimePersistenceConfiguration,
+  RuntimePersistenceMode,
+} from "./configuredPersistenceProvider";

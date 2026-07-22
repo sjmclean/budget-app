@@ -34,7 +34,7 @@ export function resetBudgetPersistenceProvider(): void {
  */
 export function getBudgetPersistenceProvider(
   backend?: PersistenceBackendKind,
-  sqliteProvider?: BudgetPersistenceProvider,
+  selectedProvider?: BudgetPersistenceProvider,
 ): BudgetPersistenceProvider {
   if (!backend && configuredProvider) {
     return configuredProvider;
@@ -47,15 +47,21 @@ export function getBudgetPersistenceProvider(
       return browserLocalStoragePersistenceGateway;
 
     case "sqlite-adapter":
-      if (!sqliteProvider) {
+      if (!selectedProvider) {
         throw new Error(
           "SQLite provider requested but no SQLite provider instance was supplied.",
         );
       }
 
-      return sqliteProvider;
+      return selectedProvider;
 
-    default:
-      return browserLocalStoragePersistenceGateway;
+    case "shared-server":
+      if (!selectedProvider) {
+        throw new Error(
+          "Shared-server provider requested but no provider instance was supplied.",
+        );
+      }
+
+      return selectedProvider;
   }
 }
