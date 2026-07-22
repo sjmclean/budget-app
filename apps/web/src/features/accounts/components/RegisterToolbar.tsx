@@ -108,6 +108,7 @@ interface RegisterToolbarProps {
   onOpenTagManager: () => void;
   scheduledDueCount: number;
   categoryFilter: "all" | "uncategorised";
+  categoriesEnabled: boolean;
   onCategoryFilterChange: (filter: "all" | "uncategorised") => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -125,7 +126,7 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
     searchSuggestions, activeSearchSuggestionIndex, onSearchDraftChange, onSearchOpenChange,
     onSearchKeyDown, onCommitSearch, onHighlightSearchSuggestion, onClearSearch,
     columns, visibleColumnSet, onToggleColumn, onResetColumns, onOpenImport,
-    onOpenTagManager, scheduledDueCount, categoryFilter, onCategoryFilterChange,
+    onOpenTagManager, scheduledDueCount, categoryFilter, categoriesEnabled, onCategoryFilterChange,
     canUndo, canRedo, isHistoryBusy, undoTitle, redoTitle, onUndo, onRedo,
   } = props;
 
@@ -173,10 +174,10 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
                 {committedSearch ? <button className="register-search-clear" type="button" onClick={onClearSearch}>Clear</button> : null}
                 {isSearchOpen ? <RegisterSearchDropdown query={searchDraft} suggestions={searchSuggestions} activeIndex={activeSearchSuggestionIndex} onCommit={onCommitSearch} onHighlight={onHighlightSearchSuggestion} /> : null}
               </div>
-              <div className="register-category-filter" aria-label="Category filter">
+              {categoriesEnabled ? <div className="register-category-filter" aria-label="Category filter">
                 <button className={categoryFilter === "all" ? "register-filter-chip active" : "register-filter-chip"} type="button" onClick={() => onCategoryFilterChange("all")}>All</button>
                 <button className={categoryFilter === "uncategorised" ? "register-filter-chip active" : "register-filter-chip"} type="button" onClick={() => onCategoryFilterChange("uncategorised")}>Uncategorised</button>
-              </div>
+              </div> : null}
               <ColumnVisibilityMenu label="Columns ▾" columns={columns} visibleColumnSet={visibleColumnSet} onToggleColumn={onToggleColumn} onReset={onResetColumns} />
             </div>
 

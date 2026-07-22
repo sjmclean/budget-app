@@ -613,6 +613,7 @@ interface TransactionRowRendererProps {
   ) => void;
   visibleColumns: Set<RegisterColumnId>;
   rowStyle: CSSProperties;
+  categoriesEnabled?: boolean;
 }
 
 interface TransactionRowProps extends TransactionRowRendererProps {
@@ -636,12 +637,13 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
   onOpenContextMenu,
   visibleColumns,
   rowStyle,
+  categoriesEnabled = true,
 }: TransactionRowRendererProps) {
   const [isSplitExpanded, setIsSplitExpanded] = useState(false);
   const splitLines = transaction.splitLines ?? [];
   const hasSplitLines = splitLines.length > 0;
   const signedAmount = getSignedTransactionAmount(transaction);
-  const isUncategorised = isUncategorisedRegisterTransaction(transaction);
+  const isUncategorised = categoriesEnabled && isUncategorisedRegisterTransaction(transaction);
 
   return (
     <>
@@ -690,7 +692,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
           <ScheduledTransactionBadge transaction={transaction} />
         </div>
 
-        <CategoryDisplay
+        {categoriesEnabled ? <CategoryDisplay
           transaction={transaction}
           hasSplitLines={hasSplitLines}
           splitLineCount={splitLines.length}
@@ -703,7 +705,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
             event.stopPropagation();
             onEditTransactionCategory(transaction.id);
           }}
-        />
+        /> : null}
         {isRegisterColumnVisible("memo", visibleColumns) ? (
           <span className="register-memo-cell">{transaction.memo ?? ""}</span>
         ) : null}
@@ -793,6 +795,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   onCreateTransactionTag,
   onOpenContextMenu,
   visibleColumns,
+  categoriesEnabled = true,
 }: TransactionRowRendererProps) {
   const [isSplitExpanded, setIsSplitExpanded] = useState(false);
   const splitLines = transaction.splitLines ?? [];
@@ -802,7 +805,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   const signedAmount = getSignedTransactionAmount(transaction);
   const amountLabel = formatSignedMoney(signedAmount, currencyCode);
   const amountClassName = getSignedAmountClassName(signedAmount);
-  const isUncategorised = isUncategorisedRegisterTransaction(transaction);
+  const isUncategorised = categoriesEnabled && isUncategorisedRegisterTransaction(transaction);
 
   return (
     <>
@@ -861,53 +864,57 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
             <strong title={transaction.payee}>{transaction.payee}</strong>
             <ScheduledTransactionBadge transaction={transaction} />
           </span>
-          <span className="register-compact-secondary">
-            {hasSplitLines ? (
-              <button
-                className="register-split-toggle"
-                type="button"
-                aria-label={
-                  isSplitExpanded
-                    ? "Collapse split transaction"
-                    : "Expand split transaction"
-                }
-                aria-expanded={isSplitExpanded}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setIsSplitExpanded((expanded) => !expanded);
-                }}
-              >
-                {isSplitExpanded ? (
-                  <ChevronDown size={14} />
-                ) : (
-                  <ChevronRight size={14} />
-                )}
-              </button>
-            ) : null}
-            <span title={hasSplitLines ? `Split (${splitLines.length})` : isUncategorised ? "Uncategorised" : transaction.category}>
-              {hasSplitLines ? (
-                `Split (${splitLines.length})`
-              ) : isUncategorised ? (
+          {categoriesEnabled || hasMemo ? (
+            <span className="register-compact-secondary">
+              {categoriesEnabled && hasSplitLines ? (
                 <button
-                  className="register-category-uncategorised-chip"
+                  className="register-split-toggle"
                   type="button"
-                  title="Choose a category"
-                  aria-label="Choose a category for this uncategorised transaction"
+                  aria-label={
+                    isSplitExpanded
+                      ? "Collapse split transaction"
+                      : "Expand split transaction"
+                  }
+                  aria-expanded={isSplitExpanded}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onEditTransactionCategory(transaction.id);
+                    setIsSplitExpanded((expanded) => !expanded);
                   }}
                 >
-                  <span aria-hidden="true">⚠</span>
-                  Uncategorised
+                  {isSplitExpanded ? (
+                    <ChevronDown size={14} />
+                  ) : (
+                    <ChevronRight size={14} />
+                  )}
                 </button>
-              ) : (
-                <CategoryLabel categoryName={transaction.category} />
-              )}
+              ) : null}
+              {categoriesEnabled ? (
+                <span title={hasSplitLines ? `Split (${splitLines.length})` : isUncategorised ? "Uncategorised" : transaction.category}>
+                  {hasSplitLines ? (
+                    `Split (${splitLines.length})`
+                  ) : isUncategorised ? (
+                    <button
+                      className="register-category-uncategorised-chip"
+                      type="button"
+                      title="Choose a category"
+                      aria-label="Choose a category for this uncategorised transaction"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onEditTransactionCategory(transaction.id);
+                      }}
+                    >
+                      <span aria-hidden="true">⚠</span>
+                      Uncategorised
+                    </button>
+                  ) : (
+                    <CategoryLabel categoryName={transaction.category} />
+                  )}
+                </span>
+              ) : null}
+              {categoriesEnabled && hasMemo ? <span className="register-compact-dot">•</span> : null}
+              {hasMemo ? <span title={transaction.memo}>{transaction.memo}</span> : null}
             </span>
-            {hasMemo ? <span className="register-compact-dot">•</span> : null}
-            {hasMemo ? <span title={transaction.memo}>{transaction.memo}</span> : null}
-          </span>
+          ) : null}
         </div>
 
         <div className="register-compact-money-stack">
@@ -927,7 +934,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
         ) : null}
       </div>
 
-      {hasSplitLines && isSplitExpanded
+      {categoriesEnabled && hasSplitLines && isSplitExpanded
         ? splitLines.map((line) => {
             const hasSplitMemo = Boolean(line.memo?.trim());
             const splitSignedAmount = line.inflow
@@ -990,6 +997,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
   onCreateTransactionTag,
   onOpenContextMenu,
   visibleColumns,
+  categoriesEnabled = true,
 }: TransactionRowRendererProps) {
   const [isSplitExpanded, setIsSplitExpanded] = useState(false);
   const splitLines = transaction.splitLines ?? [];
@@ -1003,7 +1011,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
     signedAmount,
     "register-tablet-amount register-money",
   );
-  const isUncategorised = isUncategorisedRegisterTransaction(transaction);
+  const isUncategorised = categoriesEnabled && isUncategorisedRegisterTransaction(transaction);
 
   return (
     <>
@@ -1045,51 +1053,53 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
           </div>
 
           <div className="register-tablet-secondary-line">
-            <span className="register-tablet-category" title={hasSplitLines ? `Split (${splitLines.length})` : isUncategorised ? "Uncategorised" : transaction.category}>
-              {hasSplitLines ? (
-                <button
-                  className="register-split-toggle"
-                  type="button"
-                  aria-label={
-                    isSplitExpanded
-                      ? "Collapse split transaction"
-                      : "Expand split transaction"
-                  }
-                  aria-expanded={isSplitExpanded}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setIsSplitExpanded((expanded) => !expanded);
-                  }}
-                >
-                  {isSplitExpanded ? (
-                    <ChevronDown size={15} />
-                  ) : (
-                    <ChevronRight size={15} />
-                  )}
-                </button>
-              ) : null}
-              <span>
+            {categoriesEnabled ? (
+              <span className="register-tablet-category" title={hasSplitLines ? `Split (${splitLines.length})` : isUncategorised ? "Uncategorised" : transaction.category}>
                 {hasSplitLines ? (
-                  `Split (${splitLines.length})`
-                ) : isUncategorised ? (
                   <button
-                  className="register-category-uncategorised-chip"
-                  type="button"
-                  title="Choose a category"
-                  aria-label="Choose a category for this uncategorised transaction"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onEditTransactionCategory(transaction.id);
-                  }}
-                >
-                  <span aria-hidden="true">⚠</span>
-                  Uncategorised
-                </button>
-                ) : (
-                  <CategoryLabel categoryName={transaction.category} />
-                )}
+                    className="register-split-toggle"
+                    type="button"
+                    aria-label={
+                      isSplitExpanded
+                        ? "Collapse split transaction"
+                        : "Expand split transaction"
+                    }
+                    aria-expanded={isSplitExpanded}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsSplitExpanded((expanded) => !expanded);
+                    }}
+                  >
+                    {isSplitExpanded ? (
+                      <ChevronDown size={15} />
+                    ) : (
+                      <ChevronRight size={15} />
+                    )}
+                  </button>
+                ) : null}
+                <span>
+                  {hasSplitLines ? (
+                    `Split (${splitLines.length})`
+                  ) : isUncategorised ? (
+                    <button
+                      className="register-category-uncategorised-chip"
+                      type="button"
+                      title="Choose a category"
+                      aria-label="Choose a category for this uncategorised transaction"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onEditTransactionCategory(transaction.id);
+                      }}
+                    >
+                      <span aria-hidden="true">⚠</span>
+                      Uncategorised
+                    </button>
+                  ) : (
+                    <CategoryLabel categoryName={transaction.category} />
+                  )}
+                </span>
               </span>
-            </span>
+            ) : null}
 
             {isRegisterColumnVisible("memo", visibleColumns) && hasMemo ? (
               <span className="register-tablet-memo" title={transaction.memo}>
@@ -1138,7 +1148,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
         </div>
       </div>
 
-      {hasSplitLines && isSplitExpanded
+      {categoriesEnabled && hasSplitLines && isSplitExpanded
         ? splitLines.map((line) => {
             const hasSplitMemo = Boolean(line.memo?.trim());
             const splitSignedAmount = line.inflow
@@ -1192,6 +1202,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
   onCreateTransactionTag,
   onOpenContextMenu,
   visibleColumns,
+  categoriesEnabled = true,
 }: TransactionRowRendererProps) {
   const [isSplitExpanded, setIsSplitExpanded] = useState(false);
   const splitLines = transaction.splitLines ?? [];
@@ -1203,7 +1214,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
     signedAmount,
     "register-mobile-amount register-money",
   );
-  const isUncategorised = isUncategorisedRegisterTransaction(transaction);
+  const isUncategorised = categoriesEnabled && isUncategorisedRegisterTransaction(transaction);
 
   return (
     <>
@@ -1233,7 +1244,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
           <span className={amountClassName}>{amountLabel}</span>
         </div>
 
-        <div className="register-mobile-category-line">
+        {categoriesEnabled ? <div className="register-mobile-category-line">
           {hasSplitLines ? (
             <button
               className="register-split-toggle"
@@ -1264,7 +1275,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
           ) : (
             <CategoryLabel categoryName={transaction.category} />
           )}
-        </div>
+        </div> : null}
 
         {isRegisterColumnVisible("memo", visibleColumns) && transaction.memo?.trim() ? (
           <p className="register-mobile-memo">{transaction.memo}</p>
@@ -1312,7 +1323,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
         </div>
       </article>
 
-      {hasSplitLines && isSplitExpanded
+      {categoriesEnabled && hasSplitLines && isSplitExpanded
         ? splitLines.map((line) => {
             const splitSignedAmount = line.inflow ? line.inflow : line.outflow ? -line.outflow : 0;
             return (
