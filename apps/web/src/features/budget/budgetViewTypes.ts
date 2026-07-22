@@ -109,6 +109,8 @@ export interface BudgetMonthView {
   carriedForwardReadyToAssign?: number;
   /** Signed overspending from the preceding month that reduces this month. */
   previousOverspending?: number;
+  /** Net Ready to Assign income recorded in this month. */
+  incomeForMonth?: number;
   /** Marks a month whose opening balances were generated from this source month. */
   rolloverSourceMonth?: string;
   totalAssigned: number;

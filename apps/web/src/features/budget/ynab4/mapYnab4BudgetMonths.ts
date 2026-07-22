@@ -65,12 +65,14 @@ export function mapYnab4BudgetMonths(
       if (!category || !categoryId) continue;
       category.assigned =
         firstYnabDisplayAmount(row.budgeted, row.assigned) ?? 0;
-      carryoverByCategoryId.set(
-        categoryId,
+      const carriesNegativeBalance =
         ynab4OverspendingHandlingCarriesNegativeBalance(
           firstString(row.overspendingHandling),
-        ),
-      );
+        );
+      carryoverByCategoryId.set(categoryId, carriesNegativeBalance);
+      category.overspendingHandling = carriesNegativeBalance
+        ? "carry-category"
+        : "reduce-next-month";
     }
 
     const activityByCategory =

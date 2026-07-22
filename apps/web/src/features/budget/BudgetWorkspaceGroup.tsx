@@ -1,4 +1,5 @@
 import { useState, type CSSProperties, type MouseEvent } from "react";
+import { ArrowRight } from "lucide-react";
 import { evaluateAssignedInput } from "./evaluateAssignedInput";
 import type { BudgetCategoryGroupView, BudgetCategoryView } from "./budgetViewTypes";
 import { isCreditCardPaymentCategory } from "./creditCardPaymentCategories";
@@ -314,6 +315,12 @@ function BudgetCategoryRow({
               aria-label={`Cover overspending for ${category.name}`}
             >
               {formatMoney(category.available, currencyCode)}
+              {category.overspendingHandling === "carry-category" ? (
+                <ArrowRight
+                  className="budget-confined-overspending-icon"
+                  aria-label="Negative balance will carry into this category next month"
+                />
+              ) : null}
             </button>
           ) : (
             <strong

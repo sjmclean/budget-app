@@ -589,6 +589,8 @@
     "verify:v3801": "pnpm test:v3801:scheduled-rules && pnpm --filter @budget-app/web build",
     "test:v3236": "tsx tests/v3236-ynab4-import-hardening.ts",
     "verify:v3236": "pnpm test:v3236 && pnpm --filter @budget-app/web build",
+    "test:v3237": "tsx tests/v3237-budget-engine-validation.ts",
+    "verify:v3237": "pnpm test:v3237 && pnpm --filter @budget-app/web build",
     "test:legacy:registered": "pnpm test:legacy:budget-smoke && pnpm test:categories && pnpm test:accounts && pnpm test:payee && pnpm test:transaction && pnpm test:transfer && pnpm test:reconciliation && pnpm test:reports && pnpm test:legacy:scheduled-smoke && pnpm test:budget-month && pnpm test:assign-budget-money && pnpm test:spend-budget-money && pnpm test:rollover-month && pnpm test:workflow-income && pnpm test:workflow-assign && pnpm test:workflow-spending && pnpm test:workflow-transfer && pnpm test:split-transaction && pnpm test:overspending && pnpm test:events && pnpm test:v06 && pnpm test:v07 && pnpm test:v08 && pnpm test:v09 && pnpm test:v10 && pnpm test:v11 && pnpm test:v121 && pnpm test:v122 && pnpm test:v124 && pnpm test:v125 && pnpm test:v126 && pnpm test:v128 && pnpm test:v129 && pnpm test:v1210 && pnpm test:v1211 && pnpm test:v1212 && pnpm test:v1213 && pnpm test:v1214 && pnpm test:v1215",
     "test:legacy:list": "node scripts/run-legacy-tests.mjs --list --status=required,investigate,pending",
     "test:legacy": "node scripts/run-legacy-tests.mjs --status=required --report=test-results/legacy-required.json",

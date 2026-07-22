@@ -703,6 +703,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     ) ??
     0;
   const incomeForMonth =
+    data.incomeForMonth ??
     data.readyToAssign - carriedForward - previousOverspending + data.totalAssigned;
 
   function openCategoryEditor(categoryId: string) {

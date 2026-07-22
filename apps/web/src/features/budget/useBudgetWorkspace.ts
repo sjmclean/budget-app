@@ -7,6 +7,7 @@ import type {
   BudgetCategoryView,
   BudgetMonthView,
   CategoryMergePreview,
+  OverspendingHandling,
 } from "./budgetViewTypes";
 import { isMoneyNegative } from "./moneyMath";
 import { applyCategoryAssignedValues } from "./budgetMoneyMovement";
@@ -32,6 +33,7 @@ interface UseBudgetWorkspaceState {
   closeActivityDrilldown: () => void;
   selectCategory: (categoryId: string) => void;
   updateAssigned: (categoryId: string, assigned: number) => void;
+  setCategoryOverspendingHandling: (categoryId: string, overspendingHandling: OverspendingHandling) => void;
   coverOverspending: (input: {
     overspentCategoryId: string;
     coveringCategoryId: string;
@@ -349,6 +351,39 @@ export function useBudgetWorkspace(
       });
   }
 
+  function setCategoryOverspendingHandling(
+    categoryId: string,
+    overspendingHandling: OverspendingHandling,
+  ) {
+    setSaveError(null);
+    const workspaceIdentity = workspaceIdentityRef.current;
+    const mutationVersion = ++mutationVersionRef.current;
+
+    void categoriesPersistence
+      .setCategoryOverspendingHandling({
+        budgetId,
+        month,
+        categoryId,
+        overspendingHandling,
+      })
+      .then((nextData) => {
+        if (
+          isWorkspaceCurrent(workspaceIdentity) &&
+          mutationVersionRef.current === mutationVersion
+        ) {
+          setEditedData(nextData);
+        }
+      })
+      .catch((error) => {
+        if (
+          isWorkspaceCurrent(workspaceIdentity) &&
+          mutationVersionRef.current === mutationVersion
+        ) {
+          setSaveError(error instanceof Error ? error.message : "Failed to update overspending handling.");
+        }
+      });
+  }
+
   function coverOverspending(input: {
     overspentCategoryId: string;
     coveringCategoryId: string;
@@ -603,6 +638,7 @@ export function useBudgetWorkspace(
     closeActivityDrilldown,
     selectCategory,
     updateAssigned,
+    setCategoryOverspendingHandling,
     coverOverspending,
     renameCategory,
     setCategoryArchived,
