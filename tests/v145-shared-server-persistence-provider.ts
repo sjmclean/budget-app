@@ -33,7 +33,7 @@ assert.equal(provider.metadata.kind, "shared-server");
 assert.equal(provider.metadata.isProductionPersistence, true);
 assert.deepEqual(provider.capabilities, {
   sharedAcrossDevices: true,
-  liveUpdates: false,
+  liveUpdates: true,
   offlineWrites: false,
   backups: true,
 });

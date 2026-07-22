@@ -77,7 +77,7 @@ export function createSharedServerPersistenceProvider(
     },
     capabilities: {
       sharedAcrossDevices: true,
-      liveUpdates: false,
+      liveUpdates: true,
       offlineWrites: false,
       backups: true,
     },
@@ -88,8 +88,7 @@ export function createSharedServerPersistenceProvider(
     payees: payeeService,
     scheduledTransactions: scheduledTransactionService,
     initialize: () => storage.initialize(),
-    flush: storage.flush
-      ? () => storage.flush!()
-      : undefined,
+    flush: () => storage.flush(),
+    watch: (listener) => storage.watch(listener),
   };
 }
