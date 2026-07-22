@@ -23,7 +23,6 @@ import {
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { AddAccountModal } from "../components/accounts/AddAccountModal";
-import { ACCOUNTS_CHANGED_EVENT } from "../features/accounts/useAccountsWorkspace";
 import type {
   CreateAccountInput,
   SidebarAccount,
@@ -139,20 +138,14 @@ export function Sidebar({
   useEffect(() => {
     let active = true;
 
-    const loadAccounts = () => {
-      accountsPersistence.listAccounts().then((loadedAccounts) => {
-        if (active) {
-          setAccounts(loadedAccounts);
-        }
-      });
-    };
-
-    loadAccounts();
-    window.addEventListener(ACCOUNTS_CHANGED_EVENT, loadAccounts);
+    accountsPersistence.listAccounts().then((loadedAccounts) => {
+      if (active) {
+        setAccounts(loadedAccounts);
+      }
+    });
 
     return () => {
       active = false;
-      window.removeEventListener(ACCOUNTS_CHANGED_EVENT, loadAccounts);
     };
   }, [accountsPersistence]);
 
