@@ -1,4 +1,10 @@
 export type {
+  BudgetPersistenceProvider,
+  PersistenceChangeListener,
+  PersistenceProviderCapabilities,
+  PersistenceProviderMetadata,
+} from "./budgetPersistenceProvider";
+export type {
   AppPersistenceGateway,
   PersistenceBackendKind,
   PersistenceGatewayMetadata,

@@ -34,6 +34,12 @@ export function createSqlitePersistenceGateway(
       description: "SQLite-capable persistence gateway for adapter validation. Not the browser default yet.",
       isProductionPersistence: false,
     },
+    capabilities: {
+      sharedAcrossDevices: false,
+      liveUpdates: false,
+      offlineWrites: true,
+      backups: false,
+    },
     accounts: dependencies.accounts,
     accountRegisters: dependencies.accountRegisters,
     budgetView: dependencies.budgetView,

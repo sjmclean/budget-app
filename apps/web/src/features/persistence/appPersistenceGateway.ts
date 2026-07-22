@@ -1,33 +1,15 @@
-import type { AccountPersistencePort } from "../accounts/accountPersistencePort";
-import type { AccountRegisterPersistencePort } from "../accounts/accountRegisterPersistencePort";
-import type { PayeePersistencePort } from "../accounts/payeePersistencePort";
-import type { ScheduledTransactionPersistencePort } from "../accounts/scheduledTransactionPersistencePort";
-import type { CategoryPersistencePort } from "../budget/categoryPersistencePort";
-import type { BudgetViewService } from "../budget/budgetViewTypes";
+import type {
+  BudgetPersistenceProvider,
+  PersistenceProviderMetadata,
+} from "./budgetPersistenceProvider";
 
-export type PersistenceBackendKind = "browser-local-storage" | "sqlite-adapter";
-
-export interface PersistenceGatewayMetadata {
-  readonly kind: PersistenceBackendKind;
-  readonly label: string;
-  readonly description: string;
-  readonly isProductionPersistence: boolean;
-}
+export type { PersistenceBackendKind } from "./budgetPersistenceProvider";
 
 /**
- * Browser-safe persistence boundary for the React app.
- *
- * The web UI must depend on this port rather than importing database, filesystem,
- * better-sqlite3, or Tauri-specific modules directly. For now the default
- * implementation delegates to the existing localStorage feature services so
- * behaviour stays unchanged while each service is migrated behind this seam.
+ * @deprecated Prefer BudgetPersistenceProvider for new code. This compatibility
+ * name is retained while existing consumers migrate without behavioural change.
  */
-export interface AppPersistenceGateway {
-  readonly metadata: PersistenceGatewayMetadata;
-  readonly accounts: AccountPersistencePort;
-  readonly accountRegisters: AccountRegisterPersistencePort;
-  readonly budgetView: BudgetViewService;
-  readonly categories: CategoryPersistencePort;
-  readonly payees: PayeePersistencePort;
-  readonly scheduledTransactions: ScheduledTransactionPersistencePort;
-}
+export interface AppPersistenceGateway extends BudgetPersistenceProvider {}
+
+/** @deprecated Prefer PersistenceProviderMetadata for new code. */
+export type PersistenceGatewayMetadata = PersistenceProviderMetadata;

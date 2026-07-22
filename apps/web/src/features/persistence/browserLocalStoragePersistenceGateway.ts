@@ -52,6 +52,12 @@ export const browserLocalStoragePersistenceGateway: AppPersistenceGateway = {
       "The web UI is currently using browser localStorage-backed feature services. This gateway preserves existing behaviour while SQLite-backed adapters are introduced incrementally.",
     isProductionPersistence: false,
   },
+  capabilities: {
+    sharedAcrossDevices: false,
+    liveUpdates: false,
+    offlineWrites: true,
+    backups: false,
+  },
   accounts: accountService,
   accountRegisters: accountRegisterService,
   budgetView: budgetViewService,
