@@ -60,3 +60,22 @@ export {
 export { createSqlitePersistenceGateway } from "./sqlitePersistenceGateway";
 export type { SqlitePersistenceGatewayDependencies } from "./sqlitePersistenceGateway";
 export { installPersistenceProviderLifecycle } from "./persistenceProviderLifecycle";
+
+export {
+  createSharedServerStorageClient,
+  SharedServerStorageError,
+} from "./sharedServerStorageClient";
+export type {
+  SharedServerHealthResult,
+  SharedServerStorageBootstrapResult,
+  SharedServerStorageClient,
+  SharedServerStorageClientOptions,
+  SharedServerStorageOperation,
+  SharedServerStorageSnapshot,
+  SharedServerStorageWriteResult,
+} from "./sharedServerStorageClient";
+export { createSharedServerKeyValueStorage } from "./sharedServerKeyValueStorage";
+export type {
+  SharedServerKeyValueStorage,
+  SharedServerKeyValueStorageOptions,
+} from "./sharedServerKeyValueStorage";
