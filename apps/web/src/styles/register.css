@@ -6535,3 +6535,203 @@
     justify-content: space-between;
   }
 }
+
+
+/* Register-adjacent responsive workflows */
+@media (max-width: 760px) {
+  .register-selection-bar {
+    position: static;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.45rem;
+    padding: 0.65rem;
+  }
+
+  .register-selection-bar span {
+    flex: 1 0 100%;
+  }
+
+  .register-selection-bar button {
+    min-height: 2.75rem;
+    flex: 1 1 calc(50% - 0.45rem);
+  }
+
+  .register-search-dropdown {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 95;
+    max-height: min(70dvh, 34rem);
+    border-radius: 1rem 1rem 0 0;
+    padding: 0.65rem 0.65rem calc(0.65rem + env(safe-area-inset-bottom));
+    box-shadow: 0 -18px 48px rgb(15 23 42 / 0.22);
+  }
+
+  .register-search-suggestion {
+    min-height: 3rem;
+    padding: 0.65rem;
+  }
+
+  .attachment-dialog-backdrop,
+  .transaction-import-backdrop {
+    place-items: end center;
+    padding: 0;
+  }
+
+  .attachment-dialog,
+  .transaction-import-dialog {
+    width: 100%;
+    max-height: min(92dvh, 52rem);
+    border-radius: 1rem 1rem 0 0;
+    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+    overflow: auto;
+  }
+
+  .attachment-dialog-header,
+  .transaction-import-header,
+  .transaction-import-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .attachment-dialog-header > .button,
+  .attachment-dialog-actions .button,
+  .transaction-import-header > .button,
+  .transaction-import-footer-actions,
+  .transaction-import-footer-actions .button {
+    width: 100%;
+  }
+
+  .attachment-list-item {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .attachment-list-item strong,
+  .attachment-list-item span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .attachment-list-actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .attachment-list-actions .button {
+    flex: 1 1 8rem;
+    min-height: 2.75rem;
+  }
+
+  .transaction-import-dialog {
+    min-height: min(82dvh, 44rem);
+  }
+
+  .transaction-import-steps {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    padding-bottom: 0.25rem;
+  }
+
+  .transaction-import-steps li {
+    flex: 0 0 auto;
+    min-width: 8rem;
+    scroll-snap-align: start;
+  }
+
+  .transaction-import-dropzone {
+    min-height: 10rem;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .transaction-import-footer-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .scheduled-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.65rem;
+  }
+
+  .scheduled-item-actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .scheduled-item-actions .button {
+    flex: 1 1 7rem;
+    min-height: 2.75rem;
+  }
+
+  .scheduled-split-details {
+    padding: 0.75rem;
+  }
+
+  .scheduled-split-line {
+    grid-template-columns: 1fr;
+  }
+
+  .scheduled-split-line-amounts {
+    text-align: left;
+  }
+
+  .register-split-allocation-panel {
+    overflow: visible;
+  }
+
+  .register-split-allocation-grid {
+    min-width: 0;
+    grid-template-columns: 2.2rem minmax(0, 1fr) minmax(6rem, 0.55fr);
+  }
+
+  .register-split-allocation-grid-heading {
+    display: none;
+  }
+
+  .register-split-allocation-line {
+    padding: 0.65rem 0;
+    border-top: 1px solid var(--border-soft);
+  }
+
+  .register-split-allocation-line > :nth-child(3) {
+    grid-column: 2 / -1;
+  }
+
+  .register-split-allocation-line > :nth-child(4),
+  .register-split-allocation-line > :nth-child(5) {
+    grid-column: auto;
+  }
+
+  .register-split-allocation-balance {
+    width: 100%;
+    grid-template-columns: 1fr auto auto;
+    justify-content: stretch;
+  }
+}
+
+@media (max-width: 480px) {
+  .scheduled-item {
+    grid-template-columns: 1fr;
+  }
+
+  .scheduled-item-amounts {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .register-split-allocation-grid {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+
+  .register-split-allocation-line > :nth-child(3),
+  .register-split-allocation-line > :nth-child(4),
+  .register-split-allocation-line > :nth-child(5) {
+    grid-column: 2;
+  }
+
+  .register-split-allocation-amount {
+    text-align: left;
+  }
+}
