@@ -1,13 +1,31 @@
 import { createServer } from "node:http";
 import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
-import { extname, join, normalize, resolve } from "node:path";
+import { dirname, extname, join, normalize, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
+
+const currentFile = fileURLToPath(import.meta.url);
+const serverSourceDir = dirname(currentFile);
+const serverPackageDir = resolve(serverSourceDir, "..");
+const repositoryRoot = resolve(serverPackageDir, "../..");
 
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? "0.0.0.0";
-const dataDir = resolve(process.env.BUDGET_APP_DATA_DIR ?? join(process.cwd(), "apps/server/data"));
-const databasePath = resolve(process.env.BUDGET_APP_DATABASE_PATH ?? join(dataDir, "shared-budget.sqlite"));
-const webDist = resolve(process.env.BUDGET_APP_WEB_DIST ?? join(process.cwd(), "apps/web/dist"));
+
+const dataDir = resolve(
+  process.env.BUDGET_APP_DATA_DIR ??
+    join(serverPackageDir, "data"),
+);
+
+const databasePath = resolve(
+  process.env.BUDGET_APP_DATABASE_PATH ??
+    join(dataDir, "shared-budget.sqlite"),
+);
+
+const webDist = resolve(
+  process.env.BUDGET_APP_WEB_DIST ??
+    join(repositoryRoot, "apps/web/dist"),
+);
 
 mkdirSync(dataDir, { recursive: true });
 
