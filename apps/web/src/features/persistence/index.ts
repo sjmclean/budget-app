@@ -79,3 +79,6 @@ export type {
   SharedServerKeyValueStorage,
   SharedServerKeyValueStorageOptions,
 } from "./sharedServerKeyValueStorage";
+
+export { createSharedServerPersistenceProvider } from "./sharedServerPersistenceProvider";
+export type { SharedServerPersistenceProviderOptions } from "./sharedServerPersistenceProvider";

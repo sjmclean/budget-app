@@ -5,7 +5,10 @@ import type { ScheduledTransactionPersistencePort } from "../accounts/scheduledT
 import type { CategoryPersistencePort } from "../budget/categoryPersistencePort";
 import type { BudgetViewService } from "../budget/budgetViewTypes";
 
-export type PersistenceBackendKind = "browser-local-storage" | "sqlite-adapter";
+export type PersistenceBackendKind =
+  | "browser-local-storage"
+  | "sqlite-adapter"
+  | "shared-server";
 
 export interface PersistenceProviderMetadata {
   readonly kind: PersistenceBackendKind;
