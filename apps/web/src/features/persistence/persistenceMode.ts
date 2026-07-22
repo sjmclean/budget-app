@@ -3,7 +3,8 @@ import { getConfiguredPersistenceMetadata } from "./persistenceRuntimeMetadata";
 export type PersistenceMode =
   | "browser-local-storage"
   | "database-adapter-pending"
-  | "sqlite-adapter";
+  | "sqlite-adapter"
+  | "shared-server";
 
 export interface PersistenceModeSummary {
   mode: PersistenceMode;
