@@ -65,7 +65,7 @@ import {
   removeTransactionTagReferences,
 } from "../features/accounts/accountRegisterService";
 import { getBudgetPersistenceProvider } from "../features/persistence";
-import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
+import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
 import { useBudgetUndoRedo } from "../features/budget/budgetUndoRedo";
@@ -207,7 +207,7 @@ export function AccountRegisterPage() {
   const undoTitle = canUndo && undoLabel ? `Undo ${undoLabel}` : "Nothing to undo";
   const redoTitle = canRedo && redoLabel ? `Redo ${redoLabel}` : "Nothing to redo";
   const transactionTagStorage = useMemo(
-    () => createBudgetScopedStorage(browserLocalStorageKeyValueStorage),
+    () => createBudgetScopedStorage(getActiveKeyValueStorage()),
     [activeBudgetId],
   );
   const transactionTagService = useMemo(

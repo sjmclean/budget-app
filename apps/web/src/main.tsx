@@ -1,6 +1,5 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { App } from "./App";
 import { StartupRecoveryScreen } from "./app/errors/StartupRecoveryScreen";
 import {
   bootstrapHostBudgetPersistenceProvider,
@@ -33,6 +32,10 @@ export async function bootstrapApp() {
     const persistenceProvider = getBudgetPersistenceProvider();
     await persistenceProvider.initialize?.();
     installPersistenceProviderLifecycle(persistenceProvider);
+
+    // Import application modules only after runtime persistence is configured.
+    // Zustand stores read registry and selection state during module creation.
+    const { App } = await import("./App");
 
     reactRoot = ReactDOM.createRoot(root);
     reactRoot.render(

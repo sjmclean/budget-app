@@ -283,3 +283,78 @@ test("rejects missing dates and amounts instead of fabricating defaults", () => 
     /Invalid or missing YNAB4 amount/,
   );
 });
+
+
+test("imports known deleted-category references as uncategorised, never Ready to Assign", () => {
+  const warnings: string[] = [];
+  const deletedCategoryMaps = {
+    ...maps,
+    nonImportableCategorySourceIds: new Set(["source-deleted-category"]),
+    warnings,
+  };
+  const registers = mapYnab4Transactions({
+    accounts,
+    maps: deletedCategoryMaps,
+    currencyCode: "AUD",
+    importedFlagTagIdByColour: new Map(),
+    transactions: [
+      {
+        entityId: "deleted-category-expense",
+        accountId: "source-checking",
+        date: "2026-04-01",
+        amount: -12,
+        categoryId: "source-deleted-category",
+      },
+      {
+        entityId: "deleted-category-split",
+        accountId: "source-checking",
+        date: "2026-04-02",
+        amount: -8,
+        categoryId: "Category/__Split__",
+        subTransactions: [
+          {
+            entityId: "deleted-category-split-line",
+            amount: -8,
+            categoryId: "source-deleted-category",
+          },
+        ],
+      },
+    ],
+  });
+
+  const expense = registers.checking.transactions.find(
+    row => row.id === "deleted-category-expense",
+  );
+  assert.equal(expense?.category, "Uncategorised");
+  assert.equal(expense?.categoryId, undefined);
+
+  const split = registers.checking.transactions.find(
+    row => row.id === "deleted-category-split",
+  );
+  assert.equal(split?.splitLines?.[0]?.category, "Uncategorised");
+  assert.equal(split?.splitLines?.[0]?.categoryId, undefined);
+  assert.equal(
+    warnings.some(warning => warning.includes("source-deleted-category")),
+    true,
+  );
+});
+
+test("recognises isDeleted as a YNAB4 tombstone flag", () => {
+  const registers = mapYnab4Transactions({
+    accounts,
+    maps,
+    currencyCode: "AUD",
+    importedFlagTagIdByColour: new Map(),
+    transactions: [
+      {
+        entityId: "is-deleted-transaction",
+        accountId: "source-checking",
+        date: "2026-05-01",
+        amount: -99,
+        categoryId: "source-groceries",
+        isDeleted: true,
+      },
+    ],
+  });
+  assert.equal(registers.checking.transactions.length, 0);
+});

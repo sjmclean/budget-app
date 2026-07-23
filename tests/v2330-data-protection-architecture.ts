@@ -6,7 +6,7 @@ import {
   readVersionHistorySnapshotPackage,
   restoreVersionHistorySnapshot,
 } from "../apps/web/src/features/budget/versionHistory.js";
-import { createBudgetRegistryEntry, readBudgetRegistry } from "../apps/web/src/features/budget/budgetRegistry.js";
+import { createBudgetRegistryEntry, createInitialBudgetRegistry, readBudgetRegistry, writeBudgetRegistry } from "../apps/web/src/features/budget/budgetRegistry.js";
 import { getBudgetScopedStorageKey, SELECTED_BUDGET_STORAGE_KEY } from "../apps/web/src/features/budget/budgetDataScope.js";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.js";
 
@@ -31,6 +31,7 @@ class MemoryStorage implements KeyValueStoragePort {
 }
 
 const storage = new MemoryStorage();
+writeBudgetRegistry(storage, createInitialBudgetRegistry());
 const household = readBudgetRegistry(storage)[0]!;
 const business = createBudgetRegistryEntry(storage, {
   name: "Business Budget",

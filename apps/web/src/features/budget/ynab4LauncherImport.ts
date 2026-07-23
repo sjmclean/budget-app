@@ -31,6 +31,7 @@ import {
   resolveYnab4CategoryId,
 } from "./ynab4/mapYnab4Transactions";
 import { validateYnab4SourceIdentities } from "./ynab4/validateYnab4SourceIdentities";
+import { isYnab4Tombstone } from "./ynab4/ynab4RecordState";
 import {
   commitYnab4LauncherImport,
   getYnab4LauncherImportStorageKey,
@@ -93,6 +94,7 @@ type ImportMaps = {
   payeeIdBySourceId: Map<string, string>;
   payeeNameById: Map<string, string>;
   nonImportableCategorySourceIds: Set<string>;
+  warnings: string[];
 };
 
 /**
@@ -325,6 +327,7 @@ export function buildYnab4LauncherImportPlan(
     payeeIdBySourceId: new Map(),
     payeeNameById: new Map(),
     nonImportableCategorySourceIds: new Set(),
+    warnings: [],
   };
 
   validateYnab4SourceIdentities(data);
@@ -370,7 +373,7 @@ export function buildYnab4LauncherImportPlan(
     registers,
     scheduledTransactions,
     budgetMonths,
-    warnings: [],
+    warnings: maps.warnings,
   };
 }
 
@@ -611,10 +614,6 @@ function isYnab4HiddenCategoriesGroup(group: RecordMap, groupName: string): bool
     firstString(group.entityId, group.id, group.masterCategoryId) === "MasterCategory/__Hidden__";
 }
 
-function isYnab4Tombstone(record: RecordMap): boolean {
-  return record.isTombstone === true || record.deleted === true;
-}
-
 function ynab4HiddenCategoryDisplayName(name: string | null): string {
   if (!name) return "Imported Hidden Category";
   const parts = name.split("`").map((part) => part.trim()).filter(Boolean);
@@ -651,7 +650,7 @@ function mapPayees(payees: RecordMap[], maps: ImportMaps, nowIso: string): Payee
 
 function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, nowIso: string): ScheduledTransactionView[] {
   return transactions.flatMap((transaction, index) => {
-    if (transaction.isTombstone === true || transaction.deleted === true) return [];
+    if (isYnab4Tombstone(transaction)) return [];
     const accountId = requireMappedYnab4Account(
       maps.accountIdBySourceId,
       transaction,
@@ -726,18 +725,17 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
         ? transferAccountId ? "Transfer" : "Uncategorised"
         : splitLines && splitLines.length > 0
           ? "Split"
-          : categoryId && (!transferAccountId || isCategorisedOffBudgetTransfer)
-            ? maps.categoryNameById.get(categoryId) ??
-              READY_TO_ASSIGN_CATEGORY_NAME
-            : transferAccountId
-              ? "Transfer"
-              : READY_TO_ASSIGN_CATEGORY_NAME,
-      categoryId: isTrackingAccount
+          : transferAccountId && !isCategorisedOffBudgetTransfer
+            ? "Transfer"
+            : categoryId
+              ? maps.categoryNameById.get(categoryId) ??
+                READY_TO_ASSIGN_CATEGORY_NAME
+              : "Uncategorised",
+      categoryId: isTrackingAccount || (splitLines && splitLines.length > 0)
         ? undefined
-        : splitLines && splitLines.length > 0
+        : transferAccountId && !isCategorisedOffBudgetTransfer
           ? undefined
-          : categoryId ??
-            (transferAccountId ? undefined : READY_TO_ASSIGN_CATEGORY_ID),
+          : categoryId ?? undefined,
       memo: firstString(transaction.memo, transaction.note, transaction.notes) ?? undefined,
       outflow: amount < 0 ? Math.abs(amount) : 0,
       inflow: amount > 0 ? amount : 0,
@@ -782,7 +780,7 @@ function mapScheduledSplitLines(
             maps,
             line,
             `scheduled split ${sourceEntityLabel(line, index)}`,
-          ) ?? READY_TO_ASSIGN_CATEGORY_ID;
+          );
     return {
       id: lineId,
       category: suppressBudgetCategories
@@ -791,10 +789,14 @@ function mapScheduledSplitLines(
           : "Uncategorised"
         : transferAccountId
           ? "Transfer"
-          : maps.categoryNameById.get(categoryId!) ??
-            READY_TO_ASSIGN_CATEGORY_NAME,
+          : categoryId
+            ? maps.categoryNameById.get(categoryId) ??
+              READY_TO_ASSIGN_CATEGORY_NAME
+            : "Uncategorised",
       categoryId:
-        suppressBudgetCategories || transferAccountId ? undefined : categoryId!,
+        suppressBudgetCategories || transferAccountId
+          ? undefined
+          : categoryId ?? undefined,
       memo: firstString(line.memo, line.note, line.notes) ?? undefined,
       inflow: amount > 0 ? amount : 0,
       outflow: amount < 0 ? Math.abs(amount) : 0,
@@ -848,7 +850,7 @@ function mapImportedFlagTags(
   const colours = new Set<TransactionTagColour>();
 
   for (const transaction of transactions) {
-    if (transaction.isTombstone === true || transaction.deleted === true) {
+    if (isYnab4Tombstone(transaction)) {
       continue;
     }
 

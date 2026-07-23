@@ -87,6 +87,7 @@ export function createSharedServerPersistenceProvider(
     categories: budgetViewService,
     payees: payeeService,
     scheduledTransactions: scheduledTransactionService,
+    keyValueStorage: storage,
     initialize: () => storage.initialize(),
     flush: () => storage.flush(),
     watch: (listener) => storage.watch(listener),

@@ -69,6 +69,7 @@ export const browserLocalStoragePersistenceGateway: AppPersistenceGateway = {
   categories: budgetViewService,
   payees: payeeService,
   scheduledTransactions: scheduledTransactionService,
+  keyValueStorage: browserLocalStorageKeyValueStorage,
   initialize: hydrateBrowserStorageBackend,
   flush: flushBrowserStorageBackend,
   exportSnapshot: () => exportBudgetPersistenceSnapshot(browserLocalStorageKeyValueStorage),

@@ -8,7 +8,9 @@ import {
 import {
   BUDGET_REGISTRY_STORAGE_KEY,
   createBudgetRegistryEntry,
+  createInitialBudgetRegistry,
   readBudgetRegistry,
+  writeBudgetRegistry,
 } from "../apps/web/src/features/budget/budgetRegistry.js";
 import {
   getBudgetScopedStorageKey,
@@ -37,6 +39,7 @@ class MemoryStorage implements KeyValueStoragePort {
 }
 
 const storage = new MemoryStorage();
+writeBudgetRegistry(storage, createInitialBudgetRegistry());
 const household = readBudgetRegistry(storage)[0]!;
 const sideBusiness = createBudgetRegistryEntry(storage, {
   name: "Side Business",

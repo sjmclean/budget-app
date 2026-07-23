@@ -32,7 +32,7 @@ import {
   type ImportedTransactionFileType,
 } from "./transactionImportKnowledge";
 import { getActiveBudgetIdFromStorage } from "../budget/budgetDataScope";
-import { browserLocalStorageKeyValueStorage } from "../persistence/keyValueStoragePort";
+import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
 
 export interface ImportCommitCategory {
   id: string;
@@ -684,7 +684,7 @@ export async function commitImportSession(
     const audit: ImportCommitAuditRecord = {
       sessionId,
       budgetId:
-        getActiveBudgetIdFromStorage(browserLocalStorageKeyValueStorage) ??
+        getActiveBudgetIdFromStorage(getActiveKeyValueStorage()) ??
         "unscoped",
       accountId: session.accountId,
       accountName: session.accountName,
@@ -727,7 +727,7 @@ export async function commitImportSession(
     const audit: ImportCommitAuditRecord = {
       sessionId,
       budgetId:
-        getActiveBudgetIdFromStorage(browserLocalStorageKeyValueStorage) ??
+        getActiveBudgetIdFromStorage(getActiveKeyValueStorage()) ??
         "unscoped",
       accountId: session.accountId,
       accountName: session.accountName,

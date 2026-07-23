@@ -27,7 +27,7 @@ import {
 import { deleteBudgetById, type BudgetLifecycleResult } from "../features/budget/budgetLifecycle";
 import { createBudgetFromSetup } from "../features/budget/newBudget/createBudgetFromSetup";
 import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
-import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
+import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 
 interface BudgetRegistryState {
   budgets: BudgetSummary[];
@@ -41,20 +41,20 @@ interface BudgetRegistryState {
   refreshBudgets: () => void;
 }
 
-createDailyVersionHistorySnapshotOnAppOpen(browserLocalStorageKeyValueStorage);
+createDailyVersionHistorySnapshotOnAppOpen(getActiveKeyValueStorage());
 
 export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
-  budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage),
+  budgets: readBudgetRegistry(getActiveKeyValueStorage()),
 
   createBudget: (input) => {
-    const budget = createBudgetRegistryEntry(browserLocalStorageKeyValueStorage, input);
-    set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
+    const budget = createBudgetRegistryEntry(getActiveKeyValueStorage(), input);
+    set({ budgets: readBudgetRegistry(getActiveKeyValueStorage()) });
     return budget;
   },
 
   createBudgetWithSetup: (setup) => {
-    const budget = createBudgetFromSetup(browserLocalStorageKeyValueStorage, setup);
-    set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
+    const budget = createBudgetFromSetup(getActiveKeyValueStorage(), setup);
+    set({ budgets: readBudgetRegistry(getActiveKeyValueStorage()) });
     return budget;
   },
 
@@ -63,11 +63,11 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
       "../features/budget/ynab4LauncherImport"
     );
 
-    createVersionHistorySnapshotBeforeBudgetImport(browserLocalStorageKeyValueStorage, {
+    createVersionHistorySnapshotBeforeBudgetImport(getActiveKeyValueStorage(), {
       now: input.now,
     });
-    const result = await createYnab4LauncherBudgetImportWithBackend(browserLocalStorageKeyValueStorage, input);
-    createVersionHistorySnapshotAfterYnab4Import(browserLocalStorageKeyValueStorage, {
+    const result = await createYnab4LauncherBudgetImportWithBackend(getActiveKeyValueStorage(), input);
+    createVersionHistorySnapshotAfterYnab4Import(getActiveKeyValueStorage(), {
       now: input.now,
     });
     set({ budgets: result.budgets });
@@ -79,11 +79,11 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
       "../features/budget/actualBudgetLauncherImport"
     );
 
-    createVersionHistorySnapshotBeforeBudgetImport(browserLocalStorageKeyValueStorage, {
+    createVersionHistorySnapshotBeforeBudgetImport(getActiveKeyValueStorage(), {
       now: input.now,
     });
-    const result = await createActualBudgetLauncherImportWithBackend(browserLocalStorageKeyValueStorage, input);
-    createVersionHistorySnapshotAfterActualImport(browserLocalStorageKeyValueStorage, {
+    const result = await createActualBudgetLauncherImportWithBackend(getActiveKeyValueStorage(), input);
+    createVersionHistorySnapshotAfterActualImport(getActiveKeyValueStorage(), {
       now: input.now,
     });
     set({ budgets: result.budgets });
@@ -91,28 +91,28 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
   },
 
   updateBudget: (budgetId, input) => {
-    const budget = updateBudgetRegistryEntry(browserLocalStorageKeyValueStorage, budgetId, input);
-    set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
+    const budget = updateBudgetRegistryEntry(getActiveKeyValueStorage(), budgetId, input);
+    set({ budgets: readBudgetRegistry(getActiveKeyValueStorage()) });
     return budget;
   },
 
   markBudgetOpened: (budgetId) => {
-    createVersionHistorySnapshotBeforeBudgetSwitch(browserLocalStorageKeyValueStorage, budgetId);
+    createVersionHistorySnapshotBeforeBudgetSwitch(getActiveKeyValueStorage(), budgetId);
 
-    const budget = markBudgetRegistryOpened(browserLocalStorageKeyValueStorage, budgetId);
-    set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
+    const budget = markBudgetRegistryOpened(getActiveKeyValueStorage(), budgetId);
+    set({ budgets: readBudgetRegistry(getActiveKeyValueStorage()) });
     return budget;
   },
 
   deleteBudget: (budgetId) => {
-    createVersionHistorySnapshotBeforeBudgetDelete(browserLocalStorageKeyValueStorage, budgetId);
-    const result = deleteBudgetById(browserLocalStorageKeyValueStorage, budgetId);
-    set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
+    createVersionHistorySnapshotBeforeBudgetDelete(getActiveKeyValueStorage(), budgetId);
+    const result = deleteBudgetById(getActiveKeyValueStorage(), budgetId);
+    set({ budgets: readBudgetRegistry(getActiveKeyValueStorage()) });
     return result;
   },
 
   refreshBudgets: () => {
-    set({ budgets: readBudgetRegistry(browserLocalStorageKeyValueStorage) });
+    set({ budgets: readBudgetRegistry(getActiveKeyValueStorage()) });
   },
 }));
 

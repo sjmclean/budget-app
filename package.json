@@ -52,6 +52,7 @@
     "test:change-tracking": "tsx tests/change-tracking.ts",
     "test:sync-conflicts": "tsx tests/sync-conflicts.ts",
     "test:shared:v154": "tsx tests/v154-shared-budget-optimistic-concurrency.ts",
+    "test:shared:v156": "tsx tests/v156-shared-runtime-persistence-routing.ts",
     "test:v09": "pnpm test:encrypted-records && pnpm test:encrypted-attachments && pnpm test:encrypted-backups && pnpm test:device-sync && pnpm test:change-tracking && pnpm test:sync-conflicts",
     "test:settings": "tsx tests/settings-config.ts",
     "test:cloud-storage": "tsx tests/cloud-storage-settings.ts",
@@ -592,6 +593,8 @@
     "verify:v3236": "pnpm test:v3236 && pnpm --filter @budget-app/web build",
     "test:v3237": "tsx tests/v3237-budget-engine-validation.ts",
     "verify:v3237": "pnpm test:v3237 && pnpm --filter @budget-app/web build",
+    "test:v3238": "tsx tests/v3238-ynab4-deleted-category-safety.ts",
+    "verify:v3238": "pnpm test:v3238 && node --import tsx --test tests/suites/ynab4/transactions.test.ts && pnpm --filter @budget-app/web build",
     "test:legacy:registered": "pnpm test:legacy:budget-smoke && pnpm test:categories && pnpm test:accounts && pnpm test:payee && pnpm test:transaction && pnpm test:transfer && pnpm test:reconciliation && pnpm test:reports && pnpm test:legacy:scheduled-smoke && pnpm test:budget-month && pnpm test:assign-budget-money && pnpm test:spend-budget-money && pnpm test:rollover-month && pnpm test:workflow-income && pnpm test:workflow-assign && pnpm test:workflow-spending && pnpm test:workflow-transfer && pnpm test:split-transaction && pnpm test:overspending && pnpm test:events && pnpm test:v06 && pnpm test:v07 && pnpm test:v08 && pnpm test:v09 && pnpm test:v10 && pnpm test:v11 && pnpm test:v121 && pnpm test:v122 && pnpm test:v124 && pnpm test:v125 && pnpm test:v126 && pnpm test:v128 && pnpm test:v129 && pnpm test:v1210 && pnpm test:v1211 && pnpm test:v1212 && pnpm test:v1213 && pnpm test:v1214 && pnpm test:v1215",
     "test:legacy:list": "node scripts/run-legacy-tests.mjs --list --status=required,investigate,pending",
     "test:legacy": "node scripts/run-legacy-tests.mjs --status=required --report=test-results/legacy-required.json",
@@ -615,7 +618,8 @@
     "test:audit": "node scripts/audit-tests.mjs",
     "test:ynab4-import": "node scripts/run-audited-tests.mjs --classification=required --feature=ynab4",
     "test:ynab4:verification": "node --import tsx --test tests/suites/ynab4/import-audit-snapshot.test.ts",
-    "verify:ynab4-import": "pnpm test:ynab4-import && pnpm --filter @budget-app/web build"
+    "verify:ynab4-import": "pnpm test:ynab4-import && pnpm --filter @budget-app/web build",
+    "test:shared:v157": "tsx tests/v157-empty-registry-bootstrap.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

@@ -5,7 +5,7 @@ import { Card } from "../components/ui/Card";
 import { readAccounts } from "../features/accounts/accountService";
 import type { AccountRegisterView } from "../features/accounts/accountRegisterTypes";
 import { getBudgetScopedStorageKey } from "../features/budget/budgetDataScope";
-import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
+import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import { useBudgetRegistryStore, type BudgetSummary } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
@@ -59,7 +59,7 @@ function formatNumber(value: number) {
 function readBudgetStats(budget: BudgetSummary) {
   const scopedStorage = {
     getItem(key: string): string | null {
-      return browserLocalStorageKeyValueStorage.getItem(
+      return getActiveKeyValueStorage().getItem(
         getBudgetScopedStorageKey(budget.id, key),
       );
     },

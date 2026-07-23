@@ -5,6 +5,7 @@ import type { ScheduledTransactionPersistencePort } from "../accounts/scheduledT
 import type { CategoryPersistencePort } from "../budget/categoryPersistencePort";
 import type { BudgetViewService } from "../budget/budgetViewTypes";
 import type { BudgetPersistenceSnapshot } from "./persistenceSnapshot";
+import type { KeyValueStoragePort } from "./keyValueStoragePort";
 
 export type PersistenceBackendKind =
   | "browser-local-storage"
@@ -44,6 +45,7 @@ export interface BudgetPersistenceProvider {
   readonly categories: CategoryPersistencePort;
   readonly payees: PayeePersistencePort;
   readonly scheduledTransactions: ScheduledTransactionPersistencePort;
+  readonly keyValueStorage?: KeyValueStoragePort;
   initialize?(): Promise<void>;
   flush?(): Promise<void>;
   watch?(listener: PersistenceChangeListener): () => void;

@@ -4,7 +4,7 @@ import type {
   QifDateFormat,
 } from "./transactionImport";
 import { createBudgetScopedStorage } from "../budget/budgetDataScope";
-import { browserLocalStorageKeyValueStorage } from "../persistence/keyValueStoragePort";
+import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
 
 const ACCOUNT_IMPORT_KNOWLEDGE_STORAGE_KEY =
   "budget-app.account-import-knowledge.v1";
@@ -61,7 +61,7 @@ interface ImportIdentityCandidate {
 }
 
 function getImportKnowledgeStorage() {
-  return createBudgetScopedStorage(browserLocalStorageKeyValueStorage);
+  return createBudgetScopedStorage(getActiveKeyValueStorage());
 }
 
 function readJsonArray<T>(storageKey: string): T[] {

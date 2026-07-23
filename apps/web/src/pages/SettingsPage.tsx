@@ -23,6 +23,7 @@ import {
   createVersionHistorySnapshotBeforeBudgetReset,
 } from "../features/budget/versionHistoryLifecycle";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
+import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import { getPersistenceModeSummary } from "../features/persistence/persistenceMode";
 import {
   inspectBrowserToSharedServerMigration,
@@ -250,7 +251,7 @@ export function SettingsPage({
   const [restorePreview, setRestorePreview] = useState<BudgetDataRestorePreview | null>(null);
   const [restorePackageRaw, setRestorePackageRaw] = useState<string | null>(null);
   const [historySnapshots, setHistorySnapshots] = useState<VersionHistorySnapshotMetadata[]>(() =>
-    listVersionHistorySnapshots(browserLocalStorageKeyValueStorage),
+    listVersionHistorySnapshots(getActiveKeyValueStorage()),
   );
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const currentSection = settingsSections.find((section) => section.id === activeSection) ?? settingsSections[0];
@@ -270,7 +271,7 @@ export function SettingsPage({
   }, [theme]);
 
   useEffect(() => {
-    const snapshots = listVersionHistorySnapshots(browserLocalStorageKeyValueStorage, activeBudget?.id);
+    const snapshots = listVersionHistorySnapshots(getActiveKeyValueStorage(), activeBudget?.id);
     setHistorySnapshots(snapshots);
     setSelectedSnapshotId((current) =>
       current && snapshots.some((snapshot) => snapshot.id === current)
@@ -383,7 +384,7 @@ export function SettingsPage({
 
   function downloadBudgetData(kind: BudgetDataExportKind) {
     try {
-      const dataPackage = createBudgetDataExportPackage(browserLocalStorageKeyValueStorage, kind);
+      const dataPackage = createBudgetDataExportPackage(getActiveKeyValueStorage(), kind);
       const blob = new Blob([serialiseBudgetDataPackage(dataPackage)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -446,7 +447,7 @@ export function SettingsPage({
       return;
     }
 
-    const result = restoreBudgetDataPackage(browserLocalStorageKeyValueStorage, restorePackageRaw);
+    const result = restoreBudgetDataPackage(getActiveKeyValueStorage(), restorePackageRaw);
 
     if (!result.restored) {
       setDataStatusMessage(result.errors[0] ?? "Restore failed. No data has been changed.");
@@ -461,7 +462,7 @@ export function SettingsPage({
   }
 
   function refreshVersionHistory() {
-    const snapshots = listVersionHistorySnapshots(browserLocalStorageKeyValueStorage, activeBudget?.id);
+    const snapshots = listVersionHistorySnapshots(getActiveKeyValueStorage(), activeBudget?.id);
     setHistorySnapshots(snapshots);
     setSelectedSnapshotId((current) =>
       current && snapshots.some((snapshot) => snapshot.id === current)
@@ -488,7 +489,7 @@ export function SettingsPage({
       return;
     }
 
-    const result = restoreVersionHistorySnapshot(browserLocalStorageKeyValueStorage, selectedSnapshot.id);
+    const result = restoreVersionHistorySnapshot(getActiveKeyValueStorage(), selectedSnapshot.id);
 
     if (!result.restored) {
       setDataStatusMessage(result.errors[0] ?? "Restore point could not be restored.");
@@ -513,8 +514,8 @@ export function SettingsPage({
       return;
     }
 
-    createVersionHistorySnapshotBeforeBudgetReset(browserLocalStorageKeyValueStorage);
-    const result = resetCurrentBudget(browserLocalStorageKeyValueStorage);
+    createVersionHistorySnapshotBeforeBudgetReset(getActiveKeyValueStorage());
+    const result = resetCurrentBudget(getActiveKeyValueStorage());
     refreshBudgets();
 
     if (!result.completed) {
@@ -544,10 +545,10 @@ export function SettingsPage({
     }
 
     if (activeBudget?.id) {
-      createVersionHistorySnapshotBeforeBudgetDelete(browserLocalStorageKeyValueStorage, activeBudget.id);
+      createVersionHistorySnapshotBeforeBudgetDelete(getActiveKeyValueStorage(), activeBudget.id);
     }
 
-    const result = deleteCurrentBudget(browserLocalStorageKeyValueStorage);
+    const result = deleteCurrentBudget(getActiveKeyValueStorage());
     refreshBudgets();
     clearSelectedBudget();
 

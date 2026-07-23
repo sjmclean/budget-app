@@ -131,9 +131,7 @@ export function readBudgetRegistry(storage: KeyValueStoragePort): BudgetSummary[
   const raw = storage.getItem(BUDGET_REGISTRY_STORAGE_KEY);
 
   if (!raw) {
-    const initial = createInitialBudgetRegistry();
-    writeBudgetRegistry(storage, initial);
-    return initial;
+    return [];
   }
 
   try {
@@ -144,9 +142,7 @@ export function readBudgetRegistry(storage: KeyValueStoragePort): BudgetSummary[
 
     return budgets;
   } catch {
-    const initial = createInitialBudgetRegistry();
-    writeBudgetRegistry(storage, initial);
-    return initial;
+    return [];
   }
 }
 

@@ -1,5 +1,5 @@
 import { createBudgetScopedStorage } from "../budget/budgetDataScope";
-import { browserLocalStorageKeyValueStorage } from "../persistence/keyValueStoragePort";
+import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
 import type { ImportCommitAuditRecord } from "./importCommitEngine";
 import type { TransactionImportCandidate } from "./transactionImport";
 
@@ -42,7 +42,7 @@ export interface ImportDiagnosticSessionRecord {
 }
 
 function storage() {
-  return createBudgetScopedStorage(browserLocalStorageKeyValueStorage);
+  return createBudgetScopedStorage(getActiveKeyValueStorage());
 }
 
 function readAll(): ImportDiagnosticSessionRecord[] {

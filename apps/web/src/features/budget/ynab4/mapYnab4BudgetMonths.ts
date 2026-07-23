@@ -7,6 +7,8 @@ import { getCurrentBudgetMonth } from "../budgetMonthNavigation";
 import { isMoneyNegative, normaliseMoney } from "../moneyMath";
 import { firstYnabDisplayAmount } from "../../../../../../packages/ynab4-importer/src/money/decodeYnabAmount";
 
+import { isYnab4Tombstone } from "./ynab4RecordState";
+
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
 
 type RecordMap = Record<string, unknown>;
@@ -345,10 +347,6 @@ function firstString(...values: unknown[]): string | null {
 
 function sourceEntityLabel(record: RecordMap, index: number): string {
   return firstString(record.entityId, record.id, record.name) ?? `row ${index + 1}`;
-}
-
-function isYnab4Tombstone(record: RecordMap): boolean {
-  return record.isTombstone === true || record.isDeleted === true;
 }
 
 function roundMoney(value: number): number {
