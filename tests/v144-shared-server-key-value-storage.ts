@@ -21,12 +21,13 @@ const client: SharedServerStorageClient = {
     };
   },
 
-  async applyOperations(operations) {
+  async applyOperations(operations, expectedRevision) {
     if (failNextWrite) {
       failNextWrite = false;
       throw new Error("Synthetic shared storage write failure.");
     }
 
+    assert.equal(expectedRevision, revision);
     appliedBatches.push([...operations]);
     revision += 1;
     return { revision };

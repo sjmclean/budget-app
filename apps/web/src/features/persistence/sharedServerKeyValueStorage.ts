@@ -1,6 +1,7 @@
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import {
   createSharedServerStorageClient,
+  SharedServerStorageConflictError,
   type SharedServerStorageClient,
   type SharedServerStorageClientOptions,
   type SharedServerStorageOperation,
@@ -40,6 +41,7 @@ export function createSharedServerKeyValueStorage(
   let automaticFlushScheduled = false;
   let mutationVersion = 0;
   let refreshTail: Promise<boolean> = Promise.resolve(false);
+  const changeListeners = new Set<SharedServerStorageChangeListener>();
 
   function requireInitialized(): void {
     if (!initialized) {
@@ -53,6 +55,12 @@ export function createSharedServerKeyValueStorage(
     mirror.clear();
     for (const [key, value] of Object.entries(entries)) {
       mirror.set(key, value);
+    }
+  }
+
+  function notifyChangeListeners(): void {
+    for (const listener of changeListeners) {
+      listener();
     }
   }
 
@@ -77,12 +85,24 @@ export function createSharedServerKeyValueStorage(
     pendingOperations = [];
 
     const write = writeTail.then(async () => {
-      const result = await client.applyOperations(operations);
-      revision = result.revision;
+      try {
+        const result = await client.applyOperations(operations, revision);
+        revision = result.revision;
+      } catch (error) {
+        if (error instanceof SharedServerStorageConflictError) {
+          const snapshot = await client.loadSnapshot();
+          replaceMirror(snapshot.entries);
+          revision = snapshot.revision;
+          notifyChangeListeners();
+        } else {
+          pendingOperations = [...operations, ...pendingOperations];
+        }
+
+        throw error;
+      }
     });
 
     writeTail = write.catch((error: unknown) => {
-      pendingOperations = [...operations, ...pendingOperations];
       firstWriteError ??= error;
     });
   }
@@ -145,6 +165,27 @@ export function createSharedServerKeyValueStorage(
     return loadLatestSnapshot();
   }
 
+  async function performRefreshForRevision(
+    announcedRevision: number,
+  ): Promise<boolean> {
+    requireInitialized();
+    await flushPendingWrites();
+    if (announcedRevision === revision) {
+      return false;
+    }
+
+    return loadLatestSnapshot();
+  }
+
+  function queueRefreshForRevision(
+    announcedRevision: number,
+  ): Promise<boolean> {
+    const refresh = refreshTail.then(() =>
+      performRefreshForRevision(announcedRevision)
+    );
+    refreshTail = refresh.catch(() => false);
+    return refresh;
+  }
 
   function queueRefreshIfChanged(): Promise<boolean> {
     const refresh = refreshTail.then(performRefreshIfChanged);
@@ -202,9 +243,53 @@ export function createSharedServerKeyValueStorage(
 
     watch(listener: SharedServerStorageChangeListener): () => void {
       requireInitialized();
+      changeListeners.add(listener);
 
       let stopped = false;
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      let stopRevisionSubscription: (() => void) | null = null;
+
+      const handleChangedRevision = async (announcedRevision: number) => {
+        try {
+          if (await queueRefreshForRevision(announcedRevision)) {
+            notifyChangeListeners();
+          }
+        } catch (error) {
+          console.error(
+            "Unable to refresh the shared budget after a server event.",
+            error,
+          );
+        }
+      };
+
+      const subscribeToServerEvents = () => {
+        if (!client.subscribeToRevisions) {
+          return false;
+        }
+
+        try {
+          stopRevisionSubscription = client.subscribeToRevisions(
+            ({ revision: announcedRevision }) => {
+              if (!stopped) {
+                void handleChangedRevision(announcedRevision);
+              }
+            },
+            (error) => {
+              console.error(
+                "Shared budget live-update connection reported an error.",
+                error,
+              );
+            },
+          );
+          return stopRevisionSubscription !== null;
+        } catch (error) {
+          console.error(
+            "Unable to open the shared budget live-update connection; falling back to polling.",
+            error,
+          );
+          return false;
+        }
+      };
 
       const scheduleNextCheck = () => {
         if (stopped) {
@@ -219,7 +304,7 @@ export function createSharedServerKeyValueStorage(
       const checkForChanges = async () => {
         try {
           if (await queueRefreshIfChanged()) {
-            listener();
+            notifyChangeListeners();
           }
         } catch (error) {
           console.error(
@@ -231,13 +316,18 @@ export function createSharedServerKeyValueStorage(
         }
       };
 
-      // Check immediately when watching starts. The lifecycle helper restarts
-      // watching when a hidden tab becomes visible, providing an immediate
-      // catch-up check without waiting for the next polling interval.
-      void checkForChanges();
+      // EventSource reconnects automatically after transient network failures.
+      // Polling remains as a compatibility fallback for environments without
+      // Server-Sent Events, including older embedded browsers and test clients.
+      if (!subscribeToServerEvents()) {
+        void checkForChanges();
+      }
 
       return () => {
         stopped = true;
+        changeListeners.delete(listener);
+        stopRevisionSubscription?.();
+        stopRevisionSubscription = null;
         if (timeoutId !== null) {
           clearTimeout(timeoutId);
           timeoutId = null;

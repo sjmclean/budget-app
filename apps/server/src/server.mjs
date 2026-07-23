@@ -62,7 +62,59 @@ const bumpRevision = database.prepare(`
   WHERE id = 1
 `);
 
-const applyOperations = database.transaction((operations) => {
+class RevisionConflictError extends Error {
+  constructor(expectedRevision, actualRevision) {
+    super(
+      `Shared budget changed on another device. Expected revision ${expectedRevision}, but the server is at revision ${actualRevision}.`,
+    );
+    this.name = "RevisionConflictError";
+    this.expectedRevision = expectedRevision;
+    this.actualRevision = actualRevision;
+  }
+}
+
+const revisionSubscribers = new Set();
+
+function sendRevisionEvent(response, revision) {
+  response.write(`event: revision\ndata: ${JSON.stringify({ revision })}\n\n`);
+}
+
+function broadcastRevision(revision) {
+  for (const response of revisionSubscribers) {
+    sendRevisionEvent(response, revision);
+  }
+}
+
+function subscribeToRevisions(request, response) {
+  response.writeHead(200, {
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-cache, no-transform",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  response.write("retry: 5000\n\n");
+  sendRevisionEvent(response, readRevision.get().revision);
+  revisionSubscribers.add(response);
+
+  const heartbeat = setInterval(() => {
+    response.write(": keep-alive\n\n");
+  }, 25_000);
+
+  const unsubscribe = () => {
+    clearInterval(heartbeat);
+    revisionSubscribers.delete(response);
+  };
+
+  request.once("close", unsubscribe);
+  response.once("close", unsubscribe);
+}
+
+const applyOperations = database.transaction((operations, expectedRevision) => {
+  const actualRevision = readRevision.get().revision;
+  if (actualRevision !== expectedRevision) {
+    throw new RevisionConflictError(expectedRevision, actualRevision);
+  }
+
   for (const operation of operations) {
     if (operation.type === "set") {
       upsertEntry.run(operation.key, operation.value);
@@ -101,6 +153,13 @@ function getSnapshot() {
     revision: readRevision.get().revision,
     entries: Object.fromEntries(readSnapshot.all().map((row) => [row.key, row.value])),
   };
+}
+
+function validateRevision(value, fieldName) {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${fieldName} must be a non-negative integer.`);
+  }
+  return value;
 }
 
 function validateOperations(value) {
@@ -157,6 +216,11 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/shared-budget/events" && request.method === "GET") {
+      subscribeToRevisions(request, response);
+      return;
+    }
+
     if (url.pathname === "/api/shared-budget/storage" && request.method === "GET") {
       sendJson(response, 200, getSnapshot());
       return;
@@ -165,7 +229,16 @@ const server = createServer(async (request, response) => {
     if (url.pathname === "/api/shared-budget/storage/batch" && request.method === "POST") {
       const body = await readJsonBody(request);
       const operations = validateOperations(body.operations);
-      const revision = operations.length > 0 ? applyOperations(operations) : readRevision.get().revision;
+      const expectedRevision = validateRevision(
+        body.expectedRevision,
+        "expectedRevision",
+      );
+      const revision = operations.length > 0
+        ? applyOperations(operations, expectedRevision)
+        : readRevision.get().revision;
+      if (operations.length > 0) {
+        broadcastRevision(revision);
+      }
       sendJson(response, 200, { revision });
       return;
     }
@@ -185,7 +258,12 @@ const server = createServer(async (request, response) => {
         if (typeof value !== "string") throw new Error(`Entry ${key} must contain a string value.`);
         return { type: "set", key, value };
       });
-      const revision = operations.length > 0 ? applyOperations(operations) : current.revision;
+      const revision = operations.length > 0
+        ? applyOperations(operations, current.revision)
+        : current.revision;
+      if (operations.length > 0) {
+        broadcastRevision(revision);
+      }
       sendJson(response, 201, { revision, importedKeys: operations.length });
       return;
     }
@@ -194,6 +272,16 @@ const server = createServer(async (request, response) => {
 
     sendJson(response, 404, { message: "Not found." });
   } catch (error) {
+    if (error instanceof RevisionConflictError) {
+      sendJson(response, 409, {
+        code: "REVISION_CONFLICT",
+        message: error.message,
+        expectedRevision: error.expectedRevision,
+        actualRevision: error.actualRevision,
+      });
+      return;
+    }
+
     console.error(error);
     sendJson(response, 400, {
       message: error instanceof Error ? error.message : "Unexpected server error.",
@@ -203,6 +291,10 @@ const server = createServer(async (request, response) => {
 
 function shutdown(signal) {
   console.log(`Received ${signal}; closing shared budget server.`);
+  for (const response of revisionSubscribers) {
+    response.end();
+  }
+  revisionSubscribers.clear();
   server.close(() => {
     database.close();
     process.exit(0);

@@ -22,20 +22,43 @@ export interface SharedServerHealthResult {
   revision: number;
 }
 
+export interface SharedServerRevisionEvent {
+  revision: number;
+}
+
+export interface SharedServerEventSource {
+  addEventListener(
+    type: "revision",
+    listener: (event: { data: string }) => void,
+  ): void;
+  onerror: ((event: unknown) => void) | null;
+  close(): void;
+}
+
+export type SharedServerEventSourceFactory = (
+  url: string,
+) => SharedServerEventSource;
+
 export interface SharedServerStorageClient {
   loadSnapshot(): Promise<SharedServerStorageSnapshot>;
   applyOperations(
     operations: readonly SharedServerStorageOperation[],
+    expectedRevision: number,
   ): Promise<SharedServerStorageWriteResult>;
   bootstrap(
     entries: Readonly<Record<string, string>>,
   ): Promise<SharedServerStorageBootstrapResult>;
   getHealth(): Promise<SharedServerHealthResult>;
+  subscribeToRevisions?(
+    listener: (event: SharedServerRevisionEvent) => void,
+    onError?: (error: unknown) => void,
+  ): (() => void) | null;
 }
 
 export interface SharedServerStorageClientOptions {
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
+  eventSourceFactory?: SharedServerEventSourceFactory;
 }
 
 export function createSharedServerStorageClient(
@@ -48,6 +71,8 @@ export function createSharedServerStorageClient(
   }
 
   const baseUrl = normaliseBaseUrl(options.baseUrl ?? "");
+  const eventSourceFactory = options.eventSourceFactory ??
+    createDefaultEventSourceFactory();
 
   async function requestJson<T>(
     path: string,
@@ -71,6 +96,16 @@ export function createSharedServerStorageClient(
     if (!response.ok) {
       const message = getErrorMessage(body) ??
         `Shared budget request failed with status ${response.status}.`;
+
+      if (response.status === 409 && isRevisionConflictBody(body)) {
+        throw new SharedServerStorageConflictError(
+          message,
+          body.expectedRevision,
+          body.actualRevision,
+          body,
+        );
+      }
+
       throw new SharedServerStorageError(message, response.status, body);
     }
 
@@ -83,12 +118,12 @@ export function createSharedServerStorageClient(
       return parseSnapshot(result);
     },
 
-    async applyOperations(operations) {
+    async applyOperations(operations, expectedRevision) {
       const result = await requestJson<unknown>(
         "/api/shared-budget/storage/batch",
         {
           method: "POST",
-          body: JSON.stringify({ operations }),
+          body: JSON.stringify({ operations, expectedRevision }),
         },
       );
       return parseWriteResult(result);
@@ -109,6 +144,30 @@ export function createSharedServerStorageClient(
       const result = await requestJson<unknown>("/api/health");
       return parseHealthResult(result);
     },
+
+    subscribeToRevisions(listener, onError) {
+      if (eventSourceFactory === null) {
+        return null;
+      }
+
+      const eventSource = eventSourceFactory(
+        `${baseUrl}/api/shared-budget/events`,
+      );
+      eventSource.addEventListener("revision", (event) => {
+        try {
+          listener(parseRevisionEvent(event.data));
+        } catch (error) {
+          onError?.(error);
+        }
+      });
+      eventSource.onerror = (error) => {
+        onError?.(error);
+      };
+
+      return () => {
+        eventSource.close();
+      };
+    },
   };
 }
 
@@ -120,6 +179,18 @@ export class SharedServerStorageError extends Error {
   ) {
     super(message);
     this.name = "SharedServerStorageError";
+  }
+}
+
+export class SharedServerStorageConflictError extends SharedServerStorageError {
+  constructor(
+    message: string,
+    readonly expectedRevision: number,
+    readonly actualRevision: number,
+    responseBody: unknown,
+  ) {
+    super(message, 409, responseBody);
+    this.name = "SharedServerStorageConflictError";
   }
 }
 
@@ -209,10 +280,41 @@ function parseHealthResult(value: unknown): SharedServerHealthResult {
   };
 }
 
+function isRevisionConflictBody(value: unknown): value is {
+  code: "REVISION_CONFLICT";
+  expectedRevision: number;
+  actualRevision: number;
+} {
+  return (
+    isRecord(value) &&
+    value.code === "REVISION_CONFLICT" &&
+    isRevision(value.expectedRevision) &&
+    isRevision(value.actualRevision)
+  );
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isRevision(value: unknown): value is number {
   return Number.isInteger(value) && (value as number) >= 0;
+}
+
+function createDefaultEventSourceFactory(): SharedServerEventSourceFactory | null {
+  const EventSourceConstructor = globalThis.EventSource;
+  if (typeof EventSourceConstructor !== "function") {
+    return null;
+  }
+
+  return (url) => new EventSourceConstructor(url) as SharedServerEventSource;
+}
+
+function parseRevisionEvent(value: string): SharedServerRevisionEvent {
+  const parsed = JSON.parse(value) as unknown;
+  if (!isRecord(parsed) || !isRevision(parsed.revision)) {
+    throw new Error("Shared budget server returned an invalid revision event.");
+  }
+
+  return { revision: parsed.revision };
 }

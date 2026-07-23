@@ -57,7 +57,11 @@ const client: SharedServerStorageClient = {
   async loadSnapshot() {
     return snapshot;
   },
-  async applyOperations(operations: readonly SharedServerStorageOperation[]) {
+  async applyOperations(
+    operations: readonly SharedServerStorageOperation[],
+    expectedRevision: number,
+  ) {
+    assert.equal(expectedRevision, snapshot.revision);
     operationCalls += 1;
     for (const operation of operations) {
       if (operation.type === "set") snapshot.entries[operation.key] = operation.value;

@@ -63,6 +63,7 @@ export { installPersistenceProviderLifecycle } from "./persistenceProviderLifecy
 
 export {
   createSharedServerStorageClient,
+  SharedServerStorageConflictError,
   SharedServerStorageError,
 } from "./sharedServerStorageClient";
 export type {

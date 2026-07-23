@@ -21,7 +21,8 @@ const client: SharedServerStorageClient = {
     };
   },
 
-  async applyOperations(operations) {
+  async applyOperations(operations, expectedRevision) {
+    assert.equal(expectedRevision, serverRevision);
     for (const operation of operations) {
       if (operation.type === "set") {
         serverEntries[operation.key] = operation.value;

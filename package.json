@@ -51,6 +51,7 @@
     "test:device-sync": "tsx tests/device-sync.ts",
     "test:change-tracking": "tsx tests/change-tracking.ts",
     "test:sync-conflicts": "tsx tests/sync-conflicts.ts",
+    "test:shared:v154": "tsx tests/v154-shared-budget-optimistic-concurrency.ts",
     "test:v09": "pnpm test:encrypted-records && pnpm test:encrypted-attachments && pnpm test:encrypted-backups && pnpm test:device-sync && pnpm test:change-tracking && pnpm test:sync-conflicts",
     "test:settings": "tsx tests/settings-config.ts",
     "test:cloud-storage": "tsx tests/cloud-storage-settings.ts",

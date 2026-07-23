@@ -11,7 +11,8 @@ const client: SharedServerStorageClient = {
     return { revision, entries: {} };
   },
 
-  async applyOperations(operations) {
+  async applyOperations(operations, expectedRevision) {
+    assert.equal(expectedRevision, revision);
     appliedOperations.push([...operations]);
     revision += 1;
     return { revision };

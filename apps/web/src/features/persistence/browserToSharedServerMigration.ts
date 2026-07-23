@@ -114,7 +114,7 @@ export async function migrateBrowserBudgetToSharedServer(
     const operations: SharedServerStorageOperation[] = Object.entries(batch).map(
       ([key, value]) => ({ type: "set", key, value }),
     );
-    revision = (await client.applyOperations(operations)).revision;
+    revision = (await client.applyOperations(operations, revision)).revision;
   }
 
   return {
