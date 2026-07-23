@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { SELECTED_BUDGET_STORAGE_KEY } from "../features/budget/budgetDataScope";
+import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 
-export type ThemeMode = "light" | "dark" | "system";
+export type ThemeMode = "light" | "dark" | "blueprint" | "system";
 
 interface UIState {
   sidebarCollapsed: boolean;
@@ -36,7 +37,7 @@ function getInitialSelectedBudgetId(): string | null {
     return null;
   }
 
-  const storedBudgetId = window.localStorage.getItem(selectedBudgetStorageKey);
+  const storedBudgetId = getActiveKeyValueStorage().getItem(selectedBudgetStorageKey);
   return storedBudgetId?.trim() || null;
 }
 
@@ -50,6 +51,7 @@ function getInitialTheme(): ThemeMode {
   if (
     storedTheme === "light" ||
     storedTheme === "dark" ||
+    storedTheme === "blueprint" ||
     storedTheme === "system"
   ) {
     return storedTheme;
@@ -97,7 +99,7 @@ export const useUIStore = create<UIState>((set) => ({
 
   selectBudget: (budgetId) => {
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(selectedBudgetStorageKey, budgetId);
+      getActiveKeyValueStorage().setItem(selectedBudgetStorageKey, budgetId);
     }
 
     set({
@@ -107,7 +109,7 @@ export const useUIStore = create<UIState>((set) => ({
 
   clearSelectedBudget: () => {
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem(selectedBudgetStorageKey);
+      getActiveKeyValueStorage().removeItem(selectedBudgetStorageKey);
     }
 
     set({

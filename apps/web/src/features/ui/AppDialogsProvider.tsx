@@ -28,6 +28,8 @@ export function AppDialogsProvider() {
   const [activeConfirm, setActiveConfirm] = useState<ActiveConfirmDialog | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const confirmQueue = useRef<ActiveConfirmDialog[]>([]);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const showNextConfirm = useCallback(() => {
     setActiveConfirm((current) => {
@@ -82,6 +84,62 @@ export function AppDialogsProvider() {
 
   useEffect(() => installAppDialogHost(host), [host]);
 
+  useEffect(() => {
+    if (!activeConfirm) {
+      return;
+    }
+
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const dialog = dialogRef.current;
+    const focusableSelector =
+      'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        resolveConfirm(false);
+        return;
+      }
+
+      if (event.key !== "Tab" || !dialog) {
+        return;
+      }
+
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.requestAnimationFrame(() => {
+      dialog?.querySelector<HTMLElement>(".button-primary, .button-danger")?.focus();
+    });
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+      window.requestAnimationFrame(() => previousFocusRef.current?.focus());
+    };
+  }, [activeConfirm]);
+
   function resolveConfirm(confirmed: boolean) {
     if (!activeConfirm) {
       return;
@@ -97,10 +155,12 @@ export function AppDialogsProvider() {
       {activeConfirm ? (
         <div className="app-dialog-backdrop" role="presentation">
           <section
+            ref={dialogRef}
             aria-labelledby={`${activeConfirm.request.id}-title`}
             aria-modal="true"
             className="app-dialog"
             role="dialog"
+            tabIndex={-1}
           >
             <h2 className="app-dialog-title" id={`${activeConfirm.request.id}-title`}>
               {activeConfirm.request.title ?? "Please confirm"}

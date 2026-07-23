@@ -1,5 +1,5 @@
 import { createBudgetScopedStorage } from "../budget/budgetDataScope";
-import { browserLocalStorageKeyValueStorage } from "../persistence/keyValueStoragePort";
+import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
 import type {
   CsvImportAnalysis,
   CsvImportColumnMapping,
@@ -52,7 +52,7 @@ export interface TransactionImportSessionSnapshot {
 }
 
 function getStorage() {
-  return createBudgetScopedStorage(browserLocalStorageKeyValueStorage);
+  return createBudgetScopedStorage(getActiveKeyValueStorage());
 }
 
 function getSessionKey(accountId: string) {

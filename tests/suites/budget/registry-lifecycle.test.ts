@@ -26,15 +26,15 @@ function createMemoryStorage(): KeyValueStoragePort {
 }
 
 describe("budget registry lifecycle", () => {
-  it("seeds and persists the starter budget only when storage is absent", () => {
+  it("treats missing and corrupt registry data as an empty first-run state without writing", () => {
     const storage = createMemoryStorage();
-    const initial = readBudgetRegistry(storage);
-    assert.equal(initial.length, 1);
-    assert.equal(initial[0]?.id, "household");
-    assert.ok(storage.getItem(BUDGET_REGISTRY_STORAGE_KEY));
 
-    deleteBudgetRegistryEntry(storage, "household");
     assert.deepEqual(readBudgetRegistry(storage), []);
+    assert.equal(storage.getItem(BUDGET_REGISTRY_STORAGE_KEY), null);
+
+    storage.setItem(BUDGET_REGISTRY_STORAGE_KEY, "{not-json");
+    assert.deepEqual(readBudgetRegistry(storage), []);
+    assert.equal(storage.getItem(BUDGET_REGISTRY_STORAGE_KEY), "{not-json");
   });
 
   it("creates opaque unique identities independently of duplicate names", () => {
@@ -62,7 +62,6 @@ describe("budget registry lifecycle", () => {
     assert.equal(updated?.currency, "USD");
     assert.equal(markBudgetOpened(storage, budget.id)?.lastOpenedLabel, "Opened just now");
     assert.deepEqual(deleteBudgetRegistryEntry(storage, budget.id).map(({ id }) => id), [
-      "household",
       untouched.id,
     ]);
   });

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { BarChart3, CalendarDays } from "lucide-react";
 import { Card } from "../components/ui/Card";
 import { DropdownMenu } from "../features/ui/DropdownMenu";
 import {
-  WorkspaceActions,
   WorkspaceBody,
   WorkspaceHeader,
   WorkspaceLayout,
@@ -16,6 +16,8 @@ import {
   getPreviousBudgetMonth,
 } from "../features/budget/budgetMonthNavigation";
 import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
+import { useBudgetView } from "../features/budget/useBudgetView";
+import { useBudgetUndoRedo } from "../features/budget/budgetUndoRedo";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import type {
@@ -109,7 +111,7 @@ function writeArchivedCategoriesExpanded(budgetId: string, isExpanded: boolean) 
 }
 
 const BUDGET_COLUMN_DEFINITIONS: readonly TableColumnDefinition<BudgetColumnId>[] = [
-  { id: "category", label: "Category Group", template: "minmax(15rem, 1fr)", widthRem: 15 },
+  { id: "category", label: "Category", template: "minmax(15rem, 1fr)", widthRem: 15 },
   { id: "assigned", label: "Assigned", template: "7rem", widthRem: 7 },
   { id: "activity", label: "Activity", template: "7rem", widthRem: 7 },
   { id: "available", label: "Available", template: "7rem", widthRem: 7 },
@@ -566,17 +568,26 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     overassignedCategoryIds,
     selectCategory,
     updateAssigned,
+    setCategoryOverspendingHandling,
     coverOverspending,
     renameCategory,
     setCategoryArchived,
     moveCategoryToPosition,
     moveCategoryGroupToPosition,
     updateCategoryNote,
+    createCategory,
     activityDrilldown,
     isActivityDrilldownLoading,
     openActivityDrilldown,
     closeActivityDrilldown,
   } = useBudgetWorkspace(budgetId, selectedMonth);
+
+  const previousMonthBudget = useBudgetView(
+    budgetId,
+    getPreviousBudgetMonth(selectedMonth),
+  );
+
+  const budgetUndoRedo = useBudgetUndoRedo();
 
   const budgetTableLayout = useTableLayout({
     storageKeyPrefix: BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
@@ -670,6 +681,30 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const overspentCount = countOverspentCategories(data.categoryGroups);
 
   const coverOptions = buildOverspendingCoverOptions(data.categoryGroups);
+  const monthName = data.monthLabel.split(" ")[0] ?? data.monthLabel;
+  const carriedForward =
+    data.carriedForwardReadyToAssign ?? previousMonthBudget.data?.readyToAssign ?? 0;
+  const previousOverspending =
+    data.previousOverspending ??
+    previousMonthBudget.data?.categoryGroups.reduce(
+      (total, group) =>
+        total +
+        group.categories.reduce((groupTotal, category) => {
+          if (
+            category.available >= 0 ||
+            (category.overspendingHandling ?? "reduce-next-month") === "carry-category"
+          ) {
+            return groupTotal;
+          }
+
+          return groupTotal + category.available;
+        }, 0),
+      0,
+    ) ??
+    0;
+  const incomeForMonth =
+    data.incomeForMonth ??
+    data.readyToAssign - carriedForward - previousOverspending + data.totalAssigned;
 
   function openCategoryEditor(categoryId: string) {
     if (isCreditCardPaymentCategory(categoryId)) {
@@ -743,64 +778,145 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
       <WorkspaceLayout className="budget-workspace-screen budget-workspace-layout">
         <main className="budget-workspace-main">
           <WorkspaceStickyHeader className="budget-sticky-working-header">
-            <WorkspaceHeader
-              title="Budget"
-              subtitle={data.monthLabel}
-              primaryActions={
-                <WorkspaceActions
-                  className="budget-header-month-actions"
-                  tabletOverflow="scroll"
-                  aria-label="Budget month navigation"
+            <section className="budget-planning-header" aria-label="Budget month workspace">
+              <div className="budget-planning-title">
+                <span className="budget-planning-icon" aria-hidden="true"><BarChart3 size={19} /></span>
+                <div>
+                  <h1>My Budget</h1>
+                  <span>Monthly Budget</span>
+                </div>
+              </div>
+
+              <nav className="budget-month-navigation" aria-label="Budget month navigation">
+                <button
+                  className="button button-secondary budget-month-step"
+                  type="button"
+                  onClick={() =>
+                    setSelectedMonth((currentMonth) =>
+                      getPreviousBudgetMonth(currentMonth),
+                    )
+                  }
+                  aria-label="Go to previous budget month"
+                  title="Go to previous budget month"
                 >
-                  <button
-                    className="button button-secondary budget-month-step"
-                    type="button"
-                    onClick={() =>
-                      setSelectedMonth((currentMonth) =>
-                        getPreviousBudgetMonth(currentMonth),
-                      )
-                    }
-                    aria-label="Go to previous budget month"
-                    title="Go to previous budget month"
-                  >
-                    ‹
-                  </button>
-                  <button
-                    className="button button-secondary budget-month-step"
-                    type="button"
-                    onClick={() =>
-                      setSelectedMonth((currentMonth) =>
-                        getNextBudgetMonth(currentMonth),
-                      )
-                    }
-                    aria-label="Go to next budget month"
-                    title="Go to next budget month"
-                  >
-                    ›
+                  ‹
+                </button>
+                <button
+                  className="button button-secondary budget-month-current"
+                  type="button"
+                  onClick={() => setSelectedMonth(getCurrentBudgetMonth())}
+                  title="Return to the current month"
+                >
+                  <CalendarDays size={16} aria-hidden="true" />
+                  {data.monthLabel}
+                </button>
+                <button
+                  className="button button-secondary budget-month-step"
+                  type="button"
+                  onClick={() =>
+                    setSelectedMonth((currentMonth) =>
+                      getNextBudgetMonth(currentMonth),
+                    )
+                  }
+                  aria-label="Go to next budget month"
+                  title="Go to next budget month"
+                >
+                  ›
+                </button>
+              </nav>
+
+              <div
+                className={
+                  isBudgetOverassigned
+                    ? "budget-ready-summary budget-ready-summary-negative"
+                    : "budget-ready-summary"
+                }
+                aria-label={`Ready to assign ${formatMoney(data.readyToAssign, data.currencyCode)}`}
+              >
+                <div className="budget-ready-summary-heading">
+                  <span>Ready to Assign</span>
+                  <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Carried forward</dt>
+                    <dd>{formatMoney(carriedForward, data.currencyCode)}</dd>
+                  </div>
+                  <div>
+                    <dt>Previous overspending</dt>
+                    <dd className="budget-ready-summary-negative-value">
+                      {formatMoney(previousOverspending, data.currencyCode)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Income for {monthName}</dt>
+                    <dd>{formatMoney(incomeForMonth, data.currencyCode)}</dd>
+                  </div>
+                  <div>
+                    <dt>Assigned in {monthName}</dt>
+                    <dd>{formatMoney(-data.totalAssigned, data.currencyCode)}</dd>
+                  </div>
+                </dl>
+                <div className="budget-ready-summary-total">
+                  <span>Ready to Assign</span>
+                  <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
+                </div>
+              </div>
+
+              <nav className="budget-planning-tabs" aria-label="Budget workspace views">
+                <button className="budget-planning-tab budget-planning-tab-active" type="button">
+                  Budget
+                </button>
+                <button
+                  className="budget-planning-tab"
+                  type="button"
+                  disabled
+                  title="Goals workspace is planned for a future update"
+                >
+                  Goals
+                </button>
+              </nav>
+
+              <div className="budget-planning-toolbar">
+                <div className="budget-planning-toolbar-left">
+                  <button className="button button-secondary" type="button" disabled title="Auto Assign is not yet available">
+                    Auto Assign
                   </button>
                   <button
                     className="button button-secondary"
                     type="button"
-                    onClick={() => setSelectedMonth(getCurrentBudgetMonth())}
+                    onClick={() => void budgetUndoRedo.undo()}
+                    disabled={!budgetUndoRedo.canUndo}
                   >
-                    Back to today
+                    Undo
                   </button>
-                </WorkspaceActions>
-              }
-              secondaryActions={
-                <>
-                  <div
-                    className={
-                      isBudgetOverassigned
-                        ? "ready-to-assign-pill ready-to-assign-negative"
-                        : "ready-to-assign-pill"
-                    }
+                  <button
+                    className="button button-secondary"
+                    type="button"
+                    onClick={() => void budgetUndoRedo.redo()}
+                    disabled={!budgetUndoRedo.canRedo}
                   >
-                    <span>Ready To Assign</span>
-                    <strong>
-                      {formatMoney(data.readyToAssign, data.currencyCode)}
-                    </strong>
-                  </div>
+                    Redo
+                  </button>
+                </div>
+
+                <div className="budget-planning-toolbar-right">
+                  <button
+                    className="button button-secondary budget-add-category-button"
+                    type="button"
+                    onClick={() => {
+                      const group = visibleCategoryGroups.find((candidate) =>
+                        candidate.id !== ARCHIVED_CATEGORIES_GROUP_ID &&
+                        !isCreditCardPaymentGroup(candidate.id),
+                      );
+                      if (!group) return;
+                      const name = window.prompt(`New category in ${group.name}`)?.trim();
+                      if (!name) return;
+                      void createCategory({ name, groupId: group.id, groupName: group.name });
+                    }}
+                  >
+                    + Category
+                  </button>
                   <DropdownMenu
                     label="More ▾"
                     ariaLabel="Budget administrative actions"
@@ -820,9 +936,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                       </button>
                     )}
                   </DropdownMenu>
-                </>
-              }
-            />
+                </div>
+              </div>
+            </section>
 
             <div
               className="budget-workspace-table-head"
@@ -884,40 +1000,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
         </main>
 
         <aside className="budget-month-panel">
-          <Card className="month-overview-card">
-            <div className="panel-section-header">
-              <h2>Month Overview</h2>
-              <p className="muted">{data.monthLabel}</p>
-            </div>
-
-            <div className="month-breakdown">
-              <div>
-                <span>Ready To Assign</span>
-                <strong>
-                  {formatMoney(data.readyToAssign, data.currencyCode)}
-                </strong>
-              </div>
-              <div>
-                <span>Assigned</span>
-                <strong>
-                  {formatMoney(data.totalAssigned, data.currencyCode)}
-                </strong>
-              </div>
-              <div>
-                <span>Activity</span>
-                <strong>
-                  {formatMoney(data.totalActivity, data.currencyCode)}
-                </strong>
-              </div>
-              <div>
-                <span>Available</span>
-                <strong>
-                  {formatMoney(data.totalAvailable, data.currencyCode)}
-                </strong>
-              </div>
-            </div>
-          </Card>
-
           <CategoryInspector
             category={visibleSelectedCategory}
             group={visibleSelectedGroup}
@@ -993,6 +1075,17 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
         onCoverOverspending={(input) => {
           closeCoverOverspendingMenu();
           coverOverspending(input);
+        }}
+        onSetOverspendingHandling={(categoryId, overspendingHandling) => {
+          setCoverOverspendingMenu((current) =>
+            current
+              ? {
+                  ...current,
+                  category: { ...current.category, overspendingHandling },
+                }
+              : current,
+          );
+          setCategoryOverspendingHandling(categoryId, overspendingHandling);
         }}
       />
       <BudgetActivityDrilldownModal

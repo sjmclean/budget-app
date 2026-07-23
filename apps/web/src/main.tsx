@@ -1,12 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { App } from "./App";
 import { StartupRecoveryScreen } from "./app/errors/StartupRecoveryScreen";
-import { bootstrapHostPersistenceGateway } from "./features/persistence";
 import {
-  hydrateBrowserStorageBackend,
-  installBrowserStorageLifecycleFlush,
-} from "./features/persistence/keyValueStoragePort";
+  bootstrapHostBudgetPersistenceProvider,
+  configureBudgetPersistenceProviderFromRuntime,
+  getBudgetPersistenceProvider,
+} from "./features/persistence";
+import { installPersistenceProviderLifecycle } from "./features/persistence/persistenceProviderLifecycle";
 import "./styles/globals.css";
 
 function getApplicationRoot(): HTMLElement {
@@ -24,9 +24,18 @@ export async function bootstrapApp() {
   let reactRoot: ReturnType<typeof ReactDOM.createRoot> | null = null;
 
   try {
-    bootstrapHostPersistenceGateway();
-    await hydrateBrowserStorageBackend();
-    installBrowserStorageLifecycleFlush();
+    const hostProvider = bootstrapHostBudgetPersistenceProvider();
+    if (!hostProvider) {
+      configureBudgetPersistenceProviderFromRuntime();
+    }
+
+    const persistenceProvider = getBudgetPersistenceProvider();
+    await persistenceProvider.initialize?.();
+    installPersistenceProviderLifecycle(persistenceProvider);
+
+    // Import application modules only after runtime persistence is configured.
+    // Zustand stores read registry and selection state during module creation.
+    const { App } = await import("./App");
 
     reactRoot = ReactDOM.createRoot(root);
     reactRoot.render(

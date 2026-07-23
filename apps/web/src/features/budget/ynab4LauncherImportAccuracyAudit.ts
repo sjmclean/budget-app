@@ -9,6 +9,7 @@ import {
   decodeYnabAmount,
   firstYnabDisplayAmount,
 } from "../../../../../packages/ynab4-importer/src/money/decodeYnabAmount";
+import { isYnab4Tombstone } from "./ynab4/ynab4RecordState";
 
 const ACCOUNTS_STORAGE_KEY = "budget-app.accounts.v1";
 const REGISTERS_STORAGE_KEY = "budget-app.account-registers.v1";
@@ -1739,15 +1740,11 @@ function ownEntitySourceIds(
 }
 
 function isClosed(record: RecordMap): boolean {
-  return (
-    record.isTombstone === true ||
-    record.closed === true ||
-    record.hidden === true
-  );
+  return isYnab4Tombstone(record) || record.closed === true || record.hidden === true;
 }
 
 function isDeleted(record: RecordMap): boolean {
-  return record.isTombstone === true || record.deleted === true;
+  return isYnab4Tombstone(record);
 }
 
 function boolOrNull(value: unknown): boolean | null {

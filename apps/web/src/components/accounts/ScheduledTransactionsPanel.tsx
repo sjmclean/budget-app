@@ -19,7 +19,7 @@ import {
 } from "../../features/accounts/scheduledTransactionService";
 import type { RegisterSplitLineView } from "../../features/accounts/accountRegisterTypes";
 import { getSplitBalanceStatus } from "../../features/accounts/registerSplitDrafts";
-import { getAppPersistenceGateway } from "../../features/persistence";
+import { getBudgetPersistenceProvider } from "../../features/persistence";
 import type { SidebarAccount } from "../../features/accounts/accountService";
 import type { PayeeView } from "../../features/accounts/payeeService";
 import type { BudgetCategoryOption } from "../../features/budget/budgetViewTypes";
@@ -39,6 +39,7 @@ interface ScheduledTransactionsPanelProps {
   onClose: () => void;
   onEnter: (transaction: NewRegisterTransactionInput) => Promise<void>;
   onDueCountChange?: (count: number) => void;
+  presentation?: "overlay" | "workspace";
 }
 
 interface ScheduledFormDraft {
@@ -79,8 +80,9 @@ export function ScheduledTransactionsPanel({
   onClose,
   onEnter,
   onDueCountChange,
+  presentation = "overlay",
 }: ScheduledTransactionsPanelProps) {
-  const scheduledTransactionsPersistence = getAppPersistenceGateway().scheduledTransactions;
+  const scheduledTransactionsPersistence = getBudgetPersistenceProvider().scheduledTransactions;
   const dateFormat = useDateFormatPreference();
   const [scheduledTransactions, setScheduledTransactions] = useState<ScheduledTransactionView[]>([]);
   const [draft, setDraft] = useState<ScheduledFormDraft | null>(null);
@@ -212,17 +214,26 @@ export function ScheduledTransactionsPanel({
     onDueCountChange?.(countDue(next));
   }
 
+  const isWorkspace = presentation === "workspace";
+
   return (
-    <div className="scheduled-panel-overlay" role="dialog" aria-modal="false">
-      <div className="scheduled-panel">
+    <div
+      className={isWorkspace ? "scheduled-panel-workspace" : "scheduled-panel-overlay"}
+      role={isWorkspace ? "region" : "dialog"}
+      aria-label={isWorkspace ? "Scheduled transactions" : undefined}
+      aria-modal={isWorkspace ? undefined : false}
+    >
+      <div className={`scheduled-panel${isWorkspace ? " scheduled-panel-inline" : ""}`}>
         <div className="scheduled-panel-header">
           <div>
             <h2>Scheduled Transactions</h2>
             <p>View upcoming repeating transactions and inspect imported split allocations.</p>
           </div>
-          <button className="button button-secondary" type="button" onClick={onClose}>
-            Close
-          </button>
+          {!isWorkspace ? (
+            <button className="button button-secondary" type="button" onClick={onClose}>
+              Close
+            </button>
+          ) : null}
         </div>
 
         {!draft ? (

@@ -3,10 +3,13 @@ import { readFileSync } from "node:fs";
 
 import type { AppPersistenceGateway } from "../apps/web/src/features/persistence/appPersistenceGateway.js";
 import {
+  bootstrapHostBudgetPersistenceProvider,
   bootstrapHostPersistenceGateway,
   getAppPersistenceGateway,
+  getBudgetPersistenceProvider,
+  getHostBudgetPersistenceProvider,
   getHostPersistenceGateway,
-  resetAppPersistenceGateway,
+  resetBudgetPersistenceProvider,
 } from "../apps/web/src/features/persistence/index.js";
 import { browserLocalStoragePersistenceGateway } from "../apps/web/src/features/persistence/browserLocalStoragePersistenceGateway.js";
 
@@ -29,69 +32,90 @@ try {
   console.log("v1.40 host-provided persistence gateway validation passed");
 } finally {
   delete (globalThis as typeof globalThis & { window?: unknown }).window;
-  resetAppPersistenceGateway();
+  resetBudgetPersistenceProvider();
 }
 
 function validateBrowserFallbackWithoutHostGateway(): void {
-  resetAppPersistenceGateway();
+  resetBudgetPersistenceProvider();
   (globalThis as typeof globalThis & { window: Record<string, unknown> }).window = {};
+
+  assert.equal(
+    getHostBudgetPersistenceProvider(),
+    null,
+    "missing host provider should return null",
+  );
 
   assert.equal(
     getHostPersistenceGateway(),
     null,
-    "missing host gateway should return null",
+    "legacy host gateway alias should also return null",
+  );
+
+  assert.equal(
+    bootstrapHostBudgetPersistenceProvider(),
+    null,
+    "bootstrap should not configure anything when no host provider is supplied",
   );
 
   assert.equal(
     bootstrapHostPersistenceGateway(),
     null,
-    "bootstrap should not configure anything when no host gateway is supplied",
+    "legacy bootstrap alias should remain compatible",
   );
 
   assert.equal(
-    getAppPersistenceGateway().metadata.kind,
+    getBudgetPersistenceProvider().metadata.kind,
     "browser-local-storage",
-    "browser fallback should remain localStorage without a host gateway",
+    "browser fallback should remain localStorage without a host provider",
   );
 }
 
 function validateHostGatewayIsConfiguredBeforeRuntimeUse(): void {
-  resetAppPersistenceGateway();
+  resetBudgetPersistenceProvider();
   (globalThis as typeof globalThis & { window: Record<string, unknown> }).window = {
     __BUDGET_APP_PERSISTENCE_GATEWAY__: hostGateway,
   };
 
   assert.equal(
+    getHostBudgetPersistenceProvider(),
+    hostGateway,
+    "host provider should be read from the legacy runtime global",
+  );
+
+  assert.equal(
     getHostPersistenceGateway(),
     hostGateway,
-    "host gateway should be read from the runtime global",
+    "legacy host gateway alias should remain compatible",
   );
 
   assert.equal(
-    bootstrapHostPersistenceGateway(),
+    bootstrapHostBudgetPersistenceProvider(),
     hostGateway,
-    "bootstrap should return the configured host gateway",
+    "bootstrap should return the configured host provider",
   );
 
   assert.equal(
-    getAppPersistenceGateway().metadata.kind,
+    getBudgetPersistenceProvider().metadata.kind,
     "sqlite-adapter",
-    "no-argument gateway selection should use the host-provided SQLite gateway after bootstrap",
+    "no-argument provider selection should use the host-provided SQLite provider after bootstrap",
   );
 
   assert.equal(
     getAppPersistenceGateway().accountRegisters,
     hostGateway.accountRegisters,
-    "runtime register persistence should come from the host-provided gateway",
+    "legacy gateway selection should delegate to the active provider",
   );
 }
 
 function validateMainBootstrapsHostPersistenceBeforeRendering(): void {
   const source = readFileSync("apps/web/src/main.tsx", "utf8");
-  const bootstrapIndex = source.indexOf("bootstrapHostPersistenceGateway();");
+  const bootstrapIndex = source.indexOf("bootstrapHostBudgetPersistenceProvider();");
   const applicationRenderIndex = source.indexOf("<App />");
 
-  assert.ok(bootstrapIndex >= 0, "main.tsx should call bootstrapHostPersistenceGateway");
+  assert.ok(
+    bootstrapIndex >= 0,
+    "main.tsx should call bootstrapHostBudgetPersistenceProvider",
+  );
   assert.ok(applicationRenderIndex >= 0, "main.tsx should still render the application");
   assert.ok(
     bootstrapIndex < applicationRenderIndex,

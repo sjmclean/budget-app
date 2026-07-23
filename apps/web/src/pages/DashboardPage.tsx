@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { resolveActiveBudget } from "../features/budget/activeBudget";
 import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
-import { getAppPersistenceGateway } from "../features/persistence/appPersistenceGatewayFactory";
+import { getBudgetPersistenceProvider } from "../features/persistence/budgetPersistenceProviderFactory";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import {
@@ -37,7 +37,7 @@ export function DashboardPage() {
       setError(null);
 
       try {
-        const gateway = getAppPersistenceGateway();
+        const gateway = getBudgetPersistenceProvider();
         const accounts = await gateway.accounts.listAccounts();
         const registers = await Promise.all(
           accounts.map((account) => gateway.accountRegisters.getAccountRegisterView({ accountId: account.id })),

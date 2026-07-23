@@ -14,7 +14,11 @@ export function isTransferRegisterTransaction(
 
 export function isUncategorisedRegisterTransaction(
   transaction: RegisterTransactionView,
+  accountType?: "On budget" | "Credit card" | "Tracking",
 ): boolean {
+  if (accountType === "Tracking") {
+    return false;
+  }
   if (transaction.outflow <= 0) {
     return false;
   }

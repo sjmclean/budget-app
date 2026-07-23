@@ -74,7 +74,10 @@ export function buildFinancialOverviewSummary(input: {
     },
     attention: {
       overspentCategories: countOverspentCategories(input.budgetView),
-      uncategorisedTransactions: countUncategorisedTransactions(currentMonthTransactions),
+      uncategorisedTransactions: countUncategorisedTransactions(
+        currentMonthTransactions,
+        input.accounts,
+      ),
     },
   };
 }
@@ -122,8 +125,25 @@ function countOverspentCategories(budgetView: BudgetMonthView | null): number {
 
 function countUncategorisedTransactions(
   transactions: Array<RegisterTransactionView & { accountId: string }>,
+  accounts: SidebarAccount[],
 ): number {
-return transactions.filter(isUncategorisedRegisterTransaction).length;
+  const accountTypeById = new Map(
+    accounts.map((account) => [
+      account.id,
+      account.type === "on-budget"
+        ? "On budget"
+        : account.type === "credit-card"
+          ? "Credit card"
+          : "Tracking",
+    ] as const),
+  );
+
+  return transactions.filter((transaction) =>
+    isUncategorisedRegisterTransaction(
+      transaction,
+      accountTypeById.get(transaction.accountId),
+    ),
+  ).length;
 }
 
 function isTransactionInMonth(transaction: RegisterTransactionView, month: string): boolean {

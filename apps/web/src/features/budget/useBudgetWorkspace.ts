@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getAppPersistenceGateway } from "../persistence";
+import { getBudgetPersistenceProvider } from "../persistence";
 import { useBudgetView } from "./useBudgetView";
 import type {
   BudgetActivityDrilldown,
@@ -7,6 +7,7 @@ import type {
   BudgetCategoryView,
   BudgetMonthView,
   CategoryMergePreview,
+  OverspendingHandling,
 } from "./budgetViewTypes";
 import { isMoneyNegative } from "./moneyMath";
 import { applyCategoryAssignedValues } from "./budgetMoneyMovement";
@@ -32,6 +33,7 @@ interface UseBudgetWorkspaceState {
   closeActivityDrilldown: () => void;
   selectCategory: (categoryId: string) => void;
   updateAssigned: (categoryId: string, assigned: number) => void;
+  setCategoryOverspendingHandling: (categoryId: string, overspendingHandling: OverspendingHandling) => void;
   coverOverspending: (input: {
     overspentCategoryId: string;
     coveringCategoryId: string;
@@ -60,13 +62,14 @@ interface UseBudgetWorkspaceState {
   mergeCategory: (sourceCategoryId: string, targetCategoryId: string) => void;
   clearCategoryMergePreview: () => void;
   clearSelection: () => void;
+  createCategory: (input: { name: string; groupId: string; groupName: string }) => Promise<void>;
 }
 
 export function useBudgetWorkspace(
   budgetId: string,
   month: string,
 ): UseBudgetWorkspaceState {
-  const persistenceGateway = getAppPersistenceGateway();
+  const persistenceGateway = getBudgetPersistenceProvider();
   const categoriesPersistence = persistenceGateway.categories;
   const budgetViewPersistence = persistenceGateway.budgetView;
   const budgetView = useBudgetView(budgetId, month);
@@ -348,6 +351,39 @@ export function useBudgetWorkspace(
       });
   }
 
+  function setCategoryOverspendingHandling(
+    categoryId: string,
+    overspendingHandling: OverspendingHandling,
+  ) {
+    setSaveError(null);
+    const workspaceIdentity = workspaceIdentityRef.current;
+    const mutationVersion = ++mutationVersionRef.current;
+
+    void categoriesPersistence
+      .setCategoryOverspendingHandling({
+        budgetId,
+        month,
+        categoryId,
+        overspendingHandling,
+      })
+      .then((nextData) => {
+        if (
+          isWorkspaceCurrent(workspaceIdentity) &&
+          mutationVersionRef.current === mutationVersion
+        ) {
+          setEditedData(nextData);
+        }
+      })
+      .catch((error) => {
+        if (
+          isWorkspaceCurrent(workspaceIdentity) &&
+          mutationVersionRef.current === mutationVersion
+        ) {
+          setSaveError(error instanceof Error ? error.message : "Failed to update overspending handling.");
+        }
+      });
+  }
+
   function coverOverspending(input: {
     overspentCategoryId: string;
     coveringCategoryId: string;
@@ -574,6 +610,19 @@ export function useBudgetWorkspace(
     setIsCategoryMergePreviewLoading(false);
   }
 
+  async function createCategory(input: {
+    name: string;
+    groupId: string;
+    groupName: string;
+  }) {
+    const nextView = await categoriesPersistence.createCategory({
+      budgetId,
+      month,
+      ...input,
+    });
+    setEditedData(nextView);
+  }
+
   return {
     data,
     isLoading: budgetView.isLoading,
@@ -589,6 +638,7 @@ export function useBudgetWorkspace(
     closeActivityDrilldown,
     selectCategory,
     updateAssigned,
+    setCategoryOverspendingHandling,
     coverOverspending,
     renameCategory,
     setCategoryArchived,
@@ -602,5 +652,6 @@ export function useBudgetWorkspace(
     mergeCategory,
     clearCategoryMergePreview,
     clearSelection,
+    createCategory,
   };
 }

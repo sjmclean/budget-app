@@ -32,16 +32,15 @@ function assert(condition: unknown, message: string): asserts condition {
 
 const storage = new MemoryStorage();
 const initial = readBudgetRegistry(storage);
-assert(initial.length === 1, "empty registry should be seeded with one starter budget");
-assert(initial[0]?.id === "household", "starter budget should have stable household id");
-assert(storage.getItem(BUDGET_REGISTRY_STORAGE_KEY), "seeded registry should be persisted");
+assert(initial.length === 0, "empty storage should remain an empty first-run registry");
+assert(storage.getItem(BUDGET_REGISTRY_STORAGE_KEY) === null, "reading an empty registry must not persist invented data");
 
 const second = createBudgetRegistryEntry(storage, {
   name: "Household Budget",
   currency: "nzd",
   now: new Date("2026-06-22T00:00:00.000Z"),
 });
-assert(second.id === "household-budget", "new budget should use a slugged id when base id is available");
+assert(/^budget-[a-z0-9-]+$/i.test(second.id), "new budget should use an opaque generated id");
 assert(second.currency === "NZD", "new budget currency should be normalised to uppercase");
 
 const third = createBudgetRegistryEntry(storage, {
@@ -49,7 +48,7 @@ const third = createBudgetRegistryEntry(storage, {
   currency: "AUD",
   now: new Date("2026-06-22T00:00:00.000Z"),
 });
-assert(third.id === "household-budget-2", "duplicate budget names should receive unique ids");
+assert(third.id !== second.id, "duplicate budget names should receive unique ids");
 
 const opened = markBudgetOpened(storage, third.id, new Date("2026-06-22T01:00:00.000Z"));
 assert(opened?.lastOpenedLabel === "Opened just now", "opened budget should update last-opened label");
@@ -64,12 +63,10 @@ assert(renamed?.currency === "USD", "budget registry update should update curren
 
 const remaining = deleteBudgetRegistryEntry(storage, third.id);
 assert(!remaining.some((budget) => budget.id === third.id), "delete should remove the selected budget from registry");
-assert(remaining.some((budget) => budget.id === "household"), "delete should preserve other budgets");
+assert(remaining.some((budget) => budget.id === second.id), "delete should preserve other budgets");
 
-const afterDeletingAll = deleteBudgetRegistryEntry(storage, "household");
-assert(afterDeletingAll.length === 1, "deleting household should leave the other created budget");
 const empty = deleteBudgetRegistryEntry(storage, second.id);
 assert(empty.length === 0, "registry should allow zero budgets after deleting the last budget");
-assert(readBudgetRegistry(storage).length === 0, "stored empty registry should not be reseeded until storage is missing or corrupt");
+assert(readBudgetRegistry(storage).length === 0, "stored empty registry should remain the first-run state");
 
 console.log("v1.46 budget registry foundation validation passed");

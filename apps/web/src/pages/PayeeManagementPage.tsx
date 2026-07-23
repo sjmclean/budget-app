@@ -14,7 +14,7 @@ import {
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { Card } from "../components/ui/Card";
-import { getAppPersistenceGateway } from "../features/persistence";
+import { getBudgetPersistenceProvider } from "../features/persistence";
 import type {
   PayeeImportRuleView,
   PayeeRuleMatchType,
@@ -201,7 +201,7 @@ function PayeeMergeDragOverlay({
 }
 
 export function PayeeManagementPage() {
-  const persistenceGateway = getAppPersistenceGateway();
+  const persistenceGateway = getBudgetPersistenceProvider();
   const payeesPersistence = persistenceGateway.payees;
   const budgetViewPersistence = persistenceGateway.budgetView;
   const budgets = useBudgetRegistryStore((state) => state.budgets);

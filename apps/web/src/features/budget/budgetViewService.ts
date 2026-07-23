@@ -7,6 +7,7 @@ import type {
   BudgetCategoryView,
   BudgetMonthView,
   BudgetViewService,
+  OverspendingHandling,
 } from "./budgetViewTypes";
 import type { BudgetActivityPersistencePort, BudgetActivityRegisterTransaction } from "./budgetActivityPersistencePort";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
@@ -38,6 +39,15 @@ interface CategoryLocation {
   category: BudgetCategoryView;
 }
 
+interface BudgetLoadContext {
+  activitySnapshotPromise?: Promise<BudgetActivitySnapshot>;
+}
+
+interface BudgetActivitySnapshot {
+  allTransactions: BudgetActivityRegisterTransaction[];
+  transactionsByMonth: Map<string, BudgetActivityRegisterTransaction[]>;
+}
+
 function getStorageKey(budgetId: string, month: string): string {
   return `${STORAGE_KEY_PREFIX}.${budgetId}.${month}`;
 }
@@ -50,6 +60,7 @@ function cloneBudgetView(view: BudgetMonthView): BudgetMonthView {
       note: group.note ?? "",
       categories: group.categories.map((category) => ({
         ...category,
+        overspendingHandling: category.overspendingHandling ?? "reduce-next-month",
         note: category.note ?? "",
       })),
     })),
@@ -69,6 +80,156 @@ function monthLabelFromIsoMonth(month: string): string {
   }).format(new Date(year, monthNumber - 1, 1));
 }
 
+function previousIsoMonth(month: string): string | null {
+  const [year, monthNumber] = month.split("-").map(Number);
+
+  if (!year || !monthNumber) {
+    return null;
+  }
+
+  const previous = new Date(year, monthNumber - 2, 1);
+  return `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function calculatePreviousOverspending(view: BudgetMonthView): number {
+  return normaliseMoney(
+    view.categoryGroups.reduce(
+      (total, group) =>
+        total +
+        group.categories.reduce((groupTotal, category) => {
+          if (
+            category.available >= 0 ||
+            (category.overspendingHandling ?? "reduce-next-month") === "carry-category"
+          ) {
+            return groupTotal;
+          }
+
+          return groupTotal + category.available;
+        }, 0),
+      0,
+    ),
+  );
+}
+
+function createRolloverBudgetView(
+  previous: BudgetMonthView,
+  month: string,
+  existing?: BudgetMonthView | null,
+): BudgetMonthView {
+  const existingCategories = new Map(
+    (existing?.categoryGroups ?? []).flatMap((group) =>
+      group.categories.map((category) => [category.id, category] as const),
+    ),
+  );
+  const carriedForwardReadyToAssign = previous.readyToAssign;
+  const previousOverspending = calculatePreviousOverspending(previous);
+
+  return {
+    budgetId: previous.budgetId,
+    budgetName: previous.budgetName,
+    monthLabel: monthLabelFromIsoMonth(month),
+    currencyCode: previous.currencyCode,
+    readyToAssign: normaliseMoney(
+      carriedForwardReadyToAssign + previousOverspending - (existing?.totalAssigned ?? 0),
+    ),
+    carriedForwardReadyToAssign,
+    previousOverspending,
+    incomeForMonth: existing?.incomeForMonth ?? 0,
+    rolloverSourceMonth: previousIsoMonth(month) ?? undefined,
+    totalAssigned: existing?.totalAssigned ?? 0,
+    totalActivity: existing?.totalActivity ?? 0,
+    totalAvailable: 0,
+    categoryGroups: previous.categoryGroups.map((group) => ({
+      ...group,
+      previousAvailable: 0,
+      assigned: 0,
+      activity: 0,
+      available: 0,
+      categories: group.categories.map((category) => {
+        const existingCategory = existingCategories.get(category.id);
+        const shouldCarryNegative =
+          category.available < 0 &&
+          (category.overspendingHandling ?? "reduce-next-month") === "carry-category";
+        const previousAvailable =
+          category.available > 0 || shouldCarryNegative ? category.available : 0;
+
+        return {
+          ...category,
+          previousAvailable,
+          assigned: existingCategory?.assigned ?? 0,
+          activity: 0,
+          available: previousAvailable + (existingCategory?.assigned ?? 0),
+          isOverspent: previousAvailable + (existingCategory?.assigned ?? 0) < 0,
+          overspendingHandling:
+            category.overspendingHandling ?? existingCategory?.overspendingHandling ?? "reduce-next-month",
+          note: existingCategory?.note ?? category.note ?? "",
+        };
+      }),
+    })),
+  };
+}
+
+function isEmptyStarterMonth(view: BudgetMonthView): boolean {
+  return (
+    view.totalAssigned === 0 &&
+    view.categoryGroups.every((group) =>
+      group.categories.every(
+        (category) => category.previousAvailable === 0 && category.assigned === 0,
+      ),
+    )
+  );
+}
+
+function isLegacyGeneratedRolloverMonth(
+  view: BudgetMonthView,
+  previous: BudgetMonthView,
+): boolean {
+  if (
+    view.rolloverSourceMonth !== undefined ||
+    normaliseMoney(view.incomeForMonth ?? 0) !== 0 ||
+    view.totalAssigned !== 0 ||
+    view.totalActivity !== 0
+  ) {
+    return false;
+  }
+
+  const previousCategories = new Map(
+    previous.categoryGroups.flatMap((group) =>
+      group.categories.map((category) => [category.id, category] as const),
+    ),
+  );
+
+  return view.categoryGroups.every((group) =>
+    group.categories.every((category) => {
+      const previousCategory = previousCategories.get(category.id);
+
+      if (!previousCategory || category.assigned !== 0 || category.activity !== 0) {
+        return false;
+      }
+
+      const shouldCarryNegative =
+        previousCategory.available < 0 &&
+        (previousCategory.overspendingHandling ?? "reduce-next-month") === "carry-category";
+      const expectedPreviousAvailable =
+        previousCategory.available > 0 || shouldCarryNegative ? previousCategory.available : 0;
+      return (
+        normaliseMoney(category.previousAvailable) === normaliseMoney(expectedPreviousAvailable) &&
+        normaliseMoney(category.available) === normaliseMoney(expectedPreviousAvailable)
+      );
+    }),
+  );
+}
+
+function shouldResolvePreviousRollover(view: BudgetMonthView): boolean {
+  return (
+    view.rolloverSourceMonth !== undefined ||
+    isEmptyStarterMonth(view) ||
+    (normaliseMoney(view.incomeForMonth ?? 0) === 0 &&
+      view.totalAssigned === 0 &&
+      view.totalActivity === 0)
+  );
+}
+
 function recalculateCategory(category: BudgetCategoryView): BudgetCategoryView {
   const previousAvailable = category.previousAvailable ?? 0;
   const available = normaliseMoney(previousAvailable + category.assigned + category.activity);
@@ -77,6 +238,7 @@ function recalculateCategory(category: BudgetCategoryView): BudgetCategoryView {
     ...category,
     previousAvailable,
     isArchived: category.isArchived ?? false,
+    overspendingHandling: category.overspendingHandling ?? "reduce-next-month",
     available,
     isOverspent: isMoneyNegative(available),
   };
@@ -106,9 +268,17 @@ function recalculateBudget(view: BudgetMonthView): BudgetMonthView {
   const totalActivity = categoryGroups.reduce((sum, group) => sum + group.activity, 0);
   const totalAvailable = categoryGroups.reduce((sum, group) => sum + group.available, 0);
 
+  const rolloverBase =
+    view.carriedForwardReadyToAssign !== undefined ||
+    view.previousOverspending !== undefined
+      ? (view.carriedForwardReadyToAssign ?? 0) + (view.previousOverspending ?? 0)
+      : 0;
+  const incomeForMonth = view.incomeForMonth ?? 0;
+
   return {
     ...view,
-    readyToAssign: 0 - totalAssigned,
+    incomeForMonth,
+    readyToAssign: normaliseMoney(rolloverBase + incomeForMonth - totalAssigned),
     totalAssigned,
     totalActivity,
     totalAvailable,
@@ -143,6 +313,7 @@ function createStarterBudgetView(budgetId: string, month: string): BudgetMonthVi
         available: 0,
         isOverspent: false,
         isArchived: false,
+        overspendingHandling: "reduce-next-month",
         note: "",
       })),
     })),
@@ -169,22 +340,53 @@ function readStoredBudgetView(
 }
 
 
+async function getBudgetActivitySnapshot(
+  dependencies: BudgetViewServiceDependencies,
+  context: BudgetLoadContext,
+): Promise<BudgetActivitySnapshot> {
+  context.activitySnapshotPromise ??= (async () => {
+    const allTransactions =
+      await dependencies.budgetActivity.listRegisterTransactionsForBudgetActivity();
+    const transactionsByMonth = new Map<string, BudgetActivityRegisterTransaction[]>();
+
+    for (const transaction of allTransactions) {
+      const transactionMonth = transaction.date.slice(0, 7);
+      const monthTransactions = transactionsByMonth.get(transactionMonth);
+
+      if (monthTransactions) {
+        monthTransactions.push(transaction);
+      } else {
+        transactionsByMonth.set(transactionMonth, [transaction]);
+      }
+    }
+
+    return { allTransactions, transactionsByMonth };
+  })();
+
+  return context.activitySnapshotPromise;
+}
+
 async function applyRegisterActivity(
   dependencies: BudgetViewServiceDependencies,
   view: BudgetMonthView,
   month: string,
+  context: BudgetLoadContext,
 ): Promise<BudgetMonthView> {
-  const transactions = await dependencies.budgetActivity.listRegisterTransactionsForBudgetActivity();
+  const activitySnapshot = await getBudgetActivitySnapshot(dependencies, context);
+  const transactions = activitySnapshot.transactionsByMonth.get(month) ?? [];
+  const allTransactions = activitySnapshot.allTransactions;
   const creditCardBehaviour = readBudgetCreditCardBehaviour(dependencies.storage, view.budgetId);
   const shouldUsePaymentFunding = readCreditCardPaymentFundingEnabled(
     dependencies.storage,
     view.budgetId,
   );
   const viewWithPaymentCategories = shouldCreatePaymentCategories({ creditCardBehaviour })
-    ? ensureCreditCardPaymentCategories(dependencies, view, transactions)
+    ? ensureCreditCardPaymentCategories(dependencies, view, allTransactions)
     : view;
   const categoryLookup = createCategoryLookup(viewWithPaymentCategories);
-  const accountTypeById = new Map(transactions.map((transaction) => [transaction.accountId, transaction.accountType]));
+  const accountTypeById = new Map(
+    allTransactions.map((transaction) => [transaction.accountId, transaction.accountType]),
+  );
   const activityByCategoryId = new Map<string, number>();
   const runningAvailableByCategoryId = new Map<string, number>();
   let readyToAssignIncome = 0;
@@ -248,10 +450,6 @@ async function applyRegisterActivity(
   }
 
   for (const transaction of transactions) {
-    if (!transaction.date.startsWith(month)) {
-      continue;
-    }
-
     if (transaction.splitLines && transaction.splitLines.length > 0) {
       for (const splitLine of transaction.splitLines) {
         const splitCategoryKey = normaliseCategoryKey(splitLine.category);
@@ -340,9 +538,19 @@ async function applyRegisterActivity(
     })),
   });
 
+  const rolloverBase =
+    recalculated.carriedForwardReadyToAssign !== undefined ||
+    recalculated.previousOverspending !== undefined
+      ? (recalculated.carriedForwardReadyToAssign ?? 0) +
+        (recalculated.previousOverspending ?? 0)
+      : 0;
+
   return {
     ...recalculated,
-    readyToAssign: readyToAssignIncome - recalculated.totalAssigned,
+    incomeForMonth: normaliseMoney(readyToAssignIncome),
+    readyToAssign: normaliseMoney(
+      rolloverBase + readyToAssignIncome - recalculated.totalAssigned,
+    ),
   };
 }
 
@@ -412,10 +620,6 @@ async function createCategoryActivityDrilldown(
   const transactions = await dependencies.budgetActivity.listRegisterTransactionsForBudgetActivity();
 
   for (const transaction of transactions) {
-    if (!transaction.date.startsWith(month)) {
-      continue;
-    }
-
     if (transaction.splitLines && transaction.splitLines.length > 0) {
       for (const splitLine of transaction.splitLines) {
         const splitCategoryKey = normaliseCategoryKey(splitLine.category);
@@ -584,8 +788,14 @@ async function saveBudgetView(
   dependencies: BudgetViewServiceDependencies,
   view: BudgetMonthView,
   month: string,
+  context: BudgetLoadContext = {},
 ): Promise<BudgetMonthView> {
-  const next = await applyRegisterActivity(dependencies, recalculateBudget(view), month);
+  const next = await applyRegisterActivity(
+    dependencies,
+    recalculateBudget(view),
+    month,
+    context,
+  );
   dependencies.storage.setItem(getStorageKey(next.budgetId, month), JSON.stringify(next));
   return cloneBudgetView(applyStoredSettings(dependencies, next));
 }
@@ -594,15 +804,59 @@ async function loadBudgetView(
   dependencies: BudgetViewServiceDependencies,
   budgetId: string,
   month: string,
+  context: BudgetLoadContext = {},
 ): Promise<BudgetMonthView> {
   const stored = readStoredBudgetView(dependencies.storage, budgetId, month);
+  const previousMonth = previousIsoMonth(month);
+  const previousStoredSnapshot = previousMonth
+    ? readStoredBudgetView(dependencies.storage, budgetId, previousMonth)
+    : null;
+  const previousStored =
+    previousMonth && previousStoredSnapshot
+      ? shouldResolvePreviousRollover(previousStoredSnapshot)
+        ? await loadBudgetView(dependencies, budgetId, previousMonth, context)
+        : await applyRegisterActivity(
+            dependencies,
+            previousStoredSnapshot,
+            previousMonth,
+            context,
+          )
+      : null;
+
+  if (previousMonth && previousStored) {
+    const shouldRefreshRollover =
+      !stored ||
+      stored.rolloverSourceMonth === previousMonth ||
+      isEmptyStarterMonth(stored) ||
+      isLegacyGeneratedRolloverMonth(stored, previousStored);
+
+    if (shouldRefreshRollover) {
+      const rollover = createRolloverBudgetView(previousStored, month, stored);
+      return saveBudgetView(
+        dependencies,
+        applyStoredSettings(dependencies, rollover),
+        month,
+        context,
+      );
+    }
+  }
 
   if (stored) {
-    return cloneBudgetView(applyStoredSettings(dependencies, await applyRegisterActivity(dependencies, stored, month)));
+    return cloneBudgetView(
+      applyStoredSettings(
+        dependencies,
+        await applyRegisterActivity(dependencies, stored, month, context),
+      ),
+    );
   }
 
   const starter = createStarterBudgetView(budgetId, month);
-  return saveBudgetView(dependencies, applyStoredSettings(dependencies, starter), month);
+  return saveBudgetView(
+    dependencies,
+    applyStoredSettings(dependencies, starter),
+    month,
+    context,
+  );
 }
 
 function slugifyCategoryIdentifier(value: string): string {
@@ -814,6 +1068,7 @@ export function createBudgetViewService(
           available: 0,
           isOverspent: false,
           isArchived: false,
+          overspendingHandling: "reduce-next-month",
           note: "",
         },
       ],
@@ -935,6 +1190,33 @@ export function createBudgetViewService(
       applyCategoryAssignedValues(current, assignments),
       month,
     );
+  },
+
+  async setCategoryOverspendingHandling({
+    budgetId,
+    month,
+    categoryId,
+    overspendingHandling,
+  }: {
+    budgetId: string;
+    month: string;
+    categoryId: string;
+    overspendingHandling: OverspendingHandling;
+  }) {
+    const current = await loadBudgetView(dependencies, budgetId, month);
+    let found = false;
+    const categoryGroups = current.categoryGroups.map((group) => ({
+      ...group,
+      categories: group.categories.map((category) => {
+        if (category.id !== categoryId) return category;
+        found = true;
+        return { ...category, overspendingHandling };
+      }),
+    }));
+
+    if (!found) throw new Error("Category was not found.");
+
+    return saveBudgetView(dependencies, { ...current, categoryGroups }, month);
   },
 
   async coverOverspending({ budgetId, month, overspentCategoryId, coveringCategoryId, amount }) {

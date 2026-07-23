@@ -14,7 +14,9 @@ import {
 } from "../apps/web/src/features/budget/versionHistoryLifecycle.js";
 import {
   createBudgetRegistryEntry,
+  createInitialBudgetRegistry,
   readBudgetRegistry,
+  writeBudgetRegistry,
 } from "../apps/web/src/features/budget/budgetRegistry.js";
 import {
   getBudgetScopedStorageKey,
@@ -55,7 +57,11 @@ function seedBudgetData(storage: KeyValueStoragePort, budgetId: string, accountI
 
 function testLifecycleRestorePointTriggers(): void {
   const storage = new MemoryStorage();
-  const household = readBudgetRegistry(storage)[0]!;
+  const household = createBudgetRegistryEntry(storage, {
+    name: "Household Budget",
+    currency: "AUD",
+    now: new Date("2026-07-01T00:00:00.000Z"),
+  });
   const travel = createBudgetRegistryEntry(storage, {
     name: "Travel Budget",
     currency: "AUD",

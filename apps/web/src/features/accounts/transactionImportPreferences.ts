@@ -1,7 +1,5 @@
-import {
-  browserLocalStorageKeyValueStorage,
-  type KeyValueStoragePort,
-} from "../persistence/keyValueStoragePort";
+import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
 
 const TRANSACTION_IMPORT_PREFERENCES_KEY =
   "budget-app.transaction-import-preferences.v1";
@@ -15,7 +13,7 @@ export const defaultTransactionImportPreferences: TransactionImportPreferences =
 };
 
 export function readTransactionImportPreferences(
-  storage: KeyValueStoragePort = browserLocalStorageKeyValueStorage,
+  storage: KeyValueStoragePort = getActiveKeyValueStorage(),
 ): TransactionImportPreferences {
   try {
     const stored = storage.getItem(TRANSACTION_IMPORT_PREFERENCES_KEY);
@@ -33,7 +31,7 @@ export function readTransactionImportPreferences(
 
 export function writeTransactionImportPreferences(
   preferences: TransactionImportPreferences,
-  storage: KeyValueStoragePort = browserLocalStorageKeyValueStorage,
+  storage: KeyValueStoragePort = getActiveKeyValueStorage(),
 ): void {
   storage.setItem(
     TRANSACTION_IMPORT_PREFERENCES_KEY,

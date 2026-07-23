@@ -1,4 +1,4 @@
-import type { AppPersistenceGateway } from "../persistence/appPersistenceGateway";
+import type { BudgetPersistenceProvider } from "../persistence/budgetPersistenceProvider";
 import type { NewRegisterTransactionInput, RegisterSplitLineView, RegisterTransactionView } from "./accountRegisterTypes";
 import {
   shouldSkipOccurrence,
@@ -8,7 +8,7 @@ import {
 const MAX_OCCURRENCES_PER_RUN = 120;
 
 const generationInFlightByGateway = new WeakMap<
-  AppPersistenceGateway,
+  BudgetPersistenceProvider,
   Promise<ScheduledTransactionGenerationResult>
 >();
 
@@ -31,7 +31,7 @@ export interface ScheduledTransactionGenerationResult {
 }
 
 export function generateDueScheduledTransactions(
-  gateway: AppPersistenceGateway,
+  gateway: BudgetPersistenceProvider,
   input: ScheduledTransactionGenerationInput = {},
 ): Promise<ScheduledTransactionGenerationResult> {
   const existing = generationInFlightByGateway.get(gateway);
@@ -51,7 +51,7 @@ export function generateDueScheduledTransactions(
 }
 
 async function generateDueScheduledTransactionsInternal(
-  gateway: AppPersistenceGateway,
+  gateway: BudgetPersistenceProvider,
   input: ScheduledTransactionGenerationInput,
 ): Promise<ScheduledTransactionGenerationResult> {
   const today = normaliseIsoDate(input.today ?? new Date().toISOString().slice(0, 10));

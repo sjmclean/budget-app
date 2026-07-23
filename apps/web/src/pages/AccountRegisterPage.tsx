@@ -64,10 +64,11 @@ import {
   countTransactionTagReferences,
   removeTransactionTagReferences,
 } from "../features/accounts/accountRegisterService";
-import { getAppPersistenceGateway } from "../features/persistence";
-import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
+import { getBudgetPersistenceProvider } from "../features/persistence";
+import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
+import { useBudgetUndoRedo } from "../features/budget/budgetUndoRedo";
 import { createBudgetScopedStorage } from "../features/budget/budgetDataScope";
 import {
   TransactionTagManager,
@@ -197,13 +198,16 @@ function getMoveAccountIcon(account: SidebarAccount) {
 
 export function AccountRegisterPage() {
   const { accountId = "everyday" } = useParams();
-  const persistenceGateway = getAppPersistenceGateway();
+  const persistenceGateway = getBudgetPersistenceProvider();
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
   const currentBudgetMonth = useCurrentBudgetMonth();
+  const { canUndo, canRedo, undoLabel, redoLabel, isBusy: isHistoryBusy, undo, redo } = useBudgetUndoRedo();
+  const undoTitle = canUndo && undoLabel ? `Undo ${undoLabel}` : "Nothing to undo";
+  const redoTitle = canRedo && redoLabel ? `Redo ${redoLabel}` : "Nothing to redo";
   const transactionTagStorage = useMemo(
-    () => createBudgetScopedStorage(browserLocalStorageKeyValueStorage),
+    () => createBudgetScopedStorage(getActiveKeyValueStorage()),
     [activeBudgetId],
   );
   const transactionTagService = useMemo(
@@ -246,6 +250,12 @@ export function AccountRegisterPage() {
     reassignPayeeReferences,
   } = useAccountRegister(accountId);
 
+  useEffect(() => {
+    if (data) {
+      window.dispatchEvent(new Event("budget-app:account-navigation-updated"));
+    }
+  }, [data]);
+
   const [showEntryRow, setShowEntryRow] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState<
     string | null
@@ -265,7 +275,7 @@ export function AccountRegisterPage() {
     bottom: number;
     left: number;
   } | null>(null);
-  const [isScheduledOpen, setIsScheduledOpen] = useState(false);
+  const [activeRegisterView, setActiveRegisterView] = useState<"register" | "scheduled">("register");
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
   const [isTransactionTagManagerOpen, setIsTransactionTagManagerOpen] =
     useState(false);
@@ -450,6 +460,7 @@ export function AccountRegisterPage() {
     searchDraft: registerSearchDraft,
     committedSearch: committedRegisterSearch,
     categoryFilter,
+    categoriesEnabled: data?.accountType !== "Tracking",
     sort: registerSort,
     developerPerformanceMode,
     performanceTimingsRef: registerPerformanceTimingsRef,
@@ -458,6 +469,12 @@ export function AccountRegisterPage() {
   useEffect(() => {
     setActiveRegisterSearchSuggestionIndex(null);
   }, [registerSearchDraft]);
+
+  useEffect(() => {
+    if (data?.accountType === "Tracking" && categoryFilter !== "all") {
+      setCategoryFilter("all");
+    }
+  }, [categoryFilter, data?.accountType]);
 
   const registerSelection = useRegisterSelection(visibleTransactionIds);
   const selectedRegisterTransactionIds = registerSelection.selectedIds;
@@ -1051,7 +1068,7 @@ export function AccountRegisterPage() {
         style={registerTableLayout.rowStyle}
         aria-label="Register column headings"
       >
-        {registerTableLayout.visibleColumns.map((column) => (
+        {registerTableLayout.visibleColumns.filter((column) => data.accountType !== "Tracking" || column.id !== "category").map((column) => (
           <span
             className={[
               column.id === "attachments" || column.id === "tags"
@@ -1133,14 +1150,18 @@ export function AccountRegisterPage() {
     <WorkspaceLayout className="register-workspace">
       <WorkspaceBody className="register-workspace-body">
       <Card
-        className={`register-table-card register-layout-${registerLayoutMode}`}
+        className={`register-table-card register-layout-${registerLayoutMode} register-view-${activeRegisterView}`}
       >
         <WorkspaceStickyHeader className="register-sticky-stack">
           <RegisterToolbar
             accountName={data.accountName}
             workingBalance={data.workingBalance}
+            clearedBalance={data.clearedBalance}
+            unclearedBalance={data.unclearedBalance}
             currencyCode={data.currencyCode}
             formatMoney={formatMoney}
+            activeView={activeRegisterView}
+            onViewChange={setActiveRegisterView}
             onToggleEntryRow={() => {
               setEditingTransactionId(null);
               setShowEntryRow((current) => !current);
@@ -1157,8 +1178,8 @@ export function AccountRegisterPage() {
             onCommitSearch={commitRegisterSearch}
             onHighlightSearchSuggestion={setActiveRegisterSearchSuggestionIndex}
             onClearSearch={clearRegisterSearch}
-            columns={REGISTER_COLUMN_DEFINITIONS}
-            visibleColumnSet={registerTableLayout.visibleColumnSet}
+            columns={data.accountType === "Tracking" ? REGISTER_COLUMN_DEFINITIONS.filter((column) => column.id !== "category") : REGISTER_COLUMN_DEFINITIONS}
+            visibleColumnSet={data.accountType === "Tracking" ? new Set([...registerTableLayout.visibleColumnSet].filter((columnId) => columnId !== "category")) : registerTableLayout.visibleColumnSet}
             onToggleColumn={registerTableLayout.toggleColumn}
             onResetColumns={registerTableLayout.resetLayout}
             onOpenImport={() => {
@@ -1170,16 +1191,22 @@ export function AccountRegisterPage() {
                 });
               });
             }}
-            onOpenPayeeManager={() => setIsPayeeManagerOpen(true)}
             onOpenTagManager={() => setIsTransactionTagManagerOpen(true)}
-            onToggleScheduled={() => setIsScheduledOpen((current) => !current)}
             scheduledDueCount={scheduledDueCount}
             categoryFilter={categoryFilter}
+            categoriesEnabled={data.accountType !== "Tracking"}
             onCategoryFilterChange={setCategoryFilter}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            isHistoryBusy={isHistoryBusy}
+            undoTitle={undoTitle}
+            redoTitle={redoTitle}
+            onUndo={() => void undo()}
+            onRedo={() => void redo()}
           />
 
-          {registerColumnHeader}
-          {committedRegisterSearch ? (
+          {activeRegisterView === "register" ? registerColumnHeader : null}
+          {activeRegisterView === "register" && committedRegisterSearch ? (
             <div className="register-search-status" role="status">
               <strong>
                 Searching{" "}
@@ -1199,13 +1226,14 @@ export function AccountRegisterPage() {
 
         <ScheduledTransactionsPanel
           accountId={accountId}
-          isOpen={isScheduledOpen}
+          isOpen={activeRegisterView === "scheduled"}
           categoryOptions={categoryOptions}
           transferAccounts={transferAccounts}
           payeeOptions={payeeOptions}
           tags={transactionTags}
           onCreateTag={handleCreateTransactionTag}
-          onClose={() => setIsScheduledOpen(false)}
+          onClose={() => setActiveRegisterView("register")}
+          presentation="workspace"
           onDueCountChange={setScheduledDueCount}
           onEnter={async (input) => {
             await addTransaction(input);
@@ -1777,8 +1805,8 @@ export function AccountRegisterPage() {
               payeeOptions={payeeOptions}
               onCreatePayee={createInlinePayee}
               currencyCode={data.currencyCode}
-              visibleColumns={registerEntryColumnSet}
-              visibleColumnIds={registerEntryVisibleColumnIds}
+              visibleColumns={data.accountType === "Tracking" ? new Set([...registerEntryColumnSet].filter((columnId) => columnId !== "category")) : registerEntryColumnSet}
+              visibleColumnIds={data.accountType === "Tracking" ? registerEntryVisibleColumnIds.filter((columnId) => columnId !== "category") : registerEntryVisibleColumnIds}
               rowStyle={registerEntryRowStyle}
               layoutMode={registerLayoutMode}
               onCreateCategory={createInlineCategory}
@@ -1835,8 +1863,8 @@ export function AccountRegisterPage() {
                     onManageTransactionAttachments={
                       handleManageTransactionAttachments
                     }
-                    visibleColumns={registerEditColumnSet}
-                    visibleColumnIds={registerEditVisibleColumnIds}
+                    visibleColumns={data.accountType === "Tracking" ? new Set([...registerEditColumnSet].filter((columnId) => columnId !== "category")) : registerEditColumnSet}
+                    visibleColumnIds={data.accountType === "Tracking" ? registerEditVisibleColumnIds.filter((columnId) => columnId !== "category") : registerEditVisibleColumnIds}
                     rowStyle={registerEditRowStyle}
                     layoutMode={registerLayoutMode}
                     autoFocusField={editingTransactionFocusField}
@@ -1861,9 +1889,10 @@ export function AccountRegisterPage() {
                     onUpdateTransactionTags={handleUpdateTransactionTags}
                     onCreateTransactionTag={handleCreateTransactionTag}
                     onOpenContextMenu={handleOpenRegisterContextMenu}
-                    visibleColumns={registerTableLayout.visibleColumnSet}
+                    visibleColumns={data.accountType === "Tracking" ? new Set([...registerTableLayout.visibleColumnSet].filter((columnId) => columnId !== "category")) : registerTableLayout.visibleColumnSet}
                     rowStyle={registerTableLayout.rowStyle}
                     layoutMode={registerLayoutMode}
+                    categoriesEnabled={data.accountType !== "Tracking"}
                   />
                 )}
               </div>

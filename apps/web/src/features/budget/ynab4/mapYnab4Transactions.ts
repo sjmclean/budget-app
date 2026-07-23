@@ -8,6 +8,7 @@ import type {
 } from "../../accounts/accountService";
 import type { TransactionTagColour } from "../../tags/transactionTagTypes";
 import { decodeYnabAmount } from "../../../../../../packages/ynab4-importer/src/money/decodeYnabAmount";
+import { isYnab4Tombstone } from "./ynab4RecordState";
 
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
 const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
@@ -34,6 +35,7 @@ export interface Ynab4TransactionIdentityMaps {
   payeeIdBySourceId: ReadonlyMap<string, string>;
   payeeNameById: ReadonlyMap<string, string>;
   nonImportableCategorySourceIds?: ReadonlySet<string>;
+  warnings?: string[];
 }
 
 export interface MapYnab4TransactionsInput {
@@ -181,18 +183,17 @@ export function mapYnab4Transaction(
         : "Uncategorised"
       : hasSplitLines
         ? "Split"
-        : categoryId && (!transferAccountId || isCategorisedOffBudgetTransfer)
-          ? maps.categoryNameById.get(categoryId) ??
-            READY_TO_ASSIGN_CATEGORY_NAME
-          : transferAccountId
-            ? "Transfer"
-            : READY_TO_ASSIGN_CATEGORY_NAME,
-    categoryId: isTrackingAccount
+        : transferAccountId && !isCategorisedOffBudgetTransfer
+          ? "Transfer"
+          : categoryId
+            ? maps.categoryNameById.get(categoryId) ??
+              READY_TO_ASSIGN_CATEGORY_NAME
+            : "Uncategorised",
+    categoryId: isTrackingAccount || hasSplitLines
       ? undefined
-      : hasSplitLines
+      : transferAccountId && !isCategorisedOffBudgetTransfer
         ? undefined
-        : categoryId ??
-          (transferAccountId ? undefined : READY_TO_ASSIGN_CATEGORY_ID),
+        : categoryId ?? undefined,
     memo:
       firstString(transaction.memo, transaction.note, transaction.notes) ??
       undefined,
@@ -258,7 +259,7 @@ export function mapYnab4SplitLines(
             maps,
             line,
             `split ${sourceEntityLabel(line, index)}`,
-          ) ?? READY_TO_ASSIGN_CATEGORY_ID;
+          );
     return {
       id: lineId,
       category: suppressBudgetCategories
@@ -267,10 +268,14 @@ export function mapYnab4SplitLines(
           : "Uncategorised"
         : transferAccountId
           ? "Transfer"
-          : maps.categoryNameById.get(categoryId!) ??
-            READY_TO_ASSIGN_CATEGORY_NAME,
+          : categoryId
+            ? maps.categoryNameById.get(categoryId) ??
+              READY_TO_ASSIGN_CATEGORY_NAME
+            : "Uncategorised",
       categoryId:
-        suppressBudgetCategories || transferAccountId ? undefined : categoryId!,
+        suppressBudgetCategories || transferAccountId
+          ? undefined
+          : categoryId ?? undefined,
       memo: firstString(line.memo, line.note, line.notes) ?? undefined,
       inflow: amount > 0 ? amount : 0,
       outflow: amount < 0 ? Math.abs(amount) : 0,
@@ -424,7 +429,15 @@ export function resolveYnab4CategoryId(
   }
   const mapped = maps.categoryIdBySourceId.get(sourceCategoryId);
   if (mapped) return mapped;
-  if (maps.nonImportableCategorySourceIds?.has(sourceCategoryId)) return null;
+  if (maps.nonImportableCategorySourceIds?.has(sourceCategoryId)) {
+    const warning =
+      `YNAB4 ${source} referenced deleted or non-importable category ` +
+      `"${sourceCategoryId}" and was imported as Uncategorised.`;
+    if (maps.warnings && !maps.warnings.includes(warning)) {
+      maps.warnings.push(warning);
+    }
+    return null;
+  }
   throw new Error(`Unresolved YNAB4 category "${sourceCategoryId}" for ${source}.`);
 }
 
@@ -437,10 +450,6 @@ function mappedId(
     if (key && map.has(key)) return map.get(key)!;
   }
   return null;
-}
-
-function isYnab4Tombstone(record: RecordMap): boolean {
-  return record.isTombstone === true || record.deleted === true;
 }
 
 function requireYnab4Date(value: string | null, source: string): string {

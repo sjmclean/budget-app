@@ -7,7 +7,7 @@ export type NumberFormatPreference = "1,234.56" | "1.234,56" | "1 234,56";
 export type FirstDayOfWeekPreference = "monday" | "sunday" | "saturday";
 
 export interface GeneralSettingsPreference {
-  theme: "system" | "light" | "dark";
+  theme: "system" | "light" | "dark" | "blueprint";
   dateFormat: DateFormatPreference;
   numberFormat: NumberFormatPreference;
   firstDayOfWeek: FirstDayOfWeekPreference;
@@ -88,7 +88,7 @@ function normalisePreferences(value: unknown): SettingsPreferences {
 
   return {
     general: {
-      theme: ["system", "light", "dark"].includes(readString(general.theme, defaults.general.theme))
+      theme: ["system", "light", "dark", "blueprint"].includes(readString(general.theme, defaults.general.theme))
         ? (readString(general.theme, defaults.general.theme) as GeneralSettingsPreference["theme"])
         : defaults.general.theme,
       dateFormat: ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"].includes(readString(general.dateFormat, defaults.general.dateFormat))

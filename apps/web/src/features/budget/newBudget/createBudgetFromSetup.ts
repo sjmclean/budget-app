@@ -1,5 +1,5 @@
 import type { BudgetSummary } from "../budgetRegistry";
-import type { BudgetMonthView } from "../budgetViewTypes";
+import type { BudgetCategoryGroupView, BudgetMonthView } from "../budgetViewTypes";
 import type { KeyValueStoragePort } from "../../persistence/keyValueStoragePort";
 import { createBudgetRegistryEntry } from "../budgetRegistry";
 import { getCurrentBudgetMonth } from "../budgetMonthNavigation";
@@ -22,7 +22,7 @@ function monthLabelFromIsoMonth(month: string): string {
 
 function createBudgetMonthView(budget: BudgetSummary, setup: NewBudgetSetup, now = new Date()): BudgetMonthView {
   const month = getCurrentBudgetMonth(now);
-  const categoryGroups = getSelectedCategoryGroups(setup.categoryGroups).map((group) => ({
+  const categoryGroups: BudgetCategoryGroupView[] = getSelectedCategoryGroups(setup.categoryGroups).map((group) => ({
     id: group.id,
     name: group.name,
     previousAvailable: 0,
@@ -39,6 +39,7 @@ function createBudgetMonthView(budget: BudgetSummary, setup: NewBudgetSetup, now
       available: 0,
       isOverspent: false,
       isArchived: false,
+      overspendingHandling: "reduce-next-month",
       note: "",
     })),
   }));

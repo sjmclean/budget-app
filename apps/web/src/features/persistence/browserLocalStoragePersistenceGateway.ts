@@ -5,8 +5,13 @@ import { createScheduledTransactionService } from "../accounts/scheduledTransact
 import { createBudgetViewService } from "../budget/budgetViewService";
 import { createBrowserLocalStorageBudgetActivityPersistence } from "./browserLocalStorageBudgetActivityPersistence";
 import { createBudgetScopedStorage } from "../budget/budgetDataScope";
-import { browserLocalStorageKeyValueStorage } from "./keyValueStoragePort";
+import {
+  browserLocalStorageKeyValueStorage,
+  flushBrowserStorageBackend,
+  hydrateBrowserStorageBackend,
+} from "./keyValueStoragePort";
 import type { AppPersistenceGateway } from "./appPersistenceGateway";
+import { exportBudgetPersistenceSnapshot } from "./persistenceSnapshot";
 
 const budgetScopedStorage = createBudgetScopedStorage(browserLocalStorageKeyValueStorage);
 
@@ -52,10 +57,20 @@ export const browserLocalStoragePersistenceGateway: AppPersistenceGateway = {
       "The web UI is currently using browser localStorage-backed feature services. This gateway preserves existing behaviour while SQLite-backed adapters are introduced incrementally.",
     isProductionPersistence: false,
   },
+  capabilities: {
+    sharedAcrossDevices: false,
+    liveUpdates: false,
+    offlineWrites: true,
+    backups: false,
+  },
   accounts: accountService,
   accountRegisters: accountRegisterService,
   budgetView: budgetViewService,
   categories: budgetViewService,
   payees: payeeService,
   scheduledTransactions: scheduledTransactionService,
+  keyValueStorage: browserLocalStorageKeyValueStorage,
+  initialize: hydrateBrowserStorageBackend,
+  flush: flushBrowserStorageBackend,
+  exportSnapshot: () => exportBudgetPersistenceSnapshot(browserLocalStorageKeyValueStorage),
 };

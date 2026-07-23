@@ -1,9 +1,14 @@
-import type { AppPersistenceGateway } from "./appPersistenceGateway";
-import { configureAppPersistenceGateway } from "./appPersistenceGatewayFactory";
+import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
+import { configureBudgetPersistenceProvider } from "./budgetPersistenceProviderFactory";
+
+/** @deprecated Compatibility alias for host integrations using the old name. */
+export type HostPersistenceGateway = BudgetPersistenceProvider;
 
 declare global {
   interface Window {
-    __BUDGET_APP_PERSISTENCE_GATEWAY__?: AppPersistenceGateway;
+    __BUDGET_APP_PERSISTENCE_PROVIDER__?: BudgetPersistenceProvider;
+    /** @deprecated Use __BUDGET_APP_PERSISTENCE_PROVIDER__. */
+    __BUDGET_APP_PERSISTENCE_GATEWAY__?: BudgetPersistenceProvider;
   }
 }
 
@@ -11,24 +16,34 @@ declare global {
  * Runtime host integration point for desktop/Tauri persistence.
  *
  * Browser builds must not import SQLite repositories or native database drivers.
- * Instead, a host runtime can compose an AppPersistenceGateway and expose it on
- * window before React renders. If no host gateway is present, the app keeps the
- * browser-localStorage fallback selected by appPersistenceGatewayFactory.
+ * A host runtime may expose a provider before React renders. The legacy gateway
+ * global remains supported while host integrations migrate to provider naming.
  */
-export function getHostPersistenceGateway(): AppPersistenceGateway | null {
+export function getHostBudgetPersistenceProvider(): BudgetPersistenceProvider | null {
   if (typeof window === "undefined") {
     return null;
   }
 
-  return window.__BUDGET_APP_PERSISTENCE_GATEWAY__ ?? null;
+  return (
+    window.__BUDGET_APP_PERSISTENCE_PROVIDER__ ??
+    window.__BUDGET_APP_PERSISTENCE_GATEWAY__ ??
+    null
+  );
 }
 
-export function bootstrapHostPersistenceGateway(): AppPersistenceGateway | null {
-  const hostGateway = getHostPersistenceGateway();
+export function bootstrapHostBudgetPersistenceProvider(): BudgetPersistenceProvider | null {
+  const provider = getHostBudgetPersistenceProvider();
 
-  if (hostGateway) {
-    configureAppPersistenceGateway(hostGateway);
+  if (provider) {
+    configureBudgetPersistenceProvider(provider);
   }
 
-  return hostGateway;
+  return provider;
 }
+
+/** @deprecated Prefer getHostBudgetPersistenceProvider. */
+export const getHostPersistenceGateway = getHostBudgetPersistenceProvider;
+
+/** @deprecated Prefer bootstrapHostBudgetPersistenceProvider. */
+export const bootstrapHostPersistenceGateway =
+  bootstrapHostBudgetPersistenceProvider;

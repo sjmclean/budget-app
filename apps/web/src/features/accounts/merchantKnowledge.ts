@@ -1,5 +1,5 @@
 import { createBudgetScopedStorage } from "../budget/budgetDataScope";
-import { browserLocalStorageKeyValueStorage } from "../persistence/keyValueStoragePort";
+import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
 import { normaliseMerchant } from "./merchantNormalisation";
 
 export const MERCHANT_KNOWLEDGE_STORAGE_KEY =
@@ -357,7 +357,7 @@ export function deriveMostUsedTransferAccount(
 }
 
 function getMerchantKnowledgeStorage() {
-  return createBudgetScopedStorage(browserLocalStorageKeyValueStorage);
+  return createBudgetScopedStorage(getActiveKeyValueStorage());
 }
 
 export function readMerchantKnowledge(): MerchantKnowledgeStore {
