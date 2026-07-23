@@ -620,6 +620,10 @@ async function createCategoryActivityDrilldown(
   const transactions = await dependencies.budgetActivity.listRegisterTransactionsForBudgetActivity();
 
   for (const transaction of transactions) {
+    if (transaction.date.slice(0, 7) !== month) {
+      continue;
+    }
+
     if (transaction.splitLines && transaction.splitLines.length > 0) {
       for (const splitLine of transaction.splitLines) {
         const splitCategoryKey = normaliseCategoryKey(splitLine.category);

@@ -173,8 +173,8 @@ function testLauncherImportRejectsInvalidPreview() {
     /preview validation passes/,
   );
 
-  assert.equal(readBudgetRegistry(storage).length, 1);
-  assert.ok(storage.getItem(BUDGET_REGISTRY_STORAGE_KEY));
+assert.equal(readBudgetRegistry(storage).length, 0);
+assert.equal(storage.getItem(BUDGET_REGISTRY_STORAGE_KEY), null);
 }
 
 function testLauncherImportPersistsImportedBudgetData() {

@@ -168,7 +168,7 @@ const relationshipIdSpend = transactions.find(
 assert.ok(relationshipIdSpend);
 assert.equal(
   relationshipIdSpend.category,
-  "Ready to Assign",
+  "Uncategorised",
   "A masterCategoryId relationship must never be registered as a category identity alias.",
 );
 assert.equal(

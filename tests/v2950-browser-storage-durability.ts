@@ -89,8 +89,20 @@ assert.match(
 );
 assert.match(
   mainSource,
-  /installBrowserStorageLifecycleFlush\(\)/,
-  "application bootstrap should install persistence lifecycle flushing",
+  /const persistenceProvider = getBudgetPersistenceProvider\(\)/,
+  "application bootstrap should resolve the active persistence provider",
+);
+
+assert.match(
+  mainSource,
+  /await persistenceProvider\.initialize\?\.\(\)/,
+  "application bootstrap should initialise the active persistence provider",
+);
+
+assert.match(
+  mainSource,
+  /installPersistenceProviderLifecycle\(persistenceProvider\)/,
+  "application bootstrap should install provider lifecycle flushing",
 );
 
 await testWritesAreSerialized();

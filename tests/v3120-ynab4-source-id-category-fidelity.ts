@@ -123,7 +123,7 @@ const registers = JSON.parse(registerRaw) as Record<string, { transactions: Arra
 const transactions = Object.values(registers).flatMap((register) => register.transactions);
 assert.equal(
   transactions.find((transaction) => transaction.id === "legacy-spend")?.category,
-  "Ready to Assign",
+  "Uncategorised",
   "Transactions that reference tombstoned categories must remain unresolved rather than being redirected by name.",
 );
 

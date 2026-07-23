@@ -60,11 +60,15 @@ assert(
   "TransactionRow should preserve attachment manager wiring.",
 );
 assert(
-  registerPage.includes("<TransactionRow") &&
-    registerPage.includes(
-      "visibleColumns={registerTableLayout.visibleColumnSet}",
-    ),
-  "AccountRegisterPage should render TransactionRow with shared table visibility state.",
+  registerPage.includes("<TransactionRow"),
+  "AccountRegisterPage should render the extracted TransactionRow component.",
+);
+
+assert(
+  registerPage.includes(
+    'visibleColumns={data.accountType === "Tracking" ? new Set([...registerTableLayout.visibleColumnSet].filter((columnId) => columnId !== "category")) : registerTableLayout.visibleColumnSet}',
+  ),
+  "AccountRegisterPage should pass shared table visibility state to TransactionRow while excluding categories for tracking accounts.",
 );
 
 console.log("v2.09 register row extraction regression checks passed");

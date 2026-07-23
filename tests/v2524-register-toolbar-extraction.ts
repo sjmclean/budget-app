@@ -24,7 +24,15 @@ assert.match(toolbarComponent, /export function RegisterToolbar/);
 assert.match(toolbarComponent, /function RegisterSearchDropdown/);
 assert.match(toolbarComponent, /<ColumnVisibilityMenu/);
 assert.match(toolbarComponent, /<DropdownMenu/);
-assert.match(toolbarComponent, /Search payees, categories, memos or amounts/);
-assert.match(toolbarComponent, /Scheduled Transactions/);
+assert.match(toolbarComponent, /placeholder="Search transactions…"/);
+assert.match(toolbarComponent, /aria-label="Search transactions"/);
+assert.match(toolbarComponent, /key: "payees"/);
+assert.match(toolbarComponent, /key: "categories"/);
+assert.match(toolbarComponent, /key: "memos"/);
+assert.match(toolbarComponent, /RegisterSearchDropdown/);
+assert.match(
+  toolbarComponent,
+  /Scheduled.*scheduledDueCount/s,
+);
 
 console.log("v2.52.4 register toolbar extraction checks passed");
