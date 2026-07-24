@@ -1,4 +1,5 @@
 import type { RegisterAttachmentView } from "./accountRegisterTypes";
+import { getAttachmentContentStore } from "../attachments/attachmentContentStore";
 
 export interface AttachmentAccessState {
   canAccess: boolean;
@@ -8,21 +9,55 @@ export interface AttachmentAccessState {
 export function getAttachmentAccessState(
   attachment: RegisterAttachmentView,
 ): AttachmentAccessState {
-  if (!attachment.contentDataUrl) {
-    return {
-      canAccess: false,
-      reason: "Attachment content is not stored in this browser register yet.",
-    };
+  if (attachment.contentDataUrl) {
+    if (!isSafeDataUrl(attachment.contentDataUrl)) {
+      return {
+        canAccess: false,
+        reason: "Attachment content is not in a supported stored format.",
+      };
+    }
+
+    return { canAccess: true };
   }
 
-  if (!isSafeDataUrl(attachment.contentDataUrl)) {
-    return {
-      canAccess: false,
-      reason: "Attachment content is not in a supported stored format.",
-    };
+  if (attachment.contentRef) {
+    return { canAccess: true };
   }
 
-  return { canAccess: true };
+  return {
+    canAccess: false,
+    reason: "Attachment content is not available on this device yet.",
+  };
+}
+
+export async function readAttachmentBlob(
+  attachment: RegisterAttachmentView,
+): Promise<Blob | null> {
+  if (attachment.contentDataUrl) {
+    if (!isSafeDataUrl(attachment.contentDataUrl)) {
+      return null;
+    }
+
+    return await fetch(attachment.contentDataUrl).then((response) => response.blob());
+  }
+
+  if (!attachment.contentRef) {
+    return null;
+  }
+
+  return await getAttachmentContentStore().read(attachment.contentRef);
+}
+
+export async function isAttachmentAvailableLocally(
+  attachment: RegisterAttachmentView,
+): Promise<boolean> {
+  if (attachment.contentDataUrl) {
+    return isSafeDataUrl(attachment.contentDataUrl);
+  }
+
+  return attachment.contentRef
+    ? await getAttachmentContentStore().exists(attachment.contentRef)
+    : false;
 }
 
 export function getSafeAttachmentFileName(fileName: string): string {

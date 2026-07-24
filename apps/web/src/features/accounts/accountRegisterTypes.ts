@@ -24,7 +24,9 @@ export interface RegisterAttachmentView {
    * desktop/package-backed attachment file store is wired into the UI.
    */
   contentDataUrl?: string;
-  storageType?: "inline-data-url" | "external-file";
+  contentRef?: string;
+  contentHash?: string;
+  storageType?: "inline-data-url" | "browser-indexeddb" | "external-file";
 }
 
 export interface RegisterTransactionView {
@@ -153,8 +155,12 @@ export interface AccountRegisterService {
     attachment: {
       fileName: string;
       fileSize: number;
+      id?: string;
       mimeType: string;
       contentDataUrl?: string;
+      contentRef?: string;
+      contentHash?: string;
+      storageType?: "inline-data-url" | "browser-indexeddb" | "external-file";
     };
   }): Promise<AccountRegisterView>;
 

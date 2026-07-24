@@ -99,8 +99,12 @@ export interface AccountRegisterPersistencePort {
     attachment: {
       fileName: string;
       fileSize: number;
+      id?: string;
       mimeType: string;
       contentDataUrl?: string;
+      contentRef?: string;
+      contentHash?: string;
+      storageType?: "inline-data-url" | "browser-indexeddb" | "external-file";
     };
   }): Promise<AccountRegisterView>;
 

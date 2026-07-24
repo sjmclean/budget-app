@@ -1,10 +1,11 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Paperclip } from "lucide-react";
 import {
   getAttachmentAccessState,
   getSafeAttachmentFileName,
+  readAttachmentBlob,
 } from "../attachmentAccess";
-import type { RegisterTransactionView } from "../accountRegisterTypes";
+import type { RegisterAttachmentView, RegisterTransactionView } from "../accountRegisterTypes";
 import { formatDateForDisplay } from "../../settings/dateFormatting";
 import { useDateFormatPreference } from "../../settings/useDateFormatPreference";
 
@@ -33,6 +34,7 @@ export function AttachmentManager({
 }) {
   const dateFormat = useDateFormatPreference();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
   const attachments = transaction.attachments ?? [];
 
   return (
@@ -83,30 +85,37 @@ export function AttachmentManager({
                     <span>
                       {formatFileSize(attachment.fileSize)} ·{" "}
                       {attachment.mimeType || "Unknown type"}
-                      {attachment.contentDataUrl
-                        ? " · Stored"
+                      {attachment.contentDataUrl || attachment.contentRef
+                        ? " · Stored locally"
                         : " · Metadata only"}
                     </span>
                     {!access.canAccess ? <small>{access.reason}</small> : null}
                   </div>
                   <div className="attachment-list-actions">
-                    {access.canAccess && attachment.contentDataUrl ? (
+                    {access.canAccess ? (
                       <>
-                        <a
+                        <button
                           className="button button-secondary"
-                          href={attachment.contentDataUrl}
-                          target="_blank"
-                          rel="noreferrer"
+                          type="button"
+                          onClick={() => {
+                            void openAttachment(attachment, setAccessError);
+                          }}
                         >
                           Open
-                        </a>
-                        <a
+                        </button>
+                        <button
                           className="button button-secondary"
-                          href={attachment.contentDataUrl}
-                          download={safeFileName}
+                          type="button"
+                          onClick={() => {
+                            void downloadAttachment(
+                              attachment,
+                              safeFileName,
+                              setAccessError,
+                            );
+                          }}
                         >
                           Download
-                        </a>
+                        </button>
                       </>
                     ) : null}
                     <button
@@ -122,6 +131,8 @@ export function AttachmentManager({
             })
           )}
         </div>
+
+        {accessError ? <p className="error-message">{accessError}</p> : null}
 
         <div className="attachment-dialog-actions">
           <input
@@ -151,4 +162,45 @@ export function AttachmentManager({
       </div>
     </div>
   );
+}
+
+
+async function openAttachment(
+  attachment: RegisterAttachmentView,
+  setError: (message: string | null) => void,
+): Promise<void> {
+  const blob = await readAttachmentBlob(attachment);
+  if (!blob) {
+    setError("Attachment content is not available on this device yet.");
+    return;
+  }
+
+  setError(null);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+async function downloadAttachment(
+  attachment: RegisterAttachmentView,
+  fileName: string,
+  setError: (message: string | null) => void,
+): Promise<void> {
+  const blob = await readAttachmentBlob(attachment);
+  if (!blob) {
+    setError("Attachment content is not available on this device yet.");
+    return;
+  }
+
+  setError(null);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
 }

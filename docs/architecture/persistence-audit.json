@@ -1,0 +1,1484 @@
+{
+  "generatedAt": "2026-07-24T02:44:19.476Z",
+  "scope": [
+    "apps/web/src",
+    "apps/server/src"
+  ],
+  "architecture": {
+    "browserDefault": "browser-local-storage",
+    "configurableBrowserBackends": [
+      "browser-local-storage",
+      "shared-server"
+    ],
+    "sqliteStatus": "adapter foundation exists but is not selectable through browser runtime configuration",
+    "sharedServerModel": "server-authoritative key/value snapshot with optimistic whole-revision concurrency and SSE invalidation",
+    "attachmentContent": "separate IndexedDB blob store foundation"
+  },
+  "counts": {
+    "localStorage": 24,
+    "indexedDB": 2,
+    "fetch": 1,
+    "sharedApi": 2,
+    "sqlite": 17,
+    "persistenceGateway": 30
+  },
+  "localStorage": {
+    "directBudgetOrRuntimeDataFiles": [
+      "apps/web/src/app/errors/appErrorDiagnostics.ts",
+      "apps/web/src/features/accounts/accountPersistencePort.ts",
+      "apps/web/src/features/accounts/accountRegisterPersistencePort.ts",
+      "apps/web/src/features/accounts/accountRegisterService.ts",
+      "apps/web/src/features/accounts/payeePersistencePort.ts",
+      "apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts",
+      "apps/web/src/features/accounts/transactionImport.ts",
+      "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
+      "apps/web/src/features/budget/categoryPersistencePort.ts",
+      "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
+      "apps/web/src/features/persistence/browserLocalStoragePersistenceGateway.ts",
+      "apps/web/src/features/persistence/budgetPersistenceProviderFactory.ts",
+      "apps/web/src/features/persistence/configuredPersistenceProvider.ts",
+      "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "apps/web/src/features/persistence/persistenceMode.ts",
+      "apps/web/src/features/persistence/persistenceRuntimeMetadata.ts",
+      "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
+      "apps/web/src/features/persistence/sqlitePayeePersistenceAdapter.ts",
+      "apps/web/src/features/persistence/sqlitePersistenceGateway.ts",
+      "apps/web/src/pages/BudgetPage.tsx"
+    ],
+    "uiPreferenceFiles": [
+      "apps/web/src/features/accounts/registerSorting.ts",
+      "apps/web/src/features/tableLayout/tableLayout.ts",
+      "apps/web/src/stores/uiStore.ts"
+    ]
+  },
+  "persistenceFiles": [
+    "apps/web/src/features/accounts/accountRegisterService.ts",
+    "apps/web/src/features/accounts/accountService.ts",
+    "apps/web/src/features/accounts/payeeService.ts",
+    "apps/web/src/features/accounts/scheduledTransactionService.ts",
+    "apps/web/src/features/accounts/transactionImportPreferences.ts",
+    "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
+    "apps/web/src/features/budget/budgetDataExport.ts",
+    "apps/web/src/features/budget/budgetDataScope.ts",
+    "apps/web/src/features/budget/budgetLifecycle.ts",
+    "apps/web/src/features/budget/budgetRegistry.ts",
+    "apps/web/src/features/budget/budgetViewService.ts",
+    "apps/web/src/features/budget/creditCardBehaviourService.ts",
+    "apps/web/src/features/budget/creditCardPaymentCategories.ts",
+    "apps/web/src/features/budget/newBudget/createBudgetFromSetup.ts",
+    "apps/web/src/features/budget/versionHistory.ts",
+    "apps/web/src/features/budget/versionHistoryLifecycle.ts",
+    "apps/web/src/features/budget/ynab4/finaliseYnab4Import.ts",
+    "apps/web/src/features/budget/ynab4/rollbackYnab4Import.ts",
+    "apps/web/src/features/budget/ynab4LauncherImport.ts",
+    "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
+    "apps/web/src/features/budget/ynab4ReconciliationAudit.ts",
+    "apps/web/src/features/persistence/activeKeyValueStorage.ts",
+    "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
+    "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
+    "apps/web/src/features/persistence/keyValueStoragePort.ts",
+    "apps/web/src/features/persistence/persistenceSnapshot.ts",
+    "apps/web/src/features/persistence/sharedServerKeyValueStorage.ts",
+    "apps/web/src/features/settings/settingsPreferences.ts",
+    "apps/web/src/features/tags/transactionTagPersistence.ts",
+    "apps/web/src/features/tags/transactionTagService.ts"
+  ],
+  "sqliteFiles": [
+    "apps/server/src/server.mjs",
+    "apps/web/src/features/accounts/accountPersistencePort.ts",
+    "apps/web/src/features/accounts/accountRegisterPersistencePort.ts",
+    "apps/web/src/features/accounts/accountRegisterService.ts",
+    "apps/web/src/features/accounts/payeePersistencePort.ts",
+    "apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts",
+    "apps/web/src/features/budget/categoryPersistencePort.ts",
+    "apps/web/src/features/persistence/browserLocalStoragePersistenceGateway.ts",
+    "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
+    "apps/web/src/features/persistence/budgetPersistenceProviderFactory.ts",
+    "apps/web/src/features/persistence/hostPersistenceGateway.ts",
+    "apps/web/src/features/persistence/persistenceMode.ts",
+    "apps/web/src/features/persistence/persistenceRuntimeMetadata.ts",
+    "apps/web/src/features/persistence/sqliteAccountPersistenceAdapter.ts",
+    "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
+    "apps/web/src/features/persistence/sqlitePayeePersistenceAdapter.ts",
+    "apps/web/src/features/persistence/sqlitePersistenceGateway.ts"
+  ],
+  "sharedApiFiles": [
+    "apps/server/src/server.mjs",
+    "apps/web/src/features/persistence/sharedServerStorageClient.ts"
+  ],
+  "findings": [
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/app/errors/appErrorDiagnostics.ts",
+      "line": 25,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/accountPersistencePort.ts",
+      "line": 12,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/accounts/accountPersistencePort.ts",
+      "line": 12
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/accountRegisterPersistencePort.ts",
+      "line": 44,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/accounts/accountRegisterPersistencePort.ts",
+      "line": 45
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/accountRegisterService.ts",
+      "line": 30,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/accounts/accountRegisterService.ts",
+      "line": 31
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/accounts/accountRegisterService.ts",
+      "line": 34
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/accountRegisterService.ts",
+      "line": 10
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/accountRegisterService.ts",
+      "line": 18
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/accountRegisterService.ts",
+      "line": 1252
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/accountRegisterService.ts",
+      "line": 1272
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/accountRegisterService.ts",
+      "line": 1310
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/accountRegisterService.ts",
+      "line": 1325
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/accountService.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/accountService.ts",
+      "line": 33
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/accountService.ts",
+      "line": 143
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/accountService.ts",
+      "line": 165
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/accountService.ts",
+      "line": 169
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/accountService.ts",
+      "line": 184
+    },
+    {
+      "kind": "fetch",
+      "path": "apps/web/src/features/accounts/attachmentAccess.ts",
+      "line": 41
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/payeePersistencePort.ts",
+      "line": 7,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/payeePersistencePort.ts",
+      "line": 8,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/accounts/payeePersistencePort.ts",
+      "line": 9
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/payeeService.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/payeeService.ts",
+      "line": 44
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/payeeService.ts",
+      "line": 326
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/payeeService.ts",
+      "line": 339
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/payeeService.ts",
+      "line": 343
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/payeeService.ts",
+      "line": 358
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/registerSorting.ts",
+      "line": 33,
+      "classification": "ui-preference"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/registerSorting.ts",
+      "line": 48,
+      "classification": "ui-preference"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts",
+      "line": 24,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts",
+      "line": 25
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/scheduledTransactionService.ts",
+      "line": 2
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/scheduledTransactionService.ts",
+      "line": 63
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/scheduledTransactionService.ts",
+      "line": 359
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/transactionImport.ts",
+      "line": 1124,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/transactionImport.ts",
+      "line": 1145,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/transactionImport.ts",
+      "line": 1157,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/transactionImport.ts",
+      "line": 1178,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/transactionImportPreferences.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/transactionImportPreferences.ts",
+      "line": 16
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/accounts/transactionImportPreferences.ts",
+      "line": 34
+    },
+    {
+      "kind": "indexedDB",
+      "path": "apps/web/src/features/attachments/attachmentContentStore.ts",
+      "line": 130
+    },
+    {
+      "kind": "indexedDB",
+      "path": "apps/web/src/features/attachments/attachmentContentStore.ts",
+      "line": 159
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
+      "line": 209,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
+      "line": 14
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
+      "line": 86
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
+      "line": 101
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
+      "line": 126
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
+      "line": 245
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
+      "line": 283
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
+      "line": 288
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
+      "line": 711
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
+      "line": 742
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetDataExport.ts",
+      "line": 11
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetDataExport.ts",
+      "line": 149
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetDataExport.ts",
+      "line": 154
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetDataExport.ts",
+      "line": 175
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetDataExport.ts",
+      "line": 197
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetDataExport.ts",
+      "line": 317
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetDataExport.ts",
+      "line": 331
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetDataExport.ts",
+      "line": 463
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetDataExport.ts",
+      "line": 524
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetDataScope.ts",
+      "line": 3
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetDataScope.ts",
+      "line": 32
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetDataScope.ts",
+      "line": 38
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetDataScope.ts",
+      "line": 38
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetLifecycle.ts",
+      "line": 13
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetLifecycle.ts",
+      "line": 47
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetLifecycle.ts",
+      "line": 64
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetLifecycle.ts",
+      "line": 70
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetLifecycle.ts",
+      "line": 89
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetLifecycle.ts",
+      "line": 142
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetLifecycle.ts",
+      "line": 185
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetLifecycle.ts",
+      "line": 192
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetLifecycle.ts",
+      "line": 224
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetLifecycle.ts",
+      "line": 258
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetRegistry.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetRegistry.ts",
+      "line": 130
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetRegistry.ts",
+      "line": 149
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetRegistry.ts",
+      "line": 159
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetRegistry.ts",
+      "line": 186
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetRegistry.ts",
+      "line": 223
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetRegistry.ts",
+      "line": 233
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetViewService.ts",
+      "line": 13
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetViewService.ts",
+      "line": 34
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/budgetViewService.ts",
+      "line": 324
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/budget/categoryPersistencePort.ts",
+      "line": 9,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/budget/categoryPersistencePort.ts",
+      "line": 9
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/creditCardBehaviourService.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/creditCardBehaviourService.ts",
+      "line": 19
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/creditCardBehaviourService.ts",
+      "line": 47
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/creditCardPaymentCategories.ts",
+      "line": 2
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/creditCardPaymentCategories.ts",
+      "line": 11
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/newBudget/createBudgetFromSetup.ts",
+      "line": 3
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/newBudget/createBudgetFromSetup.ts",
+      "line": 61
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 10
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 87
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 91
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 97
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 282
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 319
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 328
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 335
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 347
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 422
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 429
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 453
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 489
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 517
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistory.ts",
+      "line": 541
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistoryLifecycle.ts",
+      "line": 8
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistoryLifecycle.ts",
+      "line": 161
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistoryLifecycle.ts",
+      "line": 184
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistoryLifecycle.ts",
+      "line": 208
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistoryLifecycle.ts",
+      "line": 231
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistoryLifecycle.ts",
+      "line": 244
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistoryLifecycle.ts",
+      "line": 251
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistoryLifecycle.ts",
+      "line": 258
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistoryLifecycle.ts",
+      "line": 265
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistoryLifecycle.ts",
+      "line": 279
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/versionHistoryLifecycle.ts",
+      "line": 310
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4/finaliseYnab4Import.ts",
+      "line": 7
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4/finaliseYnab4Import.ts",
+      "line": 68
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4/finaliseYnab4Import.ts",
+      "line": 117
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4/rollbackYnab4Import.ts",
+      "line": 8
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4/rollbackYnab4Import.ts",
+      "line": 26
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4/rollbackYnab4Import.ts",
+      "line": 38
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4/rollbackYnab4Import.ts",
+      "line": 60
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4/rollbackYnab4Import.ts",
+      "line": 71
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4/rollbackYnab4Import.ts",
+      "line": 96
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 163,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 3
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 117
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 138
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 194
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 381
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 408
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
+      "line": 533,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
+      "line": 538,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
+      "line": 2
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
+      "line": 160
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
+      "line": 691
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
+      "line": 900
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
+      "line": 1685
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4ReconciliationAudit.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4ReconciliationAudit.ts",
+      "line": 18
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4ReconciliationAudit.ts",
+      "line": 254
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4ReconciliationAudit.ts",
+      "line": 282
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/budget/ynab4ReconciliationAudit.ts",
+      "line": 394
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/activeKeyValueStorage.ts",
+      "line": 2
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/activeKeyValueStorage.ts",
+      "line": 12
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
+      "line": 2
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
+      "line": 45
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
+      "line": 73
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
+      "line": 132
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
+      "line": 172
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
+      "line": 196
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
+      "line": 244
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
+      "line": 292
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/browserLocalStoragePersistenceGateway.ts",
+      "line": 55,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/browserLocalStoragePersistenceGateway.ts",
+      "line": 57,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/browserLocalStoragePersistenceGateway.ts",
+      "line": 57
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
+      "line": 12
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
+      "line": 8
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
+      "line": 48
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/budgetPersistenceProviderFactory.ts",
+      "line": 31,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/budgetPersistenceProviderFactory.ts",
+      "line": 49
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/budgetPersistenceProviderFactory.ts",
+      "line": 52
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/budgetPersistenceProviderFactory.ts",
+      "line": 52
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/configuredPersistenceProvider.ts",
+      "line": 23,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/hostPersistenceGateway.ts",
+      "line": 18
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 51,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 154,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 155,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 161,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 166,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 232,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 250,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 255,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 267,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 278,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 279,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "indexedDB",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 63
+    },
+    {
+      "kind": "indexedDB",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 68
+    },
+    {
+      "kind": "indexedDB",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 83
+    },
+    {
+      "kind": "indexedDB",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 104
+    },
+    {
+      "kind": "indexedDB",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 127
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
+      "line": 218
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/persistenceMode.ts",
+      "line": 27,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/persistenceMode.ts",
+      "line": 6
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/persistenceMode.ts",
+      "line": 26
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/persistenceRuntimeMetadata.ts",
+      "line": 6,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/persistenceRuntimeMetadata.ts",
+      "line": 8,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/persistenceRuntimeMetadata.ts",
+      "line": 8
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/persistenceSnapshot.ts",
+      "line": 6
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/persistenceSnapshot.ts",
+      "line": 45
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/sharedServerKeyValueStorage.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/persistence/sharedServerKeyValueStorage.ts",
+      "line": 12
+    },
+    {
+      "kind": "sharedApi",
+      "path": "apps/web/src/features/persistence/sharedServerStorageClient.ts",
+      "line": 117
+    },
+    {
+      "kind": "sharedApi",
+      "path": "apps/web/src/features/persistence/sharedServerStorageClient.ts",
+      "line": 123
+    },
+    {
+      "kind": "sharedApi",
+      "path": "apps/web/src/features/persistence/sharedServerStorageClient.ts",
+      "line": 134
+    },
+    {
+      "kind": "sharedApi",
+      "path": "apps/web/src/features/persistence/sharedServerStorageClient.ts",
+      "line": 154
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountPersistenceAdapter.ts",
+      "line": 36
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountPersistenceAdapter.ts",
+      "line": 39
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountPersistenceAdapter.ts",
+      "line": 41
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountPersistenceAdapter.ts",
+      "line": 89
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountPersistenceAdapter.ts",
+      "line": 95
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountPersistenceAdapter.ts",
+      "line": 105
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
+      "line": 47,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
+      "line": 43
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
+      "line": 48
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
+      "line": 78
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
+      "line": 153
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
+      "line": 228
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
+      "line": 375
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
+      "line": 379
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
+      "line": 388
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
+      "line": 400
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
+      "line": 499
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/sqlitePayeePersistenceAdapter.ts",
+      "line": 44,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqlitePayeePersistenceAdapter.ts",
+      "line": 40
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqlitePayeePersistenceAdapter.ts",
+      "line": 42
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqlitePayeePersistenceAdapter.ts",
+      "line": 43
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqlitePayeePersistenceAdapter.ts",
+      "line": 45
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/sqlitePersistenceGateway.ts",
+      "line": 25,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqlitePersistenceGateway.ts",
+      "line": 21
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqlitePersistenceGateway.ts",
+      "line": 24
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqlitePersistenceGateway.ts",
+      "line": 32
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqlitePersistenceGateway.ts",
+      "line": 33
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/web/src/features/persistence/sqlitePersistenceGateway.ts",
+      "line": 34
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/settings/settingsPreferences.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/settings/settingsPreferences.ts",
+      "line": 119
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/settings/settingsPreferences.ts",
+      "line": 134
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/settings/settingsPreferences.ts",
+      "line": 143
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/tableLayout/tableLayout.ts",
+      "line": 85,
+      "classification": "ui-preference"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/tableLayout/tableLayout.ts",
+      "line": 128,
+      "classification": "ui-preference"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/tableLayout/tableLayout.ts",
+      "line": 167,
+      "classification": "ui-preference"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/tableLayout/tableLayout.ts",
+      "line": 218,
+      "classification": "ui-preference"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/tableLayout/tableLayout.ts",
+      "line": 222,
+      "classification": "ui-preference"
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/tags/transactionTagPersistence.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/tags/transactionTagPersistence.ts",
+      "line": 39
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/tags/transactionTagPersistence.ts",
+      "line": 75
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/tags/transactionTagService.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceGateway",
+      "path": "apps/web/src/features/tags/transactionTagService.ts",
+      "line": 35
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/pages/BudgetPage.tsx",
+      "line": 64,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/pages/BudgetPage.tsx",
+      "line": 92,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/pages/BudgetPage.tsx",
+      "line": 100,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/pages/BudgetPage.tsx",
+      "line": 107,
+      "classification": "budget-or-runtime-data"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/stores/uiStore.ts",
+      "line": 32,
+      "classification": "ui-preference"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/stores/uiStore.ts",
+      "line": 49,
+      "classification": "ui-preference"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/stores/uiStore.ts",
+      "line": 84,
+      "classification": "ui-preference"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/stores/uiStore.ts",
+      "line": 94,
+      "classification": "ui-preference"
+    },
+    {
+      "kind": "sharedApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 219
+    },
+    {
+      "kind": "sharedApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 224
+    },
+    {
+      "kind": "sharedApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 229
+    },
+    {
+      "kind": "sharedApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 246
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/server/src/server.mjs",
+      "line": 5
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/server/src/server.mjs",
+      "line": 22
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/server/src/server.mjs",
+      "line": 212
+    },
+    {
+      "kind": "sqlite",
+      "path": "apps/server/src/server.mjs",
+      "line": 309
+    }
+  ]
+}

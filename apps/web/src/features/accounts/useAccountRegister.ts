@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
 import { generateDueScheduledTransactions } from "./scheduledTransactionGenerationService";
+import {
+  calculateAttachmentContentHash,
+  getAttachmentContentStore,
+} from "../attachments/attachmentContentStore";
 import type {
   AccountRegisterView,
   NewRegisterTransactionInput,
@@ -241,23 +245,44 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
       return;
     }
 
-    const contentDataUrl = await readFileAsDataUrl(file);
+    const attachmentId = createAttachmentId();
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const contentHash = await calculateAttachmentContentHash(bytes);
+    const contentStore = getAttachmentContentStore();
+    const stored = await contentStore.put({
+      attachmentId,
+      bytes,
+      mimeType,
+      contentHash,
+    });
 
-    await runMutation(
-      () => accountRegisters.addAttachment({
-        accountId,
-        transactionId,
-        attachment: {
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType,
-          contentDataUrl,
-        },
-      }),
-    );
+    try {
+      await runMutation(
+        () => accountRegisters.addAttachment({
+          accountId,
+          transactionId,
+          attachment: {
+            id: attachmentId,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType,
+            contentRef: stored.contentRef,
+            contentHash: stored.contentHash,
+            storageType: "browser-indexeddb",
+          },
+        }),
+      );
+    } catch (error) {
+      await contentStore.delete(stored.contentRef).catch(() => undefined);
+      throw error;
+    }
   }, [accountId, accountRegisters, runMutation]);
 
   const removeAttachment = useCallback(async (transactionId: string, attachmentId: string) => {
+    const attachment = data?.transactions
+      .find((transaction) => transaction.id === transactionId)
+      ?.attachments?.find((candidate) => candidate.id === attachmentId);
+
     await runMutation(
       () => accountRegisters.removeAttachment({
         accountId,
@@ -265,7 +290,13 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
         attachmentId,
       }),
     );
-  }, [accountId, accountRegisters, runMutation]);
+
+    if (attachment?.contentRef) {
+      await getAttachmentContentStore()
+        .delete(attachment.contentRef)
+        .catch(() => undefined);
+    }
+  }, [accountId, accountRegisters, data, runMutation]);
 
   const renamePayeeReferences = useCallback(async (input: {
     payeeId: string;
@@ -314,23 +345,10 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
 }
 
 
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+function createAttachmentId(): string {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
 
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        reject(new Error("Failed to read attachment content."));
-        return;
-      }
-
-      resolve(reader.result);
-    };
-
-    reader.onerror = () => {
-      reject(new Error("Failed to read attachment content."));
-    };
-
-    reader.readAsDataURL(file);
-  });
+  return `attachment-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }

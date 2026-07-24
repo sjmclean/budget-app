@@ -180,3 +180,32 @@ Run the documentation presence check with:
 ```bash
 pnpm test:v1215
 ```
+
+## Development
+
+Start the web application and Shared Platform API together from the repository root:
+
+```bash
+pnpm dev
+```
+
+The combined runner prefixes output with `[web]` and `[server]` and stops both processes when either exits or when you press `Ctrl+C`.
+
+The services can still be run independently:
+
+```bash
+pnpm dev:web
+pnpm dev:server
+```
+
+Refresh the persistence architecture inventory and report with:
+
+```bash
+pnpm audit:persistence
+```
+
+Verify that the committed audit is current with:
+
+```bash
+pnpm audit:persistence:check
+```

@@ -610,8 +610,12 @@ export class BrowserPersistentAccountRegisterService
     attachment: {
       fileName: string;
       fileSize: number;
+      id?: string;
       mimeType: string;
       contentDataUrl?: string;
+      contentRef?: string;
+      contentHash?: string;
+      storageType?: "inline-data-url" | "browser-indexeddb" | "external-file";
     };
   }): Promise<AccountRegisterView> {
     return updateRegister(this.dependencies, input.accountId, (register) => {
@@ -623,7 +627,7 @@ export class BrowserPersistentAccountRegisterService
         const attachments = [
           ...(transaction.attachments ?? []),
           {
-            id: createId(),
+            id: input.attachment.id ?? createId(),
             fileName: input.attachment.fileName,
             fileSize: input.attachment.fileSize,
             mimeType: input.attachment.mimeType || "application/octet-stream",
@@ -632,6 +636,13 @@ export class BrowserPersistentAccountRegisterService
               ? {
                   contentDataUrl: input.attachment.contentDataUrl,
                   storageType: "inline-data-url" as const,
+                }
+              : {}),
+            ...(input.attachment.contentRef
+              ? {
+                  contentRef: input.attachment.contentRef,
+                  contentHash: input.attachment.contentHash,
+                  storageType: input.attachment.storageType ?? "browser-indexeddb",
                 }
               : {}),
           },
