@@ -185,10 +185,16 @@ Planned slices:
 
 ### Milestone 3 — Operation journal
 
-- Define operation envelope, device identity, sequence, and idempotency keys.
-- Record state mutation and operation atomically.
-- Apply operations deterministically.
-- Add replay, duplicate, ordering, and failure recovery tests.
+**Status:** local journal foundation implemented. Transport and remote replay remain deferred to Milestone 5.
+
+- [x] Define a versioned operation envelope, persistent device identity, sequence, and operation IDs.
+- [x] Record each local state mutation and its operation atomically.
+- [x] Expose cursor-based ordered journal reads through the persistence provider.
+- [x] Preserve legacy providers without falsely advertising journal support.
+- [ ] Apply operations received from another device deterministically.
+- [ ] Add duplicate delivery, remote ordering, and convergence tests with the sync transport.
+
+See [Operation journal](./operation-journal.md) for the durability invariant and current operation vocabulary.
 
 ### Milestone 4 — Checkpoints
 

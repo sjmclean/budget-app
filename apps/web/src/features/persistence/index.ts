@@ -114,3 +114,10 @@ export { createLocalDatabaseKeyValueStorage } from "./localDatabaseKeyValueStora
 export type { LocalDatabaseKeyValueStorage } from "./localDatabaseKeyValueStorage";
 export { createLocalDatabasePersistenceProvider } from "./localDatabasePersistenceProvider";
 export type { LocalDatabasePersistenceProviderOptions } from "./localDatabasePersistenceProvider";
+export type {
+  OperationJournalCursor,
+  OperationJournalEntry,
+  OperationJournalMutation,
+  OperationJournalPort,
+} from "./operationJournal";
+export { OPERATION_JOURNAL_FORMAT_VERSION } from "./operationJournal";

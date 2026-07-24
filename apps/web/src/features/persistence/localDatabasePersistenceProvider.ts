@@ -63,5 +63,6 @@ export function createLocalDatabasePersistenceProvider(
       });
     },
     flush: () => storage.flush(),
+    operationJournal: storage,
   });
 }

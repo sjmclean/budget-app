@@ -11,6 +11,7 @@ import type {
   PersistenceProviderMetadata,
 } from "./budgetPersistenceProvider";
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
+import type { OperationJournalPort } from "./operationJournal";
 import { exportBudgetPersistenceSnapshot } from "./persistenceSnapshot";
 
 export interface CreateKeyValueBudgetPersistenceProviderOptions {
@@ -20,6 +21,7 @@ export interface CreateKeyValueBudgetPersistenceProviderOptions {
   readonly initialize?: () => Promise<void>;
   readonly flush?: () => Promise<void>;
   readonly watch?: (listener: () => void) => () => void;
+  readonly operationJournal?: OperationJournalPort;
 }
 
 /**
@@ -77,6 +79,7 @@ export function createKeyValueBudgetPersistenceProvider(
     payees: payeeService,
     scheduledTransactions: scheduledTransactionService,
     keyValueStorage: options.storage,
+    operationJournal: options.operationJournal,
     initialize: options.initialize,
     flush: options.flush ?? options.storage.flush,
     watch: options.watch,
