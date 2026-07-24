@@ -205,7 +205,6 @@ export function startReplicationBackgroundService(
     debounceTimer = setTimeout(() => void run(false), debounceMs);
   };
 
-  const unsubscribe = provider.watch?.(schedule) ?? (() => undefined);
   const onlineHandler = () => void run(false);
   const offlineHandler = () => update({ ...snapshot, status: "offline" });
   globalThis.addEventListener?.("online", onlineHandler);
@@ -241,7 +240,6 @@ export function startReplicationBackgroundService(
     },
     stop() {
       stopped = true;
-      unsubscribe();
       if (debounceTimer) clearTimeout(debounceTimer);
       if (retryTimer) clearTimeout(retryTimer);
       if (intervalTimer) clearInterval(intervalTimer);

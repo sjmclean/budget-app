@@ -1,6 +1,5 @@
 export type {
   BudgetPersistenceProvider,
-  PersistenceChangeListener,
   PersistenceProviderCapabilities,
   PersistenceProviderMetadata,
 } from "./budgetPersistenceProvider";
@@ -63,28 +62,6 @@ export { installPersistenceProviderLifecycle } from "./persistenceProviderLifecy
 export { getActiveKeyValueStorage } from "./activeKeyValueStorage";
 
 export {
-  createSharedServerStorageClient,
-  SharedServerStorageConflictError,
-  SharedServerStorageError,
-} from "./sharedServerStorageClient";
-export type {
-  SharedServerHealthResult,
-  SharedServerStorageBootstrapResult,
-  SharedServerStorageClient,
-  SharedServerStorageClientOptions,
-  SharedServerStorageOperation,
-  SharedServerStorageSnapshot,
-  SharedServerStorageWriteResult,
-} from "./sharedServerStorageClient";
-export { createSharedServerKeyValueStorage } from "./sharedServerKeyValueStorage";
-export type {
-  SharedServerKeyValueStorage,
-  SharedServerKeyValueStorageOptions,
-} from "./sharedServerKeyValueStorage";
-
-export { createSharedServerPersistenceProvider } from "./sharedServerPersistenceProvider";
-export type { SharedServerPersistenceProviderOptions } from "./sharedServerPersistenceProvider";
-export {
   configureBudgetPersistenceProviderFromRuntime,
   createConfiguredBudgetPersistenceProvider,
 } from "./configuredPersistenceProvider";
@@ -92,19 +69,6 @@ export type {
   RuntimePersistenceConfiguration,
   RuntimePersistenceMode,
 } from "./configuredPersistenceProvider";
-export {
-  collectBrowserBudgetEntries,
-  collectBrowserBudgetSnapshot,
-  partitionEntries,
-  inspectBrowserToSharedServerMigration,
-  migrateBrowserBudgetToSharedServer,
-} from "./browserToSharedServerMigration";
-export type {
-  BrowserToSharedServerMigrationInspection,
-  BrowserToSharedServerMigrationOptions,
-  BrowserToSharedServerMigrationResult,
-} from "./browserToSharedServerMigration";
-
 export { exportBudgetPersistenceSnapshot, isCanonicalBudgetStorageKey } from "./persistenceSnapshot";
 export type { BudgetPersistenceSnapshot } from "./persistenceSnapshot";
 

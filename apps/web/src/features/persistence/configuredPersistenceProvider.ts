@@ -2,12 +2,10 @@ import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
 import { configureBudgetPersistenceProvider } from "./budgetPersistenceProviderFactory";
 import { browserLocalStoragePersistenceGateway } from "./browserLocalStoragePersistenceGateway";
 import { createLocalDatabasePersistenceProvider } from "./localDatabasePersistenceProvider";
-import { createSharedServerPersistenceProvider } from "./sharedServerPersistenceProvider";
 
 export type RuntimePersistenceMode =
   | "local-database"
-  | "browser-local-storage"
-  | "shared-server";
+  | "browser-local-storage";
 
 export interface RuntimePersistenceConfiguration {
   mode?: string;
@@ -24,8 +22,8 @@ interface BudgetAppImportMetaEnv {
  *
  * Local database mode is now the browser default. Existing browser data is
  * copied into it on first launch and retained untouched for rollback. Set
- * VITE_BUDGET_PERSISTENCE_MODE=browser-local-storage to use the legacy provider,
- * or shared-server to retain the former server-authoritative deployment.
+ * VITE_BUDGET_PERSISTENCE_MODE=browser-local-storage to use the temporary
+ * rollback provider during the remaining browser-storage migration window.
  */
 export function createConfiguredBudgetPersistenceProvider(
   configuration: RuntimePersistenceConfiguration = readRuntimeConfiguration(),
@@ -39,10 +37,6 @@ export function createConfiguredBudgetPersistenceProvider(
     case "browser-local-storage":
       return browserLocalStoragePersistenceGateway;
 
-    case "shared-server":
-      return createSharedServerPersistenceProvider({
-        baseUrl: configuration.apiBaseUrl?.trim() ?? "",
-      });
   }
 }
 
@@ -70,14 +64,13 @@ function normalisePersistenceMode(value: string | undefined): RuntimePersistence
 
   if (
     mode === "local-database" ||
-    mode === "browser-local-storage" ||
-    mode === "shared-server"
+    mode === "browser-local-storage"
   ) {
     return mode;
   }
 
   throw new Error(
     `Unsupported budget persistence mode: ${mode}. ` +
-      'Expected "local-database", "browser-local-storage", or "shared-server".',
+      'Expected "local-database" or "browser-local-storage".',
   );
 }

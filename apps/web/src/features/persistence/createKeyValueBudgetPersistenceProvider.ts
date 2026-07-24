@@ -23,7 +23,6 @@ export interface CreateKeyValueBudgetPersistenceProviderOptions {
   readonly capabilities: PersistenceProviderCapabilities;
   readonly initialize?: () => Promise<void>;
   readonly flush?: () => Promise<void>;
-  readonly watch?: (listener: () => void) => () => void;
   readonly operationJournal?: OperationJournalPort;
   readonly checkpoints?: CheckpointPort;
   readonly replicationStore?: ReplicationLocalStorePort;
@@ -33,8 +32,8 @@ export interface CreateKeyValueBudgetPersistenceProviderOptions {
 /**
  * Canonical composition root for the current key/value-shaped Budget App
  * domain services. Concrete storage providers supply only storage and lifecycle
- * behaviour; feature wiring remains identical across browser, local database,
- * and shared-server modes.
+ * behaviour; feature wiring remains identical across browser and local database
+ * modes.
  */
 export function createKeyValueBudgetPersistenceProvider(
   options: CreateKeyValueBudgetPersistenceProviderOptions,
@@ -91,7 +90,6 @@ export function createKeyValueBudgetPersistenceProvider(
     conflicts: options.conflicts,
     initialize: options.initialize,
     flush: options.flush ?? options.storage.flush,
-    watch: options.watch,
     exportSnapshot: () => exportBudgetPersistenceSnapshot(options.storage),
   };
 }

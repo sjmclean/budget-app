@@ -56,8 +56,6 @@
     "test:device-sync": "tsx tests/device-sync.ts",
     "test:change-tracking": "tsx tests/change-tracking.ts",
     "test:sync-conflicts": "tsx tests/sync-conflicts.ts",
-    "test:shared:v154": "tsx tests/v154-shared-budget-optimistic-concurrency.ts",
-    "test:shared:v156": "tsx tests/v156-shared-runtime-persistence-routing.ts",
     "test:v09": "pnpm test:encrypted-records && pnpm test:encrypted-attachments && pnpm test:encrypted-backups && pnpm test:device-sync && pnpm test:change-tracking && pnpm test:sync-conflicts",
     "test:settings": "tsx tests/settings-config.ts",
     "test:cloud-storage": "tsx tests/cloud-storage-settings.ts",
@@ -624,7 +622,6 @@
     "test:ynab4-import": "node scripts/run-audited-tests.mjs --classification=required --feature=ynab4",
     "test:ynab4:verification": "node --import tsx --test tests/suites/ynab4/import-audit-snapshot.test.ts",
     "verify:ynab4-import": "pnpm test:ynab4-import && pnpm --filter @budget-app/web build",
-    "test:shared:v157": "tsx tests/v157-empty-registry-bootstrap.ts",
     "docs:architecture:check": "node scripts/check-architecture-docs.mjs && pnpm audit:persistence:check",
     "test:milestone2:persistence": "node scripts/check-milestone2-persistence.mjs",
     "test:milestone3:journal": "node scripts/check-milestone3-operation-journal.mjs",
@@ -636,7 +633,8 @@
     "test:milestone9:conflicts": "node scripts/validate-milestone9-conflicts.mjs",
     "test:milestone10:portable-package": "node scripts/validate-milestone10-portable-package.mjs",
     "test:milestone11:operations": "node scripts/validate-milestone11-operational-hardening.mjs",
-    "test:milestone12:reactive-persistence": "node scripts/validate-milestone12-reactive-persistence.mjs"
+    "test:milestone12:reactive-persistence": "node scripts/validate-milestone12-reactive-persistence.mjs",
+    "test:milestone13:shared-server-removal": "node scripts/validate-milestone13-shared-server-removal.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

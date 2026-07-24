@@ -3,7 +3,6 @@ import { getConfiguredPersistenceMetadata } from "./persistenceRuntimeMetadata";
 export type PersistenceMode =
   | "local-database"
   | "browser-local-storage"
-  | "shared-server"
   | "sqlite-adapter";
 
 export interface PersistenceModeSummary {
@@ -25,8 +24,8 @@ export function getDefaultPersistenceBackend(): PersistenceMode {
  *
  * The React web app now uses the configured persistence provider through the
  * central persistence boundary. Local database mode is the default, while the
- * legacy browser and shared-server providers remain available for rollback and
- * comparison during the migration.
+ * the legacy browser provider remains available temporarily for rollback during
+ * the final migration window.
  */
 export function getPersistenceModeSummary(): PersistenceModeSummary {
   const metadata = getConfiguredPersistenceMetadata();

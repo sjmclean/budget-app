@@ -14,8 +14,7 @@ import type { ReplicationLocalStorePort } from "./replication";
 export type PersistenceBackendKind =
   | "browser-local-storage"
   | "local-database"
-  | "sqlite-adapter"
-  | "shared-server";
+  | "sqlite-adapter";
 
 export interface PersistenceProviderMetadata {
   readonly kind: PersistenceBackendKind;
@@ -31,7 +30,6 @@ export interface PersistenceProviderCapabilities {
   readonly backups: boolean;
 }
 
-export type PersistenceChangeListener = () => void;
 
 /**
  * Runtime persistence contract consumed by the application.
@@ -57,6 +55,5 @@ export interface BudgetPersistenceProvider {
   readonly conflicts?: ConflictResolutionPort;
   initialize?(): Promise<void>;
   flush?(): Promise<void>;
-  watch?(listener: PersistenceChangeListener): () => void;
   exportSnapshot?(): BudgetPersistenceSnapshot | Promise<BudgetPersistenceSnapshot>;
 }

@@ -32,103 +32,9 @@ mkdirSync(dataDir, { recursive: true });
 const database = new Database(databasePath);
 database.pragma("journal_mode = WAL");
 database.pragma("synchronous = NORMAL");
-database.exec(`
-  CREATE TABLE IF NOT EXISTS shared_storage (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS shared_storage_metadata (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    revision INTEGER NOT NULL DEFAULT 0,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  );
-
-  INSERT OR IGNORE INTO shared_storage_metadata (id, revision) VALUES (1, 0);
-`);
-
 mkdirSync(replicationBlobDir, { recursive: true });
 const replicationStore = createReplicationStore(database, {
   blobDirectory: replicationBlobDir,
-});
-
-const readSnapshot = database.prepare("SELECT key, value FROM shared_storage ORDER BY key");
-const readRevision = database.prepare("SELECT revision FROM shared_storage_metadata WHERE id = 1");
-const upsertEntry = database.prepare(`
-  INSERT INTO shared_storage (key, value, updated_at)
-  VALUES (?, ?, CURRENT_TIMESTAMP)
-  ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-`);
-const deleteEntry = database.prepare("DELETE FROM shared_storage WHERE key = ?");
-const bumpRevision = database.prepare(`
-  UPDATE shared_storage_metadata
-  SET revision = revision + 1, updated_at = CURRENT_TIMESTAMP
-  WHERE id = 1
-`);
-
-class RevisionConflictError extends Error {
-  constructor(expectedRevision, actualRevision) {
-    super(
-      `Shared budget changed on another device. Expected revision ${expectedRevision}, but the server is at revision ${actualRevision}.`,
-    );
-    this.name = "RevisionConflictError";
-    this.expectedRevision = expectedRevision;
-    this.actualRevision = actualRevision;
-  }
-}
-
-const revisionSubscribers = new Set();
-
-function sendRevisionEvent(response, revision) {
-  response.write(`event: revision\ndata: ${JSON.stringify({ revision })}\n\n`);
-}
-
-function broadcastRevision(revision) {
-  for (const response of revisionSubscribers) {
-    sendRevisionEvent(response, revision);
-  }
-}
-
-function subscribeToRevisions(request, response) {
-  response.writeHead(200, {
-    "Content-Type": "text/event-stream; charset=utf-8",
-    "Cache-Control": "no-cache, no-transform",
-    "Connection": "keep-alive",
-    "X-Accel-Buffering": "no",
-  });
-  response.write("retry: 5000\n\n");
-  sendRevisionEvent(response, readRevision.get().revision);
-  revisionSubscribers.add(response);
-
-  const heartbeat = setInterval(() => {
-    response.write(": keep-alive\n\n");
-  }, 25_000);
-
-  const unsubscribe = () => {
-    clearInterval(heartbeat);
-    revisionSubscribers.delete(response);
-  };
-
-  request.once("close", unsubscribe);
-  response.once("close", unsubscribe);
-}
-
-const applyOperations = database.transaction((operations, expectedRevision) => {
-  const actualRevision = readRevision.get().revision;
-  if (actualRevision !== expectedRevision) {
-    throw new RevisionConflictError(expectedRevision, actualRevision);
-  }
-
-  for (const operation of operations) {
-    if (operation.type === "set") {
-      upsertEntry.run(operation.key, operation.value);
-    } else {
-      deleteEntry.run(operation.key);
-    }
-  }
-  bumpRevision.run();
-  return readRevision.get().revision;
 });
 
 function sendJson(response, statusCode, body) {
@@ -157,32 +63,6 @@ async function readJsonBody(request) {
   if (body.length === 0) return {};
   return JSON.parse(body.toString("utf8"));
 }
-
-function getSnapshot() {
-  return {
-    revision: readRevision.get().revision,
-    entries: Object.fromEntries(readSnapshot.all().map((row) => [row.key, row.value])),
-  };
-}
-
-function validateRevision(value, fieldName) {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`${fieldName} must be a non-negative integer.`);
-  }
-  return value;
-}
-
-function validateOperations(value) {
-  if (!Array.isArray(value)) throw new Error("operations must be an array.");
-  return value.map((operation) => {
-    if (!operation || typeof operation !== "object") throw new Error("Invalid storage operation.");
-    if (operation.type !== "set" && operation.type !== "remove") throw new Error("Unsupported storage operation type.");
-    if (typeof operation.key !== "string" || operation.key.length === 0) throw new Error("Storage operation key is required.");
-    if (operation.type === "set" && typeof operation.value !== "string") throw new Error("Set operations require a string value.");
-    return operation;
-  });
-}
-
 
 function validateReplicationProtocol(value) {
   if (value !== REPLICATION_PROTOCOL_VERSION) {
@@ -384,58 +264,6 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    if (url.pathname === "/api/shared-budget/events" && request.method === "GET") {
-      subscribeToRevisions(request, response);
-      return;
-    }
-
-    if (url.pathname === "/api/shared-budget/storage" && request.method === "GET") {
-      sendJson(response, 200, getSnapshot());
-      return;
-    }
-
-    if (url.pathname === "/api/shared-budget/storage/batch" && request.method === "POST") {
-      const body = await readJsonBody(request);
-      const operations = validateOperations(body.operations);
-      const expectedRevision = validateRevision(
-        body.expectedRevision,
-        "expectedRevision",
-      );
-      const revision = operations.length > 0
-        ? applyOperations(operations, expectedRevision)
-        : readRevision.get().revision;
-      if (operations.length > 0) {
-        broadcastRevision(revision);
-      }
-      sendJson(response, 200, { revision });
-      return;
-    }
-
-    if (url.pathname === "/api/shared-budget/storage/bootstrap" && request.method === "POST") {
-      const current = getSnapshot();
-      if (Object.keys(current.entries).length > 0) {
-        sendJson(response, 409, { message: "Shared storage has already been initialised.", ...current });
-        return;
-      }
-      const body = await readJsonBody(request);
-      const entries = body.entries;
-      if (!entries || typeof entries !== "object" || Array.isArray(entries)) {
-        throw new Error("entries must be an object containing string values.");
-      }
-      const operations = Object.entries(entries).map(([key, value]) => {
-        if (typeof value !== "string") throw new Error(`Entry ${key} must contain a string value.`);
-        return { type: "set", key, value };
-      });
-      const revision = operations.length > 0
-        ? applyOperations(operations, current.revision)
-        : current.revision;
-      if (operations.length > 0) {
-        broadcastRevision(revision);
-      }
-      sendJson(response, 201, { revision, importedKeys: operations.length });
-      return;
-    }
-
     if (request.method === "GET" && serveStatic(url.pathname, response)) return;
 
     sendJson(response, 404, { message: "Not found." });
@@ -450,15 +278,6 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    if (error instanceof RevisionConflictError) {
-      sendJson(response, 409, {
-        code: "REVISION_CONFLICT",
-        message: error.message,
-        expectedRevision: error.expectedRevision,
-        actualRevision: error.actualRevision,
-      });
-      return;
-    }
 
     console.error(error);
     sendJson(response, 400, {
@@ -472,9 +291,6 @@ function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`Received ${signal}; closing Budget App server.`);
-  for (const response of revisionSubscribers) response.end();
-  revisionSubscribers.clear();
-
   const forcedExit = setTimeout(() => {
     console.error(`Graceful shutdown exceeded ${shutdownTimeoutMs}ms; forcing exit.`);
     process.exit(1);

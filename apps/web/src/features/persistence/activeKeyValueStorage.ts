@@ -7,7 +7,7 @@ import { browserLocalStorageKeyValueStorage, type KeyValueStoragePort } from "./
  * Registry, budget selection, import/export, history, and diagnostics must use
  * the same backend as the domain persistence services. Falling back to browser
  * storage for a non-browser provider would recreate the split-brain regression
- * that caused shared-server imports to open a different local budget.
+ * that previously caused imported data to open a different local budget.
  */
 export function getActiveKeyValueStorage(): KeyValueStoragePort {
   const provider = getBudgetPersistenceProvider();

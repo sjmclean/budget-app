@@ -1,5 +1,4 @@
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
-import { publishPersistenceChange } from "./persistenceChangeBus";
 
 export function installPersistenceProviderLifecycle(
   provider: BudgetPersistenceProvider,
@@ -8,57 +7,21 @@ export function installPersistenceProviderLifecycle(
     return () => undefined;
   }
 
-  let stopWatching: (() => void) | null = null;
-  let disposed = false;
-
   const flushPendingWrites = () => {
     void provider.flush?.().catch((error: unknown) => {
       console.error("Unable to flush persistence provider writes.", error);
     });
   };
 
-  const stopProviderWatch = () => {
-    stopWatching?.();
-    stopWatching = null;
-  };
-
-  const startProviderWatch = () => {
-    if (
-      disposed ||
-      stopWatching !== null ||
-      !provider.watch ||
-      document.visibilityState === "hidden"
-    ) {
-      return;
-    }
-
-    stopWatching = provider.watch(() => {
-      publishPersistenceChange({ source: "shared-server" });
-    });
-  };
-
-  const handlePageHide = () => {
-    stopProviderWatch();
-    flushPendingWrites();
-  };
-
+  const handlePageHide = () => flushPendingWrites();
   const handleVisibilityChange = () => {
-    if (document.visibilityState === "hidden") {
-      stopProviderWatch();
-      flushPendingWrites();
-      return;
-    }
-
-    startProviderWatch();
+    if (document.visibilityState === "hidden") flushPendingWrites();
   };
 
   window.addEventListener("pagehide", handlePageHide);
   document.addEventListener("visibilitychange", handleVisibilityChange);
-  startProviderWatch();
 
   return () => {
-    disposed = true;
-    stopProviderWatch();
     window.removeEventListener("pagehide", handlePageHide);
     document.removeEventListener("visibilitychange", handleVisibilityChange);
   };

@@ -64,13 +64,5 @@ export function getBudgetPersistenceProvider(
 
       return selectedProvider;
 
-    case "shared-server":
-      if (!selectedProvider) {
-        throw new Error(
-          "Shared-server provider requested but no provider instance was supplied.",
-        );
-      }
-
-      return selectedProvider;
   }
 }

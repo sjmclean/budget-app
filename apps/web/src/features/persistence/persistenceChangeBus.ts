@@ -3,7 +3,6 @@ import { useSyncExternalStore } from "react";
 export type PersistenceChangeSource =
   | "local"
   | "replication"
-  | "shared-server"
   | "restore";
 
 export interface PersistenceChangeEvent {
