@@ -11,6 +11,14 @@ import {
   type BudgetDataExportKind,
   type BudgetDataRestorePreview,
 } from "../features/budget/budgetDataExport";
+import {
+  createPortableBudgetPackage,
+  createPortableBudgetPackageFilename,
+  previewPortableBudgetPackage,
+  restorePortableBudgetPackage,
+  serialisePortableBudgetPackage,
+  type PortableBudgetPackagePreview,
+} from "../features/budget/portableBudgetPackage";
 import { deleteCurrentBudget, resetCurrentBudget } from "../features/budget/budgetLifecycle";
 import { resolveActiveBudget } from "../features/budget/activeBudget";
 import {
@@ -256,6 +264,9 @@ export function SettingsPage({
   const [sharedMigrationBusy, setSharedMigrationBusy] = useState(false);
   const [restorePreview, setRestorePreview] = useState<BudgetDataRestorePreview | null>(null);
   const [restorePackageRaw, setRestorePackageRaw] = useState<string | null>(null);
+  const [portablePackagePreview, setPortablePackagePreview] = useState<PortableBudgetPackagePreview | null>(null);
+  const [portablePackageRaw, setPortablePackageRaw] = useState<string | null>(null);
+  const [portablePackageBusy, setPortablePackageBusy] = useState(false);
   const [historySnapshots, setHistorySnapshots] = useState<VersionHistorySnapshotMetadata[]>(() =>
     listVersionHistorySnapshots(getActiveKeyValueStorage()),
   );
@@ -416,6 +427,69 @@ export function SettingsPage({
       );
     } catch (error) {
       setDataStatusMessage(error instanceof Error ? error.message : "Could not create budget data package.");
+    }
+  }
+
+  async function downloadPortablePackage() {
+    setPortablePackageBusy(true);
+    try {
+      const dataPackage = await createPortableBudgetPackage(getActiveKeyValueStorage());
+      const blob = new Blob([serialisePortableBudgetPackage(dataPackage)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = createPortableBudgetPackageFilename(dataPackage);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      const totalBytes = dataPackage.attachments.reduce((sum, item) => sum + item.size, 0);
+      setDataStatusMessage(`Portable package created with ${dataPackage.attachments.length} attachments (${formatFileSize(totalBytes)}).`);
+    } catch (error) {
+      setDataStatusMessage(error instanceof Error ? error.message : "Could not create portable budget package.");
+    } finally {
+      setPortablePackageBusy(false);
+    }
+  }
+
+  function previewPortablePackageFile(file: File | null) {
+    if (!file) return;
+    setPortablePackageBusy(true);
+    void file.text().then(async (raw) => {
+      const preview = await previewPortableBudgetPackage(raw);
+      setPortablePackagePreview(preview);
+      setPortablePackageRaw(preview.valid ? raw : null);
+      setDataStatusMessage(preview.valid
+        ? `Portable package verified for ${preview.budgetName ?? "budget"}. No data has been changed.`
+        : "Portable package validation failed. No data has been changed.");
+    }).catch(() => {
+      setPortablePackagePreview(null);
+      setPortablePackageRaw(null);
+      setDataStatusMessage("Could not read portable package. No data has been changed.");
+    }).finally(() => setPortablePackageBusy(false));
+  }
+
+  async function commitPortablePackageRestore() {
+    if (!portablePackagePreview?.valid || !portablePackageRaw) return;
+    const confirmed = await confirmDialog({
+      title: "Restore portable budget package?",
+      message: `This replaces the current budget with ${portablePackagePreview.budgetName ?? "the packaged budget"} and restores its embedded attachments. Other budgets remain unchanged.`,
+      confirmLabel: "Restore package",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    setPortablePackageBusy(true);
+    try {
+      const result = await restorePortableBudgetPackage(getActiveKeyValueStorage(), portablePackageRaw);
+      if (!result.restored) {
+        setDataStatusMessage(result.errors[0] ?? "Portable package restore failed.");
+        return;
+      }
+      setDataStatusMessage(`Portable package restored: ${result.writtenRecords} records and ${result.restoredAttachments} attachment files. Reload the app if open screens still show old data.`);
+      setPortablePackagePreview(null);
+      setPortablePackageRaw(null);
+    } finally {
+      setPortablePackageBusy(false);
     }
   }
 
@@ -936,11 +1010,22 @@ export function SettingsPage({
                     <h3>External Backups</h3>
                     <p className="muted">Create portable files for migration, archiving, or disaster recovery.</p>
                     <div className="settings-action-row">
+                      <Button type="button" variant="secondary" disabled={portablePackageBusy} onClick={() => void downloadPortablePackage()}>
+                        {portablePackageBusy ? "Preparing..." : "Budget package"}
+                      </Button>
+                      <label className="button button-secondary settings-file-button">
+                        Preview package restore
+                        <input
+                          type="file"
+                          accept="application/json,.json,.budget-package.json"
+                          onChange={(event) => previewPortablePackageFile(event.target.files?.[0] ?? null)}
+                        />
+                      </label>
                       <Button type="button" variant="secondary" onClick={() => downloadBudgetData("backup")}>
                         Backup JSON
                       </Button>
                       <label className="button button-secondary settings-file-button">
-                        Preview restore
+                        Preview JSON restore
                         <input
                           type="file"
                           accept="application/json,.json"
@@ -978,6 +1063,33 @@ export function SettingsPage({
                     </Button>
                   </div>
                 </div>
+
+                {portablePackagePreview ? (
+                  <div className={`settings-restore-preview${portablePackagePreview.valid ? " valid" : " invalid"}`}>
+                    <div>
+                      <p className="eyebrow">Portable package preview</p>
+                      <h3>{portablePackagePreview.valid ? "Package integrity verified" : "Package needs attention"}</h3>
+                      <p className="muted">
+                        {portablePackagePreview.budgetName ?? "Unknown budget"}
+                        {portablePackagePreview.createdAt ? ` · Created ${portablePackagePreview.createdAt.slice(0, 10)}` : ""}
+                        {` · ${portablePackagePreview.attachmentCount} attachments (${formatFileSize(portablePackagePreview.attachmentBytes)})`}
+                      </p>
+                    </div>
+                    {[...portablePackagePreview.errors, ...portablePackagePreview.warnings].length ? (
+                      <ul className="settings-restore-messages">
+                        {[...portablePackagePreview.errors, ...portablePackagePreview.warnings].map((message) => <li key={message}>{message}</li>)}
+                      </ul>
+                    ) : null}
+                    {portablePackagePreview.valid ? (
+                      <div className="settings-restore-actions">
+                        <Button type="button" variant="secondary" disabled={portablePackageBusy} onClick={() => void commitPortablePackageRestore()}>
+                          Restore budget package
+                        </Button>
+                        <p className="muted">The package is checked with SHA-256 before any records or attachments are restored.</p>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 {restorePreview ? (
                   <div className={`settings-restore-preview${restorePreview.valid ? " valid" : " invalid"}`}>
@@ -1384,6 +1496,12 @@ export function SettingsPage({
 
 export function RestorePointsPage() {
   return <SettingsPage initialSection="data" initialDataView="budget-history" />;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function formatConflictKey(key: string): string {
