@@ -185,30 +185,44 @@ Planned slices:
 
 ### Milestone 3 — Operation journal
 
-**Status:** local journal foundation implemented. Transport and remote replay remain deferred to Milestone 5.
+**Status:** local journal foundation and transport replay implemented. Domain-specific conflict policy remains deferred.
 
 - [x] Define a versioned operation envelope, persistent device identity, sequence, and operation IDs.
 - [x] Record each local state mutation and its operation atomically.
 - [x] Expose cursor-based ordered journal reads through the persistence provider.
 - [x] Preserve legacy providers without falsely advertising journal support.
-- [ ] Apply operations received from another device deterministically.
-- [ ] Add duplicate delivery, remote ordering, and convergence tests with the sync transport.
+- [x] Apply operations received from another device deterministically without creating new local journal entries.
+- [x] Add duplicate-delivery protection and server-assigned remote ordering.
+- [ ] Add full browser multi-device convergence and failure-injection tests.
 
 See [Operation journal](./operation-journal.md) for the durability invariant and current operation vocabulary.
 
 ### Milestone 4 — Checkpoints
 
-- Define checkpoint metadata and compatibility rules.
-- Create atomic local checkpoints.
-- Bootstrap a device from checkpoint plus later operations.
-- Add pruning and recovery policies.
+**Status:** local checkpoint, recovery, and remote checkpoint exchange implemented.
 
-### Milestone 5 — Synchronisation transport
+- [x] Define checkpoint metadata, integrity verification, and compatibility rules.
+- [x] Create checkpoints at an exact local journal boundary.
+- [x] Bootstrap/recover canonical state from checkpoint plus later operations atomically.
+- [x] Retain the five newest checkpoints and document safe journal-pruning constraints.
+- [x] Exchange checkpoints through generation-aware synchronisation transport.
+- [ ] Prune acknowledged journal history after server/device recovery guarantees exist.
 
-- Replace shared key/value authority with operation exchange.
-- Add generation management and device cursors.
-- Support offline writes, reconnect, retry, and idempotent upload.
-- Add multi-device convergence tests.
+See [Checkpoints](./checkpoints.md) for the recovery invariant and retention policy.
+
+### Milestone 5 — Replication engine
+
+**Status:** replication protocol, transport, server storage, durable cursors, idempotent push, ordered pull, and checkpoint exchange implemented.
+
+- [x] Replace shared key/value authority with a separate operation-exchange API.
+- [x] Add generation management and durable client cursors.
+- [x] Support idempotent upload and safe retry after interruption.
+- [x] Add ordered pull and remote replay without journal echo.
+- [x] Add remote checkpoint upload/download and generation recovery.
+- [ ] Add automatic/background scheduling and user-facing controls.
+- [ ] Add authentication, per-budget authorization, and full convergence/failure tests.
+
+See [Replication engine](./replication-engine.md) for protocol invariants and deferred work.
 
 ### Milestone 6 — Attachment blob synchronisation
 

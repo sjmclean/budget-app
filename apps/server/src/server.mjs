@@ -3,6 +3,7 @@ import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
+import { createReplicationStore, REPLICATION_PROTOCOL_VERSION } from "./replicationStore.mjs";
 
 const currentFile = fileURLToPath(import.meta.url);
 const serverSourceDir = dirname(currentFile);
@@ -47,6 +48,8 @@ database.exec(`
 
   INSERT OR IGNORE INTO shared_storage_metadata (id, revision) VALUES (1, 0);
 `);
+
+const replicationStore = createReplicationStore(database);
 
 const readSnapshot = database.prepare("SELECT key, value FROM shared_storage ORDER BY key");
 const readRevision = database.prepare("SELECT revision FROM shared_storage_metadata WHERE id = 1");
@@ -173,6 +176,58 @@ function validateOperations(value) {
   });
 }
 
+
+function validateReplicationProtocol(value) {
+  if (value !== REPLICATION_PROTOCOL_VERSION) {
+    throw new Error(`Unsupported replication protocol version ${value}.`);
+  }
+}
+
+function validateGenerationId(value) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error("generationId is required.");
+  }
+  return value;
+}
+
+function validateCursor(value, fieldName) {
+  const parsed = typeof value === "string" ? Number(value) : value;
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error(`${fieldName} must be a non-negative integer.`);
+  }
+  return parsed;
+}
+
+function validateReplicationOperations(value) {
+  if (!Array.isArray(value)) throw new Error("operations must be an array.");
+  if (value.length > 5000) throw new Error("A replication push may contain at most 5000 operations.");
+  return value.map((operation) => {
+    if (!operation || typeof operation !== "object") throw new Error("Invalid replication operation.");
+    if (operation.formatVersion !== 1) throw new Error("Unsupported operation format version.");
+    if (typeof operation.operationId !== "string" || !operation.operationId) throw new Error("operationId is required.");
+    if (typeof operation.deviceId !== "string" || !operation.deviceId) throw new Error("deviceId is required.");
+    if (!Number.isSafeInteger(operation.sequence) || operation.sequence < 1) throw new Error("operation sequence must be positive.");
+    if (!operation.mutation || !["key-value.set", "key-value.remove"].includes(operation.mutation.type)) {
+      throw new Error("Unsupported replication mutation.");
+    }
+    if (typeof operation.mutation.key !== "string" || !operation.mutation.key) throw new Error("mutation key is required.");
+    if (operation.mutation.type === "key-value.set" && typeof operation.mutation.value !== "string") {
+      throw new Error("Set mutations require a string value.");
+    }
+    return operation;
+  });
+}
+
+function validateCheckpoint(value) {
+  if (!value || typeof value !== "object") throw new Error("checkpoint is required.");
+  if (value.formatVersion !== 1) throw new Error("Unsupported checkpoint format version.");
+  if (typeof value.checkpointId !== "string" || !value.checkpointId) throw new Error("checkpointId is required.");
+  if (typeof value.createdAt !== "string" || !value.createdAt) throw new Error("checkpoint createdAt is required.");
+  if (!Number.isSafeInteger(value.throughSequence) || value.throughSequence < 0) throw new Error("checkpoint throughSequence is invalid.");
+  if (!value.entries || typeof value.entries !== "object" || Array.isArray(value.entries)) throw new Error("checkpoint entries are invalid.");
+  return value;
+}
+
 function serveStatic(requestPath, response) {
   if (!existsSync(webDist)) return false;
   const requested = requestPath === "/" ? "/index.html" : requestPath;
@@ -213,6 +268,50 @@ const server = createServer(async (request, response) => {
         databasePath,
         revision: readRevision.get().revision,
       });
+      return;
+    }
+
+
+    if (url.pathname === "/api/replication/generation" && request.method === "GET") {
+      sendJson(response, 200, replicationStore.getGeneration());
+      return;
+    }
+
+    if (url.pathname === "/api/replication/operations/push" && request.method === "POST") {
+      const body = await readJsonBody(request);
+      validateReplicationProtocol(body.protocolVersion);
+      const generationId = validateGenerationId(body.generationId);
+      const operations = validateReplicationOperations(body.operations);
+      sendJson(response, 200, replicationStore.pushOperations(generationId, operations));
+      return;
+    }
+
+    if (url.pathname === "/api/replication/operations/pull" && request.method === "GET") {
+      const generationId = validateGenerationId(url.searchParams.get("generationId"));
+      const afterCursor = validateCursor(url.searchParams.get("afterCursor") ?? "0", "afterCursor");
+      const limit = validateCursor(url.searchParams.get("limit") ?? "500", "limit");
+      if (limit < 1 || limit > 5000) throw new Error("limit must be between 1 and 5000.");
+      sendJson(response, 200, replicationStore.pullOperations(generationId, afterCursor, limit));
+      return;
+    }
+
+    if (url.pathname === "/api/replication/checkpoints" && request.method === "POST") {
+      const body = await readJsonBody(request);
+      validateReplicationProtocol(body.protocolVersion);
+      const generationId = validateGenerationId(body.generationId);
+      const checkpoint = validateCheckpoint(body.checkpoint);
+      sendJson(response, 201, replicationStore.saveCheckpoint(generationId, checkpoint));
+      return;
+    }
+
+    if (url.pathname === "/api/replication/checkpoints/latest" && request.method === "GET") {
+      const generationId = validateGenerationId(url.searchParams.get("generationId"));
+      const checkpoint = replicationStore.getLatestCheckpoint(generationId);
+      if (!checkpoint) {
+        sendJson(response, 404, { message: "No checkpoint is available for this generation." });
+        return;
+      }
+      sendJson(response, 200, { checkpoint });
       return;
     }
 
@@ -272,6 +371,16 @@ const server = createServer(async (request, response) => {
 
     sendJson(response, 404, { message: "Not found." });
   } catch (error) {
+    if (error?.code === "GENERATION_MISMATCH") {
+      sendJson(response, 409, {
+        code: error.code,
+        message: error.message,
+        expectedGenerationId: error.expectedGenerationId,
+        actualGenerationId: error.actualGenerationId,
+      });
+      return;
+    }
+
     if (error instanceof RevisionConflictError) {
       sendJson(response, 409, {
         code: "REVISION_CONFLICT",

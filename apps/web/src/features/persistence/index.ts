@@ -121,3 +121,22 @@ export type {
   OperationJournalPort,
 } from "./operationJournal";
 export { OPERATION_JOURNAL_FORMAT_VERSION } from "./operationJournal";
+
+export type {
+  CheckpointPort,
+  CheckpointRestoreResult,
+  PersistenceCheckpoint,
+  PersistenceCheckpointMetadata,
+} from "./checkpoint";
+export {
+  CHECKPOINT_FORMAT_VERSION,
+  CHECKPOINT_INTEGRITY_ALGORITHM,
+  applyOperationsToCheckpointEntries,
+  assertCompatibleCheckpoint,
+  calculateCheckpointIntegrityHash,
+  checkpointMetadata,
+  createPersistenceCheckpoint,
+} from "./checkpoint";
+export * from "./replication";
+export * from "./replicationEngine";
+export * from "./replicationTransport";

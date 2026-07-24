@@ -5,8 +5,10 @@ import type { ScheduledTransactionPersistencePort } from "../accounts/scheduledT
 import type { CategoryPersistencePort } from "../budget/categoryPersistencePort";
 import type { BudgetViewService } from "../budget/budgetViewTypes";
 import type { BudgetPersistenceSnapshot } from "./persistenceSnapshot";
+import type { CheckpointPort } from "./checkpoint";
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { OperationJournalPort } from "./operationJournal";
+import type { ReplicationLocalStorePort } from "./replication";
 
 export type PersistenceBackendKind =
   | "browser-local-storage"
@@ -49,6 +51,8 @@ export interface BudgetPersistenceProvider {
   readonly scheduledTransactions: ScheduledTransactionPersistencePort;
   readonly keyValueStorage?: KeyValueStoragePort;
   readonly operationJournal?: OperationJournalPort;
+  readonly checkpoints?: CheckpointPort;
+  readonly replicationStore?: ReplicationLocalStorePort;
   initialize?(): Promise<void>;
   flush?(): Promise<void>;
   watch?(listener: PersistenceChangeListener): () => void;

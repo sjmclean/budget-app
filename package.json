@@ -627,7 +627,9 @@
     "test:shared:v157": "tsx tests/v157-empty-registry-bootstrap.ts",
     "docs:architecture:check": "node scripts/check-architecture-docs.mjs && pnpm audit:persistence:check",
     "test:milestone2:persistence": "node scripts/check-milestone2-persistence.mjs",
-    "test:milestone3:journal": "node scripts/check-milestone3-operation-journal.mjs"
+    "test:milestone3:journal": "node scripts/check-milestone3-operation-journal.mjs",
+    "test:milestone4:checkpoints": "node scripts/check-milestone4-checkpoints.mjs",
+    "test:milestone5:replication": "node scripts/validate-milestone5-replication.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

@@ -64,5 +64,7 @@ export function createLocalDatabasePersistenceProvider(
     },
     flush: () => storage.flush(),
     operationJournal: storage,
+    checkpoints: storage,
+    replicationStore: storage,
   });
 }

@@ -10,8 +10,10 @@ import type {
   PersistenceProviderCapabilities,
   PersistenceProviderMetadata,
 } from "./budgetPersistenceProvider";
+import type { CheckpointPort } from "./checkpoint";
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { OperationJournalPort } from "./operationJournal";
+import type { ReplicationLocalStorePort } from "./replication";
 import { exportBudgetPersistenceSnapshot } from "./persistenceSnapshot";
 
 export interface CreateKeyValueBudgetPersistenceProviderOptions {
@@ -22,6 +24,8 @@ export interface CreateKeyValueBudgetPersistenceProviderOptions {
   readonly flush?: () => Promise<void>;
   readonly watch?: (listener: () => void) => () => void;
   readonly operationJournal?: OperationJournalPort;
+  readonly checkpoints?: CheckpointPort;
+  readonly replicationStore?: ReplicationLocalStorePort;
 }
 
 /**
@@ -80,6 +84,8 @@ export function createKeyValueBudgetPersistenceProvider(
     scheduledTransactions: scheduledTransactionService,
     keyValueStorage: options.storage,
     operationJournal: options.operationJournal,
+    checkpoints: options.checkpoints,
+    replicationStore: options.replicationStore,
     initialize: options.initialize,
     flush: options.flush ?? options.storage.flush,
     watch: options.watch,
