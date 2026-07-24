@@ -1221,6 +1221,20 @@ export function SettingsPage({
                 {replicationStatus.lastError ? (
                   <p className="muted">{replicationStatus.lastError}</p>
                 ) : null}
+                {replicationStatus.lastSuccessfulSyncAt ? (
+                  <p className="muted">
+                    Last run: {replicationStatus.pushedOperationCount} operations uploaded, {" "}
+                    {replicationStatus.pulledOperationCount} operations downloaded, {" "}
+                    {replicationStatus.uploadedBlobCount} attachments uploaded, {" "}
+                    {replicationStatus.downloadedBlobCount} attachments downloaded.
+                  </p>
+                ) : null}
+                {replicationStatus.supported ? (
+                  <p className="muted">
+                    {replicationStatus.pendingOperationCount} pending · {replicationStatus.retainedJournalEntryCount} retained journal entries · {replicationStatus.checkpointCount} checkpoints
+                    {replicationStatus.prunedJournalEntryCount > 0 ? ` · ${replicationStatus.prunedJournalEntryCount} entries pruned last checkpoint` : ""}
+                  </p>
+                ) : null}
                 <div className="settings-inline-actions">
                   <Button
                     type="button"
@@ -1249,6 +1263,51 @@ export function SettingsPage({
                     }}
                   >
                     Create checkpoint
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={!replicationStatus.supported || replicationBusy}
+                    onClick={() => {
+                      const backgroundService = getReplicationBackgroundService();
+                      if (!backgroundService) return;
+                      void backgroundService.getDiagnostics().then((diagnostics) => {
+                        if (!diagnostics) return;
+                        const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), replication: diagnostics, status: replicationStatus }, null, 2)], { type: "application/json" });
+                        const url = URL.createObjectURL(blob);
+                        const anchor = document.createElement("a");
+                        anchor.href = url;
+                        anchor.download = `budget-app-replication-diagnostics-${new Date().toISOString().slice(0, 10)}.json`;
+                        anchor.click();
+                        URL.revokeObjectURL(url);
+                      });
+                    }}
+                  >
+                    Export diagnostics
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={!replicationStatus.supported || replicationBusy}
+                    onClick={() => {
+                      const backgroundService = getReplicationBackgroundService();
+                      if (!backgroundService) return;
+                      void confirmDialog({
+                        title: "Rebuild this device from server?",
+                        message: "This replaces this device's canonical budget state with the latest remote checkpoint, then replays later operations. Local unsynchronised changes may be lost.",
+                        confirmLabel: "Rebuild device",
+                        tone: "danger",
+                      }).then((confirmed) => {
+                        if (!confirmed) return;
+                        setReplicationBusy(true);
+                        void backgroundService.recoverFromServer().finally(() => {
+                          setReplicationBusy(false);
+                          window.location.reload();
+                        });
+                      });
+                    }}
+                  >
+                    Rebuild from server
                   </Button>
                 </div>
               </div>

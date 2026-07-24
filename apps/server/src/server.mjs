@@ -49,7 +49,12 @@ database.exec(`
   INSERT OR IGNORE INTO shared_storage_metadata (id, revision) VALUES (1, 0);
 `);
 
-const replicationStore = createReplicationStore(database);
+const replicationBlobDir = resolve(
+  process.env.BUDGET_APP_REPLICATION_BLOB_DIR ?? join(dataDir, "replication-blobs"),
+);
+const replicationStore = createReplicationStore(database, {
+  blobDirectory: replicationBlobDir,
+});
 
 const readSnapshot = database.prepare("SELECT key, value FROM shared_storage ORDER BY key");
 const readRevision = database.prepare("SELECT revision FROM shared_storage_metadata WHERE id = 1");
@@ -137,18 +142,23 @@ function sendJson(response, statusCode, body) {
   response.end(JSON.stringify(body));
 }
 
-async function readJsonBody(request) {
+async function readRequestBody(request, maximumBytes = 50 * 1024 * 1024) {
   const chunks = [];
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > 50 * 1024 * 1024) {
-      throw new Error("Request body exceeds the 50 MB limit.");
+    if (size > maximumBytes) {
+      throw new Error(`Request body exceeds the ${maximumBytes} byte limit.`);
     }
     chunks.push(chunk);
   }
-  if (chunks.length === 0) return {};
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  return Buffer.concat(chunks);
+}
+
+async function readJsonBody(request) {
+  const body = await readRequestBody(request);
+  if (body.length === 0) return {};
+  return JSON.parse(body.toString("utf8"));
 }
 
 function getSnapshot() {
@@ -271,6 +281,39 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+
+
+    const blobMatch = url.pathname.match(/^\/api\/replication\/blobs\/(sha256%3A|sha256:)?([a-f0-9]{64})$/i);
+    if (blobMatch && ["HEAD", "GET", "PUT"].includes(request.method ?? "")) {
+      const generationId = validateGenerationId(url.searchParams.get("generationId"));
+      const contentHash = `sha256:${blobMatch[2].toLowerCase()}`;
+      if (request.method === "HEAD") {
+        response.writeHead(replicationStore.hasBlob(generationId, contentHash) ? 200 : 404, {
+          "Cache-Control": "public, max-age=31536000, immutable",
+        });
+        response.end();
+        return;
+      }
+      if (request.method === "GET") {
+        const blob = replicationStore.readBlob(generationId, contentHash);
+        if (!blob) {
+          sendJson(response, 404, { message: "Attachment blob was not found." });
+          return;
+        }
+        response.writeHead(200, {
+          "Content-Type": blob.metadata.mimeType,
+          "Content-Length": String(blob.metadata.size),
+          "Cache-Control": "public, max-age=31536000, immutable",
+          ETag: `"${contentHash}"`,
+        });
+        response.end(blob.content);
+        return;
+      }
+      const content = await readRequestBody(request);
+      const mimeType = String(request.headers["content-type"] ?? "application/octet-stream");
+      sendJson(response, 201, replicationStore.saveBlob(generationId, contentHash, mimeType, content));
+      return;
+    }
 
     if (url.pathname === "/api/replication/generation" && request.method === "GET") {
       sendJson(response, 200, replicationStore.getGeneration());

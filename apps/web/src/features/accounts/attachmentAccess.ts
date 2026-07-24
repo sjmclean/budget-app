@@ -45,7 +45,10 @@ export async function readAttachmentBlob(
     return null;
   }
 
-  return await getAttachmentContentStore().read(attachment.contentRef);
+  const store = getAttachmentContentStore();
+  const direct = await store.read(attachment.contentRef);
+  if (direct) return direct;
+  return attachment.contentHash ? await store.readByHash(attachment.contentHash) : null;
 }
 
 export async function isAttachmentAvailableLocally(
@@ -55,9 +58,9 @@ export async function isAttachmentAvailableLocally(
     return isSafeDataUrl(attachment.contentDataUrl);
   }
 
-  return attachment.contentRef
-    ? await getAttachmentContentStore().exists(attachment.contentRef)
-    : false;
+  const store = getAttachmentContentStore();
+  if (attachment.contentRef && await store.exists(attachment.contentRef)) return true;
+  return attachment.contentHash ? await store.existsByHash(attachment.contentHash) : false;
 }
 
 export function getSafeAttachmentFileName(fileName: string): string {

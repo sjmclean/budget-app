@@ -1,8 +1,13 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 export const REPLICATION_PROTOCOL_VERSION = 1;
 
-export function createReplicationStore(database) {
+export function createReplicationStore(database, options = {}) {
+  const blobDirectory = options.blobDirectory;
+  if (!blobDirectory) throw new Error("A replication blob directory is required.");
+  mkdirSync(blobDirectory, { recursive: true });
   database.exec(`
     CREATE TABLE IF NOT EXISTS replication_generations (
       generation_id TEXT PRIMARY KEY,
@@ -38,6 +43,13 @@ export function createReplicationStore(database) {
 
     CREATE INDEX IF NOT EXISTS replication_checkpoints_generation_created
       ON replication_checkpoints(generation_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS replication_blobs (
+      content_hash TEXT PRIMARY KEY,
+      size INTEGER NOT NULL,
+      mime_type TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `);
 
   const readActiveGeneration = database.prepare(`
@@ -79,6 +91,19 @@ export function createReplicationStore(database) {
       through_sequence = excluded.through_sequence,
       payload_json = excluded.payload_json
   `);
+
+  const readBlob = database.prepare(`
+    SELECT content_hash AS contentHash, size, mime_type AS mimeType, created_at AS createdAt
+    FROM replication_blobs WHERE content_hash = ?
+  `);
+  const upsertBlob = database.prepare(`
+    INSERT INTO replication_blobs (content_hash, size, mime_type, created_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(content_hash) DO UPDATE SET
+      size = excluded.size,
+      mime_type = excluded.mime_type
+  `);
+
   const pruneCheckpoints = database.prepare(`
     DELETE FROM replication_checkpoints
     WHERE generation_id = ? AND checkpoint_id NOT IN (
@@ -172,7 +197,7 @@ export function createReplicationStore(database) {
         JSON.stringify(checkpoint),
       );
       pruneCheckpoints.run(generationId, generationId);
-      return { checkpointId: checkpoint.checkpointId };
+      return { checkpointId: checkpoint.checkpointId, acknowledgedThroughSequence: checkpoint.throughSequence };
     },
 
     getLatestCheckpoint(generationId) {
@@ -180,5 +205,55 @@ export function createReplicationStore(database) {
       const row = latestCheckpoint.get(generationId);
       return row ? JSON.parse(row.payloadJson) : null;
     },
+
+
+    hasBlob(generationId, contentHash) {
+      assertActiveGeneration(generationId);
+      assertContentHash(contentHash);
+      const row = readBlob.get(contentHash);
+      return Boolean(row && existsSync(blobPath(contentHash)));
+    },
+
+    saveBlob(generationId, contentHash, mimeType, content) {
+      assertActiveGeneration(generationId);
+      assertContentHash(contentHash);
+      const digest = `sha256:${createHash("sha256").update(content).digest("hex")}`;
+      if (digest !== contentHash) {
+        const error = new Error("Attachment blob content does not match its SHA-256 address.");
+        error.code = "BLOB_HASH_MISMATCH";
+        throw error;
+      }
+      const destination = blobPath(contentHash);
+      if (!existsSync(destination)) {
+        const temporary = `${destination}.${randomUUID()}.tmp`;
+        try {
+          writeFileSync(temporary, content, { flag: "wx" });
+          renameSync(temporary, destination);
+        } finally {
+          if (existsSync(temporary)) rmSync(temporary, { force: true });
+        }
+      }
+      upsertBlob.run(contentHash, content.byteLength, mimeType || "application/octet-stream", new Date().toISOString());
+      return { contentHash, size: content.byteLength };
+    },
+
+    readBlob(generationId, contentHash) {
+      assertActiveGeneration(generationId);
+      assertContentHash(contentHash);
+      const metadata = readBlob.get(contentHash);
+      const path = blobPath(contentHash);
+      if (!metadata || !existsSync(path)) return null;
+      return { metadata, content: readFileSync(path) };
+    },
   };
+
+  function blobPath(contentHash) {
+    return join(blobDirectory, contentHash.slice("sha256:".length));
+  }
+}
+
+function assertContentHash(value) {
+  if (!/^sha256:[a-f0-9]{64}$/.test(value)) {
+    throw new Error("Attachment content hashes must be canonical SHA-256 values.");
+  }
 }

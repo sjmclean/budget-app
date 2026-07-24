@@ -6,3 +6,5 @@
 - [`undo-redo.md`](./undo-redo.md) — undo/redo architecture.
 
 Run `pnpm audit:persistence` after persistence-related source changes and `pnpm docs:architecture:check` before committing architecture changes.
+
+- [Attachment blob replication](./attachment-blob-replication.md)

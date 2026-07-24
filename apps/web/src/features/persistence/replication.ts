@@ -16,10 +16,24 @@ export interface RemoteOperationEnvelope {
   readonly receivedAt: string;
 }
 
+export interface ReplicationDiagnostics {
+  readonly deviceId: string;
+  readonly latestLocalSequence: number;
+  readonly retainedJournalEntryCount: number;
+  readonly oldestRetainedSequence: number | null;
+  readonly latestCheckpointId: string | null;
+  readonly checkpointCount: number;
+  readonly generationId: string | null;
+  readonly pushedLocalSequence: number;
+  readonly pulledRemoteCursor: number;
+}
+
 export interface ReplicationLocalStorePort {
   getReplicationCursorState(): Promise<ReplicationCursorState>;
   setReplicationCursorState(state: ReplicationCursorState): Promise<void>;
   applyRemoteOperations(operations: readonly RemoteOperationEnvelope[]): Promise<number>;
+  getReplicationDiagnostics(): Promise<ReplicationDiagnostics>;
+  pruneJournal(throughSequence: number): Promise<number>;
 }
 
 export interface ReplicationRemoteGeneration {
@@ -42,6 +56,12 @@ export interface ReplicationPullResult {
   readonly hasMore: boolean;
 }
 
+export interface ReplicationBlobDescriptor {
+  readonly contentHash: string;
+  readonly mimeType: string;
+  readonly size: number;
+}
+
 export interface ReplicationTransport {
   getGeneration(): Promise<ReplicationRemoteGeneration>;
   pushOperations(
@@ -53,8 +73,20 @@ export interface ReplicationTransport {
     afterCursor: number,
     limit?: number,
   ): Promise<ReplicationPullResult>;
-  uploadCheckpoint(generationId: string, checkpoint: PersistenceCheckpoint): Promise<void>;
+  uploadCheckpoint(generationId: string, checkpoint: PersistenceCheckpoint): Promise<ReplicationCheckpointUploadResult>;
   getLatestCheckpoint(generationId: string): Promise<PersistenceCheckpoint | null>;
+  hasBlob(generationId: string, contentHash: string): Promise<boolean>;
+  uploadBlob(
+    generationId: string,
+    descriptor: ReplicationBlobDescriptor,
+    content: Blob,
+  ): Promise<void>;
+  downloadBlob(generationId: string, contentHash: string): Promise<Blob | null>;
+}
+
+export interface ReplicationCheckpointUploadResult {
+  readonly checkpointId: string;
+  readonly acknowledgedThroughSequence: number;
 }
 
 export interface ReplicationRunResult {
@@ -64,4 +96,7 @@ export interface ReplicationRunResult {
   readonly finalLocalSequence: number;
   readonly finalRemoteCursor: number;
   readonly checkpointUploaded: boolean;
+  readonly uploadedBlobCount: number;
+  readonly downloadedBlobCount: number;
+  readonly prunedJournalEntryCount: number;
 }

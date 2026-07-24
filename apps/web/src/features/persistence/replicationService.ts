@@ -1,5 +1,5 @@
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
-import type { ReplicationRunResult } from "./replication";
+import type { ReplicationDiagnostics, ReplicationRunResult } from "./replication";
 import { replicatePersistenceProvider } from "./replicationEngine";
 import { createHttpReplicationTransport } from "./replicationTransport";
 
@@ -22,7 +22,12 @@ export interface ReplicationServiceSnapshot {
   readonly pendingOperationCount: number;
   readonly pushedOperationCount: number;
   readonly pulledOperationCount: number;
+  readonly uploadedBlobCount: number;
+  readonly downloadedBlobCount: number;
   readonly retryAttempt: number;
+  readonly retainedJournalEntryCount: number;
+  readonly checkpointCount: number;
+  readonly prunedJournalEntryCount: number;
 }
 
 const INITIAL: ReplicationServiceSnapshot = {
@@ -35,7 +40,12 @@ const INITIAL: ReplicationServiceSnapshot = {
   pendingOperationCount: 0,
   pushedOperationCount: 0,
   pulledOperationCount: 0,
+  uploadedBlobCount: 0,
+  downloadedBlobCount: 0,
   retryAttempt: 0,
+  retainedJournalEntryCount: 0,
+  checkpointCount: 0,
+  prunedJournalEntryCount: 0,
 };
 
 let snapshot = INITIAL;
@@ -57,6 +67,8 @@ export function getReplicationBackgroundService(): ReplicationBackgroundService 
 
 export interface ReplicationBackgroundService {
   syncNow(options?: { uploadCheckpoint?: boolean }): Promise<ReplicationRunResult | null>;
+  getDiagnostics(): Promise<ReplicationDiagnostics | null>;
+  recoverFromServer(): Promise<boolean>;
   stop(): void;
 }
 
@@ -67,7 +79,7 @@ export function startReplicationBackgroundService(
   service?.stop();
   if (!provider.operationJournal || !provider.replicationStore) {
     update({ ...INITIAL, status: "disabled", supported: false });
-    service = { syncNow: async () => null, stop: () => undefined };
+    service = { syncNow: async () => null, getDiagnostics: async () => null, recoverFromServer: async () => false, stop: () => undefined };
     return service;
   }
 
@@ -80,11 +92,20 @@ export function startReplicationBackgroundService(
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let intervalTimer: ReturnType<typeof setInterval> | null = null;
 
-  const refreshPending = () => {
-    const cursor = provider.operationJournal!.getJournalCursor();
-    const pending = Math.max(0, cursor.latestSequence - (snapshot.generationId ? 0 : 0));
-    update({ ...snapshot, supported: true, pendingOperationCount: pending });
+  const refreshDiagnostics = async () => {
+    const diagnostics = await provider.replicationStore!.getReplicationDiagnostics();
+    const pending = Math.max(0, diagnostics.latestLocalSequence - diagnostics.pushedLocalSequence);
+    update({
+      ...snapshot,
+      supported: true,
+      pendingOperationCount: pending,
+      retainedJournalEntryCount: diagnostics.retainedJournalEntryCount,
+      checkpointCount: diagnostics.checkpointCount,
+    });
+    return diagnostics;
   };
+
+  const refreshPending = () => { void refreshDiagnostics(); };
 
   const run = async (uploadCheckpoint = false): Promise<ReplicationRunResult | null> => {
     if (stopped) return null;
@@ -116,8 +137,12 @@ export function startReplicationBackgroundService(
           pendingOperationCount: 0,
           pushedOperationCount: result.pushedOperationCount,
           pulledOperationCount: result.pulledOperationCount,
+          uploadedBlobCount: result.uploadedBlobCount,
+          downloadedBlobCount: result.downloadedBlobCount,
           retryAttempt: 0,
+          prunedJournalEntryCount: result.prunedJournalEntryCount,
         });
+        await refreshDiagnostics();
         return result;
       } catch (error) {
         const retryAttempt = snapshot.retryAttempt + 1;
@@ -155,6 +180,21 @@ export function startReplicationBackgroundService(
 
   service = {
     syncNow: ({ uploadCheckpoint = false } = {}) => run(uploadCheckpoint),
+    getDiagnostics: () => refreshDiagnostics(),
+    async recoverFromServer(): Promise<boolean> {
+      if (running || stopped || !provider.checkpoints) return false;
+      const remote = await transport.getGeneration();
+      const checkpoint = await transport.getLatestCheckpoint(remote.generationId);
+      if (!checkpoint) throw new Error("No remote checkpoint is available for recovery.");
+      await provider.checkpoints.restoreCheckpoint(checkpoint);
+      await provider.replicationStore!.setReplicationCursorState({
+        generationId: remote.generationId,
+        pushedLocalSequence: 0,
+        pulledRemoteCursor: 0,
+      });
+      await run(false);
+      return true;
+    },
     stop() {
       stopped = true;
       unsubscribe();

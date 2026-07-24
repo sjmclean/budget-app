@@ -224,13 +224,29 @@ See [Checkpoints](./checkpoints.md) for the recovery invariant and retention pol
 
 See [Replication engine](./replication-engine.md) for protocol invariants and deferred work.
 
-### Milestone 6 — Attachment blob synchronisation
+### Milestone 6 — Background synchronisation and sync UX
 
-- Add content-addressed remote blob API.
-- Add manifests, lazy download, integrity verification, and garbage collection.
-- Include attachment metadata in operations and checkpoints, never binary bytes.
+**Status:** implemented.
 
-### Milestone 7 — Conflict handling and hardening
+- [x] Start replication automatically after persistence initialisation.
+- [x] Batch local writes, periodically sync, retry with backoff, and reconnect after offline periods.
+- [x] Expose shared status and manual sync/checkpoint controls.
+
+### Milestone 7 — Attachment blob synchronisation
+
+**Status:** content-addressed upload/download and integrity verification implemented.
+
+- [x] Add a generation-aware content-addressed remote blob API.
+- [x] Upload local blobs independently before publishing attachment metadata operations.
+- [x] Download missing referenced blobs after applying remote state.
+- [x] Verify SHA-256 on both server upload and client download.
+- [x] Keep binary content out of operations and checkpoints.
+- [ ] Add safe remote garbage collection after checkpoint/device acknowledgement exists.
+- [ ] Add resumable transfer and remote encryption.
+
+See [Attachment blob replication](./attachment-blob-replication.md).
+
+### Milestone 8 — Conflict handling and hardening
 
 - Define field/entity conflict policies.
 - Surface conflicts requiring user choice.

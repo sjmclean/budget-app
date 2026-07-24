@@ -20,6 +20,7 @@ import {
 import type {
   RemoteOperationEnvelope,
   ReplicationCursorState,
+  ReplicationDiagnostics,
   ReplicationLocalStorePort,
 } from "./replication";
 
@@ -53,6 +54,8 @@ export interface LocalDatabaseKeyValueStorage extends KeyValueStoragePort, Check
     checkpoint: PersistenceCheckpoint,
     laterOperations?: readonly OperationJournalEntry[],
   ): Promise<CheckpointRestoreResult>;
+  getReplicationDiagnostics(): Promise<ReplicationDiagnostics>;
+  pruneJournal(throughSequence: number): Promise<number>;
 }
 
 /**
@@ -235,6 +238,46 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
         }
       });
       await writes.flush();
+    },
+
+    async getReplicationDiagnostics(): Promise<ReplicationDiagnostics> {
+      assertInitialized(initialized);
+      await writes.flush();
+      const db = await openDatabase();
+      try {
+        const [journal, checkpoints, cursor] = await Promise.all([
+          readJournalStatistics(db),
+          readCheckpointStatistics(db),
+          readReplicationCursorState(db),
+        ]);
+        return {
+          deviceId,
+          latestLocalSequence: latestSequence,
+          retainedJournalEntryCount: journal.count,
+          oldestRetainedSequence: journal.oldestSequence,
+          latestCheckpointId: checkpoints.latestCheckpointId,
+          checkpointCount: checkpoints.count,
+          generationId: cursor.generationId,
+          pushedLocalSequence: cursor.pushedLocalSequence,
+          pulledRemoteCursor: cursor.pulledRemoteCursor,
+        };
+      } finally {
+        db.close();
+      }
+    },
+
+    async pruneJournal(throughSequence: number): Promise<number> {
+      assertInitialized(initialized);
+      if (!Number.isSafeInteger(throughSequence) || throughSequence < 0) {
+        throw new Error("Journal pruning boundaries must be non-negative integers.");
+      }
+      await writes.flush();
+      const db = await openDatabase();
+      try {
+        return await pruneJournalEntries(db, throughSequence);
+      } finally {
+        db.close();
+      }
     },
 
     async applyRemoteOperations(
@@ -454,6 +497,53 @@ function readJournalEntries(
     };
     transaction.oncomplete = () => resolve(entries);
     transaction.onerror = () => reject(transaction.error ?? new Error("Unable to read the operation journal."));
+  });
+}
+
+function readJournalStatistics(db: IDBDatabase): Promise<{ count: number; oldestSequence: number | null }> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(JOURNAL_STORE, "readonly");
+    const store = transaction.objectStore(JOURNAL_STORE);
+    const countRequest = store.count();
+    const cursorRequest = store.openCursor();
+    let oldestSequence: number | null = null;
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result;
+      if (cursor) oldestSequence = (cursor.value as OperationJournalEntry).sequence;
+    };
+    transaction.oncomplete = () => resolve({ count: countRequest.result ?? 0, oldestSequence });
+    transaction.onerror = () => reject(transaction.error ?? new Error("Unable to inspect the operation journal."));
+  });
+}
+
+function readCheckpointStatistics(db: IDBDatabase): Promise<{ count: number; latestCheckpointId: string | null }> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([CHECKPOINT_STORE, META_STORE], "readonly");
+    const countRequest = transaction.objectStore(CHECKPOINT_STORE).count();
+    const latestRequest = transaction.objectStore(META_STORE).get(LATEST_CHECKPOINT_ID_KEY);
+    transaction.oncomplete = () => resolve({
+      count: countRequest.result ?? 0,
+      latestCheckpointId: (latestRequest.result?.value as string | undefined) ?? null,
+    });
+    transaction.onerror = () => reject(transaction.error ?? new Error("Unable to inspect checkpoints."));
+  });
+}
+
+function pruneJournalEntries(db: IDBDatabase, throughSequence: number): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let removed = 0;
+    const transaction = db.transaction(JOURNAL_STORE, "readwrite");
+    const request = transaction.objectStore(JOURNAL_STORE).openCursor(IDBKeyRange.upperBound(throughSequence));
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      cursor.delete();
+      removed += 1;
+      cursor.continue();
+    };
+    transaction.oncomplete = () => resolve(removed);
+    transaction.onerror = () => reject(transaction.error ?? new Error("Unable to prune the operation journal."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Operation journal pruning was aborted."));
   });
 }
 
