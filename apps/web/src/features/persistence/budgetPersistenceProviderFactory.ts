@@ -46,6 +46,15 @@ export function getBudgetPersistenceProvider(
     case "browser-local-storage":
       return browserLocalStoragePersistenceGateway;
 
+    case "local-database":
+      if (!selectedProvider) {
+        throw new Error(
+          "Local database provider requested but no provider instance was supplied.",
+        );
+      }
+
+      return selectedProvider;
+
     case "sqlite-adapter":
       if (!selectedProvider) {
         throw new Error(

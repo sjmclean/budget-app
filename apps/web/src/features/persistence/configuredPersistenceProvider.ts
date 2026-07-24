@@ -1,9 +1,11 @@
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
 import { configureBudgetPersistenceProvider } from "./budgetPersistenceProviderFactory";
 import { browserLocalStoragePersistenceGateway } from "./browserLocalStoragePersistenceGateway";
+import { createLocalDatabasePersistenceProvider } from "./localDatabasePersistenceProvider";
 import { createSharedServerPersistenceProvider } from "./sharedServerPersistenceProvider";
 
 export type RuntimePersistenceMode =
+  | "local-database"
   | "browser-local-storage"
   | "shared-server";
 
@@ -20,9 +22,10 @@ interface BudgetAppImportMetaEnv {
 /**
  * Creates the provider selected by deployment configuration.
  *
- * Browser localStorage remains the safe default. Shared-server mode is only
- * activated when explicitly requested, preventing an accidental switch away
- * from an existing browser budget.
+ * Local database mode is now the browser default. Existing browser data is
+ * copied into it on first launch and retained untouched for rollback. Set
+ * VITE_BUDGET_PERSISTENCE_MODE=browser-local-storage to use the legacy provider,
+ * or shared-server to retain the former server-authoritative deployment.
  */
 export function createConfiguredBudgetPersistenceProvider(
   configuration: RuntimePersistenceConfiguration = readRuntimeConfiguration(),
@@ -30,6 +33,9 @@ export function createConfiguredBudgetPersistenceProvider(
   const mode = normalisePersistenceMode(configuration.mode);
 
   switch (mode) {
+    case "local-database":
+      return createLocalDatabasePersistenceProvider();
+
     case "browser-local-storage":
       return browserLocalStoragePersistenceGateway;
 
@@ -60,14 +66,18 @@ function readRuntimeConfiguration(): RuntimePersistenceConfiguration {
 }
 
 function normalisePersistenceMode(value: string | undefined): RuntimePersistenceMode {
-  const mode = value?.trim() || "browser-local-storage";
+  const mode = value?.trim() || "local-database";
 
-  if (mode === "browser-local-storage" || mode === "shared-server") {
+  if (
+    mode === "local-database" ||
+    mode === "browser-local-storage" ||
+    mode === "shared-server"
+  ) {
     return mode;
   }
 
   throw new Error(
     `Unsupported budget persistence mode: ${mode}. ` +
-      'Expected "browser-local-storage" or "shared-server".',
+      'Expected "local-database", "browser-local-storage", or "shared-server".',
   );
 }

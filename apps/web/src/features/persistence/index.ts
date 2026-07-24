@@ -107,3 +107,10 @@ export type {
 
 export { exportBudgetPersistenceSnapshot, isCanonicalBudgetStorageKey } from "./persistenceSnapshot";
 export type { BudgetPersistenceSnapshot } from "./persistenceSnapshot";
+
+export { createKeyValueBudgetPersistenceProvider } from "./createKeyValueBudgetPersistenceProvider";
+export type { CreateKeyValueBudgetPersistenceProviderOptions } from "./createKeyValueBudgetPersistenceProvider";
+export { createLocalDatabaseKeyValueStorage } from "./localDatabaseKeyValueStorage";
+export type { LocalDatabaseKeyValueStorage } from "./localDatabaseKeyValueStorage";
+export { createLocalDatabasePersistenceProvider } from "./localDatabasePersistenceProvider";
+export type { LocalDatabasePersistenceProviderOptions } from "./localDatabasePersistenceProvider";

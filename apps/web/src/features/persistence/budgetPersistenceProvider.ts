@@ -9,6 +9,7 @@ import type { KeyValueStoragePort } from "./keyValueStoragePort";
 
 export type PersistenceBackendKind =
   | "browser-local-storage"
+  | "local-database"
   | "sqlite-adapter"
   | "shared-server";
 

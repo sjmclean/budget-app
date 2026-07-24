@@ -1,0 +1,85 @@
+import { createAccountService, readAccounts } from "../accounts/accountService";
+import { createAccountRegisterService } from "../accounts/accountRegisterService";
+import { createPayeeService, findPayeeIdByName } from "../accounts/payeeService";
+import { createScheduledTransactionService } from "../accounts/scheduledTransactionService";
+import { createBudgetScopedStorage } from "../budget/budgetDataScope";
+import { createBudgetViewService } from "../budget/budgetViewService";
+import { createBrowserLocalStorageBudgetActivityPersistence } from "./browserLocalStorageBudgetActivityPersistence";
+import type {
+  BudgetPersistenceProvider,
+  PersistenceProviderCapabilities,
+  PersistenceProviderMetadata,
+} from "./budgetPersistenceProvider";
+import type { KeyValueStoragePort } from "./keyValueStoragePort";
+import { exportBudgetPersistenceSnapshot } from "./persistenceSnapshot";
+
+export interface CreateKeyValueBudgetPersistenceProviderOptions {
+  readonly storage: KeyValueStoragePort;
+  readonly metadata: PersistenceProviderMetadata;
+  readonly capabilities: PersistenceProviderCapabilities;
+  readonly initialize?: () => Promise<void>;
+  readonly flush?: () => Promise<void>;
+  readonly watch?: (listener: () => void) => () => void;
+}
+
+/**
+ * Canonical composition root for the current key/value-shaped Budget App
+ * domain services. Concrete storage providers supply only storage and lifecycle
+ * behaviour; feature wiring remains identical across browser, local database,
+ * and shared-server modes.
+ */
+export function createKeyValueBudgetPersistenceProvider(
+  options: CreateKeyValueBudgetPersistenceProviderOptions,
+): BudgetPersistenceProvider {
+  const budgetScopedStorage = createBudgetScopedStorage(options.storage);
+
+  const accountService = createAccountService({ storage: budgetScopedStorage });
+  const payeeService = createPayeeService({ storage: budgetScopedStorage });
+
+  const accountRegisterService = createAccountRegisterService({
+    storage: budgetScopedStorage,
+    recordPayee: async (payeeName: string) => {
+      await payeeService.recordPayee(payeeName);
+    },
+    recordPayees: async (payeeNames: string[]) => {
+      await payeeService.recordPayees(payeeNames);
+    },
+    findPayeeIdByName: (payeeName: string) =>
+      findPayeeIdByName(budgetScopedStorage, payeeName),
+    readAccounts: () => readAccounts(budgetScopedStorage),
+    getAccountById: (accountId: string) =>
+      accountService.getAccountById(accountId) ?? undefined,
+  });
+
+  const scheduledTransactionService = createScheduledTransactionService({
+    storage: budgetScopedStorage,
+    recordPayee: async (payeeName: string) => {
+      await payeeService.recordPayee(payeeName);
+    },
+    findPayeeIdByName: (payeeName: string) =>
+      findPayeeIdByName(budgetScopedStorage, payeeName),
+  });
+
+  const budgetViewService = createBudgetViewService({
+    budgetActivity: createBrowserLocalStorageBudgetActivityPersistence(
+      budgetScopedStorage,
+    ),
+    storage: options.storage,
+  });
+
+  return {
+    metadata: options.metadata,
+    capabilities: options.capabilities,
+    accounts: accountService,
+    accountRegisters: accountRegisterService,
+    budgetView: budgetViewService,
+    categories: budgetViewService,
+    payees: payeeService,
+    scheduledTransactions: scheduledTransactionService,
+    keyValueStorage: options.storage,
+    initialize: options.initialize,
+    flush: options.flush ?? options.storage.flush,
+    watch: options.watch,
+    exportSnapshot: () => exportBudgetPersistenceSnapshot(options.storage),
+  };
+}

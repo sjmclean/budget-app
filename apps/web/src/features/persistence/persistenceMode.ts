@@ -1,10 +1,10 @@
 import { getConfiguredPersistenceMetadata } from "./persistenceRuntimeMetadata";
 
 export type PersistenceMode =
+  | "local-database"
   | "browser-local-storage"
-  | "database-adapter-pending"
-  | "sqlite-adapter"
-  | "shared-server";
+  | "shared-server"
+  | "sqlite-adapter";
 
 export interface PersistenceModeSummary {
   mode: PersistenceMode;
@@ -14,7 +14,7 @@ export interface PersistenceModeSummary {
 }
 
 export const DEFAULT_PERSISTENCE_BACKEND: PersistenceMode =
-  "browser-local-storage";
+  "local-database";
 
 export function getDefaultPersistenceBackend(): PersistenceMode {
   return DEFAULT_PERSISTENCE_BACKEND;
@@ -23,10 +23,10 @@ export function getDefaultPersistenceBackend(): PersistenceMode {
 /**
  * Current web persistence status.
  *
- * The package/backend layer contains SQLite repositories and application services,
- * but the React web app still writes budget data through browser localStorage
- * feature services. Keep this centralised so UI and future tests can expose the
- * distinction clearly while the DB-backed adapter is introduced incrementally.
+ * The React web app now uses the configured persistence provider through the
+ * central persistence boundary. Local database mode is the default, while the
+ * legacy browser and shared-server providers remain available for rollback and
+ * comparison during the migration.
  */
 export function getPersistenceModeSummary(): PersistenceModeSummary {
   const metadata = getConfiguredPersistenceMetadata();
