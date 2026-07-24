@@ -26,6 +26,7 @@ import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyV
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import { getPersistenceModeSummary } from "../features/persistence/persistenceMode";
 import { getReplicationBackgroundService } from "../features/persistence/replicationService";
+import type { ReplicationConflict } from "../features/persistence/conflictResolution";
 import { useReplicationStatus } from "../features/persistence/useReplicationStatus";
 import {
   inspectBrowserToSharedServerMigration,
@@ -239,6 +240,7 @@ export function SettingsPage({
   const persistenceMode = getPersistenceModeSummary();
   const replicationStatus = useReplicationStatus();
   const [replicationBusy, setReplicationBusy] = useState(false);
+  const [replicationConflicts, setReplicationConflicts] = useState<ReplicationConflict[]>([]);
   const [activeSection, setActiveSection] = useState<SettingsSectionId>(initialSection);
   const [dataView, setDataView] = useState<DataSettingsView>(initialDataView);
   const [settings, setSettings] = useState<SettingsPreferences>(() =>
@@ -258,6 +260,16 @@ export function SettingsPage({
     listVersionHistorySnapshots(getActiveKeyValueStorage()),
   );
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!replicationStatus.supported) {
+      setReplicationConflicts([]);
+      return;
+    }
+    const backgroundService = getReplicationBackgroundService();
+    if (!backgroundService) return;
+    void backgroundService.listConflicts().then(setReplicationConflicts);
+  }, [replicationStatus.supported, replicationStatus.unresolvedConflictCount, replicationStatus.lastSuccessfulSyncAt]);
+
   const currentSection = settingsSections.find((section) => section.id === activeSection) ?? settingsSections[0];
   const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
   const selectedSnapshot =
@@ -1231,9 +1243,58 @@ export function SettingsPage({
                 ) : null}
                 {replicationStatus.supported ? (
                   <p className="muted">
-                    {replicationStatus.pendingOperationCount} pending · {replicationStatus.retainedJournalEntryCount} retained journal entries · {replicationStatus.checkpointCount} checkpoints
+                    {replicationStatus.pendingOperationCount} pending · {replicationStatus.retainedJournalEntryCount} retained journal entries · {replicationStatus.checkpointCount} checkpoints · {replicationStatus.unresolvedConflictCount} conflicts
                     {replicationStatus.prunedJournalEntryCount > 0 ? ` · ${replicationStatus.prunedJournalEntryCount} entries pruned last checkpoint` : ""}
                   </p>
+                ) : null}
+                {replicationConflicts.length > 0 ? (
+                  <div className="settings-conflict-list">
+                    <p className="muted">
+                      Concurrent changes were detected on another device. Server order was applied so every device converges; choose Keep mine to reapply this device's value.
+                    </p>
+                    {replicationConflicts.slice(0, 10).map((conflict) => (
+                      <div key={conflict.conflictId} className="settings-conflict-item">
+                        <div>
+                          <strong>{formatConflictKey(conflict.key)}</strong>
+                          <p className="muted">
+                            Local change from this device conflicted with device {conflict.remoteDeviceId.slice(0, 8)} at remote cursor {conflict.remoteCursor}.
+                          </p>
+                        </div>
+                        <div className="settings-inline-actions">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            disabled={replicationBusy}
+                            onClick={() => {
+                              const backgroundService = getReplicationBackgroundService();
+                              if (!backgroundService) return;
+                              setReplicationBusy(true);
+                              void backgroundService.resolveConflict(conflict.conflictId, "accept-remote")
+                                .then(() => setReplicationConflicts((items) => items.filter((item) => item.conflictId !== conflict.conflictId)))
+                                .finally(() => setReplicationBusy(false));
+                            }}
+                          >
+                            Accept remote
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            disabled={replicationBusy}
+                            onClick={() => {
+                              const backgroundService = getReplicationBackgroundService();
+                              if (!backgroundService) return;
+                              setReplicationBusy(true);
+                              void backgroundService.resolveConflict(conflict.conflictId, "keep-local")
+                                .then(() => setReplicationConflicts((items) => items.filter((item) => item.conflictId !== conflict.conflictId)))
+                                .finally(() => setReplicationBusy(false));
+                            }}
+                          >
+                            Keep mine
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : null}
                 <div className="settings-inline-actions">
                   <Button
@@ -1325,9 +1386,15 @@ export function RestorePointsPage() {
   return <SettingsPage initialSection="data" initialDataView="budget-history" />;
 }
 
+function formatConflictKey(key: string): string {
+  const parts = key.split(".");
+  return parts.at(-1) || key;
+}
+
 function formatReplicationStatus(status: string): string {
   switch (status) {
     case "up-to-date": return "Up to date";
+    case "conflict": return "Conflict detected";
     case "synchronising": return "Synchronising";
     case "connecting": return "Connecting";
     case "retrying": return "Retrying";

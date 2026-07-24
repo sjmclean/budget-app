@@ -51,6 +51,12 @@ export async function replicatePersistenceProvider(
     remote.generationId,
   );
 
+  const localOperationsParticipating = await readAllJournalOperations(
+    provider.operationJournal,
+    state.pushedLocalSequence,
+    batchSize,
+  );
+
   let pushedOperationCount = 0;
   let pushedLocalSequence = state.pushedLocalSequence;
   while (true) {
@@ -76,7 +82,10 @@ export async function replicatePersistenceProvider(
       batchSize,
     );
     if (result.operations.length > 0) {
-      await provider.replicationStore.applyRemoteOperations(result.operations);
+      await provider.replicationStore.applyRemoteOperations(result.operations, {
+        generationId: remote.generationId,
+        localOperations: localOperationsParticipating,
+      });
       pulledOperationCount += result.operations.length;
       pulledRemoteCursor = result.operations.at(-1)!.cursor;
       state = { ...state, pulledRemoteCursor };
@@ -109,6 +118,7 @@ export async function replicatePersistenceProvider(
   }
 
   const journalCursor = provider.operationJournal.getJournalCursor();
+  const diagnostics = await provider.replicationStore.getReplicationDiagnostics();
   return {
     generationId: remote.generationId,
     pushedOperationCount,
@@ -119,7 +129,26 @@ export async function replicatePersistenceProvider(
     uploadedBlobCount,
     downloadedBlobCount,
     prunedJournalEntryCount,
+    detectedConflictCount: diagnostics.unresolvedConflictCount,
   };
+}
+
+
+async function readAllJournalOperations(
+  journal: NonNullable<BudgetPersistenceProvider["operationJournal"]>,
+  afterSequence: number,
+  batchSize: number,
+): Promise<import("./operationJournal").OperationJournalEntry[]> {
+  const result: import("./operationJournal").OperationJournalEntry[] = [];
+  let cursor = afterSequence;
+  while (true) {
+    const batch = await journal.readJournal(cursor, batchSize);
+    if (batch.length === 0) break;
+    result.push(...batch);
+    cursor = batch.at(-1)!.sequence;
+    if (batch.length < batchSize) break;
+  }
+  return result;
 }
 
 function normaliseBatchSize(value: number): number {

@@ -6,6 +6,7 @@ import type { CategoryPersistencePort } from "../budget/categoryPersistencePort"
 import type { BudgetViewService } from "../budget/budgetViewTypes";
 import type { BudgetPersistenceSnapshot } from "./persistenceSnapshot";
 import type { CheckpointPort } from "./checkpoint";
+import type { ConflictResolutionPort } from "./conflictResolution";
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { OperationJournalPort } from "./operationJournal";
 import type { ReplicationLocalStorePort } from "./replication";
@@ -53,6 +54,7 @@ export interface BudgetPersistenceProvider {
   readonly operationJournal?: OperationJournalPort;
   readonly checkpoints?: CheckpointPort;
   readonly replicationStore?: ReplicationLocalStorePort;
+  readonly conflicts?: ConflictResolutionPort;
   initialize?(): Promise<void>;
   flush?(): Promise<void>;
   watch?(listener: PersistenceChangeListener): () => void;

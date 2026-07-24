@@ -632,7 +632,8 @@
     "test:milestone5:replication": "node scripts/validate-milestone5-replication.mjs",
     "test:milestone6:sync-service": "node scripts/validate-milestone6-sync-service.mjs",
     "test:milestone7:attachments": "node scripts/validate-milestone7-attachment-replication.mjs",
-    "test:milestone8:stabilisation": "node scripts/validate-milestone8-stabilisation.mjs"
+    "test:milestone8:stabilisation": "node scripts/validate-milestone8-stabilisation.mjs",
+    "test:milestone9:conflicts": "node scripts/validate-milestone9-conflicts.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

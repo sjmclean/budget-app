@@ -1,5 +1,6 @@
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
 import type { ReplicationDiagnostics, ReplicationRunResult } from "./replication";
+import type { ReplicationConflict } from "./conflictResolution";
 import { replicatePersistenceProvider } from "./replicationEngine";
 import { createHttpReplicationTransport } from "./replicationTransport";
 
@@ -9,6 +10,7 @@ export type ReplicationStatus =
   | "connecting"
   | "synchronising"
   | "up-to-date"
+  | "conflict"
   | "retrying"
   | "error";
 
@@ -28,6 +30,7 @@ export interface ReplicationServiceSnapshot {
   readonly retainedJournalEntryCount: number;
   readonly checkpointCount: number;
   readonly prunedJournalEntryCount: number;
+  readonly unresolvedConflictCount: number;
 }
 
 const INITIAL: ReplicationServiceSnapshot = {
@@ -46,6 +49,7 @@ const INITIAL: ReplicationServiceSnapshot = {
   retainedJournalEntryCount: 0,
   checkpointCount: 0,
   prunedJournalEntryCount: 0,
+  unresolvedConflictCount: 0,
 };
 
 let snapshot = INITIAL;
@@ -69,6 +73,8 @@ export interface ReplicationBackgroundService {
   syncNow(options?: { uploadCheckpoint?: boolean }): Promise<ReplicationRunResult | null>;
   getDiagnostics(): Promise<ReplicationDiagnostics | null>;
   recoverFromServer(): Promise<boolean>;
+  listConflicts(): Promise<ReplicationConflict[]>;
+  resolveConflict(conflictId: string, resolution: "keep-local" | "accept-remote"): Promise<void>;
   stop(): void;
 }
 
@@ -79,7 +85,7 @@ export function startReplicationBackgroundService(
   service?.stop();
   if (!provider.operationJournal || !provider.replicationStore) {
     update({ ...INITIAL, status: "disabled", supported: false });
-    service = { syncNow: async () => null, getDiagnostics: async () => null, recoverFromServer: async () => false, stop: () => undefined };
+    service = { syncNow: async () => null, getDiagnostics: async () => null, recoverFromServer: async () => false, listConflicts: async () => [], resolveConflict: async () => undefined, stop: () => undefined };
     return service;
   }
 
@@ -101,6 +107,7 @@ export function startReplicationBackgroundService(
       pendingOperationCount: pending,
       retainedJournalEntryCount: diagnostics.retainedJournalEntryCount,
       checkpointCount: diagnostics.checkpointCount,
+      unresolvedConflictCount: diagnostics.unresolvedConflictCount,
     });
     return diagnostics;
   };
@@ -130,7 +137,7 @@ export function startReplicationBackgroundService(
         update({
           ...snapshot,
           supported: true,
-          status: "up-to-date",
+          status: result.detectedConflictCount > 0 ? "conflict" : "up-to-date",
           lastSuccessfulSyncAt: new Date().toISOString(),
           lastError: null,
           generationId: result.generationId,
@@ -141,6 +148,7 @@ export function startReplicationBackgroundService(
           downloadedBlobCount: result.downloadedBlobCount,
           retryAttempt: 0,
           prunedJournalEntryCount: result.prunedJournalEntryCount,
+          unresolvedConflictCount: result.detectedConflictCount,
         });
         await refreshDiagnostics();
         return result;
@@ -181,6 +189,13 @@ export function startReplicationBackgroundService(
   service = {
     syncNow: ({ uploadCheckpoint = false } = {}) => run(uploadCheckpoint),
     getDiagnostics: () => refreshDiagnostics(),
+    listConflicts: () => provider.conflicts?.listConflicts({ status: "unresolved", limit: 100 }) ?? Promise.resolve([]),
+    async resolveConflict(conflictId, resolution): Promise<void> {
+      if (!provider.conflicts) throw new Error("Conflict resolution is not supported by this provider.");
+      await provider.conflicts.resolveConflict(conflictId, resolution);
+      await refreshDiagnostics();
+      if (resolution === "keep-local") schedule();
+    },
     async recoverFromServer(): Promise<boolean> {
       if (running || stopped || !provider.checkpoints) return false;
       const remote = await transport.getGeneration();

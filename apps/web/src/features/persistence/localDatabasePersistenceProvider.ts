@@ -66,5 +66,6 @@ export function createLocalDatabasePersistenceProvider(
     operationJournal: storage,
     checkpoints: storage,
     replicationStore: storage,
+    conflicts: storage,
   });
 }

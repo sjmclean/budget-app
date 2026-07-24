@@ -1,5 +1,6 @@
 import type { PersistenceCheckpoint } from "./checkpoint";
 import type { OperationJournalEntry } from "./operationJournal";
+import type { ConflictResolutionPort } from "./conflictResolution";
 
 export const REPLICATION_PROTOCOL_VERSION = 1 as const;
 
@@ -26,12 +27,21 @@ export interface ReplicationDiagnostics {
   readonly generationId: string | null;
   readonly pushedLocalSequence: number;
   readonly pulledRemoteCursor: number;
+  readonly unresolvedConflictCount: number;
 }
 
-export interface ReplicationLocalStorePort {
+export interface ReplicationApplyContext {
+  readonly generationId: string;
+  readonly localOperations: readonly OperationJournalEntry[];
+}
+
+export interface ReplicationLocalStorePort extends ConflictResolutionPort {
   getReplicationCursorState(): Promise<ReplicationCursorState>;
   setReplicationCursorState(state: ReplicationCursorState): Promise<void>;
-  applyRemoteOperations(operations: readonly RemoteOperationEnvelope[]): Promise<number>;
+  applyRemoteOperations(
+    operations: readonly RemoteOperationEnvelope[],
+    context?: ReplicationApplyContext,
+  ): Promise<number>;
   getReplicationDiagnostics(): Promise<ReplicationDiagnostics>;
   pruneJournal(throughSequence: number): Promise<number>;
 }
@@ -99,4 +109,5 @@ export interface ReplicationRunResult {
   readonly uploadedBlobCount: number;
   readonly downloadedBlobCount: number;
   readonly prunedJournalEntryCount: number;
+  readonly detectedConflictCount: number;
 }

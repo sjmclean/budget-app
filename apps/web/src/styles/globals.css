@@ -7799,3 +7799,26 @@ strong {
     min-height: 2.65rem;
   }
 }
+
+.settings-conflict-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.settings-conflict-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-subtle, #d9dee7);
+  border-radius: 0.75rem;
+  background: var(--surface-subtle, rgba(127, 127, 127, 0.06));
+}
+
+@media (max-width: 720px) {
+  .settings-conflict-item {
+    flex-direction: column;
+  }
+}

@@ -9,6 +9,12 @@ import {
   type PersistenceCheckpointMetadata,
 } from "./checkpoint";
 import { isCanonicalBudgetStorageKey } from "./persistenceSnapshot";
+import {
+  createConflictId,
+  mutationsAreEquivalent,
+  type ReplicationConflict,
+  type ReplicationConflictStatus,
+} from "./conflictResolution";
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import { createSerializedWriteCoordinator } from "./keyValueStoragePort";
 import {
@@ -19,17 +25,19 @@ import {
 } from "./operationJournal";
 import type {
   RemoteOperationEnvelope,
+  ReplicationApplyContext,
   ReplicationCursorState,
   ReplicationDiagnostics,
   ReplicationLocalStorePort,
 } from "./replication";
 
 const DATABASE_NAME = "budget-app-local-database-v1";
-const DATABASE_VERSION = 3;
+const DATABASE_VERSION = 4;
 const RECORD_STORE = "records";
 const META_STORE = "metadata";
 const JOURNAL_STORE = "operation-journal";
 const CHECKPOINT_STORE = "checkpoints";
+const CONFLICT_STORE = "replication-conflicts";
 const SCHEMA_VERSION_KEY = "schema-version";
 const DEVICE_ID_KEY = "device-id";
 const LATEST_SEQUENCE_KEY = "operation-journal.latest-sequence";
@@ -56,6 +64,8 @@ export interface LocalDatabaseKeyValueStorage extends KeyValueStoragePort, Check
   ): Promise<CheckpointRestoreResult>;
   getReplicationDiagnostics(): Promise<ReplicationDiagnostics>;
   pruneJournal(throughSequence: number): Promise<number>;
+  listConflicts(options?: { status?: ReplicationConflictStatus; limit?: number }): Promise<ReplicationConflict[]>;
+  resolveConflict(conflictId: string, resolution: "keep-local" | "accept-remote"): Promise<void>;
 }
 
 /**
@@ -72,7 +82,7 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
   let deviceId = "";
   let latestSequence = 0;
 
-  return {
+  const api: LocalDatabaseKeyValueStorage = {
     async initialize(): Promise<void> {
       if (initialized) return;
       const db = await openDatabase();
@@ -260,6 +270,7 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
           generationId: cursor.generationId,
           pushedLocalSequence: cursor.pushedLocalSequence,
           pulledRemoteCursor: cursor.pulledRemoteCursor,
+          unresolvedConflictCount: await countUnresolvedConflicts(db),
         };
       } finally {
         db.close();
@@ -282,6 +293,7 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
 
     async applyRemoteOperations(
       operations: readonly RemoteOperationEnvelope[],
+      context?: ReplicationApplyContext,
     ): Promise<number> {
       assertInitialized(initialized);
       if (operations.length === 0) return 0;
@@ -289,7 +301,8 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
       const sorted = [...operations].sort((left, right) => left.cursor - right.cursor);
       const db = await openDatabase();
       try {
-        const applied = await applyRemoteOperationsTransaction(db, sorted);
+        const conflicts = detectReplicationConflicts(sorted, context);
+        const applied = await applyRemoteOperationsTransaction(db, sorted, conflicts);
         for (const envelope of sorted) {
           const mutation = envelope.operation.mutation;
           if (mutation.type === "key-value.set") mirror.set(mutation.key, mutation.value);
@@ -298,6 +311,46 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
         return applied;
       } finally {
         db.close();
+      }
+    },
+
+
+    async listConflicts(
+      options: { status?: ReplicationConflictStatus; limit?: number } = {},
+    ): Promise<ReplicationConflict[]> {
+      assertInitialized(initialized);
+      await writes.flush();
+      const limit = options.limit ?? 100;
+      if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000) {
+        throw new Error("Conflict list limits must be between 1 and 1000.");
+      }
+      const db = await openDatabase();
+      try {
+        return await readReplicationConflicts(db, options.status, limit);
+      } finally {
+        db.close();
+      }
+    },
+
+    async resolveConflict(
+      conflictId: string,
+      resolution: "keep-local" | "accept-remote",
+    ): Promise<void> {
+      assertInitialized(initialized);
+      await writes.flush();
+      const db = await openDatabase();
+      let conflict: ReplicationConflict | null = null;
+      try {
+        conflict = await markConflictResolved(db, conflictId, resolution);
+      } finally {
+        db.close();
+      }
+      if (!conflict) throw new Error("The replication conflict no longer exists.");
+      if (resolution === "keep-local") {
+        const mutation = conflict.localMutation;
+        if (mutation.type === "key-value.set") api.setItem(mutation.key, mutation.value);
+        else api.removeItem(mutation.key);
+        await api.flush();
       }
     },
 
@@ -335,6 +388,8 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
       };
     },
   };
+
+  return api;
 
   async function commitMutation(entry: OperationJournalEntry): Promise<void> {
     const db = await openDatabase();
@@ -384,6 +439,11 @@ function openDatabase(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(CHECKPOINT_STORE)) {
         const checkpoints = db.createObjectStore(CHECKPOINT_STORE, { keyPath: "checkpointId" });
         checkpoints.createIndex("createdAt", "createdAt", { unique: false });
+      }
+      if (!db.objectStoreNames.contains(CONFLICT_STORE)) {
+        const conflicts = db.createObjectStore(CONFLICT_STORE, { keyPath: "conflictId" });
+        conflicts.createIndex("status", "status", { unique: false });
+        conflicts.createIndex("detectedAt", "detectedAt", { unique: false });
       }
     };
 
@@ -626,7 +686,7 @@ function restoreDatabaseFromCheckpoint(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(
-      [RECORD_STORE, JOURNAL_STORE, CHECKPOINT_STORE, META_STORE],
+      [RECORD_STORE, JOURNAL_STORE, CHECKPOINT_STORE, CONFLICT_STORE, META_STORE],
       "readwrite",
     );
     const records = transaction.objectStore(RECORD_STORE);
@@ -643,6 +703,7 @@ function restoreDatabaseFromCheckpoint(
     };
 
     transaction.objectStore(JOURNAL_STORE).clear();
+    transaction.objectStore(CONFLICT_STORE).clear();
     transaction.objectStore(CHECKPOINT_STORE).put(restoredCheckpoint);
     const metadata = transaction.objectStore(META_STORE);
     metadata.put({ key: LATEST_SEQUENCE_KEY, value: 0 });
@@ -726,13 +787,113 @@ function writeReplicationCursorState(
 function applyRemoteOperationsTransaction(
   db: IDBDatabase,
   operations: readonly RemoteOperationEnvelope[],
+  conflicts: readonly ReplicationConflict[],
 ): Promise<number> {
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(RECORD_STORE, "readwrite");
+    const transaction = db.transaction([RECORD_STORE, CONFLICT_STORE], "readwrite");
     const store = transaction.objectStore(RECORD_STORE);
     for (const envelope of operations) applyMutation(store, envelope.operation.mutation);
+    const conflictStore = transaction.objectStore(CONFLICT_STORE);
+    for (const conflict of conflicts) conflictStore.put(conflict);
     transaction.oncomplete = () => resolve(operations.length);
     transaction.onerror = () => reject(transaction.error ?? new Error("Unable to apply remote operations."));
     transaction.onabort = () => reject(transaction.error ?? new Error("Remote operation transaction aborted."));
+  });
+}
+
+function detectReplicationConflicts(
+  remoteOperations: readonly RemoteOperationEnvelope[],
+  context?: ReplicationApplyContext,
+): ReplicationConflict[] {
+  if (!context || context.localOperations.length === 0) return [];
+  const conflicts = new Map<string, ReplicationConflict>();
+  for (const remote of remoteOperations) {
+    for (const local of context.localOperations) {
+      if (remote.operation.deviceId === local.deviceId) continue;
+      if (remote.operation.mutation.key !== local.mutation.key) continue;
+      if (mutationsAreEquivalent(remote.operation.mutation, local.mutation)) continue;
+      const conflictId = createConflictId({
+        generationId: context.generationId,
+        key: local.mutation.key,
+        localOperationId: local.operationId,
+        remoteOperationId: remote.operation.operationId,
+      });
+      conflicts.set(conflictId, {
+        conflictId,
+        generationId: context.generationId,
+        key: local.mutation.key,
+        detectedAt: new Date().toISOString(),
+        localOperationId: local.operationId,
+        localDeviceId: local.deviceId,
+        localSequence: local.sequence,
+        localMutation: local.mutation,
+        remoteOperationId: remote.operation.operationId,
+        remoteDeviceId: remote.operation.deviceId,
+        remoteCursor: remote.cursor,
+        remoteMutation: remote.operation.mutation,
+        deterministicWinner: "remote",
+        status: "unresolved",
+        resolvedAt: null,
+      });
+    }
+  }
+  return [...conflicts.values()];
+}
+
+function readReplicationConflicts(
+  db: IDBDatabase,
+  status: ReplicationConflictStatus | undefined,
+  limit: number,
+): Promise<ReplicationConflict[]> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CONFLICT_STORE, "readonly");
+    const store = transaction.objectStore(CONFLICT_STORE);
+    const request = status ? store.index("status").openCursor(IDBKeyRange.only(status), "prev") : store.index("detectedAt").openCursor(null, "prev");
+    const results: ReplicationConflict[] = [];
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor || results.length >= limit) {
+        resolve(results);
+        return;
+      }
+      results.push(cursor.value as ReplicationConflict);
+      cursor.continue();
+    };
+    request.onerror = () => reject(request.error ?? new Error("Unable to read replication conflicts."));
+  });
+}
+
+function countUnresolvedConflicts(db: IDBDatabase): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CONFLICT_STORE, "readonly");
+    const request = transaction.objectStore(CONFLICT_STORE).index("status").count(IDBKeyRange.only("unresolved"));
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error("Unable to count replication conflicts."));
+  });
+}
+
+function markConflictResolved(
+  db: IDBDatabase,
+  conflictId: string,
+  resolution: "keep-local" | "accept-remote",
+): Promise<ReplicationConflict | null> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(CONFLICT_STORE, "readwrite");
+    const store = transaction.objectStore(CONFLICT_STORE);
+    let resolved: ReplicationConflict | null = null;
+    const request = store.get(conflictId);
+    request.onsuccess = () => {
+      const current = request.result as ReplicationConflict | undefined;
+      if (!current) return;
+      resolved = {
+        ...current,
+        status: resolution === "keep-local" ? "resolved-local" : "resolved-remote",
+        resolvedAt: new Date().toISOString(),
+      };
+      store.put(resolved);
+    };
+    transaction.oncomplete = () => resolve(resolved);
+    transaction.onerror = () => reject(transaction.error ?? new Error("Unable to resolve replication conflict."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Conflict resolution aborted."));
   });
 }

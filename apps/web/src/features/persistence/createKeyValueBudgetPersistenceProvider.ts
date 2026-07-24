@@ -11,6 +11,7 @@ import type {
   PersistenceProviderMetadata,
 } from "./budgetPersistenceProvider";
 import type { CheckpointPort } from "./checkpoint";
+import type { ConflictResolutionPort } from "./conflictResolution";
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { OperationJournalPort } from "./operationJournal";
 import type { ReplicationLocalStorePort } from "./replication";
@@ -26,6 +27,7 @@ export interface CreateKeyValueBudgetPersistenceProviderOptions {
   readonly operationJournal?: OperationJournalPort;
   readonly checkpoints?: CheckpointPort;
   readonly replicationStore?: ReplicationLocalStorePort;
+  readonly conflicts?: ConflictResolutionPort;
 }
 
 /**
@@ -86,6 +88,7 @@ export function createKeyValueBudgetPersistenceProvider(
     operationJournal: options.operationJournal,
     checkpoints: options.checkpoints,
     replicationStore: options.replicationStore,
+    conflicts: options.conflicts,
     initialize: options.initialize,
     flush: options.flush ?? options.storage.flush,
     watch: options.watch,
