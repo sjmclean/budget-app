@@ -25,6 +25,8 @@ import {
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import { getPersistenceModeSummary } from "../features/persistence/persistenceMode";
+import { getReplicationBackgroundService } from "../features/persistence/replicationService";
+import { useReplicationStatus } from "../features/persistence/useReplicationStatus";
 import {
   inspectBrowserToSharedServerMigration,
   migrateBrowserBudgetToSharedServer,
@@ -235,6 +237,8 @@ export function SettingsPage({
   const refreshBudgets = useBudgetRegistryStore((state) => state.refreshBudgets);
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const persistenceMode = getPersistenceModeSummary();
+  const replicationStatus = useReplicationStatus();
+  const [replicationBusy, setReplicationBusy] = useState(false);
   const [activeSection, setActiveSection] = useState<SettingsSectionId>(initialSection);
   const [dataView, setDataView] = useState<DataSettingsView>(initialDataView);
   const [settings, setSettings] = useState<SettingsPreferences>(() =>
@@ -1204,6 +1208,50 @@ export function SettingsPage({
                 <strong>{persistenceMode.label}</strong>
                 <p className="muted">{persistenceMode.description}</p>
               </div>
+              <div>
+                <span>Synchronisation</span>
+                <strong>{formatReplicationStatus(replicationStatus.status)}</strong>
+                <p className="muted">
+                  {replicationStatus.lastSuccessfulSyncAt
+                    ? `Last synced ${new Date(replicationStatus.lastSuccessfulSyncAt).toLocaleString()}`
+                    : replicationStatus.supported
+                      ? "Waiting for the first successful sync."
+                      : "Not available for this persistence provider."}
+                </p>
+                {replicationStatus.lastError ? (
+                  <p className="muted">{replicationStatus.lastError}</p>
+                ) : null}
+                <div className="settings-inline-actions">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={!replicationStatus.supported || replicationBusy}
+                    onClick={() => {
+                      const backgroundService = getReplicationBackgroundService();
+                      if (!backgroundService) return;
+                      setReplicationBusy(true);
+                      void backgroundService.syncNow().finally(() => setReplicationBusy(false));
+                    }}
+                  >
+                    {replicationBusy ? "Synchronising..." : "Sync now"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={!replicationStatus.supported || replicationBusy}
+                    onClick={() => {
+                      const backgroundService = getReplicationBackgroundService();
+                      if (!backgroundService) return;
+                      setReplicationBusy(true);
+                      void backgroundService
+                        .syncNow({ uploadCheckpoint: true })
+                        .finally(() => setReplicationBusy(false));
+                    }}
+                  >
+                    Create checkpoint
+                  </Button>
+                </div>
+              </div>
             </div>
           </Card>
         ) : null}
@@ -1216,4 +1264,16 @@ export function SettingsPage({
 
 export function RestorePointsPage() {
   return <SettingsPage initialSection="data" initialDataView="budget-history" />;
+}
+
+function formatReplicationStatus(status: string): string {
+  switch (status) {
+    case "up-to-date": return "Up to date";
+    case "synchronising": return "Synchronising";
+    case "connecting": return "Connecting";
+    case "retrying": return "Retrying";
+    case "offline": return "Offline";
+    case "error": return "Error";
+    default: return "Disabled";
+  }
 }

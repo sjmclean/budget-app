@@ -7,6 +7,7 @@ import {
   getBudgetPersistenceProvider,
 } from "./features/persistence";
 import { installPersistenceProviderLifecycle } from "./features/persistence/persistenceProviderLifecycle";
+import { startReplicationBackgroundService } from "./features/persistence/replicationService";
 import "./styles/globals.css";
 
 function getApplicationRoot(): HTMLElement {
@@ -32,6 +33,9 @@ export async function bootstrapApp() {
     const persistenceProvider = getBudgetPersistenceProvider();
     await persistenceProvider.initialize?.();
     installPersistenceProviderLifecycle(persistenceProvider);
+    startReplicationBackgroundService(persistenceProvider, {
+      apiBaseUrl: (import.meta as ImportMeta & { env?: { VITE_BUDGET_API_URL?: string } }).env?.VITE_BUDGET_API_URL,
+    });
 
     // Import application modules only after runtime persistence is configured.
     // Zustand stores read registry and selection state during module creation.

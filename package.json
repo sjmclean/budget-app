@@ -629,7 +629,8 @@
     "test:milestone2:persistence": "node scripts/check-milestone2-persistence.mjs",
     "test:milestone3:journal": "node scripts/check-milestone3-operation-journal.mjs",
     "test:milestone4:checkpoints": "node scripts/check-milestone4-checkpoints.mjs",
-    "test:milestone5:replication": "node scripts/validate-milestone5-replication.mjs"
+    "test:milestone5:replication": "node scripts/validate-milestone5-replication.mjs",
+    "test:milestone6:sync-service": "node scripts/validate-milestone6-sync-service.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

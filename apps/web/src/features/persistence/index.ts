@@ -140,3 +140,16 @@ export {
 export * from "./replication";
 export * from "./replicationEngine";
 export * from "./replicationTransport";
+
+export {
+  getReplicationBackgroundService,
+  getReplicationServiceSnapshot,
+  startReplicationBackgroundService,
+  subscribeReplicationService,
+} from "./replicationService";
+export type {
+  ReplicationBackgroundService,
+  ReplicationServiceSnapshot,
+  ReplicationStatus,
+} from "./replicationService";
+export { useReplicationStatus } from "./useReplicationStatus";
