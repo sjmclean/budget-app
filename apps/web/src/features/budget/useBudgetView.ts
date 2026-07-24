@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
+import { usePersistenceChangeVersion } from "../persistence/persistenceChangeBus";
 import type { BudgetMonthView } from "./budgetViewTypes";
 
 interface UseBudgetViewState {
@@ -10,6 +11,7 @@ interface UseBudgetViewState {
 
 export function useBudgetView(budgetId: string, month: string): UseBudgetViewState {
   const categoriesPersistence = getBudgetPersistenceProvider().categories;
+  const persistenceChangeVersion = usePersistenceChangeVersion();
   const [state, setState] = useState<UseBudgetViewState>({
     data: null,
     isLoading: true,
@@ -20,11 +22,11 @@ export function useBudgetView(budgetId: string, month: string): UseBudgetViewSta
     let isMounted = true;
 
     async function loadBudgetView() {
-      setState({
-        data: null,
-        isLoading: true,
+      setState((current) => ({
+        data: current.data,
+        isLoading: current.data === null,
         error: null,
-      });
+      }));
 
       try {
         const data = await categoriesPersistence.getBudgetMonthView({
@@ -62,7 +64,7 @@ export function useBudgetView(budgetId: string, month: string): UseBudgetViewSta
     return () => {
       isMounted = false;
     };
-  }, [budgetId, categoriesPersistence, month]);
+  }, [budgetId, categoriesPersistence, month, persistenceChangeVersion]);
 
   return state;
 }

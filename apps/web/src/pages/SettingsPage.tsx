@@ -1345,6 +1345,17 @@ export function SettingsPage({
                 {replicationStatus.lastError ? (
                   <p className="muted">{replicationStatus.lastError}</p>
                 ) : null}
+                {replicationStatus.supported ? (
+                  <p className="muted">
+                    Server: {formatServerOperationalStatus(replicationStatus.serverStatus)}
+                    {replicationStatus.serverLatencyMs !== null ? ` · ${replicationStatus.serverLatencyMs} ms` : ""}
+                    {replicationStatus.serverProtocolVersion !== null ? ` · protocol ${replicationStatus.serverProtocolVersion}` : ""}
+                    {replicationStatus.serverHealthCheckedAt ? ` · checked ${new Date(replicationStatus.serverHealthCheckedAt).toLocaleTimeString()}` : ""}
+                  </p>
+                ) : null}
+                {replicationStatus.serverHealthError ? (
+                  <p className="muted">{replicationStatus.serverHealthError}</p>
+                ) : null}
                 {replicationStatus.lastSuccessfulSyncAt ? (
                   <p className="muted">
                     Last run: {replicationStatus.pushedOperationCount} operations uploaded, {" "}
@@ -1421,6 +1432,18 @@ export function SettingsPage({
                     }}
                   >
                     {replicationBusy ? "Synchronising..." : "Sync now"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={!replicationStatus.supported || replicationBusy || replicationStatus.serverStatus === "checking"}
+                    onClick={() => {
+                      const backgroundService = getReplicationBackgroundService();
+                      if (!backgroundService) return;
+                      void backgroundService.checkServerHealth();
+                    }}
+                  >
+                    {replicationStatus.serverStatus === "checking" ? "Checking server..." : "Check server"}
                   </Button>
                   <Button
                     type="button"
@@ -1507,6 +1530,15 @@ function formatFileSize(bytes: number): string {
 function formatConflictKey(key: string): string {
   const parts = key.split(".");
   return parts.at(-1) || key;
+}
+
+function formatServerOperationalStatus(status: string): string {
+  switch (status) {
+    case "ready": return "Ready";
+    case "checking": return "Checking";
+    case "unavailable": return "Unavailable";
+    default: return "Not checked";
+  }
 }
 
 function formatReplicationStatus(status: string): string {

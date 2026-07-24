@@ -1,4 +1,5 @@
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
+import { publishPersistenceChange } from "./persistenceChangeBus";
 
 export function installPersistenceProviderLifecycle(
   provider: BudgetPersistenceProvider,
@@ -32,10 +33,7 @@ export function installPersistenceProviderLifecycle(
     }
 
     stopWatching = provider.watch(() => {
-      // Existing feature services read from the provider's refreshed mirror at
-      // startup. Reloading is the narrowest reliable way to make every screen
-      // rehydrate without coupling persistence to application state stores.
-      window.location.reload();
+      publishPersistenceChange({ source: "shared-server" });
     });
   };
 

@@ -634,7 +634,9 @@
     "test:milestone7:attachments": "node scripts/validate-milestone7-attachment-replication.mjs",
     "test:milestone8:stabilisation": "node scripts/validate-milestone8-stabilisation.mjs",
     "test:milestone9:conflicts": "node scripts/validate-milestone9-conflicts.mjs",
-    "test:milestone10:portable-package": "node scripts/validate-milestone10-portable-package.mjs"
+    "test:milestone10:portable-package": "node scripts/validate-milestone10-portable-package.mjs",
+    "test:milestone11:operations": "node scripts/validate-milestone11-operational-hardening.mjs",
+    "test:milestone12:reactive-persistence": "node scripts/validate-milestone12-reactive-persistence.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

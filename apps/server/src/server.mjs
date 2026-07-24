@@ -1,32 +1,31 @@
 import { createServer } from "node:http";
-import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
+import { accessSync, constants, createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import { createReplicationStore, REPLICATION_PROTOCOL_VERSION } from "./replicationStore.mjs";
+import { readServerRuntimeConfig } from "./runtimeConfig.mjs";
 
 const currentFile = fileURLToPath(import.meta.url);
 const serverSourceDir = dirname(currentFile);
 const serverPackageDir = resolve(serverSourceDir, "..");
 const repositoryRoot = resolve(serverPackageDir, "../..");
 
-const port = Number(process.env.PORT ?? 3000);
-const host = process.env.HOST ?? "0.0.0.0";
-
-const dataDir = resolve(
-  process.env.BUDGET_APP_DATA_DIR ??
-    join(serverPackageDir, "data"),
-);
-
-const databasePath = resolve(
-  process.env.BUDGET_APP_DATABASE_PATH ??
-    join(dataDir, "shared-budget.sqlite"),
-);
-
-const webDist = resolve(
-  process.env.BUDGET_APP_WEB_DIST ??
-    join(repositoryRoot, "apps/web/dist"),
-);
+const runtimeConfig = readServerRuntimeConfig({
+  serverPackageDir,
+  repositoryRoot,
+});
+const {
+  port,
+  host,
+  dataDir,
+  databasePath,
+  webDist,
+  replicationBlobDir,
+  shutdownTimeoutMs,
+  exposePaths,
+} = runtimeConfig;
+const startedAt = new Date().toISOString();
 
 mkdirSync(dataDir, { recursive: true });
 
@@ -49,9 +48,7 @@ database.exec(`
   INSERT OR IGNORE INTO shared_storage_metadata (id, revision) VALUES (1, 0);
 `);
 
-const replicationBlobDir = resolve(
-  process.env.BUDGET_APP_REPLICATION_BLOB_DIR ?? join(dataDir, "replication-blobs"),
-);
+mkdirSync(replicationBlobDir, { recursive: true });
 const replicationStore = createReplicationStore(database, {
   blobDirectory: replicationBlobDir,
 });
@@ -274,10 +271,39 @@ const server = createServer(async (request, response) => {
     if (url.pathname === "/api/health" && request.method === "GET") {
       sendJson(response, 200, {
         status: "ok",
-        storage: "sqlite",
-        databasePath,
-        revision: readRevision.get().revision,
+        service: "budget-app-server",
+        startedAt,
+        uptimeSeconds: Math.floor(process.uptime()),
+        protocolVersion: REPLICATION_PROTOCOL_VERSION,
+        serverTime: new Date().toISOString(),
       });
+      return;
+    }
+
+    if (url.pathname === "/api/ready" && request.method === "GET") {
+      try {
+        const generation = replicationStore.getGeneration();
+        const revision = readRevision.get().revision;
+        accessSync(dataDir, constants.R_OK | constants.W_OK);
+        accessSync(replicationBlobDir, constants.R_OK | constants.W_OK);
+        sendJson(response, 200, {
+          status: "ready",
+          service: "budget-app-server",
+          storage: "sqlite",
+          protocolVersion: REPLICATION_PROTOCOL_VERSION,
+          generationId: generation.generationId,
+          revision,
+          serverTime: new Date().toISOString(),
+          ...(exposePaths ? { databasePath, replicationBlobDir, webDist } : {}),
+        });
+      } catch (error) {
+        sendJson(response, 503, {
+          status: "not-ready",
+          service: "budget-app-server",
+          message: error instanceof Error ? error.message : "Server readiness checks failed.",
+          serverTime: new Date().toISOString(),
+        });
+      }
       return;
     }
 
@@ -441,23 +467,35 @@ const server = createServer(async (request, response) => {
   }
 });
 
+let shuttingDown = false;
 function shutdown(signal) {
-  console.log(`Received ${signal}; closing shared budget server.`);
-  for (const response of revisionSubscribers) {
-    response.end();
-  }
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`Received ${signal}; closing Budget App server.`);
+  for (const response of revisionSubscribers) response.end();
   revisionSubscribers.clear();
+
+  const forcedExit = setTimeout(() => {
+    console.error(`Graceful shutdown exceeded ${shutdownTimeoutMs}ms; forcing exit.`);
+    process.exit(1);
+  }, shutdownTimeoutMs);
+  forcedExit.unref();
+
   server.close(() => {
+    clearTimeout(forcedExit);
     database.close();
     process.exit(0);
   });
+  server.closeIdleConnections?.();
 }
 
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 
 server.listen(port, host, () => {
-  console.log(`Budget App shared server listening on http://${host}:${port}`);
+  console.log(`Budget App server listening on http://${host}:${port}`);
+  console.log(`Health: http://${host}:${port}/api/health`);
+  console.log(`Readiness: http://${host}:${port}/api/ready`);
   console.log(`SQLite database: ${databasePath}`);
   if (!existsSync(webDist)) {
     console.log(`Web build not found at ${webDist}; API-only mode is active.`);

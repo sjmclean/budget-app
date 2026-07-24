@@ -1,4 +1,5 @@
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
+import { publishPersistenceChange } from "./persistenceChangeBus";
 import {
   getAttachmentContentStore,
   calculateAttachmentContentHash,
@@ -99,6 +100,10 @@ export async function replicatePersistenceProvider(
     transport,
     remote.generationId,
   );
+
+  if (pulledOperationCount > 0) {
+    publishPersistenceChange({ source: "replication" });
+  }
 
   let checkpointUploaded = false;
   let prunedJournalEntryCount = 0;

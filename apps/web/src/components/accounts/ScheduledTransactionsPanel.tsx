@@ -20,6 +20,7 @@ import {
 import type { RegisterSplitLineView } from "../../features/accounts/accountRegisterTypes";
 import { getSplitBalanceStatus } from "../../features/accounts/registerSplitDrafts";
 import { getBudgetPersistenceProvider } from "../../features/persistence";
+import { usePersistenceChangeVersion } from "../../features/persistence/persistenceChangeBus";
 import type { SidebarAccount } from "../../features/accounts/accountService";
 import type { PayeeView } from "../../features/accounts/payeeService";
 import type { BudgetCategoryOption } from "../../features/budget/budgetViewTypes";
@@ -83,6 +84,7 @@ export function ScheduledTransactionsPanel({
   presentation = "overlay",
 }: ScheduledTransactionsPanelProps) {
   const scheduledTransactionsPersistence = getBudgetPersistenceProvider().scheduledTransactions;
+  const persistenceChangeVersion = usePersistenceChangeVersion();
   const dateFormat = useDateFormatPreference();
   const [scheduledTransactions, setScheduledTransactions] = useState<ScheduledTransactionView[]>([]);
   const [draft, setDraft] = useState<ScheduledFormDraft | null>(null);
@@ -99,7 +101,7 @@ export function ScheduledTransactionsPanel({
     return () => {
       mounted = false;
     };
-  }, [accountId, onDueCountChange, scheduledTransactionsPersistence]);
+  }, [accountId, onDueCountChange, persistenceChangeVersion, scheduledTransactionsPersistence]);
 
   const dueSoonTransactions = useMemo(
     () => scheduledTransactions.filter((transaction) => isDueOrUpcoming(transaction.nextDueDate)),

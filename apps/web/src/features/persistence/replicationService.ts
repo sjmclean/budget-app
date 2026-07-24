@@ -3,6 +3,7 @@ import type { ReplicationDiagnostics, ReplicationRunResult } from "./replication
 import type { ReplicationConflict } from "./conflictResolution";
 import { replicatePersistenceProvider } from "./replicationEngine";
 import { createHttpReplicationTransport } from "./replicationTransport";
+import { checkServerOperationalHealth, type ServerOperationalStatus } from "./serverOperationalHealth";
 
 export type ReplicationStatus =
   | "disabled"
@@ -31,6 +32,11 @@ export interface ReplicationServiceSnapshot {
   readonly checkpointCount: number;
   readonly prunedJournalEntryCount: number;
   readonly unresolvedConflictCount: number;
+  readonly serverStatus: ServerOperationalStatus;
+  readonly serverLatencyMs: number | null;
+  readonly serverHealthCheckedAt: string | null;
+  readonly serverHealthError: string | null;
+  readonly serverProtocolVersion: number | null;
 }
 
 const INITIAL: ReplicationServiceSnapshot = {
@@ -50,6 +56,11 @@ const INITIAL: ReplicationServiceSnapshot = {
   checkpointCount: 0,
   prunedJournalEntryCount: 0,
   unresolvedConflictCount: 0,
+  serverStatus: "unknown",
+  serverLatencyMs: null,
+  serverHealthCheckedAt: null,
+  serverHealthError: null,
+  serverProtocolVersion: null,
 };
 
 let snapshot = INITIAL;
@@ -75,6 +86,7 @@ export interface ReplicationBackgroundService {
   recoverFromServer(): Promise<boolean>;
   listConflicts(): Promise<ReplicationConflict[]>;
   resolveConflict(conflictId: string, resolution: "keep-local" | "accept-remote"): Promise<void>;
+  checkServerHealth(): Promise<boolean>;
   stop(): void;
 }
 
@@ -85,7 +97,7 @@ export function startReplicationBackgroundService(
   service?.stop();
   if (!provider.operationJournal || !provider.replicationStore) {
     update({ ...INITIAL, status: "disabled", supported: false });
-    service = { syncNow: async () => null, getDiagnostics: async () => null, recoverFromServer: async () => false, listConflicts: async () => [], resolveConflict: async () => undefined, stop: () => undefined };
+    service = { syncNow: async () => null, getDiagnostics: async () => null, recoverFromServer: async () => false, listConflicts: async () => [], resolveConflict: async () => undefined, checkServerHealth: async () => false, stop: () => undefined };
     return service;
   }
 
@@ -114,6 +126,21 @@ export function startReplicationBackgroundService(
 
   const refreshPending = () => { void refreshDiagnostics(); };
 
+  const checkHealth = async (): Promise<boolean> => {
+    update({ ...snapshot, supported: true, serverStatus: "checking", serverHealthError: null });
+    const health = await checkServerOperationalHealth({ baseUrl: options.apiBaseUrl });
+    update({
+      ...snapshot,
+      supported: true,
+      serverStatus: health.status,
+      serverLatencyMs: health.latencyMs,
+      serverHealthCheckedAt: health.checkedAt,
+      serverHealthError: health.error,
+      serverProtocolVersion: health.readiness?.protocolVersion ?? null,
+    });
+    return health.status === "ready";
+  };
+
   const run = async (uploadCheckpoint = false): Promise<ReplicationRunResult | null> => {
     if (stopped) return null;
     if (running) return running;
@@ -131,6 +158,7 @@ export function startReplicationBackgroundService(
         lastError: null,
       });
       try {
+        await checkHealth();
         const result = await replicatePersistenceProvider(provider, transport, {
           uploadCheckpoint,
         });
@@ -196,6 +224,7 @@ export function startReplicationBackgroundService(
       await refreshDiagnostics();
       if (resolution === "keep-local") schedule();
     },
+    checkServerHealth: checkHealth,
     async recoverFromServer(): Promise<boolean> {
       if (running || stopped || !provider.checkpoints) return false;
       const remote = await transport.getGeneration();

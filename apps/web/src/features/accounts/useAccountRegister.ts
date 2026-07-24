@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
+import { usePersistenceChangeVersion } from "../persistence/persistenceChangeBus";
 import { generateDueScheduledTransactions } from "./scheduledTransactionGenerationService";
 import {
   calculateAttachmentContentHash,
@@ -55,6 +56,7 @@ interface UseAccountRegisterState {
 
 export function useAccountRegister(accountId: string): UseAccountRegisterState {
   const accountRegisters = getBudgetPersistenceProvider().accountRegisters;
+  const persistenceChangeVersion = usePersistenceChangeVersion();
 
   const [data, setData] = useState<AccountRegisterView | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,10 +65,12 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
   const mountedRef = useRef(true);
   const activeAccountIdRef = useRef(accountId);
   const mutationVersionRef = useRef(0);
+  const hasLoadedDataRef = useRef(false);
 
   activeAccountIdRef.current = accountId;
 
   const applyRegisterView = useCallback((view: AccountRegisterView) => {
+    hasLoadedDataRef.current = true;
     setData(view);
   }, []);
 
@@ -85,7 +89,7 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     setIsSaving(false);
 
     async function loadRegister() {
-      setIsLoading(true);
+      setIsLoading(!hasLoadedDataRef.current);
       setError(null);
 
       try {
@@ -119,7 +123,7 @@ export function useAccountRegister(accountId: string): UseAccountRegisterState {
     return () => {
       isMounted = false;
     };
-  }, [accountId, accountRegisters, applyRegisterView]);
+  }, [accountId, accountRegisters, applyRegisterView, persistenceChangeVersion]);
 
   const runMutation = useCallback(async (
     action: () => Promise<AccountRegisterView>,
