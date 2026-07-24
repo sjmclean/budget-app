@@ -1,5 +1,5 @@
 import { getBudgetPersistenceProvider } from "./budgetPersistenceProviderFactory";
-import { browserLocalStorageKeyValueStorage, type KeyValueStoragePort } from "./keyValueStoragePort";
+import type { KeyValueStoragePort } from "./keyValueStoragePort";
 
 /**
  * Returns the generic key/value backend owned by the active runtime provider.
@@ -16,9 +16,6 @@ export function getActiveKeyValueStorage(): KeyValueStoragePort {
     return provider.keyValueStorage;
   }
 
-  if (provider.metadata.kind === "browser-local-storage") {
-    return browserLocalStorageKeyValueStorage;
-  }
 
   throw new Error(
     `Persistence provider ${provider.metadata.label} does not expose key/value storage.`,

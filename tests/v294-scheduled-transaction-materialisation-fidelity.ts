@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { AppPersistenceGateway } from "../apps/web/src/features/persistence/appPersistenceGateway.ts";
+import type { BudgetPersistenceProvider } from "../apps/web/src/features/persistence/budgetPersistenceProvider.ts";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
 import {
   createScheduledTransactionService,
@@ -141,7 +141,7 @@ async function testConcurrentGenerationCreatesOneOccurrence() {
         };
       },
     },
-  } as unknown as AppPersistenceGateway;
+  } as unknown as BudgetPersistenceProvider;
 
   const [first, second] = await Promise.all([
     generateDueScheduledTransactions(gateway, { today: "2026-07-11" }),

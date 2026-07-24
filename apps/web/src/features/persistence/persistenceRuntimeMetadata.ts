@@ -1,27 +1,26 @@
-import type { PersistenceGatewayMetadata } from "./appPersistenceGateway";
+import type { PersistenceProviderMetadata } from "./budgetPersistenceProvider";
 
-const DEFAULT_BROWSER_PERSISTENCE_METADATA: PersistenceGatewayMetadata =
-  Object.freeze({
-    kind: "browser-local-storage",
-    label: "Browser localStorage",
-    description:
-      "The web UI is currently using browser localStorage-backed feature services. This gateway preserves existing behaviour while SQLite-backed adapters are introduced incrementally.",
-    isProductionPersistence: false,
-  });
+const DEFAULT_LOCAL_DATABASE_METADATA: PersistenceProviderMetadata = Object.freeze({
+  kind: "local-database",
+  label: "Local database",
+  description:
+    "This device's local database is authoritative. Server connectivity is not required for reads or writes.",
+  isProductionPersistence: true,
+});
 
-let configuredPersistenceMetadata: PersistenceGatewayMetadata =
-  DEFAULT_BROWSER_PERSISTENCE_METADATA;
+let configuredPersistenceMetadata: PersistenceProviderMetadata =
+  DEFAULT_LOCAL_DATABASE_METADATA;
 
-export function getConfiguredPersistenceMetadata(): PersistenceGatewayMetadata {
+export function getConfiguredPersistenceMetadata(): PersistenceProviderMetadata {
   return configuredPersistenceMetadata;
 }
 
 export function setConfiguredPersistenceMetadata(
-  metadata: PersistenceGatewayMetadata,
+  metadata: PersistenceProviderMetadata,
 ): void {
   configuredPersistenceMetadata = metadata;
 }
 
 export function resetConfiguredPersistenceMetadata(): void {
-  configuredPersistenceMetadata = DEFAULT_BROWSER_PERSISTENCE_METADATA;
+  configuredPersistenceMetadata = DEFAULT_LOCAL_DATABASE_METADATA;
 }

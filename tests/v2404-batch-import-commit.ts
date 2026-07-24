@@ -22,10 +22,6 @@ const payeeServiceSource = readFileSync(
   "apps/web/src/features/accounts/payeeService.ts",
   "utf8",
 );
-const sqliteAdapterSource = readFileSync(
-  "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
-  "utf8",
-);
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 
 assert.match(accountRegisterTypesSource, /addTransactions\(input: \{/);
@@ -39,7 +35,6 @@ assert.match(accountRegisterServiceSource, /async addTransactions\(input: \{/);
 assert.match(accountRegisterServiceSource, /writeRegisters\(this\.dependencies\.storage, registers\)/);
 assert.match(accountRegisterServiceSource, /for \(const accountId of changedAccountIds\)/);
 assert.match(payeeServiceSource, /async recordPayees\(names: string\[\]\): Promise<PayeeView\[\]>/);
-assert.match(sqliteAdapterSource, /async addTransactions\(input: \{/);
 
 assert.equal(
   packageJson.scripts["test:v2404:batch-import-commit"],

@@ -11,10 +11,7 @@ import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { OperationJournalPort } from "./operationJournal";
 import type { ReplicationLocalStorePort } from "./replication";
 
-export type PersistenceBackendKind =
-  | "browser-local-storage"
-  | "local-database"
-  | "sqlite-adapter";
+export type PersistenceBackendKind = "local-database";
 
 export interface PersistenceProviderMetadata {
   readonly kind: PersistenceBackendKind;
@@ -35,9 +32,9 @@ export interface PersistenceProviderCapabilities {
  * Runtime persistence contract consumed by the application.
  *
  * Feature code depends on the domain ports exposed here and remains unaware of
- * whether those ports are backed by browser storage, a shared host, or a future
- * cloud provider. Lifecycle hooks are optional so existing synchronous browser
- * composition can remain unchanged while network-backed providers are added.
+ * whether those ports are backed by the local-first browser database or a
+ * host-provided implementation. Lifecycle hooks remain optional for host
+ * integrations.
  */
 export interface BudgetPersistenceProvider {
   readonly metadata: PersistenceProviderMetadata;

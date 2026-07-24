@@ -1,76 +1,19 @@
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
 import { configureBudgetPersistenceProvider } from "./budgetPersistenceProviderFactory";
-import { browserLocalStoragePersistenceGateway } from "./browserLocalStoragePersistenceGateway";
 import { createLocalDatabasePersistenceProvider } from "./localDatabasePersistenceProvider";
 
-export type RuntimePersistenceMode =
-  | "local-database"
-  | "browser-local-storage";
-
-export interface RuntimePersistenceConfiguration {
-  mode?: string;
-  apiBaseUrl?: string;
-}
-
-interface BudgetAppImportMetaEnv {
-  readonly VITE_BUDGET_PERSISTENCE_MODE?: string;
-  readonly VITE_BUDGET_API_URL?: string;
-}
-
 /**
- * Creates the provider selected by deployment configuration.
+ * Creates the sole browser persistence runtime.
  *
- * Local database mode is now the browser default. Existing browser data is
- * copied into it on first launch and retained untouched for rollback. Set
- * VITE_BUDGET_PERSISTENCE_MODE=browser-local-storage to use the temporary
- * rollback provider during the remaining browser-storage migration window.
+ * Legacy browser localStorage is read only through the one-way migration reader
+ * owned by the local database provider; it is no longer a selectable backend.
  */
-export function createConfiguredBudgetPersistenceProvider(
-  configuration: RuntimePersistenceConfiguration = readRuntimeConfiguration(),
-): BudgetPersistenceProvider {
-  const mode = normalisePersistenceMode(configuration.mode);
-
-  switch (mode) {
-    case "local-database":
-      return createLocalDatabasePersistenceProvider();
-
-    case "browser-local-storage":
-      return browserLocalStoragePersistenceGateway;
-
-  }
+export function createConfiguredBudgetPersistenceProvider(): BudgetPersistenceProvider {
+  return createLocalDatabasePersistenceProvider();
 }
 
-export function configureBudgetPersistenceProviderFromRuntime(
-  configuration?: RuntimePersistenceConfiguration,
-): BudgetPersistenceProvider {
-  const provider = createConfiguredBudgetPersistenceProvider(configuration);
+export function configureBudgetPersistenceProviderFromRuntime(): BudgetPersistenceProvider {
+  const provider = createConfiguredBudgetPersistenceProvider();
   configureBudgetPersistenceProvider(provider);
   return provider;
-}
-
-function readRuntimeConfiguration(): RuntimePersistenceConfiguration {
-  const environment = (
-    import.meta as ImportMeta & { readonly env?: BudgetAppImportMetaEnv }
-  ).env;
-
-  return {
-    mode: environment?.VITE_BUDGET_PERSISTENCE_MODE,
-    apiBaseUrl: environment?.VITE_BUDGET_API_URL,
-  };
-}
-
-function normalisePersistenceMode(value: string | undefined): RuntimePersistenceMode {
-  const mode = value?.trim() || "local-database";
-
-  if (
-    mode === "local-database" ||
-    mode === "browser-local-storage"
-  ) {
-    return mode;
-  }
-
-  throw new Error(
-    `Unsupported budget persistence mode: ${mode}. ` +
-      'Expected "local-database" or "browser-local-storage".',
-  );
 }

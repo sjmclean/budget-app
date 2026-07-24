@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { generateDueScheduledTransactions } from "../apps/web/src/features/accounts/scheduledTransactionGenerationService.js";
-import type { AppPersistenceGateway } from "../apps/web/src/features/persistence/appPersistenceGateway.js";
+import type { BudgetPersistenceProvider } from "../apps/web/src/features/persistence/budgetPersistenceProvider.js";
 import type { AccountRegisterView, NewRegisterTransactionInput } from "../apps/web/src/features/accounts/accountRegisterTypes.js";
 import type { SidebarAccount } from "../apps/web/src/features/accounts/accountService.js";
 import type { ScheduledTransactionView } from "../apps/web/src/features/accounts/scheduledTransactionService.js";
@@ -283,7 +283,7 @@ function createFixture(input: { schedules: ScheduledTransactionView[] }) {
         return schedules.filter((schedule) => schedule.accountId === accountId);
       },
     },
-  } as unknown as AppPersistenceGateway;
+  } as unknown as BudgetPersistenceProvider;
 
   return { gateway, accounts, schedules, registers };
 }

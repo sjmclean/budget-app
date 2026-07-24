@@ -2,13 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { createPayeeService, findPayeeIdByName, readPayees } from "../apps/web/src/features/accounts/payeeService.js";
-import { createSqlitePayeePersistenceAdapter } from "../apps/web/src/features/persistence/sqlitePayeePersistenceAdapter.js";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.js";
-import type { SqlitePayeeRecord } from "../apps/web/src/features/persistence/sqlitePayeePersistenceAdapter.js";
 
 async function main() {
   await validateBrowserPayeeArchiveLifecycle();
-  await validateSqlitePayeeArchiveLifecycle();
   validatePayeeManagerWiresArchiveRestoreActions();
 
   console.log("v1.41 payee archive validation passed");
@@ -72,39 +69,6 @@ async function validateBrowserPayeeArchiveLifecycle(): Promise<void> {
   );
 }
 
-async function validateSqlitePayeeArchiveLifecycle(): Promise<void> {
-  const repository = new MemorySqlitePayeeRepository();
-  const adapter = createSqlitePayeePersistenceAdapter({ repository, budgetId: "budget-1" });
-
-  await adapter.recordPayee("Woolworths");
-  const active = await adapter.listPayees();
-  assert.equal(active.length, 1, "recorded SQLite payee should appear as active");
-
-  const payeeId = active[0]?.id;
-  assert.ok(payeeId, "recorded SQLite payee should have an id");
-
-  await adapter.archivePayee(payeeId);
-
-  assert.equal((await adapter.listPayees()).length, 0, "SQLite archived payees should be hidden from active lists");
-  assert.deepEqual(
-    (await adapter.listArchivedPayees()).map((payee) => payee.name),
-    ["Woolworths"],
-    "SQLite archived payees should be available for restore flows",
-  );
-  assert.equal(
-    repository.records.some((payee) => payee.id === payeeId && payee.isArchived),
-    true,
-    "SQLite archive should preserve the payee record and id",
-  );
-
-  await adapter.restorePayee(payeeId);
-  assert.deepEqual(
-    (await adapter.listPayees()).map((payee) => payee.name),
-    ["Woolworths"],
-    "SQLite restored payees should return to active lists",
-  );
-}
-
 function validatePayeeManagerWiresArchiveRestoreActions(): void {
   const accountRegisterPage = readFileSync("apps/web/src/pages/AccountRegisterPage.tsx", "utf8");
   const payeePort = readFileSync("apps/web/src/features/accounts/payeePersistencePort.ts", "utf8");
@@ -132,46 +96,7 @@ function createMemoryStorage(): KeyValueStoragePort {
   };
 }
 
-class MemorySqlitePayeeRepository {
-  records: SqlitePayeeRecord[] = [];
-
-  async create(payee: SqlitePayeeRecord): Promise<void> {
-    this.records.push({ ...payee });
-  }
-
-  async update(payee: SqlitePayeeRecord): Promise<void> {
-    this.records = this.records.map((record) => (record.id === payee.id ? { ...payee } : record));
-  }
-
-  async archive(payeeId: string): Promise<void> {
-    this.records = this.records.map((record) =>
-      record.id === payeeId ? { ...record, isArchived: true, updatedAt: new Date() } : record,
-    );
-  }
-
-  async delete(payeeId: string): Promise<void> {
-    this.records = this.records.filter((record) => record.id !== payeeId);
-  }
-
-  async findByBudget(budgetId: string): Promise<SqlitePayeeRecord[]> {
-    return this.records.filter((record) => record.budgetId === budgetId);
-  }
-
-  async findActiveByBudget(budgetId: string): Promise<SqlitePayeeRecord[]> {
-    return this.records.filter((record) => record.budgetId === budgetId && !record.isArchived);
-  }
-
-  async findById(payeeId: string): Promise<SqlitePayeeRecord | null> {
-    return this.records.find((record) => record.id === payeeId) ?? null;
-  }
-
-  async findByNormalizedName(budgetId: string, normalizedName: string): Promise<SqlitePayeeRecord | null> {
-    return (
-      this.records.find(
-        (record) => record.budgetId === budgetId && record.normalizedName === normalizedName,
-      ) ?? null
-    );
-  }
-}
-
-main();
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

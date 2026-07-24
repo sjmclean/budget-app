@@ -1,8 +1,4 @@
-import type {
-  BudgetPersistenceProvider,
-  PersistenceBackendKind,
-} from "./budgetPersistenceProvider";
-import { browserLocalStoragePersistenceGateway } from "./browserLocalStoragePersistenceGateway";
+import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
 import {
   resetConfiguredPersistenceMetadata,
   setConfiguredPersistenceMetadata,
@@ -10,9 +6,7 @@ import {
 
 let configuredProvider: BudgetPersistenceProvider | null = null;
 
-/**
- * Installs the active persistence provider for all application consumers.
- */
+/** Installs the active persistence provider for all application consumers. */
 export function configureBudgetPersistenceProvider(
   provider: BudgetPersistenceProvider,
 ): void {
@@ -26,43 +20,18 @@ export function resetBudgetPersistenceProvider(): void {
 }
 
 /**
- * Single runtime selection point for budget persistence.
+ * Returns the provider installed during application bootstrap.
  *
- * Browser builds default to localStorage. Host runtimes may configure another
- * provider before React renders. Explicit backend selection remains available
- * for adapter validation without leaking concrete implementations into UI code.
+ * There is deliberately no implicit browser-storage fallback: using feature
+ * services before bootstrap is a programming error and would risk splitting
+ * application state across two persistence backends.
  */
-export function getBudgetPersistenceProvider(
-  backend?: PersistenceBackendKind,
-  selectedProvider?: BudgetPersistenceProvider,
-): BudgetPersistenceProvider {
-  if (!backend && configuredProvider) {
-    return configuredProvider;
+export function getBudgetPersistenceProvider(): BudgetPersistenceProvider {
+  if (!configuredProvider) {
+    throw new Error(
+      "Budget persistence provider has not been configured. Initialise persistence before loading application features.",
+    );
   }
 
-  const selectedBackend = backend ?? "browser-local-storage";
-
-  switch (selectedBackend) {
-    case "browser-local-storage":
-      return browserLocalStoragePersistenceGateway;
-
-    case "local-database":
-      if (!selectedProvider) {
-        throw new Error(
-          "Local database provider requested but no provider instance was supplied.",
-        );
-      }
-
-      return selectedProvider;
-
-    case "sqlite-adapter":
-      if (!selectedProvider) {
-        throw new Error(
-          "SQLite provider requested but no SQLite provider instance was supplied.",
-        );
-      }
-
-      return selectedProvider;
-
-  }
+  return configuredProvider;
 }

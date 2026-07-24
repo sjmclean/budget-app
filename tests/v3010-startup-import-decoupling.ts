@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import {
-  configureAppPersistenceGateway,
-  resetAppPersistenceGateway,
-} from "../apps/web/src/features/persistence/appPersistenceGatewayFactory.js";
+  configureBudgetPersistenceProvider,
+  resetBudgetPersistenceProvider,
+} from "../apps/web/src/features/persistence/budgetPersistenceProviderFactory.js";
 import { getPersistenceModeSummary } from "../apps/web/src/features/persistence/persistenceMode.js";
-import type { AppPersistenceGateway } from "../apps/web/src/features/persistence/appPersistenceGateway.js";
-import { browserLocalStoragePersistenceGateway } from "../apps/web/src/features/persistence/browserLocalStoragePersistenceGateway.js";
+import type { BudgetPersistenceProvider } from "../apps/web/src/features/persistence/budgetPersistenceProvider.js";
+import { createKeyValueBudgetPersistenceProvider } from "../apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.js";
+import { browserLocalStorageKeyValueStorage } from "../apps/web/src/features/persistence/keyValueStoragePort.js";
 
 const storeSource = readFileSync(
   "apps/web/src/stores/budgetRegistryStore.ts",
@@ -59,29 +60,36 @@ assert.match(
   "diagnostics should continue to report persistence mode",
 );
 
-const sqliteMetadataGateway: AppPersistenceGateway = {
-  ...browserLocalStoragePersistenceGateway,
-  metadata: {
-    kind: "sqlite-adapter",
-    label: "SQLite test gateway",
-    description: "Synthetic gateway for runtime metadata validation.",
-    isProductionPersistence: true,
-  },
-};
+const localDatabaseMetadataProvider: BudgetPersistenceProvider =
+  createKeyValueBudgetPersistenceProvider({
+    storage: browserLocalStorageKeyValueStorage,
+    metadata: {
+      kind: "local-database",
+      label: "Local database test provider",
+      description: "Synthetic provider for runtime metadata validation.",
+      isProductionPersistence: true,
+    },
+    capabilities: {
+      sharedAcrossDevices: false,
+      liveUpdates: true,
+      offlineWrites: true,
+      backups: true,
+    },
+  });
 
 try {
-  resetAppPersistenceGateway();
-  assert.equal(getPersistenceModeSummary().mode, "browser-local-storage");
+  resetBudgetPersistenceProvider();
+  assert.equal(getPersistenceModeSummary().mode, "local-database");
 
-  configureAppPersistenceGateway(sqliteMetadataGateway);
+  configureBudgetPersistenceProvider(localDatabaseMetadataProvider);
   assert.deepEqual(getPersistenceModeSummary(), {
-    mode: "sqlite-adapter",
-    label: "SQLite test gateway",
-    description: "Synthetic gateway for runtime metadata validation.",
+    mode: "local-database",
+    label: "Local database test provider",
+    description: "Synthetic provider for runtime metadata validation.",
     risk: "production-ready",
   });
 } finally {
-  resetAppPersistenceGateway();
+  resetBudgetPersistenceProvider();
 }
 
 console.log("v3.01 startup import decoupling validation passed");

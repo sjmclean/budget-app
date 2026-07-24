@@ -3,7 +3,7 @@ import type { MergePayeesInput, PayeeView, RenamePayeeInput, UpdatePayeeInput } 
 /**
  * Browser-safe payee persistence boundary for the web UI.
  *
- * UI code should depend on this port via AppPersistenceGateway instead of
+ * UI code should depend on this port via BudgetPersistenceProvider instead of
  * importing the concrete browser localStorage payee service directly. This lets
  * the current localStorage implementation stay in place while a future
  * SQLite/Tauri adapter implements the same contract.

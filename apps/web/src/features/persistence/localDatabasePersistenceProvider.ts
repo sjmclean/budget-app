@@ -1,4 +1,4 @@
-import { browserLocalStoragePersistenceGateway } from "./browserLocalStoragePersistenceGateway";
+import { readLegacyBrowserPersistenceSnapshot } from "./legacyBrowserSnapshotReader";
 import { createKeyValueBudgetPersistenceProvider } from "./createKeyValueBudgetPersistenceProvider";
 import {
   createLocalDatabaseKeyValueStorage,
@@ -47,9 +47,8 @@ export function createLocalDatabasePersistenceProvider(
         return;
       }
 
-      await browserLocalStoragePersistenceGateway.initialize?.();
-      const snapshot = await browserLocalStoragePersistenceGateway.exportSnapshot?.();
-      if (!snapshot || snapshot.entryCount === 0) {
+      const snapshot = await readLegacyBrowserPersistenceSnapshot();
+      if (snapshot.entryCount === 0) {
         return;
       }
 

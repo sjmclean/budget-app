@@ -96,14 +96,4 @@ assert.ok(withoutAttachment, "transaction should still exist after removing atta
 assert.equal(withoutAttachment.attachmentCount, 0, "removing attachment metadata should update count");
 assert.deepEqual(withoutAttachment.attachments, [], "removing attachment metadata should clear the attachment list");
 
-const sqliteAdapterSource = readFileSync(
-  "apps/web/src/features/persistence/sqliteAccountRegisterPersistenceAdapter.ts",
-  "utf8",
-);
-assert.match(
-  sqliteAdapterSource,
-  /does not support attachment mutation yet/,
-  "SQLite register adapter must continue to expose attachment mutation as an explicit unsupported boundary",
-);
-
 console.log("v1.54 attachment foundation checks passed");
