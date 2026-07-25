@@ -56,6 +56,7 @@ export interface ReplicationRemoteGeneration {
 export interface ReplicationPushResult {
   readonly generationId: string;
   readonly acceptedCount: number;
+  readonly acknowledgedCount?: number;
   readonly latestCursor: number;
 }
 

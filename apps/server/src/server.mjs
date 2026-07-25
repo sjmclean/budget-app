@@ -163,7 +163,7 @@ const server = createServer(async (request, response) => {
     if (url.pathname === "/api/ready" && request.method === "GET") {
       try {
         const generation = replicationStore.getGeneration();
-        const revision = readRevision.get().revision;
+        const revision = generation.latestCursor;
         accessSync(dataDir, constants.R_OK | constants.W_OK);
         accessSync(replicationBlobDir, constants.R_OK | constants.W_OK);
         sendJson(response, 200, {

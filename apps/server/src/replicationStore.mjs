@@ -75,6 +75,13 @@ export function createReplicationStore(database, options = {}) {
       generation_id, operation_id, device_id, device_sequence, received_at, payload_json
     ) VALUES (?, ?, ?, ?, ?, ?)
   `);
+  const readOperationByIdentity = database.prepare(`
+    SELECT operation_id AS operationId, device_id AS deviceId,
+      device_sequence AS deviceSequence, payload_json AS payloadJson
+    FROM replication_operations
+    WHERE generation_id = ? AND (operation_id = ? OR (device_id = ? AND device_sequence = ?))
+    LIMIT 1
+  `);
   const readOperations = database.prepare(`
     SELECT cursor, generation_id AS generationId, received_at AS receivedAt, payload_json AS payloadJson
     FROM replication_operations
@@ -115,19 +122,52 @@ export function createReplicationStore(database, options = {}) {
 
   const pushTransaction = database.transaction((generationId, operations) => {
     let acceptedCount = 0;
+    let acknowledgedCount = 0;
     const receivedAt = new Date().toISOString();
     for (const operation of operations) {
+      const payloadJson = JSON.stringify(operation);
       const result = insertOperation.run(
         generationId,
         operation.operationId,
         operation.deviceId,
         operation.sequence,
         receivedAt,
-        JSON.stringify(operation),
+        payloadJson,
       );
-      acceptedCount += result.changes;
+      if (result.changes === 1) {
+        acceptedCount += 1;
+        acknowledgedCount += 1;
+        continue;
+      }
+
+      const existing = readOperationByIdentity.get(
+        generationId,
+        operation.operationId,
+        operation.deviceId,
+        operation.sequence,
+      );
+      if (
+        existing &&
+        existing.operationId === operation.operationId &&
+        existing.deviceId === operation.deviceId &&
+        existing.deviceSequence === operation.sequence &&
+        existing.payloadJson === payloadJson
+      ) {
+        acknowledgedCount += 1;
+        continue;
+      }
+
+      const error = new Error(
+        `Replication operation collision for device ${operation.deviceId} sequence ${operation.sequence}.`,
+      );
+      error.code = "OPERATION_COLLISION";
+      throw error;
     }
-    return { acceptedCount, latestCursor: latestCursor.get(generationId).latestCursor };
+    return {
+      acceptedCount,
+      acknowledgedCount,
+      latestCursor: latestCursor.get(generationId).latestCursor,
+    };
   });
 
   function ensureGeneration() {

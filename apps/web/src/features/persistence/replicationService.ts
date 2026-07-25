@@ -2,6 +2,7 @@ import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
 import type { ReplicationDiagnostics, ReplicationRunResult } from "./replication";
 import type { ReplicationConflict } from "./conflictResolution";
 import { replicatePersistenceProvider } from "./replicationEngine";
+import { recordReplicationTraceEvent } from "./replicationTrace";
 import { createHttpReplicationTransport } from "./replicationTransport";
 import { checkServerOperationalHealth, type ServerOperationalStatus } from "./serverOperationalHealth";
 
@@ -161,6 +162,7 @@ export function startReplicationBackgroundService(
         await checkHealth();
         const result = await replicatePersistenceProvider(provider, transport, {
           uploadCheckpoint,
+          onTrace: recordReplicationTraceEvent,
         });
         update({
           ...snapshot,

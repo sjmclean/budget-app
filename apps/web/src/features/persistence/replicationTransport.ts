@@ -8,6 +8,7 @@ import {
   type ReplicationTransport,
   type ReplicationBlobDescriptor,
 } from "./replication";
+import { serialiseReplicationPushPayload } from "./replicationPushBatch";
 
 export interface HttpReplicationTransportOptions {
   readonly baseUrl?: string;
@@ -26,11 +27,7 @@ export function createHttpReplicationTransport(
     pushOperations: (generationId, operations) =>
       requestJson<ReplicationPushResult>("/api/replication/operations/push", {
         method: "POST",
-        body: JSON.stringify({
-          protocolVersion: REPLICATION_PROTOCOL_VERSION,
-          generationId,
-          operations,
-        }),
+        body: serialiseReplicationPushPayload(generationId, operations),
       }),
 
     pullOperations: (generationId, afterCursor, limit = 500) => {

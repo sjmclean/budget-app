@@ -8,11 +8,49 @@ import type {
   ReplicationRunResult,
   ReplicationTransport,
 } from "./replication";
+import type { OperationJournalEntry } from "./operationJournal";
+import {
+  DEFAULT_REPLICATION_PUSH_MAXIMUM_BYTES,
+  DEFAULT_REPLICATION_PUSH_TARGET_BYTES,
+  selectReplicationPushBatch,
+} from "./replicationPushBatch";
 
 export interface ReplicationEngineOptions {
   readonly batchSize?: number;
+  readonly pushTargetPayloadBytes?: number;
+  readonly pushMaximumPayloadBytes?: number;
   readonly uploadCheckpoint?: boolean;
+  /**
+   * Optional diagnostic observer. Events contain operation metadata and storage
+   * keys, but never mutation values, so production diagnostics can trace the
+   * replication pipeline without exposing budget contents.
+   */
+  readonly onTrace?: (event: ReplicationTraceEvent) => void;
 }
+
+export type ReplicationTraceEvent =
+  | { readonly type: "replication.started"; readonly generationId: string; readonly cursorState: { readonly pushedLocalSequence: number; readonly pulledRemoteCursor: number } }
+  | { readonly type: "journal.operations-read"; readonly afterSequence: number; readonly operations: readonly ReplicationTraceOperation[] }
+  | { readonly type: "push.batch-started"; readonly operations: readonly ReplicationTraceOperation[]; readonly payloadBytes: number; readonly exceedsTargetBytes: boolean }
+  | { readonly type: "push.batch-finished"; readonly submittedCount: number; readonly acceptedCount: number; readonly latestCursor: number }
+  | { readonly type: "push.cursor-persisted"; readonly pushedLocalSequence: number }
+  | { readonly type: "pull.batch-finished"; readonly afterCursor: number; readonly operations: readonly ReplicationTraceRemoteOperation[]; readonly hasMore: boolean }
+  | { readonly type: "pull.operations-applied"; readonly requestedCount: number; readonly appliedCount: number }
+  | { readonly type: "pull.cursor-persisted"; readonly pulledRemoteCursor: number }
+  | { readonly type: "replication.finished"; readonly pushedOperationCount: number; readonly pulledOperationCount: number; readonly finalLocalSequence: number; readonly finalRemoteCursor: number };
+
+export interface ReplicationTraceOperation {
+  readonly operationId: string;
+  readonly deviceId: string;
+  readonly sequence: number;
+  readonly mutationType: OperationJournalEntry["mutation"]["type"];
+  readonly key: string;
+}
+
+export interface ReplicationTraceRemoteOperation extends ReplicationTraceOperation {
+  readonly cursor: number;
+}
+
 
 export async function replicatePersistenceProvider(
   provider: BudgetPersistenceProvider,
@@ -47,50 +85,108 @@ export async function replicatePersistenceProvider(
     await provider.replicationStore.setReplicationCursorState(state);
   }
 
+  trace(options, {
+    type: "replication.started",
+    generationId: remote.generationId,
+    cursorState: {
+      pushedLocalSequence: state.pushedLocalSequence,
+      pulledRemoteCursor: state.pulledRemoteCursor,
+    },
+  });
+
   const uploadedBlobCount = await uploadLocalAttachmentBlobs(
     transport,
     remote.generationId,
   );
 
-  const localOperationsParticipating = await readAllJournalOperations(
+  const localOperationsParticipating = await readLatestJournalOperationsByKey(
     provider.operationJournal,
     state.pushedLocalSequence,
     batchSize,
   );
+  trace(options, {
+    type: "journal.operations-read",
+    afterSequence: state.pushedLocalSequence,
+    operations: localOperationsParticipating.map(summariseOperation),
+  });
 
   let pushedOperationCount = 0;
   let pushedLocalSequence = state.pushedLocalSequence;
   while (true) {
-    const operations = await provider.operationJournal.readJournal(
+    const pendingOperations = await provider.operationJournal.readJournal(
       pushedLocalSequence,
       batchSize,
     );
-    if (operations.length === 0) break;
-    await transport.pushOperations(remote.generationId, operations);
+    if (pendingOperations.length === 0) break;
+    const batch = selectReplicationPushBatch(remote.generationId, pendingOperations, {
+      targetPayloadBytes:
+        options.pushTargetPayloadBytes ?? DEFAULT_REPLICATION_PUSH_TARGET_BYTES,
+      maximumPayloadBytes:
+        options.pushMaximumPayloadBytes ?? DEFAULT_REPLICATION_PUSH_MAXIMUM_BYTES,
+    });
+    const operations = batch.operations;
+    trace(options, {
+      type: "push.batch-started",
+      operations: operations.map(summariseOperation),
+      payloadBytes: batch.payloadBytes,
+      exceedsTargetBytes: batch.exceedsTargetBytes,
+    });
+    const pushResult = await transport.pushOperations(remote.generationId, operations);
+    const acknowledgedCount = pushResult.acknowledgedCount ??
+      (pushResult.acceptedCount === operations.length ? operations.length : null);
+    if (acknowledgedCount !== operations.length) {
+      throw new Error(
+        `The server acknowledged ${acknowledgedCount ?? 0} of ${operations.length} replication operations. ` +
+          "The local push cursor was not advanced.",
+      );
+    }
+    trace(options, {
+      type: "push.batch-finished",
+      submittedCount: operations.length,
+      acceptedCount: pushResult.acceptedCount,
+      latestCursor: pushResult.latestCursor,
+    });
     pushedLocalSequence = operations.at(-1)!.sequence;
     pushedOperationCount += operations.length;
     state = { ...state, pushedLocalSequence };
     await provider.replicationStore.setReplicationCursorState(state);
-    if (operations.length < batchSize) break;
+    trace(options, { type: "push.cursor-persisted", pushedLocalSequence });
+    if (pendingOperations.length < batchSize && operations.length === pendingOperations.length) break;
   }
 
   let pulledOperationCount = 0;
   let pulledRemoteCursor = state.pulledRemoteCursor;
   while (true) {
+    const pullAfterCursor = pulledRemoteCursor;
     const result = await transport.pullOperations(
       remote.generationId,
       pulledRemoteCursor,
       batchSize,
     );
+    trace(options, {
+      type: "pull.batch-finished",
+      afterCursor: pullAfterCursor,
+      operations: result.operations.map((envelope) => ({
+        cursor: envelope.cursor,
+        ...summariseOperation(envelope.operation),
+      })),
+      hasMore: result.hasMore,
+    });
     if (result.operations.length > 0) {
-      await provider.replicationStore.applyRemoteOperations(result.operations, {
+      const appliedCount = await provider.replicationStore.applyRemoteOperations(result.operations, {
         generationId: remote.generationId,
         localOperations: localOperationsParticipating,
+      });
+      trace(options, {
+        type: "pull.operations-applied",
+        requestedCount: result.operations.length,
+        appliedCount,
       });
       pulledOperationCount += result.operations.length;
       pulledRemoteCursor = result.operations.at(-1)!.cursor;
       state = { ...state, pulledRemoteCursor };
       await provider.replicationStore.setReplicationCursorState(state);
+      trace(options, { type: "pull.cursor-persisted", pulledRemoteCursor });
     }
     if (!result.hasMore || result.operations.length === 0) break;
   }
@@ -124,7 +220,7 @@ export async function replicatePersistenceProvider(
 
   const journalCursor = provider.operationJournal.getJournalCursor();
   const diagnostics = await provider.replicationStore.getReplicationDiagnostics();
-  return {
+  const result: ReplicationRunResult = {
     generationId: remote.generationId,
     pushedOperationCount,
     pulledOperationCount,
@@ -136,24 +232,48 @@ export async function replicatePersistenceProvider(
     prunedJournalEntryCount,
     detectedConflictCount: diagnostics.unresolvedConflictCount,
   };
+  trace(options, {
+    type: "replication.finished",
+    pushedOperationCount,
+    pulledOperationCount,
+    finalLocalSequence: result.finalLocalSequence,
+    finalRemoteCursor: result.finalRemoteCursor,
+  });
+  return result;
+}
+
+function trace(options: ReplicationEngineOptions, event: ReplicationTraceEvent): void {
+  options.onTrace?.(event);
+}
+
+function summariseOperation(operation: OperationJournalEntry): ReplicationTraceOperation {
+  return {
+    operationId: operation.operationId,
+    deviceId: operation.deviceId,
+    sequence: operation.sequence,
+    mutationType: operation.mutation.type,
+    key: operation.mutation.key,
+  };
 }
 
 
-async function readAllJournalOperations(
+async function readLatestJournalOperationsByKey(
   journal: NonNullable<BudgetPersistenceProvider["operationJournal"]>,
   afterSequence: number,
   batchSize: number,
-): Promise<import("./operationJournal").OperationJournalEntry[]> {
-  const result: import("./operationJournal").OperationJournalEntry[] = [];
+): Promise<OperationJournalEntry[]> {
+  const latestByKey = new Map<string, OperationJournalEntry>();
   let cursor = afterSequence;
   while (true) {
     const batch = await journal.readJournal(cursor, batchSize);
     if (batch.length === 0) break;
-    result.push(...batch);
+    for (const operation of batch) {
+      latestByKey.set(operation.mutation.key, operation);
+    }
     cursor = batch.at(-1)!.sequence;
     if (batch.length < batchSize) break;
   }
-  return result;
+  return [...latestByKey.values()].sort((left, right) => left.sequence - right.sequence);
 }
 
 function normaliseBatchSize(value: number): number {

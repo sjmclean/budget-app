@@ -613,7 +613,9 @@
     "test:milestone11:operations": "node scripts/validate-milestone11-operational-hardening.mjs",
     "test:milestone12:reactive-persistence": "node scripts/validate-milestone12-reactive-persistence.mjs",
     "test:milestone13:shared-server-removal": "node scripts/validate-milestone13-shared-server-removal.mjs",
-    "test:milestone15:browser-runtime-removal": "node scripts/validate-milestone15-browser-runtime-removal.mjs"
+    "test:milestone15:browser-runtime-removal": "node scripts/validate-milestone15-browser-runtime-removal.mjs",
+    "test:v490:replication-trace": "node tests/v490-replication-pipeline-trace.mjs",
+    "test:v492:replication-byte-aware-push": "tsx tests/v492-replication-byte-aware-push.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
