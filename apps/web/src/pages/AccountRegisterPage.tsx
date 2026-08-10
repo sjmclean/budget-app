@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import {
   WorkspaceBody,
@@ -31,7 +31,12 @@ import {
   TransactionRow,
   type RegisterColumnId,
 } from "../features/accounts/components/TransactionRow";
-import { useAccountRegister } from "../features/accounts/useAccountRegister";
+import {
+  mapSqliteTransactions,
+  toHostedTransactionWrite,
+  useAccountRegister,
+} from "../features/accounts/useAccountRegister";
+import { createRuntimeUuid } from "../features/ids/createRuntimeUuid";
 import { useRegisterLayoutMode } from "../features/accounts/registerLayoutMode";
 import { useRegisterSelection } from "../features/accounts/useRegisterSelection";
 import { useRegisterSelectionActions } from "../features/accounts/useRegisterSelectionActions";
@@ -198,6 +203,8 @@ function getMoveAccountIcon(account: SidebarAccount) {
 
 export function AccountRegisterPage() {
   const { accountId = "everyday" } = useParams();
+  const [searchParams] = useSearchParams();
+  const requestedCategoryFilter = searchParams.get("categoryFilter");
   const persistenceGateway = getBudgetPersistenceProvider();
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const budgets = useBudgetRegistryStore((state) => state.budgets);
@@ -229,7 +236,7 @@ export function AccountRegisterPage() {
     setTransactionTags(transactionTagService.listTags());
   }, [transactionTagService]);
   const accountsPersistence = persistenceGateway.accounts;
-  const payeesPersistence = persistenceGateway.payees;
+  const legacyPayeesPersistence = persistenceGateway.payees;
   const categoriesPersistence = persistenceGateway.categories;
   const scheduledTransactionsPersistence =
     persistenceGateway.scheduledTransactions;
@@ -248,7 +255,83 @@ export function AccountRegisterPage() {
     removeAttachment,
     renamePayeeReferences,
     reassignPayeeReferences,
-  } = useAccountRegister(accountId);
+    totalTransactionCount,
+    hasMoreTransactions,
+    loadMoreTransactions,
+    storageMode,
+    setHostedViewQuery,
+  } = useAccountRegister(accountId, activeBudgetId);
+
+  const syncHostedTransactionTags = useCallback(async () => {
+    const hosted = persistenceGateway.accountRegisterQueries;
+    if (storageMode !== "sqlite" || !activeBudgetId || !hosted) return;
+    await hosted.replaceTransactionTags(
+      activeBudgetId,
+      transactionTagService.listTags({ includeArchived: true }),
+    );
+  }, [
+    activeBudgetId,
+    persistenceGateway.accountRegisterQueries,
+    storageMode,
+    transactionTagService,
+  ]);
+
+  useEffect(() => {
+    const hosted = persistenceGateway.accountRegisterQueries;
+    if (storageMode !== "sqlite" || !activeBudgetId || !hosted) return;
+    let cancelled = false;
+    void hosted.listTransactionTags(activeBudgetId).then((tags) => {
+      if (cancelled) return;
+      transactionTagService.replaceAllTags(tags);
+      setTransactionTags(transactionTagService.listTags());
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeBudgetId,
+    persistenceGateway.accountRegisterQueries,
+    storageMode,
+    transactionTagService,
+  ]);
+
+  const payeesPersistence = useMemo(() => {
+    const hosted = persistenceGateway.accountRegisterQueries;
+    if (storageMode !== "sqlite" || !activeBudgetId || !hosted) {
+      return legacyPayeesPersistence;
+    }
+    return {
+      async listPayees() {
+        return [...await hosted.listPayees(activeBudgetId, false)];
+      },
+      async listArchivedPayees() {
+        return [...await hosted.listPayees(activeBudgetId, true)];
+      },
+      async recordPayee(name: string) {
+        return [...await hosted.createPayee(activeBudgetId, name)];
+      },
+      async renamePayee(input: { id: string; name: string }) {
+        return [...await hosted.updatePayee(activeBudgetId, input)];
+      },
+      async archivePayee(id: string) {
+        return [...await hosted.setPayeeArchived(activeBudgetId, id, true)];
+      },
+      async restorePayee(id: string) {
+        return [...await hosted.setPayeeArchived(activeBudgetId, id, false)];
+      },
+      async mergePayees(input: {
+        sourcePayeeId: string;
+        targetPayeeId: string;
+      }) {
+        return [...await hosted.mergePayees(activeBudgetId, input)];
+      },
+    };
+  }, [
+    activeBudgetId,
+    legacyPayeesPersistence,
+    persistenceGateway.accountRegisterQueries,
+    storageMode,
+  ]);
 
   useEffect(() => {
     if (data) {
@@ -277,6 +360,10 @@ export function AccountRegisterPage() {
   } | null>(null);
   const [activeRegisterView, setActiveRegisterView] = useState<"register" | "scheduled">("register");
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
+  useEffect(() => {
+    setActiveRegisterView("register");
+    setScheduledDueCount(0);
+  }, [accountId]);
   const [isTransactionTagManagerOpen, setIsTransactionTagManagerOpen] =
     useState(false);
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
@@ -287,12 +374,41 @@ export function AccountRegisterPage() {
   const [committedRegisterSearch, setCommittedRegisterSearch] =
     useState<RegisterSearchCommit | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<"all" | "uncategorised">(
-    "all",
+    requestedCategoryFilter === "uncategorised"
+      ? "uncategorised"
+      : "all",
   );
+  useEffect(() => {
+    setCategoryFilter(
+      requestedCategoryFilter === "uncategorised"
+        ? "uncategorised"
+        : "all",
+    );
+  }, [accountId, requestedCategoryFilter]);
   const registerSortScopeId = `${activeBudgetId ?? "unscoped"}.${accountId}`;
   const [registerSort, setRegisterSort] = useState<RegisterSortState>(() =>
     readRegisterSort(registerSortScopeId),
   );
+
+  useEffect(() => {
+    setHostedViewQuery({
+      search: committedRegisterSearch
+        ? {
+            query: committedRegisterSearch.query,
+            scope: committedRegisterSearch.scope,
+          }
+        : null,
+      categoryFilter:
+        data?.accountType === "Tracking" ? "all" : categoryFilter,
+      sort: registerSort,
+    });
+  }, [
+    categoryFilter,
+    committedRegisterSearch,
+    data?.accountType,
+    registerSort,
+    setHostedViewQuery,
+  ]);
   const [isRegisterSearchOpen, setIsRegisterSearchOpen] = useState(false);
   const [
     activeRegisterSearchSuggestionIndex,
@@ -431,7 +547,11 @@ export function AccountRegisterPage() {
   useEffect(() => {
     let active = true;
 
-    accountsPersistence.listAccounts().then((loadedAccounts) => {
+    const accountQueries = persistenceGateway.accountRegisterQueries;
+    const loadAccounts = storageMode === "sqlite" && activeBudgetId && accountQueries
+      ? accountQueries.listAccounts(activeBudgetId)
+      : accountsPersistence.listAccounts();
+    loadAccounts.then((loadedAccounts) => {
       if (active) {
         setTransferAccounts(
           loadedAccounts.filter(
@@ -444,7 +564,13 @@ export function AccountRegisterPage() {
     return () => {
       active = false;
     };
-  }, [accountId, accountsPersistence]);
+  }, [
+    accountId,
+    accountsPersistence,
+    activeBudgetId,
+    persistenceGateway.accountRegisterQueries,
+    storageMode,
+  ]);
 
   const registerTransactions = data?.transactions ?? [];
   const {
@@ -464,6 +590,8 @@ export function AccountRegisterPage() {
     sort: registerSort,
     developerPerformanceMode,
     performanceTimingsRef: registerPerformanceTimingsRef,
+    totalItemsOverride:
+      storageMode === "sqlite" ? totalTransactionCount : undefined,
   });
 
   useEffect(() => {
@@ -533,8 +661,10 @@ export function AccountRegisterPage() {
     payeesPersistence,
     scheduledTransactionsPersistence,
     registerTransactions,
-    renamePayeeReferences,
-    reassignPayeeReferences,
+    renamePayeeReferences:
+      storageMode === "sqlite" ? async () => undefined : renamePayeeReferences,
+    reassignPayeeReferences:
+      storageMode === "sqlite" ? async () => undefined : reassignPayeeReferences,
     developerPerformanceMode,
     performanceTimingsRef: registerPerformanceTimingsRef,
   });
@@ -688,9 +818,10 @@ export function AccountRegisterPage() {
         colour: "blue",
       });
       setTransactionTags(transactionTagService.listTags());
+      void syncHostedTransactionTags();
       return tag;
     },
-    [transactionTagService],
+    [syncHostedTransactionTags, transactionTagService],
   );
 
   const handleUpdateTransactionTags = useCallback(
@@ -1225,6 +1356,7 @@ export function AccountRegisterPage() {
         </WorkspaceStickyHeader>
 
         <ScheduledTransactionsPanel
+          key={accountId}
           accountId={accountId}
           isOpen={activeRegisterView === "scheduled"}
           categoryOptions={categoryOptions}
@@ -1253,6 +1385,7 @@ export function AccountRegisterPage() {
                   type="button"
                   onClick={() => {
                     setTransactionTags(transactionTagService.listTags());
+                    void syncHostedTransactionTags();
                     setIsTransactionTagManagerOpen(false);
                   }}
                 >
@@ -1557,6 +1690,15 @@ export function AccountRegisterPage() {
               setIsTransactionImportOpen(false);
             }}
             loadAccountTransactions={async (destinationAccountId) => {
+              const hostedQueries = persistenceGateway.accountRegisterQueries;
+              if (storageMode === "sqlite" && activeBudgetId && hostedQueries) {
+                const page = await hostedQueries.queryTransactions({
+                  budgetId: activeBudgetId,
+                  accountId: destinationAccountId,
+                  limit: 250,
+                });
+                return mapSqliteTransactions(page.rows, 0);
+              }
               const view =
                 await persistenceGateway.accountRegisters.getAccountRegisterView(
                   {
@@ -1565,12 +1707,38 @@ export function AccountRegisterPage() {
                 );
               return view.transactions;
             }}
+            loadAccountWorkingBalance={async (destinationAccountId) => {
+              const hostedQueries = persistenceGateway.accountRegisterQueries;
+              if (activeBudgetId && hostedQueries) {
+                const navigation = await hostedQueries.listAccountNavigation(activeBudgetId);
+                return navigation.find((entry) => entry.account.id === destinationAccountId)?.workingBalance ?? 0;
+              }
+              const view = await persistenceGateway.accountRegisters.getAccountRegisterView({
+                accountId: destinationAccountId,
+              });
+              return view.workingBalance;
+            }}
             onImportTransactions={async (
               destinationAccountId,
               transactions,
             ) => {
               if (destinationAccountId === accountId) {
                 await addTransactions(transactions);
+                return;
+              }
+              const hostedQueries = persistenceGateway.accountRegisterQueries;
+              if (storageMode === "sqlite" && activeBudgetId && hostedQueries) {
+                await hostedQueries.commitTransactionBatch({
+                  budgetId: activeBudgetId,
+                  accountId: destinationAccountId,
+                  additions: transactions.map((transaction) => ({
+                    budgetId: activeBudgetId,
+                    accountId: destinationAccountId,
+                    id: createRuntimeUuid(),
+                    ...toHostedTransactionWrite(transaction),
+                  })),
+                  updates: [],
+                });
                 return;
               }
               await persistenceGateway.accountRegisters.addTransactions({
@@ -1600,6 +1768,27 @@ export function AccountRegisterPage() {
 
               if (destinationAccountId === accountId) {
                 await commitTransactionBatch({ additions, updates });
+                return;
+              }
+
+              const hostedQueries = persistenceGateway.accountRegisterQueries;
+              if (storageMode === "sqlite" && activeBudgetId && hostedQueries) {
+                await hostedQueries.commitTransactionBatch({
+                  budgetId: activeBudgetId,
+                  accountId: destinationAccountId,
+                  additions: additions.map((transaction) => ({
+                    budgetId: activeBudgetId,
+                    accountId: destinationAccountId,
+                    id: createRuntimeUuid(),
+                    ...toHostedTransactionWrite(transaction),
+                  })),
+                  updates: updates.map((transaction) => ({
+                    budgetId: activeBudgetId,
+                    accountId: destinationAccountId,
+                    id: transaction.id,
+                    ...toHostedTransactionWrite(transaction),
+                  })),
+                });
                 return;
               }
 
@@ -1802,6 +1991,7 @@ export function AccountRegisterPage() {
               initialDate={lastEntryDate}
               categoryOptions={categoryOptions}
               transferAccounts={transferAccounts}
+              currentAccount={{ id: data.accountId, name: data.accountName }}
               payeeOptions={payeeOptions}
               onCreatePayee={createInlinePayee}
               currencyCode={data.currencyCode}
@@ -1810,13 +2000,27 @@ export function AccountRegisterPage() {
               rowStyle={registerEntryRowStyle}
               layoutMode={registerLayoutMode}
               onCreateCategory={createInlineCategory}
-              onSave={(input) => {
-                addTransaction(input);
+              onSave={(input, targetAccountId) => {
+                if (targetAccountId === data.accountId) {
+                  addTransaction(input);
+                } else {
+                  void persistenceGateway.accountRegisters.addTransaction({
+                    accountId: targetAccountId,
+                    transaction: input,
+                  });
+                }
                 setLastEntryDate(input.date);
                 setShowEntryRow(false);
               }}
-              onSaveAndAddAnother={(input) => {
-                addTransaction(input);
+              onSaveAndAddAnother={(input, targetAccountId) => {
+                if (targetAccountId === data.accountId) {
+                  addTransaction(input);
+                } else {
+                  void persistenceGateway.accountRegisters.addTransaction({
+                    accountId: targetAccountId,
+                    transaction: input,
+                  });
+                }
                 setLastEntryDate(input.date);
               }}
               onCancel={() => setShowEntryRow(false)}
@@ -1934,11 +2138,21 @@ export function AccountRegisterPage() {
               className="button button-secondary"
               type="button"
               disabled={!registerPagination.hasNextPage}
-              onClick={() =>
-                setRegisterPage((currentPage) =>
-                  Math.min(registerPagination.totalPages, currentPage + 1),
-                )
-              }
+              onClick={async () => {
+                const nextPage = Math.min(
+                  registerPagination.totalPages,
+                  registerPagination.currentPage + 1,
+                );
+                if (
+                  storageMode === "sqlite" &&
+                  hasMoreTransactions &&
+                  nextPage * registerPagination.pageSize >
+                    registerTransactions.length
+                ) {
+                  await loadMoreTransactions();
+                }
+                setRegisterPage(nextPage);
+              }}
             >
               Next
             </button>

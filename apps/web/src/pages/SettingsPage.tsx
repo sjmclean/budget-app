@@ -32,6 +32,11 @@ import {
 } from "../features/budget/versionHistoryLifecycle";
 import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
+import {
+  assertBrowserBudgetFeatureAvailable,
+  isHostedSqliteBudget,
+} from "../features/persistence/hostedBudgetSafety";
+import { getBudgetPersistenceProvider } from "../features/persistence";
 import { getPersistenceModeSummary } from "../features/persistence/persistenceMode";
 import { getReplicationBackgroundService } from "../features/persistence/replicationService";
 import type { ReplicationConflict } from "../features/persistence/conflictResolution";
@@ -50,6 +55,7 @@ import {
 } from "../features/settings/settingsPreferences";
 import { confirmDialog } from "../features/ui/appDialogService";
 import { formatDateForDisplay, notifySettingsPreferencesChanged } from "../features/settings/dateFormatting";
+import { getCurrentBudgetMonth } from "../features/budget/budgetMonthNavigation";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore, type ThemeMode } from "../stores/uiStore";
 
@@ -253,6 +259,7 @@ export function SettingsPage({
   const [dataStatusMessage, setDataStatusMessage] = useState("Export or back up the currently selected budget.");
   const [restorePreview, setRestorePreview] = useState<BudgetDataRestorePreview | null>(null);
   const [restorePackageRaw, setRestorePackageRaw] = useState<string | null>(null);
+  const [hostedRestoreFile, setHostedRestoreFile] = useState<File | null>(null);
   const [portablePackagePreview, setPortablePackagePreview] = useState<PortableBudgetPackagePreview | null>(null);
   const [portablePackageRaw, setPortablePackageRaw] = useState<string | null>(null);
   const [portablePackageBusy, setPortablePackageBusy] = useState(false);
@@ -272,6 +279,7 @@ export function SettingsPage({
 
   const currentSection = settingsSections.find((section) => section.id === activeSection) ?? settingsSections[0];
   const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
+  const accountRegisterQueries = getBudgetPersistenceProvider().accountRegisterQueries;
   const selectedSnapshot =
     historySnapshots.find((snapshot) => snapshot.id === selectedSnapshotId) ?? historySnapshots[0] ?? null;
   const snapshotGroups = groupSnapshotsByDate(historySnapshots);
@@ -363,7 +371,44 @@ export function SettingsPage({
     );
   }
 
-  function downloadBudgetData(kind: BudgetDataExportKind) {
+  async function ensureHostedDataOperationSupported(feature: string): Promise<boolean> {
+    try {
+      await assertBrowserBudgetFeatureAvailable(
+        accountRegisterQueries,
+        activeBudget?.id,
+        feature,
+      );
+      return true;
+    } catch (error) {
+      setDataStatusMessage(error instanceof Error ? error.message : `${feature} is unavailable.`);
+      return false;
+    }
+  }
+
+  async function downloadBudgetData(kind: BudgetDataExportKind) {
+    if (
+      activeBudget?.id &&
+      accountRegisterQueries &&
+      await isHostedSqliteBudget(accountRegisterQueries, activeBudget.id)
+    ) {
+      const blob = accountRegisterQueries.exportBudget
+        ? await accountRegisterQueries.exportBudget(activeBudget.id, kind)
+        : null;
+      const link = document.createElement("a");
+      const localUrl = blob ? URL.createObjectURL(blob) : null;
+      link.href = localUrl ?? accountRegisterQueries.getBudgetExportUrl(activeBudget.id, kind);
+      link.download = blob
+        ? `${activeBudget.name}-${kind}.budget-sqlite`
+        : "";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      if (localUrl) URL.revokeObjectURL(localUrl);
+      setDataStatusMessage(
+        `${kind === "backup" ? "Backup" : "Export"} download started from the local SQLite budget.`,
+      );
+      return;
+    }
     try {
       const dataPackage = createBudgetDataExportPackage(getActiveKeyValueStorage(), kind);
       const blob = new Blob([serialiseBudgetDataPackage(dataPackage)], { type: "application/json" });
@@ -385,6 +430,7 @@ export function SettingsPage({
   }
 
   async function downloadPortablePackage() {
+    if (!(await ensureHostedDataOperationSupported("Portable budget export"))) return;
     setPortablePackageBusy(true);
     try {
       const dataPackage = await createPortableBudgetPackage(getActiveKeyValueStorage());
@@ -424,6 +470,7 @@ export function SettingsPage({
   }
 
   async function commitPortablePackageRestore() {
+    if (!(await ensureHostedDataOperationSupported("Portable budget restore"))) return;
     if (!portablePackagePreview?.valid || !portablePackageRaw) return;
     const confirmed = await confirmDialog({
       title: "Restore portable budget package?",
@@ -452,7 +499,22 @@ export function SettingsPage({
       return;
     }
 
-    const reader = new FileReader();
+    const isHostedBackup =
+      file.type === "application/x-ndjson" ||
+      file.name.toLocaleLowerCase().endsWith(".budget-ndjson");
+    void isHostedSqliteBudget(accountRegisterQueries, activeBudget?.id).then((hosted) => {
+      if (hosted || isHostedBackup) {
+        setHostedRestoreFile(file);
+        setRestorePreview(null);
+        setRestorePackageRaw(null);
+        setDataStatusMessage(
+          `Hosted SQLite backup selected (${formatFileSize(file.size)}). ` +
+          "The server will stream, validate, and stage it before activation.",
+        );
+        return;
+      }
+      setHostedRestoreFile(null);
+      const reader = new FileReader();
     reader.onload = () => {
       const raw = typeof reader.result === "string" ? reader.result : "";
       const preview = previewBudgetDataRestore(raw);
@@ -469,10 +531,44 @@ export function SettingsPage({
       setRestorePackageRaw(null);
       setDataStatusMessage("Could not read restore file. No data has been changed.");
     };
-    reader.readAsText(file);
+      reader.readAsText(file);
+    }).catch((error) => {
+      setDataStatusMessage(error instanceof Error ? error.message : "Could not inspect the selected budget.");
+    });
   }
 
   async function commitRestorePreview() {
+    if (hostedRestoreFile && activeBudget?.id && accountRegisterQueries) {
+      const confirmed = await confirmDialog({
+        title: "Restore hosted SQLite budget?",
+        message:
+          "The backup will be streamed into a staged generation, validated, and activated only after its integrity checks pass.",
+        confirmLabel: "Restore budget",
+        tone: "danger",
+      });
+      if (!confirmed) {
+        setDataStatusMessage("Restore cancelled. No data has been changed.");
+        return;
+      }
+      setDataStatusMessage("Streaming and validating hosted SQLite backup...");
+      try {
+        const result = await accountRegisterQueries.restoreBudget(
+          activeBudget.id,
+          hostedRestoreFile,
+        );
+        setHostedRestoreFile(null);
+        setDataStatusMessage(
+          `Hosted restore complete: ${result.counts.accounts} accounts and ` +
+          `${result.counts.transactions} transactions restored atomically.`,
+        );
+      } catch (error) {
+        setDataStatusMessage(
+          error instanceof Error ? error.message : "Hosted SQLite restore failed. No data was activated.",
+        );
+      }
+      return;
+    }
+    if (!(await ensureHostedDataOperationSupported("Budget restore"))) return;
     if (!restorePreview?.valid || !restorePackageRaw) {
       setDataStatusMessage("Load a valid restore preview before restoring.");
       return;
@@ -516,6 +612,7 @@ export function SettingsPage({
   }
 
   async function restoreSelectedSnapshot() {
+    if (!(await ensureHostedDataOperationSupported("Version-history restore"))) return;
     if (!selectedSnapshot) {
       setDataStatusMessage("Choose a restore point before restoring.");
       return;
@@ -545,6 +642,7 @@ export function SettingsPage({
   }
 
   async function handleResetCurrentBudget() {
+    const hosted = await isHostedSqliteBudget(accountRegisterQueries, activeBudget?.id);
     const confirmed = await confirmDialog({
       title: "Reset current budget?",
       message:
@@ -555,6 +653,22 @@ export function SettingsPage({
 
     if (!confirmed) {
       setDataStatusMessage("Reset cancelled. No data has been changed.");
+      return;
+    }
+
+    if (hosted && activeBudget?.id && accountRegisterQueries) {
+      try {
+        await accountRegisterQueries.resetBudget(activeBudget.id, getCurrentBudgetMonth());
+        resetCurrentBudget(getActiveKeyValueStorage());
+        setRestorePreview(null);
+        setRestorePackageRaw(null);
+        setHostedRestoreFile(null);
+        setDataStatusMessage(
+          `Reset complete for ${activeBudget.name}. The previous SQLite generation was removed.`,
+        );
+      } catch (error) {
+        setDataStatusMessage(error instanceof Error ? error.message : "Hosted SQLite reset failed.");
+      }
       return;
     }
 
@@ -575,6 +689,7 @@ export function SettingsPage({
   }
 
   async function handleDeleteCurrentBudget() {
+    const hosted = await isHostedSqliteBudget(accountRegisterQueries, activeBudget?.id);
     const confirmed = await confirmDialog({
       title: "Delete current budget?",
       message:
@@ -585,6 +700,25 @@ export function SettingsPage({
 
     if (!confirmed) {
       setDataStatusMessage("Delete cancelled. No data has been changed.");
+      return;
+    }
+
+    if (hosted && activeBudget?.id && accountRegisterQueries) {
+      try {
+        await accountRegisterQueries.deleteBudget(activeBudget.id);
+      } catch (error) {
+        setDataStatusMessage(error instanceof Error ? error.message : "Hosted SQLite deletion failed.");
+        return;
+      }
+      const result = deleteCurrentBudget(getActiveKeyValueStorage());
+      refreshBudgets();
+      clearSelectedBudget();
+      if (!result.completed) {
+        setDataStatusMessage(result.errors[0] ?? "Hosted data was deleted, but the local budget entry could not be removed.");
+        return;
+      }
+      setDataStatusMessage(`Deleted ${result.budgetName} and its hosted SQLite generation.`);
+      navigate("/");
       return;
     }
 
@@ -922,14 +1056,14 @@ export function SettingsPage({
                           onChange={(event) => previewPortablePackageFile(event.target.files?.[0] ?? null)}
                         />
                       </label>
-                      <Button type="button" variant="secondary" onClick={() => downloadBudgetData("backup")}>
-                        Backup JSON
+                      <Button type="button" variant="secondary" onClick={() => void downloadBudgetData("backup")}>
+                        Backup budget
                       </Button>
                       <label className="button button-secondary settings-file-button">
-                        Preview JSON restore
+                        Select backup to restore
                         <input
                           type="file"
-                          accept="application/json,.json"
+                          accept="application/x-ndjson,.budget-ndjson,application/json,.json"
                           onChange={(event) => previewRestoreFile(event.target.files?.[0] ?? null)}
                         />
                       </label>
@@ -938,8 +1072,8 @@ export function SettingsPage({
                   <div className="settings-action-card">
                     <h3>Export Budget</h3>
                     <p className="muted">Download a portable JSON export for the currently selected budget.</p>
-                    <Button type="button" variant="secondary" onClick={() => downloadBudgetData("export")}>
-                      Export JSON
+                    <Button type="button" variant="secondary" onClick={() => void downloadBudgetData("export")}>
+                      Export budget
                     </Button>
                   </div>
                 </div>
@@ -1031,6 +1165,27 @@ export function SettingsPage({
                         </p>
                       </div>
                     ) : null}
+                  </div>
+                ) : null}
+
+                {hostedRestoreFile ? (
+                  <div className="settings-restore-preview valid">
+                    <div>
+                      <p className="eyebrow">Hosted SQLite restore</p>
+                      <h3>Backup ready for server validation</h3>
+                      <p className="muted">
+                        {hostedRestoreFile.name} · {formatFileSize(hostedRestoreFile.size)}
+                      </p>
+                    </div>
+                    <div className="settings-restore-actions">
+                      <Button type="button" variant="secondary" onClick={commitRestorePreview}>
+                        Stream and restore budget
+                      </Button>
+                      <p className="muted">
+                        The current generation remains active unless the complete backup passes its
+                        schema, count, relationship, and SHA-256 integrity checks.
+                      </p>
+                    </div>
                   </div>
                 ) : null}
               </>
@@ -1220,9 +1375,12 @@ export function SettingsPage({
                 <strong>{persistenceMode.label}</strong>
                 <p className="muted">{persistenceMode.description}</p>
               </div>
-              <div>
+              <div className="settings-sync-status-card">
                 <span>Synchronisation</span>
                 <strong>{formatReplicationStatus(replicationStatus.status)}</strong>
+                <p className="settings-sync-scope-warning">
+                  Local SQLite baseline and mutation relay status for the active budget.
+                </p>
                 <p className="muted">
                   {replicationStatus.lastSuccessfulSyncAt
                     ? `Last synced ${new Date(replicationStatus.lastSuccessfulSyncAt).toLocaleString()}`
@@ -1347,6 +1505,32 @@ export function SettingsPage({
                     }}
                   >
                     Create checkpoint
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={
+                      !replicationStatus.supported ||
+                      replicationBusy ||
+                      replicationStatus.checkpointCount > 0
+                    }
+                    onClick={() => {
+                      const backgroundService = getReplicationBackgroundService();
+                      if (!backgroundService) return;
+                      void confirmDialog({
+                        title: "Refresh the synchronisation baseline?",
+                        message: "This creates a verified baseline from the complete local SQLite budget. Mutations included in that baseline can then be safely compacted, while devices that are too far behind will rebuild automatically.",
+                        confirmLabel: "Refresh baseline",
+                      }).then((confirmed) => {
+                        if (!confirmed) return;
+                        setReplicationBusy(true);
+                        void backgroundService.publishLocalBaseline().finally(() => {
+                          setReplicationBusy(false);
+                        });
+                      });
+                    }}
+                  >
+                    Refresh sync baseline
                   </Button>
                   <Button
                     type="button"

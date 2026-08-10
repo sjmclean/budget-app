@@ -3,8 +3,6 @@ import { createAccountRegisterService } from "../accounts/accountRegisterService
 import { createPayeeService, findPayeeIdByName } from "../accounts/payeeService";
 import { createScheduledTransactionService } from "../accounts/scheduledTransactionService";
 import { createBudgetScopedStorage } from "../budget/budgetDataScope";
-import { createBudgetViewService } from "../budget/budgetViewService";
-import { createBrowserLocalStorageBudgetActivityPersistence } from "./browserLocalStorageBudgetActivityPersistence";
 import type {
   BudgetPersistenceProvider,
   PersistenceProviderCapabilities,
@@ -16,6 +14,9 @@ import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { OperationJournalPort } from "./operationJournal";
 import type { ReplicationLocalStorePort } from "./replication";
 import { exportBudgetPersistenceSnapshot } from "./persistenceSnapshot";
+import type { HostedAccountRegisterQueryClient } from "./hostedAccountRegisterQueryClient";
+import { createHostedScheduledTransactionPersistence } from "./hostedScheduledTransactionPersistence";
+import { createSqliteBudgetViewService } from "./createSqliteBudgetViewService";
 
 export interface CreateKeyValueBudgetPersistenceProviderOptions {
   readonly storage: KeyValueStoragePort;
@@ -27,62 +28,58 @@ export interface CreateKeyValueBudgetPersistenceProviderOptions {
   readonly checkpoints?: CheckpointPort;
   readonly replicationStore?: ReplicationLocalStorePort;
   readonly conflicts?: ConflictResolutionPort;
+  readonly accountRegisterQueries?: HostedAccountRegisterQueryClient;
 }
 
 /**
- * Canonical composition root for the current key/value-shaped Budget App
- * domain services. Concrete storage providers supply only storage and lifecycle
- * behaviour; feature wiring remains identical across browser and local database
- * modes.
+ * Composes the browser persistence runtime. Budget and category reads/writes
+ * are deliberately SQLite-only; key/value storage remains for the other
+ * domains while their local-first migrations are completed.
  */
 export function createKeyValueBudgetPersistenceProvider(
   options: CreateKeyValueBudgetPersistenceProviderOptions,
 ): BudgetPersistenceProvider {
   const budgetScopedStorage = createBudgetScopedStorage(options.storage);
-
   const accountService = createAccountService({ storage: budgetScopedStorage });
   const payeeService = createPayeeService({ storage: budgetScopedStorage });
-
   const accountRegisterService = createAccountRegisterService({
     storage: budgetScopedStorage,
-    recordPayee: async (payeeName: string) => {
+    recordPayee: async (payeeName) => {
       await payeeService.recordPayee(payeeName);
     },
-    recordPayees: async (payeeNames: string[]) => {
+    recordPayees: async (payeeNames) => {
       await payeeService.recordPayees(payeeNames);
     },
-    findPayeeIdByName: (payeeName: string) =>
-      findPayeeIdByName(budgetScopedStorage, payeeName),
+    findPayeeIdByName: (payeeName) => findPayeeIdByName(budgetScopedStorage, payeeName),
     readAccounts: () => readAccounts(budgetScopedStorage),
-    getAccountById: (accountId: string) =>
-      accountService.getAccountById(accountId) ?? undefined,
+    getAccountById: (accountId) => accountService.getAccountById(accountId) ?? undefined,
   });
-
-  const scheduledTransactionService = createScheduledTransactionService({
+  const scheduledFallback = createScheduledTransactionService({
     storage: budgetScopedStorage,
-    recordPayee: async (payeeName: string) => {
+    recordPayee: async (payeeName) => {
       await payeeService.recordPayee(payeeName);
     },
-    findPayeeIdByName: (payeeName: string) =>
-      findPayeeIdByName(budgetScopedStorage, payeeName),
+    findPayeeIdByName: (payeeName) => findPayeeIdByName(budgetScopedStorage, payeeName),
   });
-
-  const budgetViewService = createBudgetViewService({
-    budgetActivity: createBrowserLocalStorageBudgetActivityPersistence(
-      budgetScopedStorage,
-    ),
-    storage: options.storage,
-  });
+  const scheduledTransactions = options.accountRegisterQueries
+    ? createHostedScheduledTransactionPersistence({
+        storage: options.storage,
+        hosted: options.accountRegisterQueries,
+        fallback: scheduledFallback,
+      })
+    : scheduledFallback;
+  const sqliteBudgetView = createSqliteBudgetViewService(options.accountRegisterQueries);
 
   return {
     metadata: options.metadata,
     capabilities: options.capabilities,
     accounts: accountService,
     accountRegisters: accountRegisterService,
-    budgetView: budgetViewService,
-    categories: budgetViewService,
+    accountRegisterQueries: options.accountRegisterQueries,
+    budgetView: sqliteBudgetView,
+    categories: sqliteBudgetView,
     payees: payeeService,
-    scheduledTransactions: scheduledTransactionService,
+    scheduledTransactions,
     keyValueStorage: options.storage,
     operationJournal: options.operationJournal,
     checkpoints: options.checkpoints,

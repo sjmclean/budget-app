@@ -12,6 +12,7 @@ import {
   discoverYnab4Package,
   type Ynab4PackageEntry,
 } from "../packages/ynab4-importer/src/analyzeYnab4Package.ts";
+import { readBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 
 function createQuotaStorage(failingKeyPart: string): KeyValueStoragePort {
   const values = new Map<string, string>();
@@ -90,7 +91,7 @@ function assertNoImportedBudgetRemains(storage: KeyValueStoragePort) {
 }
 
 function testRegisterQuotaFailureRollsBackBudgetRegistryAndData() {
-  const storage = createQuotaStorage("budget-app.account-registers.v1");
+  const storage = createQuotaStorage("budget-app.entity-replication.v1/transaction/");
   const existing = createBudgetRegistryEntry(storage, {
     name: "Household",
     now: new Date("2026-06-24T00:00:00.000Z"),
@@ -116,7 +117,7 @@ function testRegisterQuotaFailureRollsBackBudgetRegistryAndData() {
 }
 
 function testBudgetViewQuotaFailureRollsBackBudgetRegistryAndData() {
-  const storage = createQuotaStorage("budget-app.budget-view.v1");
+  const storage = createQuotaStorage("budget-app.entity-replication.v1/budget-month/");
   const existing = createBudgetRegistryEntry(storage, {
     name: "Household",
     now: new Date("2026-06-24T00:00:00.000Z"),

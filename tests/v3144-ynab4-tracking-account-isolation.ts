@@ -1,12 +1,14 @@
+import { readSeededTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
 import assert from "node:assert/strict";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
 import { createYnab4LauncherBudgetImport } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
-import { getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope.ts";
+import { createFixedBudgetScopedStorage, getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope.ts";
 import {
   createYnab4PackageMigrationPreview,
   discoverYnab4Package,
   type Ynab4PackageEntry,
 } from "../packages/ynab4-importer/src/analyzeYnab4Package.ts";
+import { readBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 
 function createMemoryStorage(): KeyValueStoragePort {
   const values = new Map<string, string>();
@@ -70,7 +72,7 @@ const result = createYnab4LauncherBudgetImport(storage, {
 });
 assert.equal(result.record.accuracyAudit?.status, "pass");
 
-const monthRaw = storage.getItem(`budget-app.budget-view.v1.${result.budget.id}.2020-01`);
+const monthRaw = (() => { const view = readBudgetMonthEntity(storage, result.budget.id, "2020-01"); return view ? JSON.stringify(view) : null; })();
 assert.ok(monthRaw);
 const monthView = JSON.parse(monthRaw) as {
   categoryGroups: Array<{ categories: Array<{ name: string; activity: number }> }>;
@@ -81,20 +83,8 @@ const groceries = monthView.categoryGroups
 assert.ok(groceries);
 assert.equal(groceries.activity, -20, "Tracking-account transactions must not affect budget activity.");
 
-const registersRaw = storage.getItem(
-  getBudgetScopedStorageKey(result.budget.id, "budget-app.account-registers.v1"),
-);
-assert.ok(registersRaw);
-const registers = JSON.parse(registersRaw) as Record<string, {
-  accountType: string;
-  transactions: Array<{
-    id: string;
-    category: string;
-    categoryId?: string;
-    splitLines?: Array<{ category: string; categoryId?: string }>;
-  }>;
-}>;
-const trackingRegister = Object.values(registers).find((register) => register.accountType === "Tracking");
+const registers = readSeededTransactionRegisters(createFixedBudgetScopedStorage(storage, result.budget.id));
+const trackingRegister = registers.investment;
 assert.ok(trackingRegister);
 
 const trackingSpend = trackingRegister.transactions.find((transaction) => transaction.id === "tracking-spend");

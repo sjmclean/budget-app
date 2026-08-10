@@ -29,6 +29,7 @@ interface UseRegisterViewModelInput {
   sort: RegisterSortState;
   developerPerformanceMode: boolean;
   performanceTimingsRef: MutableRefObject<RegisterPerformanceTimings>;
+  totalItemsOverride?: number;
 }
 
 export function useRegisterViewModel({
@@ -40,6 +41,7 @@ export function useRegisterViewModel({
   sort,
   developerPerformanceMode,
   performanceTimingsRef,
+  totalItemsOverride,
 }: UseRegisterViewModelInput) {
   const [registerPage, setRegisterPage] = useState(1);
 
@@ -74,7 +76,7 @@ export function useRegisterViewModel({
   );
 
   const registerPagination = getRegisterPaginationState(
-    sortedRegisterTransactions.length,
+    totalItemsOverride ?? sortedRegisterTransactions.length,
     registerPage,
     REGISTER_DEFAULT_PAGE_SIZE,
   );

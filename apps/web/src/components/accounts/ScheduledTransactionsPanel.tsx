@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import type { NewRegisterTransactionInput } from "../../features/accounts/accountRegisterTypes";
+import type { NewRegisterTransactionInput, ScheduledAttachmentTemplate } from "../../features/accounts/accountRegisterTypes";
+import { calculateAttachmentContentHash } from "../../features/attachments/attachmentContentStore";
 import { alertDialog, confirmDialog } from "../../features/ui/appDialogService";
 import type {
   ScheduledEndCondition,
   ScheduledFrequency,
+  ScheduledMonthDayPolicy,
+  ScheduledRecurrenceKind,
+  ScheduledInstalment,
   ScheduledRecurrenceUnit,
   ScheduledTransactionView,
   ScheduledWeekendPolicy,
@@ -13,6 +17,7 @@ import {
   applyWeekendPolicy,
   advanceDateByRule,
   frequencyFromRecurrence,
+  normaliseSpecificInstalments,
   resolveOccurrenceDate,
   resolveRecurrence,
   shouldSkipOccurrence,
@@ -23,11 +28,13 @@ import { getBudgetPersistenceProvider } from "../../features/persistence";
 import { usePersistenceChangeVersion } from "../../features/persistence/persistenceChangeBus";
 import type { SidebarAccount } from "../../features/accounts/accountService";
 import type { PayeeView } from "../../features/accounts/payeeService";
+import { createRuntimeUuid } from "../../features/ids/createRuntimeUuid";
 import type { BudgetCategoryOption } from "../../features/budget/budgetViewTypes";
 import { formatDateForDisplay } from "../../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../../features/settings/useDateFormatPreference";
 import type { TransactionTagDefinition } from "../../features/tags/transactionTagTypes";
 import { TransactionTagPicker } from "../../features/accounts/components/TransactionRow";
+import { localCalendarDate } from "../../features/dates/localCalendarDate";
 
 interface ScheduledTransactionsPanelProps {
   accountId: string;
@@ -51,9 +58,16 @@ interface ScheduledFormDraft {
   frequency: ScheduledFrequency;
   frequencyChoice: ScheduledFrequencyChoice;
   isRecurring: boolean;
+  recurrenceKind: ScheduledRecurrenceKind;
+  specificDates: string[];
+  specificDateIndex: number;
+  specificInstalments: ScheduledInstalment[];
+  attachments: ScheduledAttachmentTemplate[];
   recurrenceInterval: number;
   recurrenceUnit: ScheduledRecurrenceUnit;
   recurrenceAnchorDate: string;
+  recurrenceAnchorDay: number;
+  monthDayPolicy: ScheduledMonthDayPolicy;
   endCondition: ScheduledEndCondition;
   endDate: string;
   occurrenceCount: number;
@@ -68,7 +82,7 @@ interface ScheduledFormDraft {
   inflow: string;
 }
 
-type ScheduledFrequencyChoice = "once" | "daily" | "weekly" | "fortnightly" | "monthly" | "quarterly" | "half-yearly" | "yearly" | "custom";
+type ScheduledFrequencyChoice = "once" | "daily" | "weekly" | "fortnightly" | "monthly" | "quarterly" | "half-yearly" | "yearly" | "custom" | "specific-dates";
 
 export function ScheduledTransactionsPanel({
   accountId,
@@ -122,8 +136,17 @@ export function ScheduledTransactionsPanel({
       return;
     }
 
-    const outflow = parseMoney(draft.outflow);
-    const inflow = parseMoney(draft.inflow);
+    const enteredOutflow = parseMoney(draft.outflow);
+    const enteredInflow = parseMoney(draft.inflow);
+    const specificInstalments = normaliseSpecificInstalments(
+      draft.specificInstalments,
+      draft.specificDates,
+      enteredOutflow,
+      enteredInflow,
+    );
+    const firstInstalment = specificInstalments[0];
+    const outflow = draft.recurrenceKind === "specific-dates" ? firstInstalment?.outflow ?? 0 : enteredOutflow;
+    const inflow = draft.recurrenceKind === "specific-dates" ? firstInstalment?.inflow ?? 0 : enteredInflow;
 
     if (outflow > 0 && inflow > 0) {
       await alertDialog({ message: "A scheduled transaction can have either an outflow or an inflow, not both." });
@@ -135,12 +158,30 @@ export function ScheduledTransactionsPanel({
       return;
     }
 
+    const specificDates = specificInstalments.map((instalment) => instalment.date);
+    if (draft.recurrenceKind === "specific-dates" && specificDates.length === 0) {
+      await alertDialog({ message: "Add at least one occurrence date." });
+      return;
+    }
+
+    if (draft.recurrenceKind === "specific-dates" && specificInstalments.some((instalment) => instalment.outflow <= 0 && instalment.inflow <= 0)) {
+      await alertDialog({ message: "Enter an amount for every instalment." });
+      return;
+    }
+
     if (draft.isRecurring && draft.endCondition === "on-date" && (!draft.endDate || draft.endDate < draft.recurrenceAnchorDate)) {
       await alertDialog({ message: "Choose an end date on or after the next scheduled date." });
       return;
     }
 
     if (draft.splitLines && draft.splitLines.length > 0) {
+      const distinctInstalmentAmounts = new Set(
+        specificInstalments.map((instalment) => (instalment.inflow > 0 ? instalment.inflow : instalment.outflow).toFixed(2)),
+      );
+      if (draft.recurrenceKind === "specific-dates" && distinctInstalmentAmounts.size > 1) {
+        await alertDialog({ message: "Variable-amount instalments cannot share one split allocation. Use separate schedules if split amounts also vary." });
+        return;
+      }
       const invalidSplit = draft.splitLines.some((line) => !line.category.trim() || (line.outflow <= 0 && line.inflow <= 0));
       if (invalidSplit) {
         await alertDialog({ message: "Each split line needs a category and an amount." });
@@ -163,9 +204,15 @@ export function ScheduledTransactionsPanel({
       tagIds: draft.tagIds,
       nextDueDate: draft.recurrenceAnchorDate,
       frequency: draft.isRecurring ? frequencyFromRecurrence(draft.recurrenceInterval, draft.recurrenceUnit) : "once",
+      recurrenceKind: draft.recurrenceKind,
+      specificDates: draft.recurrenceKind === "specific-dates" ? specificDates : undefined,
+      specificInstalments: draft.recurrenceKind === "specific-dates" ? specificInstalments : undefined,
+      specificDateIndex: draft.recurrenceKind === "specific-dates" ? 0 : undefined,
       recurrenceInterval: draft.recurrenceInterval,
       recurrenceUnit: draft.recurrenceUnit,
       recurrenceAnchorDate: draft.recurrenceAnchorDate,
+      recurrenceAnchorDay: draft.recurrenceAnchorDay,
+      monthDayPolicy: draft.monthDayPolicy,
       endCondition: draft.endCondition,
       endDate: draft.endCondition === "on-date" ? draft.endDate : undefined,
       occurrenceCount: draft.endCondition === "after-occurrences" ? draft.occurrenceCount : undefined,
@@ -179,6 +226,7 @@ export function ScheduledTransactionsPanel({
       outflow,
       inflow,
       splitLines: draft.splitLines,
+      attachments: draft.attachments,
     };
 
     const next = draft.id
@@ -318,17 +366,38 @@ function ScheduledForm({
   const frequencyChoice = draft.frequencyChoice;
 
   function selectFrequency(choice: ScheduledFrequencyChoice) {
+    if (choice === "specific-dates") {
+      const dates = normaliseDraftSpecificDates(
+        draft.specificDates.length > 0 ? draft.specificDates : [draft.recurrenceAnchorDate],
+      );
+      setDraft({
+        ...draft,
+        frequencyChoice: choice,
+        isRecurring: true,
+        recurrenceKind: "specific-dates",
+        specificDates: dates,
+        specificInstalments: normaliseSpecificInstalments(
+          draft.specificInstalments,
+          dates,
+          parseMoney(draft.outflow),
+          parseMoney(draft.inflow),
+        ),
+        specificDateIndex: 0,
+        endCondition: "never",
+      });
+      return;
+    }
     if (choice === "custom") {
-      setDraft({ ...draft, frequencyChoice: choice, isRecurring: true });
+      setDraft({ ...draft, frequencyChoice: choice, isRecurring: true, recurrenceKind: "rule" });
       return;
     }
 
     if (choice === "once") {
-      setDraft({ ...draft, frequencyChoice: choice, isRecurring: false, endCondition: "never" });
+      setDraft({ ...draft, frequencyChoice: choice, isRecurring: false, recurrenceKind: "rule", endCondition: "never" });
       return;
     }
 
-    const recurrenceByChoice: Record<Exclude<ScheduledFrequencyChoice, "custom" | "once">, { interval: number; unit: ScheduledRecurrenceUnit }> = {
+    const recurrenceByChoice: Record<Exclude<ScheduledFrequencyChoice, "custom" | "once" | "specific-dates">, { interval: number; unit: ScheduledRecurrenceUnit }> = {
       daily: { interval: 1, unit: "day" },
       weekly: { interval: 1, unit: "week" },
       fortnightly: { interval: 2, unit: "week" },
@@ -342,6 +411,7 @@ function ScheduledForm({
       ...draft,
       frequencyChoice: choice,
       isRecurring: true,
+      recurrenceKind: "rule",
       recurrenceInterval: recurrence.interval,
       recurrenceUnit: recurrence.unit,
     });
@@ -361,6 +431,40 @@ function ScheduledForm({
       inflow: value,
       outflow: parseMoney(value) > 0 ? "" : draft.outflow,
     });
+  }
+
+  async function addAttachments(files: FileList | null) {
+    if (!files) return;
+    const additions: ScheduledAttachmentTemplate[] = [];
+    let totalSize = draft.attachments.reduce((total, attachment) => total + attachment.fileSize, 0);
+    for (const file of Array.from(files)) {
+      if (file.size > 5 * 1024 * 1024) {
+        await alertDialog({ message: `${file.name} is larger than the 5 MB attachment limit.` });
+        continue;
+      }
+      if (totalSize + file.size > 20 * 1024 * 1024) {
+        await alertDialog({ message: "Scheduled transaction attachments may total at most 20 MB." });
+        break;
+      }
+      if (!["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+        await alertDialog({ message: `${file.name} is not a supported PDF or image file.` });
+        continue;
+      }
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      additions.push({
+        id: `scheduled-attachment-${createRuntimeUuid()}`,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+        attachedAt: new Date().toISOString(),
+        contentHash: await calculateAttachmentContentHash(bytes),
+        contentBase64: encodeAttachment(bytes),
+      });
+      totalSize += file.size;
+    }
+    if (additions.length > 0) {
+      setDraft({ ...draft, attachments: [...draft.attachments, ...additions] });
+    }
   }
 
   return (
@@ -399,8 +503,34 @@ function ScheduledForm({
                   <option value="half-yearly">Half-yearly</option>
                   <option value="yearly">Yearly</option>
                   <option value="custom">Custom interval...</option>
+                  <option value="specific-dates">Instalments / specific dates...</option>
                 </select>
               </label>
+
+              {frequencyChoice === "specific-dates" ? (
+                <InstalmentsEditor
+                  instalments={draft.specificInstalments}
+                  defaultOutflow={parseMoney(draft.outflow)}
+                  defaultInflow={parseMoney(draft.inflow)}
+                  onChange={(specificInstalments) => {
+                    const normalised = normaliseSpecificInstalments(specificInstalments, [], 0, 0);
+                    const dates = normalised.map((instalment) => instalment.date);
+                    const firstDate = dates[0] ?? draft.recurrenceAnchorDate;
+                    const first = normalised[0];
+                    setDraft({
+                      ...draft,
+                      specificDates: dates,
+                      specificInstalments,
+                      specificDateIndex: 0,
+                      outflow: first?.outflow ? first.outflow.toFixed(2) : "",
+                      inflow: first?.inflow ? first.inflow.toFixed(2) : "",
+                      recurrenceAnchorDate: firstDate,
+                      recurrenceAnchorDay: Number.parseInt(firstDate.slice(8, 10), 10),
+                      nextDueDate: applyWeekendPolicy(firstDate, draft.weekendPolicy),
+                    });
+                  }}
+                />
+              ) : null}
 
               {frequencyChoice === "custom" ? (
                 <div className="scheduled-recurrence-controls">
@@ -428,6 +558,7 @@ function ScheduledForm({
                 </div>
               ) : null}
 
+              {frequencyChoice !== "specific-dates" ? (
               <div className="scheduled-editor-row scheduled-editor-row-two">
               <label>
                 <span>{draft.isRecurring ? "Next date" : "Scheduled date"}</span>
@@ -437,6 +568,7 @@ function ScheduledForm({
                   onChange={(event) => setDraft({
                     ...draft,
                     recurrenceAnchorDate: event.target.value,
+                    recurrenceAnchorDay: Number.parseInt(event.target.value.slice(8, 10), 10),
                     nextDueDate: applyWeekendPolicy(event.target.value, draft.weekendPolicy),
                   })}
                 />
@@ -463,6 +595,45 @@ function ScheduledForm({
                 <small className="muted">Public holiday calendars are planned separately.</small>
               </label>
               </div>
+              ) : (
+                <label>
+                  <span>When a date falls on a weekend</span>
+                  <select
+                    value={draft.weekendPolicy}
+                    onChange={(event) => {
+                      const weekendPolicy = event.target.value as ScheduledWeekendPolicy;
+                      const firstDate = normaliseDraftSpecificDates(draft.specificDates)[0] ?? draft.recurrenceAnchorDate;
+                      setDraft({
+                        ...draft,
+                        weekendPolicy,
+                        nextDueDate: applyWeekendPolicy(firstDate, weekendPolicy),
+                      });
+                    }}
+                  >
+                    <option value="same-day">Keep the scheduled date</option>
+                    <option value="previous-business-day">Move to the previous business day</option>
+                    <option value="next-business-day">Move to the next business day</option>
+                    <option value="skip">Skip the weekend date</option>
+                  </select>
+                </label>
+              )}
+
+              {draft.recurrenceKind === "rule" && draft.isRecurring && (draft.recurrenceUnit === "month" || draft.recurrenceUnit === "year") ? (
+                <label>
+                  <span>Month position</span>
+                  <select
+                    value={draft.monthDayPolicy}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      monthDayPolicy: event.target.value as ScheduledMonthDayPolicy,
+                    })}
+                  >
+                    <option value="same-day-number">Same day number (use the last valid day when needed)</option>
+                    <option value="last-day-of-month">Last day of the month</option>
+                  </select>
+                  <small className="muted">Last day keeps month-end schedules aligned through February and longer months.</small>
+                </label>
+              ) : null}
 
               {!draft.isRecurring ? (
                 <p className="scheduled-once-note">
@@ -471,7 +642,7 @@ function ScheduledForm({
               ) : null}
             </div>
 
-            {draft.isRecurring ? (
+            {draft.isRecurring && draft.recurrenceKind === "rule" ? (
             <div className="scheduled-editor-row scheduled-editor-row-two">
               <label>
                 <span>Ends</span>
@@ -652,6 +823,41 @@ function ScheduledForm({
           </aside>
         </div>
 
+        <div className="scheduled-attachment-section">
+          <div className="scheduled-attachment-heading">
+            <div>
+              <strong>Attachments</strong>
+              <span>These files will be attached to every generated transaction.</span>
+            </div>
+            <label className="button button-secondary scheduled-attachment-add">
+              Add files
+              <input
+                type="file"
+                multiple
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                onChange={(event) => void addAttachments(event.target.files)}
+              />
+            </label>
+          </div>
+          {draft.attachments.length === 0 ? (
+            <p className="scheduled-attachment-empty">No template attachments.</p>
+          ) : (
+            <ul className="scheduled-attachment-list">
+              {draft.attachments.map((attachment) => (
+                <li key={attachment.id}>
+                  <span><strong>{attachment.fileName}</strong><small>{formatFileSize(attachment.fileSize)}</small></span>
+                  <button
+                    type="button"
+                    onClick={() => setDraft({ ...draft, attachments: draft.attachments.filter(({ id }) => id !== attachment.id) })}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <div className="scheduled-editor-actions">
           <button className="button button-secondary" type="button" onClick={onCancel}>
             Cancel
@@ -661,6 +867,88 @@ function ScheduledForm({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function InstalmentsEditor({
+  instalments,
+  defaultOutflow,
+  defaultInflow,
+  onChange,
+}: {
+  instalments: ScheduledInstalment[];
+  defaultOutflow: number;
+  defaultInflow: number;
+  onChange: (instalments: ScheduledInstalment[]) => void;
+}) {
+  const displayInstalments = instalments.length > 0
+    ? instalments
+    : [{ date: "", outflow: defaultOutflow, inflow: defaultInflow }];
+
+  return (
+    <div className="scheduled-specific-dates" aria-label="Instalment dates and amounts">
+      <div className="scheduled-specific-dates-heading">
+        <div>
+          <strong>Instalments</strong>
+          <small>Set the exact date and amount for each payment. Dates are sorted automatically.</small>
+        </div>
+        <span>{normaliseSpecificInstalments(instalments, [], 0, 0).length} selected</span>
+      </div>
+      {displayInstalments.map((instalment, index) => (
+        <div className="scheduled-specific-date-row" key={`${instalment.date}-${index}`}>
+          <span className="scheduled-specific-date-number">{index + 1}</span>
+          <input
+            type="date"
+            aria-label={`Specific occurrence ${index + 1}`}
+            value={instalment.date}
+            onChange={(event) => {
+              const next = [...displayInstalments];
+              next[index] = { ...instalment, date: event.target.value };
+              onChange(next);
+            }}
+          />
+          <label className="scheduled-instalment-amount">
+            <span aria-hidden="true">$</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              aria-label={`Instalment ${index + 1} amount`}
+              value={(instalment.inflow > 0 ? instalment.inflow : instalment.outflow) || ""}
+              onChange={(event) => {
+                const amount = Math.max(0, Number.parseFloat(event.target.value) || 0);
+                const next = [...displayInstalments];
+                next[index] = instalment.inflow > 0
+                  ? { ...instalment, inflow: amount, outflow: 0 }
+                  : { ...instalment, outflow: amount, inflow: 0 };
+                onChange(next);
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            className="scheduled-specific-date-remove"
+            onClick={() => onChange(displayInstalments.filter((_, candidateIndex) => candidateIndex !== index))}
+            aria-label={`Remove occurrence ${index + 1}`}
+          >
+            Remove
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="button button-secondary scheduled-specific-date-add"
+        onClick={() => onChange([...instalments, {
+          date: "",
+          outflow: defaultInflow > 0 ? 0 : defaultOutflow,
+          inflow: defaultInflow,
+        }])}
+      >
+        + Add another instalment
+      </button>
+      <small className="muted">The schedule completes automatically after the final date.</small>
     </div>
   );
 }
@@ -892,22 +1180,38 @@ function ScheduledSplitDetails({
 }
 
 function formatScheduledTransactionRecurrence(transaction: ScheduledTransactionView): string {
+  if (transaction.recurrenceKind === "specific-dates") {
+    const remaining = Math.max(0, (transaction.specificDates?.length ?? 0) - (transaction.specificDateIndex ?? 0));
+    return `Specific dates · ${remaining} remaining`;
+  }
   if (transaction.frequency === "once") return "Once";
   const recurrence = resolveRecurrence(transaction);
   const unit = recurrence.unit.charAt(0).toUpperCase() + recurrence.unit.slice(1);
-  return `Every ${recurrence.interval} ${unit}${recurrence.interval === 1 ? "" : "s"}`;
+  const monthPosition =
+    (recurrence.unit === "month" || recurrence.unit === "year") &&
+    transaction.monthDayPolicy === "last-day-of-month"
+      ? " · Last day of month"
+      : "";
+  return `Every ${recurrence.interval} ${unit}${recurrence.interval === 1 ? "" : "s"}${monthPosition}`;
 }
 
 function createEmptyDraft(): ScheduledFormDraft {
   return {
     tagIds: [],
-    nextDueDate: new Date().toISOString().slice(0, 10),
+    nextDueDate: localCalendarDate(),
     frequency: "monthly",
     frequencyChoice: "monthly",
     isRecurring: true,
+    recurrenceKind: "rule",
+    specificDates: [],
+    specificDateIndex: 0,
+    specificInstalments: [],
+    attachments: [],
     recurrenceInterval: 1,
     recurrenceUnit: "month",
-    recurrenceAnchorDate: new Date().toISOString().slice(0, 10),
+    recurrenceAnchorDate: localCalendarDate(),
+    recurrenceAnchorDay: Number.parseInt(localCalendarDate().slice(8, 10), 10),
+    monthDayPolicy: "same-day-number",
     endCondition: "never",
     endDate: "",
     occurrenceCount: 12,
@@ -930,15 +1234,28 @@ function draftFromScheduled(transaction: ScheduledTransactionView): ScheduledFor
     tagIds: [...(transaction.tagIds ?? [])],
     nextDueDate: transaction.nextDueDate,
     frequency: transaction.frequency,
-    frequencyChoice: resolveFrequencyChoice(
+    frequencyChoice: transaction.recurrenceKind === "specific-dates" ? "specific-dates" : resolveFrequencyChoice(
       transaction.frequency !== "once",
       resolveRecurrence(transaction).interval,
       resolveRecurrence(transaction).unit,
     ),
     isRecurring: transaction.frequency !== "once",
+    recurrenceKind: transaction.recurrenceKind === "specific-dates" ? "specific-dates" : "rule",
+    specificDates: [...(transaction.specificDates ?? [])],
+    specificDateIndex: transaction.specificDateIndex ?? 0,
+    specificInstalments: normaliseSpecificInstalments(
+      transaction.specificInstalments,
+      transaction.specificDates,
+      transaction.outflow,
+      transaction.inflow,
+    ),
+    attachments: (transaction.attachments ?? []).map((attachment) => ({ ...attachment })),
     recurrenceInterval: resolveRecurrence(transaction).interval,
     recurrenceUnit: resolveRecurrence(transaction).unit,
     recurrenceAnchorDate: transaction.recurrenceAnchorDate ?? transaction.nextDueDate,
+    recurrenceAnchorDay: transaction.recurrenceAnchorDay ??
+      Number.parseInt((transaction.recurrenceAnchorDate ?? transaction.nextDueDate).slice(8, 10), 10),
+    monthDayPolicy: transaction.monthDayPolicy ?? "same-day-number",
     endCondition: transaction.endCondition ?? "never",
     endDate: transaction.endDate ?? "",
     occurrenceCount: transaction.occurrenceCount ?? 12,
@@ -959,15 +1276,20 @@ function isDueOrUpcoming(nextDueDate: string): boolean {
   const today = new Date();
   const horizon = new Date(today);
   horizon.setDate(horizon.getDate() + 30);
-  return nextDueDate <= horizon.toISOString().slice(0, 10);
+  return nextDueDate <= localCalendarDate(horizon);
 }
 
 function countDue(transactions: ScheduledTransactionView[]): number {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localCalendarDate();
   return transactions.filter((transaction) => transaction.nextDueDate <= today).length;
 }
 
 function getUpcomingOccurrenceDates(draft: ScheduledFormDraft, count: number): string[] {
+  if (draft.recurrenceKind === "specific-dates") {
+    return normaliseDraftSpecificDates(draft.specificDates)
+      .slice(draft.specificDateIndex, draft.specificDateIndex + count)
+      .map((date) => applyWeekendPolicy(date, draft.weekendPolicy));
+  }
   if (!draft.recurrenceAnchorDate) return [];
 
   const dates: string[] = [];
@@ -982,16 +1304,33 @@ function getUpcomingOccurrenceDates(draft: ScheduledFormDraft, count: number): s
     if (draft.endCondition === "on-date" && draft.endDate && occurrence.anchorDate > draft.endDate) break;
     dates.push(occurrence.dueDate);
     if (!draft.isRecurring) break;
-    anchor = advanceDateByRule(occurrence.anchorDate, draft.recurrenceInterval, draft.recurrenceUnit);
+    anchor = advanceDateByRule(
+      occurrence.anchorDate,
+      draft.recurrenceInterval,
+      draft.recurrenceUnit,
+      {
+        anchorDay: draft.recurrenceAnchorDay,
+        monthDayPolicy: draft.monthDayPolicy,
+      },
+    );
   }
 
   return dates;
 }
 
 function formatRecurrenceLabel(draft: ScheduledFormDraft): string {
+  if (draft.recurrenceKind === "specific-dates") {
+    const count = normaliseDraftSpecificDates(draft.specificDates).length;
+    return `Specific dates · ${count} ${count === 1 ? "occurrence" : "occurrences"}`;
+  }
   if (!draft.isRecurring) return "Once";
   const unit = draft.recurrenceUnit.charAt(0).toUpperCase() + draft.recurrenceUnit.slice(1);
-  return `Every ${draft.recurrenceInterval} ${unit}${draft.recurrenceInterval === 1 ? "" : "s"}`;
+  const monthPosition =
+    (draft.recurrenceUnit === "month" || draft.recurrenceUnit === "year") &&
+    draft.monthDayPolicy === "last-day-of-month"
+      ? " · Last day of month"
+      : "";
+  return `Every ${draft.recurrenceInterval} ${unit}${draft.recurrenceInterval === 1 ? "" : "s"}${monthPosition}`;
 }
 
 function resolveFrequencyChoice(
@@ -1012,7 +1351,7 @@ function resolveFrequencyChoice(
 
 function createScheduledSplitLine(): RegisterSplitLineView {
   return {
-    id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `scheduled-split-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    id: `scheduled-split-${createRuntimeUuid()}`,
     category: "",
     memo: "",
     outflow: 0,
@@ -1040,4 +1379,23 @@ function formatAmount(value: number): string {
     style: "currency",
     currency: "AUD",
   }).format(value);
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function encodeAttachment(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function normaliseDraftSpecificDates(dates: readonly string[]): string[] {
+  return Array.from(new Set(dates.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)))).sort();
 }

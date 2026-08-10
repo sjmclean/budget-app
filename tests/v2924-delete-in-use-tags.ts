@@ -1,3 +1,4 @@
+import { readSeededTransactionRegisters, seedTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
 import assert from "node:assert/strict";
 import {
   countTransactionTagReferences,
@@ -5,7 +6,6 @@ import {
 } from "../apps/web/src/features/accounts/accountRegisterService";
 import { createTransactionTagService } from "../apps/web/src/features/tags/transactionTagService";
 import {
-  TRANSACTION_TAGS_STORAGE_KEY,
   writeTransactionTags,
 } from "../apps/web/src/features/tags/transactionTagPersistence";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort";
@@ -37,9 +37,7 @@ const tag = {
 };
 
 writeTransactionTags(storage, [tag]);
-storage.setItem(
-  "budget-app.account-registers.v1",
-  JSON.stringify({
+seedTransactionRegisters(storage, {
     checking: {
       accountId: "checking",
       accountName: "Checking",
@@ -63,8 +61,7 @@ storage.setItem(
       workingBalance: 0,
       transactions: [{ id: "tx-3", tagIds: ["tag-other"] }],
     },
-  }),
-);
+  });
 
 const service = createTransactionTagService({
   storage,
@@ -75,14 +72,14 @@ const service = createTransactionTagService({
 
 assert.equal(service.getUsage(tag.id).transactionCount, 2);
 service.deleteTag(tag.id);
-assert.equal(storage.getItem(TRANSACTION_TAGS_STORAGE_KEY), "[]");
+assert.deepEqual(service.listTags({ includeArchived: true }), []);
+assert.equal(storage.getItem("budget-app.transaction-tags.v1"), null);
 assert.equal(countTransactionTagReferences(storage, tag.id), 0);
 
-const registers = JSON.parse(
-  storage.getItem("budget-app.account-registers.v1") ?? "{}",
-);
-assert.deepEqual(registers.checking.transactions[0].tagIds, ["tag-other"]);
-assert.deepEqual(registers.checking.transactions[1].tagIds, []);
+const registers = readSeededTransactionRegisters(storage);
+const checkingById = new Map(registers.checking.transactions.map((transaction) => [transaction.id, transaction]));
+assert.deepEqual(checkingById.get("tx-1")?.tagIds, ["tag-other"]);
+assert.deepEqual(checkingById.get("tx-2")?.tagIds, []);
 assert.deepEqual(registers.savings.transactions[0].tagIds, ["tag-other"]);
 
 console.log("v2.92.4 in-use tag deletion checks passed");

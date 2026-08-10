@@ -1,3 +1,5 @@
+import { createFixedBudgetScopedStorage } from "../apps/web/src/features/budget/budgetDataScope.ts";
+import { createScheduledTransactionEntityRepository, projectScheduledTransaction } from "../apps/web/src/features/accounts/entities/scheduledTransactionEntity.js";
 import assert from "node:assert/strict";
 import { createYnab4LauncherBudgetImport } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
 import type { ScheduledTransactionView } from "../apps/web/src/features/accounts/scheduledTransactionService.ts";
@@ -154,9 +156,9 @@ function importScheduledTransactions(): ScheduledTransactionView[] {
     entries,
     now: new Date("2026-06-24T05:00:00.000Z"),
   });
-  const raw = storage.getItem(`budget-app.budgets.${result.budget.id}.budget-app.scheduled-transactions.v1`);
-  assert.ok(raw);
-  return JSON.parse(raw) as ScheduledTransactionView[];
+  return createScheduledTransactionEntityRepository(
+    createFixedBudgetScopedStorage(storage, result.budget.id),
+  ).list().map(projectScheduledTransaction);
 }
 
 function byId(transactions: ScheduledTransactionView[], id: string): ScheduledTransactionView {

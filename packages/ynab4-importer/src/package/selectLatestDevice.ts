@@ -6,7 +6,7 @@ export function selectLatestCompleteDeviceGuid(
   const devices = entries.flatMap((entry) => {
     if (!entry.path.includes("/devices/")) return [];
     try {
-      const metadata = JSON.parse(entry.text) as Record<string, unknown>;
+      const metadata = JSON.parse(entry.text ?? "") as Record<string, unknown>;
       if (metadata.hasFullKnowledge !== true) return [];
       const deviceGuid = firstNonEmptyString(metadata.deviceGUID);
       const knowledge = firstNonEmptyString(metadata.knowledge);

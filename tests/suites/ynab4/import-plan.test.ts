@@ -7,7 +7,12 @@ import {
   writeYnab4LauncherImportPlan,
 } from "../../../apps/web/src/features/budget/ynab4LauncherImport.js";
 import type { BudgetSummary } from "../../../apps/web/src/features/budget/budgetRegistry.js";
+import {
+  SCHEDULED_TRANSACTION_ENTITY_INDEX_KEY,
+  SCHEDULED_TRANSACTION_ENTITY_RECORD_PREFIX,
+} from "../../../apps/web/src/features/accounts/entities/scheduledTransactionEntity.js";
 import type { KeyValueStoragePort } from "../../../apps/web/src/features/persistence/keyValueStoragePort.js";
+import { readBudgetMonthEntity } from "../../../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 
 function createBudget(): BudgetSummary {
   return {
@@ -86,17 +91,71 @@ test("writes only the supplied import plan to budget-scoped storage", () => {
 
   writeYnab4LauncherImportPlan(storage, plan);
 
-  assert.ok(
+  assert.equal(
     storage.values.has(
       "budget-app.budgets.budget-import-plan-test.budget-app.accounts.v1",
     ),
+    false,
+    "The removed aggregate account document must not be written.",
   );
-  assert.ok(
+  assert.ok(readBudgetMonthEntity(storage, plan.budgetId, "2026-07"));
+  assert.deepEqual(
+    [...storage.values.keys()].sort(),
+    [
+      "budget-app.entity-replication.v1/budget-month-index",
+      "budget-app.entity-replication.v1/budget-month/budget-import-plan-test%3A2026-07",
+    ].sort(),
+    "An empty scheduled-transaction collection must only create the budget-month entity records.",
+  );
+});
+
+test("writes scheduled transactions as replicated entities", () => {
+  const storage = createMemoryStorage();
+  const plan = buildYnab4LauncherImportPlan(
+    createBudget(),
+    {
+      accounts: [
+        {
+          entityId: "source-checking",
+          accountName: "Checking",
+          onBudget: true,
+        },
+      ],
+      masterCategories: [],
+      payees: [],
+      transactions: [],
+      scheduledTransactions: [
+        {
+          entityId: "source-rent-schedule",
+          accountId: "source-checking",
+          nextDueDate: "2026-08-01",
+          amount: -1200,
+          memo: "Monthly rent",
+        },
+      ],
+      monthlyBudgets: [],
+    },
+    new Date("2026-07-20T00:00:00.000Z"),
+  );
+
+  writeYnab4LauncherImportPlan(storage, plan);
+
+  const scopedPrefix = "budget-app.budgets.budget-import-plan-test.";
+  const indexKey = `${scopedPrefix}${SCHEDULED_TRANSACTION_ENTITY_INDEX_KEY}`;
+  const entityKeys = [...storage.values.keys()].filter((key) =>
+    key.startsWith(`${scopedPrefix}${SCHEDULED_TRANSACTION_ENTITY_RECORD_PREFIX}`),
+  );
+
+  assert.equal(
     storage.values.has(
-      "budget-app.budget-view.v1.budget-import-plan-test.2026-07",
+      "budget-app.budgets.budget-import-plan-test.budget-app.scheduled-transactions.v1",
     ),
+    false,
+    "The removed scheduled-transaction aggregate must not be written.",
   );
-  assert.equal(storage.values.size, 6);
+  assert.ok(storage.values.has(indexKey));
+  assert.equal(entityKeys.length, 1);
+  assert.deepEqual(JSON.parse(storage.values.get(indexKey)!), [plan.scheduledTransactions[0]?.id]);
 });
 
 test("skips tombstoned accounts and payees", () => {

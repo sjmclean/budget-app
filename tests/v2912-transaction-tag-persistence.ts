@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  TRANSACTION_TAGS_STORAGE_KEY,
   readTransactionTags,
   writeTransactionTags,
 } from "../apps/web/src/features/tags/transactionTagPersistence";
-import { isBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort";
 import type { TransactionTagDefinition } from "../apps/web/src/features/tags/transactionTagTypes";
 
@@ -38,42 +36,15 @@ assert.deepEqual(loaded, [tag]);
 loaded[0].name = "Changed outside persistence";
 assert.equal(readTransactionTags(storage)[0].name, "Tax");
 
-storage.setItem(TRANSACTION_TAGS_STORAGE_KEY, "not-json");
-assert.deepEqual(readTransactionTags(storage), []);
-
-storage.setItem(
-  TRANSACTION_TAGS_STORAGE_KEY,
-  JSON.stringify([
-    {
-      id: " tag-review ",
-      name: " Needs Review ",
-      colour: "yellow",
-    },
-    {
-      id: "tag-review",
-      name: "Duplicate",
-      colour: "red",
-    },
-    {
-      id: "invalid-colour",
-      name: "Invalid",
-      colour: "pink",
-    },
-  ]),
+const entityKeys = storage.listKeys?.().filter((key) =>
+  key.startsWith("budget-app.entity-replication.v1/transaction-tag"),
+) ?? [];
+assert.ok(entityKeys.length >= 2, "tag persistence must use an entity index and record");
+assert.equal(
+  storage.getItem("budget-app.transaction-tags.v1"),
+  null,
+  "the legacy aggregate tag document must not be written",
 );
-assert.deepEqual(readTransactionTags(storage), [
-  {
-    id: "tag-review",
-    name: "Needs Review",
-    colour: "yellow",
-    autoTagImportedTransactions: false,
-    archived: false,
-    createdAt: "1970-01-01T00:00:00.000Z",
-    updatedAt: "1970-01-01T00:00:00.000Z",
-  },
-]);
-
-assert.equal(isBudgetScopedStorageKey(TRANSACTION_TAGS_STORAGE_KEY), true);
 
 const registerServiceSource = readFileSync(
   "apps/web/src/features/accounts/accountRegisterService.ts",

@@ -17,7 +17,7 @@ const icons = readFileSync(
   "utf8",
 );
 const persistence = readFileSync(
-  "apps/web/src/features/tags/transactionTagPersistence.ts",
+  "apps/web/src/features/tags/entities/transactionTagEntity.ts",
   "utf8",
 );
 const service = readFileSync(
@@ -68,7 +68,7 @@ assert(
   "Tag icons must have a reusable registry and renderer",
 );
 assert(
-  persistence.includes("isTransactionTagIcon(record.icon)"),
+  persistence.includes("isTransactionTagIcon(fields.icon)"),
   "Persisted icons must be validated and remain backward compatible",
 );
 assert(

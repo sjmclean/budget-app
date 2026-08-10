@@ -88,6 +88,7 @@ const candidates = [
 const expected = [
   {
     date: "2026-07-16",
+    rawPayee: "Example",
     payee: "Example",
     category: "Uncategorised",
     categoryId: undefined,
@@ -97,6 +98,7 @@ const expected = [
   },
   {
     date: "2026-07-16",
+    rawPayee: "Employer",
     payee: "Employer",
     category: "Ready to Assign",
     categoryId: "__ready_to_assign__",
@@ -106,6 +108,7 @@ const expected = [
   },
   {
     date: "2026-07-16",
+    rawPayee: "Internal transfer",
     payee: "Transfer: Savings",
     category: "Transfer",
     categoryId: undefined,

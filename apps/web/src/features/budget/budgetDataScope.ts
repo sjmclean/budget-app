@@ -6,19 +6,11 @@ export const SELECTED_BUDGET_STORAGE_KEY = "budget-app.selected-budget-id.v1";
 
 const BUDGET_SCOPED_EXACT_KEYS = new Set([
   "budget-app.accounts.v1",
-  "budget-app.account-registers.v1",
-  "budget-app.payees.v1",
-  "budget-app.scheduled-transactions.v1",
-  "budget-app.transaction-tags.v1",
-  "budget-app.account-import-knowledge.v1",
-  "budget-app.imported-file-fingerprints.v1",
-  "budget-app.imported-transaction-fingerprints.v1",
-  "budget-app.merchant-knowledge.v1",
 ]);
 
 const BUDGET_SCOPED_KEY_PREFIXES = [
   "budget-app.register.",
-  "budget-app.transaction-import-session.v1.",
+  "budget-app.entity-replication.v1/",
 ];
 
 export function isBudgetScopedStorageKey(key: string): boolean {
@@ -33,6 +25,26 @@ export function getActiveBudgetIdFromStorage(storage: KeyValueStoragePort): stri
   const budgets = readBudgetRegistry(storage);
   const selectedBudgetId = storage.getItem(SELECTED_BUDGET_STORAGE_KEY)?.trim() || null;
   return resolveActiveBudgetId(budgets, selectedBudgetId);
+}
+
+export function createFixedBudgetScopedStorage(storage: KeyValueStoragePort, budgetId: string): KeyValueStoragePort {
+  return {
+    getItem(key: string): string | null {
+      return isBudgetScopedStorageKey(key) ? storage.getItem(getBudgetScopedStorageKey(budgetId, key)) : storage.getItem(key);
+    },
+    setItem(key: string, value: string): void {
+      storage.setItem(isBudgetScopedStorageKey(key) ? getBudgetScopedStorageKey(budgetId, key) : key, value);
+    },
+    removeItem(key: string): void {
+      storage.removeItem(isBudgetScopedStorageKey(key) ? getBudgetScopedStorageKey(budgetId, key) : key);
+    },
+    listKeys(): string[] {
+      if (typeof storage.listKeys !== "function") return [];
+      const prefix = getBudgetScopedStorageKey(budgetId, "");
+      return storage.listKeys().flatMap((key) => key.startsWith(prefix) ? [key.slice(prefix.length)] : []);
+    },
+    flush: storage.flush ? () => storage.flush!() : undefined,
+  };
 }
 
 export function createBudgetScopedStorage(storage: KeyValueStoragePort): KeyValueStoragePort {
@@ -81,7 +93,14 @@ export function createBudgetScopedStorage(storage: KeyValueStoragePort): KeyValu
     },
 
     listKeys(): string[] {
-      return typeof storage.listKeys === "function" ? storage.listKeys() : [];
+      if (typeof storage.listKeys !== "function") return [];
+      const activeBudgetId = getActiveBudgetIdFromStorage(storage);
+      if (!activeBudgetId) return storage.listKeys();
+      const scopePrefix = `budget-app.budgets.${activeBudgetId}.`;
+      return storage.listKeys().flatMap((key) => {
+        if (key.startsWith(scopePrefix)) return [key.slice(scopePrefix.length)];
+        return isBudgetScopedStorageKey(key) ? [] : [key];
+      });
     },
   };
 }

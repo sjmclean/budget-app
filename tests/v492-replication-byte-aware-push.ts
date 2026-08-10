@@ -3,7 +3,10 @@ import {
   measureReplicationPushPayloadBytes,
   selectReplicationPushBatch,
 } from "../apps/web/src/features/persistence/replicationPushBatch";
-import { replicatePersistenceProvider } from "../apps/web/src/features/persistence/replicationEngine";
+import {
+  readLatestJournalOperationsForKeys,
+  replicatePersistenceProvider,
+} from "../apps/web/src/features/persistence/replicationEngine";
 import type { OperationJournalEntry } from "../apps/web/src/features/persistence/operationJournal";
 import type { ReplicationCursorState, ReplicationTransport } from "../apps/web/src/features/persistence/replication";
 import type { BudgetPersistenceProvider } from "../apps/web/src/features/persistence/budgetPersistenceProvider";
@@ -96,7 +99,7 @@ const provider = {
 
 const transport = {
   getGeneration: async () => ({
-    protocolVersion: 1 as const,
+    protocolVersion: 2 as const,
     generationId,
     latestCursor: 0,
     latestCheckpointId: null,
@@ -135,5 +138,30 @@ assert.equal(cursorState.pushedLocalSequence, 6);
 for (const batch of submittedBatches) {
   assert.ok(measureReplicationPushPayloadBytes(generationId, batch) <= 1_500_000);
 }
+
+const largeJournal = Array.from(
+  { length: 10_000 },
+  (_, index) => operation(index + 1, 16),
+);
+const relevantOperations = await readLatestJournalOperationsForKeys(
+  {
+    getJournalCursor: () => ({
+      deviceId: "device-test",
+      latestSequence: largeJournal.length,
+    }),
+    readJournal: async (afterSequence = 0, limit = 500) =>
+      largeJournal
+        .filter((entry) => entry.sequence > afterSequence)
+        .slice(0, limit),
+  },
+  0,
+  500,
+  new Set(["key-9999"]),
+);
+assert.deepEqual(
+  relevantOperations.map((entry) => entry.mutation.key),
+  ["key-9999"],
+  "conflict preparation must not retain unrelated imported transaction values",
+);
 
 console.log("v492 replication byte-aware push validation passed.");

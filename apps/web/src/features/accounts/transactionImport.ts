@@ -1,3 +1,11 @@
+import { createBudgetScopedStorage } from "../budget/budgetDataScope";
+import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
+import {
+  readTransactionImportProfileEntities,
+  readTransactionPayeeAliasEntities,
+  replaceTransactionImportProfileEntities,
+  replaceTransactionPayeeAliasEntities,
+} from "./entities/importPreferenceEntity";
 import type { RegisterTransactionView } from "./accountRegisterTypes";
 import { buildRegisterTransactionsFromImport } from "./transactionImportCommit";
 import { parseTransactionOfx } from "./transactionImportParser";
@@ -1116,20 +1124,10 @@ export function suggestTransactionPayeeAliases({
 }
 
 export function readTransactionPayeeAliases(): TransactionPayeeAlias[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
   try {
-    const raw = window.localStorage.getItem(
-      TRANSACTION_PAYEE_ALIASES_STORAGE_KEY,
+    return readTransactionPayeeAliasEntities(
+      createBudgetScopedStorage(getActiveKeyValueStorage()),
     );
-    if (!raw) {
-      return [];
-    }
-
-    const parsed = JSON.parse(raw) as TransactionPayeeAlias[];
-    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -1138,31 +1136,21 @@ export function readTransactionPayeeAliases(): TransactionPayeeAlias[] {
 export function writeTransactionPayeeAliases(
   aliases: TransactionPayeeAlias[],
 ): void {
-  if (typeof window === "undefined") {
-    return;
+  try {
+    replaceTransactionPayeeAliasEntities(
+      createBudgetScopedStorage(getActiveKeyValueStorage()),
+      aliases,
+    );
+  } catch {
+    // Importing must remain usable when persistence is unavailable.
   }
-
-  window.localStorage.setItem(
-    TRANSACTION_PAYEE_ALIASES_STORAGE_KEY,
-    JSON.stringify(aliases),
-  );
 }
 
 export function readTransactionImportProfiles(): TransactionImportProfile[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
   try {
-    const raw = window.localStorage.getItem(
-      TRANSACTION_IMPORT_PROFILES_STORAGE_KEY,
+    return readTransactionImportProfileEntities(
+      createBudgetScopedStorage(getActiveKeyValueStorage()),
     );
-    if (!raw) {
-      return [];
-    }
-
-    const parsed = JSON.parse(raw) as TransactionImportProfile[];
-    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -1171,12 +1159,12 @@ export function readTransactionImportProfiles(): TransactionImportProfile[] {
 export function writeTransactionImportProfiles(
   profiles: TransactionImportProfile[],
 ): void {
-  if (typeof window === "undefined") {
-    return;
+  try {
+    replaceTransactionImportProfileEntities(
+      createBudgetScopedStorage(getActiveKeyValueStorage()),
+      profiles,
+    );
+  } catch {
+    // Importing must remain usable when persistence is unavailable.
   }
-
-  window.localStorage.setItem(
-    TRANSACTION_IMPORT_PROFILES_STORAGE_KEY,
-    JSON.stringify(profiles),
-  );
 }

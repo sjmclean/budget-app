@@ -1,3 +1,6 @@
+import { replaceAccountEntities } from "../apps/web/src/features/accounts/entities/accountEntity.js";
+import { createFixedBudgetScopedStorage } from "../apps/web/src/features/budget/budgetDataScope.js";
+import { writeBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 import assert from "node:assert/strict";
 import {
   auditYnab4LauncherImportAccuracy,
@@ -47,7 +50,7 @@ function entries(): Ynab4PackageEntry[] {
           month: "2025-04",
           monthlySubCategoryBudgets: [{
             categoryId: "category-1",
-            budgeted: 3642980,
+            budgeted: 3642.98,
             activity: 0,
             balance: 0,
           }],
@@ -58,16 +61,22 @@ function entries(): Ynab4PackageEntry[] {
 }
 
 const storage = new MemoryStorage();
-storage.setItem("budget-app.budgets.my-budget.budget-app.accounts.v1", JSON.stringify([
-  { id: "account-1", name: "Cheque" },
-]));
-storage.setItem("budget-app.budgets.my-budget.budget-app.account-registers.v1", JSON.stringify({}));
-storage.setItem("budget-app.budgets.my-budget.budget-app.scheduled-transactions.v1", JSON.stringify([]));
-storage.setItem("budget-app.budget-view.v1.my-budget.2025-04", JSON.stringify({
+replaceAccountEntities(createFixedBudgetScopedStorage(storage, "my-budget"), [{
+  id: "account-1",
+  name: "Cheque",
+  type: "on-budget",
+  startingBalance: 0,
+  createdAt: "2025-04-01T00:00:00.000Z",
+  closedAt: null,
+}], new Date("2025-04-01T00:00:00.000Z"));
+writeBudgetMonthEntity(storage, "my-budget", "2025-04", {
+  budgetId: "my-budget",
+  month: "2025-04",
+  categoryGroups: [{ id: "group-1", name: "Everyday", previousAvailable: 0, assigned: 3642.97, activity: 0, available: 3642.97, note: "", categories: [{ id: "category-1", name: "Groceries", previousAvailable: 0, assigned: 3642.97, activity: 0, available: 3642.97, note: "", isArchived: false }] }],
   totalAssigned: 3642.97,
   totalActivity: 0,
   totalAvailable: 3642.97,
-}));
+});
 
 const audit = auditYnab4LauncherImportAccuracy(storage, {
   budgetId: "my-budget",

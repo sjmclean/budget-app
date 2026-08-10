@@ -1,7 +1,11 @@
+import { readSeededTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
 import { createActualBudgetLauncherImport, readActualBudgetLauncherImportRecord } from "../apps/web/src/features/budget/actualBudgetLauncherImport.js";
-import { getBudgetScopedStorageKey, SELECTED_BUDGET_STORAGE_KEY } from "../apps/web/src/features/budget/budgetDataScope.js";
+import { createFixedBudgetScopedStorage, SELECTED_BUDGET_STORAGE_KEY } from "../apps/web/src/features/budget/budgetDataScope.js";
+import { readAccounts } from "../apps/web/src/features/accounts/accountService.js";
+import { readPayees } from "../apps/web/src/features/accounts/payeeService.js";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.js";
 import type { FullBudgetImportPreview } from "../packages/types/src/index.js";
+import { readBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 
 class MemoryStorage implements KeyValueStoragePort {
   private readonly values = new Map<string, string>();
@@ -100,13 +104,13 @@ const result = createActualBudgetLauncherImport(storage, {
 if (result.budget.name !== "Actual Household Imported") throw new Error("Expected imported Actual budget name");
 if (storage.getItem(SELECTED_BUDGET_STORAGE_KEY) !== result.budget.id) throw new Error("Expected imported budget to be selected");
 
-const accounts = JSON.parse(storage.getItem(getBudgetScopedStorageKey(result.budget.id, "budget-app.accounts.v1")) ?? "[]") as Array<{ name: string }>;
+const accounts = readAccounts(createFixedBudgetScopedStorage(storage, result.budget.id));
 if (accounts.length < 2 || !accounts.some((account) => account.name === "Cheque") || !accounts.some((account) => account.name === "Savings")) throw new Error("Expected Actual accounts to be persisted");
 
-const payees = JSON.parse(storage.getItem(getBudgetScopedStorageKey(result.budget.id, "budget-app.payees.v1")) ?? "[]") as Array<{ name: string }>;
+const payees = readPayees(createFixedBudgetScopedStorage(storage, result.budget.id));
 if (payees.length !== 1 || payees[0]?.name !== "Woolworths") throw new Error("Expected non-transfer Actual payees to be persisted");
 
-const registers = JSON.parse(storage.getItem(getBudgetScopedStorageKey(result.budget.id, "budget-app.account-registers.v1")) ?? "{}") as Record<string, { transactions: Array<{ payee: string; outflow: number; inflow: number; category: string; categoryId?: string; transferAccountId?: string; id?: string; splitLines?: Array<{ inflow: number; outflow: number }> }> }>;
+const registers = readSeededTransactionRegisters(createFixedBudgetScopedStorage(storage, result.budget.id));
 const chequeRegister = Object.values(registers).find((register) => register.transactions.some((transaction) => transaction.payee === "Woolworths"));
 if (!chequeRegister) throw new Error("Expected imported transactions in an account register");
 if (!chequeRegister.transactions.some((transaction) => transaction.payee === "Woolworths" && transaction.outflow === 12.34 && transaction.category === "Groceries")) throw new Error("Expected Actual expense transaction to be converted from minor units");
@@ -117,16 +121,14 @@ if (!importedSplit?.splitLines || importedSplit.splitLines.length !== 2) throw n
 if (importedSplit.category !== "Split") throw new Error("Expected Actual split parent category to display as Split");
 if (importedSplit.splitLines.reduce((sum, line) => sum + line.inflow - line.outflow, 0) !== -30) throw new Error("Expected Actual split line amounts to be converted from minor units");
 
-const budgetViewKey = `budget-app.budget-view.v1.${result.budget.id}.2026-06`;
-const budgetView = JSON.parse(storage.getItem(budgetViewKey) ?? "null") as { categoryGroups?: Array<{ name: string; categories: Array<{ name: string; activity: number }> }> } | null;
+const budgetView = readBudgetMonthEntity(storage, result.budget.id, "2026-06") as { categoryGroups?: Array<{ name: string; categories: Array<{ name: string; assigned: number; activity: number; available: number }> }> } | null;
 if (!budgetView?.categoryGroups?.length) throw new Error("Expected Actual import to persist Budget screen category groups");
 const groceries = budgetView.categoryGroups.flatMap((group) => group.categories).find((category) => category.name === "Groceries");
 if (!groceries) throw new Error("Expected Actual import to persist Budget screen categories");
 if (groceries.assigned !== 100) throw new Error("Expected Actual import to seed Budget screen assigned amounts from budget month data");
 if (groceries.activity !== -67.34) throw new Error("Expected Actual import to seed Budget screen category activity including split lines and categorized transfers");
 if (groceries.available !== 32.66) throw new Error("Expected Actual import to calculate Budget screen available from assigned and activity");
-const currentBudgetViewKey = `budget-app.budget-view.v1.${result.budget.id}.2026-07`;
-const currentBudgetView = JSON.parse(storage.getItem(currentBudgetViewKey) ?? "null") as { categoryGroups?: Array<{ categories: Array<{ name: string; available: number }> }> } | null;
+const currentBudgetView = readBudgetMonthEntity(storage, result.budget.id, "2026-07") as { categoryGroups?: Array<{ categories: Array<{ name: string; assigned: number; available: number }> }> } | null;
 const currentCategories = currentBudgetView?.categoryGroups?.flatMap((group) => group.categories) ?? [];
 const currentGroceries = currentCategories.find((category) => category.name === "Groceries");
 if (!currentGroceries) throw new Error("Expected Actual import to seed the current Budget screen month with imported categories");
@@ -142,8 +144,8 @@ const importedCategoryNames = currentCategories.map((category) => category.name)
 if (importedCategoryNames.includes("Income")) throw new Error("Expected Actual income categories not to appear as Budget screen categories");
 if (importedCategoryNames.includes("Fortnight Two (2)/Mortgage")) throw new Error("Expected Actual Hidden Categories bucket not to appear on the Budget screen");
 
-const scopedBudgetView = storage.getItem(getBudgetScopedStorageKey(result.budget.id, budgetViewKey));
-if (!scopedBudgetView) throw new Error("Expected Actual import to persist scoped Budget screen view for compatibility");
+const legacyBudgetView = storage.getItem(`budget-app.budget-view.v1.${result.budget.id}.2026-06`);
+if (legacyBudgetView !== null) throw new Error("Expected Actual import not to write the retired aggregate Budget screen key");
 
 const record = readActualBudgetLauncherImportRecord(storage, result.budget.id);
 if (!record) throw new Error("Expected Actual import report record");

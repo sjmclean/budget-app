@@ -7,6 +7,7 @@ import {
   discoverYnab4Package,
   type Ynab4PackageEntry,
 } from "../packages/ynab4-importer/src/analyzeYnab4Package.ts";
+import { readBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 
 function createMemoryStorage(): KeyValueStoragePort {
   const values = new Map<string, string>();
@@ -93,7 +94,7 @@ function importBudgetView(): BudgetMonthView {
     entries,
     now: new Date("2026-06-29T00:00:00.000Z"),
   });
-  const raw = storage.getItem(`budget-app.budget-view.v1.${result.budget.id}.2026-06`);
+  const raw = (() => { const view = readBudgetMonthEntity(storage, result.budget.id, "2026-06"); return view ? JSON.stringify(view) : null; })();
   assert.ok(raw);
   return JSON.parse(raw) as BudgetMonthView;
 }

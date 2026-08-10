@@ -1,9 +1,10 @@
+import { readSeededTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
 import assert from "node:assert/strict";
 import {
   createYnab4LauncherBudgetImport,
 } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
-import { getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope.ts";
-import { TRANSACTION_TAGS_STORAGE_KEY } from "../apps/web/src/features/tags/transactionTagPersistence.ts";
+import { createFixedBudgetScopedStorage } from "../apps/web/src/features/budget/budgetDataScope.ts";
+import { readTransactionTags } from "../apps/web/src/features/tags/transactionTagPersistence.ts";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
 import {
   createYnab4PackageMigrationPreview,
@@ -54,11 +55,8 @@ const result = createYnab4LauncherBudgetImport(storage, {
   now: new Date("2026-07-13T00:00:00.000Z"),
 });
 
-const tags = JSON.parse(
-  storage.getItem(
-    getBudgetScopedStorageKey(result.budget.id, TRANSACTION_TAGS_STORAGE_KEY),
-  ) ?? "[]",
-);
+const scopedStorage = createFixedBudgetScopedStorage(storage, result.budget.id);
+const tags = readTransactionTags(scopedStorage);
 assert.deepEqual(
   tags.map((tag: { id: string }) => tag.id),
   ["ynab4-imported-flag-red", "ynab4-imported-flag-blue"],
@@ -68,17 +66,13 @@ assert.equal(tags[0].name, "Red flag");
 assert.equal(tags[0].colour, "red");
 assert.equal(tags[0].autoTagImportedTransactions, false);
 
-const registers = JSON.parse(
-  storage.getItem(
-    getBudgetScopedStorageKey(result.budget.id, "budget-app.account-registers.v1"),
-  ) ?? "{}",
-);
+const registers = readSeededTransactionRegisters(scopedStorage);
 const transactions = registers.checking.transactions;
 const byId = new Map(transactions.map((transaction: any) => [transaction.id, transaction]));
 assert.deepEqual(byId.get("red-1")?.tagIds, ["ynab4-imported-flag-red"]);
 assert.deepEqual(byId.get("red-2")?.tagIds, ["ynab4-imported-flag-red"]);
 assert.deepEqual(byId.get("blue-1")?.tagIds, ["ynab4-imported-flag-blue"]);
-assert.equal(byId.get("unknown")?.tagIds, undefined);
+assert.deepEqual(byId.get("unknown")?.tagIds, []);
 assert.equal(
   "flag" in (byId.get("red-1") ?? {}),
   false,

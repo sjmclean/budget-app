@@ -2,7 +2,7 @@ import type { PersistenceCheckpoint } from "./checkpoint";
 import type { OperationJournalEntry } from "./operationJournal";
 import type { ConflictResolutionPort } from "./conflictResolution";
 
-export const REPLICATION_PROTOCOL_VERSION = 1 as const;
+export const REPLICATION_PROTOCOL_VERSION = 2 as const;
 
 export interface ReplicationCursorState {
   readonly generationId: string | null;
@@ -36,14 +36,14 @@ export interface ReplicationApplyContext {
 }
 
 export interface ReplicationLocalStorePort extends ConflictResolutionPort {
-  getReplicationCursorState(): Promise<ReplicationCursorState>;
-  setReplicationCursorState(state: ReplicationCursorState): Promise<void>;
+  getReplicationCursorState(scope?: string): Promise<ReplicationCursorState>;
+  setReplicationCursorState(state: ReplicationCursorState, scope?: string): Promise<void>;
   applyRemoteOperations(
     operations: readonly RemoteOperationEnvelope[],
     context?: ReplicationApplyContext,
   ): Promise<number>;
-  getReplicationDiagnostics(): Promise<ReplicationDiagnostics>;
-  pruneJournal(throughSequence: number): Promise<number>;
+  getReplicationDiagnostics(scope?: string): Promise<ReplicationDiagnostics>;
+  pruneJournal(throughSequence: number, scope?: string): Promise<number>;
 }
 
 export interface ReplicationRemoteGeneration {
@@ -51,6 +51,8 @@ export interface ReplicationRemoteGeneration {
   readonly generationId: string;
   readonly latestCursor: number;
   readonly latestCheckpointId: string | null;
+  readonly latestCheckpointIntegrityHash?: string | null;
+  readonly latestCheckpointRemoteCursor?: number | null;
 }
 
 export interface ReplicationPushResult {
@@ -98,6 +100,8 @@ export interface ReplicationTransport {
 export interface ReplicationCheckpointUploadResult {
   readonly checkpointId: string;
   readonly acknowledgedThroughSequence: number;
+  readonly integrityHash?: string;
+  readonly replicatedThroughCursor?: number;
 }
 
 export interface ReplicationRunResult {
@@ -111,4 +115,6 @@ export interface ReplicationRunResult {
   readonly downloadedBlobCount: number;
   readonly prunedJournalEntryCount: number;
   readonly detectedConflictCount: number;
+  readonly integrityVerified: boolean;
+  readonly integrityRepairPerformed: boolean;
 }

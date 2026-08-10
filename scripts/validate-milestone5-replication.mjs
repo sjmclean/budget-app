@@ -20,7 +20,7 @@ const required = {
     "replication_generations",
     "replication_operations",
     "replication_checkpoints",
-    "UNIQUE(generation_id, operation_id)",
+    "UNIQUE(budget_id, generation_id, operation_id)",
   ],
   "apps/server/src/server.mjs": [
     "/api/replication/generation",

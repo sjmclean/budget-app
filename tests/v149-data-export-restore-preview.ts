@@ -22,6 +22,7 @@ import {
   SELECTED_BUDGET_STORAGE_KEY,
 } from "../apps/web/src/features/budget/budgetDataScope";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort";
+import { syncCategoryEntities } from "../apps/web/src/features/budget/categoryEntities";
 
 class MemoryStorage implements KeyValueStoragePort {
   private values = new Map<string, string>();
@@ -126,6 +127,37 @@ await services.scheduled.create({
   inflow: 0,
 });
 rootStorage.setItem(`budget-app.budget-view.v1.${sideBudget.id}.2026-06`, JSON.stringify({ marker: "side month" }));
+syncCategoryEntities(createBudgetScopedStorage(rootStorage), {
+  budgetId: sideBudget.id,
+  budgetName: "Side Business",
+  monthLabel: "June 2026",
+  currencyCode: "AUD",
+  readyToAssign: 0,
+  totalAssigned: 30,
+  totalActivity: 0,
+  totalAvailable: 30,
+  categoryGroups: [{
+    id: "business-costs",
+    name: "Business Costs",
+    note: "",
+    previousAvailable: 0,
+    assigned: 30,
+    activity: 0,
+    available: 30,
+    categories: [{
+      id: "software",
+      name: "Software",
+      previousAvailable: 0,
+      assigned: 30,
+      activity: 0,
+      available: 30,
+      isOverspent: false,
+      isArchived: false,
+      overspendingHandling: "reduce-next-month",
+      note: "",
+    }],
+  }],
+}, new Date("2026-06-22T01:30:00.000Z"));
 
 const exportPackage = createBudgetDataExportPackage(
   rootStorage,
@@ -141,7 +173,9 @@ assert.equal(exportPackage.counts.accountRegisters, 1);
 assert.equal(exportPackage.counts.transactions, 2, "opening balance plus entered transaction should be counted");
 assert.equal(exportPackage.counts.scheduledTransactions, 1);
 assert.equal(exportPackage.counts.budgetMonths, 1);
-assert.ok(exportPackage.records.some((record) => record.key === getBudgetScopedStorageKey(sideBudget.id, "budget-app.accounts.v1")));
+assert.ok(exportPackage.records.some((record) => record.key === getBudgetScopedStorageKey(sideBudget.id, "budget-app.entity-replication.v1/account-index")));
+assert.ok(exportPackage.records.some((record) => record.key === getBudgetScopedStorageKey(sideBudget.id, "budget-app.entity-replication.v1/category-group-index")));
+assert.ok(exportPackage.records.some((record) => record.key === getBudgetScopedStorageKey(sideBudget.id, "budget-app.entity-replication.v1/category-index")));
 assert.ok(exportPackage.records.every((record) => record.scope === "budget"), "restorable records should be budget-scoped only");
 assert.ok(exportPackage.diagnosticSnapshots.every((record) => record.scope === "global"), "global context should be isolated as diagnostics");
 assert.ok(!serialiseBudgetDataPackage(exportPackage).includes("Household transaction"), "active budget export must not leak other budget transactions");

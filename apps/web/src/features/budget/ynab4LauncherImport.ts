@@ -1,11 +1,40 @@
-import { createBudgetRegistryEntry, type BudgetSummary } from "./budgetRegistry";
-import { getBudgetScopedStorageKey } from "./budgetDataScope";
+import {
+  BUDGET_REGISTRY_STORAGE_KEY,
+  createBudgetRegistryEntry,
+  type BudgetSummary,
+} from "./budgetRegistry";
+import { createFixedBudgetScopedStorage, getBudgetScopedStorageKey } from "./budgetDataScope";
+import { replaceAccountEntities } from "../accounts/entities/accountEntity.js";
+import { replacePayeeEntities } from "../accounts/entities/payeeEntity.js";
+import { syncCategoryEntities } from "./categoryEntities.js";
+import {
+  BUDGET_MONTH_ENTITY_INDEX_KEY,
+  writeBudgetMonthEntity,
+} from "./entities/budgetMonthEntity.js";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import {
+  KeyValueImportStage,
+  type KeyValueImportStageResult,
+  type StagedKeyValue,
+} from "../persistence/keyValueImportStage";
 import type { CreditCardBehaviour } from "./budgetPreferences";
-import type { SidebarAccount, SidebarAccountType } from "../accounts/accountService";
+import {
+  readAccounts,
+  type SidebarAccount,
+  type SidebarAccountType,
+} from "../accounts/accountService";
 import type { AccountRegisterView, RegisterTransactionView } from "../accounts/accountRegisterTypes";
 import type { PayeeView } from "../accounts/payeeService";
 import type { ScheduledTransactionView } from "../accounts/scheduledTransactionService";
+import { replaceScheduledTransactionEntities } from "../accounts/entities/scheduledTransactionEntity.js";
+import {
+  createTransactionEntityRepository,
+} from "../accounts/entities/transactionEntity.js";
+import { replaceTransactionRegisters } from "../accounts/entities/transactionEntityPersistence.js";
+import {
+  TRANSACTION_ENTITY_INDEX_KEY,
+  TRANSACTION_ENTITY_RECORD_PREFIX,
+} from "../accounts/entities/transactionEntity.js";
 import type { BudgetMonthView, BudgetCategoryGroupView } from "./budgetViewTypes";
 import {
   auditYnab4LauncherImportAccuracy,
@@ -24,12 +53,25 @@ import {
 } from "../../../../../packages/ynab4-importer/src/money/decodeYnabAmount";
 import { validateYnab4TransferIntegrity } from "../../../../../packages/ynab4-importer/src/transfers/validateYnab4TransferIntegrity";
 import { mapYnab4Recurrence } from "../../../../../packages/ynab4-importer/src/scheduled/mapYnab4Recurrence";
-import { mapYnab4BudgetMonths } from "./ynab4/mapYnab4BudgetMonths";
 import {
+  buildYnab4BudgetActivityByMonthCategory,
+  mapYnab4BudgetMonths,
+} from "./ynab4/mapYnab4BudgetMonths";
+import {
+  appendYnab4TransactionBatch,
+  createYnab4TransactionRegisters,
   createImportedTransferId,
+  finaliseYnab4TransactionRegisters,
   mapYnab4Transactions,
   resolveYnab4CategoryId,
 } from "./ynab4/mapYnab4Transactions";
+import {
+  createYnab4SourceReader,
+  runImportSession,
+  Ynab4StreamingPreflightSession,
+  type Ynab4JsonSourceReader,
+  type Ynab4SmallCollections,
+} from "../../../../../packages/ynab4-importer/src/source";
 import { validateYnab4SourceIdentities } from "./ynab4/validateYnab4SourceIdentities";
 import { isYnab4Tombstone } from "./ynab4/ynab4RecordState";
 import {
@@ -45,15 +87,24 @@ import {
 import {
   YNAB4_ACCOUNTS_STORAGE_KEY,
   YNAB4_BUDGET_VIEW_STORAGE_PREFIX,
-  YNAB4_PAYEES_STORAGE_KEY,
-  YNAB4_REGISTERS_STORAGE_KEY,
-  YNAB4_SCHEDULED_STORAGE_KEY,
 } from "./ynab4/importStorageKeys";
-import { TRANSACTION_TAGS_STORAGE_KEY } from "../tags/transactionTagPersistence";
+import { replaceTransactionTagEntities } from "../tags/entities/transactionTagEntity";
 import type {
   TransactionTagColour,
   TransactionTagDefinition,
 } from "../tags/transactionTagTypes";
+import {
+  type HostedSqliteImportSession,
+  type SqliteImportTransaction,
+} from "../persistence/hostedSqliteImportClient";
+import {
+  LOCAL_BUDGET_SCHEMA_VERSION,
+  LocalBudgetDatabaseClient,
+  createLocalFirstRelayTransport,
+  createLocalFirstYnab4ImportClient,
+  publishLocalBaseline,
+} from "../persistence/localFirst";
+import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 
 export {
   getYnab4LauncherImportStorageKey,
@@ -73,6 +124,12 @@ export interface CreateYnab4LauncherBudgetImportInput {
   entries: Ynab4PackageEntry[];
   creditCardBehaviour?: CreditCardBehaviour;
   now?: Date;
+  signal?: AbortSignal;
+  batchSize?: number;
+  onProgress?: (progress: Ynab4DirectImportProgress) => void;
+  /** Clean-cutover path: import directly into this device's OPFS SQLite database. */
+  useLocalFirstSqlite?: boolean;
+  apiBaseUrl?: string;
 }
 
 export interface Ynab4LauncherImportResult {
@@ -118,20 +175,222 @@ export async function createYnab4LauncherBudgetImportWithBackend(
   input: CreateYnab4LauncherBudgetImportInput,
 ): Promise<Ynab4LauncherImportResult> {
   const rollbackSnapshot = captureYnab4LauncherImportRollbackSnapshot(storage);
-  let result: Ynab4LauncherImportResult | null = null;
+  let budget: BudgetSummary | null = null;
+  let reader: Ynab4JsonSourceReader | null = null;
+  let localDatabase: LocalBudgetDatabaseClient | null = null;
 
   try {
-    result = createYnab4LauncherBudgetImport(storage, input);
+    validateYnab4LauncherInput(input);
+    input.signal?.throwIfAborted();
+    const selectedEntry = findStreamingBudgetDataEntry(input);
+    const selectedSource = selectedEntry.file ?? selectedEntry.text;
+    if (selectedSource === undefined) {
+      throw new Error(
+        "Cannot import YNAB4 package because the active Budget.yfull source is unavailable.",
+      );
+    }
+    const now = input.now ?? new Date();
+    const budgetName = createImportedBudgetName(input.preview.budgetName);
+    reader = createYnab4SourceReader(selectedSource, {
+      sourceName: selectedEntry.path,
+    });
+    const referenceData = await reader.readReferenceData({
+      signal: input.signal,
+    });
+    const sourceCurrency = ynab4CurrencyCode({
+      ...referenceData.values,
+      accounts: referenceData.accounts,
+      masterCategories: referenceData.masterCategories,
+      payees: referenceData.payees,
+      monthlyBudgets: referenceData.monthlyBudgets,
+    });
+    const pendingRegistry = createPendingBudgetRegistryEntry(storage, {
+      name: budgetName,
+      currency: sourceCurrency ?? "AUD",
+      packagePath: input.discovery.packageRoot
+        ? `${input.discovery.packageRoot}.budget`
+        : undefined,
+      preferences: input.creditCardBehaviour
+        ? { creditCardBehaviour: input.creditCardBehaviour }
+        : undefined,
+      now,
+    });
+    budget = pendingRegistry.budget;
+    let lastProgress: Ynab4DirectImportProgress = {
+      phase: "preflight",
+      sourceRecordsConsumed: 0,
+      persistedTransactions: 0,
+      batchesPersisted: 0,
+    };
+    const batchSize = input.batchSize ?? 500;
+    const useLocalFirstSqlite =
+      input.useLocalFirstSqlite ??
+      (typeof window !== "undefined");
+    let localImportContext: {
+      syncEpoch: string;
+      relay: ReturnType<typeof createLocalFirstRelayTransport>;
+    } | null = null;
+    let importClient: ImportSessionClient | undefined;
+    if (useLocalFirstSqlite) {
+      const relay = createLocalFirstRelayTransport({ apiBaseUrl: input.apiBaseUrl });
+      const epoch = await relay.resetEpoch(budget.id, LOCAL_BUDGET_SCHEMA_VERSION);
+      localDatabase = new LocalBudgetDatabaseClient();
+      importClient = createLocalFirstYnab4ImportClient({
+        database: localDatabase,
+        syncEpoch: epoch.syncEpoch,
+        deviceId: getOrCreateLocalFirstDeviceId(storage),
+      });
+      localImportContext = { syncEpoch: epoch.syncEpoch, relay };
+    }
+    const staged = useLocalFirstSqlite
+      ? await importYnab4ReaderToHostedSqlite(storage, reader, budget, now, {
+          batchSize,
+          signal: input.signal,
+          importClient,
+          apiBaseUrl: input.apiBaseUrl ?? (
+            import.meta as ImportMeta & { env?: { VITE_BUDGET_API_URL?: string } }
+          ).env?.VITE_BUDGET_API_URL,
+          onProgress: (progress) => {
+            lastProgress = progress;
+            input.onProgress?.(progress);
+          },
+        })
+      : await importYnab4ReaderToStage(storage, reader, budget, now, {
+          id: `ynab4-${budget.id}`,
+          batchSize,
+          signal: input.signal,
+          onProgress: (progress) => {
+            lastProgress = progress;
+            input.onProgress?.(progress);
+          },
+        });
+    if (localDatabase && localImportContext) {
+      await publishLocalBaseline({
+        budgetId: budget.id,
+        budgetName: budget.name,
+        currency: budget.currency,
+        syncEpoch: localImportContext.syncEpoch,
+        database: localDatabase,
+        relay: localImportContext.relay,
+        onProgress: ({ phase }) => {
+          if (phase === "uploading") input.onProgress?.({ ...lastProgress, phase: "committing" });
+        },
+      });
+      await localDatabase.close();
+      localDatabase = null;
+    }
+    const report = formatYnab4StreamingAuditReport(staged.audit);
+    // Publish the registry entry only after all budget data has passed staged
+    // audit and promotion. A browser termination during the large write can no
+    // longer leave a visible empty budget.
+    storage.setItem(BUDGET_REGISTRY_STORAGE_KEY, pendingRegistry.serialized);
+    const result = commitYnab4LauncherImport(storage, {
+      budget,
+      discovery: input.discovery,
+      preview: input.preview,
+      persistenceWarnings: [
+        ...staged.warnings,
+        ...(!sourceCurrency
+          ? [
+              "YNAB4 currency metadata was missing or invalid; AUD was used as the compatibility fallback.",
+            ]
+          : []),
+      ],
+      accuracyAuditReport: report,
+      streamingImport: {
+        batchSize,
+        progress: lastProgress,
+        maximumCanonicalBatchRecords: staged.maximumCanonicalBatchRecords,
+        audit: staged.audit,
+      },
+      now,
+    });
     await storage.flush?.();
     return result;
   } catch (error) {
+    await reader?.close();
     rollbackYnab4LauncherImport(storage, {
       ...rollbackSnapshot,
-      budgetId: result?.budget.id ?? null,
+      budgetId: budget?.id ?? null,
     });
     await storage.flush?.();
     throw error;
+  } finally {
+    await localDatabase?.close().catch(() => undefined);
   }
+}
+
+const LOCAL_FIRST_DEVICE_ID_KEY = "budget-app.local-first.device-id";
+
+function getOrCreateLocalFirstDeviceId(storage: KeyValueStoragePort): string {
+  const existing = storage.getItem(LOCAL_FIRST_DEVICE_ID_KEY);
+  if (existing) return existing;
+  const id = createRuntimeUuid();
+  storage.setItem(LOCAL_FIRST_DEVICE_ID_KEY, id);
+  return id;
+}
+
+function createPendingBudgetRegistryEntry(
+  storage: KeyValueStoragePort,
+  input: Parameters<typeof createBudgetRegistryEntry>[1],
+): { budget: BudgetSummary; serialized: string } {
+  const values = new Map<string, string>();
+  const current = storage.getItem(BUDGET_REGISTRY_STORAGE_KEY);
+  if (current !== null) values.set(BUDGET_REGISTRY_STORAGE_KEY, current);
+  const capture: KeyValueStoragePort = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => { values.set(key, value); },
+    removeItem: (key) => { values.delete(key); },
+    listKeys: () => [...values.keys()],
+  };
+  const budget = createBudgetRegistryEntry(capture, input);
+  const serialized = capture.getItem(BUDGET_REGISTRY_STORAGE_KEY);
+  if (serialized === null) {
+    throw new Error("Unable to prepare the imported budget registry entry.");
+  }
+  return { budget, serialized };
+}
+
+function validateYnab4LauncherInput(
+  input: CreateYnab4LauncherBudgetImportInput,
+): void {
+  if (!input.discovery.isYnab4Package || !input.preview.canContinue) {
+    throw new Error(
+      "Cannot import YNAB4 package from launcher until preview validation passes.",
+    );
+  }
+  if (input.preview.mode !== "new-budget") {
+    throw new Error("Launcher YNAB4 imports must create a new budget.");
+  }
+}
+
+function findStreamingBudgetDataEntry(
+  input: CreateYnab4LauncherBudgetImportInput,
+): Ynab4PackageEntry {
+  const selectedPath = input.discovery.budgetDataPath?.replaceAll("\\", "/");
+  const entry = input.entries.find((candidate) =>
+    candidate.selectedBudgetData ||
+    (selectedPath !== null &&
+      selectedPath !== undefined &&
+      candidate.path.replaceAll("\\", "/") === selectedPath),
+  );
+  if (!entry || (entry.file === undefined && entry.text === undefined)) {
+    throw new Error(
+      "Cannot import YNAB4 package because the active Budget.yfull source is unavailable.",
+    );
+  }
+  return entry;
+}
+
+function formatYnab4StreamingAuditReport(
+  audit: Ynab4StreamingStagedAudit,
+): string {
+  return [
+    "YNAB4 streaming staged audit: PASS",
+    `Transactions: ${audit.transactions}`,
+    `Total inflow: ${audit.totalInflow}`,
+    `Total outflow: ${audit.totalOutflow}`,
+  ].join("\n");
 }
 
 export function createYnab4LauncherBudgetImport(
@@ -377,31 +636,936 @@ export function buildYnab4LauncherImportPlan(
   };
 }
 
+export interface BuildYnab4StreamingImportPlanOptions {
+  batchSize?: number;
+  signal?: AbortSignal;
+  preflight?: boolean;
+}
+
+/**
+ * Phase-3 opt-in projection path. Source transaction objects are mapped and
+ * released batch-by-batch; only canonical register transactions remain.
+ * Production launcher routing is intentionally unchanged.
+ */
+export async function buildYnab4LauncherImportPlanFromReader(
+  reader: Ynab4JsonSourceReader,
+  budget: BudgetSummary,
+  now: Date,
+  options: BuildYnab4StreamingImportPlanOptions = {},
+): Promise<Ynab4LauncherImportPlan> {
+  const batchSize = options.batchSize ?? 500;
+  if (!Number.isSafeInteger(batchSize) || batchSize <= 0) {
+    throw new RangeError("batchSize must be a positive integer.");
+  }
+
+  if (options.preflight !== false) {
+    await runImportSession(reader, new Ynab4StreamingPreflightSession(), {
+      batchSize,
+      signal: options.signal,
+      closeReader: false,
+    });
+  }
+
+  const referenceData = await reader.readReferenceData({ signal: options.signal });
+  const nowIso = now.toISOString();
+  const maps = createImportMaps();
+  const referenceObject: Ynab4ImportData = {
+    ...referenceData.values,
+    accounts: referenceData.accounts,
+    masterCategories: referenceData.masterCategories,
+    payees: referenceData.payees,
+    monthlyBudgets: referenceData.monthlyBudgets,
+    transactions: [],
+    scheduledTransactions: [],
+  };
+  validateYnab4SourceIdentities(referenceObject);
+
+  const accounts = mapAccounts([...referenceData.accounts], maps, nowIso);
+  const categoryGroups = mapCategoryGroups([...referenceData.masterCategories], maps);
+  const payees = mapPayees([...referenceData.payees], maps, nowIso);
+  const registers = createYnab4TransactionRegisters(accounts, budget.currency);
+  const allFlagIds = new Map<TransactionTagColour, string>(
+    IMPORTED_FLAG_COLOURS.map((colour) => [colour, `ynab4-imported-flag-${colour}`]),
+  );
+  const observedFlags = new Set<TransactionTagColour>();
+
+  let sourceIndexOffset = 0;
+  for await (const batch of reader.streamRecords({
+    batchSize,
+    signal: options.signal,
+  })) {
+    options.signal?.throwIfAborted();
+    collectImportedFlags(batch, observedFlags);
+    appendYnab4TransactionBatch({
+      transactions: batch,
+      accounts,
+      maps,
+      currencyCode: budget.currency,
+      importedFlagTagIdByColour: allFlagIds,
+      registers,
+      sourceIndexOffset,
+    });
+    sourceIndexOffset += batch.length;
+  }
+  finaliseYnab4TransactionRegisters(registers);
+
+  const scheduledRecords: RecordMap[] = [];
+  for await (const batch of reader.streamScheduledTransactions({
+    batchSize,
+    signal: options.signal,
+  })) {
+    options.signal?.throwIfAborted();
+    collectImportedFlags(batch, observedFlags);
+    scheduledRecords.push(...batch);
+  }
+  const importedFlagTags = mapImportedFlagTags(
+    [...observedFlags].map((flag) => ({ flag })),
+    nowIso,
+  );
+  const scheduledTransactions = mapScheduledTransactions(
+    scheduledRecords,
+    maps,
+    nowIso,
+  );
+  const budgetMonths = mapYnab4BudgetMonths({
+    budget,
+    monthlyBudgets: [...referenceData.monthlyBudgets],
+    templateGroups: categoryGroups,
+    categoryIdBySourceId: maps.categoryIdBySourceId,
+    registers,
+    now,
+  });
+
+  return {
+    budgetId: budget.id,
+    accounts,
+    payees,
+    transactionTags: importedFlagTags.tags,
+    registers,
+    scheduledTransactions,
+    budgetMonths,
+    warnings: maps.warnings,
+  };
+}
+
+function createImportMaps(): ImportMaps {
+  return {
+    accountIdBySourceId: new Map(),
+    accountNameById: new Map(),
+    accountTypeById: new Map(),
+    categoryIdBySourceId: new Map(),
+    categoryNameById: new Map(),
+    categoryIsArchivedById: new Map(),
+    payeeIdBySourceId: new Map(),
+    payeeNameById: new Map(),
+    nonImportableCategorySourceIds: new Set(),
+    warnings: [],
+  };
+}
+
+function collectImportedFlags(
+  records: readonly RecordMap[],
+  output: Set<TransactionTagColour>,
+): void {
+  for (const record of records) {
+    if (isYnab4Tombstone(record)) continue;
+    const colour = normaliseImportedFlagColour(
+      firstString(record.flag, record.flagColor),
+    );
+    if (colour) output.add(colour);
+  }
+}
+
 export function writeYnab4LauncherImportPlan(
   storage: KeyValueStoragePort,
   plan: Ynab4LauncherImportPlan,
 ): void {
-  writeScopedJson(storage, plan.budgetId, YNAB4_ACCOUNTS_STORAGE_KEY, plan.accounts);
-  writeScopedJson(storage, plan.budgetId, YNAB4_PAYEES_STORAGE_KEY, plan.payees);
-  writeScopedJson(
-    storage,
-    plan.budgetId,
-    TRANSACTION_TAGS_STORAGE_KEY,
+  replaceAccountEntities(createFixedBudgetScopedStorage(storage, plan.budgetId), plan.accounts);
+  replacePayeeEntities(createFixedBudgetScopedStorage(storage, plan.budgetId), plan.payees);
+  replaceTransactionTagEntities(
+    createFixedBudgetScopedStorage(storage, plan.budgetId),
     plan.transactionTags,
   );
-  writeScopedJson(storage, plan.budgetId, YNAB4_REGISTERS_STORAGE_KEY, plan.registers);
-  writeScopedJson(
-    storage,
-    plan.budgetId,
-    YNAB4_SCHEDULED_STORAGE_KEY,
+  replaceTransactionRegisters(createFixedBudgetScopedStorage(storage, plan.budgetId), plan.registers);
+  replaceScheduledTransactionEntities(
+    createFixedBudgetScopedStorage(storage, plan.budgetId),
     plan.scheduledTransactions,
   );
 
+  const scopedStorage = createFixedBudgetScopedStorage(storage, plan.budgetId);
+  const categoryEntitySource = [...plan.budgetMonths.values()].at(-1);
+  if (categoryEntitySource) {
+    // Category identity/metadata is static across imported months. Rewriting
+    // every category entity for every month multiplies work without changing
+    // the final state.
+    syncCategoryEntities(scopedStorage, categoryEntitySource);
+  }
   for (const [month, view] of plan.budgetMonths) {
-    storage.setItem(
-      `${YNAB4_BUDGET_VIEW_STORAGE_PREFIX}.${plan.budgetId}.${month}`,
-      JSON.stringify(view),
+    writeBudgetMonthEntity(storage, plan.budgetId, month, view);
+  }
+}
+
+/**
+ * Renders the small compatibility plan in memory and commits it with one
+ * storage batch. This avoids opening one IndexedDB transaction (and journal
+ * transaction) for every account, payee, category, schedule and month record.
+ */
+export async function writeYnab4LauncherImportPlanBulk(
+  storage: KeyValueStoragePort,
+  plan: Ynab4LauncherImportPlan,
+): Promise<number> {
+  const capture = createCaptureStorage();
+  const existingBudgetMonthIndex = storage.getItem(BUDGET_MONTH_ENTITY_INDEX_KEY);
+  if (existingBudgetMonthIndex !== null) {
+    capture.storage.setItem(BUDGET_MONTH_ENTITY_INDEX_KEY, existingBudgetMonthIndex);
+  }
+  writeYnab4LauncherImportPlan(capture.storage, plan);
+  const mutations = [...capture.values].map(([key, value]) => ({
+    type: "set" as const,
+    key,
+    value,
+  }));
+  if (storage.applyMutations) {
+    await storage.applyMutations(mutations);
+  } else {
+    for (const mutation of mutations) storage.setItem(mutation.key, mutation.value);
+    await storage.flush?.();
+  }
+  capture.values.clear();
+  return mutations.length;
+}
+
+export interface StageYnab4LauncherImportPlanOptions {
+  id: string;
+  batchSize?: number;
+  signal?: AbortSignal;
+}
+
+/**
+ * Milestone-2 opt-in persistence path. Existing entity writers render into an
+ * isolated capture store, then bounded key batches are flushed to a durable
+ * stage and promoted only after every write succeeds.
+ */
+export async function stageYnab4LauncherImportPlan(
+  storage: KeyValueStoragePort,
+  plan: Ynab4LauncherImportPlan,
+  options: StageYnab4LauncherImportPlanOptions,
+): Promise<KeyValueImportStageResult> {
+  const batchSize = options.batchSize ?? 500;
+  if (!Number.isSafeInteger(batchSize) || batchSize <= 0) {
+    throw new RangeError("batchSize must be a positive integer.");
+  }
+  options.signal?.throwIfAborted();
+
+  const captured = new Map<string, string>();
+  const captureStorage: KeyValueStoragePort = {
+    getItem: (key) => captured.get(key) ?? null,
+    setItem: (key, value) => { captured.set(key, value); },
+    removeItem: (key) => { captured.delete(key); },
+    listKeys: () => [...captured.keys()],
+  };
+  const existingBudgetMonthIndex = storage.getItem(
+    BUDGET_MONTH_ENTITY_INDEX_KEY,
+  );
+  if (existingBudgetMonthIndex !== null) {
+    captureStorage.setItem(
+      BUDGET_MONTH_ENTITY_INDEX_KEY,
+      existingBudgetMonthIndex,
     );
+  }
+  writeYnab4LauncherImportPlan(captureStorage, plan);
+
+  const stage = new KeyValueImportStage({
+    storage,
+    id: options.id,
+    targetPrefix: "budget-app.",
+    allowOverwrite: (key) => key === BUDGET_MONTH_ENTITY_INDEX_KEY,
+  });
+  await stage.begin({ signal: options.signal });
+  try {
+    let batch: StagedKeyValue[] = [];
+    for (const [key, value] of captured) {
+      options.signal?.throwIfAborted();
+      batch.push({ key, value });
+      if (batch.length === batchSize) {
+        await stage.persistBatch(batch, { signal: options.signal });
+        batch = [];
+      }
+    }
+    if (batch.length > 0) {
+      await stage.persistBatch(batch, { signal: options.signal });
+    }
+    captured.clear();
+    return await stage.commit({ signal: options.signal });
+  } catch (error) {
+    captured.clear();
+    await stage.rollback(error);
+    throw error;
+  } finally {
+    await stage.close();
+  }
+}
+
+export interface ImportYnab4ReaderToStageOptions
+  extends StageYnab4LauncherImportPlanOptions {
+  preflight?: boolean;
+  closeReader?: boolean;
+  onProgress?: (progress: Ynab4DirectImportProgress) => void;
+}
+
+export interface Ynab4DirectImportProgress {
+  phase: "preflight" | "reference-data" | "transactions" | "scheduled" | "finalising" | "committing";
+  sourceRecordsConsumed: number;
+  persistedTransactions: number;
+  batchesPersisted: number;
+}
+
+export interface ImportYnab4ReaderToStageResult
+  extends KeyValueImportStageResult {
+  transactionCount: number;
+  scheduledTransactionCount: number;
+  warnings: readonly string[];
+  maximumCanonicalBatchRecords: number;
+  audit: Ynab4StreamingStagedAudit;
+}
+
+export interface Ynab4StreamingStagedAudit {
+  status: "pass";
+  transactions: number;
+  totalInflow: number;
+  totalOutflow: number;
+}
+
+export interface ImportYnab4ReaderToHostedSqliteOptions {
+  readonly batchSize?: number;
+  readonly signal?: AbortSignal;
+  readonly apiBaseUrl?: string;
+  readonly onProgress?: (progress: Ynab4DirectImportProgress) => void;
+  readonly importClient?: ImportSessionClient;
+}
+
+interface ImportSessionClient {
+  begin(input: {
+    readonly budgetId: string;
+    readonly budgetName: string;
+    readonly currency: string;
+    readonly signal?: AbortSignal;
+  }): Promise<HostedSqliteImportSession>;
+}
+
+/**
+ * Streams the large transaction collection into a capability-shaped staged
+ * SQLite destination. Production browser imports supply the local OPFS SQLite
+ * implementation and activate it atomically after relational validation.
+ */
+export async function importYnab4ReaderToHostedSqlite(
+  storage: KeyValueStoragePort,
+  reader: Ynab4JsonSourceReader,
+  budget: BudgetSummary,
+  now: Date,
+  options: ImportYnab4ReaderToHostedSqliteOptions = {},
+): Promise<ImportYnab4ReaderToStageResult> {
+  const batchSize = Math.min(options.batchSize ?? 500, 2_000);
+  if (!Number.isSafeInteger(batchSize) || batchSize < 1) {
+    throw new RangeError("batchSize must be a positive integer.");
+  }
+  const client = options.importClient;
+  if (!client) {
+    throw new Error(
+      "A local-first staged import destination is required; hosted SQLite import has been retired.",
+    );
+  }
+  let session: Awaited<ReturnType<typeof client.begin>> | null = null;
+  let sourceRecordsConsumed = 0;
+  let persistedTransactions = 0;
+  let batchesPersisted = 0;
+  let expectedInflow = 0;
+  let expectedOutflow = 0;
+  let maximumCanonicalBatchRecords = 0;
+  const preflight = new Ynab4StreamingPreflightSession();
+  let preflightBegun = false;
+  const report = (phase: Ynab4DirectImportProgress["phase"]) =>
+    options.onProgress?.({
+      phase,
+      sourceRecordsConsumed,
+      persistedTransactions,
+      batchesPersisted,
+    });
+
+  try {
+    report("preflight");
+    const summary = await reader.inspect({ signal: options.signal });
+    const referenceData = await reader.readReferenceData({ signal: options.signal });
+    const validation = await preflight.validateSource(summary, referenceData, {
+      signal: options.signal,
+    });
+    if (!validation.valid) {
+      throw new Error(validation.issues.map((issue) => issue.message).join("\n"));
+    }
+    await preflight.begin();
+    preflightBegun = true;
+
+    report("reference-data");
+    const nowIso = now.toISOString();
+    const maps = createImportMaps();
+    validateYnab4SourceIdentities({
+      ...referenceData.values,
+      accounts: referenceData.accounts,
+      masterCategories: referenceData.masterCategories,
+      payees: referenceData.payees,
+      monthlyBudgets: referenceData.monthlyBudgets,
+      transactions: [],
+      scheduledTransactions: [],
+    });
+    const accounts = mapAccounts([...referenceData.accounts], maps, nowIso);
+    const categoryGroups = mapCategoryGroups([...referenceData.masterCategories], maps);
+    const payees = mapPayees([...referenceData.payees], maps, nowIso);
+    session = await client.begin({
+      budgetId: budget.id,
+      budgetName: budget.name,
+      currency: budget.currency,
+      signal: options.signal,
+    });
+    await session.persistReferenceData({
+      accounts: accounts.map((account) => ({
+        id: account.id,
+        name: account.name,
+        type: account.type,
+        participation: account.type === "tracking" ? "off-budget" : "on-budget",
+        openingBalance: toMinorUnits(account.startingBalance),
+        closedAt: account.closedAt ?? null,
+      })),
+      payees: payees.map((payee) => ({ id: payee.id, name: payee.name })),
+      categories: categoryGroups.flatMap((group, groupIndex) =>
+        group.categories.map((category, categoryIndex) => ({
+          id: category.id,
+          name: category.name,
+          groupId: group.id,
+          groupName: group.name,
+          sortOrder: groupIndex * 100_000 + categoryIndex,
+        })),
+      ),
+    }, { signal: options.signal });
+
+    const allFlagIds = new Map<TransactionTagColour, string>(
+      IMPORTED_FLAG_COLOURS.map((colour) => [colour, `ynab4-imported-flag-${colour}`]),
+    );
+    const observedFlags = new Set<TransactionTagColour>();
+    const activityByMonthCategory = new Map<string, Map<string, number>>();
+    let sourceIndexOffset = 0;
+
+    for await (const batch of reader.streamRecords({
+      batchSize,
+      signal: options.signal,
+    })) {
+      options.signal?.throwIfAborted();
+      await preflight.persistBatch(batch, { signal: options.signal });
+      collectImportedFlags(batch, observedFlags);
+      const batchRegisters = createYnab4TransactionRegisters(accounts, budget.currency);
+      appendYnab4TransactionBatch({
+        transactions: batch,
+        accounts,
+        maps,
+        currencyCode: budget.currency,
+        importedFlagTagIdByColour: allFlagIds,
+        registers: batchRegisters,
+        sourceIndexOffset,
+      });
+      sourceIndexOffset += batch.length;
+      sourceRecordsConsumed += batch.length;
+      mergeYnab4Activity(
+        activityByMonthCategory,
+        buildYnab4BudgetActivityByMonthCategory(batchRegisters),
+      );
+      const sqliteRows: SqliteImportTransaction[] = [];
+      for (const [accountId, register] of Object.entries(batchRegisters)) {
+        for (const transaction of register.transactions) {
+          sqliteRows.push(toSqliteImportTransaction(accountId, transaction, now));
+          persistedTransactions += 1;
+          expectedInflow += transaction.inflow;
+          expectedOutflow += transaction.outflow;
+        }
+        register.transactions.length = 0;
+      }
+      maximumCanonicalBatchRecords = Math.max(
+        maximumCanonicalBatchRecords,
+        sqliteRows.length,
+      );
+      if (sqliteRows.length > 0) {
+        await session.persistTransactions(sqliteRows, { signal: options.signal });
+      }
+      batchesPersisted += 1;
+      report("transactions");
+    }
+    await preflight.commit();
+
+    report("scheduled");
+    const scheduledRecords: RecordMap[] = [];
+    for await (const batch of reader.streamScheduledTransactions({
+      batchSize,
+      signal: options.signal,
+    })) {
+      collectImportedFlags(batch, observedFlags);
+      scheduledRecords.push(...batch);
+    }
+    const importedFlagTags = mapImportedFlagTags(
+      [...observedFlags].map((flag) => ({ flag })),
+      nowIso,
+    );
+    await session.persistTransactionTags?.(
+      importedFlagTags.tags.map((tag) => ({ id: tag.id, payload: tag })),
+      { signal: options.signal },
+    );
+    const scheduledTransactions = mapScheduledTransactions(scheduledRecords, maps, nowIso);
+    await session.persistScheduledTransactions(scheduledTransactions, {
+      signal: options.signal,
+    });
+    const budgetMonths = mapYnab4BudgetMonths({
+      budget,
+      monthlyBudgets: [...referenceData.monthlyBudgets],
+      templateGroups: categoryGroups,
+      categoryIdBySourceId: maps.categoryIdBySourceId,
+      registers: {},
+      activityByMonthCategory,
+      now,
+    });
+    await session.persistBudgetMonths(
+      [...budgetMonths].map(([month, view]) => ({ month, view })),
+      { signal: options.signal },
+    );
+
+    report("finalising");
+    await session.validate({ signal: options.signal });
+    const smallPlan: Ynab4LauncherImportPlan = {
+      budgetId: budget.id,
+      accounts,
+      payees,
+      transactionTags: importedFlagTags.tags,
+      registers: {},
+      scheduledTransactions,
+      budgetMonths,
+      warnings: maps.warnings,
+    };
+    await writeYnab4LauncherImportPlanBulk(storage, smallPlan);
+    report("committing");
+    await session.commit({ signal: options.signal });
+    session = null;
+    return {
+      id: `sqlite:${budget.id}`,
+      keysPromoted: 0,
+      recordsPersisted: persistedTransactions,
+      transactionCount: persistedTransactions,
+      scheduledTransactionCount: scheduledTransactions.length,
+      warnings: [...maps.warnings],
+      maximumCanonicalBatchRecords,
+      audit: {
+        status: "pass",
+        transactions: persistedTransactions,
+        totalInflow: expectedInflow,
+        totalOutflow: expectedOutflow,
+      },
+    };
+  } catch (error) {
+    if (preflightBegun) await preflight.rollback();
+    await session?.cancel().catch(() => undefined);
+    throw error;
+  } finally {
+    await preflight.close();
+    await reader.close();
+  }
+}
+
+function toSqliteImportTransaction(
+  accountId: string,
+  transaction: RegisterTransactionView,
+  now: Date,
+): SqliteImportTransaction {
+  return {
+    id: transaction.id,
+    accountId,
+    payeeId: transaction.payeeId ?? null,
+    categoryId: transaction.categoryId ?? null,
+    categoryName: transaction.transferAccountId
+      ? "Transfer"
+      : transaction.category ?? null,
+    transferAccountId: transaction.transferAccountId ?? null,
+    transferTransactionId: transaction.transferTransactionId ?? null,
+    splitLines: (transaction.splitLines ?? []).map((line) => ({
+      id: line.id,
+      categoryId: line.categoryId ?? null,
+      categoryName: line.transferAccountId ? "Transfer" : line.category ?? null,
+      transferAccountId: line.transferAccountId ?? null,
+      transferTransactionId: line.transferTransactionId ?? null,
+      memo: line.memo ?? null,
+      amount: toMinorUnits(line.inflow - line.outflow),
+    })),
+    type: transaction.splitLines?.length ? "split" : transaction.transferAccountId ? "transfer" : "standard",
+    date: transaction.date,
+    memo: transaction.memo ?? null,
+    checkNumber: transaction.checkNumber ?? null,
+    amount: toMinorUnits(transaction.inflow - transaction.outflow),
+    clearedStatus: transaction.reconciled
+      ? "reconciled"
+      : transaction.cleared
+        ? "cleared"
+        : "uncleared",
+    createdAt: now.getTime(),
+    updatedAt: now.getTime(),
+    tagIds: transaction.tagIds ?? [],
+  };
+}
+
+function toMinorUnits(value: number): number {
+  return Math.round(value * 100);
+}
+
+/**
+ * Milestone-2 direct path. Each source transaction batch is mapped, encoded as
+ * replicated transaction entities, persisted to the isolated stage, and then
+ * released. Only transaction IDs and month/category activity totals survive
+ * across batches.
+ */
+export async function importYnab4ReaderToStage(
+  storage: KeyValueStoragePort,
+  reader: Ynab4JsonSourceReader,
+  budget: BudgetSummary,
+  now: Date,
+  options: ImportYnab4ReaderToStageOptions,
+): Promise<ImportYnab4ReaderToStageResult> {
+  const batchSize = options.batchSize ?? 500;
+  if (!Number.isSafeInteger(batchSize) || batchSize <= 0) {
+    throw new RangeError("batchSize must be a positive integer.");
+  }
+  const stage = new KeyValueImportStage({
+    storage,
+    id: options.id,
+    targetPrefix: "budget-app.",
+    allowOverwrite: (key) => key === BUDGET_MONTH_ENTITY_INDEX_KEY,
+  });
+  let stageBegun = false;
+  let sourceRecordsConsumed = 0;
+  let persistedTransactions = 0;
+  let batchesPersisted = 0;
+  let maximumCanonicalBatchRecords = 0;
+  let expectedInflow = 0;
+  let expectedOutflow = 0;
+  const preflight = options.preflight === false
+    ? null
+    : new Ynab4StreamingPreflightSession();
+  let preflightBegun = false;
+  const report = (phase: Ynab4DirectImportProgress["phase"]) =>
+    options.onProgress?.({
+      phase,
+      sourceRecordsConsumed,
+      persistedTransactions,
+      batchesPersisted,
+    });
+  try {
+    let referenceData: Ynab4SmallCollections | undefined;
+    if (preflight) {
+      report("preflight");
+      const summary = await reader.inspect({ signal: options.signal });
+      referenceData = await reader.readReferenceData({ signal: options.signal });
+      const validation = await preflight.validateSource(
+        summary,
+        referenceData,
+        { signal: options.signal },
+      );
+      if (!validation.valid) {
+        throw new Error(
+          validation.issues.map((issue) => issue.message).join("\n"),
+        );
+      }
+      await preflight.begin();
+      preflightBegun = true;
+    }
+    report("reference-data");
+    referenceData ??= await reader.readReferenceData({ signal: options.signal });
+    const nowIso = now.toISOString();
+    const maps = createImportMaps();
+    validateYnab4SourceIdentities({
+      ...referenceData.values,
+      accounts: referenceData.accounts,
+      masterCategories: referenceData.masterCategories,
+      payees: referenceData.payees,
+      monthlyBudgets: referenceData.monthlyBudgets,
+      transactions: [],
+      scheduledTransactions: [],
+    });
+    const accounts = mapAccounts([...referenceData.accounts], maps, nowIso);
+    const categoryGroups = mapCategoryGroups([...referenceData.masterCategories], maps);
+    const payees = mapPayees([...referenceData.payees], maps, nowIso);
+    const allFlagIds = new Map<TransactionTagColour, string>(
+      IMPORTED_FLAG_COLOURS.map((colour) => [colour, `ynab4-imported-flag-${colour}`]),
+    );
+    const observedFlags = new Set<TransactionTagColour>();
+    const transactionIds: string[] = [];
+    const activityByMonthCategory = new Map<string, Map<string, number>>();
+
+    await stage.begin({ signal: options.signal });
+    stageBegun = true;
+    let sourceIndexOffset = 0;
+    for await (const batch of reader.streamRecords({ batchSize, signal: options.signal })) {
+      options.signal?.throwIfAborted();
+      await preflight?.persistBatch(batch, { signal: options.signal });
+      collectImportedFlags(batch, observedFlags);
+      const batchRegisters = createYnab4TransactionRegisters(accounts, budget.currency);
+      appendYnab4TransactionBatch({
+        transactions: batch,
+        accounts,
+        maps,
+        currencyCode: budget.currency,
+        importedFlagTagIdByColour: allFlagIds,
+        registers: batchRegisters,
+        sourceIndexOffset,
+      });
+      sourceIndexOffset += batch.length;
+      sourceRecordsConsumed += batch.length;
+      mergeYnab4Activity(
+        activityByMonthCategory,
+        buildYnab4BudgetActivityByMonthCategory(batchRegisters),
+      );
+
+      const capture = createCaptureStorage();
+      replaceTransactionRegisters(
+        createFixedBudgetScopedStorage(capture.storage, budget.id),
+        batchRegisters,
+        now,
+      );
+      const entityEntries = [...capture.values]
+        .filter(([key]) => key.includes(TRANSACTION_ENTITY_RECORD_PREFIX))
+        .map(([key, value]) => ({ key, value }));
+      const canonicalBatchRecords = Object.values(batchRegisters).reduce(
+        (count, register) => count + register.transactions.length,
+        0,
+      );
+      maximumCanonicalBatchRecords = Math.max(
+        maximumCanonicalBatchRecords,
+        canonicalBatchRecords,
+      );
+      for (const register of Object.values(batchRegisters)) {
+        for (const transaction of register.transactions) {
+          transactionIds.push(transaction.id);
+          persistedTransactions += 1;
+          expectedInflow += transaction.inflow;
+          expectedOutflow += transaction.outflow;
+        }
+        register.transactions.length = 0;
+      }
+      await stage.persistBatch(entityEntries, { signal: options.signal });
+      batchesPersisted += 1;
+      report("transactions");
+    }
+    await preflight?.commit();
+
+    report("scheduled");
+    const scheduledRecords: RecordMap[] = [];
+    for await (const batch of reader.streamScheduledTransactions({
+      batchSize,
+      signal: options.signal,
+    })) {
+      options.signal?.throwIfAborted();
+      collectImportedFlags(batch, observedFlags);
+      scheduledRecords.push(...batch);
+    }
+    const importedFlagTags = mapImportedFlagTags(
+      [...observedFlags].map((flag) => ({ flag })),
+      nowIso,
+    );
+    const scheduledTransactions = mapScheduledTransactions(scheduledRecords, maps, nowIso);
+    const budgetMonths = mapYnab4BudgetMonths({
+      budget,
+      monthlyBudgets: [...referenceData.monthlyBudgets],
+      templateGroups: categoryGroups,
+      categoryIdBySourceId: maps.categoryIdBySourceId,
+      registers: {},
+      activityByMonthCategory,
+      now,
+    });
+    const smallPlan: Ynab4LauncherImportPlan = {
+      budgetId: budget.id,
+      accounts,
+      payees,
+      transactionTags: importedFlagTags.tags,
+      registers: {},
+      scheduledTransactions,
+      budgetMonths,
+      warnings: maps.warnings,
+    };
+    report("finalising");
+    const smallCapture = createCaptureStorage();
+    const existingBudgetMonthIndex = storage.getItem(
+      BUDGET_MONTH_ENTITY_INDEX_KEY,
+    );
+    if (existingBudgetMonthIndex !== null) {
+      smallCapture.storage.setItem(
+        BUDGET_MONTH_ENTITY_INDEX_KEY,
+        existingBudgetMonthIndex,
+      );
+    }
+    writeYnab4LauncherImportPlan(smallCapture.storage, smallPlan);
+    const transactionIndexKey = getBudgetScopedStorageKey(
+      budget.id,
+      TRANSACTION_ENTITY_INDEX_KEY,
+    );
+    const smallEntries: StagedKeyValue[] = [...smallCapture.values]
+      .filter(([key]) =>
+        !key.includes(TRANSACTION_ENTITY_RECORD_PREFIX) &&
+        key !== transactionIndexKey,
+      )
+      .map(([key, value]) => ({ key, value }));
+    smallEntries.push({
+      key: transactionIndexKey,
+      value: JSON.stringify([...new Set(transactionIds)].sort()),
+    });
+    for (let offset = 0; offset < smallEntries.length; offset += batchSize) {
+      await stage.persistBatch(
+        smallEntries.slice(offset, offset + batchSize),
+        { signal: options.signal },
+      );
+      batchesPersisted += 1;
+    }
+    const stagedReadView = stage.createReadView();
+    const stagedAccounts = readAccounts(
+      createFixedBudgetScopedStorage(stagedReadView, budget.id),
+    );
+    if (
+      stagedAccounts.length !== accounts.length ||
+      stagedAccounts.some((account) =>
+        !accounts.some((expected) => expected.id === account.id))
+    ) {
+      throw new Error(
+        "Streaming YNAB4 staged audit failed: imported accounts are incomplete.",
+      );
+    }
+    const audit = auditYnab4StagedTransactions(
+      stagedReadView,
+      budget.id,
+      transactionIds,
+      expectedInflow,
+      expectedOutflow,
+    );
+    report("committing");
+    const committed = await stage.commit({ signal: options.signal });
+    const transactionCount = transactionIds.length;
+    transactionIds.length = 0;
+    activityByMonthCategory.clear();
+    return {
+      ...committed,
+      transactionCount,
+      scheduledTransactionCount: scheduledTransactions.length,
+      warnings: [...maps.warnings],
+      maximumCanonicalBatchRecords,
+      audit,
+    };
+  } catch (error) {
+    if (preflightBegun) await preflight?.rollback();
+    if (stageBegun) {
+      await stage.rollback(error);
+      await stage.cleanup();
+    }
+    throw error;
+  } finally {
+    await preflight?.close();
+    if (stageBegun) await stage.close();
+    if (options.closeReader !== false) await reader.close();
+  }
+}
+
+function auditYnab4StagedTransactions(
+  stagedStorage: KeyValueStoragePort,
+  budgetId: string,
+  transactionIds: readonly string[],
+  expectedInflow: number,
+  expectedOutflow: number,
+): Ynab4StreamingStagedAudit {
+  const repository = createTransactionEntityRepository(
+    createFixedBudgetScopedStorage(stagedStorage, budgetId),
+  );
+  const idsToVerify = selectYnab4StagedAuditTransactionIds(transactionIds);
+  let actualInflow = 0;
+  let actualOutflow = 0;
+  let actualCount = 0;
+  for (const id of idsToVerify) {
+    const entity = repository.get(id);
+    if (!entity || entity.metadata.tombstone !== null) {
+      throw new Error(`Streaming YNAB4 audit could not read staged transaction "${id}".`);
+    }
+    actualCount += 1;
+    actualInflow += entity.fields.inflow.value;
+    actualOutflow += entity.fields.outflow.value;
+  }
+  const round = (value: number) => Math.round(value * 100) / 100;
+  if (actualCount !== idsToVerify.length) {
+    throw new Error(
+      "Streaming YNAB4 staged audit failed: persisted transaction samples are incomplete.",
+    );
+  }
+  if (
+    idsToVerify.length === transactionIds.length &&
+    (
+      round(actualInflow) !== round(expectedInflow) ||
+      round(actualOutflow) !== round(expectedOutflow)
+    )
+  ) {
+    throw new Error(
+      "Streaming YNAB4 staged audit failed: transaction monetary totals differ.",
+    );
+  }
+  return {
+    status: "pass",
+    transactions: transactionIds.length,
+    totalInflow: round(expectedInflow),
+    totalOutflow: round(expectedOutflow),
+  };
+}
+
+const FULL_STAGED_AUDIT_TRANSACTION_LIMIT = 25_000;
+const LARGE_STAGED_AUDIT_SAMPLE_SIZE = 256;
+
+export function selectYnab4StagedAuditTransactionIds(
+  transactionIds: readonly string[],
+): readonly string[] {
+  if (transactionIds.length <= FULL_STAGED_AUDIT_TRANSACTION_LIMIT) {
+    return transactionIds;
+  }
+  const selected = new Set<string>();
+  const lastIndex = transactionIds.length - 1;
+  for (let sample = 0; sample < LARGE_STAGED_AUDIT_SAMPLE_SIZE; sample += 1) {
+    const index = Math.round(
+      (sample * lastIndex) / (LARGE_STAGED_AUDIT_SAMPLE_SIZE - 1),
+    );
+    selected.add(transactionIds[index]!);
+  }
+  return [...selected];
+}
+
+function createCaptureStorage(): {
+  storage: KeyValueStoragePort;
+  values: Map<string, string>;
+} {
+  const values = new Map<string, string>();
+  return {
+    values,
+    storage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => { values.set(key, value); },
+      removeItem: (key) => { values.delete(key); },
+      listKeys: () => [...values.keys()],
+    },
+  };
+}
+
+function mergeYnab4Activity(
+  target: Map<string, Map<string, number>>,
+  source: ReadonlyMap<string, ReadonlyMap<string, number>>,
+): void {
+  for (const [month, sourceCategories] of source) {
+    const targetCategories = target.get(month) ?? new Map<string, number>();
+    for (const [categoryId, amount] of sourceCategories) {
+      targetCategories.set(categoryId, (targetCategories.get(categoryId) ?? 0) + amount);
+    }
+    target.set(month, targetCategories);
   }
 }
 

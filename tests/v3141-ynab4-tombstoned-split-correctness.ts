@@ -1,13 +1,16 @@
+import { readSeededTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
+import { createScheduledTransactionEntityRepository, projectScheduledTransaction } from "../apps/web/src/features/accounts/entities/scheduledTransactionEntity.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
-import { getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope.ts";
+import { createFixedBudgetScopedStorage, getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope.ts";
 import { createYnab4LauncherBudgetImport } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
 import {
   createYnab4PackageMigrationPreview,
   discoverYnab4Package,
   type Ynab4PackageEntry,
 } from "../packages/ynab4-importer/src/analyzeYnab4Package.ts";
+import { readBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 
 function createMemoryStorage(): KeyValueStoragePort {
   const values = new Map<string, string>();
@@ -125,14 +128,7 @@ const result = createYnab4LauncherBudgetImport(storage, {
 
 assert.equal(result.record.accuracyAudit?.status, "pass");
 
-const registerRaw = storage.getItem(
-  getBudgetScopedStorageKey(result.budget.id, "budget-app.account-registers.v1"),
-);
-assert.ok(registerRaw);
-const registers = JSON.parse(registerRaw) as Record<
-  string,
-  { transactions: Array<{ id: string; splitLines?: Array<{ id: string; memo?: string }> }> }
->;
+const registers = readSeededTransactionRegisters(createFixedBudgetScopedStorage(storage, result.budget.id));
 const transaction = Object.values(registers)
   .flatMap((register) => register.transactions)
   .find((candidate) => candidate.id === "split-transaction");
@@ -143,14 +139,9 @@ assert.deepEqual(
   "Tombstoned transaction split lines must not be imported.",
 );
 
-const scheduledRaw = storage.getItem(
-  getBudgetScopedStorageKey(
-    result.budget.id,
-    "budget-app.scheduled-transactions.v1",
-  ),
-);
-assert.ok(scheduledRaw);
-const scheduled = JSON.parse(scheduledRaw) as Array<{
+const scheduled = createScheduledTransactionEntityRepository(
+  createFixedBudgetScopedStorage(storage, result.budget.id),
+).list().map(projectScheduledTransaction) as Array<{
   id: string;
   splitLines?: Array<{ id: string }>;
 }>;
@@ -160,9 +151,7 @@ assert.deepEqual(
   "Tombstoned scheduled split lines must not be imported.",
 );
 
-const monthRaw = storage.getItem(
-  `budget-app.budget-view.v1.${result.budget.id}.2020-01`,
-);
+const monthRaw = (() => { const view = readBudgetMonthEntity(storage, result.budget.id, "2020-01"); return view ? JSON.stringify(view) : null; })();
 assert.ok(monthRaw);
 const month = JSON.parse(monthRaw) as {
   categoryGroups: Array<{

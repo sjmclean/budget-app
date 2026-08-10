@@ -28,6 +28,7 @@ import { deleteBudgetById, type BudgetLifecycleResult } from "../features/budget
 import { createBudgetFromSetup } from "../features/budget/newBudget/createBudgetFromSetup";
 import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
+import { getBudgetPersistenceProvider } from "../features/persistence/budgetPersistenceProviderFactory";
 
 interface BudgetRegistryState {
   budgets: BudgetSummary[];
@@ -63,6 +64,8 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
       "../features/budget/ynab4LauncherImport"
     );
 
+    await getBudgetPersistenceProvider().accountRegisterQueries
+      ?.releaseLocalDatabase?.();
     createVersionHistorySnapshotBeforeBudgetImport(getActiveKeyValueStorage(), {
       now: input.now,
     });

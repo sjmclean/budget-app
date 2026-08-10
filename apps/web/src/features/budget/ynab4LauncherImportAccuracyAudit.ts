@@ -1,6 +1,10 @@
+import { readTransactionRegisters } from "../accounts/entities/transactionEntityPersistence.js";
 import { getBudgetScopedStorageKey } from "./budgetDataScope";
+import { createScheduledTransactionEntityRepository } from "../accounts/entities/scheduledTransactionEntity.js";
+import { projectScheduledTransaction } from "../accounts/entities/scheduledTransactionEntity.js";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
-import type { SidebarAccount } from "../accounts/accountService";
+import { readAccounts, type SidebarAccount } from "../accounts/accountService";
+import { createFixedBudgetScopedStorage } from "./budgetDataScope.js";
 import type { AccountRegisterView } from "../accounts/accountRegisterTypes";
 import type { BudgetMonthView } from "./budgetViewTypes";
 import type { Ynab4PackageEntry } from "../../../../../packages/ynab4-importer/src/analyzeYnab4Package";
@@ -10,11 +14,9 @@ import {
   firstYnabDisplayAmount,
 } from "../../../../../packages/ynab4-importer/src/money/decodeYnabAmount";
 import { isYnab4Tombstone } from "./ynab4/ynab4RecordState";
+import { listBudgetMonthEntities } from "./entities/budgetMonthEntity.js";
 
 const ACCOUNTS_STORAGE_KEY = "budget-app.accounts.v1";
-const REGISTERS_STORAGE_KEY = "budget-app.account-registers.v1";
-const SCHEDULED_STORAGE_KEY = "budget-app.scheduled-transactions.v1";
-const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
 
 export interface Ynab4LauncherImportAccuracyAuditInput {
   entries: Ynab4PackageEntry[];
@@ -691,21 +693,11 @@ function buildImportedAudit(
   storage: KeyValueStoragePort,
   budgetId: string,
 ): Ynab4LauncherImportAccuracyAuditResult["imported"] {
-  const accounts = readJson<SidebarAccount[]>(
-    storage,
-    getBudgetScopedStorageKey(budgetId, ACCOUNTS_STORAGE_KEY),
-    [],
-  );
-  const registers = readJson<Record<string, AccountRegisterView>>(
-    storage,
-    getBudgetScopedStorageKey(budgetId, REGISTERS_STORAGE_KEY),
-    {},
-  );
-  const scheduled = readJson<unknown[]>(
-    storage,
-    getBudgetScopedStorageKey(budgetId, SCHEDULED_STORAGE_KEY),
-    [],
-  );
+  const accounts = readAccounts(createFixedBudgetScopedStorage(storage, budgetId));
+  const registers = readTransactionRegisters(createFixedBudgetScopedStorage(storage, budgetId));
+  const scheduled = createScheduledTransactionEntityRepository(
+    createFixedBudgetScopedStorage(storage, budgetId),
+  ).list().map(projectScheduledTransaction);
   const monthViews = readBudgetMonthViews(storage, budgetId);
   const sourceCategoryIdByImportedId = new Map<string, string>();
   for (const { view } of monthViews) {
@@ -900,15 +892,7 @@ function readBudgetMonthViews(
   storage: KeyValueStoragePort,
   budgetId: string,
 ): Array<{ month: string; view: BudgetMonthView }> {
-  const prefix = `${BUDGET_VIEW_STORAGE_PREFIX}.${budgetId}.`;
-  const keys = storage.listKeys?.() ?? [];
-  return keys
-    .filter((key) => key.startsWith(prefix))
-    .sort()
-    .flatMap((key) => {
-      const view = readJson<BudgetMonthView | null>(storage, key, null);
-      return view ? [{ month: key.slice(prefix.length), view }] : [];
-    });
+  return listBudgetMonthEntities(storage, budgetId).map(({ month, view }) => ({ month, view }));
 }
 
 function sourceBudgetMonthTotals(

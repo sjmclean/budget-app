@@ -47,8 +47,8 @@ function testImportDialogPromptsOnlyWhenCreditCardsAreDetected() {
   );
   assert.match(
     dialog,
-    /ynab4EntriesContainCreditCards\(entries\)/,
-    "YNAB4 import should check whether the detected package contains credit cards",
+    /discovery\.containsCreditCards/,
+    "YNAB4 import should use streaming discovery to detect credit cards without parsing the package again",
   );
   assert.match(
     dialog,

@@ -4,9 +4,10 @@ import { BudgetImportProviderApplicationService } from "../../../../../packages/
 import type { FullBudgetImportPreview } from "../../../../../packages/types/src/index";
 import {
   createYnab4PackageMigrationPreview,
-  discoverYnab4Package,
+  discoverYnab4PackageStreaming,
   type Ynab4PackageDiscoveryResult,
   type Ynab4PackageEntry,
+  prepareYnab4PackageEntriesForStreaming,
   type Ynab4PackageMigrationPreview,
 } from "../../../../../packages/ynab4-importer/src/analyzeYnab4Package";
 import type {
@@ -142,6 +143,7 @@ export function BudgetImportDialog({
   const [isBudgetImportDragActive, setIsBudgetImportDragActive] = useState(false);
   const budgetFileInputRef = useRef<HTMLInputElement | null>(null);
   const ynab4FolderInputRef = useRef<HTMLInputElement | null>(null);
+  const ynab4ImportAbortRef = useRef<AbortController | null>(null);
 
   async function importYnab4PackagePreview(input: {
     discovery: Ynab4PackageDiscoveryResult;
@@ -149,13 +151,32 @@ export function BudgetImportDialog({
     entries: Ynab4PackageEntry[];
     creditCardBehaviour?: CreditCardBehaviour;
   }) {
+    const controller = new AbortController();
+    ynab4ImportAbortRef.current = controller;
+    setBudgetImportProgressPhase("preparing");
+    setActualStatus("YNAB4 detected. Validating and importing into a new local budget…");
     try {
-      await showImportPhase(setBudgetImportProgressPhase, "importing-accounts");
-      await showImportPhase(setBudgetImportProgressPhase, "importing-categories");
-      await showImportPhase(setBudgetImportProgressPhase, "importing-payees");
-      setBudgetImportProgressPhase("importing-transactions");
-      const result = await importYnab4Budget(input);
-      await showImportPhase(setBudgetImportProgressPhase, "finalising");
+      const result = await importYnab4Budget({
+        ...input,
+        signal: controller.signal,
+        onProgress: (progress) => {
+          if (progress.phase === "preflight") {
+            setBudgetImportProgressPhase("preparing");
+          } else if (progress.phase === "reference-data") {
+            setBudgetImportProgressPhase("importing-accounts");
+          } else if (progress.phase === "transactions") {
+            setBudgetImportProgressPhase("importing-transactions");
+            setActualStatus(
+              `Importing YNAB4 transactions… ${progress.sourceRecordsConsumed.toLocaleString()} of ${input.discovery.counts.transactions.toLocaleString()}`,
+            );
+          } else if (progress.phase === "scheduled") {
+            setBudgetImportProgressPhase("finalising");
+            setActualStatus("Importing scheduled transactions and finalising the budget…");
+          } else {
+            setBudgetImportProgressPhase("finalising");
+          }
+        },
+      });
       onImportedBudgetSelected(result.budget.id);
       setBudgetImportProgressPhase("complete");
       setBudgetImportResult({
@@ -174,11 +195,17 @@ export function BudgetImportDialog({
       });
     } catch (error) {
       setYnabError(
-        error instanceof Error
+        controller.signal.aborted
+          ? "YNAB4 import was cancelled. No partial budget was saved."
+          : error instanceof Error
           ? error.message
           : "Unable to create the imported YNAB4 budget.",
       );
       setBudgetImportProgressPhase("failed");
+    } finally {
+      if (ynab4ImportAbortRef.current === controller) {
+        ynab4ImportAbortRef.current = null;
+      }
     }
   }
 
@@ -339,7 +366,7 @@ export function BudgetImportDialog({
     try {
       const droppedDirectoryEntries = await readYnab4PackageEntriesFromDataTransfer(dataTransfer);
       if (droppedDirectoryEntries.length > 0) {
-        await handleYnab4PackageEntries(droppedDirectoryEntries);
+        promptForYnab4CreditCardBehaviour(droppedDirectoryEntries);
         return;
       }
     } catch (error) {
@@ -367,7 +394,7 @@ export function BudgetImportDialog({
 
     try {
       const entries = await readYnab4PackageEntries(selectedFiles);
-      await handleYnab4PackageEntries(entries);
+      promptForYnab4CreditCardBehaviour(entries);
     } catch (error) {
       setYnabError(
         error instanceof Error
@@ -378,15 +405,41 @@ export function BudgetImportDialog({
     }
   }
 
-  async function handleYnab4PackageEntries(entries: Ynab4PackageEntry[]) {
+  function promptForYnab4CreditCardBehaviour(entries: Ynab4PackageEntry[]) {
+    setBudgetImportProgressPhase("idle");
+    setActualStatus("YNAB4 package selected. Choose how credit cards should work before inspection begins.");
+    setPendingCreditCardImport({
+      providerLabel: "YNAB4",
+      creditCardBehaviour: "normal",
+      continueImport: async (behaviour) => {
+        await prepareYnab4PackageEntriesForStreaming(entries);
+        await handleYnab4PackageEntries(entries, behaviour);
+      },
+    });
+  }
+
+  async function handleYnab4PackageEntries(
+    entries: Ynab4PackageEntry[],
+    creditCardBehaviour?: CreditCardBehaviour,
+  ) {
     setYnabError(null);
     setActualError(null);
     setBudgetImportResult(null);
     setBudgetImportProgressPhase("reading");
+    const controller = new AbortController();
+    ynab4ImportAbortRef.current = controller;
 
     try {
       setBudgetImportProgressPhase("detecting");
-      const discovery = discoverYnab4Package(entries);
+      const discovery = await discoverYnab4PackageStreaming(entries, {
+        signal: controller.signal,
+        onProgress: (transactions) => {
+          setBudgetImportProgressCounts((counts) => ({
+            ...counts,
+            transactions,
+          }));
+        },
+      });
       setBudgetImportProgressCounts({
         accounts: discovery.counts.accounts,
         categoryGroups: discovery.counts.masterCategories,
@@ -413,7 +466,10 @@ export function BudgetImportDialog({
         return;
       }
 
-      if (ynab4EntriesContainCreditCards(entries)) {
+      if (discovery.containsCreditCards && !creditCardBehaviour) {
+        if (ynab4ImportAbortRef.current === controller) {
+          ynab4ImportAbortRef.current = null;
+        }
         setBudgetImportProgressPhase("idle");
         setActualStatus("YNAB4 detected. Choose how credit cards should work before importing.");
         setPendingCreditCardImport({
@@ -425,14 +481,25 @@ export function BudgetImportDialog({
         return;
       }
 
-      await importYnab4PackagePreview({ discovery, preview, entries });
+      await importYnab4PackagePreview({
+        discovery,
+        preview,
+        entries,
+        creditCardBehaviour,
+      });
     } catch (error) {
       setYnabError(
-        error instanceof Error
+        controller.signal.aborted
+          ? "YNAB4 package inspection was cancelled."
+          : error instanceof Error
           ? error.message
           : "Unable to analyse the selected YNAB4 package.",
       );
       setBudgetImportProgressPhase("failed");
+    } finally {
+      if (ynab4ImportAbortRef.current === controller) {
+        ynab4ImportAbortRef.current = null;
+      }
     }
   }
 
@@ -472,9 +539,9 @@ export function BudgetImportDialog({
       {pendingCreditCardImport ? (
         <div className="budget-import-credit-card-choice" aria-label="Credit card behaviour for imported budget">
           <div className="budget-launch-choice-header">
-            <p className="eyebrow">Credit cards detected</p>
+            <p className="eyebrow">Import options</p>
             <h2>How should credit cards work?</h2>
-            <p>{pendingCreditCardImport.providerLabel} contains credit card accounts. This choice applies to every credit card in the imported budget.</p>
+            <p>{pendingCreditCardImport.providerLabel} selected. This choice applies to every credit card found in the imported budget.</p>
           </div>
 
           <div className="credit-card-behaviour-options" role="radiogroup" aria-label="How should credit cards work in this imported budget?">
@@ -578,6 +645,15 @@ export function BudgetImportDialog({
             phase={budgetImportProgressPhase}
             counts={budgetImportProgressCounts}
           />
+          {ynab4ImportAbortRef.current ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => ynab4ImportAbortRef.current?.abort()}
+            >
+              Cancel import
+            </Button>
+          ) : null}
         </div>
       ) : (
         <>
@@ -679,8 +755,12 @@ function ynab4EntriesContainCreditCards(entries: Ynab4PackageEntry[]): boolean {
   if (!budgetEntry) return false;
 
   try {
-    const parsed = JSON.parse(budgetEntry.text) as { accounts?: unknown };
-    return Array.isArray(parsed.accounts) && parsed.accounts.some(isYnab4CreditCardAccount);
+    const parsed = budgetEntry.parsedData
+      ?? (typeof budgetEntry.text === "string"
+        ? JSON.parse(budgetEntry.text) as Record<string, unknown>
+        : null);
+    return Array.isArray(parsed?.accounts)
+      && parsed.accounts.some(isYnab4CreditCardAccount);
   } catch {
     return false;
   }
@@ -754,12 +834,11 @@ async function readYnab4PackageEntriesFromFiles(
     );
   }
 
-  return Promise.all(
-    readableFiles.map(async (file) => ({
-      path: file.webkitRelativePath || file.name,
-      text: await file.text(),
-    })),
-  );
+  return readableFiles.map((file) => ({
+    path: file.webkitRelativePath || file.name,
+    file,
+    lastModified: file.lastModified,
+  }));
 }
 
 async function readYnab4PackageEntriesFromDataTransfer(
@@ -783,12 +862,11 @@ async function readYnab4PackageEntriesFromDataTransfer(
     );
   }
 
-  return Promise.all(
-    readableFiles.map(async ({ file, path }) => ({
-      path,
-      text: await file.text(),
-    })),
-  );
+  return readableFiles.map(({ file, path }) => ({
+    path,
+    file,
+    lastModified: file.lastModified,
+  }));
 }
 
 async function readFilesFromEntry(

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { installInMemoryBudgetPersistence } from "./support/persistence/inMemoryBudgetPersistence.js";
 import {
   createImportFileHash,
   createQifStructureSignature,
@@ -8,27 +9,9 @@ import {
   rememberImportedFileFingerprint,
 } from "../apps/web/src/features/accounts/transactionImportKnowledge";
 
-const store = new Map<string, string>();
-Object.defineProperty(globalThis, "window", {
-  configurable: true,
-  value: {
-    localStorage: {
-      getItem(key: string) {
-        return store.get(key) ?? null;
-      },
-      setItem(key: string, value: string) {
-        store.set(key, value);
-      },
-      removeItem(key: string) {
-        store.delete(key);
-      },
-      clear() {
-        store.clear();
-      },
-    },
-  },
-});
+const { cleanup } = installInMemoryBudgetPersistence();
 
+try {
 const csvMapping = {
   0: "date",
   1: "payee",
@@ -106,3 +89,6 @@ assert.equal(
 );
 
 console.log("v3.16.2 account import knowledge checks passed");
+} finally {
+  cleanup();
+}

@@ -29,8 +29,8 @@ The browser-local-storage provider and shared-server runtime have been removed. 
 | localStorage | 17 |
 | indexedDB | 3 |
 | replicationApi | 2 |
-| persistenceBoundary | 44 |
-| operationJournal | 9 |
+| persistenceBoundary | 52 |
+| operationJournal | 11 |
 | checkpoints | 7 |
 
 ### Legacy migration or global browser storage

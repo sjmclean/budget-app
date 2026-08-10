@@ -16,8 +16,8 @@ import {
   getPreviousBudgetMonth,
 } from "../features/budget/budgetMonthNavigation";
 import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
-import { useBudgetView } from "../features/budget/useBudgetView";
 import { useBudgetUndoRedo } from "../features/budget/budgetUndoRedo";
+import { readAuthoritativeBudgetSummary } from "../features/budget/authoritativeBudgetSummary";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import type {
@@ -582,11 +582,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     closeActivityDrilldown,
   } = useBudgetWorkspace(budgetId, selectedMonth);
 
-  const previousMonthBudget = useBudgetView(
-    budgetId,
-    getPreviousBudgetMonth(selectedMonth),
-  );
-
   const budgetUndoRedo = useBudgetUndoRedo();
 
   const budgetTableLayout = useTableLayout({
@@ -665,6 +660,24 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     );
   }
 
+  const authoritativeSummary = readAuthoritativeBudgetSummary(data);
+  if (!authoritativeSummary) {
+    return (
+      <WorkspaceLayout className="page-stack">
+        <WorkspaceHeader
+          title="Budget"
+          subtitle="The authoritative budget projection is incomplete."
+        />
+        <WorkspaceBody>
+          <Card>
+            This budget month is missing engine-derived rollover fields. Refresh
+            the budget to rebuild its SQLite projection.
+          </Card>
+        </WorkspaceBody>
+      </WorkspaceLayout>
+    );
+  }
+
   const {
     visibleSelectedCategory,
     visibleSelectedGroup,
@@ -682,29 +695,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   const coverOptions = buildOverspendingCoverOptions(data.categoryGroups);
   const monthName = data.monthLabel.split(" ")[0] ?? data.monthLabel;
-  const carriedForward =
-    data.carriedForwardReadyToAssign ?? previousMonthBudget.data?.readyToAssign ?? 0;
-  const previousOverspending =
-    data.previousOverspending ??
-    previousMonthBudget.data?.categoryGroups.reduce(
-      (total, group) =>
-        total +
-        group.categories.reduce((groupTotal, category) => {
-          if (
-            category.available >= 0 ||
-            (category.overspendingHandling ?? "reduce-next-month") === "carry-category"
-          ) {
-            return groupTotal;
-          }
-
-          return groupTotal + category.available;
-        }, 0),
-      0,
-    ) ??
-    0;
-  const incomeForMonth =
-    data.incomeForMonth ??
-    data.readyToAssign - carriedForward - previousOverspending + data.totalAssigned;
+  const carriedForward = authoritativeSummary.carriedForwardReadyToAssign;
+  const previousOverspending = authoritativeSummary.previousOverspending;
+  const incomeForMonth = authoritativeSummary.incomeForMonth;
 
   function openCategoryEditor(categoryId: string) {
     if (isCreditCardPaymentCategory(categoryId)) {

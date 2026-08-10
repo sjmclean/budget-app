@@ -1,11 +1,22 @@
-import type { NewRegisterTransactionInput, RegisterTransactionView } from "./accountRegisterTypes";
+import type { NewRegisterTransactionInput, RegisterTransactionView, ScheduledAttachmentTemplate } from "./accountRegisterTypes";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import { createScheduledTransactionEntityRepository, projectScheduledTransaction, replaceScheduledTransactionEntities } from "./entities/scheduledTransactionEntity.js";
+import { advanceScheduledDate } from "../../../../../packages/budget-engine/src/services/scheduledRecurrence";
+import { createRuntimeUuid } from "../ids/createRuntimeUuid";
+import { localCalendarDate } from "../dates/localCalendarDate";
 
 
 export type ScheduledFrequency = "once" | "daily" | "weekly" | "fortnightly" | "monthly" | "yearly" | "custom";
 export type ScheduledRecurrenceUnit = "day" | "week" | "month" | "year";
 export type ScheduledEndCondition = "never" | "on-date" | "after-occurrences";
 export type ScheduledWeekendPolicy = "same-day" | "previous-business-day" | "next-business-day" | "skip";
+export type ScheduledMonthDayPolicy = "same-day-number" | "last-day-of-month";
+export type ScheduledRecurrenceKind = "rule" | "specific-dates";
+export interface ScheduledInstalment {
+  date: string;
+  outflow: number;
+  inflow: number;
+}
 
 export interface ScheduledTransactionView {
   id: string;
@@ -13,9 +24,16 @@ export interface ScheduledTransactionView {
   tagIds?: string[];
   nextDueDate: string;
   frequency: ScheduledFrequency;
+  recurrenceKind?: ScheduledRecurrenceKind;
+  specificDates?: string[];
+  specificDateIndex?: number;
+  specificInstalments?: ScheduledInstalment[];
+  attachments?: ScheduledAttachmentTemplate[];
   recurrenceInterval?: number;
   recurrenceUnit?: ScheduledRecurrenceUnit;
   recurrenceAnchorDate?: string;
+  recurrenceAnchorDay?: number;
+  monthDayPolicy?: ScheduledMonthDayPolicy;
   endCondition?: ScheduledEndCondition;
   endDate?: string;
   occurrenceCount?: number;
@@ -39,9 +57,16 @@ export interface UpsertScheduledTransactionInput {
   tagIds?: string[];
   nextDueDate: string;
   frequency: ScheduledFrequency;
+  recurrenceKind?: ScheduledRecurrenceKind;
+  specificDates?: string[];
+  specificDateIndex?: number;
+  specificInstalments?: ScheduledInstalment[];
+  attachments?: ScheduledAttachmentTemplate[];
   recurrenceInterval?: number;
   recurrenceUnit?: ScheduledRecurrenceUnit;
   recurrenceAnchorDate?: string;
+  recurrenceAnchorDay?: number;
+  monthDayPolicy?: ScheduledMonthDayPolicy;
   endCondition?: ScheduledEndCondition;
   endDate?: string;
   occurrenceCount?: number;
@@ -57,7 +82,6 @@ export interface UpsertScheduledTransactionInput {
   splitLines?: RegisterTransactionView["splitLines"];
 }
 
-const STORAGE_KEY = "budget-app.scheduled-transactions.v1";
 
 export interface ScheduledTransactionServiceDependencies {
   storage: KeyValueStoragePort;
@@ -74,7 +98,7 @@ export class BrowserPersistentScheduledTransactionService {
   }
 
   async dueCountByAccount(accountId: string): Promise<number> {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localCalendarDate();
     const transactions = await this.listByAccount(accountId);
     return transactions.filter((transaction) => transaction.nextDueDate <= today).length;
   }
@@ -88,8 +112,20 @@ export class BrowserPersistentScheduledTransactionService {
       interval: normaliseRecurrenceInterval(input.recurrenceInterval ?? recurrenceFromFrequency(input.frequency).interval),
       unit: input.recurrenceUnit ?? recurrenceFromFrequency(input.frequency).unit,
     };
+    const specificInstalments = normaliseSpecificInstalments(input.specificInstalments, input.specificDates, input.outflow, input.inflow);
+    const specificDates = specificInstalments.map(({ date }) => date);
+    const recurrenceKind = input.recurrenceKind === "specific-dates" ? "specific-dates" : "rule";
+    if (recurrenceKind === "specific-dates" && specificDates.length === 0) {
+      throw new Error("A specific-date schedule requires at least one occurrence date.");
+    }
+    const specificDateIndex = recurrenceKind === "specific-dates"
+      ? normaliseSpecificDateIndex(input.specificDateIndex, specificDates)
+      : 0;
+    const currentAnchor = recurrenceKind === "specific-dates"
+      ? specificDates[specificDateIndex]
+      : input.recurrenceAnchorDate ?? input.nextDueDate;
     const occurrence = resolveOccurrenceDate(
-      input.recurrenceAnchorDate ?? input.nextDueDate,
+      currentAnchor,
       recurrence.interval,
       recurrence.unit,
       input.weekendPolicy ?? "same-day",
@@ -101,9 +137,19 @@ export class BrowserPersistentScheduledTransactionService {
       tagIds: normaliseTagIds(input.tagIds),
       nextDueDate: occurrence.dueDate,
       frequency: input.frequency,
+      recurrenceKind,
+      specificDates: recurrenceKind === "specific-dates" ? specificDates : undefined,
+      specificDateIndex: recurrenceKind === "specific-dates" ? specificDateIndex : undefined,
+      specificInstalments: recurrenceKind === "specific-dates" ? specificInstalments : undefined,
+      attachments: cloneScheduledAttachments(input.attachments),
       recurrenceInterval: recurrence.interval,
       recurrenceUnit: recurrence.unit,
       recurrenceAnchorDate: occurrence.anchorDate,
+      recurrenceAnchorDay: normaliseRecurrenceAnchorDay(
+        input.recurrenceAnchorDay,
+        currentAnchor,
+      ),
+      monthDayPolicy: input.monthDayPolicy ?? "same-day-number",
       endCondition: input.endCondition ?? "never",
       endDate: input.endDate,
       occurrenceCount: normaliseOccurrenceCount(input.occurrenceCount),
@@ -114,8 +160,8 @@ export class BrowserPersistentScheduledTransactionService {
       category: normaliseScheduledCategory(input),
       categoryId: input.categoryId,
       memo: input.memo,
-      outflow: input.outflow,
-      inflow: input.inflow,
+      outflow: recurrenceKind === "specific-dates" ? specificInstalments[specificDateIndex]!.outflow : input.outflow,
+      inflow: recurrenceKind === "specific-dates" ? specificInstalments[specificDateIndex]!.inflow : input.inflow,
       splitLines: cloneSplitLines(input.splitLines),
       createdAt: now,
       updatedAt: now,
@@ -139,8 +185,20 @@ export class BrowserPersistentScheduledTransactionService {
         interval: normaliseRecurrenceInterval(input.recurrenceInterval ?? transaction.recurrenceInterval ?? recurrenceFromFrequency(input.frequency).interval),
         unit: input.recurrenceUnit ?? transaction.recurrenceUnit ?? recurrenceFromFrequency(input.frequency).unit,
       };
+      const recurrenceKind: ScheduledRecurrenceKind = input.recurrenceKind === "specific-dates" ? "specific-dates" : "rule";
+      const specificInstalments = normaliseSpecificInstalments(input.specificInstalments, input.specificDates, input.outflow, input.inflow);
+      const specificDates = specificInstalments.map(({ date }) => date);
+      if (recurrenceKind === "specific-dates" && specificDates.length === 0) {
+        throw new Error("A specific-date schedule requires at least one occurrence date.");
+      }
+      const specificDateIndex = recurrenceKind === "specific-dates"
+        ? normaliseSpecificDateIndex(input.specificDateIndex, specificDates)
+        : 0;
+      const currentAnchor = recurrenceKind === "specific-dates"
+        ? specificDates[specificDateIndex]
+        : input.recurrenceAnchorDate ?? input.nextDueDate;
       const occurrence = resolveOccurrenceDate(
-        input.recurrenceAnchorDate ?? input.nextDueDate,
+        currentAnchor,
         recurrence.interval,
         recurrence.unit,
         input.weekendPolicy ?? transaction.weekendPolicy ?? "same-day",
@@ -152,9 +210,19 @@ export class BrowserPersistentScheduledTransactionService {
         tagIds: normaliseTagIds(input.tagIds),
         nextDueDate: occurrence.dueDate,
         frequency: input.frequency,
+        recurrenceKind,
+        specificDates: recurrenceKind === "specific-dates" ? specificDates : undefined,
+        specificDateIndex: recurrenceKind === "specific-dates" ? specificDateIndex : undefined,
+        specificInstalments: recurrenceKind === "specific-dates" ? specificInstalments : undefined,
+        attachments: cloneScheduledAttachments(input.attachments ?? transaction.attachments),
         recurrenceInterval: recurrence.interval,
         recurrenceUnit: recurrence.unit,
         recurrenceAnchorDate: occurrence.anchorDate,
+        recurrenceAnchorDay: normaliseRecurrenceAnchorDay(
+          input.recurrenceAnchorDay ?? transaction.recurrenceAnchorDay,
+          currentAnchor,
+        ),
+        monthDayPolicy: input.monthDayPolicy ?? transaction.monthDayPolicy ?? "same-day-number",
         endCondition: input.endCondition ?? transaction.endCondition ?? "never",
         endDate: input.endDate,
         occurrenceCount: normaliseOccurrenceCount(input.occurrenceCount ?? transaction.occurrenceCount),
@@ -169,8 +237,8 @@ export class BrowserPersistentScheduledTransactionService {
             ? transaction.categoryId
             : undefined),
         memo: input.memo,
-        outflow: input.outflow,
-        inflow: input.inflow,
+        outflow: recurrenceKind === "specific-dates" ? specificInstalments[specificDateIndex]!.outflow : input.outflow,
+        inflow: recurrenceKind === "specific-dates" ? specificInstalments[specificDateIndex]!.inflow : input.inflow,
         splitLines: cloneSplitLines(input.splitLines ?? transaction.splitLines),
         updatedAt: now,
       };
@@ -200,6 +268,39 @@ export class BrowserPersistentScheduledTransactionService {
     }
 
     const completed = (target.occurrencesCompleted ?? 0) + 1;
+    if (target.recurrenceKind === "specific-dates") {
+      const instalments = normaliseSpecificInstalments(target.specificInstalments, target.specificDates, target.outflow, target.inflow);
+      const dates = instalments.map(({ date }) => date);
+      const currentIndex = normaliseSpecificDateIndex(target.specificDateIndex, dates);
+      const nextIndex = currentIndex + 1;
+      if (nextIndex >= dates.length) {
+        writeScheduledTransactions(
+          this.dependencies.storage,
+          transactions.filter((transaction) => transaction.id !== scheduledTransactionId),
+        );
+        return this.listByAccount(accountId);
+      }
+      const nextAnchor = dates[nextIndex];
+      const nextDueDate = applyWeekendPolicy(nextAnchor, target.weekendPolicy ?? "same-day");
+      const now = new Date().toISOString();
+      writeScheduledTransactions(
+        this.dependencies.storage,
+        transactions.map((transaction) => transaction.id === scheduledTransactionId
+          ? {
+              ...transaction,
+              recurrenceAnchorDate: nextAnchor,
+              nextDueDate,
+              specificDateIndex: nextIndex,
+              specificInstalments: instalments,
+              outflow: instalments[nextIndex]!.outflow,
+              inflow: instalments[nextIndex]!.inflow,
+              occurrencesCompleted: completed,
+              updatedAt: now,
+            }
+          : transaction),
+      );
+      return this.listByAccount(accountId);
+    }
     const shouldComplete =
       target.frequency === "once" ||
       (target.endCondition === "after-occurrences" && completed >= (target.occurrenceCount ?? 1));
@@ -214,7 +315,15 @@ export class BrowserPersistentScheduledTransactionService {
 
     const recurrence = resolveRecurrence(target);
     const currentAnchor = target.recurrenceAnchorDate ?? target.nextDueDate;
-    const candidateAnchor = advanceDateByRule(currentAnchor, recurrence.interval, recurrence.unit);
+    const candidateAnchor = advanceDateByRule(
+      currentAnchor,
+      recurrence.interval,
+      recurrence.unit,
+      {
+        anchorDay: target.recurrenceAnchorDay,
+        monthDayPolicy: target.monthDayPolicy,
+      },
+    );
     const occurrence = resolveOccurrenceDate(
       candidateAnchor,
       recurrence.interval,
@@ -262,6 +371,10 @@ export class BrowserPersistentScheduledTransactionService {
       outflow: transaction.outflow,
       inflow: transaction.inflow,
       splitLines: cloneSplitLines(transaction.splitLines),
+      generatedFromSchedule: true,
+      scheduledTransactionId: transaction.id,
+      scheduledOccurrenceDate: transaction.recurrenceAnchorDate ?? transaction.nextDueDate,
+      scheduledAttachments: cloneScheduledAttachments(transaction.attachments),
     };
   }
 
@@ -341,29 +454,20 @@ function normalisePayeeReference(value: string): string {
 function readScheduledTransactions(
   dependencies?: ScheduledTransactionServiceDependencies,
 ): ScheduledTransactionView[] {
-  const value = dependencies?.storage.getItem(STORAGE_KEY);
-
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(value) as ScheduledTransactionView[];
-    return Array.isArray(parsed) ? parsed.map((transaction) => normaliseStoredScheduledTransaction(transaction, dependencies)) : [];
-  } catch {
-    return [];
-  }
+  if (!dependencies) return [];
+  return createScheduledTransactionEntityRepository(dependencies.storage)
+    .list()
+    .map(projectScheduledTransaction)
+    .map((transaction) => normaliseStoredScheduledTransaction(transaction, dependencies));
 }
 
 function writeScheduledTransactions(
   storage: KeyValueStoragePort,
   transactions: ScheduledTransactionView[],
 ): void {
-  storage.setItem(
-    STORAGE_KEY,
-    JSON.stringify(
-      transactions.map((transaction) => normaliseStoredScheduledTransaction(transaction)),
-    ),
+  replaceScheduledTransactionEntities(
+    storage,
+    transactions.map((transaction) => normaliseStoredScheduledTransaction(transaction)),
   );
 }
 
@@ -382,9 +486,29 @@ function normaliseStoredScheduledTransaction(
       ...(legacyTagId ? [legacyTagId] : []),
     ]),
     memo: currentTransaction.memo ?? "",
+    recurrenceKind: currentTransaction.recurrenceKind === "specific-dates" ? "specific-dates" : "rule",
+    specificDates: currentTransaction.recurrenceKind === "specific-dates"
+      ? normaliseSpecificDates(currentTransaction.specificDates)
+      : undefined,
+    specificDateIndex: currentTransaction.recurrenceKind === "specific-dates"
+      ? normaliseSpecificDateIndex(currentTransaction.specificDateIndex, normaliseSpecificDates(currentTransaction.specificDates))
+      : undefined,
+    specificInstalments: currentTransaction.recurrenceKind === "specific-dates"
+      ? normaliseSpecificInstalments(
+          currentTransaction.specificInstalments,
+          currentTransaction.specificDates,
+          currentTransaction.outflow,
+          currentTransaction.inflow,
+        )
+      : undefined,
     recurrenceInterval: normaliseRecurrenceInterval(currentTransaction.recurrenceInterval),
     recurrenceUnit: currentTransaction.recurrenceUnit ?? recurrenceFromFrequency(currentTransaction.frequency).unit,
     recurrenceAnchorDate: currentTransaction.recurrenceAnchorDate ?? currentTransaction.nextDueDate,
+    recurrenceAnchorDay: normaliseRecurrenceAnchorDay(
+      currentTransaction.recurrenceAnchorDay,
+      currentTransaction.recurrenceAnchorDate ?? currentTransaction.nextDueDate,
+    ),
+    monthDayPolicy: currentTransaction.monthDayPolicy ?? "same-day-number",
     endCondition: currentTransaction.endCondition ?? "never",
     endDate: currentTransaction.endDate,
     occurrenceCount: normaliseOccurrenceCount(currentTransaction.occurrenceCount),
@@ -401,6 +525,49 @@ function normaliseStoredScheduledTransaction(
       : 0,
     splitLines: cloneSplitLines(currentTransaction.splitLines),
   };
+}
+
+export function normaliseSpecificDates(dates: readonly string[] | undefined): string[] {
+  return Array.from(new Set((dates ?? []).filter(isValidCalendarDate))).sort();
+}
+
+export function normaliseSpecificInstalments(
+  instalments: readonly ScheduledInstalment[] | undefined,
+  legacyDates: readonly string[] | undefined,
+  defaultOutflow: number,
+  defaultInflow: number,
+): ScheduledInstalment[] {
+  const candidates = instalments?.length
+    ? instalments
+    : normaliseSpecificDates(legacyDates).map((date) => ({ date, outflow: defaultOutflow, inflow: defaultInflow }));
+  const byDate = new Map<string, ScheduledInstalment>();
+  for (const instalment of candidates) {
+    if (!isValidCalendarDate(instalment.date)) continue;
+    const outflow = Number.isFinite(instalment.outflow) ? Math.max(0, instalment.outflow) : 0;
+    const inflow = Number.isFinite(instalment.inflow) ? Math.max(0, instalment.inflow) : 0;
+    byDate.set(instalment.date, {
+      date: instalment.date,
+      outflow: inflow > 0 ? 0 : outflow,
+      inflow,
+    });
+  }
+  return [...byDate.values()].sort((left, right) => left.date.localeCompare(right.date));
+}
+
+function normaliseSpecificDateIndex(index: number | undefined, dates: readonly string[]): number {
+  if (dates.length === 0) return 0;
+  if (!Number.isInteger(index)) return 0;
+  return Math.min(dates.length - 1, Math.max(0, index!));
+}
+
+function isValidCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  try {
+    advanceScheduledDate(value, 1, "day");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function legacyFlagTagId(value: unknown): string | undefined {
@@ -488,17 +655,21 @@ export function advanceDateByRule(
   date: string,
   interval: number,
   unit: ScheduledRecurrenceUnit,
+  options: {
+    anchorDay?: number;
+    monthDayPolicy?: ScheduledMonthDayPolicy;
+  } = {},
 ): string {
-  const [year, month, day] = date.split("-").map(Number);
-  const next = new Date(year, month - 1, day);
-  const safeInterval = normaliseRecurrenceInterval(interval);
+  return advanceScheduledDate(date, interval, unit, {
+    anchorDay: options.anchorDay,
+    monthDayPolicy: options.monthDayPolicy,
+  });
+}
 
-  if (unit === "day") next.setDate(next.getDate() + safeInterval);
-  if (unit === "week") next.setDate(next.getDate() + (safeInterval * 7));
-  if (unit === "month") next.setMonth(next.getMonth() + safeInterval);
-  if (unit === "year") next.setFullYear(next.getFullYear() + safeInterval);
-
-  return formatIsoDate(next);
+function normaliseRecurrenceAnchorDay(anchorDay: number | undefined, fallbackDate: string): number {
+  const fallback = Number.parseInt(fallbackDate.slice(8, 10), 10);
+  if (!Number.isInteger(anchorDay)) return fallback;
+  return Math.min(31, Math.max(1, anchorDay!));
 }
 
 export function resolveOccurrenceDate(
@@ -574,13 +745,13 @@ function normaliseOccurrenceCount(value: number | undefined): number | undefined
 }
 
 function createId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `scheduled-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `scheduled-${createRuntimeUuid()}`;
 }
 
 function cloneSplitLines(splitLines: RegisterTransactionView["splitLines"]): RegisterTransactionView["splitLines"] {
   return splitLines?.map((line) => ({ ...line }));
+}
+
+function cloneScheduledAttachments(attachments: readonly ScheduledAttachmentTemplate[] | undefined): ScheduledAttachmentTemplate[] {
+  return (attachments ?? []).map((attachment) => ({ ...attachment }));
 }

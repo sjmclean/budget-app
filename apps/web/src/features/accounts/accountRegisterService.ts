@@ -9,8 +9,35 @@ import type {
 import type { SidebarAccount, SidebarAccountType } from "./accountService";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import { RegisterTransactionBatchCommitError } from "./accountRegisterPersistencePort";
+import {
+  TRANSACTION_ENTITY_INDEX_KEY,
+  TRANSACTION_ENTITY_RECORD_PREFIX,
+  createTransactionEntity,
+  createTransactionEntityRepository,
+  projectTransactionEntity,
+  tombstoneTransactionEntity,
+  transactionTimestampFor,
+  updateTransactionEntity,
+} from "./entities/transactionEntity.js";
+import { readTransactionRegisters, replaceTransactionRegisters } from "./entities/transactionEntityPersistence.js";
+import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 
-const STORAGE_KEY = "budget-app.account-registers.v1";
+const transactionStorageKeys = (storage: KeyValueStoragePort): string[] =>
+  (storage.listKeys?.() ?? []).filter(
+    (key) => key === TRANSACTION_ENTITY_INDEX_KEY || key.startsWith(TRANSACTION_ENTITY_RECORD_PREFIX),
+  );
+
+function snapshotTransactionStorage(storage: KeyValueStoragePort): Map<string, string> {
+  return new Map(transactionStorageKeys(storage).flatMap((key) => {
+    const value = storage.getItem(key);
+    return value === null ? [] : [[key, value] as const];
+  }));
+}
+
+function restoreTransactionStorage(storage: KeyValueStoragePort, snapshot: ReadonlyMap<string, string>): void {
+  for (const key of transactionStorageKeys(storage)) storage.removeItem(key);
+  for (const [key, value] of snapshot) storage.setItem(key, value);
+}
 
 type StoredRegisters = Record<string, AccountRegisterView>;
 
@@ -269,7 +296,7 @@ export class BrowserPersistentAccountRegisterService
     additions: NewRegisterTransactionInput[];
     updates: UpdateRegisterTransactionInput[];
   }) {
-    const storageSnapshot = this.dependencies.storage.getItem(STORAGE_KEY);
+    const storageSnapshot = snapshotTransactionStorage(this.dependencies.storage);
     const beforeRegister = await this.getAccountRegisterView({
       accountId: input.accountId,
     });
@@ -318,11 +345,7 @@ export class BrowserPersistentAccountRegisterService
     } catch (error) {
       let rollbackSucceeded = false;
       try {
-        if (storageSnapshot === null) {
-          this.dependencies.storage.removeItem(STORAGE_KEY);
-        } else {
-          this.dependencies.storage.setItem(STORAGE_KEY, storageSnapshot);
-        }
+        restoreTransactionStorage(this.dependencies.storage, storageSnapshot);
         rollbackSucceeded = true;
       } catch {
         rollbackSucceeded = false;
@@ -1308,24 +1331,14 @@ export function removeTransactionTagReferences(
 }
 
 function readRegisters(storage: KeyValueStoragePort): StoredRegisters {
-  const value = storage.getItem(STORAGE_KEY);
-
-  if (!value) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(value) as StoredRegisters;
-  } catch {
-    return {};
-  }
+  return readTransactionRegisters(storage);
 }
 
 function writeRegisters(
   storage: KeyValueStoragePort,
   registers: StoredRegisters,
 ): void {
-  storage.setItem(STORAGE_KEY, JSON.stringify(registers));
+  replaceTransactionRegisters(storage, registers);
 }
 
 function cloneRegister(register: AccountRegisterView): AccountRegisterView {
@@ -1375,11 +1388,7 @@ function compareForRegisterDisplay(
 }
 
 function createId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `tx-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `tx-${createRuntimeUuid()}`;
 }
 
 function normaliseTagIds(tagIds: readonly string[] | undefined): string[] {

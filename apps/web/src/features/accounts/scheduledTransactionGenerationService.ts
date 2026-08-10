@@ -4,16 +4,37 @@ import {
   shouldSkipOccurrence,
   type ScheduledTransactionView,
 } from "./scheduledTransactionService";
+import { localCalendarDate, normaliseLocalCalendarDate } from "../dates/localCalendarDate";
 
 const MAX_OCCURRENCES_PER_RUN = 120;
 
 const generationInFlightByGateway = new WeakMap<
   BudgetPersistenceProvider,
-  Promise<ScheduledTransactionGenerationResult>
+  {
+    readonly scope: string;
+    readonly promise: Promise<ScheduledTransactionGenerationResult>;
+  }
 >();
+const generationResultByGateway = new WeakMap<
+  BudgetPersistenceProvider,
+  {
+    readonly day: string;
+    readonly scope: string;
+    readonly completedAt: number;
+    readonly result: ScheduledTransactionGenerationResult;
+  }
+>();
+const GENERATION_CACHE_MS = 5 * 60_000;
 
 export interface ScheduledTransactionGenerationInput {
   today?: string;
+  force?: boolean;
+  scope?: string;
+  listAccounts?: () => Promise<readonly { readonly id: string; readonly name: string }[]>;
+  hostedTransactions?: {
+    listRecent(accountId: string): Promise<readonly RegisterTransactionView[]>;
+    add(accountId: string, transaction: NewRegisterTransactionInput): Promise<void>;
+  };
 }
 
 export interface ScheduledTransactionGenerationCreatedTransaction {
@@ -34,19 +55,41 @@ export function generateDueScheduledTransactions(
   gateway: BudgetPersistenceProvider,
   input: ScheduledTransactionGenerationInput = {},
 ): Promise<ScheduledTransactionGenerationResult> {
+  const today = normaliseLocalCalendarDate(input.today ?? localCalendarDate());
+  const scope = input.scope?.trim() ?? "";
+  const cached = generationResultByGateway.get(gateway);
+  if (
+    !input.force &&
+    cached?.day === today &&
+    cached.scope === scope &&
+    Date.now() - cached.completedAt < GENERATION_CACHE_MS
+  ) {
+    return Promise.resolve(cached.result);
+  }
   const existing = generationInFlightByGateway.get(gateway);
-  if (existing) {
-    return existing;
+  if (existing?.scope === scope) {
+    return existing.promise;
   }
 
-  const run = generateDueScheduledTransactionsInternal(gateway, input);
-  generationInFlightByGateway.set(gateway, run);
+  const run = generateDueScheduledTransactionsInternal(gateway, {
+    ...input,
+    today,
+  });
+  generationInFlightByGateway.set(gateway, { scope, promise: run });
   const clearInFlightRun = () => {
-    if (generationInFlightByGateway.get(gateway) === run) {
+    if (generationInFlightByGateway.get(gateway)?.promise === run) {
       generationInFlightByGateway.delete(gateway);
     }
   };
-  void run.then(clearInFlightRun, clearInFlightRun);
+  void run.then((result) => {
+    generationResultByGateway.set(gateway, {
+      day: today,
+      scope,
+      completedAt: Date.now(),
+      result,
+    });
+    clearInFlightRun();
+  }, clearInFlightRun);
   return run;
 }
 
@@ -54,8 +97,10 @@ async function generateDueScheduledTransactionsInternal(
   gateway: BudgetPersistenceProvider,
   input: ScheduledTransactionGenerationInput,
 ): Promise<ScheduledTransactionGenerationResult> {
-  const today = normaliseIsoDate(input.today ?? new Date().toISOString().slice(0, 10));
-  const accounts = await gateway.accounts.listAccounts();
+  const today = normaliseLocalCalendarDate(input.today ?? localCalendarDate());
+  const accounts = input.listAccounts
+    ? await input.listAccounts()
+    : await gateway.accounts.listAccounts();
   const result: ScheduledTransactionGenerationResult = {
     createdTransactions: [],
     advancedScheduleIds: [],
@@ -81,14 +126,16 @@ async function generateDueScheduledTransactionsInternal(
         anchorDate,
         dueSchedule.weekendPolicy ?? "same-day",
       );
-      const existingRegister = skipOccurrence
-        ? null
-        : await gateway.accountRegisters.getAccountRegisterView({
-            accountId: dueSchedule.accountId,
-          });
-      const alreadyExists = existingRegister?.transactions.some((transaction) =>
+      const existingTransactions = skipOccurrence
+        ? []
+        : input.hostedTransactions
+          ? await input.hostedTransactions.listRecent(dueSchedule.accountId)
+          : (await gateway.accountRegisters.getAccountRegisterView({
+              accountId: dueSchedule.accountId,
+            })).transactions;
+      const alreadyExists = existingTransactions.some((transaction) =>
         isExistingScheduledOccurrence(transaction, dueSchedule, occurrenceDate),
-      ) ?? false;
+      );
 
       if (skipOccurrence) {
         // The recurrence still exists and counts toward its end condition; only
@@ -107,10 +154,14 @@ async function generateDueScheduledTransactionsInternal(
           occurrenceDate,
         );
 
-        await gateway.accountRegisters.addTransaction({
-          accountId: dueSchedule.accountId,
-          transaction: registerInput,
-        });
+        if (input.hostedTransactions) {
+          await input.hostedTransactions.add(dueSchedule.accountId, registerInput);
+        } else {
+          await gateway.accountRegisters.addTransaction({
+            accountId: dueSchedule.accountId,
+            transaction: registerInput,
+          });
+        }
 
         result.createdTransactions.push({
           accountId: dueSchedule.accountId,
@@ -222,17 +273,4 @@ function createGeneratedRegisterTransaction(
 
 function isDue(schedule: ScheduledTransactionView, today: string): boolean {
   return Boolean(schedule.nextDueDate) && schedule.nextDueDate <= today;
-}
-
-function normaliseIsoDate(value: string): string {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value;
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return new Date().toISOString().slice(0, 10);
-  }
-
-  return parsed.toISOString().slice(0, 10);
 }

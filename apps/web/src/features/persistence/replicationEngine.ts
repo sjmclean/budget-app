@@ -1,4 +1,5 @@
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
+import { createPersistenceCheckpoint } from "./checkpoint";
 import { publishPersistenceChange } from "./persistenceChangeBus";
 import {
   getAttachmentContentStore,
@@ -16,6 +17,7 @@ import {
 } from "./replicationPushBatch";
 
 export interface ReplicationEngineOptions {
+  readonly budgetId?: string;
   readonly batchSize?: number;
   readonly pushTargetPayloadBytes?: number;
   readonly pushMaximumPayloadBytes?: number;
@@ -64,26 +66,45 @@ export async function replicatePersistenceProvider(
   await provider.flush?.();
   const batchSize = normaliseBatchSize(options.batchSize ?? 500);
   const remote = await transport.getGeneration();
-  let state = await provider.replicationStore.getReplicationCursorState();
+  const budgetPrefix = options.budgetId
+    ? `budget-app.budgets.${options.budgetId}.`
+    : null;
+  let state = await provider.replicationStore.getReplicationCursorState(options.budgetId);
+  // Seal any checkpoint-less generation after this device has completed its
+  // push/pull pass. This also repairs a generation populated by an older
+  // client that replayed operations but failed to publish the baseline.
+  let bootstrapCheckpointRequired = remote.latestCheckpointId === null;
 
   if (state.generationId && state.generationId !== remote.generationId) {
     const checkpoint = await transport.getLatestCheckpoint(remote.generationId);
-    if (!checkpoint || !provider.checkpoints) {
+    if (checkpoint && provider.checkpoints) {
+      await provider.checkpoints.restoreCheckpoint(checkpoint, [], options.budgetId);
+      state = {
+        generationId: remote.generationId,
+        pushedLocalSequence: 0,
+        pulledRemoteCursor: checkpoint.replicatedThroughCursor ?? 0,
+      };
+    } else if (remote.latestCursor === 0) {
+      // A newly provisioned server generation has no checkpoint by definition.
+      // Adopt it and replay the local journal from the beginning so the first
+      // device can bootstrap the remote budget instead of retrying forever.
+      state = {
+        generationId: remote.generationId,
+        pushedLocalSequence: 0,
+        pulledRemoteCursor: 0,
+      };
+      bootstrapCheckpointRequired = true;
+    } else {
       throw new Error(
         "The remote replication generation changed and no restorable checkpoint is available.",
       );
     }
-    await provider.checkpoints.restoreCheckpoint(checkpoint);
-    state = {
-      generationId: remote.generationId,
-      pushedLocalSequence: 0,
-      pulledRemoteCursor: 0,
-    };
-    await provider.replicationStore.setReplicationCursorState(state);
+    await provider.replicationStore.setReplicationCursorState(state, options.budgetId);
   } else if (!state.generationId) {
     state = { ...state, generationId: remote.generationId };
-    await provider.replicationStore.setReplicationCursorState(state);
+    await provider.replicationStore.setReplicationCursorState(state, options.budgetId);
   }
+  const localConflictAfterSequence = state.pushedLocalSequence;
 
   trace(options, {
     type: "replication.started",
@@ -95,29 +116,38 @@ export async function replicatePersistenceProvider(
   });
 
   const uploadedBlobCount = await uploadLocalAttachmentBlobs(
+    provider,
     transport,
     remote.generationId,
+    budgetPrefix,
   );
 
-  const localOperationsParticipating = await readLatestJournalOperationsByKey(
-    provider.operationJournal,
-    state.pushedLocalSequence,
-    batchSize,
-  );
   trace(options, {
     type: "journal.operations-read",
     afterSequence: state.pushedLocalSequence,
-    operations: localOperationsParticipating.map(summariseOperation),
+    operations: [],
   });
 
   let pushedOperationCount = 0;
   let pushedLocalSequence = state.pushedLocalSequence;
   while (true) {
-    const pendingOperations = await provider.operationJournal.readJournal(
+    const journalOperations = await provider.operationJournal.readJournal(
       pushedLocalSequence,
       batchSize,
     );
-    if (pendingOperations.length === 0) break;
+    if (journalOperations.length === 0) break;
+    const pendingOperations = budgetPrefix
+      ? journalOperations.filter(({ mutation }) => mutation.key.startsWith(budgetPrefix))
+      : journalOperations;
+    if (pendingOperations.length === 0) {
+      pushedLocalSequence = journalOperations.at(-1)!.sequence;
+      state = { ...state, pushedLocalSequence };
+      await provider.replicationStore.setReplicationCursorState(
+        state,
+        options.budgetId,
+      );
+      continue;
+    }
     const batch = selectReplicationPushBatch(remote.generationId, pendingOperations, {
       targetPayloadBytes:
         options.pushTargetPayloadBytes ?? DEFAULT_REPLICATION_PUSH_TARGET_BYTES,
@@ -149,9 +179,12 @@ export async function replicatePersistenceProvider(
     pushedLocalSequence = operations.at(-1)!.sequence;
     pushedOperationCount += operations.length;
     state = { ...state, pushedLocalSequence };
-    await provider.replicationStore.setReplicationCursorState(state);
+    await provider.replicationStore.setReplicationCursorState(state, options.budgetId);
     trace(options, { type: "push.cursor-persisted", pushedLocalSequence });
-    if (pendingOperations.length < batchSize && operations.length === pendingOperations.length) break;
+    if (
+      journalOperations.length < batchSize &&
+      operations.length === pendingOperations.length
+    ) break;
   }
 
   let pulledOperationCount = 0;
@@ -173,6 +206,16 @@ export async function replicatePersistenceProvider(
       hasMore: result.hasMore,
     });
     if (result.operations.length > 0) {
+      const remoteKeys = new Set(
+        result.operations.map((envelope) => envelope.operation.mutation.key),
+      );
+      const localOperationsParticipating =
+        await readLatestJournalOperationsForKeys(
+          provider.operationJournal,
+          localConflictAfterSequence,
+          batchSize,
+          remoteKeys,
+        );
       const appliedCount = await provider.replicationStore.applyRemoteOperations(result.operations, {
         generationId: remote.generationId,
         localOperations: localOperationsParticipating,
@@ -185,7 +228,7 @@ export async function replicatePersistenceProvider(
       pulledOperationCount += result.operations.length;
       pulledRemoteCursor = result.operations.at(-1)!.cursor;
       state = { ...state, pulledRemoteCursor };
-      await provider.replicationStore.setReplicationCursorState(state);
+      await provider.replicationStore.setReplicationCursorState(state, options.budgetId);
       trace(options, { type: "pull.cursor-persisted", pulledRemoteCursor });
     }
     if (!result.hasMore || result.operations.length === 0) break;
@@ -195,31 +238,93 @@ export async function replicatePersistenceProvider(
     provider,
     transport,
     remote.generationId,
+    budgetPrefix,
   );
 
-  if (pulledOperationCount > 0) {
+  let integrityVerified = false;
+  let integrityRepairPerformed = false;
+  if (
+    pushedOperationCount === 0 &&
+    provider.checkpoints &&
+    pulledRemoteCursor === remote.latestCursor &&
+    remote.latestCheckpointIntegrityHash &&
+    remote.latestCheckpointRemoteCursor === remote.latestCursor
+  ) {
+    const localIntegrityHash =
+      await provider.checkpoints.calculateStateIntegrityHash(options.budgetId);
+    if (localIntegrityHash === remote.latestCheckpointIntegrityHash) {
+      integrityVerified = true;
+    } else {
+      const checkpoint = await transport.getLatestCheckpoint(remote.generationId);
+      if (
+        !checkpoint ||
+        checkpoint.integrityHash !== remote.latestCheckpointIntegrityHash ||
+        (checkpoint.replicatedThroughCursor ?? 0) !== remote.latestCursor
+      ) {
+        throw new Error("Replication state integrity mismatch could not be repaired from the advertised checkpoint.");
+      }
+      await provider.checkpoints.restoreCheckpoint(checkpoint, [], options.budgetId);
+      state = {
+        generationId: remote.generationId,
+        pushedLocalSequence: 0,
+        pulledRemoteCursor: checkpoint.replicatedThroughCursor ?? 0,
+      };
+      await provider.replicationStore.setReplicationCursorState(state, options.budgetId);
+      pushedLocalSequence = 0;
+      pulledRemoteCursor = checkpoint.replicatedThroughCursor ?? 0;
+      integrityRepairPerformed = true;
+      integrityVerified =
+        (await provider.checkpoints.calculateStateIntegrityHash(options.budgetId)) ===
+        checkpoint.integrityHash;
+      if (!integrityVerified) {
+        throw new Error("Replication checkpoint repair did not restore the advertised state integrity hash.");
+      }
+    }
+  }
+
+  if (pulledOperationCount > 0 || integrityRepairPerformed) {
     publishPersistenceChange({ source: "replication" });
   }
 
   let checkpointUploaded = false;
   let prunedJournalEntryCount = 0;
-  if (options.uploadCheckpoint && provider.checkpoints) {
-    const checkpoint = await provider.checkpoints.createCheckpoint();
+  if ((options.uploadCheckpoint || bootstrapCheckpointRequired) && provider.checkpoints) {
+    const createdCheckpoint =
+      await provider.checkpoints.createCheckpoint(options.budgetId);
+    const checkpoint = createPersistenceCheckpoint({
+      checkpointId: createdCheckpoint.checkpointId,
+      deviceId: createdCheckpoint.deviceId,
+      throughSequence: createdCheckpoint.throughSequence,
+      schemaVersion: createdCheckpoint.schemaVersion,
+      createdAt: new Date(createdCheckpoint.createdAt),
+      replicatedThroughCursor: pulledRemoteCursor,
+      entries: createdCheckpoint.entries,
+    });
     const acknowledgement = await transport.uploadCheckpoint(remote.generationId, checkpoint);
     if (acknowledgement.checkpointId !== checkpoint.checkpointId) {
       throw new Error("The server acknowledged a different checkpoint than the one uploaded.");
     }
+    if (
+      (acknowledgement.integrityHash ?? checkpoint.integrityHash) !== checkpoint.integrityHash ||
+      (acknowledgement.replicatedThroughCursor ?? checkpoint.replicatedThroughCursor) !== checkpoint.replicatedThroughCursor
+    ) {
+      throw new Error("The server acknowledged checkpoint state metadata that differs from the uploaded checkpoint.");
+    }
+    integrityVerified = true;
     const safeBoundary = Math.min(
       acknowledgement.acknowledgedThroughSequence,
       checkpoint.throughSequence,
       pushedLocalSequence,
     );
-    prunedJournalEntryCount = await provider.replicationStore.pruneJournal(safeBoundary);
+    prunedJournalEntryCount =
+      await provider.replicationStore.pruneJournal(safeBoundary, options.budgetId);
     checkpointUploaded = true;
   }
 
   const journalCursor = provider.operationJournal.getJournalCursor();
-  const diagnostics = await provider.replicationStore.getReplicationDiagnostics();
+  const diagnostics = await provider.replicationStore.getReplicationDiagnostics(
+    options.budgetId,
+  );
   const result: ReplicationRunResult = {
     generationId: remote.generationId,
     pushedOperationCount,
@@ -231,6 +336,8 @@ export async function replicatePersistenceProvider(
     downloadedBlobCount,
     prunedJournalEntryCount,
     detectedConflictCount: diagnostics.unresolvedConflictCount,
+    integrityVerified,
+    integrityRepairPerformed,
   };
   trace(options, {
     type: "replication.finished",
@@ -257,18 +364,22 @@ function summariseOperation(operation: OperationJournalEntry): ReplicationTraceO
 }
 
 
-async function readLatestJournalOperationsByKey(
+export async function readLatestJournalOperationsForKeys(
   journal: NonNullable<BudgetPersistenceProvider["operationJournal"]>,
   afterSequence: number,
   batchSize: number,
+  keys: ReadonlySet<string>,
 ): Promise<OperationJournalEntry[]> {
+  if (keys.size === 0) return [];
   const latestByKey = new Map<string, OperationJournalEntry>();
   let cursor = afterSequence;
   while (true) {
     const batch = await journal.readJournal(cursor, batchSize);
     if (batch.length === 0) break;
     for (const operation of batch) {
-      latestByKey.set(operation.mutation.key, operation);
+      if (keys.has(operation.mutation.key)) {
+        latestByKey.set(operation.mutation.key, operation);
+      }
     }
     cursor = batch.at(-1)!.sequence;
     if (batch.length < batchSize) break;
@@ -292,13 +403,22 @@ interface AttachmentReference {
 }
 
 async function uploadLocalAttachmentBlobs(
+  provider: BudgetPersistenceProvider,
   transport: ReplicationTransport,
   generationId: string,
+  budgetPrefix: string | null = null,
 ): Promise<number> {
   const contentStore = getAttachmentContentStore();
+  const snapshot = budgetPrefix ? await provider.exportSnapshot?.() : null;
+  const referencedHashes = budgetPrefix
+    ? snapshot
+      ? collectAttachmentReferences(filterEntries(snapshot.entries, budgetPrefix))
+      : new Map<string, AttachmentReference>()
+    : null;
   let uploadedBlobCount = 0;
   for (const descriptor of await contentStore.list()) {
     if (!isCanonicalContentHash(descriptor.contentHash)) continue;
+    if (referencedHashes && !referencedHashes.has(descriptor.contentHash)) continue;
     if (await transport.hasBlob(generationId, descriptor.contentHash)) continue;
     const content = await contentStore.read(descriptor.contentRef);
     if (!content) continue;
@@ -316,11 +436,14 @@ async function downloadReferencedAttachmentBlobs(
   provider: BudgetPersistenceProvider,
   transport: ReplicationTransport,
   generationId: string,
+  budgetPrefix: string | null = null,
 ): Promise<number> {
   const snapshot = await provider.exportSnapshot?.();
   if (!snapshot) return 0;
   const contentStore = getAttachmentContentStore();
-  const references = collectAttachmentReferences(snapshot.entries);
+  const references = collectAttachmentReferences(
+    filterEntries(snapshot.entries, budgetPrefix),
+  );
   let downloadedBlobCount = 0;
   for (const reference of references.values()) {
     if (!isCanonicalContentHash(reference.contentHash)) continue;
@@ -341,6 +464,16 @@ async function downloadReferencedAttachmentBlobs(
     downloadedBlobCount += 1;
   }
   return downloadedBlobCount;
+}
+
+function filterEntries(
+  entries: Readonly<Record<string, string>>,
+  budgetPrefix: string | null,
+): Readonly<Record<string, string>> {
+  if (!budgetPrefix) return entries;
+  return Object.fromEntries(
+    Object.entries(entries).filter(([key]) => key.startsWith(budgetPrefix)),
+  );
 }
 
 function collectAttachmentReferences(

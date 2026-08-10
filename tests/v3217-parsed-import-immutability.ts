@@ -3,8 +3,10 @@ import {
   createTransactionPayeeAlias,
   previewTransactionQifImport,
   resolveTransactionPayeeAlias,
+  writeTransactionPayeeAliases,
   type ParsedImportTransaction,
 } from "../apps/web/src/features/accounts/transactionImport";
+import { installInMemoryBudgetPersistence } from "./support/persistence/inMemoryBudgetPersistence.js";
 
 const parsed: ParsedImportTransaction = {
   rowNumber: 2,
@@ -29,27 +31,10 @@ const before = structuredClone(parsed);
 assert.equal(resolveTransactionPayeeAlias(parsed, [alias])?.id, alias.id);
 assert.deepEqual(parsed, before, "alias lookup must leave the source row unchanged");
 
-const originalWindow = globalThis.window;
-const originalLocalStorage = globalThis.localStorage;
-const storage = new Map<string, string>();
-Object.defineProperty(globalThis, "window", {
-  configurable: true,
-  value: globalThis,
-});
-Object.defineProperty(globalThis, "localStorage", {
-  configurable: true,
-  value: {
-    getItem: (key: string) => storage.get(key) ?? null,
-    setItem: (key: string, value: string) => storage.set(key, value),
-    removeItem: (key: string) => storage.delete(key),
-  },
-});
+const { cleanup } = installInMemoryBudgetPersistence();
 
 try {
-  storage.set(
-    "budget-app.transaction-payee-aliases.v1",
-    JSON.stringify([alias]),
-  );
+  writeTransactionPayeeAliases([alias]);
   const preview = previewTransactionQifImport(
     "!Type:Bank\nD18/07/2026\nT-24.50\nPPAYPAL *ALDI 123456789\nLGroceries\n^",
     [],
@@ -64,14 +49,7 @@ try {
   assert.equal(candidate.lifecycle.proposal.payee, "Aldi");
   assert.equal(candidate.parsed.importedCategoryName, "Groceries");
 } finally {
-  Object.defineProperty(globalThis, "localStorage", {
-    configurable: true,
-    value: originalLocalStorage,
-  });
-  Object.defineProperty(globalThis, "window", {
-    configurable: true,
-    value: originalWindow,
-  });
+  cleanup();
 }
 
 console.log("v3.21.7 parsed import immutability checks passed");

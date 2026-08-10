@@ -168,7 +168,8 @@ function createPreview(): Ynab4PackageMigrationPreview {
   });
 
   assert.equal(storage.flushed, true);
-  assert.equal(result.record.accuracyAudit?.status, "pass");
+  assert.equal(result.record.schemaVersion, 2);
+  assert.equal(result.record.streamingImport?.audit.status, "pass");
 }
 
 {

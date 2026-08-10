@@ -6,6 +6,7 @@ import {
   discoverYnab4Package,
   type Ynab4PackageEntry,
 } from "../packages/ynab4-importer/src/analyzeYnab4Package.ts";
+import { readBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 
 function createMemoryStorage(): KeyValueStoragePort {
   const values = new Map<string, string>();
@@ -134,9 +135,9 @@ const result = createYnab4LauncherBudgetImport(storage, {
 });
 
 function readBudgetMonth(month: string) {
-  const raw = storage.getItem(`budget-app.budget-view.v1.${result.budget.id}.${month}`);
+  const raw = readBudgetMonthEntity(storage, result.budget.id, month);
   assert.ok(raw, `Expected imported ${month} budget view to be persisted.`);
-  return JSON.parse(raw);
+  return raw;
 }
 
 function findCategory(view: { categoryGroups: Array<{ name: string; categories: Array<{ id: string; name: string; assigned: number; activity: number; available: number; previousAvailable: number; isArchived: boolean }> }> }, groupName: string, categoryName: string) {

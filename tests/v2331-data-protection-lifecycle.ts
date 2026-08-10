@@ -93,6 +93,29 @@ assertDeepEqual(
   "version history lifecycle snapshots must not write command-history or undo/redo records",
 );
 
+storage.setItem(
+  `budget-app.ynab4-launcher-import.v1.${business.id}`,
+  JSON.stringify({
+    schemaVersion: 2,
+    budgetId: business.id,
+    counts: { transactions: 25_001 },
+    streamingImport: { audit: { status: "pass" } },
+  }),
+);
+const largeImportSnapshot = createVersionHistorySnapshotAfterYnab4Import(
+  storage,
+  { now: new Date("2026-06-29T12:00:00.000Z") },
+);
+assertEqual(
+  largeImportSnapshot.created,
+  false,
+  "large streaming imports must not synchronously duplicate the imported budget",
+);
+assertEqual(
+  largeImportSnapshot.skippedReason,
+  "Automatic full-copy snapshot skipped for a large streaming YNAB4 budget.",
+);
+
 console.log("v2.33.1 data protection lifecycle checks passed");
 
 function assertOk(condition: unknown, message = "Assertion failed"): asserts condition {

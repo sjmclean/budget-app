@@ -9,7 +9,12 @@ import {
   collectBudgetScopedStorageKeys,
   deleteBudgetById,
 } from "../apps/web/src/features/budget/budgetLifecycle";
-import { getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope";
+import { createFixedBudgetScopedStorage, getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope";
+import { replaceAccountEntities } from "../apps/web/src/features/accounts/entities/accountEntity.js";
+import {
+  IMPORTED_FILE_FINGERPRINT_ENTITY_RECORD_PREFIX,
+  upsertImportedFileFingerprintEntity,
+} from "../apps/web/src/features/accounts/entities/importFingerprintEntity.js";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort";
 
 class MemoryStorage implements KeyValueStoragePort {
@@ -42,15 +47,29 @@ assert.match(first.id, /^budget-[0-9a-f-]{36}$/i);
 assert.match(second.id, /^budget-[0-9a-f-]{36}$/i);
 
 const accountId = "everyday-account";
-const namespaceKey = getBudgetScopedStorageKey(first.id, "budget-app.imported-file-fingerprints.v1");
-storage.setItem(
-  getBudgetScopedStorageKey(first.id, "budget-app.accounts.v1"),
-  JSON.stringify([{ id: accountId, name: "Everyday" }]),
+const firstBudgetStorage = createFixedBudgetScopedStorage(storage, first.id);
+replaceAccountEntities(firstBudgetStorage, [{
+  id: accountId,
+  name: "Everyday",
+  type: "on-budget",
+  startingBalance: 0,
+  createdAt: "2026-07-01T00:00:00.000Z",
+  closedAt: null,
+}]);
+upsertImportedFileFingerprintEntity(firstBudgetStorage, {
+  accountId,
+  fileHash: "qif-fingerprint",
+  fileName: "statement.qif",
+  importedAt: "2026-07-01T00:00:00.000Z",
+  transactionCount: 1,
+});
+const namespaceKey = storage.listKeys().find((key) =>
+  key.startsWith(getBudgetScopedStorageKey(first.id, IMPORTED_FILE_FINGERPRINT_ENTITY_RECORD_PREFIX))
 );
-storage.setItem(namespaceKey, JSON.stringify(["qif-fingerprint"]));
+assert.ok(namespaceKey);
 storage.setItem(
-  getBudgetScopedStorageKey(first.id, "budget-app.merchant-knowledge.v1"),
-  JSON.stringify({ aliases: [] }),
+  getBudgetScopedStorageKey(first.id, "budget-app.entity-replication.v1/merchant-knowledge-index"),
+  JSON.stringify([]),
 );
 storage.setItem(
   getBudgetScopedStorageKey(first.id, "budget-app.transaction-import-diagnostics.v1"),
@@ -73,7 +92,7 @@ storage.setItem(`budget-app.register-columns.v1.${accountId}.widths`, "{}");
 storage.setItem("budget-app.unrelated-setting.v1", "keep");
 
 const collected = collectBudgetScopedStorageKeys(storage, first.id);
-assert.ok(collected.includes(namespaceKey));
+assert.ok(collected.includes(namespaceKey!));
 assert.ok(collected.includes(`budget-app.register-sort.v1.${accountId}`));
 
 const result = deleteBudgetById(storage, first.id);
@@ -99,8 +118,10 @@ const recreated = createBudgetRegistryEntry(storage, { name: "Imported Household
 assert.notEqual(recreated.id, first.id, "Recreating a deleted budget must not reuse its identity.");
 assert.notEqual(recreated.id, second.id);
 assert.equal(
-  storage.getItem(getBudgetScopedStorageKey(recreated.id, "budget-app.imported-file-fingerprints.v1")),
-  null,
+  storage.listKeys().some((key) =>
+    key.startsWith(getBudgetScopedStorageKey(recreated.id, IMPORTED_FILE_FINGERPRINT_ENTITY_RECORD_PREFIX)),
+  ),
+  false,
   "A recreated budget must start without stale importer history.",
 );
 

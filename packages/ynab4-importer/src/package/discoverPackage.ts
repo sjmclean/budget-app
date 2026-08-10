@@ -13,7 +13,7 @@ export function discoverYnab4PackageLocation(
 ): Ynab4PackageLocation {
   const normalisedEntries = entries.map((entry) => ({
     path: normaliseYnab4PackagePath(entry.path),
-    text: entry.text,
+    text: entry.text ?? "",
   }));
   const metadataEntry = normalisedEntries.find(
     (entry) =>

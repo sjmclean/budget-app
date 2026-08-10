@@ -1,12 +1,20 @@
 import { createBrowserLocalStorageBudgetActivityPersistence } from "../apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.js";
 import { browserLocalStorageKeyValueStorage } from "../apps/web/src/features/persistence/keyValueStoragePort.js";
+import { replaceScheduledTransactionEntities } from "../apps/web/src/features/accounts/entities/scheduledTransactionEntity.js";
+import { seedTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
+import { replaceAccountEntities } from "../apps/web/src/features/accounts/entities/accountEntity.js";
 
-const ACCOUNT_STORAGE_KEY = "budget-app.accounts.v1";
-const REGISTER_STORAGE_KEY = "budget-app.account-registers.v1";
-const SCHEDULED_TRANSACTIONS_STORAGE_KEY = "budget-app.scheduled-transactions.v1";
 
 class MemoryLocalStorage {
   private readonly values = new Map<string, string>();
+
+  get length(): number {
+    return this.values.size;
+  }
+
+  key(index: number): string | null {
+    return [...this.values.keys()][index] ?? null;
+  }
 
   getItem(key: string): string | null {
     return this.values.get(key) ?? null;
@@ -34,9 +42,7 @@ const browserLocalStorageBudgetActivityPersistence = createBrowserLocalStorageBu
   localStorage,
 };
 
-localStorage.setItem(
-  ACCOUNT_STORAGE_KEY,
-  JSON.stringify([
+replaceAccountEntities(browserLocalStorageKeyValueStorage, [
     {
       id: "checking",
       name: "Checking",
@@ -53,12 +59,9 @@ localStorage.setItem(
       createdAt: "2026-06-20T00:00:00.000Z",
       closedAt: null,
     },
-  ]),
-);
+  ]);
 
-localStorage.setItem(
-  REGISTER_STORAGE_KEY,
-  JSON.stringify({
+seedTransactionRegisters(browserLocalStorageKeyValueStorage, {
     checking: {
       accountType: "on-budget",
       transactions: [
@@ -101,24 +104,12 @@ localStorage.setItem(
         },
       ],
     },
-  }),
-);
+  });
 
-localStorage.setItem(
-  SCHEDULED_TRANSACTIONS_STORAGE_KEY,
-  JSON.stringify([
-    {
-      id: "scheduled-groceries",
-      category: "Groceries",
-      categoryId: "cat-groceries",
-    },
-    {
-      id: "scheduled-fuel",
-      category: "Fuel",
-      categoryId: "cat-fuel",
-    },
-  ]),
-);
+replaceScheduledTransactionEntities(browserLocalStorageKeyValueStorage, [
+  { id: "scheduled-groceries", accountId: "checking", tagIds: [], nextDueDate: "2026-07-01", frequency: "monthly", recurrenceInterval: 1, recurrenceUnit: "month", recurrenceAnchorDate: "2026-07-01", endCondition: "never", occurrencesCompleted: 0, weekendPolicy: "same-day", payee: "Market", category: "Groceries", categoryId: "cat-groceries", memo: "", outflow: 10, inflow: 0, createdAt: "2026-06-20T00:00:00.000Z", updatedAt: "2026-06-20T00:00:00.000Z" },
+  { id: "scheduled-fuel", accountId: "checking", tagIds: [], nextDueDate: "2026-07-02", frequency: "monthly", recurrenceInterval: 1, recurrenceUnit: "month", recurrenceAnchorDate: "2026-07-02", endCondition: "never", occurrencesCompleted: 0, weekendPolicy: "same-day", payee: "Servo", category: "Fuel", categoryId: "cat-fuel", memo: "", outflow: 10, inflow: 0, createdAt: "2026-06-20T00:00:00.000Z", updatedAt: "2026-06-20T00:00:00.000Z" },
+]);
 
 const listed = await browserLocalStorageBudgetActivityPersistence.listRegisterTransactionsForBudgetActivity();
 if (listed.length !== 1) {

@@ -20,6 +20,10 @@ class MemoryStorage implements KeyValueStoragePort {
   removeItem(key: string): void {
     this.values.delete(key);
   }
+
+  listKeys(): string[] {
+    return [...this.values.keys()];
+  }
 }
 
 const storage = new MemoryStorage();

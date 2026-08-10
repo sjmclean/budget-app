@@ -10,13 +10,13 @@ assert.ok(audit.summary.criticalBlockers >= 4, "critical blockers should be expl
 
 const byId = new Map(audit.items.map((item) => [item.id, item]));
 
-assert.equal(byId.get("category-groups")?.status, "missing");
+assert.equal(byId.get("category-groups")?.status, "partial");
 assert.equal(byId.get("category-groups")?.requiredBeforeFullImport, true);
 assert.match(byId.get("category-groups")?.recommendedAction ?? "", /CategoryGroupSettings|category groups/i);
 
-assert.equal(byId.get("transaction-check-numbers")?.status, "missing");
-assert.equal(byId.get("transaction-check-numbers")?.requiredBeforeFullImport, true);
-assert.match(byId.get("transaction-check-numbers")?.importImpact ?? "", /lost/i);
+assert.equal(byId.get("transaction-check-numbers")?.status, "supported");
+assert.equal(byId.get("transaction-check-numbers")?.requiredBeforeFullImport, false);
+assert.match(byId.get("transaction-check-numbers")?.recommendedAction ?? "", /map.*checkNumber/i);
 
 assert.equal(byId.get("scheduled-transactions")?.status, "partial");
 assert.equal(byId.get("scheduled-transactions")?.requiredBeforeFullImport, true);

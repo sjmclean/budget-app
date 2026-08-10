@@ -1,115 +1,74 @@
-# Testing strategy
+# Testing
 
-The generated per-file audit is `tests/test-audit.json`; its readable summary is `TEST-AUDIT-SUMMARY.md`. Regenerate both with `pnpm test:audit` whenever tests or supported commands change.
+Tests are TypeScript scripts run with `tsx` through pnpm scripts in `package.json`.
 
-The repository contains a large historical test collection plus newer feature-based suites. Historical tests are classified so that a failing roadmap assertion is not confused with a correctness regression.
-
-## Test classifications
-
-- **required** — part of the correctness gate and expected to pass.
-- **investigate** — currently failing behavioural, regression, contract, or performance tests whose meaning must be reviewed before reclassification.
-- **pending** — structural or UI milestone assertions that describe unfinished or changed work. They do not gate correctness and should eventually be replaced by behavioural tests or retired.
-- **retired** — expectations that conflict with current product decisions. They are retained temporarily for traceability and are not run by default.
-- **quarantined** — empty or non-executable placeholders.
-
-The classification source of truth is `tests/legacy-test-classification.json`. New legacy tests must be added to that file; the runner fails when it finds an unclassified test.
-
-An empty investigate or roadmap suite is successful and reports 0 selected, 0 passed, and 0 failed. This distinguishes a resolved queue from a runner failure.
-
-## Commands
+## Running tests
 
 ```bash
-# Supported suite interface
-pnpm test
-pnpm test:required
-pnpm test:unit
-pnpm test:integration
-pnpm test:contracts
-pnpm test:import
-pnpm test:transfers
-pnpm test:scheduled
-pnpm test:budget
-pnpm test:persistence
-pnpm test:migrations
-pnpm test:investigate
-pnpm test:roadmap
+pnpm install
 pnpm test:all
-
-# Required correctness baseline plus feature suites
-pnpm test:all
-
-# Required historical baseline only
-pnpm test:legacy
-
-# Current unresolved failures only
-pnpm test:legacy:investigate
-
-# Roadmap/structural expectations only
-pnpm test:legacy:pending
-
-# Every active historical test (required + investigate + pending)
-pnpm test:legacy:all
-
-# Classification summary
-pnpm test:legacy:summary
-
-# Filter by domain, kind, status, or filename
-node scripts/run-legacy-tests.mjs --status=investigate --domain=import
-node scripts/run-legacy-tests.mjs --kind=contract --match=sqlite
 ```
 
-## Current baseline
+Milestone-specific suites are available, for example:
 
-After the Stage 4 review of every investigate and pending file:
-
-- 347 tests are required.
-- No tests remain classified as investigate or pending.
-- 132 historical files are retired with explicit reasons and remain available for traceability.
-- 4 empty files remain quarantined.
-- Per-file pending decisions are recorded in `TEST-PENDING-RESOLUTION.md`.
-
-Passing a test once does not prove that its assertions are valuable. During migration, required tests should still be reviewed for duplication, brittleness, and behavioural relevance.
-
-## Migration order
-
-1. Review the four quarantined placeholders and either implement or retire them.
-2. Continue moving required tests into domain folders and remove release-number naming as each coherent domain is migrated.
-3. Build adapter-parameterised persistence contract suites.
-4. Expand backup/restore and undo/redo behavioural matrices.
-5. Add roadmap tests only when they state stable, user-observable acceptance criteria.
-
-## Shared test builders and scenarios
-
-New and migrated behavioural tests should avoid repeating repository wiring and basic entity creation.
-
-- `tests/support/builders/domainBuilders.ts` contains lightweight domain-object builders with stable test defaults.
-- `tests/support/persistence/sqliteBudgetScenario.ts` creates an isolated SQLite-backed budget scenario and exposes repositories plus concise helpers for budgets, accounts, categories, payees, transactions, and transfers.
-- `tests/support/scheduledTransactionHarness.ts` remains the feature-specific harness for browser-persistent scheduled transactions.
-
-Prefer a scenario that expresses the business setup:
-
-```ts
-const scenario = SqliteBudgetScenario.create();
-const budget = await scenario.budget();
-const checking = await scenario.account(budget);
-const groceries = await scenario.category(
-  await scenario.categoryGroup(budget, "Food"),
-  "Groceries",
-);
+```bash
+pnpm test:v1214
+pnpm test:v1213
+pnpm test:v1210
 ```
 
-Tests should assert observable behaviour rather than only logging repository output. Do not move every legacy test at once; migrate a coherent feature family whenever it is edited or consolidated.
+## Test organisation
 
-## Shared assertions and fixtures
+Tests live in `tests/` and are named by feature or milestone.
 
-Use `tests/support/assertions` for recurring business invariants rather than repeating low-level assertion sequences. Current helpers cover budget/category month fields, conservation of assigned money, and split balancing.
+Examples:
 
-Use `tests/support/fixtures/budgetMonthFixture.ts` for concise, deterministic budget-month setup. Add feature-specific fixtures only when they remove meaningful repetition; do not hide the behaviour under test.
+```text
+tests/v1214-bank-import-commit-undo.ts
+tests/v1214-payee-rule-persistence.ts
+tests/v1210-real-undo-redo.ts
+tests/v129-database-integrity.ts
+```
 
-`SqliteBudgetScenario.create()` creates a unique temporary directory and database. Prefer `withSqliteBudgetScenario(async (scenario) => { ... })`, which guarantees cleanup in `finally`, including assertion failures. Explicit paths remain an opt-in compatibility mechanism whose lifecycle belongs to the caller.
+## Contract tests
 
-## Naming, placement, and retirement
+Contract tests were added because the project hit a real factory/repository mismatch in v1.2.10. These tests should be expanded whenever factories, repositories, or schema fields change.
 
-Unit tests cover deterministic functions; integration tests cross service, repository, parser, or persistence boundaries; contracts apply to every implementation of a port; regressions pin observed defects or fidelity risks; structural tests inspect source layout; roadmap tests describe future behaviour and never gate correctness.
+Contract tests should verify:
 
-New behavioural files should use feature names and `.test.ts` under a feature directory, not release-number names. Use focused builders with deterministic defaults and explicit overrides. Retire a historical test only when it conflicts with a documented decision, has equivalent or stronger replacement coverage, or tests an obsolete detail with no behavioural value. Record the replacement or concrete rationale; never retire or mark a behavioural failure pending merely to make a command pass.
+- Factories produce objects repositories can persist.
+- Repository create/update methods accept current domain shapes.
+- Required fields are not silently `undefined`.
+- Date and enum conversions are stable.
+
+## better-sqlite3 transaction rule
+
+Do not use `async` callbacks inside better-sqlite3 transactions. Transaction callbacks must be synchronous. Add rollback tests for any new transaction-heavy workflow.
+
+## Adding new tests
+
+For any new backend feature:
+
+1. Add a focused test file under `tests/`.
+2. Add a package script.
+3. Add it to the relevant milestone script.
+4. Consider whether it belongs in `test:all`.
+5. Prefer assertions that fail loudly over console-only smoke output.
+
+## Test data rule
+
+Use realistic domain values where possible: real account types, real transaction states, real import-like rows. Avoid tests that only prove a function can be called.
+
+## Consolidated test entry points (current migration)
+
+The repository is migrating from milestone-named standalone scripts to feature-based suites.
+
+- `pnpm test:legacy:list` discovers and lists every legacy `.ts` and `.mjs` test outside `tests/suites` and `tests/support`.
+- `pnpm test:legacy` runs that discovered legacy set sequentially and writes `test-results/legacy-tests.json`.
+- `pnpm test:node` runs the new feature-based suites using Node's test runner through `tsx`.
+- `pnpm test:all` runs both the complete discovered legacy suite and the new suites.
+- `pnpm test:legacy:registered` preserves the previous manually chained aggregate command temporarily for comparison only. It is incomplete and must not be treated as the full suite.
+
+Empty historical placeholders are explicitly documented in `tests/legacy-test-manifest.json`. Any new empty test file that is not quarantined causes legacy discovery to fail.
+
+The first migrated domain is scheduled transactions. New tests live in `tests/suites/scheduled-transactions`, with shared setup in `tests/support/scheduledTransactionHarness.ts`. Historical tests remain in place during the migration so behaviour is not silently discarded.

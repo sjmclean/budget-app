@@ -1,4 +1,4 @@
-export type NavigationIcon = "budget" | "dashboard" | "reports" | "settings" | "restore" | "payees" | "switch";
+export type NavigationIcon = "budget" | "dashboard" | "reports" | "settings" | "restore" | "payees" | "switch" | "users";
 
 export interface NavigationDestination {
   label: string;
@@ -25,5 +25,6 @@ export const navigationModel: {
     { label: "Settings", path: "/settings", icon: "settings" },
     { label: "Restore Points", path: "/restore-points", icon: "restore" },
     { label: "Payee Management", path: "/payees", icon: "payees" },
+    { label: "User Management", path: "/users", icon: "users" },
   ],
 };

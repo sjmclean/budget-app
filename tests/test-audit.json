@@ -1,47 +1,48 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-20T06:09:26.332Z",
-  "repositoryTestFiles": 458,
+  "generatedAt": "2026-07-27T04:04:18.828Z",
+  "repositoryTestFiles": 507,
   "classifications": {
-    "quarantined": 4,
-    "required": 331,
+    "quarantined": 3,
+    "required": 381,
     "retired": 123
   },
   "features": {
     "attachments": 6,
     "backup-restore": 11,
-    "budget": 56,
-    "categories": 16,
-    "core": 67,
-    "import": 101,
+    "budget": 60,
+    "categories": 17,
+    "core": 65,
+    "cross-cutting": 10,
+    "import": 104,
     "migration": 9,
-    "payees": 21,
+    "payees": 22,
     "performance": 1,
-    "persistence": 11,
-    "register": 54,
+    "persistence": 5,
+    "register": 53,
     "reports": 1,
-    "scheduled-transactions": 12,
+    "scheduled-transactions": 15,
     "security": 2,
-    "sync": 4,
+    "sync": 9,
     "tags": 2,
-    "transactions": 20,
-    "transfers": 11,
+    "transactions": 24,
+    "transfers": 12,
     "ui": 14,
     "undo-redo": 5,
-    "ynab4": 34
+    "ynab4": 60
   },
   "testTypes": {
-    "contract": 7,
-    "integration": 151,
-    "performance": 7,
-    "regression": 19,
-    "structural": 226,
-    "unit": 48
+    "contract": 4,
+    "integration": 149,
+    "performance": 8,
+    "regression": 27,
+    "structural": 233,
+    "unit": 86
   },
   "dispositions": {
-    "investigated": 100,
-    "replaced": 121,
-    "retained": 114,
+    "investigated": 102,
+    "replaced": 128,
+    "retained": 154,
     "retired": 123
   },
   "filesWithoutAssertions": [
@@ -63,6 +64,7 @@
     "tests/event-store.ts",
     "tests/formatting-settings.ts",
     "tests/goals.ts",
+    "tests/helpers/transactionEntityFixtures.ts",
     "tests/import-metadata.ts",
     "tests/metadata.ts",
     "tests/recent-files.ts",
@@ -96,6 +98,9 @@
     "tests/v11-scheduled-execution.ts",
     "tests/v11-search.ts",
     "tests/v11-validation.ts",
+    "tests/v12-ynab4-issues.ts",
+    "tests/v12-ynab4-preview.ts",
+    "tests/v1210-import-transaction-safety.ts",
     "tests/v1210-real-undo-redo.ts",
     "tests/v1213-bank-import.ts",
     "tests/v1213-matching-rules.ts",
@@ -107,6 +112,8 @@
     "tests/v122-payee-cleanup.ts",
     "tests/v122-payee-management.ts",
     "tests/v122-transfer-payees.ts",
+    "tests/v123-ynab4-db-import.ts",
+    "tests/v123-ynab4-import-report.ts",
     "tests/v124-credit-card-engine.ts",
     "tests/v124-future-month-limits.ts",
     "tests/v124-overspending-workflow.ts",
@@ -124,12 +131,6 @@
     "tests/v128-import-rollback-audit.ts",
     "tests/v128-undo-redo.ts",
     "tests/v129-database-integrity.ts",
-    "tests/v130-sqlite-adapter-foundation.ts",
-    "tests/v131-sqlite-adapter-roundtrip.ts",
-    "tests/v133-sqlite-gateway-repository-wiring.ts",
-    "tests/v135-sqlite-register-adapter.ts",
-    "tests/v136-sqlite-register-transfer-validation.ts",
-    "tests/v139-sqlite-runtime-activation.ts",
     "tests/v190-account-register-view.ts",
     "tests/v2330-data-protection-architecture.ts",
     "tests/v2331-data-protection-lifecycle.ts",
@@ -164,7 +165,9 @@
     "tests/workflow-assign-money.ts",
     "tests/workflow-post-income.ts",
     "tests/workflow-post-spending.ts",
-    "tests/workflow-post-transfer.ts"
+    "tests/workflow-post-transfer.ts",
+    "tests/ynab4-import-mapping.ts",
+    "tests/ynab4-import-smoke.ts"
   ],
   "duplicateCandidates": [
     {
@@ -176,16 +179,12 @@
       "duplicateOf": "tests/transaction-intake/review/evidence-panel.ts"
     },
     {
-      "file": "tests/v2342-budget-category-header-definition.ts",
-      "duplicateOf": "tests/v139-sqlite-runtime-activation.ts"
-    },
-    {
       "file": "tests/v2401-import-profiles.ts",
-      "duplicateOf": "tests/v139-sqlite-runtime-activation.ts"
+      "duplicateOf": "tests/v2342-budget-category-header-definition.ts"
     },
     {
       "file": "tests/v2420-app-dialog-service.ts",
-      "duplicateOf": "tests/v139-sqlite-runtime-activation.ts"
+      "duplicateOf": "tests/v2342-budget-category-header-definition.ts"
     }
   ],
   "tests": [
@@ -487,6 +486,18 @@
         "test:legacy",
         "test:all"
       ],
+      "meaningfulAssertions": 0,
+      "hasMeaningfulAssertions": false,
+      "duplicateOf": null,
+      "disposition": "investigated",
+      "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
+    },
+    {
+      "file": "tests/helpers/transactionEntityFixtures.ts",
+      "feature": "transactions",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
       "meaningfulAssertions": 0,
       "hasMeaningfulAssertions": false,
       "duplicateOf": null,
@@ -903,6 +914,156 @@
       "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
     },
     {
+      "file": "tests/suites/ynab4/amounts.test.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:node",
+        "test:all"
+      ],
+      "meaningfulAssertions": 11,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/suites/ynab4/budget-months.test.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:node",
+        "test:all"
+      ],
+      "meaningfulAssertions": 16,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/suites/ynab4/import-audit-snapshot.test.ts",
+      "feature": "ynab4",
+      "testType": "regression",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:node",
+        "test:all"
+      ],
+      "meaningfulAssertions": 7,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/suites/ynab4/import-finalisation.test.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:node",
+        "test:all"
+      ],
+      "meaningfulAssertions": 11,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/suites/ynab4/import-plan.test.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:node",
+        "test:all"
+      ],
+      "meaningfulAssertions": 20,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/suites/ynab4/import-rollback.test.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:node",
+        "test:all"
+      ],
+      "meaningfulAssertions": 17,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/suites/ynab4/real-export-conformance.test.ts",
+      "feature": "ynab4",
+      "testType": "structural",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:node",
+        "test:all"
+      ],
+      "meaningfulAssertions": 11,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "replaced",
+      "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
+    },
+    {
+      "file": "tests/suites/ynab4/scheduled-recurrence.test.ts",
+      "feature": "scheduled-transactions",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:node",
+        "test:all"
+      ],
+      "meaningfulAssertions": 9,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/suites/ynab4/transactions.test.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:node",
+        "test:all"
+      ],
+      "meaningfulAssertions": 34,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/suites/ynab4/transfers.test.ts",
+      "feature": "transfers",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:node",
+        "test:all"
+      ],
+      "meaningfulAssertions": 15,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
       "file": "tests/sync-conflicts.ts",
       "feature": "sync",
       "testType": "integration",
@@ -1261,6 +1422,30 @@
       "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
     },
     {
+      "file": "tests/v12-ynab4-issues.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 0,
+      "hasMeaningfulAssertions": false,
+      "duplicateOf": null,
+      "disposition": "investigated",
+      "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
+    },
+    {
+      "file": "tests/v12-ynab4-preview.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 0,
+      "hasMeaningfulAssertions": false,
+      "duplicateOf": null,
+      "disposition": "investigated",
+      "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
+    },
+    {
       "file": "tests/v121-attachments.ts",
       "feature": "attachments",
       "testType": "unit",
@@ -1323,6 +1508,18 @@
       "duplicateOf": null,
       "disposition": "retained",
       "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v1210-import-transaction-safety.ts",
+      "feature": "import",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 0,
+      "hasMeaningfulAssertions": false,
+      "duplicateOf": null,
+      "disposition": "investigated",
+      "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
     },
     {
       "file": "tests/v1210-real-undo-redo.ts",
@@ -1558,6 +1755,30 @@
         "test:legacy",
         "test:all"
       ],
+      "meaningfulAssertions": 0,
+      "hasMeaningfulAssertions": false,
+      "duplicateOf": null,
+      "disposition": "investigated",
+      "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
+    },
+    {
+      "file": "tests/v123-ynab4-db-import.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 0,
+      "hasMeaningfulAssertions": false,
+      "duplicateOf": null,
+      "disposition": "investigated",
+      "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
+    },
+    {
+      "file": "tests/v123-ynab4-import-report.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
       "meaningfulAssertions": 0,
       "hasMeaningfulAssertions": false,
       "duplicateOf": null,
@@ -1837,182 +2058,6 @@
       "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
     },
     {
-      "file": "tests/v130-sqlite-adapter-foundation.ts",
-      "feature": "persistence",
-      "testType": "contract",
-      "currentClassification": "required",
-      "includedInCommands": [
-        "test:v130:sqlite-adapter",
-        "test:legacy",
-        "test:all"
-      ],
-      "meaningfulAssertions": 0,
-      "hasMeaningfulAssertions": false,
-      "duplicateOf": null,
-      "disposition": "investigated",
-      "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
-    },
-    {
-      "file": "tests/v131-sqlite-adapter-roundtrip.ts",
-      "feature": "persistence",
-      "testType": "integration",
-      "currentClassification": "required",
-      "includedInCommands": [
-        "test:v131:sqlite-roundtrip",
-        "test:legacy",
-        "test:all"
-      ],
-      "meaningfulAssertions": 0,
-      "hasMeaningfulAssertions": false,
-      "duplicateOf": null,
-      "disposition": "investigated",
-      "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
-    },
-    {
-      "file": "tests/v132-gateway-selection.ts",
-      "feature": "persistence",
-      "testType": "contract",
-      "currentClassification": "required",
-      "includedInCommands": [
-        "test:v132",
-        "test:legacy",
-        "test:all"
-      ],
-      "meaningfulAssertions": 4,
-      "hasMeaningfulAssertions": true,
-      "duplicateOf": null,
-      "disposition": "retained",
-      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
-    },
-    {
-      "file": "tests/v133-sqlite-gateway-repository-wiring.ts",
-      "feature": "persistence",
-      "testType": "contract",
-      "currentClassification": "required",
-      "includedInCommands": [
-        "test:v133:sqlite-gateway-repository-wiring",
-        "test:legacy",
-        "test:all"
-      ],
-      "meaningfulAssertions": 0,
-      "hasMeaningfulAssertions": false,
-      "duplicateOf": null,
-      "disposition": "investigated",
-      "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
-    },
-    {
-      "file": "tests/v134-runtime-activation-audit.ts",
-      "feature": "core",
-      "testType": "regression",
-      "currentClassification": "required",
-      "includedInCommands": [
-        "test:v134:runtime-activation-audit",
-        "test:legacy",
-        "test:all"
-      ],
-      "meaningfulAssertions": 10,
-      "hasMeaningfulAssertions": true,
-      "duplicateOf": null,
-      "disposition": "retained",
-      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
-    },
-    {
-      "file": "tests/v135-sqlite-register-adapter.ts",
-      "feature": "register",
-      "testType": "contract",
-      "currentClassification": "required",
-      "includedInCommands": [
-        "test:v135:sqlite-register-adapter",
-        "test:legacy",
-        "test:all"
-      ],
-      "meaningfulAssertions": 0,
-      "hasMeaningfulAssertions": false,
-      "duplicateOf": null,
-      "disposition": "investigated",
-      "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
-    },
-    {
-      "file": "tests/v136-sqlite-register-transfer-validation.ts",
-      "feature": "transfers",
-      "testType": "integration",
-      "currentClassification": "required",
-      "includedInCommands": [
-        "test:v136:sqlite-register-transfer-validation",
-        "test:legacy",
-        "test:all"
-      ],
-      "meaningfulAssertions": 0,
-      "hasMeaningfulAssertions": false,
-      "duplicateOf": null,
-      "disposition": "investigated",
-      "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
-    },
-    {
-      "file": "tests/v137-runtime-activation-assessment.ts",
-      "feature": "core",
-      "testType": "integration",
-      "currentClassification": "required",
-      "includedInCommands": [
-        "test:v137:runtime-activation-assessment",
-        "test:legacy",
-        "test:all"
-      ],
-      "meaningfulAssertions": 23,
-      "hasMeaningfulAssertions": true,
-      "duplicateOf": null,
-      "disposition": "retained",
-      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
-    },
-    {
-      "file": "tests/v138-runtime-gateway-activation-prep.ts",
-      "feature": "persistence",
-      "testType": "structural",
-      "currentClassification": "required",
-      "includedInCommands": [
-        "test:v138:runtime-gateway-activation-prep",
-        "test:legacy",
-        "test:all"
-      ],
-      "meaningfulAssertions": 9,
-      "hasMeaningfulAssertions": true,
-      "duplicateOf": null,
-      "disposition": "replaced",
-      "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
-    },
-    {
-      "file": "tests/v139-sqlite-runtime-activation.ts",
-      "feature": "persistence",
-      "testType": "integration",
-      "currentClassification": "quarantined",
-      "includedInCommands": [
-        "test:v139:sqlite-runtime-activation",
-        "test:legacy",
-        "test:all"
-      ],
-      "meaningfulAssertions": 0,
-      "hasMeaningfulAssertions": false,
-      "duplicateOf": null,
-      "disposition": "investigated",
-      "rationale": "Quarantined test requires explicit review before execution."
-    },
-    {
-      "file": "tests/v140-host-provided-persistence-gateway.ts",
-      "feature": "persistence",
-      "testType": "structural",
-      "currentClassification": "required",
-      "includedInCommands": [
-        "test:v140:host-provided-persistence-gateway",
-        "test:legacy",
-        "test:all"
-      ],
-      "meaningfulAssertions": 11,
-      "hasMeaningfulAssertions": true,
-      "duplicateOf": null,
-      "disposition": "replaced",
-      "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
-    },
-    {
       "file": "tests/v141-payee-archive.ts",
       "feature": "payees",
       "testType": "structural",
@@ -2022,7 +2067,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 20,
+      "meaningfulAssertions": 14,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retired",
@@ -2038,7 +2083,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 21,
+      "meaningfulAssertions": 16,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retired",
@@ -2070,7 +2115,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 14,
+      "meaningfulAssertions": 17,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -2102,7 +2147,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 15,
+      "meaningfulAssertions": 13,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retired",
@@ -2150,7 +2195,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 23,
+      "meaningfulAssertions": 25,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -2166,7 +2211,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 23,
+      "meaningfulAssertions": 27,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -2182,7 +2227,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 14,
+      "meaningfulAssertions": 15,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -2246,7 +2291,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 14,
+      "meaningfulAssertions": 13,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "replaced",
@@ -2301,6 +2346,30 @@
       "rationale": "Retained only for traceability under the existing retirement decision."
     },
     {
+      "file": "tests/v157-empty-registry-bootstrap.ts",
+      "feature": "cross-cutting",
+      "testType": "structural",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 10,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "replaced",
+      "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
+    },
+    {
+      "file": "tests/v158-ynab4-json-import-audit.ts",
+      "feature": "ynab4",
+      "testType": "regression",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 21,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
       "file": "tests/v159-ynab4-package-discovery.ts",
       "feature": "ynab4",
       "testType": "structural",
@@ -2343,6 +2412,18 @@
         "test:all"
       ],
       "meaningfulAssertions": 28,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v162-ynab4-completeness-audit.ts",
+      "feature": "ynab4",
+      "testType": "regression",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 18,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -2397,6 +2478,42 @@
       "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
     },
     {
+      "file": "tests/v166-monthly-budget-mapping-audit.ts",
+      "feature": "budget",
+      "testType": "regression",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 18,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v167-monthly-budget-mapping-proof.ts",
+      "feature": "budget",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 25,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v168-transfer-credit-card-migration-validation.ts",
+      "feature": "transfers",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 46,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
       "file": "tests/v171-ynab4-launcher-integration.ts",
       "feature": "ynab4",
       "testType": "unit",
@@ -2406,7 +2523,19 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 41,
+      "meaningfulAssertions": 40,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v1714-ynab4-import-accuracy-audit.ts",
+      "feature": "ynab4",
+      "testType": "regression",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 17,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -2461,6 +2590,30 @@
       "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
     },
     {
+      "file": "tests/v1721-ynab4-monthly-available-audit-warning.ts",
+      "feature": "ynab4",
+      "testType": "regression",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 3,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v1722-ynab4-budget-rounding-tolerance.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 3,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
       "file": "tests/v1724-account-budget-reconciliation-audit.ts",
       "feature": "budget",
       "testType": "structural",
@@ -2477,6 +2630,42 @@
       "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
     },
     {
+      "file": "tests/v173-ynab4-migration-correctness-audit.ts",
+      "feature": "ynab4",
+      "testType": "regression",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 14,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v174-ynab4-imported-category-hierarchy-audit.ts",
+      "feature": "ynab4",
+      "testType": "regression",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 19,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v176-ynab4-category-state-fix.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 20,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
       "file": "tests/v177-ynab4-scheduled-transaction-fidelity.ts",
       "feature": "ynab4",
       "testType": "regression",
@@ -2486,7 +2675,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 19,
+      "meaningfulAssertions": 18,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -2502,7 +2691,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 17,
+      "meaningfulAssertions": 16,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -2518,7 +2707,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 21,
+      "meaningfulAssertions": 20,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -2551,6 +2740,18 @@
         "test:all"
       ],
       "meaningfulAssertions": 20,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v183-ynab4-budget-month-fidelity-audit.ts",
+      "feature": "ynab4",
+      "testType": "regression",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 11,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -2980,7 +3181,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 12,
+      "meaningfulAssertions": 13,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "replaced",
@@ -3478,9 +3679,9 @@
       ],
       "meaningfulAssertions": 0,
       "hasMeaningfulAssertions": false,
-      "duplicateOf": "tests/v139-sqlite-runtime-activation.ts",
+      "duplicateOf": null,
       "disposition": "investigated",
-      "rationale": "Exact normalised duplicate candidate of tests/v139-sqlite-runtime-activation.ts; review before merging or retiring."
+      "rationale": "Quarantined test requires explicit review before execution."
     },
     {
       "file": "tests/v2343-transaction-split-allocation-panel.ts",
@@ -3718,9 +3919,9 @@
       ],
       "meaningfulAssertions": 0,
       "hasMeaningfulAssertions": false,
-      "duplicateOf": "tests/v139-sqlite-runtime-activation.ts",
+      "duplicateOf": "tests/v2342-budget-category-header-definition.ts",
       "disposition": "investigated",
-      "rationale": "Exact normalised duplicate candidate of tests/v139-sqlite-runtime-activation.ts; review before merging or retiring."
+      "rationale": "Exact normalised duplicate candidate of tests/v2342-budget-category-header-definition.ts; review before merging or retiring."
     },
     {
       "file": "tests/v2402-qif-import.ts",
@@ -3764,7 +3965,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 13,
+      "meaningfulAssertions": 12,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "replaced",
@@ -3894,9 +4095,9 @@
       ],
       "meaningfulAssertions": 0,
       "hasMeaningfulAssertions": false,
-      "duplicateOf": "tests/v139-sqlite-runtime-activation.ts",
+      "duplicateOf": "tests/v2342-budget-category-header-definition.ts",
       "disposition": "investigated",
-      "rationale": "Exact normalised duplicate candidate of tests/v139-sqlite-runtime-activation.ts; review before merging or retiring."
+      "rationale": "Exact normalised duplicate candidate of tests/v2342-budget-category-header-definition.ts; review before merging or retiring."
     },
     {
       "file": "tests/v2430-import-provider-framework.ts",
@@ -4116,7 +4317,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 22,
+      "meaningfulAssertions": 23,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "replaced",
@@ -4404,7 +4605,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 11,
+      "meaningfulAssertions": 16,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "replaced",
@@ -5292,11 +5493,35 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 19,
+      "meaningfulAssertions": 21,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retired",
       "rationale": "Retained only for traceability under the existing retirement decision."
+    },
+    {
+      "file": "tests/v2881-ynab4-hidden-category-activity-fidelity.ts",
+      "feature": "ynab4",
+      "testType": "structural",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 3,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "replaced",
+      "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
+    },
+    {
+      "file": "tests/v2882-ynab4-tombstoned-monthly-budget-fidelity.ts",
+      "feature": "ynab4",
+      "testType": "structural",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 3,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "replaced",
+      "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
     },
     {
       "file": "tests/v2883-ynab4-audit-tombstone-fidelity.ts",
@@ -5322,7 +5547,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 8,
+      "meaningfulAssertions": 7,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retired",
@@ -5412,7 +5637,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 6,
+      "meaningfulAssertions": 7,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -5524,6 +5749,30 @@
       "rationale": "Retained only for traceability under the existing retirement decision."
     },
     {
+      "file": "tests/v2937-remove-package-flag-subsystem.ts",
+      "feature": "cross-cutting",
+      "testType": "structural",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 12,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "replaced",
+      "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
+    },
+    {
+      "file": "tests/v2938-final-flag-reference-audit.ts",
+      "feature": "cross-cutting",
+      "testType": "structural",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 5,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "replaced",
+      "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
+    },
+    {
       "file": "tests/v294-scheduled-transaction-materialisation-fidelity.ts",
       "feature": "scheduled-transactions",
       "testType": "regression",
@@ -5537,6 +5786,18 @@
       "duplicateOf": null,
       "disposition": "retained",
       "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v294-ynab4-scheduled-category-id-fidelity.ts",
+      "feature": "scheduled-transactions",
+      "testType": "structural",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 3,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "replaced",
+      "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
     },
     {
       "file": "tests/v2940-react-hook-stability-audit.ts",
@@ -5579,7 +5840,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 11,
+      "meaningfulAssertions": 13,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "replaced",
@@ -5868,7 +6129,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 19,
+      "meaningfulAssertions": 18,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "replaced",
@@ -5884,7 +6145,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 17,
+      "meaningfulAssertions": 16,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "replaced",
@@ -5900,7 +6161,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 12,
+      "meaningfulAssertions": 10,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "replaced",
@@ -5916,7 +6177,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 23,
+      "meaningfulAssertions": 21,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "replaced",
@@ -5925,18 +6186,18 @@
     {
       "file": "tests/v3143-ynab4-overspending-carryover-semantics.ts",
       "feature": "ynab4",
-      "testType": "structural",
+      "testType": "unit",
       "currentClassification": "required",
       "includedInCommands": [
         "test:v3143:ynab4-overspending-carryover-semantics",
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 15,
+      "meaningfulAssertions": 13,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
-      "disposition": "replaced",
-      "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
     },
     {
       "file": "tests/v3144-ynab4-tracking-account-isolation.ts",
@@ -5948,7 +6209,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 16,
+      "meaningfulAssertions": 15,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -5964,7 +6225,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 12,
+      "meaningfulAssertions": 11,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -5980,7 +6241,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 8,
+      "meaningfulAssertions": 7,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -5996,7 +6257,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 15,
+      "meaningfulAssertions": 14,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -6266,7 +6527,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 10,
+      "meaningfulAssertions": 14,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retired",
@@ -6701,7 +6962,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 10,
+      "meaningfulAssertions": 8,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -6957,7 +7218,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 7,
+      "meaningfulAssertions": 11,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "replaced",
@@ -6973,7 +7234,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 4,
+      "meaningfulAssertions": 17,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -7149,7 +7410,7 @@
         "test:legacy",
         "test:all"
       ],
-      "meaningfulAssertions": 15,
+      "meaningfulAssertions": 16,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -7307,7 +7568,35 @@
       "includedInCommands": [
         "test:v3236"
       ],
-      "meaningfulAssertions": 8,
+      "meaningfulAssertions": 9,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v3237-budget-engine-validation.ts",
+      "feature": "budget",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:v3237"
+      ],
+      "meaningfulAssertions": 22,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v3238-ynab4-deleted-category-safety.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:v3238"
+      ],
+      "meaningfulAssertions": 9,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -7324,6 +7613,296 @@
         "test:all"
       ],
       "meaningfulAssertions": 31,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v490-replication-pipeline-trace.mjs",
+      "feature": "cross-cutting",
+      "testType": "structural",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:v490:replication-trace"
+      ],
+      "meaningfulAssertions": 13,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "replaced",
+      "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
+    },
+    {
+      "file": "tests/v492-replication-byte-aware-push.ts",
+      "feature": "cross-cutting",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:v492:replication-byte-aware-push"
+      ],
+      "meaningfulAssertions": 9,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v500-phase1-persistence-boundary.ts",
+      "feature": "persistence",
+      "testType": "integration",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 9,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v501-replication-primitives.ts",
+      "feature": "cross-cutting",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 23,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v502-entity-repository.ts",
+      "feature": "cross-cutting",
+      "testType": "integration",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 19,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v503-account-entity-cutover.ts",
+      "feature": "cross-cutting",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 12,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v504-payee-entity-cutover.ts",
+      "feature": "payees",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 7,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v505-category-entity-cutover.ts",
+      "feature": "categories",
+      "testType": "structural",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 10,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "replaced",
+      "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
+    },
+    {
+      "file": "tests/v506-scheduled-transaction-entity-cutover.ts",
+      "feature": "scheduled-transactions",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 7,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v507-transaction-entity-codec.ts",
+      "feature": "transactions",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 17,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v508-transaction-entity-cutover.ts",
+      "feature": "transactions",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 7,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v509-transaction-tag-entity-cutover.ts",
+      "feature": "transactions",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 8,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v510-import-fingerprint-entity-cutover.ts",
+      "feature": "import",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 8,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v512-import-preference-entity-cutover.ts",
+      "feature": "import",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 18,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v515-shared-preference-entity-cutover.ts",
+      "feature": "cross-cutting",
+      "testType": "structural",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 4,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "replaced",
+      "rationale": "Prefer behavioural coverage before retiring the source-structure assertion."
+    },
+    {
+      "file": "tests/v516-budget-month-entity-cutover.ts",
+      "feature": "budget",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 7,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v519-replicated-entity-convergence.ts",
+      "feature": "cross-cutting",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:v519:replicated-entity-convergence"
+      ],
+      "meaningfulAssertions": 11,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v520-sync-state-integrity.ts",
+      "feature": "sync",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:v520:sync-state-integrity",
+        "test:legacy",
+        "test:all"
+      ],
+      "meaningfulAssertions": 10,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v522-property-based-replication.ts",
+      "feature": "sync",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:v522:property-replication",
+        "test:legacy",
+        "test:all"
+      ],
+      "meaningfulAssertions": 8,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v523-chaos-replication.ts",
+      "feature": "sync",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:v523:chaos-replication",
+        "test:legacy",
+        "test:all"
+      ],
+      "meaningfulAssertions": 10,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v524-sync-performance-harness.ts",
+      "feature": "sync",
+      "testType": "performance",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:v524:sync-performance",
+        "test:legacy",
+        "test:all"
+      ],
+      "meaningfulAssertions": 9,
+      "hasMeaningfulAssertions": true,
+      "duplicateOf": null,
+      "disposition": "retained",
+      "rationale": "Current required coverage; retain until a feature-suite replacement proves equivalent coverage."
+    },
+    {
+      "file": "tests/v525-formal-sync-invariants.ts",
+      "feature": "sync",
+      "testType": "contract",
+      "currentClassification": "required",
+      "includedInCommands": [
+        "test:v525:formal-invariants",
+        "test:legacy",
+        "test:all"
+      ],
+      "meaningfulAssertions": 30,
       "hasMeaningfulAssertions": true,
       "duplicateOf": null,
       "disposition": "retained",
@@ -7387,6 +7966,30 @@
         "test:legacy",
         "test:all"
       ],
+      "meaningfulAssertions": 0,
+      "hasMeaningfulAssertions": false,
+      "duplicateOf": null,
+      "disposition": "investigated",
+      "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
+    },
+    {
+      "file": "tests/ynab4-import-mapping.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
+      "meaningfulAssertions": 0,
+      "hasMeaningfulAssertions": false,
+      "duplicateOf": null,
+      "disposition": "investigated",
+      "rationale": "No recognised assertion call; inspect for logging-only or custom assertion behaviour."
+    },
+    {
+      "file": "tests/ynab4-import-smoke.ts",
+      "feature": "ynab4",
+      "testType": "unit",
+      "currentClassification": "required",
+      "includedInCommands": [],
       "meaningfulAssertions": 0,
       "hasMeaningfulAssertions": false,
       "duplicateOf": null,

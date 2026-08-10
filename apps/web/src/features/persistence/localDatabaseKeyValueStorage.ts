@@ -1,8 +1,12 @@
+import { mergeSerializedEntityRecords } from "../../../../../packages/sync/src/browser.js";
 import {
   applyOperationsToCheckpointEntries,
+  assertCheckpointIsInScope,
   assertCompatibleCheckpoint,
+  budgetPersistenceKeyPrefix,
   checkpointMetadata,
   createPersistenceCheckpoint,
+  calculateCheckpointIntegrityHash,
   type CheckpointPort,
   type CheckpointRestoreResult,
   type PersistenceCheckpoint,
@@ -10,12 +14,20 @@ import {
 } from "./checkpoint";
 import { isCanonicalBudgetStorageKey } from "./persistenceSnapshot";
 import {
+  filterCanonicalOperationJournalEntries,
+  filterCanonicalPersistenceEntries,
+  mergeRestoredCanonicalPersistenceEntries,
+} from "./persistenceKeyClassification";
+import {
   createConflictId,
   mutationsAreEquivalent,
   type ReplicationConflict,
   type ReplicationConflictStatus,
 } from "./conflictResolution";
-import type { KeyValueStoragePort } from "./keyValueStoragePort";
+import type {
+  KeyValueStorageMutation,
+  KeyValueStoragePort,
+} from "./keyValueStoragePort";
 import { createSerializedWriteCoordinator } from "./keyValueStoragePort";
 import {
   createOperationJournalEntry,
@@ -31,7 +43,7 @@ import type {
   ReplicationLocalStorePort,
 } from "./replication";
 
-const DATABASE_NAME = "budget-app-local-database-v1";
+const DEFAULT_DATABASE_NAME = "budget-app-local-database-v1";
 const DATABASE_VERSION = 4;
 const RECORD_STORE = "records";
 const META_STORE = "metadata";
@@ -55,15 +67,17 @@ export interface LocalDatabaseKeyValueStorage extends KeyValueStoragePort, Check
   flush(): Promise<void>;
   getJournalCursor(): OperationJournalCursor;
   readJournal(afterSequence?: number, limit?: number): Promise<OperationJournalEntry[]>;
-  createCheckpoint(): Promise<PersistenceCheckpoint>;
-  getLatestCheckpoint(): Promise<PersistenceCheckpoint | null>;
+  createCheckpoint(scope?: string): Promise<PersistenceCheckpoint>;
+  getLatestCheckpoint(scope?: string): Promise<PersistenceCheckpoint | null>;
   listCheckpoints(limit?: number): Promise<PersistenceCheckpointMetadata[]>;
   restoreCheckpoint(
     checkpoint: PersistenceCheckpoint,
     laterOperations?: readonly OperationJournalEntry[],
+    scope?: string,
   ): Promise<CheckpointRestoreResult>;
-  getReplicationDiagnostics(): Promise<ReplicationDiagnostics>;
-  pruneJournal(throughSequence: number): Promise<number>;
+  calculateStateIntegrityHash(scope?: string): Promise<string>;
+  getReplicationDiagnostics(scope?: string): Promise<ReplicationDiagnostics>;
+  pruneJournal(throughSequence: number, scope?: string): Promise<number>;
   listConflicts(options?: { status?: ReplicationConflictStatus; limit?: number }): Promise<ReplicationConflict[]>;
   resolveConflict(conflictId: string, resolution: "keep-local" | "accept-remote"): Promise<void>;
 }
@@ -75,7 +89,12 @@ export interface LocalDatabaseKeyValueStorage extends KeyValueStoragePort, Check
  * mutation and its journal entry are committed in one IndexedDB transaction,
  * so durable state and future sync history cannot diverge.
  */
-export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStorage {
+export function createLocalDatabaseKeyValueStorage(options: {
+  readonly namespace?: string;
+} = {}): LocalDatabaseKeyValueStorage {
+  const databaseName = options.namespace
+    ? `${DEFAULT_DATABASE_NAME}-${options.namespace.replace(/[^a-zA-Z0-9_-]/g, "_")}`
+    : DEFAULT_DATABASE_NAME;
   const mirror = new Map<string, string>();
   const writes = createSerializedWriteCoordinator();
   let initialized = false;
@@ -85,7 +104,7 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
   const api: LocalDatabaseKeyValueStorage = {
     async initialize(): Promise<void> {
       if (initialized) return;
-      const db = await openDatabase();
+      const db = await openDatabase(databaseName);
 
       try {
         const metadata = await ensureDatabaseMetadata(db);
@@ -110,11 +129,16 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
     setItem(key: string, value: string): void {
       assertInitialized(initialized);
       mirror.set(key, value);
+      const mutation: OperationJournalMutation = { type: "key-value.set", key, value };
+      if (!isCanonicalBudgetStorageKey(key)) {
+        writes.queue(() => commitLocalMutation(mutation));
+        return;
+      }
       const sequence = ++latestSequence;
       const entry = createOperationJournalEntry({
         deviceId,
         sequence,
-        mutation: { type: "key-value.set", key, value },
+        mutation,
       });
       writes.queue(() => commitMutation(entry));
     },
@@ -122,11 +146,16 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
     removeItem(key: string): void {
       assertInitialized(initialized);
       mirror.delete(key);
+      const mutation: OperationJournalMutation = { type: "key-value.remove", key };
+      if (!isCanonicalBudgetStorageKey(key)) {
+        writes.queue(() => commitLocalMutation(mutation));
+        return;
+      }
       const sequence = ++latestSequence;
       const entry = createOperationJournalEntry({
         deviceId,
         sequence,
-        mutation: { type: "key-value.remove", key },
+        mutation,
       });
       writes.queue(() => commitMutation(entry));
     },
@@ -140,6 +169,40 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
       await writes.flush();
     },
 
+    async applyMutations(
+      mutations: readonly KeyValueStorageMutation[],
+    ): Promise<void> {
+      assertInitialized(initialized);
+      if (mutations.length === 0) return;
+      const journalEntries: OperationJournalEntry[] = [];
+      const operationMutations = mutations.map((mutation) => {
+        const operation: OperationJournalMutation = mutation.type === "set"
+          ? { type: "key-value.set", key: mutation.key, value: mutation.value }
+          : { type: "key-value.remove", key: mutation.key };
+        if (isCanonicalBudgetStorageKey(mutation.key)) {
+          journalEntries.push(createOperationJournalEntry({
+            deviceId,
+            sequence: ++latestSequence,
+            mutation: operation,
+          }));
+        }
+        return operation;
+      });
+      for (const mutation of mutations) {
+        if (mutation.type === "set") mirror.set(mutation.key, mutation.value);
+        else mirror.delete(mutation.key);
+      }
+      writes.queue(async () => {
+        const db = await openDatabase(databaseName);
+        try {
+          await commitMutationBatch(db, operationMutations, journalEntries);
+        } finally {
+          db.close();
+        }
+      });
+      await writes.flush();
+    },
+
     isEmpty(): boolean {
       assertInitialized(initialized);
       return mirror.size === 0;
@@ -148,7 +211,7 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
     async replaceAll(entries: Readonly<Record<string, string>>): Promise<void> {
       assertInitialized(initialized);
       await writes.flush();
-      const db = await openDatabase();
+      const db = await openDatabase(databaseName);
       try {
         await replaceAllRecords(db, entries);
         mirror.clear();
@@ -174,7 +237,7 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > 5000) {
         throw new Error("Journal read limits must be between 1 and 5000.");
       }
-      const db = await openDatabase();
+      const db = await openDatabase(databaseName);
       try {
         return await readJournalEntries(db, afterSequence, limit);
       } finally {
@@ -182,10 +245,12 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
       }
     },
 
-    async createCheckpoint(): Promise<PersistenceCheckpoint> {
+    async createCheckpoint(scope?: string): Promise<PersistenceCheckpoint> {
       assertInitialized(initialized);
+      const prefix = scope ? budgetPersistenceKeyPrefix(scope) : null;
       const capturedEntries = Object.fromEntries(
-        [...mirror.entries()].filter(([key]) => isCanonicalBudgetStorageKey(key)),
+        [...mirror.entries()].filter(([key]) =>
+          isCanonicalBudgetStorageKey(key) && (!prefix || key.startsWith(prefix))),
       );
       const capturedSequence = latestSequence;
       const checkpoint = createPersistenceCheckpoint({
@@ -194,17 +259,30 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
         schemaVersion: CURRENT_SCHEMA_VERSION,
         entries: capturedEntries,
       });
-      writes.queue(() => persistCheckpoint(checkpoint));
+      writes.queue(() => persistCheckpoint(checkpoint, scope));
       await writes.flush();
       return checkpoint;
     },
 
-    async getLatestCheckpoint(): Promise<PersistenceCheckpoint | null> {
+
+    async calculateStateIntegrityHash(scope?: string): Promise<string> {
       assertInitialized(initialized);
       await writes.flush();
-      const db = await openDatabase();
+      const prefix = scope ? budgetPersistenceKeyPrefix(scope) : null;
+      return calculateCheckpointIntegrityHash(
+        Object.fromEntries(
+          [...mirror.entries()].filter(([key]) =>
+            isCanonicalBudgetStorageKey(key) && (!prefix || key.startsWith(prefix))),
+        ),
+      );
+    },
+
+    async getLatestCheckpoint(scope?: string): Promise<PersistenceCheckpoint | null> {
+      assertInitialized(initialized);
+      await writes.flush();
+      const db = await openDatabase(databaseName);
       try {
-        return await readLatestCheckpoint(db);
+        return await readLatestCheckpoint(db, scope);
       } finally {
         db.close();
       }
@@ -216,7 +294,7 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
         throw new Error("Checkpoint list limits must be between 1 and 100.");
       }
-      const db = await openDatabase();
+      const db = await openDatabase(databaseName);
       try {
         const checkpoints = await readCheckpoints(db, limit);
         return checkpoints.map(checkpointMetadata);
@@ -225,24 +303,27 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
       }
     },
 
-    async getReplicationCursorState(): Promise<ReplicationCursorState> {
+    async getReplicationCursorState(scope?: string): Promise<ReplicationCursorState> {
       assertInitialized(initialized);
       await writes.flush();
-      const db = await openDatabase();
+      const db = await openDatabase(databaseName);
       try {
-        return await readReplicationCursorState(db);
+        return await readReplicationCursorState(db, scope);
       } finally {
         db.close();
       }
     },
 
-    async setReplicationCursorState(state: ReplicationCursorState): Promise<void> {
+    async setReplicationCursorState(
+      state: ReplicationCursorState,
+      scope?: string,
+    ): Promise<void> {
       assertInitialized(initialized);
       validateReplicationCursorState(state);
       writes.queue(async () => {
-        const db = await openDatabase();
+        const db = await openDatabase(databaseName);
         try {
-          await writeReplicationCursorState(db, state);
+          await writeReplicationCursorState(db, state, scope);
         } finally {
           db.close();
         }
@@ -250,15 +331,15 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
       await writes.flush();
     },
 
-    async getReplicationDiagnostics(): Promise<ReplicationDiagnostics> {
+    async getReplicationDiagnostics(scope?: string): Promise<ReplicationDiagnostics> {
       assertInitialized(initialized);
       await writes.flush();
-      const db = await openDatabase();
+      const db = await openDatabase(databaseName);
       try {
         const [journal, checkpoints, cursor] = await Promise.all([
           readJournalStatistics(db),
           readCheckpointStatistics(db),
-          readReplicationCursorState(db),
+          readReplicationCursorState(db, scope),
         ]);
         return {
           deviceId,
@@ -277,15 +358,15 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
       }
     },
 
-    async pruneJournal(throughSequence: number): Promise<number> {
+    async pruneJournal(throughSequence: number, scope?: string): Promise<number> {
       assertInitialized(initialized);
       if (!Number.isSafeInteger(throughSequence) || throughSequence < 0) {
         throw new Error("Journal pruning boundaries must be non-negative integers.");
       }
       await writes.flush();
-      const db = await openDatabase();
+      const db = await openDatabase(databaseName);
       try {
-        return await pruneJournalEntries(db, throughSequence);
+        return await pruneJournalEntries(db, throughSequence, scope);
       } finally {
         db.close();
       }
@@ -298,12 +379,24 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
       assertInitialized(initialized);
       if (operations.length === 0) return 0;
       await writes.flush();
-      const sorted = [...operations].sort((left, right) => left.cursor - right.cursor);
-      const db = await openDatabase();
+      const sorted = [...operations]
+        .filter((envelope) => isCanonicalBudgetStorageKey(envelope.operation.mutation.key))
+        .sort((left, right) => left.cursor - right.cursor);
+      if (sorted.length === 0) return 0;
+      const db = await openDatabase(databaseName);
       try {
-        const conflicts = detectReplicationConflicts(sorted, context);
-        const applied = await applyRemoteOperationsTransaction(db, sorted, conflicts);
-        for (const envelope of sorted) {
+        const canonicalLocalOperations = context
+          ? filterCanonicalOperationJournalEntries(context.localOperations)
+          : undefined;
+        const resolved = resolveRemoteEntityOperations(sorted, mirror);
+        const conflicts = detectReplicationConflicts(
+          resolved,
+          context && canonicalLocalOperations
+            ? { ...context, localOperations: canonicalLocalOperations }
+            : context,
+        );
+        const applied = await applyRemoteOperationsTransaction(db, resolved, conflicts);
+        for (const envelope of resolved) {
           const mutation = envelope.operation.mutation;
           if (mutation.type === "key-value.set") mirror.set(mutation.key, mutation.value);
           else mirror.delete(mutation.key);
@@ -324,7 +417,7 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000) {
         throw new Error("Conflict list limits must be between 1 and 1000.");
       }
-      const db = await openDatabase();
+      const db = await openDatabase(databaseName);
       try {
         return await readReplicationConflicts(db, options.status, limit);
       } finally {
@@ -338,7 +431,7 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
     ): Promise<void> {
       assertInitialized(initialized);
       await writes.flush();
-      const db = await openDatabase();
+      const db = await openDatabase(databaseName);
       let conflict: ReplicationConflict | null = null;
       try {
         conflict = await markConflictResolved(db, conflictId, resolution);
@@ -357,33 +450,60 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
     async restoreCheckpoint(
       checkpoint: PersistenceCheckpoint,
       laterOperations: readonly OperationJournalEntry[] = [],
+      scope?: string,
     ): Promise<CheckpointRestoreResult> {
       assertInitialized(initialized);
       assertCompatibleCheckpoint(checkpoint, CURRENT_SCHEMA_VERSION);
-      const restoredEntries = applyOperationsToCheckpointEntries(checkpoint, laterOperations);
+      if (scope) assertCheckpointIsInScope(checkpoint, scope);
+      const prefix = scope ? budgetPersistenceKeyPrefix(scope) : null;
+      if (
+        prefix &&
+        laterOperations.some(({ mutation }) => !mutation.key.startsWith(prefix))
+      ) {
+        throw new Error(`Checkpoint recovery operations contain data outside budget ${scope}.`);
+      }
+      const canonicalCheckpoint = createPersistenceCheckpoint({
+        checkpointId: checkpoint.checkpointId,
+        deviceId: checkpoint.deviceId,
+        throughSequence: checkpoint.throughSequence,
+        schemaVersion: checkpoint.schemaVersion,
+        createdAt: new Date(checkpoint.createdAt),
+        replicatedThroughCursor: checkpoint.replicatedThroughCursor ?? 0,
+        entries: filterCanonicalPersistenceEntries(checkpoint.entries),
+      });
+      const canonicalLaterOperations = filterCanonicalOperationJournalEntries(laterOperations);
+      const restoredEntries = applyOperationsToCheckpointEntries(
+        canonicalCheckpoint,
+        canonicalLaterOperations,
+      );
       const restoredCheckpoint = createPersistenceCheckpoint({
         deviceId,
         throughSequence: 0,
         schemaVersion: CURRENT_SCHEMA_VERSION,
+        replicatedThroughCursor: checkpoint.replicatedThroughCursor ?? 0,
         entries: restoredEntries,
       });
 
       await writes.flush();
-      const db = await openDatabase();
+      const db = await openDatabase(databaseName);
       try {
-        await restoreDatabaseFromCheckpoint(db, restoredEntries, restoredCheckpoint);
-        for (const key of [...mirror.keys()]) {
-          if (isCanonicalBudgetStorageKey(key)) mirror.delete(key);
-        }
-        for (const [key, value] of Object.entries(restoredEntries)) mirror.set(key, value);
-        latestSequence = 0;
+        await restoreDatabaseFromCheckpoint(db, restoredEntries, restoredCheckpoint, scope);
+        const mergedEntries = scope
+          ? mergeScopedPersistenceEntries(Object.fromEntries(mirror.entries()), restoredEntries, scope)
+          : mergeRestoredCanonicalPersistenceEntries(
+              Object.fromEntries(mirror.entries()),
+              restoredEntries,
+            );
+        mirror.clear();
+        for (const [key, value] of Object.entries(mergedEntries)) mirror.set(key, value);
+        if (!scope) latestSequence = 0;
       } finally {
         db.close();
       }
 
       return {
         restoredCheckpointId: restoredCheckpoint.checkpointId,
-        appliedOperationCount: new Set(laterOperations.map((entry) => entry.operationId)).size,
+        appliedOperationCount: new Set(canonicalLaterOperations.map((entry) => entry.operationId)).size,
         entryCount: restoredCheckpoint.entryCount,
       };
     },
@@ -392,7 +512,7 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
   return api;
 
   async function commitMutation(entry: OperationJournalEntry): Promise<void> {
-    const db = await openDatabase();
+    const db = await openDatabase(databaseName);
     try {
       await commitRecordAndJournal(db, entry);
     } finally {
@@ -400,10 +520,22 @@ export function createLocalDatabaseKeyValueStorage(): LocalDatabaseKeyValueStora
     }
   }
 
-  async function persistCheckpoint(checkpoint: PersistenceCheckpoint): Promise<void> {
-    const db = await openDatabase();
+  async function commitLocalMutation(mutation: OperationJournalMutation): Promise<void> {
+    const db = await openDatabase(databaseName);
     try {
-      await writeCheckpoint(db, checkpoint);
+      await commitRecordOnly(db, mutation);
+    } finally {
+      db.close();
+    }
+  }
+
+  async function persistCheckpoint(
+    checkpoint: PersistenceCheckpoint,
+    scope?: string,
+  ): Promise<void> {
+    const db = await openDatabase(databaseName);
+    try {
+      await writeCheckpoint(db, checkpoint, scope);
     } finally {
       db.close();
     }
@@ -416,13 +548,13 @@ function assertInitialized(initialized: boolean): void {
   }
 }
 
-function openDatabase(): Promise<IDBDatabase> {
+function openDatabase(databaseName: string = DEFAULT_DATABASE_NAME): Promise<IDBDatabase> {
   if (typeof indexedDB === "undefined") {
     return Promise.reject(new Error("IndexedDB is unavailable; the local database cannot start."));
   }
 
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+    const request = indexedDB.open(databaseName, DATABASE_VERSION);
 
     request.onupgradeneeded = () => {
       const db = request.result;
@@ -518,6 +650,17 @@ function readAllRecords(db: IDBDatabase): Promise<Array<{ key: string; value: st
   });
 }
 
+
+function commitRecordOnly(db: IDBDatabase, mutation: OperationJournalMutation): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(RECORD_STORE, "readwrite");
+    applyMutation(transaction.objectStore(RECORD_STORE), mutation);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("Local database record transaction failed."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Local database record transaction aborted."));
+  });
+}
+
 function commitRecordAndJournal(db: IDBDatabase, entry: OperationJournalEntry): Promise<void> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([RECORD_STORE, JOURNAL_STORE, META_STORE], "readwrite");
@@ -528,6 +671,37 @@ function commitRecordAndJournal(db: IDBDatabase, entry: OperationJournalEntry): 
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error("Local database journal transaction failed."));
     transaction.onabort = () => reject(transaction.error ?? new Error("Local database journal transaction aborted."));
+  });
+}
+
+function commitMutationBatch(
+  db: IDBDatabase,
+  mutations: readonly OperationJournalMutation[],
+  journalEntries: readonly OperationJournalEntry[],
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(
+      [RECORD_STORE, JOURNAL_STORE, META_STORE],
+      "readwrite",
+    );
+    const records = transaction.objectStore(RECORD_STORE);
+    for (const mutation of mutations) applyMutation(records, mutation);
+    const journal = transaction.objectStore(JOURNAL_STORE);
+    for (const entry of journalEntries) journal.add(entry);
+    const latest = journalEntries.at(-1);
+    if (latest) {
+      transaction.objectStore(META_STORE).put({
+        key: LATEST_SEQUENCE_KEY,
+        value: latest.sequence,
+      });
+    }
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(
+      transaction.error ?? new Error("Local database batch transaction failed."),
+    );
+    transaction.onabort = () => reject(
+      transaction.error ?? new Error("Local database batch transaction aborted."),
+    );
   });
 }
 
@@ -589,7 +763,11 @@ function readCheckpointStatistics(db: IDBDatabase): Promise<{ count: number; lat
   });
 }
 
-function pruneJournalEntries(db: IDBDatabase, throughSequence: number): Promise<number> {
+function pruneJournalEntries(
+  db: IDBDatabase,
+  throughSequence: number,
+  scope?: string,
+): Promise<number> {
   return new Promise((resolve, reject) => {
     let removed = 0;
     const transaction = db.transaction(JOURNAL_STORE, "readwrite");
@@ -597,8 +775,11 @@ function pruneJournalEntries(db: IDBDatabase, throughSequence: number): Promise<
     request.onsuccess = () => {
       const cursor = request.result;
       if (!cursor) return;
-      cursor.delete();
-      removed += 1;
+      const entry = cursor.value as OperationJournalEntry;
+      if (shouldPruneJournalEntry(entry, throughSequence, scope)) {
+        cursor.delete();
+        removed += 1;
+      }
       cursor.continue();
     };
     transaction.oncomplete = () => resolve(removed);
@@ -620,12 +801,19 @@ function replaceAllRecords(db: IDBDatabase, entries: Readonly<Record<string, str
 }
 
 
-function writeCheckpoint(db: IDBDatabase, checkpoint: PersistenceCheckpoint): Promise<void> {
+function writeCheckpoint(
+  db: IDBDatabase,
+  checkpoint: PersistenceCheckpoint,
+  scope?: string,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([CHECKPOINT_STORE, META_STORE], "readwrite");
     const checkpoints = transaction.objectStore(CHECKPOINT_STORE);
     checkpoints.put(checkpoint);
-    transaction.objectStore(META_STORE).put({ key: LATEST_CHECKPOINT_ID_KEY, value: checkpoint.checkpointId });
+    transaction.objectStore(META_STORE).put({
+      key: checkpointMetadataKey(scope),
+      value: checkpoint.checkpointId,
+    });
 
     const index = checkpoints.index("createdAt");
     let retained = 0;
@@ -644,10 +832,13 @@ function writeCheckpoint(db: IDBDatabase, checkpoint: PersistenceCheckpoint): Pr
   });
 }
 
-function readLatestCheckpoint(db: IDBDatabase): Promise<PersistenceCheckpoint | null> {
+function readLatestCheckpoint(
+  db: IDBDatabase,
+  scope?: string,
+): Promise<PersistenceCheckpoint | null> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([META_STORE, CHECKPOINT_STORE], "readonly");
-    const metadataRequest = transaction.objectStore(META_STORE).get(LATEST_CHECKPOINT_ID_KEY);
+    const metadataRequest = transaction.objectStore(META_STORE).get(checkpointMetadataKey(scope));
     metadataRequest.onsuccess = () => {
       const id = (metadataRequest.result as { key: string; value: string } | undefined)?.value;
       if (!id) {
@@ -683,8 +874,10 @@ function restoreDatabaseFromCheckpoint(
   db: IDBDatabase,
   entries: Readonly<Record<string, string>>,
   restoredCheckpoint: PersistenceCheckpoint,
+  scope?: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    const prefix = scope ? budgetPersistenceKeyPrefix(scope) : null;
     const transaction = db.transaction(
       [RECORD_STORE, JOURNAL_STORE, CHECKPOINT_STORE, CONFLICT_STORE, META_STORE],
       "readwrite",
@@ -698,21 +891,84 @@ function restoreDatabaseFromCheckpoint(
         return;
       }
       const row = cursor.value as { key: string; value: string };
-      if (isCanonicalBudgetStorageKey(row.key)) cursor.delete();
+      if (
+        isCanonicalBudgetStorageKey(row.key) &&
+        (!prefix || row.key.startsWith(prefix))
+      ) cursor.delete();
       cursor.continue();
     };
 
-    transaction.objectStore(JOURNAL_STORE).clear();
-    transaction.objectStore(CONFLICT_STORE).clear();
+    const journal = transaction.objectStore(JOURNAL_STORE);
+    if (!prefix) {
+      journal.clear();
+    } else {
+      const journalCursor = journal.openCursor();
+      journalCursor.onsuccess = () => {
+        const cursor = journalCursor.result;
+        if (!cursor) return;
+        const entry = cursor.value as OperationJournalEntry;
+        if (entry.mutation.key.startsWith(prefix)) cursor.delete();
+        cursor.continue();
+      };
+    }
+    const conflicts = transaction.objectStore(CONFLICT_STORE);
+    if (!prefix) {
+      conflicts.clear();
+    } else {
+      const conflictCursor = conflicts.openCursor();
+      conflictCursor.onsuccess = () => {
+        const cursor = conflictCursor.result;
+        if (!cursor) return;
+        const conflict = cursor.value as ReplicationConflict;
+        if (conflict.key.startsWith(prefix)) cursor.delete();
+        cursor.continue();
+      };
+    }
     transaction.objectStore(CHECKPOINT_STORE).put(restoredCheckpoint);
     const metadata = transaction.objectStore(META_STORE);
-    metadata.put({ key: LATEST_SEQUENCE_KEY, value: 0 });
-    metadata.put({ key: LATEST_CHECKPOINT_ID_KEY, value: restoredCheckpoint.checkpointId });
+    if (!prefix) metadata.put({ key: LATEST_SEQUENCE_KEY, value: 0 });
+    metadata.put({
+      key: checkpointMetadataKey(scope),
+      value: restoredCheckpoint.checkpointId,
+    });
 
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error("Checkpoint restore failed."));
     transaction.onabort = () => reject(transaction.error ?? new Error("Checkpoint restore aborted."));
   });
+}
+
+function checkpointMetadataKey(scope?: string): string {
+  return scope
+    ? `${LATEST_CHECKPOINT_ID_KEY}.${encodeURIComponent(scope)}`
+    : LATEST_CHECKPOINT_ID_KEY;
+}
+
+export function mergeScopedPersistenceEntries(
+  existing: Readonly<Record<string, string>>,
+  restored: Readonly<Record<string, string>>,
+  scope: string,
+): Record<string, string> {
+  const prefix = budgetPersistenceKeyPrefix(scope);
+  const merged = Object.fromEntries(
+    Object.entries(existing).filter(([key]) => !key.startsWith(prefix)),
+  );
+  for (const [key, value] of Object.entries(restored)) {
+    if (!key.startsWith(prefix)) {
+      throw new Error(`Restored data contains a key outside budget ${scope}.`);
+    }
+    merged[key] = value;
+  }
+  return merged;
+}
+
+export function shouldPruneJournalEntry(
+  entry: OperationJournalEntry,
+  throughSequence: number,
+  scope?: string,
+): boolean {
+  if (entry.sequence > throughSequence) return false;
+  return !scope || entry.mutation.key.startsWith(budgetPersistenceKeyPrefix(scope));
 }
 
 function validateReplicationCursorState(state: ReplicationCursorState): void {
@@ -729,16 +985,15 @@ function validateReplicationCursorState(state: ReplicationCursorState): void {
   }
 }
 
-function readReplicationCursorState(db: IDBDatabase): Promise<ReplicationCursorState> {
+function readReplicationCursorState(
+  db: IDBDatabase,
+  scope?: string,
+): Promise<ReplicationCursorState> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(META_STORE, "readonly");
     const store = transaction.objectStore(META_STORE);
     const values: Record<string, unknown> = {};
-    const keys = [
-      REPLICATION_GENERATION_KEY,
-      REPLICATION_PUSHED_SEQUENCE_KEY,
-      REPLICATION_PULLED_CURSOR_KEY,
-    ];
+    const keys = replicationCursorKeys(scope);
     let remaining = keys.length;
     for (const key of keys) {
       const request = store.get(key);
@@ -748,14 +1003,14 @@ function readReplicationCursorState(db: IDBDatabase): Promise<ReplicationCursorS
         if (remaining === 0) {
           resolve({
             generationId:
-              typeof values[REPLICATION_GENERATION_KEY] === "string"
-                ? (values[REPLICATION_GENERATION_KEY] as string)
+              typeof values[keys[0]] === "string"
+                ? (values[keys[0]] as string)
                 : null,
-            pushedLocalSequence: Number.isSafeInteger(values[REPLICATION_PUSHED_SEQUENCE_KEY])
-              ? (values[REPLICATION_PUSHED_SEQUENCE_KEY] as number)
+            pushedLocalSequence: Number.isSafeInteger(values[keys[1]])
+              ? (values[keys[1]] as number)
               : 0,
-            pulledRemoteCursor: Number.isSafeInteger(values[REPLICATION_PULLED_CURSOR_KEY])
-              ? (values[REPLICATION_PULLED_CURSOR_KEY] as number)
+            pulledRemoteCursor: Number.isSafeInteger(values[keys[2]])
+              ? (values[keys[2]] as number)
               : 0,
           });
         }
@@ -769,19 +1024,71 @@ function readReplicationCursorState(db: IDBDatabase): Promise<ReplicationCursorS
 function writeReplicationCursorState(
   db: IDBDatabase,
   state: ReplicationCursorState,
+  scope?: string,
 ): Promise<void> {
   validateReplicationCursorState(state);
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(META_STORE, "readwrite");
     const store = transaction.objectStore(META_STORE);
-    if (state.generationId === null) store.delete(REPLICATION_GENERATION_KEY);
-    else store.put({ key: REPLICATION_GENERATION_KEY, value: state.generationId });
-    store.put({ key: REPLICATION_PUSHED_SEQUENCE_KEY, value: state.pushedLocalSequence });
-    store.put({ key: REPLICATION_PULLED_CURSOR_KEY, value: state.pulledRemoteCursor });
+    const keys = replicationCursorKeys(scope);
+    if (state.generationId === null) store.delete(keys[0]);
+    else store.put({ key: keys[0], value: state.generationId });
+    store.put({ key: keys[1], value: state.pushedLocalSequence });
+    store.put({ key: keys[2], value: state.pulledRemoteCursor });
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error("Unable to persist replication state."));
     transaction.onabort = () => reject(transaction.error ?? new Error("Replication state transaction aborted."));
   });
+}
+
+function replicationCursorKeys(scope?: string): readonly [string, string, string] {
+  const suffix = scope?.trim()
+    ? `.${scope.trim().replace(/[^a-zA-Z0-9_-]/g, "_")}`
+    : "";
+  return [
+    `${REPLICATION_GENERATION_KEY}${suffix}`,
+    `${REPLICATION_PUSHED_SEQUENCE_KEY}${suffix}`,
+    `${REPLICATION_PULLED_CURSOR_KEY}${suffix}`,
+  ];
+}
+
+
+function resolveRemoteEntityOperations(
+  operations: readonly RemoteOperationEnvelope[],
+  currentRecords: ReadonlyMap<string, string>,
+): RemoteOperationEnvelope[] {
+  const simulated = new Map(currentRecords);
+  return operations.map((envelope) => {
+    const mutation = envelope.operation.mutation;
+    if (mutation.type !== "key-value.set") {
+      simulated.delete(mutation.key);
+      return envelope;
+    }
+    const current = simulated.get(mutation.key);
+    const merged = current === undefined
+      ? null
+      : mergeSerializedEntityRecords(current, mutation.value);
+    const value = merged ?? mutation.value;
+    simulated.set(mutation.key, value);
+    return value === mutation.value
+      ? envelope
+      : {
+          ...envelope,
+          operation: {
+            ...envelope.operation,
+            mutation: { ...mutation, value },
+          },
+        };
+  });
+}
+
+function mutationsAreMergeCompatibleEntities(
+  left: OperationJournalMutation,
+  right: OperationJournalMutation,
+): boolean {
+  return left.type === "key-value.set" &&
+    right.type === "key-value.set" &&
+    mergeSerializedEntityRecords(left.value, right.value) !== null;
 }
 
 function applyRemoteOperationsTransaction(
@@ -812,6 +1119,7 @@ function detectReplicationConflicts(
       if (remote.operation.deviceId === local.deviceId) continue;
       if (remote.operation.mutation.key !== local.mutation.key) continue;
       if (mutationsAreEquivalent(remote.operation.mutation, local.mutation)) continue;
+      if (mutationsAreMergeCompatibleEntities(remote.operation.mutation, local.mutation)) continue;
       const conflictId = createConflictId({
         generationId: context.generationId,
         key: local.mutation.key,

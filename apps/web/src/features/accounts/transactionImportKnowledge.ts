@@ -5,13 +5,20 @@ import type {
 } from "./transactionImport";
 import { createBudgetScopedStorage } from "../budget/budgetDataScope";
 import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
+import {
+  createImportedFileFingerprintRepository,
+  createImportedTransactionFingerprintRepository,
+  importedFileFingerprintEntityId,
+  importedTransactionFingerprintEntityId,
+  importFingerprintTimestamp,
+  projectEntityFields,
+  upsertImportedFileFingerprintEntity,
+  upsertImportedTransactionFingerprintEntity,
+} from "./entities/importFingerprintEntity";
+import { accountImportKnowledgeEntityId, findAccountImportKnowledgeEntity, upsertAccountImportKnowledgeEntity } from "./entities/importKnowledgeEntity";
 
 const ACCOUNT_IMPORT_KNOWLEDGE_STORAGE_KEY =
   "budget-app.account-import-knowledge.v1";
-const IMPORTED_FILE_FINGERPRINT_STORAGE_KEY =
-  "budget-app.imported-file-fingerprints.v1";
-const IMPORTED_TRANSACTION_FINGERPRINT_STORAGE_KEY =
-  "budget-app.imported-transaction-fingerprints.v1";
 
 export type AccountImportKnowledgeFileType = "csv" | "qif";
 
@@ -145,77 +152,45 @@ export function findAccountImportKnowledge({
   fileType: AccountImportKnowledgeFileType;
   structureSignature: string;
 }): AccountImportKnowledge | undefined {
-  return readJsonArray<AccountImportKnowledge>(
-    ACCOUNT_IMPORT_KNOWLEDGE_STORAGE_KEY,
-  ).find(
-    (entry) =>
-      entry.accountId === accountId &&
-      entry.fileType === fileType &&
-      entry.structureSignature === structureSignature,
+  return findAccountImportKnowledgeEntity(
+    getImportKnowledgeStorage(),
+    accountImportKnowledgeEntityId({ accountId, fileType, structureSignature }),
   );
 }
 
 export function rememberAccountImportKnowledge(
-  input: Omit<
-    AccountImportKnowledge,
-    "successfulImportCount" | "firstUsedAt" | "lastUsedAt"
-  >,
+  input: Omit<AccountImportKnowledge, "successfulImportCount" | "firstUsedAt" | "lastUsedAt">,
 ): AccountImportKnowledge {
-  const entries = readJsonArray<AccountImportKnowledge>(
-    ACCOUNT_IMPORT_KNOWLEDGE_STORAGE_KEY,
-  );
   const now = new Date().toISOString();
-  const existingIndex = entries.findIndex(
-    (entry) =>
-      entry.accountId === input.accountId &&
-      entry.fileType === input.fileType &&
-      entry.structureSignature === input.structureSignature,
-  );
-
-  const existing = existingIndex >= 0 ? entries[existingIndex] : undefined;
-  const next: AccountImportKnowledge = {
+  const existing = findAccountImportKnowledge(input);
+  return upsertAccountImportKnowledgeEntity(getImportKnowledgeStorage(), {
     ...existing,
     ...input,
     successfulImportCount: (existing?.successfulImportCount ?? 0) + 1,
     firstUsedAt: existing?.firstUsedAt ?? now,
     lastUsedAt: now,
-  };
-
-  if (existingIndex >= 0) entries[existingIndex] = next;
-  else entries.push(next);
-
-  writeJsonArray(ACCOUNT_IMPORT_KNOWLEDGE_STORAGE_KEY, entries);
-  return next;
+  }, new Date(now));
 }
 
 export function findImportedFileFingerprint(
   accountId: string,
   fileHash: string,
 ): ImportedFileFingerprint | undefined {
-  return readJsonArray<ImportedFileFingerprint>(
-    IMPORTED_FILE_FINGERPRINT_STORAGE_KEY,
-  ).find(
-    (entry) => entry.accountId === accountId && entry.fileHash === fileHash,
-  );
+  const entity = createImportedFileFingerprintRepository(
+    getImportKnowledgeStorage(),
+  ).get(importedFileFingerprintEntityId(accountId, fileHash));
+  return entity ? projectEntityFields(entity) : undefined;
 }
 
 export function rememberImportedFileFingerprint(
   fingerprint: ImportedFileFingerprint,
 ): ImportedFileFingerprint {
-  const entries = readJsonArray<ImportedFileFingerprint>(
-    IMPORTED_FILE_FINGERPRINT_STORAGE_KEY,
+  const entity = upsertImportedFileFingerprintEntity(
+    getImportKnowledgeStorage(),
+    fingerprint,
+    importFingerprintTimestamp(new Date(fingerprint.importedAt)),
   );
-  const existingIndex = entries.findIndex(
-    (entry) =>
-      entry.accountId === fingerprint.accountId &&
-      entry.fileHash === fingerprint.fileHash,
-  );
-
-  if (existingIndex >= 0) entries[existingIndex] = fingerprint;
-  else entries.push(fingerprint);
-
-  writeJsonArray(IMPORTED_FILE_FINGERPRINT_STORAGE_KEY, entries);
-  return fingerprint;
+  return projectEntityFields(entity);
 }
 
 function normaliseIdentityValue(value: string | undefined): string {
@@ -301,9 +276,9 @@ export function partitionPreviouslyImportedCandidates<
   alreadyRepresentedCandidates: T[];
 } {
   const importedCounts = new Map(
-    readJsonArray<ImportedTransactionFingerprint>(
-      IMPORTED_TRANSACTION_FINGERPRINT_STORAGE_KEY,
-    )
+    createImportedTransactionFingerprintRepository(getImportKnowledgeStorage())
+      .list()
+      .map(projectEntityFields)
       .filter(
         (entry) => entry.accountId === accountId && entry.fileType === fileType,
       )
@@ -359,9 +334,8 @@ export function rememberImportedTransactionCandidates({
   candidates: ImportIdentityCandidate[];
   importedAt?: string;
 }): ImportedTransactionFingerprint[] {
-  const entries = readJsonArray<ImportedTransactionFingerprint>(
-    IMPORTED_TRANSACTION_FINGERPRINT_STORAGE_KEY,
-  );
+  const storage = getImportKnowledgeStorage();
+  const repository = createImportedTransactionFingerprintRepository(storage);
   const sessionCounts = new Map<string, number>();
 
   for (const candidate of candidates) {
@@ -369,34 +343,27 @@ export function rememberImportedTransactionCandidates({
     sessionCounts.set(identity, (sessionCounts.get(identity) ?? 0) + 1);
   }
 
+  let counter = 0;
   for (const [identity, occurrenceCount] of sessionCounts) {
-    const existingIndex = entries.findIndex(
-      (entry) =>
-        entry.accountId === accountId &&
-        entry.fileType === fileType &&
-        entry.identity === identity,
+    const id = importedTransactionFingerprintEntityId(accountId, fileType, identity);
+    const existingEntity = repository.get(id);
+    const existing = existingEntity ? projectEntityFields(existingEntity) : undefined;
+    upsertImportedTransactionFingerprintEntity(
+      storage,
+      {
+        accountId,
+        fileType,
+        identity,
+        occurrenceCount: Math.max(existing?.occurrenceCount ?? 0, occurrenceCount),
+        firstImportedAt: existing?.firstImportedAt ?? importedAt,
+        lastImportedAt: importedAt,
+      },
+      importFingerprintTimestamp(new Date(importedAt), counter++),
     );
-    const existing = existingIndex >= 0 ? entries[existingIndex] : undefined;
-    const next: ImportedTransactionFingerprint = {
-      accountId,
-      fileType,
-      identity,
-      // Store how many real occurrences of this identity are represented, not
-      // how many times the same import decision has been replayed. Re-importing
-      // an overlapping statement must not inflate the ledger indefinitely.
-      occurrenceCount: Math.max(
-        existing?.occurrenceCount ?? 0,
-        occurrenceCount,
-      ),
-      firstImportedAt: existing?.firstImportedAt ?? importedAt,
-      lastImportedAt: importedAt,
-    };
-    if (existingIndex >= 0) entries[existingIndex] = next;
-    else entries.push(next);
   }
 
-  writeJsonArray(IMPORTED_TRANSACTION_FINGERPRINT_STORAGE_KEY, entries);
-  return entries.filter(
-    (entry) => entry.accountId === accountId && entry.fileType === fileType,
-  );
+  return createImportedTransactionFingerprintRepository(storage)
+    .list()
+    .map(projectEntityFields)
+    .filter((entry) => entry.accountId === accountId && entry.fileType === fileType);
 }

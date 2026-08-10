@@ -8,6 +8,7 @@ import type {
   TransactionTagDefinition,
 } from "./transactionTagTypes";
 import type { TransactionTagIcon } from "./transactionTagIconTypes";
+import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 
 export interface CreateTransactionTagInput {
   name: string;
@@ -41,6 +42,7 @@ export interface TransactionTagServiceDependencies {
 
 export interface TransactionTagService {
   listTags(options?: { includeArchived?: boolean }): TransactionTagDefinition[];
+  replaceAllTags(tags: readonly TransactionTagDefinition[]): TransactionTagDefinition[];
   createTag(input: CreateTransactionTagInput): TransactionTagDefinition;
   updateTag(input: UpdateTransactionTagInput): TransactionTagDefinition;
   archiveTag(tagId: string): TransactionTagDefinition;
@@ -142,6 +144,12 @@ export function createTransactionTagService(
         : tags.filter((tag) => !tag.archived);
 
       return visible.map((tag) => ({ ...tag }));
+    },
+
+    replaceAllTags(tags) {
+      const replacements = tags.map((tag) => ({ ...tag }));
+      writeTags(replacements);
+      return replacements.map((tag) => ({ ...tag }));
     },
 
     createTag(input) {
@@ -324,9 +332,5 @@ function normaliseUsageCount(value: number): number {
 }
 
 function createTransactionTagId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `tag-${crypto.randomUUID()}`;
-  }
-
-  return `tag-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `tag-${createRuntimeUuid()}`;
 }

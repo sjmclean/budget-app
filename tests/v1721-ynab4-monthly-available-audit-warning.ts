@@ -1,3 +1,7 @@
+import { seedTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
+import { replaceAccountEntities } from "../apps/web/src/features/accounts/entities/accountEntity.js";
+import { createFixedBudgetScopedStorage } from "../apps/web/src/features/budget/budgetDataScope.js";
+import { writeBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 import assert from "node:assert/strict";
 import {
   auditYnab4LauncherImportAccuracy,
@@ -49,7 +53,7 @@ const entries: Ynab4PackageEntry[] = [
         payeeId: "payee-1",
         categoryId: "category-1",
         date: "2020-12-01",
-        amount: -1000,
+        amount: -1,
         cleared: true,
       }],
       scheduledTransactions: [],
@@ -57,8 +61,8 @@ const entries: Ynab4PackageEntry[] = [
         month: "2020-12",
         monthlySubCategoryBudgets: [{
           categoryId: "category-1",
-          budgeted: 100000,
-          activity: -1000,
+          budgeted: 100,
+          activity: -1,
           balance: 0,
         }],
       }],
@@ -66,27 +70,32 @@ const entries: Ynab4PackageEntry[] = [
   },
 ];
 
-storage.setItem(`budget-app.budgets.${budgetId}.budget-app.accounts.v1`, JSON.stringify([
-  { id: "account-1", name: "Cheque", type: "checking" },
-]));
+replaceAccountEntities(createFixedBudgetScopedStorage(storage, budgetId), [{
+  id: "account-1",
+  name: "Cheque",
+  type: "on-budget",
+  startingBalance: 0,
+  createdAt: "2020-12-01T00:00:00.000Z",
+  closedAt: null,
+}], new Date("2020-12-01T00:00:00.000Z"));
 
-storage.setItem(`budget-app.budgets.${budgetId}.budget-app.account-registers.v1`, JSON.stringify({
+seedTransactionRegisters(createFixedBudgetScopedStorage(storage, budgetId), {
   "account-1": {
     accountId: "account-1",
     accountName: "Cheque",
-    transactions: [{ id: "transaction-1", amount: -1, date: "2020-12-01" }],
+    transactions: [{ id: "transaction-1", date: "2020-12-01", payee: "Shop", category: "Groceries", inflow: 0, outflow: 1 }],
   },
-}));
+});
 
-storage.setItem(`budget-app.budgets.${budgetId}.budget-app.scheduled-transactions.v1`, JSON.stringify([]));
 
-storage.setItem(`budget-app.budget-view.v1.${budgetId}.2020-12`, JSON.stringify({
+writeBudgetMonthEntity(storage, budgetId, "2020-12", {
+  budgetId,
   month: "2020-12",
   totalAssigned: 100,
   totalActivity: -1,
   totalAvailable: 99,
-  groups: [],
-}));
+  categoryGroups: [{ id: "group-1", name: "Everyday", previousAvailable: 0, assigned: 100, activity: -1, available: 99, note: "", categories: [{ id: "category-1", name: "Groceries", previousAvailable: 0, assigned: 100, activity: -1, available: 99, note: "", isArchived: false }] }],
+});
 
 const audit = auditYnab4LauncherImportAccuracy(storage, { entries, budgetId });
 

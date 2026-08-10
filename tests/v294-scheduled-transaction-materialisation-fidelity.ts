@@ -155,6 +155,15 @@ async function testConcurrentGenerationCreatesOneOccurrence() {
   assert.deepEqual(transactions[0]?.tagIds, ["tag-mobile"]);
   assert.equal(transactions[0]?.scheduledTransactionId, schedule.id);
   assert.equal(transactions[0]?.scheduledOccurrenceDate, "2026-07-11");
+  const cached = await generateDueScheduledTransactions(gateway, {
+    today: "2026-07-11",
+  });
+  assert.strictEqual(
+    cached,
+    first,
+    "Repeated account loads should reuse the completed maintenance pass.",
+  );
+  assert.equal(addCount, 1);
 }
 
 function createRegisterView(

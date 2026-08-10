@@ -6,20 +6,19 @@ const payeePage = readFileSync(
   "utf8",
 );
 
-const webPackageJson = readFileSync(
-  join(process.cwd(), "apps/web/package.json"),
-  "utf8",
-);
-
 function expectContains(source: string, value: string): void {
   if (!source.includes(value)) {
     throw new Error(`Missing expected text: ${value}`);
   }
 }
 
-expectContains(webPackageJson, "@dnd-kit/core");
-expectContains(payeePage, "DndContext");
-expectContains(payeePage, "useDraggable");
-expectContains(payeePage, "useDroppable");
+if (payeePage.includes("<DndContext")) {
+  throw new Error("Payee merge must not expose drag-and-drop interaction");
+}
+expectContains(payeePage, "Actions ▾");
+expectContains(payeePage, "Merge with another payee");
+expectContains(payeePage, ">Preview");
+expectContains(payeePage, "Merge Preview");
+expectContains(payeePage, 'type="checkbox"');
 
-console.log("v2.37.1 payee dnd-kit merge checks passed");
+console.log("v2.37.1 explicit payee merge checks passed");

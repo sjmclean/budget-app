@@ -1,4 +1,11 @@
-import { readYnab4BudgetData, type Ynab4PackageEntry } from "./package/readBudget.js";
+import {
+  findActiveBudgetDataEntry,
+  prepareYnab4PackageEntriesForStreaming,
+  readYnab4BudgetData,
+  type Ynab4PackageEntry,
+} from "./package/readBudget.js";
+import { discoverYnab4PackageLocation } from "./package/discoverPackage.js";
+import { createYnab4SourceReader } from "./source/createYnab4SourceReader.js";
 import { decodeYnabAmount } from "./money/decodeYnabAmount.js";
 
 export type Ynab4PackageProgressPhase =
@@ -77,6 +84,10 @@ export type Ynab4PackageMigrationPreview = {
   details: Ynab4PackageDetailedPreview;
 };
 
+export {
+  prepareYnab4PackageEntries,
+  prepareYnab4PackageEntriesForStreaming,
+} from "./package/readBudget.js";
 export type { Ynab4PackageEntry } from "./package/readBudget.js";
 
 export type Ynab4PackageCounts = {
@@ -128,7 +139,14 @@ export type Ynab4PackageDiscoveryResult = {
   warnings: string[];
   progressSteps: Ynab4PackageProgressStep[];
   details: Ynab4PackageDetailedPreview;
+  containsCreditCards: boolean;
 };
+
+export interface DiscoverYnab4PackageStreamingOptions {
+  signal?: AbortSignal;
+  batchSize?: number;
+  onProgress?: (recordsRead: number) => void;
+}
 
 type Ynab4PackageMetadata = {
   formatVersion?: unknown;
@@ -518,6 +536,121 @@ export function discoverYnab4Package(
   });
 }
 
+export async function discoverYnab4PackageStreaming(
+  entries: Ynab4PackageEntry[],
+  options: DiscoverYnab4PackageStreamingOptions = {},
+): Promise<Ynab4PackageDiscoveryResult> {
+  await prepareYnab4PackageEntriesForStreaming(entries);
+  const location = discoverYnab4PackageLocation(entries);
+  const selected = entries.find((entry) => entry.selectedBudgetData) ??
+    (location.activeDataFolderPath
+      ? findActiveBudgetDataEntry(entries, location.activeDataFolderPath)
+      : undefined);
+  if (!selected?.file) {
+    return createResult({
+      packageRoot: location.packageRoot,
+      budgetName: inferBudgetName(location.packageRoot),
+      metadataPath: location.metadataPath,
+      relativeDataFolderName: location.relativeDataFolderName,
+      activeDataFolderPath: location.activeDataFolderPath,
+      warnings: ["The active YNAB4 budget data Blob was not available for streaming preview."],
+    });
+  }
+
+  const reader = createYnab4SourceReader(selected.file, {
+    sourceName: selected.path,
+  });
+  try {
+    const metadata = await reader.inspect({ signal: options.signal });
+    const references = await reader.readReferenceData({ signal: options.signal });
+    const accounts = [...references.accounts];
+    const masterCategories = [...references.masterCategories];
+    const categories = masterCategories.flatMap((group) => toArray(group.subCategories));
+    const payees = [...references.payees];
+    const firstTransactions: Ynab4PackageTransactionPreview[] = [];
+    const recentTransactions: Ynab4PackageTransactionPreview[] = [];
+    let transactionCount = 0;
+    for await (const batch of reader.streamRecords({
+      batchSize: options.batchSize ?? 500,
+      signal: options.signal,
+    })) {
+      for (const transaction of batch) {
+        const preview = toTransactionPreviewItem(transaction);
+        if (firstTransactions.length < YNAB4_PACKAGE_PREVIEW_LIMITS.transactionSamples) {
+          firstTransactions.push(preview);
+        }
+        recentTransactions.push(preview);
+        if (recentTransactions.length > YNAB4_PACKAGE_PREVIEW_LIMITS.transactionSamples) {
+          recentTransactions.shift();
+        }
+        transactionCount += 1;
+      }
+      options.onProgress?.(transactionCount);
+    }
+    const scheduled: Record<string, unknown>[] = [];
+    let scheduledCount = 0;
+    for await (const batch of reader.streamScheduledTransactions({
+      batchSize: options.batchSize ?? 500,
+      signal: options.signal,
+    })) {
+      for (const record of batch) {
+        scheduledCount += 1;
+        if (scheduled.length < YNAB4_PACKAGE_PREVIEW_LIMITS.scheduledTransactions) {
+          scheduled.push(record);
+        }
+      }
+    }
+    const categoryGroups = masterCategories
+      .map(toCategoryGroupPreview)
+      .slice(0, YNAB4_PACKAGE_PREVIEW_LIMITS.categoryGroups);
+    const details: Ynab4PackageDetailedPreview = {
+      accounts: accounts.map(toNamedPreviewItem).slice(0, YNAB4_PACKAGE_PREVIEW_LIMITS.accounts),
+      categoryGroups,
+      payees: payees.map(toNamedPreviewItem).slice(0, YNAB4_PACKAGE_PREVIEW_LIMITS.payees),
+      scheduledTransactions: scheduled.map(toTransactionPreviewItem),
+      firstTransactions,
+      recentTransactions: recentTransactions.reverse(),
+      notes: {
+        categoryNotes: categories.filter(hasNoteLikeValue).map(toNamedPreviewItem).slice(0, YNAB4_PACKAGE_PREVIEW_LIMITS.notes),
+        categoryGroupNotes: categoryGroups.filter((group) => Boolean(group.note)).slice(0, YNAB4_PACKAGE_PREVIEW_LIMITS.notes),
+      },
+      previewLimits: { ...YNAB4_PACKAGE_PREVIEW_LIMITS },
+    };
+    const warnings = transactionCount === 0
+      ? ["No transactions were detected in the active YNAB4 budget data file."]
+      : [];
+    return createResult({
+      isYnab4Package: true,
+      packageRoot: location.packageRoot,
+      budgetName: inferBudgetName(location.packageRoot),
+      metadataPath: location.metadataPath,
+      relativeDataFolderName: location.relativeDataFolderName,
+      activeDataFolderPath: location.activeDataFolderPath,
+      budgetDataPath: selected.path,
+      budgetDataFormat: selected.path.endsWith(".yfull") ? "yfull" : "json",
+      topLevelKeys: [...metadata.topLevelKeys].sort(),
+      counts: {
+        accounts: accounts.length,
+        masterCategories: masterCategories.length,
+        categories: categories.length,
+        payees: payees.length,
+        monthlyBudgets: references.monthlyBudgets.length,
+        transactions: transactionCount,
+        scheduledTransactions: scheduledCount,
+        categoryNotes: categories.filter(hasNoteLikeValue).length,
+        categoryGroupNotes: masterCategories.filter(hasNoteLikeValue).length,
+      },
+      details,
+      containsCreditCards: accounts.some((account) =>
+        firstString(account.accountType, account.type)?.toLowerCase().includes("credit") ?? false
+      ),
+      warnings: [...location.warnings, ...warnings],
+    });
+  } finally {
+    await reader.close();
+  }
+}
+
 function createResult(
   overrides: Partial<Ynab4PackageDiscoveryResult> = {},
 ): Ynab4PackageDiscoveryResult {
@@ -535,6 +668,7 @@ function createResult(
     warnings: [],
     progressSteps: DISCOVERY_PROGRESS_STEPS.map((step) => ({ ...step })),
     details: cloneDetails(EMPTY_DETAILS),
+    containsCreditCards: false,
     ...overrides,
   };
 }

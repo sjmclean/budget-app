@@ -5,6 +5,7 @@ import {
   type VersionHistoryCheckpointReason,
   type CreateVersionHistorySnapshotResult,
 } from "./versionHistory";
+import { isLargeStreamingYnab4Budget } from "./ynab4/finaliseYnab4Import.js";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 
 export const VERSION_HISTORY_LIFECYCLE_RELEASE = "v2.48.0";
@@ -32,7 +33,6 @@ export interface VersionHistoryLifecycleSnapshotInput {
 }
 
 const DAILY_SNAPSHOT_LOGICAL_KEY = "budget-app.version-history-daily-marker.v1";
-
 function skipped(
   event: VersionHistoryLifecycleEvent,
   reason: string,
@@ -162,6 +162,14 @@ function createAutomaticLifecycleSnapshot(
   event: VersionHistoryLifecycleEvent,
   input: VersionHistoryLifecycleSnapshotInput,
 ): VersionHistoryLifecycleSnapshotResult {
+  const budgetId =
+    storage.getItem(SELECTED_BUDGET_STORAGE_KEY)?.trim() || null;
+  if (isLargeStreamingYnab4Budget(storage, budgetId)) {
+    return skipped(
+      event,
+      "Automatic full-copy snapshot skipped for a large streaming YNAB4 budget.",
+    );
+  }
   try {
     return {
       event,
@@ -186,6 +194,12 @@ function createAutomaticLifecycleSnapshotForBudget(
   event: VersionHistoryLifecycleEvent,
   input: VersionHistoryLifecycleSnapshotInput,
 ): VersionHistoryLifecycleSnapshotResult {
+  if (isLargeStreamingYnab4Budget(storage, budgetId)) {
+    return skipped(
+      event,
+      "Automatic full-copy snapshot skipped for a large streaming YNAB4 budget.",
+    );
+  }
   try {
     return {
       event,

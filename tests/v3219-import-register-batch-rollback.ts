@@ -69,7 +69,7 @@ assert.equal(successful.changeSet.addedTransactionIds.length, 1);
 assert.equal(successful.changeSet.beforeUpdatedTransactions[0]?.date, "2026-07-01");
 assert.equal(successful.changeSet.afterUpdatedTransactions[0]?.date, "2026-07-03");
 
-const stableSnapshot = storage.getItem("budget-app.account-registers.v1");
+const stableSnapshot = new Map((storage.listKeys?.() ?? []).filter((key) => key.includes("entity-replication.v1/transaction")).map((key) => [key, storage.getItem(key)]));
 const originalUpdate = service.updateTransaction.bind(service);
 service.updateTransaction = async () => {
   throw new Error("forced matched-update failure");
@@ -101,7 +101,7 @@ await assert.rejects(
     return true;
   },
 );
-assert.equal(storage.getItem("budget-app.account-registers.v1"), stableSnapshot);
+assert.deepEqual(new Map((storage.listKeys?.() ?? []).filter((key) => key.includes("entity-replication.v1/transaction")).map((key) => [key, storage.getItem(key)])), stableSnapshot);
 service.updateTransaction = originalUpdate;
 
 console.log("v3.21.9 import register batch rollback regression passed");

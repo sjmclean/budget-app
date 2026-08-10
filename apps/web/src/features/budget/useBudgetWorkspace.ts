@@ -10,13 +10,13 @@ import type {
   OverspendingHandling,
 } from "./budgetViewTypes";
 import { isMoneyNegative } from "./moneyMath";
-import { applyCategoryAssignedValues } from "./budgetMoneyMovement";
 import { createBudgetAssignmentEditSession } from "./budgetAssignmentEditing";
 import {
   executeUndoableBudgetAssignmentChanges,
   executeUndoableBudgetMoneyMovement,
   registerBudgetUndoRedoContext,
 } from "./budgetUndoRedo";
+import { previewCategoryAssignment } from "./budgetAssignmentPreview";
 
 interface UseBudgetWorkspaceState {
   data: BudgetMonthView | null;
@@ -308,9 +308,10 @@ export function useBudgetWorkspace(
       finalAssigned: assigned,
     });
 
-    setEditedData(
-      applyCategoryAssignedValues(currentData, [{ categoryId, assigned }]),
-    );
+    // Apply the same bounded assignment projection used by the budget command
+    // layer so direct consequences render immediately. SQLite still commits,
+    // validates and replaces this optimistic view with the authoritative one.
+    setEditedData(previewCategoryAssignment(currentData, categoryId, assigned));
 
     if (assignmentEditTimerRef.current) {
       clearTimeout(assignmentEditTimerRef.current);
@@ -318,7 +319,7 @@ export function useBudgetWorkspace(
 
     assignmentEditTimerRef.current = setTimeout(() => {
       void flushPendingAssignmentEdits();
-    }, 1800);
+    }, 75);
   }
 
   function runWorkspaceMutation(

@@ -1,6 +1,7 @@
 export type Ynab4TransferCreditCardPackageEntry = {
   path: string;
-  text: string;
+  text?: string;
+  parsedData?: Record<string, unknown>;
 };
 
 export type Ynab4TransferCreditCardProofStatus =
@@ -440,6 +441,7 @@ function readActiveBudgetData(entries: Ynab4TransferCreditCardPackageEntry[]): {
   const normalisedEntries = entries.map((entry) => ({
     path: normalisePath(entry.path),
     text: entry.text,
+    parsedData: entry.parsedData,
   }));
   const metadataEntry = normalisedEntries.find(
     (entry) => entry.path.endsWith("/Budget.ymeta") || entry.path === "Budget.ymeta",
@@ -475,7 +477,7 @@ function readActiveBudgetData(entries: Ynab4TransferCreditCardPackageEntry[]): {
   }
 
   try {
-    const parsed = JSON.parse(budgetDataEntry.text);
+    const parsed = budgetDataEntry.parsedData ?? JSON.parse(budgetDataEntry.text ?? "");
     return {
       data: isRecord(parsed) ? parsed : null,
       budgetName,

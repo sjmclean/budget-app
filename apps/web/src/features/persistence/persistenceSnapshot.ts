@@ -1,44 +1,16 @@
-import {
-  isBudgetScopedStorageKey,
-  SELECTED_BUDGET_STORAGE_KEY,
-} from "../budget/budgetDataScope";
-import { BUDGET_REGISTRY_STORAGE_KEY } from "../budget/budgetRegistry";
+import { isCanonicalPersistenceKey } from "./persistenceKeyClassification";
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
 
-const BUDGET_NAMESPACE_PREFIX = "budget-app.budgets.";
-const BUDGET_VIEW_PREFIX = "budget-app.budget-view.v1.";
+/**
+ * Backwards-compatible name used by the current document replication code.
+ * The classification policy itself lives in persistenceKeyClassification.ts.
+ */
+export const isCanonicalBudgetStorageKey = isCanonicalPersistenceKey;
 
 export interface BudgetPersistenceSnapshot {
   readonly entries: Readonly<Record<string, string>>;
   readonly entryCount: number;
   readonly byteLength: number;
-}
-
-/**
- * Returns true only for records required to reconstruct budgets on another
- * persistence provider. Device preferences, import diagnostics, launcher state,
- * version history and other browser-only records deliberately stay local.
- */
-export function isCanonicalBudgetStorageKey(key: string): boolean {
-  if (
-    key === BUDGET_REGISTRY_STORAGE_KEY ||
-    key === SELECTED_BUDGET_STORAGE_KEY ||
-    key.startsWith(BUDGET_VIEW_PREFIX) ||
-    isBudgetScopedStorageKey(key)
-  ) {
-    return true;
-  }
-
-  if (!key.startsWith(BUDGET_NAMESPACE_PREFIX)) {
-    return false;
-  }
-
-  const logicalKeyStart = key.indexOf("budget-app.", BUDGET_NAMESPACE_PREFIX.length);
-  if (logicalKeyStart < 0) {
-    return false;
-  }
-
-  return isBudgetScopedStorageKey(key.slice(logicalKeyStart));
 }
 
 export function exportBudgetPersistenceSnapshot(

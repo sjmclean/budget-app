@@ -5,8 +5,8 @@ export interface ServerReadinessSnapshot {
   readonly service: string;
   readonly storage: string;
   readonly protocolVersion: number;
-  readonly generationId: string;
-  readonly revision: number;
+  readonly generationId?: string;
+  readonly revision?: number;
   readonly serverTime: string;
 }
 
@@ -41,7 +41,10 @@ export async function checkServerOperationalHealth(options: {
       throw new Error(`Server readiness check failed with HTTP ${response.status}.`);
     }
     const readiness = (await response.json()) as ServerReadinessSnapshot;
-    if (readiness.status !== "ready" || typeof readiness.generationId !== "string") {
+    if (
+      readiness.status !== "ready" ||
+      typeof readiness.protocolVersion !== "number"
+    ) {
       throw new Error("Server returned an invalid readiness response.");
     }
     return {

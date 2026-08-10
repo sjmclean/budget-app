@@ -7,6 +7,7 @@ import {
   discoverYnab4Package,
   type Ynab4PackageEntry,
 } from "../packages/ynab4-importer/src/analyzeYnab4Package.ts";
+import { readBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 
 function createMemoryStorage(): KeyValueStoragePort {
   const values = new Map<string, string>();
@@ -108,7 +109,7 @@ function importBudgetView(): BudgetMonthView {
     entries,
     now: new Date("2026-06-24T04:00:00.000Z"),
   });
-  const raw = storage.getItem(`budget-app.budget-view.v1.${result.budget.id}.2026-06`);
+  const raw = (() => { const view = readBudgetMonthEntity(storage, result.budget.id, "2026-06"); return view ? JSON.stringify(view) : null; })();
   assert.ok(raw);
   return JSON.parse(raw) as BudgetMonthView;
 }
@@ -132,9 +133,9 @@ function testHiddenYnab4CategoriesStayInHiddenCategoriesGroup() {
   const view = importBudgetView();
   const names = categoryNames(view);
 
-  assert.equal(names.includes("Hidden Categories > Child Care & Events"), true);
-  assert.equal(names.includes("Hidden Categories > TV"), true);
-  assert.equal(names.includes("Hidden Categories > Tithing"), true);
+  assert.equal(names.includes("Hidden Categories > Main Expenses/Child Care & Events"), true);
+  assert.equal(names.includes("Hidden Categories > Savings Goals/TV"), true);
+  assert.equal(names.includes("Hidden Categories > Giving/Tithing"), true);
   assert.equal(names.includes("Main Expenses > Child Care & Events"), false);
   assert.equal(names.includes("Savings Goals > TV"), false);
   assert.equal(names.includes("Giving > Tithing"), false);
@@ -142,22 +143,22 @@ function testHiddenYnab4CategoriesStayInHiddenCategoriesGroup() {
   const hiddenCategories = view.categoryGroups.find((group) => group.name === "Hidden Categories");
   assert.ok(hiddenCategories);
 
-  assert.equal(hiddenCategories.categories.find((category) => category.name === "Child Care & Events")?.isArchived, true);
-  assert.equal(hiddenCategories.categories.find((category) => category.name === "TV")?.isArchived, true);
-  assert.equal(hiddenCategories.categories.find((category) => category.name === "Tithing")?.isArchived, true);
+  assert.equal(hiddenCategories.categories.find((category) => category.name === "Main Expenses/Child Care & Events")?.isArchived, true);
+  assert.equal(hiddenCategories.categories.find((category) => category.name === "Savings Goals/TV")?.isArchived, true);
+  assert.equal(hiddenCategories.categories.find((category) => category.name === "Giving/Tithing")?.isArchived, true);
 }
 
-function testTombstonedSubcategoriesRemainArchivedForHistoricalReferences() {
+function testTombstonedSubcategoriesAreExcluded() {
   const view = importBudgetView();
   const monthlyBills = view.categoryGroups.find((group) => group.name === "Monthly Bills");
   assert.ok(monthlyBills);
 
-  assert.equal(monthlyBills.categories.find((category) => category.name === "Cable TV")?.isArchived, true);
+  assert.equal(monthlyBills.categories.some((category) => category.name === "Cable TV"), false);
   assert.equal(monthlyBills.categories.find((category) => category.name === "Pocket Money")?.isArchived, false);
 }
 
 testTombstonedMasterCategoriesDoNotBecomeEmptyGroups();
 testHiddenYnab4CategoriesStayInHiddenCategoriesGroup();
-testTombstonedSubcategoriesRemainArchivedForHistoricalReferences();
+testTombstonedSubcategoriesAreExcluded();
 
 console.log("v1.76 YNAB4 category state fix passed");

@@ -64,6 +64,7 @@ test("maps assigned, activity, available and ready-to-assign values", () => {
       {
         month: "2026-01",
         availableToBudget: 125,
+        incomeForMonth: 225,
         monthlySubCategoryBudgets: [
           {
             categoryId: "source-groceries",
@@ -84,6 +85,9 @@ test("maps assigned, activity, available and ready-to-assign values", () => {
   const january = views.get("2026-01");
   assert.ok(january);
   assert.equal(january.readyToAssign, 125);
+  assert.equal(january.carriedForwardReadyToAssign, 0);
+  assert.equal(january.incomeForMonth, 225);
+  assert.equal(january.previousOverspending, 0);
   assert.equal(january.totalAssigned, 100);
   assert.equal(january.totalActivity, -25);
   assert.equal(january.totalAvailable, 75);

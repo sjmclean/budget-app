@@ -9,6 +9,13 @@ import type {
   BudgetViewService,
   OverspendingHandling,
 } from "./budgetViewTypes";
+
+/**
+ * @deprecated Historical key/value budgeting engine retained temporarily for
+ * required migration-test fixtures only. Production composition must never
+ * import this module; current budget reads and writes use
+ * createSqliteBudgetViewService and the local-first projection worker.
+ */
 import type { BudgetActivityPersistencePort, BudgetActivityRegisterTransaction } from "./budgetActivityPersistencePort";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import { readSettingsPreferences } from "../settings/settingsPreferences";
@@ -24,8 +31,9 @@ import {
 } from "./creditCardPaymentCategories";
 import { applyCategoryAssignedValues } from "./budgetMoneyMovement";
 import { isMoneyNegative, normaliseMoney } from "./moneyMath";
+import { applyCategoryEntities, syncCategoryEntities } from "./categoryEntities.js";
+import { readBudgetMonthEntity, writeBudgetMonthEntity } from "./entities/budgetMonthEntity.js";
 
-const STORAGE_KEY_PREFIX = "budget-app.budget-view.v1";
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
 const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
 
@@ -46,10 +54,6 @@ interface BudgetLoadContext {
 interface BudgetActivitySnapshot {
   allTransactions: BudgetActivityRegisterTransaction[];
   transactionsByMonth: Map<string, BudgetActivityRegisterTransaction[]>;
-}
-
-function getStorageKey(budgetId: string, month: string): string {
-  return `${STORAGE_KEY_PREFIX}.${budgetId}.${month}`;
 }
 
 function cloneBudgetView(view: BudgetMonthView): BudgetMonthView {
@@ -325,15 +329,15 @@ function readStoredBudgetView(
   budgetId: string,
   month: string,
 ): BudgetMonthView | null {
-  const raw = storage.getItem(getStorageKey(budgetId, month));
+  const stored = readBudgetMonthEntity(storage, budgetId, month);
+  if (stored) return recalculateBudget(stored);
 
-  if (!raw) {
-    return null;
-  }
-
+  // One-way compatibility bridge for pre-entity snapshots. The next save writes
+  // the canonical replicated entity and does not recreate the aggregate key.
+  const legacyRaw = storage.getItem(`budget-app.budget-view.v1.${budgetId}.${month}`);
+  if (!legacyRaw) return null;
   try {
-    const parsed = JSON.parse(raw) as BudgetMonthView;
-    return recalculateBudget(parsed);
+    return recalculateBudget(JSON.parse(legacyRaw) as BudgetMonthView);
   } catch {
     return null;
   }
@@ -800,7 +804,8 @@ async function saveBudgetView(
     month,
     context,
   );
-  dependencies.storage.setItem(getStorageKey(next.budgetId, month), JSON.stringify(next));
+  syncCategoryEntities(dependencies.storage, next);
+  writeBudgetMonthEntity(dependencies.storage, next.budgetId, month, next);
   return cloneBudgetView(applyStoredSettings(dependencies, next));
 }
 
@@ -810,7 +815,8 @@ async function loadBudgetView(
   month: string,
   context: BudgetLoadContext = {},
 ): Promise<BudgetMonthView> {
-  const stored = readStoredBudgetView(dependencies.storage, budgetId, month);
+  const storedSnapshot = readStoredBudgetView(dependencies.storage, budgetId, month);
+  const stored = storedSnapshot ? recalculateBudget(applyCategoryEntities(dependencies.storage, storedSnapshot)) : null;
   const previousMonth = previousIsoMonth(month);
   const previousStoredSnapshot = previousMonth
     ? readStoredBudgetView(dependencies.storage, budgetId, previousMonth)

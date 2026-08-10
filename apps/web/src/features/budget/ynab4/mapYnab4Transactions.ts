@@ -46,6 +46,13 @@ export interface MapYnab4TransactionsInput {
   importedFlagTagIdByColour: ReadonlyMap<TransactionTagColour, string>;
 }
 
+export interface AppendYnab4TransactionBatchInput
+  extends Omit<MapYnab4TransactionsInput, "transactions"> {
+  transactions: readonly RecordMap[];
+  registers: Record<string, AccountRegisterView>;
+  sourceIndexOffset: number;
+}
+
 /**
  * Convert YNAB4 transaction rows into complete account registers without
  * reading or writing browser storage. Tombstones are ignored and active rows
@@ -56,39 +63,67 @@ export interface MapYnab4TransactionsInput {
 export function mapYnab4Transactions(
   input: MapYnab4TransactionsInput,
 ): Record<string, AccountRegisterView> {
-  const registers: Record<string, AccountRegisterView> = {};
-  for (const account of input.accounts) {
-    registers[account.id] = createEmptyRegister(account, input.currencyCode);
-  }
+  const registers = createYnab4TransactionRegisters(input.accounts, input.currencyCode);
+  appendYnab4TransactionBatch({
+    ...input,
+    registers,
+    sourceIndexOffset: 0,
+  });
+  finaliseYnab4TransactionRegisters(registers);
 
-  for (const [index, transaction] of input.transactions.entries()) {
+  return registers;
+}
+
+/**
+ * Phase-3 streaming projection primitive. Appends one source batch without
+ * sorting, recalculating balances, or retaining source records. Call
+ * finaliseYnab4TransactionRegisters once after all batches have succeeded.
+ */
+export function appendYnab4TransactionBatch(
+  input: AppendYnab4TransactionBatchInput,
+): number {
+  let appended = 0;
+  for (const [batchIndex, transaction] of input.transactions.entries()) {
     if (isYnab4Tombstone(transaction)) continue;
+    const sourceIndex = input.sourceIndexOffset + batchIndex;
     const accountId = requireMappedYnab4Account(
       input.maps.accountIdBySourceId,
       transaction,
-      `transaction ${sourceEntityLabel(transaction, index)}`,
+      `transaction ${sourceEntityLabel(transaction, sourceIndex)}`,
     );
-    if (!registers[accountId]) {
+    const register = input.registers[accountId];
+    if (!register) {
       throw new Error(
-        `Mapped YNAB4 account "${accountId}" has no register for transaction ${sourceEntityLabel(transaction, index)}.`,
+        `Mapped YNAB4 account "${accountId}" has no register for transaction ${sourceEntityLabel(transaction, sourceIndex)}.`,
       );
     }
-    registers[accountId].transactions.push(
+    register.transactions.push(
       mapYnab4Transaction(
         transaction,
-        index,
+        sourceIndex,
         input.maps,
         input.importedFlagTagIdByColour,
         input.maps.accountTypeById.get(accountId) ?? "on-budget",
       ),
     );
+    appended += 1;
   }
+  return appended;
+}
 
-  for (const register of Object.values(registers)) {
-    recalculateRegister(register);
-  }
+export function createYnab4TransactionRegisters(
+  accounts: readonly SidebarAccount[],
+  currencyCode: string,
+): Record<string, AccountRegisterView> {
+  return Object.fromEntries(
+    accounts.map((account) => [account.id, createEmptyRegister(account, currencyCode)]),
+  );
+}
 
-  return registers;
+export function finaliseYnab4TransactionRegisters(
+  registers: Record<string, AccountRegisterView>,
+): void {
+  for (const register of Object.values(registers)) recalculateRegister(register);
 }
 
 export function mapYnab4Transaction(

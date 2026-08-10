@@ -3624,6 +3624,46 @@
       "status": "required",
       "lastResult": "passed",
       "reason": "Passing legacy baseline; retained as required until migrated."
+    },
+    {
+      "file": "tests/v520-sync-state-integrity.ts",
+      "domain": "sync",
+      "kind": "regression",
+      "status": "required",
+      "lastResult": "passed",
+      "reason": "Required integrity verification and automatic checkpoint-repair regression coverage."
+    },
+    {
+      "file": "tests/v522-property-based-replication.ts",
+      "domain": "sync",
+      "kind": "regression",
+      "status": "required",
+      "lastResult": "passed",
+      "reason": "Required deterministic property-based multi-replica convergence coverage."
+    },
+    {
+      "file": "tests/v523-chaos-replication.ts",
+      "domain": "sync",
+      "kind": "regression",
+      "status": "required",
+      "lastResult": "passed",
+      "reason": "Required deterministic transport fault-injection and eventual-convergence coverage."
+    },
+    {
+      "file": "tests/v524-sync-performance-harness.ts",
+      "domain": "sync",
+      "kind": "performance",
+      "status": "required",
+      "lastResult": "passed",
+      "reason": "Required deterministic scalability-harness smoke coverage; timing metrics are recorded without brittle production thresholds."
+    },
+    {
+      "file": "tests/v525-formal-sync-invariants.ts",
+      "domain": "sync",
+      "kind": "contract",
+      "status": "required",
+      "lastResult": "passed",
+      "reason": "Required formal algebraic and monotonicity invariant coverage for sync primitives, replicated entities, checkpoints, replay, and cursors."
     }
   ]
 }

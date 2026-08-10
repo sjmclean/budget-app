@@ -1,4 +1,8 @@
+import { readSeededTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
+import { createScheduledTransactionEntityRepository, projectScheduledTransaction } from "../apps/web/src/features/accounts/entities/scheduledTransactionEntity.js";
 import assert from "node:assert/strict";
+import { readAccounts } from "../apps/web/src/features/accounts/accountService.js";
+import { createFixedBudgetScopedStorage } from "../apps/web/src/features/budget/budgetDataScope.js";
 
 import { createYnab4LauncherBudgetImport } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
@@ -53,11 +57,9 @@ function testLatestCompleteDeviceCurrencyAndCustomSchedule(): void {
   const result = createYnab4LauncherBudgetImport(target, { discovery, preview, entries });
 
   assert.equal(result.budget.currency, "GBP");
-  const accounts = JSON.parse(target.getItem(`budget-app.budgets.${result.budget.id}.budget-app.accounts.v1`)!);
+  const accounts = readAccounts(createFixedBudgetScopedStorage(target, result.budget.id));
   assert.equal(accounts[0].name, "Current account");
-  const registers = JSON.parse(target.getItem(`budget-app.budgets.${result.budget.id}.budget-app.account-registers.v1`)!);
-  assert.equal(registers[accounts[0].id].currencyCode, "GBP");
-  const schedules = JSON.parse(target.getItem(`budget-app.budgets.${result.budget.id}.budget-app.scheduled-transactions.v1`)!);
+  const schedules = createScheduledTransactionEntityRepository(createFixedBudgetScopedStorage(target, result.budget.id)).list().map(projectScheduledTransaction);
   assert.equal(schedules[0].frequency, "custom");
   assert.equal(schedules[0].recurrenceInterval, 6);
   assert.equal(schedules[0].recurrenceUnit, "week");

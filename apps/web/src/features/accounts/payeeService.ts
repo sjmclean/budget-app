@@ -1,4 +1,5 @@
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import { createPayeeEntityRepository, projectPayee, replacePayeeEntities } from "./entities/payeeEntity.js";
 
 export type PayeeRuleMatchType = "equals" | "contains" | "startsWith" | "endsWith";
 
@@ -6,7 +7,13 @@ export interface PayeeImportRuleView {
   id: string;
   matchType: PayeeRuleMatchType;
   text: string;
+  defaultCategoryId?: string;
+  defaultCategoryName?: string;
+  priority?: number;
+  enabled?: boolean;
 }
+
+export interface PayeeAliasView { id: string; value: string; }
 
 export interface PayeeView {
   id: string;
@@ -18,6 +25,9 @@ export interface PayeeView {
   defaultCategoryId?: string;
   defaultCategoryName?: string;
   importRules?: PayeeImportRuleView[];
+  aliases?: PayeeAliasView[];
+  scheduledUseCount?: number;
+  iconRef?: string;
   isArchived?: boolean;
 }
 
@@ -28,6 +38,7 @@ export interface UpdatePayeeInput {
   defaultCategoryId?: string;
   defaultCategoryName?: string;
   importRules?: PayeeImportRuleView[];
+  aliases?: PayeeAliasView[];
 }
 
 export interface RenamePayeeInput {
@@ -37,14 +48,18 @@ export interface RenamePayeeInput {
 
 export interface MergePayeesInput {
   sourcePayeeId: string;
+  sourcePayeeIds?: readonly string[];
   targetPayeeId: string;
+  updateLinkedTransactions?: boolean;
+  updateScheduledTransactions?: boolean;
+  addMergedAliases?: boolean;
+  redirectRecognitionRules?: boolean;
 }
 
 export interface PayeeServiceDependencies {
   storage: KeyValueStoragePort;
 }
 
-const STORAGE_KEY = "budget-app.payees.v1";
 
 class BrowserPersistentPayeeService {
   constructor(private readonly dependencies: PayeeServiceDependencies) {}
@@ -236,6 +251,7 @@ class BrowserPersistentPayeeService {
             defaultCategoryId: input.defaultCategoryId ?? "",
             defaultCategoryName: input.defaultCategoryName ?? "",
             importRules: normaliseImportRules(input.importRules ?? []),
+            aliases: input.aliases ?? payee.aliases ?? [],
           }
         : payee,
     );
@@ -305,7 +321,15 @@ class BrowserPersistentPayeeService {
   }
 
   async deletePayee(payeeId: string): Promise<PayeeView[]> {
-    return this.archivePayee(payeeId);
+    const payees = readPayees(this.dependencies.storage);
+    const target = payees.find((payee) => payee.id === payeeId);
+    if (!target || target.useCount > 0 || (target.scheduledUseCount ?? 0) > 0 ||
+        (target.importRules ?? []).some((rule) => rule.enabled !== false)) {
+      return sortPayees(payees.filter((payee) => !payee.isArchived));
+    }
+    const next = payees.filter((payee) => payee.id !== payeeId);
+    writePayees(this.dependencies.storage, next);
+    return sortPayees(next.filter((payee) => !payee.isArchived));
   }
 
   findPayeeByName(name: string): PayeeView | undefined {
@@ -341,22 +365,11 @@ export function findPayeeIdByName(storage: KeyValueStoragePort, name: string): s
 }
 
 export function readPayees(storage: KeyValueStoragePort): PayeeView[] {
-  const value = storage.getItem(STORAGE_KEY);
-
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(value) as PayeeView[];
-    return Array.isArray(parsed) ? normalisePayees(parsed) : [];
-  } catch {
-    return [];
-  }
+  return createPayeeEntityRepository(storage).list().map(projectPayee);
 }
 
 function writePayees(storage: KeyValueStoragePort, payees: PayeeView[]): void {
-  storage.setItem(STORAGE_KEY, JSON.stringify(sortPayees(normalisePayees(payees))));
+  replacePayeeEntities(storage, sortPayees(normalisePayees(payees)));
 }
 
 function normalisePayees(payees: PayeeView[]): PayeeView[] {

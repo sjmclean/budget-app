@@ -1,8 +1,9 @@
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import { createFixedBudgetScopedStorage } from "./budgetDataScope.js";
+import { readTransactionRegisters } from "../accounts/entities/transactionEntityPersistence.js";
+import { readBudgetMonthEntity } from "./entities/budgetMonthEntity.js";
 
 const ACCOUNTS_STORAGE_KEY = "budget-app.accounts.v1";
-const REGISTERS_STORAGE_KEY = "budget-app.account-registers.v1";
-const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
 const MONEY_TOLERANCE = 0.01;
 
 export interface YnabBudgetCsvRow {
@@ -255,7 +256,7 @@ function readImportedBudgetRows(
   budgetId: string,
   month: string,
 ): ImportedBudgetRow[] {
-  const view = readJson<StoredBudgetView | null>(storage, `${BUDGET_VIEW_STORAGE_PREFIX}.${budgetId}.${month}`, null);
+  const view = readBudgetMonthEntity(storage, budgetId, month) as StoredBudgetView | null;
   if (!view || !Array.isArray(view.categoryGroups)) return [];
 
   const rows: ImportedBudgetRow[] = [];
@@ -287,11 +288,7 @@ function readImportedAccounts(
     `budget-app.budgets.${budgetId}.${ACCOUNTS_STORAGE_KEY}`,
     [],
   );
-  const registers = readJson<Record<string, StoredRegister>>(
-    storage,
-    `budget-app.budgets.${budgetId}.${REGISTERS_STORAGE_KEY}`,
-    {},
-  );
+  const registers = readTransactionRegisters(createFixedBudgetScopedStorage(storage, budgetId)) as Record<string, StoredRegister>;
 
   return accounts.map((account) => {
     const id = typeof account.id === "string" ? account.id : "";

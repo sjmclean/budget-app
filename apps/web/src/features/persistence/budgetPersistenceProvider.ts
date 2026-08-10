@@ -10,6 +10,7 @@ import type { ConflictResolutionPort } from "./conflictResolution";
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { OperationJournalPort } from "./operationJournal";
 import type { ReplicationLocalStorePort } from "./replication";
+import type { HostedAccountRegisterQueryClient } from "./hostedAccountRegisterQueryClient";
 
 export type PersistenceBackendKind = "local-database";
 
@@ -37,10 +38,14 @@ export interface PersistenceProviderCapabilities {
  * integrations.
  */
 export interface BudgetPersistenceProvider {
+  /** Selects exactly one sync protocol. Local-first budgets must never also run key replication. */
+  readonly syncArchitecture?: "local-first-relay" | "legacy-key-replication";
   readonly metadata: PersistenceProviderMetadata;
   readonly capabilities: PersistenceProviderCapabilities;
   readonly accounts: AccountPersistencePort;
   readonly accountRegisters: AccountRegisterPersistencePort;
+  /** Bounded SQLite read path. Present only when a host transport is configured. */
+  readonly accountRegisterQueries?: HostedAccountRegisterQueryClient;
   readonly budgetView: BudgetViewService;
   readonly categories: CategoryPersistencePort;
   readonly payees: PayeePersistencePort;

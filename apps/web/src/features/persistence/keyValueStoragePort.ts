@@ -1,9 +1,14 @@
+export type KeyValueStorageMutation =
+  | Readonly<{ type: "set"; key: string; value: string }>
+  | Readonly<{ type: "remove"; key: string }>;
+
 export interface KeyValueStoragePort {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
   listKeys?(): string[];
   flush?(): Promise<void>;
+  applyMutations?(mutations: readonly KeyValueStorageMutation[]): Promise<void>;
 }
 
 const INDEXED_DB_NAME = "budget-app-browser-storage-v1";

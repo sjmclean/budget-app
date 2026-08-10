@@ -1,3 +1,6 @@
+import { seedTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
+import { createFixedBudgetScopedStorage } from "../apps/web/src/features/budget/budgetDataScope.js";
+import { writeBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 import assert from "node:assert/strict";
 import {
   createYnab4ReconciliationAudit,
@@ -50,19 +53,25 @@ const csv = `Month,Category,Master Category,Sub Category,Budgeted,Outflows,Categ
   storage.setItem(`budget-app.budgets.${budgetId}.budget-app.accounts.v1`, JSON.stringify([
     { id: "account-1", name: "Cheque", balance: 125 },
   ]));
-  storage.setItem(`budget-app.budgets.${budgetId}.budget-app.account-registers.v1`, JSON.stringify({
+  seedTransactionRegisters(createFixedBudgetScopedStorage(storage, budgetId), {
     "account-1": {
       accountId: "account-1",
       accountName: "Cheque",
-      transactions: [{ amount: 50000 }, { amount: 75000 }],
+      transactions: [{ id: "tx-1", date: "2026-06-01", payee: "One", category: "Uncategorised", inflow: 50, outflow: 0 }, { id: "tx-2", date: "2026-06-02", payee: "Two", category: "Uncategorised", inflow: 75, outflow: 0 }],
     },
-  }));
-  storage.setItem(`budget-app.budget-view.v1.${budgetId}.2026-06`, JSON.stringify({
+  });
+
+  writeBudgetMonthEntity(storage, budgetId, "2026-06", {
+    budgetId,
+    month: "2026-06",
+    totalAssigned: 300,
+    totalActivity: -75,
+    totalAvailable: 225,
     categoryGroups: [
       { name: "Savings Goals", categories: [{ name: "ATO Refund", assigned: 100, activity: -25, available: 75 }] },
       { name: "Everyday", categories: [{ name: "Groceries", assigned: 200, activity: -50, available: 150 }] },
     ],
-  }));
+  });
 
   const audit = createYnab4ReconciliationAudit({
     storage,
@@ -86,12 +95,17 @@ const csv = `Month,Category,Master Category,Sub Category,Budgeted,Outflows,Categ
 {
   const storage = new MemoryStorage();
   const budgetId = "bad-budget";
-  storage.setItem(`budget-app.budget-view.v1.${budgetId}.2026-06`, JSON.stringify({
+  writeBudgetMonthEntity(storage, budgetId, "2026-06", {
+    budgetId,
+    month: "2026-06",
+    totalAssigned: 0,
+    totalActivity: 0,
+    totalAvailable: 0,
     categoryGroups: [
       { name: "Savings Goals", categories: [{ name: "ATO Refund", assigned: 0, activity: 0, available: 0 }] },
       { name: "Everyday", categories: [] },
     ],
-  }));
+  });
 
   const audit = createYnab4ReconciliationAudit({
     storage,

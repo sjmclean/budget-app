@@ -8,6 +8,11 @@ import {
 } from "./features/persistence";
 import { installPersistenceProviderLifecycle } from "./features/persistence/persistenceProviderLifecycle";
 import { startReplicationBackgroundService } from "./features/persistence/replicationService";
+import { configureAttachmentContentStoreNamespace } from "./features/attachments/attachmentContentStore";
+import {
+  mergeHostedBudgetCatalogue,
+  type HostedBudgetCatalogueEntry,
+} from "./features/budget/budgetRegistry";
 import "./styles/globals.css";
 
 function getApplicationRoot(): HTMLElement {
@@ -25,13 +30,46 @@ export async function bootstrapApp() {
   let reactRoot: ReturnType<typeof ReactDOM.createRoot> | null = null;
 
   try {
+    let attachmentNamespace: string | undefined;
+    let hostedBudgets: readonly HostedBudgetCatalogueEntry[] = [];
     const hostProvider = bootstrapHostBudgetPersistenceProvider();
     if (!hostProvider) {
-      configureBudgetPersistenceProviderFromRuntime();
+      const apiBaseUrl = (
+        import.meta as ImportMeta & { env?: { VITE_BUDGET_API_URL?: string } }
+      ).env?.VITE_BUDGET_API_URL?.replace(/\/+$/, "") ?? "";
+      const session = await fetch(`${apiBaseUrl}/api/auth/status`, {
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      }).then((response) => response.ok ? response.json() : null).catch(() => null) as
+        | {
+            authenticated?: boolean;
+            user?: { id?: string; isAdmin?: boolean };
+            budgets?: HostedBudgetCatalogueEntry[];
+          }
+        | null;
+      hostedBudgets = session?.budgets ?? [];
+      // Preserve the original IndexedDB for the first administrator so an
+      // existing installation upgrades without losing its local registry.
+      const userNamespace =
+        session?.authenticated && session.user?.id && !session.user.isAdmin
+          ? `user-${session.user.id}`
+          : session?.authenticated
+            ? undefined
+            : "signed-out";
+      attachmentNamespace = userNamespace;
+      configureBudgetPersistenceProviderFromRuntime(userNamespace);
     }
 
+    configureAttachmentContentStoreNamespace(attachmentNamespace);
     const persistenceProvider = getBudgetPersistenceProvider();
     await persistenceProvider.initialize?.();
+    if (persistenceProvider.keyValueStorage && hostedBudgets.length > 0) {
+      mergeHostedBudgetCatalogue(
+        persistenceProvider.keyValueStorage,
+        hostedBudgets,
+      );
+      await persistenceProvider.flush?.();
+    }
     installPersistenceProviderLifecycle(persistenceProvider);
     startReplicationBackgroundService(persistenceProvider, {
       apiBaseUrl: (import.meta as ImportMeta & { env?: { VITE_BUDGET_API_URL?: string } }).env?.VITE_BUDGET_API_URL,

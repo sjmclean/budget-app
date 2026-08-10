@@ -482,12 +482,13 @@ export function AttachmentIndicator({
       type="button"
       title={hasAttachments ? "View attachments" : "Add attachment"}
       aria-label={hasAttachments ? "View attachments" : "Add attachment"}
+      data-attachment-count={hasAttachments ? count : undefined}
       onClick={(event) => {
         event.stopPropagation();
         onClick?.();
       }}
     >
-      {hasAttachments ? <Paperclip size={13} /> : null}
+      <Paperclip size={13} aria-hidden="true" />
     </button>
   );
 }

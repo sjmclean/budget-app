@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { installInMemoryBudgetPersistence } from "./support/persistence/inMemoryBudgetPersistence.js";
 import {
   createImportedTransactionIdentity,
   partitionPreviouslyImportedCandidates,
@@ -19,14 +20,9 @@ type Candidate = {
   };
 };
 
-const storage = new Map<string, string>();
-(globalThis as typeof globalThis & { window: unknown }).window = {
-  localStorage: {
-    getItem: (key: string) => storage.get(key) ?? null,
-    setItem: (key: string, value: string) => storage.set(key, value),
-  },
-};
+const { cleanup } = installInMemoryBudgetPersistence();
 
+try {
 function qifCandidate(id: string, memo = "CARD"): Candidate {
   return {
     id,
@@ -106,3 +102,6 @@ assert.equal(otherAccountResult.previouslyImportedCandidates.length, 0);
 assert.equal(otherAccountResult.activeCandidates.length, 1);
 
 console.log("v3.18.2 previously imported transaction exclusion checks passed");
+} finally {
+  cleanup();
+}

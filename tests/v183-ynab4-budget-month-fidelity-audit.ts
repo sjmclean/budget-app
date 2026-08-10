@@ -87,10 +87,10 @@ const audit = auditYnab4LauncherImportAccuracy(storage, {
 const report = formatYnab4LauncherImportAccuracyAuditReport(audit);
 
 assert.equal(audit.status, "pass");
-assert.equal(audit.source.budgetMonthCategoryValues["2026-06"]?.["groceries"]?.assigned, 100);
-assert.equal(audit.imported.budgetMonthCategoryValues["2026-06"]?.["groceries"]?.activity, -25);
-assert.equal(audit.source.budgetMonthCategoryValues["2026-06"]?.["mortgage ($955/f)"]?.activity, -955);
-assert.equal(audit.imported.budgetMonthCategoryValues["2026-06"]?.["mortgage ($955/f)"]?.activity, -878);
+assert.equal(audit.source.budgetMonthCategoryValues["2026-06"]?.["source:cat-groceries"]?.assigned, 100);
+assert.equal(audit.imported.budgetMonthCategoryValues["2026-06"]?.["source:cat-groceries"]?.activity, -25);
+assert.equal(audit.source.budgetMonthCategoryValues["2026-06"]?.["source:cat-mortgage"]?.activity, -955);
+assert.equal(audit.imported.budgetMonthCategoryValues["2026-06"]?.["source:cat-mortgage"]?.activity, -878);
 
 assert.match(report, /Budget Month Category Differences/);
 assert.match(report, /2026-06 \/ Groceries/);

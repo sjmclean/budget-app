@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { installInMemoryBudgetPersistence } from "./support/persistence/inMemoryBudgetPersistence.js";
 import {
   findImportedFileFingerprint,
   rememberImportedFileFingerprint,
@@ -11,22 +12,9 @@ import {
 } from "../apps/web/src/features/budget/budgetRegistry";
 import { SELECTED_BUDGET_STORAGE_KEY } from "../apps/web/src/features/budget/budgetDataScope";
 
-class MemoryStorage {
-  private readonly values = new Map<string, string>();
-  getItem(key: string) { return this.values.get(key) ?? null; }
-  setItem(key: string, value: string) { this.values.set(key, value); }
-  removeItem(key: string) { this.values.delete(key); }
-  clear() { this.values.clear(); }
-  key(index: number) { return [...this.values.keys()][index] ?? null; }
-  get length() { return this.values.size; }
-}
+const { storage, cleanup } = installInMemoryBudgetPersistence();
 
-const storage = new MemoryStorage();
-Object.defineProperty(globalThis, "window", {
-  configurable: true,
-  value: { localStorage: storage },
-});
-
+try {
 const household = createInitialBudgetRegistry(new Date("2026-01-01T00:00:00.000Z"))[0];
 const second = { ...household, id: "second", name: "Second Budget", packagePath: "~/Budgets/Second.budget" };
 storage.setItem(BUDGET_REGISTRY_STORAGE_KEY, JSON.stringify([household, second]));
@@ -93,3 +81,6 @@ assert.equal(
 );
 
 console.log("v3.21.0 budget-backed import identity checks passed");
+} finally {
+  cleanup();
+}

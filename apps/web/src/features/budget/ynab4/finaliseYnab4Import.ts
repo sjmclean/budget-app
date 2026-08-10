@@ -10,11 +10,31 @@ import type {
   Ynab4PackageMigrationPreview,
 } from "../../../../../../packages/ynab4-importer/src/analyzeYnab4Package";
 import type { Ynab4LauncherImportAccuracyAuditResult } from "../ynab4LauncherImportAccuracyAudit";
+interface Ynab4PersistedStreamingAudit {
+  status: "pass";
+  transactions: number;
+  totalInflow: number;
+  totalOutflow: number;
+}
+
+interface Ynab4PersistedStreamingProgress {
+  phase:
+    | "preflight"
+    | "reference-data"
+    | "transactions"
+    | "scheduled"
+    | "finalising"
+    | "committing";
+  sourceRecordsConsumed: number;
+  persistedTransactions: number;
+  batchesPersisted: number;
+}
 
 export const YNAB4_LAUNCHER_IMPORT_STORAGE_PREFIX =
   "budget-app.ynab4-launcher-import.v1";
 
 export interface Ynab4LauncherImportRecord {
+  schemaVersion?: 1 | 2;
   budgetId: string;
   budgetName: string;
   sourceBudgetName: string | null;
@@ -42,6 +62,14 @@ export interface Ynab4LauncherImportRecord {
   }>;
   accuracyAudit?: Ynab4LauncherImportAccuracyAuditResult;
   accuracyAuditReport?: string;
+  streamingImport?: {
+    batchSize: number;
+    sourceRecordsConsumed: number;
+    persistedTransactions: number;
+    batchesPersisted: number;
+    maximumCanonicalBatchRecords: number;
+    audit: Ynab4PersistedStreamingAudit;
+  };
 }
 
 export interface BuildYnab4LauncherImportRecordInput {
@@ -49,8 +77,14 @@ export interface BuildYnab4LauncherImportRecordInput {
   discovery: Ynab4PackageDiscoveryResult;
   preview: Ynab4PackageMigrationPreview;
   persistenceWarnings: string[];
-  accuracyAudit: Ynab4LauncherImportAccuracyAuditResult;
-  accuracyAuditReport: string;
+  accuracyAudit?: Ynab4LauncherImportAccuracyAuditResult;
+  accuracyAuditReport?: string;
+  streamingImport?: {
+    batchSize: number;
+    progress: Ynab4PersistedStreamingProgress;
+    maximumCanonicalBatchRecords: number;
+    audit: Ynab4PersistedStreamingAudit;
+  };
   now: Date;
 }
 
@@ -79,10 +113,25 @@ export function readYnab4LauncherImportRecord(
   }
 }
 
+export function isLargeStreamingYnab4Budget(
+  storage: KeyValueStoragePort,
+  budgetId: string | null,
+  transactionLimit = 25_000,
+): boolean {
+  if (!budgetId) return false;
+  const record = readYnab4LauncherImportRecord(storage, budgetId);
+  return Boolean(
+    record?.schemaVersion === 2 &&
+    record.streamingImport &&
+    record.counts.transactions > transactionLimit,
+  );
+}
+
 export function buildYnab4LauncherImportRecord(
   input: BuildYnab4LauncherImportRecordInput,
 ): Ynab4LauncherImportRecord {
   return {
+    schemaVersion: input.streamingImport ? 2 : 1,
     budgetId: input.budget.id,
     budgetName: input.budget.name,
     sourceBudgetName: input.preview.budgetName,
@@ -108,8 +157,25 @@ export function buildYnab4LauncherImportRecord(
       label: step.label,
       detail: step.detail,
     })),
-    accuracyAudit: input.accuracyAudit,
-    accuracyAuditReport: input.accuracyAuditReport,
+    ...(input.accuracyAudit
+      ? { accuracyAudit: input.accuracyAudit }
+      : {}),
+    ...(input.accuracyAuditReport
+      ? { accuracyAuditReport: input.accuracyAuditReport }
+      : {}),
+    ...(input.streamingImport
+      ? { streamingImport: {
+          batchSize: input.streamingImport.batchSize,
+          sourceRecordsConsumed:
+            input.streamingImport.progress.sourceRecordsConsumed,
+          persistedTransactions:
+            input.streamingImport.progress.persistedTransactions,
+          batchesPersisted: input.streamingImport.progress.batchesPersisted,
+          maximumCanonicalBatchRecords:
+            input.streamingImport.maximumCanonicalBatchRecords,
+          audit: input.streamingImport.audit,
+        } }
+      : {}),
   };
 }
 

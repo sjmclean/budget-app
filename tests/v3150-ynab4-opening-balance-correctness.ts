@@ -1,4 +1,7 @@
+import { readSeededTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
 import assert from "node:assert/strict";
+import { readAccounts } from "../apps/web/src/features/accounts/accountService.js";
+import { createFixedBudgetScopedStorage } from "../apps/web/src/features/budget/budgetDataScope.js";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
 import { createYnab4LauncherBudgetImport } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
 import { getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope.ts";
@@ -86,14 +89,8 @@ const result = createYnab4LauncherBudgetImport(storage, {
 
 assert.equal(result.record.accuracyAudit?.status, "pass");
 
-const accountsRaw = storage.getItem(
-  getBudgetScopedStorageKey(result.budget.id, "budget-app.accounts.v1"),
-);
-assert.ok(accountsRaw);
-const accounts = JSON.parse(accountsRaw) as Array<{
-  name: string;
-  startingBalance: number;
-}>;
+const accounts = readAccounts(createFixedBudgetScopedStorage(storage, result.budget.id));
+assert.ok(accounts.length > 0);
 
 assert.equal(
   accounts.find((account) => account.name === "Snapshot Account")?.startingBalance,
@@ -111,13 +108,9 @@ assert.equal(
   "An explicit openingBalance field must be preserved.",
 );
 
-const registersRaw = storage.getItem(
-  getBudgetScopedStorageKey(result.budget.id, "budget-app.account-registers.v1"),
-);
-assert.ok(registersRaw);
-const registers = JSON.parse(registersRaw) as Record<string, { accountName: string; workingBalance: number }>;
+const registers = readSeededTransactionRegisters(createFixedBudgetScopedStorage(storage, result.budget.id));
 assert.equal(
-  Object.values(registers).find((register) => register.accountName === "Snapshot Account")?.workingBalance,
+  registers["snapshot-account"]?.workingBalance,
   100,
   "The imported register balance must come from transaction history, not from the source current-balance snapshot.",
 );

@@ -18,7 +18,8 @@ const importer = await readFile(
   "utf8",
 );
 
-assert.match(importer, /writeScopedJson\(storage, plan\.budgetId, YNAB4_ACCOUNTS_STORAGE_KEY, plan\.accounts\)/);
+assert.match(importer, /replaceAccountEntities\(createFixedBudgetScopedStorage\(storage, plan\.budgetId\), plan\.accounts\)/);
+assert.doesNotMatch(importer, /writeScopedJson\(storage, plan\.budgetId, YNAB4_ACCOUNTS_STORAGE_KEY/);
 assert.match(engine, /type: "journal\.operations-read"/);
 assert.match(engine, /type: "push\.batch-started"/);
 assert.match(engine, /acceptedCount: pushResult\.acceptedCount/);

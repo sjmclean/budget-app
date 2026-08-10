@@ -5,9 +5,21 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { createBudgetScopedStorage } from "../budget/budgetDataScope";
+import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
+import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import { readTableLayoutPreferenceEntity, tombstoneTableLayoutPreferenceEntity, writeTableLayoutPreferenceEntity } from "./entities/tableLayoutEntity";
 
 const EMPTY_COLUMN_ID_ALIASES: Readonly<Record<string, never>> =
   Object.freeze({});
+
+function getTableLayoutStorage(storage?: KeyValueStoragePort): KeyValueStoragePort {
+  return storage ?? createBudgetScopedStorage(getActiveKeyValueStorage());
+}
+
+function getTableLayoutEntityId(storageKeyPrefix: string, scopeId?: string | null): string {
+  return encodeURIComponent(`${storageKeyPrefix}.${scopeId || "default"}`);
+}
 
 export interface TableColumnDefinition<TColumnId extends string> {
   id: TColumnId;
@@ -75,27 +87,20 @@ export function readVisibleTableColumns<TColumnId extends string>(
   columns: readonly TableColumnDefinition<TColumnId>[],
   scopeId?: string | null,
   columnIdAliases: Readonly<Record<string, TColumnId>> = {},
+  storage?: KeyValueStoragePort,
 ): TColumnId[] {
   const defaultVisibleColumns = getDefaultVisibleTableColumns(columns);
 
-  if (typeof window === "undefined") {
-    return defaultVisibleColumns;
-  }
+  const parsed = readTableLayoutPreferenceEntity(
+    getTableLayoutStorage(storage),
+    getTableLayoutEntityId(storageKeyPrefix, scopeId),
+  )?.visibleColumnIds;
 
-  const stored = window.localStorage.getItem(
-    getTableLayoutStorageKey(storageKeyPrefix, scopeId),
-  );
-
-  if (!stored) {
+  if (!Array.isArray(parsed)) {
     return defaultVisibleColumns;
   }
 
   try {
-    const parsed = JSON.parse(stored);
-
-    if (!Array.isArray(parsed)) {
-      return defaultVisibleColumns;
-    }
 
     const knownColumnIds = new Set(columns.map((column) => column.id));
     const visibleColumns = parsed
@@ -120,15 +125,12 @@ export function writeVisibleTableColumns<TColumnId extends string>(
   storageKeyPrefix: string,
   visibleColumns: readonly TColumnId[],
   scopeId?: string | null,
+  storage?: KeyValueStoragePort,
 ) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(
-    getTableLayoutStorageKey(storageKeyPrefix, scopeId),
-    JSON.stringify(visibleColumns),
-  );
+  const target = getTableLayoutStorage(storage);
+  const layoutId = getTableLayoutEntityId(storageKeyPrefix, scopeId);
+  const current = readTableLayoutPreferenceEntity(target, layoutId);
+  writeTableLayoutPreferenceEntity(target, { layoutId, visibleColumnIds: [...visibleColumns], columnWidths: current?.columnWidths ?? {} });
 }
 
 export function getColumnWidthRem<TColumnId extends string>(
@@ -159,25 +161,18 @@ export function readTableColumnWidths<TColumnId extends string>(
   columns: readonly TableColumnDefinition<TColumnId>[],
   scopeId?: string | null,
   columnIdAliases: Readonly<Record<string, TColumnId>> = {},
+  storage?: KeyValueStoragePort,
 ): TableColumnWidths<TColumnId> {
-  if (typeof window === "undefined") {
-    return {};
-  }
+  const parsed = readTableLayoutPreferenceEntity(
+    getTableLayoutStorage(storage),
+    getTableLayoutEntityId(storageKeyPrefix, scopeId),
+  )?.columnWidths;
 
-  const stored = window.localStorage.getItem(
-    getTableLayoutWidthStorageKey(storageKeyPrefix, scopeId),
-  );
-
-  if (!stored) {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     return {};
   }
 
   try {
-    const parsed = JSON.parse(stored);
-
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {};
-    }
 
     const columnMap = new Map(columns.map((column) => [column.id, column]));
     const nextWidths: TableColumnWidths<TColumnId> = {};
@@ -204,22 +199,21 @@ export function writeTableColumnWidths<TColumnId extends string>(
   storageKeyPrefix: string,
   columnWidths: TableColumnWidths<TColumnId>,
   scopeId?: string | null,
+  storage?: KeyValueStoragePort,
 ) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const storageKey = getTableLayoutWidthStorageKey(storageKeyPrefix, scopeId);
+  const target = getTableLayoutStorage(storage);
+  const layoutId = getTableLayoutEntityId(storageKeyPrefix, scopeId);
   const widthEntries = Object.entries(columnWidths).filter(
     ([, width]) => typeof width === "number" && Number.isFinite(width),
   );
 
-  if (widthEntries.length === 0) {
-    window.localStorage.removeItem(storageKey);
+  const current = readTableLayoutPreferenceEntity(target, layoutId);
+  const widths = Object.fromEntries(widthEntries) as Record<string, number>;
+  if (widthEntries.length === 0 && (!current || current.visibleColumnIds.length === 0)) {
+    tombstoneTableLayoutPreferenceEntity(target, layoutId);
     return;
   }
-
-  window.localStorage.setItem(storageKey, JSON.stringify(Object.fromEntries(widthEntries)));
+  writeTableLayoutPreferenceEntity(target, { layoutId, visibleColumnIds: current?.visibleColumnIds ?? [], columnWidths: widths });
 }
 
 export function buildTableRowStyle<TColumnId extends string>(

@@ -1,10 +1,14 @@
+import { readSeededTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
+import { createScheduledTransactionEntityRepository, projectScheduledTransaction } from "../apps/web/src/features/accounts/entities/scheduledTransactionEntity.js";
 import assert from "node:assert/strict";
 import {
   BUDGET_REGISTRY_STORAGE_KEY,
   createBudgetRegistryEntry,
   readBudgetRegistry,
 } from "../apps/web/src/features/budget/budgetRegistry.ts";
-import { SELECTED_BUDGET_STORAGE_KEY } from "../apps/web/src/features/budget/budgetDataScope.ts";
+import { createFixedBudgetScopedStorage, SELECTED_BUDGET_STORAGE_KEY } from "../apps/web/src/features/budget/budgetDataScope.ts";
+import { readAccounts } from "../apps/web/src/features/accounts/accountService.ts";
+import { readPayees } from "../apps/web/src/features/accounts/payeeService.ts";
 import {
   createYnab4LauncherBudgetImport,
   getYnab4LauncherImportStorageKey,
@@ -16,6 +20,7 @@ import {
   discoverYnab4Package,
   type Ynab4PackageEntry,
 } from "../packages/ynab4-importer/src/analyzeYnab4Package.ts";
+import { readBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 
 function createMemoryStorage(): KeyValueStoragePort {
   const values = new Map<string, string>();
@@ -45,7 +50,7 @@ function createRegisterQuotaStorage(): KeyValueStoragePort {
       return values.get(key) ?? null;
     },
     setItem(key, value) {
-      if (!rejectedRegisterWrite && key.includes("budget-app.account-registers.v1")) {
+      if (!rejectedRegisterWrite && key.includes("budget-app.entity-replication.v1/transaction/")) {
         rejectedRegisterWrite = true;
         throw new DOMException("Setting the value exceeded the quota.", "QuotaExceededError");
       }
@@ -189,22 +194,17 @@ function testLauncherImportPersistsImportedBudgetData() {
   });
 
   const scopedPrefix = `budget-app.budgets.${result.budget.id}.`;
-  const accountsRaw = storage.getItem(`${scopedPrefix}budget-app.accounts.v1`);
-  const registersRaw = storage.getItem(`${scopedPrefix}budget-app.account-registers.v1`);
-  const payeesRaw = storage.getItem(`${scopedPrefix}budget-app.payees.v1`);
-  const scheduledRaw = storage.getItem(`${scopedPrefix}budget-app.scheduled-transactions.v1`);
-  const budgetViewRaw = storage.getItem(`budget-app.budget-view.v1.${result.budget.id}.2026-06`);
+  const accounts = readAccounts(createFixedBudgetScopedStorage(storage, result.budget.id));
+  const registers = readSeededTransactionRegisters(createFixedBudgetScopedStorage(storage, result.budget.id));
+  const payees = readPayees(createFixedBudgetScopedStorage(storage, result.budget.id));
+  const scheduled = createScheduledTransactionEntityRepository(createFixedBudgetScopedStorage(storage, result.budget.id)).list().map(projectScheduledTransaction);
+  const budgetViewRaw = (() => { const view = readBudgetMonthEntity(storage, result.budget.id, "2026-06"); return view ? JSON.stringify(view) : null; })();
 
-  assert.ok(accountsRaw);
-  assert.ok(registersRaw);
-  assert.ok(payeesRaw);
-  assert.ok(scheduledRaw);
+  assert.equal(accounts.length, 2);
+  assert.equal(payees.length, 1);
+  assert.equal(scheduled.length, 1);
   assert.ok(budgetViewRaw);
 
-  const accounts = JSON.parse(accountsRaw);
-  const registers = JSON.parse(registersRaw);
-  const payees = JSON.parse(payeesRaw);
-  const scheduled = JSON.parse(scheduledRaw);
   const budgetView = JSON.parse(budgetViewRaw);
 
   assert.equal(accounts.length, 2);

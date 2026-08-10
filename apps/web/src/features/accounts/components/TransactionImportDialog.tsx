@@ -89,6 +89,8 @@ import {
   partitionPreviouslyImportedCandidates,
   type ImportedTransactionFileType,
 } from "../transactionImportKnowledge";
+import { calculateTransactionImportBalancePreview } from "../transactionImportBalancePreview";
+import { resolvePayeeRecognition } from "../payeeRecognition";
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -235,6 +237,7 @@ export function TransactionImportDialog({
   currencyCode,
   onClose,
   loadAccountTransactions,
+  loadAccountWorkingBalance,
   onImportTransactions,
   onUpdateMatchedTransactionDates,
   onCommitRegisterChanges,
@@ -251,6 +254,7 @@ export function TransactionImportDialog({
   loadAccountTransactions: (
     accountId: string,
   ) => Promise<RegisterTransactionView[]>;
+  loadAccountWorkingBalance: (accountId: string) => Promise<number>;
   onImportTransactions: (
     accountId: string,
     transactions: NewRegisterTransactionInput[],
@@ -284,6 +288,7 @@ export function TransactionImportDialog({
   const [transactions, setTransactions] = useState<RegisterTransactionView[]>(
     [],
   );
+  const [startingWorkingBalance, setStartingWorkingBalance] = useState<number | null>(null);
   const [fileHash, setFileHash] = useState<string | null>(null);
   const [duplicateFileMessage, setDuplicateFileMessage] = useState<
     string | null
@@ -452,13 +457,19 @@ export function TransactionImportDialog({
 
   useEffect(() => {
     let active = true;
-    void loadAccountTransactions(selectedAccountId).then((nextTransactions) => {
-      if (active) setTransactions(nextTransactions);
+    setStartingWorkingBalance(null);
+    void Promise.all([
+      loadAccountTransactions(selectedAccountId),
+      loadAccountWorkingBalance(selectedAccountId),
+    ]).then(([nextTransactions, workingBalance]) => {
+      if (!active) return;
+      setTransactions(nextTransactions);
+      setStartingWorkingBalance(workingBalance);
     });
     return () => {
       active = false;
     };
-  }, [loadAccountTransactions, selectedAccountId]);
+  }, [loadAccountTransactions, loadAccountWorkingBalance, selectedAccountId]);
 
   useEffect(() => {
     let active = true;
@@ -537,6 +548,11 @@ export function TransactionImportDialog({
     .map((entry) => entry.candidate);
   const selectedCount = importedCandidates.length;
   const processedCount = uniqueProcessedCandidates.length;
+  const balancePreview = startingWorkingBalance === null
+    ? null
+    : calculateTransactionImportBalancePreview(startingWorkingBalance, uniqueProcessedCandidates);
+  const acceptedBalanceChange = balancePreview?.acceptedChange ?? 0;
+  const projectedWorkingBalance = balancePreview?.projectedWorkingBalance ?? null;
 
   function resetImportState() {
     deleteTransactionImportSession(selectedAccountId);
@@ -575,6 +591,18 @@ export function TransactionImportDialog({
   }
 
   function resolveMerchantForMatching(rawPayee: string) {
+    const recognition = resolvePayeeRecognition(rawPayee, payeeOptions);
+    if (recognition.match) {
+      const payee = recognition.match.payee;
+      return {
+        canonicalPayee: payee.name,
+        suggestedCategoryName:
+          recognition.match.rule?.defaultCategoryName ?? payee.defaultCategoryName ?? null,
+        transferAccountName: null,
+      };
+    }
+    // Ambiguous deterministic rules deliberately fall through to review rather
+    // than silently selecting one canonical payee.
     return resolveTransactionImportMerchant(
       merchantKnowledgeRef.current,
       rawPayee,
@@ -2100,6 +2128,22 @@ export function TransactionImportDialog({
                   {alreadyRepresentedCount === 1 ? "" : "es"} excluded
                 </span>
               ) : null}
+            </div>
+            <div className="transaction-import-balance-preview" aria-live="polite">
+              <div>
+                <span>Current account balance</span>
+                <strong>{startingWorkingBalance === null ? "Loading…" : formatMoney(startingWorkingBalance, currencyCode)}</strong>
+              </div>
+              <div>
+                <span>Accepted change</span>
+                <strong className={acceptedBalanceChange < 0 ? "negative" : acceptedBalanceChange > 0 ? "positive" : ""}>
+                  {formatMoney(acceptedBalanceChange, currencyCode)}
+                </strong>
+              </div>
+              <div className="projected">
+                <span>Balance after import</span>
+                <strong>{projectedWorkingBalance === null ? "Loading…" : formatMoney(projectedWorkingBalance, currencyCode)}</strong>
+              </div>
             </div>
             {historyOpen && processedCandidates.length > 0 ? (
               <div

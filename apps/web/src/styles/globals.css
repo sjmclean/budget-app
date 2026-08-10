@@ -117,10 +117,18 @@
 /* Blueprint keeps the working budget and inspector surfaces crisp white. */
 :root[data-theme="blueprint"] .budget-workspace-table-card,
 :root[data-theme="blueprint"] .budget-workspace-table-head,
-:root[data-theme="blueprint"] .budget-workspace-group-header,
 :root[data-theme="blueprint"] .budget-workspace-row,
 :root[data-theme="blueprint"] .interactive-budget-row {
   background: var(--surface);
+}
+
+:root[data-theme="blueprint"] .budget-workspace-group-header {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent-soft) 34%, var(--surface)) 0%,
+    color-mix(in srgb, var(--accent-soft) 22%, var(--surface-subtle)) 100%
+  );
+  border-block-color: color-mix(in srgb, var(--accent) 14%, var(--border));
 }
 
 :root[data-theme="blueprint"] .budget-month-panel {
@@ -228,6 +236,87 @@ strong {
   max-width: 100%;
   overflow-x: clip;
   padding: 0.5rem;
+}
+
+.global-sync-indicator {
+  position: fixed;
+  z-index: 30;
+  top: max(0.65rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+  min-height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: 0 0.35rem 1rem rgba(15, 23, 42, 0.14);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 720;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+}
+
+.global-sync-indicator:hover,
+.global-sync-indicator:focus-visible {
+  border-color: currentColor;
+}
+
+.global-sync-indicator-active {
+  color: var(--accent-strong);
+}
+
+.global-sync-indicator-success {
+  color: #15803d;
+  border-color: color-mix(in srgb, #15803d 34%, var(--border));
+  background: color-mix(in srgb, #dcfce7 82%, var(--surface));
+}
+
+.global-sync-indicator-warning {
+  color: #a16207;
+  border-color: color-mix(in srgb, #a16207 32%, var(--border));
+}
+
+.global-sync-indicator-error {
+  color: #b91c1c;
+  border-color: color-mix(in srgb, #b91c1c 32%, var(--border));
+}
+
+.global-sync-indicator-spinner {
+  animation: global-sync-spin 0.85s linear infinite;
+}
+
+@keyframes global-sync-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 42rem) {
+  .global-sync-indicator {
+    width: 2.35rem;
+    min-height: 2.35rem;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .global-sync-indicator span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .global-sync-indicator-spinner {
+    animation-duration: 1.8s;
+  }
 }
 
 /* Sidebar */
@@ -481,6 +570,7 @@ strong {
 }
 
 .account-section {
+  width: calc(100% - 0.55rem);
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -491,6 +581,21 @@ strong {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.045em;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.account-section span {
+  min-width: 0;
+  flex: 1;
+}
+
+.account-section:hover {
+  background: color-mix(in srgb, var(--surface-subtle) 85%, var(--accent-soft));
+  color: var(--text);
 }
 
 .account-row {
@@ -1207,6 +1312,8 @@ strong {
   display: grid;
   gap: 0;
   min-width: 0;
+  container-name: budget-workspace-main;
+  container-type: inline-size;
 }
 
 .budget-filter {
@@ -1283,16 +1390,20 @@ strong {
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--surface-subtle) 86%, var(--accent-soft)) 0%,
-      color-mix(in srgb, var(--surface-subtle) 94%, var(--border-soft)) 100%
+      color-mix(in srgb, var(--surface-subtle) 82%, var(--accent-soft)) 0%,
+      color-mix(in srgb, var(--surface-subtle) 90%, var(--accent-soft)) 100%
     );
   box-shadow:
-    inset 3px 0 0 color-mix(in srgb, var(--accent) 72%, transparent),
+    inset 2px 0 0 color-mix(in srgb, var(--accent) 48%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.58);
   color: var(--text);
   font-size: 0.9rem;
   font-weight: 780;
   letter-spacing: 0.005em;
+}
+
+.budget-workspace-group-header > strong:not(.available-pill) {
+  color: var(--text);
 }
 
 .budget-group-collapse-button {
@@ -1559,7 +1670,12 @@ strong {
 
 .available-pill {
   justify-self: start;
+  width: 5.75rem;
   min-width: 5.75rem;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
   border-radius: 0.42rem;
   padding: 0.24rem 0.42rem;
   text-align: right;
@@ -2689,6 +2805,39 @@ strong {
   gap: 0.85rem;
 }
 
+.settings-about-grid > .settings-sync-status-card {
+  grid-column: 1 / -1;
+}
+
+.settings-sync-status-card {
+  min-width: 0;
+}
+
+.settings-sync-scope-warning {
+  margin: 0.6rem 0;
+  border-left: 0.2rem solid var(--warning, #b7791f);
+  padding: 0.55rem 0.7rem;
+  background: color-mix(in srgb, #f6ad55 12%, transparent);
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.settings-sync-status-card .settings-inline-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-top: 0.75rem;
+  padding: 0.65rem 0;
+  background: color-mix(in srgb, var(--surface-subtle) 92%, transparent);
+}
+
+@media (max-width: 1180px) {
+  .settings-about-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1000px) {
   .settings-modal-backdrop {
     padding: 1rem;
@@ -2943,6 +3092,46 @@ strong {
   }
 
 }
+
+/* Payee possible-duplicate review mode. */
+.payee-duplicates-intro { margin: 0; color: var(--text-muted); font-size: 0.78rem; }
+.payee-duplicate-group-list { display: grid; gap: 0.45rem; }
+.payee-duplicate-group-card { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; border: 1px solid var(--border-soft); border-radius: 0.65rem; background: var(--surface); padding: 0.75rem; text-align: left; cursor: pointer; }
+.payee-duplicate-group-card.is-active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.payee-duplicate-group-card span { display: grid; gap: 0.2rem; min-width: 0; }
+.payee-duplicate-group-card small { color: var(--text-muted); }
+.payee-duplicate-group-card b { color: var(--accent-strong); white-space: nowrap; }
+.payee-duplicate-empty { display: grid; gap: 0.4rem; color: var(--text-muted); padding: 1rem; }
+.payee-duplicate-review { display: grid; gap: 1rem; min-width: 0; }
+.payee-duplicate-review-header h2 { display: flex; align-items: center; gap: 0.65rem; }
+.payee-duplicate-review-header h2 small { border-radius: 999px; background: var(--surface-muted); padding: 0.28rem 0.55rem; font-size: 0.72rem; }
+.payee-duplicate-review-header p { color: var(--text-muted); }
+.payee-duplicate-members { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr)); gap: 0.8rem; }
+.payee-duplicate-member { display: grid; gap: 0.8rem; border: 1px solid var(--border-soft); border-radius: 0.75rem; padding: 1rem; }
+.payee-duplicate-member label { display: flex; align-items: center; gap: 0.55rem; }
+.payee-duplicate-member label strong { font-size: 1rem; }
+.payee-duplicate-member label em { margin-left: auto; border-radius: 999px; background: #e7f7e9; color: #207238; padding: 0.25rem 0.5rem; font-size: 0.7rem; font-style: normal; }
+.payee-duplicate-candidate-reasons { display: grid; gap: 0.3rem; padding-top: 0.65rem; border-top: 1px solid var(--border-soft); color: #207238; font-size: 0.78rem; }
+.payee-duplicate-candidate-reasons b { color: var(--text); }
+.payee-duplicate-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; border-bottom: 1px solid var(--border-soft); padding-bottom: 0.75rem; }
+.payee-duplicate-stats span { display: grid; gap: 0.15rem; color: var(--text-muted); font-size: 0.7rem; }
+.payee-duplicate-stats b { color: var(--text); font-size: 0.78rem; }
+.payee-duplicate-aliases { display: flex; flex-wrap: wrap; gap: 0.35rem; font-size: 0.72rem; }
+.payee-duplicate-aliases b { width: 100%; }
+.payee-duplicate-aliases span { border-radius: 0.3rem; background: var(--surface-muted); padding: 0.25rem 0.4rem; }
+.payee-duplicate-reasons { display: grid; gap: 0.7rem; border: 1px solid var(--border-soft); border-radius: 0.75rem; padding: 1rem; }
+.payee-duplicate-reasons > div { display: flex; flex-wrap: wrap; gap: 1rem; color: #207238; }
+.payee-duplicate-reasons small { color: var(--text-muted); }
+.payee-duplicate-actions { border-top: 1px solid var(--border-soft); padding-top: 1rem; }
+.payee-duplicate-actions > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+.payee-duplicate-actions button { display: grid; gap: 0.3rem; border: 1px solid var(--border-soft); border-radius: 0.65rem; background: var(--surface); padding: 0.85rem; text-align: left; cursor: pointer; }
+.payee-duplicate-actions button:first-child { border-color: var(--accent); }
+.payee-duplicate-actions button span { color: var(--text-muted); font-size: 0.72rem; }
+@media (max-width: 760px) { .payee-duplicate-actions > div { grid-template-columns: 1fr; } .payee-duplicate-stats { grid-template-columns: repeat(2, 1fr); } }
+.payee-merge-recognition-proposal { width: 100%; display: grid; gap: 0.55rem; border: 1px solid var(--border-soft); border-radius: 0.7rem; background: var(--surface-muted); padding: 0.85rem; text-align: left; }
+.payee-merge-recognition-proposal label { display: flex; align-items: flex-start; gap: 0.55rem; }
+.payee-merge-recognition-proposal label span { display: grid; gap: 0.25rem; }
+.payee-merge-recognition-proposal small, .payee-merge-recognition-proposal p { color: var(--text-muted); }
 
 /* v1.57 premium budget launcher */
 
@@ -4174,15 +4363,33 @@ strong {
   padding: 0.52rem 0.65rem;
 }
 
+.payee-management-filters { display: flex; gap: 0.15rem; margin-top: 0.1rem; border-top: 1px solid var(--border-soft); padding-top: 0.45rem; }
+.payee-management-filters button { min-width: 0; flex: 1 1 auto; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 0.45rem 0.25rem; color: var(--color-text-muted); cursor: pointer; font-size: 0.7rem; white-space: nowrap; }
+.payee-management-filters button:hover, .payee-management-filters button.is-active { border-bottom-color: var(--accent); color: var(--accent-strong); }
+.payee-management-filters strong { margin-left: 0.2rem; font-variant-numeric: tabular-nums; }
+
 .payee-management-list {
   min-height: 0;
-  max-height: calc(100vh - 15rem);
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
   display: grid;
   align-content: start;
   gap: 0.2rem;
   padding-right: 0.15rem;
 }
+
+.payee-management-pagination {
+  min-height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.payee-management-pagination > div { display: flex; gap: 0.3rem; }
+.payee-management-pagination button { width: 1.9rem; height: 1.9rem; border: 1px solid var(--border); border-radius: 0.45rem; background: var(--surface); color: var(--text); font-size: 1.1rem; line-height: 1; cursor: pointer; }
+.payee-management-pagination button:disabled { opacity: 0.32; cursor: default; }
 
 .payee-management-list-item {
   width: 100%;
@@ -4279,7 +4486,7 @@ strong {
   }
 
   .payee-management-list {
-    max-height: 18rem;
+    max-height: none;
   }
 
   .payee-management-stats {
@@ -5250,6 +5457,47 @@ strong {
 .payee-merge-drag-overlay small {
   color: var(--text-muted);
   font-size: 0.78rem;
+}
+
+/* Screenshot-aligned payee actions and merge workflow */
+.payee-actions-menu { position: relative; }
+.payee-actions-popover {
+  position: absolute; right: 0; top: calc(100% + .35rem); z-index: 20;
+  min-width: 15rem; display: grid; overflow: hidden;
+  border: 1px solid var(--border); border-radius: .7rem;
+  background: var(--surface); box-shadow: var(--shadow-lg);
+}
+.payee-actions-popover button {
+  border: 0; border-bottom: 1px solid var(--border-soft); background: transparent;
+  color: var(--text); padding: .72rem .85rem; text-align: left; cursor: pointer;
+}
+.payee-actions-popover button:hover { background: var(--surface-muted); }
+.payee-actions-popover .is-danger { color: var(--danger); }
+.payee-merge-dialog { width: min(42rem, calc(100vw - 2rem)); max-width: 42rem; }
+.payee-merge-dialog-header { display: flex; justify-content: space-between; gap: 1rem; }
+.payee-merge-dialog-header h2 { margin: 0; }
+.payee-merge-dialog-header p { margin: .35rem 0 0; color: var(--text-muted); }
+.payee-merge-choice-list { max-height: 20rem; overflow: auto; margin-top: .8rem; border: 1px solid var(--border-soft); border-radius: .7rem; }
+.payee-merge-choice { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .7rem; padding: .72rem; border-bottom: 1px solid var(--border-soft); cursor: pointer; }
+.payee-merge-choice:last-child { border-bottom: 0; }
+.payee-merge-choice.is-destination { background: var(--accent-soft); }
+.payee-merge-choice span { display: grid; }
+.payee-merge-choice .payee-merge-choice-controls { display: flex; align-items: center; gap: .45rem; }
+.payee-merge-choice small { color: var(--text-muted); }
+.payee-merge-options { display: grid; gap: .55rem; margin: .9rem 0; border: 1px solid var(--border-soft); border-radius: .7rem; padding: .8rem; }
+.payee-merge-options label { display: flex; align-items: center; gap: .5rem; }
+.payee-merge-options label small { margin-left: auto; color: var(--text-muted); }
+.payee-merge-preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; margin: 1rem 0; }
+.payee-merge-preview-grid div { border: 1px solid var(--border-soft); border-radius: .7rem; padding: .8rem; }
+.payee-merge-preview-grid span { display: block; color: var(--text-muted); }
+.payee-merge-preview-grid strong { display: block; margin-top: .2rem; font-size: 1.2rem; }
+.payee-merge-warning { border: 1px solid var(--warning); border-radius: .7rem; background: var(--warning-soft); padding: .75rem; }
+@media (max-width: 640px) {
+  .payee-merge-dialog { width: 100vw; max-width: none; min-height: 100dvh; border-radius: 0; }
+  .payee-merge-choice { grid-template-columns: auto minmax(0, 1fr); }
+  .payee-merge-choice > small { grid-column: 2; }
+  .payee-merge-options label { align-items: flex-start; flex-wrap: wrap; }
+  .payee-merge-options label small { width: 100%; margin-left: 1.5rem; }
 }
 
 .app-dialog-backdrop {
@@ -6866,6 +7114,92 @@ strong {
   }
 }
 
+.auth-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: var(--surface-subtle, #f5f7fa);
+}
+
+.auth-card {
+  width: min(100%, 27rem);
+  display: grid;
+  gap: 1rem;
+  padding: 2rem;
+  border: 1px solid var(--border-subtle, #d9dee7);
+  border-radius: 1rem;
+  background: var(--surface, #fff);
+  box-shadow: 0 1.5rem 4rem rgb(15 23 42 / 0.1);
+}
+
+.auth-card label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.auth-card input {
+  min-height: 2.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-subtle, #cbd2dc);
+  border-radius: 0.5rem;
+  font: inherit;
+}
+
+.auth-eyebrow {
+  margin: 0 0 0.25rem;
+  color: var(--accent, #2563eb);
+  font-weight: 700;
+}
+
+.auth-error {
+  margin: 0;
+  color: #b42318;
+}
+
+.user-management-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.user-create-form {
+  display: grid;
+  gap: 0.85rem;
+  max-width: 32rem;
+}
+
+.user-create-form label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.user-create-form input {
+  min-height: 2.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-subtle, #cbd2dc);
+  border-radius: 0.5rem;
+  font: inherit;
+}
+
+.user-list {
+  display: grid;
+}
+
+.user-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border-subtle, #d9dee7);
+}
+
+.user-list-row:last-child {
+  border-bottom: 0;
+}
+
 .category-label-with-icon {
   display: inline-flex;
   align-items: center;
@@ -7341,14 +7675,16 @@ strong {
 
 /* Budget planning header */
 .budget-planning-header {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) auto minmax(17rem, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 20rem);
   grid-template-areas:
-    "title . summary"
-    ". month summary"
-    "tabs tabs summary"
-    "toolbar toolbar toolbar";
+    "title summary"
+    "month summary"
+    "tabs summary"
+    "toolbar toolbar";
   align-items: center;
   gap: 0.7rem 1rem;
   padding: 0.8rem 0.15rem 0.55rem;
@@ -7413,6 +7749,9 @@ strong {
   grid-area: summary;
   justify-self: end;
   width: min(20rem, 100%);
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border: 1px solid color-mix(in srgb, var(--accent) 48%, var(--border));
   border-radius: 0.9rem;
   background:
@@ -7532,18 +7871,24 @@ strong {
   align-self: end;
 }
 
-@media (max-width: 1100px) {
+@container budget-workspace-main (max-width: 44rem) {
   .budget-planning-header {
-    grid-template-columns: minmax(12rem, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      "title summary"
-      "month summary"
-      "tabs tabs"
-      "toolbar toolbar";
+      "title"
+      "summary"
+      "month"
+      "tabs"
+      "toolbar";
+  }
+
+  .budget-ready-summary {
+    justify-self: stretch;
+    width: 100%;
   }
 
   .budget-month-navigation {
-    justify-content: flex-start;
+    justify-content: center;
   }
 }
 
@@ -7658,6 +8003,197 @@ strong {
 
   .budget-planning-toolbar-right {
     justify-content: flex-end;
+  }
+}
+
+/* Phone budget workspace: prioritise the month and category rows over chrome. */
+@media (max-width: 600px) {
+  .budget-workspace-screen,
+  .budget-workspace-layout,
+  .budget-workspace-main {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .budget-workspace-layout {
+    display: block;
+  }
+
+  .budget-sticky-working-header {
+    position: static;
+    box-shadow: none;
+  }
+
+  .budget-sticky-working-header::before {
+    display: none;
+  }
+
+  .budget-planning-header {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "title"
+      "summary"
+      "month"
+      "tabs";
+    gap: 0.45rem;
+    padding: 0.25rem 0 0.35rem;
+  }
+
+  .budget-planning-title {
+    min-height: 2.4rem;
+    padding-inline: 0.15rem;
+  }
+
+  .budget-planning-icon {
+    display: none;
+  }
+
+  .budget-planning-title h1 {
+    font-size: 1.08rem;
+  }
+
+  .budget-planning-title > div > span {
+    margin-top: 0.08rem;
+    font-size: 0.68rem;
+  }
+
+  .budget-ready-summary {
+    width: 100%;
+    min-height: 4.35rem;
+    border-radius: 0.75rem;
+    padding: 0.65rem 0.8rem;
+    box-shadow: none;
+  }
+
+  .budget-ready-summary-heading {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0;
+    border: 0;
+  }
+
+  .budget-ready-summary-heading span {
+    font-size: 0.8rem;
+  }
+
+  .budget-ready-summary-heading strong {
+    max-width: 65%;
+    overflow: hidden;
+    font-size: clamp(1.35rem, 8vw, 1.85rem);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .budget-ready-summary dl,
+  .budget-ready-summary-total {
+    display: none;
+  }
+
+  .budget-month-navigation {
+    width: 100%;
+    justify-content: stretch;
+    gap: 0.35rem;
+    padding-top: 0;
+  }
+
+  .budget-month-step {
+    min-width: 2.5rem;
+    min-height: 2.35rem;
+    flex: 0 0 2.5rem;
+  }
+
+  .budget-month-current {
+    min-width: 0;
+    min-height: 2.35rem;
+    flex: 1 1 auto;
+  }
+
+  .budget-planning-tabs {
+    min-height: 2.1rem;
+    margin-top: 0;
+  }
+
+  .budget-planning-tab {
+    min-height: 2rem;
+    padding-block: 0.35rem 0.25rem;
+  }
+
+  .budget-planning-toolbar {
+    display: none;
+  }
+
+  .budget-sticky-working-header .budget-workspace-table-head,
+  .budget-workspace-group-header,
+  .budget-workspace-row {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) 5.6rem 5.6rem !important;
+    gap: 0.3rem;
+  }
+
+  .budget-sticky-working-header .budget-workspace-table-head > :nth-child(3),
+  .budget-workspace-group-header > :nth-child(3),
+  .budget-workspace-row > :nth-child(3) {
+    display: none;
+  }
+
+  .budget-sticky-working-header .budget-workspace-table-head {
+    padding: 0.4rem 0.55rem;
+    border-radius: 0.55rem 0.55rem 0 0;
+    font-size: 0.64rem;
+  }
+
+  .budget-workspace-table-card {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .budget-workspace-group-header {
+    padding: 0.5rem 0.55rem;
+    font-size: 0.8rem;
+  }
+
+  .budget-workspace-row,
+  .interactive-budget-row {
+    min-height: 3rem;
+    padding: 0.55rem;
+    font-size: 0.8rem;
+  }
+
+  .budget-category-cell {
+    gap: 0.2rem;
+  }
+
+  .drag-handle,
+  .budget-group-drag-handle {
+    display: none;
+  }
+
+  .assigned-button,
+  .available-pill {
+    min-width: 0;
+    max-width: 100%;
+    justify-self: end;
+    overflow: hidden;
+    padding-inline: 0.2rem;
+    font-size: 0.78rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .assigned-input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .budget-month-panel {
+    display: none;
   }
 }
 
@@ -7821,4 +8357,157 @@ strong {
   .settings-conflict-item {
     flex-direction: column;
   }
+}
+
+/* Milestone 4: screenshot-aligned bounded Payee workspace. */
+.payee-management-page {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.payee-management-page > .workspace-header {
+  width: 100%;
+  max-width: none;
+  margin: 0 0 1rem;
+}
+
+.payee-management-page .payee-management-workspace {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+  grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr);
+}
+
+.payee-management-page .payee-management-list-panel {
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+  grid-template-rows: auto auto auto auto;
+  align-content: start;
+}
+
+.payee-management-page .payee-management-list {
+  width: 100%;
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+  scrollbar-width: none;
+}
+
+.payee-management-page .payee-management-list::-webkit-scrollbar { display: none; }
+
+.payee-management-page .payee-management-filters {
+  min-width: 0;
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.payee-management-page .payee-management-search {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.payee-show-all {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--accent-strong);
+  padding: 0.65rem;
+  text-align: left;
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.payee-management-page .payee-management-detail-panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  gap: 0.7rem;
+}
+
+.payee-detail-summary {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, auto));
+  justify-content: start;
+  gap: 2rem;
+}
+
+.payee-detail-summary div { display: grid; gap: 0.1rem; }
+.payee-detail-summary strong { font-size: 0.9rem; }
+.payee-detail-summary span { color: var(--text-muted); font-size: 0.72rem; }
+
+.payee-detail-tabs {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  gap: 0.3rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.payee-detail-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0.55rem 0.65rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.payee-detail-tabs button.is-active { border-bottom-color: var(--accent); color: var(--accent-strong); }
+
+.payee-overview-grid {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.payee-overview-card,
+.payee-tab-placeholder {
+  min-width: 0;
+  min-height: 8.4rem;
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.7rem;
+  background: var(--surface);
+  padding: 0.8rem;
+}
+
+.payee-overview-card h3, .payee-tab-placeholder h3 { font-size: 0.88rem; }
+.payee-overview-card p, .payee-tab-placeholder p { color: var(--text-muted); font-size: 0.76rem; line-height: 1.4; }
+.payee-overview-card > span { font-size: 0.8rem; }
+.payee-overview-card-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.payee-overview-card-header button { border: 0; background: transparent; color: var(--accent-strong); cursor: pointer; font-size: 0.75rem; }
+.payee-tab-panel { max-width: none; }
+
+.payee-management-page .payee-management-field,
+.payee-management-page .payee-management-textarea,
+.payee-management-page .payee-management-actions {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .payee-detail-summary { gap: 1rem; }
+  .payee-detail-tabs { overflow-x: auto; }
+}
+
+@media (max-width: 820px) {
+  .payee-management-page .payee-management-workspace { grid-template-columns: 1fr; }
+  .payee-management-page .payee-management-detail-panel { overflow: visible; }
+  .payee-overview-grid { grid-template-columns: 1fr; }
 }

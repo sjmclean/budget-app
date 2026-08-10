@@ -29,6 +29,25 @@ export type { LocalDatabaseKeyValueStorage } from "./localDatabaseKeyValueStorag
 export { createLocalDatabasePersistenceProvider } from "./localDatabasePersistenceProvider";
 export type { LocalDatabasePersistenceProviderOptions } from "./localDatabasePersistenceProvider";
 export type {
+  HostedAccountRegisterQueryClient,
+  HostedBudgetEngineStatus,
+} from "./hostedAccountRegisterQueryClient";
+export {
+  assertBrowserBudgetFeatureAvailable,
+  HOSTED_SQLITE_SAFETY_CODE,
+  HostedSqliteFeatureUnavailableError,
+  isHostedSqliteBudget,
+} from "./hostedBudgetSafety";
+export { createHostedSqliteImportClient } from "./hostedSqliteImportClient";
+export type {
+  HostedSqliteImportSession,
+  SqliteImportAccount,
+  SqliteImportCategory,
+  SqliteImportPayee,
+  SqliteImportTransaction,
+} from "./hostedSqliteImportClient";
+export * from "./keyValueImportStage";
+export type {
   OperationJournalCursor,
   OperationJournalEntry,
   OperationJournalMutation,

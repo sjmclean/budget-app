@@ -4,12 +4,13 @@ import { router } from "./app/router";
 import { ThemeBootstrap } from "./app/ThemeBootstrap";
 import { AppDialogsProvider } from "./features/ui/AppDialogsProvider";
 import { AppErrorBoundary } from "./app/errors/AppErrorBoundary";
+import { AuthGate } from "./features/auth/AuthGate";
 
 export function App() {
   return (
     <AppErrorBoundary>
       <ThemeBootstrap>
-        <>
+        <AuthGate>
           <Suspense
             fallback={
               <div className="route-loading-screen" role="status" aria-live="polite">
@@ -20,7 +21,7 @@ export function App() {
             <RouterProvider router={router} />
           </Suspense>
           <AppDialogsProvider />
-        </>
+        </AuthGate>
       </ThemeBootstrap>
     </AppErrorBoundary>
   );

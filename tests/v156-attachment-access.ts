@@ -28,7 +28,7 @@ const metadataOnlyAttachment: RegisterAttachmentView = {
 };
 const metadataState = getAttachmentAccessState(metadataOnlyAttachment);
 assert.equal(metadataState.canAccess, false, "metadata-only attachments should not offer open/download actions");
-assert.match(metadataState.reason ?? "", /not stored/i);
+assert.match(metadataState.reason ?? "", /not available.*device/i);
 
 const unsafeAttachment: RegisterAttachmentView = {
   ...storedAttachment,

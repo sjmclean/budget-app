@@ -2,17 +2,18 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
-import { readAccounts } from "../features/accounts/accountService";
-import type { AccountRegisterView } from "../features/accounts/accountRegisterTypes";
-import { getBudgetScopedStorageKey } from "../features/budget/budgetDataScope";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
+import { getBudgetPersistenceProvider } from
+  "../features/persistence/budgetPersistenceProviderFactory";
 import { useBudgetRegistryStore, type BudgetSummary } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
+import { readBudgetLauncherStats } from "../features/budget/budgetLauncherStats.js";
+import { usePersistenceChangeVersion } from "../features/persistence/persistenceChangeBus";
+
 
 type LaunchMode = "list" | "empty" | "budgetImport";
 
-const REGISTERS_STORAGE_KEY = "budget-app.account-registers.v1";
 
 const LazyBudgetImportDialog = lazy(() =>
   import("./budgetSelector/BudgetImportDialog").then((module) => ({
@@ -57,47 +58,12 @@ function formatNumber(value: number) {
 }
 
 function readBudgetStats(budget: BudgetSummary) {
-  const scopedStorage = {
-    getItem(key: string): string | null {
-      return getActiveKeyValueStorage().getItem(
-        getBudgetScopedStorageKey(budget.id, key),
-      );
-    },
-    setItem(): void {
-      // Read-only launcher view model adapter.
-    },
-    removeItem(): void {
-      // Read-only launcher view model adapter.
-    },
-    listKeys(): string[] {
-      return [];
-    },
-  };
-
-  const accounts = readAccounts(scopedStorage);
-  const registersValue = scopedStorage.getItem(REGISTERS_STORAGE_KEY);
-  let transactionCount = 0;
-
-  if (registersValue) {
-    try {
-      const registers = JSON.parse(registersValue) as Record<string, AccountRegisterView>;
-      transactionCount = Object.values(registers).reduce(
-        (total, register) => total + (Array.isArray(register.transactions) ? register.transactions.length : 0),
-        0,
-      );
-    } catch {
-      transactionCount = 0;
-    }
-  }
-
-  return {
-    accountCount: accounts.length,
-    transactionCount,
-  };
+  return readBudgetLauncherStats(getActiveKeyValueStorage(), budget);
 }
 
 export function BudgetSelectorPage() {
   const navigate = useNavigate();
+  const persistenceChangeVersion = usePersistenceChangeVersion();
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const createBudgetWithSetup = useBudgetRegistryStore((state) => state.createBudgetWithSetup);
   const importYnab4Budget = useBudgetRegistryStore(
@@ -118,10 +84,14 @@ export function BudgetSelectorPage() {
   const [launchMode, setLaunchMode] = useState<LaunchMode>("list");
   const [deleteBudgetId, setDeleteBudgetId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [renameBudgetId, setRenameBudgetId] = useState<string | null>(null);
   const [activeBudgetMenuId, setActiveBudgetMenuId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
+  const [hostedStats, setHostedStats] = useState<
+    Record<string, { accountCount: number; transactionCount: number }>
+  >({});
 
   const sortedBudgets = useMemo(
     () =>
@@ -135,11 +105,39 @@ export function BudgetSelectorPage() {
     () =>
       sortedBudgets.map((budget, index) => ({
         budget,
-        stats: readBudgetStats(budget),
+        stats: hostedStats[budget.id] ?? readBudgetStats(budget),
         tone: index % 2 === 0 ? "home" : "business",
       })),
-    [sortedBudgets],
+    [hostedStats, sortedBudgets, persistenceChangeVersion],
   );
+
+  useEffect(() => {
+    const hosted = getBudgetPersistenceProvider().accountRegisterQueries;
+    if (!hosted) return;
+    let cancelled = false;
+    void Promise.all(sortedBudgets.map(async (budget) => {
+      const status = await hosted.getBudgetStatus(budget.id).catch(() => null);
+      if (!status?.capabilities.accountRegisters) return null;
+      const accounts = await hosted.listAccountNavigation(budget.id);
+      return [budget.id, {
+        accountCount: accounts.length,
+        transactionCount: accounts.reduce(
+          (total, account) => total + account.transactionCount,
+          0,
+        ),
+      }] as const;
+    })).then((entries) => {
+      if (cancelled) return;
+      setHostedStats(Object.fromEntries(entries.filter(
+        (entry): entry is NonNullable<typeof entry> => entry !== null,
+      )));
+    }).catch(() => {
+      // Keep the local/checkpoint-derived summary if hosted SQLite is absent.
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [persistenceChangeVersion, sortedBudgets]);
 
   const budgetPendingDelete = useMemo(
     () => budgets.find((budget) => budget.id === deleteBudgetId) ?? null,
@@ -243,33 +241,49 @@ export function BudgetSelectorPage() {
     setDeleteError(null);
   }
 
-  function handleConfirmDeleteBudget() {
+  async function handleConfirmDeleteBudget() {
     if (!budgetPendingDelete) {
       setDeleteError("The selected budget could not be found.");
       return;
     }
 
-    const wasSelectedBudget = selectedBudgetId === budgetPendingDelete.id;
+    const budgetId = budgetPendingDelete.id;
+    const wasSelectedBudget = selectedBudgetId === budgetId;
     const nextBudget = sortedBudgets.find(
       (budget) => budget.id !== budgetPendingDelete.id,
     );
-    const result = deleteBudget(budgetPendingDelete.id);
-
-    if (!result.completed) {
-      setDeleteError(result.errors[0] ?? "The budget could not be deleted.");
-      return;
-    }
-
-    if (wasSelectedBudget) {
-      if (nextBudget) {
-        selectBudget(nextBudget.id);
-      } else {
-        clearSelectedBudget();
+    setDeleteInProgress(true);
+    setDeleteError(null);
+    try {
+      if (budgetPendingDelete.packagePath.startsWith("hosted://")) {
+        const hosted = getBudgetPersistenceProvider().accountRegisterQueries;
+        if (!hosted) {
+          throw new Error("Hosted budget deletion is unavailable.");
+        }
+        await hosted.deleteBudget(budgetId);
       }
-    }
+      const result = deleteBudget(budgetId);
 
-    handleCancelDeleteBudget();
-    setLaunchMode("list");
+      if (!result.completed) {
+        setDeleteError(result.errors[0] ?? "The budget could not be deleted.");
+        return;
+      }
+
+      if (wasSelectedBudget) {
+        if (nextBudget) {
+          selectBudget(nextBudget.id);
+        } else {
+          clearSelectedBudget();
+        }
+      }
+
+      handleCancelDeleteBudget();
+      setLaunchMode("list");
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "The hosted budget could not be deleted.");
+    } finally {
+      setDeleteInProgress(false);
+    }
   }
 
   function handleCreateBudget(setup: NewBudgetSetup) {
@@ -565,6 +579,7 @@ export function BudgetSelectorPage() {
                   type="button"
                   variant="secondary"
                   autoFocus
+                  disabled={deleteInProgress}
                   onClick={handleCancelDeleteBudget}
                 >
                   Cancel
@@ -572,9 +587,10 @@ export function BudgetSelectorPage() {
                 <Button
                   type="button"
                   className="button-danger"
+                  disabled={deleteInProgress}
                   onClick={handleConfirmDeleteBudget}
                 >
-                  Delete Budget
+                  {deleteInProgress ? "Deletingâ€¦" : "Delete Budget"}
                 </Button>
               </div>
             </section>

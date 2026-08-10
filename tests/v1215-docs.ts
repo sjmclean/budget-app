@@ -10,7 +10,7 @@ const requiredFiles = [
   "docs/undo-redo.md",
   "docs/security.md",
   "docs/search-and-indexing.md",
-  "docs/testing.md",
+  "docs/TESTING.md",
   "docs/development-guide.md",
   "docs/api-reference.md",
   "docs/adr/ADR-001-sqlite.md",

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope.ts";
+import { createFixedBudgetScopedStorage } from "../apps/web/src/features/budget/budgetDataScope.ts";
+import { readSeededTransactionRegisters, seedTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
 import {
   createYnab4LauncherBudgetImport,
 } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
@@ -12,6 +13,7 @@ import {
   discoverYnab4Package,
   type Ynab4PackageEntry,
 } from "../packages/ynab4-importer/src/analyzeYnab4Package.ts";
+import { readBudgetMonthEntity, writeBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 
 function createMemoryStorage(): KeyValueStoragePort {
   const values = new Map<string, string>();
@@ -60,17 +62,17 @@ const entries: Ynab4PackageEntry[] = [
           entityId: "mb1",
           month: "2026-06",
           monthlySubCategoryBudgets: [
-            { categoryId: "groceries", budgeted: 100000, activity: -25000, balance: 75000 },
-            { categoryId: "rent", budgeted: 1200000, activity: -1200000, balance: 0 },
+            { categoryId: "groceries", budgeted: 100, activity: -25, balance: 75 },
+            { categoryId: "rent", budgeted: 1200, activity: -1200, balance: 0 },
           ],
         },
       ],
       transactions: [
-        { entityId: "t-open", accountId: "checking", payeeId: "shop", categoryId: "groceries", amount: -25000, date: "2026-06-03" },
-        { entityId: "t-closed", accountId: "closed-savings", payeeId: "shop", amount: 50000, date: "2026-06-04" },
+        { entityId: "t-open", accountId: "checking", payeeId: "shop", categoryId: "groceries", amount: -25, date: "2026-06-03" },
+        { entityId: "t-closed", accountId: "closed-savings", payeeId: "shop", amount: 50, date: "2026-06-04" },
       ],
       scheduledTransactions: [
-        { entityId: "s1", accountId: "checking", payeeId: "shop", categoryId: "rent", amount: -1200000 },
+        { entityId: "s1", accountId: "checking", payeeId: "shop", categoryId: "rent", amount: -1200, date: "2026-06-05" },
       ],
     }),
   },
@@ -110,15 +112,17 @@ function testAccuracyAuditPassesWhenPersistedDataMatchesSource() {
 function testAccuracyAuditDetectsMissingClosedAccountTransactionsAndWrongBudgetData() {
   const storage = createMemoryStorage();
   const result = importFixture(storage);
-  const registersKey = getBudgetScopedStorageKey(result.budget.id, "budget-app.account-registers.v1");
-  const registers = JSON.parse(storage.getItem(registersKey) ?? "{}");
-  registers["closed-savings"].transactions = [];
-  storage.setItem(registersKey, JSON.stringify(registers));
+  const scopedStorage = createFixedBudgetScopedStorage(storage, result.budget.id);
+  const registers = readSeededTransactionRegisters(scopedStorage);
+  for (const register of Object.values(registers)) {
+    register.transactions = register.transactions.filter((transaction) => transaction.id !== "t-closed");
+  }
+  seedTransactionRegisters(scopedStorage, registers);
 
-  const budgetViewKey = `budget-app.budget-view.v1.${result.budget.id}.2026-06`;
-  const budgetView = JSON.parse(storage.getItem(budgetViewKey) ?? "{}");
-  budgetView.totalAssigned = 42;
-  storage.setItem(budgetViewKey, JSON.stringify(budgetView));
+  const budgetView = readBudgetMonthEntity(storage, result.budget.id, "2026-06");
+  assert.ok(budgetView);
+  budgetView.categoryGroups[0].categories[0].assigned = 42;
+  writeBudgetMonthEntity(storage, result.budget.id, "2026-06", budgetView);
 
   const audit = auditYnab4LauncherImportAccuracy(storage, {
     entries,

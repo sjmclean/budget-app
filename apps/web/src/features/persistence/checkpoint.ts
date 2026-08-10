@@ -14,6 +14,8 @@ export interface PersistenceCheckpointMetadata {
   readonly byteLength: number;
   readonly integrityAlgorithm: typeof CHECKPOINT_INTEGRITY_ALGORITHM;
   readonly integrityHash: string;
+  /** Remote operation cursor fully represented by this checkpoint. */
+  readonly replicatedThroughCursor?: number;
 }
 
 export interface PersistenceCheckpoint extends PersistenceCheckpointMetadata {
@@ -27,13 +29,49 @@ export interface CheckpointRestoreResult {
 }
 
 export interface CheckpointPort {
-  createCheckpoint(): Promise<PersistenceCheckpoint>;
-  getLatestCheckpoint(): Promise<PersistenceCheckpoint | null>;
+  createCheckpoint(scope?: string): Promise<PersistenceCheckpoint>;
+  getLatestCheckpoint(scope?: string): Promise<PersistenceCheckpoint | null>;
   listCheckpoints(limit?: number): Promise<PersistenceCheckpointMetadata[]>;
   restoreCheckpoint(
     checkpoint: PersistenceCheckpoint,
     laterOperations?: readonly OperationJournalEntry[],
+    scope?: string,
   ): Promise<CheckpointRestoreResult>;
+  calculateStateIntegrityHash(scope?: string): Promise<string>;
+}
+
+export function budgetPersistenceKeyPrefix(budgetId: string): string {
+  const normalised = budgetId.trim();
+  if (!normalised) throw new Error("Checkpoint scopes require a budget ID.");
+  return `budget-app.budgets.${normalised}.`;
+}
+
+export function filterCheckpointEntriesForScope(
+  entries: Readonly<Record<string, string>>,
+  scope?: string,
+): Record<string, string> {
+  if (!scope) return { ...entries };
+  const prefix = budgetPersistenceKeyPrefix(scope);
+  const ynab4ImportRecordKey = `budget-app.ynab4-launcher-import.v1.${scope}`;
+  return Object.fromEntries(
+    Object.entries(entries).filter(
+      ([key]) => key.startsWith(prefix) || key === ynab4ImportRecordKey,
+    ),
+  );
+}
+
+export function assertCheckpointIsInScope(
+  checkpoint: PersistenceCheckpoint,
+  scope: string,
+): void {
+  const prefix = budgetPersistenceKeyPrefix(scope);
+  const ynab4ImportRecordKey = `budget-app.ynab4-launcher-import.v1.${scope}`;
+  const invalidKey = Object.keys(checkpoint.entries).find(
+    (key) => !key.startsWith(prefix) && key !== ynab4ImportRecordKey,
+  );
+  if (invalidKey) {
+    throw new Error(`Checkpoint ${checkpoint.checkpointId} contains data outside budget ${scope}.`);
+  }
 }
 
 export function createPersistenceCheckpoint(input: {
@@ -43,10 +81,15 @@ export function createPersistenceCheckpoint(input: {
   readonly schemaVersion: number;
   readonly entries: Readonly<Record<string, string>>;
   readonly createdAt?: Date;
+  readonly replicatedThroughCursor?: number;
 }): PersistenceCheckpoint {
   if (!input.deviceId.trim()) throw new Error("Checkpoints require a device ID.");
   if (!Number.isSafeInteger(input.throughSequence) || input.throughSequence < 0) {
     throw new Error("Checkpoint journal boundaries must be non-negative integers.");
+  }
+  const replicatedThroughCursor = input.replicatedThroughCursor ?? 0;
+  if (!Number.isSafeInteger(replicatedThroughCursor) || replicatedThroughCursor < 0) {
+    throw new Error("Checkpoint remote cursor boundaries must be non-negative integers.");
   }
 
   const entries = sortEntries(input.entries);
@@ -63,6 +106,7 @@ export function createPersistenceCheckpoint(input: {
     byteLength: new TextEncoder().encode(serialized).byteLength,
     integrityAlgorithm: CHECKPOINT_INTEGRITY_ALGORITHM,
     integrityHash: calculateCheckpointIntegrityHash(entries),
+    replicatedThroughCursor,
     entries,
   };
 }
@@ -78,6 +122,9 @@ export function assertCompatibleCheckpoint(
     throw new Error(
       `Checkpoint schema ${checkpoint.schemaVersion} is newer than supported schema ${supportedSchemaVersion}.`,
     );
+  }
+  if (checkpoint.replicatedThroughCursor !== undefined && (!Number.isSafeInteger(checkpoint.replicatedThroughCursor) || checkpoint.replicatedThroughCursor < 0)) {
+    throw new Error("Checkpoint remote cursor is invalid.");
   }
   if (checkpoint.entryCount !== Object.keys(checkpoint.entries).length) {
     throw new Error("Checkpoint entry count does not match its payload.");

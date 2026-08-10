@@ -70,6 +70,7 @@ function EditableAssignedCell({
         }
         autoFocus
         value={draft}
+        onFocus={(event) => event.currentTarget.select()}
         onChange={(event) => {
           setDraft(event.target.value);
           setHasError(false);
@@ -101,7 +102,7 @@ function EditableAssignedCell({
       type="button"
       onClick={(event) => {
         event.stopPropagation();
-        setDraft(category.assigned.toFixed(2));
+        setDraft(category.assigned === 0 ? "" : category.assigned.toFixed(2));
         setHasError(false);
         setIsEditing(true);
       }}

@@ -4,13 +4,12 @@ import { Card } from "../components/ui/Card";
 import { resolveActiveBudget } from "../features/budget/activeBudget";
 import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
 import { getBudgetPersistenceProvider } from "../features/persistence/budgetPersistenceProviderFactory";
+import type {
+  HostedFinancialOverview as FinancialOverviewSummary,
+} from "../features/persistence/hostedAccountRegisterQueryClient";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
-import {
-  buildFinancialOverviewSummary,
-  type FinancialOverviewSummary,
-  type NetWorthPoint,
-} from "./dashboard/services/financialOverview";
+type NetWorthPoint = FinancialOverviewSummary["netWorthTrend"][number];
 import { formatCurrency } from "./reports/services/reportFormatting";
 
 
@@ -21,6 +20,8 @@ export function DashboardPage() {
   const currencyCode = activeBudget?.currency ?? "AUD";
   const overviewMonth = useCurrentBudgetMonth();
   const [summary, setSummary] = useState<FinancialOverviewSummary | null>(null);
+  const [registerAccountId, setRegisterAccountId] = useState<string | null>(null);
+  const [uncategorisedAccountId, setUncategorisedAccountId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,26 +36,27 @@ export function DashboardPage() {
 
       setIsLoading(true);
       setError(null);
-
       try {
         const gateway = getBudgetPersistenceProvider();
-        const accounts = await gateway.accounts.listAccounts();
-        const registers = await Promise.all(
-          accounts.map((account) => gateway.accountRegisters.getAccountRegisterView({ accountId: account.id })),
-        );
-        const budgetView = await gateway.budgetView.getBudgetMonthView({
-          budgetId: activeBudget.id,
-          month: overviewMonth,
-        });
-        const nextSummary = buildFinancialOverviewSummary({
-          accounts,
-          registers,
-          budgetView,
-          month: overviewMonth,
-        });
+        const queries = gateway.accountRegisterQueries;
+        if (!queries) {
+          throw new Error("Dashboard analytics require the local-first SQLite runtime.");
+        }
+        const status = await queries.getBudgetStatus(activeBudget.id);
+        if (!status.capabilities.analytics) {
+          throw new Error("Dashboard analytics are unavailable for this SQLite budget.");
+        }
+        const [nextSummary, accountNavigation] = await Promise.all([
+          queries.getFinancialOverview(activeBudget.id, overviewMonth),
+          queries.listAccountNavigation(activeBudget.id),
+        ]);
 
         if (!cancelled) {
           setSummary(nextSummary);
+          setRegisterAccountId(accountNavigation.find((entry) => !entry.account.closedAt)?.account.id ?? null);
+          setUncategorisedAccountId(
+            nextSummary.attention.uncategorisedAccountId ?? null,
+          );
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -173,7 +175,12 @@ export function DashboardPage() {
                   ) : null}
 
                   {summary.attention.uncategorisedTransactions > 0 ? (
-                    <Link to="/transactions" className="financial-overview-action-row">
+                    <Link
+                      to={uncategorisedAccountId
+                        ? `/accounts/${uncategorisedAccountId}?categoryFilter=uncategorised`
+                        : registerAccountId ? `/accounts/${registerAccountId}` : "/accounts"}
+                      className="financial-overview-action-row"
+                    >
                       <div>
                         <strong>{summary.attention.uncategorisedTransactions} uncategorised transactions</strong>
                         <span>Assign categories so reports and budgets stay accurate.</span>
@@ -199,7 +206,7 @@ export function DashboardPage() {
               <p className="eyebrow">Continue Working</p>
               <div className="financial-overview-quick-links">
                 <Link to="/budget">Open Budget →</Link>
-                <Link to="/transactions">Open Register →</Link>
+                <Link to={registerAccountId ? `/accounts/${registerAccountId}` : "/accounts"}>Open Register →</Link>
                 <Link to="/reports">Open Reports →</Link>
               </div>
             </Card>
@@ -232,7 +239,7 @@ function ChangePill({ label, amount, formatMoney }: { label: string; amount: num
   );
 }
 
-function NetWorthTrendChart({ points, formatMoney }: { points: NetWorthPoint[]; formatMoney: (amount: number) => string }) {
+function NetWorthTrendChart({ points, formatMoney }: { points: readonly NetWorthPoint[]; formatMoney: (amount: number) => string }) {
   const path = buildSparklinePath(points);
   const min = Math.min(...points.map((point) => point.value));
   const max = Math.max(...points.map((point) => point.value));
@@ -257,7 +264,7 @@ function NetWorthTrendChart({ points, formatMoney }: { points: NetWorthPoint[]; 
   );
 }
 
-function buildSparklinePath(points: NetWorthPoint[]): string {
+function buildSparklinePath(points: readonly NetWorthPoint[]): string {
   if (points.length === 0) return "";
 
   const width = 640;

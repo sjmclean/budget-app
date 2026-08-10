@@ -25,8 +25,12 @@ export interface MapYnab4BudgetMonthsInput {
   templateGroups: BudgetCategoryGroupView[];
   categoryIdBySourceId: ReadonlyMap<string, string>;
   registers: Record<string, AccountRegisterView>;
+  activityByMonthCategory?: Ynab4ActivityByMonthCategory;
   now: Date;
 }
+
+export type Ynab4ActivityByMonthCategory =
+  ReadonlyMap<string, ReadonlyMap<string, number>>;
 
 /**
  * Convert YNAB4 monthly budget rows and imported register activity into the
@@ -37,15 +41,16 @@ export function mapYnab4BudgetMonths(
   input: MapYnab4BudgetMonthsInput,
 ): Map<string, BudgetMonthView> {
   const views = new Map<string, BudgetMonthView>();
-  const activityByMonthCategory = buildBudgetActivityByMonthCategory(
-    input.registers,
-  );
+  const activityByMonthCategory =
+    input.activityByMonthCategory ??
+    buildYnab4BudgetActivityByMonthCategory(input.registers);
   const sourceMonths = buildCompleteMonthTimeline(
     input.monthlyBudgets,
     activityByMonthCategory,
     input.now,
   );
   const previousAvailableByCategoryId = new Map<string, number>();
+  let previousReadyToAssign = 0;
 
   for (const { monthlyBudget, month } of sourceMonths) {
     const groups = cloneCategoryGroups(input.templateGroups);
@@ -127,25 +132,64 @@ export function mapYnab4BudgetMonths(
       (sum, group) => sum + group.available,
       0,
     );
+    const incomeForMonth =
+      firstYnabDisplayAmount(
+        monthlyBudget.incomeForMonth,
+        monthlyBudget.income,
+      ) ?? buildYnab4ReadyToAssignIncomeForMonth(input.registers, month);
+    const readyToAssign =
+      firstYnabDisplayAmount(
+        monthlyBudget.availableToBudget,
+        monthlyBudget.buffered,
+        monthlyBudget.income,
+      ) ?? 0;
+    // Preserve YNAB4's month-level identity exactly. This residual includes
+    // prior cash overspending without guessing it from this month's category
+    // balances.
+    const previousOverspending = roundMoney(
+      readyToAssign - previousReadyToAssign - incomeForMonth + totalAssigned,
+    );
     views.set(month, {
       budgetId: input.budget.id,
       budgetName: input.budget.name,
       monthLabel: monthLabelFromIsoMonth(month),
       currencyCode: input.budget.currency,
-      readyToAssign:
-        firstYnabDisplayAmount(
-          monthlyBudget.availableToBudget,
-          monthlyBudget.buffered,
-          monthlyBudget.income,
-        ) ?? 0,
+      readyToAssign,
+      carriedForwardReadyToAssign: previousReadyToAssign,
+      previousOverspending,
+      incomeForMonth,
       totalAssigned,
       totalActivity,
       totalAvailable,
       categoryGroups: groups,
     });
+    previousReadyToAssign = readyToAssign;
   }
 
   return views;
+}
+
+function buildYnab4ReadyToAssignIncomeForMonth(
+  registers: Record<string, AccountRegisterView>,
+  month: string,
+): number {
+  let income = 0;
+  for (const register of Object.values(registers)) {
+    if (register.accountType === "Tracking") continue;
+    for (const transaction of register.transactions) {
+      if (transaction.date.slice(0, 7) !== month || transaction.transferAccountId) continue;
+      if (transaction.splitLines?.length) {
+        for (const split of transaction.splitLines) {
+          if (split.categoryId === READY_TO_ASSIGN_CATEGORY_ID && !split.transferAccountId) {
+            income += split.inflow - split.outflow;
+          }
+        }
+      } else if (transaction.categoryId === READY_TO_ASSIGN_CATEGORY_ID) {
+        income += transaction.inflow - transaction.outflow;
+      }
+    }
+  }
+  return roundMoney(income);
 }
 
 function buildCompleteMonthTimeline(
@@ -221,7 +265,7 @@ function ynab4OverspendingHandlingCarriesNegativeBalance(
   return value?.replace(/[\s_-]/g, "").toLowerCase() === "confined";
 }
 
-function buildBudgetActivityByMonthCategory(
+export function buildYnab4BudgetActivityByMonthCategory(
   registers: Record<string, AccountRegisterView>,
 ): Map<string, Map<string, number>> {
   const activityByMonthCategory = new Map<string, Map<string, number>>();

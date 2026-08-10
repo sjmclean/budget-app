@@ -29,6 +29,10 @@ class MemoryStorage implements KeyValueStoragePort {
   removeItem(key: string): void {
     this.values.delete(key);
   }
+
+  listKeys(): string[] {
+    return [...this.values.keys()];
+  }
 }
 
 function createBudgetScopedServices(rootStorage: KeyValueStoragePort) {
@@ -133,14 +137,14 @@ assert.equal(householdRegister.transactions.some((transaction) => transaction.pa
 assert.equal((await services.scheduled.listByAccount(householdAccount.id)).length, 1, "household schedule should remain isolated");
 
 assert.ok(
-  rootStorage.getItem(getBudgetScopedStorageKey("household", "budget-app.accounts.v1")),
+  rootStorage.getItem(getBudgetScopedStorageKey("household", "budget-app.entity-replication.v1/account-index")),
   "household accounts should be written under a budget-scoped key",
 );
 assert.ok(
-  rootStorage.getItem(getBudgetScopedStorageKey(sideBudget.id, "budget-app.accounts.v1")),
+  rootStorage.getItem(getBudgetScopedStorageKey(sideBudget.id, "budget-app.entity-replication.v1/account-index")),
   "second budget accounts should be written under a budget-scoped key",
 );
-assert.equal(rootStorage.getItem("budget-app.accounts.v1"), null, "new writes should not use the legacy global account key");
+assert.equal(rootStorage.getItem("budget-app.accounts.v1"), null, "account entities should not use the legacy account document key");
 
 const legacyStorage = new MemoryStorage();
 writeBudgetRegistry(legacyStorage, createInitialBudgetRegistry(new Date("2026-06-22T00:00:00.000Z")));
@@ -156,8 +160,8 @@ legacyStorage.setItem("budget-app.payees.v1", JSON.stringify([
   },
 ]));
 const legacyServices = createBudgetScopedServices(legacyStorage);
-assert.equal((await legacyServices.payees.listPayees())[0]?.name, "Legacy Payee", "household should retain legacy global data as a migration bridge");
+assert.equal((await legacyServices.payees.listPayees()).length, 0, "the removed legacy payee document must not be read");
 legacyStorage.setItem(SELECTED_BUDGET_STORAGE_KEY, "missing-budget");
-assert.equal((await legacyServices.payees.listPayees())[0]?.name, "Legacy Payee", "missing selected budget should fall back to the first registry budget");
+assert.equal((await legacyServices.payees.listPayees()).length, 0, "fallback budget selection must still ignore the removed legacy payee document");
 
 console.log("v1.48 budget isolation checks passed");

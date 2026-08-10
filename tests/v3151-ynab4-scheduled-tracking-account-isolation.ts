@@ -1,7 +1,8 @@
+import { createScheduledTransactionEntityRepository, projectScheduledTransaction } from "../apps/web/src/features/accounts/entities/scheduledTransactionEntity.js";
 import assert from "node:assert/strict";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
 import { createYnab4LauncherBudgetImport } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
-import { getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope.ts";
+import { createFixedBudgetScopedStorage, getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope.ts";
 import {
   createYnab4PackageMigrationPreview,
   discoverYnab4Package,
@@ -90,11 +91,9 @@ const result = createYnab4LauncherBudgetImport(storage, {
 });
 assert.equal(result.record.accuracyAudit?.status, "pass");
 
-const scheduledRaw = storage.getItem(
-  getBudgetScopedStorageKey(result.budget.id, "budget-app.scheduled-transactions.v1"),
-);
-assert.ok(scheduledRaw);
-const scheduled = JSON.parse(scheduledRaw) as Array<{
+const scheduled = createScheduledTransactionEntityRepository(
+  createFixedBudgetScopedStorage(storage, result.budget.id),
+).list().map(projectScheduledTransaction) as Array<{
   id: string;
   accountId: string;
   category: string;

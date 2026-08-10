@@ -5,12 +5,14 @@ import {
   type LocalDatabaseKeyValueStorage,
 } from "./localDatabaseKeyValueStorage";
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
+import type { HostedAccountRegisterQueryClient } from "./hostedAccountRegisterQueryClient";
 
 const MIGRATION_MARKER_KEY = "budget-app.persistence.local-database-migration.v1";
 
 export interface LocalDatabasePersistenceProviderOptions {
   readonly storage?: LocalDatabaseKeyValueStorage;
   readonly migrateLegacyBrowserData?: boolean;
+  readonly accountRegisterQueries?: HostedAccountRegisterQueryClient;
 }
 
 /**
@@ -66,5 +68,6 @@ export function createLocalDatabasePersistenceProvider(
     checkpoints: storage,
     replicationStore: storage,
     conflicts: storage,
+    accountRegisterQueries: options.accountRegisterQueries,
   });
 }

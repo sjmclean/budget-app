@@ -1,8 +1,10 @@
+import { purgeAllTransactionEntities } from "../../accounts/entities/transactionEntityPersistence.js";
 import {
   BUDGET_REGISTRY_STORAGE_KEY,
 } from "../budgetRegistry";
 import {
   SELECTED_BUDGET_STORAGE_KEY,
+  createFixedBudgetScopedStorage,
   getBudgetScopedStorageKey,
 } from "../budgetDataScope";
 import type { KeyValueStoragePort } from "../../persistence/keyValueStoragePort";
@@ -10,9 +12,6 @@ import { getYnab4LauncherImportStorageKey } from "./finaliseYnab4Import";
 import {
   YNAB4_ACCOUNTS_STORAGE_KEY,
   YNAB4_BUDGET_VIEW_STORAGE_PREFIX,
-  YNAB4_PAYEES_STORAGE_KEY,
-  YNAB4_REGISTERS_STORAGE_KEY,
-  YNAB4_SCHEDULED_STORAGE_KEY,
 } from "./importStorageKeys";
 
 export interface Ynab4LauncherImportRollbackSnapshot {
@@ -75,15 +74,7 @@ function removeBudgetImportData(
   storage.removeItem(
     getBudgetScopedStorageKey(budgetId, YNAB4_ACCOUNTS_STORAGE_KEY),
   );
-  storage.removeItem(
-    getBudgetScopedStorageKey(budgetId, YNAB4_REGISTERS_STORAGE_KEY),
-  );
-  storage.removeItem(
-    getBudgetScopedStorageKey(budgetId, YNAB4_PAYEES_STORAGE_KEY),
-  );
-  storage.removeItem(
-    getBudgetScopedStorageKey(budgetId, YNAB4_SCHEDULED_STORAGE_KEY),
-  );
+  purgeAllTransactionEntities(createFixedBudgetScopedStorage(storage, budgetId));
 
   for (const key of storage.listKeys?.() ?? []) {
     if (key.startsWith(`${YNAB4_BUDGET_VIEW_STORAGE_PREFIX}.${budgetId}.`)) {

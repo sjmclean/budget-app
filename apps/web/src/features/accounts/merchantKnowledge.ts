@@ -1,6 +1,7 @@
 import { createBudgetScopedStorage } from "../budget/budgetDataScope";
 import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
 import { normaliseMerchant } from "./merchantNormalisation";
+import { readMerchantKnowledgeEntities, replaceMerchantKnowledgeEntities } from "./entities/importKnowledgeEntity";
 
 export const MERCHANT_KNOWLEDGE_STORAGE_KEY =
   "budget-app.merchant-knowledge.v1";
@@ -362,15 +363,7 @@ function getMerchantKnowledgeStorage() {
 
 export function readMerchantKnowledge(): MerchantKnowledgeStore {
   try {
-    const raw = getMerchantKnowledgeStorage().getItem(
-      MERCHANT_KNOWLEDGE_STORAGE_KEY,
-    );
-    if (!raw) return createEmptyMerchantKnowledgeStore();
-
-    const parsed = JSON.parse(raw) as MerchantKnowledgeStore;
-    return Array.isArray(parsed?.merchants)
-      ? parsed
-      : createEmptyMerchantKnowledgeStore();
+    return { merchants: readMerchantKnowledgeEntities(getMerchantKnowledgeStorage()) };
   } catch {
     return createEmptyMerchantKnowledgeStore();
   }
@@ -378,13 +371,9 @@ export function readMerchantKnowledge(): MerchantKnowledgeStore {
 
 export function writeMerchantKnowledge(store: MerchantKnowledgeStore): void {
   try {
-    getMerchantKnowledgeStorage().setItem(
-      MERCHANT_KNOWLEDGE_STORAGE_KEY,
-      JSON.stringify(store),
-    );
+    replaceMerchantKnowledgeEntities(getMerchantKnowledgeStorage(), store.merchants);
   } catch {
-    // Merchant suggestions must not prevent register or import workflows when
-    // browser persistence is unavailable.
+    // Merchant suggestions must not prevent register or import workflows when persistence is unavailable.
   }
 }
 

@@ -8,6 +8,7 @@ import {
   Folder,
   House,
   Landmark,
+  LogOut,
   Gauge,
   MoreHorizontal,
   PanelLeftClose,
@@ -33,8 +34,12 @@ import type {
   UpdateAccountInput,
 } from "../features/accounts/accountService";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
+import { getCurrentBudgetMonth } from "../features/budget/budgetMonthNavigation";
 import type { CreditCardBehaviour } from "../features/budget/budgetPreferences";
 import { getBudgetPersistenceProvider } from "../features/persistence";
+import { isHostedSqliteBudget } from "../features/persistence/hostedBudgetSafety";
+import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
+import { isLargeStreamingYnab4Budget } from "../features/budget/ynab4/finaliseYnab4Import.js";
 import { alertDialog, confirmDialog } from "../features/ui/appDialogService";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
@@ -64,6 +69,7 @@ const navigationIcons: Record<NavigationIcon, typeof WalletCards> = {
   settings: Settings2,
   restore: RotateCcw,
   payees: Users,
+  users: Users,
   switch: ArrowLeftRight,
 };
 
@@ -74,14 +80,31 @@ export function Sidebar({
   onToggleExpanded,
   onCloseDrawer,
 }: SidebarProps) {
+  async function signOut() {
+    const apiBaseUrl = (
+      import.meta as ImportMeta & { env?: { VITE_BUDGET_API_URL?: string } }
+    ).env?.VITE_BUDGET_API_URL?.replace(/\/+$/, "") ?? "";
+    await fetch(`${apiBaseUrl}/api/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    window.location.assign("/");
+  }
   const navigate = useNavigate();
   const location = useLocation();
-  const accountsPersistence = getBudgetPersistenceProvider().accounts;
+  const persistenceProvider = getBudgetPersistenceProvider();
+  const accountsPersistence = persistenceProvider.accounts;
+  const accountRegisterQueries = persistenceProvider.accountRegisterQueries;
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const updateBudget = useBudgetRegistryStore((state) => state.updateBudget);
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
+  const activeBudget = budgets.find((budget) => budget.id === activeBudgetId);
   const [accountsOpen, setAccountsOpen] = useState(true);
+  const [budgetAccountsOpen, setBudgetAccountsOpen] = useState(true);
+  const [creditCardsOpen, setCreditCardsOpen] = useState(true);
+  const [trackingAccountsOpen, setTrackingAccountsOpen] = useState(true);
   const [closedAccountsOpen, setClosedAccountsOpen] = useState(false);
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<SidebarAccount | null>(null);
@@ -164,9 +187,40 @@ export function Sidebar({
     let active = true;
 
     async function loadAccountNavigation() {
-      const loadedAccounts = await accountsPersistence.listAccounts();
-      const summaryEntries = await Promise.all(
-        loadedAccounts.map(async (account) => {
+      const sqliteStatus = activeBudgetId && accountRegisterQueries
+        ? await accountRegisterQueries.getBudgetStatus(activeBudgetId).catch(() => null)
+        : null;
+      let sqliteNavigation = sqliteStatus?.capabilities.accountRegisters && activeBudgetId
+        ? [...await accountRegisterQueries!.listAccountNavigation(activeBudgetId)]
+        : null;
+      const loadedAccounts = sqliteNavigation
+        ? sqliteNavigation.map((entry) => entry.account)
+        : await accountsPersistence.listAccounts();
+      const deferTransactionSummaries = isLargeStreamingYnab4Budget(
+        getActiveKeyValueStorage(),
+        activeBudgetId,
+      );
+      const summaryEntries = sqliteNavigation
+        ? sqliteNavigation.map((entry) => [
+            entry.account.id,
+            {
+              currencyCode: entry.currencyCode,
+              workingBalance: entry.workingBalance,
+              hasUncategorisedTransactions:
+                entry.hasUncategorizedTransactions,
+            },
+          ] as const)
+        : deferTransactionSummaries
+        ? loadedAccounts.map((account) => [
+            account.id,
+            {
+              currencyCode: activeBudget?.currency ?? "AUD",
+              workingBalance: account.startingBalance,
+              hasUncategorisedTransactions: false,
+            },
+          ] as const)
+        : await Promise.all(
+          loadedAccounts.map(async (account) => {
           try {
             const register = await getBudgetPersistenceProvider().accountRegisters.getAccountRegisterView({
               accountId: account.id,
@@ -182,8 +236,8 @@ export function Sidebar({
               },
             ] as const;
           }
-        }),
-      );
+          }),
+        );
 
       if (active) {
         setAccounts(loadedAccounts);
@@ -196,14 +250,19 @@ export function Sidebar({
     return () => {
       active = false;
     };
-  }, [accountsPersistence, location.pathname, accountNavigationRevision]);
+  }, [
+    accountsPersistence,
+    accountRegisterQueries,
+    accountNavigationRevision,
+    activeBudgetId,
+    activeBudget?.currency,
+  ]);
 
   const activeAccounts = accounts.filter((account) => !account.closedAt);
   const closedAccounts = accounts.filter((account) => account.closedAt);
   const budgetAccounts = activeAccounts.filter((account) => account.type === "on-budget");
   const creditCards = activeAccounts.filter((account) => account.type === "credit-card");
   const trackingAccounts = activeAccounts.filter((account) => account.type === "tracking");
-  const activeBudget = budgets.find((budget) => budget.id === activeBudgetId);
   const shouldAskCreditCardBehaviour =
     creditCards.length === 0 && activeBudget?.preferences?.creditCardBehaviour === undefined;
 
@@ -220,12 +279,23 @@ export function Sidebar({
   }
 
   async function addAccount(input: CreateAccountInput) {
-    const nextAccounts = await accountsPersistence.createAccount(input);
+    const nextAccounts =
+      activeBudgetId &&
+      accountRegisterQueries &&
+      await isHostedSqliteBudget(accountRegisterQueries, activeBudgetId)
+        ? [...await accountRegisterQueries.createAccount(activeBudgetId, input)]
+        : await accountsPersistence.createAccount(input);
     setAccounts(nextAccounts);
+    setAccountNavigationRevision((revision) => revision + 1);
   }
 
   async function updateAccount(input: UpdateAccountInput) {
-    const nextAccounts = await accountsPersistence.updateAccount(input);
+    const nextAccounts =
+      activeBudgetId &&
+      accountRegisterQueries &&
+      await isHostedSqliteBudget(accountRegisterQueries, activeBudgetId)
+        ? [...await accountRegisterQueries.updateAccount(activeBudgetId, input)]
+        : await accountsPersistence.updateAccount(input);
     setAccounts(nextAccounts);
     setEditingAccount(null);
     setOpenMenuAccountId(null);
@@ -243,14 +313,50 @@ export function Sidebar({
       return;
     }
 
-    const nextAccounts = await accountsPersistence.closeAccount(account.id);
-    setAccounts(nextAccounts);
+    if (
+      activeBudgetId &&
+      accountRegisterQueries &&
+      (await accountRegisterQueries.getBudgetStatus(activeBudgetId).catch(() => null))
+        ?.capabilities.accountRegisters
+    ) {
+      await accountRegisterQueries.setAccountClosed({
+        budgetId: activeBudgetId,
+        accountId: account.id,
+        closed: true,
+      });
+      setAccounts((current) => current.map((candidate) =>
+        candidate.id === account.id
+          ? { ...candidate, closedAt: new Date().toISOString() }
+          : candidate,
+      ));
+    } else {
+      const nextAccounts = await accountsPersistence.closeAccount(account.id);
+      setAccounts(nextAccounts);
+    }
     setOpenMenuAccountId(null);
   }
 
   async function reopenAccount(account: SidebarAccount) {
-    const nextAccounts = await accountsPersistence.reopenAccount(account.id);
-    setAccounts(nextAccounts);
+    if (
+      activeBudgetId &&
+      accountRegisterQueries &&
+      (await accountRegisterQueries.getBudgetStatus(activeBudgetId).catch(() => null))
+        ?.capabilities.accountRegisters
+    ) {
+      await accountRegisterQueries.setAccountClosed({
+        budgetId: activeBudgetId,
+        accountId: account.id,
+        closed: false,
+      });
+      setAccounts((current) => current.map((candidate) =>
+        candidate.id === account.id
+          ? { ...candidate, closedAt: null }
+          : candidate,
+      ));
+    } else {
+      const nextAccounts = await accountsPersistence.reopenAccount(account.id);
+      setAccounts(nextAccounts);
+    }
     setOpenMenuAccountId(null);
   }
 
@@ -266,7 +372,12 @@ export function Sidebar({
       return;
     }
 
-    const result = await accountsPersistence.deleteAccount(account.id);
+    const result =
+      activeBudgetId &&
+      accountRegisterQueries &&
+      await isHostedSqliteBudget(accountRegisterQueries, activeBudgetId)
+        ? await accountRegisterQueries.deleteAccount(activeBudgetId, account.id)
+        : await accountsPersistence.deleteAccount(account.id);
 
     if (!result.deleted) {
       await alertDialog({ message: result.reason ?? "This account cannot be deleted." });
@@ -292,16 +403,53 @@ export function Sidebar({
 
     return (
       <div className="account-row" key={account.id}>
-        <NavLink to={`/accounts/${account.id}`} className="account-link">
+        <NavLink
+          to={`/accounts/${account.id}`}
+          className="account-link"
+          onMouseEnter={() => {
+            if (!activeBudgetId || !accountRegisterQueries) return;
+            accountRegisterQueries.prefetchAccountRegister({
+              budgetId: activeBudgetId,
+              accountId: account.id,
+              limit: 150,
+              offset: 0,
+              categoryFilter: "all",
+              sort: { column: "date", direction: "descending" },
+            });
+          }}
+          onFocus={() => {
+            if (!activeBudgetId || !accountRegisterQueries) return;
+            accountRegisterQueries.prefetchAccountRegister({
+              budgetId: activeBudgetId,
+              accountId: account.id,
+              limit: 150,
+              offset: 0,
+              categoryFilter: "all",
+              sort: { column: "date", direction: "descending" },
+            });
+          }}
+        >
           <span className="account-row-bullet" aria-hidden="true" />
           <span className="account-link-name">{account.name}</span>
           <span className="account-financial-status">
             {summary?.hasUncategorisedTransactions ? (
               <span
                 className="account-warning"
-                role="img"
-                aria-label="Contains uncategorised transactions"
-                title="Contains uncategorised transactions"
+                role="button"
+                tabIndex={0}
+                aria-label={`Show uncategorised transactions in ${account.name}`}
+                title="Show uncategorised transactions"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  navigate(`/accounts/${account.id}?categoryFilter=uncategorised`);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  navigate(`/accounts/${account.id}?categoryFilter=uncategorised`);
+                }}
               >
                 <AlertTriangle size={15} strokeWidth={2.2} />
               </span>
@@ -391,6 +539,20 @@ export function Sidebar({
         to={destination.path}
         className="sidebar-link"
         title={collapsed ? destination.label : undefined}
+        onMouseEnter={() => {
+          if (!isBudgetDestination || !activeBudgetId || !accountRegisterQueries) return;
+          accountRegisterQueries.prefetchBudgetMonthView({
+            budgetId: activeBudgetId,
+            month: getCurrentBudgetMonth(),
+          });
+        }}
+        onFocus={() => {
+          if (!isBudgetDestination || !activeBudgetId || !accountRegisterQueries) return;
+          accountRegisterQueries.prefetchBudgetMonthView({
+            budgetId: activeBudgetId,
+            month: getCurrentBudgetMonth(),
+          });
+        }}
       >
         {isBudgetDestination ? (
           <img
@@ -518,31 +680,58 @@ export function Sidebar({
               <div className="account-tree" id="primary-navigation-accounts">
                 {budgetAccounts.length > 0 ? (
                   <>
-                    <div className="account-section">
+                    <button
+                      className="account-section"
+                      type="button"
+                      aria-expanded={budgetAccountsOpen}
+                      onClick={() => setBudgetAccountsOpen(!budgetAccountsOpen)}
+                    >
                       <Folder size={15} />
                       <span>Budget Accounts</span>
-                    </div>
-                    {budgetAccounts.map(renderAccount)}
+                      <ChevronDown
+                        size={14}
+                        className={budgetAccountsOpen ? "chevron-open" : "chevron-closed"}
+                      />
+                    </button>
+                    {budgetAccountsOpen ? budgetAccounts.map(renderAccount) : null}
                   </>
                 ) : null}
 
                 {creditCards.length > 0 ? (
                   <>
-                    <div className="account-section">
+                    <button
+                      className="account-section"
+                      type="button"
+                      aria-expanded={creditCardsOpen}
+                      onClick={() => setCreditCardsOpen(!creditCardsOpen)}
+                    >
                       <CreditCard size={15} />
                       <span>Credit Cards</span>
-                    </div>
-                    {creditCards.map(renderAccount)}
+                      <ChevronDown
+                        size={14}
+                        className={creditCardsOpen ? "chevron-open" : "chevron-closed"}
+                      />
+                    </button>
+                    {creditCardsOpen ? creditCards.map(renderAccount) : null}
                   </>
                 ) : null}
 
                 {trackingAccounts.length > 0 ? (
                   <>
-                    <div className="account-section">
+                    <button
+                      className="account-section"
+                      type="button"
+                      aria-expanded={trackingAccountsOpen}
+                      onClick={() => setTrackingAccountsOpen(!trackingAccountsOpen)}
+                    >
                       <House size={15} />
                       <span>Tracking</span>
-                    </div>
-                    {trackingAccounts.map(renderAccount)}
+                      <ChevronDown
+                        size={14}
+                        className={trackingAccountsOpen ? "chevron-open" : "chevron-closed"}
+                      />
+                    </button>
+                    {trackingAccountsOpen ? trackingAccounts.map(renderAccount) : null}
                   </>
                 ) : null}
 
@@ -605,6 +794,10 @@ export function Sidebar({
                     </button>
                   );
                 })}
+                <button type="button" role="menuitem" onClick={() => void signOut()}>
+                  <LogOut size={16} />
+                  <span>Sign out</span>
+                </button>
               </div>
             ) : null}
 

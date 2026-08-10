@@ -101,15 +101,16 @@ async function validateBrowserPayeeMergeLifecycle(): Promise<void> {
 }
 
 function validatePayeeManagerWiresMergeActions(): void {
-  const accountRegisterPage = readFileSync("apps/web/src/pages/AccountRegisterPage.tsx", "utf8");
+  const payeeManagementPage = readFileSync("apps/web/src/pages/PayeeManagementPage.tsx", "utf8");
+  const localWorker = readFileSync("apps/web/src/features/persistence/localFirst/localBudget.worker.ts", "utf8");
   const payeePort = readFileSync("apps/web/src/features/accounts/payeePersistencePort.ts", "utf8");
   const accountRegisterPort = readFileSync("apps/web/src/features/accounts/accountRegisterPersistencePort.ts", "utf8");
   const scheduledPort = readFileSync("apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts", "utf8");
   const releaseScripts = readFileSync("package.json", "utf8");
 
-  assert.match(accountRegisterPage, /handleMergeSelectedPayee/, "payee manager should define merge handler");
-  assert.match(accountRegisterPage, /mergePayees\(\{/, "payee manager should call mergePayees");
-  assert.match(accountRegisterPage, /reassignPayeeReferences\(\{/, "payee manager should reassign register references");
+  assert.match(payeeManagementPage, /mergePayeesIntoTarget/, "payee manager should define explicit merge handler");
+  assert.match(payeeManagementPage, /mergePayees\(activeBudgetId!/, "payee manager should call mergePayees");
+  assert.match(localWorker, /UPDATE local_scheduled_transactions SET payload_json/, "local merge should atomically reassign scheduled references");
   assert.match(payeePort, /mergePayees\(input: MergePayeesInput\)/, "payee persistence port should expose mergePayees");
   assert.match(accountRegisterPort, /reassignPayeeReferences/, "register port should expose payee reassignment");
   assert.match(scheduledPort, /reassignPayeeReferences/, "scheduled transaction port should expose payee reassignment");

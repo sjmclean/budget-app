@@ -32,6 +32,20 @@ export function normaliseSearchText(value: string | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim().toLocaleLowerCase();
 }
 
+export function parseRegisterAmountSearchCents(value: string | undefined): number | null {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return null;
+  const parenthesised = trimmed.startsWith("(") && trimmed.endsWith(")");
+  const normalised = trimmed
+    .replace(/[()]/g, "")
+    .replace(/[\s,$£€¥A-Za-z]/g, "")
+    .replace(/^\+/, "");
+  if (!/^-?(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(normalised)) return null;
+  const amount = Number.parseFloat(normalised);
+  if (!Number.isFinite(amount)) return null;
+  return Math.abs(Math.round((parenthesised ? -amount : amount) * 100));
+}
+
 function amountSearchTokens(transaction: RegisterTransactionView): string[] {
   const amounts = [transaction.outflow, transaction.inflow].filter(
     (amount) => amount > 0,
@@ -68,6 +82,9 @@ export function transactionMatchesSearch(
   const amountText = amountSearchTokens(transaction)
     .join(" ")
     .toLocaleLowerCase();
+  const amountCents = parseRegisterAmountSearchCents(search.query);
+  const hasExactAmount = amountCents !== null && [transaction.outflow, transaction.inflow]
+    .some((amount) => Math.round(Math.abs(amount) * 100) === amountCents);
 
   switch (search.scope) {
     case "payee":
@@ -77,14 +94,15 @@ export function transactionMatchesSearch(
     case "memo":
       return memoText.includes(query);
     case "amount":
-      return amountText.includes(query);
+      return amountCents !== null ? hasExactAmount : amountText.includes(query);
     case "all":
     default:
       return (
         payeeText.includes(query) ||
         categoryText.includes(query) ||
         memoText.includes(query) ||
-        amountText.includes(query)
+        (amountCents === null && amountText.includes(query)) ||
+        hasExactAmount
       );
   }
 }
@@ -256,7 +274,7 @@ export function buildRegisterSearchSuggestions(
     },
   ];
 
-  if (/^-?\d+(?:\.\d{1,2})?$/.test(query.trim())) {
+  if (parseRegisterAmountSearchCents(query) !== null) {
     searchActions.push({
       id: "search:amount",
       group: "search",

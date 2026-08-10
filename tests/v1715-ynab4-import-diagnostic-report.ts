@@ -42,7 +42,7 @@ function createRegisterQuotaStorage(): KeyValueStoragePort {
       return values.get(key) ?? null;
     },
     setItem(key, value) {
-      if (!rejectedRegisterWrite && key.includes("budget-app.account-registers.v1")) {
+      if (!rejectedRegisterWrite && key.includes("budget-app.entity-replication.v1/transaction/")) {
         rejectedRegisterWrite = true;
         throw new DOMException("Setting the value exceeded the quota.", "QuotaExceededError");
       }

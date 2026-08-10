@@ -1,3 +1,4 @@
+import { purgeAllTransactionEntities } from "../apps/web/src/features/accounts/entities/transactionEntityPersistence.js";
 import assert from "node:assert/strict";
 
 import { createAccountRegisterService } from "../apps/web/src/features/accounts/accountRegisterService";
@@ -22,10 +23,12 @@ import {
 } from "../apps/web/src/features/budget/budgetRegistry";
 import {
   createBudgetScopedStorage,
+  createFixedBudgetScopedStorage,
   getBudgetScopedStorageKey,
   SELECTED_BUDGET_STORAGE_KEY,
 } from "../apps/web/src/features/budget/budgetDataScope";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort";
+import { createCategoryEntityRepository, createCategoryGroupEntityRepository, syncCategoryEntities } from "../apps/web/src/features/budget/categoryEntities";
 import { SETTINGS_STORAGE_KEY } from "../apps/web/src/features/settings/settingsPreferences";
 
 class MemoryStorage implements KeyValueStoragePort {
@@ -118,6 +121,37 @@ async function seedBudget(
     `budget-app.budget-view.v1.${budgetId}.2026-06`,
     JSON.stringify({ budgetId, payee }),
   );
+  syncCategoryEntities(createBudgetScopedStorage(rootStorage), {
+    budgetId,
+    budgetName: budgetId,
+    monthLabel: "June 2026",
+    currencyCode: "AUD",
+    readyToAssign: 0,
+    totalAssigned: 25,
+    totalActivity: -25,
+    totalAvailable: 0,
+    categoryGroups: [{
+      id: `${budgetId}-living`,
+      name: `${accountName} Categories`,
+      note: "",
+      previousAvailable: 0,
+      assigned: 25,
+      activity: -25,
+      available: 0,
+      categories: [{
+        id: `${budgetId}-groceries`,
+        name: "Groceries",
+        previousAvailable: 0,
+        assigned: 25,
+        activity: -25,
+        available: 0,
+        isOverspent: false,
+        isArchived: false,
+        overspendingHandling: "reduce-next-month",
+        note: `${payee} category`,
+      }],
+    }],
+  }, new Date("2026-06-22T01:30:00.000Z"));
 }
 
 const rootStorage = new MemoryStorage();
@@ -160,20 +194,12 @@ const backupRaw = serialiseBudgetDataPackage(backupPackage);
 // the same selected budget. Restore must clear stale active-budget data first.
 const businessAccountKey = getBudgetScopedStorageKey(
   sideBudget.id,
-  "budget-app.accounts.v1",
+  "budget-app.entity-replication.v1/account-index",
 );
 rootStorage.removeItem(businessAccountKey);
-rootStorage.removeItem(
-  getBudgetScopedStorageKey(sideBudget.id, "budget-app.account-registers.v1"),
-);
+purgeAllTransactionEntities(createFixedBudgetScopedStorage(rootStorage, sideBudget.id));
 rootStorage.removeItem(
   getBudgetScopedStorageKey(sideBudget.id, "budget-app.payees.v1"),
-);
-rootStorage.removeItem(
-  getBudgetScopedStorageKey(
-    sideBudget.id,
-    "budget-app.scheduled-transactions.v1",
-  ),
 );
 await seedBudget(rootStorage, sideBudget.id, "Wrong Account", "Wrong Payee");
 
@@ -191,6 +217,12 @@ assert.equal(
   "current packages keep global diagnostics out of restorable records",
 );
 assert.deepEqual(result.errors, []);
+assert.ok(rootStorage.getItem(getBudgetScopedStorageKey(sideBudget.id, "budget-app.entity-replication.v1/category-group-index")));
+assert.ok(rootStorage.getItem(getBudgetScopedStorageKey(sideBudget.id, "budget-app.entity-replication.v1/category-index")));
+rootStorage.setItem(SELECTED_BUDGET_STORAGE_KEY, sideBudget.id);
+const restoredCategoryStorage = createBudgetScopedStorage(rootStorage);
+assert.equal(createCategoryGroupEntityRepository(restoredCategoryStorage).list()[0]?.fields.name.value, "Business Cheque Categories");
+assert.equal(createCategoryEntityRepository(restoredCategoryStorage).list()[0]?.fields.note.value, "Client Pty Ltd category");
 
 rootStorage.setItem(SELECTED_BUDGET_STORAGE_KEY, sideBudget.id);
 const restoredServices = createServices(rootStorage);

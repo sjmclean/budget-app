@@ -7,7 +7,8 @@ export type Ynab4MonthlyBudgetProofStatus =
 
 export type Ynab4MonthlyBudgetPackageEntry = {
   path: string;
-  text: string;
+  text?: string;
+  parsedData?: Record<string, unknown>;
 };
 
 export type Ynab4BudgetMonthProof = {
@@ -281,6 +282,7 @@ function readActiveBudgetData(entries: Ynab4MonthlyBudgetPackageEntry[]): {
   const normalisedEntries = entries.map((entry) => ({
     path: normalisePath(entry.path),
     text: entry.text,
+    parsedData: entry.parsedData,
   }));
   const metadataEntry = normalisedEntries.find(
     (entry) => entry.path.endsWith("/Budget.ymeta") || entry.path === "Budget.ymeta",
@@ -316,7 +318,7 @@ function readActiveBudgetData(entries: Ynab4MonthlyBudgetPackageEntry[]): {
   }
 
   try {
-    const parsed = JSON.parse(budgetDataEntry.text);
+    const parsed = budgetDataEntry.parsedData ?? JSON.parse(budgetDataEntry.text ?? "");
     return {
       data: isRecord(parsed) ? parsed : null,
       budgetName,

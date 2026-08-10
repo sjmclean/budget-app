@@ -1,4 +1,5 @@
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import { readSettingsPreferenceEntity, writeSettingsPreferenceEntity } from "./entities/settingsPreferenceEntity";
 
 export const SETTINGS_STORAGE_KEY = "budget-app.settings.v1";
 
@@ -117,17 +118,8 @@ function normalisePreferences(value: unknown): SettingsPreferences {
 }
 
 export function readSettingsPreferences(storage: KeyValueStoragePort): SettingsPreferences {
-  const raw = storage.getItem(SETTINGS_STORAGE_KEY);
-
-  if (!raw) {
-    return defaultSettingsPreferences;
-  }
-
-  try {
-    return normalisePreferences(JSON.parse(raw));
-  } catch {
-    return defaultSettingsPreferences;
-  }
+  const entity = readSettingsPreferenceEntity(storage);
+  return entity ? normalisePreferences({ general: entity.general, budget: entity.budget }) : defaultSettingsPreferences;
 }
 
 export function writeSettingsPreferences(
@@ -135,7 +127,7 @@ export function writeSettingsPreferences(
   preferences: SettingsPreferences,
 ): SettingsPreferences {
   const normalised = normalisePreferences(preferences);
-  storage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(normalised));
+  writeSettingsPreferenceEntity(storage, { general: normalised.general, budget: normalised.budget });
   return normalised;
 }
 

@@ -474,7 +474,7 @@ function emptySummary(): Ynab4MigrationCorrectnessAudit["summary"] {
 }
 
 function readActiveBudgetData(entries: Ynab4PackageEntry[]): { data: Record<string, unknown> | null; warnings: string[] } {
-  const normalisedEntries = entries.map((entry) => ({ path: normalisePath(entry.path), text: entry.text }));
+  const normalisedEntries = entries.map((entry) => ({ path: normalisePath(entry.path), text: entry.text, parsedData: entry.parsedData }));
   const metadataEntry = normalisedEntries.find((entry) => entry.path.endsWith("/Budget.ymeta") || entry.path === "Budget.ymeta");
   if (!metadataEntry) return { data: null, warnings: ["Budget.ymeta was not found."] };
 
@@ -498,7 +498,7 @@ function readActiveBudgetData(entries: Ynab4PackageEntry[]): { data: Record<stri
   if (!budgetDataEntry) return { data: null, warnings: [`No Budget.yfull or Budget.json file was found under ${activeDataFolderPath}.`] };
 
   try {
-    const parsed = JSON.parse(budgetDataEntry.text);
+    const parsed = budgetDataEntry.parsedData ?? JSON.parse(budgetDataEntry.text ?? "");
     return isRecord(parsed) ? { data: parsed, warnings: [] } : { data: null, warnings: ["The active YNAB4 budget data root is not an object."] };
   } catch {
     return { data: null, warnings: ["The active YNAB4 budget data file is not valid JSON."] };

@@ -1,4 +1,5 @@
 import { resolveActiveBudget } from "./activeBudget";
+import { purgeBudgetMonthEntities, writeBudgetMonthEntity } from "./entities/budgetMonthEntity.js";
 import { getCurrentBudgetMonth } from "./budgetMonthNavigation";
 import {
   deleteBudgetRegistryEntry,
@@ -11,11 +12,11 @@ import {
 } from "./budgetDataScope";
 import { cloneDefaultCategoryTemplate } from "./defaultCategoryTemplate";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import { ACCOUNT_ENTITY_INDEX_KEY } from "../accounts/entities/accountEntity.js";
+import { createFixedBudgetScopedStorage } from "./budgetDataScope.js";
+import { syncCategoryEntities } from "./categoryEntities.js";
 
 const ACCOUNT_STORAGE_KEY = "budget-app.accounts.v1";
-const ACCOUNT_REGISTER_STORAGE_KEY = "budget-app.account-registers.v1";
-const PAYEE_STORAGE_KEY = "budget-app.payees.v1";
-const SCHEDULED_TRANSACTION_STORAGE_KEY = "budget-app.scheduled-transactions.v1";
 const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
 const YNAB4_IMPORT_STORAGE_PREFIX = "budget-app.ynab4-launcher-import.v1";
 const ACTUAL_IMPORT_STORAGE_PREFIX = "budget-app.actual-budget-launcher-import.v1";
@@ -28,9 +29,6 @@ const REGISTER_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.register-columns.v1
 
 const budgetScopedLogicalKeys = [
   ACCOUNT_STORAGE_KEY,
-  ACCOUNT_REGISTER_STORAGE_KEY,
-  PAYEE_STORAGE_KEY,
-  SCHEDULED_TRANSACTION_STORAGE_KEY,
 ];
 
 export interface BudgetLifecycleResult {
@@ -68,22 +66,12 @@ function resolveCurrentBudget(storage: KeyValueStoragePort): BudgetSummary | nul
 }
 
 function readBudgetAccountIds(storage: KeyValueStoragePort, budgetId: string): string[] {
-  const raw = storage.getItem(getBudgetScopedStorageKey(budgetId, ACCOUNT_STORAGE_KEY));
+  const raw = storage.getItem(getBudgetScopedStorageKey(budgetId, ACCOUNT_ENTITY_INDEX_KEY));
   if (!raw) return [];
-
   try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((entry) =>
-        entry && typeof entry === "object" && typeof (entry as { id?: unknown }).id === "string"
-          ? (entry as { id: string }).id
-          : null,
-      )
-      .filter((id): id is string => Boolean(id));
-  } catch {
-    return [];
-  }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
+  } catch { return []; }
 }
 
 export function collectBudgetScopedStorageKeys(storage: KeyValueStoragePort, budgetId: string): string[] {
@@ -141,12 +129,13 @@ export function collectBudgetScopedStorageKeys(storage: KeyValueStoragePort, bud
 
 function removeBudgetScopedRecords(storage: KeyValueStoragePort, budgetId: string): number {
   const keys = collectBudgetScopedStorageKeys(storage, budgetId);
+  const removedBudgetMonths = purgeBudgetMonthEntities(storage, budgetId);
 
   for (const key of keys) {
     storage.removeItem(key);
   }
 
-  return keys.length;
+  return keys.length + removedBudgetMonths;
 }
 
 function createStarterBudgetMonthValue(budget: BudgetSummary, month: string): string {
@@ -185,7 +174,9 @@ function createStarterBudgetMonthValue(budget: BudgetSummary, month: string): st
 function writeStarterBudgetMonth(storage: KeyValueStoragePort, budget: BudgetSummary, now = new Date()): string {
   const month = getCurrentBudgetMonth(now);
   const key = `${BUDGET_VIEW_STORAGE_PREFIX}.${budget.id}.${month}`;
-  storage.setItem(key, createStarterBudgetMonthValue(budget, month));
+  const value = createStarterBudgetMonthValue(budget, month);
+  syncCategoryEntities(createFixedBudgetScopedStorage(storage, budget.id), JSON.parse(value), now);
+  writeBudgetMonthEntity(storage, budget.id, month, JSON.parse(value), now);
   return key;
 }
 

@@ -9,7 +9,13 @@ import {
   SELECTED_BUDGET_STORAGE_KEY,
 } from "./budgetDataScope";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
-import { SETTINGS_STORAGE_KEY } from "../settings/settingsPreferences";
+import { SETTINGS_STORAGE_KEY, readSettingsPreferences } from "../settings/settingsPreferences";
+import { readSettingsPreferenceEntity } from "../settings/entities/settingsPreferenceEntity";
+import { ACCOUNT_ENTITY_INDEX_KEY, ACCOUNT_ENTITY_RECORD_PREFIX } from "../accounts/entities/accountEntity.js";
+import { PAYEE_ENTITY_INDEX_KEY } from "../accounts/entities/payeeEntity.js";
+import { SCHEDULED_TRANSACTION_ENTITY_INDEX_KEY } from "../accounts/entities/scheduledTransactionEntity.js";
+import { createTransactionEntityRepository, projectTransactionEntity } from "../accounts/entities/transactionEntity.js";
+import { createFixedBudgetScopedStorage } from "./budgetDataScope.js";
 
 export const BUDGET_DATA_EXPORT_SCHEMA = "budget-app.budget-backup.v1";
 export const LEGACY_BUDGET_DATA_EXPORT_SCHEMA = "budget-app.data-export.v1";
@@ -72,30 +78,9 @@ export interface BudgetDataRestoreResult {
 }
 
 const ACCOUNT_STORAGE_KEY = "budget-app.accounts.v1";
-const ACCOUNT_REGISTER_STORAGE_KEY = "budget-app.account-registers.v1";
-const PAYEE_STORAGE_KEY = "budget-app.payees.v1";
-const SCHEDULED_TRANSACTION_STORAGE_KEY =
-  "budget-app.scheduled-transactions.v1";
 const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
 
-const budgetScopedLogicalKeys = [
-  {
-    key: ACCOUNT_STORAGE_KEY,
-    description: "Accounts",
-  },
-  {
-    key: ACCOUNT_REGISTER_STORAGE_KEY,
-    description: "Account registers and transactions",
-  },
-  {
-    key: PAYEE_STORAGE_KEY,
-    description: "Payees",
-  },
-  {
-    key: SCHEDULED_TRANSACTION_STORAGE_KEY,
-    description: "Scheduled transactions",
-  },
-];
+const budgetScopedLogicalKeys: Array<{ key: string; description: string }> = [];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -214,6 +199,12 @@ function createBudgetDataExportPackageFromBudget(
     }
   }
 
+  const entityPrefix = getBudgetScopedStorageKey(activeBudget.id, "budget-app.entity-replication.v1/");
+  for (const key of listStorageKeys(storage).filter((key) => key.startsWith(entityPrefix)).sort()) {
+    const value = storage.getItem(key);
+    if (value !== null) records.push({ key, value, scope: "budget", description: key.endsWith("-index") ? "Replicated entity index" : "Replicated entity" });
+  }
+
   const budgetViewPrefix = `${BUDGET_VIEW_STORAGE_PREFIX}.${activeBudget.id}.`;
   for (const key of listStorageKeys(storage)
     .filter((key) => key.startsWith(budgetViewPrefix))
@@ -232,11 +223,12 @@ function createBudgetDataExportPackageFromBudget(
 
   const diagnosticSnapshots: BudgetDataStorageRecord[] = [];
 
-  const settings = storage.getItem(SETTINGS_STORAGE_KEY);
-  if (settings !== null) {
+  const legacySettings = storage.getItem(SETTINGS_STORAGE_KEY);
+  const settingsEntity = readSettingsPreferenceEntity(storage);
+  if (legacySettings !== null || settingsEntity !== null) {
     diagnosticSnapshots.push({
       key: SETTINGS_STORAGE_KEY,
-      value: settings,
+      value: legacySettings ?? JSON.stringify(readSettingsPreferences(storage)),
       scope: "global",
       description: "Current settings preferences snapshot",
     });
@@ -253,18 +245,22 @@ function createBudgetDataExportPackageFromBudget(
   }
 
   const accountRecord = records.find((record) =>
-    record.key.endsWith(ACCOUNT_STORAGE_KEY),
+    record.key.endsWith(ACCOUNT_ENTITY_INDEX_KEY),
   );
-  const registerRecord = records.find((record) =>
-    record.key.endsWith(ACCOUNT_REGISTER_STORAGE_KEY),
-  );
+
   const payeeRecord = records.find((record) =>
-    record.key.endsWith(PAYEE_STORAGE_KEY),
+    record.key.endsWith(PAYEE_ENTITY_INDEX_KEY),
   );
   const scheduledRecord = records.find((record) =>
-    record.key.endsWith(SCHEDULED_TRANSACTION_STORAGE_KEY),
+    record.key.endsWith(SCHEDULED_TRANSACTION_ENTITY_INDEX_KEY),
   );
-  const registerCounts = countRegisterRecords(registerRecord?.value ?? null);
+  const transactionEntities = createTransactionEntityRepository(
+    createFixedBudgetScopedStorage(storage, activeBudget.id),
+  ).list().map(projectTransactionEntity);
+  const registerCounts = {
+    accountRegisters: new Set(transactionEntities.map((transaction) => transaction.accountId)).size,
+    transactions: transactionEntities.length,
+  };
 
   return {
     schema: BUDGET_DATA_EXPORT_SCHEMA,
@@ -476,8 +472,9 @@ function removeCurrentBudgetRecords(
   }
 
   const budgetViewPrefix = `${BUDGET_VIEW_STORAGE_PREFIX}.${budgetId}.`;
+  const entityPrefix = getBudgetScopedStorageKey(budgetId, "budget-app.entity-replication.v1/");
   for (const key of listStorageKeys(storage)) {
-    if (key.startsWith(budgetViewPrefix)) {
+    if (key.startsWith(budgetViewPrefix) || key.startsWith(entityPrefix)) {
       keysToRemove.add(key);
     }
   }
@@ -501,6 +498,11 @@ function mapBudgetRecordKey(
     ) {
       return getBudgetScopedStorageKey(targetBudgetId, item.key);
     }
+  }
+
+  const sourceEntityPrefix = getBudgetScopedStorageKey(sourceBudgetId, "budget-app.entity-replication.v1/");
+  if (recordKey.startsWith(sourceEntityPrefix)) {
+    return getBudgetScopedStorageKey(targetBudgetId, `budget-app.entity-replication.v1/${recordKey.slice(sourceEntityPrefix.length)}`);
   }
 
   const sourceBudgetViewPrefix = `${BUDGET_VIEW_STORAGE_PREFIX}.${sourceBudgetId}.`;

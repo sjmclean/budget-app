@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readAccounts } from "../apps/web/src/features/accounts/accountService.js";
+import { createFixedBudgetScopedStorage } from "../apps/web/src/features/budget/budgetDataScope.js";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
 import { createYnab4LauncherBudgetImport } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
 import {
@@ -99,15 +101,8 @@ const result = createYnab4LauncherBudgetImport(storage, {
   now: new Date("2026-06-25T00:00:00.000Z"),
 });
 
-const accountsRaw = storage.getItem(
-  `budget-app.budgets.${result.budget.id}.budget-app.accounts.v1`,
-);
-assert.ok(accountsRaw, "Expected scoped accounts to be persisted.");
-const accounts = JSON.parse(accountsRaw) as Array<{
-  id: string;
-  name: string;
-  closedAt?: string | null;
-}>;
+const accounts = readAccounts(createFixedBudgetScopedStorage(storage, result.budget.id));
+assert.ok(accounts.length > 0, "Expected Account entities to be persisted.");
 const oldOffset = accounts.find((account) => account.name === "Old Offset");
 assert.ok(oldOffset, "Expected hidden YNAB4 account to be imported.");
 assert.equal(

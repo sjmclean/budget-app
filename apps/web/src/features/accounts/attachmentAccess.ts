@@ -1,5 +1,9 @@
 import type { RegisterAttachmentView } from "./accountRegisterTypes";
-import { getAttachmentContentStore } from "../attachments/attachmentContentStore";
+import {
+  calculateAttachmentContentHash,
+  getAttachmentContentStore,
+} from "../attachments/attachmentContentStore";
+import { readLocalSqliteAttachment } from "../attachments/localSqliteAttachmentReader";
 
 export interface AttachmentAccessState {
   canAccess: boolean;
@@ -45,6 +49,18 @@ export async function readAttachmentBlob(
     return null;
   }
 
+  if (attachment.contentRef.startsWith("local-sqlite:")) {
+    const blob = await readLocalSqliteAttachment(attachment.contentRef);
+    if (!blob) return null;
+    if (attachment.contentHash) {
+      const actualHash = await calculateAttachmentContentHash(
+        new Uint8Array(await blob.arrayBuffer()),
+      );
+      if (actualHash !== attachment.contentHash) return null;
+    }
+    return blob;
+  }
+
   const store = getAttachmentContentStore();
   const direct = await store.read(attachment.contentRef);
   if (direct) return direct;
@@ -59,6 +75,9 @@ export async function isAttachmentAvailableLocally(
   }
 
   const store = getAttachmentContentStore();
+  if (attachment.contentRef?.startsWith("local-sqlite:")) {
+    return (await readLocalSqliteAttachment(attachment.contentRef)) !== null;
+  }
   if (attachment.contentRef && await store.exists(attachment.contentRef)) return true;
   return attachment.contentHash ? await store.existsByHash(attachment.contentHash) : false;
 }

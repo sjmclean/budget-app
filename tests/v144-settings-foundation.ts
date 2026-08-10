@@ -1,11 +1,13 @@
 import { createBudgetViewService } from "../apps/web/src/features/budget/budgetViewService";
 import type { BudgetActivityPersistencePort } from "../apps/web/src/features/budget/budgetActivityPersistencePort";
+import { SETTINGS_PREFERENCE_ENTITY_INDEX_KEY, SETTINGS_PREFERENCE_ENTITY_RECORD_PREFIX } from "../apps/web/src/features/settings/entities/settingsPreferenceEntity";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort";
 import {
   currencySymbolOptions,
   defaultSettingsPreferences,
   readSettingsPreferences,
   writeSettingsPreferences,
+  SETTINGS_STORAGE_KEY,
 } from "../apps/web/src/features/settings/settingsPreferences";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -27,6 +29,7 @@ function createMemoryStorage(): KeyValueStoragePort {
     removeItem(key: string): void {
       values.delete(key);
     },
+    listKeys(): string[] { return [...values.keys()].sort(); },
   };
 }
 
@@ -78,6 +81,9 @@ assert(
   "currency symbol should be selectable from the supported symbol list",
 );
 assert(saved.general.dateFormat === "YYYY-MM-DD", "date format should be persisted");
+assert(storage.getItem(SETTINGS_STORAGE_KEY) === null, "legacy settings aggregate must not be written");
+assert(storage.getItem(SETTINGS_PREFERENCE_ENTITY_INDEX_KEY) !== null, "settings entity index should be written");
+assert(storage.getItem(`${SETTINGS_PREFERENCE_ENTITY_RECORD_PREFIX}settings`) !== null, "settings entity record should be written");
 
 const service = createBudgetViewService({
   budgetActivity: emptyActivity,

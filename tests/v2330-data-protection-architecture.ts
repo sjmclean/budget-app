@@ -7,7 +7,9 @@ import {
   restoreVersionHistorySnapshot,
 } from "../apps/web/src/features/budget/versionHistory.js";
 import { createBudgetRegistryEntry, createInitialBudgetRegistry, readBudgetRegistry, writeBudgetRegistry } from "../apps/web/src/features/budget/budgetRegistry.js";
-import { getBudgetScopedStorageKey, SELECTED_BUDGET_STORAGE_KEY } from "../apps/web/src/features/budget/budgetDataScope.js";
+import { createFixedBudgetScopedStorage, getBudgetScopedStorageKey, SELECTED_BUDGET_STORAGE_KEY } from "../apps/web/src/features/budget/budgetDataScope.js";
+import { readAccounts } from "../apps/web/src/features/accounts/accountService.js";
+import { replaceAccountEntities } from "../apps/web/src/features/accounts/entities/accountEntity.js";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.js";
 
 class MemoryStorage implements KeyValueStoragePort {
@@ -39,15 +41,14 @@ const business = createBudgetRegistryEntry(storage, {
   now: new Date("2026-06-29T08:00:00.000Z"),
 });
 
-const accountsKey = getBudgetScopedStorageKey(household.id, "budget-app.accounts.v1");
+const householdStorage = createFixedBudgetScopedStorage(storage, household.id);
+const businessStorage = createFixedBudgetScopedStorage(storage, business.id);
 const payeesKey = getBudgetScopedStorageKey(household.id, "budget-app.payees.v1");
-const businessAccountsKey = getBudgetScopedStorageKey(business.id, "budget-app.accounts.v1");
-
 storage.setItem(SELECTED_BUDGET_STORAGE_KEY, household.id);
-storage.setItem(accountsKey, JSON.stringify([{ id: "everyday", name: "Everyday" }]));
+replaceAccountEntities(householdStorage, [{ id: "everyday", name: "Everyday", type: "on-budget", startingBalance: 0, createdAt: "2026-06-29T08:00:00.000Z", closedAt: null }]);
 storage.setItem(payeesKey, JSON.stringify([{ id: "grocer", name: "Grocer" }]));
 storage.setItem("budget-app.budget-view.v1.household.2026-06", JSON.stringify({ readyToAssign: 25 }));
-storage.setItem(businessAccountsKey, JSON.stringify([{ id: "business", name: "Business" }]));
+replaceAccountEntities(businessStorage, [{ id: "business", name: "Business", type: "on-budget", startingBalance: 0, createdAt: "2026-06-29T08:00:00.000Z", closedAt: null }]);
 
 const first = createVersionHistorySnapshot(storage, {
   now: new Date("2026-06-29T09:00:00.000Z"),
@@ -58,7 +59,10 @@ assertEqual(first.created, true, "automatic snapshot should be created");
 assertEqual(first.snapshot?.source, "automatic");
 assertEqual(first.retainedSnapshots, 1);
 
-storage.setItem(accountsKey, JSON.stringify([{ id: "everyday", name: "Everyday" }, { id: "savings", name: "Savings" }]));
+replaceAccountEntities(householdStorage, [
+  { id: "everyday", name: "Everyday", type: "on-budget", startingBalance: 0, createdAt: "2026-06-29T08:00:00.000Z", closedAt: null },
+  { id: "savings", name: "Savings", type: "on-budget", startingBalance: 0, createdAt: "2026-06-29T10:00:00.000Z", closedAt: null },
+]);
 const second = createVersionHistorySnapshot(storage, {
   description: "Before EOFY cleanup",
   now: new Date("2026-06-29T10:00:00.000Z"),
@@ -87,12 +91,12 @@ assertDeepEqual(snapshots.map((snapshot) => snapshot.id), ["snapshot-4", "snapsh
 assertEqual(readVersionHistorySnapshotPackage(storage, "snapshot-1"), null, "pruned snapshot payload should be removed");
 assertOk(readVersionHistorySnapshotPackage(storage, "snapshot-2"), "retained manual snapshot should still be readable");
 
-storage.setItem(accountsKey, JSON.stringify([{ id: "changed", name: "Changed" }]));
+replaceAccountEntities(householdStorage, [{ id: "changed", name: "Changed", type: "on-budget", startingBalance: 0, createdAt: "2026-06-29T12:00:00.000Z", closedAt: null }]);
 const restore = restoreVersionHistorySnapshot(storage, "snapshot-2");
 assertEqual(restore.restored, true, "snapshot restore should restore budget records");
 assertEqual(restore.snapshotDescription, "Before EOFY cleanup");
-assertEqual(storage.getItem(accountsKey), JSON.stringify([{ id: "everyday", name: "Everyday" }, { id: "savings", name: "Savings" }]));
-assertEqual(storage.getItem(businessAccountsKey), JSON.stringify([{ id: "business", name: "Business" }]), "restoring household snapshot must not touch another budget");
+assertDeepEqual(readAccounts(householdStorage).map(({ id, name }) => ({ id, name })), [{ id: "everyday", name: "Everyday" }, { id: "savings", name: "Savings" }]);
+assertDeepEqual(readAccounts(businessStorage).map(({ id, name }) => ({ id, name })), [{ id: "business", name: "Business" }], "restoring household snapshot must not touch another budget");
 
 assertEqual(deleteVersionHistorySnapshot(storage, "snapshot-3"), true, "snapshot delete should remove metadata and payload");
 assertEqual(readVersionHistorySnapshotPackage(storage, "snapshot-3"), null);

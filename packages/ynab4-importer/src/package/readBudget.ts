@@ -7,7 +7,12 @@ import { selectLatestCompleteDeviceGuid } from "./selectLatestDevice.js";
 
 export type Ynab4PackageEntry = {
   path: string;
-  text: string;
+  /** Small metadata files may be materialised eagerly. Large budget files stay lazy. */
+  text?: string;
+  file?: Blob;
+  lastModified?: number;
+  parsedData?: Record<string, unknown>;
+  selectedBudgetData?: boolean;
 };
 
 export type Ynab4BudgetDataFormat = "yfull" | "json";
@@ -22,10 +27,10 @@ export function readYnab4BudgetData(
   entries: Ynab4PackageEntry[],
   selectedBudgetDataPath?: string | null,
 ): Ynab4BudgetReadResult {
-  const normalisedEntries = entries.map((entry) => ({
-    path: normaliseYnab4PackagePath(entry.path),
-    text: entry.text,
-  }));
+  const normalisedEntries = entries.map((entry) => {
+    entry.path = normaliseYnab4PackagePath(entry.path);
+    return entry;
+  });
 
   if (selectedBudgetDataPath) {
     const selectedPath = normaliseYnab4PackagePath(selectedBudgetDataPath);
@@ -85,6 +90,9 @@ export function findActiveBudgetDataEntry(
   const activeEntries = entries.filter((entry) =>
     normaliseYnab4PackagePath(entry.path).startsWith(activePrefix),
   );
+  const explicitlySelected = activeEntries.find((entry) => entry.selectedBudgetData);
+  if (explicitlySelected) return explicitlySelected;
+
   const yfullEntries = activeEntries.filter((entry) =>
     normaliseYnab4PackagePath(entry.path).endsWith("/Budget.yfull"),
   );
@@ -121,7 +129,12 @@ function parseBudgetEntry(
 ): Ynab4BudgetReadResult {
   const budgetDataPath = normaliseYnab4PackagePath(entry.path);
   try {
-    const parsed = JSON.parse(entry.text);
+    const parsed = entry.parsedData ?? JSON.parse(entry.text ?? "");
+    if (!entry.parsedData && isRecord(parsed)) {
+      entry.parsedData = parsed;
+      // Release the large UTF-16 source string immediately after parsing.
+      entry.text = undefined;
+    }
     if (!isRecord(parsed)) {
       return {
         ...location,
@@ -153,6 +166,74 @@ function parseBudgetEntry(
       ],
     };
   }
+}
+
+export async function prepareYnab4PackageEntries(
+  entries: Ynab4PackageEntry[],
+  selectedBudgetDataPath?: string | null,
+): Promise<Ynab4PackageEntry[]> {
+  for (const entry of entries) {
+    const path = normaliseYnab4PackagePath(entry.path);
+    if ((path.endsWith("/Budget.ymeta") || path === "Budget.ymeta") && entry.text === undefined && entry.file) {
+      entry.text = await entry.file.text();
+    }
+  }
+
+  const location = discoverYnab4PackageLocation(entries);
+  let selected = selectedBudgetDataPath
+    ? entries.find((entry) => normaliseYnab4PackagePath(entry.path) === normaliseYnab4PackagePath(selectedBudgetDataPath))
+    : location.activeDataFolderPath
+      ? findActiveBudgetDataEntry(entries, location.activeDataFolderPath)
+      : undefined;
+
+  if (!selected && location.activeDataFolderPath) {
+    const prefix = `${normaliseYnab4PackagePath(location.activeDataFolderPath)}/`;
+    selected = entries
+      .filter((entry) => {
+        const path = normaliseYnab4PackagePath(entry.path);
+        return path.startsWith(prefix) && (path.endsWith("/Budget.yfull") || path.endsWith("/Budget.json"));
+      })
+      .sort((left, right) => (right.lastModified ?? 0) - (left.lastModified ?? 0))[0];
+  }
+
+  if (selected) selected.selectedBudgetData = true;
+
+  if (selected && selected.text === undefined && !selected.parsedData && selected.file) {
+    selected.text = await selected.file.text();
+  }
+  return entries;
+}
+
+/**
+ * Streaming-import preparation. Reads only Budget.ymeta and marks the active
+ * Budget.yfull/Budget.json entry; the selected large Blob remains lazy.
+ */
+export async function prepareYnab4PackageEntriesForStreaming(
+  entries: Ynab4PackageEntry[],
+  selectedBudgetDataPath?: string | null,
+): Promise<Ynab4PackageEntry[]> {
+  for (const entry of entries) {
+    const path = normaliseYnab4PackagePath(entry.path);
+    if (
+      (path.endsWith("/Budget.ymeta") || path === "Budget.ymeta") &&
+      entry.text === undefined &&
+      entry.file
+    ) {
+      entry.text = await entry.file.text();
+    }
+  }
+  const location = discoverYnab4PackageLocation(entries);
+  const selected = selectedBudgetDataPath
+    ? entries.find(
+        (entry) =>
+          normaliseYnab4PackagePath(entry.path) ===
+          normaliseYnab4PackagePath(selectedBudgetDataPath),
+      )
+    : location.activeDataFolderPath
+      ? findActiveBudgetDataEntry(entries, location.activeDataFolderPath)
+      : undefined;
+  if (selected) selected.selectedBudgetData = true;
+  return entries;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

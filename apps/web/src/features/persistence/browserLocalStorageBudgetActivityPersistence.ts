@@ -1,6 +1,8 @@
 import { readAccounts } from "../accounts/accountService";
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { SidebarAccountType } from "../accounts/accountService";
+import { createScheduledTransactionEntityRepository, projectScheduledTransaction, replaceScheduledTransactionEntities } from "../accounts/entities/scheduledTransactionEntity.js";
+import { readTransactionRegisters, replaceTransactionRegisters } from "../accounts/entities/transactionEntityPersistence.js";
 import type {
   BudgetActivityCategoryReference,
   BudgetActivityCategoryReferenceCounts,
@@ -9,8 +11,6 @@ import type {
   BudgetActivitySplitLine,
 } from "../budget/budgetActivityPersistencePort";
 
-const REGISTER_STORAGE_KEY = "budget-app.account-registers.v1";
-const SCHEDULED_TRANSACTIONS_STORAGE_KEY = "budget-app.scheduled-transactions.v1";
 
 interface StoredRegisterSplitLine extends BudgetActivitySplitLine {}
 
@@ -75,14 +75,8 @@ function readBudgetScopedRegisterTransactions(storage: KeyValueStoragePort): Bud
     return [];
   }
 
-  const raw = storage.getItem(REGISTER_STORAGE_KEY);
-
-  if (!raw) {
-    return [];
-  }
-
   try {
-    const registers = JSON.parse(raw) as StoredRegisters;
+    const registers = readTransactionRegisters(storage) as StoredRegisters;
     const accounts = readAccounts(storage);
     const accountTypeById = new Map(accounts.map((account) => [account.id, account.type]));
     const accountNameById = new Map(accounts.map((account) => [account.id, account.name]));
@@ -137,14 +131,8 @@ function countRegisterCategoryReferences(storage: KeyValueStoragePort, category:
     return { registerTransactionCount: 0, registerSplitLineCount: 0 };
   }
 
-  const raw = storage.getItem(REGISTER_STORAGE_KEY);
-
-  if (!raw) {
-    return { registerTransactionCount: 0, registerSplitLineCount: 0 };
-  }
-
   try {
-    const registers = JSON.parse(raw) as StoredRegisters;
+    const registers = readTransactionRegisters(storage) as StoredRegisters;
     const matchesSourceCategory = createCategoryReferenceMatcher(category);
     let registerTransactionCount = 0;
     let registerSplitLineCount = 0;
@@ -170,26 +158,10 @@ function countRegisterCategoryReferences(storage: KeyValueStoragePort, category:
 }
 
 function countScheduledCategoryReferences(storage: KeyValueStoragePort, category: BudgetActivityCategoryReference): number {
-  if (typeof window === "undefined") {
-    return 0;
-  }
-
-  const raw = storage.getItem(SCHEDULED_TRANSACTIONS_STORAGE_KEY);
-
-  if (!raw) {
-    return 0;
-  }
-
-  try {
-    const scheduledTransactions = JSON.parse(raw) as StoredScheduledTransaction[];
-    const matchesSourceCategory = createCategoryReferenceMatcher(category);
-
-    return Array.isArray(scheduledTransactions)
-      ? scheduledTransactions.filter((transaction) => matchesSourceCategory(transaction.category, transaction.categoryId)).length
-      : 0;
-  } catch {
-    return 0;
-  }
+  if (typeof window === "undefined") return 0;
+  const matchesSourceCategory = createCategoryReferenceMatcher(category);
+  return createScheduledTransactionEntityRepository(storage).list().map(projectScheduledTransaction)
+    .filter((transaction) => matchesSourceCategory(transaction.category, transaction.categoryId)).length;
 }
 
 function rewriteStoredRegisterCategoryReferences(
@@ -201,14 +173,8 @@ function rewriteStoredRegisterCategoryReferences(
     return;
   }
 
-  const raw = storage.getItem(REGISTER_STORAGE_KEY);
-
-  if (!raw) {
-    return;
-  }
-
   try {
-    const registers = JSON.parse(raw) as StoredRegisters;
+    const registers = readTransactionRegisters(storage) as StoredRegisters;
     const matchesSourceCategory = createCategoryReferenceMatcher(sourceCategory);
     let changed = false;
 
@@ -233,7 +199,7 @@ function rewriteStoredRegisterCategoryReferences(
     }
 
     if (changed) {
-      storage.setItem(REGISTER_STORAGE_KEY, JSON.stringify(registers));
+      replaceTransactionRegisters(storage, registers as any);
     }
   } catch {
     // If register storage is unreadable, leave transactions untouched.
@@ -245,48 +211,16 @@ function rewriteScheduledCategoryReferences(
   sourceCategory: BudgetActivityCategoryReference,
   targetCategory: BudgetActivityCategoryReference,
 ): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const raw = storage.getItem(SCHEDULED_TRANSACTIONS_STORAGE_KEY);
-
-  if (!raw) {
-    return;
-  }
-
-  try {
-    const scheduledTransactions = JSON.parse(raw) as StoredScheduledTransaction[];
-
-    if (!Array.isArray(scheduledTransactions)) {
-      return;
-    }
-
-    const matchesSourceCategory = createCategoryReferenceMatcher(sourceCategory);
-    let changed = false;
-
-    const nextScheduledTransactions = scheduledTransactions.map((transaction) => {
-      if (!matchesSourceCategory(transaction.category, transaction.categoryId)) {
-        return transaction;
-      }
-
-      changed = true;
-      return {
-        ...transaction,
-        category: targetCategory.name,
-        categoryId: targetCategory.id,
-      };
-    });
-
-    if (changed) {
-      storage.setItem(
-        SCHEDULED_TRANSACTIONS_STORAGE_KEY,
-        JSON.stringify(nextScheduledTransactions),
-      );
-    }
-  } catch {
-    // If scheduled transaction storage is unreadable, leave scheduled transactions untouched.
-  }
+  if (typeof window === "undefined") return;
+  const matchesSourceCategory = createCategoryReferenceMatcher(sourceCategory);
+  const transactions = createScheduledTransactionEntityRepository(storage).list().map(projectScheduledTransaction);
+  let changed = false;
+  const next = transactions.map((transaction) => {
+    if (!matchesSourceCategory(transaction.category, transaction.categoryId)) return transaction;
+    changed = true;
+    return { ...transaction, category: targetCategory.name, categoryId: targetCategory.id, updatedAt: new Date().toISOString() };
+  });
+  if (changed) replaceScheduledTransactionEntities(storage, next);
 }
 
 function renameStoredRegisterCategory(storage: KeyValueStoragePort, previousName: string, nextName: string): void {
@@ -294,14 +228,8 @@ function renameStoredRegisterCategory(storage: KeyValueStoragePort, previousName
     return;
   }
 
-  const raw = storage.getItem(REGISTER_STORAGE_KEY);
-
-  if (!raw) {
-    return;
-  }
-
   try {
-    const registers = JSON.parse(raw) as StoredRegisters;
+    const registers = readTransactionRegisters(storage) as StoredRegisters;
     const previousKey = normaliseCategoryKey(previousName);
     let changed = false;
 
@@ -325,7 +253,7 @@ function renameStoredRegisterCategory(storage: KeyValueStoragePort, previousName
     }
 
     if (changed) {
-      storage.setItem(REGISTER_STORAGE_KEY, JSON.stringify(registers));
+      replaceTransactionRegisters(storage, registers as any);
     }
   } catch {
     // If register storage is unreadable, leave transactions untouched.

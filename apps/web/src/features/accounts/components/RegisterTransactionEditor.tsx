@@ -1,9 +1,11 @@
 import {
+  useEffect,
   useState,
   type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   AttachmentIndicator,
   type RegisterColumnId,
@@ -710,6 +712,7 @@ export function TransactionEntryRow({
   onCancel,
   categoryOptions,
   transferAccounts,
+  currentAccount,
   payeeOptions,
   currencyCode,
   visibleColumns,
@@ -722,14 +725,15 @@ export function TransactionEntryRow({
   initialDate: string;
   categoryOptions: BudgetCategoryOption[];
   transferAccounts: SidebarAccount[];
+  currentAccount: Pick<SidebarAccount, "id" | "name">;
   payeeOptions: PayeeView[];
   currencyCode: string;
   visibleColumns: Set<RegisterColumnId>;
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
-  onSave: (input: NewRegisterTransactionInput) => void;
-  onSaveAndAddAnother: (input: NewRegisterTransactionInput) => void;
+  onSave: (input: NewRegisterTransactionInput, accountId: string) => void;
+  onSaveAndAddAnother: (input: NewRegisterTransactionInput, accountId: string) => void;
   onCancel: () => void;
   onCreateCategory?: (
     input: RegisterInlineCategoryCreateInput,
@@ -745,6 +749,36 @@ export function TransactionEntryRow({
   const [outflow, setOutflow] = useState("");
   const [inflow, setInflow] = useState("");
   const [splitLines, setSplitLines] = useState<SplitLineDraft[]>([]);
+  const [mobileFlow, setMobileFlow] = useState<"expense" | "income">("expense");
+  const [mobileStep, setMobileStep] = useState<"amount" | "details">("amount");
+  const [mobilePicker, setMobilePicker] = useState<null | "date" | "payee" | "category" | "account" | "splits" | "split-category">(null);
+  const [mobileSearch, setMobileSearch] = useState("");
+  const [selectedAccountId, setSelectedAccountId] = useState(currentAccount.id);
+  const [activeSplitId, setActiveSplitId] = useState<string | null>(null);
+  const [mobilePositiveSplitIds, setMobilePositiveSplitIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [mobileVisualViewport, setMobileVisualViewport] = useState(() => ({
+    left: 0,
+    width: typeof window === "undefined" ? 0 : window.innerWidth,
+  }));
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const updateViewport = () => setMobileVisualViewport({
+      left: viewport?.offsetLeft ?? 0,
+      width: viewport?.width ?? window.innerWidth,
+    });
+    updateViewport();
+    viewport?.addEventListener("resize", updateViewport);
+    viewport?.addEventListener("scroll", updateViewport);
+    window.addEventListener("orientationchange", updateViewport);
+    return () => {
+      viewport?.removeEventListener("resize", updateViewport);
+      viewport?.removeEventListener("scroll", updateViewport);
+      window.removeEventListener("orientationchange", updateViewport);
+    };
+  }, []);
 
   function buildInput(): NewRegisterTransactionInput | null {
     return buildNewRegisterTransactionInput({
@@ -793,7 +827,7 @@ export function TransactionEntryRow({
       return;
     }
 
-    onSave(input);
+    onSave(input, selectedAccountId);
   }
 
   function saveAndAddAnother() {
@@ -803,8 +837,412 @@ export function TransactionEntryRow({
       return;
     }
 
-    onSaveAndAddAnother(input);
+    onSaveAndAddAnother(input, selectedAccountId);
     clearForNext();
+  }
+
+  if (layoutMode === "mobile") {
+    const mobileAmount = mobileFlow === "expense" ? outflow : inflow;
+    const updateMobileAmount = (value: string) => {
+      if (mobileFlow === "expense") {
+        setOutflow(value);
+        setInflow("");
+      } else {
+        setInflow(value);
+        setOutflow("");
+      }
+    };
+    const amountDigits = mobileAmount.replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(-10);
+    const amountValue = Number(amountDigits || "0") / 100;
+    const formattedMobileAmount = new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: currencyCode,
+    }).format(amountValue);
+    const enterAmountDigit = (digit: string) => {
+      const nextDigits = `${amountDigits}${digit}`.replace(/^0+(?=\d)/, "").slice(-10);
+      updateMobileAmount((Number(nextDigits || "0") / 100).toFixed(2));
+    };
+    const deleteAmountDigit = () => {
+      const nextDigits = amountDigits.slice(0, -1);
+      updateMobileAmount((Number(nextDigits || "0") / 100).toFixed(2));
+    };
+    const chooseMobileFlow = (flow: "expense" | "income") => {
+      setMobileFlow(flow);
+      if (flow === "expense") {
+        setOutflow(inflow || outflow);
+        setInflow("");
+      } else {
+        setInflow(outflow || inflow);
+        setOutflow("");
+      }
+    };
+    const searchTerm = mobileSearch.trim().toLocaleLowerCase();
+    const visiblePayees = payeeOptions
+      .filter((option) => !option.isArchived)
+      .filter((option) => !searchTerm || option.name.toLocaleLowerCase().includes(searchTerm));
+    const visibleCategories = categoryOptions
+      .filter((option) => !option.isArchived)
+      .filter((option) => !searchTerm || `${option.groupName} ${option.name}`.toLocaleLowerCase().includes(searchTerm));
+    const selectableAccounts = [currentAccount, ...transferAccounts]
+      .filter((account, index, accounts) => accounts.findIndex((candidate) => candidate.id === account.id) === index)
+      .filter((account) => !searchTerm || account.name.toLocaleLowerCase().includes(searchTerm));
+    const selectedAccountName =
+      [currentAccount, ...transferAccounts].find((account) => account.id === selectedAccountId)?.name ??
+      currentAccount.name;
+    const completedMobileSplits = splitLines.filter((line) =>
+      line.category.trim().length > 0 &&
+      (parseRegisterMoney(line.outflow) > 0 || parseRegisterMoney(line.inflow) > 0),
+    );
+    const finishMobileSplits = () => {
+      setSplitLines(completedMobileSplits);
+      setCategory(completedMobileSplits.length > 0 ? SPLIT_CATEGORY_LABEL : "");
+      setMobilePicker(null);
+      setMobileSearch("");
+    };
+    const mobileCategoryLabel = completedMobileSplits.length > 0
+      ? `Split (${completedMobileSplits.length} ${completedMobileSplits.length === 1 ? "category" : "categories"})`
+      : category;
+
+    if (mobilePicker) {
+      const pickerTitle = mobilePicker === "splits"
+        ? "Splits"
+        : mobilePicker === "split-category"
+          ? "Split category"
+        : `${mobilePicker[0].toUpperCase()}${mobilePicker.slice(1)}`;
+      return createPortal((
+        <section
+          className="mobile-transaction-sheet mobile-transaction-picker"
+          role="dialog"
+          aria-modal="true"
+          style={{
+            left: mobileVisualViewport.left,
+            width: mobileVisualViewport.width,
+            maxWidth: mobileVisualViewport.width,
+          }}
+        >
+          <header className="mobile-transaction-sheet-header">
+            <button type="button" onClick={() => {
+              if (mobilePicker === "splits") {
+                finishMobileSplits();
+                return;
+              }
+              setMobilePicker(mobilePicker === "split-category" ? "splits" : null);
+              setMobileSearch("");
+            }}>‹ Transaction</button>
+            <strong>{pickerTitle}</strong>
+            {mobilePicker === "category" ? (
+              <button type="button" onClick={() => {
+                if (splitLines.length === 0) {
+                  setSplitLines(() => [createSplitLineDraft(), createSplitLineDraft()]);
+                }
+                setMobilePicker("splits");
+              }}>Split</button>
+            ) : <span aria-hidden="true" />}
+          </header>
+
+          {mobilePicker !== "splits" && mobilePicker !== "date" ? (
+            <div className="mobile-picker-search">
+              <span aria-hidden="true">⌕</span>
+              <input
+                value={mobileSearch}
+                onChange={(event) => setMobileSearch(event.target.value)}
+                placeholder={`Search ${mobilePicker}s`}
+                autoFocus
+              />
+            </div>
+          ) : null}
+
+          {mobilePicker === "date" ? (
+            <div className="mobile-date-picker">
+              <input
+                type="date"
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+                aria-label="Transaction date"
+              />
+              <button className="button button-primary" type="button" onClick={() => setMobilePicker(null)}>
+                Done
+              </button>
+            </div>
+          ) : null}
+
+          {mobilePicker === "payee" ? (
+            <div className="mobile-picker-list">
+              {visiblePayees.map((option) => (
+                <button key={option.id} type="button" onClick={() => {
+                  setPayee(option.name);
+                  setPayeeId(option.id);
+                  if (option.defaultCategoryName) {
+                    setCategory(option.defaultCategoryName);
+                  }
+                  setMobilePicker(null);
+                  setMobileSearch("");
+                }}>
+                  <span>{option.name}</span><span aria-hidden="true">›</span>
+                </button>
+              ))}
+              {visiblePayees.length === 0 ? <p className="mobile-picker-empty">No matching payees.</p> : null}
+            </div>
+          ) : null}
+
+          {mobilePicker === "category" || mobilePicker === "split-category" ? (
+            <div className="mobile-picker-list mobile-category-picker-list">
+              {visibleCategories.map((option, index) => (
+                <div key={option.id}>
+                  {index === 0 || visibleCategories[index - 1]?.groupName !== option.groupName ? (
+                    <h3>{option.groupName}</h3>
+                  ) : null}
+                  <button type="button" onClick={() => {
+                    if (mobilePicker === "split-category" && activeSplitId) {
+                      setSplitLines((lines) => lines.map((line) => line.id === activeSplitId
+                        ? { ...line, category: option.name, categoryId: option.id }
+                        : line));
+                      setMobilePicker("splits");
+                    } else {
+                      setCategory(option.name);
+                      setSplitLines([]);
+                      setMobilePicker(null);
+                    }
+                    setMobileSearch("");
+                  }}>
+                    <span>{option.name}</span><span aria-hidden="true">›</span>
+                  </button>
+                </div>
+              ))}
+              {visibleCategories.length === 0 ? <p className="mobile-picker-empty">No matching categories.</p> : null}
+            </div>
+          ) : null}
+
+          {mobilePicker === "account" ? (
+            <div className="mobile-picker-list">
+              {selectableAccounts.map((account) => (
+                <button key={account.id} type="button" onClick={() => {
+                  setSelectedAccountId(account.id);
+                  setMobilePicker(null);
+                  setMobileSearch("");
+                }}>
+                  <span>{account.name}</span>
+                  <span>{account.id === selectedAccountId ? "✓" : "›"}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {mobilePicker === "splits" ? (
+            <div className="mobile-split-picker">
+              <div className="mobile-split-list">
+                {splitLines.map((line, index) => {
+                  const lineIsInflow =
+                    mobilePositiveSplitIds.has(line.id) || Boolean(line.inflow);
+                  return (
+                  <div className="mobile-split-row" key={line.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveSplitId(line.id);
+                        setMobilePicker("split-category");
+                      }}
+                    >
+                      <span>{line.category || `Split ${index + 1}: choose category`}</span>
+                      <span aria-hidden="true">›</span>
+                    </button>
+                    <input
+                      value={line.outflow || line.inflow}
+                      onChange={(event) => setSplitLines((lines) => lines.map((candidate) =>
+                        candidate.id === line.id
+                          ? {
+                              ...candidate,
+                              outflow: lineIsInflow ? "" : event.target.value,
+                              inflow: lineIsInflow ? event.target.value : "",
+                            }
+                          : candidate))}
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      aria-label={`Split ${index + 1} amount`}
+                    />
+                    <button
+                      className={`mobile-split-sign ${lineIsInflow ? "mobile-split-sign-positive" : "mobile-split-sign-negative"}`}
+                      type="button"
+                      onClick={() => {
+                        setSplitLines((lines) => lines.map((candidate) => {
+                          if (candidate.id !== line.id) return candidate;
+                          const amount = candidate.outflow || candidate.inflow;
+                          return lineIsInflow
+                            ? { ...candidate, outflow: amount, inflow: "" }
+                            : { ...candidate, outflow: "", inflow: amount };
+                        }));
+                        setMobilePositiveSplitIds((current) => {
+                          const next = new Set(current);
+                          if (lineIsInflow) {
+                            next.delete(line.id);
+                          } else {
+                            next.add(line.id);
+                          }
+                          return next;
+                        });
+                      }}
+                      aria-label={`${lineIsInflow ? "Make negative" : "Make positive"} split ${index + 1}`}
+                    >{lineIsInflow ? "+" : "−"}</button>
+                  </div>
+                  );
+                })}
+                <button
+                  className="mobile-split-add"
+                  type="button"
+                  onClick={() => setSplitLines((lines) => [...lines, createSplitLineDraft()])}
+                >
+                  + Add another split
+                </button>
+              </div>
+              <div className="mobile-split-remaining">
+                Remaining
+                <strong>{formatMoney(getSplitBalanceStatus({
+                  parentOutflow: parseRegisterMoney(outflow),
+                  parentInflow: parseRegisterMoney(inflow),
+                  splitOutflow: totalsFromSplitDrafts(splitLines).outflow,
+                  splitInflow: totalsFromSplitDrafts(splitLines).inflow,
+                }).remaining, currencyCode)}</strong>
+              </div>
+              <button className="button button-primary" type="button" onClick={() => {
+                finishMobileSplits();
+              }}>Done</button>
+            </div>
+          ) : null}
+        </section>
+      ), document.body);
+    }
+
+    return createPortal((
+      <section
+        className={`mobile-transaction-sheet mobile-transaction-step-${mobileStep}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mobile-transaction-sheet-title"
+        style={{
+          left: mobileVisualViewport.left,
+          width: mobileVisualViewport.width,
+          maxWidth: mobileVisualViewport.width,
+        }}
+      >
+        <header className="mobile-transaction-sheet-header">
+          <button
+            type="button"
+            onClick={mobileStep === "details" ? () => setMobileStep("amount") : onCancel}
+          >
+            {mobileStep === "details" ? "‹ Amount" : "Cancel"}
+          </button>
+          <strong id="mobile-transaction-sheet-title">Add transaction</strong>
+          {mobileStep === "details" ? (
+            <button type="button" onClick={save}>Save</button>
+          ) : <span aria-hidden="true" />}
+        </header>
+
+        <div className={`mobile-transaction-amount mobile-transaction-amount-${mobileFlow}`}>
+          <span>{mobileFlow === "expense" ? "Expense" : "Income"}</span>
+          <output aria-label="Transaction amount">{formattedMobileAmount}</output>
+        </div>
+
+        <div className="mobile-transaction-flow" role="group" aria-label="Transaction type">
+          <button
+            className={mobileFlow === "expense" ? "active expense" : ""}
+            type="button"
+            onClick={() => chooseMobileFlow("expense")}
+          >
+            Expense
+          </button>
+          <button
+            className={mobileFlow === "income" ? "active income" : ""}
+            type="button"
+            onClick={() => chooseMobileFlow("income")}
+          >
+            Income
+          </button>
+        </div>
+
+        {mobileStep === "amount" ? (
+          <div className="mobile-transaction-keypad" role="group" aria-label="Amount keypad">
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
+              <button key={digit} type="button" onClick={() => enterAmountDigit(digit)}>
+                {digit}
+              </button>
+            ))}
+            <button type="button" onClick={deleteAmountDigit} aria-label="Delete last digit">⌫</button>
+            <button type="button" onClick={() => enterAmountDigit("0")}>0</button>
+            <button
+              className="mobile-transaction-next"
+              type="button"
+              onClick={() => setMobileStep("details")}
+            >
+              Next ›
+            </button>
+          </div>
+        ) : (
+        <div className="mobile-transaction-fields">
+          <button
+            className="mobile-transaction-field mobile-transaction-choice"
+            type="button"
+            onClick={() => setMobilePicker("date")}
+          >
+            <span>Date</span>
+            <strong>{new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(new Date(`${date}T00:00:00`))} <span aria-hidden="true">›</span></strong>
+          </button>
+          <button
+            className="mobile-transaction-field mobile-transaction-choice"
+            type="button"
+            onClick={() => setMobilePicker("payee")}
+          >
+            <span>Payee</span>
+            <strong className={payee ? "" : "placeholder"}>{payee || "Choose a payee"} <span aria-hidden="true">›</span></strong>
+          </button>
+          <button
+            className="mobile-transaction-field mobile-transaction-choice"
+            type="button"
+            onClick={() => setMobilePicker("category")}
+          >
+            <span>Category</span>
+            <strong className={mobileCategoryLabel ? "" : "placeholder"}>
+              {mobileCategoryLabel || "Choose a category"} <span aria-hidden="true">›</span>
+            </strong>
+          </button>
+          <button
+            className="mobile-transaction-field mobile-transaction-choice"
+            type="button"
+            onClick={() => setMobilePicker("account")}
+          >
+            <span>Account</span>
+            <strong>{selectedAccountName} <span aria-hidden="true">›</span></strong>
+          </button>
+          <label className="mobile-transaction-field">
+            <span>Memo</span>
+            <input
+              value={memo}
+              onChange={(event) => setMemo(event.target.value)}
+              placeholder="Optional note"
+            />
+          </label>
+          <details className="mobile-transaction-more">
+            <summary>More details</summary>
+            <label className="mobile-transaction-field">
+              <span>Check number</span>
+              <input
+                value={checkNumber}
+                onChange={(event) => setCheckNumber(event.target.value)}
+                placeholder="Optional"
+              />
+            </label>
+          </details>
+        </div>
+        )}
+
+        {mobileStep === "details" ? (
+        <footer className="mobile-transaction-sheet-footer">
+          <button className="button button-primary" type="button" onClick={save}>
+            Save transaction
+          </button>
+        </footer>
+        ) : null}
+      </section>
+    ), document.body);
   }
 
   return (

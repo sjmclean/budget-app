@@ -7,6 +7,16 @@ import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import { useAdaptiveNavigation } from "./useAdaptiveNavigation";
 import { useBudgetKeyboardShortcuts } from "./useBudgetKeyboardShortcuts";
+import { SyncStatusIndicator } from "./SyncStatusIndicator";
+import { getBudgetPersistenceProvider } from "../features/persistence";
+import { generateDueScheduledTransactionsForBudget } from "../features/accounts/scheduledTransactionMaintenance";
+
+const RAIL_EXPANDED_STORAGE_KEY = "budget-app-navigation-rail-expanded";
+
+function readRailExpanded(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(RAIL_EXPANDED_STORAGE_KEY) === "true";
+}
 
 export function AppShell() {
   useBudgetKeyboardShortcuts();
@@ -19,7 +29,8 @@ export function AppShell() {
   const selectBudget = useUIStore((state) => state.selectBudget);
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
-  const [railExpanded, setRailExpanded] = useState(false);
+  const persistenceProvider = getBudgetPersistenceProvider();
+  const [railExpanded, setRailExpanded] = useState(readRailExpanded);
   const drawerTriggerRef = useRef<HTMLButtonElement | null>(null);
   const wasDrawerOpen = useRef(false);
   const navigationCollapsed =
@@ -32,7 +43,11 @@ export function AppShell() {
   const toggleNavigationExpansion = useCallback(
     () => {
       if (navigationMode === "rail") {
-        setRailExpanded((expanded) => !expanded);
+        setRailExpanded((expanded) => {
+          const next = !expanded;
+          window.localStorage.setItem(RAIL_EXPANDED_STORAGE_KEY, String(next));
+          return next;
+        });
         return;
       }
 
@@ -42,13 +57,6 @@ export function AppShell() {
     },
     [navigationMode, navigationPinned, setNavigationPinned],
   );
-
-  useEffect(() => {
-    if (navigationMode !== "rail") {
-      setRailExpanded(false);
-    }
-  }, [navigationMode]);
-
 
   useEffect(() => {
     if (navigationMode !== "drawer") {
@@ -68,6 +76,29 @@ export function AppShell() {
       selectBudget(activeBudgetId);
     }
   }, [activeBudgetId, selectBudget, selectedBudgetId]);
+
+  useEffect(() => {
+    if (!activeBudgetId) return;
+    let disposed = false;
+    const generate = () => {
+      if (disposed) return;
+      void generateDueScheduledTransactionsForBudget(persistenceProvider, activeBudgetId)
+        .catch((error) => console.error("Scheduled transaction generation failed.", error));
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") generate();
+    };
+    generate();
+    const interval = window.setInterval(generate, 60_000);
+    window.addEventListener("focus", generate);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", generate);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [activeBudgetId, persistenceProvider]);
 
   if (!activeBudgetId) {
     return <Navigate to="/" replace />;
@@ -92,6 +123,7 @@ export function AppShell() {
             : "app-content"
         }
       >
+        <SyncStatusIndicator />
         {navigationMode === "drawer" ? (
           <button
             ref={drawerTriggerRef}

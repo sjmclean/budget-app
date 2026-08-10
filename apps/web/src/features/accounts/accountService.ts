@@ -1,4 +1,5 @@
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import { createAccountEntity, createAccountEntityRepository, projectAccount, timestampFor, tombstoneAccountEntity, updateAccountEntity } from "./entities/accountEntity.js";
 
 export type SidebarAccountType = "on-budget" | "credit-card" | "tracking";
 
@@ -33,104 +34,55 @@ export interface AccountServiceDependencies {
   storage: KeyValueStoragePort;
 }
 
-const STORAGE_KEY = "budget-app.accounts.v1";
 const REGISTER_STORAGE_PREFIX = "budget-app.register.";
 
 class BrowserPersistentAccountService {
+  private writeCounter = 0;
   constructor(private readonly dependencies: AccountServiceDependencies) {}
 
-  async listAccounts(): Promise<SidebarAccount[]> {
-    return normalizeAccounts(readAccounts(this.dependencies.storage));
-  }
+  private repository() { return createAccountEntityRepository(this.dependencies.storage); }
+  private timestamp() { return timestampFor(new Date(), this.writeCounter++); }
+
+  async listAccounts(): Promise<SidebarAccount[]> { return readAccounts(this.dependencies.storage); }
 
   async createAccount(input: CreateAccountInput): Promise<SidebarAccount[]> {
-    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
-    const account: SidebarAccount = {
-      id: createAccountId(input.name, accounts),
-      name: input.name,
-      type: input.type,
-      startingBalance: input.startingBalance,
-      createdAt: new Date().toISOString(),
-      closedAt: null,
-    };
-
-    const nextAccounts = [...accounts, account];
-    writeAccounts(this.dependencies.storage, nextAccounts);
-    return nextAccounts;
+    const accounts = readAccounts(this.dependencies.storage);
+    const account: SidebarAccount = { id: createAccountId(input.name, accounts), name: input.name, type: input.type, startingBalance: input.startingBalance, createdAt: new Date().toISOString(), closedAt: null };
+    this.repository().save(createAccountEntity(account, this.timestamp()));
+    return readAccounts(this.dependencies.storage);
   }
 
   async updateAccount(input: UpdateAccountInput): Promise<SidebarAccount[]> {
-    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
-    const nextAccounts = accounts.map((account) =>
-      account.id === input.id
-        ? {
-            ...account,
-            name: input.name,
-            type: input.type,
-          }
-        : account,
-    );
-
-    writeAccounts(this.dependencies.storage, nextAccounts);
-    return nextAccounts;
+    const repository = this.repository();
+    const entity = repository.get(input.id);
+    if (entity) repository.save(updateAccountEntity(entity, { name: input.name, type: input.type }, this.timestamp()));
+    return readAccounts(this.dependencies.storage);
   }
 
   async closeAccount(accountId: string): Promise<SidebarAccount[]> {
-    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
-    const closedAt = new Date().toISOString();
-
-    const nextAccounts = accounts.map((account) =>
-      account.id === accountId
-        ? {
-            ...account,
-            closedAt,
-          }
-        : account,
-    );
-
-    writeAccounts(this.dependencies.storage, nextAccounts);
-    return nextAccounts;
+    const repository = this.repository(); const entity = repository.get(accountId);
+    if (entity) repository.save(updateAccountEntity(entity, { closedAt: new Date().toISOString() }, this.timestamp()));
+    return readAccounts(this.dependencies.storage);
   }
 
   async reopenAccount(accountId: string): Promise<SidebarAccount[]> {
-    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
-
-    const nextAccounts = accounts.map((account) =>
-      account.id === accountId
-        ? {
-            ...account,
-            closedAt: null,
-          }
-        : account,
-    );
-
-    writeAccounts(this.dependencies.storage, nextAccounts);
-    return nextAccounts;
+    const repository = this.repository(); const entity = repository.get(accountId);
+    if (entity) repository.save(updateAccountEntity(entity, { closedAt: null }, this.timestamp()));
+    return readAccounts(this.dependencies.storage);
   }
 
   async deleteAccount(accountId: string): Promise<DeleteAccountResult> {
-    const accounts = normalizeAccounts(readAccounts(this.dependencies.storage));
-
-    if (accountHasTransactions(this.dependencies.storage, accountId)) {
-      return {
-        deleted: false,
-        reason: "Accounts with transactions cannot be deleted. Close the account instead.",
-        accounts,
-      };
-    }
-
-    const nextAccounts = accounts.filter((account) => account.id !== accountId);
-    writeAccounts(this.dependencies.storage, nextAccounts);
+    const accounts = readAccounts(this.dependencies.storage);
+    if (accountHasTransactions(this.dependencies.storage, accountId)) return { deleted: false, reason: "Accounts with transactions cannot be deleted. Close the account instead.", accounts };
+    const repository = this.repository(); const entity = repository.get(accountId);
+    if (entity) repository.save(tombstoneAccountEntity(entity, this.timestamp()));
     removeAccountRegister(this.dependencies.storage, accountId);
-
-    return {
-      deleted: true,
-      accounts: nextAccounts,
-    };
+    return { deleted: true, accounts: readAccounts(this.dependencies.storage) };
   }
 
   getAccountById(accountId: string): SidebarAccount | null {
-    return normalizeAccounts(readAccounts(this.dependencies.storage)).find((account) => account.id === accountId) ?? null;
+    const entity = this.repository().get(accountId);
+    return entity && entity.metadata.tombstone === null ? projectAccount(entity) : null;
   }
 }
 
@@ -141,29 +93,7 @@ export function createAccountService(
 }
 
 export function readAccounts(storage: KeyValueStoragePort): SidebarAccount[] {
-  const value = storage.getItem(STORAGE_KEY);
-
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(value) as SidebarAccount[];
-    return Array.isArray(parsed) ? normalizeAccounts(parsed) : [];
-  } catch {
-    return [];
-  }
-}
-
-function normalizeAccounts(accounts: SidebarAccount[]): SidebarAccount[] {
-  return accounts.map((account) => ({
-    ...account,
-    closedAt: account.closedAt ?? null,
-  }));
-}
-
-function writeAccounts(storage: KeyValueStoragePort, accounts: SidebarAccount[]): void {
-  storage.setItem(STORAGE_KEY, JSON.stringify(normalizeAccounts(accounts)));
+  return createAccountEntityRepository(storage).list().map(projectAccount);
 }
 
 function accountHasTransactions(storage: KeyValueStoragePort, accountId: string): boolean {

@@ -1,7 +1,8 @@
+import { readSeededTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
 import assert from "node:assert/strict";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
 import { createYnab4LauncherBudgetImport } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
-import { getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope.ts";
+import { createFixedBudgetScopedStorage, getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope.ts";
 import {
   createYnab4PackageMigrationPreview,
   discoverYnab4Package,
@@ -77,21 +78,7 @@ const validTransactions = [
 const { storage, result } = importEntries(createEntries(validTransactions));
 assert.equal(result.record.accuracyAudit?.status, "pass");
 
-const registersRaw = storage.getItem(
-  getBudgetScopedStorageKey(result.budget.id, "budget-app.account-registers.v1"),
-);
-assert.ok(registersRaw);
-const registers = JSON.parse(registersRaw) as Record<string, {
-  accountId: string;
-  transactions: Array<{
-    id: string;
-    inflow: number;
-    outflow: number;
-    transferId?: string;
-    transferAccountId?: string;
-    transferTransactionId?: string;
-  }>;
-}>;
+const registers = readSeededTransactionRegisters(createFixedBudgetScopedStorage(storage, result.budget.id));
 const imported = Object.values(registers).flatMap((register) => register.transactions);
 const outgoing = imported.find((transaction) => transaction.id === "transfer-out");
 const incoming = imported.find((transaction) => transaction.id === "transfer-in");

@@ -40,13 +40,13 @@ class MemoryLocalStorage {
   clear(): void {
     this.values.clear();
   }
+
+  listKeys(): string[] {
+    return [...this.values.keys()].sort();
+  }
 }
 
 const localStorage = new MemoryLocalStorage();
-(globalThis as unknown as { window: { localStorage: MemoryLocalStorage } }).window = {
-  localStorage,
-};
-
 const scopeId = "household";
 const prefix = "budget-app.test-table-layout.v1";
 
@@ -69,33 +69,22 @@ assert.deepEqual(
 
 localStorage.clear();
 assert.deepEqual(
-  readVisibleTableColumns(prefix, columns, scopeId),
+  readVisibleTableColumns(prefix, columns, scopeId, {}, localStorage),
   ["select", "date", "memo"],
-  "missing visibility preferences should fall back to defaults.",
+  "missing replicated visibility preferences should fall back to defaults.",
 );
 
-localStorage.setItem(getTableLayoutStorageKey(prefix, scopeId), "not json");
+writeVisibleTableColumns(prefix, ["select", "date", "balance"], scopeId, localStorage);
+const entityIndexKey = "budget-app.entity-replication.v1/table-layout-index";
+const entityIds = JSON.parse(localStorage.getItem(entityIndexKey) ?? "[]") as string[];
+assert.equal(entityIds.length, 1, "visibility writes should create one replicated layout entity.");
+const entityRecordKey = `budget-app.entity-replication.v1/table-layout/${entityIds[0]}`;
+assert.ok(localStorage.getItem(entityRecordKey), "the replicated layout entity record should be persisted.");
+assert.equal(localStorage.getItem(getTableLayoutStorageKey(prefix, scopeId)), null, "legacy visibility aggregate keys must not be written.");
 assert.deepEqual(
-  readVisibleTableColumns(prefix, columns, scopeId),
-  ["select", "date", "memo"],
-  "corrupt visibility preferences should fall back to defaults.",
-);
-
-localStorage.setItem(
-  getTableLayoutStorageKey(prefix, scopeId),
-  JSON.stringify(["memo", "unknown"]),
-);
-assert.deepEqual(
-  readVisibleTableColumns(prefix, columns, scopeId),
-  ["select", "date", "memo"],
-  "stored visibility should discard unknown columns and restore required columns.",
-);
-
-writeVisibleTableColumns(prefix, ["select", "date", "balance"], scopeId);
-assert.deepEqual(
-  JSON.parse(localStorage.getItem(getTableLayoutStorageKey(prefix, scopeId)) ?? "[]"),
+  readVisibleTableColumns(prefix, columns, scopeId, {}, localStorage),
   ["select", "date", "balance"],
-  "visibility writes should persist the caller-provided visible column order.",
+  "visibility writes should round-trip through the replicated entity.",
 );
 
 assert.equal(
@@ -114,42 +103,25 @@ assert.equal(
   "columns without explicit minimum widths should use the shared minimum fallback.",
 );
 
-localStorage.clear();
 assert.deepEqual(
-  readTableColumnWidths(prefix, columns, scopeId),
+  readTableColumnWidths(prefix, columns, scopeId, {}, localStorage),
   {},
-  "missing width preferences should fall back to default column widths.",
+  "missing replicated width preferences should fall back to default widths.",
 );
 
-localStorage.setItem(getTableLayoutWidthStorageKey(prefix, scopeId), "[]");
+writeTableColumnWidths(prefix, { date: 10, memo: 16 }, scopeId, localStorage);
 assert.deepEqual(
-  readTableColumnWidths(prefix, columns, scopeId),
-  {},
-  "non-object width preferences should be ignored.",
-);
-
-localStorage.setItem(
-  getTableLayoutWidthStorageKey(prefix, scopeId),
-  JSON.stringify({ date: 3, memo: 20, balance: 9, unknown: 40, select: "wide" }),
-);
-assert.deepEqual(
-  readTableColumnWidths(prefix, columns, scopeId),
-  { date: 5, memo: 20, balance: 9 },
-  "width reads should clamp known numeric columns and discard unknown/non-numeric values.",
-);
-
-writeTableColumnWidths(prefix, { date: 10, memo: 16 }, scopeId);
-assert.deepEqual(
-  JSON.parse(localStorage.getItem(getTableLayoutWidthStorageKey(prefix, scopeId)) ?? "{}"),
+  readTableColumnWidths(prefix, columns, scopeId, {}, localStorage),
   { date: 10, memo: 16 },
-  "width writes should persist valid width preferences.",
+  "width writes should round-trip through the replicated entity.",
 );
+assert.equal(localStorage.getItem(getTableLayoutWidthStorageKey(prefix, scopeId)), null, "legacy width aggregate keys must not be written.");
 
-writeTableColumnWidths(prefix, {}, scopeId);
-assert.equal(
-  localStorage.getItem(getTableLayoutWidthStorageKey(prefix, scopeId)),
-  null,
-  "empty width preferences should remove the width storage key.",
+writeTableColumnWidths(prefix, {}, scopeId, localStorage);
+assert.deepEqual(
+  readTableColumnWidths(prefix, columns, scopeId, {}, localStorage),
+  {},
+  "empty width preferences should clear replicated custom widths.",
 );
 
 assert.equal(

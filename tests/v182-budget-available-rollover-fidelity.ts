@@ -10,6 +10,7 @@ import {
   discoverYnab4Package,
   type Ynab4PackageEntry,
 } from "../packages/ynab4-importer/src/analyzeYnab4Package.ts";
+import { readBudgetMonthEntity, writeBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 
 function createMemoryStorage(): KeyValueStoragePort {
   const values = new Map<string, string>();
@@ -89,9 +90,9 @@ function importBudgetViews(): { storage: KeyValueStoragePort; budgetId: string }
 }
 
 function readImportedMonth(storage: KeyValueStoragePort, budgetId: string, month: string): BudgetMonthView {
-  const raw = storage.getItem(`budget-app.budget-view.v1.${budgetId}.${month}`);
-  assert.ok(raw, `expected imported month ${month}`);
-  return JSON.parse(raw) as BudgetMonthView;
+  const view = readBudgetMonthEntity(storage, budgetId, month);
+  assert.ok(view, `expected imported month ${month}`);
+  return view;
 }
 
 function findCategory(view: BudgetMonthView, categoryName: string) {
@@ -126,9 +127,7 @@ function validateYnab4ImportCarriesAvailableForward(): void {
 
 async function validateRuntimeRecalculationPreservesCarryForward(): Promise<void> {
   const storage = createMemoryStorage();
-  storage.setItem(
-    "budget-app.budget-view.v1.household.2026-02",
-    JSON.stringify({
+  writeBudgetMonthEntity(storage, "household", "2026-02", {
       budgetId: "household",
       budgetName: "Household Budget",
       monthLabel: "February 2026",
@@ -161,8 +160,7 @@ async function validateRuntimeRecalculationPreservesCarryForward(): Promise<void
           ],
         },
       ],
-    }),
-  );
+    });
 
   const service = createBudgetViewService({
     storage,

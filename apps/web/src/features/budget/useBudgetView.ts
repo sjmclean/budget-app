@@ -9,7 +9,12 @@ interface UseBudgetViewState {
   error: string | null;
 }
 
-export function useBudgetView(budgetId: string, month: string): UseBudgetViewState {
+export function useBudgetView(
+  budgetId: string,
+  month: string,
+  options: { readonly enabled?: boolean } = {},
+): UseBudgetViewState {
+  const enabled = options.enabled ?? true;
   const categoriesPersistence = getBudgetPersistenceProvider().categories;
   const persistenceChangeVersion = usePersistenceChangeVersion();
   const [state, setState] = useState<UseBudgetViewState>({
@@ -20,6 +25,13 @@ export function useBudgetView(budgetId: string, month: string): UseBudgetViewSta
 
   useEffect(() => {
     let isMounted = true;
+
+    if (!enabled) {
+      setState({ data: null, isLoading: false, error: null });
+      return () => {
+        isMounted = false;
+      };
+    }
 
     async function loadBudgetView() {
       setState((current) => ({
@@ -64,7 +76,7 @@ export function useBudgetView(budgetId: string, month: string): UseBudgetViewSta
     return () => {
       isMounted = false;
     };
-  }, [budgetId, categoriesPersistence, month, persistenceChangeVersion]);
+  }, [budgetId, categoriesPersistence, enabled, month, persistenceChangeVersion]);
 
   return state;
 }

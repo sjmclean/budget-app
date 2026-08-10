@@ -88,7 +88,8 @@ export function SpendingByCategoryReport({ viewModel }: SpendingByCategoryReport
                   <div>
                     <h3><CategoryLabel categoryName={selectedSpendingRow.categoryName} /></h3>
                     <p className="muted">
-                      {selectedSpendingRow.transactions.length} transactions · {formatMoney(selectedSpendingRow.total)}
+                      {selectedSpendingRow.transactionCount ??
+                        selectedSpendingRow.transactions.length} transactions · {formatMoney(selectedSpendingRow.total)}
                     </p>
                   </div>
                 </div>

@@ -80,6 +80,15 @@ export const router = createBrowserRouter([
           return { Component: PayeeManagementPage };
         },
       },
+      {
+        path: "/users",
+        lazy: async () => {
+          const { UserManagementPage } = await import(
+            "../pages/UserManagementPage"
+          );
+          return { Component: UserManagementPage };
+        },
+      },
     ],
   },
   {

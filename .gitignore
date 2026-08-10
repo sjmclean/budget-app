@@ -1,13 +1,28 @@
-node_modules
-*.budget
-dist
-.env
-.DS_Store
-# Temporary development patches
-*.patch
+.certs/
 
-# Generated test reports
-test-results/
+# Local development dependencies and build output
+node_modules/
+dist/
+
+# Local environment files / secrets
+.env
+.env.local
+.env.*.local
+
+# Local server runtime data
+apps/server/data/
 
 # Generated test output
 test-results/
+coverage/
+
+# npm lockfile - this repository uses pnpm
+package-lock.json
+
+# Local test budget
+/Test.budget
+
+# Local Codex/application overlays
+*-overlay/
+*-overlay.tar.gz
+*-overlay.zip

@@ -7,15 +7,22 @@ import {
 } from "./budgetRegistry";
 import {
   SELECTED_BUDGET_STORAGE_KEY,
+  createFixedBudgetScopedStorage,
   getBudgetScopedStorageKey,
 } from "./budgetDataScope";
 import type { FullBudgetImportPreview } from "../../../../../packages/types/src/index";
 import type { CreditCardBehaviour } from "./budgetPreferences";
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import type { SidebarAccount, SidebarAccountType } from "../accounts/accountService";
+import { replaceAccountEntities } from "../accounts/entities/accountEntity.js";
+import { replacePayeeEntities } from "../accounts/entities/payeeEntity.js";
+import { syncCategoryEntities } from "./categoryEntities.js";
+import { replaceTransactionRegisters, purgeAllTransactionEntities } from "../accounts/entities/transactionEntityPersistence.js";
+import { replaceScheduledTransactionEntities } from "../accounts/entities/scheduledTransactionEntity.js";
 import type { AccountRegisterView, RegisterTransactionView } from "../accounts/accountRegisterTypes";
 import type { PayeeView } from "../accounts/payeeService";
 import type { BudgetCategoryGroupView, BudgetMonthView } from "./budgetViewTypes";
+import { writeBudgetMonthEntity } from "./entities/budgetMonthEntity.js";
 import { isMoneyNegative, normaliseMoney } from "./moneyMath";
 import { getCurrentBudgetMonth } from "./budgetMonthNavigation";
 
@@ -23,9 +30,6 @@ export const ACTUAL_BUDGET_LAUNCHER_IMPORT_STORAGE_PREFIX =
   "budget-app.actual-budget-launcher-import.v1";
 
 const ACCOUNTS_STORAGE_KEY = "budget-app.accounts.v1";
-const REGISTERS_STORAGE_KEY = "budget-app.account-registers.v1";
-const PAYEES_STORAGE_KEY = "budget-app.payees.v1";
-const SCHEDULED_STORAGE_KEY = "budget-app.scheduled-transactions.v1";
 const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
 const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
@@ -264,12 +268,14 @@ function writeImportedActualBudgetData(
   const registers = mapActualRegisters(preview, accounts, maps);
   const monthViews = mapActualBudgetMonthViews(budget, categoryGroups, registers, preview, maps, now);
 
-  writeScopedJson(storage, budget.id, ACCOUNTS_STORAGE_KEY, accounts);
-  writeScopedJson(storage, budget.id, PAYEES_STORAGE_KEY, payees);
-  writeScopedJson(storage, budget.id, REGISTERS_STORAGE_KEY, registers);
-  writeScopedJson(storage, budget.id, SCHEDULED_STORAGE_KEY, []);
+  replaceAccountEntities(createFixedBudgetScopedStorage(storage, budget.id), accounts, now);
+  replacePayeeEntities(createFixedBudgetScopedStorage(storage, budget.id), payees, now);
+  replaceTransactionRegisters(createFixedBudgetScopedStorage(storage, budget.id), registers, now);
+  replaceScheduledTransactionEntities(createFixedBudgetScopedStorage(storage, budget.id), [], now);
 
+  const scopedStorage = createFixedBudgetScopedStorage(storage, budget.id);
   for (const [month, view] of monthViews) {
+    syncCategoryEntities(scopedStorage, view, now);
     writeBudgetMonthView(storage, budget.id, month, view);
   }
 
@@ -290,11 +296,7 @@ function writeBudgetMonthView(
   month: string,
   view: BudgetMonthView,
 ): void {
-  const serialized = JSON.stringify(view);
-  const legacyKey = `${BUDGET_VIEW_STORAGE_PREFIX}.${budgetId}.${month}`;
-
-  storage.setItem(legacyKey, serialized);
-  storage.setItem(getBudgetScopedStorageKey(budgetId, legacyKey), serialized);
+  writeBudgetMonthEntity(storage, budgetId, month, view);
 }
 
 function mapActualAccounts(preview: FullBudgetImportPreview, maps: ActualImportMaps, nowIso: string): SidebarAccount[] {
@@ -721,9 +723,7 @@ function rollbackActualBudgetLauncherImport(
   if (snapshot.budgetId) {
     storage.removeItem(getActualBudgetLauncherImportStorageKey(snapshot.budgetId));
     storage.removeItem(getBudgetScopedStorageKey(snapshot.budgetId, ACCOUNTS_STORAGE_KEY));
-    storage.removeItem(getBudgetScopedStorageKey(snapshot.budgetId, REGISTERS_STORAGE_KEY));
-    storage.removeItem(getBudgetScopedStorageKey(snapshot.budgetId, PAYEES_STORAGE_KEY));
-    storage.removeItem(getBudgetScopedStorageKey(snapshot.budgetId, SCHEDULED_STORAGE_KEY));
+    purgeAllTransactionEntities(createFixedBudgetScopedStorage(storage, snapshot.budgetId));
 
     for (const key of storage.listKeys?.() ?? []) {
       if (

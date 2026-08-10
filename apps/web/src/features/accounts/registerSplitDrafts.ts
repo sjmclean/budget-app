@@ -1,5 +1,6 @@
 import type { RegisterSplitLineView, RegisterTransactionView } from "./accountRegisterTypes";
 import type { BudgetCategoryOption } from "../budget/budgetViewTypes";
+import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 
 export interface SplitLineDraft {
   id: string;
@@ -27,11 +28,7 @@ export function createSplitLineDraft(): SplitLineDraft {
 }
 
 function createLocalId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `split-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `split-${createRuntimeUuid()}`;
 }
 
 export function splitDraftsFromTransaction(

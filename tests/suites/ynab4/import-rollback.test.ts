@@ -14,11 +14,13 @@ import {
   rollbackYnab4LauncherImport,
 } from "../../../apps/web/src/features/budget/ynab4/rollbackYnab4Import.js";
 import {
+  TRANSACTION_ENTITY_INDEX_KEY,
+  TRANSACTION_ENTITY_RECORD_PREFIX,
+} from "../../../apps/web/src/features/accounts/entities/transactionEntity.js";
+import {
   YNAB4_ACCOUNTS_STORAGE_KEY,
   YNAB4_BUDGET_VIEW_STORAGE_PREFIX,
   YNAB4_PAYEES_STORAGE_KEY,
-  YNAB4_REGISTERS_STORAGE_KEY,
-  YNAB4_SCHEDULED_STORAGE_KEY,
 } from "../../../apps/web/src/features/budget/ynab4/importStorageKeys.js";
 import type { KeyValueStoragePort } from "../../../apps/web/src/features/persistence/keyValueStoragePort.js";
 
@@ -70,9 +72,11 @@ test("restores pre-import state and removes all partial budget data", () => {
   storage.setItem("new-unscoped-key", "partial");
   storage.setItem(getYnab4LauncherImportStorageKey(budgetId), "record");
   storage.setItem(getBudgetScopedStorageKey(budgetId, YNAB4_ACCOUNTS_STORAGE_KEY), "accounts");
-  storage.setItem(getBudgetScopedStorageKey(budgetId, YNAB4_REGISTERS_STORAGE_KEY), "registers");
+  storage.setItem(getBudgetScopedStorageKey(budgetId, TRANSACTION_ENTITY_INDEX_KEY), JSON.stringify(["transaction"]));
+  storage.setItem(getBudgetScopedStorageKey(budgetId, `${TRANSACTION_ENTITY_RECORD_PREFIX}transaction`), "transaction-entity");
   storage.setItem(getBudgetScopedStorageKey(budgetId, YNAB4_PAYEES_STORAGE_KEY), "payees");
-  storage.setItem(getBudgetScopedStorageKey(budgetId, YNAB4_SCHEDULED_STORAGE_KEY), "scheduled");
+  storage.setItem(getBudgetScopedStorageKey(budgetId, "budget-app.entity-replication.v1/scheduled-transaction-index"), JSON.stringify(["scheduled"]));
+  storage.setItem(getBudgetScopedStorageKey(budgetId, "budget-app.entity-replication.v1/scheduled-transaction/scheduled"), "scheduled-entity");
   storage.setItem(`${YNAB4_BUDGET_VIEW_STORAGE_PREFIX}.${budgetId}.2026-07`, "month");
 
   rollbackYnab4LauncherImport(storage, snapshot);
@@ -86,6 +90,10 @@ test("restores pre-import state and removes all partial budget data", () => {
     storage.getItem(getBudgetScopedStorageKey(budgetId, YNAB4_ACCOUNTS_STORAGE_KEY)),
     null,
   );
+  assert.equal(storage.getItem(getBudgetScopedStorageKey(budgetId, TRANSACTION_ENTITY_INDEX_KEY)), null);
+  assert.equal(storage.getItem(getBudgetScopedStorageKey(budgetId, `${TRANSACTION_ENTITY_RECORD_PREFIX}transaction`)), null);
+  assert.equal(storage.getItem(getBudgetScopedStorageKey(budgetId, "budget-app.entity-replication.v1/scheduled-transaction-index")), null);
+  assert.equal(storage.getItem(getBudgetScopedStorageKey(budgetId, "budget-app.entity-replication.v1/scheduled-transaction/scheduled")), null);
   assert.equal(
     storage.getItem(`${YNAB4_BUDGET_VIEW_STORAGE_PREFIX}.${budgetId}.2026-07`),
     null,

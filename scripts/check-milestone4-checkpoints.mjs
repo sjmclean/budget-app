@@ -7,9 +7,10 @@ const required = new Map([
     "assertCompatibleCheckpoint",
     "applyOperationsToCheckpointEntries",
     "CheckpointPort",
+    "replicatedThroughCursor",
   ]],
   ["apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts", [
-    "const DATABASE_VERSION = 3",
+    "const DATABASE_VERSION = 4",
     'const CHECKPOINT_STORE = "checkpoints"',
     "createCheckpoint",
     "getLatestCheckpoint",

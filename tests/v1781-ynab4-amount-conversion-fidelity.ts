@@ -1,4 +1,6 @@
+import { readSeededTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
 import assert from "node:assert/strict";
+import { createFixedBudgetScopedStorage } from "../apps/web/src/features/budget/budgetDataScope.ts";
 import { createYnab4LauncherBudgetImport } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
 import type { AccountRegisterView } from "../apps/web/src/features/accounts/accountRegisterTypes.ts";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
@@ -149,9 +151,7 @@ function importRegisters(): Record<string, AccountRegisterView> {
     entries,
     now: new Date("2026-06-24T06:00:00.000Z"),
   });
-  const raw = storage.getItem(`budget-app.budgets.${result.budget.id}.budget-app.account-registers.v1`);
-  assert.ok(raw);
-  return JSON.parse(raw) as Record<string, AccountRegisterView>;
+  return readSeededTransactionRegisters(createFixedBudgetScopedStorage(storage, result.budget.id));
 }
 
 function testRegisterAmountsAreNotDividedByOneThousand() {

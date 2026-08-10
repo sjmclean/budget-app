@@ -32,7 +32,7 @@ interface IndexedDbAttachmentRecord {
   blob: Blob;
 }
 
-const DATABASE_NAME = "budget-app-attachment-content";
+const DEFAULT_DATABASE_NAME = "budget-app-attachment-content";
 const DATABASE_VERSION = 2;
 const STORE_NAME = "attachments";
 const HASH_INDEX = "content-hash";
@@ -41,6 +41,10 @@ const CONTENT_REF_PREFIX = "browser-indexeddb:";
 export class BrowserIndexedDbAttachmentContentStore
   implements AttachmentContentStore
 {
+  constructor(
+    private readonly databaseName = DEFAULT_DATABASE_NAME,
+  ) {}
+
   async put(input: {
     attachmentId: string;
     bytes: Uint8Array;
@@ -58,7 +62,7 @@ export class BrowserIndexedDbAttachmentContentStore
       blob: new Blob([copyToArrayBuffer(input.bytes)], { type: input.mimeType }),
     };
 
-    const database = await openDatabase();
+    const database = await openDatabase(this.databaseName);
     try {
       await runRequest(database, "readwrite", (store) => store.put(record));
     } finally {
@@ -69,7 +73,7 @@ export class BrowserIndexedDbAttachmentContentStore
   }
 
   async read(contentRef: string): Promise<Blob | null> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.databaseName);
     try {
       const record = await runRequest<IndexedDbAttachmentRecord | undefined>(
         database,
@@ -84,7 +88,7 @@ export class BrowserIndexedDbAttachmentContentStore
 
   async readByHash(contentHash: string): Promise<Blob | null> {
     assertContentHash(contentHash);
-    const database = await openDatabase();
+    const database = await openDatabase(this.databaseName);
     try {
       const record = await runIndexRequest<IndexedDbAttachmentRecord | undefined>(
         database,
@@ -98,7 +102,7 @@ export class BrowserIndexedDbAttachmentContentStore
   }
 
   async delete(contentRef: string): Promise<void> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.databaseName);
     try {
       await runRequest(database, "readwrite", (store) => store.delete(contentRef));
     } finally {
@@ -107,7 +111,7 @@ export class BrowserIndexedDbAttachmentContentStore
   }
 
   async exists(contentRef: string): Promise<boolean> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.databaseName);
     try {
       const key = await runRequest<IDBValidKey | undefined>(
         database,
@@ -122,7 +126,7 @@ export class BrowserIndexedDbAttachmentContentStore
 
   async existsByHash(contentHash: string): Promise<boolean> {
     assertContentHash(contentHash);
-    const database = await openDatabase();
+    const database = await openDatabase(this.databaseName);
     try {
       const key = await runIndexRequest<IDBValidKey | undefined>(
         database,
@@ -136,7 +140,7 @@ export class BrowserIndexedDbAttachmentContentStore
   }
 
   async list(): Promise<AttachmentContentDescriptor[]> {
-    const database = await openDatabase();
+    const database = await openDatabase(this.databaseName);
     try {
       const records = await runRequest<IndexedDbAttachmentRecord[]>(
         database,
@@ -201,16 +205,24 @@ export class MemoryAttachmentContentStore implements AttachmentContentStore {
 }
 
 let activeAttachmentContentStore: AttachmentContentStore | null = null;
+let attachmentDatabaseName = DEFAULT_DATABASE_NAME;
 
 export function getAttachmentContentStore(): AttachmentContentStore {
   if (!activeAttachmentContentStore) {
     activeAttachmentContentStore =
       typeof indexedDB === "undefined"
         ? new MemoryAttachmentContentStore()
-        : new BrowserIndexedDbAttachmentContentStore();
+        : new BrowserIndexedDbAttachmentContentStore(attachmentDatabaseName);
   }
 
   return activeAttachmentContentStore;
+}
+
+export function configureAttachmentContentStoreNamespace(namespace?: string): void {
+  attachmentDatabaseName = namespace?.trim()
+    ? `${DEFAULT_DATABASE_NAME}-${namespace.trim().replace(/[^a-zA-Z0-9_-]/g, "_")}`
+    : DEFAULT_DATABASE_NAME;
+  activeAttachmentContentStore = null;
 }
 
 export function setAttachmentContentStoreForTests(
@@ -248,9 +260,9 @@ function describe(record: IndexedDbAttachmentRecord): AttachmentContentDescripto
   };
 }
 
-function openDatabase(): Promise<IDBDatabase> {
+function openDatabase(databaseName: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+    const request = indexedDB.open(databaseName, DATABASE_VERSION);
 
     request.onupgradeneeded = () => {
       const database = request.result;

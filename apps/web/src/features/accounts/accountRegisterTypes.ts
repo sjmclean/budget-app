@@ -26,7 +26,12 @@ export interface RegisterAttachmentView {
   contentDataUrl?: string;
   contentRef?: string;
   contentHash?: string;
-  storageType?: "inline-data-url" | "browser-indexeddb" | "external-file";
+  storageType?: "inline-data-url" | "browser-indexeddb" | "external-file" | "local-sqlite";
+}
+
+export interface ScheduledAttachmentTemplate extends RegisterAttachmentView {
+  contentBase64: string;
+  contentHash: string;
 }
 
 export interface RegisterTransactionView {
@@ -53,6 +58,7 @@ export interface RegisterTransactionView {
   generatedFromSchedule?: boolean;
   scheduledTransactionId?: string;
   scheduledOccurrenceDate?: string;
+  scheduledAttachments?: ScheduledAttachmentTemplate[];
 }
 
 export interface AccountRegisterView {
@@ -71,6 +77,8 @@ export interface NewRegisterTransactionInput {
   tagIds?: string[];
   payee: string;
   payeeId?: string;
+  /** Immutable description supplied by the bank/import source. */
+  rawPayee?: string;
   category: string;
   categoryId?: string;
   memo?: string;
@@ -81,6 +89,7 @@ export interface NewRegisterTransactionInput {
   generatedFromSchedule?: boolean;
   scheduledTransactionId?: string;
   scheduledOccurrenceDate?: string;
+  scheduledAttachments?: ScheduledAttachmentTemplate[];
 }
 
 export interface UpdateRegisterTransactionInput {
@@ -89,6 +98,8 @@ export interface UpdateRegisterTransactionInput {
   tagIds?: string[];
   payee: string;
   payeeId?: string;
+  /** Preserved when an imported transaction is edited or its payee is renamed. */
+  rawPayee?: string;
   category: string;
   categoryId?: string;
   memo?: string;

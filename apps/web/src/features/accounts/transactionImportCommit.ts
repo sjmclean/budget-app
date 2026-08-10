@@ -46,6 +46,7 @@ function toRegisterTransactionInput(
 
   return {
     date: parsed.date,
+    rawPayee: candidate.lifecycle.source.rawPayee,
     payee: isTransfer
       ? `Transfer: ${proposal.transferAccountName}`
       : proposal.payee,

@@ -65,18 +65,18 @@ async function validateBrowserPayeeArchiveLifecycle(): Promise<void> {
   assert.equal(
     readPayees(storage).some((payee) => payee.id === woolworthsId),
     true,
-    "legacy deletePayee should archive rather than remove saved payees",
+    "a used payee must not be permanently deleted",
   );
 }
 
 function validatePayeeManagerWiresArchiveRestoreActions(): void {
-  const accountRegisterPage = readFileSync("apps/web/src/pages/AccountRegisterPage.tsx", "utf8");
+  const payeeManagementPage = readFileSync("apps/web/src/pages/PayeeManagementPage.tsx", "utf8");
   const payeePort = readFileSync("apps/web/src/features/accounts/payeePersistencePort.ts", "utf8");
   const releaseScripts = readFileSync("package.json", "utf8");
 
-  assert.match(accountRegisterPage, /archivePayee\(selectedPayeeSummary\.payee\.id\)/, "payee manager should call archivePayee");
-  assert.match(accountRegisterPage, /restorePayee\(selectedPayeeSummary\.payee\.id\)/, "payee manager should call restorePayee");
-  assert.match(accountRegisterPage, /listArchivedPayees\(\)/, "payee manager should load archived payees");
+  assert.match(payeeManagementPage, /archivePayee\(selectedPayee\.id\)/, "payee manager should call archivePayee");
+  assert.match(payeeManagementPage, /restorePayee\(selectedPayee\.id\)/, "payee manager should call restorePayee");
+  assert.match(payeeManagementPage, /listArchivedPayees\(\)/, "payee manager should load archived payees");
   assert.match(payeePort, /archivePayee\(payeeId: string\)/, "payee persistence port should expose archivePayee");
   assert.match(payeePort, /restorePayee\(payeeId: string\)/, "payee persistence port should expose restorePayee");
   assert.match(releaseScripts, /test:v141/, "release scripts should include v1.41 validation");

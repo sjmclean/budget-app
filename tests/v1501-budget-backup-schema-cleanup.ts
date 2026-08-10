@@ -15,7 +15,7 @@ import {
   SELECTED_BUDGET_STORAGE_KEY,
 } from "../apps/web/src/features/budget/budgetDataScope";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort";
-import { SETTINGS_STORAGE_KEY } from "../apps/web/src/features/settings/settingsPreferences";
+import { SETTINGS_STORAGE_KEY, defaultSettingsPreferences, writeSettingsPreferences } from "../apps/web/src/features/settings/settingsPreferences";
 
 class MemoryStorage implements KeyValueStoragePort {
   private values = new Map<string, string>();
@@ -44,7 +44,8 @@ storage.setItem(
   getBudgetScopedStorageKey("household", "budget-app.accounts.v1"),
   JSON.stringify([{ id: "everyday", name: "Everyday", type: "on-budget", startingBalance: 10 }]),
 );
-storage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ theme: "dark" }));
+writeSettingsPreferences(storage, { ...defaultSettingsPreferences, general: { ...defaultSettingsPreferences.general, theme: "dark" } });
+assert.equal(storage.getItem(SETTINGS_STORAGE_KEY), null, "legacy settings aggregate must not be written");
 storage.setItem("budget-app.budget-view.v1.household.2026-06", JSON.stringify({ marker: "month" }));
 
 const budgetPackage = createBudgetDataExportPackage(

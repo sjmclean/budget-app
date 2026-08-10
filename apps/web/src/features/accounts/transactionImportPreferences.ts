@@ -1,5 +1,6 @@
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
+import { readTransactionImportPreferenceEntity, writeTransactionImportPreferenceEntity } from "./entities/transactionImportPreferenceEntity";
 
 const TRANSACTION_IMPORT_PREFERENCES_KEY =
   "budget-app.transaction-import-preferences.v1";
@@ -15,26 +16,13 @@ export const defaultTransactionImportPreferences: TransactionImportPreferences =
 export function readTransactionImportPreferences(
   storage: KeyValueStoragePort = getActiveKeyValueStorage(),
 ): TransactionImportPreferences {
-  try {
-    const stored = storage.getItem(TRANSACTION_IMPORT_PREFERENCES_KEY);
-    if (!stored) return defaultTransactionImportPreferences;
-
-    const parsed = JSON.parse(stored) as Partial<TransactionImportPreferences>;
-    return {
-      updateMatchedTransactionDates:
-        parsed.updateMatchedTransactionDates === true,
-    };
-  } catch {
-    return defaultTransactionImportPreferences;
-  }
+  const entity = readTransactionImportPreferenceEntity(storage);
+  return entity ? { updateMatchedTransactionDates: entity.updateMatchedTransactionDates } : defaultTransactionImportPreferences;
 }
 
 export function writeTransactionImportPreferences(
   preferences: TransactionImportPreferences,
   storage: KeyValueStoragePort = getActiveKeyValueStorage(),
 ): void {
-  storage.setItem(
-    TRANSACTION_IMPORT_PREFERENCES_KEY,
-    JSON.stringify(preferences),
-  );
+  writeTransactionImportPreferenceEntity(storage, preferences.updateMatchedTransactionDates);
 }

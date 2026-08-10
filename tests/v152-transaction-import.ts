@@ -39,8 +39,8 @@ assert.equal(parsed[2]?.inflow, 2500, "positive amount should become inflow");
 
 const preview = previewTransactionCsvImport(csv, existingTransactions);
 assert.equal(preview.summary.totalRows, 5, "preview should include all candidate rows");
-assert.equal(preview.summary.exactMatches, 1, "same amount within 3 days should auto-match");
-assert.equal(preview.summary.possibleMatches, 1, "same amount within 7 days should become a possible match");
+assert.equal(preview.summary.exactMatches, 2, "same amount within the deterministic seven-day window should match");
+assert.equal(preview.summary.possibleMatches, 0, "the reconciler no longer creates confidence-based possible matches");
 assert.equal(preview.summary.newTransactions, 2, "two rows should be new transactions");
 assert.equal(preview.summary.invalidRows, 1, "one row should be invalid");
 assert.equal(preview.summary.selectedForImport, 2, "only new rows should be selected by default");
@@ -49,9 +49,9 @@ const exactMatch = preview.candidates.find((candidate) => candidate.parsed.payee
 assert.equal(exactMatch?.status, "exact-match", "manual transaction settling two days later should be matched");
 assert.equal(exactMatch?.selected, false, "matched rows should not import as duplicates");
 
-const possibleMatch = preview.candidates.find((candidate) => candidate.parsed.payee === "Fuel Station");
-assert.equal(possibleMatch?.status, "possible-match", "same amount seven days later should be review-only possible match");
-assert.equal(possibleMatch?.selected, false, "possible matches should not import automatically");
+const delayedMatch = preview.candidates.find((candidate) => candidate.parsed.payee === "Fuel Station");
+assert.equal(delayedMatch?.status, "exact-match", "same amount seven days later should use the unified reconciliation window");
+assert.equal(delayedMatch?.selected, false, "matched rows should not import automatically");
 
 const imported = buildRegisterTransactionsFromImport(preview.candidates);
 assert.equal(imported.length, 2, "only selected new rows should become register inputs");

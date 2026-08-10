@@ -14,6 +14,40 @@ export function readServerRuntimeConfig({ env = process.env, serverPackageDir, r
     "BUDGET_APP_SHUTDOWN_TIMEOUT_MS",
   );
   const exposePaths = parseBoolean(env.BUDGET_APP_EXPOSE_PATHS ?? "false", "BUDGET_APP_EXPOSE_PATHS");
+  const migrationBackupDir = resolve(
+    env.BUDGET_APP_MIGRATION_BACKUP_DIR ?? `${dataDir}/migration-backups`,
+  );
+  const backupBeforeMigration = parseBoolean(
+    env.BUDGET_APP_BACKUP_BEFORE_MIGRATION ?? "true",
+    "BUDGET_APP_BACKUP_BEFORE_MIGRATION",
+  );
+  const operationalBackupDir = resolve(
+    env.BUDGET_APP_OPERATIONAL_BACKUP_DIR ?? `${dataDir}/operational-backups`,
+  );
+  const operationalBackupIntervalMs = parsePositiveInteger(
+    env.BUDGET_APP_OPERATIONAL_BACKUP_INTERVAL_MS ?? "21600000",
+    "BUDGET_APP_OPERATIONAL_BACKUP_INTERVAL_MS",
+  );
+  const operationalBackupRetention = parsePositiveInteger(
+    env.BUDGET_APP_OPERATIONAL_BACKUP_RETENTION ?? "3",
+    "BUDGET_APP_OPERATIONAL_BACKUP_RETENTION",
+  );
+  const operationalBackupMaximumBytes = parsePositiveInteger(
+    env.BUDGET_APP_OPERATIONAL_BACKUP_MAXIMUM_BYTES ?? String(10 * 1024 ** 3),
+    "BUDGET_APP_OPERATIONAL_BACKUP_MAXIMUM_BYTES",
+  );
+  const operationalBackupMinimumFreeBytes = parsePositiveInteger(
+    env.BUDGET_APP_OPERATIONAL_BACKUP_MINIMUM_FREE_BYTES ?? String(2 * 1024 ** 3),
+    "BUDGET_APP_OPERATIONAL_BACKUP_MINIMUM_FREE_BYTES",
+  );
+  const operationalBackupRecentMaximumAgeMs = parsePositiveInteger(
+    env.BUDGET_APP_OPERATIONAL_BACKUP_RECENT_MAXIMUM_AGE_MS ?? "3600000",
+    "BUDGET_APP_OPERATIONAL_BACKUP_RECENT_MAXIMUM_AGE_MS",
+  );
+  const abandonedImportMaximumAgeMs = parsePositiveInteger(
+    env.BUDGET_APP_ABANDONED_IMPORT_MAXIMUM_AGE_MS ?? "86400000",
+    "BUDGET_APP_ABANDONED_IMPORT_MAXIMUM_AGE_MS",
+  );
 
   return {
     port,
@@ -24,6 +58,15 @@ export function readServerRuntimeConfig({ env = process.env, serverPackageDir, r
     replicationBlobDir,
     shutdownTimeoutMs,
     exposePaths,
+    migrationBackupDir,
+    backupBeforeMigration,
+    operationalBackupDir,
+    operationalBackupIntervalMs,
+    operationalBackupRetention,
+    operationalBackupMaximumBytes,
+    operationalBackupMinimumFreeBytes,
+    operationalBackupRecentMaximumAgeMs,
+    abandonedImportMaximumAgeMs,
   };
 }
 

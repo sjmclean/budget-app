@@ -10,6 +10,7 @@ import {
   discoverYnab4Package,
   type Ynab4PackageEntry,
 } from "../packages/ynab4-importer/src/analyzeYnab4Package.ts";
+import { readBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 
 function createMemoryStorage(): KeyValueStoragePort {
   const values = new Map<string, string>();
@@ -121,9 +122,8 @@ assert.match(report, /Overspending handling: Confined/);
 assert.match(report, /Transaction-derived activity: source=-878\.00, imported=-878\.00, delta=0\.00/);
 assert.match(report, /transferTo=Home Loan transferAccountType=Mortgage transferOnBudget=false/);
 
-const budgetViewKey = `budget-app.budget-view.v1.${result.budget.id}.2026-06`;
-const budgetViewRaw = storage.getItem(budgetViewKey);
-assert.ok(budgetViewRaw, "Expected imported June budget view to be persisted.");
+const budgetView = readBudgetMonthEntity(storage, result.budget.id, "2026-06");
+assert.ok(budgetView, "Expected imported June budget view to be persisted.");
 
 assert.match(report, /2026-06 \/ Mortgage \(\$955\/f\)/);
 

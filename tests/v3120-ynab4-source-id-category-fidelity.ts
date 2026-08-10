@@ -1,12 +1,14 @@
+import { readSeededTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
 import assert from "node:assert/strict";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
-import { getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope.ts";
+import { createFixedBudgetScopedStorage, getBudgetScopedStorageKey } from "../apps/web/src/features/budget/budgetDataScope.ts";
 import { createYnab4LauncherBudgetImport } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
 import {
   createYnab4PackageMigrationPreview,
   discoverYnab4Package,
   type Ynab4PackageEntry,
 } from "../packages/ynab4-importer/src/analyzeYnab4Package.ts";
+import { readBudgetMonthEntity } from "../apps/web/src/features/budget/entities/budgetMonthEntity.js";
 
 function createMemoryStorage(): KeyValueStoragePort {
   const values = new Map<string, string>();
@@ -69,7 +71,7 @@ const result = createYnab4LauncherBudgetImport(storage, {
   now: new Date("2026-07-15T00:00:00.000Z"),
 });
 
-const raw = storage.getItem(`budget-app.budget-view.v1.${result.budget.id}.2020-01`);
+const raw = (() => { const view = readBudgetMonthEntity(storage, result.budget.id, "2020-01"); return view ? JSON.stringify(view) : null; })();
 assert.ok(raw);
 const view = JSON.parse(raw) as {
   categoryGroups: Array<{ name: string; categories: Array<{ name: string; assigned: number; activity: number; isArchived: boolean }> }>;
@@ -115,11 +117,7 @@ assert.equal(
   "Skipped tombstoned categories must not be reported as missing budget fidelity.",
 );
 
-const registerRaw = storage.getItem(
-  getBudgetScopedStorageKey(result.budget.id, "budget-app.account-registers.v1"),
-);
-assert.ok(registerRaw);
-const registers = JSON.parse(registerRaw) as Record<string, { transactions: Array<{ id: string; category: string; categoryId?: string }> }>;
+const registers = readSeededTransactionRegisters(createFixedBudgetScopedStorage(storage, result.budget.id));
 const transactions = Object.values(registers).flatMap((register) => register.transactions);
 assert.equal(
   transactions.find((transaction) => transaction.id === "legacy-spend")?.category,

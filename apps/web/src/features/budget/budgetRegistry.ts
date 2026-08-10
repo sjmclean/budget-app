@@ -1,4 +1,5 @@
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 import {
   DEFAULT_BUDGET_PREFERENCES,
   mergeBudgetPreferences,
@@ -45,6 +46,14 @@ export interface UpdateBudgetRegistryInput {
   now?: Date;
 }
 
+export interface HostedBudgetCatalogueEntry {
+  budgetId: string;
+  name: string;
+  currency: string;
+  role: "viewer" | "editor" | "owner";
+  createdAt: string;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -54,11 +63,7 @@ function readString(value: unknown, fallback: string): string {
 }
 
 function createRandomBudgetId(): string {
-  if (typeof globalThis.crypto?.randomUUID === "function") {
-    return `budget-${globalThis.crypto.randomUUID()}`;
-  }
-
-  return `budget-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  return `budget-${createRuntimeUuid()}`;
 }
 
 export function createUniqueBudgetId(existingIds: ReadonlySet<string>): string {
@@ -153,6 +158,34 @@ export function writeBudgetRegistry(storage: KeyValueStoragePort, budgets: Budge
 
   storage.setItem(BUDGET_REGISTRY_STORAGE_KEY, JSON.stringify(normalised));
   return normalised;
+}
+
+export function mergeHostedBudgetCatalogue(
+  storage: KeyValueStoragePort,
+  catalogue: readonly HostedBudgetCatalogueEntry[],
+  now = new Date(),
+): BudgetSummary[] {
+  const current = readBudgetRegistry(storage);
+  const byId = new Map(current.map((budget) => [budget.id, budget]));
+  const timestamp = now.toISOString();
+  for (const entry of catalogue) {
+    if (!entry.budgetId?.trim() || byId.has(entry.budgetId)) continue;
+    const name = entry.name?.trim() || entry.budgetId;
+    byId.set(entry.budgetId, {
+      id: entry.budgetId,
+      name,
+      currency: (entry.currency?.trim() || "AUD").toUpperCase(),
+      dateFormat: "DD/MM/YYYY",
+      numberFormat: "1,234.56",
+      firstDayOfWeek: "monday",
+      preferences: { ...DEFAULT_BUDGET_PREFERENCES },
+      lastOpenedLabel: "Available from server",
+      packagePath: `hosted://${entry.budgetId}`,
+      createdAt: entry.createdAt || timestamp,
+      updatedAt: timestamp,
+    });
+  }
+  return writeBudgetRegistry(storage, [...byId.values()]);
 }
 
 export function createBudgetRegistryEntry(

@@ -1,10 +1,28 @@
 import { createServer } from "node:http";
+import { once } from "node:events";
 import { accessSync, constants, createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import { createReplicationStore, REPLICATION_PROTOCOL_VERSION } from "./replicationStore.mjs";
+import {
+  createLocalFirstRelayStore,
+  LOCAL_FIRST_MAX_CHUNK_BYTES,
+  LOCAL_FIRST_RELAY_PROTOCOL_VERSION,
+} from "./localFirstRelayStore.mjs";
+import { createLocalFirstRelayEventBroker } from "./localFirstRelayEvents.mjs";
 import { readServerRuntimeConfig } from "./runtimeConfig.mjs";
+import { createAuthStore } from "./authStore.mjs";
+import {
+  createOperationalResilienceStore,
+  openResilientHostedDatabase,
+} from "./operationalResilienceStore.mjs";
+import {
+  HOSTED_SCHEMA_VERSION,
+  prepareHostedSchemaMigrationBackup,
+  readHostedSchemaVersion,
+  runHostedSchemaMigrations,
+} from "./hostedSchemaMigrations.mjs";
 
 const currentFile = fileURLToPath(import.meta.url);
 const serverSourceDir = dirname(currentFile);
@@ -24,18 +42,83 @@ const {
   replicationBlobDir,
   shutdownTimeoutMs,
   exposePaths,
+  migrationBackupDir,
+  backupBeforeMigration,
+  operationalBackupDir,
+  operationalBackupIntervalMs,
+  operationalBackupRetention,
+  operationalBackupMaximumBytes,
+  operationalBackupMinimumFreeBytes,
+  operationalBackupRecentMaximumAgeMs,
 } = runtimeConfig;
 const startedAt = new Date().toISOString();
 
 mkdirSync(dataDir, { recursive: true });
 
-const database = new Database(databasePath);
+const { database, startupRecovery } = openResilientHostedDatabase(Database, {
+  databasePath,
+  backupDirectory: operationalBackupDir,
+});
 database.pragma("journal_mode = WAL");
 database.pragma("synchronous = NORMAL");
+const preMigrationBackupPath = await prepareHostedSchemaMigrationBackup(database, {
+  databasePath,
+  backupDirectory: migrationBackupDir,
+  backupBeforeMigration,
+});
+let hostedMigrationStatus = null;
+if (readHostedSchemaVersion(database) > 0) {
+  hostedMigrationStatus = await runHostedSchemaMigrations(database, {
+    databasePath,
+    backupDirectory: migrationBackupDir,
+    backupBeforeMigration: false,
+  });
+}
 mkdirSync(replicationBlobDir, { recursive: true });
 const replicationStore = createReplicationStore(database, {
   blobDirectory: replicationBlobDir,
 });
+const localFirstRelayStore = createLocalFirstRelayStore(database, {
+  blobDirectory: join(replicationBlobDir, "local-first"),
+});
+const localFirstRelayEvents = createLocalFirstRelayEventBroker();
+if (!hostedMigrationStatus) {
+  hostedMigrationStatus = await runHostedSchemaMigrations(database, {
+    databasePath,
+    backupDirectory: migrationBackupDir,
+    backupBeforeMigration: false,
+  });
+}
+const authStore = createAuthStore(database);
+const orphanedMembershipCleanup = authStore.cleanupOrphanedBudgetMemberships();
+if (orphanedMembershipCleanup.removedMembershipCount > 0) {
+  console.log(
+    `Removed ${orphanedMembershipCleanup.removedMembershipCount} orphaned hosted budget membership(s).`,
+  );
+}
+const operationalResilienceStore = createOperationalResilienceStore(database, {
+  Database,
+  databasePath,
+  backupDirectory: operationalBackupDir,
+  retentionCount: operationalBackupRetention,
+  maximumRetainedBytes: operationalBackupMaximumBytes,
+  minimumFreeBytes: operationalBackupMinimumFreeBytes,
+  recentBackupMaximumAgeMs: operationalBackupRecentMaximumAgeMs,
+  exposePaths,
+  startupRecovery,
+});
+void operationalResilienceStore.createVerifiedBackup("startup").catch((error) => {
+  console.error("Unable to create startup SQLite backup.", error);
+});
+const operationalBackupTimer = setInterval(() => {
+  void operationalResilienceStore.createVerifiedBackup("scheduled").catch((error) => {
+    console.error("Unable to create scheduled SQLite backup.", error);
+  });
+}, operationalBackupIntervalMs);
+operationalBackupTimer.unref?.();
+if (preMigrationBackupPath && hostedMigrationStatus.applied.length > 0) {
+  hostedMigrationStatus.backupPath = preMigrationBackupPath;
+}
 
 function sendJson(response, statusCode, body) {
   response.writeHead(statusCode, {
@@ -43,6 +126,69 @@ function sendJson(response, statusCode, body) {
     "Cache-Control": "no-store",
   });
   response.end(JSON.stringify(body));
+}
+
+const SESSION_COOKIE = "budget_app_session";
+const loginAttempts = new Map();
+
+function enforceLoginRateLimit(request) {
+  const address = request.socket?.remoteAddress ?? "unknown";
+  const timestamp = Date.now();
+  const windowStart = timestamp - 15 * 60 * 1000;
+  const attempts = (loginAttempts.get(address) ?? []).filter((value) => value > windowStart);
+  if (attempts.length >= 10) {
+    throw Object.assign(new Error("Too many sign-in attempts. Try again later."), {
+      statusCode: 429,
+      code: "AUTH_RATE_LIMITED",
+    });
+  }
+  attempts.push(timestamp);
+  loginAttempts.set(address, attempts);
+}
+
+function clearLoginRateLimit(request) {
+  loginAttempts.delete(request.socket?.remoteAddress ?? "unknown");
+}
+
+function readCookie(request, name) {
+  const cookie = request.headers.cookie ?? "";
+  for (const part of cookie.split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === name) return decodeURIComponent(value.join("="));
+  }
+  return null;
+}
+
+function sessionCookie(token, expiresAt, request) {
+  const forwardedProto = request.headers["x-forwarded-proto"];
+  const secure = forwardedProto === "https" || request.socket?.encrypted;
+  return [
+    `${SESSION_COOKIE}=${encodeURIComponent(token)}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Strict",
+    secure ? "Secure" : null,
+    `Expires=${new Date(expiresAt).toUTCString()}`,
+  ].filter(Boolean).join("; ");
+}
+
+function expiredSessionCookie(request) {
+  return sessionCookie("", new Date(0).toISOString(), request);
+}
+
+function requireAuthenticatedUser(request) {
+  const user = authStore.authenticate(readCookie(request, SESSION_COOKIE));
+  if (!user) {
+    throw Object.assign(new Error("Sign in is required."), {
+      statusCode: 401,
+      code: "AUTH_REQUIRED",
+    });
+  }
+  return user;
+}
+
+function minimumBudgetRole(method) {
+  return method === "GET" || method === "HEAD" ? "viewer" : "editor";
 }
 
 async function readRequestBody(request, maximumBytes = 50 * 1024 * 1024) {
@@ -111,6 +257,8 @@ function validateCheckpoint(value) {
   if (typeof value.checkpointId !== "string" || !value.checkpointId) throw new Error("checkpointId is required.");
   if (typeof value.createdAt !== "string" || !value.createdAt) throw new Error("checkpoint createdAt is required.");
   if (!Number.isSafeInteger(value.throughSequence) || value.throughSequence < 0) throw new Error("checkpoint throughSequence is invalid.");
+  if (!Number.isSafeInteger(value.replicatedThroughCursor) || value.replicatedThroughCursor < 0) throw new Error("checkpoint replicatedThroughCursor is invalid.");
+  if (typeof value.integrityHash !== "string" || !/^[a-f0-9]{16}$/i.test(value.integrityHash)) throw new Error("checkpoint integrityHash is invalid.");
   if (!value.entries || typeof value.entries !== "object" || Array.isArray(value.entries)) throw new Error("checkpoint entries are invalid.");
   return value;
 }
@@ -145,6 +293,10 @@ function serveStatic(requestPath, response) {
 }
 
 const server = createServer(async (request, response) => {
+  // SQLite WASM uses a dedicated worker and OPFS. Cross-origin isolation is
+  // required for the SharedArrayBuffer-backed persistent VFS.
+  response.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  response.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
   try {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
 
@@ -153,8 +305,10 @@ const server = createServer(async (request, response) => {
         status: "ok",
         service: "budget-app-server",
         startedAt,
+        hostedSchemaVersion: HOSTED_SCHEMA_VERSION,
         uptimeSeconds: Math.floor(process.uptime()),
         protocolVersion: REPLICATION_PROTOCOL_VERSION,
+        localFirstProtocolVersion: LOCAL_FIRST_RELAY_PROTOCOL_VERSION,
         serverTime: new Date().toISOString(),
       });
       return;
@@ -162,8 +316,6 @@ const server = createServer(async (request, response) => {
 
     if (url.pathname === "/api/ready" && request.method === "GET") {
       try {
-        const generation = replicationStore.getGeneration();
-        const revision = generation.latestCursor;
         accessSync(dataDir, constants.R_OK | constants.W_OK);
         accessSync(replicationBlobDir, constants.R_OK | constants.W_OK);
         sendJson(response, 200, {
@@ -171,8 +323,7 @@ const server = createServer(async (request, response) => {
           service: "budget-app-server",
           storage: "sqlite",
           protocolVersion: REPLICATION_PROTOCOL_VERSION,
-          generationId: generation.generationId,
-          revision,
+          hostedSchemaVersion: hostedMigrationStatus.currentVersion,
           serverTime: new Date().toISOString(),
           ...(exposePaths ? { databasePath, replicationBlobDir, webDist } : {}),
         });
@@ -187,21 +338,122 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/auth/status" && request.method === "GET") {
+      const user = authStore.authenticate(readCookie(request, SESSION_COOKIE));
+      sendJson(response, 200, {
+        needsSetup: authStore.needsSetup(),
+        authenticated: Boolean(user),
+        user,
+        budgets: user ? authStore.listBudgets(user) : [],
+      });
+      return;
+    }
 
+    if (url.pathname === "/api/auth/setup" && request.method === "POST") {
+      const body = await readJsonBody(request);
+      const user = authStore.setup(body);
+      const session = authStore.login(user.email, body.password);
+      response.setHeader("Set-Cookie", sessionCookie(session.token, session.expiresAt, request));
+      sendJson(response, 201, { user: session.user, expiresAt: session.expiresAt });
+      return;
+    }
+
+    if (url.pathname === "/api/auth/login" && request.method === "POST") {
+      enforceLoginRateLimit(request);
+      const body = await readJsonBody(request);
+      const session = authStore.login(body.email, body.password);
+      clearLoginRateLimit(request);
+      response.setHeader("Set-Cookie", sessionCookie(session.token, session.expiresAt, request));
+      sendJson(response, 200, { user: session.user, expiresAt: session.expiresAt });
+      return;
+    }
+
+    if (url.pathname === "/api/auth/logout" && request.method === "POST") {
+      authStore.logout(readCookie(request, SESSION_COOKIE));
+      response.setHeader("Set-Cookie", expiredSessionCookie(request));
+      sendJson(response, 200, { loggedOut: true });
+      return;
+    }
+
+    if (url.pathname === "/api/auth/users" && request.method === "POST") {
+      const actor = requireAuthenticatedUser(request);
+      sendJson(response, 201, authStore.createUser(actor, await readJsonBody(request)));
+      return;
+    }
+
+    if (url.pathname === "/api/auth/users" && request.method === "GET") {
+      const actor = requireAuthenticatedUser(request);
+      sendJson(response, 200, { users: authStore.listUsers(actor) });
+      return;
+    }
+
+    let authenticatedUser = null;
+    if (url.pathname.startsWith("/api/")) {
+      authenticatedUser = requireAuthenticatedUser(request);
+    }
+
+    const replicationBudgetId = url.pathname.startsWith("/api/replication/")
+      ? url.searchParams.get("budgetId")?.trim()
+      : null;
+    if (url.pathname.startsWith("/api/replication/")) {
+      if (!replicationBudgetId) {
+        throw Object.assign(new Error("budgetId is required for replication."), {
+          statusCode: 400,
+          code: "REPLICATION_BUDGET_REQUIRED",
+        });
+      }
+      authStore.requireBudgetRole(
+        authenticatedUser,
+        replicationBudgetId,
+        minimumBudgetRole(request.method),
+      );
+    }
+
+    const localFirstBudgetId = url.pathname.startsWith("/api/local-first/")
+      ? url.searchParams.get("budgetId")?.trim()
+      : null;
+    if (url.pathname.startsWith("/api/local-first/")) {
+      if (!localFirstBudgetId) {
+        throw Object.assign(new Error("budgetId is required for local-first relay."), {
+          statusCode: 400,
+          code: "LOCAL_FIRST_BUDGET_REQUIRED",
+        });
+      }
+      const minimumRole =
+        url.pathname === "/api/local-first/epoch/reset" ||
+        url.pathname === "/api/local-first/metadata" ||
+        url.pathname === "/api/local-first/budget"
+          ? "owner"
+          : minimumBudgetRole(request.method);
+      if (url.pathname === "/api/local-first/epoch/reset" && request.method === "POST") {
+        authStore.claimBudget(authenticatedUser, localFirstBudgetId);
+      }
+      authStore.requireBudgetRole(authenticatedUser, localFirstBudgetId, minimumRole);
+    }
+
+    if (url.pathname.startsWith("/api/budget-engine/")) {
+      sendJson(response, 410, {
+        code: "HOSTED_BUDGET_DOMAIN_RETIRED",
+        message:
+          "Hosted budget-domain APIs have been retired. " +
+          "Use the local-first SQLite engine and relay protocol.",
+      });
+      return;
+    }
 
     const blobMatch = url.pathname.match(/^\/api\/replication\/blobs\/(sha256%3A|sha256:)?([a-f0-9]{64})$/i);
     if (blobMatch && ["HEAD", "GET", "PUT"].includes(request.method ?? "")) {
       const generationId = validateGenerationId(url.searchParams.get("generationId"));
       const contentHash = `sha256:${blobMatch[2].toLowerCase()}`;
       if (request.method === "HEAD") {
-        response.writeHead(replicationStore.hasBlob(generationId, contentHash) ? 200 : 404, {
-          "Cache-Control": "public, max-age=31536000, immutable",
+        response.writeHead(replicationStore.hasBlob(replicationBudgetId, generationId, contentHash) ? 200 : 404, {
+          "Cache-Control": "private, max-age=31536000, immutable",
         });
         response.end();
         return;
       }
       if (request.method === "GET") {
-        const blob = replicationStore.readBlob(generationId, contentHash);
+        const blob = replicationStore.readBlob(replicationBudgetId, generationId, contentHash);
         if (!blob) {
           sendJson(response, 404, { message: "Attachment blob was not found." });
           return;
@@ -209,7 +461,7 @@ const server = createServer(async (request, response) => {
         response.writeHead(200, {
           "Content-Type": blob.metadata.mimeType,
           "Content-Length": String(blob.metadata.size),
-          "Cache-Control": "public, max-age=31536000, immutable",
+          "Cache-Control": "private, max-age=31536000, immutable",
           ETag: `"${contentHash}"`,
         });
         response.end(blob.content);
@@ -217,12 +469,14 @@ const server = createServer(async (request, response) => {
       }
       const content = await readRequestBody(request);
       const mimeType = String(request.headers["content-type"] ?? "application/octet-stream");
-      sendJson(response, 201, replicationStore.saveBlob(generationId, contentHash, mimeType, content));
+      sendJson(response, 201, replicationStore.saveBlob(
+        replicationBudgetId, generationId, contentHash, mimeType, content,
+      ));
       return;
     }
 
     if (url.pathname === "/api/replication/generation" && request.method === "GET") {
-      sendJson(response, 200, replicationStore.getGeneration());
+      sendJson(response, 200, replicationStore.getGeneration(replicationBudgetId));
       return;
     }
 
@@ -231,7 +485,9 @@ const server = createServer(async (request, response) => {
       validateReplicationProtocol(body.protocolVersion);
       const generationId = validateGenerationId(body.generationId);
       const operations = validateReplicationOperations(body.operations);
-      sendJson(response, 200, replicationStore.pushOperations(generationId, operations));
+      sendJson(response, 200, replicationStore.pushOperations(
+        replicationBudgetId, generationId, operations,
+      ));
       return;
     }
 
@@ -240,7 +496,9 @@ const server = createServer(async (request, response) => {
       const afterCursor = validateCursor(url.searchParams.get("afterCursor") ?? "0", "afterCursor");
       const limit = validateCursor(url.searchParams.get("limit") ?? "500", "limit");
       if (limit < 1 || limit > 5000) throw new Error("limit must be between 1 and 5000.");
-      sendJson(response, 200, replicationStore.pullOperations(generationId, afterCursor, limit));
+      sendJson(response, 200, replicationStore.pullOperations(
+        replicationBudgetId, generationId, afterCursor, limit,
+      ));
       return;
     }
 
@@ -249,18 +507,212 @@ const server = createServer(async (request, response) => {
       validateReplicationProtocol(body.protocolVersion);
       const generationId = validateGenerationId(body.generationId);
       const checkpoint = validateCheckpoint(body.checkpoint);
-      sendJson(response, 201, replicationStore.saveCheckpoint(generationId, checkpoint));
+      sendJson(response, 201, replicationStore.saveCheckpoint(
+        replicationBudgetId, generationId, checkpoint,
+      ));
       return;
     }
 
     if (url.pathname === "/api/replication/checkpoints/latest" && request.method === "GET") {
       const generationId = validateGenerationId(url.searchParams.get("generationId"));
-      const checkpoint = replicationStore.getLatestCheckpoint(generationId);
-      if (!checkpoint) {
-        sendJson(response, 404, { message: "No checkpoint is available for this generation." });
+      const checkpoint = replicationStore.getLatestCheckpoint(
+        replicationBudgetId, generationId,
+      );
+      // Missing is a valid state for a newly provisioned generation. Returning
+      // an explicit nullable value avoids treating normal bootstrap as a failed
+      // resource request in browsers.
+      sendJson(response, 200, { checkpoint: checkpoint ?? null });
+      return;
+    }
+
+    if (url.pathname === "/api/local-first/bootstrap" && request.method === "GET") {
+      sendJson(response, 200, localFirstRelayStore.getBootstrap(localFirstBudgetId));
+      return;
+    }
+
+    if (url.pathname === "/api/local-first/events" && request.method === "GET") {
+      const bootstrap = localFirstRelayStore.getBootstrap(localFirstBudgetId);
+      response.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "X-Accel-Buffering": "no",
+        Connection: "keep-alive",
+      });
+      response.flushHeaders?.();
+      response.write(
+        "event: relay\n" +
+        `data: ${JSON.stringify({
+          type: "connected",
+          budgetId: localFirstBudgetId,
+          syncEpoch: bootstrap.syncEpoch,
+          latestCursor: bootstrap.latestCursor,
+        })}\n\n`,
+      );
+      const unsubscribe = localFirstRelayEvents.subscribe(
+        localFirstBudgetId,
+        response,
+      );
+      request.once("close", unsubscribe);
+      response.once("close", unsubscribe);
+      return;
+    }
+
+    if (url.pathname === "/api/local-first/epoch/reset" && request.method === "POST") {
+      const body = await readJsonBody(request);
+      const result =
+        localFirstRelayStore.resetEpoch(localFirstBudgetId, body.schemaVersion ?? 1);
+      sendJson(
+        response,
+        201,
+        result,
+      );
+      localFirstRelayEvents.publish(localFirstBudgetId, {
+        type: "epoch-reset",
+        budgetId: localFirstBudgetId,
+        syncEpoch: result.syncEpoch,
+        latestCursor: 0,
+      });
+      return;
+    }
+
+    if (url.pathname === "/api/local-first/metadata" && request.method === "PUT") {
+      const body = await readJsonBody(request);
+      sendJson(
+        response,
+        200,
+        localFirstRelayStore.updateBudgetMetadata(localFirstBudgetId, body),
+      );
+      return;
+    }
+
+    if (url.pathname === "/api/local-first/budget" && request.method === "DELETE") {
+      const deleted = localFirstRelayStore.deleteBudget(localFirstBudgetId);
+      const membership = authStore.deleteBudgetMemberships(localFirstBudgetId);
+      sendJson(response, 200, { ...deleted, ...membership });
+      return;
+    }
+
+    if (url.pathname === "/api/local-first/baselines" && request.method === "POST") {
+      const body = await readJsonBody(request);
+      sendJson(
+        response,
+        201,
+        localFirstRelayStore.beginBaseline(
+          localFirstBudgetId,
+          body.syncEpoch,
+          body.manifest,
+        ),
+      );
+      return;
+    }
+
+    const localFirstChunkMatch = url.pathname.match(
+      /^\/api\/local-first\/baselines\/([^/]+)\/chunks\/(\d+)$/,
+    );
+    if (localFirstChunkMatch) {
+      const baselineId = decodeURIComponent(localFirstChunkMatch[1]);
+      const chunkIndex = validateCursor(localFirstChunkMatch[2], "chunkIndex");
+      const syncEpoch = validateGenerationId(url.searchParams.get("syncEpoch"));
+      if (request.method === "PUT") {
+        const contentHash = String(request.headers["x-content-hash"] ?? "");
+        const content = await readRequestBody(request, LOCAL_FIRST_MAX_CHUNK_BYTES);
+        sendJson(
+          response,
+          201,
+          localFirstRelayStore.saveBaselineChunk(
+            localFirstBudgetId,
+            syncEpoch,
+            baselineId,
+            chunkIndex,
+            contentHash,
+            content,
+          ),
+        );
         return;
       }
-      sendJson(response, 200, { checkpoint });
+      if (request.method === "GET") {
+        const chunk = localFirstRelayStore.readBaselineChunk(
+          localFirstBudgetId,
+          syncEpoch,
+          baselineId,
+          chunkIndex,
+        );
+        response.writeHead(200, {
+          "Content-Type": "application/octet-stream",
+          "Content-Length": String(chunk.metadata.size),
+          "X-Content-Hash": chunk.metadata.contentHash,
+          "Cache-Control": "private, no-store",
+        });
+        response.end(chunk.content);
+        return;
+      }
+    }
+
+    const localFirstCommitMatch = url.pathname.match(
+      /^\/api\/local-first\/baselines\/([^/]+)\/commit$/,
+    );
+    if (localFirstCommitMatch && request.method === "POST") {
+      const baselineId = decodeURIComponent(localFirstCommitMatch[1]);
+      const body = await readJsonBody(request);
+      const result = localFirstRelayStore.commitBaseline(
+        localFirstBudgetId,
+        body.syncEpoch,
+        baselineId,
+      );
+      sendJson(
+        response,
+        201,
+        result,
+      );
+      localFirstRelayEvents.publish(localFirstBudgetId, {
+        type: "baseline-committed",
+        budgetId: localFirstBudgetId,
+        syncEpoch: body.syncEpoch,
+        latestCursor: result.baseCursor,
+      });
+      return;
+    }
+
+    if (url.pathname === "/api/local-first/mutations" && request.method === "POST") {
+      const body = await readJsonBody(request);
+      const result = localFirstRelayStore.pushMutations(
+        localFirstBudgetId,
+        body.syncEpoch,
+        body.mutations,
+      );
+      sendJson(
+        response,
+        200,
+        result,
+      );
+      if (result.acceptedCount > 0) {
+        localFirstRelayEvents.publish(localFirstBudgetId, {
+          type: "mutations-available",
+          budgetId: localFirstBudgetId,
+          syncEpoch: body.syncEpoch,
+          latestCursor: result.latestCursor,
+        });
+      }
+      return;
+    }
+
+    if (url.pathname === "/api/local-first/mutations" && request.method === "GET") {
+      const syncEpoch = validateGenerationId(url.searchParams.get("syncEpoch"));
+      const afterCursor = validateCursor(
+        url.searchParams.get("afterCursor") ?? "0",
+        "afterCursor",
+      );
+      const limit = validateCursor(url.searchParams.get("limit") ?? "500", "limit");
+      sendJson(
+        response,
+        200,
+        localFirstRelayStore.pullMutations(
+          localFirstBudgetId,
+          syncEpoch,
+          afterCursor,
+          limit,
+        ),
+      );
       return;
     }
 
@@ -280,8 +732,10 @@ const server = createServer(async (request, response) => {
 
 
     console.error(error);
-    sendJson(response, 400, {
+    sendJson(response, Number.isInteger(error?.statusCode) ? error.statusCode : 400, {
+      code: error?.code,
       message: error instanceof Error ? error.message : "Unexpected server error.",
+      details: error?.details,
     });
   }
 });
@@ -290,6 +744,7 @@ let shuttingDown = false;
 function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
+  clearInterval(operationalBackupTimer);
   console.log(`Received ${signal}; closing Budget App server.`);
   const forcedExit = setTimeout(() => {
     console.error(`Graceful shutdown exceeded ${shutdownTimeoutMs}ms; forcing exit.`);

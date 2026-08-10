@@ -926,8 +926,24 @@
   stroke-width: 2.2;
 }
 
+.attachment-indicator-present {
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  border-radius: 0.4rem;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  opacity: 1;
+}
+
 .attachment-indicator-empty {
-  opacity: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  opacity: 0.18;
+}
+
+.attachment-indicator-empty:hover,
+.attachment-indicator-empty:focus-visible {
+  opacity: 0.9;
+  color: var(--accent-strong);
 }
 
 .attachment-indicator-empty::before {
@@ -1069,6 +1085,44 @@
   border: 0;
   background: transparent;
   cursor: pointer;
+}
+
+/* Keep attachment state visible after the generic attachment-manager reset. */
+.attachment-indicator.attachment-indicator-present {
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, transparent);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--accent-soft) 82%, var(--surface));
+  color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+  opacity: 1;
+}
+
+.attachment-indicator.attachment-indicator-present::after {
+  content: attr(data-attachment-count);
+  min-width: 0.85rem;
+  height: 0.85rem;
+  padding-inline: 0.18rem;
+  border-radius: 999px;
+  background: var(--accent-strong);
+  color: var(--surface);
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 0.85rem;
+  text-align: center;
+}
+
+.attachment-indicator.attachment-indicator-empty {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+  opacity: 0.14;
+}
+
+.attachment-indicator.attachment-indicator-empty:hover,
+.attachment-indicator.attachment-indicator-empty:focus-visible {
+  color: var(--accent-strong);
+  opacity: 0.85;
 }
 
 .attachment-dialog-backdrop {
@@ -4511,6 +4565,45 @@
   font-size: 0.86rem;
 }
 
+.transaction-import-balance-preview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.transaction-import-balance-preview > div {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  background: var(--surface-subtle);
+}
+
+.transaction-import-balance-preview span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.transaction-import-balance-preview strong {
+  font-size: 1.1rem;
+}
+
+.transaction-import-balance-preview .projected {
+  border-color: var(--primary-color);
+  background: var(--primary-soft);
+}
+
+.transaction-import-balance-preview .negative { color: var(--danger-color); }
+.transaction-import-balance-preview .positive { color: var(--success-color); }
+
+@media (max-width: 720px) {
+  .transaction-import-balance-preview {
+    grid-template-columns: 1fr;
+  }
+}
+
 .transaction-import-review-card {
   position: relative;
   opacity: 1;
@@ -5522,12 +5615,129 @@
   font-weight: 700;
 }
 
+.scheduled-attachment-section {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border-soft, rgba(15, 23, 42, 0.1));
+  background: #fff;
+}
+
+.scheduled-attachment-heading,
+.scheduled-attachment-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.scheduled-attachment-heading > div,
+.scheduled-attachment-list li > span {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.scheduled-attachment-heading span,
+.scheduled-attachment-list small,
+.scheduled-attachment-empty {
+  color: var(--text-muted, #64748b);
+  font-size: 0.8rem;
+}
+
+.scheduled-attachment-add input { display: none; }
+.scheduled-attachment-list { list-style: none; margin: 0.75rem 0 0; padding: 0; }
+.scheduled-attachment-list li { padding: 0.65rem 0; border-top: 1px solid var(--border-soft, rgba(15, 23, 42, 0.1)); }
+.scheduled-attachment-list button { border: 0; background: none; color: #b91c1c; font-weight: 700; cursor: pointer; }
+.scheduled-attachment-empty { margin: 0.75rem 0 0; }
+
 .scheduled-editor-actions {
   border-top: 1px solid var(--border-soft, rgba(15, 23, 42, 0.1));
 }
 
 .scheduled-editor-actions .button-primary {
   margin-left: auto;
+}
+
+.scheduled-specific-dates {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  background: var(--surface-subtle);
+}
+
+.scheduled-specific-dates-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.scheduled-specific-dates-heading > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.scheduled-specific-dates-heading small,
+.scheduled-specific-dates-heading > span {
+  color: var(--text-muted);
+}
+
+.scheduled-specific-date-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(9rem, 1fr) minmax(8rem, 0.65fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.scheduled-instalment-amount {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.scheduled-instalment-amount input {
+  min-width: 0;
+  width: 100%;
+}
+
+.scheduled-specific-date-number {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
+.scheduled-specific-date-remove {
+  border: 0;
+  background: transparent;
+  color: var(--danger-color);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.scheduled-specific-date-add {
+  justify-self: start;
+}
+
+@media (max-width: 640px) {
+  .scheduled-specific-date-row {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+
+  .scheduled-instalment-amount,
+  .scheduled-specific-date-remove {
+    grid-column: 2;
+  }
+
+  .scheduled-specific-date-remove {
+    grid-column: 2;
+    justify-self: start;
+  }
 }
 
 .scheduled-editor-advanced .scheduled-tag-select {
@@ -5982,6 +6192,11 @@
 .register-icon-action {
   width: 2.35rem;
   padding-inline: 0;
+}
+
+.register-manage-tags-action {
+  width: auto;
+  padding-inline: 0.7rem;
 }
 
 .register-mobile-actions {
@@ -6533,5 +6748,545 @@
 
   .register-mobile-card-actions {
     justify-content: space-between;
+  }
+}
+
+/* Dedicated phone transaction workflow. */
+.mobile-transaction-sheet {
+  display: none;
+}
+
+@media (max-width: 680px) {
+  .mobile-transaction-sheet {
+    position: fixed;
+    inset: 0 auto auto 0;
+    z-index: 520;
+    box-sizing: border-box;
+    width: 100vw;
+    min-width: 0;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    display: grid;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    overflow: hidden;
+    margin: 0;
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .mobile-transaction-sheet-header {
+    width: 100%;
+    min-width: 0;
+    min-height: 3.35rem;
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr) 7rem;
+    align-items: center;
+    padding:
+      max(0.45rem, env(safe-area-inset-top, 0px))
+      max(0.55rem, env(safe-area-inset-right, 0px))
+      0.45rem
+      max(0.55rem, env(safe-area-inset-left, 0px));
+    border-bottom: 1px solid var(--border-soft);
+    background: color-mix(in srgb, var(--accent-strong) 90%, #102a36);
+    color: #fff;
+  }
+
+  .mobile-transaction-sheet-header strong {
+    overflow: hidden;
+    font-size: 1rem;
+    font-weight: 760;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-transaction-sheet-header button {
+    min-height: 2.35rem;
+    border: 0;
+    background: transparent;
+    color: color-mix(in srgb, #fff 82%, var(--accent-soft));
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 720;
+    padding: 0.25rem;
+  }
+
+  .mobile-transaction-sheet-header button:first-child {
+    overflow: visible;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .mobile-transaction-sheet-header button:last-child {
+    text-align: right;
+  }
+
+  .mobile-transaction-amount {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    display: grid;
+    justify-items: center;
+    gap: 0.2rem;
+    padding: 0.8rem 1rem 0.75rem;
+    background: color-mix(in srgb, var(--accent-strong) 94%, #062832);
+    color: #fff;
+  }
+
+  .mobile-transaction-amount > span {
+    font-size: 0.72rem;
+    font-weight: 760;
+    letter-spacing: 0.08em;
+    opacity: 0.78;
+    text-transform: uppercase;
+  }
+
+  .mobile-transaction-amount output {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    display: block;
+    overflow: hidden;
+    color: #fb4659;
+    font-size: clamp(2.7rem, 15vw, 4.25rem);
+    font-weight: 420;
+    letter-spacing: -0.055em;
+    line-height: 1.1;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-transaction-amount-income output {
+    color: #25b56a;
+  }
+
+  .mobile-transaction-step-amount .mobile-transaction-amount {
+    min-height: 10rem;
+    align-content: center;
+  }
+
+  .mobile-transaction-step-details .mobile-transaction-amount {
+    min-height: 6.5rem;
+    align-content: center;
+  }
+
+  .mobile-transaction-step-details .mobile-transaction-amount output {
+    font-size: clamp(2.25rem, 12vw, 3.4rem);
+  }
+
+  .mobile-transaction-flow {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .mobile-transaction-flow button {
+    min-width: 0;
+    position: relative;
+    min-height: 2.75rem;
+    border: 0;
+    background: var(--surface);
+    color: var(--text-muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 820;
+    letter-spacing: 0.01em;
+  }
+
+  .mobile-transaction-flow button.active.expense {
+    background: color-mix(in srgb, var(--negative-bg) 82%, var(--surface));
+    color: var(--negative);
+    box-shadow: inset 0 -3px 0 var(--negative);
+  }
+
+  .mobile-transaction-flow button.active.income {
+    background: color-mix(in srgb, var(--positive-bg) 82%, var(--surface));
+    color: var(--positive);
+    box-shadow: inset 0 -3px 0 var(--positive);
+  }
+
+  .mobile-transaction-flow button.active::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: currentColor;
+  }
+
+  .mobile-transaction-keypad {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(4, minmax(3.6rem, 1fr));
+    background: #d4d7da;
+  }
+
+  .mobile-transaction-keypad button {
+    min-width: 0;
+    border: 0;
+    border-right: 1px solid #fff;
+    border-bottom: 1px solid #fff;
+    border-radius: 0;
+    background: transparent;
+    color: color-mix(in srgb, var(--accent-strong) 86%, #001c25);
+    cursor: pointer;
+    font: inherit;
+    font-size: clamp(1.75rem, 9vw, 2.75rem);
+    font-weight: 420;
+  }
+
+  .mobile-transaction-keypad button:active {
+    background: color-mix(in srgb, var(--accent-soft) 70%, #fff);
+  }
+
+  .mobile-transaction-keypad .mobile-transaction-next {
+    background: var(--accent);
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 720;
+  }
+
+  .mobile-transaction-fields {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.35rem 0.85rem 1rem;
+  }
+
+  .mobile-transaction-field {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 5.3rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.65rem;
+    min-height: 3.15rem;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .mobile-transaction-field > span {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 720;
+  }
+
+  .mobile-transaction-field > input,
+  .mobile-transaction-field > select,
+  .mobile-transaction-field > div,
+  .mobile-transaction-field .register-combobox,
+  .mobile-transaction-field .register-date-field {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .mobile-transaction-field input,
+  .mobile-transaction-field select {
+    min-height: 2.55rem;
+    border-color: transparent;
+    background: transparent;
+    font-size: 0.95rem;
+  }
+
+  .mobile-transaction-field input:focus,
+  .mobile-transaction-field select:focus {
+    border-color: var(--accent);
+    background: var(--surface-subtle);
+  }
+
+  .mobile-transaction-choice {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid var(--border-soft);
+    border-radius: 0;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .mobile-transaction-choice > strong {
+    min-width: 0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.45rem;
+    overflow: hidden;
+    font-size: 0.9rem;
+    font-weight: 560;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-transaction-choice > strong.placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+    font-weight: 450;
+  }
+
+  .mobile-transaction-picker {
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  .mobile-picker-search {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.75rem;
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .mobile-picker-search input {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.45rem;
+    border: 0;
+    border-radius: 0.55rem;
+    background: #fff;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.95rem;
+  }
+
+  .mobile-picker-list {
+    min-height: 0;
+    overflow-y: auto;
+    background: var(--surface);
+  }
+
+  .mobile-picker-list > button,
+  .mobile-category-picker-list > div > button {
+    width: 100%;
+    min-width: 0;
+    min-height: 3.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border: 0;
+    border-bottom: 1px solid var(--border-soft);
+    border-radius: 0;
+    background: transparent;
+    padding: 0.65rem 0.85rem;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.95rem;
+    text-align: left;
+  }
+
+  .mobile-category-picker-list h3 {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0;
+    padding: 0.35rem 0.75rem;
+    background: color-mix(in srgb, var(--accent-soft) 82%, var(--surface));
+    color: var(--accent-strong);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+  }
+
+  .mobile-picker-empty {
+    padding: 1.5rem;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  .mobile-split-picker {
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    overflow: hidden;
+    padding: 0.65rem;
+  }
+
+  .mobile-split-picker > .register-split-allocation-editor {
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .mobile-split-list {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .mobile-split-row {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 6.5rem 2.75rem;
+    align-items: stretch;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .mobile-split-row > button:first-child {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    overflow: hidden;
+    border: 0;
+    background: transparent;
+    padding: 0.75rem;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+  }
+
+  .mobile-split-row > button:first-child span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-split-row > input {
+    min-width: 0;
+    width: 100%;
+    border: 0;
+    border-left: 1px solid var(--border-soft);
+    border-radius: 0;
+    background: var(--surface);
+    padding: 0.55rem;
+    font-size: 1rem;
+    font-weight: 720;
+    text-align: right;
+  }
+
+  .mobile-split-sign {
+    border: 0;
+    font-size: 1.4rem;
+    font-weight: 820;
+  }
+
+  .mobile-split-sign-negative {
+    background: var(--negative-bg);
+    color: var(--negative);
+  }
+
+  .mobile-split-sign-positive {
+    background: var(--positive-bg);
+    color: var(--positive);
+  }
+
+  .mobile-split-add {
+    width: 100%;
+    min-height: 3rem;
+    border: 0;
+    background: transparent;
+    color: var(--positive);
+    font: inherit;
+    font-weight: 720;
+    text-align: left;
+  }
+
+  .mobile-split-remaining {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.65rem;
+    padding: 0.6rem 0.75rem;
+    background: color-mix(in srgb, var(--accent-strong) 94%, #062832);
+    color: #fff;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+  }
+
+  .mobile-date-picker {
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    padding: 1rem;
+  }
+
+  .mobile-date-picker input[type="date"] {
+    align-self: start;
+    width: 100%;
+    min-height: 4rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    padding: 0.75rem;
+    color: var(--text);
+    font-size: 1.25rem;
+  }
+
+  .mobile-date-picker .button {
+    min-height: 3rem;
+  }
+
+  .mobile-split-picker > .button {
+    min-height: 3rem;
+    margin-top: 0.65rem;
+  }
+
+  .mobile-transaction-more {
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .mobile-transaction-more summary {
+    min-height: 2.9rem;
+    display: flex;
+    align-items: center;
+    color: var(--accent-strong);
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 720;
+  }
+
+  .mobile-transaction-splits {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 0.85rem;
+  }
+
+  .mobile-transaction-splits .register-split-allocation-editor {
+    margin: 0;
+  }
+
+  .mobile-transaction-sheet-footer {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.55rem;
+    padding:
+      0.65rem
+      max(0.75rem, env(safe-area-inset-right, 0px))
+      max(0.65rem, env(safe-area-inset-bottom, 0px))
+      max(0.75rem, env(safe-area-inset-left, 0px));
+    border-top: 1px solid var(--border-soft);
+    background: color-mix(in srgb, var(--surface) 94%, var(--surface-subtle));
+    box-shadow: 0 -0.4rem 1.2rem rgb(15 23 42 / 0.08);
+  }
+
+  .mobile-transaction-sheet-footer .button {
+    min-width: 0;
+    max-width: 100%;
+    min-height: 2.8rem;
+    padding-inline: 0.55rem;
+    font-size: 0.82rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .register-row-mobile {
+    margin: 0;
+    padding: 0.65rem 0.7rem;
+    border-width: 0 0 1px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .register-mobile-card-actions {
+    margin-top: 0.45rem;
+    padding-top: 0.4rem;
   }
 }

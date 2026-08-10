@@ -593,6 +593,12 @@ CREATE TABLE IF NOT EXISTS split_transaction_lines (
 
     CREATE INDEX IF NOT EXISTS idx_transactions_budget_id ON transactions(budget_id);
     CREATE INDEX IF NOT EXISTS idx_transactions_account_date ON transactions(account_id, date);
+    CREATE INDEX IF NOT EXISTS idx_transactions_budget_account_active_date_id
+      ON transactions(budget_id, account_id, date DESC, id DESC)
+      WHERE is_deleted = 0;
+    CREATE INDEX IF NOT EXISTS idx_transactions_budget_account_active_cleared
+      ON transactions(budget_id, account_id, cleared_status, amount)
+      WHERE is_deleted = 0;
     CREATE INDEX IF NOT EXISTS idx_transactions_budget_date ON transactions(budget_id, date);
     CREATE INDEX IF NOT EXISTS idx_transactions_category_id ON transactions(category_id);
     CREATE INDEX IF NOT EXISTS idx_transactions_payee_id ON transactions(payee_id);

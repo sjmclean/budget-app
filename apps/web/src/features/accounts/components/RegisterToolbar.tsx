@@ -182,7 +182,7 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
             </div>
 
             <div className="register-toolbar-right register-desktop-actions">
-              <button className="button button-secondary register-icon-action" type="button" onClick={onOpenTagManager} title="Manage tags" aria-label="Manage tags"><Tags size={16} aria-hidden="true" /></button>
+              <button className="button button-secondary register-icon-action register-manage-tags-action" type="button" onClick={onOpenTagManager} title="Manage tags" aria-label="Manage tags"><Tags size={16} aria-hidden="true" /><span>Manage tags</span></button>
               <button className="button button-secondary" type="button" onClick={onOpenImport}><Download size={16} aria-hidden="true" />Import</button>
               <button className="button button-secondary" type="button" disabled>Reconcile</button>
               <button className="button button-secondary register-history-action" type="button" disabled={!canUndo || isHistoryBusy} onClick={onUndo} title={undoTitle} aria-label={undoTitle}><Undo2 size={16} aria-hidden="true" /><span>Undo</span></button>

@@ -4,8 +4,10 @@ import type { KeyValueStoragePort } from "../../persistence/keyValueStoragePort"
 import { createBudgetRegistryEntry } from "../budgetRegistry";
 import { getCurrentBudgetMonth } from "../budgetMonthNavigation";
 import { getSelectedCategoryGroups, type NewBudgetSetup } from "./budgetTemplates";
+import { createFixedBudgetScopedStorage } from "../budgetDataScope.js";
+import { syncCategoryEntities } from "../categoryEntities.js";
+import { writeBudgetMonthEntity } from "../entities/budgetMonthEntity.js";
 
-const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
 
 function monthLabelFromIsoMonth(month: string): string {
   const [year, monthNumber] = month.split("-").map(Number);
@@ -72,6 +74,7 @@ export function createBudgetFromSetup(
   });
   const month = getCurrentBudgetMonth(now);
   const view = createBudgetMonthView(budget, setup, now);
-  storage.setItem(`${BUDGET_VIEW_STORAGE_PREFIX}.${budget.id}.${month}`, JSON.stringify(view));
+  syncCategoryEntities(createFixedBudgetScopedStorage(storage, budget.id), view, now);
+  writeBudgetMonthEntity(storage, budget.id, month, view, now);
   return budget;
 }
