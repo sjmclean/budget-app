@@ -546,6 +546,7 @@
     "test:v3215:import-preview-preparation": "tsx tests/v3215-import-preview-preparation.ts",
     "test:v3215:import-preview-structure": "node tests/v3215-import-preview-preparation.mjs",
     "test:v3215": "pnpm test:v3215:import-preview-preparation && pnpm test:v3215:import-preview-structure",
+    "test:milestone4:transaction-import-hardening": "tsx tests/milestone4-transaction-import-hardening.ts",
     "test:v3216:merchant-proposal-builder": "tsx tests/v3216-merchant-proposal-builder.ts",
     "test:v3216:merchant-proposal-structure": "node tests/v3216-merchant-proposal-builder.mjs",
     "test:v3216": "pnpm test:v3216:merchant-proposal-builder && pnpm test:v3216:merchant-proposal-structure",

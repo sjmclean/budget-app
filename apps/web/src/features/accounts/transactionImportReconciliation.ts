@@ -30,6 +30,7 @@ export interface TransactionImportMatchCandidateAssessment {
   daysApart: number;
   payeeSimilarity: number;
   merchantMatches: boolean;
+  automaticMatch: boolean;
   reason: string;
 }
 
@@ -59,8 +60,16 @@ export interface TransactionImportMatchAssessment {
 
 export interface TransactionImportMerchantResolution {
   canonicalPayee: string;
+  canonicalPayeeId?: string;
   suggestedCategoryName: string | null;
   transferAccountName: string | null;
+  recognitionProvenance?:
+    | "explicit-rule"
+    | "exact-alias"
+    | "exact-canonical"
+    | "merchant-inference"
+    | "raw";
+  recognitionReason?: string;
   aliasId?: string;
   aliasSourcePayee?: string;
 }
@@ -81,9 +90,10 @@ export interface ReconcileTransactionImportCandidateInput {
  * 3. within each group choose the closest date;
  * 4. consume each register row at most once (handled by excluded IDs).
  *
- * Any eligible candidate is a match. There is deliberately no possible-match
- * state or confidence score. All ordered candidates are returned so the review
- * UI can offer a register-row selector when more than one option exists.
+ * Only an exact signed amount, compatible date and compatible merchant is an
+ * automatic match. Same-amount/date rows with a different merchant remain
+ * visible as manual candidates but are imported as new unless the user chooses
+ * one explicitly.
  */
 export function reconcileTransactionImportCandidate({
   parsed,
@@ -126,14 +136,16 @@ export function reconcileTransactionImportCandidate({
     .sort(compareImportMatchCandidates)
     .map(toCandidateAssessment);
 
-  const selectedCandidate = candidates[0];
+  const selectedCandidate = candidates.find((candidate) => candidate.automaticMatch);
   if (!selectedCandidate) {
     return {
       kind: "new",
       recommendation: "import",
       status: "new",
-      reason: `No same-amount register transaction was found within ${TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS} days.`,
-      candidates: [],
+      reason: candidates.length > 0
+        ? `Same-amount transactions were found, but none has a compatible merchant; review them manually or import as new.`
+        : `No same-amount register transaction was found within ${TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS} days.`,
+      candidates,
       transfer: unresolvedTransfer,
     };
   }
@@ -237,6 +249,7 @@ interface ImportMatchAnalysis {
   daysApart: number;
   payeeSimilarity: number;
   merchantMatches: boolean;
+  automaticMatch: boolean;
   evidence: TransactionImportMatchEvidence[];
   reason: string;
 }
@@ -254,6 +267,7 @@ function analyseTransferMatchCandidate(
     daysApart,
     payeeSimilarity: 100,
     merchantMatches: true,
+    automaticMatch: amountMatches && daysApart <= TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS,
     evidence: [
       {
         label: "Transfer account",
@@ -294,10 +308,18 @@ function analyseImportMatchCandidate(
     merchantResolution?.canonicalPayee?.trim() || parsed.payee;
   const existingMerchant = normaliseMerchant(transaction.payee);
   const importedMerchant = normaliseMerchant(resolvedImportedPayee);
-  const merchantMatches = merchantsResolveToSameIdentity(
-    existingMerchant,
-    importedMerchant,
+  const trustedCanonicalIdentity =
+    merchantResolution?.recognitionProvenance === "explicit-rule" ||
+    merchantResolution?.recognitionProvenance === "exact-alias" ||
+    merchantResolution?.recognitionProvenance === "exact-canonical";
+  const canonicalIdMatches = Boolean(
+    trustedCanonicalIdentity &&
+      merchantResolution?.canonicalPayeeId &&
+      transaction.payeeId === merchantResolution.canonicalPayeeId,
   );
+  const merchantMatches =
+    canonicalIdMatches ||
+    merchantsResolveToSameIdentity(existingMerchant, importedMerchant);
   const payeeSimilarity = calculatePayeeSimilarity(
     transaction.payee,
     resolvedImportedPayee,
@@ -309,6 +331,10 @@ function analyseImportMatchCandidate(
     daysApart,
     payeeSimilarity,
     merchantMatches,
+    automaticMatch:
+      amountMatches &&
+      daysApart <= TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS &&
+      merchantMatches,
     evidence: [
       {
         label: "Amount",
@@ -336,7 +362,9 @@ function analyseImportMatchCandidate(
             ? "neutral"
             : "negative",
         detail: merchantMatches
-          ? "Same resolved merchant."
+          ? canonicalIdMatches
+            ? "Same trusted canonical payee."
+            : "Same resolved merchant."
           : `${payeeSimilarity}% normalised payee similarity.`,
       },
     ],
@@ -368,6 +396,7 @@ function toCandidateAssessment(
     daysApart: analysis.daysApart,
     payeeSimilarity: analysis.payeeSimilarity,
     merchantMatches: analysis.merchantMatches,
+    automaticMatch: analysis.automaticMatch,
     reason: analysis.reason,
   };
 }

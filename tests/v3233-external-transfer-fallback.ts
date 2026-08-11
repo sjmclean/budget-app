@@ -39,12 +39,10 @@ const externalTransferMatch = reconcileTransactionImportCandidate({
   transferAccounts: [],
 });
 
-assert.equal(externalTransferMatch.kind, "match");
-assert.equal(externalTransferMatch.status, "exact-match");
-assert.equal(
-  externalTransferMatch.selectedCandidate?.transaction.id,
-  registerTransaction.id,
-);
+assert.equal(externalTransferMatch.kind, "new");
+assert.equal(externalTransferMatch.status, "new");
+assert.equal(externalTransferMatch.selectedCandidate, undefined);
+assert.equal(externalTransferMatch.candidates[0]?.transaction.id, registerTransaction.id);
 assert.equal(externalTransferMatch.transfer?.status, "missing");
 
 const qif = `!Type:Bank\nD16/07/2026\nT-10.00\nPONLINE E4278038017 pocket money F McLean\nL[External Pocket Money]\n^\n`;
@@ -70,9 +68,9 @@ const preview = previewTransactionQifImport(
 
 assert.equal(preview.candidates.length, 1);
 const candidate = preview.candidates[0];
-assert.equal(candidate.status, "exact-match");
-assert.equal(candidate.reconciliationKind, "match");
-assert.equal(candidate.matchedTransactionId, registerTransaction.id);
+assert.equal(candidate.status, "new");
+assert.equal(candidate.reconciliationKind, "new");
+assert.equal(candidate.matchedTransactionId, undefined);
 assert.equal(candidate.lifecycle.proposal.transferAccountName, null);
 assert.equal(
   candidate.lifecycle.proposal.payee,

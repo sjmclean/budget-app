@@ -289,6 +289,20 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
+  getTransactionsByIds(
+    budgetId: string,
+    accountId: string,
+    transactionIds: readonly string[],
+  ): Promise<readonly LocalTransactionRecord[]> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "getTransactionsByIds",
+      budgetId,
+      accountId,
+      transactionIds,
+    });
+  }
+
   writeTransaction(
     transaction: LocalTransactionRecord,
     mutation: LocalBudgetMutation,

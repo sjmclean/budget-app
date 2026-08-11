@@ -2523,6 +2523,7 @@ function queryTransactions(query: LocalTransactionQuery) {
     clearedStatus: string;
     payeeId: string | null;
     payeeName: string | null;
+    rawPayeeName: string | null;
     categoryId: string | null;
     categoryName: string | null;
     transferAccountId: string | null;
@@ -2538,6 +2539,7 @@ function queryTransactions(query: LocalTransactionQuery) {
        transaction_row.memo, transaction_row.check_number AS checkNumber,
        transaction_row.cleared_status AS clearedStatus,
        transaction_row.payee_id AS payeeId, transaction_row.payee_name AS payeeName,
+       transaction_row.raw_payee_name AS rawPayeeName,
        transaction_row.category_id AS categoryId,
        ${categoryNameExpression} AS categoryName,
        transaction_row.transfer_account_id AS transferAccountId,
@@ -2659,7 +2661,8 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
   const row = resultRows<{
     id: string; budgetId: string; accountId: string; date: string; amount: number;
     memo: string | null; checkNumber: string | null; clearedStatus: string;
-    payeeId: string | null; payeeName: string | null; categoryId: string | null;
+    payeeId: string | null; payeeName: string | null; rawPayeeName: string | null;
+    categoryId: string | null;
     categoryName: string | null; transferAccountId: string | null;
     transferTransactionId: string | null; generatedFromSchedule: number;
     scheduledTransactionId: string | null; scheduledOccurrenceDate: string | null;
@@ -2670,6 +2673,7 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
        transaction_row.memo, transaction_row.check_number AS checkNumber,
        transaction_row.cleared_status AS clearedStatus,
        transaction_row.payee_id AS payeeId, transaction_row.payee_name AS payeeName,
+       transaction_row.raw_payee_name AS rawPayeeName,
        transaction_row.category_id AS categoryId,
        COALESCE(category_record.name, transaction_row.category_name) AS categoryName,
        transaction_row.transfer_account_id AS transferAccountId,
@@ -2704,6 +2708,20 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
       [transactionId],
     ).map(({ tagId }) => tagId),
   };
+}
+
+function getTransactionsByIds(
+  budgetId: string,
+  accountId: string,
+  transactionIds: readonly string[],
+): readonly LocalTransactionRecord[] {
+  if (transactionIds.length === 0) return [];
+  return [...new Set(transactionIds)]
+    .map((transactionId) => getTransaction(budgetId, transactionId))
+    .filter(
+      (transaction): transaction is LocalTransactionRecord =>
+        transaction !== null && transaction.accountId === accountId,
+    );
 }
 
 function writeTransaction(
@@ -3493,6 +3511,12 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return queryTransactions(request.query);
     case "getTransaction":
       return getTransaction(request.budgetId, request.transactionId);
+    case "getTransactionsByIds":
+      return getTransactionsByIds(
+        request.budgetId,
+        request.accountId,
+        request.transactionIds,
+      );
     case "getAccountSummary":
       return getAccountSummary(request.budgetId, request.accountId);
     case "getFinancialOverview":

@@ -8,6 +8,8 @@ import type {
   TransactionImportMerchantResolution,
   TransactionImportProposal,
 } from "./transactionImport";
+import { normaliseMerchant } from "./merchantNormalisation";
+import { normalisePayeeIdentity } from "./payeeRecognition";
 
 export interface BuildTransactionImportMerchantProposalInput {
   store: MerchantKnowledgeStore;
@@ -43,6 +45,18 @@ export function resolveTransactionImportMerchant(
 ): TransactionImportMerchantResolution | undefined {
   const suggestion = suggestMerchantKnowledge(store, rawPayee);
   if (!suggestion) return undefined;
+  const source = normaliseMerchant(rawPayee).canonical;
+  const record = store.merchants.find((merchant) =>
+    merchant.preferredName === suggestion.preferredName);
+  const exactCanonical = record
+    ? normalisePayeeIdentity(record.preferredName) === normalisePayeeIdentity(rawPayee)
+    : false;
+  const exactAlias = record?.aliases.some((alias) =>
+    normalisePayeeIdentity(alias.sourceValue) === normalisePayeeIdentity(rawPayee)) ?? false;
+  const inferenceTokens = source.split(/\s+/).filter(Boolean);
+  if (!exactAlias && !exactCanonical && (inferenceTokens.length < 2 || source.length < 8)) {
+    return undefined;
+  }
 
   return {
     canonicalPayee: suggestion.transferAccountName
@@ -50,6 +64,16 @@ export function resolveTransactionImportMerchant(
       : suggestion.preferredName,
     suggestedCategoryName: suggestion.categoryName?.trim() || null,
     transferAccountName: suggestion.transferAccountName?.trim() || null,
+    recognitionProvenance: exactAlias
+      ? "exact-alias"
+      : exactCanonical
+        ? "exact-canonical"
+        : "merchant-inference",
+    recognitionReason: exactAlias
+      ? "Exact learned alias"
+      : exactCanonical
+        ? "Exact canonical merchant"
+        : "Distinctive multi-token merchant inference",
   };
 }
 

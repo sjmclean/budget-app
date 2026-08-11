@@ -772,6 +772,13 @@ export function createLocalFirstAccountRegisterQueryClient(
     async queryTransactions(input) {
       return (await syncThenDatabase(input.budgetId)).queryTransactions(toLocalQuery(input));
     },
+    async getTransactionsByIds(input) {
+      return (await syncThenDatabase(input.budgetId)).getTransactionsByIds(
+        input.budgetId,
+        input.accountId,
+        input.ids,
+      );
+    },
     async addTransaction(input) {
       const local = await requireDatabase(input.budgetId);
       const record = await transactionRecord(input.id, input);

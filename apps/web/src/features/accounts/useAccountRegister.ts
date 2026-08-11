@@ -420,7 +420,7 @@ export function useAccountRegister(
         additions: inputs.map((input) => ({
           budgetId,
           accountId,
-          id: createRuntimeUuid(),
+          id: input.id ?? createRuntimeUuid(),
           ...toHostedTransactionWrite(input),
         })),
         updates: [],
@@ -451,7 +451,7 @@ export function useAccountRegister(
         additions: input.additions.map((transaction) => ({
           budgetId,
           accountId,
-          id: createRuntimeUuid(),
+          id: transaction.id ?? createRuntimeUuid(),
           ...toHostedTransactionWrite(transaction),
         })),
         updates: input.updates.map((transaction) => ({
@@ -762,6 +762,7 @@ export function mapSqliteTransactions(
       payee: row.transferAccountId
         ? formatTransferPayee(readTransferAccountName(row))
         : row.payeeName ?? "Imported Payee",
+      rawPayee: row.rawPayeeName ?? undefined,
       payeeId: row.payeeId ?? undefined,
       category: row.transferAccountId ? "Transfer" : row.categoryName ?? "Uncategorised",
       categoryId: row.categoryId ?? undefined,

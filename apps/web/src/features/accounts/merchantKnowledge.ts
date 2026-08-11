@@ -176,7 +176,12 @@ function merchantSuggestionScore(
     else if (sourceCanonical.includes(value) || value.includes(sourceCanonical)) {
       const shorter = value.length <= sourceCanonical.length ? value : sourceCanonical;
       const tokens = shorter.split(/\s+/).filter(Boolean);
-      if (tokens.length >= 2 || (tokens[0]?.length ?? 0) >= 6) best = Math.max(best, 80);
+      // Generic single-token containment is never a trusted identity. Personal
+      // surnames and unrelated statement text must not inherit a canonical
+      // payee or category regardless of observation count.
+      if (tokens.length >= 2 && shorter.length >= 8) {
+        best = Math.max(best, 80);
+      }
     }
   }
   return best;

@@ -5417,6 +5417,99 @@
   font-size: 0.72rem;
 }
 
+.transaction-import-possible-match-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(15 23 42 / 0.48);
+}
+
+.transaction-import-possible-match-dialog {
+  display: grid;
+  gap: 1rem;
+  width: min(52rem, 100%);
+  max-height: min(44rem, calc(100dvh - 2rem));
+  overflow: hidden;
+  padding: 1.1rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  box-shadow: 0 24px 64px rgb(15 23 42 / 0.28);
+}
+
+.transaction-import-possible-match-dialog > header,
+.transaction-import-possible-match-dialog > footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.transaction-import-possible-match-dialog h3,
+.transaction-import-possible-match-dialog p {
+  margin: 0;
+}
+
+.transaction-import-possible-match-dialog p {
+  margin-top: 0.25rem;
+  color: var(--text-muted, #64748b);
+}
+
+.transaction-import-possible-match-list {
+  display: grid;
+  gap: 0.75rem;
+  overflow-y: auto;
+}
+
+.transaction-import-possible-match-card {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  background: var(--surface-subtle, #f8fafc);
+}
+
+.transaction-import-possible-match-card dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem 1rem;
+  margin: 0;
+}
+
+.transaction-import-possible-match-card dl > div {
+  min-width: 0;
+}
+
+.transaction-import-possible-match-card dt {
+  color: var(--text-muted, #64748b);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.transaction-import-possible-match-card dd {
+  overflow-wrap: anywhere;
+  margin: 0.15rem 0 0;
+}
+
+.transaction-import-possible-match-card .button {
+  justify-self: end;
+}
+
+@media (max-width: 42rem) {
+  .transaction-import-possible-match-card dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .transaction-import-possible-match-card .button {
+    width: 100%;
+  }
+}
+
 /* UX scheduled transaction editor */
 .scheduled-panel-add {
   justify-self: start;

@@ -91,6 +91,10 @@ import {
 } from "../transactionImportKnowledge";
 import { calculateTransactionImportBalancePreview } from "../transactionImportBalancePreview";
 import { resolvePayeeRecognition } from "../payeeRecognition";
+import {
+  summariseTransactionImportOutcomes,
+  verifyPersistedImportTransactions,
+} from "../transactionImportVerification";
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -237,6 +241,7 @@ export function TransactionImportDialog({
   currencyCode,
   onClose,
   loadAccountTransactions,
+  loadTransactionsByIds,
   loadAccountWorkingBalance,
   onImportTransactions,
   onUpdateMatchedTransactionDates,
@@ -253,6 +258,10 @@ export function TransactionImportDialog({
   onClose: () => void;
   loadAccountTransactions: (
     accountId: string,
+  ) => Promise<RegisterTransactionView[]>;
+  loadTransactionsByIds: (
+    accountId: string,
+    transactionIds: readonly string[],
   ) => Promise<RegisterTransactionView[]>;
   loadAccountWorkingBalance: (accountId: string) => Promise<number>;
   onImportTransactions: (
@@ -337,6 +346,8 @@ export function TransactionImportDialog({
   >({});
   const [proposedTransactionEdit, setProposedTransactionEdit] =
     useState<ProposedTransactionEdit | null>(null);
+  const [weakMatchReviewCandidateId, setWeakMatchReviewCandidateId] =
+    useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [restoredCandidateId, setRestoredCandidateId] = useState<string | null>(null);
   const [processingCandidate, setProcessingCandidate] = useState<{
@@ -596,9 +607,16 @@ export function TransactionImportDialog({
       const payee = recognition.match.payee;
       return {
         canonicalPayee: payee.name,
+        canonicalPayeeId: payee.id,
         suggestedCategoryName:
           recognition.match.rule?.defaultCategoryName ?? payee.defaultCategoryName ?? null,
         transferAccountName: null,
+        recognitionProvenance: recognition.match.source === "rule"
+          ? "explicit-rule" as const
+          : "exact-alias" as const,
+        recognitionReason: recognition.match.source === "rule"
+          ? `Explicit ${recognition.match.rule?.matchType ?? "payee"} recognition rule`
+          : "Exact learned alias or canonical payee",
       };
     }
     // Ambiguous deterministic rules deliberately fall through to review rather
@@ -1377,6 +1395,8 @@ export function TransactionImportDialog({
         if (!selected) return candidate;
         return {
           ...candidate,
+          status: "exact-match" as const,
+          recommendation: "match" as const,
           matchedTransactionId: selected.transaction.id,
           matchedTransaction: selected.transaction,
           evidence: selected.evidence,
@@ -1596,6 +1616,16 @@ export function TransactionImportDialog({
           ...(onCommitRegisterChanges
             ? { commitTransactionBatch: onCommitRegisterChanges }
             : {}),
+          verifyCommittedTransactions: async (accountId, additions) => {
+            const ids = additions.map((transaction) => {
+              if (!transaction.id) {
+                throw new Error("A committed import transaction has no stable ID.");
+              }
+              return transaction.id;
+            });
+            const persisted = await loadTransactionsByIds(accountId, ids);
+            verifyPersistedImportTransactions(additions, persisted);
+          },
           addTransactions: onImportTransactions,
           updateTransactions: onUpdateMatchedTransactionDates,
         },
@@ -1604,15 +1634,31 @@ export function TransactionImportDialog({
       merchantKnowledgeRef.current = result.merchantKnowledge;
       setMerchantKnowledge(result.merchantKnowledge);
 
-      const importSummary =
-        result.additions.length > 0
-          ? `Imported ${result.additions.length} transaction${result.additions.length === 1 ? "" : "s"}`
-          : "No new transactions imported";
-      const dateSummary =
-        result.matchedTransactionUpdates.length > 0
-          ? ` and updated ${result.matchedTransactionUpdates.length} matched transaction${result.matchedTransactionUpdates.length === 1 ? "" : "s"}`
-          : "";
-      setMessage(`${importSummary}${dateSummary} in ${accountName}.`);
+      const skippedCount = uniqueProcessedCandidates.filter(
+        (entry) => entry.action === "skipped",
+      ).length;
+      const importedCount = uniqueProcessedCandidates.filter(
+        (entry) => entry.action === "imported",
+      ).length;
+      const matchedCount = uniqueProcessedCandidates.filter(
+        (entry) => entry.action === "matched",
+      ).length;
+      const completion = summariseTransactionImportOutcomes({
+        total:
+          uniqueProcessedCandidates.length +
+          previouslyImportedCount +
+          alreadyRepresentedCount,
+        imported: importedCount,
+        matched: matchedCount,
+        skipped: skippedCount,
+        failed: 0,
+        alreadyPresent: previouslyImportedCount + alreadyRepresentedCount,
+      });
+      setMessage(
+        `${completion.imported} imported · ${completion.matched} matched · ` +
+          `${completion.skipped} skipped · ${completion.alreadyPresent} already present · ` +
+          `${completion.failed} failed in ${accountName}.`,
+      );
       deleteTransactionImportSession(selectedAccountId);
       const completedDiagnostics = uniqueProcessedCandidates.map((entry) => ({
         ...entry,
@@ -1686,7 +1732,11 @@ export function TransactionImportDialog({
           })),
         }));
       }
-      const baseError = audit?.registerMutationStarted
+      const verificationFailed =
+        audit?.failedStage === "Verify committed register changes";
+      const baseError = verificationFailed
+        ? "The transactions were written, but Budget App could not verify the completed import. Do not retry this import until the destination account has been reviewed. No import identity or merchant knowledge was recorded."
+        : audit?.registerMutationStarted
         ? "The import did not finish after register changes began. No import identity or merchant knowledge was recorded. Review the destination account before retrying."
         : "The import could not be committed. No register or import-identity changes were made.";
       setError(
@@ -1698,6 +1748,12 @@ export function TransactionImportDialog({
       setIsImporting(false);
     }
   }
+
+  const weakMatchReviewCandidate = weakMatchReviewCandidateId
+    ? candidates.find(
+        (candidate) => candidate.id === weakMatchReviewCandidateId,
+      ) ?? null
+    : null;
 
   return (
     <div
@@ -2385,6 +2441,14 @@ export function TransactionImportDialog({
                             Imports as {candidate.lifecycle.proposal.payee}
                           </small>
                         ) : null}
+                        {candidate.lifecycle.merchant.canonicalPayee !== sourcePayee ? (
+                          <small className="transaction-import-payee-alias-note">
+                            Source: {sourcePayee} · Recognised as {candidate.lifecycle.merchant.canonicalPayee}
+                            {candidate.lifecycle.merchant.recognitionReason
+                              ? ` · ${candidate.lifecycle.merchant.recognitionReason}`
+                              : ""}
+                          </small>
+                        ) : null}
                       </strong>
                       <span className="transaction-import-match-detail">
                         {hasMatch
@@ -2745,6 +2809,16 @@ export function TransactionImportDialog({
                   {candidate.status === "new" ||
                   candidate.status === "invalid" ? (
                     <div className="transaction-import-match-actions">
+                      {candidate.status === "new" && candidate.matchCandidates?.length ? (
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          disabled={Boolean(processingCandidate)}
+                          onClick={() => setWeakMatchReviewCandidateId(candidate.id)}
+                        >
+                          Review possible matches
+                        </button>
+                      ) : null}
                       <button
                         className="button button-primary"
                         type="button"
@@ -2855,6 +2929,91 @@ export function TransactionImportDialog({
                 </div>
               ))}
             </div>
+          </div>
+        ) : null}
+
+        {weakMatchReviewCandidate?.matchCandidates?.length ? (
+          <div
+            className="transaction-import-possible-match-backdrop"
+            role="presentation"
+            onClick={() => setWeakMatchReviewCandidateId(null)}
+          >
+            <section
+              className="transaction-import-possible-match-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="transaction-import-possible-match-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <header>
+                <div>
+                  <h3 id="transaction-import-possible-match-title">
+                    Review possible register matches
+                  </h3>
+                  <p>
+                    No transaction is selected. Choose one explicitly, or
+                    cancel to keep this bank transaction as new.
+                  </p>
+                </div>
+                <button
+                  className="transaction-import-close-button"
+                  type="button"
+                  aria-label="Close possible matches"
+                  onClick={() => setWeakMatchReviewCandidateId(null)}
+                >
+                  ×
+                </button>
+              </header>
+              <div
+                className="transaction-import-possible-match-list"
+                role="listbox"
+                aria-label="Possible register transactions"
+              >
+                {weakMatchReviewCandidate.matchCandidates.map((option) => {
+                  const transaction = option.transaction;
+                  const signedAmount = transaction.inflow - transaction.outflow;
+                  return (
+                    <article
+                      className="transaction-import-possible-match-card"
+                      key={transaction.id}
+                    >
+                      <dl>
+                        <div><dt>Date</dt><dd>{formatImportReviewDate(transaction.date)}</dd></div>
+                        <div><dt>Payee</dt><dd>{transaction.payee || "—"}</dd></div>
+                        <div><dt>Amount</dt><dd>{formatMoney(signedAmount, currencyCode)}</dd></div>
+                        <div><dt>Category</dt><dd>{transaction.category || "—"}</dd></div>
+                        <div><dt>Memo</dt><dd>{transaction.memo || "—"}</dd></div>
+                        <div><dt>Cleared</dt><dd>{transaction.cleared ? "Cleared" : "Uncleared"}</dd></div>
+                      </dl>
+                      <button
+                        className="button button-primary"
+                        type="button"
+                        role="option"
+                        aria-selected="false"
+                        onClick={() => {
+                          selectMatchedRegisterTransaction(
+                            weakMatchReviewCandidate.id,
+                            transaction.id,
+                          );
+                          setWeakMatchReviewCandidateId(null);
+                        }}
+                      >
+                        Choose this transaction
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+              <footer>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => setWeakMatchReviewCandidateId(null)}
+                >
+                  Cancel
+                </button>
+              </footer>
+            </section>
           </div>
         ) : null}
 

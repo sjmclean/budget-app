@@ -35,6 +35,8 @@ export interface AccountTransactionRow {
   readonly clearedStatus: string;
   readonly payeeId: string | null;
   readonly payeeName: string | null;
+  /** Immutable bank/import description retained separately from canonical payee. */
+  readonly rawPayeeName?: string | null;
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly transferAccountId: string | null;
@@ -97,6 +99,13 @@ export interface AccountRegisterQueryPort {
   }): Promise<AccountRegisterSummary>;
 
   queryTransactions(input: AccountTransactionQuery): Promise<AccountTransactionPage>;
+
+  /** Authoritative point lookup used for persistence verification. */
+  getTransactionsByIds?(input: {
+    readonly budgetId: string;
+    readonly accountId: string;
+    readonly ids: readonly string[];
+  }): Promise<readonly AccountTransactionRow[]>;
 }
 
 export const ACCOUNT_TRANSACTION_DEFAULT_LIMIT = 150;

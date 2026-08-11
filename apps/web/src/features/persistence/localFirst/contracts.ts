@@ -169,6 +169,13 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "getTransactionsByIds";
+      readonly budgetId: string;
+      readonly accountId: string;
+      readonly transactionIds: readonly string[];
+    }
+  | {
+      readonly requestId: string;
       readonly type: "getAccountSummary";
       readonly budgetId: string;
       readonly accountId: string;

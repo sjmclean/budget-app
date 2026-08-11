@@ -80,8 +80,9 @@ const closestWithoutMerchant = reconcileTransactionImportCandidate({
     existing("one-day", "2026-07-15", "Unrelated B", 143.95),
   ],
 });
-assert.equal(closestWithoutMerchant.status, "exact-match");
-assert.equal(closestWithoutMerchant.selectedCandidate?.transaction.id, "one-day");
+assert.equal(closestWithoutMerchant.status, "new");
+assert.equal(closestWithoutMerchant.selectedCandidate, undefined);
+assert.equal(closestWithoutMerchant.candidates[0]?.transaction.id, "one-day");
 
 const excluded = reconcileTransactionImportCandidate({
   parsed: imported,

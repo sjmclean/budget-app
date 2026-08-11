@@ -15,7 +15,8 @@ assert.match(reconciliation, /Number\(right\.merchantMatches\) - Number\(left\.m
 assert.match(reconciliation, /left\.daysApart - right\.daysApart/);
 assert.doesNotMatch(reconciliation, /calculateImportMatchConfidence/);
 assert.doesNotMatch(reconciliation, /isSuggestedMatch/);
-assert.match(dialog, /transaction-import-register-match-select/);
+assert.match(dialog, /transaction-import-register-match-picker/);
+assert.match(dialog, /transaction-import-possible-match-dialog/);
 assert.match(dialog, /selectMatchedRegisterTransaction/);
 assert.match(dialog, /matchedIdsUsedByOtherRows/);
 assert.doesNotMatch(dialog, /★★★★★|confidence label/i);

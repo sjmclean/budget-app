@@ -41,6 +41,7 @@ export interface RegisterTransactionView {
   attachmentCount: number;
   attachments?: RegisterAttachmentView[];
   payee: string;
+  rawPayee?: string;
   payeeId?: string;
   category: string;
   categoryId?: string;
@@ -73,6 +74,8 @@ export interface AccountRegisterView {
 }
 
 export interface NewRegisterTransactionInput {
+  /** Stable identity supplied by a reviewed import commit plan. */
+  id?: string;
   date: string;
   tagIds?: string[];
   payee: string;

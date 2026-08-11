@@ -64,6 +64,8 @@ assert.deepEqual(resolveTransactionImportMerchant(store, "Aldi 123"), {
   canonicalPayee: "Aldi",
   suggestedCategoryName: "Groceries",
   transferAccountName: null,
+  recognitionProvenance: "exact-alias",
+  recognitionReason: "Exact learned alias",
 });
 
 const merchantProposal = buildTransactionImportMerchantProposal({

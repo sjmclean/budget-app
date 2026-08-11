@@ -1707,6 +1707,29 @@ export function AccountRegisterPage() {
                 );
               return view.transactions;
             }}
+            loadTransactionsByIds={async (destinationAccountId, transactionIds) => {
+              const hostedQueries = persistenceGateway.accountRegisterQueries;
+              if (
+                storageMode === "sqlite" &&
+                activeBudgetId &&
+                hostedQueries?.getTransactionsByIds
+              ) {
+                const rows = await hostedQueries.getTransactionsByIds({
+                  budgetId: activeBudgetId,
+                  accountId: destinationAccountId,
+                  ids: transactionIds,
+                });
+                return mapSqliteTransactions(rows, 0);
+              }
+              const view =
+                await persistenceGateway.accountRegisters.getAccountRegisterView({
+                  accountId: destinationAccountId,
+                });
+              const requested = new Set(transactionIds);
+              return view.transactions.filter((transaction) =>
+                requested.has(transaction.id),
+              );
+            }}
             loadAccountWorkingBalance={async (destinationAccountId) => {
               const hostedQueries = persistenceGateway.accountRegisterQueries;
               if (activeBudgetId && hostedQueries) {
@@ -1734,7 +1757,7 @@ export function AccountRegisterPage() {
                   additions: transactions.map((transaction) => ({
                     budgetId: activeBudgetId,
                     accountId: destinationAccountId,
-                    id: createRuntimeUuid(),
+                    id: transaction.id ?? createRuntimeUuid(),
                     ...toHostedTransactionWrite(transaction),
                   })),
                   updates: [],
@@ -1779,7 +1802,7 @@ export function AccountRegisterPage() {
                   additions: additions.map((transaction) => ({
                     budgetId: activeBudgetId,
                     accountId: destinationAccountId,
-                    id: createRuntimeUuid(),
+                    id: transaction.id ?? createRuntimeUuid(),
                     ...toHostedTransactionWrite(transaction),
                   })),
                   updates: updates.map((transaction) => ({

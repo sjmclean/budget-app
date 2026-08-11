@@ -23,9 +23,10 @@ const store = buildMerchantKnowledgeFromTransactions({
   ],
 });
 
-const suggestion = suggestMerchantKnowledge(store, "NETFLIX XYZ 12345");
+const suggestion = suggestMerchantKnowledge(store, "NETFLIX");
 assert.equal(suggestion?.preferredName, "Netflix");
 assert.equal(suggestion?.categoryName, "Netflix");
+assert.equal(suggestMerchantKnowledge(store, "NETFLIX XYZ 12345"), undefined);
 assert.equal(suggestMerchantKnowledge(store, "Cafe 123")?.preferredName, undefined);
 
 console.log("v3.18.4 merchant knowledge bootstrap checks passed");

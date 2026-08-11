@@ -44,7 +44,7 @@ function toRegisterTransactionInput(
       ? "Ready to Assign"
       : resolvedCategory?.name ?? "Uncategorised";
 
-  return {
+  const transaction: NewRegisterTransactionInput = {
     date: parsed.date,
     rawPayee: candidate.lifecycle.source.rawPayee,
     payee: isTransfer
@@ -60,4 +60,24 @@ function toRegisterTransactionInput(
     outflow: parsed.outflow,
     inflow: parsed.inflow,
   };
+
+  // Keep the stable commit-plan identity available to persistence without
+  // changing the enumerable command shape consumed by older integrations.
+  Object.defineProperty(transaction, "id", {
+    value: stableImportTransactionId(candidate),
+    enumerable: false,
+  });
+  return transaction;
+}
+
+function stableImportTransactionId(candidate: TransactionImportCandidate): string {
+  const source = candidate.lifecycle.source;
+  const identity = [candidate.id, source.date, source.rawPayee, source.inflow, source.outflow]
+    .join("\u0000");
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < identity.length; index += 1) {
+    hash ^= identity.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `import-${(hash >>> 0).toString(16).padStart(8, "0")}-${candidate.id}`;
 }

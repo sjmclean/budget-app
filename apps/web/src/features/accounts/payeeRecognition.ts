@@ -18,19 +18,28 @@ export function resolvePayeeRecognition(
 ): { match: PayeeRecognitionMatch | null; ambiguous: readonly PayeeRecognitionMatch[] } {
   const value = normalisePayeeIdentity(rawDescription);
   if (!value) return { match: null, ambiguous: [] };
+  // User-authored rules are authoritative and must win over learned aliases.
+  const matches = payees.flatMap((payee) => (payee.importRules ?? [])
+    .filter((rule) => rule.enabled !== false && matchesRule(value, rule))
+    .map((rule): PayeeRecognitionMatch => ({ payee, source: "rule", rule })));
+  if (matches.length > 0) {
+    const bestRank = Math.max(...matches.map(({ rule }) => rank[rule!.matchType] * 1_000 + (rule!.priority ?? 0)));
+    const best = matches.filter(({ rule }) => rank[rule!.matchType] * 1_000 + (rule!.priority ?? 0) === bestRank);
+    return best.length === 1 ? { match: best[0], ambiguous: [] } : { match: null, ambiguous: best };
+  }
+
   const aliases = payees.flatMap((payee) => (payee.aliases ?? [])
     .filter((alias) => normalisePayeeIdentity(alias.value) === value)
     .map((): PayeeRecognitionMatch => ({ payee, source: "alias" })));
   if (aliases.length === 1) return { match: aliases[0], ambiguous: [] };
   if (aliases.length > 1) return { match: null, ambiguous: aliases };
 
-  const matches = payees.flatMap((payee) => (payee.importRules ?? [])
-    .filter((rule) => rule.enabled !== false && matchesRule(value, rule))
-    .map((rule): PayeeRecognitionMatch => ({ payee, source: "rule", rule })));
-  if (matches.length === 0) return { match: null, ambiguous: [] };
-  const bestRank = Math.max(...matches.map(({ rule }) => rank[rule!.matchType] * 1_000 + (rule!.priority ?? 0)));
-  const best = matches.filter(({ rule }) => rank[rule!.matchType] * 1_000 + (rule!.priority ?? 0) === bestRank);
-  return best.length === 1 ? { match: best[0], ambiguous: [] } : { match: null, ambiguous: best };
+  const canonical = payees
+    .filter((payee) => normalisePayeeIdentity(payee.name) === value)
+    .map((payee): PayeeRecognitionMatch => ({ payee, source: "alias" }));
+  return canonical.length === 1
+    ? { match: canonical[0], ambiguous: [] }
+    : { match: null, ambiguous: canonical.length > 1 ? canonical : [] };
 }
 
 function matchesRule(value: string, rule: PayeeImportRuleView): boolean {

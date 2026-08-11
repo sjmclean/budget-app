@@ -16,8 +16,8 @@ const woolworths = base({ id: "w", name: "Woolworths", aliases: [{ id: "a", valu
 const broad = base({ id: "b", name: "Other", importRules: [{ id: "b-r", matchType: "contains", text: "METRO" }] });
 
 assert.equal(normalisePayeeIdentity("  W'worths--123 "), "w worths 123");
-assert.equal(resolvePayeeRecognition("woolworths metro", [woolworths, broad]).match?.payee.id, "w",
-  "exact alias must outrank broad rules");
+assert.equal(resolvePayeeRecognition("woolworths metro", [woolworths, broad]).match, null,
+  "conflicting explicit rules must be reviewed instead of being hidden by learned aliases");
 assert.equal(resolvePayeeRecognition("WOOLWORTHS 1234", [woolworths]).match?.payee.id, "w");
 const ambiguous = resolvePayeeRecognition("SHOP METRO WOOLWORTHS", [woolworths, broad]);
 assert.equal(ambiguous.match, null);

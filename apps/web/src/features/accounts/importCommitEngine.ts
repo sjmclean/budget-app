@@ -83,6 +83,10 @@ export interface ImportCommitAdapters {
     accountId: string,
     transactions: RegisterTransactionView[],
   ) => Promise<void>;
+  verifyCommittedTransactions?: (
+    accountId: string,
+    additions: readonly NewRegisterTransactionInput[],
+  ) => Promise<void>;
 }
 
 export type ImportCommitAuditStatus = "completed" | "failed";
@@ -668,6 +672,13 @@ export async function commitImportSession(
           );
         }
       });
+    }
+
+    if (plan.additions.length > 0 && adapters.verifyCommittedTransactions) {
+      failedStage = "Verify committed register changes";
+      await measureAsyncStage(stages, failedStage, () =>
+        adapters.verifyCommittedTransactions!(session.accountId, plan!.additions),
+      );
     }
 
     failedStage = "Remember import knowledge";

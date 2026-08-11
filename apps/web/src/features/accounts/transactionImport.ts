@@ -143,6 +143,13 @@ export interface TransactionImportProposal {
   transferAccountName: string | null;
 }
 
+export type TransactionImportRecognitionProvenance =
+  | "explicit-rule"
+  | "exact-alias"
+  | "exact-canonical"
+  | "merchant-inference"
+  | "raw";
+
 export interface TransactionImportLifecycle {
   readonly source: TransactionImportSourceSnapshot;
   merchant: TransactionImportMerchantResolution;
@@ -1017,15 +1024,10 @@ export function findMatchingTransactionPayeeAlias(
     return undefined;
   }
 
-  return [...aliases]
-    .filter((alias) => alias.normalisedSource.length >= 3)
-    .sort((left, right) => right.normalisedSource.length - left.normalisedSource.length)
-    .find(
-      (alias) =>
-        normalisedPayee === alias.normalisedSource ||
-        normalisedPayee.includes(alias.normalisedSource) ||
-        alias.normalisedSource.includes(normalisedPayee),
-    );
+  // Learned aliases are identities, not fuzzy search terms. A broad
+  // bidirectional substring match can turn a person's name into an unrelated
+  // merchant and is never safe for an automatic import decision.
+  return aliases.find((alias) => normalisedPayee === alias.normalisedSource);
 }
 
 export function resolveTransactionPayeeAlias(
