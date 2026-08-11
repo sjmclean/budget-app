@@ -35,11 +35,14 @@ assert.match(selector, /completeBudgetDeletion/);
 assert.doesNotMatch(selector, /packagePath\.startsWith\("hosted:\/\/"\)/);
 assert.doesNotMatch(selector, /getBudgetStatus\(budgetId\)/);
 assert.match(settings, /completeBudgetDeletion/);
+assert.match(settings, /deleteBudgetById\(getActiveKeyValueStorage\(\), deletingBudgetId\)/);
+assert.doesNotMatch(settings, /deleteCurrentBudget/);
 assert.doesNotMatch(
   settings.match(/async function handleDeleteCurrentBudget\(\)[\s\S]*?\n  }/)?.[0] ?? "",
   /isHostedSqliteBudget|packagePath\.startsWith/,
 );
-assert.match(server, /budgetDeletionLifecycle\.deleteBudget\(localFirstBudgetId\)/);
+assert.match(server, /budgetDeletionLifecycle\.deleteBudgetForUser\(/);
+assert.match(server, /isIdempotentDeletion/);
 assert.doesNotMatch(
   authStore.match(/requireBudgetRole\([\s\S]*?\n    },/)?.[0] ?? "",
   /insertMembership/,
@@ -54,6 +57,9 @@ assert.match(relayTransport, /provisionBudget\(budgetId: string\)/);
 assert.match(freshProvisioning, /await relay\.provisionBudget\(budgetId\)/);
 assert.match(freshProvisioning, /await relay\.resetEpoch\(budgetId, LOCAL_BUDGET_SCHEMA_VERSION\)/);
 assert.match(freshProvisioning, /await relay\.getBootstrap\(budgetId\)/);
+assert.match(selector, /clearSelectedBudget\(\)[\s\S]*completeBudgetDeletion/);
+assert.match(selector, /shouldRestoreBudgetSelectionAfterDeletionFailure\(error\)/);
+assert.match(settings, /The budget was deleted from the server, but local cleanup is incomplete/);
 assert.match(ynab4Import, /provisionFreshLocalFirstBudget\(budget\.id/);
 assert.match(actualImport, /provisionFreshLocalFirstBudget\(result\.budget\.id/);
 assert.match(registryStore, /await provisionFreshLocalFirstBudget\(budget\.id\)/);

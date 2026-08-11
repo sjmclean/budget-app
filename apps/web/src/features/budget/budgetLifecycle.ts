@@ -4,6 +4,7 @@ import { getCurrentBudgetMonth } from "./budgetMonthNavigation";
 import {
   deleteBudgetRegistryEntry,
   readBudgetRegistry,
+  readBudgetRegistryIncludingDeleting,
   type BudgetSummary,
 } from "./budgetRegistry";
 import {
@@ -213,16 +214,17 @@ export function resetCurrentBudget(storage: KeyValueStoragePort, now = new Date(
 }
 
 export function deleteBudgetById(storage: KeyValueStoragePort, budgetId: string): BudgetLifecycleResult {
-  const budgetToDelete = readBudgetRegistry(storage).find((budget) => budget.id === budgetId) ?? null;
+  const budgetToDelete = readBudgetRegistryIncludingDeleting(storage).find((budget) => budget.id === budgetId) ?? null;
 
   if (!budgetToDelete) {
     return {
-      completed: false,
+      completed: true,
+      budgetId,
       removedRecords: 0,
       writtenRecords: 0,
       remainingBudgets: readBudgetRegistry(storage).length,
-      warnings: [],
-      errors: ["The selected budget could not be found."],
+      warnings: ["The budget registry entry was already absent."],
+      errors: [],
     };
   }
 

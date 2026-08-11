@@ -8,6 +8,18 @@ export function createBudgetDeletionLifecycle({
   authStore,
 }) {
   return {
+    hasAuthoritativeState(budgetId) {
+      return localFirstRelayStore.hasBudgetState(budgetId) ||
+        replicationStore.hasBudgetState(budgetId) ||
+        authStore.hasBudgetMemberships(budgetId);
+    },
+    deleteBudgetForUser(user, budgetId) {
+      if (!this.hasAuthoritativeState(budgetId)) {
+        return { budgetId, deleted: true, alreadyAbsent: true };
+      }
+      authStore.requireBudgetRole(user, budgetId, "owner");
+      return this.deleteBudget(budgetId);
+    },
     deleteBudget(budgetId) {
       const localFirst = localFirstRelayStore.deleteBudget(budgetId);
       const replication = replicationStore.deleteBudget(budgetId);

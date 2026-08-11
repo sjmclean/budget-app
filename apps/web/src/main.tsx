@@ -32,6 +32,7 @@ export async function bootstrapApp() {
   try {
     let attachmentNamespace: string | undefined;
     let hostedBudgets: readonly HostedBudgetCatalogueEntry[] = [];
+    let hostedCatalogueAuthoritative = false;
     const hostProvider = bootstrapHostBudgetPersistenceProvider();
     if (!hostProvider) {
       const apiBaseUrl = (
@@ -48,6 +49,7 @@ export async function bootstrapApp() {
           }
         | null;
       hostedBudgets = session?.budgets ?? [];
+      hostedCatalogueAuthoritative = session?.authenticated === true;
       // Preserve the original IndexedDB for the first administrator so an
       // existing installation upgrades without losing its local registry.
       const userNamespace =
@@ -63,7 +65,7 @@ export async function bootstrapApp() {
     configureAttachmentContentStoreNamespace(attachmentNamespace);
     const persistenceProvider = getBudgetPersistenceProvider();
     await persistenceProvider.initialize?.();
-    if (persistenceProvider.keyValueStorage && hostedBudgets.length > 0) {
+    if (persistenceProvider.keyValueStorage && hostedCatalogueAuthoritative) {
       mergeHostedBudgetCatalogue(
         persistenceProvider.keyValueStorage,
         hostedBudgets,

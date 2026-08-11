@@ -19,8 +19,11 @@ import {
   serialisePortableBudgetPackage,
   type PortableBudgetPackagePreview,
 } from "../features/budget/portableBudgetPackage";
-import { deleteCurrentBudget, resetCurrentBudget } from "../features/budget/budgetLifecycle";
-import { completeBudgetDeletion } from "../features/budget/completeBudgetDeletion";
+import { deleteBudgetById, resetCurrentBudget } from "../features/budget/budgetLifecycle";
+import {
+  completeBudgetDeletion,
+  shouldRestoreBudgetSelectionAfterDeletionFailure,
+} from "../features/budget/completeBudgetDeletion";
 import { resolveActiveBudget } from "../features/budget/activeBudget";
 import {
   listVersionHistorySnapshots,
@@ -244,6 +247,7 @@ export function SettingsPage({
   const theme = useUIStore((state) => state.theme);
   const setTheme = useUIStore((state) => state.setTheme);
   const clearSelectedBudget = useUIStore((state) => state.clearSelectedBudget);
+  const selectBudget = useUIStore((state) => state.selectBudget);
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const refreshBudgets = useBudgetRegistryStore((state) => state.refreshBudgets);
   const budgets = useBudgetRegistryStore((state) => state.budgets);
@@ -714,21 +718,29 @@ export function SettingsPage({
     );
 
     let result;
+    const deletingBudgetId = activeBudget.id;
+    clearSelectedBudget();
     try {
       result = await completeBudgetDeletion(
         getBudgetPersistenceProvider(),
-        activeBudget.id,
-        () => deleteCurrentBudget(getActiveKeyValueStorage()),
+        deletingBudgetId,
+        () => deleteBudgetById(getActiveKeyValueStorage(), deletingBudgetId),
       );
     } catch (error) {
+      if (shouldRestoreBudgetSelectionAfterDeletionFailure(error)) {
+        selectBudget(deletingBudgetId);
+      }
       setDataStatusMessage(error instanceof Error ? error.message : "Budget deletion failed.");
       return;
     }
     refreshBudgets();
-    clearSelectedBudget();
 
     if (!result.completed) {
-      setDataStatusMessage(result.errors[0] ?? "Delete failed. No data has been changed.");
+      setDataStatusMessage(
+        result.errors[0]
+          ? `The budget was deleted from the server, but local cleanup is incomplete: ${result.errors[0]}`
+          : "The budget was deleted from the server, but local cleanup is still pending.",
+      );
       return;
     }
 

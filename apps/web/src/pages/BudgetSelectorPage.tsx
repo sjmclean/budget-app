@@ -10,7 +10,10 @@ import { useUIStore } from "../stores/uiStore";
 import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
 import { readBudgetLauncherStats } from "../features/budget/budgetLauncherStats.js";
 import { usePersistenceChangeVersion } from "../features/persistence/persistenceChangeBus";
-import { completeBudgetDeletion } from "../features/budget/completeBudgetDeletion";
+import {
+  completeBudgetDeletion,
+  shouldRestoreBudgetSelectionAfterDeletionFailure,
+} from "../features/budget/completeBudgetDeletion";
 
 
 type LaunchMode = "list" | "empty" | "budgetImport";
@@ -254,6 +257,10 @@ export function BudgetSelectorPage() {
     const nextBudget = sortedBudgets.find(
       (budget) => budget.id !== budgetPendingDelete.id,
     );
+    if (wasSelectedBudget) {
+      if (nextBudget) selectBudget(nextBudget.id);
+      else clearSelectedBudget();
+    }
     setDeleteInProgress(true);
     setDeleteError(null);
     try {
@@ -268,17 +275,13 @@ export function BudgetSelectorPage() {
         return;
       }
 
-      if (wasSelectedBudget) {
-        if (nextBudget) {
-          selectBudget(nextBudget.id);
-        } else {
-          clearSelectedBudget();
-        }
-      }
-
       handleCancelDeleteBudget();
       setLaunchMode("list");
     } catch (error) {
+      if (
+        wasSelectedBudget &&
+        shouldRestoreBudgetSelectionAfterDeletionFailure(error)
+      ) selectBudget(budgetId);
       setDeleteError(error instanceof Error ? error.message : "The hosted budget could not be deleted.");
     } finally {
       setDeleteInProgress(false);

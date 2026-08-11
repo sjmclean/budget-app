@@ -694,7 +694,14 @@ export function createLocalFirstAccountRegisterQueryClient(
     async deleteBudget(budgetId) {
       const local = await readyDatabase(budgetId);
       await lifecycle.deleteBudget(budgetId);
-      await local?.deleteBudgetFile();
+      try {
+        await local?.deleteBudgetFile();
+      } catch (error) {
+        throw Object.assign(
+          error instanceof Error ? error : new Error("Local budget cleanup failed."),
+          { authoritativeDeletionCompleted: true },
+        );
+      }
       database = null;
       activeBudgetId = null;
       activeSyncEpoch = null;

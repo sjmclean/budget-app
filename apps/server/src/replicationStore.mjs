@@ -93,6 +93,13 @@ export function createReplicationStore(database, options = {}) {
   const blobStillReferenced = database.prepare(
     "SELECT 1 FROM replication_blobs WHERE content_hash = ? LIMIT 1",
   );
+  const hasBudgetReplicationState = database.prepare(`
+    SELECT 1 FROM replication_generations WHERE budget_id = ?
+    UNION ALL SELECT 1 FROM replication_operations WHERE budget_id = ?
+    UNION ALL SELECT 1 FROM replication_checkpoints WHERE budget_id = ?
+    UNION ALL SELECT 1 FROM replication_blobs WHERE budget_id = ?
+    LIMIT 1
+  `);
 
   const pushTransaction = database.transaction((budgetId, generationId, operations) => {
     let acceptedCount = 0;
@@ -160,6 +167,10 @@ export function createReplicationStore(database, options = {}) {
   }
 
   return {
+    hasBudgetState(budgetId) {
+      assertBudgetId(budgetId);
+      return Boolean(hasBudgetReplicationState.get(budgetId, budgetId, budgetId, budgetId));
+    },
     getGeneration(budgetId) {
       const generation = ensureGeneration(budgetId);
       const checkpoint = latestCheckpoint.get(budgetId, generation.generationId);

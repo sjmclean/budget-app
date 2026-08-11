@@ -17,6 +17,15 @@ import {
   readBudgetRegistry,
   writeBudgetRegistry,
 } from "../apps/web/src/features/budget/budgetRegistry";
+import {
+  completeBudgetDeletion,
+  shouldRestoreBudgetSelectionAfterDeletionFailure,
+} from "../apps/web/src/features/budget/completeBudgetDeletion";
+import {
+  markBudgetDeletionInProgress,
+  readBudgetDeletionMarkers,
+} from "../apps/web/src/features/budget/budgetDeletionMarkers";
+import type { BudgetPersistenceProvider } from "../apps/web/src/features/persistence/budgetPersistenceProvider";
 
 const directory = mkdtempSync(join(tmpdir(), "budget-delete-resurrection-"));
 const database = new Database(":memory:");
@@ -190,6 +199,20 @@ try {
   );
   assert.equal(authStore.listBudgets(admin).some((budget) => budget.budgetId === budgetId), false);
 
+  const alreadyAbsent = deletion.deleteBudgetForUser(admin, budgetId);
+  assert.equal(alreadyAbsent.deleted, true);
+  assert.equal(alreadyAbsent.alreadyAbsent, true);
+  assert.equal(authStore.listBudgets(admin).some((budget) => budget.budgetId === budgetId), false);
+
+  const otherUser = authStore.createUser(admin, {
+    email: "other@example.test",
+    password: "correct horse battery staple two",
+  });
+  assert.throws(
+    () => deletion.deleteBudgetForUser(otherUser, survivingBudgetId),
+    (error: { code?: string }) => error.code === "BUDGET_ACCESS_DENIED",
+  );
+
   assert.throws(
     () => authStore.requireBudgetRole(admin, budgetId, "viewer"),
     (error: { code?: string }) => error.code === "BUDGET_ACCESS_DENIED",
@@ -252,6 +275,32 @@ try {
   );
   assert.ok(newEpoch.syncEpoch, "Explicit provisioning did not permit initial epoch creation.");
 
+  const orphanBudgetId = "orphan-mutation-budget";
+  database.prepare(`
+    INSERT INTO local_first_baselines(
+      baseline_id, budget_id, sync_epoch, manifest_json, state, created_at, committed_at
+    ) VALUES (?, ?, ?, ?, 'staging', ?, NULL)
+  `).run(
+    "orphan-baseline", orphanBudgetId, "orphan-epoch", "{}",
+    "2026-08-11T00:00:00.000Z",
+  );
+  database.prepare(`
+    INSERT INTO local_first_baseline_chunks(baseline_id, chunk_index, content_hash, size)
+    VALUES (?, 0, ?, 1)
+  `).run("orphan-baseline", "sha256:orphan");
+  database.prepare(`
+    INSERT INTO local_first_mutations(
+      budget_id, sync_epoch, mutation_id, device_id, device_sequence,
+      entity_key, base_cursor, payload_json, conflict_json, received_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+  `).run(
+    orphanBudgetId, "orphan-epoch", "orphan-mutation", "orphan-device", 1,
+    "accounts:orphan", 0, "{}", "2026-08-11T00:00:00.000Z",
+  );
+  assert.equal(localFirstRelayStore.hasBudgetState(orphanBudgetId), true);
+  localFirstRelayStore.deleteBudget(orphanBudgetId);
+  assert.equal(localFirstRelayStore.hasBudgetState(orphanBudgetId), false);
+
   const values = new Map<string, string>();
   const storage = {
     getItem: (key: string) => values.get(key) ?? null,
@@ -270,14 +319,119 @@ try {
     packagePath: "~/Budgets/DeleteMe.yfull",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
+    persistenceSource: "local-first-hosted",
+  }, {
+    id: "offline-local-budget",
+    name: "Offline local",
+    currency: "AUD",
+    preferences: {},
+    lastOpenedLabel: "Local",
+    packagePath: "~/Budgets/Offline.budget",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    persistenceSource: "local-only",
   }]);
-  writeBudgetRegistry(storage, []);
   mergeHostedBudgetCatalogue(storage, authStore.listBudgets(admin));
   assert.equal(
     readBudgetRegistry(storage).some((budget) => budget.id === budgetId),
     false,
     "Server rehydration resurrected the deleted budget.",
   );
+  assert.equal(
+    readBudgetRegistry(storage).some((budget) => budget.id === "offline-local-budget"),
+    true,
+    "Catalogue reconciliation pruned a genuine local-only budget.",
+  );
+
+  writeBudgetRegistry(storage, [{
+    id: "interrupted-budget", name: "Interrupted", currency: "AUD", preferences: {},
+    lastOpenedLabel: "Recent", packagePath: "~/Budgets/Interrupted.budget",
+    createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+    persistenceSource: "local-first-hosted",
+  }]);
+  markBudgetDeletionInProgress(storage, "interrupted-budget");
+  mergeHostedBudgetCatalogue(storage, [{
+    budgetId: "interrupted-budget", name: "Interrupted", currency: "AUD",
+    role: "owner", createdAt: "2026-01-01T00:00:00.000Z",
+  }]);
+  assert.equal(readBudgetDeletionMarkers(storage).has("interrupted-budget"), false);
+  assert.equal(readBudgetRegistry(storage).some((budget) => budget.id === "interrupted-budget"), true);
+
+  markBudgetDeletionInProgress(storage, "interrupted-budget");
+  mergeHostedBudgetCatalogue(storage, []);
+  assert.equal(readBudgetDeletionMarkers(storage).has("interrupted-budget"), false);
+  assert.equal(readBudgetRegistry(storage).some((budget) => budget.id === "interrupted-budget"), false);
+
+  writeBudgetRegistry(storage, [{
+    id: "timing-budget", name: "Timing", currency: "AUD", preferences: {},
+    lastOpenedLabel: "Recent", packagePath: "~/Budgets/Timing.budget",
+    createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+    persistenceSource: "local-first-hosted",
+  }]);
+  let finishAuthoritativeDeletion!: () => void;
+  const authoritativeDeletion = new Promise<void>((resolve) => {
+    finishAuthoritativeDeletion = resolve;
+  });
+  const provider = {
+    syncArchitecture: "local-first-relay",
+    keyValueStorage: storage,
+    flush: async () => undefined,
+    accountRegisterQueries: { deleteBudget: async () => authoritativeDeletion },
+  } as unknown as BudgetPersistenceProvider;
+  const deleting = completeBudgetDeletion(provider, "timing-budget", () => {
+    writeBudgetRegistry(storage, []);
+    return {
+      completed: true, budgetId: "timing-budget", budgetName: "Timing",
+      removedRecords: 1, writtenRecords: 0, remainingBudgets: 0,
+      warnings: [], errors: [],
+    };
+  });
+  await Promise.resolve();
+  assert.equal(readBudgetDeletionMarkers(storage).has("timing-budget"), true);
+  assert.equal(readBudgetRegistry(storage).some((budget) => budget.id === "timing-budget"), false);
+  mergeHostedBudgetCatalogue(storage, []);
+  assert.equal(readBudgetRegistry(storage).some((budget) => budget.id === "timing-budget"), false);
+  finishAuthoritativeDeletion();
+  assert.equal((await deleting).completed, true);
+  assert.equal(readBudgetDeletionMarkers(storage).has("timing-budget"), false);
+
+  writeBudgetRegistry(storage, [{
+    id: "cleanup-failure-budget", name: "Cleanup failure", currency: "AUD", preferences: {},
+    lastOpenedLabel: "Recent", packagePath: "~/Budgets/CleanupFailure.budget",
+    createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+    persistenceSource: "local-first-hosted",
+  }]);
+  const incompleteCleanup = await completeBudgetDeletion(
+    {
+      syncArchitecture: "local-first-relay",
+      keyValueStorage: storage,
+      flush: async () => undefined,
+      accountRegisterQueries: { deleteBudget: async () => undefined },
+    } as unknown as BudgetPersistenceProvider,
+    "cleanup-failure-budget",
+    () => ({
+      completed: false, budgetId: "cleanup-failure-budget", budgetName: "Cleanup failure",
+      removedRecords: 0, writtenRecords: 0, remainingBudgets: 1,
+      warnings: [], errors: ["Local cleanup failed."],
+    }),
+  );
+  assert.equal(incompleteCleanup.completed, false);
+  assert.equal(readBudgetDeletionMarkers(storage).has("cleanup-failure-budget"), true);
+  assert.equal(readBudgetRegistry(storage).some((budget) => budget.id === "cleanup-failure-budget"), false);
+
+  let selectedBudgetId: string | null = "budget-b";
+  const postBoundaryError = Object.assign(new Error("Local OPFS cleanup failed."), {
+    authoritativeDeletionCompleted: true,
+  });
+  if (shouldRestoreBudgetSelectionAfterDeletionFailure(postBoundaryError)) {
+    selectedBudgetId = "budget-a";
+  }
+  assert.equal(
+    selectedBudgetId,
+    "budget-b",
+    "A selected budget was resurrected after authoritative deletion crossed its boundary.",
+  );
+  assert.equal(shouldRestoreBudgetSelectionAfterDeletionFailure(new Error("Server unavailable.")), true);
 } finally {
   database.close();
   rmSync(directory, { recursive: true, force: true });

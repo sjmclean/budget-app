@@ -66,6 +66,13 @@ export function createLocalFirstRelayStore(database, options = {}) {
       currency = excluded.currency,
       updated_at = excluded.updated_at
   `);
+  const hasAnyBudgetState = database.prepare(`
+    SELECT 1 FROM local_first_sync_epochs WHERE budget_id = ?
+    UNION ALL SELECT 1 FROM local_first_budget_metadata WHERE budget_id = ?
+    UNION ALL SELECT 1 FROM local_first_baselines WHERE budget_id = ?
+    UNION ALL SELECT 1 FROM local_first_mutations WHERE budget_id = ?
+    LIMIT 1
+  `);
 
   const resetEpochTransaction = database.transaction((budgetId, schemaVersion, timestamp) => {
     const previous = readEpoch.get(budgetId);
@@ -201,6 +208,10 @@ export function createLocalFirstRelayStore(database, options = {}) {
   }
 
   return {
+    hasBudgetState(budgetId) {
+      assertBudgetId(budgetId);
+      return Boolean(hasAnyBudgetState.get(budgetId, budgetId, budgetId, budgetId));
+    },
     updateBudgetMetadata(budgetId, input) {
       assertBudgetId(budgetId);
       const budgetName = typeof input?.budgetName === "string"

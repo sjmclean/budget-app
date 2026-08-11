@@ -71,8 +71,10 @@ assert.deepEqual(readBudgetRegistry(storage), [], "registry should be empty afte
 assert.ok(deleteActiveLastBudget.warnings.some((warning) => warning.includes("No budgets remain")));
 
 const missingBudget = deleteBudgetById(storage, "missing-budget");
-assert.equal(missingBudget.completed, false, "missing budget delete should not complete");
-assert.match(missingBudget.errors.join("\n"), /could not be found/);
+assert.equal(missingBudget.completed, true, "missing budget delete should satisfy the idempotent deletion postcondition");
+assert.equal(missingBudget.budgetId, "missing-budget");
+assert.deepEqual(missingBudget.errors, []);
+assert.ok(missingBudget.warnings.some((warning) => warning.includes("already absent")));
 
 const selectorPage = readFileSync(
   join(process.cwd(), "apps/web/src/pages/BudgetSelectorPage.tsx"),

@@ -208,6 +208,10 @@ export function createAuthStore(database, options = {}) {
       };
     },
 
+    hasBudgetMemberships(budgetId) {
+      return membershipCount.get(budgetId).count > 0;
+    },
+
     listBudgets(user) {
       return listBudgets.all(user.id);
     },

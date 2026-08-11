@@ -6,6 +6,10 @@ import {
   normaliseBudgetPreferences,
   type BudgetPreferences,
 } from "./budgetPreferences";
+import {
+  clearBudgetDeletionMarker,
+  readBudgetDeletionMarkers,
+} from "./budgetDeletionMarkers";
 
 export const BUDGET_REGISTRY_STORAGE_KEY = "budget-app.budget-registry.v1";
 
@@ -21,6 +25,7 @@ export interface BudgetSummary {
   packagePath: string;
   createdAt: string;
   updatedAt: string;
+  persistenceSource?: "local-only" | "local-first-hosted";
 }
 
 export interface CreateBudgetRegistryInput {
@@ -32,6 +37,7 @@ export interface CreateBudgetRegistryInput {
   preferences?: Partial<BudgetPreferences>;
   packagePath?: string;
   now?: Date;
+  persistenceSource?: "local-only" | "local-first-hosted";
 }
 
 export interface UpdateBudgetRegistryInput {
@@ -109,7 +115,27 @@ function normaliseBudgetSummary(value: unknown): BudgetSummary | null {
     createdAt,
     updatedAt,
     lastOpenedLabel: readString(value.lastOpenedLabel, "Not opened yet"),
+    persistenceSource: value.persistenceSource === "local-first-hosted"
+      ? "local-first-hosted"
+      : "local-only",
   };
+}
+
+function readStoredBudgetRegistry(storage: KeyValueStoragePort): BudgetSummary[] {
+  const raw = storage.getItem(BUDGET_REGISTRY_STORAGE_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.map(normaliseBudgetSummary).filter((budget): budget is BudgetSummary => Boolean(budget))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function readBudgetRegistryIncludingDeleting(storage: KeyValueStoragePort): BudgetSummary[] {
+  return readStoredBudgetRegistry(storage);
 }
 
 export function createInitialBudgetRegistry(now = new Date()): BudgetSummary[] {
@@ -133,22 +159,8 @@ export function createInitialBudgetRegistry(now = new Date()): BudgetSummary[] {
 }
 
 export function readBudgetRegistry(storage: KeyValueStoragePort): BudgetSummary[] {
-  const raw = storage.getItem(BUDGET_REGISTRY_STORAGE_KEY);
-
-  if (!raw) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    const budgets = Array.isArray(parsed)
-      ? parsed.map(normaliseBudgetSummary).filter((budget): budget is BudgetSummary => Boolean(budget))
-      : [];
-
-    return budgets;
-  } catch {
-    return [];
-  }
+  const deleting = new Set(readBudgetDeletionMarkers(storage));
+  return readStoredBudgetRegistry(storage).filter((budget) => !deleting.has(budget.id));
 }
 
 export function writeBudgetRegistry(storage: KeyValueStoragePort, budgets: BudgetSummary[]): BudgetSummary[] {
@@ -165,27 +177,48 @@ export function mergeHostedBudgetCatalogue(
   catalogue: readonly HostedBudgetCatalogueEntry[],
   now = new Date(),
 ): BudgetSummary[] {
-  const current = readBudgetRegistry(storage);
+  const deleting = new Set(readBudgetDeletionMarkers(storage));
+  const serverIds = new Set(catalogue.map((entry) => entry.budgetId));
+  const completedDeletionMarkers = new Set<string>();
+  for (const budgetId of deleting) {
+    if (serverIds.has(budgetId)) {
+      clearBudgetDeletionMarker(storage, budgetId);
+      deleting.delete(budgetId);
+    } else {
+      completedDeletionMarkers.add(budgetId);
+    }
+  }
+  const current = readStoredBudgetRegistry(storage).filter((budget) =>
+    !deleting.has(budget.id) &&
+    (budget.persistenceSource !== "local-first-hosted" || serverIds.has(budget.id))
+  );
   const byId = new Map(current.map((budget) => [budget.id, budget]));
   const timestamp = now.toISOString();
   for (const entry of catalogue) {
-    if (!entry.budgetId?.trim() || byId.has(entry.budgetId)) continue;
+    if (!entry.budgetId?.trim() || deleting.has(entry.budgetId)) continue;
     const name = entry.name?.trim() || entry.budgetId;
+    const existing = byId.get(entry.budgetId);
     byId.set(entry.budgetId, {
+      ...existing,
       id: entry.budgetId,
-      name,
-      currency: (entry.currency?.trim() || "AUD").toUpperCase(),
-      dateFormat: "DD/MM/YYYY",
-      numberFormat: "1,234.56",
-      firstDayOfWeek: "monday",
-      preferences: { ...DEFAULT_BUDGET_PREFERENCES },
+      name: existing?.name ?? name,
+      currency: existing?.currency ?? (entry.currency?.trim() || "AUD").toUpperCase(),
+      dateFormat: existing?.dateFormat ?? "DD/MM/YYYY",
+      numberFormat: existing?.numberFormat ?? "1,234.56",
+      firstDayOfWeek: existing?.firstDayOfWeek ?? "monday",
+      preferences: existing?.preferences ?? { ...DEFAULT_BUDGET_PREFERENCES },
       lastOpenedLabel: "Available from server",
-      packagePath: `hosted://${entry.budgetId}`,
-      createdAt: entry.createdAt || timestamp,
+      packagePath: existing?.packagePath ?? `hosted://${entry.budgetId}`,
+      createdAt: existing?.createdAt ?? (entry.createdAt || timestamp),
       updatedAt: timestamp,
+      persistenceSource: "local-first-hosted",
     });
   }
-  return writeBudgetRegistry(storage, [...byId.values()]);
+  const result = writeBudgetRegistry(storage, [...byId.values()]);
+  for (const budgetId of completedDeletionMarkers) {
+    clearBudgetDeletionMarker(storage, budgetId);
+  }
+  return result;
 }
 
 export function createBudgetRegistryEntry(
@@ -209,6 +242,7 @@ export function createBudgetRegistryEntry(
     packagePath: input.packagePath?.trim() || `~/Budgets/${name.replace(/\s+/g, "")}.budget`,
     createdAt: timestamp,
     updatedAt: timestamp,
+    persistenceSource: input.persistenceSource ?? "local-first-hosted",
   };
 
   writeBudgetRegistry(storage, [...budgets, budget]);
@@ -264,6 +298,6 @@ export function markBudgetOpened(
 }
 
 export function deleteBudgetRegistryEntry(storage: KeyValueStoragePort, budgetId: string): BudgetSummary[] {
-  const budgets = readBudgetRegistry(storage).filter((budget) => budget.id !== budgetId);
+  const budgets = readStoredBudgetRegistry(storage).filter((budget) => budget.id !== budgetId);
   return writeBudgetRegistry(storage, budgets);
 }

@@ -434,7 +434,9 @@ const server = createServer(async (request, response) => {
           : minimumBudgetRole(request.method);
       const isExplicitProvisioning =
         url.pathname === "/api/local-first/budget" && request.method === "POST";
-      if (!isExplicitProvisioning) {
+      const isIdempotentDeletion =
+        url.pathname === "/api/local-first/budget" && request.method === "DELETE";
+      if (!isExplicitProvisioning && !isIdempotentDeletion) {
         authStore.requireBudgetRole(authenticatedUser, localFirstBudgetId, minimumRole);
       }
     }
@@ -610,7 +612,10 @@ const server = createServer(async (request, response) => {
     }
 
     if (url.pathname === "/api/local-first/budget" && request.method === "DELETE") {
-      sendJson(response, 200, budgetDeletionLifecycle.deleteBudget(localFirstBudgetId));
+      sendJson(response, 200, budgetDeletionLifecycle.deleteBudgetForUser(
+        authenticatedUser,
+        localFirstBudgetId,
+      ));
       return;
     }
 
