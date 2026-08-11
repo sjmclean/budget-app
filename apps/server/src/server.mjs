@@ -13,6 +13,8 @@ import {
 import { createLocalFirstRelayEventBroker } from "./localFirstRelayEvents.mjs";
 import { readServerRuntimeConfig } from "./runtimeConfig.mjs";
 import { createAuthStore } from "./authStore.mjs";
+import { createBudgetDeletionLifecycle } from "./budgetDeletionLifecycle.mjs";
+import { performAuthorizedBudgetMutation } from "./budgetMutationAuthorization.mjs";
 import {
   createOperationalResilienceStore,
   openResilientHostedDatabase,
@@ -90,6 +92,11 @@ if (!hostedMigrationStatus) {
   });
 }
 const authStore = createAuthStore(database);
+const budgetDeletionLifecycle = createBudgetDeletionLifecycle({
+  localFirstRelayStore,
+  replicationStore,
+  authStore,
+});
 const orphanedMembershipCleanup = authStore.cleanupOrphanedBudgetMemberships();
 if (orphanedMembershipCleanup.removedMembershipCount > 0) {
   console.log(
@@ -425,10 +432,11 @@ const server = createServer(async (request, response) => {
         url.pathname === "/api/local-first/budget"
           ? "owner"
           : minimumBudgetRole(request.method);
-      if (url.pathname === "/api/local-first/epoch/reset" && request.method === "POST") {
-        authStore.claimBudget(authenticatedUser, localFirstBudgetId);
+      const isExplicitProvisioning =
+        url.pathname === "/api/local-first/budget" && request.method === "POST";
+      if (!isExplicitProvisioning) {
+        authStore.requireBudgetRole(authenticatedUser, localFirstBudgetId, minimumRole);
       }
-      authStore.requireBudgetRole(authenticatedUser, localFirstBudgetId, minimumRole);
     }
 
     if (url.pathname.startsWith("/api/budget-engine/")) {
@@ -469,8 +477,11 @@ const server = createServer(async (request, response) => {
       }
       const content = await readRequestBody(request);
       const mimeType = String(request.headers["content-type"] ?? "application/octet-stream");
-      sendJson(response, 201, replicationStore.saveBlob(
-        replicationBudgetId, generationId, contentHash, mimeType, content,
+      sendJson(response, 201, performAuthorizedBudgetMutation(
+        authStore, authenticatedUser, replicationBudgetId, "editor",
+        () => replicationStore.saveBlob(
+          replicationBudgetId, generationId, contentHash, mimeType, content,
+        ),
       ));
       return;
     }
@@ -485,8 +496,9 @@ const server = createServer(async (request, response) => {
       validateReplicationProtocol(body.protocolVersion);
       const generationId = validateGenerationId(body.generationId);
       const operations = validateReplicationOperations(body.operations);
-      sendJson(response, 200, replicationStore.pushOperations(
-        replicationBudgetId, generationId, operations,
+      sendJson(response, 200, performAuthorizedBudgetMutation(
+        authStore, authenticatedUser, replicationBudgetId, "editor",
+        () => replicationStore.pushOperations(replicationBudgetId, generationId, operations),
       ));
       return;
     }
@@ -507,8 +519,9 @@ const server = createServer(async (request, response) => {
       validateReplicationProtocol(body.protocolVersion);
       const generationId = validateGenerationId(body.generationId);
       const checkpoint = validateCheckpoint(body.checkpoint);
-      sendJson(response, 201, replicationStore.saveCheckpoint(
-        replicationBudgetId, generationId, checkpoint,
+      sendJson(response, 201, performAuthorizedBudgetMutation(
+        authStore, authenticatedUser, replicationBudgetId, "editor",
+        () => replicationStore.saveCheckpoint(replicationBudgetId, generationId, checkpoint),
       ));
       return;
     }
@@ -559,8 +572,10 @@ const server = createServer(async (request, response) => {
 
     if (url.pathname === "/api/local-first/epoch/reset" && request.method === "POST") {
       const body = await readJsonBody(request);
-      const result =
-        localFirstRelayStore.resetEpoch(localFirstBudgetId, body.schemaVersion ?? 1);
+      const result = performAuthorizedBudgetMutation(
+        authStore, authenticatedUser, localFirstBudgetId, "owner",
+        () => localFirstRelayStore.resetEpoch(localFirstBudgetId, body.schemaVersion ?? 1),
+      );
       sendJson(
         response,
         201,
@@ -580,15 +595,22 @@ const server = createServer(async (request, response) => {
       sendJson(
         response,
         200,
-        localFirstRelayStore.updateBudgetMetadata(localFirstBudgetId, body),
+        performAuthorizedBudgetMutation(
+          authStore, authenticatedUser, localFirstBudgetId, "owner",
+          () => localFirstRelayStore.updateBudgetMetadata(localFirstBudgetId, body),
+        ),
       );
       return;
     }
 
+    if (url.pathname === "/api/local-first/budget" && request.method === "POST") {
+      const role = authStore.claimBudget(authenticatedUser, localFirstBudgetId);
+      sendJson(response, 201, { budgetId: localFirstBudgetId, role, provisioned: true });
+      return;
+    }
+
     if (url.pathname === "/api/local-first/budget" && request.method === "DELETE") {
-      const deleted = localFirstRelayStore.deleteBudget(localFirstBudgetId);
-      const membership = authStore.deleteBudgetMemberships(localFirstBudgetId);
-      sendJson(response, 200, { ...deleted, ...membership });
+      sendJson(response, 200, budgetDeletionLifecycle.deleteBudget(localFirstBudgetId));
       return;
     }
 
@@ -597,10 +619,13 @@ const server = createServer(async (request, response) => {
       sendJson(
         response,
         201,
-        localFirstRelayStore.beginBaseline(
-          localFirstBudgetId,
-          body.syncEpoch,
-          body.manifest,
+        performAuthorizedBudgetMutation(
+          authStore, authenticatedUser, localFirstBudgetId, "editor",
+          () => localFirstRelayStore.beginBaseline(
+            localFirstBudgetId,
+            body.syncEpoch,
+            body.manifest,
+          ),
         ),
       );
       return;
@@ -619,13 +644,16 @@ const server = createServer(async (request, response) => {
         sendJson(
           response,
           201,
-          localFirstRelayStore.saveBaselineChunk(
-            localFirstBudgetId,
-            syncEpoch,
-            baselineId,
-            chunkIndex,
-            contentHash,
-            content,
+          performAuthorizedBudgetMutation(
+            authStore, authenticatedUser, localFirstBudgetId, "editor",
+            () => localFirstRelayStore.saveBaselineChunk(
+              localFirstBudgetId,
+              syncEpoch,
+              baselineId,
+              chunkIndex,
+              contentHash,
+              content,
+            ),
           ),
         );
         return;
@@ -654,10 +682,13 @@ const server = createServer(async (request, response) => {
     if (localFirstCommitMatch && request.method === "POST") {
       const baselineId = decodeURIComponent(localFirstCommitMatch[1]);
       const body = await readJsonBody(request);
-      const result = localFirstRelayStore.commitBaseline(
-        localFirstBudgetId,
-        body.syncEpoch,
-        baselineId,
+      const result = performAuthorizedBudgetMutation(
+        authStore, authenticatedUser, localFirstBudgetId, "editor",
+        () => localFirstRelayStore.commitBaseline(
+          localFirstBudgetId,
+          body.syncEpoch,
+          baselineId,
+        ),
       );
       sendJson(
         response,
@@ -675,10 +706,13 @@ const server = createServer(async (request, response) => {
 
     if (url.pathname === "/api/local-first/mutations" && request.method === "POST") {
       const body = await readJsonBody(request);
-      const result = localFirstRelayStore.pushMutations(
-        localFirstBudgetId,
-        body.syncEpoch,
-        body.mutations,
+      const result = performAuthorizedBudgetMutation(
+        authStore, authenticatedUser, localFirstBudgetId, "editor",
+        () => localFirstRelayStore.pushMutations(
+          localFirstBudgetId,
+          body.syncEpoch,
+          body.mutations,
+        ),
       );
       sendJson(
         response,

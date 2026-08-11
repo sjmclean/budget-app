@@ -98,12 +98,12 @@ import {
   type SqliteImportTransaction,
 } from "../persistence/hostedSqliteImportClient";
 import {
-  LOCAL_BUDGET_SCHEMA_VERSION,
   LocalBudgetDatabaseClient,
   createLocalFirstRelayTransport,
   createLocalFirstYnab4ImportClient,
   publishLocalBaseline,
 } from "../persistence/localFirst";
+import { provisionFreshLocalFirstBudget } from "../persistence/localFirst/freshBudgetProvisioning";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 
 export {
@@ -263,15 +263,17 @@ export async function createYnab4LauncherBudgetImportWithBackend(
     } | null = null;
     let importClient: ImportSessionClient | undefined;
     if (useLocalFirstSqlite) {
-      const relay = createLocalFirstRelayTransport({ apiBaseUrl: input.apiBaseUrl });
-      const epoch = await relay.resetEpoch(budget.id, LOCAL_BUDGET_SCHEMA_VERSION);
+      const provisioned = await provisionFreshLocalFirstBudget(budget.id, {
+        apiBaseUrl: input.apiBaseUrl,
+      });
+      const relay = provisioned.relay;
       localDatabase = new LocalBudgetDatabaseClient();
       importClient = createLocalFirstYnab4ImportClient({
         database: localDatabase,
-        syncEpoch: epoch.syncEpoch,
+        syncEpoch: provisioned.syncEpoch,
         deviceId: getOrCreateLocalFirstDeviceId(storage),
       });
-      localImportContext = { syncEpoch: epoch.syncEpoch, relay };
+      localImportContext = { syncEpoch: provisioned.syncEpoch, relay };
     }
     const staged = useLocalFirstSqlite
       ? await importYnab4ReaderToHostedSqlite(storage, reader, budget, now, {

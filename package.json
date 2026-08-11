@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test:milestone4:ynab4-payee-knowledge": "tsx tests/milestone4-ynab4-payee-knowledge.ts",
-    "test:milestone4:budget-delete-payee-regressions": "node tests/milestone4-budget-delete-payee-regressions.mjs && tsx tests/milestone4-payee-view-deletion-invariants.ts",
+    "test:milestone4:budget-delete-payee-regressions": "node tests/milestone4-budget-delete-payee-regressions.mjs && tsx tests/milestone4-payee-view-deletion-invariants.ts && tsx tests/milestone4-local-first-budget-deletion-resurrection.ts && tsx tests/milestone4-fresh-budget-provisioning.ts",
     "verify:milestone4:budget-delete-payee-regressions": "pnpm test:milestone4:budget-delete-payee-regressions && pnpm test:milestone4:ynab4-payee-knowledge && pnpm test:milestone4:local-first-ynab4-import && pnpm test:web-build",
     "verify:milestone4:ynab4-payee-knowledge": "pnpm test:milestone4:ynab4-payee-knowledge && pnpm test:milestone4:local-first-ynab4-import && pnpm test:milestone4:payee-merge-learning && pnpm test:web-build",
     "test:milestone4:payee-possible-duplicates": "tsx tests/milestone4-payee-possible-duplicates.ts && node tests/milestone4-payee-management-redesign.mjs",

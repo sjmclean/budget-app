@@ -25,6 +25,7 @@ import type { BudgetCategoryGroupView, BudgetMonthView } from "./budgetViewTypes
 import { writeBudgetMonthEntity } from "./entities/budgetMonthEntity.js";
 import { isMoneyNegative, normaliseMoney } from "./moneyMath";
 import { getCurrentBudgetMonth } from "./budgetMonthNavigation";
+import { provisionFreshLocalFirstBudget } from "../persistence/localFirst/freshBudgetProvisioning";
 
 export const ACTUAL_BUDGET_LAUNCHER_IMPORT_STORAGE_PREFIX =
   "budget-app.actual-budget-launcher-import.v1";
@@ -64,6 +65,7 @@ export interface CreateActualBudgetLauncherImportInput {
   sourceFileName?: string | null;
   creditCardBehaviour?: CreditCardBehaviour;
   now?: Date;
+  apiBaseUrl?: string;
 }
 
 export interface ActualBudgetLauncherImportResult {
@@ -109,12 +111,19 @@ export async function createActualBudgetLauncherImportWithBackend(
   const selectedBudgetBeforeImport = storage.getItem(SELECTED_BUDGET_STORAGE_KEY);
   const keysBeforeImport = new Set(storage.listKeys?.() ?? []);
   let result: ActualBudgetLauncherImportResult | null = null;
+  let provisioned: Awaited<ReturnType<typeof provisionFreshLocalFirstBudget>> | null = null;
 
   try {
     result = createActualBudgetLauncherImport(storage, input);
+    provisioned = await provisionFreshLocalFirstBudget(result.budget.id, {
+      apiBaseUrl: input.apiBaseUrl,
+    });
     await storage.flush?.();
     return result;
   } catch (error) {
+    if (provisioned && result) {
+      await provisioned.relay.deleteBudget(result.budget.id).catch(() => undefined);
+    }
     rollbackActualBudgetLauncherImport(storage, {
       budgetId: result?.budget.id ?? null,
       keysBeforeImport,

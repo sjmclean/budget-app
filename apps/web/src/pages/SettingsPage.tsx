@@ -20,6 +20,7 @@ import {
   type PortableBudgetPackagePreview,
 } from "../features/budget/portableBudgetPackage";
 import { deleteCurrentBudget, resetCurrentBudget } from "../features/budget/budgetLifecycle";
+import { completeBudgetDeletion } from "../features/budget/completeBudgetDeletion";
 import { resolveActiveBudget } from "../features/budget/activeBudget";
 import {
   listVersionHistorySnapshots,
@@ -689,7 +690,6 @@ export function SettingsPage({
   }
 
   async function handleDeleteCurrentBudget() {
-    const hosted = await isHostedSqliteBudget(accountRegisterQueries, activeBudget?.id);
     const confirmed = await confirmDialog({
       title: "Delete current budget?",
       message:
@@ -703,30 +703,27 @@ export function SettingsPage({
       return;
     }
 
-    if (hosted && activeBudget?.id && accountRegisterQueries) {
-      try {
-        await accountRegisterQueries.deleteBudget(activeBudget.id);
-      } catch (error) {
-        setDataStatusMessage(error instanceof Error ? error.message : "Hosted SQLite deletion failed.");
-        return;
-      }
-      const result = deleteCurrentBudget(getActiveKeyValueStorage());
-      refreshBudgets();
-      clearSelectedBudget();
-      if (!result.completed) {
-        setDataStatusMessage(result.errors[0] ?? "Hosted data was deleted, but the local budget entry could not be removed.");
-        return;
-      }
-      setDataStatusMessage(`Deleted ${result.budgetName} and its hosted SQLite generation.`);
-      navigate("/");
+    if (!activeBudget?.id) {
+      setDataStatusMessage("Delete failed because no budget is selected.");
       return;
     }
 
-    if (activeBudget?.id) {
-      createVersionHistorySnapshotBeforeBudgetDelete(getActiveKeyValueStorage(), activeBudget.id);
-    }
+    createVersionHistorySnapshotBeforeBudgetDelete(
+      getActiveKeyValueStorage(),
+      activeBudget.id,
+    );
 
-    const result = deleteCurrentBudget(getActiveKeyValueStorage());
+    let result;
+    try {
+      result = await completeBudgetDeletion(
+        getBudgetPersistenceProvider(),
+        activeBudget.id,
+        () => deleteCurrentBudget(getActiveKeyValueStorage()),
+      );
+    } catch (error) {
+      setDataStatusMessage(error instanceof Error ? error.message : "Budget deletion failed.");
+      return;
+    }
     refreshBudgets();
     clearSelectedBudget();
 

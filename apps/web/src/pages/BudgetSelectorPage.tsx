@@ -86,6 +86,7 @@ export function BudgetSelectorPage() {
   const [deleteBudgetId, setDeleteBudgetId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [renameBudgetId, setRenameBudgetId] = useState<string | null>(null);
   const [activeBudgetMenuId, setActiveBudgetMenuId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -284,10 +285,19 @@ export function BudgetSelectorPage() {
     }
   }
 
-  function handleCreateBudget(setup: NewBudgetSetup) {
-    const budget = createBudgetWithSetup(setup);
-    selectBudget(budget.id);
-    navigate("/dashboard");
+  async function handleCreateBudget(setup: NewBudgetSetup) {
+    setCreateError(null);
+    try {
+      const budget = await createBudgetWithSetup(setup);
+      selectBudget(budget.id);
+      navigate("/dashboard");
+    } catch (error) {
+      setCreateError(
+        error instanceof Error
+          ? error.message
+          : "The new budget could not be provisioned.",
+      );
+    }
   }
 
   return (
@@ -483,6 +493,7 @@ export function BudgetSelectorPage() {
 
         {launchMode === "empty" ? (
           <Suspense fallback={<BudgetWorkflowLoading />}>
+            {createError ? <p className="form-error" role="alert">{createError}</p> : null}
             <LazyNewBudgetWizard
               onBack={() => setLaunchMode("list")}
               onCreateBudget={handleCreateBudget}

@@ -144,6 +144,23 @@ export function createLocalFirstRelayTransport(options: {
   }
 
   return {
+    provisionBudget(budgetId: string) {
+      return json<{
+        readonly budgetId: string;
+        readonly role: "owner";
+        readonly provisioned: true;
+      }>(`/api/local-first/budget?${query(budgetId)}`, {
+        method: "POST",
+      });
+    },
+
+    deleteBudget(budgetId: string) {
+      return json<{ readonly budgetId: string; readonly deleted: boolean }>(
+        `/api/local-first/budget?${query(budgetId)}`,
+        { method: "DELETE" },
+      );
+    },
+
     updateBudgetMetadata(input: {
       readonly budgetId: string;
       readonly budgetName: string;

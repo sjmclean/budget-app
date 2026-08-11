@@ -183,11 +183,7 @@ export function createAuthStore(database, options = {}) {
     },
 
     requireBudgetRole(user, budgetId, minimumRole = "viewer") {
-      let row = membership.get(budgetId, user.id);
-      if (!row && user.isAdmin && membershipCount.get(budgetId).count === 0) {
-        insertMembership.run(budgetId, user.id, "owner", now().toISOString());
-        row = { role: "owner" };
-      }
+      const row = membership.get(budgetId, user.id);
       if (!row || ROLE_LEVEL[row.role] < ROLE_LEVEL[minimumRole]) {
         throw httpError(403, "BUDGET_ACCESS_DENIED", "You do not have access to this budget.");
       }
