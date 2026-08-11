@@ -10,7 +10,7 @@ import {
   buildRegisterTransaction,
 } from "../../support/builders/importMatchingBuilders";
 
-test("ordinary reconciliation uses the deterministic amount/date contract", () => {
+test("amount and date without merchant identity remain an explicit-review candidate", () => {
   const assessment = assessTransactionImportMatch(
     buildParsedImportTransaction({
       date: "2026-06-30",
@@ -27,13 +27,14 @@ test("ordinary reconciliation uses the deterministic amount/date contract", () =
     ],
   );
 
-  assert.equal(assessment.kind, "match");
-  assert.equal(assessment.status, "exact-match");
-  assert.equal(assessment.recommendation, "match");
-  assert.equal(assessment.selectedCandidate?.transaction.id, "existing");
-  assert.equal(assessment.selectedCandidate?.merchantMatches, false);
+  assert.equal(assessment.kind, "new");
+  assert.equal(assessment.status, "new");
+  assert.equal(assessment.recommendation, "import");
+  assert.equal(assessment.selectedCandidate, undefined);
+  assert.equal(assessment.candidates[0]?.transaction.id, "existing");
+  assert.equal(assessment.candidates[0]?.merchantMatches, false);
   assert.deepEqual(
-    assessment.evidence?.map(({ label, result }) => ({ label, result })),
+    assessment.candidates[0]?.evidence.map(({ label, result }) => ({ label, result })),
     [
       { label: "Amount", result: "positive" },
       { label: "Date", result: "neutral" },
