@@ -116,5 +116,7 @@ assert.match(page, /Review Merge/);
 assert.match(page, /Keep Separate/);
 assert.match(page, /Ignore Suggestion/);
 assert.match(schema, /local_payee_duplicate_suppressions/);
+assert.doesNotMatch(page, /setSelectedDuplicateMemberIds\(\(ids\)\s*=>\s*event\.currentTarget\.checked/,
+  "duplicate checkbox handlers must capture checked before entering a state updater");
 
 console.log("Milestone 4 possible duplicate groups passed: reasons, suppressions, false positives, and bounded detection.");

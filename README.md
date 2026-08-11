@@ -1,35 +1,25 @@
-# Payee duplicate correctness overlay
+# Payee merge learning overlay
 
-This overlay replaces transitive connected-component grouping with
-anchor-centred duplicate groups. Every displayed candidate has direct,
-pair-scoped evidence against its anchor.
+This overlay fixes multi-source SQLite merge rollback, replaces the Possible Duplicates merge wizard with one confirmation dialog, makes merge invariants mandatory, exposes mutation errors, and preserves exact retired payee names as recognition aliases.
 
-It also adds whole-token phrase evidence, generic-name protection,
-payment-processor prefix handling, pair-scoped suppression, per-candidate
-evidence in the existing review UI, and direct-evidence post-merge rule
-selection.
-
-## Apply on Linux
-
-From the Budget App repository root:
+Apply from the repository root:
 
 ```bash
-cp -a payee-duplicate-correctness-overlay/. ./
+tar -xzf payee-merge-learning-overlay.tar.gz
+cp -a payee-merge-learning-overlay/. ./
 ```
 
-## Verify
+Verify:
 
 ```bash
-pnpm test:milestone4:payee-possible-duplicates
-pnpm test:v142:payee-merge
+pnpm test:milestone4:payee-merge-learning
+pnpm verify:milestone4:payee-possible-duplicates
+pnpm verify:milestone4:payee-management-redesign
 pnpm test:v1214:payee-rules
-pnpm exec tsx tests/v3160-import-commit-extraction.ts
-pnpm test:v152:transaction-import
-pnpm test:v3221:import-facade-regression
 pnpm test:web-build
 ```
 
-Run normally with:
+Run:
 
 ```bash
 pnpm dev

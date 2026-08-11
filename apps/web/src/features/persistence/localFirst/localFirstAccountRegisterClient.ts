@@ -14,13 +14,13 @@ import { LocalBudgetDatabaseClient } from "./localBudgetClient";
 import type {
   LocalTransactionAttachmentMutationPayload,
   LocalTransactionAttachmentRecord,
+  LocalPayeeRecord,
   LocalTransactionRecord,
 } from "./registerSchema";
 import { createLocalFirstRelayTransport } from "./relayTransport";
 import { bootstrapLocalBudget } from "./baselineCoordinator";
 import { publishLocalBaseline } from "./baselineCoordinator";
 import type { BudgetMonthView } from "../../budget/budgetViewTypes";
-import type { PayeeView } from "../../accounts/payeeService";
 import type {
   ScheduledTransactionView,
   UpsertScheduledTransactionInput,
@@ -41,6 +41,7 @@ import {
 } from "./tabSyncCoordinator";
 import { notifyLocalFirstMutationCommitted } from "./mutationEvents";
 import { registerLocalSqliteAttachmentReader } from "../../attachments/localSqliteAttachmentReader";
+import { localPayeeRecordToView } from "./localPayeeView";
 
 const DEVICE_ID_KEY = "budget-app.local-first.device-id";
 const SYNC_EPOCH_KEY_PREFIX = "budget-app.local-first.sync-epoch.";
@@ -368,17 +369,9 @@ export function createLocalFirstAccountRegisterQueryClient(
       })));
   }
 
-  async function listLocalPayees(budgetId: string, archived: boolean) {
-    return (await requireDatabase(budgetId)).listPayees(budgetId, archived)
-      .then((rows) => rows.map((row): PayeeView => ({
-        id: row.id,
-        name: row.name,
-        note: row.note,
-        isArchived: row.archived,
-        createdAt: "",
-        lastUsedAt: "",
-        useCount: 0,
-      })));
+  async function listPersistedPayees(budgetId: string, archived: boolean) {
+    const rows = await (await requireDatabase(budgetId)).listPayees(budgetId, archived);
+    return rows.map(localPayeeRecordToView);
   }
 
   function scheduleFromInput(
@@ -1227,16 +1220,7 @@ export function createLocalFirstAccountRegisterQueryClient(
     },
     async listPayees(budgetId, archived = false) {
       const rows = await (await syncThenDatabase(budgetId)).listPayees(budgetId, archived);
-      return rows.map((row): PayeeView => ({
-        id: row.id, name: row.name, note: row.note,
-        isArchived: row.archived, createdAt: row.firstUsedAt ?? row.createdAt ?? "",
-        lastUsedAt: row.lastUsedAt ?? "", useCount: row.useCount ?? 0,
-        scheduledUseCount: row.scheduledUseCount ?? 0,
-        defaultCategoryId: row.defaultCategoryId,
-        defaultCategoryName: row.defaultCategoryName,
-        iconRef: row.iconRef, aliases: row.aliases ? [...row.aliases] : [],
-        importRules: row.importRules ? [...row.importRules] : [],
-      }));
+      return rows.map(localPayeeRecordToView);
     },
     async listPayeeDuplicateSuppressions(budgetId) {
       return (await syncThenDatabase(budgetId)).listPayeeDuplicateSuppressions(budgetId);
@@ -1253,7 +1237,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       const local = await requireDatabase(budgetId);
       await local.writePayee(payee, mutation(budgetId, "payees", payee.id, "upsert", payee));
       notifyLocalFirstMutationCommitted(budgetId);
-      return listLocalPayees(budgetId, false);
+      return listPersistedPayees(budgetId, false);
     },
     async updatePayee(budgetId, input) {
       const local = await requireDatabase(budgetId);
@@ -1275,7 +1259,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       };
       await local.writePayee(payee, mutation(budgetId, "payees", payee.id, "upsert", payee));
       notifyLocalFirstMutationCommitted(budgetId);
-      return listLocalPayees(budgetId, false);
+      return listPersistedPayees(budgetId, false);
     },
     async setPayeeArchived(budgetId, payeeId, archived) {
       const local = await requireDatabase(budgetId);
@@ -1285,7 +1269,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       const payee = { ...current, budgetId, archived };
       await local.writePayee(payee, mutation(budgetId, "payees", payee.id, "upsert", payee));
       notifyLocalFirstMutationCommitted(budgetId);
-      return listLocalPayees(budgetId, archived);
+      return listPersistedPayees(budgetId, archived);
     },
     async deleteUnusedPayee(budgetId, payeeId) {
       const local = await requireDatabase(budgetId);
@@ -1295,7 +1279,7 @@ export function createLocalFirstAccountRegisterQueryClient(
         mutation(budgetId, "payees", payeeId, "delete", { kind: "unused-payee-delete" }),
       );
       notifyLocalFirstMutationCommitted(budgetId);
-      return listLocalPayees(budgetId, false);
+      return listPersistedPayees(budgetId, false);
     },
     async mergePayees(budgetId, input) {
       const local = await requireDatabase(budgetId);
@@ -1330,7 +1314,7 @@ export function createLocalFirstAccountRegisterQueryClient(
         ),
       });
       notifyLocalFirstMutationCommitted(budgetId);
-      return listLocalPayees(budgetId, false);
+      return listPersistedPayees(budgetId, false);
     },
     async listTransactionTags(budgetId) {
       await synchronise(budgetId);

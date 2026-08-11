@@ -90,7 +90,10 @@ export function createLocalFirstYnab4ImportClient(
             budgetId: input.budgetId,
             name: row.name,
             note: "",
-            archived: false,
+            archived: row.archived === true,
+            defaultCategoryId: row.defaultCategoryId,
+            defaultCategoryName: row.defaultCategoryName,
+            importRules: row.importRules,
           }));
           const categories = referenceData.categories.map((row: SqliteImportCategory): LocalCategoryRecord => ({
             id: row.id,

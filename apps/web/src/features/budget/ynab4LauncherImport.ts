@@ -152,7 +152,37 @@ type ImportMaps = {
   payeeNameById: Map<string, string>;
   nonImportableCategorySourceIds: Set<string>;
   warnings: string[];
+  payeeKnowledgeAudit: Ynab4PayeeKnowledgeAudit;
 };
+
+export interface Ynab4PayeeKnowledgeDiagnostic {
+  readonly code: "unresolved-default-category" | "unsupported-rename-operator" |
+    "unresolved-rename-target" | "conflicting-rename-condition";
+  readonly sourcePayeeId?: string;
+  readonly sourceConditionId?: string;
+  readonly value?: string;
+  readonly message: string;
+}
+
+export interface Ynab4PayeeKnowledgeAudit {
+  defaults: {
+    sourcePayeesWithDefaultCategory: number;
+    importedPayeeDefaultCategories: number;
+    specialDefaultCategoryMappings: number;
+    unresolvedDefaultCategories: number;
+  };
+  renameConditions: {
+    total: number;
+    active: number;
+    tombstoned: number;
+    imported: number;
+    deduplicated: number;
+    conflicting: number;
+    unsupported: number;
+    unresolvedTarget: number;
+  };
+  diagnostics: Ynab4PayeeKnowledgeDiagnostic[];
+}
 
 /**
  * Canonical, persistence-independent output of the YNAB4 launcher mapping
@@ -168,6 +198,7 @@ export interface Ynab4LauncherImportPlan {
   scheduledTransactions: ScheduledTransactionView[];
   budgetMonths: Map<string, BudgetMonthView>;
   warnings: string[];
+  payeeKnowledgeAudit?: Ynab4PayeeKnowledgeAudit;
 }
 
 export async function createYnab4LauncherBudgetImportWithBackend(
@@ -576,18 +607,7 @@ export function buildYnab4LauncherImportPlan(
   now: Date,
 ): Ynab4LauncherImportPlan {
   const nowIso = now.toISOString();
-  const maps: ImportMaps = {
-    accountIdBySourceId: new Map(),
-    accountNameById: new Map(),
-    accountTypeById: new Map(),
-    categoryIdBySourceId: new Map(),
-    categoryNameById: new Map(),
-    categoryIsArchivedById: new Map(),
-    payeeIdBySourceId: new Map(),
-    payeeNameById: new Map(),
-    nonImportableCategorySourceIds: new Set(),
-    warnings: [],
-  };
+  const maps = createImportMaps();
 
   validateYnab4SourceIdentities(data);
 
@@ -633,6 +653,7 @@ export function buildYnab4LauncherImportPlan(
     scheduledTransactions,
     budgetMonths,
     warnings: maps.warnings,
+    payeeKnowledgeAudit: maps.payeeKnowledgeAudit,
   };
 }
 
@@ -745,6 +766,7 @@ export async function buildYnab4LauncherImportPlanFromReader(
     scheduledTransactions,
     budgetMonths,
     warnings: maps.warnings,
+    payeeKnowledgeAudit: maps.payeeKnowledgeAudit,
   };
 }
 
@@ -760,6 +782,23 @@ function createImportMaps(): ImportMaps {
     payeeNameById: new Map(),
     nonImportableCategorySourceIds: new Set(),
     warnings: [],
+    payeeKnowledgeAudit: createEmptyYnab4PayeeKnowledgeAudit(),
+  };
+}
+
+function createEmptyYnab4PayeeKnowledgeAudit(): Ynab4PayeeKnowledgeAudit {
+  return {
+    defaults: {
+      sourcePayeesWithDefaultCategory: 0,
+      importedPayeeDefaultCategories: 0,
+      specialDefaultCategoryMappings: 0,
+      unresolvedDefaultCategories: 0,
+    },
+    renameConditions: {
+      total: 0, active: 0, tombstoned: 0, imported: 0,
+      deduplicated: 0, conflicting: 0, unsupported: 0, unresolvedTarget: 0,
+    },
+    diagnostics: [],
   };
 }
 
@@ -927,6 +966,7 @@ export interface ImportYnab4ReaderToStageResult
   warnings: readonly string[];
   maximumCanonicalBatchRecords: number;
   audit: Ynab4StreamingStagedAudit;
+  payeeKnowledgeAudit: Ynab4PayeeKnowledgeAudit;
 }
 
 export interface Ynab4StreamingStagedAudit {
@@ -1035,7 +1075,14 @@ export async function importYnab4ReaderToHostedSqlite(
         openingBalance: toMinorUnits(account.startingBalance),
         closedAt: account.closedAt ?? null,
       })),
-      payees: payees.map((payee) => ({ id: payee.id, name: payee.name })),
+      payees: payees.map((payee) => ({
+        id: payee.id,
+        name: payee.name,
+        archived: payee.isArchived,
+        defaultCategoryId: payee.defaultCategoryId,
+        defaultCategoryName: payee.defaultCategoryName,
+        importRules: payee.importRules,
+      })),
       categories: categoryGroups.flatMap((group, groupIndex) =>
         group.categories.map((category, categoryIndex) => ({
           id: category.id,
@@ -1164,6 +1211,7 @@ export async function importYnab4ReaderToHostedSqlite(
         totalInflow: expectedInflow,
         totalOutflow: expectedOutflow,
       },
+      payeeKnowledgeAudit: maps.payeeKnowledgeAudit,
     };
   } catch (error) {
     if (preflightBegun) await preflight.rollback();
@@ -1457,6 +1505,7 @@ export async function importYnab4ReaderToStage(
       warnings: [...maps.warnings],
       maximumCanonicalBatchRecords,
       audit,
+      payeeKnowledgeAudit: maps.payeeKnowledgeAudit,
     };
   } catch (error) {
     if (preflightBegun) await preflight?.rollback();
@@ -1790,26 +1839,161 @@ function ynab4HiddenCategoryDisplayName(name: string | null): string {
 
 function mapPayees(payees: RecordMap[], maps: ImportMaps, nowIso: string): PayeeView[] {
   const existingIds = new Set<string>();
-  return payees.flatMap((payee, index) => {
+  const activeSourcePayees: Array<{ source: RecordMap; sourceId: string; payee: PayeeView }> = [];
+  const result = payees.flatMap((source, index) => {
+    const payee = source;
     if (isYnab4Tombstone(payee)) return [];
     const name = firstString(payee.name, payee.payeeName, payee.displayName) ?? `Imported Payee ${index + 1}`;
     if (isTransferPayee(payee, name)) {
       return [];
     }
     const id = uniqueSlug(name, existingIds, "payee");
-    for (const sourceId of payeeSourceIds(payee, `payee:${index}`)) {
+    const sourceIds = payeeSourceIds(payee, `payee:${index}`);
+    for (const sourceId of sourceIds) {
       maps.payeeIdBySourceId.set(sourceId, id);
     }
     maps.payeeNameById.set(id, name);
-    return [{
+    const mapped: PayeeView = {
       id,
       name,
       createdAt: nowIso,
       lastUsedAt: nowIso,
       useCount: 1,
-      isArchived: payee.hidden === true,
-    }];
+      // YNAB4's enabled flag is the source-side "List and autocomplete this
+      // payee" switch. Archiving is the existing Budget App state that keeps
+      // the record manageable while excluding it from entry suggestions.
+      isArchived: payee.hidden === true || payee.enabled === false,
+    };
+    activeSourcePayees.push({ source, sourceId: sourceIds[0], payee: mapped });
+    return [mapped];
   });
+
+  for (const entry of activeSourcePayees) {
+    const sourceCategoryId = firstString(entry.source.autoFillCategoryId);
+    if (!sourceCategoryId) continue;
+    maps.payeeKnowledgeAudit.defaults.sourcePayeesWithDefaultCategory += 1;
+    const special = sourceCategoryId === YNAB4_IMMEDIATE_INCOME_CATEGORY_ID ||
+      sourceCategoryId === YNAB4_DEFERRED_INCOME_CATEGORY_ID;
+    const categoryId = special
+      ? READY_TO_ASSIGN_CATEGORY_ID
+      : maps.categoryIdBySourceId.get(sourceCategoryId);
+    const categoryName = special
+      ? READY_TO_ASSIGN_CATEGORY_NAME
+      : categoryId ? maps.categoryNameById.get(categoryId) : undefined;
+    if (categoryId && categoryName) {
+      entry.payee.defaultCategoryId = categoryId;
+      entry.payee.defaultCategoryName = categoryName;
+      maps.payeeKnowledgeAudit.defaults.importedPayeeDefaultCategories += 1;
+      if (special) maps.payeeKnowledgeAudit.defaults.specialDefaultCategoryMappings += 1;
+    } else {
+      maps.payeeKnowledgeAudit.defaults.unresolvedDefaultCategories += 1;
+      addPayeeKnowledgeDiagnostic(maps, {
+        code: "unresolved-default-category",
+        sourcePayeeId: entry.sourceId,
+        value: sourceCategoryId,
+        message: `YNAB4 payee ${entry.sourceId} references an unavailable default category ${sourceCategoryId}.`,
+      });
+    }
+  }
+
+  type RuleCandidate = {
+    target: typeof activeSourcePayees[number];
+    conditionId: string;
+    matchType: "equals" | "contains";
+    text: string;
+  };
+  const candidates: RuleCandidate[] = [];
+  for (const owner of activeSourcePayees) {
+    for (const [index, condition] of toRecords(owner.source.renameConditions).entries()) {
+      maps.payeeKnowledgeAudit.renameConditions.total += 1;
+      if (isYnab4Tombstone(condition)) {
+        maps.payeeKnowledgeAudit.renameConditions.tombstoned += 1;
+        continue;
+      }
+      maps.payeeKnowledgeAudit.renameConditions.active += 1;
+      const conditionId = firstString(condition.entityId, condition.id) ?? `${owner.sourceId}:condition:${index}`;
+      const targetSourceId = firstString(condition.parentPayeeId) ?? owner.sourceId;
+      const targetId = maps.payeeIdBySourceId.get(targetSourceId);
+      const target = activeSourcePayees.find((entry) => entry.payee.id === targetId);
+      if (!target) {
+        maps.payeeKnowledgeAudit.renameConditions.unresolvedTarget += 1;
+        addPayeeKnowledgeDiagnostic(maps, {
+          code: "unresolved-rename-target", sourcePayeeId: owner.sourceId,
+          sourceConditionId: conditionId, value: targetSourceId,
+          message: `YNAB4 rename condition ${conditionId} targets unavailable payee ${targetSourceId}.`,
+        });
+        continue;
+      }
+      const operator = firstString(condition.operator);
+      const matchType = operator === "Is" ? "equals" : operator === "Contains" ? "contains" : null;
+      if (!matchType) {
+        maps.payeeKnowledgeAudit.renameConditions.unsupported += 1;
+        addPayeeKnowledgeDiagnostic(maps, {
+          code: "unsupported-rename-operator", sourcePayeeId: owner.sourceId,
+          sourceConditionId: conditionId, value: operator ?? "",
+          message: `YNAB4 rename condition ${conditionId} uses unsupported operator ${operator ?? "(missing)"}.`,
+        });
+        continue;
+      }
+      const text = firstString(condition.operand)?.trim() ?? "";
+      if (!text) {
+        maps.payeeKnowledgeAudit.renameConditions.unsupported += 1;
+        addPayeeKnowledgeDiagnostic(maps, {
+          code: "unsupported-rename-operator", sourcePayeeId: owner.sourceId,
+          sourceConditionId: conditionId, value: "",
+          message: `YNAB4 rename condition ${conditionId} has no usable operand.`,
+        });
+        continue;
+      }
+      candidates.push({ target, conditionId, matchType, text });
+    }
+  }
+
+  const bySemanticCondition = new Map<string, RuleCandidate[]>();
+  for (const candidate of candidates) {
+    const key = `${candidate.matchType}\u0000${candidate.text.toLocaleLowerCase()}`;
+    const group = bySemanticCondition.get(key) ?? [];
+    group.push(candidate);
+    bySemanticCondition.set(key, group);
+  }
+  const ruleIds = new Set<string>();
+  for (const group of bySemanticCondition.values()) {
+    const targetIds = new Set(group.map(({ target }) => target.payee.id));
+    if (targetIds.size > 1) {
+      maps.payeeKnowledgeAudit.renameConditions.conflicting += group.length;
+      for (const candidate of group) addPayeeKnowledgeDiagnostic(maps, {
+        code: "conflicting-rename-condition", sourcePayeeId: candidate.target.sourceId,
+        sourceConditionId: candidate.conditionId, value: candidate.text,
+        message: `YNAB4 rename condition ${candidate.conditionId} conflicts with another active target and was not activated.`,
+      });
+      continue;
+    }
+    const candidate = group[0];
+    maps.payeeKnowledgeAudit.renameConditions.deduplicated += group.length - 1;
+    const ruleId = uniqueSlug(candidate.conditionId, ruleIds, "ynab4-rename-rule");
+    candidate.target.payee.importRules = [
+      ...(candidate.target.payee.importRules ?? []),
+      {
+        id: ruleId,
+        matchType: candidate.matchType,
+        text: candidate.text,
+        defaultCategoryId: candidate.target.payee.defaultCategoryId,
+        defaultCategoryName: candidate.target.payee.defaultCategoryName,
+        priority: candidate.matchType === "equals" ? 100 : 50,
+        enabled: true,
+      },
+    ];
+    maps.payeeKnowledgeAudit.renameConditions.imported += 1;
+  }
+  return result;
+}
+
+function addPayeeKnowledgeDiagnostic(
+  maps: ImportMaps,
+  diagnostic: Ynab4PayeeKnowledgeDiagnostic,
+): void {
+  maps.payeeKnowledgeAudit.diagnostics.push(diagnostic);
+  maps.warnings.push(diagnostic.message);
 }
 
 function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, nowIso: string): ScheduledTransactionView[] {

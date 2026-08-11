@@ -1484,12 +1484,31 @@ function importRegisterBatch(batch: LocalRegisterImportBatch): LocalBudgetManife
     for (const payee of batch.payees ?? []) {
       if (payee.budgetId !== activeBudgetId) throw workerError("BUDGET_SCOPE_MISMATCH", "Payee belongs to another budget.");
       execute(
-        `INSERT INTO local_payees(id, budget_id, name, note, archived)
-         VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO local_payees(id, budget_id, name, note, archived,
+           default_category_id, default_category_name, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
-           name = excluded.name, note = excluded.note, archived = excluded.archived`,
-        [payee.id, payee.budgetId, payee.name, payee.note, payee.archived ? 1 : 0],
+           name = excluded.name, note = excluded.note, archived = excluded.archived,
+           default_category_id = excluded.default_category_id,
+           default_category_name = excluded.default_category_name,
+           updated_at = excluded.updated_at`,
+        [payee.id, payee.budgetId, payee.name, payee.note, payee.archived ? 1 : 0,
+         payee.defaultCategoryId ?? null, payee.defaultCategoryName ?? null,
+         payee.createdAt ?? new Date().toISOString(), payee.updatedAt ?? new Date().toISOString()],
       );
+      execute("DELETE FROM local_payee_recognition_rules WHERE budget_id = ? AND payee_id = ?", [payee.budgetId, payee.id]);
+      for (const rule of payee.importRules ?? []) {
+        execute(
+          `INSERT INTO local_payee_recognition_rules(
+             id, budget_id, payee_id, match_type, pattern, normalized_pattern,
+             default_category_id, default_category_name, priority, enabled, created_at, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [rule.id, payee.budgetId, payee.id, rule.matchType, rule.text,
+           normalisePayeeIdentity(rule.text), rule.defaultCategoryId ?? null,
+           rule.defaultCategoryName ?? null, rule.priority ?? 0,
+           rule.enabled === false ? 0 : 1, new Date().toISOString(), new Date().toISOString()],
+        );
+      }
     }
     for (const category of batch.categories ?? []) {
       if (category.budgetId !== activeBudgetId) throw workerError("BUDGET_SCOPE_MISMATCH", "Category belongs to another budget.");
@@ -3115,6 +3134,36 @@ function mergePayees(
     if (sourceIds.length === 0) {
       throw workerError("PAYEE_NOT_FOUND", "Select at least one source payee to merge.");
     }
+    const targetKnowledge = resultRows<{
+      defaultCategoryId: string | null; defaultCategoryName: string | null;
+    }>(
+      `SELECT default_category_id AS defaultCategoryId,
+              default_category_name AS defaultCategoryName
+       FROM local_payees WHERE budget_id = ? AND id = ?`,
+      [budgetId, targetPayeeId],
+    )[0];
+    if (!targetKnowledge) throw workerError("PAYEE_NOT_FOUND", "The merge target payee does not exist.");
+    if (!targetKnowledge.defaultCategoryId) {
+      const sourceDefaults = resultRows<{
+        defaultCategoryId: string; defaultCategoryName: string | null;
+      }>(
+        `SELECT DISTINCT default_category_id AS defaultCategoryId,
+                         default_category_name AS defaultCategoryName
+         FROM local_payees
+         WHERE budget_id = ?
+           AND id IN (${sourceIds.map(() => "?").join(",")})
+           AND default_category_id IS NOT NULL AND default_category_id <> ''`,
+        [budgetId, ...sourceIds],
+      );
+      // A single source default safely fills an empty survivor. Conflicting
+      // source defaults deliberately leave it empty for explicit user review.
+      if (sourceDefaults.length === 1) execute(
+        `UPDATE local_payees SET default_category_id = ?, default_category_name = ?, updated_at = ?
+         WHERE budget_id = ? AND id = ?`,
+        [sourceDefaults[0].defaultCategoryId, sourceDefaults[0].defaultCategoryName,
+         new Date().toISOString(), budgetId, targetPayeeId],
+      );
+    }
     for (const sourcePayeeId of sourceIds) {
     const source = resultRows<{ name: string }>(
       "SELECT name FROM local_payees WHERE budget_id = ? AND id = ?",
@@ -3176,7 +3225,7 @@ function mergePayees(
     execute(
       `INSERT INTO local_payee_history(id,budget_id,payee_id,operation,detail_json,created_at)
        VALUES(?,?,?,?,?,?)`,
-      [`merge:${mutation.mutationId}`, budgetId, targetPayeeId, "merge",
+      [`merge:${mutation.mutationId}:${sourcePayeeId}`, budgetId, targetPayeeId, "merge",
        JSON.stringify({ sourcePayeeId, sourceName: source.name,
          scheduledTransactionsUpdated: schedules.length }), new Date().toISOString()],
     );

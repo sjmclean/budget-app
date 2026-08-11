@@ -10,6 +10,18 @@ export interface SqliteImportAccount {
 export interface SqliteImportPayee {
   readonly id: string;
   readonly name: string;
+  readonly archived?: boolean;
+  readonly defaultCategoryId?: string;
+  readonly defaultCategoryName?: string;
+  readonly importRules?: readonly {
+    readonly id: string;
+    readonly matchType: "equals" | "contains" | "startsWith" | "endsWith";
+    readonly text: string;
+    readonly defaultCategoryId?: string;
+    readonly defaultCategoryName?: string;
+    readonly priority?: number;
+    readonly enabled?: boolean;
+  }[];
 }
 
 export interface SqliteImportCategory {

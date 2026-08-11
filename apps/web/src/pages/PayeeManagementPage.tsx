@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Card } from "../components/ui/Card";
 import { getBudgetPersistenceProvider } from "../features/persistence";
-import { isHostedSqliteBudget } from "../features/persistence/hostedBudgetSafety";
 import type {
   PayeeImportRuleView,
   PayeeRuleMatchType,
@@ -230,7 +229,9 @@ export function PayeeManagementPage() {
   const [actionDialog, setActionDialog] = useState<"closed" | "rename" | "alias" | "rule">("closed");
   const [actionValue, setActionValue] = useState("");
   const [actionRuleType, setActionRuleType] = useState<PayeeRuleMatchType>("contains");
-  const [mergeDialogStep, setMergeDialogStep] = useState<"closed" | "select" | "options" | "preview" | "complete">("closed");
+  const [mergeDialogStep, setMergeDialogStep] = useState<"closed" | "confirm" | "select" | "options" | "preview" | "complete">("closed");
+  const [isMergeSubmitting, setIsMergeSubmitting] = useState(false);
+  const [mergeError, setMergeError] = useState("");
   const [mergeSearch, setMergeSearch] = useState("");
   const [updateLinkedTransactions, setUpdateLinkedTransactions] = useState(true);
   const [updateScheduledTransactions, setUpdateScheduledTransactions] = useState(true);
@@ -266,7 +267,8 @@ export function PayeeManagementPage() {
     setSelectedMergePayeeIds([]);
     setMergeTargetPayeeId(selectedPayee.id);
     setMergeSearch("");
-    setMergeDialogStep("select");
+    setMergeError("");
+    setMergeDialogStep("confirm");
     setIsActionsOpen(false);
   }
 
@@ -282,10 +284,7 @@ export function PayeeManagementPage() {
     let active = true;
 
     const load = async () => {
-      const hosted =
-        activeBudgetId &&
-        persistenceGateway.accountRegisterQueries &&
-        await isHostedSqliteBudget(persistenceGateway.accountRegisterQueries, activeBudgetId);
+      const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
       return Promise.all([
       hosted
         ? persistenceGateway.accountRegisterQueries!.listPayees(activeBudgetId!, false)
@@ -486,9 +485,7 @@ export function PayeeManagementPage() {
         .filter(({ value }) => value.length > 0),
     };
     const nextPayees =
-      activeBudgetId &&
-      persistenceGateway.accountRegisterQueries &&
-      await isHostedSqliteBudget(persistenceGateway.accountRegisterQueries, activeBudgetId)
+      activeBudgetId && persistenceGateway.accountRegisterQueries
         ? [...await persistenceGateway.accountRegisterQueries.updatePayee(activeBudgetId, update)]
         : await payeesPersistence.updatePayee(update);
 
@@ -524,8 +521,7 @@ export function PayeeManagementPage() {
           }]
         : selectedPayee.importRules ?? [],
     };
-    const hosted = activeBudgetId && persistenceGateway.accountRegisterQueries &&
-      await isHostedSqliteBudget(persistenceGateway.accountRegisterQueries, activeBudgetId);
+    const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
     const nextPayees = hosted
       ? [...await persistenceGateway.accountRegisterQueries!.updatePayee(activeBudgetId!, update)]
       : await payeesPersistence.updatePayee(update);
@@ -557,10 +553,7 @@ export function PayeeManagementPage() {
       return;
     }
 
-    const hosted =
-      activeBudgetId &&
-      persistenceGateway.accountRegisterQueries &&
-      await isHostedSqliteBudget(persistenceGateway.accountRegisterQueries, activeBudgetId);
+    const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
     const nextPayees = hosted
       ? [...await persistenceGateway.accountRegisterQueries!.setPayeeArchived(activeBudgetId!, selectedPayee.id, true)]
       : await payeesPersistence.archivePayee(selectedPayee.id);
@@ -579,10 +572,7 @@ export function PayeeManagementPage() {
       return;
     }
 
-    const hosted =
-      activeBudgetId &&
-      persistenceGateway.accountRegisterQueries &&
-      await isHostedSqliteBudget(persistenceGateway.accountRegisterQueries, activeBudgetId);
+    const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
     const nextPayees = hosted
       ? [...await persistenceGateway.accountRegisterQueries!.setPayeeArchived(activeBudgetId!, selectedPayee.id, false)]
       : await payeesPersistence.restorePayee(selectedPayee.id);
@@ -610,8 +600,7 @@ export function PayeeManagementPage() {
       confirmLabel: "Delete payee",
     });
     if (!confirmed) return;
-    const hosted = activeBudgetId && persistenceGateway.accountRegisterQueries &&
-      await isHostedSqliteBudget(persistenceGateway.accountRegisterQueries, activeBudgetId);
+    const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
     const nextPayees = hosted && persistenceGateway.accountRegisterQueries!.deleteUnusedPayee
       ? [...await persistenceGateway.accountRegisterQueries!.deleteUnusedPayee(activeBudgetId!, selectedPayee.id)]
       : await payeesPersistence.deletePayee(selectedPayee.id);
@@ -731,7 +720,8 @@ export function PayeeManagementPage() {
     setMergeRecognitionProposal(null);
     setSelectedPayeeId(selectedDuplicateGroup.anchorPayeeId);
     setMergeSearch("");
-    setMergeDialogStep("select");
+    setMergeError("");
+    setMergeDialogStep("confirm");
   }
 
   async function keepDuplicateMembersSeparate() {
@@ -742,8 +732,7 @@ export function PayeeManagementPage() {
     const existing = new Set(duplicateSuppressions.map(({ leftPayeeId, rightPayeeId }) => [leftPayeeId, rightPayeeId].sort().join(":")));
     const next = [...duplicateSuppressions, ...additions.filter(({ leftPayeeId, rightPayeeId }) =>
       !existing.has([leftPayeeId, rightPayeeId].sort().join(":")))];
-    const hosted = activeBudgetId && persistenceGateway.accountRegisterQueries &&
-      await isHostedSqliteBudget(persistenceGateway.accountRegisterQueries, activeBudgetId);
+    const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
     if (hosted && persistenceGateway.accountRegisterQueries!.keepPayeesSeparate) {
       await persistenceGateway.accountRegisterQueries!.keepPayeesSeparate(activeBudgetId!, additions);
     } else {
@@ -813,19 +802,16 @@ export function PayeeManagementPage() {
     }
 
     let nextPayees = payees;
-    const hosted =
-      activeBudgetId &&
-      persistenceGateway.accountRegisterQueries &&
-      await isHostedSqliteBudget(persistenceGateway.accountRegisterQueries, activeBudgetId);
+    const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
 
     const mergeInput = {
       sourcePayeeId: sourcePayees[0].id,
       sourcePayeeIds: sourcePayees.map((payee) => payee.id),
       targetPayeeId: targetPayee.id,
-      updateLinkedTransactions,
-      updateScheduledTransactions,
-      addMergedAliases,
-      redirectRecognitionRules,
+      updateLinkedTransactions: true,
+      updateScheduledTransactions: true,
+      addMergedAliases: true,
+      redirectRecognitionRules: true,
     };
     nextPayees = hosted
       ? [...await persistenceGateway.accountRegisterQueries!.mergePayees(activeBudgetId!, mergeInput)]
@@ -843,7 +829,7 @@ export function PayeeManagementPage() {
       matchedText: recognitionEvidence.matchedText,
     } : undefined, targetPayee.id, nextPayees);
     setMergeRecognitionProposal(proposal);
-    setCreateRecognitionRuleAfterMerge(proposal?.state === "available");
+    setCreateRecognitionRuleAfterMerge(false);
     setArchivedPayees(nextArchivedPayees);
     setSelectedPayeeId(targetPayee.id);
     setSelectedMergePayeeIds([]);
@@ -855,38 +841,28 @@ export function PayeeManagementPage() {
         ? `Merged ${sourcePayees[0].name} into ${targetPayee.name}.`
         : `Merged ${sourcePayees.length} payees into ${targetPayee.name}.`,
     );
-    setMergeDialogStep("complete");
-  }
-
-  async function executeMergePreview() {
-    if (!mergeTargetPayee || selectedMergePayeeIds.length === 0) return;
-    await mergePayeesIntoTarget(mergeTargetPayee, selectedMergePayeeIds[0], true);
-  }
-
-  async function finishMergeWorkflow() {
-    const proposal = mergeRecognitionProposal;
-    if (proposal?.state === "available" && createRecognitionRuleAfterMerge) {
-      const current = payees.find(({ id }) => id === proposal.targetPayeeId) ?? mergeTargetPayee;
-      if (current) {
-        const rule: PayeeImportRuleView = {
-          id: `rule-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          matchType: "contains", text: proposal.text, enabled: true,
-        };
-        const update = { id: current.id, name: current.name, note: current.note ?? "",
-          defaultCategoryId: current.defaultCategoryId, defaultCategoryName: current.defaultCategoryName,
-          aliases: current.aliases ?? [], importRules: [...(current.importRules ?? []), rule] };
-        const hosted = activeBudgetId && persistenceGateway.accountRegisterQueries &&
-          await isHostedSqliteBudget(persistenceGateway.accountRegisterQueries, activeBudgetId);
-        const next = hosted
-          ? [...await persistenceGateway.accountRegisterQueries!.updatePayee(activeBudgetId!, update)]
-          : await payeesPersistence.updatePayee(update);
-        setPayees(next);
-      }
-    }
     setMergeDialogStep("closed");
+    setSelectedDuplicateGroupId(null);
     setDuplicateMergeEvidence(null);
-    setMergeRecognitionProposal(null);
   }
+
+  async function confirmSelectedMerge() {
+    if (!mergeTargetPayee || selectedMergePayeeIds.length < 2 || isMergeSubmitting) return;
+    const sourcePayeeId = selectedMergePayeeIds.find((id) => id !== mergeTargetPayee.id);
+    if (!sourcePayeeId) return;
+    setIsMergeSubmitting(true);
+    setMergeError("");
+    try {
+      await mergePayeesIntoTarget(mergeTargetPayee, sourcePayeeId, true);
+    } catch (error) {
+      setMergeError(error instanceof Error ? error.message : "The payees could not be merged.");
+    } finally {
+      setIsMergeSubmitting(false);
+    }
+  }
+
+  async function executeMergePreview() { await confirmSelectedMerge(); }
+  function finishMergeWorkflow() { setMergeDialogStep("closed"); }
 
   function selectPayee(payee: PayeeView) {
     setSelectedPayeeId(payee.id);
@@ -1081,8 +1057,11 @@ export function PayeeManagementPage() {
                 {selectedDuplicateGroup.payees.map((payee, index) => (
                   <article key={payee.id} className="payee-duplicate-member">
                     <label><input type="checkbox" disabled={payee.id === selectedDuplicateGroup.anchorPayeeId} checked={selectedDuplicateMemberIds.includes(payee.id)}
-                      onChange={(event) => setSelectedDuplicateMemberIds((ids) => event.currentTarget.checked
-                        ? [...new Set([...ids, payee.id])] : ids.filter((id) => id !== payee.id))} />
+                      onChange={(event) => {
+                        const checked = event.currentTarget.checked;
+                        setSelectedDuplicateMemberIds((ids) => checked
+                          ? [...new Set([...ids, payee.id])] : ids.filter((id) => id !== payee.id));
+                      }} />
                       <strong>{payee.name}</strong>{index === 0 ? <em>Recommended</em> : null}</label>
                     <div className="payee-duplicate-stats">
                       <span><b>{payee.useCount}</b>Transactions</span><span><b>{payee.scheduledUseCount ?? 0}</b>Scheduled</span>
@@ -1334,7 +1313,39 @@ export function PayeeManagementPage() {
             aria-modal="true"
             aria-labelledby="payee-merge-dialog-title"
           >
-            {mergeDialogStep === "select" ? (
+            {mergeDialogStep === "confirm" ? (
+              <>
+                <div className="payee-merge-dialog-header">
+                  <div><h2 id="payee-merge-dialog-title">Merge payees?</h2><p>Choose the payee to keep. All other selected payees will be retired.</p></div>
+                  <button className="button button-ghost" type="button" disabled={isMergeSubmitting}
+                    onClick={() => setMergeDialogStep("closed")} aria-label="Close">×</button>
+                </div>
+                <div className="payee-merge-choice-list">
+                  {selectedMergePayees.map((payee) => (
+                    <label className={`payee-merge-choice ${mergeTargetPayeeId === payee.id ? "is-destination" : ""}`} key={payee.id}>
+                      <input type="radio" name="merge-target" checked={mergeTargetPayeeId === payee.id}
+                        disabled={isMergeSubmitting} onChange={() => chooseMergeTarget(payee.id)} />
+                      <span><strong>{payee.name}</strong><small>{mergeTargetPayeeId === payee.id ? "Payee to keep" : "Will be merged"}</small></span>
+                      <small>{payee.useCount} transactions · {payee.scheduledUseCount ?? 0} scheduled</small>
+                    </label>
+                  ))}
+                </div>
+                <div className="payee-merge-preview-grid">
+                  <div><span>Register transactions updated</span><strong>{selectedMergeTransactionCount}</strong></div>
+                  <div><span>Scheduled transactions updated</span><strong>{mergeScheduledCount}</strong></div>
+                  <div><span>Exact names learned as aliases</span><strong>{Math.max(0, selectedMergePayeeIds.length - 1)}</strong></div>
+                  <div><span>Recognition rules redirected</span><strong>{selectedMergeRuleCount}</strong></div>
+                </div>
+                <p className="payee-merge-warning">This atomic change cannot be undone. Original imported descriptions remain unchanged.</p>
+                {mergeError ? <p className="payee-merge-error" role="alert">{mergeError}</p> : null}
+                <div className="app-dialog-actions">
+                  <button className="button button-secondary" type="button" disabled={isMergeSubmitting}
+                    onClick={() => setMergeDialogStep("closed")}>Cancel</button>
+                  <button className="button button-primary" type="button" disabled={isMergeSubmitting || !mergeTargetPayee}
+                    onClick={() => void confirmSelectedMerge()}>{isMergeSubmitting ? "Merging…" : "Merge payees"}</button>
+                </div>
+              </>
+            ) : mergeDialogStep === "select" ? (
               <>
                 <div className="payee-merge-dialog-header">
                   <div>

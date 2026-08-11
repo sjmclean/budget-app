@@ -1287,6 +1287,12 @@ export function TransactionEntryRow({
                   setPayeeId(undefined);
                 }}
                 onPayeeIdChange={setPayeeId}
+                onSelection={(value) => {
+                  const selected = payeeOptions.find((option) => option.name === value);
+                  if ((!category || category === "Uncategorised") && selected?.defaultCategoryName) {
+                    setCategory(selected.defaultCategoryName);
+                  }
+                }}
                 transferAccounts={transferAccounts}
                 payeeOptions={payeeOptions}
                 onCreatePayee={onCreatePayee}
@@ -1597,6 +1603,12 @@ export function TransactionEditRow({
             setPayeeId(undefined);
           }}
           onPayeeIdChange={setPayeeId}
+          onSelection={(value) => {
+            const selected = payeeOptions.find((option) => option.name === value);
+            if ((!category || category === "Uncategorised") && selected?.defaultCategoryName) {
+              setCategory(selected.defaultCategoryName);
+            }
+          }}
           transferAccounts={transferAccounts}
           payeeOptions={payeeOptions}
           onCreatePayee={onCreatePayee}

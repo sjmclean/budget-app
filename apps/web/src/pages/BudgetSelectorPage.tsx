@@ -10,6 +10,7 @@ import { useUIStore } from "../stores/uiStore";
 import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
 import { readBudgetLauncherStats } from "../features/budget/budgetLauncherStats.js";
 import { usePersistenceChangeVersion } from "../features/persistence/persistenceChangeBus";
+import { completeBudgetDeletion } from "../features/budget/completeBudgetDeletion";
 
 
 type LaunchMode = "list" | "empty" | "budgetImport";
@@ -255,14 +256,11 @@ export function BudgetSelectorPage() {
     setDeleteInProgress(true);
     setDeleteError(null);
     try {
-      if (budgetPendingDelete.packagePath.startsWith("hosted://")) {
-        const hosted = getBudgetPersistenceProvider().accountRegisterQueries;
-        if (!hosted) {
-          throw new Error("Hosted budget deletion is unavailable.");
-        }
-        await hosted.deleteBudget(budgetId);
-      }
-      const result = deleteBudget(budgetId);
+      const result = await completeBudgetDeletion(
+        getBudgetPersistenceProvider(),
+        budgetId,
+        () => deleteBudget(budgetId),
+      );
 
       if (!result.completed) {
         setDeleteError(result.errors[0] ?? "The budget could not be deleted.");
