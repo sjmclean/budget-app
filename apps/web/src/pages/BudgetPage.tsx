@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
 import { BarChart3, CalendarDays } from "lucide-react";
 import { Card } from "../components/ui/Card";
@@ -897,15 +898,29 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   <button
                     className="button button-secondary budget-add-category-button"
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       const group = visibleCategoryGroups.find((candidate) =>
                         candidate.id !== ARCHIVED_CATEGORIES_GROUP_ID &&
                         !isCreditCardPaymentGroup(candidate.id),
                       );
                       if (!group) return;
-                      const name = window.prompt(`New category in ${group.name}`)?.trim();
+
+                      const name = (
+                        await promptDialog({
+                          title: "New category",
+                          message: `Enter a category name for ${group.name}.`,
+                          confirmLabel: "Create category",
+                          placeholder: "Category name",
+                        })
+                      )?.trim();
+
                       if (!name) return;
-                      void createCategory({ name, groupId: group.id, groupName: group.name });
+
+                      await createCategory({
+                        name,
+                        groupId: group.id,
+                        groupName: group.name,
+                      });
                     }}
                   >
                     + Category

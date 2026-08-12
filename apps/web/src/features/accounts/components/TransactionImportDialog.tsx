@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { confirmDialog } from "../../ui/appDialogService";
 import { formatDateForDisplay } from "../../settings/dateFormatting";
 import { useDateFormatPreference } from "../../settings/useDateFormatPreference";
 import { useDeveloperPerformanceMode } from "../../settings/useDeveloperPerformanceMode";
@@ -1199,7 +1200,7 @@ export function TransactionImportDialog({
     }, 190);
   }
 
-  function confirmDiscardSession() {
+  async function confirmDiscardSession(): Promise<boolean> {
     if (
       processedCandidates.length === 0 &&
       Object.keys(matchEditorOrigins).length === 0
@@ -1207,9 +1208,13 @@ export function TransactionImportDialog({
       return true;
     }
 
-    return window.confirm(
-      "Discard this import session? Processed decisions and staged transactions will be lost.",
-    );
+    return confirmDialog({
+      title: "Discard import session",
+      message:
+        "Discard this import session? Processed decisions and staged transactions will be lost.",
+      confirmLabel: "Discard session",
+      tone: "danger",
+    });
   }
 
   function requestClose() {
@@ -1217,8 +1222,8 @@ export function TransactionImportDialog({
     onClose();
   }
 
-  function discardImportSession() {
-    if (!confirmDiscardSession()) return;
+  async function discardImportSession() {
+    if (!(await confirmDiscardSession())) return;
     resetImportState();
   }
 
@@ -3037,7 +3042,7 @@ export function TransactionImportDialog({
               <button
                 className="button button-secondary"
                 type="button"
-                onClick={discardImportSession}
+                onClick={() => void discardImportSession()}
               >
                 Discard Import Session
               </button>

@@ -15,15 +15,27 @@ export interface AlertDialogInput {
   tone?: AppDialogTone;
 }
 
+export interface PromptDialogInput {
+  title?: string;
+  message: string;
+  initialValue?: string;
+  placeholder?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+}
+
 export type AppDialogRequest =
   | ({ kind: "confirm"; id: string } & Required<Pick<ConfirmDialogInput, "message">> &
       Omit<ConfirmDialogInput, "message">)
   | ({ kind: "alert"; id: string } & Required<Pick<AlertDialogInput, "message">> &
-      Omit<AlertDialogInput, "message">);
+      Omit<AlertDialogInput, "message">)
+  | ({ kind: "prompt"; id: string } & Required<Pick<PromptDialogInput, "message">> &
+      Omit<PromptDialogInput, "message">);
 
 export interface AppDialogHost {
   confirm(input: ConfirmDialogInput): Promise<boolean>;
   alert(input: AlertDialogInput): Promise<void>;
+  prompt(input: PromptDialogInput): Promise<string | null>;
 }
 
 let appDialogHost: AppDialogHost | null = null;
@@ -56,4 +68,15 @@ export async function alertDialog(input: AlertDialogInput): Promise<void> {
   }
 
   await appDialogHost.alert(input);
+}
+
+
+export async function promptDialog(
+  input: PromptDialogInput,
+): Promise<string | null> {
+  if (!appDialogHost) {
+    return null;
+  }
+
+  return appDialogHost.prompt(input);
 }

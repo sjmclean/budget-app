@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { confirmDialog } from "../ui/appDialogService";
 import { Button } from "../../components/ui/Button";
 import type { TransactionTagService } from "./transactionTagService";
 import type {
@@ -130,16 +131,19 @@ export function TransactionTagManager({
     }
   }
 
-  function deleteTag(tag: TransactionTagDefinition) {
+  async function deleteTag(tag: TransactionTagDefinition) {
     const usage = service.getUsage(tag.id);
 
     if (
       usage.transactionCount > 0 &&
-      !window.confirm(
-        `Delete "${tag.name}"? This will remove it from ${usage.transactionCount} transaction${
+      !(await confirmDialog({
+        title: "Delete tag",
+        message: `Delete "${tag.name}"? This will remove it from ${usage.transactionCount} transaction${
           usage.transactionCount === 1 ? "" : "s"
         }.`,
-      )
+        confirmLabel: "Delete tag",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -348,7 +352,7 @@ export function TransactionTagManager({
               <button
                 className="transaction-tag-delete"
                 type="button"
-                onClick={() => deleteTag(tag)}
+                onClick={() => void deleteTag(tag)}
                 aria-label={`Delete ${tag.name}`}
                 title={
                   usage.transactionCount > 0

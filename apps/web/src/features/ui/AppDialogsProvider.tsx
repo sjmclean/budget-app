@@ -5,12 +5,18 @@ import {
   type AppDialogHost,
   type AppDialogRequest,
   type ConfirmDialogInput,
+  type PromptDialogInput,
   installAppDialogHost,
 } from "./appDialogService";
 
 interface ActiveConfirmDialog {
   request: Extract<AppDialogRequest, { kind: "confirm" }>;
   resolve: (confirmed: boolean) => void;
+}
+
+interface ActivePromptDialog {
+  request: Extract<AppDialogRequest, { kind: "prompt" }>;
+  resolve: (value: string | null) => void;
 }
 
 interface ToastMessage {
@@ -26,8 +32,11 @@ function createDialogId(prefix: string): string {
 
 export function AppDialogsProvider() {
   const [activeConfirm, setActiveConfirm] = useState<ActiveConfirmDialog | null>(null);
+  const [activePrompt, setActivePrompt] = useState<ActivePromptDialog | null>(null);
+  const [promptValue, setPromptValue] = useState("");
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const confirmQueue = useRef<ActiveConfirmDialog[]>([]);
+  const promptQueue = useRef<ActivePromptDialog[]>([]);
   const dialogRef = useRef<HTMLElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -38,6 +47,18 @@ export function AppDialogsProvider() {
       }
 
       return confirmQueue.current.shift() ?? null;
+    });
+  }, []);
+
+  const showNextPrompt = useCallback(() => {
+    setActivePrompt((current) => {
+      if (current) {
+        return current;
+      }
+
+      const next = promptQueue.current.shift() ?? null;
+      setPromptValue(next?.request.initialValue ?? "");
+      return next;
     });
   }, []);
 
@@ -60,6 +81,19 @@ export function AppDialogsProvider() {
           showNextConfirm();
         });
       },
+      prompt(input: PromptDialogInput) {
+        return new Promise<string | null>((resolve) => {
+          promptQueue.current.push({
+            request: {
+              id: createDialogId("prompt"),
+              kind: "prompt",
+              ...input,
+            },
+            resolve,
+          });
+          showNextPrompt();
+        });
+      },
       alert(input: AlertDialogInput) {
         const toastId = createDialogId("toast");
         setToasts((current) => [
@@ -79,13 +113,13 @@ export function AppDialogsProvider() {
         return Promise.resolve();
       },
     }),
-    [dismissToast, showNextConfirm],
+    [dismissToast, showNextConfirm, showNextPrompt],
   );
 
   useEffect(() => installAppDialogHost(host), [host]);
 
   useEffect(() => {
-    if (!activeConfirm) {
+    if (!activeConfirm && !activePrompt) {
       return;
     }
 
@@ -102,7 +136,11 @@ export function AppDialogsProvider() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        resolveConfirm(false);
+        if (activePrompt) {
+          resolvePrompt(null);
+        } else {
+          resolveConfirm(false);
+        }
         return;
       }
 
@@ -138,7 +176,18 @@ export function AppDialogsProvider() {
       window.removeEventListener("keydown", handleKeyDown);
       window.requestAnimationFrame(() => previousFocusRef.current?.focus());
     };
-  }, [activeConfirm]);
+  }, [activeConfirm, activePrompt]);
+
+  function resolvePrompt(value: string | null) {
+    if (!activePrompt) {
+      return;
+    }
+
+    activePrompt.resolve(value);
+    setActivePrompt(null);
+    setPromptValue("");
+    window.setTimeout(showNextPrompt, 0);
+  }
 
   function resolveConfirm(confirmed: boolean) {
     if (!activeConfirm) {
@@ -176,6 +225,54 @@ export function AppDialogsProvider() {
                 onClick={() => resolveConfirm(true)}
               >
                 {activeConfirm.request.confirmLabel ?? "Confirm"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {activePrompt ? (
+        <div className="app-dialog-backdrop" role="presentation">
+          <section
+            ref={dialogRef}
+            aria-labelledby={`${activePrompt.request.id}-title`}
+            aria-modal="true"
+            className="app-dialog"
+            role="dialog"
+            tabIndex={-1}
+          >
+            <h2 className="app-dialog-title" id={`${activePrompt.request.id}-title`}>
+              {activePrompt.request.title ?? "Enter a value"}
+            </h2>
+            <p className="app-dialog-message">{activePrompt.request.message}</p>
+            <input
+              autoFocus
+              className="form-input"
+              placeholder={activePrompt.request.placeholder}
+              type="text"
+              value={promptValue}
+              onChange={(event) => setPromptValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  resolvePrompt(promptValue);
+                }
+              }}
+            />
+            <div className="app-dialog-actions">
+              <button
+                className="button-secondary"
+                type="button"
+                onClick={() => resolvePrompt(null)}
+              >
+                {activePrompt.request.cancelLabel ?? "Cancel"}
+              </button>
+              <button
+                className="button-primary"
+                type="button"
+                onClick={() => resolvePrompt(promptValue)}
+              >
+                {activePrompt.request.confirmLabel ?? "Confirm"}
               </button>
             </div>
           </section>
