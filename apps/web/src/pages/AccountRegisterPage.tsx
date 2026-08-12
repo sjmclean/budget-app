@@ -33,7 +33,7 @@ import {
 } from "../features/accounts/components/TransactionRow";
 import {
   mapSqliteTransactions,
-  toHostedTransactionWrite,
+  toTransactionWriteInput,
   useAccountRegister,
 } from "../features/accounts/useAccountRegister";
 import { createRuntimeUuid } from "../features/ids/createRuntimeUuid";
@@ -259,13 +259,13 @@ export function AccountRegisterPage() {
     hasMoreTransactions,
     loadMoreTransactions,
     storageMode,
-    setHostedViewQuery,
+    setRegisterViewQuery,
   } = useAccountRegister(accountId, activeBudgetId);
 
-  const syncHostedTransactionTags = useCallback(async () => {
-    const hosted = persistenceGateway.accountRegisterQueries;
-    if (storageMode !== "sqlite" || !activeBudgetId || !hosted) return;
-    await hosted.replaceTransactionTags(
+  const syncTransactionTagsToPersistence = useCallback(async () => {
+    const queries = persistenceGateway.accountRegisterQueries;
+    if (storageMode !== "sqlite" || !activeBudgetId || !queries) return;
+    await queries.replaceTransactionTags(
       activeBudgetId,
       transactionTagService.listTags({ includeArchived: true }),
     );
@@ -277,10 +277,10 @@ export function AccountRegisterPage() {
   ]);
 
   useEffect(() => {
-    const hosted = persistenceGateway.accountRegisterQueries;
-    if (storageMode !== "sqlite" || !activeBudgetId || !hosted) return;
+    const queries = persistenceGateway.accountRegisterQueries;
+    if (storageMode !== "sqlite" || !activeBudgetId || !queries) return;
     let cancelled = false;
-    void hosted.listTransactionTags(activeBudgetId).then((tags) => {
+    void queries.listTransactionTags(activeBudgetId).then((tags) => {
       if (cancelled) return;
       transactionTagService.replaceAllTags(tags);
       setTransactionTags(transactionTagService.listTags());
@@ -296,34 +296,34 @@ export function AccountRegisterPage() {
   ]);
 
   const payeesPersistence = useMemo(() => {
-    const hosted = persistenceGateway.accountRegisterQueries;
-    if (storageMode !== "sqlite" || !activeBudgetId || !hosted) {
+    const queries = persistenceGateway.accountRegisterQueries;
+    if (storageMode !== "sqlite" || !activeBudgetId || !queries) {
       return legacyPayeesPersistence;
     }
     return {
       async listPayees() {
-        return [...await hosted.listPayees(activeBudgetId, false)];
+        return [...await queries.listPayees(activeBudgetId, false)];
       },
       async listArchivedPayees() {
-        return [...await hosted.listPayees(activeBudgetId, true)];
+        return [...await queries.listPayees(activeBudgetId, true)];
       },
       async recordPayee(name: string) {
-        return [...await hosted.createPayee(activeBudgetId, name)];
+        return [...await queries.createPayee(activeBudgetId, name)];
       },
       async renamePayee(input: { id: string; name: string }) {
-        return [...await hosted.updatePayee(activeBudgetId, input)];
+        return [...await queries.updatePayee(activeBudgetId, input)];
       },
       async archivePayee(id: string) {
-        return [...await hosted.setPayeeArchived(activeBudgetId, id, true)];
+        return [...await queries.setPayeeArchived(activeBudgetId, id, true)];
       },
       async restorePayee(id: string) {
-        return [...await hosted.setPayeeArchived(activeBudgetId, id, false)];
+        return [...await queries.setPayeeArchived(activeBudgetId, id, false)];
       },
       async mergePayees(input: {
         sourcePayeeId: string;
         targetPayeeId: string;
       }) {
-        return [...await hosted.mergePayees(activeBudgetId, input)];
+        return [...await queries.mergePayees(activeBudgetId, input)];
       },
     };
   }, [
@@ -391,7 +391,7 @@ export function AccountRegisterPage() {
   );
 
   useEffect(() => {
-    setHostedViewQuery({
+    setRegisterViewQuery({
       search: committedRegisterSearch
         ? {
             query: committedRegisterSearch.query,
@@ -407,7 +407,7 @@ export function AccountRegisterPage() {
     committedRegisterSearch,
     data?.accountType,
     registerSort,
-    setHostedViewQuery,
+    setRegisterViewQuery,
   ]);
   const [isRegisterSearchOpen, setIsRegisterSearchOpen] = useState(false);
   const [
@@ -818,10 +818,10 @@ export function AccountRegisterPage() {
         colour: "blue",
       });
       setTransactionTags(transactionTagService.listTags());
-      void syncHostedTransactionTags();
+      void syncTransactionTagsToPersistence();
       return tag;
     },
-    [syncHostedTransactionTags, transactionTagService],
+    [syncTransactionTagsToPersistence, transactionTagService],
   );
 
   const handleUpdateTransactionTags = useCallback(
@@ -1385,7 +1385,7 @@ export function AccountRegisterPage() {
                   type="button"
                   onClick={() => {
                     setTransactionTags(transactionTagService.listTags());
-                    void syncHostedTransactionTags();
+                    void syncTransactionTagsToPersistence();
                     setIsTransactionTagManagerOpen(false);
                   }}
                 >
@@ -1690,9 +1690,9 @@ export function AccountRegisterPage() {
               setIsTransactionImportOpen(false);
             }}
             loadAccountTransactions={async (destinationAccountId) => {
-              const hostedQueries = persistenceGateway.accountRegisterQueries;
-              if (storageMode === "sqlite" && activeBudgetId && hostedQueries) {
-                const page = await hostedQueries.queryTransactions({
+              const queries = persistenceGateway.accountRegisterQueries;
+              if (storageMode === "sqlite" && activeBudgetId && queries) {
+                const page = await queries.queryTransactions({
                   budgetId: activeBudgetId,
                   accountId: destinationAccountId,
                   limit: 250,
@@ -1708,13 +1708,13 @@ export function AccountRegisterPage() {
               return view.transactions;
             }}
             loadTransactionsByIds={async (destinationAccountId, transactionIds) => {
-              const hostedQueries = persistenceGateway.accountRegisterQueries;
+              const queries = persistenceGateway.accountRegisterQueries;
               if (
                 storageMode === "sqlite" &&
                 activeBudgetId &&
-                hostedQueries?.getTransactionsByIds
+                queries?.getTransactionsByIds
               ) {
-                const rows = await hostedQueries.getTransactionsByIds({
+                const rows = await queries.getTransactionsByIds({
                   budgetId: activeBudgetId,
                   accountId: destinationAccountId,
                   ids: transactionIds,
@@ -1731,9 +1731,9 @@ export function AccountRegisterPage() {
               );
             }}
             loadAccountWorkingBalance={async (destinationAccountId) => {
-              const hostedQueries = persistenceGateway.accountRegisterQueries;
-              if (activeBudgetId && hostedQueries) {
-                const navigation = await hostedQueries.listAccountNavigation(activeBudgetId);
+              const queries = persistenceGateway.accountRegisterQueries;
+              if (activeBudgetId && queries) {
+                const navigation = await queries.listAccountNavigation(activeBudgetId);
                 return navigation.find((entry) => entry.account.id === destinationAccountId)?.workingBalance ?? 0;
               }
               const view = await persistenceGateway.accountRegisters.getAccountRegisterView({
@@ -1749,16 +1749,16 @@ export function AccountRegisterPage() {
                 await addTransactions(transactions);
                 return;
               }
-              const hostedQueries = persistenceGateway.accountRegisterQueries;
-              if (storageMode === "sqlite" && activeBudgetId && hostedQueries) {
-                await hostedQueries.commitTransactionBatch({
+              const queries = persistenceGateway.accountRegisterQueries;
+              if (storageMode === "sqlite" && activeBudgetId && queries) {
+                await queries.commitTransactionBatch({
                   budgetId: activeBudgetId,
                   accountId: destinationAccountId,
                   additions: transactions.map((transaction) => ({
                     budgetId: activeBudgetId,
                     accountId: destinationAccountId,
                     id: transaction.id ?? createRuntimeUuid(),
-                    ...toHostedTransactionWrite(transaction),
+                    ...toTransactionWriteInput(transaction),
                   })),
                   updates: [],
                 });
@@ -1794,22 +1794,22 @@ export function AccountRegisterPage() {
                 return;
               }
 
-              const hostedQueries = persistenceGateway.accountRegisterQueries;
-              if (storageMode === "sqlite" && activeBudgetId && hostedQueries) {
-                await hostedQueries.commitTransactionBatch({
+              const queries = persistenceGateway.accountRegisterQueries;
+              if (storageMode === "sqlite" && activeBudgetId && queries) {
+                await queries.commitTransactionBatch({
                   budgetId: activeBudgetId,
                   accountId: destinationAccountId,
                   additions: additions.map((transaction) => ({
                     budgetId: activeBudgetId,
                     accountId: destinationAccountId,
                     id: transaction.id ?? createRuntimeUuid(),
-                    ...toHostedTransactionWrite(transaction),
+                    ...toTransactionWriteInput(transaction),
                   })),
                   updates: updates.map((transaction) => ({
                     budgetId: activeBudgetId,
                     accountId: destinationAccountId,
                     id: transaction.id,
-                    ...toHostedTransactionWrite(transaction),
+                    ...toTransactionWriteInput(transaction),
                   })),
                 });
                 return;

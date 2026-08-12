@@ -31,7 +31,7 @@ interface UseAccountRegisterState {
   hasMoreTransactions: boolean;
   loadMoreTransactions: () => Promise<void>;
   storageMode: "legacy" | "sqlite";
-  setHostedViewQuery: (query: HostedRegisterViewQuery) => void;
+  setRegisterViewQuery: (query: RegisterViewQuery) => void;
   addTransaction: (input: NewRegisterTransactionInput) => Promise<void>;
   addTransactions: (inputs: NewRegisterTransactionInput[]) => Promise<void>;
   commitTransactionBatch: (input: {
@@ -60,7 +60,7 @@ interface UseAccountRegisterState {
   }) => Promise<void>;
 }
 
-export interface HostedRegisterViewQuery {
+export interface RegisterViewQuery {
   search: {
     query: string;
     scope: "all" | "payee" | "category" | "memo" | "amount";
@@ -72,7 +72,7 @@ export interface HostedRegisterViewQuery {
   };
 }
 
-const DEFAULT_HOSTED_VIEW_QUERY: HostedRegisterViewQuery = {
+const DEFAULT_REGISTER_VIEW_QUERY: RegisterViewQuery = {
   search: null,
   categoryFilter: "all",
   sort: { column: "date", direction: "descending" },
@@ -94,8 +94,8 @@ export function useAccountRegister(
   const [totalTransactionCount, setTotalTransactionCount] = useState(0);
   const [hasMoreTransactions, setHasMoreTransactions] = useState(false);
   const [storageMode, setStorageMode] = useState<"legacy" | "sqlite">("legacy");
-  const [hostedViewQuery, setHostedViewQuery] = useState(DEFAULT_HOSTED_VIEW_QUERY);
-  const hostedCursorRef = useRef<{ date: string; id: string } | null>(null);
+  const [registerViewQuery, setRegisterViewQuery] = useState(DEFAULT_REGISTER_VIEW_QUERY);
+  const registerCursorRef = useRef<{ date: string; id: string } | null>(null);
   const loadedTransactionCountRef = useRef(0);
   const mountedRef = useRef(true);
   const activeAccountIdRef = useRef(accountId);
@@ -111,7 +111,7 @@ export function useAccountRegister(
 
   useEffect(() => {
     hasLoadedDataRef.current = false;
-    hostedCursorRef.current = null;
+    registerCursorRef.current = null;
     loadedTransactionCountRef.current = 0;
     setData(null);
     setIsLoading(true);
@@ -131,11 +131,11 @@ export function useAccountRegister(
         accountId,
         limit: 150,
         offset: 0,
-        search: hostedViewQuery.search ?? undefined,
-        categoryFilter: hostedViewQuery.categoryFilter,
-        sort: hostedViewQuery.sort,
+        search: registerViewQuery.search ?? undefined,
+        categoryFilter: registerViewQuery.categoryFilter,
+        sort: registerViewQuery.sort,
       });
-    hostedCursorRef.current = page.nextCursor;
+    registerCursorRef.current = page.nextCursor;
     setHasMoreTransactions(page.hasMore);
     loadedTransactionCountRef.current = page.rows.length;
     setTotalTransactionCount(page.totalCount ?? summary.transactionCount);
@@ -155,7 +155,7 @@ export function useAccountRegister(
     accountRegisterQueries,
     applyRegisterView,
     budgetId,
-    hostedViewQuery,
+    registerViewQuery,
   ]);
 
   useEffect(() => {
@@ -257,9 +257,9 @@ export function useAccountRegister(
       accountId,
       limit: 150,
       offset: loadedTransactionCountRef.current,
-      search: hostedViewQuery.search ?? undefined,
-      categoryFilter: hostedViewQuery.categoryFilter,
-      sort: hostedViewQuery.sort,
+      search: registerViewQuery.search ?? undefined,
+      categoryFilter: registerViewQuery.categoryFilter,
+      sort: registerViewQuery.sort,
     });
     setData((current) => {
       if (!current) return current;
@@ -275,7 +275,7 @@ export function useAccountRegister(
         ],
       };
     });
-    hostedCursorRef.current = page.nextCursor;
+    registerCursorRef.current = page.nextCursor;
     loadedTransactionCountRef.current += page.rows.length;
     setHasMoreTransactions(page.hasMore);
   }, [
@@ -283,7 +283,7 @@ export function useAccountRegister(
     accountRegisterQueries,
     budgetId,
     hasMoreTransactions,
-    hostedViewQuery,
+    registerViewQuery,
     storageMode,
   ]);
 
@@ -378,7 +378,7 @@ export function useAccountRegister(
           budgetId,
           accountId,
           id: transactionId,
-          ...toHostedTransactionWrite(input),
+          ...toTransactionWriteInput(input),
         });
         for (const attachment of input.scheduledAttachments ?? []) {
           await accountRegisterQueries.addTransactionAttachment({
@@ -421,7 +421,7 @@ export function useAccountRegister(
           budgetId,
           accountId,
           id: input.id ?? createRuntimeUuid(),
-          ...toHostedTransactionWrite(input),
+          ...toTransactionWriteInput(input),
         })),
         updates: [],
       }));
@@ -452,13 +452,13 @@ export function useAccountRegister(
           budgetId,
           accountId,
           id: transaction.id ?? createRuntimeUuid(),
-          ...toHostedTransactionWrite(transaction),
+          ...toTransactionWriteInput(transaction),
         })),
         updates: input.updates.map((transaction) => ({
           budgetId,
           accountId,
           id: transaction.id,
-          ...toHostedTransactionWrite(transaction),
+          ...toTransactionWriteInput(transaction),
         })),
       }));
       return;
@@ -496,7 +496,7 @@ export function useAccountRegister(
     if (storageMode === "sqlite" && budgetId && accountRegisterQueries) {
       await runSqliteMutation(() => accountRegisterQueries.updateTransaction(
         input.id,
-        { budgetId, accountId, ...toHostedTransactionWrite(input) },
+        { budgetId, accountId, ...toTransactionWriteInput(input) },
       ));
       return;
     }
@@ -732,7 +732,7 @@ export function useAccountRegister(
     hasMoreTransactions,
     loadMoreTransactions,
     storageMode,
-    setHostedViewQuery,
+    setRegisterViewQuery,
     addTransaction,
     addTransactions,
     commitTransactionBatch,
@@ -825,7 +825,7 @@ function formatTransferPayee(accountName: string | null): string {
   return `Transfer: ${accountName ?? "Unknown account"}`;
 }
 
-export function toHostedTransactionWrite(
+export function toTransactionWriteInput(
   input: NewRegisterTransactionInput | UpdateRegisterTransactionInput,
 ) {
   return {
