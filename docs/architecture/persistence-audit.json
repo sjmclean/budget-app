@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T02:18:59.179Z",
+  "generatedAt": "2026-08-12T02:34:19.455Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -91,7 +91,6 @@
     "apps/web/src/features/persistence/configuredPersistenceProvider.ts",
     "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
     "apps/web/src/features/persistence/hostPersistenceGateway.ts",
-    "apps/web/src/features/persistence/hostedScheduledTransactionPersistence.ts",
     "apps/web/src/features/persistence/index.ts",
     "apps/web/src/features/persistence/keyValueBudgetActivityPersistence.ts",
     "apps/web/src/features/persistence/keyValueImportStage.ts",
@@ -102,6 +101,7 @@
     "apps/web/src/features/persistence/persistenceSnapshot.ts",
     "apps/web/src/features/persistence/replicationEngine.ts",
     "apps/web/src/features/persistence/replicationService.ts",
+    "apps/web/src/features/persistence/routedScheduledTransactionPersistence.ts",
     "apps/web/src/features/settings/entities/settingsPreferenceEntity.ts",
     "apps/web/src/features/settings/settingsPreferences.ts",
     "apps/web/src/features/tableLayout/entities/tableLayoutEntity.ts",
@@ -1596,16 +1596,6 @@
     },
     {
       "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/hostedScheduledTransactionPersistence.ts",
-      "line": 7
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/hostedScheduledTransactionPersistence.ts",
-      "line": 12
-    },
-    {
-      "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/index.ts",
       "line": 2
     },
@@ -2164,6 +2154,16 @@
       "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/replicationTransport.ts",
       "line": 64
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/routedScheduledTransactionPersistence.ts",
+      "line": 7
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/routedScheduledTransactionPersistence.ts",
+      "line": 12
     },
     {
       "kind": "persistenceBoundary",

@@ -15,7 +15,7 @@ import type { OperationJournalPort } from "./operationJournal";
 import type { ReplicationLocalStorePort } from "./replication";
 import { exportBudgetPersistenceSnapshot } from "./persistenceSnapshot";
 import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";
-import { createHostedScheduledTransactionPersistence } from "./hostedScheduledTransactionPersistence";
+import { createRoutedScheduledTransactionPersistence } from "./routedScheduledTransactionPersistence";
 import { createSqliteBudgetViewService } from "./createSqliteBudgetViewService";
 
 export interface CreateKeyValueBudgetPersistenceProviderOptions {
@@ -62,9 +62,9 @@ export function createKeyValueBudgetPersistenceProvider(
     findPayeeIdByName: (payeeName) => findPayeeIdByName(budgetScopedStorage, payeeName),
   });
   const scheduledTransactions = options.accountRegisterQueries
-    ? createHostedScheduledTransactionPersistence({
+    ? createRoutedScheduledTransactionPersistence({
         storage: options.storage,
-        hosted: options.accountRegisterQueries,
+        queryClient: options.accountRegisterQueries,
         fallback: scheduledFallback,
       })
     : scheduledFallback;

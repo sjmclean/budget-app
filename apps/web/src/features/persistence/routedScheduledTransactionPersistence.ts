@@ -8,21 +8,16 @@ import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";
 import { localCalendarDate } from "../dates/localCalendarDate";
 
-export function createHostedScheduledTransactionPersistence(options: {
+export function createRoutedScheduledTransactionPersistence(options: {
   storage: KeyValueStoragePort;
-  hosted: AccountRegisterQueryClient;
+  queryClient: AccountRegisterQueryClient;
   fallback: ScheduledTransactionPersistencePort;
 }): ScheduledTransactionPersistencePort {
-  const migrationKey = (budgetId: string, accountId: string) =>
-    `budget-app.hosted-schedule-migration.v1.${budgetId}.${accountId}`;
-  async function hostedBudgetId(): Promise<string | null> {
+  async function resolveScheduledTransactionBudgetId(): Promise<string | null> {
     const budgetId = getActiveBudgetIdFromStorage(options.storage);
     if (!budgetId) return null;
-    const status = await options.hosted.getBudgetStatus(budgetId).catch(() => null);
-    return (
-      status?.capabilities.scheduledTransactions ??
-      status?.capabilities.accountRegisters
-    )
+    const status = await options.queryClient.getBudgetStatus(budgetId).catch(() => null);
+    return status?.capabilities.scheduledTransactions
       ? budgetId
       : null;
   }
@@ -32,7 +27,7 @@ export function createHostedScheduledTransactionPersistence(options: {
     input: UpsertScheduledTransactionInput,
   ): Promise<UpsertScheduledTransactionInput> {
     if (input.payeeId || input.payee.startsWith("Transfer:")) return input;
-    const payees = await options.hosted.createPayee(budgetId, input.payee);
+    const payees = await options.queryClient.createPayee(budgetId, input.payee);
     const normalised = input.payee.replace(/\s+/g, " ").trim().toLocaleLowerCase();
     const payee = payees.find(
       (candidate) =>
@@ -42,28 +37,11 @@ export function createHostedScheduledTransactionPersistence(options: {
   }
 
   async function listByAccount(accountId: string): Promise<ScheduledTransactionView[]> {
-    const budgetId = await hostedBudgetId();
+    const budgetId = await resolveScheduledTransactionBudgetId();
     if (!budgetId) return options.fallback.listByAccount(accountId);
-    let hostedSchedules = [
-      ...await options.hosted.listScheduledTransactions(budgetId, accountId),
+    return [
+      ...await options.queryClient.listScheduledTransactions(budgetId, accountId),
     ];
-    const key = migrationKey(budgetId, accountId);
-    if (options.storage.getItem(key) !== "complete") {
-      const localSchedules = await options.fallback.listByAccount(accountId);
-      if (hostedSchedules.length === 0 && localSchedules.length > 0) {
-        for (const schedule of localSchedules) {
-          hostedSchedules = [
-            ...await options.hosted.createScheduledTransaction(
-              budgetId,
-              await withResolvedPayee(budgetId, schedule),
-            ),
-          ];
-        }
-      }
-      options.storage.setItem(key, "complete");
-      await options.storage.flush?.();
-    }
-    return hostedSchedules;
   }
 
   return {
@@ -74,20 +52,20 @@ export function createHostedScheduledTransactionPersistence(options: {
       return schedules.filter(({ nextDueDate }) => nextDueDate <= today).length;
     },
     async create(input) {
-      const budgetId = await hostedBudgetId();
+      const budgetId = await resolveScheduledTransactionBudgetId();
       if (!budgetId) return options.fallback.create(input);
       return [
-        ...await options.hosted.createScheduledTransaction(
+        ...await options.queryClient.createScheduledTransaction(
           budgetId,
           await withResolvedPayee(budgetId, input),
         ),
       ];
     },
     async update(input) {
-      const budgetId = await hostedBudgetId();
+      const budgetId = await resolveScheduledTransactionBudgetId();
       if (!budgetId) return options.fallback.update(input);
       return [
-        ...await options.hosted.updateScheduledTransaction(
+        ...await options.queryClient.updateScheduledTransaction(
           budgetId,
           input.id,
           await withResolvedPayee(budgetId, input),
@@ -95,17 +73,17 @@ export function createHostedScheduledTransactionPersistence(options: {
       ];
     },
     async delete(accountId, scheduledTransactionId) {
-      const budgetId = await hostedBudgetId();
+      const budgetId = await resolveScheduledTransactionBudgetId();
       return budgetId
-        ? [...await options.hosted.deleteScheduledTransaction(
+        ? [...await options.queryClient.deleteScheduledTransaction(
             budgetId, accountId, scheduledTransactionId,
           )]
         : options.fallback.delete(accountId, scheduledTransactionId);
     },
     async advanceAfterEnter(accountId, scheduledTransactionId) {
-      const budgetId = await hostedBudgetId();
+      const budgetId = await resolveScheduledTransactionBudgetId();
       return budgetId
-        ? [...await options.hosted.advanceScheduledTransaction(
+        ? [...await options.queryClient.advanceScheduledTransaction(
             budgetId, accountId, scheduledTransactionId,
           )]
         : options.fallback.advanceAfterEnter(accountId, scheduledTransactionId);
@@ -114,17 +92,17 @@ export function createHostedScheduledTransactionPersistence(options: {
       return options.fallback.toRegisterInput(transaction);
     },
     async renamePayeeReferences(input) {
-      const budgetId = await hostedBudgetId();
+      const budgetId = await resolveScheduledTransactionBudgetId();
       if (budgetId) {
-        await options.hosted.renameScheduledPayeeReferences(budgetId, input);
+        await options.queryClient.renameScheduledPayeeReferences(budgetId, input);
       } else {
         await options.fallback.renamePayeeReferences(input);
       }
     },
     async reassignPayeeReferences(input) {
-      const budgetId = await hostedBudgetId();
+      const budgetId = await resolveScheduledTransactionBudgetId();
       if (budgetId) {
-        await options.hosted.reassignScheduledPayeeReferences(budgetId, input);
+        await options.queryClient.reassignScheduledPayeeReferences(budgetId, input);
       } else {
         await options.fallback.reassignPayeeReferences(input);
       }
