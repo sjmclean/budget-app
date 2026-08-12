@@ -83,6 +83,30 @@ export interface UpsertScheduledTransactionInput {
 }
 
 
+
+export function scheduledTransactionToRegisterInput(
+  transaction: ScheduledTransactionView,
+): NewRegisterTransactionInput {
+  return {
+    date: transaction.nextDueDate,
+    tagIds: normaliseTagIds(transaction.tagIds),
+    payee: transaction.payee,
+    payeeId: transaction.payeeId,
+    category: transaction.category,
+    categoryId: transaction.categoryId,
+    memo: transaction.memo,
+    outflow: transaction.outflow,
+    inflow: transaction.inflow,
+    splitLines: cloneSplitLines(transaction.splitLines),
+    generatedFromSchedule: true,
+    scheduledTransactionId: transaction.id,
+    scheduledOccurrenceDate:
+      transaction.recurrenceAnchorDate ?? transaction.nextDueDate,
+    scheduledAttachments: cloneScheduledAttachments(transaction.attachments),
+  };
+}
+
+
 export interface ScheduledTransactionServiceDependencies {
   storage: KeyValueStoragePort;
   recordPayee(payeeName: string): Promise<void>;
@@ -360,22 +384,7 @@ export class BrowserPersistentScheduledTransactionService {
   }
 
   toRegisterInput(transaction: ScheduledTransactionView): NewRegisterTransactionInput {
-    return {
-      date: transaction.nextDueDate,
-      tagIds: normaliseTagIds(transaction.tagIds),
-      payee: transaction.payee,
-      payeeId: transaction.payeeId,
-      category: transaction.category,
-      categoryId: transaction.categoryId,
-      memo: transaction.memo,
-      outflow: transaction.outflow,
-      inflow: transaction.inflow,
-      splitLines: cloneSplitLines(transaction.splitLines),
-      generatedFromSchedule: true,
-      scheduledTransactionId: transaction.id,
-      scheduledOccurrenceDate: transaction.recurrenceAnchorDate ?? transaction.nextDueDate,
-      scheduledAttachments: cloneScheduledAttachments(transaction.attachments),
-    };
+    return scheduledTransactionToRegisterInput(transaction);
   }
 
   async renamePayeeReferences(input: {

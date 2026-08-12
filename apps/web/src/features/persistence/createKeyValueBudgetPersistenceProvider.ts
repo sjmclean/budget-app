@@ -1,7 +1,6 @@
 import { createAccountService, readAccounts } from "../accounts/accountService";
 import { createAccountRegisterService } from "../accounts/accountRegisterService";
 import { createPayeeService, findPayeeIdByName } from "../accounts/payeeService";
-import { createScheduledTransactionService } from "../accounts/scheduledTransactionService";
 import { createBudgetScopedStorage } from "../budget/budgetDataScope";
 import type {
   BudgetPersistenceProvider,
@@ -28,7 +27,7 @@ export interface CreateKeyValueBudgetPersistenceProviderOptions {
   readonly checkpoints?: CheckpointPort;
   readonly replicationStore?: ReplicationLocalStorePort;
   readonly conflicts?: ConflictResolutionPort;
-  readonly accountRegisterQueries?: AccountRegisterQueryClient;
+  readonly accountRegisterQueries: AccountRegisterQueryClient;
 }
 
 /**
@@ -54,20 +53,10 @@ export function createKeyValueBudgetPersistenceProvider(
     readAccounts: () => readAccounts(budgetScopedStorage),
     getAccountById: (accountId) => accountService.getAccountById(accountId) ?? undefined,
   });
-  const scheduledFallback = createScheduledTransactionService({
-    storage: budgetScopedStorage,
-    recordPayee: async (payeeName) => {
-      await payeeService.recordPayee(payeeName);
-    },
-    findPayeeIdByName: (payeeName) => findPayeeIdByName(budgetScopedStorage, payeeName),
+  const scheduledTransactions = createRoutedScheduledTransactionPersistence({
+    storage: options.storage,
+    queryClient: options.accountRegisterQueries,
   });
-  const scheduledTransactions = options.accountRegisterQueries
-    ? createRoutedScheduledTransactionPersistence({
-        storage: options.storage,
-        queryClient: options.accountRegisterQueries,
-        fallback: scheduledFallback,
-      })
-    : scheduledFallback;
   const sqliteBudgetView = createSqliteBudgetViewService(options.accountRegisterQueries);
 
   return {

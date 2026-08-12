@@ -8,7 +8,7 @@ import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts
 
 export interface LocalDatabasePersistenceProviderOptions {
   readonly storage?: LocalDatabaseKeyValueStorage;
-  readonly accountRegisterQueries?: AccountRegisterQueryClient;
+  readonly accountRegisterQueries: AccountRegisterQueryClient;
 }
 
 /**
@@ -17,7 +17,7 @@ export interface LocalDatabasePersistenceProviderOptions {
  * The local database is the sole browser persistence runtime.
  */
 export function createLocalDatabasePersistenceProvider(
-  options: LocalDatabasePersistenceProviderOptions = {},
+  options: LocalDatabasePersistenceProviderOptions,
 ): BudgetPersistenceProvider {
   const storage = options.storage ?? createLocalDatabaseKeyValueStorage();
 

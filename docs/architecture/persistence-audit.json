@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T03:22:47.501Z",
+  "generatedAt": "2026-08-12T03:36:02.559Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -603,12 +603,12 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionService.ts",
-      "line": 87
+      "line": 111
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionService.ts",
-      "line": 465
+      "line": 474
     },
     {
       "kind": "persistenceBoundary",
@@ -1533,42 +1533,42 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
-      "line": 7
+      "line": 6
     },
     {
       "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
+      "line": 12
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
+      "line": 21
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
+      "line": 40
+    },
+    {
+      "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
       "line": 13
     },
     {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
-      "line": 22
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
-      "line": 41
-    },
-    {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
-      "line": 14
+      "line": 26
     },
     {
-      "kind": "operationJournal",
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
+      "line": 10
+    },
+    {
+      "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
       "line": 27
-    },
-    {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
-      "line": 11
-    },
-    {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
-      "line": 28
     },
     {
       "kind": "persistenceBoundary",
@@ -2164,12 +2164,12 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/routedScheduledTransactionPersistence.ts",
-      "line": 7
+      "line": 10
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/routedScheduledTransactionPersistence.ts",
-      "line": 12
+      "line": 13
     },
     {
       "kind": "persistenceBoundary",
