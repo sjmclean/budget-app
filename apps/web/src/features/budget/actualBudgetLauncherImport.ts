@@ -26,6 +26,17 @@ import { writeBudgetMonthEntity } from "./entities/budgetMonthEntity.js";
 import { isMoneyNegative, normaliseMoney } from "./moneyMath";
 import { getCurrentBudgetMonth } from "./budgetMonthNavigation";
 import { provisionFreshLocalFirstBudget } from "../persistence/localFirst/freshBudgetProvisioning";
+import { publishLocalBaseline } from "../persistence/localFirst/baselineCoordinator";
+import { LocalBudgetDatabaseClient } from "../persistence/localFirst/localBudgetClient";
+import { getOrCreateLocalFirstDeviceId } from "../persistence/localFirst/localFirstDeviceId";
+import { emptyDomainCounts } from "../persistence/localFirst/contracts";
+import type {
+  LocalAccountRecord,
+  LocalCategoryRecord,
+  LocalPayeeRecord,
+  LocalTransactionRecord,
+  LocalTransactionSplitRecord,
+} from "../persistence/localFirst/registerSchema";
 
 export const ACTUAL_BUDGET_LAUNCHER_IMPORT_STORAGE_PREFIX =
   "budget-app.actual-budget-launcher-import.v1";
@@ -107,32 +118,375 @@ export async function createActualBudgetLauncherImportWithBackend(
   storage: KeyValueStoragePort,
   input: CreateActualBudgetLauncherImportInput,
 ): Promise<ActualBudgetLauncherImportResult> {
+  validateActualPreviewForImport(input.preview);
+
   const registryBeforeImport = storage.getItem(BUDGET_REGISTRY_STORAGE_KEY);
   const selectedBudgetBeforeImport = storage.getItem(SELECTED_BUDGET_STORAGE_KEY);
   const keysBeforeImport = new Set(storage.listKeys?.() ?? []);
-  let result: ActualBudgetLauncherImportResult | null = null;
-  let provisioned: Awaited<ReturnType<typeof provisionFreshLocalFirstBudget>> | null = null;
+  const now = input.now ?? new Date();
+
+  let budget: BudgetSummary | null = null;
+  let provisioned:
+    | Awaited<ReturnType<typeof provisionFreshLocalFirstBudget>>
+    | null = null;
+  let database: LocalBudgetDatabaseClient | null = null;
+  let staged = false;
 
   try {
-    result = createActualBudgetLauncherImport(storage, input);
-    provisioned = await provisionFreshLocalFirstBudget(result.budget.id, {
+    const budgetName = createImportedActualBudgetName(input.preview.sourceBudgetName);
+
+    budget = createBudgetRegistryEntry(storage, {
+      name: budgetName,
+      currency: readPreviewCurrency(input.preview),
+      packagePath: input.sourceFileName
+        ? `~/Budgets/${input.sourceFileName.replace(/\.zip$/i, "")}.budget`
+        : undefined,
+      preferences: input.creditCardBehaviour
+        ? { creditCardBehaviour: input.creditCardBehaviour }
+        : undefined,
+      now,
+    });
+
+    const mapped = mapActualBudgetForLocalFirst(
+      budget,
+      input.preview,
+      now,
+    );
+
+    provisioned = await provisionFreshLocalFirstBudget(budget.id, {
       apiBaseUrl: input.apiBaseUrl,
     });
-    await storage.flush?.();
-    return result;
-  } catch (error) {
-    if (provisioned && result) {
-      await provisioned.relay.deleteBudget(result.budget.id).catch(() => undefined);
+
+    database = new LocalBudgetDatabaseClient();
+
+    await database.beginStagedImport({
+      budgetId: budget.id,
+      syncEpoch: provisioned.syncEpoch,
+      deviceId: getOrCreateLocalFirstDeviceId(storage),
+    });
+    staged = true;
+
+    if (
+      mapped.accounts.length > 0 ||
+      mapped.payees.length > 0 ||
+      mapped.categories.length > 0
+    ) {
+      await database.importRegisterBatch({
+        accounts: mapped.accounts,
+        payees: mapped.payees,
+        categories: mapped.categories,
+      });
     }
+
+    if (mapped.transactions.length > 0) {
+      await database.importRegisterBatch({
+        transactions: mapped.transactions,
+      });
+    }
+
+    if (mapped.budgetMonths.length > 0) {
+      await database.importEntityBatch(
+        mapped.budgetMonths.map(({ month, view }) => ({
+          domain: "budgetMonths" as const,
+          entityId: month,
+          payload: view,
+        })),
+      );
+    }
+
+    const expectedCounts = {
+      ...emptyDomainCounts(),
+      accounts: mapped.accounts.length,
+      transactions: mapped.transactions.length,
+      payees: mapped.payees.length,
+      categories: mapped.categories.length,
+      budgetMonths: mapped.budgetMonths.length,
+    };
+
+    await database.commitStagedImport(expectedCounts);
+    staged = false;
+
+    await publishLocalBaseline({
+      budgetId: budget.id,
+      budgetName: budget.name,
+      currency: budget.currency,
+      syncEpoch: provisioned.syncEpoch,
+      database,
+      relay: provisioned.relay,
+    });
+
+    await database.close();
+    database = null;
+
+    markBudgetOpened(storage, budget.id, now);
+    storage.setItem(SELECTED_BUDGET_STORAGE_KEY, budget.id);
+
+    const record = createActualImportRecord(
+      budget,
+      input,
+      mapped.warnings,
+      now,
+    );
+
+    storage.setItem(
+      getActualBudgetLauncherImportStorageKey(budget.id),
+      JSON.stringify(record),
+    );
+
+    const openedBudget = markBudgetOpened(storage, budget.id, now) ?? budget;
+
+    await storage.flush?.();
+
+    return {
+      budget: openedBudget,
+      record,
+      budgets: readBudgetRegistry(storage),
+    };
+  } catch (error) {
+    if (database) {
+      if (staged) {
+        await database.rollbackStagedImport().catch(() => undefined);
+      }
+      await database.close().catch(() => undefined);
+    }
+
+    if (provisioned && budget) {
+      await provisioned.relay.deleteBudget(budget.id).catch(() => undefined);
+    }
+
     rollbackActualBudgetLauncherImport(storage, {
-      budgetId: result?.budget.id ?? null,
+      budgetId: budget?.id ?? null,
       keysBeforeImport,
       registryBeforeImport,
       selectedBudgetBeforeImport,
     });
+
     await storage.flush?.();
+
+    if (isStorageQuotaError(error)) {
+      throw new Error(
+        "Actual Budget import requires more browser storage than is available. No budget was created and no partial data was saved.",
+        { cause: error },
+      );
+    }
+
     throw error;
   }
+}
+
+
+interface MappedActualLocalFirstBudget {
+  accounts: LocalAccountRecord[];
+  payees: LocalPayeeRecord[];
+  categories: LocalCategoryRecord[];
+  transactions: LocalTransactionRecord[];
+  budgetMonths: Array<{
+    month: string;
+    view: BudgetMonthView;
+  }>;
+  warnings: string[];
+}
+
+function mapActualBudgetForLocalFirst(
+  budget: BudgetSummary,
+  preview: FullBudgetImportPreview,
+  now: Date,
+): MappedActualLocalFirstBudget {
+  const nowIso = now.toISOString();
+
+  const maps: ActualImportMaps = {
+    accountIdBySourceId: new Map(),
+    accountNameById: new Map(),
+    accountTypeById: new Map(),
+    categoryIdBySourceId: new Map(),
+    categoryNameById: new Map(),
+    payeeIdBySourceId: new Map(),
+    payeeNameById: new Map(),
+  };
+
+  const sidebarAccounts = mapActualAccounts(preview, maps, nowIso);
+  const categoryGroups = mapActualCategoryGroups(preview, maps);
+  const payeeViews = mapActualPayees(preview, maps, nowIso);
+  const registers = mapActualRegisters(preview, sidebarAccounts, maps);
+  const monthViews = mapActualBudgetMonthViews(
+    budget,
+    categoryGroups,
+    registers,
+    preview,
+    maps,
+    now,
+  );
+
+  const accounts: LocalAccountRecord[] = sidebarAccounts.map((account) => ({
+    id: account.id,
+    budgetId: budget.id,
+    name: account.name,
+    type: account.type,
+    participation: account.type === "tracking" ? "tracking" : "budget",
+    openingBalance: 0,
+    currencyCode: budget.currency,
+    createdAt: account.createdAt,
+    closedAt: account.closedAt ?? null,
+  }));
+
+  const payees: LocalPayeeRecord[] = payeeViews.map((payee) => ({
+    id: payee.id,
+    budgetId: budget.id,
+    name: payee.name,
+    note: "",
+    archived: payee.isArchived === true,
+    createdAt: payee.createdAt,
+    updatedAt: payee.lastUsedAt,
+    useCount: payee.useCount,
+    lastUsedAt: payee.lastUsedAt,
+  }));
+
+  const categories: LocalCategoryRecord[] = categoryGroups.flatMap((group) =>
+    group.categories.map((category) => ({
+      id: category.id,
+      budgetId: budget.id,
+      name: category.name,
+      groupId: group.id,
+      groupName: group.name,
+      archived: category.isArchived,
+    })),
+  );
+
+  const transactions: LocalTransactionRecord[] = [];
+
+  for (const [accountId, register] of Object.entries(registers)) {
+    for (const transaction of register.transactions) {
+      const splitLines: LocalTransactionSplitRecord[] =
+        (transaction.splitLines ?? []).map((split) => ({
+          id: split.id,
+          categoryId: split.categoryId ?? null,
+          categoryName: split.category ?? null,
+          transferAccountId: null,
+          transferTransactionId: null,
+          memo: split.memo ?? null,
+          amount: displayAmountToMinorUnits(split.inflow - split.outflow),
+        }));
+
+      transactions.push({
+        id: transaction.id,
+        budgetId: budget.id,
+        accountId,
+        date: transaction.date,
+        amount: displayAmountToMinorUnits(
+          transaction.inflow - transaction.outflow,
+        ),
+        memo: transaction.memo ?? null,
+        checkNumber: null,
+        clearedStatus: transaction.reconciled
+          ? "reconciled"
+          : transaction.cleared
+            ? "cleared"
+            : "uncleared",
+        payeeId: transaction.payeeId ?? null,
+        payeeName: transaction.payee ?? null,
+        rawPayeeName: transaction.payee ?? null,
+        categoryId: transaction.categoryId ?? null,
+        categoryName: transaction.category ?? null,
+        transferAccountId: transaction.transferAccountId ?? null,
+        transferTransactionId: null,
+        generatedFromSchedule: false,
+        scheduledTransactionId: null,
+        scheduledOccurrenceDate: null,
+        splitLines,
+        tagIds: [],
+        updatedAt: nowIso,
+      });
+    }
+  }
+
+  const warnings = preview.entityCounts
+    .filter((item) => !item.supported && item.count > 0)
+    .map(
+      (item) =>
+        `${item.label} (${item.count.toLocaleString()}) ${
+          item.note ?? "not imported yet"
+        }.`,
+    );
+
+  return {
+    accounts,
+    payees,
+    categories,
+    transactions,
+    budgetMonths: [...monthViews.entries()].map(([month, view]) => ({
+      month,
+      view,
+    })),
+    warnings,
+  };
+}
+
+function displayAmountToMinorUnits(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(value * 100);
+}
+
+function createActualImportRecord(
+  budget: BudgetSummary,
+  input: CreateActualBudgetLauncherImportInput,
+  persistenceWarnings: readonly string[],
+  now: Date,
+): ActualBudgetLauncherImportRecord {
+  return {
+    budgetId: budget.id,
+    budgetName: budget.name,
+    sourceBudgetName: input.preview.sourceBudgetName,
+    sourceFileName: input.sourceFileName ?? null,
+    mode: "new-budget",
+    status: "completed",
+    importedAt: now.toISOString(),
+    counts: {
+      accounts: input.preview.accounts.length,
+      categoryGroups: input.preview.categoryGroups.length,
+      categories: input.preview.categories.length,
+      payees: input.preview.payees.length,
+      transactions: input.preview.transactions.length,
+      transfers: input.preview.transferCount,
+    },
+    skipped: input.preview.entityCounts
+      .filter((item) => !item.supported && item.count > 0)
+      .map((item) => ({
+        label: item.label,
+        count: item.count,
+        reason: item.note ?? "Not imported yet",
+      })),
+    warnings: [
+      ...input.preview.issues.map((issue) => issue.message),
+      ...persistenceWarnings,
+    ],
+    progressSteps: [
+      {
+        phase: "create-budget",
+        label: "Created imported budget",
+        detail: budget.name,
+      },
+      {
+        phase: "accounts",
+        label: "Imported accounts",
+        detail: String(input.preview.accounts.length),
+      },
+      {
+        phase: "categories",
+        label: "Imported categories",
+        detail: String(input.preview.categories.length),
+      },
+      {
+        phase: "payees",
+        label: "Imported payees",
+        detail: String(input.preview.payees.length),
+      },
+      {
+        phase: "transactions",
+        label: "Imported transactions",
+        detail: String(input.preview.transactions.length),
+      },
+    ],
+  };
 }
 
 export function createActualBudgetLauncherImport(
