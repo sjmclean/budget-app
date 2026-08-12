@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T02:34:19.455Z",
+  "generatedAt": "2026-08-12T02:55:19.036Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -15,7 +15,7 @@
     "localStorage": 16,
     "indexedDB": 2,
     "replicationApi": 2,
-    "persistenceBoundary": 66,
+    "persistenceBoundary": 68,
     "operationJournal": 11,
     "checkpoints": 7
   },
@@ -77,6 +77,7 @@
     "apps/web/src/features/budget/creditCardPaymentCategories.ts",
     "apps/web/src/features/budget/entities/budgetMonthEntity.ts",
     "apps/web/src/features/budget/newBudget/createBudgetFromSetup.ts",
+    "apps/web/src/features/budget/newBudget/createLocalFirstBudgetFromSetup.ts",
     "apps/web/src/features/budget/portableBudgetPackage.ts",
     "apps/web/src/features/budget/versionHistory.ts",
     "apps/web/src/features/budget/versionHistoryLifecycle.ts",
@@ -97,6 +98,7 @@
     "apps/web/src/features/persistence/keyValueStoragePort.ts",
     "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
     "apps/web/src/features/persistence/localDatabasePersistenceProvider.ts",
+    "apps/web/src/features/persistence/localFirst/localFirstDeviceId.ts",
     "apps/web/src/features/persistence/persistenceProviderLifecycle.ts",
     "apps/web/src/features/persistence/persistenceSnapshot.ts",
     "apps/web/src/features/persistence/replicationEngine.ts",
@@ -1048,6 +1050,16 @@
     },
     {
       "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/newBudget/createLocalFirstBudgetFromSetup.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/newBudget/createLocalFirstBudgetFromSetup.ts",
+      "line": 24
+    },
+    {
+      "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/portableBudgetPackage.ts",
       "line": 1
     },
@@ -1244,7 +1256,7 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 455,
+      "line": 447,
       "classification": "review-required"
     },
     {
@@ -1255,77 +1267,72 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 205
+      "line": 206
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 358
+      "line": 359
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 367
+      "line": 365
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 373
+      "line": 422
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 430
+      "line": 478
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 486
+      "line": 813
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 821
+      "line": 847
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 855
+      "line": 883
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 891
+      "line": 894
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 902
+      "line": 996
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1004
+      "line": 1271
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1279
+      "line": 1519
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1527
+      "line": 1587
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1595
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1623
+      "line": 1615
     },
     {
       "kind": "localStorage",
@@ -1909,6 +1916,16 @@
       "path": "apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
       "line": 68,
       "classification": "review-required"
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/localFirst/localFirstDeviceId.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/localFirst/localFirstDeviceId.ts",
+      "line": 7
     },
     {
       "kind": "operationJournal",

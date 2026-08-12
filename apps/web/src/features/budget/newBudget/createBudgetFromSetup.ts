@@ -22,7 +22,7 @@ function monthLabelFromIsoMonth(month: string): string {
   }).format(new Date(year, monthNumber - 1, 1));
 }
 
-function createBudgetMonthView(budget: BudgetSummary, setup: NewBudgetSetup, now = new Date()): BudgetMonthView {
+export function createBudgetMonthView(budget: BudgetSummary, setup: NewBudgetSetup, now = new Date()): BudgetMonthView {
   const month = getCurrentBudgetMonth(now);
   const categoryGroups: BudgetCategoryGroupView[] = getSelectedCategoryGroups(setup.categoryGroups).map((group) => ({
     id: group.id,

@@ -104,6 +104,7 @@ import {
   publishLocalBaseline,
 } from "../persistence/localFirst";
 import { provisionFreshLocalFirstBudget } from "../persistence/localFirst/freshBudgetProvisioning";
+import { getOrCreateLocalFirstDeviceId } from "../persistence/localFirst/localFirstDeviceId";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 
 export {
@@ -353,15 +354,6 @@ export async function createYnab4LauncherBudgetImportWithBackend(
   }
 }
 
-const LOCAL_FIRST_DEVICE_ID_KEY = "budget-app.local-first.device-id";
-
-function getOrCreateLocalFirstDeviceId(storage: KeyValueStoragePort): string {
-  const existing = storage.getItem(LOCAL_FIRST_DEVICE_ID_KEY);
-  if (existing) return existing;
-  const id = createRuntimeUuid();
-  storage.setItem(LOCAL_FIRST_DEVICE_ID_KEY, id);
-  return id;
-}
 
 function createPendingBudgetRegistryEntry(
   storage: KeyValueStoragePort,

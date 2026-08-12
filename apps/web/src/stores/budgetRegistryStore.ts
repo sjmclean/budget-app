@@ -25,11 +25,10 @@ import {
   createVersionHistorySnapshotBeforeBudgetSwitch,
 } from "../features/budget/versionHistoryLifecycle";
 import { deleteBudgetById, type BudgetLifecycleResult } from "../features/budget/budgetLifecycle";
-import { createBudgetFromSetup } from "../features/budget/newBudget/createBudgetFromSetup";
+import { createLocalFirstBudgetFromSetup } from "../features/budget/newBudget/createLocalFirstBudgetFromSetup";
 import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import { getBudgetPersistenceProvider } from "../features/persistence/budgetPersistenceProviderFactory";
-import { provisionFreshLocalFirstBudget } from "../features/persistence/localFirst/freshBudgetProvisioning";
 
 interface BudgetRegistryState {
   budgets: BudgetSummary[];
@@ -55,16 +54,12 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
   },
 
   createBudgetWithSetup: async (setup) => {
-    const budget = createBudgetFromSetup(getActiveKeyValueStorage(), setup);
+    const budget = await createLocalFirstBudgetFromSetup(
+      getActiveKeyValueStorage(),
+      setup,
+    );
     set({ budgets: readBudgetRegistry(getActiveKeyValueStorage()) });
-    try {
-      await provisionFreshLocalFirstBudget(budget.id);
-      return budget;
-    } catch (error) {
-      deleteBudgetById(getActiveKeyValueStorage(), budget.id);
-      set({ budgets: readBudgetRegistry(getActiveKeyValueStorage()) });
-      throw error;
-    }
+    return budget;
   },
 
   importYnab4Budget: async (input) => {
