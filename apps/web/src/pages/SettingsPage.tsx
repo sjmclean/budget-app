@@ -34,7 +34,6 @@ import {
   createVersionHistorySnapshotBeforeBudgetDelete,
   createVersionHistorySnapshotBeforeBudgetReset,
 } from "../features/budget/versionHistoryLifecycle";
-import { browserLocalStorageKeyValueStorage } from "../features/persistence/keyValueStoragePort";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import {
   assertBrowserBudgetFeatureAvailable,
@@ -258,7 +257,7 @@ export function SettingsPage({
   const [activeSection, setActiveSection] = useState<SettingsSectionId>(initialSection);
   const [dataView, setDataView] = useState<DataSettingsView>(initialDataView);
   const [settings, setSettings] = useState<SettingsPreferences>(() =>
-    readSettingsPreferences(browserLocalStorageKeyValueStorage),
+    readSettingsPreferences(getActiveKeyValueStorage()),
   );
   const [statusMessage, setStatusMessage] = useState("Settings saved locally.");
   const [dataStatusMessage, setDataStatusMessage] = useState("Export or back up the currently selected budget.");
@@ -320,7 +319,7 @@ export function SettingsPage({
   );
 
   function persist(next: SettingsPreferences, message = "Settings saved locally.") {
-    const saved = writeSettingsPreferences(browserLocalStorageKeyValueStorage, next);
+    const saved = writeSettingsPreferences(getActiveKeyValueStorage(), next);
     setSettings(saved);
     notifySettingsPreferencesChanged();
     setStatusMessage(message);

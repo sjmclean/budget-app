@@ -1,4 +1,4 @@
-import { browserLocalStorageKeyValueStorage } from "../persistence/keyValueStoragePort";
+import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
 import {
   defaultSettingsPreferences,
   readSettingsPreferences,
@@ -11,7 +11,7 @@ export type DisplayDateStyle = "long" | "short";
 
 export function getStoredDateFormatPreference(): DateFormatPreference {
   try {
-    return readSettingsPreferences(browserLocalStorageKeyValueStorage).general.dateFormat;
+    return readSettingsPreferences(getActiveKeyValueStorage()).general.dateFormat;
   } catch {
     return defaultSettingsPreferences.general.dateFormat;
   }
