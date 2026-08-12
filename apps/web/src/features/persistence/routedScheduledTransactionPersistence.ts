@@ -3,7 +3,7 @@ import type {
   ScheduledTransactionView,
   UpsertScheduledTransactionInput,
 } from "../accounts/scheduledTransactionPersistencePort";
-import { scheduledTransactionToRegisterInput } from "../accounts/scheduledTransactionService";
+import { scheduledTransactionToRegisterInput } from "../accounts/scheduledTransactionToRegisterInput";
 import { getActiveBudgetIdFromStorage } from "../budget/budgetDataScope";
 import { localCalendarDate } from "../dates/localCalendarDate";
 import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";

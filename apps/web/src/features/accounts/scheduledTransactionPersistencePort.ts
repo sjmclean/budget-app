@@ -9,7 +9,7 @@ import type {
   ScheduledTransactionView,
   ScheduledWeekendPolicy,
   UpsertScheduledTransactionInput,
-} from "./scheduledTransactionService";
+} from "./scheduledTransactionTypes";
 
 export type {
   ScheduledEndCondition,
@@ -21,7 +21,7 @@ export type {
   ScheduledTransactionView,
   ScheduledWeekendPolicy,
   UpsertScheduledTransactionInput,
-} from "./scheduledTransactionService";
+} from "./scheduledTransactionTypes";
 
 /**
  * Browser-safe scheduled transaction persistence boundary for the web UI.
