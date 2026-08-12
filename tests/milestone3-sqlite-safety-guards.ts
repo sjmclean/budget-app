@@ -6,11 +6,11 @@ import {
   HostedSqliteFeatureUnavailableError,
   isHostedSqliteBudget,
 } from "../apps/web/src/features/persistence/hostedBudgetSafety.ts";
-import type { HostedAccountRegisterQueryClient } from "../apps/web/src/features/persistence/hostedAccountRegisterQueryClient.ts";
+import type { AccountRegisterQueryClient } from "../apps/web/src/features/persistence/accountRegisterQueryContracts.ts";
 
 function clientWithState(
   state: "legacy" | "active",
-): HostedAccountRegisterQueryClient {
+): AccountRegisterQueryClient {
   return {
     async getBudgetStatus(budgetId) {
       return {
@@ -25,7 +25,7 @@ function clientWithState(
         },
       };
     },
-  } as HostedAccountRegisterQueryClient;
+  } as AccountRegisterQueryClient;
 }
 
 const hosted = clientWithState("active");

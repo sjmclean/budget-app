@@ -10,7 +10,6 @@ import {
 /**
  * Creates the sole browser persistence runtime.
  *
- * Legacy browser localStorage is read only through the one-way migration reader
  * owned by the local database provider; it is no longer a selectable backend.
  */
 export function createConfiguredBudgetPersistenceProvider(

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createSqliteBudgetViewService } from "../apps/web/src/features/persistence/createSqliteBudgetViewService";
-import type { HostedAccountRegisterQueryClient } from "../apps/web/src/features/persistence/hostedAccountRegisterQueryClient";
+import type { AccountRegisterQueryClient } from "../apps/web/src/features/persistence/accountRegisterQueryContracts";
 import type { BudgetMonthView } from "../apps/web/src/features/budget/budgetViewTypes";
 
 const view: BudgetMonthView = {
@@ -37,7 +37,7 @@ const hosted = {
     return view;
   },
   async getBudgetCategoryOptions() { return []; },
-} as unknown as HostedAccountRegisterQueryClient;
+} as unknown as AccountRegisterQueryClient;
 
 const service = createSqliteBudgetViewService(hosted);
 assert.equal(await service.getBudgetMonthView({ budgetId: "budget", month: "2026-08" }), view);

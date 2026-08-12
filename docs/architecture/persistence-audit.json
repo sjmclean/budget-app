@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T01:32:30.575Z",
+  "generatedAt": "2026-08-12T01:55:56.449Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -12,7 +12,7 @@
     "reactiveUpdates": "persistence change bus publishes batched remote changes to React consumers"
   },
   "counts": {
-    "localStorage": 17,
+    "localStorage": 16,
     "indexedDB": 2,
     "replicationApi": 2,
     "persistenceBoundary": 66,
@@ -36,7 +36,6 @@
       "apps/web/src/features/budget/categoryPersistencePort.ts",
       "apps/web/src/features/budget/ynab4LauncherImport.ts",
       "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
-      "apps/web/src/features/persistence/configuredPersistenceProvider.ts",
       "apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
       "apps/web/src/layouts/AppShell.tsx",
       "apps/web/src/pages/BudgetPage.tsx",
@@ -1521,12 +1520,6 @@
       "line": 162
     },
     {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/persistence/configuredPersistenceProvider.ts",
-      "line": 13,
-      "classification": "review-required"
-    },
-    {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/configuredPersistenceProvider.ts",
       "line": 1
@@ -1534,12 +1527,12 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/configuredPersistenceProvider.ts",
-      "line": 18
+      "line": 17
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/configuredPersistenceProvider.ts",
-      "line": 39
+      "line": 38
     },
     {
       "kind": "persistenceBoundary",
@@ -1619,27 +1612,27 @@
     {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/index.ts",
-      "line": 53
+      "line": 62
     },
     {
       "kind": "operationJournal",
-      "path": "apps/web/src/features/persistence/index.ts",
-      "line": 54
-    },
-    {
-      "kind": "operationJournal",
-      "path": "apps/web/src/features/persistence/index.ts",
-      "line": 56
-    },
-    {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/index.ts",
-      "line": 61
-    },
-    {
-      "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/index.ts",
       "line": 63
+    },
+    {
+      "kind": "operationJournal",
+      "path": "apps/web/src/features/persistence/index.ts",
+      "line": 65
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/index.ts",
+      "line": 70
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/index.ts",
+      "line": 72
     },
     {
       "kind": "persistenceBoundary",

@@ -4,11 +4,11 @@ import {
   type LocalDatabaseKeyValueStorage,
 } from "./localDatabaseKeyValueStorage";
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
-import type { HostedAccountRegisterQueryClient } from "./hostedAccountRegisterQueryClient";
+import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";
 
 export interface LocalDatabasePersistenceProviderOptions {
   readonly storage?: LocalDatabaseKeyValueStorage;
-  readonly accountRegisterQueries?: HostedAccountRegisterQueryClient;
+  readonly accountRegisterQueries?: AccountRegisterQueryClient;
 }
 
 /**

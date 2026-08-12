@@ -14,7 +14,7 @@ import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { OperationJournalPort } from "./operationJournal";
 import type { ReplicationLocalStorePort } from "./replication";
 import { exportBudgetPersistenceSnapshot } from "./persistenceSnapshot";
-import type { HostedAccountRegisterQueryClient } from "./hostedAccountRegisterQueryClient";
+import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";
 import { createHostedScheduledTransactionPersistence } from "./hostedScheduledTransactionPersistence";
 import { createSqliteBudgetViewService } from "./createSqliteBudgetViewService";
 
@@ -28,7 +28,7 @@ export interface CreateKeyValueBudgetPersistenceProviderOptions {
   readonly checkpoints?: CheckpointPort;
   readonly replicationStore?: ReplicationLocalStorePort;
   readonly conflicts?: ConflictResolutionPort;
-  readonly accountRegisterQueries?: HostedAccountRegisterQueryClient;
+  readonly accountRegisterQueries?: AccountRegisterQueryClient;
 }
 
 /**

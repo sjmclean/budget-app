@@ -1,13 +1,13 @@
 import type {
-  HostedBudgetRestoreResult,
-} from "../hostedAccountRegisterQueryClient";
+  BudgetRestoreResult,
+} from "../accountRegisterQueryContracts";
 
 export interface BudgetLifecycleControlPlaneClient {
   getBudgetExportUrl(budgetId: string, kind: "backup" | "export"): string;
   restoreBudget(
     budgetId: string,
     file: Blob,
-  ): Promise<HostedBudgetRestoreResult>;
+  ): Promise<BudgetRestoreResult>;
   resetBudget(budgetId: string, month: string): Promise<void>;
   deleteBudget(budgetId: string): Promise<void>;
 }
@@ -84,7 +84,7 @@ export function createBudgetLifecycleControlPlaneClient(
           { code: result.code, status: response.status },
         );
       }
-      return result as HostedBudgetRestoreResult;
+      return result as BudgetRestoreResult;
     },
     async resetBudget(budgetId, month) {
       await writeJson(

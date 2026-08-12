@@ -208,7 +208,7 @@ export class LocalBudgetDatabaseClient {
   getFinancialOverview(
     budgetId: string,
     month: string,
-  ): Promise<import("../hostedAccountRegisterQueryClient").HostedFinancialOverview> {
+  ): Promise<import("../accountRegisterQueryContracts").FinancialOverview> {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "getFinancialOverview",
@@ -220,7 +220,7 @@ export class LocalBudgetDatabaseClient {
   getMonthlySpending(
     budgetId: string,
     month: string,
-  ): Promise<readonly import("../hostedAccountRegisterQueryClient").HostedSpendingCategoryRow[]> {
+  ): Promise<readonly import("../accountRegisterQueryContracts").SpendingCategoryRow[]> {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "getMonthlySpending",

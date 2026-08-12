@@ -1,7 +1,7 @@
 import type {
-  HostedAccountRegisterQueryClient,
-  HostedTransactionWriteInput,
-} from "../hostedAccountRegisterQueryClient";
+  AccountRegisterQueryClient,
+  TransactionWriteInput,
+} from "../accountRegisterQueryContracts";
 import type { BudgetLifecycleControlPlaneClient } from "./budgetLifecycleControlPlaneClient";
 import type { AccountTransactionQuery } from "../../../../../../packages/application/src/accountRegister/AccountRegisterQueryPort";
 import {
@@ -63,7 +63,7 @@ export interface LocalFirstRegisterRuntimeOptions {
 export function createLocalFirstAccountRegisterQueryClient(
   lifecycle: BudgetLifecycleControlPlaneClient,
   options: LocalFirstRegisterRuntimeOptions = {},
-): HostedAccountRegisterQueryClient {
+): AccountRegisterQueryClient {
   const relay = createLocalFirstRelayTransport({ apiBaseUrl: options.apiBaseUrl });
   const storage = options.storage ?? globalThis.localStorage;
   const deviceId = readOrCreateDeviceId(storage);
@@ -421,7 +421,7 @@ export function createLocalFirstAccountRegisterQueryClient(
 
   async function transactionRecord(
     id: string,
-    input: HostedTransactionWriteInput,
+    input: TransactionWriteInput,
     existing?: LocalTransactionRecord | null,
   ): Promise<LocalTransactionRecord> {
     return {
@@ -595,7 +595,7 @@ export function createLocalFirstAccountRegisterQueryClient(
     }));
   }
 
-  const client: HostedAccountRegisterQueryClient & {
+  const client: AccountRegisterQueryClient & {
     publishLocalBaseline(budgetId: string): Promise<boolean>;
     listSyncConflicts(budgetId: string): Promise<ReplicationConflict[]>;
     resolveSyncConflict(

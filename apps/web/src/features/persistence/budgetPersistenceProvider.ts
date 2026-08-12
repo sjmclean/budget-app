@@ -10,7 +10,7 @@ import type { ConflictResolutionPort } from "./conflictResolution";
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { OperationJournalPort } from "./operationJournal";
 import type { ReplicationLocalStorePort } from "./replication";
-import type { HostedAccountRegisterQueryClient } from "./hostedAccountRegisterQueryClient";
+import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";
 
 export type PersistenceBackendKind = "local-database";
 
@@ -45,7 +45,7 @@ export interface BudgetPersistenceProvider {
   readonly accounts: AccountPersistencePort;
   readonly accountRegisters: AccountRegisterPersistencePort;
   /** Bounded SQLite read path. Present only when a host transport is configured. */
-  readonly accountRegisterQueries?: HostedAccountRegisterQueryClient;
+  readonly accountRegisterQueries?: AccountRegisterQueryClient;
   readonly budgetView: BudgetViewService;
   readonly categories: CategoryPersistencePort;
   readonly payees: PayeePersistencePort;

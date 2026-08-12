@@ -1,4 +1,4 @@
-import type { HostedAccountRegisterQueryClient } from "./hostedAccountRegisterQueryClient";
+import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";
 
 export const HOSTED_SQLITE_SAFETY_CODE = "HOSTED_SQLITE_FEATURE_UNAVAILABLE";
 
@@ -15,7 +15,7 @@ export class HostedSqliteFeatureUnavailableError extends Error {
 }
 
 export async function isHostedSqliteBudget(
-  client: HostedAccountRegisterQueryClient | undefined,
+  client: AccountRegisterQueryClient | undefined,
   budgetId: string | null | undefined,
 ): Promise<boolean> {
   if (!client || !budgetId) {
@@ -31,7 +31,7 @@ export async function isHostedSqliteBudget(
 }
 
 export async function assertBrowserBudgetFeatureAvailable(
-  client: HostedAccountRegisterQueryClient | undefined,
+  client: AccountRegisterQueryClient | undefined,
   budgetId: string | null | undefined,
   feature: string,
 ): Promise<void> {

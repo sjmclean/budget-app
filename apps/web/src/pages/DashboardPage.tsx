@@ -5,8 +5,8 @@ import { resolveActiveBudget } from "../features/budget/activeBudget";
 import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
 import { getBudgetPersistenceProvider } from "../features/persistence/budgetPersistenceProviderFactory";
 import type {
-  HostedFinancialOverview as FinancialOverviewSummary,
-} from "../features/persistence/hostedAccountRegisterQueryClient";
+  FinancialOverview as FinancialOverviewSummary,
+} from "../features/persistence/accountRegisterQueryContracts";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 type NetWorthPoint = FinancialOverviewSummary["netWorthTrend"][number];

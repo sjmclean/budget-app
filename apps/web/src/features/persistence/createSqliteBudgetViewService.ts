@@ -1,13 +1,13 @@
 import type { BudgetViewService } from "../budget/budgetViewTypes";
-import type { HostedAccountRegisterQueryClient } from "./hostedAccountRegisterQueryClient";
+import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";
 
 const SQLITE_BUDGET_REQUIRED =
   "Budget operations require an active local-first SQLite budget generation.";
 
 async function requireBudgetMonths(
-  hosted: HostedAccountRegisterQueryClient | undefined,
+  hosted: AccountRegisterQueryClient | undefined,
   budgetId: string,
-): Promise<HostedAccountRegisterQueryClient> {
+): Promise<AccountRegisterQueryClient> {
   if (!hosted) throw new Error(SQLITE_BUDGET_REQUIRED);
   const status = await hosted.getBudgetStatus(budgetId);
   if (!status.capabilities.budgetMonths) throw new Error(SQLITE_BUDGET_REQUIRED);
@@ -15,7 +15,7 @@ async function requireBudgetMonths(
 }
 
 export function createSqliteBudgetViewService(
-  hosted: HostedAccountRegisterQueryClient | undefined,
+  hosted: AccountRegisterQueryClient | undefined,
 ): BudgetViewService {
   return {
     async getBudgetMonthView(input) {

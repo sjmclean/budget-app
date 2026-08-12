@@ -29,9 +29,18 @@ export type { LocalDatabaseKeyValueStorage } from "./localDatabaseKeyValueStorag
 export { createLocalDatabasePersistenceProvider } from "./localDatabasePersistenceProvider";
 export type { LocalDatabasePersistenceProviderOptions } from "./localDatabasePersistenceProvider";
 export type {
-  HostedAccountRegisterQueryClient,
-  HostedBudgetEngineStatus,
-} from "./hostedAccountRegisterQueryClient";
+  AccountNavigation,
+  AccountRegisterBootstrap,
+  AccountRegisterQueryClient,
+  BudgetEngineStatus,
+  BudgetRestoreResult,
+  CategoryMutation,
+  FinancialOverview,
+  SpendingCategoryRow,
+  TransactionSplitWriteInput,
+  TransactionTarget,
+  TransactionWriteInput,
+} from "./accountRegisterQueryContracts";
 export {
   assertBrowserBudgetFeatureAvailable,
   HOSTED_SQLITE_SAFETY_CODE,

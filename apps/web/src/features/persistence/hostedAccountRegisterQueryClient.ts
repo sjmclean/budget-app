@@ -28,225 +28,18 @@ import type {
   ScheduledTransactionView,
   UpsertScheduledTransactionInput,
 } from "../accounts/scheduledTransactionService";
-
-export interface HostedBudgetEngineStatus {
-  readonly budgetId: string;
-  readonly generationId: string | null;
-  readonly state: "legacy" | "staging" | "active" | "retired";
-  readonly activatedAt: number | null;
-  readonly capabilities: {
-    readonly accountRegisters: boolean;
-    readonly budgetMonths: boolean;
-    readonly analytics: boolean;
-    readonly scheduledTransactions?: boolean;
-  };
-}
-
-export interface HostedAccountRegisterQueryClient extends AccountRegisterQueryPort {
-  /** Releases this tab's OPFS worker before an exclusive import/restore operation. */
-  releaseLocalDatabase?(): Promise<void>;
-  getBudgetStatus(budgetId: string): Promise<HostedBudgetEngineStatus>;
-  getAccountRegisterBootstrap(
-    input: AccountTransactionQuery,
-  ): Promise<HostedAccountRegisterBootstrap>;
-  prefetchAccountRegister(input: AccountTransactionQuery): void;
-  listAccounts(budgetId: string): Promise<readonly SidebarAccount[]>;
-  listAccountNavigation(budgetId: string): Promise<readonly HostedAccountNavigation[]>;
-  setAccountClosed(input: {
-    readonly budgetId: string;
-    readonly accountId: string;
-    readonly closed: boolean;
-  }): Promise<void>;
-  getBudgetMonthView(input: {
-    readonly budgetId: string;
-    readonly month: string;
-  }): Promise<BudgetMonthView>;
-  prefetchBudgetMonthView(input: {
-    readonly budgetId: string;
-    readonly month: string;
-  }): void;
-  setCategoryAssignedValues(input: {
-    readonly budgetId: string;
-    readonly month: string;
-    readonly assignments: readonly {
-      readonly categoryId: string;
-      readonly assigned: number;
-    }[];
-  }): Promise<BudgetMonthView>;
-  getBudgetCategoryOptions(input: {
-    readonly budgetId: string;
-    readonly month: string;
-  }): Promise<readonly BudgetCategoryOption[]>;
-  getFinancialOverview(
-    budgetId: string,
-    month: string,
-  ): Promise<HostedFinancialOverview>;
-  getMonthlySpending(
-    budgetId: string,
-    month: string,
-  ): Promise<readonly HostedSpendingCategoryRow[]>;
-  getMonthlyCategoryTransactions(
-    budgetId: string,
-    month: string,
-    categoryId: string,
-  ): Promise<readonly RegisterTransactionView[]>;
-  getCategoryActivityDrilldown(input: {
-    readonly budgetId: string;
-    readonly month: string;
-    readonly categoryId: string;
-  }): Promise<BudgetActivityDrilldown>;
-  addTransaction(input: HostedTransactionWriteInput & { readonly id: string }): Promise<void>;
-  commitTransactionBatch(input: {
-    readonly budgetId: string;
-    readonly accountId: string;
-    readonly additions: readonly (HostedTransactionWriteInput & { readonly id: string })[];
-    readonly updates: readonly (HostedTransactionWriteInput & { readonly id: string })[];
-  }): Promise<void>;
-  moveTransactions(input: {
-    readonly budgetId: string;
-    readonly sourceAccountId: string;
-    readonly targetAccountId: string;
-    readonly transactionIds: readonly string[];
-  }): Promise<void>;
-  updateTransaction(transactionId: string, input: HostedTransactionWriteInput): Promise<void>;
-  toggleTransactionCleared(transactionId: string, input: HostedTransactionTarget): Promise<void>;
-  deleteTransaction(transactionId: string, input: HostedTransactionTarget): Promise<void>;
-  addTransactionAttachment(input: HostedTransactionTarget & {
-    readonly transactionId: string;
-    readonly attachment: Omit<RegisterAttachmentView, "contentDataUrl" | "contentRef" | "storageType">;
-    readonly content: Uint8Array;
-  }): Promise<void>;
-  removeTransactionAttachment(input: HostedTransactionTarget & {
-    readonly transactionId: string;
-    readonly attachmentId: string;
-  }): Promise<void>;
-  readTransactionAttachment(input: {
-    readonly budgetId: string;
-    readonly attachmentId: string;
-  }): Promise<Blob | null>;
-  getBudgetExportUrl(budgetId: string, kind: "backup" | "export"): string;
-  exportBudget?(budgetId: string, kind: "backup" | "export"): Promise<Blob>;
-  restoreBudget(budgetId: string, file: Blob): Promise<HostedBudgetRestoreResult>;
-  resetBudget(budgetId: string, month: string): Promise<void>;
-  deleteBudget(budgetId: string): Promise<void>;
-  createAccount(budgetId: string, input: CreateAccountInput): Promise<readonly SidebarAccount[]>;
-  updateAccount(budgetId: string, input: UpdateAccountInput): Promise<readonly SidebarAccount[]>;
-  deleteAccount(budgetId: string, accountId: string): Promise<DeleteAccountResult>;
-  listPayees(budgetId: string, archived?: boolean): Promise<readonly PayeeView[]>;
-  listPayeeDuplicateSuppressions?(budgetId: string): Promise<readonly { readonly leftPayeeId: string; readonly rightPayeeId: string }[]>;
-  keepPayeesSeparate?(budgetId: string, pairs: readonly { readonly leftPayeeId: string; readonly rightPayeeId: string }[]): Promise<void>;
-  createPayee(budgetId: string, name: string): Promise<readonly PayeeView[]>;
-  updatePayee(
-    budgetId: string,
-    input: Pick<UpdatePayeeInput, "id"> & Partial<Omit<UpdatePayeeInput, "id">>,
-  ): Promise<readonly PayeeView[]>;
-  setPayeeArchived(budgetId: string, payeeId: string, archived: boolean): Promise<readonly PayeeView[]>;
-  deleteUnusedPayee?(budgetId: string, payeeId: string): Promise<readonly PayeeView[]>;
-  mergePayees(budgetId: string, input: MergePayeesInput): Promise<readonly PayeeView[]>;
-  listTransactionTags(budgetId: string): Promise<readonly TransactionTagDefinition[]>;
-  replaceTransactionTags(
-    budgetId: string,
-    tags: readonly TransactionTagDefinition[],
-  ): Promise<readonly TransactionTagDefinition[]>;
-  listScheduledTransactions(
-    budgetId: string,
-    accountId: string,
-  ): Promise<readonly ScheduledTransactionView[]>;
-  createScheduledTransaction(
-    budgetId: string,
-    input: UpsertScheduledTransactionInput,
-  ): Promise<readonly ScheduledTransactionView[]>;
-  updateScheduledTransaction(
-    budgetId: string,
-    scheduleId: string,
-    input: UpsertScheduledTransactionInput,
-  ): Promise<readonly ScheduledTransactionView[]>;
-  deleteScheduledTransaction(
-    budgetId: string,
-    accountId: string,
-    scheduleId: string,
-  ): Promise<readonly ScheduledTransactionView[]>;
-  advanceScheduledTransaction(
-    budgetId: string,
-    accountId: string,
-    scheduleId: string,
-  ): Promise<readonly ScheduledTransactionView[]>;
-  renameScheduledPayeeReferences(budgetId: string, input: {
-    payeeId: string; previousName: string; nextName: string;
-  }): Promise<void>;
-  reassignScheduledPayeeReferences(budgetId: string, input: {
-    sourcePayeeId: string; sourceName: string;
-    targetPayeeId: string; targetName: string;
-  }): Promise<void>;
-  mutateCategory(budgetId: string, input: HostedCategoryMutation): Promise<BudgetMonthView>;
-  getCategoryMergePreview(input: {
-    readonly budgetId: string;
-    readonly month: string;
-    readonly sourceCategoryId: string;
-    readonly targetCategoryId: string;
-  }): Promise<CategoryMergePreview>;
-}
-
-export interface HostedCategoryMutation {
-  readonly operation: string;
-  readonly month: string;
-  readonly [key: string]: unknown;
-}
-
-export interface HostedBudgetRestoreResult {
-  readonly restored: boolean;
-  readonly counts: {
-    readonly accounts: number;
-    readonly payees: number;
-    readonly categories: number;
-    readonly transactions: number;
-    readonly budgetMonths: number;
-    readonly transactionTags: number;
-    readonly transactionTagAssignments: number;
-    readonly scheduledTransactions: number;
-  };
-}
-
-export interface HostedFinancialOverview {
-  readonly month: string;
-  readonly monthLabel: string;
-  readonly netWorth: number;
-  readonly netWorthChangeThisMonth: number;
-  readonly netWorthChangePeriod: number;
-  readonly netWorthTrend: readonly {
-    readonly month: string;
-    readonly label: string;
-    readonly value: number;
-  }[];
-  readonly monthlySnapshot: {
-    readonly income: number;
-    readonly expenses: number;
-    readonly savings: number;
-    readonly readyToAssign: number;
-  };
-  readonly attention: {
-    readonly overspentCategories: number;
-    readonly uncategorisedTransactions: number;
-    readonly uncategorisedAccountId?: string;
-  };
-}
-
-export interface HostedSpendingCategoryRow {
-  readonly categoryId: string;
-  readonly categoryName: string;
-  readonly groupName: string;
-  readonly total: number;
-  readonly transactionCount: number;
-  readonly transactions: readonly RegisterTransactionView[];
-}
-
-export interface HostedAccountNavigation {
-  readonly account: SidebarAccount;
-  readonly currencyCode: string;
-  readonly workingBalance: number;
-  readonly hasUncategorizedTransactions: boolean;
-  readonly transactionCount: number;
-}
+import type {
+  AccountNavigation,
+  AccountRegisterBootstrap,
+  AccountRegisterQueryClient,
+  BudgetEngineStatus,
+  BudgetRestoreResult,
+  CategoryMutation,
+  FinancialOverview,
+  SpendingCategoryRow,
+  TransactionTarget,
+  TransactionWriteInput,
+} from "./accountRegisterQueryContracts";
 
 interface HostedAccountRow {
   readonly id: string;
@@ -261,65 +54,22 @@ interface HostedAccountRow {
   readonly transactionCount: number;
 }
 
-export interface HostedAccountRegisterBootstrap {
-  readonly summary: AccountRegisterSummary;
-  readonly page: AccountTransactionPage;
-}
-
-export interface HostedTransactionTarget {
-  readonly budgetId: string;
-  readonly accountId: string;
-}
-
-export interface HostedTransactionWriteInput extends HostedTransactionTarget {
-  readonly date: string;
-  readonly amount: number;
-  readonly payeeId?: string;
-  readonly rawPayee?: string;
-  readonly categoryId?: string;
-  readonly categoryName?: string;
-  readonly memo?: string;
-  readonly checkNumber?: string;
-  readonly payeeName?: string;
-  readonly transferAccountId?: string;
-  readonly splitLines?: readonly HostedTransactionSplitWriteInput[];
-  readonly tagIds?: readonly string[];
-  readonly generatedFromSchedule?: boolean;
-  readonly scheduledTransactionId?: string;
-  readonly scheduledOccurrenceDate?: string;
-}
-
-export interface HostedTransactionSplitWriteInput {
-  readonly id: string;
-  readonly categoryId?: string;
-  readonly categoryName?: string;
-  readonly transferAccountId?: string;
-  readonly transferTransactionId?: string;
-  readonly memo?: string;
-  readonly amount: number;
-}
-
-/**
- * @deprecated Hosted budget-domain HTTP endpoints are retired. This factory
- * remains source-private only while legacy tests and import migration code are
- * dismantled. Browser composition must use the local-first client.
- */
 export function createHostedAccountRegisterQueryClient(options: {
   readonly apiBaseUrl?: string;
   readonly fetchImplementation?: typeof fetch;
-} = {}): HostedAccountRegisterQueryClient {
+} = {}): AccountRegisterQueryClient {
   const fetchImplementation = options.fetchImplementation ?? fetch;
   const apiBaseUrl = (options.apiBaseUrl ?? "").replace(/\/+$/, "");
   const statusCache = new Map<string, {
     readonly expiresAt: number;
-    readonly value: Promise<HostedBudgetEngineStatus>;
+    readonly value: Promise<BudgetEngineStatus>;
   }>();
   const STATUS_CACHE_MS = 30_000;
   const REGISTER_BOOTSTRAP_CACHE_MS = 10_000;
   const BUDGET_MONTH_CACHE_MS = 10_000;
   const registerBootstrapCache = new Map<string, {
     readonly expiresAt: number;
-    readonly value: Promise<HostedAccountRegisterBootstrap>;
+    readonly value: Promise<AccountRegisterBootstrap>;
   }>();
   const budgetMonthCache = new Map<string, {
     readonly expiresAt: number;
@@ -371,7 +121,7 @@ export function createHostedAccountRegisterQueryClient(options: {
     return result as unknown as T;
   }
 
-  function transactionPath(input: HostedTransactionTarget, transactionId?: string) {
+  function transactionPath(input: TransactionTarget, transactionId?: string) {
     const base = `/api/budget-engine/budgets/${encodeURIComponent(input.budgetId)}` +
       `/accounts/${encodeURIComponent(input.accountId)}/transactions`;
     return transactionId ? `${base}/${encodeURIComponent(transactionId)}` : base;
@@ -401,7 +151,7 @@ export function createHostedAccountRegisterQueryClient(options: {
     const key = `${input.budgetId}\u0000${input.accountId}\u0000${search}`;
     const cached = registerBootstrapCache.get(key);
     if (cached && cached.expiresAt > Date.now()) return cached.value;
-    const value = readJson<HostedAccountRegisterBootstrap>(
+    const value = readJson<AccountRegisterBootstrap>(
       `/api/budget-engine/budgets/${encodeURIComponent(input.budgetId)}` +
         `/accounts/${encodeURIComponent(input.accountId)}/register?${search}`,
     );
@@ -439,7 +189,7 @@ export function createHostedAccountRegisterQueryClient(options: {
     getBudgetStatus(budgetId) {
       const cached = statusCache.get(budgetId);
       if (cached && cached.expiresAt > Date.now()) return cached.value;
-      const value = readJson<HostedBudgetEngineStatus>(
+      const value = readJson<BudgetEngineStatus>(
         `/api/budget-engine/budgets/${encodeURIComponent(budgetId)}/status`,
       );
       statusCache.set(budgetId, {
@@ -486,7 +236,7 @@ export function createHostedAccountRegisterQueryClient(options: {
       statusCache.delete(budgetId);
       registerBootstrapCache.clear();
       budgetMonthCache.clear();
-      return result as HostedBudgetRestoreResult;
+      return result as BudgetRestoreResult;
     },
     async resetBudget(budgetId, month) {
       await writeJson(
@@ -685,12 +435,12 @@ export function createHostedAccountRegisterQueryClient(options: {
     },
 
     async listAccounts(budgetId) {
-      return (await readHostedAccountNavigation(budgetId))
+      return (await readAccountNavigation(budgetId))
         .map((entry) => entry.account);
     },
 
     listAccountNavigation(budgetId) {
-      return readHostedAccountNavigation(budgetId);
+      return readAccountNavigation(budgetId);
     },
 
     setAccountClosed(input) {
@@ -741,7 +491,7 @@ export function createHostedAccountRegisterQueryClient(options: {
     },
 
     getFinancialOverview(budgetId, month) {
-      return readJson<HostedFinancialOverview>(
+      return readJson<FinancialOverview>(
         `/api/budget-engine/budgets/${encodeURIComponent(budgetId)}` +
           `/dashboard/${encodeURIComponent(month)}`,
       );
@@ -749,7 +499,7 @@ export function createHostedAccountRegisterQueryClient(options: {
 
     async getMonthlySpending(budgetId, month) {
       const result = await readJson<{
-        rows: readonly HostedSpendingCategoryRow[];
+        rows: readonly SpendingCategoryRow[];
       }>(
         `/api/budget-engine/budgets/${encodeURIComponent(budgetId)}` +
           `/reports/${encodeURIComponent(month)}/spending`,
@@ -877,9 +627,9 @@ export function createHostedAccountRegisterQueryClient(options: {
     },
   };
 
-  async function readHostedAccountNavigation(
+  async function readAccountNavigation(
     budgetId: string,
-  ): Promise<readonly HostedAccountNavigation[]> {
+  ): Promise<readonly AccountNavigation[]> {
     const result = await readJson<{
       readonly accounts: readonly HostedAccountRow[];
     }>(

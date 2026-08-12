@@ -5,12 +5,12 @@ import type {
 } from "../accounts/scheduledTransactionPersistencePort";
 import { getActiveBudgetIdFromStorage } from "../budget/budgetDataScope";
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
-import type { HostedAccountRegisterQueryClient } from "./hostedAccountRegisterQueryClient";
+import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";
 import { localCalendarDate } from "../dates/localCalendarDate";
 
 export function createHostedScheduledTransactionPersistence(options: {
   storage: KeyValueStoragePort;
-  hosted: HostedAccountRegisterQueryClient;
+  hosted: AccountRegisterQueryClient;
   fallback: ScheduledTransactionPersistencePort;
 }): ScheduledTransactionPersistencePort {
   const migrationKey = (budgetId: string, accountId: string) =>
