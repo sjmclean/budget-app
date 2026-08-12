@@ -39,7 +39,7 @@ assert.match(settings, /deleteBudgetById\(getActiveKeyValueStorage\(\), deleting
 assert.doesNotMatch(settings, /deleteCurrentBudget/);
 assert.doesNotMatch(
   settings.match(/async function handleDeleteCurrentBudget\(\)[\s\S]*?\n  }/)?.[0] ?? "",
-  /isHostedSqliteBudget|packagePath\.startsWith/,
+  /isActiveSqliteBudget|packagePath\.startsWith/,
 );
 assert.match(server, /budgetDeletionLifecycle\.deleteBudgetForUser\(/);
 assert.match(server, /isIdempotentDeletion/);

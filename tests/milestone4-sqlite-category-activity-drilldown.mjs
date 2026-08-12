@@ -33,7 +33,7 @@ assert.match(worker, /rowCount > 2_000/);
 assert.match(worker, /Math\.round\(netActivity \* 100\) !== Math\.round\(category\.activity \* 100\)/);
 assert.match(provider, /getCategoryActivityDrilldown\(input\)/);
 assert.match(provider, /requireBudgetMonths\(hosted, input\.budgetId\)/);
-assert.doesNotMatch(workspace, /assertBrowserBudgetFeatureAvailable/);
+assert.doesNotMatch(workspace, /assertLegacyBudgetFeatureAvailable/);
 
 console.log(
   "Milestone 4 SQLite category activity drill-down contracts passed: bounded rows, engine-equivalent filtering, and projection reconciliation.",

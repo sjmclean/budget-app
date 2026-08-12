@@ -42,11 +42,11 @@ export type {
   TransactionWriteInput,
 } from "./accountRegisterQueryContracts";
 export {
-  assertBrowserBudgetFeatureAvailable,
-  HOSTED_SQLITE_SAFETY_CODE,
-  HostedSqliteFeatureUnavailableError,
-  isHostedSqliteBudget,
-} from "./hostedBudgetSafety";
+  assertLegacyBudgetFeatureAvailable,
+  SQLITE_BUDGET_FEATURE_UNAVAILABLE_CODE,
+  SqliteBudgetFeatureUnavailableError,
+  isActiveSqliteBudget,
+} from "./sqliteBudgetSafety";
 export type {
   SqliteImportAccount,
   SqliteImportBudgetMonth,

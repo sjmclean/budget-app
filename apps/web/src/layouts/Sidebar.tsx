@@ -37,7 +37,7 @@ import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { getCurrentBudgetMonth } from "../features/budget/budgetMonthNavigation";
 import type { CreditCardBehaviour } from "../features/budget/budgetPreferences";
 import { getBudgetPersistenceProvider } from "../features/persistence";
-import { isHostedSqliteBudget } from "../features/persistence/hostedBudgetSafety";
+import { isActiveSqliteBudget } from "../features/persistence/sqliteBudgetSafety";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import { isLargeStreamingYnab4Budget } from "../features/budget/ynab4/finaliseYnab4Import.js";
 import { alertDialog, confirmDialog } from "../features/ui/appDialogService";
@@ -282,7 +282,7 @@ export function Sidebar({
     const nextAccounts =
       activeBudgetId &&
       accountRegisterQueries &&
-      await isHostedSqliteBudget(accountRegisterQueries, activeBudgetId)
+      await isActiveSqliteBudget(accountRegisterQueries, activeBudgetId)
         ? [...await accountRegisterQueries.createAccount(activeBudgetId, input)]
         : await accountsPersistence.createAccount(input);
     setAccounts(nextAccounts);
@@ -293,7 +293,7 @@ export function Sidebar({
     const nextAccounts =
       activeBudgetId &&
       accountRegisterQueries &&
-      await isHostedSqliteBudget(accountRegisterQueries, activeBudgetId)
+      await isActiveSqliteBudget(accountRegisterQueries, activeBudgetId)
         ? [...await accountRegisterQueries.updateAccount(activeBudgetId, input)]
         : await accountsPersistence.updateAccount(input);
     setAccounts(nextAccounts);
@@ -375,7 +375,7 @@ export function Sidebar({
     const result =
       activeBudgetId &&
       accountRegisterQueries &&
-      await isHostedSqliteBudget(accountRegisterQueries, activeBudgetId)
+      await isActiveSqliteBudget(accountRegisterQueries, activeBudgetId)
         ? await accountRegisterQueries.deleteAccount(activeBudgetId, account.id)
         : await accountsPersistence.deleteAccount(account.id);
 

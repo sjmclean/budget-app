@@ -36,9 +36,9 @@ import {
 } from "../features/budget/versionHistoryLifecycle";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import {
-  assertBrowserBudgetFeatureAvailable,
-  isHostedSqliteBudget,
-} from "../features/persistence/hostedBudgetSafety";
+  assertLegacyBudgetFeatureAvailable,
+  isActiveSqliteBudget,
+} from "../features/persistence/sqliteBudgetSafety";
 import { getBudgetPersistenceProvider } from "../features/persistence";
 import { getPersistenceModeSummary } from "../features/persistence/persistenceMode";
 import { getReplicationBackgroundService } from "../features/persistence/replicationService";
@@ -377,7 +377,7 @@ export function SettingsPage({
 
   async function ensureHostedDataOperationSupported(feature: string): Promise<boolean> {
     try {
-      await assertBrowserBudgetFeatureAvailable(
+      await assertLegacyBudgetFeatureAvailable(
         accountRegisterQueries,
         activeBudget?.id,
         feature,
@@ -393,7 +393,7 @@ export function SettingsPage({
     if (
       activeBudget?.id &&
       accountRegisterQueries &&
-      await isHostedSqliteBudget(accountRegisterQueries, activeBudget.id)
+      await isActiveSqliteBudget(accountRegisterQueries, activeBudget.id)
     ) {
       const blob = accountRegisterQueries.exportBudget
         ? await accountRegisterQueries.exportBudget(activeBudget.id, kind)
@@ -506,8 +506,8 @@ export function SettingsPage({
     const isHostedBackup =
       file.type === "application/x-ndjson" ||
       file.name.toLocaleLowerCase().endsWith(".budget-ndjson");
-    void isHostedSqliteBudget(accountRegisterQueries, activeBudget?.id).then((hosted) => {
-      if (hosted || isHostedBackup) {
+    void isActiveSqliteBudget(accountRegisterQueries, activeBudget?.id).then((isActiveSqlite) => {
+      if (isActiveSqlite || isHostedBackup) {
         setHostedRestoreFile(file);
         setRestorePreview(null);
         setRestorePackageRaw(null);
@@ -646,7 +646,7 @@ export function SettingsPage({
   }
 
   async function handleResetCurrentBudget() {
-    const hosted = await isHostedSqliteBudget(accountRegisterQueries, activeBudget?.id);
+    const isActiveSqlite = await isActiveSqliteBudget(accountRegisterQueries, activeBudget?.id);
     const confirmed = await confirmDialog({
       title: "Reset current budget?",
       message:
@@ -660,7 +660,7 @@ export function SettingsPage({
       return;
     }
 
-    if (hosted && activeBudget?.id && accountRegisterQueries) {
+    if (isActiveSqlite && activeBudget?.id && accountRegisterQueries) {
       try {
         await accountRegisterQueries.resetBudget(activeBudget.id, getCurrentBudgetMonth());
         resetCurrentBudget(getActiveKeyValueStorage());

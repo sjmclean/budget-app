@@ -14,7 +14,7 @@ assert.match(page, /updateLinkedTransactions: true/);
 assert.match(page, /updateScheduledTransactions: true/);
 assert.match(page, /addMergedAliases: true/);
 assert.match(page, /redirectRecognitionRules: true/);
-assert.doesNotMatch(page, /isHostedSqliteBudget/,
+assert.doesNotMatch(page, /isActiveSqliteBudget/,
   "local SQLite payee counts and mutations must not depend on remote baseline status");
 assert.match(page, /accountRegisterQueries!\.listPayees\(activeBudgetId!, false\)/,
   "duplicate counts must come from the authoritative local SQLite payee query");

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  assertBrowserBudgetFeatureAvailable,
-  HOSTED_SQLITE_SAFETY_CODE,
-  HostedSqliteFeatureUnavailableError,
-  isHostedSqliteBudget,
-} from "../apps/web/src/features/persistence/hostedBudgetSafety.ts";
+  assertLegacyBudgetFeatureAvailable,
+  SQLITE_BUDGET_FEATURE_UNAVAILABLE_CODE,
+  SqliteBudgetFeatureUnavailableError,
+  isActiveSqliteBudget,
+} from "../apps/web/src/features/persistence/sqliteBudgetSafety.ts";
 import type { AccountRegisterQueryClient } from "../apps/web/src/features/persistence/accountRegisterQueryContracts.ts";
 
 function clientWithState(
@@ -31,19 +31,19 @@ function clientWithState(
 const hosted = clientWithState("active");
 const legacy = clientWithState("legacy");
 
-assert.equal(await isHostedSqliteBudget(hosted, "budget-1"), true);
-assert.equal(await isHostedSqliteBudget(legacy, "budget-1"), false);
-assert.equal(await isHostedSqliteBudget(undefined, "budget-1"), false);
+assert.equal(await isActiveSqliteBudget(hosted, "budget-1"), true);
+assert.equal(await isActiveSqliteBudget(legacy, "budget-1"), false);
+assert.equal(await isActiveSqliteBudget(undefined, "budget-1"), false);
 
 await assert.doesNotReject(
-  assertBrowserBudgetFeatureAvailable(legacy, "budget-1", "Budget backup"),
+  assertLegacyBudgetFeatureAvailable(legacy, "budget-1", "Budget backup"),
 );
 
 await assert.rejects(
-  assertBrowserBudgetFeatureAvailable(hosted, "budget-1", "Budget backup"),
+  assertLegacyBudgetFeatureAvailable(hosted, "budget-1", "Budget backup"),
   (error: unknown) => {
-    assert.ok(error instanceof HostedSqliteFeatureUnavailableError);
-    assert.equal(error.code, HOSTED_SQLITE_SAFETY_CODE);
+    assert.ok(error instanceof SqliteBudgetFeatureUnavailableError);
+    assert.equal(error.code, SQLITE_BUDGET_FEATURE_UNAVAILABLE_CODE);
     assert.match(error.message, /No budget data was changed/);
     return true;
   },
@@ -86,7 +86,7 @@ const workspaceSource = readFileSync(
   new URL("../apps/web/src/features/budget/useBudgetWorkspace.ts", import.meta.url),
   "utf8",
 );
-assert.match(workspaceSource, /assertBrowserBudgetFeatureAvailable/);
+assert.match(workspaceSource, /assertLegacyBudgetFeatureAvailable/);
 assert.doesNotMatch(workspaceSource, /Category administration/);
 
 const payeeSource = readFileSync(
