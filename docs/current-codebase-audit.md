@@ -1,140 +1,110 @@
-# Current Codebase Audit
+# Current Codebase Architecture Audit
 
-Status: post uploaded codebase audit, v1.2.15 root / v1.3.1 web package.
+Status: current local-first architecture.
 
 ## Executive Summary
 
-The repository contains a mature backend/package layer, but the visible React web app still persists most working data through browser `localStorage` services. This creates a split between backend capability and user-visible functionality.
+The web application uses local-first SQLite as the authoritative store for
+budget data through the configured budget persistence provider.
 
-The next roadmap should therefore prioritise integration work before adding more localStorage-only features.
+Application startup configures and initializes persistence before loading the
+main React application. Synchronisation uses the local-first relay
+architecture.
 
-## Audit Table
+Earlier localStorage-based budget persistence has been retired from the
+authoritative runtime. Direct browser localStorage usage that remains is for
+non-authoritative UI state, preferences, sorting/layout choices, suppression
+state, and diagnostic conveniences.
 
-| Area | Backend / package exists | Web UI exists | SQLite wired in UI | Status | Priority |
-|---|---:|---:|---:|---|---|
-| Budget persistence | Yes | Partial | No | Backend exists; UI still localStorage-style | Critical |
-| Accounts | Yes | Yes | No | UI works, but not real DB-backed app flow | Critical |
-| Register transactions | Yes | Yes | No | Strong UI, localStorage persistence | Critical |
-| Transfers | Yes | Yes | No | Present, but UI/backend split remains | High |
-| Splits | Yes | Yes | No | Present; verify edge cases after DB wiring | High |
-| Categories | Yes | Yes | No | Management UI exists; backend also exists | High |
-| Category merge | Yes | Yes | No | Duplicate localStorage/backend logic risk | High |
-| Payees | Yes | Yes | No | Persistence/autocomplete/rename present in UI | High |
-| Payee merge | Yes | No | No | Backend exists; UI missing | High |
-| Payee archive | Yes | No | No | Backend exists; UI missing | High |
-| Scheduled transactions | Yes | Yes | No | UI exists; scheduled splits missing | High |
-| Scheduled splits | Partial/unclear | No | No | Still missing from visible UI | Medium |
-| Attachments | Yes | Partial | No | UI metadata only; open/download/storage unresolved | High |
-| Reconciliation | Yes | No | No | Backend/tests exist; UI missing | High |
-| Budget activity drilldown | Partial | No | No | Activity totals exist; drilldown missing | High |
-| Overspending workflow | Yes | Partial | No | Backend exists; UI not fully wired | High |
-| Cover overspending | Yes | No | No | Backend exists; UI missing | High |
-| Reports | Yes | Stub/partial | No | Backend report calculations exist; UI weak | Medium |
-| Export / backup | Yes | No | No | Backend package exists; UI missing | High |
-| Restore | Yes | No | No | Backend exists; UI missing | High |
-| CSV import | Yes | No | No | Backend preview/commit exists; UI missing | High |
-| QIF import | Yes | No | No | Backend exists; UI missing | High |
-| OFX/QFX import | Yes | No | No | Backend exists; UI missing | High |
-| YNAB4 import | Yes | No | No | Backend importer exists; UI missing | High |
-| Payee rules | Yes | No | No | Backend exists; UI missing | Medium |
-| Auto-categorisation | Yes | No | No | Backend exists; UI missing | Medium |
-| Search/filtering | Yes | Partial/unclear | No | Backend search exists; UI limited | Medium |
-| Undo/redo | Yes | No | No | Backend exists; UI missing | Medium |
-| Security/path safety | Yes | N/A | N/A | Good backend foundations | Medium |
-| Encryption | Yes | No | No | Backend exists; not surfaced in app | Medium |
-| Foreign key integrity | Planned/partial | N/A | N/A | `PRAGMA foreign_keys = ON` exists, but schema lacks real FK constraints | High |
-| Custom in-app messages | No | No | N/A | `alert()` / `confirm()` still used | Medium |
-| Screen clutter review | N/A | Needed | N/A | User concern remains valid | Medium |
-| Tauri desktop | Partial/unclear | No | No | Stack intended; not confirmed wired | High |
-| iPad/PWA path | Partial | Partial | No | Web app exists, but persistence model unresolved | Medium |
+## Authoritative Persistence
 
-## Important Source Findings
+The current browser persistence path is implemented through:
 
-### LocalStorage persistence still drives the web app
+- `apps/web/src/features/persistence/configuredPersistenceProvider.ts`
+- `apps/web/src/features/persistence/localDatabasePersistenceProvider.ts`
+- `apps/web/src/features/persistence/localFirst/`
+- `apps/web/src/main.tsx`
 
-The following web services directly use `window.localStorage`:
+The configured runtime uses:
 
-- `apps/web/src/features/accounts/accountService.ts`
-- `apps/web/src/features/accounts/accountRegisterService.ts`
-- `apps/web/src/features/accounts/payeeService.ts`
-- `apps/web/src/features/budget/budgetViewService.ts`
-- `apps/web/src/stores/uiStore.ts` for UI theme only; this one is acceptable.
+- local-first SQLite
+- local-first account/register query clients
+- local-first relay synchronisation
+- provider-backed key/value persistence where still required
+- persistence initialization before the main React application loads
 
-### Browser dialogs still exist
+## Remaining Browser localStorage
 
-The following UI file still uses a generic browser dialog:
+Direct `window.localStorage` use remains for non-authoritative browser state,
+including:
 
-- `apps/web/src/pages/BudgetPage.tsx`
+- selected-budget diagnostic context
+- register sort preferences
+- navigation rail state
+- budget display/layout preferences
+- payee-management suppression preferences
+- navigation pinning
+- theme preferences
 
-The remaining `window.prompt` usage should be replaced with an app-specific dialog.
+These values are not authoritative budget data.
 
-### Backend features are ahead of UI wiring
+## Current UI Integration
 
-Backend/package services exist for many roadmap features, including:
+The application includes UI integration for major areas including:
 
-- Payee merge/archive
-- Category merge
-- Reconciliation
-- Overspending decisions
-- Backup/restore
-- Import preview/commit/rollback
-- YNAB4 import
-- Security/path safety
-- Search/indexing
-- Undo/redo
+- budgeting and category management
+- accounts and register transactions
+- payee management
+- scheduled transactions
+- transaction import
+- reports
+- restore points
+- undo/redo workflows
+- reconciliation-related transaction behaviour
+- application-specific confirmations, prompts, alerts, and toasts
 
-The issue is not only feature absence; it is that much of this capability is not exposed through the current web UI.
+Detailed feature limitations should be documented in focused architecture,
+feature, or test documents rather than in historical persistence migration
+notes.
 
-## Recommended Roadmap
+## Application Dialogs
 
-| Order | Release | Goal |
-|---:|---|---|
-| 1 | v1.19a | Create/confirm web persistence adapter seam and document current split |
-| 2 | v1.19b | Wire budget selector/accounts/register to DB-backed storage path |
-| 3 | v1.19c | Wire categories/payees/scheduled transactions to DB-backed storage path |
-| 4 | v1.19d | Add Payee Merge UI using existing backend service semantics |
-| 5 | v1.19e | Add Payee Archive / Show Archived / Restore UI |
-| 6 | v1.20 | Replace `alert()` / `confirm()` with in-app dialog/toast system |
-| 7 | v1.21 | Add explicit overspending workflow UI |
-| 8 | v1.22 | Add budget activity drilldown |
-| 9 | v1.23 | Add reconciliation UI |
-| 10 | v1.24 | Add backup/export/restore UI |
-| 11 | v1.25 | Add import UI: CSV/QIF/OFX/QFX |
-| 12 | v1.26 | Add YNAB4 import UI |
+Active UI workflows use the application dialog system rather than native
+browser `alert()`, `confirm()`, or `prompt()` calls.
 
-## Recommendation
+The shared implementation is:
 
-Do not add more localStorage-only feature work unless it is deliberately short-lived prototype work.
+- `apps/web/src/features/ui/appDialogService.ts`
+- `apps/web/src/features/ui/AppDialogsProvider.tsx`
 
-The safest next implementation step is to introduce a narrow persistence seam in the web app, then replace each localStorage service with a DB-backed adapter one feature area at a time.
+## Historical Migration Documents
 
-## v1.19b Follow-up
+Versioned migration documents under `docs/`, such as
+`docs/v119b-persistence-migration-matrix.md`, describe earlier architecture
+at specific development milestones.
 
-A dedicated persistence migration matrix now exists at:
+They are retained as historical records and should not be interpreted as
+descriptions of the current runtime.
 
-- `docs/v119b-persistence-migration-matrix.md`
+## Current Architecture Sources of Truth
 
-The key decision is that the Vite browser app must not directly import the native `better-sqlite3` repository layer. The next implementation step should introduce a browser-safe budget data gateway seam, then migrate one UI service at a time.
+The primary current architecture documents are:
 
+- `docs/architecture/README.md`
+- `docs/architecture/local-first-migration.md`
+- `docs/architecture/persistence-audit-phase-1.md`
+- `docs/architecture/persistence-audit.json`
 
-## v1.22 Payees Persistence Port Update
+Additional architecture documents under `docs/architecture/` may define
+subsystem contracts and are validated by their corresponding scripts/tests.
 
-The payee UI dependency has been moved behind `AppPersistenceGateway.payees` via
-a new `PayeePersistencePort`. Behaviour remains localStorage-backed for now, but
-the account register payee management UI no longer imports the concrete payee
-service directly.
+Regenerate the persistence audit with:
 
-This continues the persistence unification path without adding payee merge or
-archive UI yet.
+    pnpm audit:persistence
 
-## v1.25 update
+Validate architecture changes with:
 
-The account register UI hook now depends on `AppPersistenceGateway.accountRegisters` through `AccountRegisterPersistencePort`. This preserves localStorage behaviour while removing one of the largest remaining direct UI imports of the concrete register service.
-
-The register service implementation itself is still localStorage-backed and should be cleaned up internally before a SQLite adapter is introduced.
-
-## v1.26 update
-
-The register and scheduled transaction localStorage services no longer import the concrete account/payee services directly. Their cross-domain dependencies are now injected from the browser localStorage persistence gateway.
-
-This reduces hidden service-to-service coupling while preserving current behaviour. The biggest remaining persistence issue is now `budgetViewService.ts`, which still reads register and scheduled transaction localStorage keys directly for activity and category reassignment logic.
+    pnpm --filter ./apps/web build
+    pnpm test:required
+    pnpm audit:persistence
+    git diff --check
