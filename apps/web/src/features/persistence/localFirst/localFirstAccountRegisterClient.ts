@@ -24,14 +24,14 @@ import type { BudgetMonthView } from "../../budget/budgetViewTypes";
 import type {
   ScheduledTransactionView,
   UpsertScheduledTransactionInput,
-} from "../../accounts/scheduledTransactionService";
+} from "../../accounts/scheduledTransactionTypes";
 import {
   advanceDateByRule,
   applyWeekendPolicy,
   normaliseSpecificDates,
   normaliseSpecificInstalments,
   recurrenceFromFrequency,
-} from "../../accounts/scheduledTransactionService";
+} from "../../accounts/scheduledTransactionRecurrence";
 import type { TransactionTagDefinition } from "../../tags/transactionTagTypes";
 import { createRuntimeUuid } from "../../ids/createRuntimeUuid";
 import type { ReplicationConflict } from "../conflictResolution";

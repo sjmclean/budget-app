@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T03:57:39.521Z",
+  "generatedAt": "2026-08-12T04:25:43.593Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -557,22 +557,22 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionGenerationService.ts",
-      "line": 12
+      "line": 14
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionGenerationService.ts",
-      "line": 19
+      "line": 21
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionGenerationService.ts",
-      "line": 55
+      "line": 57
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionGenerationService.ts",
-      "line": 97
+      "line": 99
     },
     {
       "kind": "persistenceBoundary",

@@ -21,7 +21,7 @@ import {
   resolveOccurrenceDate,
   resolveRecurrence,
   shouldSkipOccurrence,
-} from "../../features/accounts/scheduledTransactionService";
+} from "../../features/accounts/scheduledTransactionRecurrence";
 import type { RegisterSplitLineView } from "../../features/accounts/accountRegisterTypes";
 import { getSplitBalanceStatus } from "../../features/accounts/registerSplitDrafts";
 import { getBudgetPersistenceProvider } from "../../features/persistence";

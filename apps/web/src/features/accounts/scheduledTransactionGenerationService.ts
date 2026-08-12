@@ -1,9 +1,11 @@
 import type { BudgetPersistenceProvider } from "../persistence/budgetPersistenceProvider";
 import type { NewRegisterTransactionInput, RegisterSplitLineView, RegisterTransactionView } from "./accountRegisterTypes";
+import type {
+  ScheduledTransactionView,
+} from "./scheduledTransactionTypes";
 import {
   shouldSkipOccurrence,
-  type ScheduledTransactionView,
-} from "./scheduledTransactionService";
+} from "./scheduledTransactionRecurrence";
 import { localCalendarDate, normaliseLocalCalendarDate } from "../dates/localCalendarDate";
 
 const MAX_OCCURRENCES_PER_RUN = 120;

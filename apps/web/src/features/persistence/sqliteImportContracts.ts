@@ -68,7 +68,7 @@ export interface SqliteImportBudgetMonth {
 }
 
 export type SqliteImportScheduledTransaction =
-  import("../accounts/scheduledTransactionService").ScheduledTransactionView;
+  import("../accounts/scheduledTransactionTypes").ScheduledTransactionView;
 
 export interface SqliteImportSession {
   readonly generationId: string;

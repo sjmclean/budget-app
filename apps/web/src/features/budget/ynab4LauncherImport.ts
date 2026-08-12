@@ -25,7 +25,7 @@ import {
 } from "../accounts/accountService";
 import type { AccountRegisterView, RegisterTransactionView } from "../accounts/accountRegisterTypes";
 import type { PayeeView } from "../accounts/payeeService";
-import type { ScheduledTransactionView } from "../accounts/scheduledTransactionService";
+import type { ScheduledTransactionView } from "../accounts/scheduledTransactionTypes";
 import { replaceScheduledTransactionEntities } from "../accounts/entities/scheduledTransactionEntity.js";
 import {
   createTransactionEntityRepository,

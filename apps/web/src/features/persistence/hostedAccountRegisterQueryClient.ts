@@ -27,7 +27,7 @@ import type { TransactionTagDefinition } from "../tags/transactionTagTypes";
 import type {
   ScheduledTransactionView,
   UpsertScheduledTransactionInput,
-} from "../accounts/scheduledTransactionService";
+} from "../accounts/scheduledTransactionTypes";
 import type {
   AccountNavigation,
   AccountRegisterBootstrap,

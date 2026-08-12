@@ -10,7 +10,7 @@ import {
   type ReplicatedEntity,
 } from "../../../../../../packages/sync/src/browser.js";
 import type { KeyValueStoragePort } from "../../persistence/keyValueStoragePort.js";
-import type { ScheduledTransactionView } from "../scheduledTransactionService.js";
+import type { ScheduledTransactionView } from "../scheduledTransactionTypes.js";
 
 export const SCHEDULED_TRANSACTION_ENTITY_INDEX_KEY = "budget-app.entity-replication.v1/scheduled-transaction-index";
 export const SCHEDULED_TRANSACTION_ENTITY_RECORD_PREFIX = "budget-app.entity-replication.v1/scheduled-transaction/";
