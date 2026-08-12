@@ -6,8 +6,8 @@ import {
 } from "../budgetRegistry";
 import { getCurrentBudgetMonth } from "../budgetMonthNavigation";
 import {
-  createBudgetMonthView,
-} from "./createBudgetFromSetup";
+  createInitialBudgetMonthView,
+} from "./createInitialBudgetMonthView";
 import {
   getSelectedCategoryGroups,
   type NewBudgetSetup,
@@ -69,7 +69,7 @@ export async function createLocalFirstBudgetFromSetup(
     }
 
     const month = getCurrentBudgetMonth(now);
-    const view = createBudgetMonthView(budget, setup, now);
+    const view = createInitialBudgetMonthView(budget, setup, now);
 
     await database.importEntityBatch([
       {

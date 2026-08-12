@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T02:55:19.036Z",
+  "generatedAt": "2026-08-12T03:05:01.153Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -15,7 +15,7 @@
     "localStorage": 16,
     "indexedDB": 2,
     "replicationApi": 2,
-    "persistenceBoundary": 68,
+    "persistenceBoundary": 67,
     "operationJournal": 11,
     "checkpoints": 7
   },
@@ -76,7 +76,6 @@
     "apps/web/src/features/budget/creditCardBehaviourService.ts",
     "apps/web/src/features/budget/creditCardPaymentCategories.ts",
     "apps/web/src/features/budget/entities/budgetMonthEntity.ts",
-    "apps/web/src/features/budget/newBudget/createBudgetFromSetup.ts",
     "apps/web/src/features/budget/newBudget/createLocalFirstBudgetFromSetup.ts",
     "apps/web/src/features/budget/portableBudgetPackage.ts",
     "apps/web/src/features/budget/versionHistory.ts",
@@ -1037,16 +1036,6 @@
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/entities/budgetMonthEntity.ts",
       "line": 123
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/newBudget/createBudgetFromSetup.ts",
-      "line": 3
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/newBudget/createBudgetFromSetup.ts",
-      "line": 63
     },
     {
       "kind": "persistenceBoundary",

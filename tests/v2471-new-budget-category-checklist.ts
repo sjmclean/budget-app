@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { createBudgetFromSetup } from "../apps/web/src/features/budget/newBudget/createBudgetFromSetup";
+import { createInitialBudgetMonthView } from "../apps/web/src/features/budget/newBudget/createInitialBudgetMonthView";
+import { createBudgetRegistryEntry } from "../apps/web/src/features/budget/budgetRegistry";
 import { defaultNewBudgetSetup } from "../apps/web/src/features/budget/newBudget/budgetTemplates";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort";
 
@@ -59,13 +60,23 @@ function testSelectedAndCustomCategoriesArePersisted() {
     ],
   }));
 
-  createBudgetFromSetup(storage, {
+  const now = new Date("2026-07-02T00:00:00.000Z");
+  const setup = {
     ...defaultNewBudgetSetup,
     name: "Checklist Budget",
     categoryGroups,
-  }, new Date("2026-07-02T00:00:00.000Z"));
+  };
 
-  const budgetView = JSON.parse(storage.getItem("budget-app.budget-view.v1.checklist-budget.2026-07") ?? "null");
+  const budget = createBudgetRegistryEntry(storage, {
+    name: setup.name,
+    currency: setup.currency,
+    dateFormat: setup.dateFormat,
+    numberFormat: setup.numberFormat,
+    firstDayOfWeek: setup.firstDayOfWeek,
+    now,
+  });
+
+  const budgetView = createInitialBudgetMonthView(budget, setup, now);
   assert.equal(budgetView.categoryGroups.length, 1);
   assert.deepEqual(
     budgetView.categoryGroups[0].categories.map((category: { name: string }) => category.name),

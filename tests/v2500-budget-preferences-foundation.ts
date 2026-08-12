@@ -12,7 +12,6 @@ import {
   DEFAULT_BUDGET_PREFERENCES,
   normaliseBudgetPreferences,
 } from "../apps/web/src/features/budget/budgetPreferences";
-import { createBudgetFromSetup } from "../apps/web/src/features/budget/newBudget/createBudgetFromSetup";
 import { defaultNewBudgetSetup } from "../apps/web/src/features/budget/newBudget/budgetTemplates";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort";
 
@@ -104,12 +103,16 @@ function testLegacyBudgetsReceiveDefaultPreferences() {
   assert.match(storage.getItem(BUDGET_REGISTRY_STORAGE_KEY) ?? "", /"preferences"/);
 }
 
-function testNewBudgetSetupUsesDefaultBudgetPreferences() {
+function testNewBudgetRegistryEntryUsesDefaultBudgetPreferences() {
   const storage = new MemoryStorage();
-  const budget = createBudgetFromSetup(storage, {
-    ...defaultNewBudgetSetup,
+  const budget = createBudgetRegistryEntry(storage, {
     name: "Fresh Budget",
-  }, new Date("2026-07-02T00:00:00.000Z"));
+    currency: defaultNewBudgetSetup.currency,
+    dateFormat: defaultNewBudgetSetup.dateFormat,
+    numberFormat: defaultNewBudgetSetup.numberFormat,
+    firstDayOfWeek: defaultNewBudgetSetup.firstDayOfWeek,
+    now: new Date("2026-07-02T00:00:00.000Z"),
+  });
 
   assert.equal(budget.preferences.creditCardBehaviour, "normal");
 
@@ -131,7 +134,7 @@ function run() {
   testBudgetPreferencesDefaultToNormalCreditCardBehaviour();
   testBudgetRegistryPersistsAndNormalisesPreferences();
   testLegacyBudgetsReceiveDefaultPreferences();
-  testNewBudgetSetupUsesDefaultBudgetPreferences();
+  testNewBudgetRegistryEntryUsesDefaultBudgetPreferences();
   testReleaseWiring();
   console.log("v2.50.0 budget preferences foundation checks passed");
 }

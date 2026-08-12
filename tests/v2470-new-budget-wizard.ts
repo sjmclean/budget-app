@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { createBudgetFromSetup } from "../apps/web/src/features/budget/newBudget/createBudgetFromSetup";
+import { createInitialBudgetMonthView } from "../apps/web/src/features/budget/newBudget/createInitialBudgetMonthView";
 import { countSelectedCategories, defaultNewBudgetSetup } from "../apps/web/src/features/budget/newBudget/budgetTemplates";
-import { readBudgetRegistry } from "../apps/web/src/features/budget/budgetRegistry";
+import { createBudgetRegistryEntry, readBudgetRegistry } from "../apps/web/src/features/budget/budgetRegistry";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort";
 
 class MemoryStorage implements KeyValueStoragePort {
@@ -35,7 +35,7 @@ function testDefaultCategorySetupIsEditableSeed() {
   assert.ok(countSelectedCategories(defaultNewBudgetSetup.categoryGroups) > 0, "Expected selected starter categories");
 }
 
-function testCreateBudgetFromSetupPersistsRegistryAndSelectedCategories() {
+function testInitialBudgetViewUsesRegistryMetadataAndSelectedCategories() {
   const storage = new MemoryStorage();
   const categoryGroups = defaultNewBudgetSetup.categoryGroups.map((group) => ({
     ...group,
@@ -44,7 +44,9 @@ function testCreateBudgetFromSetupPersistsRegistryAndSelectedCategories() {
       selected: index === 0,
     })),
   }));
-  const budget = createBudgetFromSetup(storage, {
+
+  const now = new Date("2026-07-02T00:00:00.000Z");
+  const setup = {
     ...defaultNewBudgetSetup,
     name: "Holiday Budget",
     currency: "NZD",
@@ -52,10 +54,20 @@ function testCreateBudgetFromSetupPersistsRegistryAndSelectedCategories() {
     numberFormat: "1 234,56",
     firstDayOfWeek: "sunday",
     categoryGroups,
-  }, new Date("2026-07-02T00:00:00.000Z"));
+  };
+
+  const budget = createBudgetRegistryEntry(storage, {
+    name: setup.name,
+    currency: setup.currency,
+    dateFormat: setup.dateFormat,
+    numberFormat: setup.numberFormat,
+    firstDayOfWeek: setup.firstDayOfWeek,
+    now,
+  });
 
   const budgets = readBudgetRegistry(storage);
   const createdBudget = budgets.find((entry) => entry.id === budget.id);
+
   assert.ok(createdBudget, "Expected the created budget to be persisted in the registry");
   assert.equal(budget.id, "holiday-budget");
   assert.equal(createdBudget.currency, "NZD");
@@ -63,7 +75,7 @@ function testCreateBudgetFromSetupPersistsRegistryAndSelectedCategories() {
   assert.equal(createdBudget.numberFormat, "1 234,56");
   assert.equal(createdBudget.firstDayOfWeek, "sunday");
 
-  const budgetView = JSON.parse(storage.getItem("budget-app.budget-view.v1.holiday-budget.2026-07") ?? "null");
+  const budgetView = createInitialBudgetMonthView(budget, setup, now);
   assert.equal(budgetView.budgetName, "Holiday Budget");
   assert.equal(budgetView.currencyCode, "NZD");
   assert.equal(budgetView.categoryGroups.length, categoryGroups.length);
@@ -86,7 +98,7 @@ function testWizardKeepsFastPathAndCustomPath() {
 
 function run() {
   testDefaultCategorySetupIsEditableSeed();
-  testCreateBudgetFromSetupPersistsRegistryAndSelectedCategories();
+  testInitialBudgetViewUsesRegistryMetadataAndSelectedCategories();
   testWizardKeepsFastPathAndCustomPath();
   console.log("v2.47.0 new budget setup wizard checks passed");
 }
