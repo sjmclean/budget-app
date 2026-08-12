@@ -26,9 +26,11 @@ Budget Engine       Register Engine       Import Engine       Reporting Engine
                                       v
                          Merchant Knowledge Engine
 
+Shared infrastructure:
+- Sync and Storage Engine
+
 Future shared engines:
 - Planning Engine
-- Sync and Storage Engine
 ```
 
 This diagram shows responsibility, not a mandatory runtime call sequence. For example, the Import Engine commits through Register workflows, while both import and register editing can contribute evidence to Merchant Knowledge.
@@ -177,21 +179,24 @@ Reports consume canonical register and budget data. Where merchant-level reporti
 
 It should consume Budget and Register data without changing their historical truth.
 
-## Sync and Storage Engine (future/current foundation)
+## Sync and Storage Engine
 
 ### Owns
 
-- Portable budget-package lifecycle.
-- Local persistence gateways.
-- Locking, fingerprints, and conflict metadata.
-- Backup and recovery.
-- Provider transport integration.
+- Local-first SQLite persistence and database lifecycle.
+- Per-budget synchronization epochs.
+- Durable mutation outbox state and replication cursors.
+- Baseline publication, download, validation, and replacement.
+- Local-first relay transport and synchronization coordination.
+- Cross-tab/device coordination required to preserve persistence integrity.
+- Backup, recovery, and persistence-level integrity safeguards.
 
 ### Does not own
 
-- Budgeting policy.
-- Register validation.
+- Budgeting policy or derived financial calculations.
+- Register validation or transaction business rules.
 - Merchant learning.
+- Import interpretation.
 
 ## Cross-engine workflows
 

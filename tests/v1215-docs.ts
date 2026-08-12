@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 
 const requiredFiles = [
-  "docs/database-schema.md",
+  "docs/v1215-database-schema.md",
   "docs/budget-engine.md",
   "docs/budget-package-format.md",
   "docs/ynab4-import.md",

@@ -14,6 +14,8 @@ The primary current persistence architecture sources are:
 - `architecture/persistence-audit-phase-1.md`
 - `architecture/persistence-audit.json`
 - `current-codebase-audit.md`
+- `application-engines.md`
+- `budget-engine.md`
 
 Subsystem architecture documents under `architecture/` remain current when
 they are referenced by validation scripts, tests, or the architecture index.
@@ -35,6 +37,8 @@ builds on them.
 ## Historical Release and Migration Records
 
 Version-prefixed documents such as:
+
+- `v1215-database-schema.md`
 
 - `v119b-persistence-migration-matrix.md`
 - `v120-persistence-unification-foundation.md`
