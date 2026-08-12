@@ -41,7 +41,7 @@ interface StoredScheduledTransaction {
   categoryId?: string;
 }
 
-export function createBrowserLocalStorageBudgetActivityPersistence(
+export function createKeyValueBudgetActivityPersistence(
   storage: KeyValueStoragePort,
 ): BudgetActivityPersistencePort {
   return {

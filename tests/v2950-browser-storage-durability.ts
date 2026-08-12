@@ -17,14 +17,17 @@ async function testWritesAreSerialized() {
         };
       }),
   );
+
   coordinator.queue(async () => {
     events.push("second:start");
     events.push("second:end");
   });
 
   await Promise.resolve();
+
   assert.deepEqual(events, ["first:start"]);
   assert.ok(releaseFirstWrite);
+
   releaseFirstWrite();
   await coordinator.flush();
 
@@ -44,6 +47,7 @@ async function testFailureIsReportedAndQueueRecovers() {
     events.push("failed");
     throw new Error("expected write failure");
   });
+
   coordinator.queue(async () => {
     events.push("recovered");
   });
@@ -52,12 +56,15 @@ async function testFailureIsReportedAndQueueRecovers() {
     coordinator.flush(),
     /expected write failure/,
   );
+
   assert.deepEqual(events, ["failed", "recovered"]);
 
   coordinator.queue(async () => {
     events.push("later");
   });
+
   await coordinator.flush();
+
   assert.deepEqual(events, ["failed", "recovered", "later"]);
 }
 
@@ -65,28 +72,29 @@ const storageSource = readFileSync(
   "apps/web/src/features/persistence/keyValueStoragePort.ts",
   "utf8",
 );
-const mainSource = readFileSync("apps/web/src/main.tsx", "utf8");
+
+const localDatabaseSource = readFileSync(
+  "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+  "utf8",
+);
+
+const mainSource = readFileSync(
+  "apps/web/src/main.tsx",
+  "utf8",
+);
+
+assert.doesNotMatch(
+  storageSource,
+  /indexedDB|localStorage|browserLocalStorageKeyValueStorage|hydrateBrowserStorageBackend/,
+  "the generic key/value storage port must not contain the retired browser storage backend",
+);
 
 assert.match(
-  storageSource,
-  /await putIndexedDbValue\(key, value\);\s*window\.localStorage\.setItem\(key, LOCAL_STORAGE_POINTER_VALUE\)/,
-  "the IndexedDB pointer must only be written after the durable write commits",
+  localDatabaseSource,
+  /createSerializedWriteCoordinator/,
+  "the authoritative local database storage should serialize durable writes",
 );
-assert.match(
-  storageSource,
-  /removeDanglingIndexedDbPointers\(\)/,
-  "hydration should remove pointers whose IndexedDB values are missing",
-);
-assert.match(
-  storageSource,
-  /window\.addEventListener\("pagehide", flushPendingWrites\)/,
-  "browser storage should request a best-effort flush on pagehide",
-);
-assert.match(
-  storageSource,
-  /document\.addEventListener\("visibilitychange", handleVisibilityChange\)/,
-  "browser storage should request a best-effort flush when hidden",
-);
+
 assert.match(
   mainSource,
   /const persistenceProvider = getBudgetPersistenceProvider\(\)/,
@@ -108,4 +116,4 @@ assert.match(
 await testWritesAreSerialized();
 await testFailureIsReportedAndQueueRecovers();
 
-console.log("v2.95.0 browser storage durability regression checks passed");
+console.log("v2.95.0 persistence durability regression checks passed");

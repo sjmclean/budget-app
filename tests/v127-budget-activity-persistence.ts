@@ -1,48 +1,18 @@
-import { createBrowserLocalStorageBudgetActivityPersistence } from "../apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.js";
-import { browserLocalStorageKeyValueStorage } from "../apps/web/src/features/persistence/keyValueStoragePort.js";
+import { createKeyValueBudgetActivityPersistence } from "../apps/web/src/features/persistence/keyValueBudgetActivityPersistence.js";
+import { InMemoryKeyValueStorage } from "./support/persistence/inMemoryBudgetPersistence.js";
 import { replaceScheduledTransactionEntities } from "../apps/web/src/features/accounts/entities/scheduledTransactionEntity.js";
 import { seedTransactionRegisters } from "./helpers/transactionEntityFixtures.js";
 import { replaceAccountEntities } from "../apps/web/src/features/accounts/entities/accountEntity.js";
 
 
-class MemoryLocalStorage {
-  private readonly values = new Map<string, string>();
+const storage = new InMemoryKeyValueStorage();
 
-  get length(): number {
-    return this.values.size;
-  }
+const budgetActivityPersistence =
+  createKeyValueBudgetActivityPersistence(storage);
 
-  key(index: number): string | null {
-    return [...this.values.keys()][index] ?? null;
-  }
+(globalThis as typeof globalThis & { window: object }).window = {};
 
-  getItem(key: string): string | null {
-    return this.values.get(key) ?? null;
-  }
-
-  setItem(key: string, value: string): void {
-    this.values.set(key, value);
-  }
-
-  removeItem(key: string): void {
-    this.values.delete(key);
-  }
-
-  clear(): void {
-    this.values.clear();
-  }
-}
-
-const localStorage = new MemoryLocalStorage();
-const browserLocalStorageBudgetActivityPersistence = createBrowserLocalStorageBudgetActivityPersistence(
-  browserLocalStorageKeyValueStorage,
-);
-
-(globalThis as typeof globalThis & { window: { localStorage: MemoryLocalStorage } }).window = {
-  localStorage,
-};
-
-replaceAccountEntities(browserLocalStorageKeyValueStorage, [
+replaceAccountEntities(storage, [
     {
       id: "checking",
       name: "Checking",
@@ -61,7 +31,7 @@ replaceAccountEntities(browserLocalStorageKeyValueStorage, [
     },
   ]);
 
-seedTransactionRegisters(browserLocalStorageKeyValueStorage, {
+seedTransactionRegisters(storage, {
     checking: {
       accountType: "on-budget",
       transactions: [
@@ -106,12 +76,12 @@ seedTransactionRegisters(browserLocalStorageKeyValueStorage, {
     },
   });
 
-replaceScheduledTransactionEntities(browserLocalStorageKeyValueStorage, [
+replaceScheduledTransactionEntities(storage, [
   { id: "scheduled-groceries", accountId: "checking", tagIds: [], nextDueDate: "2026-07-01", frequency: "monthly", recurrenceInterval: 1, recurrenceUnit: "month", recurrenceAnchorDate: "2026-07-01", endCondition: "never", occurrencesCompleted: 0, weekendPolicy: "same-day", payee: "Market", category: "Groceries", categoryId: "cat-groceries", memo: "", outflow: 10, inflow: 0, createdAt: "2026-06-20T00:00:00.000Z", updatedAt: "2026-06-20T00:00:00.000Z" },
   { id: "scheduled-fuel", accountId: "checking", tagIds: [], nextDueDate: "2026-07-02", frequency: "monthly", recurrenceInterval: 1, recurrenceUnit: "month", recurrenceAnchorDate: "2026-07-02", endCondition: "never", occurrencesCompleted: 0, weekendPolicy: "same-day", payee: "Servo", category: "Fuel", categoryId: "cat-fuel", memo: "", outflow: 10, inflow: 0, createdAt: "2026-06-20T00:00:00.000Z", updatedAt: "2026-06-20T00:00:00.000Z" },
 ]);
 
-const listed = await browserLocalStorageBudgetActivityPersistence.listRegisterTransactionsForBudgetActivity();
+const listed = await budgetActivityPersistence.listRegisterTransactionsForBudgetActivity();
 if (listed.length !== 1) {
   throw new Error(`Expected tracking accounts to be excluded from budget activity, got ${listed.length}`);
 }
@@ -119,7 +89,7 @@ if (listed[0].accountId !== "checking") {
   throw new Error(`Expected checking transaction to be listed, got ${listed[0].accountId}`);
 }
 
-const groceryCounts = await browserLocalStorageBudgetActivityPersistence.countCategoryReferences({
+const groceryCounts = await budgetActivityPersistence.countCategoryReferences({
   id: "cat-groceries",
   name: "Groceries",
 });
@@ -134,12 +104,12 @@ if (groceryCounts.scheduledTransactionCount !== 1) {
   throw new Error(`Expected 1 grocery scheduled transaction, got ${groceryCounts.scheduledTransactionCount}`);
 }
 
-await browserLocalStorageBudgetActivityPersistence.rewriteCategoryReferences({
+await budgetActivityPersistence.rewriteCategoryReferences({
   sourceCategory: { id: "cat-groceries", name: "Groceries" },
   targetCategory: { id: "cat-household", name: "Household" },
 });
 
-const rewrittenCounts = await browserLocalStorageBudgetActivityPersistence.countCategoryReferences({
+const rewrittenCounts = await budgetActivityPersistence.countCategoryReferences({
   id: "cat-household",
   name: "Household",
 });
@@ -154,12 +124,12 @@ if (rewrittenCounts.scheduledTransactionCount !== 1) {
   throw new Error("Expected rewritten scheduled transaction category reference");
 }
 
-await browserLocalStorageBudgetActivityPersistence.renameRegisterCategoryReferences({
+await budgetActivityPersistence.renameRegisterCategoryReferences({
   previousName: "Fuel",
   nextName: "Car Fuel",
 });
 
-const renamedCounts = await browserLocalStorageBudgetActivityPersistence.countCategoryReferences({
+const renamedCounts = await budgetActivityPersistence.countCategoryReferences({
   id: "cat-fuel",
   name: "Car Fuel",
 });

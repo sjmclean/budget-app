@@ -8,7 +8,7 @@ import {
 import { getPersistenceModeSummary } from "../apps/web/src/features/persistence/persistenceMode.js";
 import type { BudgetPersistenceProvider } from "../apps/web/src/features/persistence/budgetPersistenceProvider.js";
 import { createKeyValueBudgetPersistenceProvider } from "../apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.js";
-import { browserLocalStorageKeyValueStorage } from "../apps/web/src/features/persistence/keyValueStoragePort.js";
+import { InMemoryKeyValueStorage } from "./support/persistence/inMemoryBudgetPersistence.js";
 
 const storeSource = readFileSync(
   "apps/web/src/stores/budgetRegistryStore.ts",
@@ -62,7 +62,7 @@ assert.match(
 
 const localDatabaseMetadataProvider: BudgetPersistenceProvider =
   createKeyValueBudgetPersistenceProvider({
-    storage: browserLocalStorageKeyValueStorage,
+    storage: new InMemoryKeyValueStorage(),
     metadata: {
       kind: "local-database",
       label: "Local database test provider",

@@ -26,21 +26,20 @@ The browser-local-storage provider and shared-server runtime have been removed. 
 
 | Signal | Files |
 |---|---:|
-| localStorage | 17 |
+| localStorage | 18 |
 | indexedDB | 3 |
 | replicationApi | 2 |
-| persistenceBoundary | 52 |
+| persistenceBoundary | 66 |
 | operationJournal | 11 |
 | checkpoints | 7 |
 
 ### Legacy migration or global browser storage
 
-- `apps/web/src/features/persistence/keyValueStoragePort.ts`
+- None detected
 
 ### UI preference storage
 
 - `apps/web/src/features/accounts/registerSorting.ts`
-- `apps/web/src/features/tableLayout/tableLayout.ts`
 - `apps/web/src/stores/uiStore.ts`
 
 ### Direct localStorage references requiring review
@@ -51,13 +50,15 @@ The browser-local-storage provider and shared-server runtime have been removed. 
 - `apps/web/src/features/accounts/accountRegisterService.ts`
 - `apps/web/src/features/accounts/payeePersistencePort.ts`
 - `apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts`
-- `apps/web/src/features/accounts/transactionImport.ts`
 - `apps/web/src/features/budget/actualBudgetLauncherImport.ts`
 - `apps/web/src/features/budget/categoryPersistencePort.ts`
 - `apps/web/src/features/budget/ynab4LauncherImport.ts`
 - `apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts`
 - `apps/web/src/features/persistence/configuredPersistenceProvider.ts`
+- `apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts`
+- `apps/web/src/layouts/AppShell.tsx`
 - `apps/web/src/pages/BudgetPage.tsx`
+- `apps/web/src/pages/PayeeManagementPage.tsx`
 
 ### Replication API implementation and consumers
 
