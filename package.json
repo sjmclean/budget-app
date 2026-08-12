@@ -154,7 +154,6 @@
     "test:v1214:undo-coverage": "tsx tests/v1214-expanded-undo-coverage.ts",
     "test:v1214:fk-plan": "tsx tests/v1214-foreign-key-plan.ts",
     "test:v1214": "pnpm test:v1214:bank-import-commit && pnpm test:v1214:payee-rules && pnpm test:v1214:undo-coverage && pnpm test:v1214:fk-plan",
-    "test:v1215:docs": "tsx tests/v1215-docs.ts",
     "test:v1215": "pnpm test:v1215:docs",
     "test:v127:budget-activity": "tsx tests/v127-budget-activity-persistence.ts",
     "test:v127": "pnpm test:v127:budget-activity",

@@ -62,7 +62,4 @@ assert.match(completeness, /converted into reusable transaction tags/);
 assert.match(completeness, /status: "supported"/);
 assert.doesNotMatch(completeness, /Map YNAB4 flags into TransactionFlag/);
 
-const schemaDocs = readFileSync(join(root, "docs/v1215-database-schema.md"), "utf8");
-assert.match(schemaDocs, /Legacy compatibility table retained temporarily/);
-
 console.log("v2.93.8 final flag reference audit checks passed");

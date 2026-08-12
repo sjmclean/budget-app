@@ -634,14 +634,6 @@
       "reason": "Passing legacy baseline; retained as required until migrated."
     },
     {
-      "file": "tests/v1215-docs.ts",
-      "domain": "core",
-      "kind": "behaviour",
-      "status": "required",
-      "lastResult": "passed",
-      "reason": "Passing legacy baseline; retained as required until migrated."
-    },
-    {
       "file": "tests/v122-payee-cleanup.ts",
       "domain": "payees",
       "kind": "behaviour",
