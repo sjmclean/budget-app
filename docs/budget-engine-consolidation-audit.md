@@ -2,20 +2,63 @@
 
 Date: 5 August 2026
 
-## Outcome
+## Current status
 
-Budget App does not currently have one authoritative budgeting engine in the production local-first runtime. Canonical transactions live in SQLite, but budget-month values are mostly imported JSON snapshots. Several other layers independently recalculate subsets of the same financial state.
+The consolidation described by this audit has been implemented through the
+authoritative local-first SQLite budget projection path.
 
-The budget engine must become the only component allowed to derive financial values. Persistence should store facts and versioned projection caches; importers should map source facts and validate the engine's projection; UI code should format and dispatch commands only.
+The production runtime now derives monetary budget views through the package
+budget engine from normalized SQLite facts. Projection caches are disposable
+and versioned, and the worker records the earliest dirty month so affected
+projections can be rebuilt forward.
 
-## Confirmed production failures
+The original failures below are retained as historical findings from
+5 August 2026. They no longer describe the current production runtime.
+
+### Resolution status
+
+1. **Negative overspending rollover — Resolved.**
+   `projectBudget()` supports both `carry-category` and `reduce-next-month`,
+   including month-effective policy transitions.
+
+2. **Transaction mutations did not invalidate projections — Resolved.**
+   The local-first worker records the earliest dirty month, removes cached
+   projections from that month forward, and rebuilds through the authoritative
+   projection path on subsequent reads.
+
+3. **SQLite category activity drill-down was blocked — Resolved.**
+   Category activity now uses normalized SQLite data with engine-equivalent
+   account, transfer, and split filtering. The returned rows are bounded and
+   fail closed if their net total disagrees with authoritative projected
+   activity.
+
+4. **Attachments used the legacy register mutation path — Resolved.**
+   SQLite register attachment mutations route through
+   `accountRegisterQueries.addTransactionAttachment()` and
+   `removeTransactionAttachment()`, implemented by the local-first account
+   register client. Hosted attachment mutations are retired.
+
+## Historical outcome
+
+At the time of this audit, Budget App did not yet have one authoritative
+budgeting engine in the production local-first runtime. Canonical transactions
+lived in SQLite, but budget-month values were mostly imported JSON snapshots.
+Several other layers independently recalculated subsets of the same financial
+state.
+
+The required direction was to make the budget engine the only component
+allowed to derive financial values. Persistence would store facts and versioned
+projection caches; importers would map source facts and validate the engine's
+projection; UI code would format and dispatch commands only.
+
+## Historical confirmed production failures
 
 1. A YNAB4 category configured to carry a negative July balance can show zero in August because `localBudget.worker.ts::readBudgetMonth()` reads the August snapshot and never projects rollover from July.
 2. Editing a transaction changes `local_transactions`, but no budget projection is invalidated or rebuilt. August activity and Available therefore remain stale.
 3. SQLite already has a category/month transaction query, but `useBudgetWorkspace.ts` blocks activity drill-down with `assertBrowserBudgetFeatureAvailable()` and the SQLite budget persistence adapter does not route the drill-down service to that query.
 4. Attachments remain on the legacy register mutation path. `useAccountRegister.ts::runMutation()` intentionally rejects that path for SQLite budgets.
 
-## Current calculation authorities
+## Historical calculation authorities at audit time
 
 | Layer | Calculations performed | Production status | Problem |
 | --- | --- | --- | --- |
@@ -27,7 +70,7 @@ The budget engine must become the only component allowed to derive financial val
 | Older application services | Mutate category months alongside transactions | Repository/application path | Not wired to the browser local-first runtime and uses a different persistence model. |
 | React pages/selectors | Additional totals and overspending presentation decisions | Production UI | Financial rules can drift into presentation code. |
 
-## Direct evidence
+## Historical direct evidence
 
 ### SQLite month reads are snapshot based
 
