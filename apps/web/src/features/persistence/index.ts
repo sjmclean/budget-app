@@ -87,4 +87,3 @@ export type {
 } from "./replicationService";
 export { useReplicationStatus } from "./useReplicationStatus";
 
-export { readLegacyBrowserPersistenceSnapshot } from "./legacyBrowserSnapshotReader";

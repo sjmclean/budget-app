@@ -1,4 +1,3 @@
-import { readLegacyBrowserPersistenceSnapshot } from "./legacyBrowserSnapshotReader";
 import { createKeyValueBudgetPersistenceProvider } from "./createKeyValueBudgetPersistenceProvider";
 import {
   createLocalDatabaseKeyValueStorage,
@@ -7,20 +6,15 @@ import {
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
 import type { HostedAccountRegisterQueryClient } from "./hostedAccountRegisterQueryClient";
 
-const MIGRATION_MARKER_KEY = "budget-app.persistence.local-database-migration.v1";
-
 export interface LocalDatabasePersistenceProviderOptions {
   readonly storage?: LocalDatabaseKeyValueStorage;
-  readonly migrateLegacyBrowserData?: boolean;
   readonly accountRegisterQueries?: HostedAccountRegisterQueryClient;
 }
 
 /**
  * Creates the authoritative browser-local persistence provider.
  *
- * On first launch it performs a non-destructive copy of canonical budget data
- * from the legacy browser provider when the local database is empty. Legacy
- * data is deliberately retained as a rollback point.
+ * The local database is the sole browser persistence runtime.
  */
 export function createLocalDatabasePersistenceProvider(
   options: LocalDatabasePersistenceProviderOptions = {},
@@ -42,27 +36,7 @@ export function createLocalDatabasePersistenceProvider(
       offlineWrites: true,
       backups: false,
     },
-    initialize: async () => {
-      await storage.initialize();
-
-      if (options.migrateLegacyBrowserData === false || !storage.isEmpty()) {
-        return;
-      }
-
-      const snapshot = await readLegacyBrowserPersistenceSnapshot();
-      if (snapshot.entryCount === 0) {
-        return;
-      }
-
-      await storage.replaceAll({
-        ...snapshot.entries,
-        [MIGRATION_MARKER_KEY]: JSON.stringify({
-          migratedAt: new Date().toISOString(),
-          source: "browser-local-storage",
-          entryCount: snapshot.entryCount,
-        }),
-      });
-    },
+    initialize: () => storage.initialize(),
     flush: () => storage.flush(),
     operationJournal: storage,
     checkpoints: storage,

@@ -41,8 +41,8 @@ function lineNumberAt(text, offset) {
 }
 
 function classifyLocalStorage(path) {
-  if (path.endsWith("legacyBrowserSnapshotReader.ts") || path.endsWith("keyValueStoragePort.ts")) {
-    return "legacy-migration-or-global-browser-storage";
+  if (path.endsWith("keyValueStoragePort.ts")) {
+    return "legacy-or-test-browser-storage";
   }
   return uiPreferenceHints.some(hint => path.includes(hint))
     ? "ui-preference"
