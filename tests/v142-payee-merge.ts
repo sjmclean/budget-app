@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { createAccountRegisterService } from "../apps/web/src/features/accounts/accountRegisterService.js";
 import { createPayeeService, findPayeeIdByName, readPayees } from "../apps/web/src/features/accounts/payeeService.js";
-import { createScheduledTransactionService } from "../apps/web/src/features/accounts/scheduledTransactionService.js";
+import { createScheduledTransactionEntityHarness } from "./support/scheduledTransactionEntityHarness.ts";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.js";
 
 async function main() {
@@ -26,13 +26,8 @@ async function validateBrowserPayeeMergeLifecycle(): Promise<void> {
     readAccounts: () => [account],
     getAccountById: (accountId: string) => (accountId === account.id ? account : undefined),
   });
-  const scheduled = createScheduledTransactionService({
-    storage,
-    recordPayee: async (payeeName: string) => {
-      await payees.recordPayee(payeeName);
-    },
-    findPayeeIdByName: (payeeName: string) => findPayeeIdByName(storage, payeeName),
-  });
+  const scheduled =
+    createScheduledTransactionEntityHarness(storage);
 
   await payees.recordPayee("Woolies");
   await payees.recordPayee("Woolworths");

@@ -26,12 +26,12 @@ import type {
   UpsertScheduledTransactionInput,
 } from "../../accounts/scheduledTransactionTypes";
 import {
-  advanceDateByRule,
-  applyWeekendPolicy,
   normaliseSpecificDates,
-  normaliseSpecificInstalments,
-  recurrenceFromFrequency,
 } from "../../accounts/scheduledTransactionRecurrence";
+import {
+  advanceScheduledTransaction,
+  buildScheduledTransaction,
+} from "../../accounts/scheduledTransactionLifecycle";
 import type { TransactionTagDefinition } from "../../tags/transactionTagTypes";
 import { createRuntimeUuid } from "../../ids/createRuntimeUuid";
 import type { ReplicationConflict } from "../conflictResolution";
@@ -372,51 +372,6 @@ export function createLocalFirstAccountRegisterQueryClient(
   async function listPersistedPayees(budgetId: string, archived: boolean) {
     const rows = await (await requireDatabase(budgetId)).listPayees(budgetId, archived);
     return rows.map(localPayeeRecordToView);
-  }
-
-  function scheduleFromInput(
-    input: UpsertScheduledTransactionInput,
-    existing?: ScheduledTransactionView,
-  ): ScheduledTransactionView {
-    const now = new Date().toISOString();
-    const recurrence = recurrenceFromFrequency(input.frequency);
-    const recurrenceKind = input.recurrenceKind === "specific-dates" ? "specific-dates" : "rule";
-    const specificInstalments = normaliseSpecificInstalments(input.specificInstalments, input.specificDates, input.outflow, input.inflow);
-    const specificDates = specificInstalments.map(({ date }) => date);
-    if (recurrenceKind === "specific-dates" && specificDates.length === 0) {
-      throw new Error("A specific-date schedule requires at least one occurrence date.");
-    }
-    const requestedIndex = input.specificDateIndex ?? existing?.specificDateIndex ?? 0;
-    const specificDateIndex = recurrenceKind === "specific-dates"
-      ? Math.min(specificDates.length - 1, Math.max(0, requestedIndex))
-      : undefined;
-    const currentAnchor = recurrenceKind === "specific-dates"
-      ? specificDates[specificDateIndex!]
-      : input.recurrenceAnchorDate ?? existing?.recurrenceAnchorDate ?? input.nextDueDate;
-    return {
-      ...existing,
-      ...input,
-      id: existing?.id ?? input.id ?? createRuntimeUuid(),
-      recurrenceKind,
-      specificDates: recurrenceKind === "specific-dates" ? specificDates : undefined,
-      specificInstalments: recurrenceKind === "specific-dates" ? specificInstalments : undefined,
-      attachments: (input.attachments ?? existing?.attachments ?? []).map((attachment) => ({ ...attachment })),
-      specificDateIndex,
-      outflow: recurrenceKind === "specific-dates" ? specificInstalments[specificDateIndex!].outflow : input.outflow,
-      inflow: recurrenceKind === "specific-dates" ? specificInstalments[specificDateIndex!].inflow : input.inflow,
-      nextDueDate: applyWeekendPolicy(currentAnchor, input.weekendPolicy ?? existing?.weekendPolicy ?? "same-day"),
-      recurrenceInterval: input.recurrenceInterval ?? existing?.recurrenceInterval ?? recurrence.interval,
-      recurrenceUnit: input.recurrenceUnit ?? existing?.recurrenceUnit ?? recurrence.unit,
-      recurrenceAnchorDate: currentAnchor,
-      recurrenceAnchorDay: input.recurrenceAnchorDay ?? existing?.recurrenceAnchorDay ??
-        Number.parseInt((input.recurrenceAnchorDate ?? existing?.recurrenceAnchorDate ?? input.nextDueDate).slice(8, 10), 10),
-      monthDayPolicy: input.monthDayPolicy ?? existing?.monthDayPolicy ?? "same-day-number",
-      endCondition: input.endCondition ?? existing?.endCondition ?? "never",
-      occurrencesCompleted: input.occurrencesCompleted ?? existing?.occurrencesCompleted ?? 0,
-      weekendPolicy: input.weekendPolicy ?? existing?.weekendPolicy ?? "same-day",
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-    };
   }
 
   async function transactionRecord(
@@ -1347,7 +1302,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       return listSchedules(budgetId, accountId);
     },
     async createScheduledTransaction(budgetId, input) {
-      const schedule = scheduleFromInput(input);
+      const schedule = buildScheduledTransaction(input);
       await writeEntity(budgetId, "scheduledTransactions", schedule.id, schedule);
       return listSchedules(budgetId, input.accountId, false);
     },
@@ -1355,7 +1310,10 @@ export function createLocalFirstAccountRegisterQueryClient(
       const existing = (await listSchedules(budgetId, input.accountId))
         .find(({ id }) => id === scheduleId);
       if (!existing) throw new Error("The local scheduled transaction was not found.");
-      const schedule = scheduleFromInput(input, existing);
+      const schedule = buildScheduledTransaction(
+        input,
+        { existing },
+      );
       await writeEntity(budgetId, "scheduledTransactions", schedule.id, schedule);
       return listSchedules(budgetId, input.accountId, false);
     },
@@ -1364,71 +1322,49 @@ export function createLocalFirstAccountRegisterQueryClient(
       return listSchedules(budgetId, accountId, false);
     },
     async advanceScheduledTransaction(budgetId, accountId, scheduleId) {
-      const existing = (await listSchedules(budgetId, accountId))
-        .find(({ id }) => id === scheduleId);
-      if (!existing) return listSchedules(budgetId, accountId);
-      const completed = (existing.occurrencesCompleted ?? 0) + 1;
-      const occurrenceLimitReached =
-        existing.endCondition === "after-occurrences" &&
-        completed >= (existing.occurrenceCount ?? 1);
-      if (existing.recurrenceKind === "specific-dates") {
-        const instalments = normaliseSpecificInstalments(existing.specificInstalments, existing.specificDates, existing.outflow, existing.inflow);
-        const dates = instalments.map(({ date }) => date);
-        const nextIndex = (existing.specificDateIndex ?? 0) + 1;
-        if (nextIndex >= dates.length) {
-          await writeEntity(budgetId, "scheduledTransactions", scheduleId, null, "delete");
-        } else {
-          const nextAnchor = dates[nextIndex];
-          await writeEntity(budgetId, "scheduledTransactions", scheduleId, {
-            ...existing,
-            specificDates: dates,
-            specificInstalments: instalments,
-            specificDateIndex: nextIndex,
-            outflow: instalments[nextIndex].outflow,
-            inflow: instalments[nextIndex].inflow,
-            recurrenceAnchorDate: nextAnchor,
-            nextDueDate: applyWeekendPolicy(nextAnchor, existing.weekendPolicy ?? "same-day"),
-            occurrencesCompleted: completed,
-            updatedAt: new Date().toISOString(),
-          });
-        }
-        return listSchedules(budgetId, accountId, false);
-      }
-      if (existing.frequency === "once" || occurrenceLimitReached) {
-        await writeEntity(budgetId, "scheduledTransactions", scheduleId, null, "delete");
-      } else {
-        const recurrence = recurrenceFromFrequency(existing.frequency);
-        const nextAnchor = advanceDateByRule(
-          existing.recurrenceAnchorDate ?? existing.nextDueDate,
-          existing.recurrenceInterval ?? recurrence.interval,
-          existing.recurrenceUnit ?? recurrence.unit,
-          {
-            anchorDay: existing.recurrenceAnchorDay,
-            monthDayPolicy: existing.monthDayPolicy,
-          },
+      const existing = (
+        await listSchedules(
+          budgetId,
+          accountId,
+        )
+      ).find(({ id }) => id === scheduleId);
+
+      if (!existing) {
+        return listSchedules(
+          budgetId,
+          accountId,
         );
-        if (
-          existing.endCondition === "on-date" &&
-          existing.endDate &&
-          nextAnchor > existing.endDate
-        ) {
-          await writeEntity(budgetId, "scheduledTransactions", scheduleId, null, "delete");
-          return listSchedules(budgetId, accountId, false);
-        }
-        const next = {
-          ...existing,
-          recurrenceAnchorDate: nextAnchor,
-          nextDueDate: applyWeekendPolicy(
-            nextAnchor,
-            existing.weekendPolicy ?? "same-day",
-          ),
-          occurrencesCompleted: completed,
-          updatedAt: new Date().toISOString(),
-        };
-        await writeEntity(budgetId, "scheduledTransactions", scheduleId, next);
       }
-      return listSchedules(budgetId, accountId, false);
+
+      const result =
+        advanceScheduledTransaction(
+          existing,
+        );
+
+      if (result.action === "delete") {
+        await writeEntity(
+          budgetId,
+          "scheduledTransactions",
+          scheduleId,
+          null,
+          "delete",
+        );
+      } else {
+        await writeEntity(
+          budgetId,
+          "scheduledTransactions",
+          scheduleId,
+          result.transaction,
+        );
+      }
+
+      return listSchedules(
+        budgetId,
+        accountId,
+        false,
+      );
     },
+
     async renameScheduledPayeeReferences(budgetId, input) {
       const schedules = await (await syncThenDatabase(budgetId))
         .listEntities<ScheduledTransactionView>("scheduledTransactions");

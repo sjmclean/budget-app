@@ -2,7 +2,7 @@ import { createFixedBudgetScopedStorage } from "../apps/web/src/features/budget/
 import { createScheduledTransactionEntityRepository, projectScheduledTransaction } from "../apps/web/src/features/accounts/entities/scheduledTransactionEntity.js";
 import assert from "node:assert/strict";
 import { createYnab4LauncherBudgetImport } from "../apps/web/src/features/budget/ynab4LauncherImport.ts";
-import type { ScheduledTransactionView } from "../apps/web/src/features/accounts/scheduledTransactionService.ts";
+import type { ScheduledTransactionView } from "../apps/web/src/features/accounts/scheduledTransactionTypes.ts";
 import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
 import {
   createYnab4PackageMigrationPreview,

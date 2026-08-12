@@ -1,32 +1,20 @@
 import assert from "node:assert/strict";
 import type { BudgetPersistenceProvider } from "../apps/web/src/features/persistence/budgetPersistenceProvider.ts";
-import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
+import type {
+  ScheduledTransactionView,
+} from "../apps/web/src/features/accounts/scheduledTransactionTypes.ts";
 import {
-  createScheduledTransactionService,
-  type ScheduledTransactionView,
-} from "../apps/web/src/features/accounts/scheduledTransactionService.ts";
+  createScheduledHarness,
+} from "./support/scheduledTransactionHarness.ts";
 import { generateDueScheduledTransactions } from "../apps/web/src/features/accounts/scheduledTransactionGenerationService.ts";
 import type {
   AccountRegisterView,
   NewRegisterTransactionInput,
 } from "../apps/web/src/features/accounts/accountRegisterTypes.ts";
 
-function createMemoryStorage(): KeyValueStoragePort {
-  const values = new Map<string, string>();
-  return {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => void values.set(key, value),
-    removeItem: (key) => void values.delete(key),
-    listKeys: () => [...values.keys()],
-  };
-}
 
 async function testScheduledCategoryIdRoundTripsIntoRegisterInput() {
-  const service = createScheduledTransactionService({
-    storage: createMemoryStorage(),
-    recordPayee: async () => undefined,
-    findPayeeIdByName: () => undefined,
-  });
+  const service = createScheduledHarness();
 
   const created = await service.create({
     accountId: "mobile-account",

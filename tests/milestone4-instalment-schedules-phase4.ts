@@ -1,18 +1,9 @@
 import assert from "node:assert/strict";
-import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
+import { createScheduledHarness } from "./support/scheduledTransactionHarness.ts";
 import {
-  createScheduledTransactionService,
   normaliseSpecificInstalments,
-} from "../apps/web/src/features/accounts/scheduledTransactionService.ts";
+} from "../apps/web/src/features/accounts/scheduledTransactionRecurrence.ts";
 
-function memoryStorage(): KeyValueStoragePort {
-  const values = new Map<string, string>();
-  return {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => void values.set(key, value),
-    removeItem: (key) => void values.delete(key),
-  };
-}
 
 const councilInstalments = [
   { date: "2026-09-30", outflow: 561.69, inflow: 0 },
@@ -27,11 +18,7 @@ assert.deepEqual(
   "legacy specific-date schedules inherit their existing amount",
 );
 
-const service = createScheduledTransactionService({
-  storage: memoryStorage(),
-  recordPayee: async () => undefined,
-  findPayeeIdByName: () => undefined,
-});
+const service = createScheduledHarness();
 
 const created = await service.create({
   accountId: "checking",

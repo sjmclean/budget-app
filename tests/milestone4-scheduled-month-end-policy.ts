@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {
   advanceDateByRule,
-} from "../apps/web/src/features/accounts/scheduledTransactionService";
+} from "../apps/web/src/features/accounts/scheduledTransactionRecurrence";
 
 const monthEndOptions = {
   anchorDay: 30,

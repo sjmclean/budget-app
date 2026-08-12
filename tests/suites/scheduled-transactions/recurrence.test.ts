@@ -6,7 +6,7 @@ import {
   recurrenceFromFrequency,
   resolveOccurrenceDate,
   shouldSkipOccurrence,
-} from "../../../apps/web/src/features/accounts/scheduledTransactionService.ts";
+} from "../../../apps/web/src/features/accounts/scheduledTransactionRecurrence.ts";
 import { createSchedule, createScheduledHarness } from "../../support/scheduledTransactionHarness.ts";
 
 describe("scheduled transaction recurrence", () => {

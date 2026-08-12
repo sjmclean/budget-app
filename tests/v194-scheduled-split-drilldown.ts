@@ -1,40 +1,8 @@
 import assert from "node:assert/strict";
-import { BrowserPersistentScheduledTransactionService } from "../apps/web/src/features/accounts/scheduledTransactionService.ts";
-import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
+import { createScheduledHarness } from "./support/scheduledTransactionHarness.ts";
 
-function createMemoryStorage(): KeyValueStoragePort {
-  const values = new Map<string, string>();
-
-  return {
-    getItem(key) {
-      return values.get(key) ?? null;
-    },
-    setItem(key, value) {
-      values.set(key, value);
-    },
-    removeItem(key) {
-      values.delete(key);
-    },
-    listKeys() {
-      return [...values.keys()].sort();
-    },
-  };
-}
-
-function createService(storage = createMemoryStorage()) {
-  const payees = new Map<string, string>([["Department Of Education", "payee-department"]]);
-
-  return new BrowserPersistentScheduledTransactionService({
-    storage,
-    async recordPayee(payeeName) {
-      if (!payees.has(payeeName)) {
-        payees.set(payeeName, `payee-${payeeName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`);
-      }
-    },
-    findPayeeIdByName(payeeName) {
-      return payees.get(payeeName);
-    },
-  });
+function createService() {
+  return createScheduledHarness();
 }
 
 async function testScheduledSplitLinesReachListAndRegisterInput() {

@@ -1,21 +1,8 @@
 import assert from "node:assert/strict";
-import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
-import { createScheduledTransactionService } from "../apps/web/src/features/accounts/scheduledTransactionService.ts";
+import { createScheduledHarness } from "./support/scheduledTransactionHarness.ts";
 
-function memoryStorage(): KeyValueStoragePort {
-  const values = new Map<string, string>();
-  return {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => void values.set(key, value),
-    removeItem: (key) => void values.delete(key),
-  };
-}
 
-const service = createScheduledTransactionService({
-  storage: memoryStorage(),
-  recordPayee: async () => undefined,
-  findPayeeIdByName: () => undefined,
-});
+const service = createScheduledHarness();
 const master = {
   id: "rates-pdf",
   fileName: "rates.pdf",

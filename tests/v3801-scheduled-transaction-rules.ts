@@ -1,26 +1,13 @@
 import assert from "node:assert/strict";
-import type { KeyValueStoragePort } from "../apps/web/src/features/persistence/keyValueStoragePort.ts";
+import { createScheduledHarness } from "./support/scheduledTransactionHarness.ts";
 import {
-  createScheduledTransactionService,
   resolveOccurrenceDate,
   shouldSkipOccurrence,
-} from "../apps/web/src/features/accounts/scheduledTransactionService.ts";
+} from "../apps/web/src/features/accounts/scheduledTransactionRecurrence.ts";
 
-function createMemoryStorage(): KeyValueStoragePort {
-  const values = new Map<string, string>();
-  return {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => void values.set(key, value),
-    removeItem: (key) => void values.delete(key),
-  };
-}
 
 async function testCustomRecurrenceAndWeekendPolicy() {
-  const service = createScheduledTransactionService({
-    storage: createMemoryStorage(),
-    recordPayee: async () => undefined,
-    findPayeeIdByName: () => undefined,
-  });
+  const service = createScheduledHarness();
 
   const created = await service.create({
     accountId: "checking",
@@ -53,11 +40,7 @@ async function testCustomRecurrenceAndWeekendPolicy() {
 }
 
 async function testRunOnceRemovesOnlyTheSchedule() {
-  const service = createScheduledTransactionService({
-    storage: createMemoryStorage(),
-    recordPayee: async () => undefined,
-    findPayeeIdByName: () => undefined,
-  });
+  const service = createScheduledHarness();
   const created = await service.create({
     accountId: "checking",
     nextDueDate: "2026-07-25",
@@ -104,11 +87,7 @@ async function createSkipSchedule(input: {
   endDate?: string;
   occurrenceCount?: number;
 }) {
-  const service = createScheduledTransactionService({
-    storage: createMemoryStorage(),
-    recordPayee: async () => undefined,
-    findPayeeIdByName: () => undefined,
-  });
+  const service = createScheduledHarness();
   const created = await service.create({
     accountId: "checking",
     nextDueDate: "2026-07-25",
@@ -178,11 +157,7 @@ async function testSkipEndConditions() {
 }
 
 async function testSplitLinesRoundTrip() {
-  const service = createScheduledTransactionService({
-    storage: createMemoryStorage(),
-    recordPayee: async () => undefined,
-    findPayeeIdByName: () => undefined,
-  });
+  const service = createScheduledHarness();
 
   const created = await service.create({
     accountId: "checking",

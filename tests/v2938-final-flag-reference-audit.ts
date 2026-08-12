@@ -17,7 +17,6 @@ const ignoredDirectoryNames = new Set([
 const approvedCompatibilityFiles = new Set([
   "apps/web/src/features/accounts/accountRegisterService.ts",
   "apps/web/src/features/accounts/registerColumns.ts",
-  "apps/web/src/features/accounts/scheduledTransactionService.ts",
   "apps/web/src/features/budget/ynab4LauncherImport.ts",
   "packages/database/src/initDatabase.ts",
   "packages/database/src/schema.ts",

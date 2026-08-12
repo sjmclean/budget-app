@@ -5,7 +5,7 @@ import { generateDueScheduledTransactions } from "../apps/web/src/features/accou
 import type { BudgetPersistenceProvider } from "../apps/web/src/features/persistence/budgetPersistenceProvider.js";
 import type { AccountRegisterView, NewRegisterTransactionInput } from "../apps/web/src/features/accounts/accountRegisterTypes.js";
 import type { SidebarAccount } from "../apps/web/src/features/accounts/accountService.js";
-import type { ScheduledTransactionView } from "../apps/web/src/features/accounts/scheduledTransactionService.js";
+import type { ScheduledTransactionView } from "../apps/web/src/features/accounts/scheduledTransactionTypes.js";
 
 async function main() {
   await validatesAutomaticDueGeneration();

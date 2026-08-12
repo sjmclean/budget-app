@@ -1,5 +1,6 @@
 import { purgeAllTransactionEntities } from "../apps/web/src/features/accounts/entities/transactionEntityPersistence.js";
 import assert from "node:assert/strict";
+import { createScheduledTransactionEntityHarness } from "./support/scheduledTransactionEntityHarness.ts";
 
 import { createAccountRegisterService } from "../apps/web/src/features/accounts/accountRegisterService";
 import {
@@ -10,7 +11,6 @@ import {
   createPayeeService,
   findPayeeIdByName,
 } from "../apps/web/src/features/accounts/payeeService";
-import { createScheduledTransactionService } from "../apps/web/src/features/accounts/scheduledTransactionService";
 import {
   createBudgetDataExportPackage,
   restoreBudgetDataPackage,
@@ -65,13 +65,8 @@ function createServices(rootStorage: KeyValueStoragePort) {
     getAccountById: (accountId) =>
       accounts.getAccountById(accountId) ?? undefined,
   });
-  const scheduled = createScheduledTransactionService({
-    storage,
-    recordPayee: async (payeeName) => {
-      await payees.recordPayee(payeeName);
-    },
-    findPayeeIdByName: (payeeName) => findPayeeIdByName(storage, payeeName),
-  });
+  const scheduled =
+    createScheduledTransactionEntityHarness(storage);
 
   return { accounts, payees, registers, scheduled };
 }

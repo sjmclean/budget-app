@@ -57,20 +57,16 @@ The following web services directly use `window.localStorage`:
 - `apps/web/src/features/accounts/accountService.ts`
 - `apps/web/src/features/accounts/accountRegisterService.ts`
 - `apps/web/src/features/accounts/payeeService.ts`
-- `apps/web/src/features/accounts/scheduledTransactionService.ts`
 - `apps/web/src/features/budget/budgetViewService.ts`
 - `apps/web/src/stores/uiStore.ts` for UI theme only; this one is acceptable.
 
 ### Browser dialogs still exist
 
-The following UI files still use generic browser dialogs:
+The following UI file still uses a generic browser dialog:
 
-- `apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx`
-- `apps/web/src/layouts/Sidebar.tsx`
-- `apps/web/src/pages/AccountRegisterPage.tsx`
 - `apps/web/src/pages/BudgetPage.tsx`
 
-These should be replaced with app-specific dialogs/toasts.
+The remaining `window.prompt` usage should be replaced with an app-specific dialog.
 
 ### Backend features are ahead of UI wiring
 
