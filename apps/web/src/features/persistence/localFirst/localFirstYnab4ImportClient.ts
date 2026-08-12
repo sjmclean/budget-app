@@ -1,12 +1,12 @@
 import type {
-  HostedSqliteImportSession,
+  SqliteImportSession,
   SqliteImportAccount,
   SqliteImportBudgetMonth,
   SqliteImportCategory,
   SqliteImportPayee,
   SqliteImportScheduledTransaction,
   SqliteImportTransaction,
-} from "../hostedSqliteImportClient";
+} from "../sqliteImportContracts";
 import { emptyDomainCounts, type BudgetDomainCounts } from "./contracts";
 import { LocalBudgetDatabaseClient } from "./localBudgetClient";
 import type {
@@ -36,7 +36,7 @@ export function createLocalFirstYnab4ImportClient(
       readonly budgetName: string;
       readonly currency: string;
       readonly signal?: AbortSignal;
-    }): Promise<HostedSqliteImportSession> {
+    }): Promise<SqliteImportSession> {
       input.signal?.throwIfAborted();
       await options.database.beginStagedImport({
         budgetId: input.budgetId,

@@ -26,8 +26,8 @@ The browser-local-storage provider and shared-server runtime have been removed. 
 
 | Signal | Files |
 |---|---:|
-| localStorage | 18 |
-| indexedDB | 3 |
+| localStorage | 17 |
+| indexedDB | 2 |
 | replicationApi | 2 |
 | persistenceBoundary | 66 |
 | operationJournal | 11 |

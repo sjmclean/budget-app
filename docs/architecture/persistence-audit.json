@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T00:54:21.931Z",
+  "generatedAt": "2026-08-12T01:32:30.575Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -12,8 +12,8 @@
     "reactiveUpdates": "persistence change bus publishes batched remote changes to React consumers"
   },
   "counts": {
-    "localStorage": 18,
-    "indexedDB": 3,
+    "localStorage": 17,
+    "indexedDB": 2,
     "replicationApi": 2,
     "persistenceBoundary": 66,
     "operationJournal": 11,
@@ -87,7 +87,6 @@
     "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
     "apps/web/src/features/budget/ynab4ReconciliationAudit.ts",
     "apps/web/src/features/persistence/activeKeyValueStorage.ts",
-    "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
     "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
     "apps/web/src/features/persistence/budgetPersistenceProviderFactory.ts",
     "apps/web/src/features/persistence/configuredPersistenceProvider.ts",
@@ -95,6 +94,7 @@
     "apps/web/src/features/persistence/hostPersistenceGateway.ts",
     "apps/web/src/features/persistence/hostedScheduledTransactionPersistence.ts",
     "apps/web/src/features/persistence/index.ts",
+    "apps/web/src/features/persistence/keyValueBudgetActivityPersistence.ts",
     "apps/web/src/features/persistence/keyValueImportStage.ts",
     "apps/web/src/features/persistence/keyValueStoragePort.ts",
     "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
@@ -1402,46 +1402,6 @@
     },
     {
       "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
-      "line": 2
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
-      "line": 45
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
-      "line": 73
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
-      "line": 126
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
-      "line": 160
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
-      "line": 168
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
-      "line": 210
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/browserLocalStorageBudgetActivityPersistence.ts",
-      "line": 226
-    },
-    {
-      "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
       "line": 10
     },
@@ -1659,12 +1619,7 @@
     {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/index.ts",
-      "line": 51
-    },
-    {
-      "kind": "operationJournal",
-      "path": "apps/web/src/features/persistence/index.ts",
-      "line": 52
+      "line": 53
     },
     {
       "kind": "operationJournal",
@@ -1672,14 +1627,59 @@
       "line": 54
     },
     {
-      "kind": "checkpoints",
+      "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/index.ts",
-      "line": 59
+      "line": 56
     },
     {
       "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/index.ts",
       "line": 61
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/index.ts",
+      "line": 63
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/keyValueBudgetActivityPersistence.ts",
+      "line": 2
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/keyValueBudgetActivityPersistence.ts",
+      "line": 45
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/keyValueBudgetActivityPersistence.ts",
+      "line": 73
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/keyValueBudgetActivityPersistence.ts",
+      "line": 126
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/keyValueBudgetActivityPersistence.ts",
+      "line": 160
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/keyValueBudgetActivityPersistence.ts",
+      "line": 168
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/keyValueBudgetActivityPersistence.ts",
+      "line": 210
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/keyValueBudgetActivityPersistence.ts",
+      "line": 226
     },
     {
       "kind": "persistenceBoundary",
@@ -1707,105 +1707,9 @@
       "line": 282
     },
     {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 56,
-      "classification": "legacy-or-test-browser-storage"
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 159,
-      "classification": "legacy-or-test-browser-storage"
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 160,
-      "classification": "legacy-or-test-browser-storage"
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 166,
-      "classification": "legacy-or-test-browser-storage"
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 171,
-      "classification": "legacy-or-test-browser-storage"
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 237,
-      "classification": "legacy-or-test-browser-storage"
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 255,
-      "classification": "legacy-or-test-browser-storage"
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 260,
-      "classification": "legacy-or-test-browser-storage"
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 272,
-      "classification": "legacy-or-test-browser-storage"
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 283,
-      "classification": "legacy-or-test-browser-storage"
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 284,
-      "classification": "legacy-or-test-browser-storage"
-    },
-    {
-      "kind": "indexedDB",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 68
-    },
-    {
-      "kind": "indexedDB",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 73
-    },
-    {
-      "kind": "indexedDB",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 88
-    },
-    {
-      "kind": "indexedDB",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 109
-    },
-    {
-      "kind": "indexedDB",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 132
-    },
-    {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
       "line": 5
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/keyValueStoragePort.ts",
-      "line": 223
     },
     {
       "kind": "indexedDB",

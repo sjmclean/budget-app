@@ -94,9 +94,9 @@ import type {
   TransactionTagDefinition,
 } from "../tags/transactionTagTypes";
 import {
-  type HostedSqliteImportSession,
+  type SqliteImportSession,
   type SqliteImportTransaction,
-} from "../persistence/hostedSqliteImportClient";
+} from "../persistence/sqliteImportContracts";
 import {
   LocalBudgetDatabaseClient,
   createLocalFirstRelayTransport,
@@ -992,7 +992,7 @@ interface ImportSessionClient {
     readonly budgetName: string;
     readonly currency: string;
     readonly signal?: AbortSignal;
-  }): Promise<HostedSqliteImportSession>;
+  }): Promise<SqliteImportSession>;
 }
 
 /**

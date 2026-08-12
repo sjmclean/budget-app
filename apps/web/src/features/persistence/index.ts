@@ -38,14 +38,16 @@ export {
   HostedSqliteFeatureUnavailableError,
   isHostedSqliteBudget,
 } from "./hostedBudgetSafety";
-export { createHostedSqliteImportClient } from "./hostedSqliteImportClient";
 export type {
-  HostedSqliteImportSession,
   SqliteImportAccount,
+  SqliteImportBudgetMonth,
   SqliteImportCategory,
   SqliteImportPayee,
+  SqliteImportScheduledTransaction,
+  SqliteImportSession,
+  SqliteImportSplitLine,
   SqliteImportTransaction,
-} from "./hostedSqliteImportClient";
+} from "./sqliteImportContracts";
 export * from "./keyValueImportStage";
 export type {
   OperationJournalCursor,

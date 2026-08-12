@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { createHostedAccountRegisterQueryClient } from "../apps/web/src/features/persistence/hostedAccountRegisterQueryClient.js";
-import { createHostedSqliteImportClient } from "../apps/web/src/features/persistence/hostedSqliteImportClient.js";
 
 const requests: Array<{ url: string; method: string; body?: string }> = [];
 const client = createHostedAccountRegisterQueryClient({
@@ -335,70 +334,3 @@ await assert.rejects(
 );
 
 console.log("Milestone 3 hosted account query client passed.");
-
-const referenceBatches: Array<{
-  accounts: unknown[];
-  payees: unknown[];
-  categories: unknown[];
-}> = [];
-const scheduledBatchSizes: number[] = [];
-const importClient = createHostedSqliteImportClient({
-  fetchImplementation: async (input, init) => {
-    if (String(input).endsWith("/api/budget-engine/imports")) {
-      return Response.json({ generationId: "generation-batched" }, { status: 201 });
-    }
-    if (String(input).endsWith("/reference-data")) {
-      referenceBatches.push(JSON.parse(String(init?.body)));
-      return Response.json({ accepted: true }, { status: 202 });
-    }
-    if (String(input).endsWith("/scheduled-transactions")) {
-      scheduledBatchSizes.push(JSON.parse(String(init?.body)).rows.length);
-      return Response.json({ accepted: true }, { status: 202 });
-    }
-    return Response.json({});
-  },
-});
-const importSession = await importClient.begin({
-  budgetId: "large-reference-budget",
-  budgetName: "Large references",
-  currency: "AUD",
-});
-await importSession.persistReferenceData({
-  accounts: [{ id: "account", name: "Account", type: "checking", participation: "on-budget", openingBalance: 0 }],
-  payees: Array.from({ length: 4_501 }, (_, index) => ({
-    id: `payee-${index}`,
-    name: `Payee ${index}`,
-  })),
-  categories: [],
-});
-assert.deepEqual(
-  referenceBatches.map((batch) => ({
-    accounts: batch.accounts.length,
-    payees: batch.payees.length,
-    categories: batch.categories.length,
-  })),
-  [
-    { accounts: 1, payees: 0, categories: 0 },
-    { accounts: 0, payees: 2_000, categories: 0 },
-    { accounts: 0, payees: 2_000, categories: 0 },
-    { accounts: 0, payees: 501, categories: 0 },
-  ],
-);
-await importSession.persistScheduledTransactions(
-  Array.from({ length: 2_001 }, (_, index) => ({
-    id: `schedule-${index}`,
-    accountId: "account",
-    nextDueDate: "2026-01-01",
-    frequency: "monthly" as const,
-    payee: "Payee",
-    category: "Category",
-    outflow: 1,
-    inflow: 0,
-    splitLines: [],
-    createdAt: "2025-01-01T00:00:00.000Z",
-    updatedAt: "2025-01-01T00:00:00.000Z",
-  })),
-);
-assert.deepEqual(scheduledBatchSizes, [2_000, 1]);
-
-console.log("Milestone 3 hosted reference batching passed.");
