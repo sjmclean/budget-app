@@ -84,6 +84,7 @@ export interface NewRegisterTransactionInput {
   rawPayee?: string;
   category: string;
   categoryId?: string;
+  transferAccountId?: string;
   memo?: string;
   checkNumber?: string;
   inflow: number;

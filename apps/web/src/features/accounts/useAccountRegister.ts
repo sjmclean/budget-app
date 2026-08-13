@@ -835,6 +835,8 @@ export function toTransactionWriteInput(
     rawPayee: input.rawPayee,
     categoryId: input.categoryId,
     categoryName: input.category,
+    transferAccountId:
+      "transferAccountId" in input ? input.transferAccountId : undefined,
     memo: input.memo,
     checkNumber: input.checkNumber,
     payeeName: input.payee,

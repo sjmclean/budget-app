@@ -524,7 +524,8 @@ export function verifyImportCommitPlan(
         transaction.category !== "Transfer" ||
         transaction.categoryId !== undefined ||
         !destination ||
-        destination.id === session.accountId
+        destination.id === session.accountId ||
+        transaction.transferAccountId !== destination.id
       ) {
         addIssue({
           code: "invalid-transfer",
@@ -608,6 +609,7 @@ export function prepareImportCommit(
     buildRegisterTransactionsFromImport(session.importedCandidates, {
       includeMemos: session.includeMemos,
       categories: session.categories,
+      accounts: session.accounts,
       identityScope,
     }),
   );

@@ -9,6 +9,7 @@ import type { TransactionImportCandidate } from "./transactionImport";
 export interface BuildRegisterTransactionsFromImportOptions {
   includeMemos?: boolean;
   categories?: Array<{ id: string; name: string }>;
+  accounts?: Array<{ id: string; name: string }>;
   identityScope?: string;
 }
 
@@ -39,7 +40,14 @@ function toRegisterTransactionInput(
 ): NewRegisterTransactionInput {
   const { parsed } = candidate;
   const proposal = candidate.lifecycle.proposal;
-  const isTransfer = Boolean(proposal.transferAccountName);
+  const requestedTransferAccountName =
+    proposal.transferAccountName?.trim() || null;
+  const resolvedTransferAccount = requestedTransferAccountName
+    ? options.accounts?.find(
+        (account) => account.name === requestedTransferAccountName,
+      )
+    : undefined;
+  const isTransfer = Boolean(requestedTransferAccountName);
   const requestedCategoryName = proposal.categoryName?.trim() || null;
   const resolvedCategory = requestedCategoryName
     ? options.categories?.find(
@@ -63,13 +71,14 @@ function toRegisterTransactionInput(
     date: parsed.date,
     rawPayee: candidate.lifecycle.source.rawPayee,
     payee: isTransfer
-      ? `Transfer: ${proposal.transferAccountName}`
+      ? `Transfer: ${requestedTransferAccountName}`
       : proposal.payee,
     category: categoryName,
     categoryId: isTransfer
       ? undefined
       : resolvedCategory?.id ??
         (isReadyToAssignIncome ? "__ready_to_assign__" : undefined),
+    transferAccountId: isTransfer ? resolvedTransferAccount?.id : undefined,
     memo: options.includeMemos === false ? undefined : parsed.memo,
     outflow: parsed.outflow,
     inflow: parsed.inflow,
