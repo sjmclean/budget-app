@@ -82,6 +82,43 @@ export function createLocalFirstAccountRegisterQueryClient(
     readonly promise: Promise<void>;
   } | null = null;
 
+  async function drainLocalOutbox(
+    local: LocalBudgetDatabaseClient,
+    budgetId: string,
+    syncEpoch: string,
+  ): Promise<void> {
+    while (true) {
+      const pending = await local.readOutbox(0, 500);
+      const outbox: (typeof pending)[number][] = [];
+      let encodedBytes = 0;
+      for (const row of pending) {
+        const rowBytes = new Blob([row.payloadJson]).size + 2_048;
+        if (outbox.length > 0 && encodedBytes + rowBytes > 32 * 1024 * 1024) break;
+        outbox.push(row);
+        encodedBytes += rowBytes;
+      }
+      if (outbox.length === 0) break;
+      await relay.pushMutations({
+        budgetId,
+        syncEpoch,
+        mutations: outbox.map((row) => ({
+          mutationId: row.mutationId,
+          budgetId,
+          syncEpoch,
+          deviceId: row.deviceId,
+          deviceSequence: row.deviceSequence,
+          baseCursor: row.baseCursor,
+          domain: row.domain,
+          entityId: row.entityId,
+          operation: row.operation,
+          payload: JSON.parse(row.payloadJson),
+          createdAt: row.createdAt,
+        })),
+      });
+      await local.acknowledgeOutbox(outbox.at(-1)!.sequence);
+    }
+  }
+
   async function readyDatabase(budgetId: string): Promise<LocalBudgetDatabaseClient | null> {
     if (database && activeBudgetId === budgetId) return database;
     if (opening) return opening;
@@ -89,10 +126,10 @@ export function createLocalFirstAccountRegisterQueryClient(
       const remote = await relay.getBootstrap(budgetId).catch(() => null);
       await database?.close().catch(() => undefined);
       const next = options.databaseFactory?.() ?? new LocalBudgetDatabaseClient();
+      const cachedSyncEpoch = storage.getItem(
+        `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
+      );
       if (!remote) {
-        const cachedSyncEpoch = storage.getItem(
-          `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
-        );
         if (!cachedSyncEpoch) return null;
         try {
           await next.open({
@@ -113,6 +150,26 @@ export function createLocalFirstAccountRegisterQueryClient(
       if (!remote.baseline || remote.schemaVersion !== LOCAL_BUDGET_SCHEMA_VERSION) {
         return null;
       }
+
+      if (cachedSyncEpoch && cachedSyncEpoch !== remote.syncEpoch) {
+        await next.open({
+          budgetId,
+          syncEpoch: cachedSyncEpoch,
+          deviceId,
+        });
+        const pendingOldGeneration = await next.readOutbox(0, 1);
+        if (pendingOldGeneration.length > 0) {
+          await next.close().catch(() => undefined);
+          throw Object.assign(
+            new Error(
+              "This device has unsynced local changes from the previous sync generation. " +
+              "They must be recovered explicitly before rebuilding from the relay.",
+            ),
+            { code: "UNSYNCED_LOCAL_CHANGES" },
+          );
+        }
+      }
+
       try {
         const local = await next.open({
           budgetId,
@@ -127,6 +184,7 @@ export function createLocalFirstAccountRegisterQueryClient(
           local.counts.accounts !== remote.baseline.manifest.counts.accounts ||
           local.counts.transactions !== remote.baseline.manifest.counts.transactions
         ) {
+          await drainLocalOutbox(next, budgetId, remote.syncEpoch);
           await bootstrapLocalBudget({
             budgetId,
             deviceId,
@@ -193,36 +251,7 @@ export function createLocalFirstAccountRegisterQueryClient(
     }
     const operation = tabSyncCoordinator.run(budgetId, async () => {
       const local = await requireDatabase(budgetId);
-      while (true) {
-        const pending = await local.readOutbox(0, 500);
-        const outbox: (typeof pending)[number][] = [];
-        let encodedBytes = 0;
-        for (const row of pending) {
-          const rowBytes = new Blob([row.payloadJson]).size + 2_048;
-          if (outbox.length > 0 && encodedBytes + rowBytes > 32 * 1024 * 1024) break;
-          outbox.push(row);
-          encodedBytes += rowBytes;
-        }
-        if (outbox.length === 0) break;
-        await relay.pushMutations({
-          budgetId,
-          syncEpoch: activeSyncEpoch!,
-          mutations: outbox.map((row) => ({
-            mutationId: row.mutationId,
-            budgetId,
-            syncEpoch: activeSyncEpoch!,
-            deviceId: row.deviceId,
-            deviceSequence: row.deviceSequence,
-            baseCursor: row.baseCursor,
-            domain: row.domain,
-            entityId: row.entityId,
-            operation: row.operation,
-            payload: JSON.parse(row.payloadJson),
-            createdAt: row.createdAt,
-          })),
-        });
-        await local.acknowledgeOutbox(outbox.at(-1)!.sequence);
-      }
+      await drainLocalOutbox(local, budgetId, activeSyncEpoch!);
       let cursor = (await local.getSyncState()).pulledCursor;
       while (true) {
         let pulled;

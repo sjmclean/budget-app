@@ -3831,6 +3831,21 @@ async function beginBaselineReplacement(
   request: Extract<LocalBudgetWorkerRequest, { type: "beginBaselineReplacement" }>,
 ) {
   await ensurePersistentSqlite();
+
+  if (database) {
+    const pendingOutboxCount =
+      resultRows<{ count: number }>(
+        "SELECT COUNT(*) AS count FROM local_budget_outbox",
+      )[0]?.count ?? 0;
+
+    if (pendingOutboxCount > 0) {
+      throw workerError(
+        "UNSYNCED_LOCAL_CHANGES",
+        "Baseline replacement would discard unsynced local changes.",
+      );
+    }
+  }
+
   if (!Number.isSafeInteger(request.totalBytes) || request.totalBytes < 1) {
     throw workerError("INVALID_BASELINE_SIZE", "Baseline size must be positive.");
   }
