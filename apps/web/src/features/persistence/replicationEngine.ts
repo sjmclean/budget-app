@@ -78,7 +78,17 @@ export async function replicatePersistenceProvider(
   if (state.generationId && state.generationId !== remote.generationId) {
     const checkpoint = await transport.getLatestCheckpoint(remote.generationId);
     if (checkpoint && provider.checkpoints) {
-      await provider.checkpoints.restoreCheckpoint(checkpoint, [], options.budgetId);
+      const pendingLocalOperations = await readPendingJournalOperations(
+        provider.operationJournal,
+        state.pushedLocalSequence,
+        batchSize,
+        budgetPrefix,
+      );
+      await provider.checkpoints.restoreCheckpoint(
+        checkpoint,
+        pendingLocalOperations,
+        options.budgetId,
+      );
       state = {
         generationId: remote.generationId,
         pushedLocalSequence: 0,
@@ -363,6 +373,32 @@ function summariseOperation(operation: OperationJournalEntry): ReplicationTraceO
   };
 }
 
+
+async function readPendingJournalOperations(
+  journal: NonNullable<BudgetPersistenceProvider["operationJournal"]>,
+  afterSequence: number,
+  batchSize: number,
+  keyPrefix: string | null,
+): Promise<OperationJournalEntry[]> {
+  const operations: OperationJournalEntry[] = [];
+  let cursor = afterSequence;
+
+  while (true) {
+    const batch = await journal.readJournal(cursor, batchSize);
+    if (batch.length === 0) break;
+
+    for (const operation of batch) {
+      if (!keyPrefix || operation.mutation.key.startsWith(keyPrefix)) {
+        operations.push(operation);
+      }
+    }
+
+    cursor = batch.at(-1)!.sequence;
+    if (batch.length < batchSize) break;
+  }
+
+  return operations;
+}
 
 export async function readLatestJournalOperationsForKeys(
   journal: NonNullable<BudgetPersistenceProvider["operationJournal"]>,

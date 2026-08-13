@@ -487,7 +487,13 @@ export function createLocalDatabaseKeyValueStorage(options: {
       await writes.flush();
       const db = await openDatabase(databaseName);
       try {
-        await restoreDatabaseFromCheckpoint(db, restoredEntries, restoredCheckpoint, scope);
+        await restoreDatabaseFromCheckpoint(
+          db,
+          restoredEntries,
+          restoredCheckpoint,
+          canonicalLaterOperations,
+          scope,
+        );
         const mergedEntries = scope
           ? mergeScopedPersistenceEntries(Object.fromEntries(mirror.entries()), restoredEntries, scope)
           : mergeRestoredCanonicalPersistenceEntries(
@@ -496,7 +502,12 @@ export function createLocalDatabaseKeyValueStorage(options: {
             );
         mirror.clear();
         for (const [key, value] of Object.entries(mergedEntries)) mirror.set(key, value);
-        if (!scope) latestSequence = 0;
+        if (!scope) {
+          latestSequence = canonicalLaterOperations.reduce(
+            (latest, entry) => Math.max(latest, entry.sequence),
+            0,
+          );
+        }
       } finally {
         db.close();
       }
@@ -874,6 +885,7 @@ function restoreDatabaseFromCheckpoint(
   db: IDBDatabase,
   entries: Readonly<Record<string, string>>,
   restoredCheckpoint: PersistenceCheckpoint,
+  laterOperations: readonly OperationJournalEntry[],
   scope?: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -911,6 +923,8 @@ function restoreDatabaseFromCheckpoint(
         cursor.continue();
       };
     }
+    for (const entry of laterOperations) journal.put(entry);
+
     const conflicts = transaction.objectStore(CONFLICT_STORE);
     if (!prefix) {
       conflicts.clear();
@@ -926,7 +940,15 @@ function restoreDatabaseFromCheckpoint(
     }
     transaction.objectStore(CHECKPOINT_STORE).put(restoredCheckpoint);
     const metadata = transaction.objectStore(META_STORE);
-    if (!prefix) metadata.put({ key: LATEST_SEQUENCE_KEY, value: 0 });
+    if (!prefix) {
+      metadata.put({
+        key: LATEST_SEQUENCE_KEY,
+        value: laterOperations.reduce(
+          (latest, entry) => Math.max(latest, entry.sequence),
+          0,
+        ),
+      });
+    }
     metadata.put({
       key: checkpointMetadataKey(scope),
       value: restoredCheckpoint.checkpointId,
