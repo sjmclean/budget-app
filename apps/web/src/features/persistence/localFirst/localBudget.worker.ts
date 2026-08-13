@@ -57,13 +57,15 @@ let durable = false;
 let activeBudgetId = "";
 let activeSyncEpoch = "";
 let activeFilename = "";
-let stagedImport: {
+type StagedImportState = {
   readonly budgetId: string;
   readonly syncEpoch: string;
   readonly deviceId: string;
   readonly filename: string;
   readonly previousFilename: string;
-} | null = null;
+};
+
+let stagedImport: StagedImportState | null = null;
 let replacement: {
   readonly budgetId: string;
   readonly syncEpoch: string;
@@ -78,6 +80,16 @@ const BUDGET_PROJECTION_ENGINE_VERSION = 5;
 
 function safeFilename(budgetId: string): string {
   return `/budget-${encodeURIComponent(budgetId).replaceAll("%", "_")}.sqlite3`;
+}
+
+function createStagedImportFilename(budgetId: string): string {
+  const encodedBudgetId = encodeURIComponent(budgetId).replaceAll("%", "_");
+  return `/budget-import-${encodedBudgetId}-${createRuntimeUuid()}.staging.sqlite3`;
+}
+
+function createStagedImportBackupFilename(budgetId: string): string {
+  const encodedBudgetId = encodeURIComponent(budgetId).replaceAll("%", "_");
+  return `/budget-import-${encodedBudgetId}-${createRuntimeUuid()}.backup.sqlite3`;
 }
 
 function resultRows<T>(sql: string, bind: readonly unknown[] = []): T[] {
@@ -1489,7 +1501,25 @@ function upsertTransaction(transaction: LocalTransactionRecord): void {
   }
 }
 
+function assertActiveStagedImport(): NonNullable<typeof stagedImport> {
+  const stage = stagedImport;
+  if (
+    !stage ||
+    !database ||
+    activeFilename !== stage.filename ||
+    activeBudgetId !== stage.budgetId ||
+    activeSyncEpoch !== stage.syncEpoch
+  ) {
+    throw workerError(
+      "STAGED_IMPORT_MISSING",
+      "Import batches may only be written to the active staged local import.",
+    );
+  }
+  return stage;
+}
+
 function importRegisterBatch(batch: LocalRegisterImportBatch): LocalBudgetManifest {
+  assertActiveStagedImport();
   execute("BEGIN IMMEDIATE");
   try {
     for (const account of batch.accounts ?? []) {
@@ -1573,6 +1603,7 @@ function importRegisterBatch(batch: LocalRegisterImportBatch): LocalBudgetManife
 }
 
 function importEntityBatch(entities: readonly LocalImportEntity[]): LocalBudgetManifest {
+  assertActiveStagedImport();
   if (entities.length > 2_000) {
     throw workerError("IMPORT_BATCH_TOO_LARGE", "Local import batches may contain at most 2,000 entities.");
   }
@@ -1668,42 +1699,74 @@ async function importPersistentDatabase(
   }
 }
 
+async function restorePreviousDatabaseFromStage(
+  stage: StagedImportState,
+): Promise<void> {
+  database?.close();
+  database = null;
+
+  await removeOpfsFile(stage.filename).catch(() => undefined);
+
+  activeFilename = stage.previousFilename;
+  if (!activeFilename) {
+    activeBudgetId = "";
+    activeSyncEpoch = "";
+    stagedImport = null;
+    return;
+  }
+
+  database = openPersistentDatabase(activeFilename);
+  activeBudgetId = readMetadata("budgetId") ?? "";
+  activeSyncEpoch = readMetadata("syncEpoch") ?? "";
+  initialiseSchema();
+  stagedImport = null;
+}
+
 async function beginStagedImport(
   request: Extract<LocalBudgetWorkerRequest, { type: "beginStagedImport" }>,
 ) {
   if (stagedImport) {
     throw workerError("STAGED_IMPORT_ACTIVE", "A staged local import is already active.");
   }
+
   await ensurePersistentSqlite();
-  const previousFilename = activeFilename;
-  // The SAH-pool VFS cannot rename files. New-budget imports can safely stage
-  // under their final opaque name because the registry is not published until
-  // validation and commit have completed.
-  const filename = persistentBackend === "opfs-sahpool"
-    ? safeFilename(request.budgetId)
-    : `/budget-import-${createRuntimeUuid()}.staging.sqlite3`;
-  database?.close();
-  database = null;
-  await removeOpfsFile(filename);
-  activeBudgetId = request.budgetId;
-  activeSyncEpoch = request.syncEpoch;
-  activeFilename = filename;
-  database = openPersistentDatabase(filename);
-  durable = true;
-  initialiseSchema();
-  writeMetadata("budgetId", request.budgetId);
-  writeMetadata("syncEpoch", request.syncEpoch);
-  writeMetadata("schemaVersion", String(LOCAL_BUDGET_SCHEMA_VERSION));
-  writeMetadata("deviceId", request.deviceId);
-  writeMetadata("localRevision", "0");
-  stagedImport = {
+
+  const stage: StagedImportState = {
     budgetId: request.budgetId,
     syncEpoch: request.syncEpoch,
     deviceId: request.deviceId,
-    filename,
-    previousFilename,
+    filename: createStagedImportFilename(request.budgetId),
+    previousFilename: activeFilename,
   };
-  return currentManifest();
+
+  // Establish recovery state before disturbing the previously active database.
+  stagedImport = stage;
+
+  try {
+    database?.close();
+    database = null;
+
+    await removeOpfsFile(stage.filename);
+
+    activeBudgetId = stage.budgetId;
+    activeSyncEpoch = stage.syncEpoch;
+    activeFilename = stage.filename;
+
+    database = openPersistentDatabase(stage.filename);
+    durable = true;
+    initialiseSchema();
+
+    writeMetadata("budgetId", stage.budgetId);
+    writeMetadata("syncEpoch", stage.syncEpoch);
+    writeMetadata("schemaVersion", String(LOCAL_BUDGET_SCHEMA_VERSION));
+    writeMetadata("deviceId", stage.deviceId);
+    writeMetadata("localRevision", "0");
+
+    return currentManifest();
+  } catch (error) {
+    await restorePreviousDatabaseFromStage(stage);
+    throw error;
+  }
 }
 
 async function copyOpfsDatabase(sourceFilename: string, targetFilename: string): Promise<void> {
@@ -1734,7 +1797,10 @@ async function copyOpfsDatabase(sourceFilename: string, targetFilename: string):
 
 async function commitStagedImport(expectedCounts: BudgetDomainCounts) {
   const stage = stagedImport;
-  if (!stage) throw workerError("STAGED_IMPORT_MISSING", "No staged local import is active.");
+  if (!stage) {
+    throw workerError("STAGED_IMPORT_MISSING", "No staged local import is active.");
+  }
+
   const manifest = currentManifest();
   for (const domain of REQUIRED_BUDGET_DOMAINS) {
     if (manifest.counts[domain] !== expectedCounts[domain]) {
@@ -1744,41 +1810,114 @@ async function commitStagedImport(expectedCounts: BudgetDomainCounts) {
       );
     }
   }
+
   const foreignKeyErrors = resultRows("PRAGMA foreign_key_check");
   if (foreignKeyErrors.length > 0) {
-    throw workerError("STAGED_IMPORT_RELATIONAL_INVALID", "The staged import failed relational validation.");
+    throw workerError(
+      "STAGED_IMPORT_RELATIONAL_INVALID",
+      "The staged import failed relational validation.",
+    );
   }
+
   execute("PRAGMA wal_checkpoint(TRUNCATE)");
   database?.close();
   database = null;
+
   const targetFilename = safeFilename(stage.budgetId);
-  if (stage.filename !== targetFilename) {
+  const replacingExistingCanonical = stage.previousFilename === targetFilename;
+  const backupFilename = createStagedImportBackupFilename(stage.budgetId);
+  let backupReady = false;
+
+  try {
+    if (replacingExistingCanonical) {
+      // Do not mark the backup usable until the complete copy succeeds.
+      await copyOpfsDatabase(targetFilename, backupFilename);
+      backupReady = true;
+    }
+
     await copyOpfsDatabase(stage.filename, targetFilename);
-    await removeOpfsFile(stage.filename);
+
+    activeFilename = targetFilename;
+    activeBudgetId = stage.budgetId;
+    activeSyncEpoch = stage.syncEpoch;
+    database = openPersistentDatabase(targetFilename);
+    durable = true;
+    initialiseSchema();
+
+    const storedBudgetId = readMetadata("budgetId");
+    const storedSyncEpoch = readMetadata("syncEpoch");
+    if (
+      storedBudgetId !== stage.budgetId ||
+      storedSyncEpoch !== stage.syncEpoch
+    ) {
+      throw workerError(
+        "STAGED_IMPORT_SCOPE_MISMATCH",
+        "Promoted staged import does not match the selected budget and sync epoch.",
+      );
+    }
+
+    const promotedManifest = currentManifest();
+    for (const domain of REQUIRED_BUDGET_DOMAINS) {
+      if (promotedManifest.counts[domain] !== expectedCounts[domain]) {
+        throw workerError(
+          "STAGED_IMPORT_PROMOTION_INCOMPLETE",
+          `Promoted import expected ${expectedCounts[domain]} ${domain}, found ${promotedManifest.counts[domain]}.`,
+        );
+      }
+    }
+
+    const promotedForeignKeyErrors = resultRows("PRAGMA foreign_key_check");
+    if (promotedForeignKeyErrors.length > 0) {
+      throw workerError(
+        "STAGED_IMPORT_PROMOTION_RELATIONAL_INVALID",
+        "Promoted staged import failed relational validation.",
+      );
+    }
+
+    stagedImport = null;
+
+    // Promotion is now verified and authoritative. Cleanup is best-effort:
+    // failure to remove temporary recovery files must not roll back a valid
+    // canonical database.
+    await removeOpfsFile(stage.filename).catch(() => undefined);
+    if (backupReady) {
+      await removeOpfsFile(backupFilename).catch(() => undefined);
+    }
+
+    return promotedManifest;
+  } catch (error) {
+    database?.close();
+    database = null;
+
+    if (backupReady) {
+      try {
+        await copyOpfsDatabase(backupFilename, targetFilename);
+        await removeOpfsFile(backupFilename).catch(() => undefined);
+      } catch (restoreError) {
+        throw Object.assign(
+          new Error(
+            `Staged import promotion failed and the previous local database could not be restored: ${
+              restoreError instanceof Error ? restoreError.message : String(restoreError)
+            }`,
+          ),
+          {
+            code: "STAGED_IMPORT_RESTORE_FAILED",
+            cause: error,
+          },
+        );
+      }
+    }
+
+    await restorePreviousDatabaseFromStage(stage);
+    throw error;
   }
-  activeFilename = targetFilename;
-  database = openPersistentDatabase(targetFilename);
-  activeBudgetId = stage.budgetId;
-  activeSyncEpoch = stage.syncEpoch;
-  stagedImport = null;
-  initialiseSchema();
-  return currentManifest();
 }
 
 async function rollbackStagedImport() {
   const stage = stagedImport;
   if (!stage) return { rolledBack: false };
-  database?.close();
-  database = null;
-  await removeOpfsFile(stage.filename);
-  stagedImport = null;
-  activeFilename = stage.previousFilename;
-  if (activeFilename) {
-    database = openPersistentDatabase(activeFilename);
-    activeBudgetId = readMetadata("budgetId") ?? "";
-    activeSyncEpoch = readMetadata("syncEpoch") ?? "";
-    initialiseSchema();
-  }
+
+  await restorePreviousDatabaseFromStage(stage);
   return { rolledBack: true };
 }
 
