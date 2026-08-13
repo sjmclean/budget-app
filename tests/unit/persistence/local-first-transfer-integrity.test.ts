@@ -517,3 +517,212 @@ test("editing an ordinary transaction into a transfer creates a reciprocal count
   assert.equal(source.clearedStatus, "cleared");
   assert.equal(counterpart.clearedStatus, "uncleared");
 });
+
+test("editing a reconciled transaction is refused without changing it", async () => {
+  const { client, transactions } = createHarness();
+
+  const source = transactions.get("transfer-source");
+  assert.ok(source);
+
+  const reconciled = {
+    ...source,
+    transferAccountId: null,
+    transferTransactionId: null,
+    clearedStatus: "reconciled",
+  };
+  transactions.set("reconciled-edit", {
+    ...reconciled,
+    id: "reconciled-edit",
+  });
+
+  const before = transactions.get("reconciled-edit");
+
+  await assert.rejects(
+    client.updateTransaction("reconciled-edit", {
+      budgetId: BUDGET_ID,
+      accountId: "checking",
+      date: "2026-08-20",
+      amount: -20_000,
+      memo: "Must not persist",
+    }),
+    /reconcil|locked/i,
+  );
+
+  assert.deepEqual(transactions.get("reconciled-edit"), before);
+});
+
+test("cleared toggle cannot unreconcile a reconciled transaction", async () => {
+  const { client, transactions } = createHarness();
+
+  const source = transactions.get("transfer-source");
+  assert.ok(source);
+
+  transactions.set("reconciled-toggle", {
+    ...source,
+    id: "reconciled-toggle",
+    transferAccountId: null,
+    transferTransactionId: null,
+    clearedStatus: "reconciled",
+  });
+
+  const before = transactions.get("reconciled-toggle");
+
+  await assert.rejects(
+    client.toggleTransactionCleared("reconciled-toggle", {
+      budgetId: BUDGET_ID,
+      accountId: "checking",
+    }),
+    /reconcil|locked/i,
+  );
+
+  assert.deepEqual(transactions.get("reconciled-toggle"), before);
+});
+
+test("deleting a reconciled transaction is refused without deleting it", async () => {
+  const { client, transactions } = createHarness();
+
+  const source = transactions.get("transfer-source");
+  assert.ok(source);
+
+  transactions.set("reconciled-delete", {
+    ...source,
+    id: "reconciled-delete",
+    transferAccountId: null,
+    transferTransactionId: null,
+    clearedStatus: "reconciled",
+  });
+
+  const before = transactions.get("reconciled-delete");
+
+  await assert.rejects(
+    client.deleteTransaction("reconciled-delete", {
+      budgetId: BUDGET_ID,
+      accountId: "checking",
+    }),
+    /reconcil|locked/i,
+  );
+
+  assert.deepEqual(transactions.get("reconciled-delete"), before);
+});
+
+test("moving a reconciled transaction is refused without changing it", async () => {
+  const { client, transactions } = createHarness();
+
+  const source = transactions.get("transfer-source");
+  assert.ok(source);
+
+  transactions.set("reconciled-move", {
+    ...source,
+    id: "reconciled-move",
+    transferAccountId: null,
+    transferTransactionId: null,
+    clearedStatus: "reconciled",
+  });
+
+  const before = transactions.get("reconciled-move");
+
+  await assert.rejects(
+    client.moveTransactions({
+      budgetId: BUDGET_ID,
+      sourceAccountId: "checking",
+      targetAccountId: "joint",
+      transactionIds: ["reconciled-move"],
+    }),
+    /reconcil|locked/i,
+  );
+
+  assert.deepEqual(transactions.get("reconciled-move"), before);
+});
+
+test("batch update cannot modify a reconciled transaction", async () => {
+  const { client, transactions } = createHarness();
+
+  const source = transactions.get("transfer-source");
+  assert.ok(source);
+
+  transactions.set("reconciled-batch", {
+    ...source,
+    id: "reconciled-batch",
+    transferAccountId: null,
+    transferTransactionId: null,
+    clearedStatus: "reconciled",
+  });
+
+  const before = transactions.get("reconciled-batch");
+
+  await assert.rejects(
+    client.commitTransactionBatch({
+      budgetId: BUDGET_ID,
+      accountId: "checking",
+      additions: [],
+      updates: [
+        {
+          id: "reconciled-batch",
+          budgetId: BUDGET_ID,
+          accountId: "checking",
+          date: "2026-08-21",
+          amount: -30_000,
+          memo: "Must not batch update",
+        },
+      ],
+    }),
+    /reconcil|locked/i,
+  );
+
+  assert.deepEqual(transactions.get("reconciled-batch"), before);
+});
+
+test("a transfer operation cannot modify a reconciled counterpart", async () => {
+  const { client, transactions } = createHarness();
+
+  const counterpart = transactions.get("transfer-target");
+  assert.ok(counterpart);
+
+  transactions.set("transfer-target", {
+    ...counterpart,
+    clearedStatus: "reconciled",
+  });
+
+  const sourceBefore = transactions.get("transfer-source");
+  const targetBefore = transactions.get("transfer-target");
+
+  await assert.rejects(
+    client.updateTransaction("transfer-source", {
+      budgetId: BUDGET_ID,
+      accountId: "checking",
+      date: "2026-08-22",
+      amount: -12_000,
+      memo: "Must not rewrite reconciled counterpart",
+    }),
+    /reconcil|locked/i,
+  );
+
+  assert.deepEqual(transactions.get("transfer-source"), sourceBefore);
+  assert.deepEqual(transactions.get("transfer-target"), targetBefore);
+});
+
+test("deleting an unreconciled transfer is refused when its counterpart is reconciled", async () => {
+  const { client, transactions } = createHarness();
+
+  const counterpart = transactions.get("transfer-target");
+  assert.ok(counterpart);
+
+  transactions.set("transfer-target", {
+    ...counterpart,
+    clearedStatus: "reconciled",
+  });
+
+  const sourceBefore = transactions.get("transfer-source");
+  const targetBefore = transactions.get("transfer-target");
+
+  await assert.rejects(
+    client.deleteTransaction("transfer-source", {
+      budgetId: BUDGET_ID,
+      accountId: "checking",
+    }),
+    /reconcil|locked/i,
+  );
+
+  assert.deepEqual(transactions.get("transfer-source"), sourceBefore);
+  assert.deepEqual(transactions.get("transfer-target"), targetBefore);
+});

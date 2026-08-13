@@ -419,6 +419,16 @@ export function createLocalFirstAccountRegisterQueryClient(
     };
   }
 
+  function requireMutableTransaction(
+    transaction: LocalTransactionRecord,
+  ): void {
+    if (transaction.clearedStatus === "reconciled") {
+      throw new Error(
+        "Reconciled transactions are locked and cannot be changed.",
+      );
+    }
+  }
+
   async function requireTransferCounterpart(
     local: LocalBudgetDatabaseClient,
     transaction: LocalTransactionRecord,
@@ -504,7 +514,12 @@ export function createLocalFirstAccountRegisterQueryClient(
     input: TransactionWriteInput,
     existing: LocalTransactionRecord,
   ): Promise<readonly LocalTransactionRecord[]> {
+    requireMutableTransaction(existing);
+
     const counterpart = await requireTransferCounterpart(local, existing);
+    if (counterpart) {
+      requireMutableTransaction(counterpart);
+    }
 
     if (!counterpart) {
       const record = await transactionRecord(transactionId, input, existing);
@@ -968,7 +983,12 @@ export function createLocalFirstAccountRegisterQueryClient(
         const existing = await local.getTransaction(input.budgetId, transactionId);
         if (!existing || existing.accountId !== input.sourceAccountId) continue;
 
+        requireMutableTransaction(existing);
+
         const counterpart = await requireTransferCounterpart(local, existing);
+        if (counterpart) {
+          requireMutableTransaction(counterpart);
+        }
 
         if (
           counterpart &&
@@ -1045,6 +1065,9 @@ export function createLocalFirstAccountRegisterQueryClient(
       const local = await requireDatabase(input.budgetId);
       const existing = await local.getTransaction(input.budgetId, transactionId);
       if (!existing) throw new Error("The local transaction was not found.");
+
+      requireMutableTransaction(existing);
+
       const record = {
         ...existing,
         clearedStatus: existing.clearedStatus === "uncleared" ? "cleared" : "uncleared",
@@ -1075,7 +1098,12 @@ export function createLocalFirstAccountRegisterQueryClient(
         return;
       }
 
+      requireMutableTransaction(existing);
+
       const counterpart = await requireTransferCounterpart(local, existing);
+      if (counterpart) {
+        requireMutableTransaction(counterpart);
+      }
 
       if (!counterpart) {
         await local.deleteTransaction(
