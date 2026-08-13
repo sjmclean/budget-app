@@ -10,88 +10,94 @@ const workerSource = readFileSync(
   "utf8",
 );
 
-function categoryMergeBody(): string {
-  const start = workerSource.indexOf("function mergeCategories(");
-  const end = workerSource.indexOf("\nasync function openBudget", start);
+function functionBody(name: string): string {
+  const start = workerSource.indexOf(`function ${name}(`);
+  assert.notEqual(start, -1, `${name}() must exist`);
 
-  assert.notEqual(start, -1, "mergeCategories() must exist");
-  assert.notEqual(end, -1, "mergeCategories() boundary must be found");
-
-  return workerSource.slice(start, end);
+  const nextFunction = workerSource.indexOf("\nfunction ", start + 1);
+  return workerSource.slice(
+    start,
+    nextFunction === -1 ? undefined : nextFunction,
+  );
 }
 
 test("category merge redirects all persisted category references before deleting the source", () => {
-  const body = categoryMergeBody();
+  const helper = functionBody("redirectMergedCategoryReferences");
+  const merge = functionBody("mergeCategories");
 
   assert.match(
-    body,
+    helper,
     /UPDATE local_transactions SET category_id = \?, category_name = \?/,
     "ordinary transaction categories must be redirected",
   );
 
   assert.match(
-    body,
+    helper,
     /UPDATE local_transaction_splits SET category_id = \?, category_name = \?/,
     "split transaction categories must be redirected",
   );
 
   assert.match(
-    body,
+    helper,
     /UPDATE\s+local_payees\s+SET\s+default_category_id = \?, default_category_name = \?/,
     "payee default categories must be redirected",
   );
 
   assert.match(
-    body,
+    helper,
     /UPDATE\s+local_payee_recognition_rules\s+SET\s+default_category_id = \?, default_category_name = \?/,
     "recognition-rule default categories must be redirected",
   );
 
   assert.match(
-    body,
-    /local_scheduled_transactions/,
-    "scheduled transaction category references must be redirected",
+    helper,
+    /FROM local_scheduled_transactions\s+WHERE budget_id = \?/,
+    "all budget schedules must be inspected so split-only category references are redirected",
   );
 
   assert.match(
-    body,
+    helper,
     /payload\.splitLines/,
     "scheduled split category references must be inspected",
   );
 
   assert.match(
-    body,
+    helper,
     /categoryId:\s*targetCategoryId/,
     "scheduled split category ids must be redirected",
   );
 
   assert.match(
-    body,
-    /categoryName:\s*targetCategoryName/,
+    helper,
+    /categoryName:\s*resolvedTargetCategoryName/,
     "scheduled split category names must be redirected",
   );
 
-  const deleteIndex = body.indexOf(
-    'DELETE FROM local_categories WHERE budget_id = ? AND id = ?',
+  assert.match(
+    helper,
+    /mergeBudgetCategoryProjectionFacts/,
+    "budget projection facts must be merged",
   );
 
-  assert.notEqual(deleteIndex, -1, "source category must be deleted");
+  assert.match(
+    merge,
+    /redirectMergedCategoryReferences\s*\(/,
+    "local merge must use the shared reference redirect",
+  );
 
-  for (const requiredUpdate of [
-    "UPDATE local_transactions",
-    "UPDATE local_transaction_splits",
-    "UPDATE local_payees",
-    "UPDATE local_payee_recognition_rules",
-    "local_scheduled_transactions",
-  ]) {
-    const updateIndex = body.indexOf(requiredUpdate);
-    assert.ok(
-      updateIndex >= 0 && updateIndex < deleteIndex,
-      `${requiredUpdate} must occur before source category deletion`,
-    );
-  }
+  const redirectIndex = merge.indexOf(
+    "redirectMergedCategoryReferences",
+  );
+  const deleteIndex = merge.indexOf(
+    "DELETE FROM local_categories",
+  );
 
-  assert.match(body, /BEGIN IMMEDIATE/);
-  assert.match(body, /COMMIT/);
-  assert.match(body, /ROLLBACK/);
+  assert.ok(
+    redirectIndex >= 0 && deleteIndex > redirectIndex,
+    "all references must be redirected before deleting the source category",
+  );
+
+  assert.match(merge, /BEGIN IMMEDIATE/);
+  assert.match(merge, /COMMIT/);
+  assert.match(merge, /ROLLBACK/);
 });

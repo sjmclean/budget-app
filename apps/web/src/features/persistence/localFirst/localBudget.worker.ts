@@ -1160,21 +1160,11 @@ function applyRemoteMutations(
           targetCategoryName?: string;
         };
         if (target.targetCategoryId) {
-          execute(
-            `UPDATE local_transactions SET category_id = ?, category_name = ?
-             WHERE budget_id = ? AND category_id = ?`,
-            [target.targetCategoryId, target.targetCategoryName ?? null, activeBudgetId, mutation.entityId],
-          );
-          execute(
-            `UPDATE local_transaction_splits SET category_id = ?, category_name = ?
-             WHERE category_id = ? AND transaction_id IN (
-               SELECT id FROM local_transactions WHERE budget_id = ?
-             )`,
-            [target.targetCategoryId, target.targetCategoryName ?? null, mutation.entityId, activeBudgetId],
-          );
-          mergeBudgetCategoryProjectionFacts(
+          redirectMergedCategoryReferences(
+            activeBudgetId,
             mutation.entityId,
             target.targetCategoryId,
+            target.targetCategoryName ?? null,
           );
         }
         execute("DELETE FROM local_categories WHERE budget_id = ? AND id = ?", [
@@ -3562,6 +3552,137 @@ function mergePayees(
   return currentManifest();
 }
 
+function redirectMergedCategoryReferences(
+  budgetId: string,
+  sourceCategoryId: string,
+  targetCategoryId: string,
+  targetCategoryName: string | null,
+): void {
+  const resolvedTargetCategoryName =
+    targetCategoryName ??
+    resultRows<{ name: string }>(
+      `SELECT name FROM local_categories
+       WHERE budget_id = ? AND id = ?`,
+      [budgetId, targetCategoryId],
+    )[0]?.name ??
+    null;
+
+  const updatedAt = new Date().toISOString();
+
+  execute(
+    `UPDATE local_transactions SET category_id = ?, category_name = ?
+     WHERE budget_id = ? AND category_id = ?`,
+    [
+      targetCategoryId,
+      resolvedTargetCategoryName,
+      budgetId,
+      sourceCategoryId,
+    ],
+  );
+
+  execute(
+    `UPDATE local_transaction_splits SET category_id = ?, category_name = ?
+     WHERE category_id = ? AND transaction_id IN (
+       SELECT id FROM local_transactions WHERE budget_id = ?
+     )`,
+    [
+      targetCategoryId,
+      resolvedTargetCategoryName,
+      sourceCategoryId,
+      budgetId,
+    ],
+  );
+
+  execute(
+    `UPDATE local_payees
+     SET default_category_id = ?, default_category_name = ?, updated_at = ?
+     WHERE budget_id = ? AND default_category_id = ?`,
+    [
+      targetCategoryId,
+      resolvedTargetCategoryName,
+      updatedAt,
+      budgetId,
+      sourceCategoryId,
+    ],
+  );
+
+  execute(
+    `UPDATE local_payee_recognition_rules
+     SET default_category_id = ?, default_category_name = ?, updated_at = ?
+     WHERE budget_id = ? AND default_category_id = ?`,
+    [
+      targetCategoryId,
+      resolvedTargetCategoryName,
+      updatedAt,
+      budgetId,
+      sourceCategoryId,
+    ],
+  );
+
+  // Scan every schedule in the budget rather than filtering only by the
+  // top-level category. A source category may exist solely in a split line.
+  const schedules = resultRows<{ id: string; payloadJson: string }>(
+    `SELECT id, payload_json AS payloadJson
+     FROM local_scheduled_transactions
+     WHERE budget_id = ?`,
+    [budgetId],
+  );
+
+  for (const schedule of schedules) {
+    const payload = JSON.parse(
+      schedule.payloadJson,
+    ) as Record<string, unknown>;
+
+    let changed = false;
+
+    if (payload.categoryId === sourceCategoryId) {
+      payload.categoryId = targetCategoryId;
+      payload.category = resolvedTargetCategoryName;
+      changed = true;
+    }
+
+    if (Array.isArray(payload.splitLines)) {
+      payload.splitLines = payload.splitLines.map((line) => {
+        if (
+          typeof line === "object" &&
+          line !== null &&
+          (line as Record<string, unknown>).categoryId === sourceCategoryId
+        ) {
+          changed = true;
+          return {
+            ...(line as Record<string, unknown>),
+            categoryId: targetCategoryId,
+            categoryName: resolvedTargetCategoryName,
+          };
+        }
+
+        return line;
+      });
+    }
+
+    if (!changed) continue;
+
+    payload.updatedAt = updatedAt;
+
+    execute(
+      `UPDATE local_scheduled_transactions
+       SET payload_json = ?, updated_at = ?
+       WHERE budget_id = ? AND id = ?`,
+      [
+        JSON.stringify(payload),
+        updatedAt,
+        budgetId,
+        schedule.id,
+      ],
+    );
+  }
+
+  mergeBudgetCategoryProjectionFacts(
+    sourceCategoryId,
+    targetCategoryId,
+  );
+}
+
 function mergeCategories(
   budgetId: string,
   sourceCategoryId: string,
@@ -3572,92 +3693,12 @@ function mergeCategories(
   assertMutationScope(mutation);
   execute("BEGIN IMMEDIATE");
   try {
-    execute(
-      `UPDATE local_transactions SET category_id = ?, category_name = ?
-       WHERE budget_id = ? AND category_id = ?`,
-      [targetCategoryId, targetCategoryName, budgetId, sourceCategoryId],
+    redirectMergedCategoryReferences(
+      budgetId,
+      sourceCategoryId,
+      targetCategoryId,
+      targetCategoryName,
     );
-    execute(
-      `UPDATE local_transaction_splits SET category_id = ?, category_name = ?
-       WHERE category_id = ? AND transaction_id IN (
-         SELECT id FROM local_transactions WHERE budget_id = ?
-       )`,
-      [targetCategoryId, targetCategoryName, sourceCategoryId, budgetId],
-    );
-
-    execute(
-      `UPDATE local_payees
-       SET default_category_id = ?, default_category_name = ?, updated_at = ?
-       WHERE budget_id = ? AND default_category_id = ?`,
-      [
-        targetCategoryId,
-        targetCategoryName,
-        new Date().toISOString(),
-        budgetId,
-        sourceCategoryId,
-      ],
-    );
-
-    execute(
-      `UPDATE local_payee_recognition_rules
-       SET default_category_id = ?, default_category_name = ?, updated_at = ?
-       WHERE budget_id = ? AND default_category_id = ?`,
-      [
-        targetCategoryId,
-        targetCategoryName,
-        new Date().toISOString(),
-        budgetId,
-        sourceCategoryId,
-      ],
-    );
-
-    const schedules = resultRows<{ id: string; payloadJson: string }>(
-      `SELECT id, payload_json AS payloadJson
-       FROM local_scheduled_transactions
-       WHERE budget_id = ?
-         AND json_extract(payload_json, '$.categoryId') = ?`,
-      [budgetId, sourceCategoryId],
-    );
-
-    for (const schedule of schedules) {
-      const payload = JSON.parse(schedule.payloadJson) as Record<string, unknown>;
-      payload.categoryId = targetCategoryId;
-      payload.category = targetCategoryName;
-
-      if (Array.isArray(payload.splitLines)) {
-        payload.splitLines = payload.splitLines.map((line) => {
-          if (
-            typeof line === "object" &&
-            line !== null &&
-            (line as Record<string, unknown>).categoryId === sourceCategoryId
-          ) {
-            return {
-              ...(line as Record<string, unknown>),
-              categoryId: targetCategoryId,
-              categoryName: targetCategoryName,
-            };
-          }
-
-          return line;
-        });
-      }
-
-      payload.updatedAt = new Date().toISOString();
-
-      execute(
-        `UPDATE local_scheduled_transactions
-         SET payload_json = ?, updated_at = ?
-         WHERE budget_id = ? AND id = ?`,
-        [
-          JSON.stringify(payload),
-          payload.updatedAt,
-          budgetId,
-          schedule.id,
-        ],
-      );
-    }
-
-    mergeBudgetCategoryProjectionFacts(sourceCategoryId, targetCategoryId);
     execute("DELETE FROM local_categories WHERE budget_id = ? AND id = ?", [
       budgetId, sourceCategoryId,
     ]);
