@@ -1,3 +1,4 @@
+import { runAccountRegisterSqliteMutation } from "./accountRegisterMutationRunner";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
 import { usePersistenceChangeVersion } from "../persistence/persistenceChangeBus";
@@ -340,21 +341,21 @@ export function useAccountRegister(
     setIsSaving(true);
     setError(null);
     try {
-      await action();
+      await runAccountRegisterSqliteMutation(action, (message) => {
+        if (
+          mountedRef.current &&
+          activeAccountIdRef.current === mutationAccountId &&
+          mutationVersionRef.current === mutationVersion
+        ) {
+          setError(message);
+        }
+      });
       if (
         mountedRef.current &&
         activeAccountIdRef.current === mutationAccountId &&
         mutationVersionRef.current === mutationVersion
       ) {
         await reloadSqliteRegister();
-      }
-    } catch (error) {
-      if (
-        mountedRef.current &&
-        activeAccountIdRef.current === mutationAccountId &&
-        mutationVersionRef.current === mutationVersion
-      ) {
-        setError(error instanceof Error ? error.message : "Failed to update SQLite register.");
       }
     } finally {
       if (
