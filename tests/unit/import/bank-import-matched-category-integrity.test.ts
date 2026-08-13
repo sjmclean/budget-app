@@ -1,0 +1,152 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import {
+  prepareImportCommit,
+  ImportCommitValidationError,
+  type ImportCommitSession,
+} from "../../../apps/web/src/features/accounts/importCommitEngine.js";
+import {
+  createEmptyMerchantKnowledgeStore,
+} from "../../../apps/web/src/features/accounts/merchantKnowledge.js";
+import type {
+  RegisterTransactionView,
+} from "../../../apps/web/src/features/accounts/accountRegisterTypes.js";
+import type {
+  TransactionImportCandidate,
+} from "../../../apps/web/src/features/accounts/transactionImport.js";
+
+function matchedTransaction(): RegisterTransactionView {
+  return {
+    id: "register-1",
+    date: "2026-08-12",
+    attachmentCount: 0,
+    payee: "Cafe",
+    category: "Dining",
+    categoryId: "groceries",
+    inflow: 0,
+    outflow: 50,
+    runningBalance: -50,
+    cleared: false,
+    reconciled: false,
+  };
+}
+
+function matchedCandidate(
+  transaction: RegisterTransactionView,
+): TransactionImportCandidate {
+  return {
+    id: "row-2",
+    parsed: {
+      rowNumber: 2,
+      date: "2026-08-12",
+      payee: "Cafe",
+      inflow: 0,
+      outflow: 50,
+      raw: {},
+    },
+    status: "exact-match",
+    reason: "matched existing transaction",
+    selected: false,
+    errors: [],
+    matchedTransactionId: transaction.id,
+    matchedTransaction: transaction,
+    lifecycle: {
+      source: {
+        rowNumber: 2,
+        date: "2026-08-12",
+        rawPayee: "Cafe",
+        inflow: 0,
+        outflow: 50,
+      },
+      merchant: {
+        canonicalPayee: "Cafe",
+        suggestedCategoryName: "Dining",
+        transferAccountName: null,
+      },
+      proposal: {
+        payee: "Cafe",
+        categoryName: "Dining",
+        transferAccountName: null,
+      },
+    },
+  };
+}
+
+test("matched import rejects a category name paired with a different category ID", () => {
+  const transaction = matchedTransaction();
+  const candidate = matchedCandidate(transaction);
+
+  const session: ImportCommitSession = {
+    accountId: "checking",
+    accountName: "Checking",
+    importedCandidates: [],
+    matchedCandidates: [candidate],
+    completedSourceCandidates: [candidate],
+    skippedCount: 0,
+    previouslyImportedCount: 0,
+    alreadyRepresentedCount: 0,
+    editedMatchedCandidateIds: new Set([candidate.id]),
+    includeMemos: true,
+    updateMatchedTransactionDates: false,
+    categories: [
+      { id: "groceries", name: "Groceries" },
+      { id: "dining", name: "Dining" },
+    ],
+    accounts: [{ id: "checking", name: "Checking" }],
+    merchantKnowledge: createEmptyMerchantKnowledgeStore(),
+    file: {
+      fileType: "csv",
+      fileName: "statement.csv",
+      fileHash: "sha256:matched-category-fixture",
+    },
+  };
+
+  assert.throws(
+    () => prepareImportCommit(session),
+    (error) =>
+      error instanceof ImportCommitValidationError &&
+      error.message.includes("category"),
+    "a matched update must not persist Dining with the Groceries category ID",
+  );
+});
+
+test("matched import accepts a consistent changed category name and ID", () => {
+  const transaction = {
+    ...matchedTransaction(),
+    category: "Dining",
+    categoryId: "dining",
+  };
+  const candidate = matchedCandidate(transaction);
+
+  const session: ImportCommitSession = {
+    accountId: "checking",
+    accountName: "Checking",
+    importedCandidates: [],
+    matchedCandidates: [candidate],
+    completedSourceCandidates: [candidate],
+    skippedCount: 0,
+    previouslyImportedCount: 0,
+    alreadyRepresentedCount: 0,
+    editedMatchedCandidateIds: new Set([candidate.id]),
+    includeMemos: true,
+    updateMatchedTransactionDates: false,
+    categories: [
+      { id: "groceries", name: "Groceries" },
+      { id: "dining", name: "Dining" },
+    ],
+    accounts: [{ id: "checking", name: "Checking" }],
+    merchantKnowledge: createEmptyMerchantKnowledgeStore(),
+    file: {
+      fileType: "csv",
+      fileName: "statement.csv",
+      fileHash: "sha256:matched-category-fixture",
+    },
+  };
+
+  const plan = prepareImportCommit(session);
+
+  assert.equal(plan.matchedTransactionUpdates.length, 1);
+  assert.equal(plan.matchedTransactionUpdates[0]?.category, "Dining");
+  assert.equal(plan.matchedTransactionUpdates[0]?.categoryId, "dining");
+});

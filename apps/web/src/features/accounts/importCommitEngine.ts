@@ -576,6 +576,28 @@ export function verifyImportCommitPlan(
         message: `Register update ${transaction.id} has no accepted matched candidate.`,
       });
     }
+
+    if (
+      transaction.category !== "Transfer" &&
+      transaction.category !== "Split" &&
+      transaction.category !== "Uncategorised" &&
+      transaction.category !== "Ready to Assign"
+    ) {
+      const byName = categoryByName.get(
+        transaction.category.trim().toLocaleLowerCase(),
+      );
+      const byId = transaction.categoryId
+        ? categoryById.get(transaction.categoryId)
+        : undefined;
+
+      if (!byName || !byId || byName.id !== byId.id) {
+        addIssue({
+          code: "invalid-category-reference",
+          transactionId: transaction.id,
+          message: `Register update ${transaction.id} references an unavailable or inconsistent category.`,
+        });
+      }
+    }
   }
 
   return { valid: issues.length === 0, issues };

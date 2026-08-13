@@ -2621,8 +2621,15 @@ export function TransactionImportDialog({
                                 onCreateCategory={onCreateCategory}
                                 onChange={updateProposedTransactionDraft}
                                 onSelection={(value) => {
+                                  const selectedCategory = categoryOptions.find(
+                                    (category) => category.name === value,
+                                  );
                                   updateMatchedTransactionDetails(candidate.id, {
                                     category: value,
+                                    categoryId:
+                                      value === "Split"
+                                        ? undefined
+                                        : selectedCategory?.id,
                                     splitLines: value === "Split"
                                       ? candidate.matchedTransaction?.splitLines
                                       : undefined,
