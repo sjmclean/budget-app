@@ -1183,6 +1183,7 @@ function applyRemoteMutations(
         markAllBudgetProjectionsDirty();
       } else if (mutation.domain === "accounts") {
         if (mutation.operation === "delete") {
+          assertAccountDeletable(activeBudgetId, mutation.entityId);
           execute("DELETE FROM local_accounts WHERE budget_id = ? AND id = ?", [
             activeBudgetId, mutation.entityId,
           ]);
@@ -3144,19 +3145,73 @@ function writeAccount(
   return currentManifest();
 }
 
+function assertAccountDeletable(
+  budgetId: string,
+  accountId: string,
+) {
+  const transactionCount = resultRows<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM local_transactions WHERE budget_id = ? AND account_id = ?",
+    [budgetId, accountId],
+  )[0]?.count ?? 0;
+
+  if (transactionCount > 0) {
+    throw workerError(
+      "ACCOUNT_NOT_EMPTY",
+      "An account with transactions cannot be deleted.",
+    );
+  }
+
+  const scheduledTransactionCount = resultRows<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM local_scheduled_transactions WHERE budget_id = ? AND account_id = ?",
+    [budgetId, accountId],
+  )[0]?.count ?? 0;
+
+  if (scheduledTransactionCount > 0) {
+    throw workerError(
+      "ACCOUNT_HAS_SCHEDULED_TRANSACTIONS",
+      "An account with scheduled transactions cannot be deleted.",
+    );
+  }
+
+  const transferReferenceCount = resultRows<{ count: number }>(
+    `SELECT COUNT(*) AS count
+     FROM local_transactions
+     WHERE budget_id = ? AND transfer_account_id = ?`,
+    [budgetId, accountId],
+  )[0]?.count ?? 0;
+
+  if (transferReferenceCount > 0) {
+    throw workerError(
+      "ACCOUNT_IN_USE",
+      "An account referenced by a transfer cannot be deleted.",
+    );
+  }
+
+  const splitTransferReferenceCount = resultRows<{ count: number }>(
+    `SELECT COUNT(*) AS count
+     FROM local_transaction_splits AS split
+     JOIN local_transactions AS parent
+       ON parent.id = split.transaction_id
+     WHERE parent.budget_id = ?
+       AND split.transfer_account_id = ?`,
+    [budgetId, accountId],
+  )[0]?.count ?? 0;
+
+  if (splitTransferReferenceCount > 0) {
+    throw workerError(
+      "ACCOUNT_IN_USE",
+      "An account referenced by a split transfer cannot be deleted.",
+    );
+  }
+}
+
 function deleteAccount(
   budgetId: string,
   accountId: string,
   mutation: LocalBudgetMutation,
 ) {
   assertMutationScope(mutation);
-  const transactionCount = resultRows<{ count: number }>(
-    "SELECT COUNT(*) AS count FROM local_transactions WHERE budget_id = ? AND account_id = ?",
-    [budgetId, accountId],
-  )[0]?.count ?? 0;
-  if (transactionCount > 0) {
-    throw workerError("ACCOUNT_NOT_EMPTY", "An account with transactions cannot be deleted.");
-  }
+  assertAccountDeletable(budgetId, accountId);
   execute("BEGIN IMMEDIATE");
   try {
     execute("DELETE FROM local_accounts WHERE budget_id = ? AND id = ?", [budgetId, accountId]);
