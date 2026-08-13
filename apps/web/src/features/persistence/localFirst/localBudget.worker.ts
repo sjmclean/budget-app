@@ -1190,6 +1190,7 @@ function applyRemoteMutations(
         } else {
           const account = mutation.payload as import("./registerSchema").LocalAccountRecord;
           upsertAccount(account);
+          reconcileCreditCardPaymentCategoryForAccount(account);
         }
         markAllBudgetProjectionsDirty();
       } else if (mutation.operation === "delete") {
@@ -3106,6 +3107,204 @@ function normalisePayeeIdentity(value: string): string {
   return value.trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
+function reconcileCreditCardPaymentCategoryForAccount(
+  account: import("./registerSchema").LocalAccountRecord,
+): void {
+  const categoryId = `credit-card-payment-${account.id}`;
+  const groupId = "credit-card-payments";
+  const groupName = "Credit Card Payments";
+  const isCreditCard = account.type === "credit-card";
+
+  const rows = resultRows<{ month: string; payload: string }>(
+    `SELECT month, view_json AS payload
+     FROM local_budget_months
+     WHERE budget_id = ?
+     ORDER BY month`,
+    [account.budgetId],
+  );
+
+  if (!isCreditCard) {
+    const hasMeaningfulPaymentCategoryState = rows.some((row) => {
+      const view = JSON.parse(row.payload) as BudgetMonthView;
+      const category = view.categoryGroups
+        ?.flatMap((group) => group.categories ?? [])
+        .find((candidate) => candidate.id === categoryId);
+
+      if (!category) return false;
+
+      return (
+        category.previousAvailable !== 0 ||
+        category.assigned !== 0 ||
+        category.activity !== 0 ||
+        category.available !== 0
+      );
+    });
+
+    if (hasMeaningfulPaymentCategoryState) {
+      throw workerError(
+        "CREDIT_CARD_PAYMENT_CATEGORY_IN_USE",
+        "An account with credit-card payment budget history cannot change to another account type.",
+      );
+    }
+  }
+
+  for (const row of rows) {
+    const view = JSON.parse(row.payload) as BudgetMonthView;
+    if (!Array.isArray(view.categoryGroups)) continue;
+
+    const existingCategory = view.categoryGroups
+      .flatMap((group) => group.categories ?? [])
+      .find((category) => category.id === categoryId);
+
+    let categoryGroups = view.categoryGroups
+      .map((group) => ({
+        ...group,
+        categories: (group.categories ?? []).filter(
+          (category) => category.id !== categoryId,
+        ),
+      }))
+      .filter(
+        (group) =>
+          group.id !== groupId ||
+          isCreditCard ||
+          group.categories.length > 0,
+      );
+
+    if (isCreditCard) {
+      const paymentCategory = existingCategory
+        ? {
+            ...existingCategory,
+            name: account.name,
+            isArchived: false,
+          }
+        : {
+            id: categoryId,
+            name: account.name,
+            previousAvailable: 0,
+            assigned: 0,
+            activity: 0,
+            available: 0,
+            isOverspent: false,
+            isArchived: false,
+            note: "",
+          };
+
+      const paymentGroupIndex = categoryGroups.findIndex(
+        (group) => group.id === groupId,
+      );
+
+      if (paymentGroupIndex >= 0) {
+        categoryGroups = categoryGroups.map((group, index) =>
+          index === paymentGroupIndex
+            ? {
+                ...group,
+                name: groupName,
+                categories: [...group.categories, paymentCategory],
+              }
+            : group,
+        );
+      } else {
+        categoryGroups = [
+          {
+            id: groupId,
+            name: groupName,
+            previousAvailable: 0,
+            assigned: 0,
+            activity: 0,
+            available: 0,
+            note: "",
+            categories: [paymentCategory],
+          },
+          ...categoryGroups,
+        ];
+      }
+    }
+
+    categoryGroups = categoryGroups.map((group) => {
+      const categories = group.categories ?? [];
+      return {
+        ...group,
+        previousAvailable: categories.reduce(
+          (sum, category) => sum + category.previousAvailable,
+          0,
+        ),
+        assigned: categories.reduce(
+          (sum, category) => sum + category.assigned,
+          0,
+        ),
+        activity: categories.reduce(
+          (sum, category) => sum + category.activity,
+          0,
+        ),
+        available: categories.reduce(
+          (sum, category) => sum + category.available,
+          0,
+        ),
+      };
+    });
+
+    const nextView = {
+      ...view,
+      categoryGroups,
+      totalAssigned: categoryGroups.reduce(
+        (sum, group) => sum + group.assigned,
+        0,
+      ),
+      totalActivity: categoryGroups.reduce(
+        (sum, group) => sum + group.activity,
+        0,
+      ),
+      totalAvailable: categoryGroups.reduce(
+        (sum, group) => sum + group.available,
+        0,
+      ),
+    };
+
+    execute(
+      `UPDATE local_budget_months
+       SET view_json = ?
+       WHERE budget_id = ? AND month = ?`,
+      [JSON.stringify(nextView), account.budgetId, row.month],
+    );
+  }
+
+  if (isCreditCard) {
+    execute(
+      `INSERT INTO local_categories(
+         id, budget_id, group_id, group_name, name, archived
+       ) VALUES (?, ?, ?, ?, ?, 0)
+       ON CONFLICT(id) DO UPDATE SET
+         group_id = excluded.group_id,
+         group_name = excluded.group_name,
+         name = excluded.name,
+         archived = 0`,
+      [
+        categoryId,
+        account.budgetId,
+        groupId,
+        groupName,
+        account.name,
+      ],
+    );
+  } else {
+    execute(
+      `DELETE FROM local_budget_assignments
+       WHERE budget_id = ? AND category_id = ?`,
+      [account.budgetId, categoryId],
+    );
+    execute(
+      `DELETE FROM local_budget_category_policies
+       WHERE budget_id = ? AND category_id = ?`,
+      [account.budgetId, categoryId],
+    );
+    execute(
+      `DELETE FROM local_categories
+       WHERE budget_id = ? AND id = ?`,
+      [account.budgetId, categoryId],
+    );
+  }
+}
+
 function upsertAccount(account: import("./registerSchema").LocalAccountRecord) {
   execute(
     `INSERT INTO local_accounts(
@@ -3134,6 +3333,7 @@ function writeAccount(
   execute("BEGIN IMMEDIATE");
   try {
     upsertAccount(account);
+    reconcileCreditCardPaymentCategoryForAccount(account);
     markAllBudgetProjectionsDirty();
     insertOutbox(mutation);
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
