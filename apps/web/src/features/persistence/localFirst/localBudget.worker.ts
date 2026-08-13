@@ -82,6 +82,24 @@ function safeFilename(budgetId: string): string {
   return `/budget-${encodeURIComponent(budgetId).replaceAll("%", "_")}.sqlite3`;
 }
 
+function createPhysicalGenerationFilename(budgetId: string): string {
+  const encodedBudgetId = encodeURIComponent(budgetId).replaceAll("%", "_");
+  return `/budget-physical-${encodedBudgetId}-${createRuntimeUuid()}.sqlite3`;
+}
+
+function isAllowedPhysicalFilename(
+  budgetId: string,
+  filename: string,
+): boolean {
+  if (filename === safeFilename(budgetId)) return true;
+
+  const encodedBudgetId = encodeURIComponent(budgetId).replaceAll("%", "_");
+  return (
+    filename.startsWith(`/budget-physical-${encodedBudgetId}-`) &&
+    filename.endsWith(".sqlite3")
+  );
+}
+
 function createStagedImportFilename(budgetId: string): string {
   const encodedBudgetId = encodeURIComponent(budgetId).replaceAll("%", "_");
   return `/budget-import-${encodedBudgetId}-${createRuntimeUuid()}.staging.sqlite3`;
@@ -866,6 +884,7 @@ function currentManifest(): LocalBudgetManifest {
     schemaVersion: LOCAL_BUDGET_SCHEMA_VERSION,
     localRevision: Number(readMetadata("localRevision") ?? "0"),
     durable,
+    physicalFilename: activeFilename,
     counts,
   };
 }
@@ -1823,18 +1842,11 @@ async function commitStagedImport(expectedCounts: BudgetDomainCounts) {
   database?.close();
   database = null;
 
-  const targetFilename = safeFilename(stage.budgetId);
-  const replacingExistingCanonical = stage.previousFilename === targetFilename;
-  const backupFilename = createStagedImportBackupFilename(stage.budgetId);
-  let backupReady = false;
+  const targetFilename = createPhysicalGenerationFilename(stage.budgetId);
 
   try {
-    if (replacingExistingCanonical) {
-      // Do not mark the backup usable until the complete copy succeeds.
-      await copyOpfsDatabase(targetFilename, backupFilename);
-      backupReady = true;
-    }
-
+    // Copy-on-write promotion: the previously authoritative physical database
+    // remains untouched until the complete candidate has been validated.
     await copyOpfsDatabase(stage.filename, targetFilename);
 
     activeFilename = targetFilename;
@@ -1875,39 +1887,12 @@ async function commitStagedImport(expectedCounts: BudgetDomainCounts) {
     }
 
     stagedImport = null;
-
-    // Promotion is now verified and authoritative. Cleanup is best-effort:
-    // failure to remove temporary recovery files must not roll back a valid
-    // canonical database.
     await removeOpfsFile(stage.filename).catch(() => undefined);
-    if (backupReady) {
-      await removeOpfsFile(backupFilename).catch(() => undefined);
-    }
-
     return promotedManifest;
   } catch (error) {
     database?.close();
     database = null;
-
-    if (backupReady) {
-      try {
-        await copyOpfsDatabase(backupFilename, targetFilename);
-        await removeOpfsFile(backupFilename).catch(() => undefined);
-      } catch (restoreError) {
-        throw Object.assign(
-          new Error(
-            `Staged import promotion failed and the previous local database could not be restored: ${
-              restoreError instanceof Error ? restoreError.message : String(restoreError)
-            }`,
-          ),
-          {
-            code: "STAGED_IMPORT_RESTORE_FAILED",
-            cause: error,
-          },
-        );
-      }
-    }
-
+    await removeOpfsFile(targetFilename).catch(() => undefined);
     await restorePreviousDatabaseFromStage(stage);
     throw error;
   }
@@ -3911,7 +3896,13 @@ function mergeCategories(
 async function openBudget(request: Extract<LocalBudgetWorkerRequest, { type: "open" }>) {
   database?.close();
   await ensurePersistentSqlite();
-  activeFilename = safeFilename(request.budgetId);
+  activeFilename = request.physicalFilename ?? safeFilename(request.budgetId);
+  if (!isAllowedPhysicalFilename(request.budgetId, activeFilename)) {
+    throw workerError(
+      "INVALID_PHYSICAL_DATABASE_FILE",
+      "The selected local SQLite physical generation is invalid for this budget.",
+    );
+  }
   database = openPersistentDatabase(activeFilename);
   durable = true;
   activeBudgetId = request.budgetId;
@@ -4025,60 +4016,106 @@ async function appendBaselineReplacement(offset: number, content: Uint8Array) {
 
 async function commitBaselineReplacement() {
   const current = replacement;
-  if (!current) throw workerError("BASELINE_REPLACEMENT_MISSING", "No baseline replacement is active.");
-  if (current.receivedBytes !== current.totalBytes) {
-    throw workerError("BASELINE_INCOMPLETE", "Not all baseline bytes were received.");
+  if (!current) {
+    throw workerError(
+      "BASELINE_REPLACEMENT_MISSING",
+      "No baseline replacement is active.",
+    );
   }
+  if (current.receivedBytes !== current.totalBytes) {
+    throw workerError(
+      "BASELINE_INCOMPLETE",
+      "Not all baseline bytes were received.",
+    );
+  }
+
   await current.writable.close();
-  replacement = null;
+
   const root = await navigator.storage.getDirectory();
   const temporaryHandle = await root.getFileHandle(current.temporaryName);
   const temporaryFile = await temporaryHandle.getFile();
-  database?.close();
-  database = null;
-  activeFilename = safeFilename(current.budgetId);
-  let offset = 0;
-  await importPersistentDatabase(activeFilename, async () => {
-    if (offset >= temporaryFile.size) return undefined;
-    const chunk = new Uint8Array(
-      await temporaryFile.slice(offset, offset + 4 * 1024 * 1024).arrayBuffer(),
-    );
-    offset += chunk.byteLength;
-    return chunk;
-  });
-  await root.removeEntry(current.temporaryName);
-  database = openPersistentDatabase(activeFilename);
-  durable = true;
-  activeBudgetId = current.budgetId;
-  activeSyncEpoch = current.syncEpoch;
-  initialiseSchema();
-  const storedBudgetId = readMetadata("budgetId");
-  const storedSyncEpoch = readMetadata("syncEpoch");
-  if (
-    storedBudgetId !== current.budgetId ||
-    storedSyncEpoch !== current.syncEpoch
-  ) {
-    database.close();
-    database = null;
-    throw workerError(
-      "BASELINE_SCOPE_MISMATCH",
-      "Downloaded SQLite baseline does not match the selected budget and sync epoch.",
-    );
-  }
-  execute("BEGIN IMMEDIATE");
+
+  const previousFilename = activeFilename;
+  const previousBudgetId = activeBudgetId;
+  const previousSyncEpoch = activeSyncEpoch;
+  const targetFilename = createPhysicalGenerationFilename(current.budgetId);
+
   try {
-    // These tables describe the publishing device, not canonical budget data.
-    // A device rebuilt from its baseline must start with its own empty outbox
-    // and conflict inbox.
-    execute("DELETE FROM local_budget_outbox");
-    execute("DELETE FROM local_budget_sync_conflicts");
-    writeMetadata("deviceId", current.deviceId);
-    execute("COMMIT");
+    let offset = 0;
+    await importPersistentDatabase(targetFilename, async () => {
+      if (offset >= temporaryFile.size) return undefined;
+      const chunk = new Uint8Array(
+        await temporaryFile
+          .slice(offset, offset + 4 * 1024 * 1024)
+          .arrayBuffer(),
+      );
+      offset += chunk.byteLength;
+      return chunk;
+    });
+
+    // Only switch the worker to the candidate after the entire physical file
+    // has been imported. The old physical generation has not been modified.
+    database?.close();
+    database = null;
+
+    activeFilename = targetFilename;
+    activeBudgetId = current.budgetId;
+    activeSyncEpoch = current.syncEpoch;
+    database = openPersistentDatabase(activeFilename);
+    durable = true;
+    initialiseSchema();
+
+    const storedBudgetId = readMetadata("budgetId");
+    const storedSyncEpoch = readMetadata("syncEpoch");
+    if (
+      storedBudgetId !== current.budgetId ||
+      storedSyncEpoch !== current.syncEpoch
+    ) {
+      throw workerError(
+        "BASELINE_SCOPE_MISMATCH",
+        "Downloaded SQLite baseline does not match the selected budget and sync epoch.",
+      );
+    }
+
+    execute("BEGIN IMMEDIATE");
+    try {
+      // These tables describe the publishing device, not canonical budget data.
+      // A device rebuilt from its baseline must start with its own empty outbox
+      // and conflict inbox.
+      execute("DELETE FROM local_budget_outbox");
+      execute("DELETE FROM local_budget_sync_conflicts");
+      writeMetadata("deviceId", current.deviceId);
+      execute("COMMIT");
+    } catch (error) {
+      execute("ROLLBACK");
+      throw error;
+    }
+
+    const promotedManifest = currentManifest();
+
+    replacement = null;
+    await root.removeEntry(current.temporaryName).catch(() => undefined);
+
+    return promotedManifest;
   } catch (error) {
-    execute("ROLLBACK");
+    database?.close();
+    database = null;
+    await removeOpfsFile(targetFilename).catch(() => undefined);
+
+    activeFilename = previousFilename;
+    activeBudgetId = previousBudgetId;
+    activeSyncEpoch = previousSyncEpoch;
+
+    if (previousFilename) {
+      database = openPersistentDatabase(previousFilename);
+      durable = true;
+      activeBudgetId = readMetadata("budgetId") ?? previousBudgetId;
+      activeSyncEpoch = readMetadata("syncEpoch") ?? previousSyncEpoch;
+      initialiseSchema();
+    }
+
     throw error;
   }
-  return currentManifest();
 }
 
 async function abortBaselineReplacement() {

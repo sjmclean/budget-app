@@ -28,8 +28,29 @@ interface PendingRequest {
   readonly reject: (error: Error) => void;
 }
 
+type LocalBudgetFilePointerStorage =
+  Pick<Storage, "getItem" | "setItem"> &
+  Partial<Pick<Storage, "removeItem">>;
+
+const LOCAL_DATABASE_FILE_KEY_PREFIX =
+  "budget-app.local-first.database-file.";
+
+function databaseFilePointerKey(budgetId: string): string {
+  return `${LOCAL_DATABASE_FILE_KEY_PREFIX}${budgetId}`;
+}
+
+function defaultFilePointerStorage(): LocalBudgetFilePointerStorage | null {
+  try {
+    if (!("localStorage" in globalThis)) return null;
+    return globalThis.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export class LocalBudgetDatabaseClient {
   readonly #worker: Worker;
+  readonly #storage: LocalBudgetFilePointerStorage | null;
   readonly #pending = new Map<string, PendingRequest>();
 
   constructor(
@@ -37,8 +58,10 @@ export class LocalBudgetDatabaseClient {
       type: "module",
       name: "budget-app-local-sqlite",
     }),
+    storage: LocalBudgetFilePointerStorage | null = defaultFilePointerStorage(),
   ) {
     this.#worker = worker;
+    this.#storage = storage;
     worker.onmessage = (event: MessageEvent<LocalBudgetWorkerResponse>) => {
       const response = event.data;
       const pending = this.#pending.get(response.requestId);
@@ -64,10 +87,16 @@ export class LocalBudgetDatabaseClient {
     readonly syncEpoch: string;
     readonly deviceId: string;
   }): Promise<LocalBudgetManifest> {
+    const storage = this.#storage;
+    const physicalFilename = storage
+      ? storage.getItem(databaseFilePointerKey(input.budgetId)) ?? undefined
+      : undefined;
+
     const manifest = await this.#request<LocalBudgetManifest>({
       requestId: createRuntimeUuid(),
       type: "open",
       ...input,
+      physicalFilename,
     });
     assertCompleteManifest(manifest);
     if (!manifest.durable) {
@@ -137,11 +166,38 @@ export class LocalBudgetDatabaseClient {
     return this.#request(request, [request.content.buffer as ArrayBuffer]);
   }
 
-  commitBaselineReplacement(): Promise<LocalBudgetManifest> {
-    return this.#request({
+  async commitBaselineReplacement(): Promise<LocalBudgetManifest> {
+    const manifest = await this.#request<LocalBudgetManifest>({
       requestId: createRuntimeUuid(),
       type: "commitBaselineReplacement",
     });
+    assertCompleteManifest(manifest);
+
+    const storage = this.#storage;
+    if (storage) {
+      try {
+        storage.setItem(
+          databaseFilePointerKey(manifest.budgetId),
+          manifest.physicalFilename,
+        );
+      } catch (error) {
+        await this.#request({
+          requestId: createRuntimeUuid(),
+          type: "close",
+        }).catch(() => undefined);
+        throw Object.assign(
+          new Error(
+            "The replacement database was completed, but its durable active-file pointer could not be published.",
+          ),
+          {
+            code: "LOCAL_DATABASE_POINTER_WRITE_FAILED",
+            cause: error,
+          },
+        );
+      }
+    }
+
+    return manifest;
   }
 
   abortBaselineReplacement(): Promise<void> {
@@ -179,12 +235,41 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
-  commitStagedImport(expectedCounts: BudgetDomainCounts): Promise<LocalBudgetManifest> {
-    return this.#request({
+  async commitStagedImport(
+    expectedCounts: BudgetDomainCounts,
+  ): Promise<LocalBudgetManifest> {
+    const manifest = await this.#request<LocalBudgetManifest>({
       requestId: createRuntimeUuid(),
       type: "commitStagedImport",
       expectedCounts,
     });
+    assertCompleteManifest(manifest);
+
+    const storage = this.#storage;
+    if (storage) {
+      try {
+        storage.setItem(
+          databaseFilePointerKey(manifest.budgetId),
+          manifest.physicalFilename,
+        );
+      } catch (error) {
+        await this.#request({
+          requestId: createRuntimeUuid(),
+          type: "close",
+        }).catch(() => undefined);
+        throw Object.assign(
+          new Error(
+            "The imported database was completed, but its durable active-file pointer could not be published.",
+          ),
+          {
+            code: "LOCAL_DATABASE_POINTER_WRITE_FAILED",
+            cause: error,
+          },
+        );
+      }
+    }
+
+    return manifest;
   }
 
   rollbackStagedImport(): Promise<void> {
@@ -668,11 +753,20 @@ export class LocalBudgetDatabaseClient {
     this.#worker.terminate();
   }
 
-  deleteBudgetFile(): Promise<void> {
-    return this.#request({
+  async deleteBudgetFile(): Promise<void> {
+    const manifest = await this.getManifest();
+
+    await this.#request({
       requestId: createRuntimeUuid(),
       type: "deleteBudgetFile",
     });
+
+    const storage = this.#storage;
+    if (storage) {
+      const key = databaseFilePointerKey(manifest.budgetId);
+      if (storage.removeItem) storage.removeItem(key);
+      else storage.setItem(key, "");
+    }
   }
 
   #request<T>(

@@ -29,6 +29,7 @@ export interface LocalBudgetManifest {
   readonly schemaVersion: number;
   readonly localRevision: number;
   readonly durable: boolean;
+  readonly physicalFilename: string;
   readonly counts: BudgetDomainCounts;
 }
 
@@ -89,6 +90,7 @@ export type LocalBudgetWorkerRequest =
       readonly budgetId: string;
       readonly syncEpoch: string;
       readonly deviceId: string;
+      readonly physicalFilename?: string;
     }
   | {
       readonly requestId: string;
@@ -443,6 +445,9 @@ export function emptyDomainCounts(): BudgetDomainCounts {
 export function assertCompleteManifest(manifest: LocalBudgetManifest): void {
   if (!manifest.budgetId || !manifest.syncEpoch) {
     throw new Error("A local budget manifest requires a budget ID and sync epoch.");
+  }
+  if (!manifest.physicalFilename?.trim()) {
+    throw new Error("A local budget manifest requires a physical SQLite filename.");
   }
   if (manifest.schemaVersion !== LOCAL_BUDGET_SCHEMA_VERSION) {
     throw new Error(

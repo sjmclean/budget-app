@@ -268,7 +268,7 @@ export async function createYnab4LauncherBudgetImportWithBackend(
         apiBaseUrl: input.apiBaseUrl,
       });
       const relay = provisioned.relay;
-      localDatabase = new LocalBudgetDatabaseClient();
+      localDatabase = new LocalBudgetDatabaseClient(undefined, storage);
       importClient = createLocalFirstYnab4ImportClient({
         database: localDatabase,
         syncEpoch: provisioned.syncEpoch,

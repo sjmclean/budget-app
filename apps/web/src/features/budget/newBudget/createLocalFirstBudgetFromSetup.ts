@@ -43,7 +43,7 @@ export async function createLocalFirstBudgetFromSetup(
   try {
     provisioned = await provisionFreshLocalFirstBudget(budget.id);
 
-    database = new LocalBudgetDatabaseClient();
+    database = new LocalBudgetDatabaseClient(undefined, storage);
 
     await database.beginStagedImport({
       budgetId: budget.id,

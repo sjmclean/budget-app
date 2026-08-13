@@ -26,7 +26,7 @@ The browser-local-storage provider and shared-server runtime have been removed. 
 
 | Signal | Files |
 |---|---:|
-| localStorage | 16 |
+| localStorage | 17 |
 | indexedDB | 2 |
 | replicationApi | 2 |
 | persistenceBoundary | 66 |
@@ -54,6 +54,7 @@ The browser-local-storage provider and shared-server runtime have been removed. 
 - `apps/web/src/features/budget/categoryPersistencePort.ts`
 - `apps/web/src/features/budget/ynab4LauncherImport.ts`
 - `apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts`
+- `apps/web/src/features/persistence/localFirst/localBudgetClient.ts`
 - `apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts`
 - `apps/web/src/layouts/AppShell.tsx`
 - `apps/web/src/pages/BudgetPage.tsx`

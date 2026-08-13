@@ -106,33 +106,35 @@ test("begin staged import establishes recovery state before closing the previous
   );
 });
 
-test("failed staged promotion restores an existing canonical database from backup", () => {
-  const start = workerSource.indexOf("async function commitStagedImport(");
-  assert.notEqual(start, -1);
+test("failed staged promotion preserves and reopens the previous physical database", () => {
+  const commitStart = workerSource.indexOf(
+    "async function commitStagedImport(",
+  );
+  assert.notEqual(commitStart, -1);
 
-  const end = workerSource.indexOf(
+  const commitEnd = workerSource.indexOf(
     "async function rollbackStagedImport(",
-    start,
+    commitStart,
   );
-  assert.notEqual(end, -1);
+  assert.notEqual(commitEnd, -1);
 
-  const body = workerSource.slice(start, end);
+  const commitBody = workerSource.slice(commitStart, commitEnd);
 
   assert.match(
-    body,
+    commitBody,
+    /const\s+targetFilename\s*=\s*createPhysicalGenerationFilename\s*\(\s*stage\.budgetId\s*\)/,
+    "staged promotion must write to a unique physical generation",
+  );
+
+  assert.doesNotMatch(
+    commitBody,
     /backupFilename/,
-    "existing-budget promotion must retain a canonical backup",
+    "copy-on-write promotion must not require a backup of the authoritative database",
   );
 
   assert.match(
-    body,
-    /copyOpfsDatabase\s*\(\s*targetFilename,\s*backupFilename\s*\)[\s\S]*?copyOpfsDatabase\s*\(\s*stage\.filename,\s*targetFilename\s*\)/,
-    "the valid canonical database must be backed up before it is overwritten",
-  );
-
-  assert.match(
-    body,
-    /catch\s*\([^)]*\)\s*\{[\s\S]*?copyOpfsDatabase\s*\(\s*backupFilename,\s*targetFilename\s*\)/,
-    "a failed promotion must restore the canonical database from its backup",
+    commitBody,
+    /catch\s*\(error\)[\s\S]*?removeOpfsFile\s*\(\s*targetFilename\s*\)[\s\S]*?restorePreviousDatabaseFromStage\s*\(\s*stage\s*\)/,
+    "failed promotion must discard only the candidate and reopen the untouched previous database",
   );
 });

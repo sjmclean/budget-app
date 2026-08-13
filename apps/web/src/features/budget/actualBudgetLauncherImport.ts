@@ -157,7 +157,7 @@ export async function createActualBudgetLauncherImportWithBackend(
       apiBaseUrl: input.apiBaseUrl,
     });
 
-    database = new LocalBudgetDatabaseClient();
+    database = new LocalBudgetDatabaseClient(undefined, storage);
 
     await database.beginStagedImport({
       budgetId: budget.id,

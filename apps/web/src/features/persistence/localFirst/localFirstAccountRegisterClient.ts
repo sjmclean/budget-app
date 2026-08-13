@@ -125,7 +125,9 @@ export function createLocalFirstAccountRegisterQueryClient(
     opening = (async () => {
       const remote = await relay.getBootstrap(budgetId).catch(() => null);
       await database?.close().catch(() => undefined);
-      const next = options.databaseFactory?.() ?? new LocalBudgetDatabaseClient();
+      const next =
+        options.databaseFactory?.() ??
+        new LocalBudgetDatabaseClient(undefined, storage);
       const cachedSyncEpoch = storage.getItem(
         `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
       );

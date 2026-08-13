@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-13T06:22:21.437Z",
+  "generatedAt": "2026-08-13T06:43:26.358Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -12,7 +12,7 @@
     "reactiveUpdates": "persistence change bus publishes batched remote changes to React consumers"
   },
   "counts": {
-    "localStorage": 16,
+    "localStorage": 17,
     "indexedDB": 2,
     "replicationApi": 2,
     "persistenceBoundary": 66,
@@ -36,6 +36,7 @@
       "apps/web/src/features/budget/categoryPersistencePort.ts",
       "apps/web/src/features/budget/ynab4LauncherImport.ts",
       "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
+      "apps/web/src/features/persistence/localFirst/localBudgetClient.ts",
       "apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
       "apps/web/src/layouts/AppShell.tsx",
       "apps/web/src/pages/BudgetPage.tsx",
@@ -1893,6 +1894,18 @@
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/localDatabasePersistenceProvider.ts",
       "line": 21
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/localFirst/localBudgetClient.ts",
+      "line": 44,
+      "classification": "review-required"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/localFirst/localBudgetClient.ts",
+      "line": 45,
+      "classification": "review-required"
     },
     {
       "kind": "localStorage",
