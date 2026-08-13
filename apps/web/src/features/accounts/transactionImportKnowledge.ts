@@ -293,7 +293,12 @@ export function partitionPreviouslyImportedCandidates<
     const occurrence = (seenCounts.get(identity) ?? 0) + 1;
     seenCounts.set(identity, occurrence);
 
-    if (occurrence <= (importedCounts.get(identity) ?? 0)) {
+    const hasStrongExternalIdentity = identity.includes(":external:");
+
+    if (
+      hasStrongExternalIdentity &&
+      occurrence <= (importedCounts.get(identity) ?? 0)
+    ) {
       previouslyImportedCandidates.push(candidate);
     } else {
       activeCandidates.push(candidate);
