@@ -283,6 +283,89 @@ export function previewTransactionQifImport(
   return validateQifTransferDestinations(preview, options);
 }
 
+function assignTransactionImportMatches(
+  candidates: TransactionImportCandidate[],
+): TransactionImportCandidate[] {
+  const automaticOptions = candidates.map((candidate) =>
+    (candidate.matchCandidates ?? []).filter(
+      (assessment) => assessment.automaticMatch,
+    ),
+  );
+  const transactionOwners = new Map<string, number>();
+  const assignedAssessments = new Map<
+    number,
+    TransactionImportMatchCandidateAssessment
+  >();
+
+  function assignCandidate(
+    candidateIndex: number,
+    visitedTransactionIds: Set<string>,
+  ): boolean {
+    for (const assessment of automaticOptions[candidateIndex]) {
+      const transactionId = assessment.transaction.id;
+      if (visitedTransactionIds.has(transactionId)) {
+        continue;
+      }
+      visitedTransactionIds.add(transactionId);
+
+      const currentOwner = transactionOwners.get(transactionId);
+      if (
+        currentOwner === undefined ||
+        assignCandidate(currentOwner, visitedTransactionIds)
+      ) {
+        transactionOwners.set(transactionId, candidateIndex);
+        assignedAssessments.set(candidateIndex, assessment);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  for (let index = 0; index < candidates.length; index += 1) {
+    if (automaticOptions[index].length === 0) {
+      continue;
+    }
+    assignCandidate(index, new Set<string>());
+  }
+
+  return candidates.map((candidate, index) => {
+    if (candidate.status === "invalid") {
+      return candidate;
+    }
+
+    const assigned = assignedAssessments.get(index);
+    if (assigned) {
+      return {
+        ...candidate,
+        status: "exact-match",
+        matchedTransactionId: assigned.transaction.id,
+        matchedTransaction: assigned.transaction,
+        evidence: assigned.evidence,
+        reason: assigned.reason,
+        selected: false,
+        reviewDecision: undefined,
+      };
+    }
+
+    if (automaticOptions[index].length > 0) {
+      return {
+        ...candidate,
+        status: "new",
+        matchedTransactionId: undefined,
+        matchedTransaction: undefined,
+        evidence: undefined,
+        reason:
+          "No unused register transaction could be assigned without displacing another valid import match.",
+        selected: true,
+        reviewDecision: undefined,
+      };
+    }
+
+    return candidate;
+  });
+}
+
 function buildTransactionImportPreview(
   parsedTransactions: ParsedImportTransaction[],
   existingTransactions: RegisterTransactionView[],
@@ -292,24 +375,17 @@ function buildTransactionImportPreview(
     transferAccounts?: readonly TransactionImportTransferAccount[];
   } = {},
 ): TransactionImportPreview {
-  const usedMatchedTransactionIds = new Set<string>();
-  const candidates = parsedTransactions.map((transaction) => {
-    const candidate = classifyImportCandidate(
+  const classifiedCandidates = parsedTransactions.map((transaction) =>
+    classifyImportCandidate(
       transaction,
       existingTransactions,
-      usedMatchedTransactionIds,
+      new Set<string>(),
       resolveMerchant,
       aliases,
       reconciliationContext,
-    );
-    if (
-      candidate.status === "exact-match" &&
-      candidate.matchedTransactionId
-    ) {
-      usedMatchedTransactionIds.add(candidate.matchedTransactionId);
-    }
-    return candidate;
-  });
+    ),
+  );
+  const candidates = assignTransactionImportMatches(classifiedCandidates);
 
   return {
     candidates,
