@@ -129,6 +129,8 @@ export function createLocalFirstAccountRegisterQueryClient(
       const cachedSyncEpoch = storage.getItem(
         `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
       );
+      let oldGenerationProvenSafe = false;
+
       if (!remote) {
         if (!cachedSyncEpoch) return null;
         try {
@@ -168,6 +170,8 @@ export function createLocalFirstAccountRegisterQueryClient(
             { code: "UNSYNCED_LOCAL_CHANGES" },
           );
         }
+
+        oldGenerationProvenSafe = true;
       }
 
       try {
@@ -209,6 +213,17 @@ export function createLocalFirstAccountRegisterQueryClient(
         return next;
       } catch (error) {
         if ((error as { code?: string }).code === "STALE_SYNC_EPOCH") {
+          if (!oldGenerationProvenSafe) {
+            await next.close().catch(() => undefined);
+            throw Object.assign(
+              new Error(
+                "The local SQLite budget belongs to an unexpected previous sync generation. " +
+                "Its unsynced changes could not be inspected safely, so automatic rebuild was refused.",
+              ),
+              { code: "UNVERIFIED_STALE_LOCAL_GENERATION" },
+            );
+          }
+
           await bootstrapLocalBudget({
             budgetId,
             deviceId,
