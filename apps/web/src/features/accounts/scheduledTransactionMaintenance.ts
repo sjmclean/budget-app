@@ -1,6 +1,9 @@
 import type { BudgetPersistenceProvider } from "../persistence/budgetPersistenceProvider";
 import type { AccountTransactionRow } from "../../../../../packages/application/src/accountRegister/AccountRegisterQueryPort";
-import type { RegisterTransactionView } from "./accountRegisterTypes";
+import type {
+  NewRegisterTransactionInput,
+  RegisterTransactionView,
+} from "./accountRegisterTypes";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 import { generateDueScheduledTransactions } from "./scheduledTransactionGenerationService";
 
@@ -67,25 +70,51 @@ export async function generateDueScheduledTransactionsForBudget(
             amount: Math.round((line.inflow - line.outflow) * 100),
           })),
         });
-        for (const attachment of transaction.scheduledAttachments ?? []) {
-          await queries.addTransactionAttachment({
-            budgetId,
-            accountId,
-            transactionId: id,
-            attachment: {
-              id: `${id}:attachment:${attachment.id}`,
-              fileName: attachment.fileName,
-              fileSize: attachment.fileSize,
-              mimeType: attachment.mimeType,
-              attachedAt: new Date().toISOString(),
-              contentHash: attachment.contentHash,
-            },
-            content: decodeScheduledAttachment(attachment.contentBase64),
-          });
-        }
+        await persistScheduledAttachments(
+          queries,
+          budgetId,
+          accountId,
+          id,
+          transaction,
+        );
+      },
+
+      async repairExisting(accountId, existingTransaction, transaction) {
+        await persistScheduledAttachments(
+          queries,
+          budgetId,
+          accountId,
+          existingTransaction.id,
+          transaction,
+        );
       },
     },
   });
+}
+
+async function persistScheduledAttachments(
+  queries: NonNullable<BudgetPersistenceProvider["accountRegisterQueries"]>,
+  budgetId: string,
+  accountId: string,
+  transactionId: string,
+  transaction: NewRegisterTransactionInput,
+): Promise<void> {
+  for (const attachment of transaction.scheduledAttachments ?? []) {
+    await queries.addTransactionAttachment({
+      budgetId,
+      accountId,
+      transactionId,
+      attachment: {
+        id: `${transactionId}:attachment:${attachment.id}`,
+        fileName: attachment.fileName,
+        fileSize: attachment.fileSize,
+        mimeType: attachment.mimeType,
+        attachedAt: new Date().toISOString(),
+        contentHash: attachment.contentHash,
+      },
+      content: decodeScheduledAttachment(attachment.contentBase64),
+    });
+  }
 }
 
 function decodeScheduledAttachment(contentBase64: string): Uint8Array {

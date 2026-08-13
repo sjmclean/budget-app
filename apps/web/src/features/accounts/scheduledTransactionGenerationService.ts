@@ -36,6 +36,11 @@ export interface ScheduledTransactionGenerationInput {
   hostedTransactions?: {
     listRecent(accountId: string): Promise<readonly RegisterTransactionView[]>;
     add(accountId: string, transaction: NewRegisterTransactionInput): Promise<void>;
+    repairExisting?(
+      accountId: string,
+      existingTransaction: RegisterTransactionView,
+      transaction: NewRegisterTransactionInput,
+    ): Promise<void>;
   };
 }
 
@@ -135,14 +140,37 @@ async function generateDueScheduledTransactionsInternal(
           : (await gateway.accountRegisters.getAccountRegisterView({
               accountId: dueSchedule.accountId,
             })).transactions;
-      const alreadyExists = existingTransactions.some((transaction) =>
+      const existingOccurrence = existingTransactions.find((transaction) =>
         isExistingScheduledOccurrence(transaction, dueSchedule, occurrenceDate),
       );
+      const alreadyExists = Boolean(existingOccurrence);
 
       if (skipOccurrence) {
         // The recurrence still exists and counts toward its end condition; only
         // materialisation is suppressed for this anchored occurrence.
       } else if (alreadyExists) {
+        if (
+          existingOccurrence &&
+          input.hostedTransactions?.repairExisting &&
+          isExactGeneratedScheduledOccurrence(
+            existingOccurrence,
+            dueSchedule,
+            occurrenceDate,
+          )
+        ) {
+          const registerInput = createGeneratedRegisterTransaction(
+            gateway.scheduledTransactions.toRegisterInput(dueSchedule),
+            dueSchedule,
+            occurrenceDate,
+          );
+
+          await input.hostedTransactions.repairExisting(
+            dueSchedule.accountId,
+            existingOccurrence,
+            registerInput,
+          );
+        }
+
         result.skippedDuplicateOccurrences.push({
           accountId: dueSchedule.accountId,
           scheduledTransactionId: dueSchedule.id,
@@ -192,6 +220,18 @@ async function generateDueScheduledTransactionsInternal(
   return result;
 }
 
+
+function isExactGeneratedScheduledOccurrence(
+  transaction: RegisterTransactionView,
+  schedule: ScheduledTransactionView,
+  occurrenceDate: string,
+): boolean {
+  return (
+    transaction.generatedFromSchedule === true &&
+    transaction.scheduledTransactionId === schedule.id &&
+    transaction.scheduledOccurrenceDate === occurrenceDate
+  );
+}
 
 function isExistingScheduledOccurrence(
   transaction: RegisterTransactionView,
