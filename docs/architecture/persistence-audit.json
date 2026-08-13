@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-13T06:51:32.796Z",
+  "generatedAt": "2026-08-13T12:20:47.802Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -628,7 +628,7 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 576,
+      "line": 578,
       "classification": "review-required"
     },
     {
@@ -639,42 +639,42 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 103
+      "line": 104
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 118
+      "line": 119
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 493
+      "line": 495
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 612
+      "line": 614
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 652
+      "line": 655
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 657
+      "line": 660
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 1076
+      "line": 1183
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 1105
+      "line": 1212
     },
     {
       "kind": "persistenceBoundary",
