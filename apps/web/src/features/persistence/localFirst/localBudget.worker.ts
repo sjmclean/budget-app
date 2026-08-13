@@ -34,6 +34,7 @@ import type {
   BudgetMonthView,
 } from "../../budget/budgetViewTypes";
 import { parseRegisterAmountSearchCents } from "../../accounts/registerSearch";
+import { readFinancialOverviewFlow } from "./financialOverviewFlow";
 
 type SqliteDatabase = {
   pointer: unknown;
@@ -2298,25 +2299,11 @@ function getFinancialOverview(budgetId: string, month: string) {
       value: (openingBalance + transactionTotal) / 100,
     };
   });
-  const flow = resultRows<{ income: number; expenses: number }>(
-    `SELECT
-       COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
-       COALESCE(SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END), 0) AS expenses
-     FROM local_transactions
-     WHERE budget_id = ? AND substr(date, 1, 7) = ?
-       AND transfer_account_id IS NULL
-       AND lower(COALESCE(payee_name, '') || ' ' || COALESCE(memo, ''))
-         NOT LIKE '%starting balance%'
-       AND lower(COALESCE(payee_name, '') || ' ' || COALESCE(memo, ''))
-         NOT LIKE '%opening balance%'
-       AND lower(COALESCE(payee_name, '') || ' ' || COALESCE(memo, ''))
-         NOT LIKE '%balance adjustment%'
-       AND lower(COALESCE(payee_name, '') || ' ' || COALESCE(memo, ''))
-         NOT LIKE '%reconciliation adjustment%'
-       AND lower(COALESCE(payee_name, '') || ' ' || COALESCE(memo, ''))
-         NOT LIKE '%credit card payment%'`,
-    [budgetId, month],
-  )[0] ?? { income: 0, expenses: 0 };
+  const flow = readFinancialOverviewFlow(
+    resultRows,
+    budgetId,
+    month,
+  );
   const normalisedBudgetView = readBudgetMonth(month);
   const budgetView = normalisedBudgetView
     ? normalisedBudgetView as {
