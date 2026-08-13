@@ -4,6 +4,8 @@ export interface BudgetProjectionAccountFact {
   readonly id: string;
   readonly participation: "on-budget" | "off-budget";
   readonly type?: "cash" | "credit-card";
+  /** Account balance immediately before fromMonth, in integer minor units. */
+  readonly openingBalance?: number;
 }
 
 export interface BudgetProjectionCategoryFact {
@@ -252,6 +254,24 @@ function applyCreditCardPaymentFunding(
     ]),
   );
   const paymentDelta = new Map<string, number>();
+  const runningAccountBalance = new Map(
+    input.accounts.map((account) => {
+      const priorActivity = input.transactions.reduce(
+        (total, transaction) =>
+          transaction.accountId === account.id &&
+          transaction.date.slice(0, 7) >= input.fromMonth &&
+          transaction.date.slice(0, 7) < month
+            ? total + transaction.amount
+            : total,
+        0,
+      );
+
+      return [
+        account.id,
+        (account.openingBalance ?? 0) + priorActivity,
+      ];
+    }),
+  );
   const transactions = input.transactions
     .filter((transaction) => transaction.date.slice(0, 7) === month)
     .slice()
@@ -260,29 +280,61 @@ function applyCreditCardPaymentFunding(
   for (const transaction of transactions) {
     const account = accountById.get(transaction.accountId)!;
     if (account.participation !== "on-budget") continue;
+
+    let accountBalance = runningAccountBalance.get(account.id) ?? 0;
+
+    function applyAccountMovement(amount: number): number {
+      const before = accountBalance;
+      accountBalance += amount;
+
+      if (account.type !== "credit-card" || amount >= 0) {
+        return 0;
+      }
+
+      return Math.max(0, -accountBalance) - Math.max(0, -before);
+    }
+
     if (transaction.transferAccountId) {
+      const debtCreated = applyAccountMovement(transaction.amount);
       const target = accountById.get(transaction.transferAccountId);
       const paymentCategoryId = target?.type === "credit-card"
         ? paymentCategories[target.id]
         : undefined;
       if (paymentCategoryId) addPayment(paymentCategoryId, transaction.amount);
       if (target?.participation === "off-budget") {
-        recordCategoryActivity(transaction.categoryId, transaction.amount, account);
+        recordCategoryActivity(
+          transaction.categoryId,
+          transaction.amount,
+          account,
+          debtCreated,
+        );
       }
+      runningAccountBalance.set(account.id, accountBalance);
       continue;
     }
+
     const splits = transaction.splits ?? [];
     if (splits.length > 0) {
       for (const split of splits) {
+        const debtCreated = applyAccountMovement(split.amount);
         if (!split.transferAccountId) recordCategoryActivity(
           split.categoryId,
           split.amount,
           account,
+          debtCreated,
         );
       }
     } else {
-      recordCategoryActivity(transaction.categoryId, transaction.amount, account);
+      const debtCreated = applyAccountMovement(transaction.amount);
+      recordCategoryActivity(
+        transaction.categoryId,
+        transaction.amount,
+        account,
+        debtCreated,
+      );
     }
+
+    runningAccountBalance.set(account.id, accountBalance);
   }
   for (const [categoryId, delta] of paymentDelta) {
     activityByCategoryId.set(categoryId, (activityByCategoryId.get(categoryId) ?? 0) + delta);
@@ -292,6 +344,7 @@ function applyCreditCardPaymentFunding(
     categoryId: string | null,
     amount: number,
     account: BudgetProjectionAccountFact,
+    debtCreated = 0,
   ) {
     if (!categoryId || categoryId === readyToAssignCategoryId || !categoryById.has(categoryId)) return;
     const before = runningAvailable.get(categoryId) ?? 0;
@@ -299,7 +352,11 @@ function applyCreditCardPaymentFunding(
       const paymentCategoryId = paymentCategories[account.id];
       if (paymentCategoryId) {
         const funded = amount < 0
-          ? Math.min(-amount, Math.max(0, before))
+          ? Math.min(
+              debtCreated,
+              -amount,
+              Math.max(0, before),
+            )
           : -Math.min(
               amount,
               Math.max(0, runningAvailable.get(paymentCategoryId) ?? 0),

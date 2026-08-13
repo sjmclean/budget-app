@@ -610,3 +610,264 @@ test("a credit-card refund after the funded balance was already paid does not cr
     "a refund cannot reverse payment funding that has already been consumed by an earlier card payment",
   );
 });
+
+test("spending from a positive credit-card balance does not create new payment funding", () => {
+  const result = projectBudget(baseInput({
+    openingReadyToAssign: 1_000,
+    creditCardPolicy: "payment-funding",
+    paymentCategoryIdByAccountId: {
+      card: "card-payment",
+    },
+    assignments: [
+      {
+        month: "2026-01",
+        categoryId: "groceries",
+        amount: 400,
+      },
+    ],
+    transactions: [
+      {
+        id: "card-purchase-1",
+        accountId: "card",
+        date: "2026-01-05",
+        categoryId: "groceries",
+        amount: -400,
+      },
+      {
+        id: "card-payment",
+        accountId: "cash",
+        date: "2026-01-10",
+        categoryId: null,
+        transferAccountId: "card",
+        amount: -400,
+      },
+      {
+        id: "card-payment-counterpart",
+        accountId: "card",
+        date: "2026-01-10",
+        categoryId: null,
+        transferAccountId: "cash",
+        amount: 400,
+      },
+      {
+        id: "card-refund",
+        accountId: "card",
+        date: "2026-01-15",
+        categoryId: "groceries",
+        amount: 500,
+      },
+      {
+        id: "card-purchase-2",
+        accountId: "card",
+        date: "2026-01-20",
+        categoryId: "groceries",
+        amount: -200,
+      },
+    ],
+  }));
+
+  assert.equal(
+    category(result, "2026-01", "groceries").available,
+    300,
+    "the second purchase still reduces the spending category",
+  );
+
+  assert.equal(
+    category(result, "2026-01", "card-payment").available,
+    0,
+    "spending card credit must not reserve cash for debt that was not created",
+  );
+});
+
+test("positive credit-card balance carries across months when calculating payment funding", () => {
+  const result = projectBudget(baseInput({
+    fromMonth: "2026-01",
+    throughMonth: "2026-02",
+    openingReadyToAssign: 1_000,
+    creditCardPolicy: "payment-funding",
+    paymentCategoryIdByAccountId: {
+      card: "card-payment",
+    },
+    assignments: [
+      {
+        month: "2026-01",
+        categoryId: "groceries",
+        amount: 400,
+      },
+      {
+        month: "2026-02",
+        categoryId: "groceries",
+        amount: 200,
+      },
+    ],
+    transactions: [
+      {
+        id: "card-purchase",
+        accountId: "card",
+        date: "2026-01-05",
+        categoryId: "groceries",
+        amount: -400,
+      },
+      {
+        id: "card-payment",
+        accountId: "cash",
+        date: "2026-01-10",
+        categoryId: null,
+        transferAccountId: "card",
+        amount: -400,
+      },
+      {
+        id: "card-payment-counterpart",
+        accountId: "card",
+        date: "2026-01-10",
+        categoryId: null,
+        transferAccountId: "cash",
+        amount: 400,
+      },
+      {
+        id: "card-refund",
+        accountId: "card",
+        date: "2026-01-15",
+        categoryId: "groceries",
+        amount: 500,
+      },
+      {
+        id: "february-purchase",
+        accountId: "card",
+        date: "2026-02-05",
+        categoryId: "groceries",
+        amount: -200,
+      },
+    ],
+  }));
+
+  assert.equal(
+    category(result, "2026-02", "card-payment").available,
+    0,
+    "January card credit must still suppress payment funding in February",
+  );
+});
+
+test("credit-card payment funding covers only the portion of spending that creates debt", () => {
+  const result = projectBudget(baseInput({
+    openingReadyToAssign: 1_000,
+    creditCardPolicy: "payment-funding",
+    paymentCategoryIdByAccountId: {
+      card: "card-payment",
+    },
+    accounts: [
+      {
+        id: "cash",
+        participation: "on-budget",
+        type: "cash",
+      },
+      {
+        id: "savings",
+        participation: "on-budget",
+        type: "cash",
+      },
+      {
+        id: "card",
+        participation: "on-budget",
+        type: "credit-card",
+        openingBalance: 500,
+      },
+      {
+        id: "mortgage",
+        participation: "off-budget",
+        type: "cash",
+      },
+    ],
+    assignments: [
+      {
+        month: "2026-01",
+        categoryId: "groceries",
+        amount: 600,
+      },
+    ],
+    transactions: [
+      {
+        id: "purchase-crossing-zero",
+        accountId: "card",
+        date: "2026-01-05",
+        categoryId: "groceries",
+        amount: -600,
+      },
+    ],
+  }));
+
+  assert.equal(
+    category(result, "2026-01", "groceries").available,
+    0,
+  );
+
+  assert.equal(
+    category(result, "2026-01", "card-payment").available,
+    100,
+    "only the $100 that takes the card below zero creates payment funding",
+  );
+});
+
+test("opening card balance does not double-count transactions before the projection window", () => {
+  const result = projectBudget(baseInput({
+    fromMonth: "2026-02",
+    throughMonth: "2026-02",
+    openingReadyToAssign: 1_000,
+    creditCardPolicy: "payment-funding",
+    paymentCategoryIdByAccountId: {
+      card: "card-payment",
+    },
+    accounts: [
+      {
+        id: "cash",
+        participation: "on-budget",
+        type: "cash",
+      },
+      {
+        id: "savings",
+        participation: "on-budget",
+        type: "cash",
+      },
+      {
+        id: "card",
+        participation: "on-budget",
+        type: "credit-card",
+        openingBalance: 500,
+      },
+      {
+        id: "mortgage",
+        participation: "off-budget",
+        type: "cash",
+      },
+    ],
+    assignments: [
+      {
+        month: "2026-02",
+        categoryId: "groceries",
+        amount: 200,
+      },
+    ],
+    transactions: [
+      {
+        id: "historical-refund-already-in-opening-balance",
+        accountId: "card",
+        date: "2026-01-15",
+        categoryId: "groceries",
+        amount: 500,
+      },
+      {
+        id: "february-purchase",
+        accountId: "card",
+        date: "2026-02-05",
+        categoryId: "groceries",
+        amount: -600,
+      },
+    ],
+  }));
+
+  assert.equal(
+    category(result, "2026-02", "card-payment").available,
+    100,
+    "openingBalance already includes activity before fromMonth",
+  );
+});

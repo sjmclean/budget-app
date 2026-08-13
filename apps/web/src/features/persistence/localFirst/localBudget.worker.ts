@@ -2055,10 +2055,20 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     id: string;
     type: string;
     participation: string;
+    openingBalance: number;
   }>(
-    `SELECT id, type, participation FROM local_accounts
-     WHERE budget_id = ? ORDER BY id`,
-    [budgetId],
+    `SELECT account.id, account.type, account.participation,
+       account.opening_balance + COALESCE((
+         SELECT SUM(transaction_row.amount)
+         FROM local_transactions AS transaction_row
+         WHERE transaction_row.budget_id = account.budget_id
+           AND transaction_row.account_id = account.id
+           AND substr(transaction_row.date, 1, 7) < ?
+       ), 0) AS openingBalance
+     FROM local_accounts AS account
+     WHERE account.budget_id = ?
+     ORDER BY account.id`,
+    [firstMonth, budgetId],
   ).map((account) => ({
     id: account.id,
     type: account.type === "credit-card" ? "credit-card" as const : "cash" as const,
@@ -2067,6 +2077,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
       account.participation === "tracking" ||
       account.participation === "off-budget"
     ) ? "off-budget" as const : "on-budget" as const,
+    openingBalance: account.openingBalance,
   }));
   const categories = resultRows<{
     id: string;
