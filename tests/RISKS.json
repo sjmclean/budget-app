@@ -1,0 +1,86 @@
+{
+  "financial": [
+    "projection uses integer minor units",
+    "split transactions conserve value",
+    "transfers do not create spending or income",
+    "carry-category rollover is correct",
+    "reduce-next-month rollover is correct",
+    "Ready to Assign remains internally consistent",
+    "credit-card manual policy is correct",
+    "credit-card payment-funding policy is correct"
+  ],
+  "budget-lifecycle": [
+    "fresh budget is created in local-first SQLite",
+    "budget remains available after reload",
+    "deleted budget remains deleted after reload",
+    "deleted budget cannot be resurrected by catalogue merge or sync",
+    "budgets remain isolated"
+  ],
+  "register": [
+    "transaction create update delete persists",
+    "split transaction persists correctly",
+    "transfer endpoints remain paired correctly",
+    "cleared and reconciliation state persist",
+    "scheduled transaction materialisation writes canonical transactions"
+  ],
+  "persistence": [
+    "SQLite commit survives worker/runtime restart",
+    "projection cache can be discarded and rebuilt",
+    "attachments survive persistence round trip",
+    "failed mutation does not partially commit"
+  ],
+  "sync": [
+    "local mutation enters durable outbox",
+    "remote mutation applies idempotently",
+    "baseline bootstrap reconstructs authoritative state",
+    "epoch replacement prevents obsolete history replay",
+    "conflicts are deterministic and explainable"
+  ],
+  "import": [
+    "source parsing preserves provenance",
+    "amount and date alone cannot auto-match unrelated merchants",
+    "trusted payee identity propagates correctly",
+    "raw imported payee is preserved",
+    "ambiguous matches remain reviewable",
+    "staged import rollback leaves no partial authoritative state",
+    "successful import survives reload",
+    "duplicate source import is detected safely"
+  ],
+  "ynab4": [
+    "amount conversion is exact",
+    "category hierarchy is preserved",
+    "historical transaction category is independent of payee default",
+    "payee rename conditions become explicit recognition evidence",
+    "tombstoned categories and monthly budget data retain intended semantics",
+    "scheduled recurrence is mapped correctly",
+    "transfers preserve identity and amount semantics"
+  ],
+  "recovery": [
+    "backup restores complete budget state",
+    "restore replaces authoritative present",
+    "restore starts compatible sync history",
+    "pre-restore newer history cannot replay over restored state",
+    "budget deletion cleanup is idempotent"
+  ],
+  "runtime": [
+    "persistence initializes before application stores consume it",
+    "critical workflows do not depend on browser dialog primitives",
+    "financial persistence has no browser-storage fallback"
+  ],
+  "deferred-coverage": [
+    {
+      "risk": "local-first transaction batch rollback is atomic",
+      "reason": "writeTransactionBatch is implemented as one SQLite transaction, but the canonical suite does not yet execute the browser SQLite worker behaviourally under an injected mid-batch failure"
+    }
+  ],
+  "deferred-architecture": [
+    {
+      "risk": "restore replaces authoritative local-first SQLite state and starts compatible sync history",
+      "reason": "current restore and version-history restore still use the budget package/key-value restore path rather than an end-to-end local-first SQLite replacement with sync epoch transition"
+    },
+    {
+      "risk": "pre-restore newer sync history cannot replay over restored state",
+      "reason": "depends on the authoritative local-first restore/epoch architecture that is not yet implemented end-to-end"
+    }
+  ]
+}
