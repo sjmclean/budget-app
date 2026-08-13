@@ -91,6 +91,7 @@ interface ActualImportMaps {
   accountTypeById: Map<string, SidebarAccountType>;
   categoryIdBySourceId: Map<string, string>;
   categoryNameById: Map<string, string>;
+  readyToAssignCategorySourceIds: Set<string>;
   payeeIdBySourceId: Map<string, string>;
   payeeNameById: Map<string, string>;
 }
@@ -300,6 +301,7 @@ function mapActualBudgetForLocalFirst(
     accountTypeById: new Map(),
     categoryIdBySourceId: new Map(),
     categoryNameById: new Map(),
+    readyToAssignCategorySourceIds: new Set(),
     payeeIdBySourceId: new Map(),
     payeeNameById: new Map(),
   };
@@ -621,6 +623,7 @@ function writeImportedActualBudgetData(
     accountTypeById: new Map(),
     categoryIdBySourceId: new Map(),
     categoryNameById: new Map(),
+    readyToAssignCategorySourceIds: new Set(),
     payeeIdBySourceId: new Map(),
     payeeNameById: new Map(),
   };
@@ -707,6 +710,15 @@ function isActualBudgetCategoryImportable(
 function mapActualCategoryGroups(preview: FullBudgetImportPreview, maps: ActualImportMaps): BudgetCategoryGroupView[] {
   const existingGroupIds = new Set<string>();
   const existingCategoryIds = new Set<string>();
+  const sourceGroupById = new Map(preview.categoryGroups.map((group) => [group.id, group] as const));
+
+  for (const category of preview.categories) {
+    const group = category.groupId ? sourceGroupById.get(category.groupId) ?? null : null;
+    if (category.isIncome === true || group?.isIncome === true) {
+      maps.readyToAssignCategorySourceIds.add(category.id);
+    }
+  }
+
   const sortedGroups = [...preview.categoryGroups].sort(compareActualSortOrder);
   const groups = sortedGroups.map((group, groupIndex) => {
     const groupId = uniqueSlug(group.name || group.id || `Actual Group ${groupIndex + 1}`, existingGroupIds, "group");
@@ -848,13 +860,39 @@ function createEmptyRegister(account: SidebarAccount, currencyCode: string): Acc
   };
 }
 
+function resolveActualTransactionCategory(
+  sourceCategoryId: string | null | undefined,
+  maps: ActualImportMaps,
+): { categoryId: string | undefined; categoryName: string } {
+  if (!sourceCategoryId) {
+    return { categoryId: undefined, categoryName: "Uncategorised" };
+  }
+
+  const mappedCategoryId = maps.categoryIdBySourceId.get(sourceCategoryId);
+  if (mappedCategoryId) {
+    return {
+      categoryId: mappedCategoryId,
+      categoryName: maps.categoryNameById.get(mappedCategoryId) ?? "Uncategorised",
+    };
+  }
+
+  if (maps.readyToAssignCategorySourceIds.has(sourceCategoryId)) {
+    return {
+      categoryId: READY_TO_ASSIGN_CATEGORY_ID,
+      categoryName: READY_TO_ASSIGN_CATEGORY_NAME,
+    };
+  }
+
+  return { categoryId: undefined, categoryName: "Uncategorised" };
+}
+
 function mapActualRegisterTransaction(
   transaction: FullBudgetImportPreview["transactions"][number],
   index: number,
   maps: ActualImportMaps,
 ): RegisterTransactionView {
   const amount = minorUnitsToDisplayAmount(transaction.amount);
-  const categoryId = transaction.categoryId ? maps.categoryIdBySourceId.get(transaction.categoryId) : undefined;
+  const resolvedCategory = resolveActualTransactionCategory(transaction.categoryId, maps);
   const payeeId = transaction.payeeId ? maps.payeeIdBySourceId.get(transaction.payeeId) : undefined;
   const transferAccountId = transaction.transferId ? maps.accountIdBySourceId.get(transaction.transferId) : undefined;
   const payee = transferAccountId
@@ -871,12 +909,12 @@ function mapActualRegisterTransaction(
     payeeId: transferAccountId ? undefined : payeeId,
     category: splitLines.length > 0
       ? "Split"
-      : categoryId
-        ? maps.categoryNameById.get(categoryId) ?? "Uncategorised"
-        : transferAccountId
-          ? "Transfer"
-          : READY_TO_ASSIGN_CATEGORY_NAME,
-    categoryId: splitLines.length > 0 ? undefined : categoryId ?? READY_TO_ASSIGN_CATEGORY_ID,
+      : transferAccountId
+        ? "Transfer"
+        : resolvedCategory.categoryName,
+    categoryId: splitLines.length > 0 || transferAccountId
+      ? undefined
+      : resolvedCategory.categoryId,
     memo: transaction.memo ?? undefined,
     inflow: amount > 0 ? amount : 0,
     outflow: amount < 0 ? Math.abs(amount) : 0,
@@ -894,11 +932,11 @@ function mapActualSplitLines(
 ): NonNullable<RegisterTransactionView["splitLines"]> {
   return (transaction.splitLines ?? []).map((line, index) => {
     const amount = minorUnitsToDisplayAmount(line.amount);
-    const categoryId = line.categoryId ? maps.categoryIdBySourceId.get(line.categoryId) : undefined;
+    const resolvedCategory = resolveActualTransactionCategory(line.categoryId, maps);
     return {
       id: line.id || `${transaction.id}-split-${index + 1}`,
-      category: categoryId ? maps.categoryNameById.get(categoryId) ?? "Uncategorised" : READY_TO_ASSIGN_CATEGORY_NAME,
-      categoryId: categoryId ?? READY_TO_ASSIGN_CATEGORY_ID,
+      category: resolvedCategory.categoryName,
+      categoryId: resolvedCategory.categoryId,
       memo: line.memo ?? undefined,
       inflow: amount > 0 ? amount : 0,
       outflow: amount < 0 ? Math.abs(amount) : 0,
@@ -929,6 +967,39 @@ function recalculateRegister(register: AccountRegisterView): void {
   register.unclearedBalance = roundMoney(register.workingBalance - register.clearedBalance);
 }
 
+function buildActualReadyToAssignIncomeByMonthFromRegisters(
+  registers: Record<string, AccountRegisterView>,
+): Map<string, number> {
+  const result = new Map<string, number>();
+
+  for (const register of Object.values(registers)) {
+    if (register.accountType === "Tracking") continue;
+
+    for (const transaction of register.transactions) {
+      if (!transaction.date || !/^\d{4}-\d{2}/.test(transaction.date)) continue;
+      if (transaction.transferAccountId) continue;
+
+      const month = transaction.date.slice(0, 7);
+      let amount = 0;
+
+      if (transaction.splitLines?.length) {
+        amount = transaction.splitLines.reduce((sum, line) => {
+          if (line.categoryId !== READY_TO_ASSIGN_CATEGORY_ID) return sum;
+          return sum + line.inflow - line.outflow;
+        }, 0);
+      } else if (transaction.categoryId === READY_TO_ASSIGN_CATEGORY_ID) {
+        amount = transaction.inflow - transaction.outflow;
+      }
+
+      if (amount !== 0) {
+        result.set(month, roundMoney((result.get(month) ?? 0) + amount));
+      }
+    }
+  }
+
+  return result;
+}
+
 function mapActualBudgetMonthViews(
   budget: BudgetSummary,
   templateGroups: BudgetCategoryGroupView[],
@@ -949,26 +1020,49 @@ function mapActualBudgetMonthViews(
   }
 
   const activityByMonthCategory = buildActualActivityByMonthCategoryFromRegisters(registers);
+  const readyToAssignIncomeByMonth = buildActualReadyToAssignIncomeByMonthFromRegisters(registers);
   const budgetDataByMonthCategory = buildActualBudgetDataByMonthCategory(preview, maps.categoryIdBySourceId);
   const views = new Map<string, BudgetMonthView>();
 
   const previousAvailableByCategory = new Map<string, number>();
+  let previousReadyToAssign = 0;
 
-  for (const month of [...months].sort()) {
+  const sortedMonths = [...months].sort();
+
+  for (const [monthIndex, month] of sortedMonths.entries()) {
+    const nextMonth = sortedMonths[monthIndex + 1];
     const groups = cloneCategoryGroups(templateGroups);
     const categoryById = new Map(groups.flatMap((group) => group.categories.map((category) => [category.id, category] as const)));
     const activityByCategory = activityByMonthCategory.get(month) ?? new Map<string, number>();
     const budgetDataByCategory = budgetDataByMonthCategory.get(month) ?? new Map<string, ActualBudgetCategoryMonthData>();
+    const nextBudgetDataByCategory = nextMonth
+      ? budgetDataByMonthCategory.get(nextMonth) ?? new Map<string, ActualBudgetCategoryMonthData>()
+      : new Map<string, ActualBudgetCategoryMonthData>();
+
+    let previousOverspending = 0;
 
     for (const category of categoryById.values()) {
       const budgetData = budgetDataByCategory.get(category.id);
+      const nextBudgetData = nextBudgetDataByCategory.get(category.id);
       const previousAvailable = roundMoney(previousAvailableByCategory.get(category.id) ?? 0);
       const shouldCarryForward = previousAvailable > 0 || Boolean(budgetData?.carryover);
+
+      if (previousAvailable < 0 && !budgetData?.carryover) {
+        previousOverspending = roundMoney(previousOverspending + previousAvailable);
+      }
+
       category.previousAvailable = shouldCarryForward ? previousAvailable : 0;
       category.assigned = roundMoney(budgetData?.assigned ?? 0);
       category.activity = roundMoney(activityByCategory.get(category.id) ?? 0);
       category.available = normaliseMoney(category.previousAvailable + category.assigned + category.activity);
       category.isOverspent = isMoneyNegative(category.available);
+
+      // Actual stores carryover on the destination month. The projection
+      // engine stores the rollover policy on the closing/source month.
+      category.overspendingHandling = nextBudgetData?.carryover
+        ? "carry-category"
+        : "reduce-next-month";
+
       previousAvailableByCategory.set(category.id, category.available);
     }
 
@@ -979,21 +1073,34 @@ function mapActualBudgetMonthViews(
       group.available = normaliseMoney(group.categories.reduce((sum, category) => sum + category.available, 0));
     }
 
-    const totalAssigned = groups.reduce((sum, group) => sum + group.assigned, 0);
+    const totalAssigned = roundMoney(groups.reduce((sum, group) => sum + group.assigned, 0));
     const totalActivity = roundMoney(groups.reduce((sum, group) => sum + group.activity, 0));
     const totalAvailable = normaliseMoney(groups.reduce((sum, group) => sum + group.available, 0));
+    const incomeForMonth = roundMoney(readyToAssignIncomeByMonth.get(month) ?? 0);
+    const carriedForwardReadyToAssign = previousReadyToAssign;
+    const readyToAssign = normaliseMoney(
+      carriedForwardReadyToAssign +
+      previousOverspending +
+      incomeForMonth -
+      totalAssigned,
+    );
 
     views.set(month, {
       budgetId: budget.id,
       budgetName: budget.name,
       monthLabel: monthLabelFromIsoMonth(month),
       currencyCode: budget.currency,
-      readyToAssign: 0,
+      readyToAssign,
+      carriedForwardReadyToAssign,
+      previousOverspending,
+      incomeForMonth,
       totalAssigned,
       totalActivity,
       totalAvailable,
       categoryGroups: groups,
     });
+
+    previousReadyToAssign = readyToAssign;
   }
 
   return views;
