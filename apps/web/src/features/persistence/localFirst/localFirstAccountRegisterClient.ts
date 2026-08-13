@@ -1786,13 +1786,12 @@ function mutateBudgetCategory(
     groups = moveByDirection(groups, groupId, String(input.direction));
   }
   if (input.operation === "position-category") {
-    groups = groups.map((group) => ({
-      ...group,
-      categories: moveToTarget(
-        group.categories, categoryId, String(input.targetCategoryId),
-        String(input.placement),
-      ),
-    }));
+    groups = moveBudgetCategoryToTarget(
+      groups,
+      categoryId,
+      String(input.targetCategoryId),
+      String(input.placement),
+    );
   }
   if (input.operation === "position-group") {
     groups = moveToTarget(
@@ -1819,6 +1818,90 @@ function mutateBudgetCategory(
     }
   }
   return { ...view, categoryGroups: groups };
+}
+
+export function moveBudgetCategoryToTarget<
+  TGroup extends {
+    readonly id: string;
+    readonly categories: readonly TCategory[];
+  },
+  TCategory extends { readonly id: string },
+>(
+  groups: readonly TGroup[],
+  categoryId: string,
+  targetCategoryId: string,
+  placement: string,
+): TGroup[] {
+  if (categoryId === targetCategoryId) {
+    return groups.map((group) => ({
+      ...group,
+      categories: [...group.categories],
+    }));
+  }
+
+  let categoryToMove: TCategory | undefined;
+
+  const withoutSource = groups.map((group) => {
+    const source = group.categories.find(
+      (category) => category.id === categoryId,
+    );
+
+    if (!source) {
+      return {
+        ...group,
+        categories: [...group.categories],
+      };
+    }
+
+    categoryToMove = source;
+
+    return {
+      ...group,
+      categories: group.categories.filter(
+        (category) => category.id !== categoryId,
+      ),
+    };
+  });
+
+  if (!categoryToMove) {
+    return withoutSource;
+  }
+
+  let inserted = false;
+
+  const moved = withoutSource.map((group) => {
+    const targetIndex = group.categories.findIndex(
+      (category) => category.id === targetCategoryId,
+    );
+
+    if (targetIndex < 0) {
+      return group;
+    }
+
+    const categories = [...group.categories];
+    categories.splice(
+      targetIndex + (placement === "after" ? 1 : 0),
+      0,
+      categoryToMove!,
+    );
+    inserted = true;
+
+    return {
+      ...group,
+      categories,
+    };
+  });
+
+  if (inserted) {
+    return moved;
+  }
+
+  // Invalid target: preserve the original grouping/order instead of dropping
+  // the source category.
+  return groups.map((group) => ({
+    ...group,
+    categories: [...group.categories],
+  }));
 }
 
 function moveByDirection<T extends { readonly id: string }>(
