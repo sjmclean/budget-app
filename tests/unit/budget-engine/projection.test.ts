@@ -909,3 +909,58 @@ test("transfer from a credit card to cash does not create payment reserve", () =
     0,
   );
 });
+
+test("credit-card payment inside a cash split consumes payment reserve", () => {
+  const result = projectBudget(baseInput({
+    creditCardPolicy: "payment-funding",
+    paymentCategoryIdByAccountId: {
+      card: "card-payment",
+    },
+    openingAvailableByCategoryId: {
+      "card-payment": 100,
+      groceries: 100,
+    },
+    transactions: [
+      {
+        id: "cash-split-parent",
+        accountId: "cash",
+        date: "2026-01-10",
+        categoryId: null,
+        amount: -100,
+        splits: [
+          {
+            id: "cash-split-groceries",
+            categoryId: "groceries",
+            amount: -60,
+          },
+          {
+            id: "cash-split-card-payment",
+            categoryId: null,
+            transferAccountId: "card",
+            amount: -40,
+          },
+        ],
+      },
+      {
+        id: "card-payment-counterpart",
+        accountId: "card",
+        date: "2026-01-10",
+        categoryId: null,
+        transferAccountId: "cash",
+        amount: 40,
+      },
+    ],
+  }));
+
+  assert.equal(
+    category(result, "2026-01", "card-payment").available,
+    60,
+    "the transfer split pays $40 of the card-payment reserve",
+  );
+
+  assert.equal(
+    category(result, "2026-01", "groceries").available,
+    40,
+    "the non-transfer split still consumes its spending category",
+  );
+});

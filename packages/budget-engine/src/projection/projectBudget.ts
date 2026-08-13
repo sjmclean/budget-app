@@ -319,7 +319,21 @@ function applyCreditCardPaymentFunding(
     if (splits.length > 0) {
       for (const split of splits) {
         const debtCreated = applyAccountMovement(split.amount);
-        if (!split.transferAccountId) recordCategoryActivity(
+
+        if (split.transferAccountId) {
+          const target = accountById.get(split.transferAccountId);
+          const paymentCategoryId = target?.type === "credit-card"
+            ? paymentCategories[target.id]
+            : undefined;
+
+          if (paymentCategoryId && split.amount < 0) {
+            addPayment(paymentCategoryId, split.amount);
+          }
+
+          continue;
+        }
+
+        recordCategoryActivity(
           split.categoryId,
           split.amount,
           account,
