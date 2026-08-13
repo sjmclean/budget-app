@@ -300,7 +300,9 @@ function applyCreditCardPaymentFunding(
       const paymentCategoryId = target?.type === "credit-card"
         ? paymentCategories[target.id]
         : undefined;
-      if (paymentCategoryId) addPayment(paymentCategoryId, transaction.amount);
+      if (paymentCategoryId && transaction.amount < 0) {
+        addPayment(paymentCategoryId, transaction.amount);
+      }
       if (target?.participation === "off-budget") {
         recordCategoryActivity(
           transaction.categoryId,

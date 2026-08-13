@@ -871,3 +871,41 @@ test("opening card balance does not double-count transactions before the project
     "openingBalance already includes activity before fromMonth",
   );
 });
+
+test("transfer from a credit card to cash does not create payment reserve", () => {
+  const result = projectBudget(baseInput({
+    creditCardPolicy: "payment-funding",
+    paymentCategoryIdByAccountId: {
+      card: "card-payment",
+    },
+    transactions: [
+      {
+        id: "cash-advance-card-leg",
+        accountId: "card",
+        date: "2026-01-10",
+        categoryId: null,
+        transferAccountId: "cash",
+        amount: -400,
+      },
+      {
+        id: "cash-advance-cash-leg",
+        accountId: "cash",
+        date: "2026-01-10",
+        categoryId: null,
+        transferAccountId: "card",
+        amount: 400,
+      },
+    ],
+  }));
+
+  assert.equal(
+    category(result, "2026-01", "card-payment").activity,
+    0,
+    "moving debt into an on-budget cash account must not invent payment funding",
+  );
+
+  assert.equal(
+    category(result, "2026-01", "card-payment").available,
+    0,
+  );
+});
