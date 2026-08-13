@@ -93,7 +93,7 @@ function toRegisterTransactionInput(
   return transaction;
 }
 
-function stableImportTransactionId(
+export function stableImportTransactionId(
   candidate: TransactionImportCandidate,
   identityScope: string,
 ): string {

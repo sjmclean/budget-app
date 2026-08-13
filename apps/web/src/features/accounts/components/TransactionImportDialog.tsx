@@ -648,6 +648,7 @@ export function TransactionImportDialog({
         sourceFileHash &&
           findImportedFileFingerprint(accountId, sourceFileHash),
       ),
+      identityScope: sourceFileHash,
     });
 
     setBankCandidateDetails(prepared.bankCandidateDetails);

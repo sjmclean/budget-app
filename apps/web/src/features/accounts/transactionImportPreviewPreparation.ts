@@ -3,6 +3,7 @@ import type {
   TransactionImportCandidate,
   TransactionImportPreview,
 } from "./transactionImport";
+import { stableImportTransactionId } from "./transactionImportCommit";
 import { applyTransactionImportMerchantProposal } from "./transactionImportMerchantProposal";
 import { appendTransactionImportTrace } from "./transactionImportTrace";
 
@@ -16,6 +17,7 @@ export interface PrepareTransactionImportPreviewInput {
   partition: TransactionImportIdentityPartition;
   existingTransactions: RegisterTransactionView[];
   isExactDuplicateFile: boolean;
+  identityScope?: string | null;
 }
 
 export interface PreparedTransactionImportPreview {
@@ -77,6 +79,7 @@ export function recoverExactDuplicateFileCandidates(input: {
   candidates: TransactionImportCandidate[];
   existingTransactions: RegisterTransactionView[];
   isExactDuplicateFile: boolean;
+  identityScope?: string | null;
 }): {
   reviewCandidates: TransactionImportCandidate[];
   representedCandidates: TransactionImportCandidate[];
@@ -89,17 +92,35 @@ export function recoverExactDuplicateFileCandidates(input: {
   }
 
   const registerCounts = new Map<string, number>();
+  const registerIds = new Set<string>();
   for (const transaction of input.existingTransactions) {
+    registerIds.add(transaction.id);
     const key = createRegisterComparisonKey(transaction);
     registerCounts.set(key, (registerCounts.get(key) ?? 0) + 1);
   }
 
   const reviewCandidates: TransactionImportCandidate[] = [];
   const representedCandidates: TransactionImportCandidate[] = [];
+  const identityScope = input.identityScope?.trim();
 
   for (const candidate of input.candidates) {
     if (candidate.status === "invalid") {
       reviewCandidates.push(candidate);
+      continue;
+    }
+
+    if (
+      identityScope &&
+      registerIds.has(stableImportTransactionId(candidate, identityScope))
+    ) {
+      representedCandidates.push(
+        appendTransactionImportTrace(candidate, {
+          stage: "duplicate-recovery",
+          output: { represented: true },
+          detail:
+            "The stable transaction identity already exists for this duplicate-file row.",
+        }),
+      );
       continue;
     }
 
@@ -165,6 +186,7 @@ export function prepareTransactionImportPreview(
       candidates: suggestedCandidates,
       existingTransactions: input.existingTransactions,
       isExactDuplicateFile: input.isExactDuplicateFile,
+      identityScope: input.identityScope,
     });
   const previouslyImportedCount =
     input.partition.previouslyImportedCandidates.length;
