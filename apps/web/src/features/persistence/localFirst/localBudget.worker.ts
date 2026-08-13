@@ -2607,8 +2607,8 @@ function queryTransactions(query: LocalTransactionQuery) {
   const where = ["transaction_row.budget_id = ?", "transaction_row.account_id = ?"];
   const bind: unknown[] = [query.budgetId, query.accountId];
   if (query.before) {
-    where.push("(transaction_row.date < ? OR (transaction_row.date = ? AND transaction_row.id < ?))");
-    bind.push(query.before.date, query.before.date, query.before.id);
+    where.push("(transaction_row.date, transaction_row.id) < (?, ?)");
+    bind.push(query.before.date, query.before.id);
   }
   if (query.categoryFilter === "uncategorised") {
     where.push(

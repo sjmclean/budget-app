@@ -4,6 +4,7 @@ import { getBudgetPersistenceProvider } from "../persistence";
 import { usePersistenceChangeVersion } from "../persistence/persistenceChangeBus";
 import { generateDueScheduledTransactionsForBudget } from "./scheduledTransactionMaintenance";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
+import { getRegisterLoadMoreContinuation } from "./registerPagination";
 import {
   calculateAttachmentContentHash,
   getAttachmentContentStore,
@@ -253,11 +254,17 @@ export function useAccountRegister(
     ) {
       return;
     }
+    const continuation = getRegisterLoadMoreContinuation({
+      sort: registerViewQuery.sort,
+      cursor: registerCursorRef.current,
+      loadedCount: loadedTransactionCountRef.current,
+    });
+
     const page = await accountRegisterQueries.queryTransactions({
       budgetId,
       accountId,
       limit: 150,
-      offset: loadedTransactionCountRef.current,
+      ...continuation,
       search: registerViewQuery.search ?? undefined,
       categoryFilter: registerViewQuery.categoryFilter,
       sort: registerViewQuery.sort,

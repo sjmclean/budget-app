@@ -1,5 +1,28 @@
 export const REGISTER_DEFAULT_PAGE_SIZE = 100;
 
+export type RegisterLoadMoreContinuation =
+  | { readonly before: { readonly date: string; readonly id: string } }
+  | { readonly offset: number };
+
+export function getRegisterLoadMoreContinuation(input: {
+  readonly sort?: {
+    readonly column: "date" | "payee" | "category" | "memo" | "outflow" | "inflow";
+    readonly direction: "ascending" | "descending";
+  };
+  readonly cursor: { readonly date: string; readonly id: string } | null;
+  readonly loadedCount: number;
+}): RegisterLoadMoreContinuation {
+  if (
+    input.cursor &&
+    (input.sort?.column ?? "date") === "date" &&
+    (input.sort?.direction ?? "descending") === "descending"
+  ) {
+    return { before: input.cursor };
+  }
+
+  return { offset: input.loadedCount };
+}
+
 export type RegisterPaginationState = {
   totalItems: number;
   pageSize: number;
