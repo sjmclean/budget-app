@@ -305,26 +305,10 @@ export function partitionPreviouslyImportedCandidates<
     }
   }
 
-  const alreadyRepresentedCandidates: T[] = [];
-
-  // A partially recognised overlapping statement is strong evidence that
-  // remaining exact register matches came from the same earlier import. This
-  // repairs incomplete legacy identity ledgers without hiding first-time
-  // manual matches: recovery is enabled only when this file already contains
-  // at least one proven previously imported row.
-  if (previouslyImportedCandidates.length > 0) {
-    for (let index = activeCandidates.length - 1; index >= 0; index -= 1) {
-      const candidate = activeCandidates[index] as T & { status?: string };
-      if (candidate.status !== "exact-match") continue;
-      alreadyRepresentedCandidates.unshift(candidate);
-      activeCandidates.splice(index, 1);
-    }
-  }
-
   return {
     activeCandidates,
     previouslyImportedCandidates,
-    alreadyRepresentedCandidates,
+    alreadyRepresentedCandidates: [],
   };
 }
 

@@ -169,3 +169,76 @@ test("a bank-provided external transaction ID still deduplicates across source f
     resetBudgetPersistenceProvider();
   }
 });
+
+test("one proven previously imported row does not suppress a different heuristic exact match", () => {
+  const storage = createMemoryStorage();
+
+  configureBudgetPersistenceProvider({
+    metadata: {
+      kind: "local-database",
+      label: "test",
+      description: "test",
+      isProductionPersistence: false,
+    },
+    capabilities: {
+      sharedAcrossDevices: false,
+      liveUpdates: false,
+      offlineWrites: true,
+      backups: false,
+    },
+    keyValueStorage: storage,
+  } as never);
+
+  try {
+    const previouslyImported = {
+      ...identicalFallbackCandidate("old-row"),
+      parsed: {
+        ...identicalFallbackCandidate("old-row").parsed,
+        raw: {
+          date: "2026-08-10",
+          payee: "Known Merchant",
+          amount: "-10.00",
+          "Transaction ID": "bank-proven-123",
+        },
+      },
+    };
+
+    rememberImportedTransactionCandidates({
+      accountId: "checking",
+      fileType: "csv",
+      candidates: [previouslyImported],
+      importedAt: "2026-08-01T00:00:00.000Z",
+    });
+
+    const repeatedKnownRow = {
+      ...previouslyImported,
+      id: "new-file-known-row",
+    };
+
+    const distinctHeuristicMatch = {
+      ...identicalFallbackCandidate("new-file-legitimate-row"),
+      status: "exact-match" as const,
+    };
+
+    const partition = partitionPreviouslyImportedCandidates({
+      accountId: "checking",
+      fileType: "csv",
+      candidates: [repeatedKnownRow, distinctHeuristicMatch],
+    });
+
+    assert.deepEqual(
+      partition.previouslyImportedCandidates.map((candidate) => candidate.id),
+      ["new-file-known-row"],
+    );
+
+    assert.deepEqual(
+      partition.activeCandidates.map((candidate) => candidate.id),
+      ["new-file-legitimate-row"],
+      "a heuristic exact match must remain reviewable even when another row proves statement overlap",
+    );
+
+    assert.equal(partition.alreadyRepresentedCandidates.length, 0);
+  } finally {
+    resetBudgetPersistenceProvider();
+  }
+});
