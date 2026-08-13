@@ -115,6 +115,8 @@ export const LOCAL_REGISTER_SCHEMA_SQL = `
   );
   CREATE INDEX IF NOT EXISTS local_transactions_register
     ON local_transactions(budget_id, account_id, date DESC, id DESC);
+  CREATE INDEX IF NOT EXISTS local_transactions_account_summary
+    ON local_transactions(budget_id, account_id, amount, cleared_status);
   CREATE INDEX IF NOT EXISTS local_transactions_category_month
     ON local_transactions(budget_id, category_id, substr(date, 1, 7), date, id);
   CREATE INDEX IF NOT EXISTS local_transactions_budget_date
