@@ -600,6 +600,7 @@ export function createLocalFirstAccountRegisterQueryClient(
   async function replayConflictMutation(
     local: LocalBudgetDatabaseClient,
     original: LocalBudgetMutation,
+    conflictId: string,
   ) {
     const replay = mutation(
       original.budgetId,
@@ -614,13 +615,14 @@ export function createLocalFirstAccountRegisterQueryClient(
     ) {
       const payload = original.payload as LocalTransactionAttachmentMutationPayload;
       if (original.operation === "delete") {
-        await local.deleteTransactionAttachment(payload.attachment.id, replay);
+        await local.deleteTransactionAttachment(payload.attachment.id, replay, conflictId);
       } else {
         if (!payload.contentBase64) throw new Error("Attachment conflict content is missing.");
         await local.writeTransactionAttachment(
           payload.attachment,
           decodeBase64(payload.contentBase64),
           replay,
+          conflictId,
         );
       }
       return;
@@ -641,7 +643,7 @@ export function createLocalFirstAccountRegisterQueryClient(
           );
         }
 
-        await local.deleteTransaction(original.entityId, replay);
+        await local.deleteTransaction(original.entityId, replay, conflictId);
       } else {
         const transaction = original.payload as LocalTransactionRecord;
 
@@ -654,7 +656,7 @@ export function createLocalFirstAccountRegisterQueryClient(
           );
         }
 
-        await local.writeTransaction(transaction, replay);
+        await local.writeTransaction(transaction, replay, conflictId);
       }
       return;
     }
@@ -664,11 +666,13 @@ export function createLocalFirstAccountRegisterQueryClient(
           original.budgetId,
           original.entityId,
           replay,
+          conflictId,
         );
       } else {
         await local.writeAccount(
           original.payload as import("./registerSchema").LocalAccountRecord,
           replay,
+          conflictId,
         );
       }
       return;
@@ -677,6 +681,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       await local.writePayee(
         original.payload as import("./registerSchema").LocalPayeeRecord,
         replay,
+        conflictId,
       );
       return;
     }
@@ -684,14 +689,17 @@ export function createLocalFirstAccountRegisterQueryClient(
       const target = original.payload as {
         targetPayeeId?: string;
         targetPayeeName?: string;
+        sourcePayeeIds?: readonly string[];
       };
       if (target.targetPayeeId) {
         await local.mergePayees({
           budgetId: original.budgetId,
           sourcePayeeId: original.entityId,
+          sourcePayeeIds: target.sourcePayeeIds,
           targetPayeeId: target.targetPayeeId,
           targetPayeeName: target.targetPayeeName ?? "",
           mutation: replay,
+          resolveConflictId: conflictId,
         });
         return;
       }
@@ -708,11 +716,12 @@ export function createLocalFirstAccountRegisterQueryClient(
           targetCategoryId: target.targetCategoryId,
           targetCategoryName: target.targetCategoryName ?? "",
           mutation: replay,
+          resolveConflictId: conflictId,
         });
         return;
       }
     }
-    await local.mutate(replay);
+    await local.mutate(replay, conflictId);
   }
 
   async function listLocalFirstConflicts(
@@ -873,10 +882,15 @@ export function createLocalFirstAccountRegisterQueryClient(
         throw new Error("The synchronization conflict was not found.");
       }
       if (resolution === "keep-local") {
-        await replayConflictMutation(local, conflict.losingMutation);
+        await replayConflictMutation(
+          local,
+          conflict.losingMutation,
+          conflictId,
+        );
+        await synchronise(budgetId);
+      } else {
+        await local.resolveSyncConflict(conflictId, resolution);
       }
-      await local.resolveSyncConflict(conflictId, resolution);
-      if (resolution === "keep-local") await synchronise(budgetId);
     },
     async getBudgetStatus(budgetId) {
       const remote = await relay.getBootstrap(budgetId).catch(() => null);

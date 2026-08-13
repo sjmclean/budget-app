@@ -217,6 +217,7 @@ export type LocalBudgetWorkerRequest =
       readonly type: "writeTransaction";
       readonly transaction: LocalTransactionRecord;
       readonly mutation: LocalBudgetMutation;
+      readonly resolveConflictId?: string;
     }
   | {
       readonly requestId: string;
@@ -231,6 +232,7 @@ export type LocalBudgetWorkerRequest =
       readonly type: "deleteTransaction";
       readonly transactionId: string;
       readonly mutation: LocalBudgetMutation;
+      readonly resolveConflictId?: string;
     }
   | {
       readonly requestId: string;
@@ -246,12 +248,14 @@ export type LocalBudgetWorkerRequest =
       readonly attachment: LocalTransactionAttachmentRecord;
       readonly content: Uint8Array;
       readonly mutation: LocalBudgetMutation;
+      readonly resolveConflictId?: string;
     }
   | {
       readonly requestId: string;
       readonly type: "deleteTransactionAttachment";
       readonly attachmentId: string;
       readonly mutation: LocalBudgetMutation;
+      readonly resolveConflictId?: string;
     }
   | {
       readonly requestId: string;
@@ -263,6 +267,7 @@ export type LocalBudgetWorkerRequest =
       readonly requestId: string;
       readonly type: "mutate";
       readonly mutation: LocalBudgetMutation;
+      readonly resolveConflictId?: string;
     }
   | {
       readonly requestId: string;
@@ -307,6 +312,7 @@ export type LocalBudgetWorkerRequest =
       readonly type: "writePayee";
       readonly payee: import("./registerSchema").LocalPayeeRecord;
       readonly mutation: LocalBudgetMutation;
+      readonly resolveConflictId?: string;
     }
   | {
       readonly requestId: string;
@@ -320,6 +326,7 @@ export type LocalBudgetWorkerRequest =
       readonly type: "writeAccount";
       readonly account: import("./registerSchema").LocalAccountRecord;
       readonly mutation: LocalBudgetMutation;
+      readonly resolveConflictId?: string;
     }
   | {
       readonly requestId: string;
@@ -327,6 +334,7 @@ export type LocalBudgetWorkerRequest =
       readonly budgetId: string;
       readonly accountId: string;
       readonly mutation: LocalBudgetMutation;
+      readonly resolveConflictId?: string;
     }
   | {
       readonly requestId: string;
@@ -341,6 +349,7 @@ export type LocalBudgetWorkerRequest =
       readonly addMergedAliases?: boolean;
       readonly redirectRecognitionRules?: boolean;
       readonly mutation: LocalBudgetMutation;
+      readonly resolveConflictId?: string;
     }
   | {
       readonly requestId: string;
@@ -350,6 +359,7 @@ export type LocalBudgetWorkerRequest =
       readonly targetCategoryId: string;
       readonly targetCategoryName: string;
       readonly mutation: LocalBudgetMutation;
+      readonly resolveConflictId?: string;
     }
   | {
       readonly requestId: string;

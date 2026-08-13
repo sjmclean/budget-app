@@ -306,12 +306,14 @@ export class LocalBudgetDatabaseClient {
   writeTransaction(
     transaction: LocalTransactionRecord,
     mutation: LocalBudgetMutation,
+    resolveConflictId?: string,
   ): Promise<LocalBudgetManifest> {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "writeTransaction",
       transaction,
       mutation,
+      ...(resolveConflictId ? { resolveConflictId } : {}),
     });
   }
 
@@ -331,12 +333,14 @@ export class LocalBudgetDatabaseClient {
   deleteTransaction(
     transactionId: string,
     mutation: LocalBudgetMutation,
+    resolveConflictId?: string,
   ): Promise<LocalBudgetManifest> {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "deleteTransaction",
       transactionId,
       mutation,
+      ...(resolveConflictId ? { resolveConflictId } : {}),
     });
   }
 
@@ -357,6 +361,7 @@ export class LocalBudgetDatabaseClient {
     attachment: LocalTransactionAttachmentRecord,
     content: Uint8Array,
     mutation: LocalBudgetMutation,
+    resolveConflictId?: string,
   ): Promise<LocalBudgetManifest> {
     const request: Extract<LocalBudgetWorkerRequest, { type: "writeTransactionAttachment" }> = {
       requestId: createRuntimeUuid(),
@@ -364,6 +369,7 @@ export class LocalBudgetDatabaseClient {
       attachment,
       content: Uint8Array.from(content),
       mutation,
+      ...(resolveConflictId ? { resolveConflictId } : {}),
     };
     return this.#request(request, [request.content.buffer as ArrayBuffer]);
   }
@@ -371,12 +377,14 @@ export class LocalBudgetDatabaseClient {
   deleteTransactionAttachment(
     attachmentId: string,
     mutation: LocalBudgetMutation,
+    resolveConflictId?: string,
   ): Promise<LocalBudgetManifest> {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "deleteTransactionAttachment",
       attachmentId,
       mutation,
+      ...(resolveConflictId ? { resolveConflictId } : {}),
     });
   }
 
@@ -396,11 +404,15 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
-  mutate(mutation: LocalBudgetMutation): Promise<LocalBudgetManifest> {
+  mutate(
+    mutation: LocalBudgetMutation,
+    resolveConflictId?: string,
+  ): Promise<LocalBudgetManifest> {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "mutate",
       mutation,
+      ...(resolveConflictId ? { resolveConflictId } : {}),
     });
   }
 
@@ -477,12 +489,14 @@ export class LocalBudgetDatabaseClient {
   writePayee(
     payee: import("./registerSchema").LocalPayeeRecord,
     mutation: LocalBudgetMutation,
+    resolveConflictId?: string,
   ): Promise<LocalBudgetManifest> {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "writePayee",
       payee,
       mutation,
+      ...(resolveConflictId ? { resolveConflictId } : {}),
     });
   }
 
@@ -497,12 +511,14 @@ export class LocalBudgetDatabaseClient {
   writeAccount(
     account: import("./registerSchema").LocalAccountRecord,
     mutation: LocalBudgetMutation,
+    resolveConflictId?: string,
   ): Promise<LocalBudgetManifest> {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "writeAccount",
       account,
       mutation,
+      ...(resolveConflictId ? { resolveConflictId } : {}),
     });
   }
 
@@ -510,6 +526,7 @@ export class LocalBudgetDatabaseClient {
     budgetId: string,
     accountId: string,
     mutation: LocalBudgetMutation,
+    resolveConflictId?: string,
   ): Promise<LocalBudgetManifest> {
     return this.#request({
       requestId: createRuntimeUuid(),
@@ -517,6 +534,7 @@ export class LocalBudgetDatabaseClient {
       budgetId,
       accountId,
       mutation,
+      ...(resolveConflictId ? { resolveConflictId } : {}),
     });
   }
 
@@ -531,6 +549,7 @@ export class LocalBudgetDatabaseClient {
     readonly addMergedAliases?: boolean;
     readonly redirectRecognitionRules?: boolean;
     readonly mutation: LocalBudgetMutation;
+    readonly resolveConflictId?: string;
   }): Promise<LocalBudgetManifest> {
     return this.#request({
       requestId: createRuntimeUuid(),
@@ -545,6 +564,7 @@ export class LocalBudgetDatabaseClient {
     readonly targetCategoryId: string;
     readonly targetCategoryName: string;
     readonly mutation: LocalBudgetMutation;
+    readonly resolveConflictId?: string;
   }): Promise<LocalBudgetManifest> {
     return this.#request({
       requestId: createRuntimeUuid(),

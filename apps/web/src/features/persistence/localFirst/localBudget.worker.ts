@@ -858,7 +858,10 @@ function currentManifest(): LocalBudgetManifest {
   };
 }
 
-function applyMutation(mutation: LocalBudgetMutation): LocalBudgetManifest {
+function applyMutation(
+  mutation: LocalBudgetMutation,
+  resolveConflictId?: string,
+): LocalBudgetManifest {
   if (mutation.budgetId !== activeBudgetId || mutation.syncEpoch !== activeSyncEpoch) {
     throw workerError(
       "STALE_SYNC_EPOCH",
@@ -918,6 +921,7 @@ function applyMutation(mutation: LocalBudgetMutation): LocalBudgetManifest {
       ],
     );
     writeMetadata("localRevision", String(revision));
+    resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");
   } catch (error) {
     execute("ROLLBACK");
@@ -1343,6 +1347,41 @@ function resolveSyncConflict(
     throw workerError("SYNC_CONFLICT_NOT_FOUND", "Sync conflict was not found.");
   }
   return conflict;
+}
+
+function resolveLocalConflictInTransaction(
+  conflictId: string | undefined,
+): void {
+  if (!conflictId) return;
+
+  const resolvedAt = new Date().toISOString();
+  execute(
+    `UPDATE local_budget_sync_conflicts
+     SET status = 'resolved-local', resolved_at = ?
+     WHERE conflict_id = ? AND status = 'unresolved'`,
+    [resolvedAt, conflictId],
+  );
+
+  const row = resultRows<{ status: string }>(
+    `SELECT status
+     FROM local_budget_sync_conflicts
+     WHERE conflict_id = ?`,
+    [conflictId],
+  )[0];
+
+  if (!row) {
+    throw workerError(
+      "SYNC_CONFLICT_NOT_FOUND",
+      "Sync conflict was not found.",
+    );
+  }
+
+  if (row.status !== "resolved-local") {
+    throw workerError(
+      "SYNC_CONFLICT_ALREADY_RESOLVED",
+      "Sync conflict can no longer be kept locally.",
+    );
+  }
 }
 
 function insertOutbox(mutation: LocalBudgetMutation): void {
@@ -2719,6 +2758,7 @@ function getTransactionsByIds(
 function writeTransaction(
   transaction: LocalTransactionRecord,
   mutation: LocalBudgetMutation,
+  resolveConflictId?: string,
 ): LocalBudgetManifest {
   assertMutationScope(mutation);
   execute("BEGIN IMMEDIATE");
@@ -2735,6 +2775,7 @@ function writeTransaction(
     );
     insertOutbox(mutation);
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
+    resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");
   } catch (error) {
     execute("ROLLBACK");
@@ -2781,6 +2822,7 @@ function writeTransactionBatch(
 function deleteTransaction(
   transactionId: string,
   mutation: LocalBudgetMutation,
+  resolveConflictId?: string,
 ): LocalBudgetManifest {
   assertMutationScope(mutation);
   execute("BEGIN IMMEDIATE");
@@ -2796,6 +2838,7 @@ function deleteTransaction(
     if (previousMonth) markBudgetProjectionDirty(previousMonth);
     insertOutbox(mutation);
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
+    resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");
   } catch (error) {
     execute("ROLLBACK");
@@ -2847,6 +2890,7 @@ function writeTransactionAttachment(
   attachment: LocalTransactionAttachmentRecord,
   content: Uint8Array,
   mutation: LocalBudgetMutation,
+  resolveConflictId?: string,
 ): LocalBudgetManifest {
   assertMutationScope(mutation);
   if (mutation.entityId !== attachmentEntityId(attachment.id)) {
@@ -2857,6 +2901,7 @@ function writeTransactionAttachment(
     upsertTransactionAttachment(attachment, content);
     insertOutbox(mutation);
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
+    resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");
   } catch (error) {
     execute("ROLLBACK");
@@ -2868,6 +2913,7 @@ function writeTransactionAttachment(
 function deleteTransactionAttachment(
   attachmentId: string,
   mutation: LocalBudgetMutation,
+  resolveConflictId?: string,
 ): LocalBudgetManifest {
   assertMutationScope(mutation);
   if (mutation.entityId !== attachmentEntityId(attachmentId)) {
@@ -2881,6 +2927,7 @@ function deleteTransactionAttachment(
     );
     insertOutbox(mutation);
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
+    resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");
   } catch (error) {
     execute("ROLLBACK");
@@ -3003,6 +3050,7 @@ function keepPayeesSeparate(
 function writePayee(
   payee: import("./registerSchema").LocalPayeeRecord,
   mutation: LocalBudgetMutation,
+  resolveConflictId?: string,
 ) {
   assertMutationScope(mutation);
   execute("BEGIN IMMEDIATE");
@@ -3057,6 +3105,7 @@ function writePayee(
     }
     insertOutbox(mutation);
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
+    resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");
   } catch (error) {
     execute("ROLLBACK");
@@ -3318,6 +3367,7 @@ function upsertAccount(account: import("./registerSchema").LocalAccountRecord) {
 function writeAccount(
   account: import("./registerSchema").LocalAccountRecord,
   mutation: LocalBudgetMutation,
+  resolveConflictId?: string,
 ) {
   assertMutationScope(mutation);
   execute("BEGIN IMMEDIATE");
@@ -3327,6 +3377,7 @@ function writeAccount(
     markAllBudgetProjectionsDirty();
     insertOutbox(mutation);
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
+    resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");
   } catch (error) {
     execute("ROLLBACK");
@@ -3399,6 +3450,7 @@ function deleteAccount(
   budgetId: string,
   accountId: string,
   mutation: LocalBudgetMutation,
+  resolveConflictId?: string,
 ) {
   assertMutationScope(mutation);
   assertAccountDeletable(budgetId, accountId);
@@ -3408,6 +3460,7 @@ function deleteAccount(
     markAllBudgetProjectionsDirty();
     insertOutbox(mutation);
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
+    resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");
   } catch (error) {
     execute("ROLLBACK");
@@ -3427,6 +3480,7 @@ function mergePayees(
   addMergedAliases = true,
   redirectRecognitionRules = true,
   mutation: LocalBudgetMutation,
+  resolveConflictId?: string,
 ) {
   assertMutationScope(mutation);
   execute("BEGIN IMMEDIATE");
@@ -3544,6 +3598,7 @@ function mergePayees(
     }
     insertOutbox(mutation);
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
+    resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");
   } catch (error) {
     execute("ROLLBACK");
@@ -3689,6 +3744,7 @@ function mergeCategories(
   targetCategoryId: string,
   targetCategoryName: string,
   mutation: LocalBudgetMutation,
+  resolveConflictId?: string,
 ) {
   assertMutationScope(mutation);
   execute("BEGIN IMMEDIATE");
@@ -3704,6 +3760,7 @@ function mergeCategories(
     ]);
     insertOutbox(mutation);
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
+    resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");
   } catch (error) {
     execute("ROLLBACK");
@@ -3946,21 +4003,21 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
     case "getBudgetProjectionDiagnostic":
       return getBudgetProjectionDiagnostic(request.budgetId, request.month);
     case "writeTransaction":
-      return writeTransaction(request.transaction, request.mutation);
+      return writeTransaction(request.transaction, request.mutation, request.resolveConflictId);
     case "writeTransactionBatch":
       return writeTransactionBatch(request.writes);
     case "deleteTransaction":
-      return deleteTransaction(request.transactionId, request.mutation);
+      return deleteTransaction(request.transactionId, request.mutation, request.resolveConflictId);
     case "deleteTransactionBatch":
       return deleteTransactionBatch(request.deletes);
     case "writeTransactionAttachment":
-      return writeTransactionAttachment(request.attachment, request.content, request.mutation);
+      return writeTransactionAttachment(request.attachment, request.content, request.mutation, request.resolveConflictId);
     case "deleteTransactionAttachment":
-      return deleteTransactionAttachment(request.attachmentId, request.mutation);
+      return deleteTransactionAttachment(request.attachmentId, request.mutation, request.resolveConflictId);
     case "readTransactionAttachmentContent":
       return readTransactionAttachmentContent(request.budgetId, request.attachmentId);
     case "mutate":
-      return applyMutation(request.mutation);
+      return applyMutation(request.mutation, request.resolveConflictId);
     case "mutateBatch":
       return applyMutationBatch(request.mutations);
     case "readEntity": {
@@ -3994,16 +4051,17 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
     case "keepPayeesSeparate":
       return keepPayeesSeparate(request.budgetId, request.pairs);
     case "writePayee":
-      return writePayee(request.payee, request.mutation);
+      return writePayee(request.payee, request.mutation, request.resolveConflictId);
     case "deleteUnusedPayee":
       return deleteUnusedPayee(request.budgetId, request.payeeId, request.mutation);
     case "writeAccount":
-      return writeAccount(request.account, request.mutation);
+      return writeAccount(request.account, request.mutation, request.resolveConflictId);
     case "deleteAccount":
       return deleteAccount(
         request.budgetId,
         request.accountId,
         request.mutation,
+        request.resolveConflictId,
       );
     case "mergePayees":
       return mergePayees(
@@ -4017,6 +4075,7 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
         request.addMergedAliases,
         request.redirectRecognitionRules,
         request.mutation,
+        request.resolveConflictId,
       );
     case "mergeCategories":
       return mergeCategories(
@@ -4025,6 +4084,7 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
         request.targetCategoryId,
         request.targetCategoryName,
         request.mutation,
+        request.resolveConflictId,
       );
     case "readOutbox":
       return resultRows(
