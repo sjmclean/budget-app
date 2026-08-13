@@ -660,6 +660,7 @@ export function AccountRegisterPage() {
   } = usePayeeManagerWorkflow({
     payeesPersistence,
     scheduledTransactionsPersistence,
+    persistenceAlreadyPropagatedPayeeReferences: storageMode === "sqlite",
     registerTransactions,
     renamePayeeReferences:
       storageMode === "sqlite" ? async () => undefined : renamePayeeReferences,

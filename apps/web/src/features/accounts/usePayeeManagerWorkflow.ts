@@ -42,6 +42,7 @@ interface PayeeManagerScheduledTransactionsPersistence {
 interface UsePayeeManagerWorkflowInput {
   payeesPersistence: PayeeManagerPayeesPersistence;
   scheduledTransactionsPersistence: PayeeManagerScheduledTransactionsPersistence;
+  persistenceAlreadyPropagatedPayeeReferences?: boolean;
   registerTransactions: readonly RegisterTransactionView[];
   renamePayeeReferences(input: PayeeReferenceRenameInput): Promise<void>;
   reassignPayeeReferences(input: PayeeReferenceReassignInput): Promise<void>;
@@ -57,9 +58,34 @@ function hasSamePayeeName(left: string, right: string) {
   return normalisePayeeKey(left) === normalisePayeeKey(right);
 }
 
+export async function propagatePayeeRenameReferences(input: {
+  persistenceAlreadyPropagatedReferences: boolean;
+  input: PayeeReferenceRenameInput;
+  renameScheduledReferences(input: PayeeReferenceRenameInput): Promise<void>;
+  renameRegisterReferences(input: PayeeReferenceRenameInput): Promise<void>;
+}): Promise<void> {
+  if (input.persistenceAlreadyPropagatedReferences) return;
+
+  await input.renameScheduledReferences(input.input);
+  await input.renameRegisterReferences(input.input);
+}
+
+export async function propagatePayeeMergeReferences(input: {
+  persistenceAlreadyPropagatedReferences: boolean;
+  input: PayeeReferenceReassignInput;
+  reassignScheduledReferences(input: PayeeReferenceReassignInput): Promise<void>;
+  reassignRegisterReferences(input: PayeeReferenceReassignInput): Promise<void>;
+}): Promise<void> {
+  if (input.persistenceAlreadyPropagatedReferences) return;
+
+  await input.reassignScheduledReferences(input.input);
+  await input.reassignRegisterReferences(input.input);
+}
+
 export function usePayeeManagerWorkflow({
   payeesPersistence,
   scheduledTransactionsPersistence,
+  persistenceAlreadyPropagatedPayeeReferences = false,
   registerTransactions,
   renamePayeeReferences,
   reassignPayeeReferences,
@@ -232,15 +258,17 @@ export function usePayeeManagerWorkflow({
       id: selectedPayeeSummary.payee.id,
       name: nextName,
     });
-    await scheduledTransactionsPersistence.renamePayeeReferences({
-      payeeId: selectedPayeeSummary.payee.id,
-      previousName,
-      nextName,
-    });
-    await renamePayeeReferences({
-      payeeId: selectedPayeeSummary.payee.id,
-      previousName,
-      nextName,
+    await propagatePayeeRenameReferences({
+      persistenceAlreadyPropagatedReferences:
+        persistenceAlreadyPropagatedPayeeReferences,
+      input: {
+        payeeId: selectedPayeeSummary.payee.id,
+        previousName,
+        nextName,
+      },
+      renameScheduledReferences:
+        scheduledTransactionsPersistence.renamePayeeReferences,
+      renameRegisterReferences: renamePayeeReferences,
     });
     await refreshPayees();
 
@@ -311,17 +339,18 @@ export function usePayeeManagerWorkflow({
       sourcePayeeId: sourcePayee.id,
       targetPayeeId: targetPayee.id,
     });
-    await scheduledTransactionsPersistence.reassignPayeeReferences({
-      sourcePayeeId: sourcePayee.id,
-      sourceName: sourcePayee.name,
-      targetPayeeId: targetPayee.id,
-      targetName: targetPayee.name,
-    });
-    await reassignPayeeReferences({
-      sourcePayeeId: sourcePayee.id,
-      sourceName: sourcePayee.name,
-      targetPayeeId: targetPayee.id,
-      targetName: targetPayee.name,
+    await propagatePayeeMergeReferences({
+      persistenceAlreadyPropagatedReferences:
+        persistenceAlreadyPropagatedPayeeReferences,
+      input: {
+        sourcePayeeId: sourcePayee.id,
+        sourceName: sourcePayee.name,
+        targetPayeeId: targetPayee.id,
+        targetName: targetPayee.name,
+      },
+      reassignScheduledReferences:
+        scheduledTransactionsPersistence.reassignPayeeReferences,
+      reassignRegisterReferences: reassignPayeeReferences,
     });
     await refreshPayees();
 
