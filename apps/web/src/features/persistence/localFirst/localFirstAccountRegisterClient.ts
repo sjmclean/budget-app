@@ -969,9 +969,15 @@ export function createLocalFirstAccountRegisterQueryClient(
     },
     async getAccountRegisterBootstrap(input) {
       const local = await syncThenDatabase(input.budgetId);
+      const needsFilteredCount =
+        Boolean(input.search?.query.trim()) ||
+        input.categoryFilter === "uncategorised";
       const [summary, page] = await Promise.all([
         local.getAccountSummary(input),
-        local.queryTransactions(toLocalQuery(input)),
+        local.queryTransactions({
+          ...toLocalQuery(input),
+          includeTotalCount: needsFilteredCount,
+        }),
       ]);
       return { summary, page };
     },
@@ -982,7 +988,10 @@ export function createLocalFirstAccountRegisterQueryClient(
       return (await syncThenDatabase(input.budgetId)).getAccountSummary(input);
     },
     async queryTransactions(input) {
-      return (await syncThenDatabase(input.budgetId)).queryTransactions(toLocalQuery(input));
+      return (await syncThenDatabase(input.budgetId)).queryTransactions({
+        ...toLocalQuery(input),
+        includeTotalCount: false,
+      });
     },
     async getTransactionsByIds(input) {
       return (await syncThenDatabase(input.budgetId)).getTransactionsByIds(

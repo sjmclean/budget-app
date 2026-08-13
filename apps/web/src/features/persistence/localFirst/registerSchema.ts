@@ -272,6 +272,7 @@ export interface LocalTransactionQuery {
   readonly limit: number;
   readonly offset?: number;
   readonly before?: { readonly date: string; readonly id: string };
+  readonly includeTotalCount?: boolean;
   readonly search?: {
     readonly query: string;
     readonly scope: "all" | "payee" | "category" | "memo" | "amount";

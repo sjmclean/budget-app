@@ -2658,15 +2658,17 @@ function queryTransactions(query: LocalTransactionQuery) {
   }[query.sort?.column ?? "date"];
   const direction = query.sort?.direction === "ascending" ? "ASC" : "DESC";
   const clause = where.join(" AND ");
-  const totalCount = resultRows<{ count: number }>(
-    `SELECT COUNT(*) AS count
-     FROM local_transactions AS transaction_row
-     LEFT JOIN local_categories AS category_record
-       ON category_record.budget_id = transaction_row.budget_id
-      AND category_record.id = transaction_row.category_id
-     WHERE ${clause}`,
-    bind,
-  )[0]?.count ?? 0;
+  const totalCount = query.includeTotalCount === false
+    ? undefined
+    : resultRows<{ count: number }>(
+        `SELECT COUNT(*) AS count
+         FROM local_transactions AS transaction_row
+         LEFT JOIN local_categories AS category_record
+           ON category_record.budget_id = transaction_row.budget_id
+          AND category_record.id = transaction_row.category_id
+         WHERE ${clause}`,
+        bind,
+      )[0]?.count ?? 0;
   const rows = resultRows<{
     id: string;
     date: string;
