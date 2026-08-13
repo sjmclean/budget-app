@@ -152,12 +152,17 @@ export function getSplitBalanceStatus({
   const parentAmount = activeSide === "inflow" ? parentInflow : parentOutflow;
   const splitAmount = activeSide === "inflow" ? splitInflow : splitOutflow;
   const remaining = normaliseMoney(parentAmount - splitAmount);
+  const signedParentAmount = normaliseMoney(parentInflow - parentOutflow);
+  const signedSplitAmount = normaliseMoney(splitInflow - splitOutflow);
+  const signedRemaining = normaliseMoney(
+    signedParentAmount - signedSplitAmount,
+  );
 
   return {
     parentAmount,
     splitAmount,
     remaining,
-    isBalanced: Math.abs(remaining) < SPLIT_BALANCE_TOLERANCE,
+    isBalanced: Math.abs(signedRemaining) < SPLIT_BALANCE_TOLERANCE,
     isOverAssigned: remaining < -SPLIT_BALANCE_TOLERANCE,
     activeSide,
   };
