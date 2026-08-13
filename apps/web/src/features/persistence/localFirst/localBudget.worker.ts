@@ -2812,6 +2812,45 @@ function deleteTransaction(
   return currentManifest();
 }
 
+function deleteTransactionBatch(
+  deletes: readonly {
+    readonly transactionId: string;
+    readonly mutation: LocalBudgetMutation;
+  }[],
+): LocalBudgetManifest {
+  for (const { mutation } of deletes) assertMutationScope(mutation);
+  if (deletes.length === 0) return currentManifest();
+
+  execute("BEGIN IMMEDIATE");
+  try {
+    for (const { transactionId, mutation } of deletes) {
+      const previousMonth = resultRows<{ month: string }>(
+        "SELECT substr(date, 1, 7) AS month FROM local_transactions WHERE budget_id = ? AND id = ?",
+        [activeBudgetId, transactionId],
+      )[0]?.month;
+
+      execute(
+        "DELETE FROM local_transactions WHERE budget_id = ? AND id = ?",
+        [activeBudgetId, transactionId],
+      );
+
+      if (previousMonth) markBudgetProjectionDirty(previousMonth);
+      insertOutbox(mutation);
+    }
+
+    writeMetadata(
+      "localRevision",
+      String(Number(readMetadata("localRevision") ?? "0") + deletes.length),
+    );
+    execute("COMMIT");
+  } catch (error) {
+    execute("ROLLBACK");
+    throw error;
+  }
+
+  return currentManifest();
+}
+
 function writeTransactionAttachment(
   attachment: LocalTransactionAttachmentRecord,
   content: Uint8Array,
@@ -3543,6 +3582,8 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return writeTransactionBatch(request.writes);
     case "deleteTransaction":
       return deleteTransaction(request.transactionId, request.mutation);
+    case "deleteTransactionBatch":
+      return deleteTransactionBatch(request.deletes);
     case "writeTransactionAttachment":
       return writeTransactionAttachment(request.attachment, request.content, request.mutation);
     case "deleteTransactionAttachment":

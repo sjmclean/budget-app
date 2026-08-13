@@ -397,7 +397,8 @@ export function createLocalFirstAccountRegisterQueryClient(
         : input.categoryName?.trim() ||
           (existing?.categoryId === input.categoryId ? existing?.categoryName : null) ||
           null,
-      transferAccountId: input.transferAccountId ?? null,
+      transferAccountId:
+        input.transferAccountId ?? existing?.transferAccountId ?? null,
       transferTransactionId: existing?.transferTransactionId ?? null,
       generatedFromSchedule: input.generatedFromSchedule ?? existing?.generatedFromSchedule ?? false,
       scheduledTransactionId: input.scheduledTransactionId ?? existing?.scheduledTransactionId ?? null,
@@ -415,6 +416,158 @@ export function createLocalFirstAccountRegisterQueryClient(
       })),
       tagIds: input.tagIds ?? [],
       updatedAt: new Date().toISOString(),
+    };
+  }
+
+  async function requireTransferCounterpart(
+    local: LocalBudgetDatabaseClient,
+    transaction: LocalTransactionRecord,
+  ): Promise<LocalTransactionRecord | null> {
+    const hasTransferAccount = Boolean(transaction.transferAccountId);
+    const hasTransferTransaction = Boolean(transaction.transferTransactionId);
+
+    if (!hasTransferAccount && !hasTransferTransaction) {
+      return null;
+    }
+
+    if (!transaction.transferAccountId || !transaction.transferTransactionId) {
+      throw new Error(
+        "The transfer linkage is incomplete. Repair the transfer before changing it.",
+      );
+    }
+
+    const counterpart = await local.getTransaction(
+      transaction.budgetId,
+      transaction.transferTransactionId,
+    );
+
+    if (
+      !counterpart ||
+      counterpart.accountId !== transaction.transferAccountId ||
+      counterpart.transferAccountId !== transaction.accountId ||
+      counterpart.transferTransactionId !== transaction.id
+    ) {
+      throw new Error(
+        "The other side of this transfer is missing or does not link back correctly.",
+      );
+    }
+
+    return counterpart;
+  }
+
+  function buildTransferPair(
+    source: LocalTransactionRecord,
+    targetAccountId: string,
+    counterpartId = createRuntimeUuid(),
+  ): readonly [LocalTransactionRecord, LocalTransactionRecord] {
+    if (targetAccountId === source.accountId) {
+      throw new Error("A transfer cannot use the same account on both sides.");
+    }
+
+    const sourceRecord: LocalTransactionRecord = {
+      ...source,
+      categoryId: null,
+      categoryName: "Transfer",
+      transferAccountId: targetAccountId,
+      transferTransactionId: counterpartId,
+    };
+
+    const counterpartRecord: LocalTransactionRecord = {
+      ...sourceRecord,
+      id: counterpartId,
+      accountId: targetAccountId,
+      amount: -sourceRecord.amount,
+      clearedStatus: "uncleared",
+      transferAccountId: sourceRecord.accountId,
+      transferTransactionId: sourceRecord.id,
+    };
+
+    return [sourceRecord, counterpartRecord];
+  }
+
+  async function buildNewTransactionRecords(
+    id: string,
+    input: TransactionWriteInput,
+  ): Promise<readonly LocalTransactionRecord[]> {
+    const record = await transactionRecord(id, input);
+
+    if (!input.transferAccountId) {
+      return [record];
+    }
+
+    return buildTransferPair(record, input.transferAccountId);
+  }
+
+  async function buildUpdatedTransactionRecords(
+    local: LocalBudgetDatabaseClient,
+    transactionId: string,
+    input: TransactionWriteInput,
+    existing: LocalTransactionRecord,
+  ): Promise<readonly LocalTransactionRecord[]> {
+    const counterpart = await requireTransferCounterpart(local, existing);
+
+    if (!counterpart) {
+      const record = await transactionRecord(transactionId, input, existing);
+
+      if (!input.transferAccountId) {
+        return [record];
+      }
+
+      return buildTransferPair(record, input.transferAccountId);
+    }
+
+    if (input.accountId !== existing.accountId) {
+      throw new Error(
+        "This transfer cannot be moved by editing it. Move the transaction between accounts instead.",
+      );
+    }
+
+    if (
+      input.transferAccountId !== undefined &&
+      input.transferAccountId !== existing.transferAccountId
+    ) {
+      throw new Error(
+        "This transfer cannot be retargeted by editing it. Move the transaction between accounts instead.",
+      );
+    }
+
+    const record: LocalTransactionRecord = {
+      ...(await transactionRecord(transactionId, input, existing)),
+      categoryId: null,
+      categoryName: "Transfer",
+      transferAccountId: existing.transferAccountId,
+      transferTransactionId: existing.transferTransactionId,
+    };
+
+    const counterpartRecord: LocalTransactionRecord = {
+      ...counterpart,
+      date: record.date,
+      amount: -record.amount,
+      memo: record.memo,
+      checkNumber: record.checkNumber,
+      transferAccountId: record.accountId,
+      transferTransactionId: record.id,
+      updatedAt: record.updatedAt,
+    };
+
+    return [record, counterpartRecord];
+  }
+
+  function transactionWrite(
+    record: LocalTransactionRecord,
+  ): {
+    readonly transaction: LocalTransactionRecord;
+    readonly mutation: LocalBudgetMutation;
+  } {
+    return {
+      transaction: record,
+      mutation: mutation(
+        record.budgetId,
+        "transactions",
+        record.id,
+        "upsert",
+        record,
+      ),
     };
   }
 
@@ -459,12 +612,34 @@ export function createLocalFirstAccountRegisterQueryClient(
     }
     if (original.domain === "transactions") {
       if (original.operation === "delete") {
+        const payload = original.payload as {
+          transferAccountId?: string | null;
+          transferTransactionId?: string | null;
+        } | null;
+
+        if (
+          payload?.transferAccountId ||
+          payload?.transferTransactionId
+        ) {
+          throw new Error(
+            "This transfer conflict cannot be kept locally one side at a time. Accept the remote version or resolve the transfer pair together.",
+          );
+        }
+
         await local.deleteTransaction(original.entityId, replay);
       } else {
-        await local.writeTransaction(
-          original.payload as LocalTransactionRecord,
-          replay,
-        );
+        const transaction = original.payload as LocalTransactionRecord;
+
+        if (
+          transaction.transferAccountId ||
+          transaction.transferTransactionId
+        ) {
+          throw new Error(
+            "This transfer conflict cannot be kept locally one side at a time. Accept the remote version or resolve the transfer pair together.",
+          );
+        }
+
+        await local.writeTransaction(transaction, replay);
       }
       return;
     }
@@ -743,11 +918,8 @@ export function createLocalFirstAccountRegisterQueryClient(
     },
     async addTransaction(input) {
       const local = await requireDatabase(input.budgetId);
-      const record = await transactionRecord(input.id, input);
-      await local.writeTransaction(
-        record,
-        mutation(input.budgetId, "transactions", input.id, "upsert", record),
-      );
+      const records = await buildNewTransactionRecords(input.id, input);
+      await local.writeTransactionBatch(records.map(transactionWrite));
       notifyLocalFirstMutationCommitted(input.budgetId);
     },
     async commitTransactionBatch(input) {
@@ -756,36 +928,34 @@ export function createLocalFirstAccountRegisterQueryClient(
         transaction: LocalTransactionRecord;
         mutation: LocalBudgetMutation;
       }[] = [];
+
       for (const addition of input.additions) {
-        const record = await transactionRecord(addition.id, addition);
-        writes.push({
-          transaction: record,
-          mutation: mutation(
-            input.budgetId,
-            "transactions",
-            addition.id,
-            "upsert",
-            record,
-          ),
-        });
+        const records = await buildNewTransactionRecords(
+          addition.id,
+          addition,
+        );
+        writes.push(...records.map(transactionWrite));
       }
+
       for (const update of input.updates) {
         const existing = await local.getTransaction(input.budgetId, update.id);
-        if (!existing) throw new Error("The local transaction was not found.");
-        const record = await transactionRecord(update.id, update, existing);
-        writes.push({
-          transaction: record,
-          mutation: mutation(
-            input.budgetId,
-            "transactions",
-            update.id,
-            "upsert",
-            record,
-          ),
-        });
+        if (!existing) {
+          throw new Error("The local transaction was not found.");
+        }
+
+        const records = await buildUpdatedTransactionRecords(
+          local,
+          update.id,
+          update,
+          existing,
+        );
+        writes.push(...records.map(transactionWrite));
       }
+
       await local.writeTransactionBatch(writes);
-      notifyLocalFirstMutationCommitted(input.budgetId);
+      if (writes.length > 0) {
+        notifyLocalFirstMutationCommitted(input.budgetId);
+      }
     },
     async moveTransactions(input) {
       const local = await requireDatabase(input.budgetId);
@@ -793,14 +963,29 @@ export function createLocalFirstAccountRegisterQueryClient(
         transaction: LocalTransactionRecord;
         mutation: LocalBudgetMutation;
       }[] = [];
+
       for (const transactionId of input.transactionIds) {
         const existing = await local.getTransaction(input.budgetId, transactionId);
         if (!existing || existing.accountId !== input.sourceAccountId) continue;
-        const record = {
+
+        const counterpart = await requireTransferCounterpart(local, existing);
+
+        if (
+          counterpart &&
+          input.targetAccountId === existing.transferAccountId
+        ) {
+          throw new Error(
+            "This transfer cannot be moved to the account containing its other side.",
+          );
+        }
+
+        const updatedAt = new Date().toISOString();
+        const record: LocalTransactionRecord = {
           ...existing,
           accountId: input.targetAccountId,
-          updatedAt: new Date().toISOString(),
+          updatedAt,
         };
+
         writes.push({
           transaction: record,
           mutation: mutation(
@@ -811,19 +996,49 @@ export function createLocalFirstAccountRegisterQueryClient(
             record,
           ),
         });
+
+        if (counterpart) {
+          const counterpartRecord: LocalTransactionRecord = {
+            ...counterpart,
+            transferAccountId: input.targetAccountId,
+            updatedAt,
+          };
+
+          writes.push({
+            transaction: counterpartRecord,
+            mutation: mutation(
+              input.budgetId,
+              "transactions",
+              counterpartRecord.id,
+              "upsert",
+              counterpartRecord,
+            ),
+          });
+        }
       }
+
       await local.writeTransactionBatch(writes);
       if (writes.length > 0) notifyLocalFirstMutationCommitted(input.budgetId);
     },
     async updateTransaction(transactionId, input) {
       const local = await requireDatabase(input.budgetId);
-      const existing = await local.getTransaction(input.budgetId, transactionId);
-      if (!existing) throw new Error("The local transaction was not found.");
-      const record = await transactionRecord(transactionId, input, existing);
-      await local.writeTransaction(
-        record,
-        mutation(input.budgetId, "transactions", transactionId, "upsert", record),
+      const existing = await local.getTransaction(
+        input.budgetId,
+        transactionId,
       );
+
+      if (!existing) {
+        throw new Error("The local transaction was not found.");
+      }
+
+      const records = await buildUpdatedTransactionRecords(
+        local,
+        transactionId,
+        input,
+        existing,
+      );
+
+      await local.writeTransactionBatch(records.map(transactionWrite));
       notifyLocalFirstMutationCommitted(input.budgetId);
     },
     async toggleTransactionCleared(transactionId, input) {
@@ -843,10 +1058,69 @@ export function createLocalFirstAccountRegisterQueryClient(
     },
     async deleteTransaction(transactionId, input) {
       const local = await requireDatabase(input.budgetId);
-      await local.deleteTransaction(
-        transactionId,
-        mutation(input.budgetId, "transactions", transactionId, "delete", null),
-      );
+      const existing = await local.getTransaction(input.budgetId, transactionId);
+
+      if (!existing) {
+        await local.deleteTransaction(
+          transactionId,
+          mutation(
+            input.budgetId,
+            "transactions",
+            transactionId,
+            "delete",
+            null,
+          ),
+        );
+        notifyLocalFirstMutationCommitted(input.budgetId);
+        return;
+      }
+
+      const counterpart = await requireTransferCounterpart(local, existing);
+
+      if (!counterpart) {
+        await local.deleteTransaction(
+          transactionId,
+          mutation(
+            input.budgetId,
+            "transactions",
+            transactionId,
+            "delete",
+            null,
+          ),
+        );
+        notifyLocalFirstMutationCommitted(input.budgetId);
+        return;
+      }
+
+      await local.deleteTransactionBatch([
+        {
+          transactionId: existing.id,
+          mutation: mutation(
+            input.budgetId,
+            "transactions",
+            existing.id,
+            "delete",
+            {
+              transferAccountId: existing.transferAccountId,
+              transferTransactionId: existing.transferTransactionId,
+            },
+          ),
+        },
+        {
+          transactionId: counterpart.id,
+          mutation: mutation(
+            input.budgetId,
+            "transactions",
+            counterpart.id,
+            "delete",
+            {
+              transferAccountId: counterpart.transferAccountId,
+              transferTransactionId: counterpart.transferTransactionId,
+            },
+          ),
+        },
+      ]);
+
       notifyLocalFirstMutationCommitted(input.budgetId);
     },
     async addTransactionAttachment(input) {

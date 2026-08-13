@@ -340,6 +340,19 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
+  deleteTransactionBatch(
+    deletes: readonly {
+      readonly transactionId: string;
+      readonly mutation: LocalBudgetMutation;
+    }[],
+  ): Promise<LocalBudgetManifest> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "deleteTransactionBatch",
+      deletes,
+    });
+  }
+
   writeTransactionAttachment(
     attachment: LocalTransactionAttachmentRecord,
     content: Uint8Array,

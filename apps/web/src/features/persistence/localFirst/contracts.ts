@@ -234,6 +234,14 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "deleteTransactionBatch";
+      readonly deletes: readonly {
+        readonly transactionId: string;
+        readonly mutation: LocalBudgetMutation;
+      }[];
+    }
+  | {
+      readonly requestId: string;
       readonly type: "writeTransactionAttachment";
       readonly attachment: LocalTransactionAttachmentRecord;
       readonly content: Uint8Array;
