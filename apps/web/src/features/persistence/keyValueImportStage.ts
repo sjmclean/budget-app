@@ -11,12 +11,14 @@ const STAGE_PREFIX = "budget-app.import-stage.v1.";
 export type StagedKeyValue = Readonly<{ key: string; value: string }>;
 
 interface StageManifest {
-  version: 2;
+  version: 3;
   id: string;
   state: ImportStageState;
   targetPrefix: string;
   stagedKeyCount: number;
   promotedKeyCount: number;
+  promotedKeys: readonly string[];
+  overwrittenValues: Readonly<Record<string, string>>;
   batchesPersisted: number;
   recordsPersisted: number;
 }
@@ -136,12 +138,19 @@ export class KeyValueImportStage
         if (existingValue !== null) {
           this.overwrittenValues.set(key, existingValue);
         }
+
+        // Write-ahead recovery metadata: if the process dies after this point,
+        // abandoned-stage recovery can safely restore this target whether or
+        // not the live write itself completed.
+        this.promotedKeys.add(key);
+        this.writeManifest();
+        await this.options.storage.flush?.();
+
         const value = this.options.storage.getItem(this.stageKey(key));
         if (value === null) throw new Error(`Staged value disappeared before commit: ${key}`);
         this.options.storage.setItem(key, value);
-        this.promotedKeys.add(key);
-        // Release the staged copy immediately. Keeping every staged value until
-        // the end doubles peak browser memory for large imports.
+
+        // Release the staged copy only after rollback state is durable.
         this.options.storage.removeItem(this.stageKey(key));
         this.stagedKeys.delete(key);
       }
@@ -228,12 +237,14 @@ export class KeyValueImportStage
 
   private manifestValue(): string {
     const manifest: StageManifest = {
-      version: 2,
+      version: 3,
       id: this.options.id,
       state: this.state,
       targetPrefix: this.options.targetPrefix,
       stagedKeyCount: this.stagedKeys.size,
       promotedKeyCount: this.promotedKeys.size,
+      promotedKeys: [...this.promotedKeys],
+      overwrittenValues: Object.fromEntries(this.overwrittenValues),
       batchesPersisted: this.batchesPersisted,
       recordsPersisted: this.recordsPersisted,
     };
@@ -254,6 +265,14 @@ export class KeyValueImportStage
       assertNotAborted(options);
       const batch = keys.slice(offset, offset + promotionBatchSize);
       const mutations: KeyValueStorageMutation[] = [];
+
+      // The recovery record is deliberately written before promotion. Marking
+      // a not-yet-written key as promoted is safe: crash rollback simply
+      // restores its existing value (or removes an already-absent key).
+      for (const key of batch) this.promotedKeys.add(key);
+      this.writeManifest();
+      await this.options.storage.flush?.();
+
       for (const key of batch) {
         const value = this.options.storage.getItem(this.stageKey(key));
         if (value === null) {
@@ -264,7 +283,6 @@ export class KeyValueImportStage
       }
       await this.options.storage.applyMutations!(mutations);
       for (const key of batch) {
-        this.promotedKeys.add(key);
         this.stagedKeys.delete(key);
       }
     }
@@ -284,7 +302,51 @@ export async function cleanupAbandonedImportStage(
 ): Promise<number> {
   validateSegment(id, "id");
   const prefix = `${STAGE_PREFIX}${id}.`;
+  const manifestKey = `${STAGE_PREFIX}${id}.manifest`;
   const keys = (storage.listKeys?.() ?? []).filter((key) => key.startsWith(prefix));
+
+  const rawManifest = storage.getItem(manifestKey);
+  let manifest: StageManifest | null = null;
+
+  if (rawManifest !== null) {
+    try {
+      const parsed = JSON.parse(rawManifest) as Partial<StageManifest>;
+      if (
+        parsed.version === 3 &&
+        parsed.id === id &&
+        typeof parsed.state === "string" &&
+        Array.isArray(parsed.promotedKeys) &&
+        parsed.promotedKeys.every((key) => typeof key === "string") &&
+        parsed.overwrittenValues !== null &&
+        typeof parsed.overwrittenValues === "object"
+      ) {
+        manifest = parsed as StageManifest;
+      }
+    } catch {
+      // A malformed/legacy manifest has no trustworthy recovery journal.
+      // Its isolated stage-prefixed data can still be cleaned below.
+    }
+  }
+
+  if (
+    manifest &&
+    (manifest.state === "committing" || manifest.state === "rolling-back")
+  ) {
+    for (const key of manifest.promotedKeys) {
+      if (!key.startsWith(manifest.targetPrefix)) {
+        throw new Error(
+          `Refusing to recover abandoned import key outside target namespace: ${key}`,
+        );
+      }
+
+      const original = manifest.overwrittenValues[key];
+      if (original === undefined) storage.removeItem(key);
+      else storage.setItem(key, original);
+    }
+
+    await storage.flush?.();
+  }
+
   for (const key of keys) storage.removeItem(key);
   await storage.flush?.();
   return keys.length;
