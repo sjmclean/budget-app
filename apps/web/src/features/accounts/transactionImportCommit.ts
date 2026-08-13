@@ -9,27 +9,37 @@ import type { TransactionImportCandidate } from "./transactionImport";
 export interface BuildRegisterTransactionsFromImportOptions {
   includeMemos?: boolean;
   categories?: Array<{ id: string; name: string }>;
+  identityScope?: string;
 }
 
 export function buildRegisterTransactionsFromImport(
   candidates: TransactionImportCandidate[],
   options: BuildRegisterTransactionsFromImportOptions = {},
 ): NewRegisterTransactionInput[] {
-  return candidates
-    .filter((candidate) => candidate.selected && candidate.status === "new")
-    .map((candidate) => toRegisterTransactionInput(candidate, options));
+  const selectedCandidates = candidates.filter(
+    (candidate) => candidate.selected && candidate.status === "new",
+  );
+  const identityScope = options.identityScope?.trim();
+
+  if (selectedCandidates.length > 0 && !identityScope) {
+    throw new Error(
+      "Imported transactions require a stable source identity before commit.",
+    );
+  }
+
+  return selectedCandidates.map((candidate) =>
+    toRegisterTransactionInput(candidate, options, identityScope!),
+  );
 }
 
 function toRegisterTransactionInput(
   candidate: TransactionImportCandidate,
   options: BuildRegisterTransactionsFromImportOptions,
+  identityScope: string,
 ): NewRegisterTransactionInput {
   const { parsed } = candidate;
   const proposal = candidate.lifecycle.proposal;
   const isTransfer = Boolean(proposal.transferAccountName);
-  const isReadyToAssignIncome =
-    !isTransfer && parsed.inflow > 0 && parsed.outflow === 0;
-
   const requestedCategoryName = proposal.categoryName?.trim() || null;
   const resolvedCategory = requestedCategoryName
     ? options.categories?.find(
@@ -38,11 +48,16 @@ function toRegisterTransactionInput(
           requestedCategoryName.toLocaleLowerCase(),
       )
     : undefined;
+  const isReadyToAssignIncome =
+    !isTransfer &&
+    !resolvedCategory &&
+    parsed.inflow > 0 &&
+    parsed.outflow === 0;
+
   const categoryName = isTransfer
     ? "Transfer"
-    : isReadyToAssignIncome
-      ? "Ready to Assign"
-      : resolvedCategory?.name ?? "Uncategorised";
+    : resolvedCategory?.name ??
+      (isReadyToAssignIncome ? "Ready to Assign" : "Uncategorised");
 
   const transaction: NewRegisterTransactionInput = {
     date: parsed.date,
@@ -53,9 +68,8 @@ function toRegisterTransactionInput(
     category: categoryName,
     categoryId: isTransfer
       ? undefined
-      : isReadyToAssignIncome
-        ? "__ready_to_assign__"
-        : resolvedCategory?.id,
+      : resolvedCategory?.id ??
+        (isReadyToAssignIncome ? "__ready_to_assign__" : undefined),
     memo: options.includeMemos === false ? undefined : parsed.memo,
     outflow: parsed.outflow,
     inflow: parsed.inflow,
@@ -64,16 +78,25 @@ function toRegisterTransactionInput(
   // Keep the stable commit-plan identity available to persistence without
   // changing the enumerable command shape consumed by older integrations.
   Object.defineProperty(transaction, "id", {
-    value: stableImportTransactionId(candidate),
+    value: stableImportTransactionId(candidate, identityScope),
     enumerable: false,
   });
   return transaction;
 }
 
-function stableImportTransactionId(candidate: TransactionImportCandidate): string {
+function stableImportTransactionId(
+  candidate: TransactionImportCandidate,
+  identityScope: string,
+): string {
   const source = candidate.lifecycle.source;
-  const identity = [candidate.id, source.date, source.rawPayee, source.inflow, source.outflow]
-    .join("\u0000");
+  const identity = [
+    identityScope,
+    candidate.id,
+    source.date,
+    source.rawPayee,
+    source.inflow,
+    source.outflow,
+  ].join("\u0000");
   let hash = 0x811c9dc5;
   for (let index = 0; index < identity.length; index += 1) {
     hash ^= identity.charCodeAt(index);

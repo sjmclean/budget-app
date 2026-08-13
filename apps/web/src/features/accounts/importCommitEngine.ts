@@ -596,10 +596,19 @@ export function prepareImportCommit(
   session: ImportCommitSession,
   stages: TransactionImportPerformanceEntry[] = [],
 ): ImportCommitPlan {
+  const identityScope = session.file.fileHash?.trim();
+
+  if (session.importedCandidates.length > 0 && !identityScope) {
+    throw new ImportCommitValidationError([
+      "Imported transactions require a source file hash. Re-open the source file before committing.",
+    ]);
+  }
+
   const additions = measureStage(stages, "Build import payload", () =>
     buildRegisterTransactionsFromImport(session.importedCandidates, {
       includeMemos: session.includeMemos,
       categories: session.categories,
+      identityScope,
     }),
   );
   const matchedTransactionUpdates = measureStage(
