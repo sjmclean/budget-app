@@ -207,10 +207,14 @@ function readMappedImportAmount(
   row: string[],
   mapping: CsvImportColumnMapping,
 ): { outflow: number; inflow: number } {
-  const explicitOutflow = parseMoney(readRole(row, mapping, "outflow"));
-  const explicitInflow = parseMoney(readRole(row, mapping, "inflow"));
+  const hasExplicitAmountColumns = Object.values(mapping).some(
+    (role) => role === "outflow" || role === "inflow",
+  );
 
-  if (explicitOutflow > 0 || explicitInflow > 0) {
+  if (hasExplicitAmountColumns) {
+    const explicitOutflow = parseMoney(readRole(row, mapping, "outflow"));
+    const explicitInflow = parseMoney(readRole(row, mapping, "inflow"));
+
     return {
       outflow: Math.abs(explicitOutflow),
       inflow: Math.abs(explicitInflow),
