@@ -300,7 +300,10 @@ function applyCreditCardPaymentFunding(
       if (paymentCategoryId) {
         const funded = amount < 0
           ? Math.min(-amount, Math.max(0, before))
-          : -amount;
+          : -Math.min(
+              amount,
+              Math.max(0, runningAvailable.get(paymentCategoryId) ?? 0),
+            );
         addPayment(paymentCategoryId, funded);
       }
     }
@@ -312,6 +315,10 @@ function applyCreditCardPaymentFunding(
       throw new Error(`Credit card payment mapping references unknown category ${categoryId}.`);
     }
     paymentDelta.set(categoryId, (paymentDelta.get(categoryId) ?? 0) + amount);
+    runningAvailable.set(
+      categoryId,
+      (runningAvailable.get(categoryId) ?? 0) + amount,
+    );
   }
 }
 

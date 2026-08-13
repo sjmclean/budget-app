@@ -364,6 +364,13 @@ async function getBudgetActivitySnapshot(
       }
     }
 
+    for (const monthTransactions of transactionsByMonth.values()) {
+      monthTransactions.sort(
+        (left, right) =>
+          left.date.localeCompare(right.date) || left.id.localeCompare(right.id),
+      );
+    }
+
     return { allTransactions, transactionsByMonth };
   })();
 
@@ -446,7 +453,14 @@ async function applyRegisterActivity(
           Math.min(input.outflow, Math.max(0, runningAvailableBeforeActivity)),
         );
       } else if (input.inflow > 0) {
-        addCreditCardPaymentActivity(input.accountId, -input.inflow);
+        const paymentCategoryId = getCreditCardPaymentCategoryId(input.accountId);
+        const paymentAvailable =
+          runningAvailableByCategoryId.get(paymentCategoryId) ?? 0;
+
+        addCreditCardPaymentActivity(
+          input.accountId,
+          -Math.min(input.inflow, Math.max(0, paymentAvailable)),
+        );
       }
     }
 

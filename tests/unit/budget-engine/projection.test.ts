@@ -557,3 +557,56 @@ test("reverses credit-card payment funding for a refund", () => {
     200,
   );
 });
+
+test("a credit-card refund after the funded balance was already paid does not create a negative payment reserve", () => {
+  const result = projectBudget(baseInput({
+    openingReadyToAssign: 1_000,
+    creditCardPolicy: "payment-funding",
+    paymentCategoryIdByAccountId: {
+      card: "card-payment",
+    },
+    assignments: [
+      {
+        month: "2026-01",
+        categoryId: "groceries",
+        amount: 400,
+      },
+    ],
+    transactions: [
+      {
+        id: "card-purchase",
+        accountId: "card",
+        date: "2026-01-05",
+        categoryId: "groceries",
+        amount: -400,
+      },
+      {
+        id: "card-payment",
+        accountId: "cash",
+        date: "2026-01-10",
+        categoryId: null,
+        transferAccountId: "card",
+        amount: -400,
+      },
+      {
+        id: "card-refund",
+        accountId: "card",
+        date: "2026-01-15",
+        categoryId: "groceries",
+        amount: 200,
+      },
+    ],
+  }));
+
+  assert.equal(
+    category(result, "2026-01", "groceries").available,
+    200,
+    "the refund restores money to the spending category",
+  );
+
+  assert.equal(
+    category(result, "2026-01", "card-payment").available,
+    0,
+    "a refund cannot reverse payment funding that has already been consumed by an earlier card payment",
+  );
+});
