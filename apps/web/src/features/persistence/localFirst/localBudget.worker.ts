@@ -3329,6 +3329,79 @@ function mergeCategories(
        )`,
       [targetCategoryId, targetCategoryName, sourceCategoryId, budgetId],
     );
+
+    execute(
+      `UPDATE local_payees
+       SET default_category_id = ?, default_category_name = ?, updated_at = ?
+       WHERE budget_id = ? AND default_category_id = ?`,
+      [
+        targetCategoryId,
+        targetCategoryName,
+        new Date().toISOString(),
+        budgetId,
+        sourceCategoryId,
+      ],
+    );
+
+    execute(
+      `UPDATE local_payee_recognition_rules
+       SET default_category_id = ?, default_category_name = ?, updated_at = ?
+       WHERE budget_id = ? AND default_category_id = ?`,
+      [
+        targetCategoryId,
+        targetCategoryName,
+        new Date().toISOString(),
+        budgetId,
+        sourceCategoryId,
+      ],
+    );
+
+    const schedules = resultRows<{ id: string; payloadJson: string }>(
+      `SELECT id, payload_json AS payloadJson
+       FROM local_scheduled_transactions
+       WHERE budget_id = ?
+         AND json_extract(payload_json, '$.categoryId') = ?`,
+      [budgetId, sourceCategoryId],
+    );
+
+    for (const schedule of schedules) {
+      const payload = JSON.parse(schedule.payloadJson) as Record<string, unknown>;
+      payload.categoryId = targetCategoryId;
+      payload.category = targetCategoryName;
+
+      if (Array.isArray(payload.splitLines)) {
+        payload.splitLines = payload.splitLines.map((line) => {
+          if (
+            typeof line === "object" &&
+            line !== null &&
+            (line as Record<string, unknown>).categoryId === sourceCategoryId
+          ) {
+            return {
+              ...(line as Record<string, unknown>),
+              categoryId: targetCategoryId,
+              categoryName: targetCategoryName,
+            };
+          }
+
+          return line;
+        });
+      }
+
+      payload.updatedAt = new Date().toISOString();
+
+      execute(
+        `UPDATE local_scheduled_transactions
+         SET payload_json = ?, updated_at = ?
+         WHERE budget_id = ? AND id = ?`,
+        [
+          JSON.stringify(payload),
+          payload.updatedAt,
+          budgetId,
+          schedule.id,
+        ],
+      );
+    }
+
     mergeBudgetCategoryProjectionFacts(sourceCategoryId, targetCategoryId);
     execute("DELETE FROM local_categories WHERE budget_id = ? AND id = ?", [
       budgetId, sourceCategoryId,
