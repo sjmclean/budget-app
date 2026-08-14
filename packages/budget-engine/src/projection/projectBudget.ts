@@ -120,6 +120,17 @@ export function projectBudget(input: BudgetProjectionInput): BudgetProjectionRes
     categoryById,
     readyToAssignCategoryId,
   );
+  const paymentFundingState = (input.creditCardPolicy ?? "manual") === "payment-funding"
+    ? {
+        transactionsByMonth: indexTransactionsByMonth(input.transactions),
+        runningAccountBalance: new Map(
+          input.accounts.map((account) => [
+            account.id,
+            account.openingBalance ?? 0,
+          ]),
+        ),
+      }
+    : null;
   const opening = input.openingAvailableByCategoryId ?? {};
   const policyChangesByMonth = indexOverspendingPolicies(
     input.overspendingPolicies ?? [],
@@ -163,15 +174,18 @@ export function projectBudget(input: BudgetProjectionInput): BudgetProjectionRes
       return [category.id, { previousAvailable, assigned }] as const;
     }));
     const activityByCategoryId = new Map(activity.byMonthCategory.get(month) ?? []);
-    applyCreditCardPaymentFunding(
-      input,
-      month,
-      stateByCategoryId,
-      activityByCategoryId,
-      accountById,
-      categoryById,
-      readyToAssignCategoryId,
-    );
+    if (paymentFundingState) {
+      applyCreditCardPaymentFunding(
+        input,
+        paymentFundingState.transactionsByMonth.get(month) ?? [],
+        paymentFundingState.runningAccountBalance,
+        stateByCategoryId,
+        activityByCategoryId,
+        accountById,
+        categoryById,
+        readyToAssignCategoryId,
+      );
+    }
     const categories = input.categories.map((category) => {
       const overspendingPolicy = activePolicyByCategoryId.get(category.id)!;
       const { previousAvailable, assigned } = stateByCategoryId.get(category.id)!;
@@ -236,9 +250,33 @@ function indexOverspendingPolicies(
   return indexed;
 }
 
+function indexTransactionsByMonth(
+  transactions: readonly BudgetProjectionTransactionFact[],
+): Map<string, readonly BudgetProjectionTransactionFact[]> {
+  const indexed = new Map<string, BudgetProjectionTransactionFact[]>();
+
+  for (const transaction of transactions) {
+    const month = transaction.date.slice(0, 7);
+    const monthly = indexed.get(month) ?? [];
+    monthly.push(transaction);
+    indexed.set(month, monthly);
+  }
+
+  for (const monthly of indexed.values()) {
+    monthly.sort(
+      (left, right) =>
+        left.date.localeCompare(right.date) ||
+        left.id.localeCompare(right.id),
+    );
+  }
+
+  return indexed;
+}
+
 function applyCreditCardPaymentFunding(
   input: BudgetProjectionInput,
-  month: string,
+  transactions: readonly BudgetProjectionTransactionFact[],
+  runningAccountBalance: Map<string, number>,
   stateByCategoryId: ReadonlyMap<string, { previousAvailable: number; assigned: number }>,
   activityByCategoryId: Map<string, number>,
   accountById: ReadonlyMap<string, BudgetProjectionAccountFact>,
@@ -254,28 +292,6 @@ function applyCreditCardPaymentFunding(
     ]),
   );
   const paymentDelta = new Map<string, number>();
-  const runningAccountBalance = new Map(
-    input.accounts.map((account) => {
-      const priorActivity = input.transactions.reduce(
-        (total, transaction) =>
-          transaction.accountId === account.id &&
-          transaction.date.slice(0, 7) >= input.fromMonth &&
-          transaction.date.slice(0, 7) < month
-            ? total + transaction.amount
-            : total,
-        0,
-      );
-
-      return [
-        account.id,
-        (account.openingBalance ?? 0) + priorActivity,
-      ];
-    }),
-  );
-  const transactions = input.transactions
-    .filter((transaction) => transaction.date.slice(0, 7) === month)
-    .slice()
-    .sort((left, right) => left.date.localeCompare(right.date) || left.id.localeCompare(right.id));
 
   for (const transaction of transactions) {
     const account = accountById.get(transaction.accountId)!;
