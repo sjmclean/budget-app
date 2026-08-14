@@ -1978,6 +1978,20 @@ function longMonthLabel(month: string): string {
     .format(new Date(year, monthNumber - 1, 1));
 }
 
+function monthDateRange(
+  firstMonth: string,
+  lastMonth: string,
+): { startDate: string; endDateExclusive: string } {
+  const [year, month] = lastMonth.split("-").map(Number);
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+
+  return {
+    startDate: `${firstMonth}-01`,
+    endDateExclusive: `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`,
+  };
+}
+
 function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
   // Imported months remain authoritative opening anchors, but an edit must
   // replay from the earliest dirty month through the requested month. Starting
@@ -2116,6 +2130,10 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     categoryId: assignment.categoryId,
     amount: toMinorUnits(assignment.assigned),
   }));
+  const { startDate, endDateExclusive } = monthDateRange(
+    firstMonth,
+    targetMonth,
+  );
   const transactionRows = resultRows<{
     id: string;
     accountId: string;
@@ -2128,10 +2146,10 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
        category_id AS categoryId, transfer_account_id AS transferAccountId,
        amount
      FROM local_transactions
-     WHERE budget_id = ? AND substr(date, 1, 7) >= ?
-       AND substr(date, 1, 7) <= ?
+     WHERE budget_id = ? AND date >= ?
+       AND date < ?
      ORDER BY date, id`,
-    [budgetId, firstMonth, targetMonth],
+    [budgetId, startDate, endDateExclusive],
   );
   const splitRows = resultRows<{
     transactionId: string;
@@ -2145,10 +2163,10 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
        split.transfer_account_id AS transferAccountId, split.amount
      FROM local_transaction_splits AS split
      JOIN local_transactions AS parent ON parent.id = split.transaction_id
-     WHERE parent.budget_id = ? AND substr(parent.date, 1, 7) >= ?
-       AND substr(parent.date, 1, 7) <= ?
+     WHERE parent.budget_id = ? AND parent.date >= ?
+       AND parent.date < ?
      ORDER BY split.transaction_id, split.id`,
-    [budgetId, firstMonth, targetMonth],
+    [budgetId, startDate, endDateExclusive],
   );
   const splitsByTransaction = new Map<string, typeof splitRows>();
   for (const split of splitRows) {
