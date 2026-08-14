@@ -2316,16 +2316,38 @@ function getFinancialOverview(budgetId: string, month: string) {
     "SELECT COALESCE(SUM(opening_balance), 0) AS amount FROM local_accounts WHERE budget_id = ?",
     [budgetId],
   )[0]?.amount ?? 0;
-  const netWorthTrend = monthWindow(month, 12).map((entry) => {
-    const transactionTotal = resultRows<{ amount: number }>(
-      `SELECT COALESCE(SUM(amount), 0) AS amount
-       FROM local_transactions WHERE budget_id = ? AND date <= ?`,
-      [budgetId, monthEnd(entry)],
-    )[0]?.amount ?? 0;
+  const trendMonths = monthWindow(month, 12);
+  const firstTrendMonth = trendMonths[0] ?? month;
+  const monthlyTransactionTotals = resultRows<{
+    month: string;
+    amount: number;
+  }>(
+    `SELECT substr(date, 1, 7) AS month, SUM(amount) AS amount
+     FROM local_transactions
+     WHERE budget_id = ?
+       AND substr(date, 1, 7) <= ?
+     GROUP BY substr(date, 1, 7)
+     ORDER BY substr(date, 1, 7)`,
+    [budgetId, month],
+  );
+
+  let runningNetWorth = openingBalance;
+  const trendTransactionTotals = new Map<string, number>();
+
+  for (const row of monthlyTransactionTotals) {
+    if (row.month < firstTrendMonth) {
+      runningNetWorth += row.amount;
+    } else {
+      trendTransactionTotals.set(row.month, row.amount);
+    }
+  }
+
+  const netWorthTrend = trendMonths.map((entry) => {
+    runningNetWorth += trendTransactionTotals.get(entry) ?? 0;
     return {
       month: entry,
       label: shortMonthLabel(entry),
-      value: (openingBalance + transactionTotal) / 100,
+      value: runningNetWorth / 100,
     };
   });
   const flow = readFinancialOverviewFlow(
