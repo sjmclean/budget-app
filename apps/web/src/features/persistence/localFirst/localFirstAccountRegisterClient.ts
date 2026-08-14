@@ -87,12 +87,15 @@ export function createLocalFirstAccountRegisterQueryClient(
     budgetId: string,
     syncEpoch: string,
   ): Promise<void> {
+    const utf8Encoder = new TextEncoder();
+
     while (true) {
       const pending = await local.readOutbox(0, 500);
       const outbox: (typeof pending)[number][] = [];
       let encodedBytes = 0;
       for (const row of pending) {
-        const rowBytes = new Blob([row.payloadJson]).size + 2_048;
+        const rowBytes =
+          utf8Encoder.encode(row.payloadJson).byteLength + 2_048;
         if (outbox.length > 0 && encodedBytes + rowBytes > 32 * 1024 * 1024) break;
         outbox.push(row);
         encodedBytes += rowBytes;
