@@ -2078,12 +2078,12 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
          FROM local_transactions AS transaction_row
          WHERE transaction_row.budget_id = account.budget_id
            AND transaction_row.account_id = account.id
-           AND substr(transaction_row.date, 1, 7) < ?
+           AND transaction_row.date < ?
        ), 0) AS openingBalance
      FROM local_accounts AS account
      WHERE account.budget_id = ?
      ORDER BY account.id`,
-    [firstMonth, budgetId],
+    [`${firstMonth}-01`, budgetId],
   ).map((account) => ({
     id: account.id,
     type: account.type === "credit-card" ? "credit-card" as const : "cash" as const,
