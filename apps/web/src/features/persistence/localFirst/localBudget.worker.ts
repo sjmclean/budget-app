@@ -288,6 +288,8 @@ function initialiseSchema(): void {
     CREATE TABLE IF NOT EXISTS local_budget_outbox (
       sequence INTEGER PRIMARY KEY AUTOINCREMENT,
       mutation_id TEXT NOT NULL UNIQUE,
+      operation_group_id TEXT,
+      operation_group_json TEXT,
       device_id TEXT NOT NULL,
       device_sequence INTEGER NOT NULL,
       base_cursor INTEGER NOT NULL DEFAULT 0,
@@ -321,6 +323,16 @@ function initialiseSchema(): void {
     resultRows<{ name: string }>("PRAGMA table_info(local_budget_outbox)")
       .map(({ name }) => name),
   );
+  if (!outboxColumns.has("operation_group_id")) {
+    execute(
+      "ALTER TABLE local_budget_outbox ADD COLUMN operation_group_id TEXT",
+    );
+  }
+  if (!outboxColumns.has("operation_group_json")) {
+    execute(
+      "ALTER TABLE local_budget_outbox ADD COLUMN operation_group_json TEXT",
+    );
+  }
   if (!outboxColumns.has("base_cursor")) {
     execute(
       "ALTER TABLE local_budget_outbox ADD COLUMN base_cursor INTEGER NOT NULL DEFAULT 0",
@@ -1397,14 +1409,6 @@ function resolveLocalConflictInTransaction(
 ): void {
   if (!conflictId) return;
 
-  const resolvedAt = new Date().toISOString();
-  execute(
-    `UPDATE local_budget_sync_conflicts
-     SET status = 'resolved-local', resolved_at = ?
-     WHERE conflict_id = ? AND status = 'unresolved'`,
-    [resolvedAt, conflictId],
-  );
-
   const row = resultRows<{ status: string }>(
     `SELECT status
      FROM local_budget_sync_conflicts
@@ -1419,22 +1423,35 @@ function resolveLocalConflictInTransaction(
     );
   }
 
-  if (row.status !== "resolved-local") {
+  if (row.status !== "unresolved") {
     throw workerError(
       "SYNC_CONFLICT_ALREADY_RESOLVED",
       "Sync conflict can no longer be kept locally.",
     );
   }
+
+  const resolvedAt = new Date().toISOString();
+  execute(
+    `UPDATE local_budget_sync_conflicts
+     SET status = 'resolved-local', resolved_at = ?
+     WHERE conflict_id = ? AND status = 'unresolved'`,
+    [resolvedAt, conflictId],
+  );
 }
 
 function insertOutbox(mutation: LocalBudgetMutation): void {
   execute(
     `INSERT INTO local_budget_outbox(
-       mutation_id, device_id, device_sequence, base_cursor, domain, entity_id,
-       operation, payload_json, created_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       mutation_id, operation_group_id, operation_group_json, device_id,
+       device_sequence, base_cursor, domain, entity_id, operation,
+       payload_json, created_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       mutation.mutationId,
+      mutation.operationGroupId ?? null,
+      mutation.operationGroup
+        ? JSON.stringify(mutation.operationGroup)
+        : null,
       mutation.deviceId,
       mutation.deviceSequence,
       mutation.baseCursor,
@@ -2983,13 +3000,16 @@ function writeTransactionBatch(
   writes: readonly {
     readonly transaction: LocalTransactionRecord;
     readonly mutation: LocalBudgetMutation;
+    readonly resolveConflictId?: string;
   }[],
 ): LocalBudgetManifest {
   for (const { mutation } of writes) assertMutationScope(mutation);
   if (writes.length === 0) return currentManifest();
   execute("BEGIN IMMEDIATE");
   try {
-    for (const { transaction, mutation } of writes) {
+    for (const { transaction, mutation, resolveConflictId } of writes) {
+      resolveLocalConflictInTransaction(resolveConflictId);
+
       const previousMonth = resultRows<{ month: string }>(
         "SELECT substr(date, 1, 7) AS month FROM local_transactions WHERE budget_id = ? AND id = ?",
         [activeBudgetId, transaction.id],
@@ -3046,6 +3066,7 @@ function deleteTransactionBatch(
   deletes: readonly {
     readonly transactionId: string;
     readonly mutation: LocalBudgetMutation;
+    readonly resolveConflictId?: string;
   }[],
 ): LocalBudgetManifest {
   for (const { mutation } of deletes) assertMutationScope(mutation);
@@ -3053,7 +3074,13 @@ function deleteTransactionBatch(
 
   execute("BEGIN IMMEDIATE");
   try {
-    for (const { transactionId, mutation } of deletes) {
+    for (const {
+      transactionId,
+      mutation,
+      resolveConflictId,
+    } of deletes) {
+      resolveLocalConflictInTransaction(resolveConflictId);
+
       const previousMonth = resultRows<{ month: string }>(
         "SELECT substr(date, 1, 7) AS month FROM local_transactions WHERE budget_id = ? AND id = ?",
         [activeBudgetId, transactionId],
@@ -4372,7 +4399,10 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       );
     case "readOutbox":
       return resultRows(
-        `SELECT sequence, mutation_id AS mutationId, device_id AS deviceId,
+        `SELECT sequence, mutation_id AS mutationId,
+           operation_group_id AS operationGroupId,
+           operation_group_json AS operationGroupJson,
+           device_id AS deviceId,
            device_sequence AS deviceSequence, base_cursor AS baseCursor,
            domain, entity_id AS entityId,
            operation, payload_json AS payloadJson, created_at AS createdAt

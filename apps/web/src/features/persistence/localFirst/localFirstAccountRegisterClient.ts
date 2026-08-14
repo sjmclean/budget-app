@@ -8,6 +8,8 @@ import {
   emptyDomainCounts,
   LOCAL_BUDGET_SCHEMA_VERSION,
   type LocalBudgetMutation,
+  type LocalBudgetOperationGroup,
+  type LocalFirstStoredConflict,
 } from "./contracts";
 import type { BudgetDomain } from "./contracts";
 import { LocalBudgetDatabaseClient } from "./localBudgetClient";
@@ -106,6 +108,10 @@ export function createLocalFirstAccountRegisterQueryClient(
         syncEpoch,
         mutations: outbox.map((row) => ({
           mutationId: row.mutationId,
+          operationGroupId: row.operationGroupId ?? undefined,
+          operationGroup: row.operationGroupJson
+            ? JSON.parse(row.operationGroupJson)
+            : undefined,
           budgetId,
           syncEpoch,
           deviceId: row.deviceId,
@@ -343,11 +349,15 @@ export function createLocalFirstAccountRegisterQueryClient(
     entityId: string,
     operation: "upsert" | "delete",
     payload: unknown,
+    operationGroupId?: string,
+    operationGroup?: LocalBudgetOperationGroup,
   ): LocalBudgetMutation {
     deviceSequence += 1;
     storage.setItem(sequenceKey, String(deviceSequence));
     return {
       mutationId: createRuntimeUuid(),
+      ...(operationGroupId ? { operationGroupId } : {}),
+      ...(operationGroup ? { operationGroup } : {}),
       budgetId,
       syncEpoch: activeSyncEpoch!,
       deviceId,
@@ -619,6 +629,8 @@ export function createLocalFirstAccountRegisterQueryClient(
 
   function transactionWrite(
     record: LocalTransactionRecord,
+    operationGroupId?: string,
+    operationGroup?: LocalBudgetOperationGroup,
   ): {
     readonly transaction: LocalTransactionRecord;
     readonly mutation: LocalBudgetMutation;
@@ -631,8 +643,37 @@ export function createLocalFirstAccountRegisterQueryClient(
         record.id,
         "upsert",
         record,
+        operationGroupId,
+        operationGroup,
       ),
     };
+  }
+
+  function transactionWrites(
+    records: readonly LocalTransactionRecord[],
+  ): readonly {
+    readonly transaction: LocalTransactionRecord;
+    readonly mutation: LocalBudgetMutation;
+  }[] {
+    if (
+      records.length === 2 &&
+      records[0].transferTransactionId === records[1].id &&
+      records[1].transferTransactionId === records[0].id
+    ) {
+      const operationGroupId = createRuntimeUuid();
+      const operationGroup: LocalBudgetOperationGroup = {
+        members: records.map((record) => ({
+          domain: "transactions",
+          entityId: record.id,
+          operation: "upsert",
+          payload: record,
+        })),
+      };
+      return records.map((record) =>
+        transactionWrite(record, operationGroupId, operationGroup));
+    }
+
+    return records.map((record) => transactionWrite(record));
   }
 
   function journalMutation(value: LocalBudgetMutation) {
@@ -644,6 +685,185 @@ export function createLocalFirstAccountRegisterQueryClient(
           key,
           value: JSON.stringify(value.payload),
         };
+  }
+
+  async function replayGroupedTransferConflicts(
+    local: LocalBudgetDatabaseClient,
+    selectedConflict: LocalFirstStoredConflict,
+    unresolvedConflicts: readonly LocalFirstStoredConflict[],
+  ): Promise<void> {
+    const selected = selectedConflict.losingMutation;
+    const operationGroupId = selected.operationGroupId;
+    const operationGroup = selected.operationGroup;
+
+    if (!operationGroupId || !operationGroup) {
+      throw new Error(
+        "This transfer conflict cannot be kept locally because it predates atomic transfer conflict grouping.",
+      );
+    }
+
+    if (operationGroup.members.length !== 2) {
+      throw new Error(
+        "A complete transfer operation snapshot is required before keep-local can replay this operation.",
+      );
+    }
+
+    const [first, second] = operationGroup.members;
+
+    if (
+      first.entityId === second.entityId ||
+      first.domain !== "transactions" ||
+      second.domain !== "transactions" ||
+      first.operation !== second.operation ||
+      selected.domain !== "transactions" ||
+      selected.operation !== first.operation ||
+      !operationGroup.members.some(
+        (member) =>
+          member.entityId === selected.entityId &&
+          member.domain === selected.domain &&
+          member.operation === selected.operation,
+      )
+    ) {
+      throw new Error(
+        "The grouped transfer operation snapshot is inconsistent.",
+      );
+    }
+
+    const groupedConflicts = unresolvedConflicts.filter(
+      (conflict) =>
+        conflict.losingMutation.operationGroupId === operationGroupId,
+    );
+
+    const operationGroupJson = JSON.stringify(operationGroup);
+    const conflictByEntityId = new Map<string, LocalFirstStoredConflict>();
+
+    for (const conflict of groupedConflicts) {
+      const losing = conflict.losingMutation;
+      const member = operationGroup.members.find(
+        (value) => value.entityId === losing.entityId,
+      );
+
+      if (
+        !member ||
+        losing.budgetId !== selected.budgetId ||
+        losing.syncEpoch !== selected.syncEpoch ||
+        losing.deviceId !== selected.deviceId ||
+        losing.domain !== member.domain ||
+        losing.operation !== member.operation ||
+        losing.operationGroupId !== operationGroupId ||
+        !losing.operationGroup ||
+        JSON.stringify(losing.operationGroup) !== operationGroupJson ||
+        conflictByEntityId.has(losing.entityId)
+      ) {
+        throw new Error(
+          "The grouped transfer conflicts do not describe one consistent local operation.",
+        );
+      }
+
+      conflictByEntityId.set(losing.entityId, conflict);
+    }
+
+    if (!conflictByEntityId.has(selected.entityId)) {
+      throw new Error(
+        "The selected transfer conflict is not part of its stored logical operation.",
+      );
+    }
+
+    const replayOperationGroupId = createRuntimeUuid();
+
+    if (first.operation === "upsert") {
+      const firstTransaction = first.payload as LocalTransactionRecord;
+      const secondTransaction = second.payload as LocalTransactionRecord;
+
+      if (
+        firstTransaction.id !== first.entityId ||
+        secondTransaction.id !== second.entityId ||
+        firstTransaction.budgetId !== selected.budgetId ||
+        secondTransaction.budgetId !== selected.budgetId ||
+        firstTransaction.accountId === secondTransaction.accountId ||
+        firstTransaction.transferTransactionId !== second.entityId ||
+        secondTransaction.transferTransactionId !== first.entityId ||
+        firstTransaction.transferAccountId !== secondTransaction.accountId ||
+        secondTransaction.transferAccountId !== firstTransaction.accountId ||
+        firstTransaction.amount !== -secondTransaction.amount
+      ) {
+        throw new Error(
+          "The grouped transfer conflict pair has invalid reciprocal transfer data.",
+        );
+      }
+
+      await local.writeTransactionBatch(
+        operationGroup.members.map((member) => {
+          const conflict = conflictByEntityId.get(member.entityId);
+          return {
+            transaction: member.payload as LocalTransactionRecord,
+            mutation: mutation(
+              selected.budgetId,
+              member.domain,
+              member.entityId,
+              member.operation,
+              member.payload,
+              replayOperationGroupId,
+              operationGroup,
+            ),
+            resolveConflictId: conflict?.conflictId,
+          };
+        }),
+      );
+      return;
+    }
+
+    const firstDelete = first.payload as {
+      accountId?: string;
+      amount?: number;
+      transferAccountId?: string | null;
+      transferTransactionId?: string | null;
+    } | null;
+
+    const secondDelete = second.payload as {
+      accountId?: string;
+      amount?: number;
+      transferAccountId?: string | null;
+      transferTransactionId?: string | null;
+    } | null;
+
+    if (
+      !firstDelete ||
+      !secondDelete ||
+      typeof firstDelete.accountId !== "string" ||
+      typeof secondDelete.accountId !== "string" ||
+      typeof firstDelete.amount !== "number" ||
+      typeof secondDelete.amount !== "number" ||
+      firstDelete.accountId === secondDelete.accountId ||
+      firstDelete.transferTransactionId !== second.entityId ||
+      secondDelete.transferTransactionId !== first.entityId ||
+      firstDelete.transferAccountId !== secondDelete.accountId ||
+      secondDelete.transferAccountId !== firstDelete.accountId ||
+      firstDelete.amount !== -secondDelete.amount
+    ) {
+      throw new Error(
+        "The grouped transfer delete conflict pair lacks a valid reciprocal financial snapshot.",
+      );
+    }
+
+    await local.deleteTransactionBatch(
+      operationGroup.members.map((member) => {
+        const conflict = conflictByEntityId.get(member.entityId);
+        return {
+          transactionId: member.entityId,
+          mutation: mutation(
+            selected.budgetId,
+            member.domain,
+            member.entityId,
+            member.operation,
+            member.payload,
+            replayOperationGroupId,
+            operationGroup,
+          ),
+          resolveConflictId: conflict?.conflictId,
+        };
+      }),
+    );
   }
 
   async function replayConflictMutation(
@@ -925,17 +1145,42 @@ export function createLocalFirstAccountRegisterQueryClient(
     async resolveSyncConflict(budgetId, conflictId, resolution) {
       await synchronise(budgetId);
       const local = await requireDatabase(budgetId);
-      const conflict = (await local.listSyncConflicts("unresolved", 500))
+      const unresolvedConflicts =
+        await local.listSyncConflicts("unresolved", 500);
+      const conflict = unresolvedConflicts
         .find((value) => value.conflictId === conflictId);
       if (!conflict) {
         throw new Error("The synchronization conflict was not found.");
       }
       if (resolution === "keep-local") {
-        await replayConflictMutation(
-          local,
-          conflict.losingMutation,
-          conflictId,
-        );
+        const losingMutation = conflict.losingMutation;
+        const transferPayload =
+          losingMutation.domain === "transactions" &&
+          !losingMutation.entityId.startsWith("attachment:")
+            ? losingMutation.payload as {
+                transferAccountId?: string | null;
+                transferTransactionId?: string | null;
+              } | null
+            : null;
+
+        const isLinkedTransfer =
+          Boolean(transferPayload?.transferAccountId) ||
+          Boolean(transferPayload?.transferTransactionId);
+
+        if (isLinkedTransfer && losingMutation.operationGroupId) {
+          await replayGroupedTransferConflicts(
+            local,
+            conflict,
+            unresolvedConflicts,
+          );
+        } else {
+          await replayConflictMutation(
+            local,
+            losingMutation,
+            conflictId,
+          );
+        }
+
         await synchronise(budgetId);
       } else {
         await local.resolveSyncConflict(conflictId, resolution);
@@ -1006,7 +1251,7 @@ export function createLocalFirstAccountRegisterQueryClient(
     async addTransaction(input) {
       const local = await requireDatabase(input.budgetId);
       const records = await buildNewTransactionRecords(input.id, input);
-      await local.writeTransactionBatch(records.map(transactionWrite));
+      await local.writeTransactionBatch(transactionWrites(records));
       notifyLocalFirstMutationCommitted(input.budgetId);
     },
     async commitTransactionBatch(input) {
@@ -1021,7 +1266,7 @@ export function createLocalFirstAccountRegisterQueryClient(
           addition.id,
           addition,
         );
-        writes.push(...records.map(transactionWrite));
+        writes.push(...transactionWrites(records));
       }
 
       for (const update of input.updates) {
@@ -1036,7 +1281,7 @@ export function createLocalFirstAccountRegisterQueryClient(
           update,
           existing,
         );
-        writes.push(...records.map(transactionWrite));
+        writes.push(...transactionWrites(records));
       }
 
       await local.writeTransactionBatch(writes);
@@ -1078,25 +1323,49 @@ export function createLocalFirstAccountRegisterQueryClient(
           updatedAt,
         };
 
-        writes.push({
-          transaction: record,
-          mutation: mutation(
-            input.budgetId,
-            "transactions",
-            transactionId,
-            "upsert",
-            record,
-          ),
-        });
-
-        if (counterpart) {
-          const counterpartRecord: LocalTransactionRecord = {
-            ...counterpart,
-            transferAccountId: input.targetAccountId,
-            updatedAt,
-          };
-
+        if (!counterpart) {
           writes.push({
+            transaction: record,
+            mutation: mutation(
+              input.budgetId,
+              "transactions",
+              transactionId,
+              "upsert",
+              record,
+            ),
+          });
+          continue;
+        }
+
+        const counterpartRecord: LocalTransactionRecord = {
+          ...counterpart,
+          transferAccountId: input.targetAccountId,
+          updatedAt,
+        };
+        const operationGroupId = createRuntimeUuid();
+        const operationGroup: LocalBudgetOperationGroup = {
+          members: [record, counterpartRecord].map((transaction) => ({
+            domain: "transactions",
+            entityId: transaction.id,
+            operation: "upsert",
+            payload: transaction,
+          })),
+        };
+
+        writes.push(
+          {
+            transaction: record,
+            mutation: mutation(
+              input.budgetId,
+              "transactions",
+              record.id,
+              "upsert",
+              record,
+              operationGroupId,
+              operationGroup,
+            ),
+          },
+          {
             transaction: counterpartRecord,
             mutation: mutation(
               input.budgetId,
@@ -1104,9 +1373,11 @@ export function createLocalFirstAccountRegisterQueryClient(
               counterpartRecord.id,
               "upsert",
               counterpartRecord,
+              operationGroupId,
+              operationGroup,
             ),
-          });
-        }
+          },
+        );
       }
 
       await local.writeTransactionBatch(writes);
@@ -1130,7 +1401,7 @@ export function createLocalFirstAccountRegisterQueryClient(
         existing,
       );
 
-      await local.writeTransactionBatch(records.map(transactionWrite));
+      await local.writeTransactionBatch(transactionWrites(records));
       notifyLocalFirstMutationCommitted(input.budgetId);
     },
     async toggleTransactionCleared(transactionId, input) {
@@ -1192,34 +1463,48 @@ export function createLocalFirstAccountRegisterQueryClient(
         return;
       }
 
-      await local.deleteTransactionBatch([
-        {
-          transactionId: existing.id,
-          mutation: mutation(
-            input.budgetId,
-            "transactions",
-            existing.id,
-            "delete",
-            {
+      const operationGroupId = createRuntimeUuid();
+      const operationGroup: LocalBudgetOperationGroup = {
+        members: [
+          {
+            domain: "transactions",
+            entityId: existing.id,
+            operation: "delete",
+            payload: {
+              accountId: existing.accountId,
+              amount: existing.amount,
               transferAccountId: existing.transferAccountId,
               transferTransactionId: existing.transferTransactionId,
             },
-          ),
-        },
-        {
-          transactionId: counterpart.id,
-          mutation: mutation(
-            input.budgetId,
-            "transactions",
-            counterpart.id,
-            "delete",
-            {
+          },
+          {
+            domain: "transactions",
+            entityId: counterpart.id,
+            operation: "delete",
+            payload: {
+              accountId: counterpart.accountId,
+              amount: counterpart.amount,
               transferAccountId: counterpart.transferAccountId,
               transferTransactionId: counterpart.transferTransactionId,
             },
+          },
+        ],
+      };
+
+      await local.deleteTransactionBatch(
+        operationGroup.members.map((member) => ({
+          transactionId: member.entityId,
+          mutation: mutation(
+            input.budgetId,
+            member.domain,
+            member.entityId,
+            member.operation,
+            member.payload,
+            operationGroupId,
+            operationGroup,
           ),
-        },
-      ]);
+        })),
+      );
 
       notifyLocalFirstMutationCommitted(input.budgetId);
     },

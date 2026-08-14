@@ -40,8 +40,19 @@ export interface LocalBudgetSyncState {
   readonly pulledCursor: number;
 }
 
+export interface LocalBudgetOperationGroup {
+  readonly members: readonly {
+    readonly domain: BudgetDomain;
+    readonly entityId: string;
+    readonly operation: "upsert" | "delete";
+    readonly payload: unknown;
+  }[];
+}
+
 export interface LocalBudgetMutation {
   readonly mutationId: string;
+  readonly operationGroupId?: string;
+  readonly operationGroup?: LocalBudgetOperationGroup;
   readonly budgetId: string;
   readonly syncEpoch: string;
   readonly deviceId: string;
@@ -227,6 +238,7 @@ export type LocalBudgetWorkerRequest =
       readonly writes: readonly {
         readonly transaction: LocalTransactionRecord;
         readonly mutation: LocalBudgetMutation;
+        readonly resolveConflictId?: string;
       }[];
     }
   | {
@@ -242,6 +254,7 @@ export type LocalBudgetWorkerRequest =
       readonly deletes: readonly {
         readonly transactionId: string;
         readonly mutation: LocalBudgetMutation;
+        readonly resolveConflictId?: string;
       }[];
     }
   | {

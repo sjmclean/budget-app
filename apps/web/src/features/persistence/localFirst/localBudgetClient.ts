@@ -406,6 +406,7 @@ export class LocalBudgetDatabaseClient {
     writes: readonly {
       readonly transaction: LocalTransactionRecord;
       readonly mutation: LocalBudgetMutation;
+      readonly resolveConflictId?: string;
     }[],
   ): Promise<LocalBudgetManifest> {
     return this.#request({
@@ -433,6 +434,7 @@ export class LocalBudgetDatabaseClient {
     deletes: readonly {
       readonly transactionId: string;
       readonly mutation: LocalBudgetMutation;
+      readonly resolveConflictId?: string;
     }[],
   ): Promise<LocalBudgetManifest> {
     return this.#request({
@@ -661,6 +663,8 @@ export class LocalBudgetDatabaseClient {
   readOutbox(afterSequence = 0, limit = 500): Promise<readonly {
     readonly sequence: number;
     readonly mutationId: string;
+    readonly operationGroupId?: string | null;
+    readonly operationGroupJson?: string | null;
     readonly deviceId: string;
     readonly deviceSequence: number;
     readonly baseCursor: number;

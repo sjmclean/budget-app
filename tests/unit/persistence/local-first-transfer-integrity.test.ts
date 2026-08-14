@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { after, test } from "node:test";
 
 import { createLocalFirstAccountRegisterQueryClient } from "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.js";
+import type {
+  LocalBudgetMutation,
+  LocalBudgetOperationGroup,
+  LocalFirstStoredConflict,
+} from "../../../apps/web/src/features/persistence/localFirst/contracts.js";
 import type { LocalBudgetDatabaseClient } from "../../../apps/web/src/features/persistence/localFirst/localBudgetClient.js";
 import type { LocalTransactionRecord } from "../../../apps/web/src/features/persistence/localFirst/registerSchema.js";
 
@@ -725,4 +730,332 @@ test("deleting an unreconciled transfer is refused when its counterpart is recon
 
   assert.deepEqual(transactions.get("transfer-source"), sourceBefore);
   assert.deepEqual(transactions.get("transfer-target"), targetBefore);
+});
+
+
+function groupedTransferConflictFixtures() {
+  const [source, target] = createTransferPair();
+  const operationGroupId = "original-transfer-operation";
+  const operationGroup: LocalBudgetOperationGroup = {
+    members: [source, target].map((transaction) => ({
+      domain: "transactions",
+      entityId: transaction.id,
+      operation: "upsert",
+      payload: transaction,
+    })),
+  };
+
+  function localMutation(
+    transaction: LocalTransactionRecord,
+    mutationId: string,
+    deviceSequence: number,
+  ): LocalBudgetMutation {
+    return {
+      mutationId,
+      operationGroupId,
+      operationGroup,
+      budgetId: BUDGET_ID,
+      syncEpoch: SYNC_EPOCH,
+      deviceId: "test-device",
+      deviceSequence,
+      baseCursor: 0,
+      domain: "transactions",
+      entityId: transaction.id,
+      operation: "upsert",
+      payload: transaction,
+      createdAt: "2026-08-13T01:00:00.000Z",
+    };
+  }
+
+  function remoteMutation(
+    transaction: LocalTransactionRecord,
+    mutationId: string,
+    deviceSequence: number,
+  ): LocalBudgetMutation {
+    return {
+      mutationId,
+      budgetId: BUDGET_ID,
+      syncEpoch: SYNC_EPOCH,
+      deviceId: "remote-device",
+      deviceSequence,
+      baseCursor: 0,
+      domain: "transactions",
+      entityId: transaction.id,
+      operation: "upsert",
+      payload: {
+        ...transaction,
+        memo: "Remote winner",
+      },
+      createdAt: "2026-08-13T02:00:00.000Z",
+    };
+  }
+
+  function conflict(
+    transaction: LocalTransactionRecord,
+    losingMutation: LocalBudgetMutation,
+    conflictId: string,
+    cursor: number,
+  ): LocalFirstStoredConflict {
+    return {
+      conflictId,
+      budgetId: BUDGET_ID,
+      syncEpoch: SYNC_EPOCH,
+      entityKey: `transactions:${transaction.id}`,
+      detectedAt: "2026-08-13T02:00:00.000Z",
+      losingMutation,
+      winningMutation: remoteMutation(
+        transaction,
+        `remote-${transaction.id}`,
+        cursor,
+      ),
+      winningCursor: cursor,
+      status: "unresolved",
+      resolvedAt: null,
+    };
+  }
+
+  const sourceMutation = localMutation(source, "local-source", 1);
+  const targetMutation = localMutation(target, "local-target", 2);
+
+  return {
+    source,
+    target,
+    operationGroupId,
+    operationGroup,
+    sourceConflict: conflict(
+      source,
+      sourceMutation,
+      "conflict-source",
+      10,
+    ),
+    targetConflict: conflict(
+      target,
+      targetMutation,
+      "conflict-target",
+      11,
+    ),
+  };
+}
+
+function createConflictReplayHarness(
+  conflicts: readonly LocalFirstStoredConflict[],
+) {
+  const batches: {
+    readonly transaction: LocalTransactionRecord;
+    readonly mutation: LocalBudgetMutation;
+    readonly resolveConflictId?: string;
+  }[][] = [];
+
+  const database = {
+    async open() {
+      return {};
+    },
+
+    async close() {},
+
+    async getSyncState() {
+      return {
+        syncEpoch: SYNC_EPOCH,
+        pulledCursor: 0,
+        baselineHash: "test-baseline",
+      };
+    },
+
+    async readOutbox() {
+      return [];
+    },
+
+    async listSyncConflicts(
+      status?: "unresolved" | "resolved-local" | "resolved-remote",
+    ) {
+      return status
+        ? conflicts.filter((conflict) => conflict.status === status)
+        : conflicts;
+    },
+
+    async writeTransactionBatch(
+      writes: readonly {
+        readonly transaction: LocalTransactionRecord;
+        readonly mutation: LocalBudgetMutation;
+        readonly resolveConflictId?: string;
+      }[],
+    ) {
+      batches.push([...writes]);
+      return {};
+    },
+  } as unknown as LocalBudgetDatabaseClient;
+
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+
+    if (url.includes("/api/local-first/bootstrap?")) {
+      throw new Error("offline bootstrap test");
+    }
+
+    if (
+      url.includes("/api/local-first/mutations?") &&
+      method === "GET"
+    ) {
+      return new Response(
+        JSON.stringify({
+          mutations: [],
+          latestCursor: 0,
+          hasMore: false,
+          baseCursor: 0,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+    }
+
+    throw new Error(`Unexpected relay request: ${method} ${url}`);
+  };
+
+  try {
+    const client = createLocalFirstAccountRegisterQueryClient(
+      {} as Parameters<
+        typeof createLocalFirstAccountRegisterQueryClient
+      >[0],
+      {
+        databaseFactory: () => database,
+        storage: createStorage(),
+        tabSyncCoordinator: {
+          async run<T>(
+            _budgetId: string,
+            operation: () => Promise<T>,
+          ) {
+            return operation();
+          },
+          close() {},
+        },
+      },
+    );
+
+    return {
+      client,
+      batches,
+    };
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+}
+
+test("keep-local replays both transfer legs when only one leg conflicted", async () => {
+  const fixture = groupedTransferConflictFixtures();
+  const { client, batches } = createConflictReplayHarness([
+    fixture.sourceConflict,
+  ]);
+
+  await client.resolveSyncConflict(
+    BUDGET_ID,
+    fixture.sourceConflict.conflictId,
+    "keep-local",
+  );
+
+  assert.equal(batches.length, 1);
+
+  const batch = batches[0];
+  assert.equal(batch.length, 2);
+
+  const sourceWrite = batch.find(
+    (write) => write.transaction.id === fixture.source.id,
+  );
+  const targetWrite = batch.find(
+    (write) => write.transaction.id === fixture.target.id,
+  );
+
+  assert.ok(sourceWrite);
+  assert.ok(targetWrite);
+
+  assert.equal(
+    sourceWrite.resolveConflictId,
+    fixture.sourceConflict.conflictId,
+  );
+  assert.equal(targetWrite.resolveConflictId, undefined);
+
+  assert.equal(sourceWrite.transaction.amount, -10_000);
+  assert.equal(targetWrite.transaction.amount, 10_000);
+  assert.equal(
+    sourceWrite.transaction.transferTransactionId,
+    fixture.target.id,
+  );
+  assert.equal(
+    targetWrite.transaction.transferTransactionId,
+    fixture.source.id,
+  );
+
+  const replayGroupId = sourceWrite.mutation.operationGroupId;
+  assert.ok(replayGroupId);
+  assert.notEqual(replayGroupId, fixture.operationGroupId);
+  assert.equal(
+    targetWrite.mutation.operationGroupId,
+    replayGroupId,
+  );
+
+  assert.deepEqual(
+    sourceWrite.mutation.operationGroup,
+    fixture.operationGroup,
+  );
+  assert.deepEqual(
+    targetWrite.mutation.operationGroup,
+    fixture.operationGroup,
+  );
+});
+
+test("keep-local resolves both conflicted transfer legs in one replay batch", async () => {
+  const fixture = groupedTransferConflictFixtures();
+  const { client, batches } = createConflictReplayHarness([
+    fixture.sourceConflict,
+    fixture.targetConflict,
+  ]);
+
+  await client.resolveSyncConflict(
+    BUDGET_ID,
+    fixture.sourceConflict.conflictId,
+    "keep-local",
+  );
+
+  assert.equal(batches.length, 1);
+
+  const batch = batches[0];
+  assert.equal(batch.length, 2);
+
+  const sourceWrite = batch.find(
+    (write) => write.transaction.id === fixture.source.id,
+  );
+  const targetWrite = batch.find(
+    (write) => write.transaction.id === fixture.target.id,
+  );
+
+  assert.ok(sourceWrite);
+  assert.ok(targetWrite);
+
+  assert.equal(
+    sourceWrite.resolveConflictId,
+    fixture.sourceConflict.conflictId,
+  );
+  assert.equal(
+    targetWrite.resolveConflictId,
+    fixture.targetConflict.conflictId,
+  );
+
+  assert.ok(sourceWrite.mutation.operationGroupId);
+  assert.equal(
+    targetWrite.mutation.operationGroupId,
+    sourceWrite.mutation.operationGroupId,
+  );
+  assert.deepEqual(
+    sourceWrite.mutation.operationGroup,
+    fixture.operationGroup,
+  );
+  assert.deepEqual(
+    targetWrite.mutation.operationGroup,
+    fixture.operationGroup,
+  );
 });
