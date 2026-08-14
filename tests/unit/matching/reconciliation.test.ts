@@ -104,3 +104,50 @@ test("an excluded register row cannot be consumed twice", () => {
   assert.equal(assessment.status, "new");
   assert.equal(assessment.selectedCandidate, undefined);
 });
+
+test("equally plausible manual transactions require review instead of an arbitrary automatic match", () => {
+  const assessment = assessTransactionImportMatch(
+    buildParsedImportTransaction({
+      date: "2026-08-14",
+      payee: "Example Membership Association",
+      outflow: 37.5,
+    }),
+    [
+      buildRegisterTransaction({
+        id: "manual-a",
+        date: "2026-08-14",
+        payee: "Example Membership Association",
+        outflow: 37.5,
+      }),
+      buildRegisterTransaction({
+        id: "manual-b",
+        date: "2026-08-14",
+        payee: "Example Membership Association",
+        outflow: 37.5,
+      }),
+    ],
+  );
+
+  assert.equal(
+    assessment.kind,
+    "new",
+    "two equally plausible existing transactions must not be resolved by an arbitrary ID tie-break",
+  );
+  assert.equal(assessment.status, "new");
+  assert.equal(assessment.recommendation, "import");
+  assert.equal(
+    assessment.selectedCandidate,
+    undefined,
+    "ambiguous automatic matches must remain for explicit user review",
+  );
+
+  assert.deepEqual(
+    assessment.candidates.map((candidate) => candidate.transaction.id),
+    ["manual-a", "manual-b"],
+    "both plausible candidates must remain visible to the reviewer",
+  );
+
+  assert.ok(
+    assessment.candidates.every((candidate) => candidate.merchantMatches),
+  );
+});

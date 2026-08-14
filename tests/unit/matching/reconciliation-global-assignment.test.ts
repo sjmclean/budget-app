@@ -84,3 +84,51 @@ test("global assignment never reuses one register transaction for two imported r
     "one register transaction must be consumed by at most one imported row",
   );
 });
+
+test("global assignment does not auto-match an imported row with equally plausible register candidates", () => {
+  const preview = previewTransactionCsvImport(
+    [
+      "Date,Payee,Outflow",
+      "2026-08-14,Example Membership Association,37.50",
+    ].join("\n"),
+    [
+      buildRegisterTransaction({
+        id: "manual-a",
+        date: "2026-08-14",
+        payee: "Example Membership Association",
+        outflow: 37.5,
+      }),
+      buildRegisterTransaction({
+        id: "manual-b",
+        date: "2026-08-14",
+        payee: "Example Membership Association",
+        outflow: 37.5,
+      }),
+    ],
+    {
+      0: "date",
+      1: "payee",
+      2: "outflow",
+    },
+  );
+
+  assert.equal(
+    preview.summary.exactMatches,
+    0,
+    "an arbitrary register ID must never decide an otherwise ambiguous financial match",
+  );
+  assert.equal(preview.summary.newTransactions, 1);
+
+  const candidate = preview.candidates[0];
+  assert.ok(candidate);
+  assert.equal(candidate.status, "new");
+  assert.equal(candidate.matchedTransactionId, undefined);
+
+  assert.deepEqual(
+    candidate.matchCandidates?.map(
+      (assessment) => assessment.transaction.id,
+    ),
+    ["manual-a", "manual-b"],
+    "both plausible matches must remain available for explicit review",
+  );
+});

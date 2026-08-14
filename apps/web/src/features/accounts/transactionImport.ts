@@ -11,7 +11,10 @@ import { buildRegisterTransactionsFromImport } from "./transactionImportCommit";
 import { parseTransactionOfx } from "./transactionImportParser";
 import type { ParsedImportTransaction } from "./transactionImportParser";
 import type { TransactionImportTraceEntry } from "./transactionImportTrace";
-import { reconcileTransactionImportCandidate } from "./transactionImportReconciliation";
+import {
+  hasAmbiguousAutomaticImportMatch,
+  reconcileTransactionImportCandidate,
+} from "./transactionImportReconciliation";
 import type {
   TransactionImportMatchCandidateAssessment,
   TransactionImportMatchEvidence,
@@ -286,11 +289,17 @@ export function previewTransactionQifImport(
 function assignTransactionImportMatches(
   candidates: TransactionImportCandidate[],
 ): TransactionImportCandidate[] {
-  const automaticOptions = candidates.map((candidate) =>
-    (candidate.matchCandidates ?? []).filter(
+  const automaticOptions = candidates.map((candidate) => {
+    const matchCandidates = candidate.matchCandidates ?? [];
+
+    if (hasAmbiguousAutomaticImportMatch(matchCandidates)) {
+      return [];
+    }
+
+    return matchCandidates.filter(
       (assessment) => assessment.automaticMatch,
-    ),
-  );
+    );
+  });
   const transactionOwners = new Map<string, number>();
   const assignedAssessments = new Map<
     number,
@@ -645,12 +654,14 @@ function createTransactionImportLifecycle(
       inflow: parsed.inflow,
     },
     merchant: {
+      ...resolution,
       canonicalPayee,
       suggestedCategoryName:
         resolution?.suggestedCategoryName?.trim() || null,
       transferAccountName,
-      aliasId: alias?.id,
-      aliasSourcePayee: alias ? rawPayee : undefined,
+      aliasId: alias?.id ?? resolution?.aliasId,
+      aliasSourcePayee:
+        alias ? rawPayee : resolution?.aliasSourcePayee,
     },
     proposal: {
       payee: canonicalPayee,

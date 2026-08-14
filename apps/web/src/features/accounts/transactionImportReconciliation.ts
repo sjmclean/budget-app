@@ -136,15 +136,22 @@ export function reconcileTransactionImportCandidate({
     .sort(compareImportMatchCandidates)
     .map(toCandidateAssessment);
 
-  const selectedCandidate = candidates.find((candidate) => candidate.automaticMatch);
+  const ambiguousAutomaticMatch =
+    hasAmbiguousAutomaticImportMatch(candidates);
+  const selectedCandidate = ambiguousAutomaticMatch
+    ? undefined
+    : candidates.find((candidate) => candidate.automaticMatch);
+
   if (!selectedCandidate) {
     return {
       kind: "new",
       recommendation: "import",
       status: "new",
-      reason: candidates.length > 0
-        ? `Same-amount transactions were found, but none has a compatible merchant; review them manually or import as new.`
-        : `No same-amount register transaction was found within ${TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS} days.`,
+      reason: ambiguousAutomaticMatch
+        ? "Multiple register transactions are equally plausible matches; review them manually before choosing one."
+        : candidates.length > 0
+          ? `Same-amount transactions were found, but none has a compatible merchant; review them manually or import as new.`
+          : `No same-amount register transaction was found within ${TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS} days.`,
       candidates,
       transfer: unresolvedTransfer,
     };
@@ -372,6 +379,24 @@ function analyseImportMatchCandidate(
       ? `Same resolved merchant and exact amount, ${formatImportDateDistance(daysApart)} apart.`
       : `Exact amount, ${formatImportDateDistance(daysApart)} apart; ordered after resolved-merchant matches.`,
   };
+}
+
+export function hasAmbiguousAutomaticImportMatch(
+  candidates: readonly TransactionImportMatchCandidateAssessment[],
+): boolean {
+  const automatic = candidates.filter(
+    (candidate) => candidate.automaticMatch,
+  );
+
+  if (automatic.length < 2) return false;
+
+  const [first, second] = automatic;
+
+  return (
+    first.merchantMatches === second.merchantMatches &&
+    first.daysApart === second.daysApart &&
+    first.payeeSimilarity === second.payeeSimilarity
+  );
 }
 
 function compareImportMatchCandidates(
