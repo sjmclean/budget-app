@@ -150,3 +150,97 @@ test("matched import accepts a consistent changed category name and ID", () => {
   assert.equal(plan.matchedTransactionUpdates[0]?.category, "Dining");
   assert.equal(plan.matchedTransactionUpdates[0]?.categoryId, "dining");
 });
+
+test("automatic matched import retains bank raw payee without changing user-facing fields", () => {
+  const transaction = {
+    ...matchedTransaction(),
+    payee: "My Friendly Cafe",
+    memo: "User-entered memo",
+    rawPayee: undefined,
+    categoryId: "dining",
+  };
+
+  const candidate = matchedCandidate(transaction);
+  candidate.parsed.payee = "CAFE MELBOURNE TERMINAL 04";
+  candidate.parsed.memo = "Card ending 5934";
+  candidate.lifecycle.source.rawPayee = "CAFE MELBOURNE TERMINAL 04";
+  candidate.lifecycle.source.memo = "Card ending 5934";
+  candidate.lifecycle.proposal.payee = "My Friendly Cafe";
+
+  const session: ImportCommitSession = {
+    accountId: "checking",
+    accountName: "Checking",
+    importedCandidates: [],
+    matchedCandidates: [candidate],
+    completedSourceCandidates: [candidate],
+    skippedCount: 0,
+    previouslyImportedCount: 0,
+    alreadyRepresentedCount: 0,
+    editedMatchedCandidateIds: new Set(),
+    includeMemos: true,
+    updateMatchedTransactionDates: false,
+    categories: [{ id: "dining", name: "Dining" }],
+    accounts: [{ id: "checking", name: "Checking" }],
+    merchantKnowledge: createEmptyMerchantKnowledgeStore(),
+    file: {
+      fileType: "csv",
+      fileName: "statement-a.csv",
+      fileHash: "sha256:matched-raw-payee-fixture",
+    },
+  };
+
+  const plan = prepareImportCommit(session);
+
+  assert.equal(plan.matchedTransactionUpdates.length, 1);
+  assert.equal(
+    plan.matchedTransactionUpdates[0]?.rawPayee,
+    "CAFE MELBOURNE TERMINAL 04",
+  );
+  assert.equal(plan.matchedTransactionUpdates[0]?.payee, "My Friendly Cafe");
+  assert.equal(
+    plan.matchedTransactionUpdates[0]?.memo,
+    "User-entered memo",
+    "retaining bank provenance must not overwrite the user's transaction memo",
+  );
+});
+
+test("matched import never overwrites existing retained bank raw payee", () => {
+  const transaction = {
+    ...matchedTransaction(),
+    rawPayee: "ORIGINAL BANK DESCRIPTION",
+    categoryId: "dining",
+  };
+
+  const candidate = matchedCandidate(transaction);
+  candidate.lifecycle.source.rawPayee = "LATER BANK DESCRIPTION";
+
+  const session: ImportCommitSession = {
+    accountId: "checking",
+    accountName: "Checking",
+    importedCandidates: [],
+    matchedCandidates: [candidate],
+    completedSourceCandidates: [candidate],
+    skippedCount: 0,
+    previouslyImportedCount: 0,
+    alreadyRepresentedCount: 0,
+    editedMatchedCandidateIds: new Set(),
+    includeMemos: true,
+    updateMatchedTransactionDates: false,
+    categories: [{ id: "dining", name: "Dining" }],
+    accounts: [{ id: "checking", name: "Checking" }],
+    merchantKnowledge: createEmptyMerchantKnowledgeStore(),
+    file: {
+      fileType: "csv",
+      fileName: "statement-b.csv",
+      fileHash: "sha256:existing-raw-payee-fixture",
+    },
+  };
+
+  const plan = prepareImportCommit(session);
+
+  assert.equal(
+    plan.matchedTransactionUpdates.length,
+    0,
+    "an existing retained raw payee must not cause an unnecessary or destructive rewrite",
+  );
+});

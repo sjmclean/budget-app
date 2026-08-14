@@ -260,6 +260,46 @@ export function createImportedTransactionIdentity(
   return `${fileType}:fallback:${createImportFileHash(canonical)}`;
 }
 
+export interface PreviouslyImportedSourceOccurrence {
+  identity: string;
+  occurrenceCount: number;
+}
+
+export function readPreviouslyImportedSourceOccurrences<
+  T extends ImportIdentityCandidate & { id: string },
+>({
+  accountId,
+  fileType,
+  candidates,
+}: {
+  accountId: string;
+  fileType: ImportedTransactionFileType;
+  candidates: T[];
+}): Record<string, PreviouslyImportedSourceOccurrence> {
+  const importedCounts = new Map(
+    createImportedTransactionFingerprintRepository(getImportKnowledgeStorage())
+      .list()
+      .map(projectEntityFields)
+      .filter(
+        (entry) => entry.accountId === accountId && entry.fileType === fileType,
+      )
+      .map((entry) => [entry.identity, entry.occurrenceCount]),
+  );
+
+  return Object.fromEntries(
+    candidates.map((candidate) => {
+      const identity = createImportedTransactionIdentity(fileType, candidate);
+      return [
+        candidate.id,
+        {
+          identity,
+          occurrenceCount: importedCounts.get(identity) ?? 0,
+        },
+      ];
+    }),
+  );
+}
+
 export function partitionPreviouslyImportedCandidates<
   T extends ImportIdentityCandidate,
 >({

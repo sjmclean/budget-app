@@ -230,13 +230,22 @@ function buildMatchedTransactionUpdates(
       session.updateMatchedTransactionDates &&
       Boolean(candidate.parsed.date) &&
       candidate.matchedTransaction.date !== candidate.parsed.date;
-    if (!wasEdited && !shouldUpdateDate) return [];
+    const sourceRawPayee = candidate.lifecycle.source.rawPayee.trim();
+    const shouldRetainRawPayee =
+      Boolean(sourceRawPayee) &&
+      !candidate.matchedTransaction.rawPayee?.trim();
+
+    if (!wasEdited && !shouldUpdateDate && !shouldRetainRawPayee) return [];
+
     return [
       {
         ...candidate.matchedTransaction,
         date: shouldUpdateDate
           ? candidate.parsed.date
           : candidate.matchedTransaction.date,
+        rawPayee: shouldRetainRawPayee
+          ? sourceRawPayee
+          : candidate.matchedTransaction.rawPayee,
       },
     ];
   });

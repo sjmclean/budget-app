@@ -35,6 +35,40 @@ or merchants represent the same entity.
 Ambiguous candidates should remain reviewable rather than being silently
 collapsed.
 
+## Overlapping bank files
+
+Bank statement files may overlap in date range. Previously processed bank rows
+should not require repeated user review when the application can prove that the
+same source transaction is already represented in the destination account.
+
+Cross-file suppression uses multiple levels of evidence:
+
+- a stable bank-provided external transaction identifier is strong evidence of
+  the same source transaction across files;
+- otherwise, an existing register transaction with the same retained bank
+  payee, date, amount, and source memo can represent an overlapping row;
+- when a transaction was originally matched to a manual register entry whose
+  user memo differs from the bank memo, prior successfully committed source
+  identity evidence may be combined with the register transaction's retained
+  bank payee, date, and amount.
+
+Fallback source fingerprints must not silently suppress transactions by
+themselves. A corresponding retained bank-linked register occurrence must also
+exist.
+
+Overlap handling is occurrence-aware. If two identical bank transactions have
+already been represented, at most two matching occurrences in a later
+overlapping file may be excluded. Additional identical occurrences remain in
+the normal matching and review workflow.
+
+A successful match to a manually entered transaction may retain the bank's raw
+payee description when none was previously stored. This provenance update must
+not replace the user's display payee or memo, and existing retained raw payee
+data must not be overwritten.
+
+These rules apply to supported bank-import formats such as QIF and CSV. Exact
+duplicate-file detection remains a separate mechanism.
+
 ## Merchant knowledge
 
 Explicit imported recognition rules and user-confirmed merchant knowledge are

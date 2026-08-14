@@ -88,6 +88,7 @@ import {
   findImportedFileFingerprint,
   rememberAccountImportKnowledge,
   partitionPreviouslyImportedCandidates,
+  readPreviouslyImportedSourceOccurrences,
   type ImportedTransactionFileType,
 } from "../transactionImportKnowledge";
 import { calculateTransactionImportBalancePreview } from "../transactionImportBalancePreview";
@@ -641,9 +642,16 @@ export function TransactionImportDialog({
       fileType: sourceFileType,
       candidates: nextPreview.candidates,
     });
+    const previouslyImportedSourceOccurrences =
+      readPreviouslyImportedSourceOccurrences({
+        accountId,
+        fileType: sourceFileType,
+        candidates: partition.activeCandidates,
+      });
     const prepared = prepareTransactionImportPreview({
       partition,
       existingTransactions,
+      previouslyImportedSourceOccurrences,
       isExactDuplicateFile: Boolean(
         sourceFileHash &&
           findImportedFileFingerprint(accountId, sourceFileHash),
