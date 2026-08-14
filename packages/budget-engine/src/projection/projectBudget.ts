@@ -625,18 +625,62 @@ function requireMonth(value: string): string {
 }
 
 function requireTransactionMonth(value: string): string {
-  if (!/^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/.test(value)) {
-    throw new Error(`Invalid transaction date ${value}.`);
-  }
-  const [year, month, day] = value.split("-").map(Number);
-  const candidate = new Date(Date.UTC(year!, month! - 1, day!));
   if (
-    candidate.getUTCFullYear() !== year ||
-    candidate.getUTCMonth() !== month! - 1 ||
-    candidate.getUTCDate() !== day
+    value.length !== 10 ||
+    value.charCodeAt(4) !== 45 ||
+    value.charCodeAt(7) !== 45
   ) {
     throw new Error(`Invalid transaction date ${value}.`);
   }
+
+  const y0 = value.charCodeAt(0) - 48;
+  const y1 = value.charCodeAt(1) - 48;
+  const y2 = value.charCodeAt(2) - 48;
+  const y3 = value.charCodeAt(3) - 48;
+  const m0 = value.charCodeAt(5) - 48;
+  const m1 = value.charCodeAt(6) - 48;
+  const d0 = value.charCodeAt(8) - 48;
+  const d1 = value.charCodeAt(9) - 48;
+
+  if (
+    y0 < 0 || y0 > 9 ||
+    y1 < 0 || y1 > 9 ||
+    y2 < 0 || y2 > 9 ||
+    y3 < 0 || y3 > 9 ||
+    m0 < 0 || m0 > 9 ||
+    m1 < 0 || m1 > 9 ||
+    d0 < 0 || d0 > 9 ||
+    d1 < 0 || d1 > 9
+  ) {
+    throw new Error(`Invalid transaction date ${value}.`);
+  }
+
+  const year = y0 * 1000 + y1 * 100 + y2 * 10 + y3;
+  const month = m0 * 10 + m1;
+  const day = d0 * 10 + d1;
+
+  if (month < 1 || month > 12 || day < 1) {
+    throw new Error(`Invalid transaction date ${value}.`);
+  }
+
+  const leap =
+    year % 4 === 0 &&
+    (year % 100 !== 0 || year % 400 === 0);
+
+  const daysInMonth =
+    month === 2
+      ? leap ? 29 : 28
+      : month === 4 ||
+          month === 6 ||
+          month === 9 ||
+          month === 11
+        ? 30
+        : 31;
+
+  if (day > daysInMonth) {
+    throw new Error(`Invalid transaction date ${value}.`);
+  }
+
   return value.slice(0, 7);
 }
 
