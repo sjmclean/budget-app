@@ -3081,25 +3081,39 @@ function listAccountNavigation(budgetId: string) {
     `SELECT account.id, account.name, account.type, account.participation,
        account.opening_balance AS openingBalance,
        account.currency_code AS currencyCode, account.closed_at AS closedAt,
-       account.opening_balance + COALESCE(SUM(transaction_row.amount), 0) AS workingBalance,
-       COUNT(transaction_row.id) AS transactionCount,
-       MAX(CASE
-         WHEN transaction_row.id IS NOT NULL
-          AND transaction_row.category_id IS NULL
-          AND transaction_row.amount < 0
-          AND transaction_row.transfer_account_id IS NULL
-          AND NOT EXISTS (
-            SELECT 1 FROM local_transaction_splits AS split
-            WHERE split.transaction_id = transaction_row.id
-          )
-          AND account.participation = 'on-budget'
-         THEN 1 ELSE 0 END) AS hasUncategorizedTransactions
+       account.opening_balance + COALESCE((
+         SELECT SUM(transaction_row.amount)
+         FROM local_transactions AS transaction_row
+         WHERE transaction_row.budget_id = account.budget_id
+           AND transaction_row.account_id = account.id
+       ), 0) AS workingBalance,
+       (
+         SELECT COUNT(*)
+         FROM local_transactions AS transaction_row
+         WHERE transaction_row.budget_id = account.budget_id
+           AND transaction_row.account_id = account.id
+       ) AS transactionCount,
+       CASE
+         WHEN account.participation <> 'on-budget' THEN 0
+         WHEN EXISTS (
+           SELECT 1
+           FROM local_transactions AS transaction_row
+           WHERE transaction_row.budget_id = account.budget_id
+             AND transaction_row.account_id = account.id
+             AND transaction_row.category_id IS NULL
+             AND transaction_row.amount < 0
+             AND transaction_row.transfer_account_id IS NULL
+             AND NOT EXISTS (
+               SELECT 1 FROM local_transaction_splits AS split
+               WHERE split.transaction_id = transaction_row.id
+             )
+           LIMIT 1
+         )
+         THEN 1
+         ELSE 0
+       END AS hasUncategorizedTransactions
      FROM local_accounts AS account
-     LEFT JOIN local_transactions AS transaction_row
-       ON transaction_row.budget_id = account.budget_id
-      AND transaction_row.account_id = account.id
      WHERE account.budget_id = ?
-     GROUP BY account.id
      ORDER BY account.closed_at IS NOT NULL, account.name`,
     [budgetId],
   );
