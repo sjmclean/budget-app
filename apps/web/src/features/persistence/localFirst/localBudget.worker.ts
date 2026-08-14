@@ -194,6 +194,17 @@ function upsertTransactionAttachment(
   );
 }
 
+function deferStagedTransactionIndexes(): void {
+  execute(`
+    DROP INDEX IF EXISTS local_transactions_register;
+    DROP INDEX IF EXISTS local_transactions_account_summary;
+    DROP INDEX IF EXISTS local_transactions_category_month;
+    DROP INDEX IF EXISTS local_transactions_budget_date;
+    DROP INDEX IF EXISTS local_transactions_budget_month;
+    DROP INDEX IF EXISTS local_transactions_payee;
+  `);
+}
+
 function initialiseSchema(): void {
   execute(`
     PRAGMA foreign_keys = ON;
@@ -1783,6 +1794,7 @@ async function beginStagedImport(
     database = openPersistentDatabase(stage.filename);
     durable = true;
     initialiseSchema();
+    deferStagedTransactionIndexes();
 
     writeMetadata("budgetId", stage.budgetId);
     writeMetadata("syncEpoch", stage.syncEpoch);
