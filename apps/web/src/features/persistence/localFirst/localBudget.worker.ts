@@ -2141,47 +2141,49 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     categoryId: string | null;
     transferAccountId: string | null;
     amount: number;
+    splitsJson: string;
   }>(
-    `SELECT id, account_id AS accountId, date,
-       category_id AS categoryId, transfer_account_id AS transferAccountId,
-       amount
-     FROM local_transactions
-     WHERE budget_id = ? AND date >= ?
-       AND date < ?
-     ORDER BY date, id`,
+    `SELECT transaction_row.id,
+       transaction_row.account_id AS accountId,
+       transaction_row.date,
+       transaction_row.category_id AS categoryId,
+       transaction_row.transfer_account_id AS transferAccountId,
+       transaction_row.amount,
+       COALESCE((
+         SELECT json_group_array(
+           json_object(
+             'id', ordered_split.id,
+             'categoryId', ordered_split.category_id,
+             'transferAccountId', ordered_split.transfer_account_id,
+             'amount', ordered_split.amount
+           )
+         )
+         FROM (
+           SELECT id, category_id, transfer_account_id, amount
+           FROM local_transaction_splits
+           WHERE transaction_id = transaction_row.id
+           ORDER BY id
+         ) AS ordered_split
+       ), '[]') AS splitsJson
+     FROM local_transactions AS transaction_row
+     WHERE transaction_row.budget_id = ? AND transaction_row.date >= ?
+       AND transaction_row.date < ?
+     ORDER BY transaction_row.date, transaction_row.id`,
     [budgetId, startDate, endDateExclusive],
   );
-  const splitRows = resultRows<{
-    transactionId: string;
-    id: string;
-    categoryId: string | null;
-    transferAccountId: string | null;
-    amount: number;
-  }>(
-    `SELECT split.transaction_id AS transactionId, split.id,
-       split.category_id AS categoryId,
-       split.transfer_account_id AS transferAccountId, split.amount
-     FROM local_transaction_splits AS split
-     JOIN local_transactions AS parent ON parent.id = split.transaction_id
-     WHERE parent.budget_id = ? AND parent.date >= ?
-       AND parent.date < ?
-     ORDER BY split.transaction_id, split.id`,
-    [budgetId, startDate, endDateExclusive],
-  );
-  const splitsByTransaction = new Map<string, typeof splitRows>();
-  for (const split of splitRows) {
-    const splits = splitsByTransaction.get(split.transactionId) ?? [];
-    splits.push(split);
-    splitsByTransaction.set(split.transactionId, splits);
-  }
   const transactions = transactionRows.map((transaction) => ({
-    ...transaction,
-    splits: (splitsByTransaction.get(transaction.id) ?? []).map((split) => ({
-      id: split.id,
-      categoryId: split.categoryId,
-      transferAccountId: split.transferAccountId,
-      amount: split.amount,
-    })),
+    id: transaction.id,
+    accountId: transaction.accountId,
+    date: transaction.date,
+    categoryId: transaction.categoryId,
+    transferAccountId: transaction.transferAccountId,
+    amount: transaction.amount,
+    splits: JSON.parse(transaction.splitsJson) as {
+      id: string;
+      categoryId: string | null;
+      transferAccountId: string | null;
+      amount: number;
+    }[],
   }));
 
   const openingAvailableByCategoryId = Object.fromEntries(
