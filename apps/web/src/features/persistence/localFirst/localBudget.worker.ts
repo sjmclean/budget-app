@@ -1606,10 +1606,20 @@ function importRegisterBatch(batch: LocalRegisterImportBatch): void {
         ],
       );
     }
+    let earliestTransactionMonth: string | undefined;
     for (const transaction of batch.transactions ?? []) {
       if (transaction.budgetId !== activeBudgetId) throw workerError("BUDGET_SCOPE_MISMATCH", "Transaction belongs to another budget.");
       upsertTransaction(transaction);
-      markBudgetProjectionDirty(transaction.date.slice(0, 7));
+      const transactionMonth = transaction.date.slice(0, 7);
+      if (
+        earliestTransactionMonth === undefined ||
+        transactionMonth < earliestTransactionMonth
+      ) {
+        earliestTransactionMonth = transactionMonth;
+      }
+    }
+    if (earliestTransactionMonth) {
+      markBudgetProjectionDirty(earliestTransactionMonth);
     }
     if ((batch.accounts?.length ?? 0) > 0 || (batch.categories?.length ?? 0) > 0) {
       markAllBudgetProjectionsDirty();
