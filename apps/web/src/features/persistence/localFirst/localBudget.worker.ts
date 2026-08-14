@@ -2273,22 +2273,31 @@ function readBudgetMonth(month: string): BudgetMonthView | null {
   } else {
     const diagnostic = getBudgetProjectionDiagnostic(activeBudgetId, month);
     projection = diagnostic.projection;
-    for (const projectedMonth of diagnostic.projections) execute(
-      `INSERT INTO local_budget_projection_cache(
-         budget_id, month, engine_version, projection_json, updated_at
-       ) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(budget_id, month) DO UPDATE SET
-         engine_version = excluded.engine_version,
-         projection_json = excluded.projection_json,
-         updated_at = excluded.updated_at`,
-      [
-        activeBudgetId,
-        projectedMonth.month,
-        BUDGET_PROJECTION_ENGINE_VERSION,
-        JSON.stringify(projectedMonth),
-        new Date().toISOString(),
-      ],
-    );
+    const updatedAt = new Date().toISOString();
+
+    execute("BEGIN IMMEDIATE");
+    try {
+      for (const projectedMonth of diagnostic.projections) execute(
+        `INSERT INTO local_budget_projection_cache(
+           budget_id, month, engine_version, projection_json, updated_at
+         ) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(budget_id, month) DO UPDATE SET
+           engine_version = excluded.engine_version,
+           projection_json = excluded.projection_json,
+           updated_at = excluded.updated_at`,
+        [
+          activeBudgetId,
+          projectedMonth.month,
+          BUDGET_PROJECTION_ENGINE_VERSION,
+          JSON.stringify(projectedMonth),
+          updatedAt,
+        ],
+      );
+      execute("COMMIT");
+    } catch (error) {
+      execute("ROLLBACK");
+      throw error;
+    }
   }
   const latestMonth = resultRows<{ month: string | null }>(
     "SELECT MAX(month) AS month FROM local_budget_months WHERE budget_id = ?",
