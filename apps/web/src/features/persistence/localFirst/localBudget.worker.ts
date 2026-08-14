@@ -4070,10 +4070,18 @@ async function appendBaselineReplacement(offset: number, content: Uint8Array) {
   if (replacement.receivedBytes + content.byteLength > replacement.totalBytes) {
     throw workerError("BASELINE_SIZE_EXCEEDED", "Baseline contains more bytes than declared.");
   }
+  const contentBuffer = content.buffer;
+  if (!(contentBuffer instanceof ArrayBuffer)) {
+    throw workerError(
+      "INVALID_BASELINE_CHUNK",
+      "Baseline replacement chunks must use an ArrayBuffer backing store.",
+    );
+  }
+
   await replacement.writable.write({
     type: "write",
     position: offset,
-    data: Uint8Array.from(content).buffer,
+    data: contentBuffer,
   });
   replacement.receivedBytes += content.byteLength;
   return { receivedBytes: replacement.receivedBytes };
