@@ -280,7 +280,7 @@ export function createLocalFirstAccountRegisterQueryClient(
             budgetId,
             syncEpoch: activeSyncEpoch!,
             afterCursor: cursor,
-            limit: 5,
+            limit: 500,
           });
         } catch (error) {
           if ((error as { code?: string }).code !== "CURSOR_COMPACTED") {
