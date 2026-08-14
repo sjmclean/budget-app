@@ -1538,7 +1538,7 @@ function assertActiveStagedImport(): NonNullable<typeof stagedImport> {
   return stage;
 }
 
-function importRegisterBatch(batch: LocalRegisterImportBatch): LocalBudgetManifest {
+function importRegisterBatch(batch: LocalRegisterImportBatch): void {
   assertActiveStagedImport();
   execute("BEGIN IMMEDIATE");
   try {
@@ -1619,10 +1619,9 @@ function importRegisterBatch(batch: LocalRegisterImportBatch): LocalBudgetManife
     execute("ROLLBACK");
     throw error;
   }
-  return currentManifest();
 }
 
-function importEntityBatch(entities: readonly LocalImportEntity[]): LocalBudgetManifest {
+function importEntityBatch(entities: readonly LocalImportEntity[]): void {
   assertActiveStagedImport();
   if (entities.length > 2_000) {
     throw workerError("IMPORT_BATCH_TOO_LARGE", "Local import batches may contain at most 2,000 entities.");
@@ -1653,7 +1652,6 @@ function importEntityBatch(entities: readonly LocalImportEntity[]): LocalBudgetM
     execute("ROLLBACK");
     throw error;
   }
-  return currentManifest();
 }
 
 async function removeOpfsFile(filename: string): Promise<void> {

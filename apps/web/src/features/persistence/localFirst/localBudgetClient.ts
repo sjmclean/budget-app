@@ -207,7 +207,7 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
-  importRegisterBatch(batch: LocalRegisterImportBatch): Promise<LocalBudgetManifest> {
+  importRegisterBatch(batch: LocalRegisterImportBatch): Promise<void> {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "importRegisterBatch",
@@ -227,7 +227,7 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
-  importEntityBatch(entities: readonly LocalImportEntity[]): Promise<LocalBudgetManifest> {
+  importEntityBatch(entities: readonly LocalImportEntity[]): Promise<void> {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "importEntityBatch",
