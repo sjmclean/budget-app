@@ -26,6 +26,7 @@ import {
   detectQifImportFormat,
   inspectTransactionOfxImport,
   QIF_DATE_FORMAT_OPTIONS,
+  TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS,
   previewTransactionCsvImport,
   previewTransactionQifImport,
   previewTransactionOfxImport,
@@ -692,8 +693,20 @@ export function TransactionImportDialog({
       .map((candidate) => candidate.parsed.date)
       .filter((date): date is string => /^\d{4}-\d{2}-\d{2}$/.test(date))
       .sort();
-    if (dates.length === 0) return undefined;
-    return { fromDate: dates[0], toDate: dates[dates.length - 1] };
+    const firstDate = dates.at(0);
+    const lastDate = dates.at(-1);
+    if (!firstDate || !lastDate) return undefined;
+
+    const shiftDate = (date: string, days: number) => {
+      const value = new Date(`${date}T00:00:00.000Z`);
+      value.setUTCDate(value.getUTCDate() + days);
+      return value.toISOString().slice(0, 10);
+    };
+
+    return {
+      fromDate: shiftDate(firstDate, -TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS),
+      toDate: shiftDate(lastDate, TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS),
+    };
   }
 
   async function loadTransactionsForPreview(
