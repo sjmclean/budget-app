@@ -1,4 +1,5 @@
 import type { RegisterTransactionView } from "./accountRegisterTypes";
+import type { PreviouslyImportedSourceOccurrence } from "./transactionImportKnowledge";
 import type {
   TransactionImportCandidate,
   TransactionImportPreview,
@@ -18,15 +19,7 @@ export interface PrepareTransactionImportPreviewInput {
   existingTransactions: RegisterTransactionView[];
   isExactDuplicateFile: boolean;
   identityScope?: string | null;
-  previouslyImportedSourceOccurrences?: Record<
-    string,
-    {
-      identity: string;
-      occurrenceCount: number;
-      kind?: "external" | "fallback";
-      allowRetainedSourceRecovery?: boolean;
-    }
-  >;
+  previouslyImportedSourceOccurrences?: Record<string, PreviouslyImportedSourceOccurrence>;
 }
 
 export interface PreparedTransactionImportPreview {
@@ -128,15 +121,7 @@ function createBankRegisterComparisonKey({
 export function recoverAlreadyRepresentedBankCandidates(input: {
   candidates: TransactionImportCandidate[];
   existingTransactions: RegisterTransactionView[];
-  previouslyImportedSourceOccurrences?: Record<
-    string,
-    {
-      identity: string;
-      occurrenceCount: number;
-      kind?: "external" | "fallback";
-      allowRetainedSourceRecovery?: boolean;
-    }
-  >;
+  previouslyImportedSourceOccurrences?: Record<string, PreviouslyImportedSourceOccurrence>;
 }): {
   reviewCandidates: TransactionImportCandidate[];
   representedCandidates: TransactionImportCandidate[];
