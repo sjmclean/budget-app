@@ -19,6 +19,11 @@ import {
   normalisePayeeIdentity,
   type PossibleDuplicateSuppression,
 } from "../features/accounts/payeeRecognition";
+import { PayeeIcon } from "../features/icons/PayeeIcon";
+import {
+  PAYEE_BUILTIN_ICONS,
+  serialisePayeeIconReference,
+} from "../features/icons/payeeIconReference";
 
 const COMPACT_PAYEE_LIMIT = 10;
 type PayeeDetailTab = "overview" | "aliases" | "rules" | "transactions" | "scheduled" | "history";
@@ -148,7 +153,8 @@ function PayeeMergeListItem({
         aria-selected={isSelected}
         onClick={(event) => onSelect(payee, event)}
       >
-        <strong>{payee.name}</strong>
+        <PayeeIcon payee={payee} size={32} decorative />
+        <span className="payee-list-copy"><strong>{payee.name}</strong>
         <span>{payee.useCount} transactions</span>
         {isDropTarget ? (
           <small className="payee-merge-badge">
@@ -162,7 +168,7 @@ function PayeeMergeListItem({
           </small>
         ) : payee.note?.trim() ? (
           <small title={payee.note}>Has note</small>
-        ) : null}
+        ) : null}</span>
       </button>
     </div>
   );
@@ -229,6 +235,8 @@ export function PayeeManagementPage() {
   const [actionDialog, setActionDialog] = useState<"closed" | "rename" | "alias" | "rule">("closed");
   const [actionValue, setActionValue] = useState("");
   const [actionRuleType, setActionRuleType] = useState<PayeeRuleMatchType>("contains");
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+  const [iconPickerDraft, setIconPickerDraft] = useState("");
   const [mergeDialogStep, setMergeDialogStep] = useState<"closed" | "confirm" | "select" | "options" | "preview" | "complete">("closed");
   const [isMergeSubmitting, setIsMergeSubmitting] = useState(false);
   const [mergeError, setMergeError] = useState("");
@@ -404,6 +412,33 @@ export function PayeeManagementPage() {
     selectedPayee?.importRules,
     selectedPayee?.aliases,
   ]);
+
+  function openIconPicker() {
+    setIconPickerDraft(selectedPayee?.iconRef ?? "");
+    setIsIconPickerOpen(true);
+  }
+
+  async function saveIconSelection() {
+    if (!selectedPayee) return;
+    const update = {
+      id: selectedPayee.id,
+      name: selectedPayee.name,
+      note: selectedPayee.note ?? "",
+      defaultCategoryId: selectedPayee.defaultCategoryId ?? "",
+      defaultCategoryName: selectedPayee.defaultCategoryName ?? "",
+      importRules: selectedPayee.importRules ?? [],
+      aliases: selectedPayee.aliases ?? [],
+      iconUpdate: iconPickerDraft
+        ? { kind: "set" as const, iconRef: iconPickerDraft }
+        : { kind: "automatic" as const },
+    };
+    const nextPayees = activeBudgetId && persistenceGateway.accountRegisterQueries
+      ? [...await persistenceGateway.accountRegisterQueries.updatePayee(activeBudgetId, update)]
+      : await payeesPersistence.updatePayee(update);
+    setPayees(nextPayees);
+    setIsIconPickerOpen(false);
+    setStatusMessage(iconPickerDraft ? "Payee icon saved." : "Payee icon reset to Automatic.");
+  }
 
   const selectedCategory = categoryOptions.find(
     (category) => category.id === draftDefaultCategoryId,
@@ -1087,11 +1122,16 @@ export function PayeeManagementPage() {
           ) : <div className="payee-duplicate-empty"><strong>No possible duplicates found.</strong><span>We'll show strong suggestions here when they exist.</span></div> : selectedPayee ? (
             <>
               <div className="payee-management-detail-header">
-                <div>
+                <button className="payee-detail-icon-button" type="button" onClick={openIconPicker}
+                  aria-label={`Change icon for ${selectedPayee.name}`}>
+                  <PayeeIcon payee={selectedPayee} size={56} decorative />
+                </button>
+                <div className="payee-detail-heading-copy">
                   <h2>{selectedPayee.name}</h2>
                   <p className="muted">
                     Edit this payee's details, aliases, and recognition rules.
                   </p>
+                  <button className="payee-change-icon-button" type="button" onClick={openIconPicker}>Change icon</button>
                 </div>
                 <div className="payee-actions-menu">
                   <button
@@ -1444,6 +1484,35 @@ export function PayeeManagementPage() {
                 <button className="button button-primary" type="button" onClick={() => void finishMergeWorkflow()}>Done</button>
               </div>
             )}
+          </section>
+        </div>
+      ) : null}
+
+      {isIconPickerOpen && selectedPayee ? (
+        <div className="app-dialog-backdrop" role="presentation">
+          <section className="app-dialog payee-icon-picker" role="dialog" aria-modal="true"
+            aria-labelledby="payee-icon-picker-title">
+            <div className="payee-merge-dialog-header">
+              <div><h2 id="payee-icon-picker-title">Change icon</h2><p>Choose an icon for {selectedPayee.name}.</p></div>
+              <button className="button button-ghost" type="button" onClick={() => setIsIconPickerOpen(false)} aria-label="Close">×</button>
+            </div>
+            <div className="payee-icon-picker-grid" role="radiogroup" aria-label="Payee icon">
+              <button type="button" role="radio" aria-checked={iconPickerDraft === ""}
+                className={iconPickerDraft === "" ? "is-selected" : ""} onClick={() => setIconPickerDraft("")}>
+                <PayeeIcon payee={{ ...selectedPayee, iconRef: "" }} size={40} decorative /><span>Automatic</span>
+              </button>
+              {PAYEE_BUILTIN_ICONS.map(({ key, label }) => {
+                const iconRef = serialisePayeeIconReference({ kind: "builtin", key });
+                return <button key={key} type="button" role="radio" aria-checked={iconPickerDraft === iconRef}
+                  className={iconPickerDraft === iconRef ? "is-selected" : ""} onClick={() => setIconPickerDraft(iconRef)}>
+                  <PayeeIcon payee={{ ...selectedPayee, iconRef }} size={40} decorative /><span>{label}</span>
+                </button>;
+              })}
+            </div>
+            <div className="app-dialog-actions">
+              <button className="button button-secondary" type="button" onClick={() => setIsIconPickerOpen(false)}>Cancel</button>
+              <button className="button button-primary" type="button" onClick={() => void saveIconSelection()}>Save icon</button>
+            </div>
           </section>
         </div>
       ) : null}
