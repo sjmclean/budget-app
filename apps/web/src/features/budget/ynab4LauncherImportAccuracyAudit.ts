@@ -14,6 +14,10 @@ import {
   firstYnabDisplayAmount,
 } from "../../../../../packages/ynab4-importer/src/money/decodeYnabAmount";
 import { isYnab4Tombstone } from "./ynab4/ynab4RecordState";
+import {
+  auditYnab4ImportedPayeeProvenance,
+  type Ynab4ImportedPayeeProvenanceAudit,
+} from "./ynab4/ynab4ImportedPayeeProvenanceAudit";
 import { listBudgetMonthEntities } from "./entities/budgetMonthEntity.js";
 
 const ACCOUNTS_STORAGE_KEY = "budget-app.accounts.v1";
@@ -28,6 +32,8 @@ export interface Ynab4LauncherImportAccuracyAuditResult {
   status: "pass" | "fail";
   mismatches: string[];
   warnings: string[];
+  /** Source-description fidelity, deliberately separate from financial totals. */
+  importedPayeeProvenance: Ynab4ImportedPayeeProvenanceAudit;
   source: {
     accounts: number;
     openAccounts: number;
@@ -170,6 +176,7 @@ export function auditYnab4LauncherImportAccuracy(
         "Could not read active YNAB4 Budget.yfull data from package entries.",
       ],
       warnings: [],
+      importedPayeeProvenance: emptyImportedPayeeProvenanceAudit(),
       source: emptySourceAudit(),
       imported: emptyImportedAudit(),
     };
@@ -177,11 +184,15 @@ export function auditYnab4LauncherImportAccuracy(
 
   const source = buildSourceAudit(data);
   const imported = buildImportedAudit(storage, input.budgetId);
+  const importedPayeeProvenance = auditYnab4ImportedPayeeProvenance(
+    toRecords(data.transactions).filter((transaction) => !isDeleted(transaction)),
+    readImportedTransactions(storage, input.budgetId),
+  );
   reconcileAccountTransactionFidelity(
     source.accountTransactionFidelity,
     imported.accountTransactionFidelity,
   );
-  const mismatches: string[] = [];
+  const mismatches: string[] = [...importedPayeeProvenance.mismatches];
   const warnings: string[] = [];
 
   compareCount(mismatches, "accounts", source.accounts, imported.accounts);
@@ -358,6 +369,7 @@ export function auditYnab4LauncherImportAccuracy(
     status: mismatches.length === 0 ? "pass" : "fail",
     mismatches,
     warnings,
+    importedPayeeProvenance,
     source,
     imported,
   };
@@ -392,6 +404,17 @@ export function formatYnab4LauncherImportAccuracyAuditReport(
   );
   lines.push(
     `  Imported closed-account transactions: ${audit.imported.closedAccountTransactions}`,
+  );
+  lines.push("");
+  lines.push("Imported Payee Provenance");
+  lines.push(
+    `  Source transactions with imported payee text: ${audit.importedPayeeProvenance.sourceTransactionsWithImportedPayee}`,
+  );
+  lines.push(
+    `  Preserved raw payees: ${audit.importedPayeeProvenance.preservedRawPayees}`,
+  );
+  lines.push(
+    `  Provenance mismatches: ${audit.importedPayeeProvenance.mismatches.length}`,
   );
   lines.push("");
   lines.push("Scheduled Transactions");
@@ -687,6 +710,16 @@ function buildSourceAudit(
     transactionsByAccountName,
     accountTransactionFidelity,
   };
+}
+
+function readImportedTransactions(
+  storage: KeyValueStoragePort,
+  budgetId: string,
+): RegisterTransactionView[] {
+  const registers = readTransactionRegisters(
+    createFixedBudgetScopedStorage(storage, budgetId),
+  );
+  return Object.values(registers).flatMap((register) => register.transactions);
 }
 
 function buildImportedAudit(
@@ -1773,6 +1806,14 @@ function monthDate(value: string | null): string | null {
 
 function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+function emptyImportedPayeeProvenanceAudit(): Ynab4ImportedPayeeProvenanceAudit {
+  return {
+    sourceTransactionsWithImportedPayee: 0,
+    preservedRawPayees: 0,
+    mismatches: [],
+  };
 }
 
 function emptySourceAudit(): Ynab4LauncherImportAccuracyAuditResult["source"] {
