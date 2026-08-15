@@ -134,6 +134,8 @@ export function createHostedAccountRegisterQueryClient(options: {
       search.set("beforeId", input.before.id);
     }
     if (input.offset !== undefined) search.set("offset", String(input.offset));
+    if (input.fromDate) search.set("fromDate", input.fromDate);
+    if (input.toDate) search.set("toDate", input.toDate);
     if (input.search?.query) {
       search.set("query", input.search.query);
       search.set("scope", input.search.scope);
