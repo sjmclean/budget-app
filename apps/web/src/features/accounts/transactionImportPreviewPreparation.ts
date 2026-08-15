@@ -3,9 +3,10 @@ import type {
   ImportedTransactionFileType,
   PreviouslyImportedSourceOccurrence,
 } from "./transactionImportKnowledge";
-import type {
-  TransactionImportCandidate,
-  TransactionImportPreview,
+import {
+  TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS,
+  type TransactionImportCandidate,
+  type TransactionImportPreview,
 } from "./transactionImport";
 import { stableImportTransactionId } from "./transactionImportCommit";
 import { applyTransactionImportMerchantProposal } from "./transactionImportMerchantProposal";
@@ -122,6 +123,187 @@ function createBankRegisterComparisonKey({
   ].join("|");
 }
 
+type BankRegisterOccurrence = {
+  occurrenceId: string;
+  transaction: RegisterTransactionView;
+  rawPayee: string;
+};
+
+function createSettlementGroupKey({
+  rawPayee,
+  inflow,
+  outflow,
+}: {
+  rawPayee: string;
+  inflow: number;
+  outflow: number;
+}): string {
+  return [
+    inflow.toFixed(2),
+    outflow.toFixed(2),
+    normaliseImportSourceText(rawPayee),
+  ].join("|");
+}
+
+function importDaysApart(left: string, right: string): number {
+  const leftDate = Date.parse(`${left}T00:00:00Z`);
+  const rightDate = Date.parse(`${right}T00:00:00Z`);
+  if (!Number.isFinite(leftDate) || !Number.isFinite(rightDate)) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return Math.round(Math.abs(leftDate - rightDate) / 86_400_000);
+}
+
+function reconcileUniqueSettlementOccurrences(input: {
+  candidates: TransactionImportCandidate[];
+  occurrences: BankRegisterOccurrence[];
+  consumedRegisterOccurrences: Set<string>;
+}): Map<string, BankRegisterOccurrence> {
+  const matched = new Map<string, BankRegisterOccurrence>();
+  const candidateGroups = new Map<string, TransactionImportCandidate[]>();
+  const occurrenceGroups = new Map<string, BankRegisterOccurrence[]>();
+
+  for (const candidate of input.candidates) {
+    const source = candidate.lifecycle.source;
+    const key = createSettlementGroupKey({
+      rawPayee: source.rawPayee,
+      inflow: source.inflow,
+      outflow: source.outflow,
+    });
+    candidateGroups.set(key, [...(candidateGroups.get(key) ?? []), candidate]);
+  }
+
+  for (const occurrence of input.occurrences) {
+    if (input.consumedRegisterOccurrences.has(occurrence.occurrenceId)) {
+      continue;
+    }
+    const key = createSettlementGroupKey({
+      rawPayee: occurrence.rawPayee,
+      inflow: occurrence.transaction.inflow,
+      outflow: occurrence.transaction.outflow,
+    });
+    occurrenceGroups.set(key, [
+      ...(occurrenceGroups.get(key) ?? []),
+      occurrence,
+    ]);
+  }
+
+  for (const [key, candidatesForKey] of candidateGroups) {
+    const occurrencesForKey = occurrenceGroups.get(key) ?? [];
+    const remainingCandidates = new Map(
+      candidatesForKey.map((candidate) => [candidate.id, candidate]),
+    );
+    const remainingOccurrences = new Map(
+      occurrencesForKey.map((occurrence) => [
+        occurrence.occurrenceId,
+        occurrence,
+      ]),
+    );
+
+    while (
+      remainingCandidates.size > 0 &&
+      remainingOccurrences.size > 0
+    ) {
+      const candidateChoices = new Map<
+        string,
+        { occurrence: BankRegisterOccurrence; daysApart: number }
+      >();
+
+      for (const candidate of remainingCandidates.values()) {
+        const eligible = [...remainingOccurrences.values()]
+          .map((occurrence) => ({
+            occurrence,
+            daysApart: importDaysApart(
+              candidate.lifecycle.source.date,
+              occurrence.transaction.date,
+            ),
+          }))
+          .filter(
+            ({ daysApart }) =>
+              daysApart <= TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS,
+          )
+          .sort(
+            (left, right) =>
+              left.daysApart - right.daysApart ||
+              left.occurrence.transaction.date.localeCompare(
+                right.occurrence.transaction.date,
+              ) ||
+              left.occurrence.occurrenceId.localeCompare(
+                right.occurrence.occurrenceId,
+              ),
+          );
+        if (
+          eligible.length > 0 &&
+          (eligible.length === 1 ||
+            eligible[0]!.daysApart < eligible[1]!.daysApart)
+        ) {
+          candidateChoices.set(candidate.id, eligible[0]!);
+        }
+      }
+
+      const occurrenceChoices = new Map<
+        string,
+        { candidate: TransactionImportCandidate; daysApart: number }
+      >();
+      for (const occurrence of remainingOccurrences.values()) {
+        const eligible = [...remainingCandidates.values()]
+          .map((candidate) => ({
+            candidate,
+            daysApart: importDaysApart(
+              candidate.lifecycle.source.date,
+              occurrence.transaction.date,
+            ),
+          }))
+          .filter(
+            ({ daysApart }) =>
+              daysApart <= TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS,
+          )
+          .sort(
+            (left, right) =>
+              left.daysApart - right.daysApart ||
+              left.candidate.lifecycle.source.date.localeCompare(
+                right.candidate.lifecycle.source.date,
+              ) ||
+              left.candidate.id.localeCompare(right.candidate.id),
+          );
+        if (
+          eligible.length > 0 &&
+          (eligible.length === 1 ||
+            eligible[0]!.daysApart < eligible[1]!.daysApart)
+        ) {
+          occurrenceChoices.set(occurrence.occurrenceId, eligible[0]!);
+        }
+      }
+
+      const uniquePairs = [...candidateChoices.entries()].filter(
+        ([candidateId, choice]) =>
+          occurrenceChoices.get(choice.occurrence.occurrenceId)?.candidate.id ===
+          candidateId,
+      );
+      if (uniquePairs.length === 0) {
+        break;
+      }
+
+      for (const [candidateId, choice] of uniquePairs) {
+        if (
+          !remainingCandidates.has(candidateId) ||
+          !remainingOccurrences.has(choice.occurrence.occurrenceId)
+        ) {
+          continue;
+        }
+        matched.set(candidateId, choice.occurrence);
+        remainingCandidates.delete(candidateId);
+        remainingOccurrences.delete(choice.occurrence.occurrenceId);
+        input.consumedRegisterOccurrences.add(
+          choice.occurrence.occurrenceId,
+        );
+      }
+    }
+  }
+
+  return matched;
+}
+
 export function recoverAlreadyRepresentedBankCandidates(input: {
   candidates: TransactionImportCandidate[];
   existingTransactions: RegisterTransactionView[];
@@ -133,7 +315,8 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
 } {
   const exactRegisterOccurrences = new Map<string, string[]>();
   const bankRegisterOccurrences = new Map<string, string[]>();
-  const migratedBankRegisterOccurrences = new Map<string, string[]>();
+  const trustedBankRegisterOccurrences = new Map<string, string[]>();
+  const occurrenceById = new Map<string, BankRegisterOccurrence>();
   const consumedRegisterOccurrences = new Set<string>();
 
   for (const [index, transaction] of input.existingTransactions.entries()) {
@@ -142,10 +325,9 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
       continue;
     }
 
-    // Both indexes reference the same physical register occurrence. This
-    // prevents an occurrence consumed by one recovery route from being reused
-    // by the other route later in the same preview.
     const occurrenceId = `${transaction.id}:${index}`;
+    const occurrence = { occurrenceId, transaction, rawPayee };
+    occurrenceById.set(occurrenceId, occurrence);
 
     const exactKey = createBankSourceComparisonKey({
       date: transaction.date,
@@ -169,9 +351,12 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
       ...(bankRegisterOccurrences.get(bankKey) ?? []),
       occurrenceId,
     ]);
-    if (transaction.importProvenance === "ynab4-imported-payee") {
-      migratedBankRegisterOccurrences.set(bankKey, [
-        ...(migratedBankRegisterOccurrences.get(bankKey) ?? []),
+    if (
+      transaction.importProvenance === "ynab4-imported-payee" ||
+      transaction.importProvenance === "bank-import"
+    ) {
+      trustedBankRegisterOccurrences.set(bankKey, [
+        ...(trustedBankRegisterOccurrences.get(bankKey) ?? []),
         occurrenceId,
       ]);
     }
@@ -233,6 +418,7 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
 
   const reviewCandidates: TransactionImportCandidate[] = [];
   const representedCandidates: TransactionImportCandidate[] = [];
+  const settlementCandidates: TransactionImportCandidate[] = [];
 
   const canUseRetainedSourceRecovery = (
     candidate: TransactionImportCandidate,
@@ -245,6 +431,24 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
     );
   };
 
+  const appendRepresented = (
+    candidate: TransactionImportCandidate,
+    comparisonKey: string,
+    source: string,
+    detail: string,
+  ) => {
+    representedCandidates.push(
+      appendTransactionImportTrace(candidate, {
+        stage: "duplicate-recovery",
+        output: { represented: true, comparisonKey, source },
+        detail,
+      }),
+    );
+  };
+
+  // Consume every exact retained-source occurrence before considering date
+  // drift. This preserves exact identity evidence and removes those physical
+  // register rows from the later settlement assignment.
   for (const candidate of input.candidates) {
     if (candidate.status === "invalid") {
       reviewCandidates.push(candidate);
@@ -253,7 +457,6 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
 
     const source = candidate.lifecycle.source;
     const rawPayee = source.rawPayee.trim();
-
     if (!rawPayee) {
       reviewCandidates.push(candidate);
       continue;
@@ -277,40 +480,25 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
       canUseRetainedSourceRecovery(candidate) &&
       consumeRegisterOccurrence(exactRegisterOccurrences, exactKey)
     ) {
-      // Do not allow this same historical source occurrence to be reused
-      // later by the memo-independent fallback.
       consumeHistoricalOccurrence(candidate);
-
-      representedCandidates.push(
-        appendTransactionImportTrace(candidate, {
-          stage: "duplicate-recovery",
-          output: {
-            represented: true,
-            comparisonKey: exactKey,
-            source: "retained-bank-fields",
-          },
-          detail:
-            "An existing register transaction with the same retained bank source fields consumed this overlapping import row.",
-        }),
+      appendRepresented(
+        candidate,
+        exactKey,
+        "retained-bank-fields",
+        "An existing register transaction with the same retained bank source fields consumed this overlapping import row.",
       );
       continue;
     }
 
     if (
       input.allowMigratedYnabBridge === true &&
-      consumeRegisterOccurrence(migratedBankRegisterOccurrences, bankKey)
+      consumeRegisterOccurrence(trustedBankRegisterOccurrences, bankKey)
     ) {
-      representedCandidates.push(
-        appendTransactionImportTrace(candidate, {
-          stage: "duplicate-recovery",
-          output: {
-            represented: true,
-            comparisonKey: bankKey,
-            source: "ynab4-migrated-bank-provenance",
-          },
-          detail:
-            "A YNAB4-migrated register occurrence with the same retained bank payee, account date, and amount consumed this overlapping import row without relying on an editable memo.",
-        }),
+      appendRepresented(
+        candidate,
+        bankKey,
+        "trusted-bank-provenance-exact-date",
+        "A bank-provenance register occurrence with the same retained bank payee, exact account date, and amount consumed this overlapping import row without relying on an editable memo.",
       );
       continue;
     }
@@ -330,23 +518,53 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
         evidence!.identity,
         historicalAvailable - 1,
       );
-
-      representedCandidates.push(
-        appendTransactionImportTrace(candidate, {
-          stage: "duplicate-recovery",
-          output: {
-            represented: true,
-            comparisonKey: bankKey,
-            source: "prior-source-and-retained-payee",
-          },
-          detail:
-            "A previously processed bank source occurrence and an existing register transaction with the same retained bank payee, date, and amount consumed this overlapping import row.",
-        }),
+      appendRepresented(
+        candidate,
+        bankKey,
+        "prior-source-and-retained-payee",
+        "A previously processed bank source occurrence and an existing register transaction with the same retained bank payee, date, and amount consumed this overlapping import row.",
       );
       continue;
     }
 
-    reviewCandidates.push(candidate);
+    settlementCandidates.push(candidate);
+  }
+
+  const fallbackSettlementCandidates = settlementCandidates.filter(
+    (candidate) =>
+      input.allowMigratedYnabBridge === true &&
+      input.previouslyImportedSourceOccurrences?.[candidate.id]?.kind !==
+        "external",
+  );
+  const settlementMatches = reconcileUniqueSettlementOccurrences({
+    candidates: fallbackSettlementCandidates,
+    occurrences: [...occurrenceById.values()].filter(
+      (occurrence) =>
+        occurrence.transaction.importProvenance ===
+          "ynab4-imported-payee" ||
+        occurrence.transaction.importProvenance === "bank-import",
+    ),
+    consumedRegisterOccurrences,
+  });
+
+  for (const candidate of settlementCandidates) {
+    const occurrence = settlementMatches.get(candidate.id);
+    if (!occurrence) {
+      reviewCandidates.push(candidate);
+      continue;
+    }
+    const source = candidate.lifecycle.source;
+    const comparisonKey = createSettlementGroupKey({
+      rawPayee: source.rawPayee,
+      inflow: source.inflow,
+      outflow: source.outflow,
+    });
+    appendRepresented(
+      candidate,
+      comparisonKey,
+      "unique-settlement-bank-provenance",
+      `A uniquely determined bank-provenance occurrence with the same retained bank payee and amount was found ${importDaysApart(source.date, occurrence.transaction.date)} day(s) from the statement date.`,
+    );
   }
 
   return { reviewCandidates, representedCandidates };
