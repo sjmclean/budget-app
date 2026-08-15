@@ -1146,8 +1146,15 @@ function applyRemoteMutations(
             targetPayeeId?: string;
             targetPayeeName?: string;
             sourcePayeeIds?: readonly string[];
+            mergedIconRef?: string;
           };
           if (target.targetPayeeId) {
+            if (typeof target.mergedIconRef === "string") {
+              execute(
+                "UPDATE local_payees SET icon_ref = ?, updated_at = ? WHERE budget_id = ? AND id = ?",
+                [target.mergedIconRef, mutation.createdAt, activeBudgetId, target.targetPayeeId],
+              );
+            }
             const remoteSourceIds = target.sourcePayeeIds?.length
               ? target.sourcePayeeIds
               : [mutation.entityId];
@@ -3789,7 +3796,13 @@ function mergePayees(
       execute("UPDATE local_payees SET archived = 1, updated_at = ? WHERE budget_id = ? AND id = ?", [new Date().toISOString(), budgetId, sourcePayeeId]);
     }
     }
-    insertOutbox(mutation);
+    insertOutbox({
+      ...mutation,
+      payload: {
+        ...(mutation.payload as Record<string, unknown>),
+        mergedIconRef,
+      },
+    });
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
     resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");

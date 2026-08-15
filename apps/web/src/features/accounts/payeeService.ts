@@ -266,20 +266,22 @@ class BrowserPersistentPayeeService {
   }
 
   async mergePayees(input: MergePayeesInput): Promise<PayeeView[]> {
-    if (input.sourcePayeeId === input.targetPayeeId) {
+    const sourceIds = new Set(input.sourcePayeeIds?.length ? input.sourcePayeeIds : [input.sourcePayeeId]);
+    sourceIds.delete(input.targetPayeeId);
+    if (sourceIds.size === 0) {
       return sortPayees(readPayees(this.dependencies.storage).filter((payee) => !payee.isArchived));
     }
 
     const payees = readPayees(this.dependencies.storage);
-    const source = payees.find((payee) => payee.id === input.sourcePayeeId);
+    const sources = payees.filter((payee) => sourceIds.has(payee.id));
     const target = payees.find((payee) => payee.id === input.targetPayeeId);
 
-    if (!source || !target) {
+    if (sources.length === 0 || !target) {
       return sortPayees(payees.filter((payee) => !payee.isArchived));
     }
 
     const nextPayees = payees.map((payee) => {
-      if (payee.id === source.id) {
+      if (sourceIds.has(payee.id)) {
         return { ...payee, isArchived: true };
       }
 
@@ -287,13 +289,13 @@ class BrowserPersistentPayeeService {
         return {
           ...payee,
           isArchived: false,
-          note: mergeNotes(payee.note ?? "", source.note ?? ""),
-          defaultCategoryId: payee.defaultCategoryId || source.defaultCategoryId || "",
-          defaultCategoryName: payee.defaultCategoryName || source.defaultCategoryName || "",
-          importRules: mergeImportRules(payee.importRules ?? [], source.importRules ?? []),
-          lastUsedAt: maxIsoDate(payee.lastUsedAt, source.lastUsedAt),
-          useCount: payee.useCount + source.useCount,
-          iconRef: mergePayeeIconReferences(payee.iconRef, [source.iconRef]),
+          note: sources.reduce((note, source) => mergeNotes(note, source.note ?? ""), payee.note ?? ""),
+          defaultCategoryId: payee.defaultCategoryId || sources.find(({ defaultCategoryId }) => defaultCategoryId)?.defaultCategoryId || "",
+          defaultCategoryName: payee.defaultCategoryName || sources.find(({ defaultCategoryName }) => defaultCategoryName)?.defaultCategoryName || "",
+          importRules: sources.reduce((rules, source) => mergeImportRules(rules, source.importRules ?? []), payee.importRules ?? []),
+          lastUsedAt: sources.reduce((lastUsedAt, source) => maxIsoDate(lastUsedAt, source.lastUsedAt), payee.lastUsedAt),
+          useCount: payee.useCount + sources.reduce((total, source) => total + source.useCount, 0),
+          iconRef: mergePayeeIconReferences(payee.iconRef, sources.map(({ iconRef }) => iconRef)),
         };
       }
 
