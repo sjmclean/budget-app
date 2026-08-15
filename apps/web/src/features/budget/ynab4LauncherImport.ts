@@ -1117,6 +1117,10 @@ export async function importYnab4ReaderToHostedSqlite(
       await preflight.persistBatch(batch, { signal: options.signal });
       session.recordSourceTransactionDescriptions?.(
         batch.flatMap((source) => {
+          // Provenance expectations follow the same canonical active-record
+          // boundary as appendYnab4TransactionBatch below. Tombstones never
+          // produce destination transactions and therefore have no expectation.
+          if (isYnab4Tombstone(source)) return [];
           const transactionId = firstString(
             source.entityId,
             source.id,
