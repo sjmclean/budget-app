@@ -14,7 +14,7 @@ test("Budget category creation remains available from the Category heading", () 
   );
   assert.match(
     budgetPageSource,
-    /column\.id === "category"[\s\S]*aria-label="Add category"[\s\S]*onClick=\{\(\) => void handleCreateCategory\(\)\}/,
+    /column\.id === "category"[\s\S]*onClick=\{\(\) => void handleCreateCategory\(\)\}[\s\S]*aria-label="Add category"/,
   );
   assert.match(
     budgetPageSource,
