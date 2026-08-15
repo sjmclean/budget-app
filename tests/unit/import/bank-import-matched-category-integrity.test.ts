@@ -238,9 +238,107 @@ test("matched import never overwrites existing retained bank raw payee", () => {
 
   const plan = prepareImportCommit(session);
 
+  assert.equal(plan.matchedTransactionUpdates.length, 1);
+  assert.deepEqual(
+    plan.matchedTransactionUpdates[0],
+    {
+      ...transaction,
+      importProvenance: "bank-import",
+    },
+    "attaching durable bank provenance must preserve the retained raw payee and every unrelated user-owned field",
+  );
+});
+
+test("matched import with existing bank provenance avoids a pointless rewrite", () => {
+  const transaction = {
+    ...matchedTransaction(),
+    rawPayee: "ORIGINAL BANK DESCRIPTION",
+    importProvenance: "bank-import" as const,
+    categoryId: "dining",
+  };
+
+  const candidate = matchedCandidate(transaction);
+  candidate.lifecycle.source.rawPayee = "LATER BANK DESCRIPTION";
+
+  const session: ImportCommitSession = {
+    accountId: "checking",
+    accountName: "Checking",
+    importedCandidates: [],
+    matchedCandidates: [candidate],
+    completedSourceCandidates: [candidate],
+    skippedCount: 0,
+    previouslyImportedCount: 0,
+    alreadyRepresentedCount: 0,
+    editedMatchedCandidateIds: new Set(),
+    includeMemos: true,
+    updateMatchedTransactionDates: false,
+    categories: [{ id: "dining", name: "Dining" }],
+    accounts: [{ id: "checking", name: "Checking" }],
+    merchantKnowledge: createEmptyMerchantKnowledgeStore(),
+    file: {
+      fileType: "csv",
+      fileName: "statement-c.csv",
+      fileHash: "sha256:existing-bank-provenance-fixture",
+    },
+  };
+
+  const plan = prepareImportCommit(session);
+
   assert.equal(
     plan.matchedTransactionUpdates.length,
     0,
-    "an existing retained raw payee must not cause an unnecessary or destructive rewrite",
+    "a later bank description must not rewrite an already-provenanced transaction",
+  );
+});
+
+test("matched import preserves YNAB4 imported-payee provenance", () => {
+  const transaction = {
+    ...matchedTransaction(),
+    rawPayee: "ORIGINAL BANK DESCRIPTION",
+    importProvenance: "ynab4-imported-payee" as const,
+    categoryId: "dining",
+  };
+
+  const candidate = matchedCandidate(transaction);
+  candidate.parsed.date = "2026-08-13";
+  candidate.lifecycle.source.date = "2026-08-13";
+  candidate.lifecycle.source.rawPayee = "LATER BANK DESCRIPTION";
+
+  const session: ImportCommitSession = {
+    accountId: "checking",
+    accountName: "Checking",
+    importedCandidates: [],
+    matchedCandidates: [candidate],
+    completedSourceCandidates: [candidate],
+    skippedCount: 0,
+    previouslyImportedCount: 0,
+    alreadyRepresentedCount: 0,
+    editedMatchedCandidateIds: new Set(),
+    includeMemos: true,
+    updateMatchedTransactionDates: true,
+    categories: [{ id: "dining", name: "Dining" }],
+    accounts: [{ id: "checking", name: "Checking" }],
+    merchantKnowledge: createEmptyMerchantKnowledgeStore(),
+    file: {
+      fileType: "csv",
+      fileName: "statement-d.csv",
+      fileHash: "sha256:ynab4-provenance-preservation-fixture",
+    },
+  };
+
+  const plan = prepareImportCommit(session);
+
+  assert.equal(plan.matchedTransactionUpdates.length, 1);
+  assert.deepEqual(plan.matchedTransactionUpdates[0], {
+    ...transaction,
+    date: "2026-08-13",
+  });
+  assert.equal(
+    plan.matchedTransactionUpdates[0]?.importProvenance,
+    "ynab4-imported-payee",
+  );
+  assert.equal(
+    plan.matchedTransactionUpdates[0]?.rawPayee,
+    "ORIGINAL BANK DESCRIPTION",
   );
 });
