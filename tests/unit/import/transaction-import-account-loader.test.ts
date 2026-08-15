@@ -96,6 +96,7 @@ test("production import loader pages beyond 250 and preserves account/date scope
     },
     existingTransactions: loaded,
     isExactDuplicateFile: false,
+    sourceFileType: "qif",
   });
   assert.equal(prepared.alreadyRepresentedCount, 1);
   assert.equal(prepared.reviewCandidates.length, 0);
@@ -114,6 +115,7 @@ test("production import loader pages beyond 250 and preserves account/date scope
     },
     existingTransactions: otherAccount,
     isExactDuplicateFile: false,
+    sourceFileType: "qif",
   });
   assert.equal(otherAccount.length, 0);
   assert.equal(isolated.alreadyRepresentedCount, 0);
