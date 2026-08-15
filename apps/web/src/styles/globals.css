@@ -3093,6 +3093,38 @@ strong {
 
 }
 
+/* Phase 1A: canonical payee icon configuration. */
+.payee-icon {
+  --payee-avatar-color: #315acb;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--payee-avatar-color) 14%, var(--surface));
+  color: var(--payee-avatar-color);
+  font-weight: 750;
+  font-size: 0.72em;
+  line-height: 1;
+}
+.payee-icon[data-avatar-token="payee-avatar-1"], .payee-icon[data-avatar-token="payee-avatar-5"] { --payee-avatar-color: #087f5b; }
+.payee-icon[data-avatar-token="payee-avatar-2"], .payee-icon[data-avatar-token="payee-avatar-6"] { --payee-avatar-color: #a44110; }
+.payee-icon[data-avatar-token="payee-avatar-3"], .payee-icon[data-avatar-token="payee-avatar-7"] { --payee-avatar-color: #7b3fba; }
+.payee-icon svg { width: 52%; height: 52%; stroke-width: 2; }
+.payee-management-list-item { display: grid; grid-template-columns: 2rem minmax(0, 1fr); align-items: center; column-gap: 0.65rem; }
+.payee-list-copy { min-width: 0; display: grid; gap: 0.08rem; text-align: left; }
+.payee-management-detail-header { align-items: center; }
+.payee-detail-heading-copy { min-width: 0; flex: 1; }
+.payee-detail-icon-button { border: 0; border-radius: 50%; padding: 0; background: transparent; cursor: pointer; }
+.payee-detail-icon-button:focus-visible, .payee-icon-picker-grid button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.payee-change-icon-button { border: 0; background: transparent; color: var(--accent-strong); padding: 0.2rem 0; cursor: pointer; font-weight: 650; }
+.payee-icon-picker { width: min(34rem, calc(100vw - 2rem)); }
+.payee-icon-picker-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+.payee-icon-picker-grid button { display: grid; justify-items: center; gap: 0.35rem; min-height: 6rem; padding: 0.7rem 0.4rem; border: 1px solid var(--border-soft); border-radius: 0.7rem; background: var(--surface); color: var(--text); cursor: pointer; }
+.payee-icon-picker-grid button.is-selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); box-shadow: inset 0 0 0 1px var(--accent); }
+.payee-icon-picker-grid span { font-size: 0.78rem; }
+@media (max-width: 520px) { .payee-icon-picker-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 /* Payee possible-duplicate review mode. */
 .payee-duplicates-intro { margin: 0; color: var(--text-muted); font-size: 0.78rem; }
 .payee-duplicate-group-list { display: grid; gap: 0.45rem; }
