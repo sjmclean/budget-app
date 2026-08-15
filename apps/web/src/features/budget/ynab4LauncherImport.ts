@@ -1217,7 +1217,7 @@ export async function importYnab4ReaderToHostedSqlite(
   }
 }
 
-function toSqliteImportTransaction(
+export function toSqliteImportTransaction(
   accountId: string,
   transaction: RegisterTransactionView,
   now: Date,
@@ -1226,6 +1226,7 @@ function toSqliteImportTransaction(
     id: transaction.id,
     accountId,
     payeeId: transaction.payeeId ?? null,
+    rawPayeeName: transaction.rawPayee ?? null,
     categoryId: transaction.categoryId ?? null,
     categoryName: transaction.transferAccountId
       ? "Transfer"
