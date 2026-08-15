@@ -848,6 +848,7 @@ export function toTransactionWriteInput(
     amount: Math.round((input.inflow - input.outflow) * 100),
     payeeId: input.payeeId,
     rawPayee: input.rawPayee,
+    importProvenance: input.importProvenance,
     categoryId: input.categoryId,
     categoryName: input.category,
     transferAccountId: input.transferAccountId,
