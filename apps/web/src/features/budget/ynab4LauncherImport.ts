@@ -1191,7 +1191,7 @@ export async function importYnab4ReaderToHostedSqlite(
 
     report("finalising");
     const sqliteValidation = await session.validate({ signal: options.signal });
-    importedPayeeProvenance = sqliteValidation.importedPayeeProvenance;
+    importedPayeeProvenance = sqliteValidation.importedPayeeProvenance ?? importedPayeeProvenance;
     if (importedPayeeProvenance.mismatches.length > 0) {
       throw new Error([
         "Streaming YNAB4 staged audit failed: imported-payee provenance was not preserved.",
