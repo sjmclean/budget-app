@@ -819,6 +819,31 @@ test("equidistant settlement ambiguity remains in review", () => {
   assert.equal(prepared.reviewCandidates.length, 1);
 });
 
+test("equivalent complete settlement assignments remain globally ambiguous", () => {
+  const existing = [
+    trustedBankRow({ id: "global-left", date: "2026-08-10", rawPayee: "BELONG", outflow: 25 }),
+    trustedBankRow({ id: "global-right", date: "2026-08-12", rawPayee: "BELONG", outflow: 25 }),
+  ];
+  const incoming = qifPreview([
+    { date: "11/08/26", payee: "BELONG", outflow: 25 },
+    { date: "11/08/26", payee: "BELONG", outflow: 25 },
+  ], existing);
+  const prepared = prepareMigratedOverlap(incoming.candidates, existing);
+
+  assert.equal(prepared.alreadyRepresentedCount, 0);
+  assert.equal(prepared.reviewCandidates.length, 2);
+  assert.deepEqual(
+    prepared.reviewCandidates.map((candidate) => ({
+      date: candidate.lifecycle.source.date,
+      outflow: candidate.lifecycle.source.outflow,
+    })),
+    [
+      { date: "2026-08-11", outflow: 25 },
+      { date: "2026-08-11", outflow: 25 },
+    ],
+  );
+});
+
 test("settlement assignment is independent of incoming candidate order", () => {
   const existing = [
     trustedBankRow({ id: "early", date: "2026-08-01", rawPayee: "BELONG", outflow: 54.36 }),
