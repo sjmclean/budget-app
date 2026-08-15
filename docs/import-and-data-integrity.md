@@ -89,7 +89,10 @@ conservatively. The existence of unrelated strong-ID history elsewhere in the
 same account does not prove a conflict for that legacy occurrence. New strong
 imports retain an internal association between external identity and the
 existing deterministic fallback identity so later conflicts can be recognised
-without changing the transaction or SQLite schema.
+without changing the transaction or SQLite schema. Fingerprints created before
+this association was introduced cannot prove a transaction-specific external-ID
+conflict retrospectively; they therefore retain the conservative legacy
+recovery behavior until stronger transaction-specific evidence is recorded.
 
 Missing external identity is not itself a conflict. Such rows continue through
 the conservative fallback and occurrence-aware retained-register workflow.
