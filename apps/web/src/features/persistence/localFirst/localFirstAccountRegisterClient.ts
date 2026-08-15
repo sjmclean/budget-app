@@ -450,7 +450,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       payeeId: input.payeeId ?? null,
       payeeName: input.payeeName ?? null,
       rawPayeeName: input.rawPayee ?? existing?.rawPayeeName ?? null,
-      importProvenance: existing?.importProvenance ?? null,
+      importProvenance: input.importProvenance ?? existing?.importProvenance ?? null,
       categoryId: input.categoryId ?? null,
       categoryName:
         input.categoryName?.trim() ||
