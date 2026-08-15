@@ -38,10 +38,12 @@ describe("payee icon reference and resolver", () => {
   });
 
   it("applies the approved deterministic merge precedence", () => {
-    assert.equal(mergePayeeIconReferences("builtin:v1:home", ["builtin:v1:fuel"]), "builtin:v1:home");
-    assert.equal(mergePayeeIconReferences("", ["builtin:v1:fuel"]), "builtin:v1:fuel");
+    assert.equal(mergePayeeIconReferences("builtin:v1:shopping", ["builtin:v1:dining"]), "builtin:v1:shopping", "A: explicit target wins");
+    assert.equal(mergePayeeIconReferences("", ["builtin:v1:dining"]), "builtin:v1:dining", "B: automatic target inherits one explicit source");
+    assert.equal(mergePayeeIconReferences("", ["builtin:v1:dining", "builtin:v1:dining"]), "builtin:v1:dining", "C: duplicate explicit source refs count once");
+    assert.equal(mergePayeeIconReferences("", ["builtin:v1:dining", "builtin:v1:fuel"]), "", "D: conflicting explicit sources keep an automatic target automatic");
+    assert.equal(mergePayeeIconReferences("builtin:v1:shopping", ["builtin:v1:dining", "builtin:v1:fuel"]), "builtin:v1:shopping", "E: source conflicts never displace an explicit target");
     assert.equal(mergePayeeIconReferences("", [""]), "");
-    assert.equal(mergePayeeIconReferences("", ["builtin:v1:fuel", "builtin:v1:home"]), "");
   });
 });
 
@@ -91,6 +93,26 @@ describe("browser payee icon persistence", () => {
     await service.updatePayee({ id: other.id, name: other.name, note: "", iconUpdate: { kind: "set", iconRef: "builtin:v1:home" } });
     await service.updatePayee({ id: other.id, name: "Automatic target", note: "" });
     assert.equal((await service.listPayees()).find(({ id }) => id === target.id)?.iconRef, "builtin:v1:fuel");
+  });
+
+  it("evaluates every source together during a multi-source merge", async () => {
+    async function mergeWithTargetIcon(targetIconRef: string) {
+      const service = createPayeeService({ storage: storage() });
+      await service.recordPayees(["Target", "Dining source", "Fuel source"]);
+      let values = await service.listPayees();
+      const target = values.find(({ name }) => name === "Target")!;
+      const dining = values.find(({ name }) => name === "Dining source")!;
+      const fuel = values.find(({ name }) => name === "Fuel source")!;
+      if (targetIconRef) await service.updatePayee({ id: target.id, name: target.name, note: "", iconUpdate: { kind: "set", iconRef: targetIconRef } });
+      await service.updatePayee({ id: dining.id, name: dining.name, note: "", iconUpdate: { kind: "set", iconRef: "builtin:v1:dining" } });
+      await service.updatePayee({ id: fuel.id, name: fuel.name, note: "", iconUpdate: { kind: "set", iconRef: "builtin:v1:fuel" } });
+      await service.mergePayees({ sourcePayeeId: dining.id, sourcePayeeIds: [dining.id, fuel.id], targetPayeeId: target.id });
+      values = await service.listPayees();
+      return values.find(({ id }) => id === target.id)?.iconRef;
+    }
+
+    assert.equal(await mergeWithTargetIcon(""), "", "D: conflicting sources keep an automatic target automatic");
+    assert.equal(await mergeWithTargetIcon("builtin:v1:shopping"), "builtin:v1:shopping", "E: conflicting sources cannot reset an explicit target");
   });
 
   it("rejects malformed icon references at the write boundary", async () => {
