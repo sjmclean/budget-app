@@ -406,6 +406,7 @@ export interface TransactionWriteInput extends TransactionTarget {
   readonly amount: number;
   readonly payeeId?: string;
   readonly rawPayee?: string;
+  readonly importProvenance?: "ynab4-imported-payee" | "bank-import";
   readonly categoryId?: string;
   readonly categoryName?: string;
   readonly memo?: string;
