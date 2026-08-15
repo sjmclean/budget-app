@@ -115,6 +115,12 @@ export interface SqliteImportSession {
       readonly transactions: number;
       readonly scheduledTransactions: number;
     };
+    /** Source-description fidelity, independent of financial/count fidelity. */
+    readonly importedPayeeProvenance: {
+      readonly sourceTransactionsWithImportedPayee: number;
+      readonly preservedRawPayees: number;
+      readonly mismatches: readonly string[];
+    };
   }>;
 
   commit(
