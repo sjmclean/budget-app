@@ -352,6 +352,50 @@ export function readPreviouslyImportedSourceOccurrences<
   );
 }
 
+export function partitionCandidatesByImportedIdentity<
+  T extends ImportIdentityCandidate,
+>({
+  fileType,
+  candidates,
+  importedCounts,
+}: {
+  fileType: ImportedTransactionFileType;
+  candidates: T[];
+  importedCounts: ReadonlyMap<string, number>;
+}): {
+  activeCandidates: T[];
+  previouslyImportedCandidates: T[];
+  alreadyRepresentedCandidates: T[];
+} {
+  const seenCounts = new Map<string, number>();
+  const activeCandidates: T[] = [];
+  const previouslyImportedCandidates: T[] = [];
+
+  for (const candidate of candidates) {
+    const evidence = createImportedTransactionIdentityEvidence(
+      fileType,
+      candidate,
+    );
+    const occurrence = (seenCounts.get(evidence.identity) ?? 0) + 1;
+    seenCounts.set(evidence.identity, occurrence);
+
+    if (
+      evidence.kind === "external" &&
+      occurrence <= (importedCounts.get(evidence.identity) ?? 0)
+    ) {
+      previouslyImportedCandidates.push(candidate);
+    } else {
+      activeCandidates.push(candidate);
+    }
+  }
+
+  return {
+    activeCandidates,
+    previouslyImportedCandidates,
+    alreadyRepresentedCandidates: [],
+  };
+}
+
 export function partitionPreviouslyImportedCandidates<
   T extends ImportIdentityCandidate,
 >({
@@ -376,36 +420,12 @@ export function partitionPreviouslyImportedCandidates<
       )
       .map((entry) => [entry.identity, entry.occurrenceCount]),
   );
-  const seenCounts = new Map<string, number>();
-  const activeCandidates: T[] = [];
-  const previouslyImportedCandidates: T[] = [];
 
-  for (const candidate of candidates) {
-    const evidence = createImportedTransactionIdentityEvidence(
-      fileType,
-      candidate,
-    );
-    const identity = evidence.identity;
-    const occurrence = (seenCounts.get(identity) ?? 0) + 1;
-    seenCounts.set(identity, occurrence);
-
-    const hasStrongExternalIdentity = evidence.kind === "external";
-
-    if (
-      hasStrongExternalIdentity &&
-      occurrence <= (importedCounts.get(identity) ?? 0)
-    ) {
-      previouslyImportedCandidates.push(candidate);
-    } else {
-      activeCandidates.push(candidate);
-    }
-  }
-
-  return {
-    activeCandidates,
-    previouslyImportedCandidates,
-    alreadyRepresentedCandidates: [],
-  };
+  return partitionCandidatesByImportedIdentity({
+    fileType,
+    candidates,
+    importedCounts,
+  });
 }
 
 export function rememberImportedTransactionCandidates({
