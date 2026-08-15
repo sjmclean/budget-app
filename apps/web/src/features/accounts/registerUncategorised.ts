@@ -13,12 +13,12 @@ function hasRealCategory(categoryId: string | undefined): boolean {
 function lineNeedsCategory(
   line: Pick<
     RegisterSplitLineView,
-    "categoryId" | "inflow" | "outflow" | "transferAccountId" | "transferAccountParticipation"
+    "categoryId" | "inflow" | "outflow" | "transferAccountId" | "transferTransactionId" | "transferAccountParticipation"
   >,
 ): boolean {
   if (line.inflow === 0 && line.outflow === 0) return false;
   if (hasRealCategory(line.categoryId)) return false;
-  if (!line.transferAccountId) return true;
+  if (!line.transferAccountId || !line.transferTransactionId) return true;
   return line.transferAccountParticipation !== "on-budget";
 }
 
