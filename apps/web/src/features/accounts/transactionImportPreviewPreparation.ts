@@ -23,6 +23,8 @@ export interface PrepareTransactionImportPreviewInput {
     {
       identity: string;
       occurrenceCount: number;
+      kind?: "external" | "fallback";
+      allowRetainedSourceRecovery?: boolean;
     }
   >;
 }
@@ -131,6 +133,8 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
     {
       identity: string;
       occurrenceCount: number;
+      kind?: "external" | "fallback";
+      allowRetainedSourceRecovery?: boolean;
     }
   >;
 }): {
@@ -233,6 +237,17 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
   const reviewCandidates: TransactionImportCandidate[] = [];
   const representedCandidates: TransactionImportCandidate[] = [];
 
+  const canUseRetainedSourceRecovery = (
+    candidate: TransactionImportCandidate,
+  ): boolean => {
+    const evidence =
+      input.previouslyImportedSourceOccurrences?.[candidate.id];
+    return (
+      evidence?.kind !== "external" ||
+      evidence.allowRetainedSourceRecovery === true
+    );
+  };
+
   for (const candidate of input.candidates) {
     if (candidate.status === "invalid") {
       reviewCandidates.push(candidate);
@@ -261,7 +276,10 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
       outflow: source.outflow,
     });
 
-    if (consumeRegisterOccurrence(exactRegisterOccurrences, exactKey)) {
+    if (
+      canUseRetainedSourceRecovery(candidate) &&
+      consumeRegisterOccurrence(exactRegisterOccurrences, exactKey)
+    ) {
       // Do not allow this same historical source occurrence to be reused
       // later by the memo-independent fallback.
       consumeHistoricalOccurrence(candidate);
@@ -288,6 +306,7 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
       : 0;
 
     if (
+      canUseRetainedSourceRecovery(candidate) &&
       historicalAvailable > 0 &&
       consumeRegisterOccurrence(bankRegisterOccurrences, bankKey)
     ) {
