@@ -66,8 +66,36 @@ payee description when none was previously stored. This provenance update must
 not replace the user's display payee or memo, and existing retained raw payee
 data must not be overwritten.
 
-These rules apply to supported bank-import formats such as QIF and CSV. Exact
-duplicate-file detection remains a separate mechanism.
+Identity strength is explicit at the import boundary:
+
+- OFX/QFX `FITID` is a strong bank-provided external identity when present;
+- CSV is strong only for deliberately recognised transaction-ID headers
+  (`FITID`, `Transaction ID`, `TransactionId`, or
+  `Bank Transaction ID`);
+- QIF has no standard stable transaction ID and therefore always uses fallback
+  identity;
+- generic CSV values such as `ID`, `Unique ID`, row number, sequence,
+  filename, import timestamp, and array position are never treated as strong
+  transaction identity.
+
+A repeated strong external ID is suppressible occurrence-for-occurrence. Two
+different strong external IDs are conflicting identity evidence: identical
+date, amount, payee, and memo must not collapse them. When older retained
+register data predates external-ID history, those retained source fields may
+still recover the first strong-ID import conservatively. Once strong history
+exists for that account and file type, a different incoming strong ID remains
+in review.
+
+Missing external identity is not itself a conflict. Such rows continue through
+the conservative fallback and occurrence-aware retained-register workflow.
+
+Identity remains qualified by source format. The importer does not claim that
+an OFX `FITID` and a CSV transaction-ID value are equivalent merely because
+their text happens to match. Cross-format deduplication requires an explicit
+future identity mapping rather than silent inference.
+
+These rules apply to supported bank-import formats such as QIF, CSV, OFX, and
+QFX. Exact duplicate-file detection remains a separate mechanism.
 
 ## Merchant knowledge
 
