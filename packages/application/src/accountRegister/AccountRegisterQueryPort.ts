@@ -15,6 +15,8 @@ export interface AccountTransactionQuery {
   readonly limit: number;
   readonly before?: AccountTransactionCursor;
   readonly offset?: number;
+  readonly fromDate?: string;
+  readonly toDate?: string;
   readonly search?: {
     readonly query: string;
     readonly scope: "all" | "payee" | "category" | "memo" | "amount";
@@ -37,6 +39,8 @@ export interface AccountTransactionRow {
   readonly payeeName: string | null;
   /** Immutable bank/import description retained separately from canonical payee. */
   readonly rawPayeeName?: string | null;
+  /** Durable source provenance used only for conservative import recovery. */
+  readonly importProvenance?: "ynab4-imported-payee" | null;
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly transferAccountId: string | null;
