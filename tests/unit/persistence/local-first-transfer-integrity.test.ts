@@ -1111,3 +1111,41 @@ test("cross-boundary transfer without category remains structurally linked and u
     "mortgage",
   );
 });
+
+test("reverse cross-boundary transfer carries category onto the on-budget counterpart", async () => {
+  const { client, transactions } = createHarness({ mortgage: "off-budget" });
+  await client.addTransaction({
+    id: "reverse-boundary-source", budgetId: BUDGET_ID, accountId: "mortgage",
+    date: "2026-08-25", amount: -50_000,
+    categoryId: "housing", categoryName: "Mortgage payment",
+    transferAccountId: "checking",
+  });
+  const source = transactions.get("reverse-boundary-source");
+  assert.ok(source?.transferTransactionId);
+  const counterpart = transactions.get(source.transferTransactionId);
+  assert.ok(counterpart);
+  assert.equal(source.categoryId, null);
+  assert.equal(source.categoryName, "Transfer");
+  assert.equal(counterpart.accountId, "checking");
+  assert.equal(counterpart.categoryId, "housing");
+  assert.equal(counterpart.categoryName, "Mortgage payment");
+  assert.equal(counterpart.transferAccountId, "mortgage");
+  assert.equal(counterpart.transferTransactionId, source.id);
+});
+
+test("reverse cross-boundary transfer leaves an unassigned on-budget counterpart unresolved", async () => {
+  const { client, transactions } = createHarness({ mortgage: "off-budget" });
+  await client.addTransaction({
+    id: "reverse-unassigned-source", budgetId: BUDGET_ID, accountId: "mortgage",
+    date: "2026-08-26", amount: -50_000, transferAccountId: "checking",
+  });
+  const source = transactions.get("reverse-unassigned-source");
+  assert.ok(source?.transferTransactionId);
+  const counterpart = transactions.get(source.transferTransactionId);
+  assert.ok(counterpart);
+  assert.equal(source.categoryId, null);
+  assert.equal(counterpart.accountId, "checking");
+  assert.equal(counterpart.categoryId, null);
+  assert.equal(counterpart.transferAccountId, "mortgage");
+  assert.equal(counterpart.transferTransactionId, source.id);
+});
