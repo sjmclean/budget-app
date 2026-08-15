@@ -44,6 +44,7 @@ import {
 import { notifyLocalFirstMutationCommitted } from "./mutationEvents";
 import { registerLocalSqliteAttachmentReader } from "../../attachments/localSqliteAttachmentReader";
 import { localPayeeRecordToView } from "./localPayeeView";
+import { validatePayeeIconReferenceForWrite } from "../../icons/payeeIconReference";
 
 const DEVICE_ID_KEY = "budget-app.local-first.device-id";
 const SYNC_EPOCH_KEY_PREFIX = "budget-app.local-first.sync-epoch.";
@@ -1920,7 +1921,11 @@ export function createLocalFirstAccountRegisterQueryClient(
         defaultCategoryName: input.defaultCategoryName ?? current.defaultCategoryName,
         aliases: input.aliases ?? current.aliases,
         importRules: input.importRules ?? current.importRules,
-        iconRef: current.iconRef,
+        iconRef: input.iconUpdate
+          ? input.iconUpdate.kind === "automatic"
+            ? ""
+            : validatePayeeIconReferenceForWrite(input.iconUpdate.iconRef)
+          : current.iconRef,
         createdAt: current.createdAt,
         updatedAt: new Date().toISOString(),
       };
