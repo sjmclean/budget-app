@@ -131,16 +131,15 @@ test("different strong IDs with identical descriptive fields are not overlap-sup
   const candidate = incoming.candidates[0];
   assert.ok(candidate);
 
-  const evidence = createImportedTransactionIdentityEvidence("csv", {
-    ...candidate,
-    parsed: {
-      ...candidate.parsed,
-      raw: {
-        ...candidate.parsed.raw,
-        "Transaction ID": "FITID-B",
-      },
-    },
-  });
+  const evidence = createImportedTransactionIdentityEvidence(
+    "csv",
+    candidate,
+  );
+  assert.equal(
+    evidence.kind,
+    "external",
+    "the production CSV parser must retain the deliberately recognised transaction-ID header",
+  );
   const prepared = prepareTransactionImportPreview({
     partition: {
       activeCandidates: [candidate],
