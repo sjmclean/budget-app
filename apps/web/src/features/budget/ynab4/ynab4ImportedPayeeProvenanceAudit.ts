@@ -1,4 +1,4 @@
-import type { RegisterTransactionView } from "../accounts/accountRegisterTypes";
+import type { RegisterTransactionView } from "../../accounts/accountRegisterTypes";
 
 type RecordMap = Record<string, unknown>;
 
