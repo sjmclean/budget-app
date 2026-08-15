@@ -128,6 +128,7 @@ export function createLocalFirstYnab4ImportClient(
             clearedStatus: row.clearedStatus,
             payeeId: row.payeeId,
             payeeName: row.payeeId ? payeeNames.get(row.payeeId) ?? null : null,
+            rawPayeeName: row.rawPayeeName,
             categoryId: row.categoryId,
             categoryName: row.categoryName ??
               (row.categoryId ? categoryNames.get(row.categoryId) ?? null : null),
