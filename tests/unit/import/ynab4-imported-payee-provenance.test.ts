@@ -383,3 +383,102 @@ test("preflight counts active identities and rejects duplicate active source IDs
   );
   await duplicate.close();
 });
+
+
+test("staged provenance diagnostics distinguish missing, wrong-account, and differing values", async (context) => {
+  const cases = [
+    {
+      name: "missing destination",
+      accountRows: [] as LocalTransactionRecord[],
+      diagnostic: null as LocalTransactionRecord | null,
+      expected: /destination transaction not found.*diagnostic-transaction/,
+    },
+    {
+      name: "wrong destination account",
+      accountRows: [] as LocalTransactionRecord[],
+      diagnostic: {
+        id: "diagnostic-transaction",
+        accountId: "savings",
+      } as LocalTransactionRecord,
+      expected: /destination account mismatch.*expected account checking, found account savings/,
+    },
+    {
+      name: "different provenance value",
+      accountRows: [{
+        id: "diagnostic-transaction",
+        accountId: "checking",
+        rawPayeeName: "DIFFERENT SYNTHETIC DESCRIPTION",
+      }] as LocalTransactionRecord[],
+      diagnostic: null as LocalTransactionRecord | null,
+      expected: /provenance differs.*diagnostic-transaction.*account checking/,
+    },
+  ];
+
+  for (const diagnosticCase of cases) {
+    await context.test(diagnosticCase.name, async () => {
+      const database = {
+        async beginStagedImport() {},
+        async importRegisterBatch() {},
+        async getManifest() {
+          return {
+            counts: {
+              accounts: 0,
+              transactions: 1,
+              payees: 0,
+              categories: 0,
+              budgetMonths: 0,
+              scheduledTransactions: 0,
+              transactionTags: 0,
+            },
+          };
+        },
+        async getTransactionsByIds() {
+          return diagnosticCase.accountRows;
+        },
+        async getTransaction() {
+          return diagnosticCase.diagnostic;
+        },
+      } as unknown as LocalBudgetDatabaseClient;
+      const client = createLocalFirstYnab4ImportClient({
+        database,
+        syncEpoch: `epoch-${diagnosticCase.name}`,
+        deviceId: "device-diagnostics",
+      });
+      const session = await client.begin({
+        budgetId: "budget-diagnostics",
+        budgetName: "Imported Budget",
+        currency: "AUD",
+      });
+      session.recordSourceTransactionDescriptions?.([{
+        transactionId: "diagnostic-transaction",
+        rawPayeeName: "EXPECTED SYNTHETIC DESCRIPTION",
+      }]);
+      await session.persistTransactions([{
+        id: "diagnostic-transaction",
+        accountId: "checking",
+        payeeId: null,
+        rawPayeeName: "EXPECTED SYNTHETIC DESCRIPTION",
+        categoryId: null,
+        categoryName: null,
+        transferAccountId: null,
+        transferTransactionId: null,
+        splitLines: [],
+        type: "standard",
+        date: "2026-08-13",
+        memo: null,
+        checkNumber: null,
+        amount: -1234,
+        clearedStatus: "cleared",
+        createdAt: 1,
+        updatedAt: 1,
+      }]);
+
+      const validation = await session.validate();
+      assert.equal(validation.importedPayeeProvenance?.mismatches.length, 1);
+      assert.match(
+        validation.importedPayeeProvenance?.mismatches[0] ?? "",
+        diagnosticCase.expected,
+      );
+    });
+  }
+});
