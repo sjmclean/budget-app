@@ -233,7 +233,7 @@ export interface LocalTransactionRecord {
   readonly payeeId: string | null;
   readonly payeeName: string | null;
   readonly rawPayeeName?: string | null;
-  readonly importProvenance?: "ynab4-imported-payee" | null;
+  readonly importProvenance?: "ynab4-imported-payee" | "bank-import" | null;
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly transferAccountId: string | null;
