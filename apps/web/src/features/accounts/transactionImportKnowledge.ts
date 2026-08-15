@@ -197,25 +197,41 @@ function normaliseIdentityValue(value: string | undefined): string {
   return (value ?? "").trim().toLocaleLowerCase().replace(/\s+/g, " ");
 }
 
+const CSV_EXTERNAL_TRANSACTION_ID_KEYS = new Set([
+  "fitid",
+  "transactionid",
+  "transaction id",
+  "bank transaction id",
+]);
+
+export type ImportedTransactionIdentityKind = "external" | "fallback";
+
+export interface ImportedTransactionIdentityEvidence {
+  readonly identity: string;
+  readonly kind: ImportedTransactionIdentityKind;
+}
+
 function findExternalTransactionId(
   fileType: ImportedTransactionFileType,
   raw: Record<string, string>,
 ): string | undefined {
   if (fileType === "ofx" || fileType === "qfx") {
     const fitId = raw.fitId?.trim();
-    if (fitId) return fitId;
+    return fitId || undefined;
   }
 
-  const externalIdKeys = new Set([
-    "fitid",
-    "transactionid",
-    "transaction id",
-    "bank transaction id",
-    "unique id",
-  ]);
+  // QIF has no standard stable transaction identifier. CSV identifiers are
+  // trusted only when the bank deliberately labels a column as such; generic
+  // ID/row/sequence values are not source transaction identity.
+  if (fileType !== "csv") {
+    return undefined;
+  }
 
   for (const [key, value] of Object.entries(raw)) {
-    if (externalIdKeys.has(normaliseIdentityValue(key)) && value.trim()) {
+    if (
+      CSV_EXTERNAL_TRANSACTION_ID_KEYS.has(normaliseIdentityValue(key)) &&
+      value.trim()
+    ) {
       return value.trim();
     }
   }
@@ -223,13 +239,24 @@ function findExternalTransactionId(
   return undefined;
 }
 
-export function createImportedTransactionIdentity(
+export function getImportedTransactionIdentityKind(
+  identity: string,
+): ImportedTransactionIdentityKind {
+  return identity.split(":", 3)[1] === "external"
+    ? "external"
+    : "fallback";
+}
+
+export function createImportedTransactionIdentityEvidence(
   fileType: ImportedTransactionFileType,
   candidate: ImportIdentityCandidate,
-): string {
+): ImportedTransactionIdentityEvidence {
   const externalId = findExternalTransactionId(fileType, candidate.parsed.raw);
   if (externalId) {
-    return `${fileType}:external:${createImportFileHash(normaliseIdentityValue(externalId))}`;
+    return {
+      identity: `${fileType}:external:${createImportFileHash(normaliseIdentityValue(externalId))}`,
+      kind: "external",
+    };
   }
 
   const raw = candidate.parsed.raw;
@@ -257,12 +284,24 @@ export function createImportedTransactionIdentity(
     normaliseIdentityValue(candidate.parsed.transferAccountName),
   ].join("|");
 
-  return `${fileType}:fallback:${createImportFileHash(canonical)}`;
+  return {
+    identity: `${fileType}:fallback:${createImportFileHash(canonical)}`,
+    kind: "fallback",
+  };
+}
+
+export function createImportedTransactionIdentity(
+  fileType: ImportedTransactionFileType,
+  candidate: ImportIdentityCandidate,
+): string {
+  return createImportedTransactionIdentityEvidence(fileType, candidate).identity;
 }
 
 export interface PreviouslyImportedSourceOccurrence {
   identity: string;
   occurrenceCount: number;
+  kind: ImportedTransactionIdentityKind;
+  allowRetainedSourceRecovery: boolean;
 }
 
 export function readPreviouslyImportedSourceOccurrences<
@@ -276,24 +315,37 @@ export function readPreviouslyImportedSourceOccurrences<
   fileType: ImportedTransactionFileType;
   candidates: T[];
 }): Record<string, PreviouslyImportedSourceOccurrence> {
-  const importedCounts = new Map(
+  const importedEntries =
     createImportedTransactionFingerprintRepository(getImportKnowledgeStorage())
       .list()
       .map(projectEntityFields)
       .filter(
         (entry) => entry.accountId === accountId && entry.fileType === fileType,
-      )
-      .map((entry) => [entry.identity, entry.occurrenceCount]),
+      );
+  const importedCounts = new Map(
+    importedEntries.map((entry) => [entry.identity, entry.occurrenceCount]),
+  );
+  const hasExternalIdentityHistory = importedEntries.some(
+    (entry) => getImportedTransactionIdentityKind(entry.identity) === "external",
   );
 
   return Object.fromEntries(
     candidates.map((candidate) => {
-      const identity = createImportedTransactionIdentity(fileType, candidate);
+      const evidence = createImportedTransactionIdentityEvidence(
+        fileType,
+        candidate,
+      );
       return [
         candidate.id,
         {
-          identity,
-          occurrenceCount: importedCounts.get(identity) ?? 0,
+          identity: evidence.identity,
+          occurrenceCount: importedCounts.get(evidence.identity) ?? 0,
+          kind: evidence.kind,
+          // Legacy/manual representations can be recovered when no strong
+          // history exists. Once strong history exists, a different external
+          // ID is a conflict and must remain reviewable.
+          allowRetainedSourceRecovery:
+            evidence.kind === "fallback" || !hasExternalIdentityHistory,
         },
       ];
     }),
@@ -329,11 +381,15 @@ export function partitionPreviouslyImportedCandidates<
   const previouslyImportedCandidates: T[] = [];
 
   for (const candidate of candidates) {
-    const identity = createImportedTransactionIdentity(fileType, candidate);
+    const evidence = createImportedTransactionIdentityEvidence(
+      fileType,
+      candidate,
+    );
+    const identity = evidence.identity;
     const occurrence = (seenCounts.get(identity) ?? 0) + 1;
     seenCounts.set(identity, occurrence);
 
-    const hasStrongExternalIdentity = identity.includes(":external:");
+    const hasStrongExternalIdentity = evidence.kind === "external";
 
     if (
       hasStrongExternalIdentity &&
