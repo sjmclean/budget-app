@@ -300,8 +300,8 @@ export function createImportedTransactionIdentity(
 export interface PreviouslyImportedSourceOccurrence {
   identity: string;
   occurrenceCount: number;
-  kind: ImportedTransactionIdentityKind;
-  allowRetainedSourceRecovery: boolean;
+  kind?: ImportedTransactionIdentityKind;
+  allowRetainedSourceRecovery?: boolean;
 }
 
 export function readPreviouslyImportedSourceOccurrences<
