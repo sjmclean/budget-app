@@ -6,6 +6,9 @@ export interface SplitLineDraft {
   id: string;
   category: string;
   categoryId?: string;
+  transferAccountId?: string;
+  transferAccountParticipation?: "on-budget" | "off-budget";
+  transferTransactionId?: string;
   memo: string;
   outflow: string;
   inflow: string;
@@ -38,6 +41,9 @@ export function splitDraftsFromTransaction(
     id: line.id,
     category: line.category,
     categoryId: line.categoryId,
+    transferAccountId: line.transferAccountId,
+    transferAccountParticipation: line.transferAccountParticipation,
+    transferTransactionId: line.transferTransactionId,
     memo: line.memo ?? "",
     outflow: line.outflow ? line.outflow.toFixed(2) : "",
     inflow: line.inflow ? line.inflow.toFixed(2) : "",
@@ -56,7 +62,10 @@ export function buildSplitLines(
       return {
         id: line.id,
         category: categoryOption?.name ?? categoryName,
-        categoryId: categoryOption?.id,
+        categoryId: categoryOption?.id ?? line.categoryId,
+        transferAccountId: line.transferAccountId,
+        transferAccountParticipation: line.transferAccountParticipation,
+        transferTransactionId: line.transferTransactionId,
         memo: line.memo.trim(),
         outflow: parseRegisterMoney(line.outflow),
         inflow: parseRegisterMoney(line.inflow),

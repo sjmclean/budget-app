@@ -7,6 +7,7 @@ export interface RegisterSplitLineView {
   outflow: number;
   transferId?: string;
   transferAccountId?: string;
+  transferAccountParticipation?: "on-budget" | "off-budget";
   transferTransactionId?: string;
 }
 
@@ -54,6 +55,7 @@ export interface RegisterTransactionView {
   reconciled: boolean;
   transferId?: string;
   transferAccountId?: string;
+  transferAccountParticipation?: "on-budget" | "off-budget";
   transferTransactionId?: string;
   splitLines?: RegisterSplitLineView[];
   generatedFromSchedule?: boolean;
@@ -106,6 +108,7 @@ export interface UpdateRegisterTransactionInput {
   rawPayee?: string;
   category: string;
   categoryId?: string;
+  transferAccountId?: string;
   memo?: string;
   checkNumber?: string;
   inflow: number;

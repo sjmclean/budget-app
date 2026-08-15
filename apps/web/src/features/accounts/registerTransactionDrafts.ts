@@ -11,6 +11,7 @@ export interface RegisterTransactionDraftInput {
   date: string;
   payee: string;
   payeeId?: string;
+  transferAccountId?: string;
   category: string;
   memo: string;
   checkNumber: string;
@@ -48,6 +49,7 @@ function buildRegisterTransactionInput({
   date,
   payee,
   payeeId,
+  transferAccountId,
   category,
   memo,
   checkNumber,
@@ -83,6 +85,7 @@ function buildRegisterTransactionInput({
     date,
     payee: payee.trim(),
     payeeId,
+    transferAccountId,
     category:
       parsedSplitLines.length > 0
         ? "Split"

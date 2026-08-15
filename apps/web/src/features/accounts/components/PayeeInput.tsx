@@ -16,6 +16,7 @@ export function PayeeInput({
   value,
   onChange,
   onPayeeIdChange,
+  onTransferAccountIdChange,
   transferAccounts,
   payeeOptions,
   autoFocus,
@@ -28,6 +29,7 @@ export function PayeeInput({
   value: string;
   onChange: (value: string) => void;
   onPayeeIdChange?: (payeeId: string | undefined) => void;
+  onTransferAccountIdChange?: (accountId: string | undefined) => void;
   transferAccounts: SidebarAccount[];
   payeeOptions: PayeeView[];
   autoFocus?: boolean;
@@ -94,9 +96,14 @@ export function PayeeInput({
     shouldShowPopup,
   );
 
-  function selectSuggestion(selectedValue: string, selectedPayeeId?: string) {
+  function selectSuggestion(
+    selectedValue: string,
+    selectedPayeeId?: string,
+    selectedTransferAccountId?: string,
+  ) {
     onChange(selectedValue);
     onPayeeIdChange?.(selectedPayeeId);
+    onTransferAccountIdChange?.(selectedTransferAccountId);
     onSelection?.(selectedValue);
     setIsOpen(false);
     setShowAllSuggestions(false);
@@ -157,6 +164,7 @@ export function PayeeInput({
     selectSuggestion(
       highlightedSuggestion.value,
       highlightedSuggestion.metadata?.payeeId,
+      highlightedSuggestion.metadata?.transferAccountId,
     );
     return true;
   }
@@ -171,6 +179,7 @@ export function PayeeInput({
 
           onChange(nextValue);
           onPayeeIdChange?.(undefined);
+          onTransferAccountIdChange?.(undefined);
           openSuggestionList(false);
         }}
         onFocus={() => openSuggestionList(openOnFocus || value.trim().length === 0)}

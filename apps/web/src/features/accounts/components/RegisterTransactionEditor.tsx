@@ -743,6 +743,7 @@ export function TransactionEntryRow({
   const [date, setDate] = useState(initialDate);
   const [payee, setPayee] = useState("");
   const [payeeId, setPayeeId] = useState<string | undefined>(undefined);
+  const [transferAccountId, setTransferAccountId] = useState<string | undefined>(undefined);
   const [category, setCategory] = useState("");
   const [memo, setMemo] = useState("");
   const [checkNumber, setCheckNumber] = useState("");
@@ -785,6 +786,7 @@ export function TransactionEntryRow({
       date,
       payee,
       payeeId,
+      transferAccountId,
       category,
       memo,
       checkNumber,
@@ -798,6 +800,7 @@ export function TransactionEntryRow({
   function clearForNext() {
     setPayee("");
     setPayeeId(undefined);
+    setTransferAccountId(undefined);
     setCategory("");
     setMemo("");
     setCheckNumber("");
@@ -968,10 +971,22 @@ export function TransactionEntryRow({
 
           {mobilePicker === "payee" ? (
             <div className="mobile-picker-list">
+              {transferAccounts.map((account) => (
+                <button key={`transfer-${account.id}`} type="button" onClick={() => {
+                  setPayee(`Transfer: ${account.name}`);
+                  setPayeeId(undefined);
+                  setTransferAccountId(account.id);
+                  setMobilePicker(null);
+                  setMobileSearch("");
+                }}>
+                  <span>{`Transfer: ${account.name}`}</span><span aria-hidden="true">›</span>
+                </button>
+              ))}
               {visiblePayees.map((option) => (
                 <button key={option.id} type="button" onClick={() => {
                   setPayee(option.name);
                   setPayeeId(option.id);
+                  setTransferAccountId(undefined);
                   if (option.defaultCategoryName) {
                     setCategory(option.defaultCategoryName);
                   }
@@ -1285,8 +1300,10 @@ export function TransactionEntryRow({
                 onChange={(value) => {
                   setPayee(value);
                   setPayeeId(undefined);
+                setTransferAccountId(undefined);
                 }}
                 onPayeeIdChange={setPayeeId}
+                onTransferAccountIdChange={setTransferAccountId}
                 onSelection={(value) => {
                   const selected = payeeOptions.find((option) => option.name === value);
                   if ((!category || category === "Uncategorised") && selected?.defaultCategoryName) {
@@ -1473,6 +1490,7 @@ export function TransactionEditRow({
     payeeId?: string;
     category: string;
     categoryId?: string;
+    transferAccountId?: string;
     memo?: string;
     checkNumber?: string;
     inflow: number;
@@ -1492,6 +1510,9 @@ export function TransactionEditRow({
   const [payee, setPayee] = useState(transaction.payee);
   const [payeeId, setPayeeId] = useState<string | undefined>(
     transaction.payeeId,
+  );
+  const [transferAccountId, setTransferAccountId] = useState<string | undefined>(
+    transaction.transferAccountId,
   );
   const [category, setCategory] = useState(transaction.category);
   const [memo, setMemo] = useState(transaction.memo ?? "");
@@ -1540,6 +1561,7 @@ export function TransactionEditRow({
       date,
       payee,
       payeeId,
+      transferAccountId,
       category,
       memo,
       checkNumber,
@@ -1601,8 +1623,10 @@ export function TransactionEditRow({
           onChange={(value) => {
             setPayee(value);
             setPayeeId(undefined);
+          setTransferAccountId(undefined);
           }}
           onPayeeIdChange={setPayeeId}
+          onTransferAccountIdChange={setTransferAccountId}
           onSelection={(value) => {
             const selected = payeeOptions.find((option) => option.name === value);
             if ((!category || category === "Uncategorised") && selected?.defaultCategoryName) {

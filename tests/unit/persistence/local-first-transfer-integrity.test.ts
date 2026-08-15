@@ -76,7 +76,7 @@ function createTransferPair(): [LocalTransactionRecord, LocalTransactionRecord] 
   return [source, target];
 }
 
-function createHarness() {
+function createHarness(participation: Record<string, "on-budget" | "off-budget"> = {}) {
   const [source, target] = createTransferPair();
   const transactions = new Map<string, LocalTransactionRecord>([
     [source.id, source],
@@ -100,6 +100,13 @@ function createHarness() {
 
     async getTransaction(_budgetId: string, transactionId: string) {
       return transactions.get(transactionId) ?? null;
+    },
+
+    async listAccountNavigation() {
+      return ["checking", "savings", "joint", "mortgage"].map((id) => ({
+        id,
+        participation: participation[id] ?? "on-budget",
+      }));
     },
 
     async writeTransaction(transaction: LocalTransactionRecord) {
@@ -1057,5 +1064,50 @@ test("keep-local resolves both conflicted transfer legs in one replay batch", as
   assert.deepEqual(
     targetWrite.mutation.operationGroup,
     fixture.operationGroup,
+  );
+});
+
+
+test("cross-boundary transfer preserves category only on the on-budget leg", async () => {
+  const { client, transactions } = createHarness({ mortgage: "off-budget" });
+  await client.addTransaction({
+    id: "boundary-source",
+    budgetId: BUDGET_ID,
+    accountId: "checking",
+    date: "2026-08-23",
+    amount: -50_000,
+    categoryId: "housing",
+    categoryName: "Mortgage payment",
+    transferAccountId: "mortgage",
+  });
+
+  const source = transactions.get("boundary-source");
+  assert.ok(source?.transferTransactionId);
+  const counterpart = transactions.get(source.transferTransactionId);
+  assert.ok(counterpart);
+  assert.equal(source.categoryId, "housing");
+  assert.equal(source.categoryName, "Mortgage payment");
+  assert.equal(counterpart.categoryId, null);
+  assert.equal(counterpart.categoryName, "Transfer");
+});
+
+test("cross-boundary transfer without category remains structurally linked and unresolved", async () => {
+  const { client, transactions } = createHarness({ mortgage: "off-budget" });
+  await client.addTransaction({
+    id: "uncategorised-boundary-source",
+    budgetId: BUDGET_ID,
+    accountId: "checking",
+    date: "2026-08-24",
+    amount: -50_000,
+    transferAccountId: "mortgage",
+  });
+
+  const source = transactions.get("uncategorised-boundary-source");
+  assert.ok(source?.transferTransactionId);
+  assert.equal(source.categoryId, null);
+  assert.equal(source.categoryName, "Transfer");
+  assert.equal(
+    transactions.get(source.transferTransactionId)?.accountId,
+    "mortgage",
   );
 });

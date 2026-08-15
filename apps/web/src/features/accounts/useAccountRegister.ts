@@ -772,7 +772,11 @@ export function mapSqliteTransactions(
         : row.payeeName ?? "Imported Payee",
       rawPayee: row.rawPayeeName ?? undefined,
       payeeId: row.payeeId ?? undefined,
-      category: row.transferAccountId ? "Transfer" : row.categoryName ?? "Uncategorised",
+      category: row.categoryId
+        ? row.categoryName ?? "Uncategorised"
+        : row.transferAccountId
+          ? "Transfer"
+          : "Uncategorised",
       categoryId: row.categoryId ?? undefined,
       memo: row.memo ?? undefined,
       checkNumber: row.checkNumber ?? undefined,
@@ -785,6 +789,7 @@ export function mapSqliteTransactions(
         ? `sqlite:${row.id}:${row.transferTransactionId}`
         : undefined,
       transferAccountId: row.transferAccountId ?? undefined,
+      transferAccountParticipation: row.transferAccountParticipation ?? undefined,
       transferTransactionId: row.transferTransactionId ?? undefined,
       generatedFromSchedule: row.generatedFromSchedule || undefined,
       scheduledTransactionId: row.scheduledTransactionId ?? undefined,
@@ -806,6 +811,7 @@ export function mapSqliteTransactions(
                 ? `sqlite:${line.id}:${line.transferTransactionId}`
                 : undefined,
               transferAccountId: line.transferAccountId ?? undefined,
+              transferAccountParticipation: line.transferAccountParticipation ?? undefined,
               transferTransactionId: line.transferTransactionId ?? undefined,
             };
           })
@@ -843,8 +849,7 @@ export function toTransactionWriteInput(
     rawPayee: input.rawPayee,
     categoryId: input.categoryId,
     categoryName: input.category,
-    transferAccountId:
-      "transferAccountId" in input ? input.transferAccountId : undefined,
+    transferAccountId: input.transferAccountId,
     memo: input.memo,
     checkNumber: input.checkNumber,
     payeeName: input.payee,

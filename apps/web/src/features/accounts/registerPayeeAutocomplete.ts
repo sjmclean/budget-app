@@ -7,6 +7,7 @@ import type { PayeeView } from "./payeeService";
 
 export interface PayeeAutocompleteMetadata {
   payeeId?: string;
+  transferAccountId?: string;
   label: string;
   type: "payee" | "transfer";
 }
@@ -25,6 +26,7 @@ export function buildPayeeAutocompleteOptions({
       label: "Transfer",
       metadata: {
         payeeId: undefined,
+        transferAccountId: account.id,
         label: "Transfer",
         type: "transfer" as const,
       },

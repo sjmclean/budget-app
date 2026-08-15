@@ -2366,14 +2366,7 @@ function getFinancialOverview(budgetId: string, month: string) {
      JOIN local_accounts AS account ON account.id = transaction_row.account_id
      WHERE transaction_row.budget_id = ?
        AND substr(transaction_row.date, 1, 7) = ?
-       AND transaction_row.category_id IS NULL
-       AND transaction_row.amount < 0
-       AND transaction_row.transfer_account_id IS NULL
-       AND NOT EXISTS (
-         SELECT 1 FROM local_transaction_splits AS split
-         WHERE split.transaction_id = transaction_row.id
-       )
-       AND account.participation = 'on-budget'
+       AND ${uncategorisedTransactionPredicate()}
      GROUP BY transaction_row.account_id
      ORDER BY COUNT(*) DESC, transaction_row.account_id`,
     [budgetId, month],
@@ -2648,6 +2641,49 @@ function getCategoryActivityDrilldown(
   };
 }
 
+function uncategorisedTransactionPredicate(alias = "transaction_row"): string {
+  return `${alias}.amount <> 0
+    AND EXISTS (
+      SELECT 1 FROM local_accounts AS category_account
+      WHERE category_account.budget_id = ${alias}.budget_id
+        AND category_account.id = ${alias}.account_id
+        AND category_account.participation = 'on-budget'
+    )
+    AND (
+      (
+        NOT EXISTS (
+          SELECT 1 FROM local_transaction_splits AS category_split
+          WHERE category_split.transaction_id = ${alias}.id
+        )
+        AND ${alias}.category_id IS NULL
+        AND (
+          ${alias}.transfer_account_id IS NULL
+          OR NOT EXISTS (
+            SELECT 1 FROM local_accounts AS transfer_category_account
+            WHERE transfer_category_account.budget_id = ${alias}.budget_id
+              AND transfer_category_account.id = ${alias}.transfer_account_id
+              AND transfer_category_account.participation = 'on-budget'
+          )
+        )
+      )
+      OR EXISTS (
+        SELECT 1 FROM local_transaction_splits AS category_split
+        WHERE category_split.transaction_id = ${alias}.id
+          AND category_split.amount <> 0
+          AND category_split.category_id IS NULL
+          AND (
+            category_split.transfer_account_id IS NULL
+            OR NOT EXISTS (
+              SELECT 1 FROM local_accounts AS split_transfer_category_account
+              WHERE split_transfer_category_account.budget_id = ${alias}.budget_id
+                AND split_transfer_category_account.id = category_split.transfer_account_id
+                AND split_transfer_category_account.participation = 'on-budget'
+            )
+          )
+      )
+    )`;
+}
+
 function queryTransactions(query: LocalTransactionQuery) {
   const limit = Math.max(1, Math.min(250, Math.trunc(query.limit)));
   const offset = Math.max(0, Math.trunc(query.offset ?? 0));
@@ -2659,13 +2695,7 @@ function queryTransactions(query: LocalTransactionQuery) {
   }
   if (query.categoryFilter === "uncategorised") {
     where.push(
-      `transaction_row.category_id IS NULL
-       AND transaction_row.amount < 0
-       AND transaction_row.transfer_account_id IS NULL
-       AND NOT EXISTS (
-         SELECT 1 FROM local_transaction_splits AS split
-         WHERE split.transaction_id = transaction_row.id
-       )`,
+      uncategorisedTransactionPredicate(),
     );
   }
   const categoryNameExpression = "COALESCE(category_record.name, transaction_row.category_name)";
@@ -2730,6 +2760,7 @@ function queryTransactions(query: LocalTransactionQuery) {
     categoryName: string | null;
     transferAccountId: string | null;
     transferAccountName: string | null;
+    transferAccountParticipation: "on-budget" | "off-budget" | null;
     transferTransactionId: string | null;
     generatedFromSchedule: number;
     scheduledTransactionId: string | null;
@@ -2746,6 +2777,7 @@ function queryTransactions(query: LocalTransactionQuery) {
        ${categoryNameExpression} AS categoryName,
        transaction_row.transfer_account_id AS transferAccountId,
        transfer_account.name AS transferAccountName,
+       transfer_account.participation AS transferAccountParticipation,
        transaction_row.transfer_transaction_id AS transferTransactionId,
        transaction_row.generated_from_schedule AS generatedFromSchedule,
        transaction_row.scheduled_transaction_id AS scheduledTransactionId,
@@ -2780,6 +2812,7 @@ function queryTransactions(query: LocalTransactionQuery) {
       categoryName: string | null;
       transferAccountId: string | null;
       transferAccountName: string | null;
+      transferAccountParticipation: "on-budget" | "off-budget" | null;
       transferTransactionId: string | null;
       memo: string | null;
       amount: number;
@@ -2789,6 +2822,7 @@ function queryTransactions(query: LocalTransactionQuery) {
          COALESCE(category_record.name, split.category_name) AS categoryName,
          split.transfer_account_id AS transferAccountId,
          transfer_account.name AS transferAccountName,
+         transfer_account.participation AS transferAccountParticipation,
          split.transfer_transaction_id AS transferTransactionId,
          split.memo, split.amount
        FROM local_transaction_splits AS split
@@ -3157,13 +3191,7 @@ function listAccountNavigation(budgetId: string) {
            FROM local_transactions AS transaction_row
            WHERE transaction_row.budget_id = account.budget_id
              AND transaction_row.account_id = account.id
-             AND transaction_row.category_id IS NULL
-             AND transaction_row.amount < 0
-             AND transaction_row.transfer_account_id IS NULL
-             AND NOT EXISTS (
-               SELECT 1 FROM local_transaction_splits AS split
-               WHERE split.transaction_id = transaction_row.id
-             )
+             AND ${uncategorisedTransactionPredicate()}
            LIMIT 1
          )
          THEN 1
