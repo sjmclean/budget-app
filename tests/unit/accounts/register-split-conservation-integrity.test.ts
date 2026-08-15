@@ -5,6 +5,10 @@ import {
   validateRegisterTransactionDraft,
 } from "../../../apps/web/src/features/accounts/registerTransactionValidation.js";
 import { isUncategorisedRegisterTransaction } from "../../../apps/web/src/features/accounts/registerUncategorised.js";
+import {
+  buildNewRegisterTransactionInput,
+  buildUpdateRegisterTransactionInput,
+} from "../../../apps/web/src/features/accounts/registerTransactionDrafts.js";
 import type { RegisterTransactionView } from "../../../apps/web/src/features/accounts/accountRegisterTypes.js";
 
 test("split validation rejects opposite-side amounts that break signed parent conservation", () => {
@@ -125,6 +129,10 @@ test("transfer attention follows the budget boundary and never display text", ()
   assert.equal(isUncategorisedRegisterTransaction(row({
     payee: "Transfer: Savings",
   })), true);
+  assert.equal(isUncategorisedRegisterTransaction(row({
+    transferAccountId: "savings",
+    transferAccountParticipation: "on-budget",
+  })), true);
 });
 
 test("split attention examines every financially relevant line", () => {
@@ -154,6 +162,15 @@ test("split attention examines every financially relevant line", () => {
   assert.equal(isUncategorisedRegisterTransaction(row({
     splitLines: [
       split({
+        id: "dangling-transfer",
+        transferAccountId: "savings",
+        transferAccountParticipation: "on-budget",
+      }),
+    ],
+  })), true);
+  assert.equal(isUncategorisedRegisterTransaction(row({
+    splitLines: [
+      split({
         id: "boundary-transfer",
         transferAccountId: "mortgage",
         transferTransactionId: "split-leg",
@@ -161,4 +178,30 @@ test("split attention examines every financially relevant line", () => {
       }),
     ],
   })), true);
+});
+
+test("new inflows default to Ready to Assign without recategorising imported unresolved edits", () => {
+  const common = {
+    date: "2026-08-15", payee: "Employer", memo: "", checkNumber: "",
+    outflow: "", inflow: "100.00", splitLines: [],
+    categoryOptions: [{
+      id: "__ready_to_assign__", name: "Ready to Assign",
+      groupName: "Income", archived: false,
+    }],
+  };
+  assert.equal(
+    buildNewRegisterTransactionInput({ ...common, category: "" })?.categoryId,
+    "__ready_to_assign__",
+  );
+  const edited = buildUpdateRegisterTransactionInput({
+    ...common, id: "imported-income", category: "Uncategorised",
+  });
+  assert.equal(edited?.category, "Uncategorised");
+  assert.equal(edited?.categoryId, undefined);
+  assert.equal(
+    buildUpdateRegisterTransactionInput({
+      ...common, id: "imported-income", category: "Ready to Assign",
+    })?.categoryId,
+    "__ready_to_assign__",
+  );
 });
