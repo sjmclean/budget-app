@@ -709,3 +709,277 @@ test("YNAB4 migration bridge does not override native OFX strong identity", () =
   assert.equal(prepared.alreadyRepresentedCount, 0);
   assert.equal(prepared.reviewCandidates.length, 1);
 });
+
+
+function trustedBankRow(input: {
+  id: string;
+  date: string;
+  rawPayee: string;
+  outflow: number;
+  provenance?: "ynab4-imported-payee" | "bank-import";
+}) {
+  return buildRegisterTransaction({
+    id: input.id,
+    date: input.date,
+    rawPayee: input.rawPayee,
+    importProvenance: input.provenance ?? "ynab4-imported-payee",
+    payee: input.rawPayee,
+    memo: "Register memo may differ",
+    outflow: input.outflow,
+    inflow: 0,
+  });
+}
+
+function qifPreview(
+  records: Array<{ date: string; payee: string; outflow: number; memo?: string }>,
+  existingTransactions: ReturnType<typeof buildRegisterTransaction>[],
+) {
+  const qif = [
+    "!Type:Bank",
+    ...records.map((record) => [
+      `D${record.date}`,
+      `T-${record.outflow.toFixed(2)}`,
+      `P${record.payee}`,
+      `M${record.memo ?? "Bank memo"}`,
+      "^",
+    ].join("\n")),
+  ].join("\n");
+  return previewTransactionQifImport(qif, existingTransactions, {
+    dateFormat: "DD/MM/YY",
+  });
+}
+
+test("exact trusted bank provenance is consumed before settlement drift", () => {
+  const existing = trustedBankRow({
+    id: "exact-belong",
+    date: "2026-08-05",
+    rawPayee: "BELONG",
+    outflow: 54.36,
+  });
+  const incoming = qifPreview([
+    { date: "05/08/26", payee: "BELONG", outflow: 54.36, memo: "Cleared bank memo" },
+  ], [existing]);
+  const prepared = prepareMigratedOverlap(incoming.candidates, [existing]);
+
+  assert.equal(prepared.alreadyRepresentedCount, 1);
+  assert.equal(prepared.reviewCandidates.length, 0);
+  assert.ok(incoming.candidates[0]?.lifecycle.trace.some(
+    (entry) => entry.source === "trusted-bank-provenance-exact-date",
+  ));
+  assert.equal(incoming.candidates[0]?.lifecycle.trace.some(
+    (entry) => entry.source === "unique-settlement-bank-provenance",
+  ), false);
+});
+
+test("unique QIF settlement drift of two and four days is represented", () => {
+  const existing = [
+    trustedBankRow({ id: "two-day", date: "2026-08-03", rawPayee: "BELONG", outflow: 54.36 }),
+    trustedBankRow({ id: "four-day", date: "2026-08-01", rawPayee: "RACV", outflow: 99 }),
+  ];
+  const incoming = qifPreview([
+    { date: "05/08/26", payee: "BELONG", outflow: 54.36 },
+    { date: "05/08/26", payee: "RACV", outflow: 99 },
+  ], existing);
+  const prepared = prepareMigratedOverlap(incoming.candidates, existing);
+
+  assert.equal(prepared.alreadyRepresentedCount, 2);
+  assert.equal(prepared.reviewCandidates.length, 0);
+});
+
+test("exact occurrences are exhausted before a remaining drift occurrence", () => {
+  const existing = [
+    trustedBankRow({ id: "exact-first", date: "2026-08-05", rawPayee: "BELONG", outflow: 54.36 }),
+    trustedBankRow({ id: "settled-later", date: "2026-08-07", rawPayee: "BELONG", outflow: 54.36 }),
+  ];
+  const incoming = qifPreview([
+    { date: "05/08/26", payee: "BELONG", outflow: 54.36 },
+    { date: "06/08/26", payee: "BELONG", outflow: 54.36 },
+  ], existing);
+  const prepared = prepareMigratedOverlap(incoming.candidates, existing);
+
+  assert.equal(prepared.alreadyRepresentedCount, 2);
+  assert.equal(prepared.reviewCandidates.length, 0);
+});
+
+test("equidistant settlement ambiguity remains in review", () => {
+  const existing = [
+    trustedBankRow({ id: "left", date: "2026-08-04", rawPayee: "BELONG", outflow: 54.36 }),
+    trustedBankRow({ id: "right", date: "2026-08-06", rawPayee: "BELONG", outflow: 54.36 }),
+  ];
+  const incoming = qifPreview([
+    { date: "05/08/26", payee: "BELONG", outflow: 54.36 },
+  ], existing);
+  const prepared = prepareMigratedOverlap(incoming.candidates, existing);
+
+  assert.equal(prepared.alreadyRepresentedCount, 0);
+  assert.equal(prepared.reviewCandidates.length, 1);
+});
+
+test("settlement assignment is independent of incoming candidate order", () => {
+  const existing = [
+    trustedBankRow({ id: "early", date: "2026-08-01", rawPayee: "BELONG", outflow: 54.36 }),
+    trustedBankRow({ id: "late", date: "2026-08-05", rawPayee: "BELONG", outflow: 54.36 }),
+  ];
+  const records = [
+    { date: "02/08/26", payee: "BELONG", outflow: 54.36 },
+    { date: "04/08/26", payee: "BELONG", outflow: 54.36 },
+  ];
+  const forward = qifPreview(records, existing);
+  const reverse = qifPreview([...records].reverse(), existing);
+
+  assert.equal(prepareMigratedOverlap(forward.candidates, existing).alreadyRepresentedCount, 2);
+  assert.equal(prepareMigratedOverlap(reverse.candidates, existing).alreadyRepresentedCount, 2);
+});
+
+test("settlement occurrence matching never consumes a register row twice", () => {
+  const one = trustedBankRow({
+    id: "single",
+    date: "2026-08-01",
+    rawPayee: "BELONG",
+    outflow: 54.36,
+  });
+  const twoIncoming = qifPreview([
+    { date: "02/08/26", payee: "BELONG", outflow: 54.36 },
+    { date: "03/08/26", payee: "BELONG", outflow: 54.36 },
+  ], [one]);
+  const onePrepared = prepareMigratedOverlap(twoIncoming.candidates, [one]);
+  assert.equal(onePrepared.alreadyRepresentedCount, 1);
+  assert.equal(onePrepared.reviewCandidates.length, 1);
+
+  const twoExisting = [
+    one,
+    trustedBankRow({ id: "second", date: "2026-08-10", rawPayee: "BELONG", outflow: 54.36 }),
+  ];
+  const uniquelyPairable = qifPreview([
+    { date: "02/08/26", payee: "BELONG", outflow: 54.36 },
+    { date: "09/08/26", payee: "BELONG", outflow: 54.36 },
+  ], twoExisting);
+  assert.equal(
+    prepareMigratedOverlap(uniquelyPairable.candidates, twoExisting).alreadyRepresentedCount,
+    2,
+  );
+});
+
+test("settlement drift requires exact amount and exact raw bank payee", () => {
+  const existing = trustedBankRow({
+    id: "trusted",
+    date: "2026-08-01",
+    rawPayee: "BELONG",
+    outflow: 54.36,
+  });
+  const wrongAmount = qifPreview([
+    { date: "03/08/26", payee: "BELONG", outflow: 54.37 },
+  ], [existing]);
+  const wrongPayee = qifPreview([
+    { date: "03/08/26", payee: "BELONG MOBILE", outflow: 54.36 },
+  ], [existing]);
+
+  assert.equal(prepareMigratedOverlap(wrongAmount.candidates, [existing]).reviewCandidates.length, 1);
+  assert.equal(prepareMigratedOverlap(wrongPayee.candidates, [existing]).reviewCandidates.length, 1);
+});
+
+test("settlement drift never suppresses a manual row without trusted provenance", () => {
+  const manual = {
+    ...trustedBankRow({
+      id: "manual",
+      date: "2026-08-01",
+      rawPayee: "BELONG",
+      outflow: 54.36,
+    }),
+    importProvenance: undefined,
+  };
+  const incoming = qifPreview([
+    { date: "03/08/26", payee: "BELONG", outflow: 54.36 },
+  ], [manual]);
+
+  assert.equal(prepareMigratedOverlap(incoming.candidates, [manual]).alreadyRepresentedCount, 0);
+  assert.equal(prepareMigratedOverlap(incoming.candidates, [manual]).reviewCandidates.length, 1);
+});
+
+test("ordinary CSV can use unique settlement drift without a strong transaction ID", () => {
+  const existing = trustedBankRow({
+    id: "csv-settlement",
+    date: "2026-08-03",
+    rawPayee: "BELONG",
+    outflow: 54.36,
+    provenance: "bank-import",
+  });
+  const csv = ["Date,Payee,Outflow,Memo", "2026-08-05,BELONG,54.36,Bank memo"].join("\n");
+  const incoming = previewTransactionCsvImport(csv, [existing], {
+    0: "date", 1: "payee", 2: "outflow", 3: "memo",
+  });
+  const prepared = prepareMigratedOverlap(incoming.candidates, [existing], "csv");
+
+  assert.equal(prepared.alreadyRepresentedCount, 1);
+  assert.equal(prepared.reviewCandidates.length, 0);
+});
+
+test("settlement drift outside the shared seven-day window remains in review", () => {
+  const existing = trustedBankRow({
+    id: "outside-window",
+    date: "2026-08-01",
+    rawPayee: "BELONG",
+    outflow: 54.36,
+  });
+  const incoming = qifPreview([
+    { date: "09/08/26", payee: "BELONG", outflow: 54.36 },
+  ], [existing]);
+  const prepared = prepareMigratedOverlap(incoming.candidates, [existing]);
+
+  assert.equal(prepared.alreadyRepresentedCount, 0);
+  assert.equal(prepared.reviewCandidates.length, 1);
+});
+
+test("OFX strong FITID remains authoritative across nearby posting dates", () => {
+  const existing = trustedBankRow({
+    id: "ofx-existing",
+    date: "2026-08-03",
+    rawPayee: "BELONG",
+    outflow: 54.36,
+  });
+  const incoming = previewTransactionOfxImport([
+    "<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>",
+    "<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260805<TRNAMT>-54.36",
+    "<FITID>DIFFERENT-FITID<NAME>BELONG<MEMO>Bank memo</STMTTRN>",
+    "</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>",
+  ].join(""), [existing]);
+  const prepared = prepareTransactionImportPreview({
+    partition: {
+      activeCandidates: incoming.candidates,
+      previouslyImportedCandidates: [],
+      alreadyRepresentedCandidates: [],
+    },
+    existingTransactions: [existing],
+    isExactDuplicateFile: false,
+    sourceFileType: "ofx",
+  });
+
+  assert.equal(prepared.alreadyRepresentedCount, 0);
+  assert.equal(prepared.reviewCandidates.length, 1);
+});
+
+test("real-world BELONG mix preserves exact, unique drift, and ambiguous review rows", () => {
+  const existing = [
+    trustedBankRow({ id: "exact", date: "2026-08-01", rawPayee: "BELONG", outflow: 50 }),
+    trustedBankRow({ id: "plus-one", date: "2026-08-02", rawPayee: "BELONG", outflow: 51 }),
+    trustedBankRow({ id: "plus-two", date: "2026-08-03", rawPayee: "BELONG", outflow: 52 }),
+    trustedBankRow({ id: "plus-four", date: "2026-08-05", rawPayee: "BELONG", outflow: 53 }),
+    trustedBankRow({ id: "ambiguous-left", date: "2026-08-04", rawPayee: "BELONG", outflow: 54 }),
+    trustedBankRow({ id: "ambiguous-right", date: "2026-08-06", rawPayee: "BELONG", outflow: 54 }),
+  ];
+  const incoming = qifPreview([
+    { date: "01/08/26", payee: "BELONG", outflow: 50 },
+    { date: "01/08/26", payee: "BELONG", outflow: 51 },
+    { date: "01/08/26", payee: "BELONG", outflow: 52 },
+    { date: "01/08/26", payee: "BELONG", outflow: 53 },
+    { date: "05/08/26", payee: "BELONG", outflow: 54 },
+  ], existing);
+  const prepared = prepareMigratedOverlap(incoming.candidates, existing);
+
+  assert.equal(prepared.alreadyRepresentedCount, 4);
+  assert.equal(prepared.reviewCandidates.length, 1);
+  assert.deepEqual(
+    prepared.reviewCandidates.map((candidate) => candidate.lifecycle.source.outflow),
+    [54],
+  );
+});
