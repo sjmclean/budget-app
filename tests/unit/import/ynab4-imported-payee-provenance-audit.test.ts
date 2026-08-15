@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { auditYnab4ImportedPayeeProvenance } from "../../../apps/web/src/features/budget/ynab4ImportedPayeeProvenanceAudit.js";
+import { auditYnab4ImportedPayeeProvenance } from "../../../apps/web/src/features/budget/ynab4/ynab4ImportedPayeeProvenanceAudit.js";
 
 test("reports imported-payee provenance fidelity separately from financial totals", () => {
   const audit = auditYnab4ImportedPayeeProvenance(
