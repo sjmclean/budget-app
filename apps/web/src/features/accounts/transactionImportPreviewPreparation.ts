@@ -1,5 +1,8 @@
 import type { RegisterTransactionView } from "./accountRegisterTypes";
-import type { PreviouslyImportedSourceOccurrence } from "./transactionImportKnowledge";
+import type {
+  ImportedTransactionFileType,
+  PreviouslyImportedSourceOccurrence,
+} from "./transactionImportKnowledge";
 import type {
   TransactionImportCandidate,
   TransactionImportPreview,
@@ -20,6 +23,7 @@ export interface PrepareTransactionImportPreviewInput {
   isExactDuplicateFile: boolean;
   identityScope?: string | null;
   previouslyImportedSourceOccurrences?: Record<string, PreviouslyImportedSourceOccurrence>;
+  sourceFileType?: ImportedTransactionFileType;
 }
 
 export interface PreparedTransactionImportPreview {
@@ -122,6 +126,7 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
   candidates: TransactionImportCandidate[];
   existingTransactions: RegisterTransactionView[];
   previouslyImportedSourceOccurrences?: Record<string, PreviouslyImportedSourceOccurrence>;
+  allowMigratedYnabBridge?: boolean;
 }): {
   reviewCandidates: TransactionImportCandidate[];
   representedCandidates: TransactionImportCandidate[];
@@ -292,6 +297,7 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
     }
 
     if (
+      input.allowMigratedYnabBridge === true &&
       consumeRegisterOccurrence(migratedBankRegisterOccurrences, bankKey)
     ) {
       representedCandidates.push(
@@ -457,6 +463,8 @@ export function prepareTransactionImportPreview(
     existingTransactions: input.existingTransactions,
     previouslyImportedSourceOccurrences:
       input.previouslyImportedSourceOccurrences,
+    allowMigratedYnabBridge:
+      input.sourceFileType === "qif" || input.sourceFileType === "csv",
   });
   const {
     reviewCandidates,
