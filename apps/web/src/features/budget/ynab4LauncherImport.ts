@@ -1116,21 +1116,7 @@ export async function importYnab4ReaderToHostedSqlite(
       options.signal?.throwIfAborted();
       await preflight.persistBatch(batch, { signal: options.signal });
       session.recordSourceTransactionDescriptions?.(
-        batch.flatMap((source) => {
-          // Provenance expectations follow the same canonical active-record
-          // boundary as appendYnab4TransactionBatch below. Tombstones never
-          // produce destination transactions and therefore have no expectation.
-          if (isYnab4Tombstone(source)) return [];
-          const transactionId = firstString(
-            source.entityId,
-            source.id,
-            source.transactionId,
-          );
-          const rawPayeeName = firstString(source.importedPayee);
-          return transactionId && rawPayeeName
-            ? [{ transactionId, rawPayeeName }]
-            : [];
-        }),
+        collectYnab4ImportedPayeeExpectations(batch),
       );
       collectImportedFlags(batch, observedFlags);
       const batchRegisters = createYnab4TransactionRegisters(accounts, budget.currency);
@@ -1254,6 +1240,25 @@ export async function importYnab4ReaderToHostedSqlite(
     await preflight.close();
     await reader.close();
   }
+}
+
+export function collectYnab4ImportedPayeeExpectations(
+  records: readonly RecordMap[],
+): readonly { readonly transactionId: string; readonly rawPayeeName: string }[] {
+  return records.flatMap((source) => {
+    // Expectations follow the same canonical active-record boundary as the
+    // transaction mapper. Tombstones intentionally have no destination row.
+    if (isYnab4Tombstone(source)) return [];
+    const transactionId = firstString(
+      source.entityId,
+      source.id,
+      source.transactionId,
+    );
+    const rawPayeeName = firstString(source.importedPayee);
+    return transactionId && rawPayeeName
+      ? [{ transactionId, rawPayeeName }]
+      : [];
+  });
 }
 
 export function toSqliteImportTransaction(
