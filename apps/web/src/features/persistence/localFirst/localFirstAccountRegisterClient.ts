@@ -593,8 +593,8 @@ export function createLocalFirstAccountRegisterQueryClient(
       accountId: targetAccountId,
       amount: -sourceRecord.amount,
       clearedStatus: "uncleared",
-      categoryId: null,
-      categoryName: "Transfer",
+      categoryId: sourceRecord.categoryId,
+      categoryName: sourceRecord.categoryName,
       transferAccountId: sourceRecord.accountId,
       transferTransactionId: sourceRecord.id,
     };
