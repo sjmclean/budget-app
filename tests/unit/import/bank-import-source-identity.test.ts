@@ -8,6 +8,7 @@ import {
 } from "../../../apps/web/src/features/accounts/transactionImport.js";
 import {
   createImportedTransactionIdentityEvidence,
+  partitionCandidatesByImportedIdentity,
 } from "../../../apps/web/src/features/accounts/transactionImportKnowledge.js";
 import {
   prepareTransactionImportPreview,
@@ -353,4 +354,43 @@ test("blank OFX FITID uses fallback rather than fabricated strong identity", () 
 
   assert.equal(evidence.kind, "fallback");
   assert.match(evidence.identity, /^ofx:fallback:/);
+});
+
+
+test("same strong FITID is suppressed occurrence-aware while a distinct FITID stays active", () => {
+  const first = {
+    ...identityCandidate({ fitId: "FIT-100" }),
+    id: "first",
+  };
+  const repeated = {
+    ...identityCandidate({ fitId: "FIT-100" }),
+    id: "repeated",
+  };
+  const additionalOccurrence = {
+    ...identityCandidate({ fitId: "FIT-100" }),
+    id: "additional-occurrence",
+  };
+  const distinct = {
+    ...identityCandidate({ fitId: "FIT-101" }),
+    id: "distinct",
+  };
+  const firstIdentity = createImportedTransactionIdentityEvidence(
+    "ofx",
+    first,
+  ).identity;
+
+  const partition = partitionCandidatesByImportedIdentity({
+    fileType: "ofx",
+    candidates: [repeated, additionalOccurrence, distinct],
+    importedCounts: new Map([[firstIdentity, 1]]),
+  });
+
+  assert.deepEqual(
+    partition.previouslyImportedCandidates.map((candidate) => candidate.id),
+    ["repeated"],
+  );
+  assert.deepEqual(
+    partition.activeCandidates.map((candidate) => candidate.id),
+    ["additional-occurrence", "distinct"],
+  );
 });
