@@ -43,6 +43,7 @@ export interface RegisterTransactionView {
   attachments?: RegisterAttachmentView[];
   payee: string;
   rawPayee?: string;
+  importProvenance?: "ynab4-imported-payee";
   payeeId?: string;
   category: string;
   categoryId?: string;
