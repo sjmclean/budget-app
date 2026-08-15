@@ -145,6 +145,7 @@ export function createLocalFirstYnab4ImportClient(
             payeeId: row.payeeId,
             payeeName: row.payeeId ? payeeNames.get(row.payeeId) ?? null : null,
             rawPayeeName: row.rawPayeeName,
+            importProvenance: row.rawPayeeName ? "ynab4-imported-payee" : null,
             categoryId: row.categoryId,
             categoryName: row.categoryName ??
               (row.categoryId ? categoryNames.get(row.categoryId) ?? null : null),
