@@ -118,6 +118,18 @@ export function createLocalFirstYnab4ImportClient(
           }
           await options.database.importRegisterBatch({ accounts, payees, categories });
         },
+        recordSourceTransactionDescriptions(rows) {
+          assertOpen();
+          for (const row of rows) {
+            const rawPayee = row.rawPayeeName.trim();
+            if (!rawPayee) continue;
+            const existing = expectedImportedPayees.get(row.transactionId);
+            expectedImportedPayees.set(row.transactionId, {
+              accountId: existing?.accountId ?? "",
+              rawPayee,
+            });
+          }
+        },
         async persistTransactions(rows, requestOptions) {
           assertOpen();
           requestOptions?.signal?.throwIfAborted();
@@ -151,11 +163,11 @@ export function createLocalFirstYnab4ImportClient(
           }));
           for (const row of transactions) ids.transactions.add(row.id);
           for (const row of rows) {
-            const rawPayee = row.rawPayeeName?.trim();
-            if (rawPayee) {
+            const expectedProvenance = expectedImportedPayees.get(row.id);
+            if (expectedProvenance) {
               expectedImportedPayees.set(row.id, {
+                ...expectedProvenance,
                 accountId: row.accountId,
-                rawPayee,
               });
             }
           }
