@@ -1690,15 +1690,27 @@ export function AccountRegisterPage() {
             onClose={() => {
               setIsTransactionImportOpen(false);
             }}
-            loadAccountTransactions={async (destinationAccountId) => {
+            loadAccountTransactions={async (destinationAccountId, range) => {
               const queries = persistenceGateway.accountRegisterQueries;
               if (storageMode === "sqlite" && activeBudgetId && queries) {
-                const page = await queries.queryTransactions({
-                  budgetId: activeBudgetId,
-                  accountId: destinationAccountId,
-                  limit: 250,
-                });
-                return mapSqliteTransactions(page.rows, 0);
+                const rows: import("../../../../../packages/application/src/accountRegister/AccountRegisterQueryPort").AccountTransactionRow[] = [];
+                let before:
+                  | import("../../../../../packages/application/src/accountRegister/AccountRegisterQueryPort").AccountTransactionCursor
+                  | undefined;
+                do {
+                  const page = await queries.queryTransactions({
+                    budgetId: activeBudgetId,
+                    accountId: destinationAccountId,
+                    limit: 250,
+                    before,
+                    fromDate: range?.fromDate,
+                    toDate: range?.toDate,
+                  });
+                  rows.push(...page.rows);
+                  before = page.nextCursor ?? undefined;
+                  if (!page.hasMore) break;
+                } while (before);
+                return mapSqliteTransactions(rows, 0);
               }
               const view =
                 await persistenceGateway.accountRegisters.getAccountRegisterView(
