@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { RegisterTransactionView } from "../../../apps/web/src/features/accounts/accountRegisterTypes.js";
-import { toSqliteImportTransaction } from "../../../apps/web/src/features/budget/ynab4LauncherImport.js";
+import {
+  collectYnab4ImportedPayeeExpectations,
+  toSqliteImportTransaction,
+} from "../../../apps/web/src/features/budget/ynab4LauncherImport.js";
+import { mapYnab4Transactions } from "../../../apps/web/src/features/budget/ynab4/mapYnab4Transactions.js";
 import { createLocalFirstYnab4ImportClient } from "../../../apps/web/src/features/persistence/localFirst/localFirstYnab4ImportClient.js";
 import type { LocalBudgetDatabaseClient } from "../../../apps/web/src/features/persistence/localFirst/localBudgetClient.js";
 import type { LocalTransactionRecord } from "../../../apps/web/src/features/persistence/localFirst/registerSchema.js";
@@ -155,6 +159,160 @@ test("staged local-first validation reports provenance lost after persistence", 
   assert.equal(validation.importedPayeeProvenance?.mismatches.length, 1);
   assert.match(
     validation.importedPayeeProvenance?.mismatches[0] ?? "",
-    /txn-provenance-loss/,
+    /destination found but rawPayeeName is null.*txn-provenance-loss/,
+  );
+});
+
+
+test("active provenance is required while tombstones create no destination expectation", async () => {
+  const sourceRecords = [
+    {
+      entityId: "active-import",
+      accountId: "source-checking",
+      date: "2026-08-13",
+      amount: -12.34,
+      importedPayee: "SYNTHETIC ACTIVE BANK DESCRIPTION",
+    },
+    {
+      entityId: "deleted-import",
+      accountId: "source-checking",
+      date: "2026-08-14",
+      amount: -5,
+      importedPayee: "SYNTHETIC DELETED BANK DESCRIPTION",
+      isTombstone: true,
+    },
+  ];
+  const expectations = collectYnab4ImportedPayeeExpectations(sourceRecords);
+  assert.deepEqual(expectations, [{
+    transactionId: "active-import",
+    rawPayeeName: "SYNTHETIC ACTIVE BANK DESCRIPTION",
+  }]);
+
+  const registers = mapYnab4Transactions({
+    accounts: [{
+      id: "checking",
+      name: "Checking",
+      type: "on-budget",
+      startingBalance: 0,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    }],
+    maps: {
+      accountIdBySourceId: new Map([["source-checking", "checking"]]),
+      accountNameById: new Map([["checking", "Checking"]]),
+      accountTypeById: new Map([["checking", "on-budget"]]),
+      categoryIdBySourceId: new Map(),
+      categoryNameById: new Map(),
+      payeeIdBySourceId: new Map(),
+      payeeNameById: new Map(),
+    },
+    currencyCode: "AUD",
+    importedFlagTagIdByColour: new Map(),
+    transactions: sourceRecords,
+  });
+  assert.deepEqual(registers.checking.transactions.map(row => row.id), ["active-import"]);
+
+  let stored: readonly LocalTransactionRecord[] = [];
+  const database = {
+    async beginStagedImport() {},
+    async importRegisterBatch(batch: { readonly transactions?: readonly LocalTransactionRecord[] }) {
+      if (batch.transactions) stored = batch.transactions;
+    },
+    async getManifest() {
+      return {
+        counts: {
+          accounts: 0,
+          transactions: 1,
+          payees: 0,
+          categories: 0,
+          budgetMonths: 0,
+          scheduledTransactions: 0,
+          transactionTags: 0,
+        },
+      };
+    },
+    async getTransactionsByIds(
+      _budgetId: string,
+      accountId: string,
+      ids: readonly string[],
+    ) {
+      return stored.filter(row => row.accountId === accountId && ids.includes(row.id));
+    },
+    async getTransaction(_budgetId: string, id: string) {
+      return stored.find(row => row.id === id) ?? null;
+    },
+  } as unknown as LocalBudgetDatabaseClient;
+  const client = createLocalFirstYnab4ImportClient({
+    database,
+    syncEpoch: "epoch-active-tombstone",
+    deviceId: "device-active-tombstone",
+  });
+  const session = await client.begin({
+    budgetId: "budget-active-tombstone",
+    budgetName: "Imported Budget",
+    currency: "AUD",
+  });
+  session.recordSourceTransactionDescriptions?.(expectations);
+  await session.persistTransactions(registers.checking.transactions.map(row =>
+    toSqliteImportTransaction(
+      "checking",
+      row,
+      new Date("2026-08-15T00:00:00.000Z"),
+    ),
+  ));
+  const validation = await session.validate();
+  assert.deepEqual(validation.importedPayeeProvenance, {
+    sourceTransactionsWithImportedPayee: 1,
+    preservedRawPayees: 1,
+    mismatches: [],
+  });
+  assert.equal(stored.some(row => row.id === "deleted-import"), false);
+});
+
+
+test("active provenance without a mapped destination account fails explicitly", async () => {
+  let accountScopedReads = 0;
+  const database = {
+    async beginStagedImport() {},
+    async getManifest() {
+      return {
+        counts: {
+          accounts: 0,
+          transactions: 0,
+          payees: 0,
+          categories: 0,
+          budgetMonths: 0,
+          scheduledTransactions: 0,
+          transactionTags: 0,
+        },
+      };
+    },
+    async getTransactionsByIds() {
+      accountScopedReads += 1;
+      return [];
+    },
+    async getTransaction() {
+      throw new Error("diagnostic lookup must not run for unresolved account assignment");
+    },
+  } as unknown as LocalBudgetDatabaseClient;
+  const client = createLocalFirstYnab4ImportClient({
+    database,
+    syncEpoch: "epoch-unresolved-account",
+    deviceId: "device-unresolved-account",
+  });
+  const session = await client.begin({
+    budgetId: "budget-unresolved-account",
+    budgetName: "Imported Budget",
+    currency: "AUD",
+  });
+  session.recordSourceTransactionDescriptions?.([{
+    transactionId: "active-without-account",
+    rawPayeeName: "SYNTHETIC ACTIVE BANK DESCRIPTION",
+  }]);
+
+  const validation = await session.validate();
+  assert.equal(accountScopedReads, 0);
+  assert.match(
+    validation.importedPayeeProvenance?.mismatches[0] ?? "",
+    /unresolved expected destination\/account assignment.*active-without-account/,
   );
 });
