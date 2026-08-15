@@ -374,7 +374,12 @@ test("preflight counts active identities and rejects duplicate active source IDs
         importedPayee: "DIFFERENT SYNTHETIC DESCRIPTION",
       },
     ]),
-    /YNAB4_TRANSACTION_DUPLICATE.*Duplicate transaction identity "duplicate-active"/,
+    (error: unknown) => {
+      const typed = error as Error & { issue?: { code?: string } };
+      assert.equal(typed.issue?.code, "YNAB4_TRANSACTION_DUPLICATE");
+      assert.match(typed.message, /Duplicate transaction identity "duplicate-active"/);
+      return true;
+    },
   );
   await duplicate.close();
 });
