@@ -1694,12 +1694,20 @@ export function AccountRegisterPage() {
             loadAccountTransactions={async (destinationAccountId, range) => {
               const queries = persistenceGateway.accountRegisterQueries;
               if (storageMode === "sqlite" && activeBudgetId && queries) {
-                return loadCompleteAccountTransactionsForImport({
-                  queries,
+                if (range) {
+                  return loadCompleteAccountTransactionsForImport({
+                    queries,
+                    budgetId: activeBudgetId,
+                    accountId: destinationAccountId,
+                    range,
+                  });
+                }
+                const page = await queries.queryTransactions({
                   budgetId: activeBudgetId,
                   accountId: destinationAccountId,
-                  range,
+                  limit: 250,
                 });
+                return mapSqliteTransactions(page.rows, 0);
               }
               const view =
                 await persistenceGateway.accountRegisters.getAccountRegisterView(
