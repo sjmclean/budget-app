@@ -223,8 +223,15 @@ export function createLocalFirstYnab4ImportClient(
             }
           }
           const actualById = new Map<string, LocalTransactionRecord>();
+          const provenanceMismatches: string[] = [];
           const idsByAccount = new Map<string, string[]>();
           for (const [transactionId, provenance] of expectedImportedPayees) {
+            if (!provenance.accountId.trim()) {
+              provenanceMismatches.push(
+                `Imported-payee provenance unresolved expected destination/account assignment for ${transactionId}.`,
+              );
+              continue;
+            }
             const accountIds = idsByAccount.get(provenance.accountId) ?? [];
             accountIds.push(transactionId);
             idsByAccount.set(provenance.accountId, accountIds);
@@ -239,15 +246,44 @@ export function createLocalFirstYnab4ImportClient(
               for (const row of rows) actualById.set(row.id, row);
             }
           }
-          const provenanceMismatches: string[] = [];
-          let preservedRawPayees = 0;
-          for (const [transactionId, provenance] of expectedImportedPayees) {
-            const actualRawPayee = actualById.get(transactionId)?.rawPayeeName ?? null;
-            if (actualRawPayee === provenance.rawPayee) {
-              preservedRawPayees += 1;
+
+          // Only misses take the diagnostic fallback path. Successful imports
+          // remain bounded account-scoped reads without per-row queries.
+          const missingIds = [...expectedImportedPayees]
+            .filter(([transactionId, provenance]) =>
+              provenance.accountId.trim() && !actualById.has(transactionId))
+            .map(([transactionId]) => transactionId);
+          for (const transactionId of missingIds) {
+            const provenance = expectedImportedPayees.get(transactionId)!;
+            const diagnostic = await options.database.getTransaction(
+              input.budgetId,
+              transactionId,
+            );
+            if (diagnostic) {
+              provenanceMismatches.push(
+                `Imported-payee provenance destination account mismatch for ${transactionId}: expected account ${provenance.accountId}, found account ${diagnostic.accountId}.`,
+              );
             } else {
               provenanceMismatches.push(
-                `Imported-payee provenance mismatch for ${transactionId}: source=${JSON.stringify(provenance.rawPayee)}, imported=${JSON.stringify(actualRawPayee)}.`,
+                `Imported-payee provenance destination transaction not found for ${transactionId} in expected account ${provenance.accountId}.`,
+              );
+            }
+          }
+
+          let preservedRawPayees = 0;
+          for (const [transactionId, provenance] of expectedImportedPayees) {
+            if (!provenance.accountId.trim()) continue;
+            const actual = actualById.get(transactionId);
+            if (!actual) continue;
+            if (actual.rawPayeeName === provenance.rawPayee) {
+              preservedRawPayees += 1;
+            } else if (actual.rawPayeeName === null) {
+              provenanceMismatches.push(
+                `Imported-payee provenance destination found but rawPayeeName is null for ${transactionId} in account ${actual.accountId}.`,
+              );
+            } else {
+              provenanceMismatches.push(
+                `Imported-payee provenance differs for ${transactionId} in account ${actual.accountId}.`,
               );
             }
           }
