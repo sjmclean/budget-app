@@ -451,11 +451,10 @@ export function createLocalFirstAccountRegisterQueryClient(
       payeeName: input.payeeName ?? null,
       rawPayeeName: input.rawPayee ?? existing?.rawPayeeName ?? null,
       categoryId: input.categoryId ?? null,
-      categoryName: input.transferAccountId
-        ? "Transfer"
-        : input.categoryName?.trim() ||
-          (existing?.categoryId === input.categoryId ? existing?.categoryName : null) ||
-          null,
+      categoryName:
+        input.categoryName?.trim() ||
+        (existing?.categoryId === input.categoryId ? existing?.categoryName : null) ||
+        (input.transferAccountId ? "Transfer" : null),
       transferAccountId:
         input.transferAccountId ?? existing?.transferAccountId ?? null,
       transferTransactionId: existing?.transferTransactionId ?? null,
@@ -524,19 +523,66 @@ export function createLocalFirstAccountRegisterQueryClient(
     return counterpart;
   }
 
-  function buildTransferPair(
+  async function accountParticipation(
+    local: LocalBudgetDatabaseClient,
+    budgetId: string,
+    accountId: string,
+  ): Promise<"on-budget" | "off-budget"> {
+    const account = (await local.listAccountNavigation(budgetId))
+      .find((candidate) => candidate.id === accountId);
+    if (!account) throw new Error(`Transfer account ${accountId} was not found.`);
+    return account.participation === "on-budget" ? "on-budget" : "off-budget";
+  }
+
+  async function applyTransferCategorySemantics(
+    local: LocalBudgetDatabaseClient,
+    source: LocalTransactionRecord,
+    counterpart: LocalTransactionRecord,
+  ): Promise<readonly [LocalTransactionRecord, LocalTransactionRecord]> {
+    const [sourceParticipation, counterpartParticipation] = await Promise.all([
+      accountParticipation(local, source.budgetId, source.accountId),
+      accountParticipation(local, counterpart.budgetId, counterpart.accountId),
+    ]);
+    const internal =
+      sourceParticipation === "on-budget" &&
+      counterpartParticipation === "on-budget";
+
+    return [
+      {
+        ...source,
+        categoryId:
+          internal || sourceParticipation === "off-budget" ? null : source.categoryId,
+        categoryName:
+          internal || sourceParticipation === "off-budget"
+            ? "Transfer"
+            : source.categoryName,
+      },
+      {
+        ...counterpart,
+        categoryId:
+          internal || counterpartParticipation === "off-budget"
+            ? null
+            : counterpart.categoryId,
+        categoryName:
+          internal || counterpartParticipation === "off-budget"
+            ? "Transfer"
+            : counterpart.categoryName,
+      },
+    ];
+  }
+
+  async function buildTransferPair(
+    local: LocalBudgetDatabaseClient,
     source: LocalTransactionRecord,
     targetAccountId: string,
     counterpartId = createRuntimeUuid(),
-  ): readonly [LocalTransactionRecord, LocalTransactionRecord] {
+  ): Promise<readonly [LocalTransactionRecord, LocalTransactionRecord]> {
     if (targetAccountId === source.accountId) {
       throw new Error("A transfer cannot use the same account on both sides.");
     }
 
     const sourceRecord: LocalTransactionRecord = {
       ...source,
-      categoryId: null,
-      categoryName: "Transfer",
       transferAccountId: targetAccountId,
       transferTransactionId: counterpartId,
     };
@@ -547,14 +593,17 @@ export function createLocalFirstAccountRegisterQueryClient(
       accountId: targetAccountId,
       amount: -sourceRecord.amount,
       clearedStatus: "uncleared",
+      categoryId: sourceRecord.categoryId,
+      categoryName: sourceRecord.categoryName,
       transferAccountId: sourceRecord.accountId,
       transferTransactionId: sourceRecord.id,
     };
 
-    return [sourceRecord, counterpartRecord];
+    return applyTransferCategorySemantics(local, sourceRecord, counterpartRecord);
   }
 
   async function buildNewTransactionRecords(
+    local: LocalBudgetDatabaseClient,
     id: string,
     input: TransactionWriteInput,
   ): Promise<readonly LocalTransactionRecord[]> {
@@ -564,7 +613,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       return [record];
     }
 
-    return buildTransferPair(record, input.transferAccountId);
+    return buildTransferPair(local, record, input.transferAccountId);
   }
 
   async function buildUpdatedTransactionRecords(
@@ -576,18 +625,12 @@ export function createLocalFirstAccountRegisterQueryClient(
     requireMutableTransaction(existing);
 
     const counterpart = await requireTransferCounterpart(local, existing);
-    if (counterpart) {
-      requireMutableTransaction(counterpart);
-    }
+    if (counterpart) requireMutableTransaction(counterpart);
 
     if (!counterpart) {
       const record = await transactionRecord(transactionId, input, existing);
-
-      if (!input.transferAccountId) {
-        return [record];
-      }
-
-      return buildTransferPair(record, input.transferAccountId);
+      if (!input.transferAccountId) return [record];
+      return buildTransferPair(local, record, input.transferAccountId);
     }
 
     if (input.accountId !== existing.accountId) {
@@ -595,7 +638,6 @@ export function createLocalFirstAccountRegisterQueryClient(
         "This transfer cannot be moved by editing it. Move the transaction between accounts instead.",
       );
     }
-
     if (
       input.transferAccountId !== undefined &&
       input.transferAccountId !== existing.transferAccountId
@@ -607,12 +649,9 @@ export function createLocalFirstAccountRegisterQueryClient(
 
     const record: LocalTransactionRecord = {
       ...(await transactionRecord(transactionId, input, existing)),
-      categoryId: null,
-      categoryName: "Transfer",
       transferAccountId: existing.transferAccountId,
       transferTransactionId: existing.transferTransactionId,
     };
-
     const counterpartRecord: LocalTransactionRecord = {
       ...counterpart,
       date: record.date,
@@ -623,8 +662,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       transferTransactionId: record.id,
       updatedAt: record.updatedAt,
     };
-
-    return [record, counterpartRecord];
+    return applyTransferCategorySemantics(local, record, counterpartRecord);
   }
 
   function transactionWrite(
@@ -1250,7 +1288,7 @@ export function createLocalFirstAccountRegisterQueryClient(
     },
     async addTransaction(input) {
       const local = await requireDatabase(input.budgetId);
-      const records = await buildNewTransactionRecords(input.id, input);
+      const records = await buildNewTransactionRecords(local, input.id, input);
       await local.writeTransactionBatch(transactionWrites(records));
       notifyLocalFirstMutationCommitted(input.budgetId);
     },
@@ -1263,6 +1301,7 @@ export function createLocalFirstAccountRegisterQueryClient(
 
       for (const addition of input.additions) {
         const records = await buildNewTransactionRecords(
+          local,
           addition.id,
           addition,
         );

@@ -44,28 +44,30 @@ test("account navigation avoids joining and grouping every transaction", () => {
   );
 });
 
-test("account navigation retains authoritative uncategorised detection", () => {
-  const match = workerSource.match(
+test("account navigation reuses the boundary-aware uncategorised predicate", () => {
+  const navigation = workerSource.match(
     /function listAccountNavigation\(budgetId: string\)\s*\{([\s\S]*?)\n\}/,
   );
-
-  assert.ok(match);
-  const source = match[1];
-
-  assert.match(source, /EXISTS\s*\(/);
-  assert.match(source, /transaction_row\.category_id IS NULL/);
-  assert.match(source, /transaction_row\.amount < 0/);
-  assert.match(source, /transaction_row\.transfer_account_id IS NULL/);
-
-  assert.match(
-    source,
-    /NOT EXISTS\s*\([\s\S]*?FROM local_transaction_splits AS split[\s\S]*?split\.transaction_id = transaction_row\.id/,
-    "split transactions must remain excluded from uncategorised warnings",
+  const predicateSource = fs.readFileSync(
+    new URL(
+      "../../../apps/web/src/features/persistence/localFirst/uncategorisedTransactionSql.ts",
+      import.meta.url,
+    ),
+    "utf8",
   );
 
-  assert.match(
-    source,
-    /account\.participation <> 'on-budget'/,
-    "off-budget accounts must never report budget uncategorised warnings",
-  );
+  assert.ok(navigation);
+  assert.match(navigation[1], /uncategorisedTransactionPredicate\(\)/);
+  assert.match(navigation[1], /account\.participation <> 'on-budget'/);
+
+  const source = predicateSource;
+  assert.match(source, /\.amount <> 0/);
+  assert.match(source, /category_account\.participation = 'on-budget'/);
+  assert.match(source, /transfer_transaction_id IS NULL/);
+  assert.match(source, /transfer_category_account\.participation = 'on-budget'/);
+  assert.match(source, /FROM local_transaction_splits AS category_split/);
+  assert.match(source, /category_split\.category_id IS NULL/);
+  assert.match(source, /category_split\.transfer_transaction_id IS NULL/);
+  assert.match(source, /split_transfer_category_account\.participation = 'on-budget'/);
+  assert.doesNotMatch(source, /amount < 0/);
 });

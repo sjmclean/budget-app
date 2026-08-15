@@ -40,6 +40,7 @@ export interface AccountTransactionRow {
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly transferAccountId: string | null;
+  readonly transferAccountParticipation?: "on-budget" | "off-budget" | null;
   readonly transferTransactionId: string | null;
   readonly generatedFromSchedule?: boolean;
   readonly scheduledTransactionId?: string | null;
@@ -66,6 +67,7 @@ export interface AccountTransactionSplitRow {
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly transferAccountId: string | null;
+  readonly transferAccountParticipation?: "on-budget" | "off-budget" | null;
   readonly transferTransactionId: string | null;
   readonly memo: string | null;
   readonly amount: number;

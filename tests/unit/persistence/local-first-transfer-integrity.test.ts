@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { after, test } from "node:test";
 
 import { createLocalFirstAccountRegisterQueryClient } from "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.js";
+import { getPayeeSelection } from "../../../apps/web/src/features/accounts/registerPayeeAutocomplete.js";
+import { buildUpdateRegisterTransactionInput } from "../../../apps/web/src/features/accounts/registerTransactionDrafts.js";
+import { toTransactionWriteInput } from "../../../apps/web/src/features/accounts/useAccountRegister.js";
+import { isUncategorisedRegisterTransaction } from "../../../apps/web/src/features/accounts/registerUncategorised.js";
+import type { PayeeAutocompleteMetadata } from "../../../apps/web/src/features/accounts/registerPayeeAutocomplete.js";
+import type { RankedAutocompleteOption } from "../../../apps/web/src/features/ui/autocomplete/autocompleteEngine.js";
 import type {
   LocalBudgetMutation,
   LocalBudgetOperationGroup,
@@ -76,7 +82,7 @@ function createTransferPair(): [LocalTransactionRecord, LocalTransactionRecord] 
   return [source, target];
 }
 
-function createHarness() {
+function createHarness(participation: Record<string, "on-budget" | "off-budget"> = {}) {
   const [source, target] = createTransferPair();
   const transactions = new Map<string, LocalTransactionRecord>([
     [source.id, source],
@@ -100,6 +106,13 @@ function createHarness() {
 
     async getTransaction(_budgetId: string, transactionId: string) {
       return transactions.get(transactionId) ?? null;
+    },
+
+    async listAccountNavigation() {
+      return ["checking", "savings", "joint", "mortgage"].map((id) => ({
+        id,
+        participation: participation[id] ?? "on-budget",
+      }));
     },
 
     async writeTransaction(transaction: LocalTransactionRecord) {
@@ -1058,4 +1071,177 @@ test("keep-local resolves both conflicted transfer legs in one replay batch", as
     targetWrite.mutation.operationGroup,
     fixture.operationGroup,
   );
+});
+
+
+test("cross-boundary transfer preserves category only on the on-budget leg", async () => {
+  const { client, transactions } = createHarness({ mortgage: "off-budget" });
+  await client.addTransaction({
+    id: "boundary-source",
+    budgetId: BUDGET_ID,
+    accountId: "checking",
+    date: "2026-08-23",
+    amount: -50_000,
+    categoryId: "housing",
+    categoryName: "Mortgage payment",
+    transferAccountId: "mortgage",
+  });
+
+  const source = transactions.get("boundary-source");
+  assert.ok(source?.transferTransactionId);
+  const counterpart = transactions.get(source.transferTransactionId);
+  assert.ok(counterpart);
+  assert.equal(source.categoryId, "housing");
+  assert.equal(source.categoryName, "Mortgage payment");
+  assert.equal(counterpart.categoryId, null);
+  assert.equal(counterpart.categoryName, "Transfer");
+});
+
+test("cross-boundary transfer without category remains structurally linked and unresolved", async () => {
+  const { client, transactions } = createHarness({ mortgage: "off-budget" });
+  await client.addTransaction({
+    id: "uncategorised-boundary-source",
+    budgetId: BUDGET_ID,
+    accountId: "checking",
+    date: "2026-08-24",
+    amount: -50_000,
+    transferAccountId: "mortgage",
+  });
+
+  const source = transactions.get("uncategorised-boundary-source");
+  assert.ok(source?.transferTransactionId);
+  assert.equal(source.categoryId, null);
+  assert.equal(source.categoryName, "Transfer");
+  assert.equal(
+    transactions.get(source.transferTransactionId)?.accountId,
+    "mortgage",
+  );
+});
+
+test("reverse cross-boundary transfer carries category onto the on-budget counterpart", async () => {
+  const { client, transactions } = createHarness({ mortgage: "off-budget" });
+  await client.addTransaction({
+    id: "reverse-boundary-source", budgetId: BUDGET_ID, accountId: "mortgage",
+    date: "2026-08-25", amount: -50_000,
+    categoryId: "housing", categoryName: "Mortgage payment",
+    transferAccountId: "checking",
+  });
+  const source = transactions.get("reverse-boundary-source");
+  assert.ok(source?.transferTransactionId);
+  const counterpart = transactions.get(source.transferTransactionId);
+  assert.ok(counterpart);
+  assert.equal(source.categoryId, null);
+  assert.equal(source.categoryName, "Transfer");
+  assert.equal(counterpart.accountId, "checking");
+  assert.equal(counterpart.categoryId, "housing");
+  assert.equal(counterpart.categoryName, "Mortgage payment");
+  assert.equal(counterpart.transferAccountId, "mortgage");
+  assert.equal(counterpart.transferTransactionId, source.id);
+});
+
+test("reverse cross-boundary transfer leaves an unassigned on-budget counterpart unresolved", async () => {
+  const { client, transactions } = createHarness({ mortgage: "off-budget" });
+  await client.addTransaction({
+    id: "reverse-unassigned-source", budgetId: BUDGET_ID, accountId: "mortgage",
+    date: "2026-08-26", amount: -50_000, transferAccountId: "checking",
+  });
+  const source = transactions.get("reverse-unassigned-source");
+  assert.ok(source?.transferTransactionId);
+  const counterpart = transactions.get(source.transferTransactionId);
+  assert.ok(counterpart);
+  assert.equal(source.categoryId, null);
+  assert.equal(counterpart.accountId, "checking");
+  assert.equal(counterpart.categoryId, null);
+  assert.equal(counterpart.transferAccountId, "mortgage");
+  assert.equal(counterpart.transferTransactionId, source.id);
+});
+
+function selectedTransfer(accountId: string, name: string) {
+  return getPayeeSelection({
+    id: `transfer-${accountId}`,
+    value: `Transfer: ${name}`,
+    label: "Transfer",
+    matchType: "all",
+    metadata: {
+      label: "Transfer",
+      type: "transfer",
+      transferAccountId: accountId,
+    },
+  } as RankedAutocompleteOption<PayeeAutocompleteMetadata>);
+}
+
+function importedOrdinary(id: string): LocalTransactionRecord {
+  return {
+    id, budgetId: BUDGET_ID, accountId: "checking", date: "2026-08-27",
+    amount: -2_500, memo: "Imported", checkNumber: null,
+    clearedStatus: "uncleared", payeeId: null, payeeName: "Imported merchant",
+    rawPayeeName: "RAW IMPORTED MERCHANT", categoryId: null,
+    categoryName: null, transferAccountId: null, transferTransactionId: null,
+    generatedFromSchedule: false, scheduledTransactionId: null,
+    scheduledOccurrenceDate: null, splitLines: [], tagIds: [],
+    updatedAt: "2026-08-27T00:00:00.000Z",
+  };
+}
+
+test("normal pointer-selection draft path converts an imported row into a valid internal transfer", async () => {
+  const { client, transactions } = createHarness();
+  transactions.set("ui-internal", importedOrdinary("ui-internal"));
+  const selection = selectedTransfer("savings", "Savings");
+  const update = buildUpdateRegisterTransactionInput({
+    id: "ui-internal", date: "2026-08-27", payee: selection.value,
+    payeeId: selection.payeeId, transferAccountId: selection.transferAccountId,
+    category: "Uncategorised", memo: "Imported", checkNumber: "",
+    outflow: "25.00", inflow: "", splitLines: [], categoryOptions: [],
+  });
+  assert.ok(update);
+  await client.updateTransaction(update.id, {
+    budgetId: BUDGET_ID, accountId: "checking",
+    ...toTransactionWriteInput(update),
+  });
+  const source = transactions.get("ui-internal");
+  assert.ok(source?.transferTransactionId);
+  const counterpart = transactions.get(source.transferTransactionId);
+  assert.ok(counterpart);
+  assert.equal(source.transferAccountId, "savings");
+  assert.equal(counterpart.accountId, "savings");
+  assert.equal(counterpart.amount, 2_500);
+  assert.equal(counterpart.transferAccountId, "checking");
+  assert.equal(counterpart.transferTransactionId, source.id);
+  assert.equal(isUncategorisedRegisterTransaction({
+    id: source.id, date: source.date, attachmentCount: 0,
+    payee: "Transfer: Savings", category: "Transfer",
+    inflow: 0, outflow: 25, runningBalance: 0, cleared: false,
+    reconciled: false, transferAccountId: source.transferAccountId ?? undefined,
+    transferTransactionId: source.transferTransactionId ?? undefined,
+    transferAccountParticipation: "on-budget",
+  }), false);
+});
+
+test("normal pointer-selection draft path keeps a cross-boundary imported row unresolved", async () => {
+  const { client, transactions } = createHarness({ mortgage: "off-budget" });
+  transactions.set("ui-boundary", importedOrdinary("ui-boundary"));
+  const selection = selectedTransfer("mortgage", "Mortgage");
+  const update = buildUpdateRegisterTransactionInput({
+    id: "ui-boundary", date: "2026-08-27", payee: selection.value,
+    payeeId: selection.payeeId, transferAccountId: selection.transferAccountId,
+    category: "Uncategorised", memo: "Imported", checkNumber: "",
+    outflow: "25.00", inflow: "", splitLines: [], categoryOptions: [],
+  });
+  assert.ok(update);
+  await client.updateTransaction(update.id, {
+    budgetId: BUDGET_ID, accountId: "checking",
+    ...toTransactionWriteInput(update),
+  });
+  const source = transactions.get("ui-boundary");
+  assert.ok(source?.transferTransactionId);
+  assert.equal(source.transferAccountId, "mortgage");
+  assert.equal(source.categoryId, null);
+  assert.equal(isUncategorisedRegisterTransaction({
+    id: source.id, date: source.date, attachmentCount: 0,
+    payee: "Transfer: Mortgage", category: "Transfer",
+    inflow: 0, outflow: 25, runningBalance: 0, cleared: false,
+    reconciled: false, transferAccountId: source.transferAccountId ?? undefined,
+    transferTransactionId: source.transferTransactionId ?? undefined,
+    transferAccountParticipation: "off-budget",
+  }), true);
 });

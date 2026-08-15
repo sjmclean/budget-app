@@ -11,6 +11,7 @@ export interface RegisterTransactionDraftInput {
   date: string;
   payee: string;
   payeeId?: string;
+  transferAccountId?: string;
   category: string;
   memo: string;
   checkNumber: string;
@@ -27,7 +28,7 @@ export function buildNewRegisterTransactionInput(
   const input = buildRegisterTransactionInput({
     ...draft,
     requireCompleteSplitDrafts: true,
-  });
+  }, true);
   return input ? input : null;
 }
 
@@ -40,7 +41,7 @@ export function buildUpdateRegisterTransactionInput({
   const input = buildRegisterTransactionInput({
     ...draft,
     requireCompleteSplitDrafts: false,
-  });
+  }, false);
   return input ? { id, ...input } : null;
 }
 
@@ -48,6 +49,7 @@ function buildRegisterTransactionInput({
   date,
   payee,
   payeeId,
+  transferAccountId,
   category,
   memo,
   checkNumber,
@@ -56,7 +58,7 @@ function buildRegisterTransactionInput({
   splitLines,
   categoryOptions,
   requireCompleteSplitDrafts = true,
-}: RegisterTransactionDraftInput): Omit<UpdateRegisterTransactionInput, "id"> | null {
+}: RegisterTransactionDraftInput, defaultBlankInflowToReadyToAssign: boolean): Omit<UpdateRegisterTransactionInput, "id"> | null {
   const validation = validateRegisterTransactionDraft({
     payee,
     outflow,
@@ -75,7 +77,10 @@ function buildRegisterTransactionInput({
   const categoryName = category.trim();
   const categoryOption = findCategoryOption(categoryName, categoryOptions);
   const fallbackCategory =
-    parsedInflow > 0 && parsedOutflow === 0
+    defaultBlankInflowToReadyToAssign &&
+    categoryName.length === 0 &&
+    parsedInflow > 0 &&
+    parsedOutflow === 0
       ? "Ready to Assign"
       : "Uncategorised";
 
@@ -83,6 +88,7 @@ function buildRegisterTransactionInput({
     date,
     payee: payee.trim(),
     payeeId,
+    transferAccountId,
     category:
       parsedSplitLines.length > 0
         ? "Split"

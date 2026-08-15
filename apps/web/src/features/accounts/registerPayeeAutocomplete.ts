@@ -5,8 +5,15 @@ import type {
 import type { SidebarAccount } from "./accountService";
 import type { PayeeView } from "./payeeService";
 
+export interface PayeeSelection {
+  readonly value: string;
+  readonly payeeId?: string;
+  readonly transferAccountId?: string;
+}
+
 export interface PayeeAutocompleteMetadata {
   payeeId?: string;
+  transferAccountId?: string;
   label: string;
   type: "payee" | "transfer";
 }
@@ -25,6 +32,7 @@ export function buildPayeeAutocompleteOptions({
       label: "Transfer",
       metadata: {
         payeeId: undefined,
+        transferAccountId: account.id,
         label: "Transfer",
         type: "transfer" as const,
       },
@@ -58,4 +66,14 @@ export function getPayeeSuggestionText(
   }
 
   return suggestion.value.replace(/^Transfer:\s*/i, "");
+}
+
+export function getPayeeSelection(
+  suggestion: RankedAutocompleteOption<PayeeAutocompleteMetadata>,
+): PayeeSelection {
+  return {
+    value: suggestion.value,
+    payeeId: suggestion.metadata?.payeeId,
+    transferAccountId: suggestion.metadata?.transferAccountId,
+  };
 }

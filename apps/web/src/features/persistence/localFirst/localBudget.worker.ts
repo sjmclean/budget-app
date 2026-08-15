@@ -37,6 +37,7 @@ import type {
 } from "../../budget/budgetViewTypes";
 import { parseRegisterAmountSearchCents } from "../../accounts/registerSearch";
 import { readFinancialOverviewFlow } from "./financialOverviewFlow";
+import { uncategorisedTransactionPredicate } from "./uncategorisedTransactionSql";
 
 type SqliteDatabase = {
   pointer: unknown;
@@ -2366,14 +2367,7 @@ function getFinancialOverview(budgetId: string, month: string) {
      JOIN local_accounts AS account ON account.id = transaction_row.account_id
      WHERE transaction_row.budget_id = ?
        AND substr(transaction_row.date, 1, 7) = ?
-       AND transaction_row.category_id IS NULL
-       AND transaction_row.amount < 0
-       AND transaction_row.transfer_account_id IS NULL
-       AND NOT EXISTS (
-         SELECT 1 FROM local_transaction_splits AS split
-         WHERE split.transaction_id = transaction_row.id
-       )
-       AND account.participation = 'on-budget'
+       AND ${uncategorisedTransactionPredicate()}
      GROUP BY transaction_row.account_id
      ORDER BY COUNT(*) DESC, transaction_row.account_id`,
     [budgetId, month],
@@ -2659,13 +2653,7 @@ function queryTransactions(query: LocalTransactionQuery) {
   }
   if (query.categoryFilter === "uncategorised") {
     where.push(
-      `transaction_row.category_id IS NULL
-       AND transaction_row.amount < 0
-       AND transaction_row.transfer_account_id IS NULL
-       AND NOT EXISTS (
-         SELECT 1 FROM local_transaction_splits AS split
-         WHERE split.transaction_id = transaction_row.id
-       )`,
+      uncategorisedTransactionPredicate(),
     );
   }
   const categoryNameExpression = "COALESCE(category_record.name, transaction_row.category_name)";
@@ -2730,6 +2718,7 @@ function queryTransactions(query: LocalTransactionQuery) {
     categoryName: string | null;
     transferAccountId: string | null;
     transferAccountName: string | null;
+    transferAccountParticipation: "on-budget" | "off-budget" | null;
     transferTransactionId: string | null;
     generatedFromSchedule: number;
     scheduledTransactionId: string | null;
@@ -2746,6 +2735,7 @@ function queryTransactions(query: LocalTransactionQuery) {
        ${categoryNameExpression} AS categoryName,
        transaction_row.transfer_account_id AS transferAccountId,
        transfer_account.name AS transferAccountName,
+       transfer_account.participation AS transferAccountParticipation,
        transaction_row.transfer_transaction_id AS transferTransactionId,
        transaction_row.generated_from_schedule AS generatedFromSchedule,
        transaction_row.scheduled_transaction_id AS scheduledTransactionId,
@@ -2780,6 +2770,7 @@ function queryTransactions(query: LocalTransactionQuery) {
       categoryName: string | null;
       transferAccountId: string | null;
       transferAccountName: string | null;
+      transferAccountParticipation: "on-budget" | "off-budget" | null;
       transferTransactionId: string | null;
       memo: string | null;
       amount: number;
@@ -2789,6 +2780,7 @@ function queryTransactions(query: LocalTransactionQuery) {
          COALESCE(category_record.name, split.category_name) AS categoryName,
          split.transfer_account_id AS transferAccountId,
          transfer_account.name AS transferAccountName,
+         transfer_account.participation AS transferAccountParticipation,
          split.transfer_transaction_id AS transferTransactionId,
          split.memo, split.amount
        FROM local_transaction_splits AS split
@@ -3157,13 +3149,7 @@ function listAccountNavigation(budgetId: string) {
            FROM local_transactions AS transaction_row
            WHERE transaction_row.budget_id = account.budget_id
              AND transaction_row.account_id = account.id
-             AND transaction_row.category_id IS NULL
-             AND transaction_row.amount < 0
-             AND transaction_row.transfer_account_id IS NULL
-             AND NOT EXISTS (
-               SELECT 1 FROM local_transaction_splits AS split
-               WHERE split.transaction_id = transaction_row.id
-             )
+             AND ${uncategorisedTransactionPredicate()}
            LIMIT 1
          )
          THEN 1
