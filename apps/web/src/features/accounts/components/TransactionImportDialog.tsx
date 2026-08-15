@@ -26,7 +26,6 @@ import {
   detectQifImportFormat,
   inspectTransactionOfxImport,
   QIF_DATE_FORMAT_OPTIONS,
-  TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS,
   previewTransactionCsvImport,
   previewTransactionQifImport,
   previewTransactionOfxImport,
@@ -93,6 +92,7 @@ import {
   type ImportedTransactionFileType,
 } from "../transactionImportKnowledge";
 import { calculateTransactionImportBalancePreview } from "../transactionImportBalancePreview";
+import { getTransactionImportQueryRange } from "../transactionImportQueryRange";
 import { resolvePayeeRecognition } from "../payeeRecognition";
 import {
   summariseTransactionImportOutcomes,
@@ -688,32 +688,11 @@ export function TransactionImportDialog({
     setStep("review");
   }
 
-  function getPreviewDateRange(nextPreview: TransactionImportPreview) {
-    const dates = nextPreview.candidates
-      .map((candidate) => candidate.parsed.date)
-      .filter((date): date is string => /^\d{4}-\d{2}-\d{2}$/.test(date))
-      .sort();
-    const firstDate = dates.at(0);
-    const lastDate = dates.at(-1);
-    if (!firstDate || !lastDate) return undefined;
-
-    const shiftDate = (date: string, days: number) => {
-      const value = new Date(`${date}T00:00:00.000Z`);
-      value.setUTCDate(value.getUTCDate() + days);
-      return value.toISOString().slice(0, 10);
-    };
-
-    return {
-      fromDate: shiftDate(firstDate, -TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS),
-      toDate: shiftDate(lastDate, TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS),
-    };
-  }
-
   async function loadTransactionsForPreview(
     accountId: string,
     preliminaryPreview: TransactionImportPreview,
   ) {
-    const range = getPreviewDateRange(preliminaryPreview);
+    const range = getTransactionImportQueryRange(preliminaryPreview);
     const nextTransactions = await loadAccountTransactions(accountId, range);
     setTransactions(nextTransactions);
     return nextTransactions;
