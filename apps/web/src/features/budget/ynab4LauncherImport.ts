@@ -415,6 +415,10 @@ function formatYnab4StreamingAuditReport(
     `Transactions: ${audit.transactions}`,
     `Total inflow: ${audit.totalInflow}`,
     `Total outflow: ${audit.totalOutflow}`,
+    "Imported Payee Provenance:",
+    `  Source transactions with imported payee text: ${audit.importedPayeeProvenance.sourceTransactionsWithImportedPayee}`,
+    `  Preserved raw payees: ${audit.importedPayeeProvenance.preservedRawPayees}`,
+    `  Provenance mismatches: ${audit.importedPayeeProvenance.mismatches.length}`,
   ].join("\n");
 }
 
@@ -968,6 +972,11 @@ export interface Ynab4StreamingStagedAudit {
   transactions: number;
   totalInflow: number;
   totalOutflow: number;
+  importedPayeeProvenance: {
+    sourceTransactionsWithImportedPayee: number;
+    preservedRawPayees: number;
+    mismatches: readonly string[];
+  };
 }
 
 export interface ImportYnab4ReaderToHostedSqliteOptions {
@@ -1016,6 +1025,11 @@ export async function importYnab4ReaderToHostedSqlite(
   let expectedInflow = 0;
   let expectedOutflow = 0;
   let maximumCanonicalBatchRecords = 0;
+  let importedPayeeProvenance: Ynab4StreamingStagedAudit["importedPayeeProvenance"] = {
+    sourceTransactionsWithImportedPayee: 0,
+    preservedRawPayees: 0,
+    mismatches: [],
+  };
   const preflight = new Ynab4StreamingPreflightSession();
   let preflightBegun = false;
   const report = (phase: Ynab4DirectImportProgress["phase"]) =>
@@ -1176,7 +1190,14 @@ export async function importYnab4ReaderToHostedSqlite(
     );
 
     report("finalising");
-    await session.validate({ signal: options.signal });
+    const sqliteValidation = await session.validate({ signal: options.signal });
+    importedPayeeProvenance = sqliteValidation.importedPayeeProvenance;
+    if (importedPayeeProvenance.mismatches.length > 0) {
+      throw new Error([
+        "Streaming YNAB4 staged audit failed: imported-payee provenance was not preserved.",
+        ...importedPayeeProvenance.mismatches,
+      ].join("\n"));
+    }
     const smallPlan: Ynab4LauncherImportPlan = {
       budgetId: budget.id,
       accounts,
@@ -1204,6 +1225,7 @@ export async function importYnab4ReaderToHostedSqlite(
         transactions: persistedTransactions,
         totalInflow: expectedInflow,
         totalOutflow: expectedOutflow,
+        importedPayeeProvenance,
       },
       payeeKnowledgeAudit: maps.payeeKnowledgeAudit,
     };
@@ -1561,6 +1583,11 @@ function auditYnab4StagedTransactions(
     transactions: transactionIds.length,
     totalInflow: round(expectedInflow),
     totalOutflow: round(expectedOutflow),
+    importedPayeeProvenance: {
+      sourceTransactionsWithImportedPayee: 0,
+      preservedRawPayees: 0,
+      mismatches: [],
+    },
   };
 }
 
