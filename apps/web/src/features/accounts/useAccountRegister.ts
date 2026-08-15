@@ -839,7 +839,7 @@ function formatTransferPayee(accountName: string | null): string {
   return `Transfer: ${accountName ?? "Unknown account"}`;
 }
 
-export export function toTransactionWriteInput(
+export function toTransactionWriteInput(
   input: NewRegisterTransactionInput | UpdateRegisterTransactionInput,
 ) {
   return {
