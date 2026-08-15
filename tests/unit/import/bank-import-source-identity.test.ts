@@ -239,3 +239,118 @@ test("production parsers expose QIF fallback and OFX FITID source evidence", () 
     "external",
   );
 });
+
+
+function buildOverlapRegisterRows() {
+  return Array.from({ length: 5 }, (_, index) => {
+    const amount = index + 1;
+    return buildRegisterTransaction({
+      id: `represented-${amount}`,
+      date: "2026-08-01",
+      rawPayee: `SHOP ${amount}`,
+      payee: `Shop ${amount}`,
+      memo: `Reference ${amount}`,
+      outflow: amount,
+      inflow: 0,
+    });
+  });
+}
+
+test("overlapping QIF keeps exactly five represented rows out and two new monetary rows in", () => {
+  const existingTransactions = buildOverlapRegisterRows();
+  const records = Array.from({ length: 7 }, (_, index) => {
+    const amount = index + 1;
+    return [
+      "D01/08/26",
+      `T-${amount}.00`,
+      `PSHOP ${amount}`,
+      `MReference ${amount}`,
+      "^",
+    ].join("\n");
+  });
+  const incoming = previewTransactionQifImport(
+    ["!Type:Bank", ...records].join("\n"),
+    existingTransactions,
+  );
+  const prepared = prepareTransactionImportPreview({
+    partition: {
+      activeCandidates: incoming.candidates,
+      previouslyImportedCandidates: [],
+      alreadyRepresentedCandidates: [],
+    },
+    existingTransactions,
+    isExactDuplicateFile: false,
+  });
+
+  assert.equal(prepared.alreadyRepresentedCount, 5);
+  assert.equal(prepared.reviewCandidates.length, 2);
+  assert.deepEqual(
+    prepared.reviewCandidates.map((candidate) => candidate.lifecycle.source.outflow),
+    [6, 7],
+  );
+  assert.equal(
+    prepared.reviewCandidates.reduce(
+      (total, candidate) => total + candidate.lifecycle.source.outflow,
+      0,
+    ),
+    13,
+  );
+});
+
+test("overlapping CSV fallback is row-order independent and preserves the two new rows", () => {
+  const existingTransactions = buildOverlapRegisterRows();
+  const rows = [5, 3, 7, 1, 6, 4, 2].map(
+    (amount) =>
+      `2026-08-01,SHOP ${amount},${amount}.00,Reference ${amount}`,
+  );
+  const incoming = previewTransactionCsvImport(
+    ["Date,Payee,Outflow,Memo", ...rows].join("\n"),
+    existingTransactions,
+    {
+      0: "date",
+      1: "payee",
+      2: "outflow",
+      3: "memo",
+    },
+  );
+  const prepared = prepareTransactionImportPreview({
+    partition: {
+      activeCandidates: incoming.candidates,
+      previouslyImportedCandidates: [],
+      alreadyRepresentedCandidates: [],
+    },
+    existingTransactions,
+    isExactDuplicateFile: false,
+  });
+
+  assert.equal(prepared.alreadyRepresentedCount, 5);
+  assert.equal(prepared.reviewCandidates.length, 2);
+  assert.deepEqual(
+    prepared.reviewCandidates
+      .map((candidate) => candidate.lifecycle.source.outflow)
+      .sort((left, right) => left - right),
+    [6, 7],
+  );
+  assert.equal(
+    prepared.reviewCandidates.reduce(
+      (total, candidate) => total + candidate.lifecycle.source.outflow,
+      0,
+    ),
+    13,
+  );
+});
+
+test("blank OFX FITID uses fallback rather than fabricated strong identity", () => {
+  const evidence = createImportedTransactionIdentityEvidence(
+    "ofx",
+    identityCandidate({
+      fitId: "   ",
+      postedDate: "20260813",
+      amount: "-20.00",
+      name: "COFFEE SHOP",
+    }),
+  );
+
+  assert.equal(evidence.kind, "fallback");
+  assert.match(evidence.identity, /^ofx:fallback:/);
+});
