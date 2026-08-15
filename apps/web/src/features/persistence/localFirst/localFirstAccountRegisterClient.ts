@@ -2110,6 +2110,8 @@ function toLocalQuery(input: AccountTransactionQuery) {
     limit: input.limit,
     offset: input.offset,
     before: input.before,
+    fromDate: input.fromDate,
+    toDate: input.toDate,
     search: input.search,
     categoryFilter: input.categoryFilter,
     sort: input.sort,
