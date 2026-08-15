@@ -170,3 +170,25 @@ that `importedPayee` survived YNAB4 mapping, crossed the SQLite import DTO,
 reached the local-first transaction record, and then supplied evidence to
 overlap recovery. Focused mapper, conversion, persistence, provenance-audit,
 and end-to-end overlap tests now close those boundaries.
+
+
+### YNAB4 migrated bank-provenance bridge
+
+YNAB4 transactions that contain meaningful `importedPayee` are persisted with
+`raw_payee_name` and the explicit transaction provenance
+`ynab4-imported-payee`. A later QIF or CSV import may use that evidence to
+consume one destination-account/date/amount/raw-payee occurrence even when the
+user changed or cleared the transaction memo after migration.
+
+This bridge is deliberately unavailable to ordinary manual transactions,
+including manual rows that happen to contain raw-payee text. It does not invent
+a QIF fingerprint, CSV transaction ID, or OFX FITID. A register occurrence can
+be consumed only once, so an additional same-value bank occurrence remains in
+review.
+
+### Complete bounded matching reads
+
+Transaction import matching reads an account in pages of at most 250 rows and
+follows continuation cursors until the requested account/date range is
+complete. It never substitutes a larger arbitrary cap. Account identity and
+optional inclusive date bounds are forwarded to every page query.
