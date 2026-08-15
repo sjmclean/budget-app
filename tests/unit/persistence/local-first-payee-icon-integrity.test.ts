@@ -18,5 +18,7 @@ test("local_payees persists icon_ref and SQLite merge uses shared precedence", (
   const mergeEnd = worker.indexOf("\nfunction ", mergeStart + 1);
   const mergeBody = worker.slice(mergeStart, mergeEnd);
   assert.match(mergeBody, /mergePayeeIconReferences\(targetKnowledge\.iconRef, sourceIconRefs\)/);
+  assert.match(mergeBody, /mergedIconRef/);
+  assert.match(worker, /target\.mergedIconRef/);
   assert.match(mergeBody, /UPDATE local_payees SET icon_ref = \?/);
 });
