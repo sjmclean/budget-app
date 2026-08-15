@@ -52,6 +52,10 @@ export function createLocalFirstYnab4ImportClient(
         scheduledTransactions: new Set<string>(),
         transactionTags: new Set<string>(),
       };
+      const expectedImportedPayees = new Map<
+        string,
+        { readonly accountId: string; readonly rawPayee: string }
+      >();
       const payeeNames = new Map<string, string>();
       const categoryNames = new Map<string, string>();
       let closed = false;
@@ -146,6 +150,15 @@ export function createLocalFirstYnab4ImportClient(
             updatedAt: new Date(row.updatedAt).toISOString(),
           }));
           for (const row of transactions) ids.transactions.add(row.id);
+          for (const row of rows) {
+            const rawPayee = row.rawPayeeName?.trim();
+            if (rawPayee) {
+              expectedImportedPayees.set(row.id, {
+                accountId: row.accountId,
+                rawPayee,
+              });
+            }
+          }
           await options.database.importRegisterBatch({ transactions });
         },
         async persistScheduledTransactions(rows, requestOptions) {
@@ -197,12 +210,46 @@ export function createLocalFirstYnab4ImportClient(
               throw new Error(`Staged local import count mismatch for ${domain}.`);
             }
           }
+          const actualById = new Map<string, LocalTransactionRecord>();
+          const idsByAccount = new Map<string, string[]>();
+          for (const [transactionId, provenance] of expectedImportedPayees) {
+            const accountIds = idsByAccount.get(provenance.accountId) ?? [];
+            accountIds.push(transactionId);
+            idsByAccount.set(provenance.accountId, accountIds);
+          }
+          for (const [accountId, transactionIds] of idsByAccount) {
+            for (let offset = 0; offset < transactionIds.length; offset += 250) {
+              const rows = await options.database.getTransactionsByIds(
+                input.budgetId,
+                accountId,
+                transactionIds.slice(offset, offset + 250),
+              );
+              for (const row of rows) actualById.set(row.id, row);
+            }
+          }
+          const provenanceMismatches: string[] = [];
+          let preservedRawPayees = 0;
+          for (const [transactionId, provenance] of expectedImportedPayees) {
+            const actualRawPayee = actualById.get(transactionId)?.rawPayeeName ?? null;
+            if (actualRawPayee === provenance.rawPayee) {
+              preservedRawPayees += 1;
+            } else {
+              provenanceMismatches.push(
+                `Imported-payee provenance mismatch for ${transactionId}: source=${JSON.stringify(provenance.rawPayee)}, imported=${JSON.stringify(actualRawPayee)}.`,
+              );
+            }
+          }
           return {
             valid: true,
             counts: {
               accounts: expected.accounts,
               transactions: expected.transactions,
               scheduledTransactions: expected.scheduledTransactions,
+            },
+            importedPayeeProvenance: {
+              sourceTransactionsWithImportedPayee: expectedImportedPayees.size,
+              preservedRawPayees,
+              mismatches: provenanceMismatches,
             },
           };
         },
