@@ -1,7 +1,7 @@
 # Merchant/payee icon implementation design
 
-**Status:** design only  
-**Audited baseline:** `f1680c1f6a95080d0e74c797a5ea2e6a4855646b`  
+**Status:** design only
+**Audited baseline:** `f1680c1f6a95080d0e74c797a5ea2e6a4855646b`
 **Design branch:** `design/merchant-icons`
 
 This document deliberately distinguishes facts observed at the audited baseline from recommendations and unresolved product decisions. It introduces no production behavior.
