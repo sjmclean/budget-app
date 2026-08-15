@@ -36,6 +36,7 @@ export interface SqliteImportTransaction {
   readonly id: string;
   readonly accountId: string;
   readonly payeeId: string | null;
+  readonly rawPayeeName: string | null;
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly transferAccountId: string | null;
@@ -82,6 +83,17 @@ export interface SqliteImportSession {
     options?: { readonly signal?: AbortSignal },
   ): Promise<void>;
 
+  /**
+   * Supplies immutable source descriptions independently of mapped DTOs so
+   * validation can detect mapper as well as persistence loss.
+   */
+  recordSourceTransactionDescriptions?(
+    rows: readonly {
+      readonly transactionId: string;
+      readonly rawPayeeName: string;
+    }[],
+  ): void;
+
   persistTransactions(
     rows: readonly SqliteImportTransaction[],
     options?: { readonly signal?: AbortSignal },
@@ -113,6 +125,12 @@ export interface SqliteImportSession {
       readonly accounts: number;
       readonly transactions: number;
       readonly scheduledTransactions: number;
+    };
+    /** Source-description fidelity, independent of financial/count fidelity. */
+    readonly importedPayeeProvenance?: {
+      readonly sourceTransactionsWithImportedPayee: number;
+      readonly preservedRawPayees: number;
+      readonly mismatches: readonly string[];
     };
   }>;
 

@@ -52,6 +52,10 @@ export function createLocalFirstYnab4ImportClient(
         scheduledTransactions: new Set<string>(),
         transactionTags: new Set<string>(),
       };
+      const expectedImportedPayees = new Map<
+        string,
+        { readonly accountId: string; readonly rawPayee: string }
+      >();
       const payeeNames = new Map<string, string>();
       const categoryNames = new Map<string, string>();
       let closed = false;
@@ -114,6 +118,18 @@ export function createLocalFirstYnab4ImportClient(
           }
           await options.database.importRegisterBatch({ accounts, payees, categories });
         },
+        recordSourceTransactionDescriptions(rows) {
+          assertOpen();
+          for (const row of rows) {
+            const rawPayee = row.rawPayeeName.trim();
+            if (!rawPayee) continue;
+            const existing = expectedImportedPayees.get(row.transactionId);
+            expectedImportedPayees.set(row.transactionId, {
+              accountId: existing?.accountId ?? "",
+              rawPayee,
+            });
+          }
+        },
         async persistTransactions(rows, requestOptions) {
           assertOpen();
           requestOptions?.signal?.throwIfAborted();
@@ -128,6 +144,7 @@ export function createLocalFirstYnab4ImportClient(
             clearedStatus: row.clearedStatus,
             payeeId: row.payeeId,
             payeeName: row.payeeId ? payeeNames.get(row.payeeId) ?? null : null,
+            rawPayeeName: row.rawPayeeName,
             categoryId: row.categoryId,
             categoryName: row.categoryName ??
               (row.categoryId ? categoryNames.get(row.categoryId) ?? null : null),
@@ -145,6 +162,15 @@ export function createLocalFirstYnab4ImportClient(
             updatedAt: new Date(row.updatedAt).toISOString(),
           }));
           for (const row of transactions) ids.transactions.add(row.id);
+          for (const row of rows) {
+            const expectedProvenance = expectedImportedPayees.get(row.id);
+            if (expectedProvenance) {
+              expectedImportedPayees.set(row.id, {
+                ...expectedProvenance,
+                accountId: row.accountId,
+              });
+            }
+          }
           await options.database.importRegisterBatch({ transactions });
         },
         async persistScheduledTransactions(rows, requestOptions) {
@@ -196,12 +222,82 @@ export function createLocalFirstYnab4ImportClient(
               throw new Error(`Staged local import count mismatch for ${domain}.`);
             }
           }
+          const actualById = new Map<string, LocalTransactionRecord>();
+          const provenanceMismatches: string[] = [];
+          const idsByAccount = new Map<string, string[]>();
+          for (const [transactionId, provenance] of expectedImportedPayees) {
+            if (!provenance.accountId.trim()) {
+              provenanceMismatches.push(
+                `Imported-payee provenance unresolved expected destination/account assignment for ${transactionId}.`,
+              );
+              continue;
+            }
+            const accountIds = idsByAccount.get(provenance.accountId) ?? [];
+            accountIds.push(transactionId);
+            idsByAccount.set(provenance.accountId, accountIds);
+          }
+          for (const [accountId, transactionIds] of idsByAccount) {
+            for (let offset = 0; offset < transactionIds.length; offset += 250) {
+              const rows = await options.database.getTransactionsByIds(
+                input.budgetId,
+                accountId,
+                transactionIds.slice(offset, offset + 250),
+              );
+              for (const row of rows) actualById.set(row.id, row);
+            }
+          }
+
+          // Only misses take the diagnostic fallback path. Successful imports
+          // remain bounded account-scoped reads without per-row queries.
+          const missingIds = [...expectedImportedPayees]
+            .filter(([transactionId, provenance]) =>
+              provenance.accountId.trim() && !actualById.has(transactionId))
+            .map(([transactionId]) => transactionId);
+          for (const transactionId of missingIds) {
+            const provenance = expectedImportedPayees.get(transactionId)!;
+            const diagnostic = await options.database.getTransaction(
+              input.budgetId,
+              transactionId,
+            );
+            if (diagnostic) {
+              provenanceMismatches.push(
+                `Imported-payee provenance destination account mismatch for ${transactionId}: expected account ${provenance.accountId}, found account ${diagnostic.accountId}.`,
+              );
+            } else {
+              provenanceMismatches.push(
+                `Imported-payee provenance destination transaction not found for ${transactionId} in expected account ${provenance.accountId}.`,
+              );
+            }
+          }
+
+          let preservedRawPayees = 0;
+          for (const [transactionId, provenance] of expectedImportedPayees) {
+            if (!provenance.accountId.trim()) continue;
+            const actual = actualById.get(transactionId);
+            if (!actual) continue;
+            if (actual.rawPayeeName === provenance.rawPayee) {
+              preservedRawPayees += 1;
+            } else if (actual.rawPayeeName === null) {
+              provenanceMismatches.push(
+                `Imported-payee provenance destination found but rawPayeeName is null for ${transactionId} in account ${actual.accountId}.`,
+              );
+            } else {
+              provenanceMismatches.push(
+                `Imported-payee provenance differs for ${transactionId} in account ${actual.accountId}.`,
+              );
+            }
+          }
           return {
             valid: true,
             counts: {
               accounts: expected.accounts,
               transactions: expected.transactions,
               scheduledTransactions: expected.scheduledTransactions,
+            },
+            importedPayeeProvenance: {
+              sourceTransactionsWithImportedPayee: expectedImportedPayees.size,
+              preservedRawPayees,
+              mismatches: provenanceMismatches,
             },
           };
         },

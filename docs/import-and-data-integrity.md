@@ -97,3 +97,40 @@ unintentionally authoritative partial database.
 
 Successful commit should publish the state required for subsequent local-first
 synchronization.
+
+
+## YNAB4 imported payee provenance
+
+Historical YNAB4 `importedPayee` values are preserved as Budget App's raw bank
+payee provenance. The normal mapped, user-facing payee is unchanged. Meaningful
+source text is trimmed; absent or blank source values do not invent provenance.
+Provenance expectations apply only to the canonical active transaction set.
+YNAB4 tombstones do not produce destination transactions, so they do not
+produce provenance expectations. This does not weaken validation: every active
+transaction with meaningful `importedPayee` text must resolve to a destination
+account and preserve that text exactly.
+
+Staged validation reports unresolved destination-account assignment separately
+from a missing destination transaction. When a destination exists it also
+distinguishes a null `rawPayeeName` from a differing value. Account-scoped
+batch reads remain the successful path; an individual lookup is used only to
+diagnose a missing account-scoped result.
+
+Retaining this bank description lets later QIF, CSV, and OFX imports recognise
+transactions that were already represented by the YNAB4 migration. Matching
+remains conservative and occurrence-aware: one retained register occurrence
+can account for only one incoming occurrence, so an additional genuine
+identical transaction remains available for review.
+
+YNAB4 entity/`YNABID` values remain migration and source identity. They are not
+treated as bank external transaction IDs. Richer generic source provenance,
+`ImportRun`, and `ImportMap` modelling remains follow-up work.
+
+### Why earlier green tests missed this
+
+Earlier coverage proved ordinary transaction mapping, persisted financial
+totals, and later bank-import overlap behavior independently. It did not prove
+that `importedPayee` survived YNAB4 mapping, crossed the SQLite import DTO,
+reached the local-first transaction record, and then supplied evidence to
+overlap recovery. Focused mapper, conversion, persistence, provenance-audit,
+and end-to-end overlap tests now close those boundaries.

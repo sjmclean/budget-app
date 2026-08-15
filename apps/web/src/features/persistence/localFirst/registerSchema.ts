@@ -244,6 +244,59 @@ export interface LocalTransactionRecord {
   readonly updatedAt: string;
 }
 
+export const LOCAL_TRANSACTION_UPSERT_SQL = `
+  INSERT INTO local_transactions(
+    id, budget_id, account_id, date, amount, memo, check_number,
+    cleared_status, payee_id, payee_name, raw_payee_name, category_id, category_name,
+    transfer_account_id, transfer_transaction_id, generated_from_schedule,
+    scheduled_transaction_id, scheduled_occurrence_date, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(id) DO UPDATE SET
+    account_id = excluded.account_id,
+    date = excluded.date,
+    amount = excluded.amount,
+    memo = excluded.memo,
+    check_number = excluded.check_number,
+    cleared_status = excluded.cleared_status,
+    payee_id = excluded.payee_id,
+    payee_name = excluded.payee_name,
+    raw_payee_name = excluded.raw_payee_name,
+    category_id = excluded.category_id,
+    category_name = excluded.category_name,
+    transfer_account_id = excluded.transfer_account_id,
+    transfer_transaction_id = excluded.transfer_transaction_id,
+    generated_from_schedule = excluded.generated_from_schedule,
+    scheduled_transaction_id = excluded.scheduled_transaction_id,
+    scheduled_occurrence_date = excluded.scheduled_occurrence_date,
+    updated_at = excluded.updated_at
+`;
+
+export function localTransactionUpsertBindings(
+  transaction: LocalTransactionRecord,
+): readonly unknown[] {
+  return [
+    transaction.id,
+    transaction.budgetId,
+    transaction.accountId,
+    transaction.date,
+    transaction.amount,
+    transaction.memo,
+    transaction.checkNumber,
+    transaction.clearedStatus,
+    transaction.payeeId,
+    transaction.payeeName,
+    transaction.rawPayeeName ?? null,
+    transaction.categoryId,
+    transaction.categoryName,
+    transaction.transferAccountId,
+    transaction.transferTransactionId,
+    transaction.generatedFromSchedule ? 1 : 0,
+    transaction.scheduledTransactionId,
+    transaction.scheduledOccurrenceDate,
+    transaction.updatedAt,
+  ];
+}
+
 export interface LocalTransactionAttachmentRecord {
   readonly id: string;
   readonly budgetId: string;

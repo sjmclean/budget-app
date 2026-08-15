@@ -415,6 +415,10 @@ function formatYnab4StreamingAuditReport(
     `Transactions: ${audit.transactions}`,
     `Total inflow: ${audit.totalInflow}`,
     `Total outflow: ${audit.totalOutflow}`,
+    "Imported Payee Provenance:",
+    `  Source transactions with imported payee text: ${audit.importedPayeeProvenance.sourceTransactionsWithImportedPayee}`,
+    `  Preserved raw payees: ${audit.importedPayeeProvenance.preservedRawPayees}`,
+    `  Provenance mismatches: ${audit.importedPayeeProvenance.mismatches.length}`,
   ].join("\n");
 }
 
@@ -968,6 +972,11 @@ export interface Ynab4StreamingStagedAudit {
   transactions: number;
   totalInflow: number;
   totalOutflow: number;
+  importedPayeeProvenance: {
+    sourceTransactionsWithImportedPayee: number;
+    preservedRawPayees: number;
+    mismatches: readonly string[];
+  };
 }
 
 export interface ImportYnab4ReaderToHostedSqliteOptions {
@@ -1016,6 +1025,11 @@ export async function importYnab4ReaderToHostedSqlite(
   let expectedInflow = 0;
   let expectedOutflow = 0;
   let maximumCanonicalBatchRecords = 0;
+  let importedPayeeProvenance: Ynab4StreamingStagedAudit["importedPayeeProvenance"] = {
+    sourceTransactionsWithImportedPayee: 0,
+    preservedRawPayees: 0,
+    mismatches: [],
+  };
   const preflight = new Ynab4StreamingPreflightSession();
   let preflightBegun = false;
   const report = (phase: Ynab4DirectImportProgress["phase"]) =>
@@ -1101,6 +1115,9 @@ export async function importYnab4ReaderToHostedSqlite(
     })) {
       options.signal?.throwIfAborted();
       await preflight.persistBatch(batch, { signal: options.signal });
+      session.recordSourceTransactionDescriptions?.(
+        collectYnab4ImportedPayeeExpectations(batch),
+      );
       collectImportedFlags(batch, observedFlags);
       const batchRegisters = createYnab4TransactionRegisters(accounts, budget.currency);
       appendYnab4TransactionBatch({
@@ -1176,7 +1193,14 @@ export async function importYnab4ReaderToHostedSqlite(
     );
 
     report("finalising");
-    await session.validate({ signal: options.signal });
+    const sqliteValidation = await session.validate({ signal: options.signal });
+    importedPayeeProvenance = sqliteValidation.importedPayeeProvenance ?? importedPayeeProvenance;
+    if (importedPayeeProvenance.mismatches.length > 0) {
+      throw new Error([
+        "Streaming YNAB4 staged audit failed: imported-payee provenance was not preserved.",
+        ...importedPayeeProvenance.mismatches,
+      ].join("\n"));
+    }
     const smallPlan: Ynab4LauncherImportPlan = {
       budgetId: budget.id,
       accounts,
@@ -1204,6 +1228,7 @@ export async function importYnab4ReaderToHostedSqlite(
         transactions: persistedTransactions,
         totalInflow: expectedInflow,
         totalOutflow: expectedOutflow,
+        importedPayeeProvenance,
       },
       payeeKnowledgeAudit: maps.payeeKnowledgeAudit,
     };
@@ -1217,7 +1242,26 @@ export async function importYnab4ReaderToHostedSqlite(
   }
 }
 
-function toSqliteImportTransaction(
+export function collectYnab4ImportedPayeeExpectations(
+  records: readonly RecordMap[],
+): readonly { readonly transactionId: string; readonly rawPayeeName: string }[] {
+  return records.flatMap((source) => {
+    // Expectations follow the same canonical active-record boundary as the
+    // transaction mapper. Tombstones intentionally have no destination row.
+    if (isYnab4Tombstone(source)) return [];
+    const transactionId = firstString(
+      source.entityId,
+      source.id,
+      source.transactionId,
+    );
+    const rawPayeeName = firstString(source.importedPayee);
+    return transactionId && rawPayeeName
+      ? [{ transactionId, rawPayeeName }]
+      : [];
+  });
+}
+
+export function toSqliteImportTransaction(
   accountId: string,
   transaction: RegisterTransactionView,
   now: Date,
@@ -1226,6 +1270,7 @@ function toSqliteImportTransaction(
     id: transaction.id,
     accountId,
     payeeId: transaction.payeeId ?? null,
+    rawPayeeName: transaction.rawPayee ?? null,
     categoryId: transaction.categoryId ?? null,
     categoryName: transaction.transferAccountId
       ? "Transfer"
@@ -1560,6 +1605,11 @@ function auditYnab4StagedTransactions(
     transactions: transactionIds.length,
     totalInflow: round(expectedInflow),
     totalOutflow: round(expectedOutflow),
+    importedPayeeProvenance: {
+      sourceTransactionsWithImportedPayee: 0,
+      preservedRawPayees: 0,
+      mismatches: [],
+    },
   };
 }
 

@@ -49,6 +49,8 @@ export interface TransactionEntityFields {
   tagIds: string[];
   attachments: TransactionAttachmentEntityValue[];
   payee: string;
+  /** Immutable imported/bank description; optional for pre-provenance entities. */
+  rawPayee?: string | null;
   payeeId: string | null;
   category: string;
   categoryId: string | null;
@@ -121,6 +123,7 @@ export function validTransactionEntityFields(
     Array.isArray(fields.tagIds) && fields.tagIds.every((value) => typeof value === "string") &&
     Array.isArray(fields.attachments) && fields.attachments.every(isAttachment) &&
     typeof fields.payee === "string" &&
+    (fields.rawPayee === undefined || isNullableString(fields.rawPayee)) &&
     isNullableString(fields.payeeId) &&
     typeof fields.category === "string" &&
     isNullableString(fields.categoryId) &&
@@ -232,6 +235,7 @@ export function transactionEntityValues(transaction: TransactionEntitySource): T
     tagIds: [...new Set(transaction.tagIds ?? [])],
     attachments: (transaction.attachments ?? []).map(normaliseAttachment),
     payee: transaction.payee,
+    rawPayee: transaction.rawPayee ?? null,
     payeeId: transaction.payeeId ?? null,
     category: transaction.category,
     categoryId: transaction.categoryId ?? null,
@@ -321,6 +325,7 @@ export function projectTransactionEntity(
       storageType: attachment.storageType ?? undefined,
     })),
     payee: values.payee,
+    rawPayee: values.rawPayee ?? undefined,
     payeeId: values.payeeId ?? undefined,
     category: values.category,
     categoryId: values.categoryId ?? undefined,
