@@ -128,6 +128,7 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
 } {
   const exactRegisterOccurrences = new Map<string, string[]>();
   const bankRegisterOccurrences = new Map<string, string[]>();
+  const migratedBankRegisterOccurrences = new Map<string, string[]>();
   const consumedRegisterOccurrences = new Set<string>();
 
   for (const [index, transaction] of input.existingTransactions.entries()) {
@@ -163,6 +164,12 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
       ...(bankRegisterOccurrences.get(bankKey) ?? []),
       occurrenceId,
     ]);
+    if (transaction.importProvenance === "ynab4-imported-payee") {
+      migratedBankRegisterOccurrences.set(bankKey, [
+        ...(migratedBankRegisterOccurrences.get(bankKey) ?? []),
+        occurrenceId,
+      ]);
+    }
   }
 
   const consumeRegisterOccurrence = (
@@ -203,6 +210,24 @@ export function recoverAlreadyRepresentedBankCandidates(input: {
   const consumeHistoricalOccurrence = (
     candidate: TransactionImportCandidate,
   ): boolean => {
+    if (
+      consumeRegisterOccurrence(migratedBankRegisterOccurrences, bankKey)
+    ) {
+      representedCandidates.push(
+        appendTransactionImportTrace(candidate, {
+          stage: "duplicate-recovery",
+          output: {
+            represented: true,
+            comparisonKey: bankKey,
+            source: "ynab4-migrated-bank-provenance",
+          },
+          detail:
+            "A YNAB4-migrated register occurrence with the same retained bank payee, account date, and amount consumed this overlapping import row without relying on an editable memo.",
+        }),
+      );
+      continue;
+    }
+
     const evidence =
       input.previouslyImportedSourceOccurrences?.[candidate.id];
     if (!evidence) {
