@@ -1115,6 +1115,19 @@ export async function importYnab4ReaderToHostedSqlite(
     })) {
       options.signal?.throwIfAborted();
       await preflight.persistBatch(batch, { signal: options.signal });
+      session.recordSourceTransactionDescriptions?.(
+        batch.flatMap((source) => {
+          const transactionId = firstString(
+            source.entityId,
+            source.id,
+            source.transactionId,
+          );
+          const rawPayeeName = firstString(source.importedPayee);
+          return transactionId && rawPayeeName
+            ? [{ transactionId, rawPayeeName }]
+            : [];
+        }),
+      );
       collectImportedFlags(batch, observedFlags);
       const batchRegisters = createYnab4TransactionRegisters(accounts, budget.currency);
       appendYnab4TransactionBatch({
