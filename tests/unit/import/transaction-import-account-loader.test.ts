@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { loadCompleteAccountTransactionsForImport } from "../../../apps/web/src/features/accounts/transactionImportAccountLoader.js";
+import { getTransactionImportQueryRange } from "../../../apps/web/src/features/accounts/transactionImportQueryRange.js";
+import { previewTransactionQifImport } from "../../../apps/web/src/features/accounts/transactionImport.js";
+import { prepareTransactionImportPreview } from "../../../apps/web/src/features/accounts/transactionImportPreviewPreparation.js";
 import type {
   AccountRegisterQueryPort,
   AccountTransactionQuery,
@@ -18,7 +21,8 @@ function row(index: number): AccountTransactionRow {
     clearedStatus: "uncleared",
     payeeId: null,
     payeeName: "Example",
-    rawPayeeName: "EXAMPLE",
+    rawPayeeName: index === 300 ? "BANK SOURCE PAYEE" : "EXAMPLE",
+    importProvenance: index === 300 ? "ynab4-imported-payee" : null,
     categoryId: null,
     categoryName: null,
     transferAccountId: null,
@@ -36,6 +40,9 @@ test("production import loader pages beyond 250 and preserves account/date scope
     },
     async queryTransactions(query) {
       calls.push(query);
+      if (query.accountId !== "account-a") {
+        return { rows: [], hasMore: false, nextCursor: null };
+      }
       const offset = query.before ? 250 : 0;
       const rows = allRows.slice(offset, offset + 250);
       return {
@@ -67,4 +74,48 @@ test("production import loader pages beyond 250 and preserves account/date scope
       { accountId: "account-a", limit: 250, fromDate: "2026-07-01", toDate: "2026-08-31" },
     ],
   );
+
+  const incoming = previewTransactionQifImport([
+    "!Type:Bank",
+    "D01/08/26",
+    "T-6.00",
+    "PBANK SOURCE PAYEE",
+    "MOriginal bank memo",
+    "^",
+  ].join("\n"), loaded);
+  assert.deepEqual(getTransactionImportQueryRange(incoming), {
+    fromDate: "2026-07-25",
+    toDate: "2026-08-08",
+  });
+
+  const prepared = prepareTransactionImportPreview({
+    partition: {
+      activeCandidates: incoming.candidates,
+      previouslyImportedCandidates: [],
+      alreadyRepresentedCandidates: [],
+    },
+    existingTransactions: loaded,
+    isExactDuplicateFile: false,
+  });
+  assert.equal(prepared.alreadyRepresentedCount, 1);
+  assert.equal(prepared.reviewCandidates.length, 0);
+
+  const otherAccount = await loadCompleteAccountTransactionsForImport({
+    queries,
+    budgetId: "budget-a",
+    accountId: "account-b",
+    range: { fromDate: "2026-07-25", toDate: "2026-08-08" },
+  });
+  const isolated = prepareTransactionImportPreview({
+    partition: {
+      activeCandidates: incoming.candidates,
+      previouslyImportedCandidates: [],
+      alreadyRepresentedCandidates: [],
+    },
+    existingTransactions: otherAccount,
+    isExactDuplicateFile: false,
+  });
+  assert.equal(otherAccount.length, 0);
+  assert.equal(isolated.alreadyRepresentedCount, 0);
+  assert.equal(isolated.reviewCandidates.length, 1);
 });
