@@ -208,6 +208,7 @@ export type ImportedTransactionIdentityKind = "external" | "fallback";
 
 export interface ImportedTransactionIdentityEvidence {
   readonly identity: string;
+  readonly fallbackIdentity: string;
   readonly kind: ImportedTransactionIdentityKind;
 }
 
@@ -247,18 +248,10 @@ export function getImportedTransactionIdentityKind(
     : "fallback";
 }
 
-export function createImportedTransactionIdentityEvidence(
+function createImportedTransactionFallbackIdentity(
   fileType: ImportedTransactionFileType,
   candidate: ImportIdentityCandidate,
-): ImportedTransactionIdentityEvidence {
-  const externalId = findExternalTransactionId(fileType, candidate.parsed.raw);
-  if (externalId) {
-    return {
-      identity: `${fileType}:external:${createImportFileHash(normaliseIdentityValue(externalId))}`,
-      kind: "external",
-    };
-  }
-
+): string {
   const raw = candidate.parsed.raw;
   const rawDate = raw.date ?? raw.postedDate ?? candidate.parsed.date;
   const rawAmount =
@@ -284,10 +277,107 @@ export function createImportedTransactionIdentityEvidence(
     normaliseIdentityValue(candidate.parsed.transferAccountName),
   ].join("|");
 
+  return `${fileType}:fallback:${createImportFileHash(canonical)}`;
+}
+
+export function createImportedTransactionIdentityEvidence(
+  fileType: ImportedTransactionFileType,
+  candidate: ImportIdentityCandidate,
+): ImportedTransactionIdentityEvidence {
+  const fallbackIdentity = createImportedTransactionFallbackIdentity(
+    fileType,
+    candidate,
+  );
+  const externalId = findExternalTransactionId(fileType, candidate.parsed.raw);
+  if (externalId) {
+    return {
+      identity: `${fileType}:external:${createImportFileHash(normaliseIdentityValue(externalId))}`,
+      fallbackIdentity,
+      kind: "external",
+    };
+  }
+
   return {
-    identity: `${fileType}:fallback:${createImportFileHash(canonical)}`,
+    identity: fallbackIdentity,
+    fallbackIdentity,
     kind: "fallback",
   };
+}
+
+const EXTERNAL_FALLBACK_ASSOCIATION_KIND = "external-fallback";
+
+function createExternalFallbackAssociationIdentity(
+  evidence: ImportedTransactionIdentityEvidence,
+): string | undefined {
+  if (evidence.kind !== "external") {
+    return undefined;
+  }
+
+  const externalDigest = evidence.identity.split(":", 3)[2];
+  const fallbackDigest = evidence.fallbackIdentity.split(":", 3)[2];
+  if (!externalDigest || !fallbackDigest) {
+    return undefined;
+  }
+
+  const fileType = evidence.identity.split(":", 1)[0];
+  return [
+    fileType,
+    EXTERNAL_FALLBACK_ASSOCIATION_KIND,
+    externalDigest,
+    fallbackDigest,
+  ].join(":");
+}
+
+function readExternalFallbackAssociation(identity: string): {
+  externalDigest: string;
+  fallbackDigest: string;
+} | undefined {
+  const [, kind, externalDigest, fallbackDigest] = identity.split(":", 4);
+  if (
+    kind !== EXTERNAL_FALLBACK_ASSOCIATION_KIND ||
+    !externalDigest ||
+    !fallbackDigest
+  ) {
+    return undefined;
+  }
+
+  return { externalDigest, fallbackDigest };
+}
+
+export function allowRetainedSourceRecoveryForIdentity(input: {
+  evidence: ImportedTransactionIdentityEvidence;
+  importedFingerprints: ReadonlyArray<
+    Pick<ImportedTransactionFingerprint, "identity" | "occurrenceCount">
+  >;
+}): boolean {
+  if (input.evidence.kind === "fallback") {
+    return true;
+  }
+
+  // A further occurrence of an already represented strong ID must not consume
+  // the same retained register occurrence after partitioning suppressed the
+  // represented occurrences.
+  if (
+    input.importedFingerprints.some(
+      (entry) =>
+        entry.identity === input.evidence.identity &&
+        entry.occurrenceCount > 0,
+    )
+  ) {
+    return false;
+  }
+
+  const incomingExternalDigest = input.evidence.identity.split(":", 3)[2];
+  const incomingFallbackDigest =
+    input.evidence.fallbackIdentity.split(":", 3)[2];
+
+  return !input.importedFingerprints.some((entry) => {
+    const association = readExternalFallbackAssociation(entry.identity);
+    return (
+      association?.fallbackDigest === incomingFallbackDigest &&
+      association.externalDigest !== incomingExternalDigest
+    );
+  });
 }
 
 export function createImportedTransactionIdentity(
@@ -325,10 +415,6 @@ export function readPreviouslyImportedSourceOccurrences<
   const importedCounts = new Map(
     importedEntries.map((entry) => [entry.identity, entry.occurrenceCount]),
   );
-  const hasExternalIdentityHistory = importedEntries.some(
-    (entry) => getImportedTransactionIdentityKind(entry.identity) === "external",
-  );
-
   return Object.fromEntries(
     candidates.map((candidate) => {
       const evidence = createImportedTransactionIdentityEvidence(
@@ -341,11 +427,14 @@ export function readPreviouslyImportedSourceOccurrences<
           identity: evidence.identity,
           occurrenceCount: importedCounts.get(evidence.identity) ?? 0,
           kind: evidence.kind,
-          // Legacy/manual representations can be recovered when no strong
-          // history exists. Once strong history exists, a different external
-          // ID is a conflict and must remain reviewable.
+          // Only transaction-specific strong-ID evidence can block
+          // retained-field recovery. Unrelated external IDs elsewhere in the
+          // account are not evidence about this candidate.
           allowRetainedSourceRecovery:
-            evidence.kind === "fallback" || !hasExternalIdentityHistory,
+            allowRetainedSourceRecoveryForIdentity({
+              evidence,
+              importedFingerprints: importedEntries,
+            }),
         },
       ];
     }),
@@ -444,8 +533,23 @@ export function rememberImportedTransactionCandidates({
   const sessionCounts = new Map<string, number>();
 
   for (const candidate of candidates) {
-    const identity = createImportedTransactionIdentity(fileType, candidate);
-    sessionCounts.set(identity, (sessionCounts.get(identity) ?? 0) + 1);
+    const evidence = createImportedTransactionIdentityEvidence(
+      fileType,
+      candidate,
+    );
+    sessionCounts.set(
+      evidence.identity,
+      (sessionCounts.get(evidence.identity) ?? 0) + 1,
+    );
+
+    const associationIdentity =
+      createExternalFallbackAssociationIdentity(evidence);
+    if (associationIdentity) {
+      sessionCounts.set(
+        associationIdentity,
+        (sessionCounts.get(associationIdentity) ?? 0) + 1,
+      );
+    }
   }
 
   let counter = 0;
@@ -470,5 +574,10 @@ export function rememberImportedTransactionCandidates({
   return createImportedTransactionFingerprintRepository(storage)
     .list()
     .map(projectEntityFields)
-    .filter((entry) => entry.accountId === accountId && entry.fileType === fileType);
+    .filter(
+      (entry) =>
+        entry.accountId === accountId &&
+        entry.fileType === fileType &&
+        !readExternalFallbackAssociation(entry.identity),
+    );
 }
