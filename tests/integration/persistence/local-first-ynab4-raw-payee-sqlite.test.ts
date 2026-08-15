@@ -12,7 +12,7 @@ import {
   type LocalTransactionRecord,
 } from "../../../apps/web/src/features/persistence/localFirst/registerSchema.js";
 
-test("local-first worker SQLite contract persists and reloads raw bank payee", () => {
+test("local-first SQLite getTransactionsByIds read contract returns exact raw bank payee", () => {
   const directory = mkdtempSync(join(tmpdir(), "budget-app-raw-payee-"));
   const databasePath = join(directory, "provenance.sqlite");
   const expectedRawPayee = "LOCAL SHOP 0421 MELBOURNE";
@@ -69,15 +69,30 @@ test("local-first worker SQLite contract persists and reloads raw bank payee", (
       fileMustExist: true,
     });
     try {
-      const row = reopened.prepare(
-        `SELECT raw_payee_name AS rawPayee
+      // This is the account-scoped persistence read contract used by the
+      // worker's getTransactionsByIds validation path.
+      const rows = reopened.prepare(
+        `SELECT id, account_id AS accountId,
+                raw_payee_name AS rawPayeeName
            FROM local_transactions
-          WHERE budget_id = ? AND id = ?`,
-      ).get("budget-provenance", "txn-provenance") as
-        | { rawPayee: string | null }
-        | undefined;
+          WHERE budget_id = ?
+            AND account_id = ?
+            AND id IN (?)`,
+      ).all(
+        "budget-provenance",
+        "checking",
+        "txn-provenance",
+      ) as readonly {
+        id: string;
+        accountId: string;
+        rawPayeeName: string | null;
+      }[];
 
-      assert.equal(row?.rawPayee, expectedRawPayee);
+      assert.deepEqual(rows, [{
+        id: "txn-provenance",
+        accountId: "checking",
+        rawPayeeName: expectedRawPayee,
+      }]);
     } finally {
       reopened.close();
     }
