@@ -7,6 +7,7 @@ import {
   previewTransactionQifImport,
 } from "../../../apps/web/src/features/accounts/transactionImport.js";
 import {
+  allowRetainedSourceRecoveryForIdentity,
   createImportedTransactionIdentityEvidence,
   partitionCandidatesByImportedIdentity,
 } from "../../../apps/web/src/features/accounts/transactionImportKnowledge.js";
@@ -74,11 +75,19 @@ test("CSV trusts only deliberately recognised bank transaction ID headers", () =
 test("OFX FITID is stable across files and distinct FITIDs remain distinct", () => {
   const first = createImportedTransactionIdentityEvidence(
     "ofx",
-    identityCandidate({ fitId: "FIT-100" }),
+    identityCandidate({
+      fitId: "FIT-100",
+      name: "ORIGINAL BANK NAME",
+      memo: "Original memo",
+    }),
   );
   const repeated = createImportedTransactionIdentityEvidence(
     "ofx",
-    identityCandidate({ fitId: "FIT-100" }),
+    identityCandidate({
+      fitId: "FIT-100",
+      name: "CHANGED BANK NAME",
+      memo: "Changed memo",
+    }),
   );
   const different = createImportedTransactionIdentityEvidence(
     "ofx",
@@ -391,5 +400,173 @@ test("same strong FITID is suppressed occurrence-aware while a distinct FITID st
   assert.deepEqual(
     partition.activeCandidates.map((candidate) => candidate.id),
     ["additional-occurrence", "distinct"],
+  );
+});
+
+
+function externalFallbackAssociation(
+  evidence: ReturnType<typeof createImportedTransactionIdentityEvidence>,
+): string {
+  const externalDigest = evidence.identity.split(":", 3)[2];
+  const fallbackDigest = evidence.fallbackIdentity.split(":", 3)[2];
+  assert.ok(externalDigest);
+  assert.ok(fallbackDigest);
+  return `ofx:external-fallback:${externalDigest}:${fallbackDigest}`;
+}
+
+test("unrelated strong OFX history does not disable YNAB4-style legacy retained recovery", () => {
+  const unrelated = createImportedTransactionIdentityEvidence(
+    "ofx",
+    identityCandidate({
+      fitId: "ABC123",
+      postedDate: "20260801",
+      amount: "-25.00",
+      name: "UNRELATED MERCHANT",
+      memo: "Unrelated purchase",
+    }),
+  );
+  const existingTransactions = [
+    buildRegisterTransaction({
+      id: "ynab4-migrated-racv",
+      date: "2026-08-14",
+      rawPayee: "RACV",
+      payee: "RACV",
+      memo: "Annual insurance",
+      outflow: 1211.76,
+      inflow: 0,
+    }),
+  ];
+  const incoming = previewTransactionOfxImport([
+    "<OFX>",
+    "<BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>",
+    "<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260814<TRNAMT>-1211.76",
+    "<FITID>XYZ789<NAME>RACV<MEMO>Annual insurance</STMTTRN>",
+    "</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1>",
+    "</OFX>",
+  ].join(""), existingTransactions);
+  const candidate = incoming.candidates[0];
+  assert.ok(candidate);
+  const incomingEvidence = createImportedTransactionIdentityEvidence(
+    "ofx",
+    candidate,
+  );
+  const unrelatedHistory = [
+    { identity: unrelated.identity, occurrenceCount: 1 },
+    {
+      identity: externalFallbackAssociation(unrelated),
+      occurrenceCount: 1,
+    },
+  ];
+  const allowRecovery = allowRetainedSourceRecoveryForIdentity({
+    evidence: incomingEvidence,
+    importedFingerprints: unrelatedHistory,
+  });
+  assert.equal(allowRecovery, true);
+
+  const prepared = prepareTransactionImportPreview({
+    partition: {
+      activeCandidates: [candidate],
+      previouslyImportedCandidates: [],
+      alreadyRepresentedCandidates: [],
+    },
+    existingTransactions,
+    isExactDuplicateFile: false,
+    previouslyImportedSourceOccurrences: {
+      [candidate.id]: {
+        identity: incomingEvidence.identity,
+        occurrenceCount: 0,
+        kind: "external",
+        allowRetainedSourceRecovery: allowRecovery,
+      },
+    },
+  });
+
+  assert.equal(prepared.alreadyRepresentedCount, 1);
+  assert.equal(prepared.reviewCandidates.length, 0);
+  assert.equal(
+    prepared.reviewCandidates.reduce(
+      (total, item) => total + item.lifecycle.source.outflow,
+      0,
+    ),
+    0,
+    "the migrated RACV occurrence is represented once and is not duplicated",
+  );
+});
+
+test("transaction-specific distinct strong OFX IDs cannot collapse through retained fields", () => {
+  const knownA = createImportedTransactionIdentityEvidence(
+    "ofx",
+    identityCandidate({
+      fitId: "FITID-A",
+      postedDate: "20260814",
+      amount: "-1211.76",
+      name: "RACV",
+      memo: "Annual insurance",
+    }),
+  );
+  const existingTransactions = [
+    buildRegisterTransaction({
+      id: "represented-fitid-a",
+      date: "2026-08-14",
+      rawPayee: "RACV",
+      payee: "RACV",
+      memo: "Annual insurance",
+      outflow: 1211.76,
+      inflow: 0,
+    }),
+  ];
+  const incoming = previewTransactionOfxImport([
+    "<OFX>",
+    "<BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>",
+    "<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260814<TRNAMT>-1211.76",
+    "<FITID>FITID-B<NAME>RACV<MEMO>Annual insurance</STMTTRN>",
+    "</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1>",
+    "</OFX>",
+  ].join(""), existingTransactions);
+  const candidate = incoming.candidates[0];
+  assert.ok(candidate);
+  const incomingEvidence = createImportedTransactionIdentityEvidence(
+    "ofx",
+    candidate,
+  );
+  const knownHistory = [
+    { identity: knownA.identity, occurrenceCount: 1 },
+    {
+      identity: externalFallbackAssociation(knownA),
+      occurrenceCount: 1,
+    },
+  ];
+  const allowRecovery = allowRetainedSourceRecoveryForIdentity({
+    evidence: incomingEvidence,
+    importedFingerprints: knownHistory,
+  });
+  assert.equal(allowRecovery, false);
+
+  const prepared = prepareTransactionImportPreview({
+    partition: {
+      activeCandidates: [candidate],
+      previouslyImportedCandidates: [],
+      alreadyRepresentedCandidates: [],
+    },
+    existingTransactions,
+    isExactDuplicateFile: false,
+    previouslyImportedSourceOccurrences: {
+      [candidate.id]: {
+        identity: incomingEvidence.identity,
+        occurrenceCount: 0,
+        kind: "external",
+        allowRetainedSourceRecovery: allowRecovery,
+      },
+    },
+  });
+
+  assert.equal(prepared.alreadyRepresentedCount, 0);
+  assert.equal(prepared.reviewCandidates.length, 1);
+  assert.deepEqual(
+    prepared.reviewCandidates.map((item) => ({
+      payee: item.lifecycle.source.rawPayee,
+      outflow: item.lifecycle.source.outflow,
+    })),
+    [{ payee: "RACV", outflow: 1211.76 }],
   );
 });
