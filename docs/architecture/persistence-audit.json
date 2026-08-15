@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T03:48:21.588Z",
+  "generatedAt": "2026-08-15T08:46:41.611Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -1296,22 +1296,22 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1316
+      "line": 1317
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1564
+      "line": 1565
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1637
+      "line": 1638
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1665
+      "line": 1666
     },
     {
       "kind": "localStorage",
