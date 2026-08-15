@@ -211,6 +211,9 @@ export function mapYnab4Transaction(
     attachmentCount: 0,
     attachments: [],
     payee: payeeName,
+    // YNAB4 importedPayee is the retained source description itself. Requiring
+    // a separate source discriminator would discard valid older provenance.
+    rawPayee: firstString(transaction.importedPayee) ?? undefined,
     payeeId: transferAccountId ? undefined : payeeId ?? undefined,
     category: isTrackingAccount
       ? transferAccountId
