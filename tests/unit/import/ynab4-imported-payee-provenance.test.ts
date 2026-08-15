@@ -10,6 +10,7 @@ import { mapYnab4Transactions } from "../../../apps/web/src/features/budget/ynab
 import { createLocalFirstYnab4ImportClient } from "../../../apps/web/src/features/persistence/localFirst/localFirstYnab4ImportClient.js";
 import type { LocalBudgetDatabaseClient } from "../../../apps/web/src/features/persistence/localFirst/localBudgetClient.js";
 import type { LocalTransactionRecord } from "../../../apps/web/src/features/persistence/localFirst/registerSchema.js";
+import { Ynab4StreamingPreflightSession } from "../../../packages/ynab4-importer/src/source/ynab4StreamingPreflight.js";
 
 test("forwards raw bank payee through the SQLite import DTO", () => {
   const transaction = {
@@ -315,4 +316,65 @@ test("active provenance without a mapped destination account fails explicitly", 
     validation.importedPayeeProvenance?.mismatches[0] ?? "",
     /unresolved expected destination\/account assignment.*active-without-account/,
   );
+});
+
+
+test("preflight counts active identities and rejects duplicate active source IDs", async () => {
+  const summary = {
+    format: "ynab4-json" as const,
+    sourceName: "synthetic",
+    size: null,
+    topLevelKeys: ["accounts", "transactions"],
+  };
+  const referenceData = {
+    accounts: [{ entityId: "source-checking" }],
+    masterCategories: [],
+    payees: [],
+    monthlyBudgets: [],
+    values: {},
+  };
+  const preflight = new Ynab4StreamingPreflightSession();
+  assert.equal((await preflight.validateSource(summary, referenceData)).valid, true);
+  await preflight.begin();
+  await preflight.persistBatch([
+    {
+      entityId: "active-one",
+      accountId: "source-checking",
+      amount: -1,
+    },
+    {
+      entityId: "deleted-one",
+      accountId: "source-checking",
+      amount: -2,
+      isDeleted: true,
+    },
+  ]);
+  const result = await preflight.commit();
+  assert.equal(result.transactionsValidated, 2);
+  assert.equal(result.activeTransactionRecords, 1);
+  assert.equal(result.uniqueActiveTransactionIds, 1);
+  assert.equal(result.duplicateTransactionIds, 0);
+  await preflight.close();
+
+  const duplicate = new Ynab4StreamingPreflightSession();
+  await duplicate.validateSource(summary, referenceData);
+  await duplicate.begin();
+  await assert.rejects(
+    duplicate.persistBatch([
+      {
+        entityId: "duplicate-active",
+        accountId: "source-checking",
+        amount: -1,
+        importedPayee: "FIRST SYNTHETIC DESCRIPTION",
+      },
+      {
+        entityId: "duplicate-active",
+        accountId: "source-checking",
+        amount: -1,
+        importedPayee: "DIFFERENT SYNTHETIC DESCRIPTION",
+      },
+    ]),
+    /YNAB4_TRANSACTION_DUPLICATE.*Duplicate transaction identity "duplicate-active"/,
+  );
+  await duplicate.close();
 });
