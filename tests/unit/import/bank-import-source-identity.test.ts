@@ -570,3 +570,102 @@ test("transaction-specific distinct strong OFX IDs cannot collapse through retai
     [{ payee: "RACV", outflow: 1211.76 }],
   );
 });
+
+
+function prepareMigratedOverlap(
+  candidates: ReturnType<typeof previewTransactionQifImport>["candidates"],
+  existingTransactions: ReturnType<typeof buildRegisterTransaction>[],
+) {
+  return prepareTransactionImportPreview({
+    partition: {
+      activeCandidates: candidates,
+      previouslyImportedCandidates: [],
+      alreadyRepresentedCandidates: [],
+    },
+    existingTransactions,
+    isExactDuplicateFile: false,
+  });
+}
+
+test("YNAB4 migrated provenance bridges edited and cleared memos occurrence-by-occurrence", () => {
+  const existingTransactions = Array.from({ length: 25 }, (_, index) =>
+    buildRegisterTransaction({
+      id: `migrated-${index}`,
+      date: "2026-08-01",
+      rawPayee: `MERCHANT ${index}`,
+      importProvenance: "ynab4-imported-payee",
+      payee: `Merchant ${index}`,
+      memo: index < 10 ? `Bank memo ${index}` : index % 2 ? undefined : "User edited",
+      outflow: index + 1,
+      inflow: 0,
+    }),
+  );
+  const records = Array.from({ length: 25 }, (_, index) => [
+    "D01/08/26",
+    `T-${index + 1}.00`,
+    `PMERCHANT ${index}`,
+    `MBank memo ${index}`,
+    "^",
+  ].join("\n"));
+  const incoming = previewTransactionQifImport(
+    ["!Type:Bank", ...records].join("\n"),
+    existingTransactions,
+  );
+  const prepared = prepareMigratedOverlap(incoming.candidates, existingTransactions);
+
+  assert.equal(prepared.alreadyRepresentedCount, 25);
+  assert.equal(prepared.reviewCandidates.length, 0);
+  assert.equal(
+    incoming.candidates.reduce((sum, candidate) => sum + candidate.lifecycle.source.outflow, 0),
+    existingTransactions.reduce((sum, transaction) => sum + transaction.outflow, 0),
+  );
+});
+
+test("YNAB4 migrated provenance bridges CSV without weakening manual or wrong raw-payee rows", () => {
+  const migrated = buildRegisterTransaction({
+    id: "migrated",
+    date: "2026-08-05",
+    rawPayee: "RACV",
+    importProvenance: "ynab4-imported-payee",
+    payee: "RACV",
+    memo: "User changed memo",
+    outflow: 99,
+    inflow: 0,
+  });
+  const csv = ["Date,Payee,Outflow,Memo", "2026-08-05,RACV,99.00,Bank memo"].join("\n");
+  const candidates = previewTransactionCsvImport(csv, [migrated], {
+    0: "date", 1: "payee", 2: "outflow", 3: "memo",
+  }).candidates;
+
+  assert.equal(prepareMigratedOverlap(candidates, [migrated]).alreadyRepresentedCount, 1);
+  assert.equal(prepareMigratedOverlap(candidates, [{
+    ...migrated, id: "manual", importProvenance: undefined,
+  }]).reviewCandidates.length, 1);
+  assert.equal(prepareMigratedOverlap(candidates, [{
+    ...migrated, id: "wrong", rawPayee: "DIFFERENT BANK TEXT",
+  }]).reviewCandidates.length, 1);
+});
+
+test("YNAB4 migrated provenance never consumes one register occurrence twice", () => {
+  const migrated = buildRegisterTransaction({
+    id: "one-migrated-occurrence",
+    date: "2026-08-05",
+    rawPayee: "RACV",
+    importProvenance: "ynab4-imported-payee",
+    payee: "RACV",
+    memo: "Edited",
+    outflow: 99,
+    inflow: 0,
+  });
+  const records = Array.from({ length: 2 }, () => [
+    "D05/08/26", "T-99.00", "PRACV", "MBank memo", "^",
+  ].join("\n"));
+  const incoming = previewTransactionQifImport(
+    ["!Type:Bank", ...records].join("\n"),
+    [migrated],
+  );
+  const prepared = prepareMigratedOverlap(incoming.candidates, [migrated]);
+
+  assert.equal(prepared.alreadyRepresentedCount, 1);
+  assert.equal(prepared.reviewCandidates.length, 1);
+});
