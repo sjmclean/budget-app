@@ -213,7 +213,7 @@ export interface ImportedTransactionIdentityEvidence {
 
 function findExternalTransactionId(
   fileType: ImportedTransactionFileType,
-  raw: Record<string, string>,
+  raw: Readonly<Record<string, string>>,
 ): string | undefined {
   if (fileType === "ofx" || fileType === "qfx") {
     const fitId = raw.fitId?.trim();
