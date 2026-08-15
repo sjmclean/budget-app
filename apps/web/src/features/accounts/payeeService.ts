@@ -1,5 +1,6 @@
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import { createPayeeEntityRepository, projectPayee, replacePayeeEntities } from "./entities/payeeEntity.js";
+import { mergePayeeIconReferences, validatePayeeIconReferenceForWrite } from "../icons/payeeIconReference.js";
 
 export type PayeeRuleMatchType = "equals" | "contains" | "startsWith" | "endsWith";
 
@@ -39,6 +40,7 @@ export interface UpdatePayeeInput {
   defaultCategoryName?: string;
   importRules?: PayeeImportRuleView[];
   aliases?: PayeeAliasView[];
+  iconUpdate?: { readonly kind: "set"; readonly iconRef: string } | { readonly kind: "automatic" };
 }
 
 export interface RenamePayeeInput {
@@ -178,6 +180,7 @@ class BrowserPersistentPayeeService {
                 name: duplicate.name,
                 lastUsedAt: maxIsoDate(payee.lastUsedAt, target.lastUsedAt),
                 useCount: payee.useCount + target.useCount,
+                iconRef: mergePayeeIconReferences(payee.iconRef, [target.iconRef]),
               }
             : payee,
         );
@@ -234,6 +237,7 @@ class BrowserPersistentPayeeService {
                       : target.importRules ?? [],
                 lastUsedAt: maxIsoDate(payee.lastUsedAt, target.lastUsedAt),
                 useCount: payee.useCount + target.useCount,
+                iconRef: mergePayeeIconReferences(payee.iconRef, [target.iconRef]),
               }
             : payee,
         );
@@ -252,6 +256,7 @@ class BrowserPersistentPayeeService {
             defaultCategoryName: input.defaultCategoryName ?? "",
             importRules: normaliseImportRules(input.importRules ?? []),
             aliases: input.aliases ?? payee.aliases ?? [],
+            iconRef: applyIconUpdate(payee.iconRef, input.iconUpdate),
           }
         : payee,
     );
@@ -288,6 +293,7 @@ class BrowserPersistentPayeeService {
           importRules: mergeImportRules(payee.importRules ?? [], source.importRules ?? []),
           lastUsedAt: maxIsoDate(payee.lastUsedAt, source.lastUsedAt),
           useCount: payee.useCount + source.useCount,
+          iconRef: mergePayeeIconReferences(payee.iconRef, [source.iconRef]),
         };
       }
 
@@ -387,8 +393,19 @@ function normalisePayees(payees: PayeeView[]): PayeeView[] {
       defaultCategoryName:
         typeof payee.defaultCategoryName === "string" ? payee.defaultCategoryName : "",
       importRules: normaliseImportRules(payee.importRules ?? []),
+      aliases: payee.aliases ?? [],
+      scheduledUseCount: Number.isFinite(payee.scheduledUseCount) ? payee.scheduledUseCount : 0,
+      iconRef: typeof payee.iconRef === "string" ? payee.iconRef : "",
       isArchived: payee.isArchived === true,
     }));
+}
+
+function applyIconUpdate(
+  current: string | undefined,
+  update: UpdatePayeeInput["iconUpdate"],
+): string {
+  if (!update) return current ?? "";
+  return update.kind === "automatic" ? "" : validatePayeeIconReferenceForWrite(update.iconRef);
 }
 
 function mergeNotes(targetNote: string, sourceNote: string): string {
