@@ -35,6 +35,7 @@ test("forwards raw bank payee through the SQLite import DTO", () => {
 
   assert.equal(dto.payeeId, null);
   assert.equal(dto.rawPayeeName, "LOCAL SHOP 0421 MELBOURNE");
+  assert.equal(dto.importProvenance, "ynab4-imported-payee");
   assert.equal(dto.categoryName, "Groceries");
   assert.equal(dto.memo, "Card ending 4242");
   assert.equal(dto.amount, -1234);
@@ -82,6 +83,7 @@ test("local-first YNAB4 persistence retains raw bank payee on the stored transac
 
   assert.equal(stored.length, 1);
   assert.equal(stored[0]?.rawPayeeName, "LOCAL SHOP 0421 MELBOURNE");
+  assert.equal(stored[0]?.importProvenance, "ynab4-imported-payee");
   assert.equal(stored[0]?.payeeName, null);
   assert.equal(stored[0]?.categoryName, "Groceries");
 });
