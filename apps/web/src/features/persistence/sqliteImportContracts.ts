@@ -116,7 +116,7 @@ export interface SqliteImportSession {
       readonly scheduledTransactions: number;
     };
     /** Source-description fidelity, independent of financial/count fidelity. */
-    readonly importedPayeeProvenance: {
+    readonly importedPayeeProvenance?: {
       readonly sourceTransactionsWithImportedPayee: number;
       readonly preservedRawPayees: number;
       readonly mismatches: readonly string[];
