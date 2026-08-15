@@ -2869,6 +2869,7 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
     id: string; budgetId: string; accountId: string; date: string; amount: number;
     memo: string | null; checkNumber: string | null; clearedStatus: string;
     payeeId: string | null; payeeName: string | null; rawPayeeName: string | null;
+    importProvenance: "ynab4-imported-payee" | null;
     categoryId: string | null;
     categoryName: string | null; transferAccountId: string | null;
     transferTransactionId: string | null; generatedFromSchedule: number;
@@ -2881,6 +2882,7 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
        transaction_row.cleared_status AS clearedStatus,
        transaction_row.payee_id AS payeeId, transaction_row.payee_name AS payeeName,
        transaction_row.raw_payee_name AS rawPayeeName,
+       transaction_row.import_provenance AS importProvenance,
        transaction_row.category_id AS categoryId,
        COALESCE(category_record.name, transaction_row.category_name) AS categoryName,
        transaction_row.transfer_account_id AS transferAccountId,
