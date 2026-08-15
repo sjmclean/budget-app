@@ -53,6 +53,9 @@ test("maps ordinary transactions, balances, categories, payees, and flags", () =
         amount: -10,
         categoryId: "source-groceries",
         payeeId: "source-shop",
+        source: "Imported",
+        importedPayee: "  LOCAL SHOP 0421 MELBOURNE  ",
+        memo: "Card ending 4242",
         flag: "Red",
         cleared: "Cleared",
       },
@@ -74,7 +77,10 @@ test("maps ordinary transactions, balances, categories, payees, and flags", () =
 
   const expense = register.transactions.find((row) => row.id === "txn-1");
   assert.equal(expense?.payee, "Local Shop");
+  assert.equal(expense?.rawPayee, "LOCAL SHOP 0421 MELBOURNE");
   assert.equal(expense?.category, "Groceries");
+  assert.equal(expense?.memo, "Card ending 4242");
+  assert.equal(expense?.date, "2026-01-01");
   assert.equal(expense?.outflow, 10);
   assert.deepEqual(expense?.tagIds, ["red-flag"]);
 
@@ -357,4 +363,36 @@ test("recognises isDeleted as a YNAB4 tombstone flag", () => {
     ],
   });
   assert.equal(registers.checking.transactions.length, 0);
+});
+
+
+test("does not invent raw payee provenance from absent or blank importedPayee", () => {
+  const registers = mapYnab4Transactions({
+    accounts,
+    maps,
+    currencyCode: "AUD",
+    importedFlagTagIdByColour: new Map(),
+    transactions: [
+      {
+        entityId: "no-imported-payee",
+        accountId: "source-checking",
+        date: "2026-06-01",
+        amount: -1,
+        payeeId: "source-shop",
+      },
+      {
+        entityId: "blank-imported-payee",
+        accountId: "source-checking",
+        date: "2026-06-02",
+        amount: -2,
+        payeeId: "source-shop",
+        importedPayee: "   ",
+      },
+    ],
+  });
+
+  assert.equal(registers.checking.transactions[0]?.rawPayee, undefined);
+  assert.equal(registers.checking.transactions[1]?.rawPayee, undefined);
+  assert.equal(registers.checking.transactions[0]?.payee, "Local Shop");
+  assert.equal(registers.checking.transactions[1]?.payee, "Local Shop");
 });
