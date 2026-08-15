@@ -8,6 +8,7 @@ import {
 import {
   prepareTransactionImportPreview,
 } from "../../../apps/web/src/features/accounts/transactionImportPreviewPreparation.js";
+import { mapYnab4Transactions } from "../../../apps/web/src/features/budget/ynab4/mapYnab4Transactions.js";
 import { buildRegisterTransaction } from "../../support/builders/importMatchingBuilders.js";
 
 function partition(
@@ -553,5 +554,69 @@ test("one register occurrence cannot be consumed once by historical fallback and
     prepared.reviewCandidates.length,
     1,
     "the second incoming row must remain available for processing",
+  );
+});
+
+
+test("YNAB4-migrated imported payee provenance participates in occurrence-aware overlap recovery", () => {
+  const registers = mapYnab4Transactions({
+    accounts: [{
+      id: "checking",
+      name: "Checking",
+      type: "on-budget" as const,
+      startingBalance: 0,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    }],
+    maps: {
+      accountIdBySourceId: new Map([["source-checking", "checking"]]),
+      accountNameById: new Map([["checking", "Checking"]]),
+      accountTypeById: new Map([["checking", "on-budget" as const]]),
+      categoryIdBySourceId: new Map(),
+      categoryNameById: new Map(),
+      payeeIdBySourceId: new Map([["source-shop", "shop"]]),
+      payeeNameById: new Map([["shop", "Coffee Shop"]]),
+    },
+    currencyCode: "AUD",
+    importedFlagTagIdByColour: new Map(),
+    transactions: [{
+      entityId: "ynab4-historical-import",
+      accountId: "source-checking",
+      date: "2026-08-13",
+      amount: -20,
+      payeeId: "source-shop",
+      source: "Imported",
+      importedPayee: "COFFEE SHOP MELBOURNE",
+      memo: "Card ending 1234",
+    }],
+  });
+  const existingTransactions = registers.checking.transactions;
+  assert.equal(existingTransactions[0]?.payee, "Coffee Shop");
+  assert.equal(existingTransactions[0]?.rawPayee, "COFFEE SHOP MELBOURNE");
+
+  const qif = [
+    "!Type:Bank",
+    "D13/08/26",
+    "T-20.00",
+    "PCOFFEE SHOP MELBOURNE",
+    "MCard ending 1234",
+    "^",
+    "D13/08/26",
+    "T-20.00",
+    "PCOFFEE SHOP MELBOURNE",
+    "MCard ending 1234",
+    "^",
+  ].join("\n");
+  const incoming = previewTransactionQifImport(qif, existingTransactions);
+  const prepared = prepareTransactionImportPreview({
+    partition: partition(incoming.candidates),
+    existingTransactions,
+    isExactDuplicateFile: false,
+  });
+
+  assert.equal(prepared.alreadyRepresentedCount, 1);
+  assert.equal(
+    prepared.reviewCandidates.length,
+    1,
+    "one migrated occurrence may suppress only one incoming occurrence",
   );
 });
