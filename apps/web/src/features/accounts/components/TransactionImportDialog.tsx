@@ -260,6 +260,7 @@ export function TransactionImportDialog({
   onClose: () => void;
   loadAccountTransactions: (
     accountId: string,
+    range?: { readonly fromDate: string; readonly toDate: string },
   ) => Promise<RegisterTransactionView[]>;
   loadTransactionsByIds: (
     accountId: string,
