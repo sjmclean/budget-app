@@ -82,7 +82,9 @@ test("production import loader pages beyond 250 and preserves account/date scope
     "PBANK SOURCE PAYEE",
     "MOriginal bank memo",
     "^",
-  ].join("\n"), loaded);
+  ].join("\n"), loaded, {
+    dateFormat: "DD/MM/YY",
+  });
   assert.deepEqual(getTransactionImportQueryRange(incoming), {
     fromDate: "2026-07-25",
     toDate: "2026-08-08",
