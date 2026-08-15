@@ -18,7 +18,11 @@ export type Ynab4StreamingPreflightIssue = {
 
 export type Ynab4StreamingPreflightResult = {
   readonly format: "ynab4-json";
+  /** Top-level source records consumed, including tombstones. */
   readonly transactionsValidated: number;
+  /** Canonical active transaction records, including active split children. */
+  readonly activeTransactionRecords: number;
+  readonly uniqueActiveTransactionIds: number;
   readonly transferReferencesSeen: number;
   readonly duplicateTransactionIds: number;
 };
@@ -52,6 +56,7 @@ export class Ynab4StreamingPreflightSession
   private transactionIds = new Set<string>();
   private transferStubs = new Map<string, TransactionStub>();
   private transactionsValidated = 0;
+  private activeTransactionRecords = 0;
   private transferReferencesSeen = 0;
   private duplicateTransactionIds = 0;
   private begun = false;
@@ -118,6 +123,7 @@ export class Ynab4StreamingPreflightSession
     recordIndex: number,
     inheritedAccountId: string | null,
   ): void {
+      this.activeTransactionRecords += 1;
       const id = firstString(record.entityId, record.id, record.transactionId);
       if (!id) throw issueError("YNAB4_TRANSACTION_ID", "Transaction is missing an identity.", recordIndex);
       if (this.transactionIds.has(id)) {
@@ -190,6 +196,8 @@ export class Ynab4StreamingPreflightSession
     return {
       format: "ynab4-json",
       transactionsValidated: this.transactionsValidated,
+      activeTransactionRecords: this.activeTransactionRecords,
+      uniqueActiveTransactionIds: this.transactionIds.size,
       transferReferencesSeen: this.transferReferencesSeen,
       duplicateTransactionIds: this.duplicateTransactionIds,
     };
@@ -199,6 +207,7 @@ export class Ynab4StreamingPreflightSession
     this.transactionIds.clear();
     this.transferStubs.clear();
     this.transactionsValidated = 0;
+    this.activeTransactionRecords = 0;
     this.transferReferencesSeen = 0;
     this.begun = false;
   }
