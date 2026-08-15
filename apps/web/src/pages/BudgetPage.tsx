@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
-import { BarChart3, CalendarDays } from "lucide-react";
+import { BarChart3, CalendarDays, Plus, Redo2, Undo2 } from "lucide-react";
 import { Card } from "../components/ui/Card";
-import { DropdownMenu } from "../features/ui/DropdownMenu";
 import {
   WorkspaceBody,
   WorkspaceHeader,
@@ -767,6 +766,32 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     });
   }
 
+  async function handleCreateCategory() {
+    const group = visibleCategoryGroups.find(
+      (candidate) =>
+        candidate.id !== ARCHIVED_CATEGORIES_GROUP_ID &&
+        !isCreditCardPaymentGroup(candidate.id),
+    );
+    if (!group) return;
+
+    const name = (
+      await promptDialog({
+        title: "New category",
+        message: `Enter a category name for ${group.name}.`,
+        confirmLabel: "Create category",
+        placeholder: "Category name",
+      })
+    )?.trim();
+
+    if (!name) return;
+
+    await createCategory({
+      name,
+      groupId: group.id,
+      groupName: group.name,
+    });
+  }
+
   return (
     <>
       <WorkspaceLayout className="budget-workspace-screen budget-workspace-layout">
@@ -877,73 +902,25 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                     Auto Assign
                   </button>
                   <button
-                    className="button button-secondary"
+                    className="button button-secondary budget-history-icon-button"
                     type="button"
                     onClick={() => void budgetUndoRedo.undo()}
                     disabled={!budgetUndoRedo.canUndo}
+                    aria-label="Undo"
+                    title="Undo"
                   >
-                    Undo
+                    <Undo2 size={18} aria-hidden="true" />
                   </button>
                   <button
-                    className="button button-secondary"
+                    className="button button-secondary budget-history-icon-button"
                     type="button"
                     onClick={() => void budgetUndoRedo.redo()}
                     disabled={!budgetUndoRedo.canRedo}
+                    aria-label="Redo"
+                    title="Redo"
                   >
-                    Redo
+                    <Redo2 size={18} aria-hidden="true" />
                   </button>
-                </div>
-
-                <div className="budget-planning-toolbar-right">
-                  <button
-                    className="button button-secondary budget-add-category-button"
-                    type="button"
-                    onClick={async () => {
-                      const group = visibleCategoryGroups.find((candidate) =>
-                        candidate.id !== ARCHIVED_CATEGORIES_GROUP_ID &&
-                        !isCreditCardPaymentGroup(candidate.id),
-                      );
-                      if (!group) return;
-
-                      const name = (
-                        await promptDialog({
-                          title: "New category",
-                          message: `Enter a category name for ${group.name}.`,
-                          confirmLabel: "Create category",
-                          placeholder: "Category name",
-                        })
-                      )?.trim();
-
-                      if (!name) return;
-
-                      await createCategory({
-                        name,
-                        groupId: group.id,
-                        groupName: group.name,
-                      });
-                    }}
-                  >
-                    + Category
-                  </button>
-                  <DropdownMenu
-                    label="More ▾"
-                    ariaLabel="Budget administrative actions"
-                    className="dropdown-menu budget-header-overflow"
-                    panelClassName="dropdown-menu-panel budget-header-overflow-panel"
-                  >
-                    {({ closeMenu }) => (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          budgetTableLayout.resetColumnWidths();
-                          closeMenu({ restoreFocus: true });
-                        }}
-                      >
-                        Reset column widths
-                      </button>
-                    )}
-                  </DropdownMenu>
                 </div>
               </div>
             </section>
@@ -954,7 +931,22 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             >
               {budgetTableLayout.visibleColumns.map((column) => (
                 <span className="table-layout-resizable-head-cell" key={column.id}>
-                  {column.label}
+                  {column.id === "category" ? (
+                    <span className="budget-category-header-label">
+                      <span>{column.label}</span>
+                      <button
+                        className="budget-category-add-button"
+                        type="button"
+                        onClick={() => void handleCreateCategory()}
+                        aria-label="Add category"
+                        title="Add category"
+                      >
+                        <Plus size={14} aria-hidden="true" />
+                      </button>
+                    </span>
+                  ) : (
+                    column.label
+                  )}
                   <ColumnResizeHandle
                     columnId={column.id}
                     label={column.label}
