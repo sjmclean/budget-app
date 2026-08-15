@@ -234,8 +234,19 @@ function buildMatchedTransactionUpdates(
     const shouldRetainRawPayee =
       Boolean(sourceRawPayee) &&
       !candidate.matchedTransaction.rawPayee?.trim();
+    const shouldRetainImportProvenance =
+      Boolean(sourceRawPayee) &&
+      candidate.matchedTransaction.importProvenance !== "bank-import" &&
+      candidate.matchedTransaction.importProvenance !== "ynab4-imported-payee";
 
-    if (!wasEdited && !shouldUpdateDate && !shouldRetainRawPayee) return [];
+    if (
+      !wasEdited &&
+      !shouldUpdateDate &&
+      !shouldRetainRawPayee &&
+      !shouldRetainImportProvenance
+    ) {
+      return [];
+    }
 
     return [
       {
@@ -246,6 +257,9 @@ function buildMatchedTransactionUpdates(
         rawPayee: shouldRetainRawPayee
           ? sourceRawPayee
           : candidate.matchedTransaction.rawPayee,
+        importProvenance: shouldRetainImportProvenance
+          ? "bank-import"
+          : candidate.matchedTransaction.importProvenance,
       },
     ];
   });
