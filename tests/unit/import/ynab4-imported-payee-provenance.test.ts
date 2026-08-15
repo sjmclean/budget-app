@@ -121,6 +121,11 @@ test("staged local-first validation reports provenance lost after persistence", 
     currency: "AUD",
   });
 
+  session.recordSourceTransactionDescriptions?.([{
+    transactionId: "txn-provenance-loss",
+    rawPayeeName: "LOCAL SHOP 0421 MELBOURNE",
+  }]);
+
   await session.persistTransactions([{
     id: "txn-provenance-loss",
     accountId: "checking",
