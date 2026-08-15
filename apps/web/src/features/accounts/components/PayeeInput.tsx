@@ -8,8 +8,10 @@ import type { SidebarAccount } from "../accountService";
 import type { PayeeView } from "../payeeService";
 import {
   buildPayeeAutocompleteOptions,
+  getPayeeSelection,
   getPayeeSuggestionSection,
   getPayeeSuggestionText,
+  type PayeeSelection,
 } from "../registerPayeeAutocomplete";
 
 export function PayeeInput({
@@ -96,15 +98,11 @@ export function PayeeInput({
     shouldShowPopup,
   );
 
-  function selectSuggestion(
-    selectedValue: string,
-    selectedPayeeId?: string,
-    selectedTransferAccountId?: string,
-  ) {
-    onChange(selectedValue);
-    onPayeeIdChange?.(selectedPayeeId);
-    onTransferAccountIdChange?.(selectedTransferAccountId);
-    onSelection?.(selectedValue);
+  function selectSuggestion(selection: PayeeSelection) {
+    onChange(selection.value);
+    onPayeeIdChange?.(selection.payeeId);
+    onTransferAccountIdChange?.(selection.transferAccountId);
+    onSelection?.(selection.value);
     setIsOpen(false);
     setShowAllSuggestions(false);
     setHighlightedIndex(0);
@@ -145,7 +143,7 @@ export function PayeeInput({
     setCreateError(null);
     try {
       const created = await onCreatePayee(trimmedValue);
-      selectSuggestion(created.name, created.id);
+      selectSuggestion({ value: created.name, payeeId: created.id });
       window.setTimeout(() => inputRef.current?.focus(), 0);
     } catch (error) {
       setCreateError(
@@ -161,11 +159,7 @@ export function PayeeInput({
       return false;
     }
 
-    selectSuggestion(
-      highlightedSuggestion.value,
-      highlightedSuggestion.metadata?.payeeId,
-      highlightedSuggestion.metadata?.transferAccountId,
-    );
+    selectSuggestion(getPayeeSelection(highlightedSuggestion));
     return true;
   }
 
@@ -316,10 +310,7 @@ export function PayeeInput({
                   onMouseEnter={() => setHighlightedIndex(index)}
                   onMouseDown={(event) => {
                     event.preventDefault();
-                    selectSuggestion(
-                      suggestion.value,
-                      suggestion.metadata?.payeeId,
-                    );
+                    selectSuggestion(getPayeeSelection(suggestion));
                   }}
                   role="option"
                   aria-selected={index === highlightedIndex}
