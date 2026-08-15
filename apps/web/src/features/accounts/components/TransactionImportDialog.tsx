@@ -687,14 +687,33 @@ export function TransactionImportDialog({
     setStep("review");
   }
 
+  function getPreviewDateRange(nextPreview: TransactionImportPreview) {
+    const dates = nextPreview.candidates
+      .map((candidate) => candidate.parsed.date)
+      .filter((date): date is string => /^\d{4}-\d{2}-\d{2}$/.test(date))
+      .sort();
+    if (dates.length === 0) return undefined;
+    return { fromDate: dates[0], toDate: dates[dates.length - 1] };
+  }
+
+  async function loadTransactionsForPreview(
+    accountId: string,
+    preliminaryPreview: TransactionImportPreview,
+  ) {
+    const range = getPreviewDateRange(preliminaryPreview);
+    const nextTransactions = await loadAccountTransactions(accountId, range);
+    setTransactions(nextTransactions);
+    return nextTransactions;
+  }
+
   async function changeDestinationAccount(accountId: string) {
     const nextAccount =
       accounts.find((account) => account.id === accountId) ?? accounts[0];
     const nextAccountName = nextAccount?.name ?? "Selected account";
-    const nextTransactions = await loadAccountTransactions(accountId);
+    const initialTransactions = await loadAccountTransactions(accountId);
 
     setSelectedAccountId(accountId);
-    setTransactions(nextTransactions);
+    setTransactions(initialTransactions);
     setPreview(null);
     setCandidates([]);
     setBankCandidateDetails({});
@@ -741,19 +760,26 @@ export function TransactionImportDialog({
         !qifDetection.amountFormatNeedsConfirmation ||
           Boolean(knowledge?.qifAmountFormat),
       );
-      const nextPreview = previewTransactionQifImport(
-        qifText,
-        nextTransactions,
-        {
-          sourceAccountName: nextAccountName,
-          availableTransferAccountNames: accounts
-            .filter((account) => account.id !== accountId)
-            .map((account) => account.name),
-          dateFormat: nextDateFormat,
-          amountFormat: nextAmountFormat,
-        },
-        resolveMerchantForMatching,
+      const createPreview = (existingTransactions: RegisterTransactionView[]) =>
+        previewTransactionQifImport(
+          qifText,
+          existingTransactions,
+          {
+            sourceAccountName: nextAccountName,
+            availableTransferAccountNames: accounts
+              .filter((account) => account.id !== accountId)
+              .map((account) => account.name),
+            dateFormat: nextDateFormat,
+            amountFormat: nextAmountFormat,
+          },
+          resolveMerchantForMatching,
+        );
+      const preliminaryPreview = createPreview([]);
+      const nextTransactions = await loadTransactionsForPreview(
+        accountId,
+        preliminaryPreview,
       );
+      const nextPreview = createPreview(nextTransactions);
       applyPreview(
         nextPreview,
         nextTransactions,
@@ -765,11 +791,18 @@ export function TransactionImportDialog({
     }
 
     if ((fileType === "ofx" || fileType === "qfx") && ofxText) {
-      const nextPreview = previewTransactionOfxImport(
-        ofxText,
-        nextTransactions,
-        resolveMerchantForMatching,
+      const createPreview = (existingTransactions: RegisterTransactionView[]) =>
+        previewTransactionOfxImport(
+          ofxText,
+          existingTransactions,
+          resolveMerchantForMatching,
+        );
+      const preliminaryPreview = createPreview([]);
+      const nextTransactions = await loadTransactionsForPreview(
+        accountId,
+        preliminaryPreview,
       );
+      const nextPreview = createPreview(nextTransactions);
       applyPreview(
         nextPreview,
         nextTransactions,
@@ -789,12 +822,19 @@ export function TransactionImportDialog({
       const nextMapping = knowledge?.csvMapping ?? analysis.suggestedMapping;
       setMapping(nextMapping);
       if (hasRequiredCsvMapping(nextMapping)) {
-        const nextPreview = previewTransactionCsvImport(
-          csvText,
-          nextTransactions,
-          nextMapping,
-          resolveMerchantForMatching,
+        const createPreview = (existingTransactions: RegisterTransactionView[]) =>
+          previewTransactionCsvImport(
+            csvText,
+            existingTransactions,
+            nextMapping,
+            resolveMerchantForMatching,
+          );
+        const preliminaryPreview = createPreview([]);
+        const nextTransactions = await loadTransactionsForPreview(
+          accountId,
+          preliminaryPreview,
         );
+        const nextPreview = createPreview(nextTransactions);
         applyPreview(
           nextPreview,
           nextTransactions,
@@ -962,7 +1002,7 @@ export function TransactionImportDialog({
     }
   }
 
-  function updateQifInterpretation(
+  async function updateQifInterpretation(
     nextDateFormat: QifDateFormat,
     nextAmountFormat: QifAmountFormat,
   ) {
@@ -970,23 +1010,30 @@ export function TransactionImportDialog({
 
     setQifDateFormat(nextDateFormat);
     setQifAmountFormat(nextAmountFormat);
-    const nextPreview = previewTransactionQifImport(
-      qifText,
-      transactions,
-      {
-        sourceAccountName: accountName,
-        availableTransferAccountNames: transferAccountNames,
-        transferAccounts: accounts.filter(
-          (account) => account.id !== selectedAccountId,
-        ),
-        dateFormat: nextDateFormat,
-        amountFormat: nextAmountFormat,
-      },
-      resolveMerchantForMatching,
+    const createPreview = (existingTransactions: RegisterTransactionView[]) =>
+      previewTransactionQifImport(
+        qifText,
+        existingTransactions,
+        {
+          sourceAccountName: accountName,
+          availableTransferAccountNames: transferAccountNames,
+          transferAccounts: accounts.filter(
+            (account) => account.id !== selectedAccountId,
+          ),
+          dateFormat: nextDateFormat,
+          amountFormat: nextAmountFormat,
+        },
+        resolveMerchantForMatching,
+      );
+    const preliminaryPreview = createPreview([]);
+    const nextTransactions = await loadTransactionsForPreview(
+      selectedAccountId,
+      preliminaryPreview,
     );
+    const nextPreview = createPreview(nextTransactions);
     applyPreview(
       nextPreview,
-      transactions,
+      nextTransactions,
       `${nextPreview.summary.totalRows} QIF transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
       "qif",
     );
@@ -1018,32 +1065,39 @@ export function TransactionImportDialog({
     updateQifInterpretation(qifDateFormat, nextAmountFormat);
   }
 
-  function buildQifPreview() {
+  async function buildQifPreview() {
     if (!qifText) {
       setError("Choose a QIF file first.");
       return;
     }
-    const nextPreview = previewTransactionQifImport(
-      qifText,
-      transactions,
-      {
-        sourceAccountName: accountName,
-        availableTransferAccountNames: transferAccountNames,
-        transferAccounts: accounts.filter(
-          (account) => account.id !== selectedAccountId,
-        ),
-        dateFormat: qifDateFormat,
-        amountFormat: qifAmountFormat,
-      },
-      resolveMerchantForMatching,
+    const createPreview = (existingTransactions: RegisterTransactionView[]) =>
+      previewTransactionQifImport(
+        qifText,
+        existingTransactions,
+        {
+          sourceAccountName: accountName,
+          availableTransferAccountNames: transferAccountNames,
+          transferAccounts: accounts.filter(
+            (account) => account.id !== selectedAccountId,
+          ),
+          dateFormat: qifDateFormat,
+          amountFormat: qifAmountFormat,
+        },
+        resolveMerchantForMatching,
+      );
+    const preliminaryPreview = createPreview([]);
+    const nextTransactions = await loadTransactionsForPreview(
+      selectedAccountId,
+      preliminaryPreview,
     );
+    const nextPreview = createPreview(nextTransactions);
     if (nextPreview.candidates.length === 0) {
       setError("The QIF file does not appear to contain any transactions.");
       return;
     }
     applyPreview(
       nextPreview,
-      transactions,
+      nextTransactions,
       `${nextPreview.summary.totalRows} QIF transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
       "qif",
       selectedAccountId,
@@ -1051,23 +1105,30 @@ export function TransactionImportDialog({
     );
   }
 
-  function buildOfxPreview() {
+  async function buildOfxPreview() {
     if (!ofxText || (fileType !== "ofx" && fileType !== "qfx")) {
       setError("Choose an OFX or QFX file first.");
       return;
     }
-    const nextPreview = previewTransactionOfxImport(
-      ofxText,
-      transactions,
-      resolveMerchantForMatching,
+    const createPreview = (existingTransactions: RegisterTransactionView[]) =>
+      previewTransactionOfxImport(
+        ofxText,
+        existingTransactions,
+        resolveMerchantForMatching,
+      );
+    const preliminaryPreview = createPreview([]);
+    const nextTransactions = await loadTransactionsForPreview(
+      selectedAccountId,
+      preliminaryPreview,
     );
+    const nextPreview = createPreview(nextTransactions);
     if (nextPreview.candidates.length === 0) {
       setError("The OFX/QFX file does not appear to contain any transactions.");
       return;
     }
     applyPreview(
       nextPreview,
-      transactions,
+      nextTransactions,
       `${nextPreview.summary.totalRows} ${getFileTypeLabel(fileType)} transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
       fileType,
       selectedAccountId,
@@ -1075,7 +1136,7 @@ export function TransactionImportDialog({
     );
   }
 
-  function buildCsvPreview(
+  async function buildCsvPreview(
     nextCsvText = csvText,
     nextMapping: CsvImportColumnMapping = mapping,
     options: {
@@ -1104,17 +1165,21 @@ export function TransactionImportDialog({
     }
 
     const timings = options.timings ?? [];
-    const existingTransactions = options.existingTransactions ?? transactions;
+    const createPreview = (existingTransactions: RegisterTransactionView[]) =>
+      previewTransactionCsvImport(
+        nextCsvText,
+        existingTransactions,
+        nextMapping,
+        resolveMerchantForMatching,
+      );
+    const preliminaryPreview = createPreview([]);
+    const existingTransactions =
+      options.existingTransactions ??
+      await loadTransactionsForPreview(selectedAccountId, preliminaryPreview);
     const nextPreview = measureImportStage(
       timings,
       "Parse and preview CSV",
-      () =>
-        previewTransactionCsvImport(
-          nextCsvText,
-          existingTransactions,
-          nextMapping,
-          resolveMerchantForMatching,
-        ),
+      () => createPreview(existingTransactions),
     );
     applyPreview(
       nextPreview,
