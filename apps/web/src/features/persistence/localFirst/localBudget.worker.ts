@@ -208,6 +208,67 @@ function deferStagedTransactionIndexes(): void {
   `);
 }
 
+function migrateImportProvenanceConstraint(): void {
+  const tableSql = resultRows<{ sql: string }>(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'local_transactions'",
+  )[0]?.sql ?? "";
+  if (
+    !tableSql.includes("ynab4-imported-payee") ||
+    tableSql.includes("bank-import")
+  ) {
+    return;
+  }
+
+  execute("PRAGMA foreign_keys = OFF");
+  execute("BEGIN IMMEDIATE");
+  try {
+    execute(`
+      CREATE TABLE local_transactions_provenance_migration (
+        id TEXT PRIMARY KEY,
+        budget_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        memo TEXT,
+        check_number TEXT,
+        cleared_status TEXT NOT NULL,
+        payee_id TEXT,
+        payee_name TEXT,
+        raw_payee_name TEXT,
+        import_provenance TEXT CHECK(
+          import_provenance IN ('ynab4-imported-payee','bank-import')
+        ),
+        category_id TEXT,
+        category_name TEXT,
+        transfer_account_id TEXT,
+        transfer_transaction_id TEXT,
+        generated_from_schedule INTEGER NOT NULL DEFAULT 0,
+        scheduled_transaction_id TEXT,
+        scheduled_occurrence_date TEXT,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY(account_id) REFERENCES local_accounts(id) ON DELETE CASCADE
+      );
+      INSERT INTO local_transactions_provenance_migration
+      SELECT id, budget_id, account_id, date, amount, memo, check_number,
+        cleared_status, payee_id, payee_name, raw_payee_name,
+        import_provenance, category_id, category_name, transfer_account_id,
+        transfer_transaction_id, generated_from_schedule,
+        scheduled_transaction_id, scheduled_occurrence_date, updated_at
+      FROM local_transactions;
+      DROP TABLE local_transactions;
+      ALTER TABLE local_transactions_provenance_migration
+        RENAME TO local_transactions;
+    `);
+    execute("COMMIT");
+  } catch (error) {
+    execute("ROLLBACK");
+    throw error;
+  } finally {
+    execute("PRAGMA foreign_keys = ON");
+  }
+  execute(LOCAL_REGISTER_SCHEMA_SQL);
+}
+
 function initialiseSchema(): void {
   execute(`
     PRAGMA foreign_keys = ON;
@@ -359,8 +420,9 @@ function initialiseSchema(): void {
     execute("ALTER TABLE local_transactions ADD COLUMN raw_payee_name TEXT");
   }
   if (!transactionColumns.has("import_provenance")) {
-    execute("ALTER TABLE local_transactions ADD COLUMN import_provenance TEXT CHECK(import_provenance IN ('ynab4-imported-payee'))");
+    execute("ALTER TABLE local_transactions ADD COLUMN import_provenance TEXT CHECK(import_provenance IN ('ynab4-imported-payee','bank-import'))");
   }
+  migrateImportProvenanceConstraint();
   const payeeColumns = new Set(
     resultRows<{ name: string }>("PRAGMA table_info(local_payees)").map(({ name }) => name),
   );
@@ -2725,7 +2787,7 @@ function queryTransactions(query: LocalTransactionQuery) {
     payeeId: string | null;
     payeeName: string | null;
     rawPayeeName: string | null;
-    importProvenance: "ynab4-imported-payee" | null;
+    importProvenance: "ynab4-imported-payee" | "bank-import" | null;
     categoryId: string | null;
     categoryName: string | null;
     transferAccountId: string | null;
@@ -2869,7 +2931,7 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
     id: string; budgetId: string; accountId: string; date: string; amount: number;
     memo: string | null; checkNumber: string | null; clearedStatus: string;
     payeeId: string | null; payeeName: string | null; rawPayeeName: string | null;
-    importProvenance: "ynab4-imported-payee" | null;
+    importProvenance: "ynab4-imported-payee" | "bank-import" | null;
     categoryId: string | null;
     categoryName: string | null; transferAccountId: string | null;
     transferTransactionId: string | null; generatedFromSchedule: number;
