@@ -43,7 +43,7 @@ export interface RegisterTransactionView {
   attachments?: RegisterAttachmentView[];
   payee: string;
   rawPayee?: string;
-  importProvenance?: "ynab4-imported-payee";
+  importProvenance?: "ynab4-imported-payee" | "bank-import";
   payeeId?: string;
   category: string;
   categoryId?: string;
@@ -85,6 +85,7 @@ export interface NewRegisterTransactionInput {
   payeeId?: string;
   /** Immutable description supplied by the bank/import source. */
   rawPayee?: string;
+  importProvenance?: "ynab4-imported-payee" | "bank-import";
   category: string;
   categoryId?: string;
   transferAccountId?: string;
@@ -107,6 +108,7 @@ export interface UpdateRegisterTransactionInput {
   payeeId?: string;
   /** Preserved when an imported transaction is edited or its payee is renamed. */
   rawPayee?: string;
+  importProvenance?: "ynab4-imported-payee" | "bank-import";
   category: string;
   categoryId?: string;
   transferAccountId?: string;
