@@ -78,13 +78,18 @@ Identity strength is explicit at the import boundary:
   filename, import timestamp, and array position are never treated as strong
   transaction identity.
 
-A repeated strong external ID is suppressible occurrence-for-occurrence. Two
-different strong external IDs are conflicting identity evidence: identical
-date, amount, payee, and memo must not collapse them. When older retained
-register data predates external-ID history, those retained source fields may
-still recover the first strong-ID import conservatively. Once strong history
-exists for that account and file type, a different incoming strong ID remains
-in review.
+A repeated strong external ID is suppressible occurrence-for-occurrence. Known
+conflicting strong external IDs associated with the same deterministic source
+transaction must remain distinct: identical date, amount, payee, and memo do
+not override that transaction-specific conflict.
+
+Older retained register data may predate external-ID history entirely. Its
+retained source fields may still recover a later strong-ID import
+conservatively. The existence of unrelated strong-ID history elsewhere in the
+same account does not prove a conflict for that legacy occurrence. New strong
+imports retain an internal association between external identity and the
+existing deterministic fallback identity so later conflicts can be recognised
+without changing the transaction or SQLite schema.
 
 Missing external identity is not itself a conflict. Such rows continue through
 the conservative fallback and occurrence-aware retained-register workflow.
