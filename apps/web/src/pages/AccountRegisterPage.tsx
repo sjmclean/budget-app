@@ -1693,9 +1693,9 @@ export function AccountRegisterPage() {
             loadAccountTransactions={async (destinationAccountId, range) => {
               const queries = persistenceGateway.accountRegisterQueries;
               if (storageMode === "sqlite" && activeBudgetId && queries) {
-                const rows: import("../../../../../packages/application/src/accountRegister/AccountRegisterQueryPort").AccountTransactionRow[] = [];
+                const rows: import("../../../../packages/application/src/accountRegister/AccountRegisterQueryPort").AccountTransactionRow[] = [];
                 let before:
-                  | import("../../../../../packages/application/src/accountRegister/AccountRegisterQueryPort").AccountTransactionCursor
+                  | import("../../../../packages/application/src/accountRegister/AccountRegisterQueryPort").AccountTransactionCursor
                   | undefined;
                 do {
                   const page = await queries.queryTransactions({
