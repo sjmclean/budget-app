@@ -103,7 +103,7 @@ export const LOCAL_REGISTER_SCHEMA_SQL = `
     payee_id TEXT,
     payee_name TEXT,
     raw_payee_name TEXT,
-    import_provenance TEXT CHECK(import_provenance IN ('ynab4-imported-payee')),
+    import_provenance TEXT CHECK(import_provenance IN ('ynab4-imported-payee','bank-import')),
     category_id TEXT,
     category_name TEXT,
     transfer_account_id TEXT,
