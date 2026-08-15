@@ -13,6 +13,7 @@ import {
 } from "../../../apps/web/src/features/accounts/transactionImportKnowledge.js";
 import {
   prepareTransactionImportPreview,
+  recoverAlreadyRepresentedBankCandidates,
 } from "../../../apps/web/src/features/accounts/transactionImportPreviewPreparation.js";
 import { buildRegisterTransaction } from "../../support/builders/importMatchingBuilders.js";
 
@@ -763,12 +764,15 @@ test("exact trusted bank provenance is consumed before settlement drift", () => 
 
   assert.equal(prepared.alreadyRepresentedCount, 1);
   assert.equal(prepared.reviewCandidates.length, 0);
-  assert.ok(incoming.candidates[0]?.lifecycle.trace.some(
-    (entry) => entry.source === "trusted-bank-provenance-exact-date",
-  ));
-  assert.equal(incoming.candidates[0]?.lifecycle.trace.some(
-    (entry) => entry.source === "unique-settlement-bank-provenance",
-  ), false);
+  const recovery = recoverAlreadyRepresentedBankCandidates({
+    candidates: incoming.candidates,
+    existingTransactions: [existing],
+    allowMigratedYnabBridge: true,
+  });
+  const traceSources = recovery.representedCandidates[0]?.trace
+    ?.map((entry) => entry.output?.source);
+  assert.ok(traceSources?.includes("trusted-bank-provenance-exact-date"));
+  assert.equal(traceSources?.includes("unique-settlement-bank-provenance"), false);
 });
 
 test("unique QIF settlement drift of two and four days is represented", () => {
