@@ -280,6 +280,7 @@ test("overlapping QIF keeps exactly five represented rows out and two new moneta
   const incoming = previewTransactionQifImport(
     ["!Type:Bank", ...records].join("\n"),
     existingTransactions,
+    { dateFormat: "DD/MM/YY" },
   );
   const prepared = prepareTransactionImportPreview({
     partition: {
@@ -612,6 +613,7 @@ test("YNAB4 migrated provenance bridges edited and cleared memos occurrence-by-o
   const incoming = previewTransactionQifImport(
     ["!Type:Bank", ...records].join("\n"),
     existingTransactions,
+    { dateFormat: "DD/MM/YY" },
   );
   const prepared = prepareMigratedOverlap(incoming.candidates, existingTransactions);
 
@@ -665,6 +667,7 @@ test("YNAB4 migrated provenance never consumes one register occurrence twice", (
   const incoming = previewTransactionQifImport(
     ["!Type:Bank", ...records].join("\n"),
     [migrated],
+    { dateFormat: "DD/MM/YY" },
   );
   const prepared = prepareMigratedOverlap(incoming.candidates, [migrated]);
 
