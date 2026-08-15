@@ -13,6 +13,7 @@ import { mapYnab4Transactions } from "../../../apps/web/src/features/budget/ynab
 import { createLocalFirstYnab4ImportClient } from "../../../apps/web/src/features/persistence/localFirst/localFirstYnab4ImportClient.js";
 import type { LocalBudgetDatabaseClient } from "../../../apps/web/src/features/persistence/localFirst/localBudgetClient.js";
 import { createYnab4SourceReader } from "../../../packages/ynab4-importer/src/source/createYnab4SourceReader.js";
+import type { Ynab4SourceRecord } from "../../../packages/ynab4-importer/src/source/types.js";
 
 import {
   LOCAL_REGISTER_SCHEMA_SQL,
@@ -188,12 +189,12 @@ test("raw YNAB4 reader preserves active provenance through SQLite staged validat
     async getManifest() {
       return {
         counts: {
-          accounts: Number(sqlite.prepare(
+          accounts: Number((sqlite.prepare(
             "SELECT COUNT(*) AS count FROM local_accounts WHERE budget_id = ?",
-          ).get("budget-lifecycle")?.count ?? 0),
-          transactions: Number(sqlite.prepare(
+          ).get("budget-lifecycle") as { count: number }).count),
+          transactions: Number((sqlite.prepare(
             "SELECT COUNT(*) AS count FROM local_transactions WHERE budget_id = ?",
-          ).get("budget-lifecycle")?.count ?? 0),
+          ).get("budget-lifecycle") as { count: number }).count),
           payees: 0,
           categories: 0,
           budgetMonths: 0,
@@ -229,7 +230,7 @@ test("raw YNAB4 reader preserves active provenance through SQLite staged validat
   } as unknown as LocalBudgetDatabaseClient;
 
   try {
-    const sourceRecords = [];
+    const sourceRecords: Ynab4SourceRecord[] = [];
     for await (const batch of reader.streamTransactions({ batchSize: 1 })) {
       sourceRecords.push(...batch);
     }
@@ -300,9 +301,9 @@ test("raw YNAB4 reader preserves active provenance through SQLite staged validat
       mismatches: [],
     });
     assert.equal(
-      sqlite.prepare(
+      (sqlite.prepare(
         "SELECT COUNT(*) AS count FROM local_transactions WHERE id = ?",
-      ).get("deleted-import")?.count,
+      ).get("deleted-import") as { count: number }).count,
       0,
     );
   } finally {
