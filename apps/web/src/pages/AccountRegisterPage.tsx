@@ -21,6 +21,7 @@ import { SelectionBar } from "../components/ui/SelectionBar";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
 import { AttachmentManager } from "../features/accounts/components/AttachmentManager";
 import { TransactionImportDialog } from "../features/accounts/components/TransactionImportDialog";
+import { loadCompleteAccountTransactionsForImport } from "../features/accounts/transactionImportAccountLoader";
 import { RegisterToolbar } from "../features/accounts/components/RegisterToolbar";
 import {
   TransactionEditRow,
@@ -1693,24 +1694,12 @@ export function AccountRegisterPage() {
             loadAccountTransactions={async (destinationAccountId, range) => {
               const queries = persistenceGateway.accountRegisterQueries;
               if (storageMode === "sqlite" && activeBudgetId && queries) {
-                const rows: import("../../../../packages/application/src/accountRegister/AccountRegisterQueryPort").AccountTransactionRow[] = [];
-                let before:
-                  | import("../../../../packages/application/src/accountRegister/AccountRegisterQueryPort").AccountTransactionCursor
-                  | undefined;
-                do {
-                  const page = await queries.queryTransactions({
-                    budgetId: activeBudgetId,
-                    accountId: destinationAccountId,
-                    limit: 250,
-                    before,
-                    fromDate: range?.fromDate,
-                    toDate: range?.toDate,
-                  });
-                  rows.push(...page.rows);
-                  before = page.nextCursor ?? undefined;
-                  if (!page.hasMore) break;
-                } while (before);
-                return mapSqliteTransactions(rows, 0);
+                return loadCompleteAccountTransactionsForImport({
+                  queries,
+                  budgetId: activeBudgetId,
+                  accountId: destinationAccountId,
+                  range,
+                });
               }
               const view =
                 await persistenceGateway.accountRegisters.getAccountRegisterView(
