@@ -5,7 +5,10 @@ import { projectScheduledTransaction } from "../accounts/entities/scheduledTrans
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import { readAccounts, type SidebarAccount } from "../accounts/accountService";
 import { createFixedBudgetScopedStorage } from "./budgetDataScope.js";
-import type { AccountRegisterView } from "../accounts/accountRegisterTypes";
+import type {
+  AccountRegisterView,
+  RegisterTransactionView,
+} from "../accounts/accountRegisterTypes";
 import type { BudgetMonthView } from "./budgetViewTypes";
 import type { Ynab4PackageEntry } from "../../../../../packages/ynab4-importer/src/analyzeYnab4Package";
 import { readYnab4BudgetData } from "../../../../../packages/ynab4-importer/src/package/readBudget";
