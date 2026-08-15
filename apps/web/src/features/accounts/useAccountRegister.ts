@@ -771,6 +771,7 @@ export function mapSqliteTransactions(
         ? formatTransferPayee(readTransferAccountName(row))
         : row.payeeName ?? "Imported Payee",
       rawPayee: row.rawPayeeName ?? undefined,
+      importProvenance: row.importProvenance ?? undefined,
       payeeId: row.payeeId ?? undefined,
       category: row.categoryId
         ? row.categoryName ?? "Uncategorised"
