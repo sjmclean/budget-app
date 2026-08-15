@@ -80,3 +80,76 @@ test("local-first YNAB4 persistence retains raw bank payee on the stored transac
   assert.equal(stored[0]?.payeeName, null);
   assert.equal(stored[0]?.categoryName, "Groceries");
 });
+
+
+test("staged local-first validation reports provenance lost after persistence", async () => {
+  let stored: readonly LocalTransactionRecord[] = [];
+  const database = {
+    async beginStagedImport() {},
+    async importRegisterBatch(batch: { readonly transactions?: readonly LocalTransactionRecord[] }) {
+      if (batch.transactions) stored = batch.transactions;
+    },
+    async getManifest() {
+      return {
+        counts: {
+          accounts: 0,
+          transactions: 1,
+          payees: 0,
+          categories: 0,
+          budgetMonths: 0,
+          scheduledTransactions: 0,
+          transactionTags: 0,
+        },
+      };
+    },
+    async getTransactionsByIds() {
+      return stored.map((transaction) => ({
+        ...transaction,
+        rawPayeeName: null,
+      }));
+    },
+  } as unknown as LocalBudgetDatabaseClient;
+
+  const client = createLocalFirstYnab4ImportClient({
+    database,
+    syncEpoch: "epoch-provenance-audit",
+    deviceId: "device-provenance-audit",
+  });
+  const session = await client.begin({
+    budgetId: "budget-provenance-audit",
+    budgetName: "Imported Budget",
+    currency: "AUD",
+  });
+
+  await session.persistTransactions([{
+    id: "txn-provenance-loss",
+    accountId: "checking",
+    payeeId: null,
+    rawPayeeName: "LOCAL SHOP 0421 MELBOURNE",
+    categoryId: null,
+    categoryName: null,
+    transferAccountId: null,
+    transferTransactionId: null,
+    splitLines: [],
+    type: "standard",
+    date: "2026-08-13",
+    memo: null,
+    checkNumber: null,
+    amount: -1234,
+    clearedStatus: "cleared",
+    createdAt: 1,
+    updatedAt: 1,
+  }]);
+
+  const validation = await session.validate();
+  assert.equal(
+    validation.importedPayeeProvenance?.sourceTransactionsWithImportedPayee,
+    1,
+  );
+  assert.equal(validation.importedPayeeProvenance?.preservedRawPayees, 0);
+  assert.equal(validation.importedPayeeProvenance?.mismatches.length, 1);
+  assert.match(
+    validation.importedPayeeProvenance?.mismatches[0] ?? "",
+    /txn-provenance-loss/,
+  );
+});
