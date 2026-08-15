@@ -188,7 +188,16 @@ review.
 
 ### Complete bounded matching reads
 
-Transaction import matching reads an account in pages of at most 250 rows and
-follows continuation cursors until the requested account/date range is
-complete. It never substitutes a larger arbitrary cap. Account identity and
-optional inclusive date bounds are forwarded to every page query.
+Transaction import matching first parses the candidate dates without making
+duplicate decisions, then reads only the selected destination account across
+the statement interval plus the reconciliation engine's seven-day window on
+both sides. That read uses pages of at most 250 rows and follows continuation
+cursors until the bounded range is complete; it never substitutes a larger
+arbitrary cap. Account identity and inclusive date bounds are forwarded to
+every page query. The initial upload and merchant-learning bootstrap remain a
+single bounded sample and are not used as the authoritative duplicate set.
+
+The memo-independent YNAB4 migration bridge is enabled only for incoming QIF
+and CSV files, because YNAB4 retained the bank payee but not the originating
+file format. OFX/QFX continues to respect FITID precedence and cannot be
+collapsed through this compatibility bridge.
