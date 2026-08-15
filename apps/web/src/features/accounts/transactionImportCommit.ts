@@ -70,6 +70,7 @@ function toRegisterTransactionInput(
   const transaction: NewRegisterTransactionInput = {
     date: parsed.date,
     rawPayee: candidate.lifecycle.source.rawPayee,
+    importProvenance: "bank-import",
     payee: isTransfer
       ? `Transfer: ${requestedTransferAccountName}`
       : proposal.payee,
