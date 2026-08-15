@@ -83,6 +83,17 @@ export interface SqliteImportSession {
     options?: { readonly signal?: AbortSignal },
   ): Promise<void>;
 
+  /**
+   * Supplies immutable source descriptions independently of mapped DTOs so
+   * validation can detect mapper as well as persistence loss.
+   */
+  recordSourceTransactionDescriptions?(
+    rows: readonly {
+      readonly transactionId: string;
+      readonly rawPayeeName: string;
+    }[],
+  ): void;
+
   persistTransactions(
     rows: readonly SqliteImportTransaction[],
     options?: { readonly signal?: AbortSignal },
