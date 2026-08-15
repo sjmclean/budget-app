@@ -201,3 +201,31 @@ The memo-independent YNAB4 migration bridge is enabled only for incoming QIF
 and CSV files, because YNAB4 retained the bank payee but not the originating
 file format. OFX/QFX continues to respect FITID precedence and cannot be
 collapsed through this compatibility bridge.
+
+
+### Settlement and posting-date reconciliation
+
+A bank's settlement or posting date can differ from the date retained in a
+register. QIF and ordinary CSV imports therefore have a bounded compatibility
+stage after strong external identities and exact retained-source occurrences
+have been exhausted.
+
+The compatibility stage uses the same seven-day reconciliation window as the
+ordinary import matcher. It requires all of the following evidence:
+
+- an exact normalized raw bank-payee description;
+- an exact signed amount;
+- explicit trusted bank-import provenance on the register transaction; and
+- a mutually unique nearest candidate/register occurrence pairing.
+
+The assignment is occurrence-aware and independent of input order. Exact-date
+occurrences are consumed first. A register occurrence is never consumed twice.
+If either side has an equal-distance alternative, or the remaining group cannot
+be paired uniquely, the importer leaves those candidates in review. It prefers
+a visible false negative over silently suppressing a real transaction.
+
+Native Budget App QIF/CSV imports and user-confirmed matches retain
+`bank-import` provenance for later imports. Manual rows without that marker are
+not eligible merely because their payee, amount, or date looks similar.
+OFX/QFX strong identifiers such as FITID remain authoritative and bypass this
+date-drift compatibility stage.
