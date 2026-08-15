@@ -97,3 +97,29 @@ unintentionally authoritative partial database.
 
 Successful commit should publish the state required for subsequent local-first
 synchronization.
+
+
+## YNAB4 imported payee provenance
+
+Historical YNAB4 `importedPayee` values are preserved as Budget App's raw bank
+payee provenance. The normal mapped, user-facing payee is unchanged. Meaningful
+source text is trimmed; absent or blank source values do not invent provenance.
+
+Retaining this bank description lets later QIF, CSV, and OFX imports recognise
+transactions that were already represented by the YNAB4 migration. Matching
+remains conservative and occurrence-aware: one retained register occurrence
+can account for only one incoming occurrence, so an additional genuine
+identical transaction remains available for review.
+
+YNAB4 entity/`YNABID` values remain migration and source identity. They are not
+treated as bank external transaction IDs. Richer generic source provenance,
+`ImportRun`, and `ImportMap` modelling remains follow-up work.
+
+### Why earlier green tests missed this
+
+Earlier coverage proved ordinary transaction mapping, persisted financial
+totals, and later bank-import overlap behavior independently. It did not prove
+that `importedPayee` survived YNAB4 mapping, crossed the SQLite import DTO,
+reached the local-first transaction record, and then supplied evidence to
+overlap recovery. Focused mapper, conversion, persistence, provenance-audit,
+and end-to-end overlap tests now close those boundaries.
