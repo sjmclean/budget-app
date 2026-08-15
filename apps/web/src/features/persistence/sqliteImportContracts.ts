@@ -37,6 +37,7 @@ export interface SqliteImportTransaction {
   readonly accountId: string;
   readonly payeeId: string | null;
   readonly rawPayeeName: string | null;
+  readonly importProvenance?: "ynab4-imported-payee" | null;
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly transferAccountId: string | null;
