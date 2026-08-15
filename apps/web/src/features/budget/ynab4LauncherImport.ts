@@ -1271,6 +1271,7 @@ export function toSqliteImportTransaction(
     accountId,
     payeeId: transaction.payeeId ?? null,
     rawPayeeName: transaction.rawPayee ?? null,
+    importProvenance: transaction.rawPayee ? "ynab4-imported-payee" : null,
     categoryId: transaction.categoryId ?? null,
     categoryName: transaction.transferAccountId
       ? "Transfer"
