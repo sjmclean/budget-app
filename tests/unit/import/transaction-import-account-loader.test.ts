@@ -14,7 +14,7 @@ import type {
 function row(index: number): AccountTransactionRow {
   return {
     id: `transaction-${String(index).padStart(3, "0")}`,
-    date: "2026-08-01",
+    date: index === 300 ? "2026-08-03" : "2026-08-01",
     amount: -600,
     memo: null,
     checkNumber: null,
@@ -77,7 +77,7 @@ test("production import loader pages beyond 250 and preserves account/date scope
 
   const incoming = previewTransactionQifImport([
     "!Type:Bank",
-    "D01/08/26",
+    "D05/08/26",
     "T-6.00",
     "PBANK SOURCE PAYEE",
     "MOriginal bank memo",
@@ -86,8 +86,8 @@ test("production import loader pages beyond 250 and preserves account/date scope
     dateFormat: "DD/MM/YY",
   });
   assert.deepEqual(getTransactionImportQueryRange(incoming), {
-    fromDate: "2026-07-25",
-    toDate: "2026-08-08",
+    fromDate: "2026-07-29",
+    toDate: "2026-08-12",
   });
 
   const prepared = prepareTransactionImportPreview({
