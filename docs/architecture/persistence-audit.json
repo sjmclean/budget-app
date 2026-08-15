@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T11:46:37.492Z",
+  "generatedAt": "2026-08-15T12:12:32.025Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -520,22 +520,22 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/payeeService.ts",
-      "line": 356
+      "line": 358
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/payeeService.ts",
-      "line": 369
+      "line": 371
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/payeeService.ts",
-      "line": 373
+      "line": 375
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/payeeService.ts",
-      "line": 377
+      "line": 379
     },
     {
       "kind": "localStorage",
