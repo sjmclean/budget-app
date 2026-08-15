@@ -48,21 +48,26 @@ test("account navigation reuses the boundary-aware uncategorised predicate", () 
   const navigation = workerSource.match(
     /function listAccountNavigation\(budgetId: string\)\s*\{([\s\S]*?)\n\}/,
   );
-  const predicate = workerSource.match(
-    /function uncategorisedTransactionPredicate[\s\S]*?\n\}/,
+  const predicateSource = fs.readFileSync(
+    new URL(
+      "../../../apps/web/src/features/persistence/localFirst/uncategorisedTransactionSql.ts",
+      import.meta.url,
+    ),
+    "utf8",
   );
 
   assert.ok(navigation);
-  assert.ok(predicate);
   assert.match(navigation[1], /uncategorisedTransactionPredicate\(\)/);
   assert.match(navigation[1], /account\.participation <> 'on-budget'/);
 
-  const source = predicate[0];
+  const source = predicateSource;
   assert.match(source, /\.amount <> 0/);
   assert.match(source, /category_account\.participation = 'on-budget'/);
+  assert.match(source, /transfer_transaction_id IS NULL/);
   assert.match(source, /transfer_category_account\.participation = 'on-budget'/);
   assert.match(source, /FROM local_transaction_splits AS category_split/);
   assert.match(source, /category_split\.category_id IS NULL/);
+  assert.match(source, /category_split\.transfer_transaction_id IS NULL/);
   assert.match(source, /split_transfer_category_account\.participation = 'on-budget'/);
   assert.doesNotMatch(source, /amount < 0/);
 });
