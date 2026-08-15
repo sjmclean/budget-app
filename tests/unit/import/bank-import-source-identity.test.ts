@@ -575,6 +575,7 @@ test("transaction-specific distinct strong OFX IDs cannot collapse through retai
 function prepareMigratedOverlap(
   candidates: ReturnType<typeof previewTransactionQifImport>["candidates"],
   existingTransactions: ReturnType<typeof buildRegisterTransaction>[],
+  sourceFileType: "qif" | "csv" = "qif",
 ) {
   return prepareTransactionImportPreview({
     partition: {
@@ -584,6 +585,7 @@ function prepareMigratedOverlap(
     },
     existingTransactions,
     isExactDuplicateFile: false,
+    sourceFileType,
   });
 }
 
@@ -637,13 +639,13 @@ test("YNAB4 migrated provenance bridges CSV without weakening manual or wrong ra
     0: "date", 1: "payee", 2: "outflow", 3: "memo",
   }).candidates;
 
-  assert.equal(prepareMigratedOverlap(candidates, [migrated]).alreadyRepresentedCount, 1);
+  assert.equal(prepareMigratedOverlap(candidates, [migrated], "csv").alreadyRepresentedCount, 1);
   assert.equal(prepareMigratedOverlap(candidates, [{
     ...migrated, id: "manual", importProvenance: undefined,
-  }]).reviewCandidates.length, 1);
+  }], "csv").reviewCandidates.length, 1);
   assert.equal(prepareMigratedOverlap(candidates, [{
     ...migrated, id: "wrong", rawPayee: "DIFFERENT BANK TEXT",
-  }]).reviewCandidates.length, 1);
+  }], "csv").reviewCandidates.length, 1);
 });
 
 test("YNAB4 migrated provenance never consumes one register occurrence twice", () => {
@@ -667,5 +669,40 @@ test("YNAB4 migrated provenance never consumes one register occurrence twice", (
   const prepared = prepareMigratedOverlap(incoming.candidates, [migrated]);
 
   assert.equal(prepared.alreadyRepresentedCount, 1);
+  assert.equal(prepared.reviewCandidates.length, 1);
+});
+
+
+test("YNAB4 migration bridge does not override native OFX strong identity", () => {
+  const migrated = buildRegisterTransaction({
+    id: "migrated-without-fitid",
+    date: "2026-08-05",
+    rawPayee: "RACV",
+    importProvenance: "ynab4-imported-payee",
+    payee: "RACV",
+    memo: "User changed memo",
+    outflow: 99,
+    inflow: 0,
+  });
+  const incoming = previewTransactionOfxImport([
+    "<OFX>",
+    "<BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>",
+    "<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260805<TRNAMT>-99.00",
+    "<FITID>FIT-NEW<NAME>RACV<MEMO>Original bank memo</STMTTRN>",
+    "</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1>",
+    "</OFX>",
+  ].join(""), [migrated]);
+  const prepared = prepareTransactionImportPreview({
+    partition: {
+      activeCandidates: incoming.candidates,
+      previouslyImportedCandidates: [],
+      alreadyRepresentedCandidates: [],
+    },
+    existingTransactions: [migrated],
+    isExactDuplicateFile: false,
+    sourceFileType: "ofx",
+  });
+
+  assert.equal(prepared.alreadyRepresentedCount, 0);
   assert.equal(prepared.reviewCandidates.length, 1);
 });
