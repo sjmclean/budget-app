@@ -40,7 +40,7 @@ export interface AccountTransactionRow {
   /** Immutable bank/import description retained separately from canonical payee. */
   readonly rawPayeeName?: string | null;
   /** Durable source provenance used only for conservative import recovery. */
-  readonly importProvenance?: "ynab4-imported-payee" | null;
+  readonly importProvenance?: "ynab4-imported-payee" | "bank-import" | null;
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly transferAccountId: string | null;
