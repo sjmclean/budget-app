@@ -358,6 +358,9 @@ function initialiseSchema(): void {
   if (!transactionColumns.has("raw_payee_name")) {
     execute("ALTER TABLE local_transactions ADD COLUMN raw_payee_name TEXT");
   }
+  if (!transactionColumns.has("import_provenance")) {
+    execute("ALTER TABLE local_transactions ADD COLUMN import_provenance TEXT CHECK(import_provenance IN ('ynab4-imported-payee'))");
+  }
   const payeeColumns = new Set(
     resultRows<{ name: string }>("PRAGMA table_info(local_payees)").map(({ name }) => name),
   );
@@ -2647,6 +2650,14 @@ function queryTransactions(query: LocalTransactionQuery) {
   const offset = Math.max(0, Math.trunc(query.offset ?? 0));
   const where = ["transaction_row.budget_id = ?", "transaction_row.account_id = ?"];
   const bind: unknown[] = [query.budgetId, query.accountId];
+  if (query.fromDate) {
+    where.push("transaction_row.date >= ?");
+    bind.push(query.fromDate);
+  }
+  if (query.toDate) {
+    where.push("transaction_row.date <= ?");
+    bind.push(query.toDate);
+  }
   if (query.before) {
     where.push("(transaction_row.date, transaction_row.id) < (?, ?)");
     bind.push(query.before.date, query.before.id);
@@ -2714,6 +2725,7 @@ function queryTransactions(query: LocalTransactionQuery) {
     payeeId: string | null;
     payeeName: string | null;
     rawPayeeName: string | null;
+    importProvenance: "ynab4-imported-payee" | null;
     categoryId: string | null;
     categoryName: string | null;
     transferAccountId: string | null;
@@ -2731,6 +2743,7 @@ function queryTransactions(query: LocalTransactionQuery) {
        transaction_row.cleared_status AS clearedStatus,
        transaction_row.payee_id AS payeeId, transaction_row.payee_name AS payeeName,
        transaction_row.raw_payee_name AS rawPayeeName,
+       transaction_row.import_provenance AS importProvenance,
        transaction_row.category_id AS categoryId,
        ${categoryNameExpression} AS categoryName,
        transaction_row.transfer_account_id AS transferAccountId,
