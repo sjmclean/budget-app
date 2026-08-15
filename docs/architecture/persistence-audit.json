@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T11:13:15.333Z",
+  "generatedAt": "2026-08-15T11:46:37.492Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -515,27 +515,27 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/payeeService.ts",
-      "line": 60
+      "line": 62
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/payeeService.ts",
-      "line": 350
+      "line": 356
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/payeeService.ts",
-      "line": 363
+      "line": 369
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/payeeService.ts",
-      "line": 367
+      "line": 373
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/payeeService.ts",
-      "line": 371
+      "line": 377
     },
     {
       "kind": "localStorage",
@@ -1915,7 +1915,7 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
-      "line": 70,
+      "line": 71,
       "classification": "review-required"
     },
     {
@@ -2412,13 +2412,13 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/PayeeManagementPage.tsx",
-      "line": 65,
+      "line": 70,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/PayeeManagementPage.tsx",
-      "line": 74,
+      "line": 79,
       "classification": "review-required"
     },
     {
