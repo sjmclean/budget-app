@@ -39,7 +39,7 @@ export function merchantIconDevProxy(): Plugin {
           }
 
           if (kind === "page") {
-            const fetched = await fetchRestricted(`https://${domain}/`, domain, PAGE_LIMIT, "page");
+            const fetched = await fetchOfficialPageRestricted(domain, PAGE_LIMIT);
             const contentType = fetched.contentType.toLowerCase();
             if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) {
               sendText(response, 415, "Merchant page did not return HTML.");
@@ -95,6 +95,27 @@ export function merchantIconDevProxy(): Plugin {
       });
     },
   };
+}
+
+async function fetchOfficialPageRestricted(
+  domain: string,
+  maximumBytes: number,
+): Promise<{ url: string; contentType: string; bytes: Uint8Array }> {
+  const candidates = [
+    `https://${domain}/`,
+    `https://www.${domain}/`,
+  ];
+  const failures: string[] = [];
+
+  for (const candidate of candidates) {
+    try {
+      return await fetchRestricted(candidate, domain, maximumBytes, "page");
+    } catch (error) {
+      failures.push(`${new URL(candidate).hostname}: ${describeError(error)}`);
+    }
+  }
+
+  throw new Error(`All approved merchant page entry points failed. ${failures.join(" | ")}`);
 }
 
 async function fetchRestricted(
@@ -154,40 +175,6 @@ async function fetchRestricted(
   throw new Error("Merchant request failed.");
 }
 
-function describeError(error: unknown): string {
-  if (!(error instanceof Error)) return String(error ?? "Merchant fetch failed.");
-
-  const details = [error.message];
-  const cause = (error as Error & { cause?: unknown }).cause;
-  if (cause instanceof AggregateError) {
-    for (const nested of cause.errors) {
-      const value = describeErrorValue(nested);
-      if (value) details.push(value);
-    }
-  } else {
-    const value = describeErrorValue(cause);
-    if (value) details.push(value);
-  }
-  return [...new Set(details.filter(Boolean))].join(" | ");
-}
-
-function describeErrorValue(value: unknown): string {
-  if (!value) return "";
-  if (value instanceof Error) {
-    const coded = value as Error & { code?: string; errno?: string | number; syscall?: string; hostname?: string };
-    return [coded.code, coded.message, coded.syscall, coded.hostname]
-      .filter((part) => part !== undefined && part !== "")
-      .join(": ");
-  }
-  if (typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    return [record.code, record.message, record.syscall, record.hostname]
-      .filter((part) => typeof part === "string" || typeof part === "number")
-      .join(": ");
-  }
-  return String(value);
-}
-
 function requestHeaders(kind: "page" | "manifest" | "asset"): Record<string, string> {
   const accept = kind === "page"
     ? "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
@@ -223,6 +210,19 @@ function isSameDomainOrSubdomain(hostname: string, allowedDomain: string): boole
 
 function normaliseDomain(value: string): string {
   return value.trim().toLowerCase().replace(/^www\./u, "").replace(/\.$/u, "");
+}
+
+function describeError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error ?? "Merchant fetch failed.");
+  const cause = (error as Error & { cause?: unknown }).cause;
+  if (!cause) return error.message;
+  if (cause instanceof Error) {
+    const code = (cause as Error & { code?: string }).code;
+    return [error.message, code ? `${code}: ${cause.message}` : cause.message]
+      .filter(Boolean)
+      .join(" | ");
+  }
+  return `${error.message} | ${String(cause)}`;
 }
 
 function sendText(response: import("node:http").ServerResponse, statusCode: number, message: string): void {
