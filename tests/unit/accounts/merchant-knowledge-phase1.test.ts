@@ -32,8 +32,45 @@ describe("Phase 1 merchant identity", () => {
   });
 });
 
-describe("first-party artwork discovery", () => {
-  it("prefers site identity artwork over app-install and social artwork", () => {
+describe("first-party brand artwork discovery", () => {
+  it("auto-accepts a merchant-matching structured organisation logo", () => {
+    const html = `
+      <html><head>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Example Market Australia",
+            "logo": { "@type": "ImageObject", "url": "/brand/example-logo.png" }
+          }
+        </script>
+        <link rel="icon" href="/favicon.ico">
+      </head></html>`;
+    const candidates = discoverMerchantArtworkCandidates({
+      html,
+      pageUrl: "https://example.com/",
+      merchantName: "Example Market",
+    });
+    assert.equal(candidates[0].kind, "structured-logo");
+    assert.equal(candidates[0].url, "https://example.com/brand/example-logo.png");
+    assert.equal(candidates[0].confidence, "high");
+    assert.equal(candidates[0].autoAccept, true);
+    const favicon = candidates.find(({ url }) => url === "https://example.com/favicon.ico");
+    assert.equal(favicon?.autoAccept, false);
+  });
+
+  it("auto-accepts explicit itemprop logo evidence", () => {
+    const candidates = discoverMerchantArtworkCandidates({
+      html: '<img itemprop="logo" src="/logo.png" alt="Example Market logo">',
+      pageUrl: "https://example.com/",
+      merchantName: "Example Market",
+    });
+    assert.equal(candidates[0].kind, "logo-image");
+    assert.equal(candidates[0].confidence, "high");
+    assert.equal(candidates[0].autoAccept, true);
+  });
+
+  it("keeps favicon, touch, manifest, and social artwork as evidence only", () => {
     const html = `
       <html><head>
         <link rel="icon" sizes="32x32" href="/favicon-32.png">
@@ -46,40 +83,31 @@ describe("first-party artwork discovery", () => {
     const candidates = discoverMerchantArtworkCandidates({
       html,
       pageUrl: "https://example.com/shop",
+      merchantName: "Example Market",
       manifestUrl,
       manifest: {
         icons: [{ src: "/icon-512.png", sizes: "512x512", type: "image/png" }],
       },
     });
-    assert.deepEqual(candidates.map(({ kind }) => kind), [
-      "icon",
-      "icon",
-      "apple-touch-icon",
-      "manifest-icon",
-      "og-image",
-    ]);
-    assert.equal(candidates[0].url, "https://example.com/favicon-32.png");
-    assert.equal(candidates[1].url, "https://example.com/favicon.ico");
+    assert.equal(candidates.some(({ autoAccept }) => autoAccept), false);
+    assert.equal(candidates.find(({ url }) => url.endsWith("/favicon-32.png"))?.confidence, "medium");
+    assert.equal(candidates.find(({ url }) => url.endsWith("/favicon.ico"))?.confidence, "low");
+    assert.equal(candidates.find(({ kind }) => kind === "apple-touch-icon")?.confidence, "low");
+    assert.equal(candidates.find(({ kind }) => kind === "manifest-icon")?.confidence, "low");
+    assert.equal(candidates.find(({ kind }) => kind === "og-image")?.confidence, "low");
   });
 
-  it("deduplicates repeated declarations and the conventional favicon", () => {
+  it("deduplicates repeated artwork URLs while preserving stronger evidence", () => {
     const candidates = discoverMerchantArtworkCandidates({
-      html: '<link rel="icon" href="/favicon.ico"><link rel="shortcut icon" href="/favicon.ico">',
+      html: '<img itemprop="logo" src="/favicon.ico" alt="Example Market logo"><link rel="icon" href="/favicon.ico">',
       pageUrl: "https://example.com/",
+      merchantName: "Example Market",
     });
-    assert.equal(candidates.length, 1);
-    assert.equal(candidates[0].url, "https://example.com/favicon.ico");
-  });
-
-  it("considers the conventional favicon even when app metadata exists", () => {
-    const candidates = discoverMerchantArtworkCandidates({
-      html: '<link rel="apple-touch-icon" href="/touch.png"><meta property="og:image" content="/social.jpg">',
-      pageUrl: "https://example.com/shop",
-    });
-    assert.equal(candidates[0].url, "https://example.com/favicon.ico");
-    assert.equal(candidates[0].kind, "icon");
-    assert.equal(candidates[1].kind, "apple-touch-icon");
-    assert.equal(candidates[2].kind, "og-image");
+    assert.equal(candidates.filter(({ url }) => url === "https://example.com/favicon.ico").length, 1);
+    const candidate = candidates.find(({ url }) => url === "https://example.com/favicon.ico");
+    assert.equal(candidate?.kind, "logo-image");
+    assert.equal(candidate?.confidence, "high");
+    assert.equal(candidate?.autoAccept, true);
   });
 });
 
