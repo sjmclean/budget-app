@@ -4,20 +4,25 @@ import {
   ShoppingBasket, Store, Utensils, UtilityPole, ArrowRightLeft, UserRound,
   type LucideIcon,
 } from "lucide-react";
+import { resolveMerchantIdentity } from "../accounts/merchantIdentityResolver.js";
 import type { PayeeView } from "../accounts/payeeService.js";
 import {
   automaticPayeeIconFallback,
   resolvePayeeIcon,
   type ResolvedPayeeIcon,
 } from "./payeeIconResolver.js";
-import type { PayeeBuiltinIconKey } from "./payeeIconReference.js";
+import { parsePayeeIconReference, type PayeeBuiltinIconKey } from "./payeeIconReference.js";
 import { readMerchantIconContentBlob } from "./merchantIconContentStore.js";
+import { ingestMerchantIconPhase1 } from "./merchantIconIngestion.js";
+import { createSameOriginMerchantIconNetworkPort } from "./merchantIconNetworkClient.js";
 
 const builtinComponents: Record<PayeeBuiltinIconKey, LucideIcon> = {
   merchant: Store, shopping: ShoppingBag, groceries: ShoppingBasket, dining: Utensils,
   fuel: Fuel, transport: Bus, utilities: UtilityPole, entertainment: Clapperboard,
   medical: HeartPulse, education: GraduationCap, home: House,
 };
+
+const merchantDiscoveryAttempts = new Map<string, Promise<boolean>>();
 
 export function PayeeIcon({
   payee, state = "payee", size = 32, decorative = false,
@@ -27,7 +32,28 @@ export function PayeeIcon({
   readonly size?: number;
   readonly decorative?: boolean;
 }) {
+  const [, setDiscoveryRevision] = useState(0);
   const resolved = resolvePayeeIcon({ payee, state });
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || state !== "payee" || !payee) return;
+    if (parsePayeeIconReference(payee.iconRef).kind !== "automatic") return;
+    if (resolved.kind === "content") return;
+
+    const identity = resolveMerchantIdentity(payee.name);
+    if (!identity) return;
+
+    let disposed = false;
+    const existing = merchantDiscoveryAttempts.get(identity.merchant.id);
+    const discovery = existing ?? discoverMerchantIcon(payee.name, identity.merchant.id);
+    if (!existing) merchantDiscoveryAttempts.set(identity.merchant.id, discovery);
+
+    void discovery.then((cached) => {
+      if (!disposed && cached) setDiscoveryRevision((value) => value + 1);
+    });
+    return () => { disposed = true; };
+  }, [payee, resolved.kind, state]);
+
   if (resolved.kind === "content") {
     return (
       <ContentPayeeIcon
@@ -40,6 +66,18 @@ export function PayeeIcon({
     );
   }
   return renderResolvedIcon({ resolved, payee, state, size, decorative });
+}
+
+async function discoverMerchantIcon(payeeName: string, merchantId: string): Promise<boolean> {
+  try {
+    const result = await ingestMerchantIconPhase1({
+      payeeName,
+      network: createSameOriginMerchantIconNetworkPort(),
+    });
+    return result.status === "cached" && result.merchantId === merchantId;
+  } catch {
+    return false;
+  }
 }
 
 function ContentPayeeIcon({
