@@ -1,3 +1,7 @@
+import {
+  calculateAttachmentContentHash,
+  getAttachmentContentStore,
+} from "../attachments/attachmentContentStore.js";
 import { createBudgetScopedStorage } from "../budget/budgetDataScope.js";
 import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage.js";
 
@@ -8,7 +12,6 @@ export interface MerchantIconContentRecord {
   readonly formatVersion: 1;
   readonly contentHash: string;
   readonly mimeType: "image/png" | "image/jpeg" | "image/webp";
-  readonly base64: string;
   readonly sourceDomain: string;
   readonly sourceUrl: string;
   readonly acquiredAt: string;
@@ -33,60 +36,75 @@ export async function storeMerchantIconContent({
   readonly sourceUrl: string;
   readonly acquiredAt?: string;
 }): Promise<StoredMerchantIconContent> {
-  if (bytes.byteLength === 0) throw new TypeError("Merchant icon content is empty.");
-  if (bytes.byteLength > MAX_ICON_BYTES) {
-    throw new TypeError(`Merchant icon exceeds the ${MAX_ICON_BYTES} byte limit.`);
+  const mimeType = validateMerchantIconBytes(bytes, contentType);
+  if (!mimeType) {
+    throw new TypeError("Merchant icon is not a supported PNG, JPEG, or WebP image.");
   }
 
-  const mimeType = detectImageType(bytes, contentType);
-  if (!mimeType) throw new TypeError("Merchant icon is not a supported PNG, JPEG, or WebP image.");
+  const canonicalHash = await calculateAttachmentContentHash(bytes);
+  const contentHash = canonicalHash.slice("sha256:".length);
+  const contentStore = getAttachmentContentStore();
+  if (!(await contentStore.existsByHash(canonicalHash))) {
+    await contentStore.put({
+      attachmentId: `merchant-icon-${contentHash}`,
+      bytes,
+      mimeType,
+      contentHash: canonicalHash,
+    });
+  }
 
-  const contentHash = await sha256Hex(bytes);
   const record: MerchantIconContentRecord = {
     formatVersion: 1,
     contentHash,
     mimeType,
-    base64: bytesToBase64(bytes),
     sourceDomain: sourceDomain.trim().toLowerCase(),
     sourceUrl,
     acquiredAt,
   };
-  getStorage().setItem(`${CONTENT_KEY_PREFIX}${contentHash}`, JSON.stringify(record));
+  getMetadataStorage().setItem(`${CONTENT_KEY_PREFIX}${contentHash}`, JSON.stringify(record));
   return { contentHash, contentRef: `content:v1:${contentHash}`, mimeType };
 }
 
-export function readMerchantIconContent(contentHash: string): MerchantIconContentRecord | undefined {
-  if (!/^[a-f0-9]{64}$/u.test(contentHash)) return undefined;
+export function readMerchantIconContentMetadata(
+  contentHash: string,
+): MerchantIconContentRecord | undefined {
+  if (!isContentHash(contentHash)) return undefined;
   try {
-    const raw = getStorage().getItem(`${CONTENT_KEY_PREFIX}${contentHash}`);
+    const raw = getMetadataStorage().getItem(`${CONTENT_KEY_PREFIX}${contentHash}`);
     if (!raw) return undefined;
     const parsed = JSON.parse(raw) as Partial<MerchantIconContentRecord>;
     if (
       parsed.formatVersion !== 1 ||
       parsed.contentHash !== contentHash ||
       !isSupportedMimeType(parsed.mimeType) ||
-      typeof parsed.base64 !== "string" ||
       typeof parsed.sourceDomain !== "string" ||
       typeof parsed.sourceUrl !== "string" ||
       typeof parsed.acquiredAt !== "string"
-    ) {
-      return undefined;
-    }
+    ) return undefined;
     return parsed as MerchantIconContentRecord;
   } catch {
     return undefined;
   }
 }
 
-export function readMerchantIconContentDataUrl(contentHash: string): string | undefined {
-  const content = readMerchantIconContent(contentHash);
-  return content ? `data:${content.mimeType};base64,${content.base64}` : undefined;
+export async function readMerchantIconContentBlob(contentHash: string): Promise<Blob | null> {
+  if (!isContentHash(contentHash)) return null;
+  try {
+    return await getAttachmentContentStore().readByHash(`sha256:${contentHash}`);
+  } catch {
+    return null;
+  }
 }
 
-export function removeMerchantIconContent(contentHash: string): void {
-  if (!/^[a-f0-9]{64}$/u.test(contentHash)) return;
+export async function removeMerchantIconContent(contentHash: string): Promise<void> {
+  if (!isContentHash(contentHash)) return;
   try {
-    getStorage().removeItem(`${CONTENT_KEY_PREFIX}${contentHash}`);
+    const store = getAttachmentContentStore();
+    const descriptor = (await store.list()).find(
+      ({ contentHash: candidate }) => candidate === `sha256:${contentHash}`,
+    );
+    if (descriptor) await store.delete(descriptor.contentRef);
+    getMetadataStorage().removeItem(`${CONTENT_KEY_PREFIX}${contentHash}`);
   } catch {
     // Icon cleanup must not interfere with financial persistence.
   }
@@ -100,8 +118,12 @@ export function validateMerchantIconBytes(
   return detectImageType(bytes, contentType);
 }
 
-function getStorage() {
+function getMetadataStorage() {
   return createBudgetScopedStorage(getActiveKeyValueStorage());
+}
+
+function isContentHash(value: string): boolean {
+  return /^[a-f0-9]{64}$/u.test(value);
 }
 
 function isSupportedMimeType(value: unknown): value is MerchantIconContentRecord["mimeType"] {
@@ -110,7 +132,7 @@ function isSupportedMimeType(value: unknown): value is MerchantIconContentRecord
 
 function detectImageType(
   bytes: Uint8Array,
-  contentType?: string | null,
+  _contentType?: string | null,
 ): MerchantIconContentRecord["mimeType"] | undefined {
   if (
     bytes.length >= 8 &&
@@ -128,28 +150,9 @@ function detectImageType(
     ascii(bytes, 8, 12) === "WEBP"
   ) return "image/webp";
 
-  const declared = contentType?.split(";", 1)[0]?.trim().toLowerCase();
-  // Content-Type is only corroborating metadata. A declared image type never
-  // overrides a failed signature check.
-  if (declared && isSupportedMimeType(declared)) return undefined;
   return undefined;
 }
 
 function ascii(bytes: Uint8Array, start: number, end: number): string {
   return String.fromCharCode(...bytes.slice(start, end));
-}
-
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  if (!globalThis.crypto?.subtle) throw new Error("Web Crypto is required to cache merchant icons.");
-  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)));
-  }
-  return btoa(binary);
 }
