@@ -32,7 +32,8 @@ describe("payee icon reference and resolver", () => {
     const second = resolvePayeeIcon({ payee: { ...payee("p-1", "Woolworths"), rawPayee: "ignored" } as never });
     assert.deepEqual(first, second);
     assert.equal(resolvePayeeIcon({ payee: payee("p-1", "Woolworths", "builtin:v1:groceries") }).kind, "builtin");
-    assert.equal(resolvePayeeIcon({ payee: payee("p-1", "Woolworths", `content:v1:${"b".repeat(64)}`) }).kind, "initials");
+    const hash = "b".repeat(64);
+    assert.deepEqual(resolvePayeeIcon({ payee: payee("p-1", "Woolworths", `content:v1:${hash}`) }), { kind: "content", contentHash: hash });
     assert.deepEqual(resolvePayeeIcon({ state: "transfer" }), { kind: "transfer" });
     assert.deepEqual(resolvePayeeIcon({ state: "none" }), { kind: "none" });
   });
@@ -119,6 +120,6 @@ describe("browser payee icon persistence", () => {
     const service = createPayeeService({ storage: storage() });
     await service.recordPayee("Payee");
     const current = (await service.listPayees())[0];
-    await assert.rejects(() => service.updatePayee({ id: current.id, name: current.name, note: "", iconUpdate: { kind: "set", iconRef: "builtin:v1:unknown" } }));
+    await assert.rejects(() => service.updatePayee({ id: current.id, name: current.name, note: "", iconUpdate: { kind: "set", iconRef: "content:v1:ABC" } }));
   });
 });
