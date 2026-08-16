@@ -7638,15 +7638,6 @@ strong {
     white-space: nowrap;
   }
 
-  .budget-header-overflow,
-  .budget-header-overflow > .button {
-    align-self: center;
-  }
-
-  .budget-header-overflow > .button {
-    min-height: 2.25rem;
-    white-space: nowrap;
-  }
 }
 
 @media (max-width: 760px) {
@@ -7961,32 +7952,59 @@ strong {
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0.65rem;
   padding-top: 0.15rem;
 }
 
-.budget-planning-toolbar-left,
-.budget-planning-toolbar-right {
+.budget-planning-toolbar-left {
   display: flex;
   align-items: center;
   gap: 0.45rem;
 }
 
-.budget-add-category-button {
+.budget-history-icon-button {
+  width: 2.35rem;
+  min-width: 2.35rem;
+  height: 2.35rem;
+  min-height: 2.35rem;
+  flex: 0 0 2.35rem;
+  padding: 0;
+}
+
+.budget-history-icon-button:focus-visible,
+.budget-category-add-button:focus-visible {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: 2px;
+}
+
+.budget-category-header-label {
+  display: inline-flex;
   min-width: 0;
-  white-space: nowrap;
+  align-items: center;
+  gap: 0.35rem;
 }
 
-.budget-header-overflow {
-  position: relative;
+.budget-category-add-button {
+  display: inline-flex;
+  width: 1.5rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  min-height: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--surface);
+  color: var(--accent-strong);
+  cursor: pointer;
+  padding: 0;
 }
 
-.budget-header-overflow-panel {
-  top: auto !important;
-  right: 0;
-  bottom: calc(100% + 0.45rem);
-  z-index: 80;
+.budget-category-add-button:hover {
+  border-color: var(--accent);
+  background: var(--surface-subtle);
 }
 
 @media (max-width: 760px) {
@@ -7995,14 +8013,9 @@ strong {
     flex-direction: column;
   }
 
-  .budget-planning-toolbar-left,
-  .budget-planning-toolbar-right {
+  .budget-planning-toolbar-left {
     width: 100%;
     flex-wrap: wrap;
-  }
-
-  .budget-planning-toolbar-right {
-    justify-content: flex-end;
   }
 }
 
