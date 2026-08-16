@@ -24,8 +24,12 @@ export interface MerchantManifestDocument {
 /**
  * Extracts artwork declared by an official merchant page. Phase 1 deliberately
  * avoids scraping arbitrary inline images: only explicit site metadata is used.
- * When a site declares no icon metadata at all, the conventional /favicon.ico
- * path is tried as a final low-cost first-party fallback.
+ *
+ * For Budget App, browser/site identity artwork is more useful than installable
+ * app artwork. Explicit rel=icon declarations therefore outrank conventional
+ * /favicon.ico, which in turn outranks Apple touch and web-app manifest icons.
+ * OpenGraph artwork remains a low-priority fallback because it is commonly a
+ * wide social card rather than a compact merchant mark.
  */
 export function discoverMerchantArtworkCandidates({
   html,
@@ -65,10 +69,20 @@ export function discoverMerchantArtworkCandidates({
         url: resolveUrl(href, pageUrl),
         declaredSizes: sizes,
         mimeType: attributes.type,
-        score: 300 + bestDeclaredSize(sizes),
+        score: 700 + bestDeclaredSize(sizes),
       });
     }
   }
+
+  // A conventional favicon is a first-party site-identity surface even when a
+  // page also declares app-install artwork. Always consider it, but keep an
+  // explicit rel=icon declaration ahead of this convention-based fallback.
+  pushCandidate(candidates, {
+    kind: "icon",
+    url: resolveUrl("/favicon.ico", pageUrl),
+    mimeType: "image/x-icon",
+    score: 650,
+  });
 
   for (const tag of html.match(/<meta\b[^>]*>/giu) ?? []) {
     const attributes = parseTagAttributes(tag);
@@ -93,18 +107,9 @@ export function discoverMerchantArtworkCandidates({
         url: resolveUrl(icon.src, manifestUrl),
         declaredSizes: sizes,
         mimeType: typeof icon.type === "string" ? icon.type : undefined,
-        score: 350 + bestDeclaredSize(sizes),
+        score: 450 + bestDeclaredSize(sizes),
       });
     }
-  }
-
-  if (!candidates.some(({ kind }) => kind === "apple-touch-icon" || kind === "manifest-icon" || kind === "icon")) {
-    pushCandidate(candidates, {
-      kind: "icon",
-      url: resolveUrl("/favicon.ico", pageUrl),
-      mimeType: "image/x-icon",
-      score: 250,
-    });
   }
 
   return candidates.sort(
