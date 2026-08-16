@@ -52,18 +52,8 @@ export function discoverMerchantArtworkCandidates({
   const candidates: MerchantArtworkCandidate[] = [];
   const normalisedMerchantName = normaliseIdentityText(merchantName ?? "");
 
-  discoverStructuredLogoCandidates(
-    candidates,
-    html,
-    pageUrl,
-    normalisedMerchantName,
-  );
-  discoverExplicitLogoCandidates(
-    candidates,
-    html,
-    pageUrl,
-    normalisedMerchantName,
-  );
+  discoverStructuredLogoCandidates(candidates, html, pageUrl, normalisedMerchantName);
+  discoverExplicitLogoCandidates(candidates, html, pageUrl, normalisedMerchantName);
 
   for (const tag of html.match(/<link\b[^>]*>/giu) ?? []) {
     const attributes = parseTagAttributes(tag);
@@ -101,8 +91,6 @@ export function discoverMerchantArtworkCandidates({
     }
   }
 
-  // A conventional favicon is useful site-identity evidence, but Coles and
-  // similar sites demonstrate that a valid favicon can be generic app/site UI.
   pushCandidate(candidates, {
     kind: "icon",
     url: resolveUrl("/favicon.ico", pageUrl),
@@ -116,9 +104,7 @@ export function discoverMerchantArtworkCandidates({
   for (const tag of html.match(/<meta\b[^>]*>/giu) ?? []) {
     const attributes = parseTagAttributes(tag);
     const property = (attributes.property ?? attributes.name ?? "").toLowerCase();
-    if (property !== "og:image" && property !== "og:image:url" && property !== "og:image:secure_url") {
-      continue;
-    }
+    if (property !== "og:image" && property !== "og:image:url" && property !== "og:image:secure_url") continue;
     if (!attributes.content) continue;
     pushCandidate(candidates, {
       kind: "og-image",
@@ -225,10 +211,10 @@ function discoverExplicitLogoCandidates(
     const source = attributes.src ?? attributes.content ?? attributes.href ?? firstSrcsetUrl(attributes.srcset);
     if (!source) continue;
     const resolvedSource = resolveUrl(source, pageUrl);
-    const semanticIdentity = normaliseIdentityText(`${semanticText} ${resolvedSource}`);
-    const nameMatches = identityNamesMatch(normalisedMerchantName, semanticIdentity);
     const itempropLogo = itemprop.split(/\s+/u).includes("logo");
-    const confidence: MerchantArtworkConfidence = itempropLogo || nameMatches ? "high" : "medium";
+    const cleanPrimaryBrandUrl = isCleanPrimaryBrandLogoUrl(resolvedSource, normalisedMerchantName);
+    const confidence: MerchantArtworkConfidence = itempropLogo || cleanPrimaryBrandUrl ? "high" : "medium";
+
     pushCandidate(candidates, {
       kind: "logo-image",
       url: resolvedSource,
@@ -238,17 +224,34 @@ function discoverExplicitLogoCandidates(
       autoAccept: confidence === "high",
       reason: itempropLogo
         ? "Page explicitly marks this asset with itemprop=logo."
-        : nameMatches
-          ? "Logo-labelled page asset also matches the merchant name in its semantic text or URL."
-          : "Page labels this asset as a logo, but merchant-name corroboration is incomplete.",
+        : cleanPrimaryBrandUrl
+          ? "Logo-labelled asset URL cleanly identifies the merchant primary brand without additional brand/product qualifiers."
+          : "Page labels this asset as a logo, but primary merchant-brand identity is not sufficiently corroborated.",
     });
   }
 }
 
-function walkJsonLd(
-  value: unknown,
-  visit: (entity: Record<string, unknown>) => void,
-): void {
+function isCleanPrimaryBrandLogoUrl(url: string, normalisedMerchantName: string): boolean {
+  if (!url || !normalisedMerchantName) return false;
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+
+  const filename = pathname.split("/").filter(Boolean).at(-1) ?? "";
+  const filenameCompact = normaliseIdentityText(filename).replace(/[^\p{L}\p{N}]+/gu, "");
+  const merchantCompact = normalisedMerchantName.replace(/[^\p{L}\p{N}]+/gu, "");
+  if (merchantCompact.length < 4 || !filenameCompact.startsWith(merchantCompact)) return false;
+
+  const remainder = filenameCompact.slice(merchantCompact.length);
+  if (!remainder) return false;
+
+  return /^(?:logo(?:mark)?|brand(?:mark)?|wordmark|logotype)(?:\d*x?)?(?:png|jpe?g|webp|svg|ico)?$/u.test(remainder);
+}
+
+function walkJsonLd(value: unknown, visit: (entity: Record<string, unknown>) => void): void {
   if (Array.isArray(value)) {
     for (const item of value) walkJsonLd(item, visit);
     return;
@@ -301,10 +304,7 @@ function identityNamesMatch(left: string, right: string): boolean {
 }
 
 function normaliseIdentityText(value: string): string {
-  return value
-    .toLocaleLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
+  return value.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
 function firstSrcsetUrl(value: string | undefined): string | undefined {
@@ -312,10 +312,7 @@ function firstSrcsetUrl(value: string | undefined): string | undefined {
   return value.split(",")[0]?.trim().split(/\s+/u)[0] || undefined;
 }
 
-function pushCandidate(
-  candidates: MerchantArtworkCandidate[],
-  candidate: MerchantArtworkCandidate,
-): void {
+function pushCandidate(candidates: MerchantArtworkCandidate[], candidate: MerchantArtworkCandidate): void {
   if (!candidate.url || !/^https?:\/\//iu.test(candidate.url)) return;
   const existingIndex = candidates.findIndex(({ url }) => url === candidate.url);
   if (existingIndex < 0) {
