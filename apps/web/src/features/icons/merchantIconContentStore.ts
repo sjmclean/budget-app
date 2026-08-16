@@ -96,14 +96,14 @@ export async function readMerchantIconContentBlob(contentHash: string): Promise<
   }
 }
 
-export async function removeMerchantIconContent(contentHash: string): Promise<void> {
+/**
+ * Removes only the budget-scoped provenance record. Content-addressed blobs may
+ * be shared by several merchant identities, so physical deletion requires a
+ * later reference-aware orphan sweep rather than a single-record delete.
+ */
+export function removeMerchantIconContentMetadata(contentHash: string): void {
   if (!isContentHash(contentHash)) return;
   try {
-    const store = getAttachmentContentStore();
-    const descriptor = (await store.list()).find(
-      ({ contentHash: candidate }) => candidate === `sha256:${contentHash}`,
-    );
-    if (descriptor) await store.delete(descriptor.contentRef);
     getMetadataStorage().removeItem(`${CONTENT_KEY_PREFIX}${contentHash}`);
   } catch {
     // Icon cleanup must not interfere with financial persistence.
