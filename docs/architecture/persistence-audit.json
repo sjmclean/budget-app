@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T00:19:45.992Z",
+  "generatedAt": "2026-08-16T01:11:36.025Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -2412,13 +2412,13 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/PayeeManagementPage.tsx",
-      "line": 70,
+      "line": 72,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/PayeeManagementPage.tsx",
-      "line": 79,
+      "line": 81,
       "classification": "review-required"
     },
     {

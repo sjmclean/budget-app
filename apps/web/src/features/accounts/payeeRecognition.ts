@@ -4,6 +4,25 @@ export function normalisePayeeIdentity(value: string): string {
   return value.trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
+export function normaliseStrictPayeeName(value: string): string {
+  return value
+    .normalize("NFKC")
+    .trim()
+    .replace(/\s+/gu, " ")
+    .toLocaleLowerCase();
+}
+
+export function arePayeeNamesStrictlyEquivalent(
+  left: string,
+  right: string,
+): boolean {
+  const normalisedLeft = normaliseStrictPayeeName(left);
+  return (
+    normalisedLeft.length > 0 &&
+    normalisedLeft === normaliseStrictPayeeName(right)
+  );
+}
+
 export interface PayeeRecognitionMatch {
   payee: PayeeView;
   source: "alias" | "rule";
@@ -159,6 +178,24 @@ function duplicateIdentity(name: string) {
 
 function suppressionKey(left: string, right: string): string {
   return [left, right].sort().join("\u0000");
+}
+
+export function buildDuplicateGroupSuppressions(
+  payeeIds: readonly string[],
+): PossibleDuplicateSuppression[] {
+  const ids = [...new Set(payeeIds)].sort();
+  const suppressions: PossibleDuplicateSuppression[] = [];
+
+  for (let left = 0; left < ids.length; left += 1) {
+    for (let right = left + 1; right < ids.length; right += 1) {
+      suppressions.push({
+        leftPayeeId: ids[left],
+        rightPayeeId: ids[right],
+      });
+    }
+  }
+
+  return suppressions;
 }
 
 function isDistinctivePayeeName(identity: ReturnType<typeof duplicateIdentity>): boolean {
