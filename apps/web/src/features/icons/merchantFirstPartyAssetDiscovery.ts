@@ -45,17 +45,18 @@ export function discoverMerchantArtworkCandidates({
     if (!href) continue;
 
     if (rel.includes("apple-touch-icon") || rel.includes("apple-touch-icon-precomposed")) {
+      const sizes = parseSizes(attributes.sizes);
       pushCandidate(candidates, {
         kind: "apple-touch-icon",
         url: resolveUrl(href, pageUrl),
-        declaredSizes: parseSizes(attributes.sizes),
+        declaredSizes: sizes,
         mimeType: attributes.type,
-        score: 400 + bestDeclaredSize(parseSizes(attributes.sizes)),
+        score: 500 + bestDeclaredSize(sizes),
       });
       continue;
     }
 
-    if (rel.includes("icon") || rel.includes("shortcut") && rel.includes("icon")) {
+    if (rel.includes("icon")) {
       const sizes = parseSizes(attributes.sizes);
       pushCandidate(candidates, {
         kind: "icon",
