@@ -36,10 +36,21 @@ test("merge confirmation puts the payee to keep first", () => {
   assert.match(page, />Payee to keep</);
 });
 
+test("high-confidence duplicate groups are discoverable from the list", () => {
+  assert.match(page, /highConfidenceDuplicateCount/);
+  assert.match(page, /isStrictEquivalentDuplicateGroup/);
+  assert.match(page, /confidenceDifference/);
+  assert.match(page, /className="payee-duplicate-confidence-badge"/);
+  assert.match(page, />\s*High confidence\s*</);
+  assert.match(page, /No case\/spacing-only matches found\./);
+});
+
 test("strict-equivalent duplicate groups are called out as high confidence", () => {
   assert.match(page, /selectedDuplicateGroupHasStrictEquivalentNames/);
+  assert.match(page, /className="payee-duplicate-confidence"/);
+  assert.match(page, />High-confidence duplicate</);
   assert.match(
     page,
-    /these payee names differ only\s+by capitalisation or spacing/,
+    /These payee names differ only\s+by capitalisation or spacing/,
   );
 });

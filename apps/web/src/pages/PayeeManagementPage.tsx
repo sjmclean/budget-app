@@ -340,22 +340,42 @@ export function PayeeManagementPage() {
     () => findPossibleDuplicateGroups(payees, duplicateSuppressions),
     [payees, duplicateSuppressions],
   );
+  const isStrictEquivalentDuplicateGroup = (
+    group: (typeof duplicateGroups)[number],
+  ) =>
+    group.payees.every(({ name }) =>
+      arePayeeNamesStrictlyEquivalent(group.anchorPayee.name, name),
+    );
+
+  const highConfidenceDuplicateCount = duplicateGroups.filter(
+    isStrictEquivalentDuplicateGroup,
+  ).length;
+
   const filteredDuplicateGroups = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
-    return query
-      ? duplicateGroups.filter(({ payees: members }) => members.some(({ name }) => name.toLocaleLowerCase().includes(query)))
-      : duplicateGroups;
+    const matchingGroups = query
+      ? duplicateGroups.filter(({ payees: members }) =>
+          members.some(({ name }) =>
+            name.toLocaleLowerCase().includes(query),
+          ),
+        )
+      : [...duplicateGroups];
+
+    return [...matchingGroups].sort((left, right) => {
+      const confidenceDifference =
+        Number(isStrictEquivalentDuplicateGroup(right)) -
+        Number(isStrictEquivalentDuplicateGroup(left));
+
+      return confidenceDifference;
+    });
   }, [duplicateGroups, search]);
   const selectedDuplicateGroup = duplicateGroups.find(({ id }) => id === selectedDuplicateGroupId) ??
     filteredDuplicateGroups[0] ?? null;
 
   const selectedDuplicateGroupHasStrictEquivalentNames =
-    Boolean(selectedDuplicateGroup) &&
-    selectedDuplicateGroup!.payees.every(({ name }) =>
-      arePayeeNamesStrictlyEquivalent(
-        selectedDuplicateGroup!.anchorPayee.name,
-        name,
-      ),
+    Boolean(
+      selectedDuplicateGroup &&
+      isStrictEquivalentDuplicateGroup(selectedDuplicateGroup),
     );
 
   useEffect(() => {
@@ -1047,13 +1067,39 @@ export function PayeeManagementPage() {
 
             {listFilter === "duplicates" ? (
               <>
-                <p className="payee-duplicates-intro">Showing groups of payees that may be the same.</p>
+                <p className="payee-duplicates-intro">
+                  Showing groups of payees that may be the same.
+                  {highConfidenceDuplicateCount > 0 ? (
+                    <strong className="payee-duplicate-confidence-summary">
+                      {highConfidenceDuplicateCount} high-confidence
+                      {highConfidenceDuplicateCount === 1 ? " group" : " groups"}
+                    </strong>
+                  ) : (
+                    <span className="payee-duplicate-confidence-summary">
+                      No case/spacing-only matches found.
+                    </span>
+                  )}
+                </p>
                 <div className="payee-management-list payee-duplicate-group-list" role="listbox" aria-label="Possible duplicate groups">
                   {filteredDuplicateGroups.length > 0 ? filteredDuplicateGroups.map((group) => (
                     <button key={group.id} type="button"
                       className={`payee-duplicate-group-card${selectedDuplicateGroup?.id === group.id ? " is-active" : ""}`}
                       onClick={() => setSelectedDuplicateGroupId(group.id)}>
-                      <span><strong>{group.payees[0].name}</strong><small>{group.payees.length} similar payees · {group.payees.reduce((sum, payee) => sum + payee.useCount, 0)} transactions</small></span>
+                      <span>
+                        <strong>{group.payees[0].name}</strong>
+                        {isStrictEquivalentDuplicateGroup(group) ? (
+                          <em className="payee-duplicate-confidence-badge">
+                            High confidence
+                          </em>
+                        ) : null}
+                        <small>
+                          {group.payees.length} similar payees ·{" "}
+                          {group.payees.reduce(
+                            (sum, payee) => sum + payee.useCount,
+                            0,
+                          )} transactions
+                        </small>
+                      </span>
                       <b>Review ›</b>
                     </button>
                   )) : (
@@ -1162,10 +1208,12 @@ export function PayeeManagementPage() {
                   <p>These payees look similar. Review the details and decide what to do.</p></div>
               </header>
               {selectedDuplicateGroupHasStrictEquivalentNames ? (
-                <p className="payee-duplicates-intro">
-                  <strong>High confidence:</strong> these payee names differ only
-                  by capitalisation or spacing.
-                </p>
+                <div className="payee-duplicate-confidence" role="status">
+                  <strong>High-confidence duplicate</strong>
+                  <span>
+                    These payee names differ only by capitalisation or spacing.
+                  </span>
+                </div>
               ) : null}
               <div className="payee-duplicate-members">
                 {selectedDuplicateGroup.payees.map((payee, index) => (
