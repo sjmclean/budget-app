@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { merchantIconDevProxy } from "./merchantIconDevProxy";
 
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 const defaultCertificatePath = resolve(repositoryRoot, ".certs/budget-app-dev.crt");
@@ -18,7 +19,7 @@ const https = existsSync(certificatePath) && existsSync(privateKeyPath)
   : undefined;
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [merchantIconDevProxy(), react()],
   optimizeDeps: {
     exclude: ["@sqlite.org/sqlite-wasm"],
   },
