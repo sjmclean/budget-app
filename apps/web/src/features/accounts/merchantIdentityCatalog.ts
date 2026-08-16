@@ -76,7 +76,11 @@ export function createMerchantIdentityCatalogueIndex(
   }> = [];
 
   for (const merchant of catalogue) {
-    const exactValues = new Set([merchant.canonicalName, ...merchant.aliases]);
+    // Only explicit aliases are matchable. canonicalName is presentation data and
+    // may intentionally include market qualifiers that normalisation removes
+    // (for example "Woolworths Australia" -> "woolworths"). Automatically
+    // indexing canonicalName would silently defeat regional ambiguity guards.
+    const exactValues = new Set(merchant.aliases);
     for (const value of exactValues) {
       const normalised = normaliseMerchant(value).canonical;
       if (!normalised) continue;
