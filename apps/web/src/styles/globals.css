@@ -8556,3 +8556,45 @@ strong {
   .payee-management-page .payee-management-detail-panel { overflow: visible; }
   .payee-overview-grid { grid-template-columns: 1fr; }
 }
+
+.payee-duplicate-confidence {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 0.65rem;
+  background: var(--surface-subtle, rgba(127, 127, 127, 0.08));
+}
+
+.payee-duplicate-confidence strong {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.payee-duplicate-confidence span {
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.payee-duplicate-confidence-summary {
+  display: block;
+  margin-top: 0.35rem;
+  font-weight: 650;
+}
+
+.payee-duplicate-confidence-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 750;
+  letter-spacing: 0.035em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}

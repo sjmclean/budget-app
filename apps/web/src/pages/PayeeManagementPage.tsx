@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Card } from "../components/ui/Card";
 import { getBudgetPersistenceProvider } from "../features/persistence";
 import type {
@@ -13,6 +13,8 @@ import { getCurrentBudgetMonth } from "../features/budget/budgetMonthNavigation"
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import {
+  arePayeeNamesStrictlyEquivalent,
+  buildDuplicateGroupSuppressions,
   findPossibleDuplicateGroups,
   proposeRecognitionRuleForDuplicate,
   getPayeeDeleteEligibility,
@@ -258,7 +260,7 @@ export function PayeeManagementPage() {
   const [duplicateSuppressions, setDuplicateSuppressions] = useState<PossibleDuplicateSuppression[]>([]);
   const [selectedDuplicateGroupId, setSelectedDuplicateGroupId] = useState<string | null>(null);
   const [selectedDuplicateMemberIds, setSelectedDuplicateMemberIds] = useState<string[]>([]);
-  const [ignoredDuplicateGroupIds, setIgnoredDuplicateGroupIds] = useState<string[]>([]);
+  const duplicateReviewRef = useRef<HTMLDivElement | null>(null);
   const [duplicateMergeEvidence, setDuplicateMergeEvidence] = useState<{
     canonicalPayeeId: string; candidatePayeeId: string; matchedText: string;
   } | null>(null);
@@ -267,8 +269,6 @@ export function PayeeManagementPage() {
     state: "available" | "existing" | "conflict";
   } | null>(null);
   const [createRecognitionRuleAfterMerge, setCreateRecognitionRuleAfterMerge] = useState(false);
-
-  useEffect(() => { setIgnoredDuplicateGroupIds([]); }, [activeBudgetId]);
 
   function openMergeDialog() {
     if (!selectedPayee) return;
@@ -336,17 +336,57 @@ export function PayeeManagementPage() {
     };
   }, [budgetViewPersistence, budgets, payeesPersistence, selectedBudgetId]);
 
-  const duplicateGroups = useMemo(() => findPossibleDuplicateGroups(payees, duplicateSuppressions)
-    .filter(({ id }) => !ignoredDuplicateGroupIds.includes(id)),
-  [payees, duplicateSuppressions, ignoredDuplicateGroupIds]);
+  const duplicateGroups = useMemo(
+    () => findPossibleDuplicateGroups(payees, duplicateSuppressions),
+    [payees, duplicateSuppressions],
+  );
+  const isStrictEquivalentDuplicateGroup = (
+    group: (typeof duplicateGroups)[number],
+  ) =>
+    group.payees.every(({ name }) =>
+      arePayeeNamesStrictlyEquivalent(group.anchorPayee.name, name),
+    );
+
+  const highConfidenceDuplicateCount = duplicateGroups.filter(
+    isStrictEquivalentDuplicateGroup,
+  ).length;
+
   const filteredDuplicateGroups = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
-    return query
-      ? duplicateGroups.filter(({ payees: members }) => members.some(({ name }) => name.toLocaleLowerCase().includes(query)))
-      : duplicateGroups;
+    const matchingGroups = query
+      ? duplicateGroups.filter(({ payees: members }) =>
+          members.some(({ name }) =>
+            name.toLocaleLowerCase().includes(query),
+          ),
+        )
+      : [...duplicateGroups];
+
+    return [...matchingGroups].sort((left, right) => {
+      const confidenceDifference =
+        Number(isStrictEquivalentDuplicateGroup(right)) -
+        Number(isStrictEquivalentDuplicateGroup(left));
+
+      return confidenceDifference;
+    });
   }, [duplicateGroups, search]);
   const selectedDuplicateGroup = duplicateGroups.find(({ id }) => id === selectedDuplicateGroupId) ??
     filteredDuplicateGroups[0] ?? null;
+
+  const selectedDuplicateGroupHasStrictEquivalentNames =
+    Boolean(
+      selectedDuplicateGroup &&
+      isStrictEquivalentDuplicateGroup(selectedDuplicateGroup),
+    );
+
+  useEffect(() => {
+    if (listFilter !== "duplicates" || !selectedDuplicateGroupId) {
+      return;
+    }
+
+    duplicateReviewRef.current?.scrollIntoView({
+      block: "start",
+    });
+  }, [listFilter, selectedDuplicateGroupId]);
   const visiblePayees = listFilter === "archived" || showArchived
     ? archivedPayees
     : listFilter === "no-category"
@@ -446,6 +486,16 @@ export function PayeeManagementPage() {
 
   const selectedMergePayees = payees.filter((payee) =>
     selectedMergePayeeIds.includes(payee.id),
+  );
+  const orderedSelectedMergePayees = [...selectedMergePayees].sort(
+    (left, right) => {
+      if (left.id === mergeTargetPayeeId) return -1;
+      if (right.id === mergeTargetPayeeId) return 1;
+      return (
+        right.useCount - left.useCount ||
+        left.name.localeCompare(right.name)
+      );
+    },
   );
   const selectedMergeTransactionCount = selectedMergePayees.reduce(
     (total, payee) => total + payee.useCount,
@@ -778,6 +828,49 @@ export function PayeeManagementPage() {
     setStatusMessage("The selected payee relationships will no longer be suggested.");
   }
 
+  async function ignoreDuplicateGroup() {
+    if (!selectedDuplicateGroup) return;
+
+    const additions = buildDuplicateGroupSuppressions(
+      selectedDuplicateGroup.payees.map(({ id }) => id),
+    );
+
+    const existing = new Set(
+      duplicateSuppressions.map(({ leftPayeeId, rightPayeeId }) =>
+        [leftPayeeId, rightPayeeId].sort().join(":"),
+      ),
+    );
+
+    const next = [
+      ...duplicateSuppressions,
+      ...additions.filter(({ leftPayeeId, rightPayeeId }) =>
+        !existing.has([leftPayeeId, rightPayeeId].sort().join(":")),
+      ),
+    ];
+
+    const hosted = Boolean(
+      activeBudgetId && persistenceGateway.accountRegisterQueries,
+    );
+
+    if (
+      hosted &&
+      persistenceGateway.accountRegisterQueries!.keepPayeesSeparate
+    ) {
+      await persistenceGateway.accountRegisterQueries!.keepPayeesSeparate(
+        activeBudgetId!,
+        additions,
+      );
+    } else {
+      writeDuplicateSuppressions(activeBudgetId, next);
+    }
+
+    setDuplicateSuppressions(next);
+    setSelectedDuplicateGroupId(null);
+    setStatusMessage(
+      "This duplicate suggestion has been ignored and will stay hidden.",
+    );
+  }
+
   function getDragSourcePayees(payeeId: string): PayeeView[] {
     if (selectedMergePayeeIds.includes(payeeId)) {
       return payees.filter((payee) => selectedMergePayeeIds.includes(payee.id));
@@ -974,13 +1067,39 @@ export function PayeeManagementPage() {
 
             {listFilter === "duplicates" ? (
               <>
-                <p className="payee-duplicates-intro">Showing groups of payees that may be the same.</p>
+                <p className="payee-duplicates-intro">
+                  Showing groups of payees that may be the same.
+                  {highConfidenceDuplicateCount > 0 ? (
+                    <strong className="payee-duplicate-confidence-summary">
+                      {highConfidenceDuplicateCount} high-confidence
+                      {highConfidenceDuplicateCount === 1 ? " group" : " groups"}
+                    </strong>
+                  ) : (
+                    <span className="payee-duplicate-confidence-summary">
+                      No case/spacing-only matches found.
+                    </span>
+                  )}
+                </p>
                 <div className="payee-management-list payee-duplicate-group-list" role="listbox" aria-label="Possible duplicate groups">
                   {filteredDuplicateGroups.length > 0 ? filteredDuplicateGroups.map((group) => (
                     <button key={group.id} type="button"
                       className={`payee-duplicate-group-card${selectedDuplicateGroup?.id === group.id ? " is-active" : ""}`}
                       onClick={() => setSelectedDuplicateGroupId(group.id)}>
-                      <span><strong>{group.payees[0].name}</strong><small>{group.payees.length} similar payees · {group.payees.reduce((sum, payee) => sum + payee.useCount, 0)} transactions</small></span>
+                      <span>
+                        <strong>{group.payees[0].name}</strong>
+                        {isStrictEquivalentDuplicateGroup(group) ? (
+                          <em className="payee-duplicate-confidence-badge">
+                            High confidence
+                          </em>
+                        ) : null}
+                        <small>
+                          {group.payees.length} similar payees ·{" "}
+                          {group.payees.reduce(
+                            (sum, payee) => sum + payee.useCount,
+                            0,
+                          )} transactions
+                        </small>
+                      </span>
                       <b>Review ›</b>
                     </button>
                   )) : (
@@ -1083,11 +1202,19 @@ export function PayeeManagementPage() {
 
         <section className="payee-management-detail-panel">
           {listFilter === "duplicates" ? selectedDuplicateGroup ? (
-            <div className="payee-duplicate-review">
+            <div className="payee-duplicate-review" ref={duplicateReviewRef}>
               <header className="payee-duplicate-review-header">
                 <div><h2>Possible Duplicate <small>Group {duplicateGroups.findIndex(({ id }) => id === selectedDuplicateGroup.id) + 1} of {duplicateGroups.length}</small></h2>
                   <p>These payees look similar. Review the details and decide what to do.</p></div>
               </header>
+              {selectedDuplicateGroupHasStrictEquivalentNames ? (
+                <div className="payee-duplicate-confidence" role="status">
+                  <strong>High-confidence duplicate</strong>
+                  <span>
+                    These payee names differ only by capitalisation or spacing.
+                  </span>
+                </div>
+              ) : null}
               <div className="payee-duplicate-members">
                 {selectedDuplicateGroup.payees.map((payee, index) => (
                   <article key={payee.id} className="payee-duplicate-member">
@@ -1116,7 +1243,7 @@ export function PayeeManagementPage() {
               <section className="payee-duplicate-actions"><h3>What would you like to do?</h3><div>
                 <button type="button" onClick={reviewDuplicateMerge}><strong>Review Merge</strong><span>Use the existing preview and confirmation workflow.</span></button>
                 <button type="button" onClick={() => void keepDuplicateMembersSeparate()}><strong>Keep Separate</strong><span>Do not suggest the selected relationships again.</span></button>
-                <button type="button" onClick={() => { setIgnoredDuplicateGroupIds((ids) => [...ids, selectedDuplicateGroup.id]); setSelectedDuplicateGroupId(null); }}><strong>Ignore Suggestion</strong><span>Hide this group for this session only.</span></button>
+                <button type="button" onClick={() => void ignoreDuplicateGroup()}><strong>Ignore Suggestion</strong><span>Hide this entire group and remember the decision.</span></button>
               </div></section>
             </div>
           ) : <div className="payee-duplicate-empty"><strong>No possible duplicates found.</strong><span>We'll show strong suggestions here when they exist.</span></div> : selectedPayee ? (
@@ -1361,7 +1488,7 @@ export function PayeeManagementPage() {
                     onClick={() => setMergeDialogStep("closed")} aria-label="Close">×</button>
                 </div>
                 <div className="payee-merge-choice-list">
-                  {selectedMergePayees.map((payee) => (
+                  {orderedSelectedMergePayees.map((payee) => (
                     <label className={`payee-merge-choice ${mergeTargetPayeeId === payee.id ? "is-destination" : ""}`} key={payee.id}>
                       <input type="radio" name="merge-target" checked={mergeTargetPayeeId === payee.id}
                         disabled={isMergeSubmitting} onChange={() => chooseMergeTarget(payee.id)} />
