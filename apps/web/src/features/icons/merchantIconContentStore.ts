@@ -188,14 +188,15 @@ function looksLikeSvg(bytes: Uint8Array, contentType?: string | null): boolean {
   if (!lower.includes("<svg")) return false;
 
   // Merchant artwork is rendered as an image, so active/document-capable SVG
-  // features are unnecessary. Reject them rather than attempting partial
-  // sanitisation that could change the artwork or create an execution surface.
-  if (/<!doctype\b|<!entity\b|<script\b|<foreignobject\b|<iframe\b|<object\b|<embed\b|<audio\b|<video\b|<style\b/iu.test(text)) {
+  // features are unnecessary. Internal CSS is allowed, but anything capable of
+  // importing or loading external active content is rejected.
+  if (/<!doctype\b|<!entity\b|<script\b|<foreignobject\b|<iframe\b|<object\b|<embed\b|<audio\b|<video\b/iu.test(text)) {
     return false;
   }
   if (/\son[a-z][a-z0-9_-]*\s*=/iu.test(text)) return false;
   if (/javascript\s*:/iu.test(text)) return false;
   if (/data\s*:\s*text\/html/iu.test(text)) return false;
+  if (/\@import\b/iu.test(text)) return false;
   if (/(?:href|xlink:href|src)\s*=\s*["']\s*(?:https?:)?\/\//iu.test(text)) return false;
   if (/url\(\s*["']?\s*(?:https?:)?\/\//iu.test(text)) return false;
 
