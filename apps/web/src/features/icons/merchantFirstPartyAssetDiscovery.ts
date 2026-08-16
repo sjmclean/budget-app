@@ -24,6 +24,8 @@ export interface MerchantManifestDocument {
 /**
  * Extracts artwork declared by an official merchant page. Phase 1 deliberately
  * avoids scraping arbitrary inline images: only explicit site metadata is used.
+ * When a site declares no icon metadata at all, the conventional /favicon.ico
+ * path is tried as a final low-cost first-party fallback.
  */
 export function discoverMerchantArtworkCandidates({
   html,
@@ -94,6 +96,15 @@ export function discoverMerchantArtworkCandidates({
         score: 350 + bestDeclaredSize(sizes),
       });
     }
+  }
+
+  if (!candidates.some(({ kind }) => kind === "apple-touch-icon" || kind === "manifest-icon" || kind === "icon")) {
+    pushCandidate(candidates, {
+      kind: "icon",
+      url: resolveUrl("/favicon.ico", pageUrl),
+      mimeType: "image/x-icon",
+      score: 250,
+    });
   }
 
   return candidates.sort(
