@@ -2,8 +2,8 @@ import type {
   MerchantIconAssetResponse,
   MerchantIconNetworkPort,
   MerchantIconPageResponse,
-  MerchantManifestDocument,
 } from "./merchantIconIngestion.js";
+import type { MerchantManifestDocument } from "./merchantFirstPartyAssetDiscovery.js";
 
 const DEV_FETCH_ENDPOINT = "/__merchant-icon-fetch";
 
