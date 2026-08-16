@@ -67,7 +67,7 @@ async function run(rawPayee: string): Promise<void> {
       <span class="label">Identity</span><span class="ok">${escapeHtml(identity.merchant.canonicalName)}</span>
       <span class="label">Match</span><span>${escapeHtml(identity.kind)} · ${escapeHtml(identity.matchedValue)}</span>
       <span class="label">Domain</span><code>${escapeHtml(domain ?? "none")}</code>
-      <span class="label">Artwork</span><span>Fetching official site…</span>
+      <span class="label">Artwork</span><span>Inspecting official brand evidence…</span>
     </div>`;
 
   if (!domain) return;
@@ -87,6 +87,7 @@ async function run(rawPayee: string): Promise<void> {
     const candidates = discoverMerchantArtworkCandidates({
       html: page.html,
       pageUrl: page.url,
+      merchantName: identity.merchant.canonicalName,
       manifest,
       manifestUrl,
     });
@@ -96,33 +97,81 @@ async function run(rawPayee: string): Promise<void> {
       url: string;
       mimeType: string;
       objectUrl: string;
+      reason: string;
     } | null = null;
-    const attempts: Array<{ kind: string; url: string; outcome: string }> = [];
+    const attempts: Array<{
+      kind: string;
+      confidence: string;
+      autoAccept: boolean;
+      reason: string;
+      url: string;
+      outcome: string;
+    }> = [];
 
     for (const candidate of candidates) {
       try {
         const asset = await network.fetchAsset(candidate.url);
         const mimeType = validateMerchantIconBytes(asset.bytes, asset.contentType);
         if (!mimeType) {
-          attempts.push({ kind: candidate.kind, url: candidate.url, outcome: "rejected bytes" });
+          attempts.push({
+            kind: candidate.kind,
+            confidence: candidate.confidence,
+            autoAccept: candidate.autoAccept,
+            reason: candidate.reason,
+            url: candidate.url,
+            outcome: "rejected bytes / unsupported image format",
+          });
           continue;
         }
+
+        if (!candidate.autoAccept) {
+          attempts.push({
+            kind: candidate.kind,
+            confidence: candidate.confidence,
+            autoAccept: false,
+            reason: candidate.reason,
+            url: asset.url,
+            outcome: `valid ${mimeType}, but brand identity is not verified`,
+          });
+          continue;
+        }
+
         const blob = new Blob([Uint8Array.from(asset.bytes)], { type: mimeType });
         const objectUrl = URL.createObjectURL(blob);
-        accepted = { kind: candidate.kind, url: asset.url, mimeType, objectUrl };
+        accepted = {
+          kind: candidate.kind,
+          url: asset.url,
+          mimeType,
+          objectUrl,
+          reason: candidate.reason,
+        };
         currentObjectUrl = objectUrl;
-        attempts.push({ kind: candidate.kind, url: asset.url, outcome: `accepted ${mimeType}` });
+        attempts.push({
+          kind: candidate.kind,
+          confidence: candidate.confidence,
+          autoAccept: true,
+          reason: candidate.reason,
+          url: asset.url,
+          outcome: `verified candidate accepted as ${mimeType}`,
+        });
         break;
       } catch (error) {
-        attempts.push({ kind: candidate.kind, url: candidate.url, outcome: errorMessage(error) });
+        attempts.push({
+          kind: candidate.kind,
+          confidence: candidate.confidence,
+          autoAccept: candidate.autoAccept,
+          reason: candidate.reason,
+          url: candidate.url,
+          outcome: errorMessage(error),
+        });
       }
     }
 
     const attemptHtml = attempts.length
-      ? `<div class="candidate-list"><strong>Candidate attempts</strong><ol>${attempts.map((attempt) =>
-          `<li><code>${escapeHtml(attempt.kind)}</code> — ${escapeHtml(attempt.outcome)}<br><code>${escapeHtml(attempt.url)}</code></li>`
+      ? `<div class="candidate-list"><strong>Brand artwork candidates</strong><ol>${attempts.map((attempt) =>
+          `<li><code>${escapeHtml(attempt.kind)}</code> · <strong>${escapeHtml(attempt.confidence)}</strong>${attempt.autoAccept ? ' · <span class="ok">auto-eligible</span>' : ' · <span class="muted">evidence only</span>'}<br>${escapeHtml(attempt.outcome)}<br><span class="muted">${escapeHtml(attempt.reason)}</span><br><code>${escapeHtml(attempt.url)}</code></li>`
         ).join("")}</ol></div>`
-      : '<div class="candidate-list bad">No first-party icon metadata or conventional favicon candidate was discovered.</div>';
+      : '<div class="candidate-list bad">No first-party brand-artwork evidence was discovered.</div>';
 
     result.innerHTML = `
       <div class="summary">
@@ -132,9 +181,9 @@ async function run(rawPayee: string): Promise<void> {
         <span class="label">Domain</span><code>${escapeHtml(domain)}</code>
         <span class="label">Page</span><code>${escapeHtml(page.url)}</code>
         <span class="label">Candidates</span><span>${candidates.length}</span>
-        <span class="label">Artwork</span><span class="${accepted ? "ok" : "bad"}">${accepted ? `Accepted ${escapeHtml(accepted.kind)}` : "No usable first-party artwork"}</span>
+        <span class="label">Brand artwork</span><span class="${accepted ? "ok" : "bad"}">${accepted ? `Verified ${escapeHtml(accepted.kind)}` : "Not verified — automatic fallback should remain"}</span>
       </div>
-      ${accepted ? `<div class="icon-row"><div class="icon-box"><img src="${accepted.objectUrl}" alt=""></div><div><strong>${escapeHtml(identity.merchant.canonicalName)}</strong><br><code>${escapeHtml(accepted.mimeType)}</code><br><code>${escapeHtml(accepted.url)}</code></div></div>` : ""}
+      ${accepted ? `<div class="icon-row"><div class="icon-box"><img src="${accepted.objectUrl}" alt=""></div><div><strong>${escapeHtml(identity.merchant.canonicalName)}</strong><br><code>${escapeHtml(accepted.mimeType)}</code><br><span class="muted">${escapeHtml(accepted.reason)}</span><br><code>${escapeHtml(accepted.url)}</code></div></div>` : ""}
       ${attemptHtml}`;
   } catch (error) {
     result.innerHTML = `
