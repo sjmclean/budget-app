@@ -196,7 +196,7 @@ function looksLikeSvg(bytes: Uint8Array, contentType?: string | null): boolean {
   if (/\son[a-z][a-z0-9_-]*\s*=/iu.test(text)) return false;
   if (/javascript\s*:/iu.test(text)) return false;
   if (/data\s*:\s*text\/html/iu.test(text)) return false;
-  if (/\@import\b/iu.test(text)) return false;
+  if (/@import\b/iu.test(text)) return false;
   if (/(?:href|xlink:href|src)\s*=\s*["']\s*(?:https?:)?\/\//iu.test(text)) return false;
   if (/url\(\s*["']?\s*(?:https?:)?\/\//iu.test(text)) return false;
 
