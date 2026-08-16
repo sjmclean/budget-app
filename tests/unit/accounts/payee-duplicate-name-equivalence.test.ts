@@ -22,6 +22,20 @@ test("strict payee-name equivalence collapses repeated whitespace", () => {
   );
 });
 
+test("strict payee-name equivalence accepts canonical Unicode spelling", () => {
+  assert.equal(
+    arePayeeNamesStrictlyEquivalent("Café", "Cafe\u0301"),
+    true,
+  );
+});
+
+test("strict payee-name equivalence does not fold compatibility characters", () => {
+  assert.equal(
+    arePayeeNamesStrictlyEquivalent("ＡＣＭＥ", "ACME"),
+    false,
+  );
+});
+
 test("strict payee-name equivalence preserves punctuation differences", () => {
   assert.equal(
     arePayeeNamesStrictlyEquivalent("A.B. Services", "AB Services"),

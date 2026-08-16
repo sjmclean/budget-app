@@ -6,7 +6,7 @@ export function normalisePayeeIdentity(value: string): string {
 
 export function normaliseStrictPayeeName(value: string): string {
   return value
-    .normalize("NFKC")
+    .normalize("NFC")
     .trim()
     .replace(/\s+/gu, " ")
     .toLocaleLowerCase();
