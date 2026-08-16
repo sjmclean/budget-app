@@ -90,8 +90,7 @@ export function merchantIconDevProxy(): Plugin {
 
           sendText(response, 400, "Unsupported merchant fetch kind.");
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Merchant fetch failed.";
-          sendText(response, 502, message);
+          sendText(response, 502, describeError(error));
         }
       });
     },
@@ -107,11 +106,16 @@ async function fetchRestricted(
   let current = validateTarget(initialUrl, allowedDomain);
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
-    const fetched = await fetch(current, {
-      redirect: "manual",
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      headers: requestHeaders(kind),
-    });
+    let fetched: Response;
+    try {
+      fetched = await fetch(current, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        headers: requestHeaders(kind),
+      });
+    } catch (error) {
+      throw new Error(`Merchant transport failed for ${current.hostname}: ${describeError(error)}`);
+    }
 
     if (fetched.status >= 300 && fetched.status < 400) {
       const location = fetched.headers.get("location");
@@ -148,6 +152,40 @@ async function fetchRestricted(
   }
 
   throw new Error("Merchant request failed.");
+}
+
+function describeError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error ?? "Merchant fetch failed.");
+
+  const details = [error.message];
+  const cause = (error as Error & { cause?: unknown }).cause;
+  if (cause instanceof AggregateError) {
+    for (const nested of cause.errors) {
+      const value = describeErrorValue(nested);
+      if (value) details.push(value);
+    }
+  } else {
+    const value = describeErrorValue(cause);
+    if (value) details.push(value);
+  }
+  return [...new Set(details.filter(Boolean))].join(" | ");
+}
+
+function describeErrorValue(value: unknown): string {
+  if (!value) return "";
+  if (value instanceof Error) {
+    const coded = value as Error & { code?: string; errno?: string | number; syscall?: string; hostname?: string };
+    return [coded.code, coded.message, coded.syscall, coded.hostname]
+      .filter((part) => part !== undefined && part !== "")
+      .join(": ");
+  }
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return [record.code, record.message, record.syscall, record.hostname]
+      .filter((part) => typeof part === "string" || typeof part === "number")
+      .join(": ");
+  }
+  return String(value);
 }
 
 function requestHeaders(kind: "page" | "manifest" | "asset"): Record<string, string> {
