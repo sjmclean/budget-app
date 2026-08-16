@@ -3,6 +3,7 @@ import { resolveMerchantIdentity } from "../accounts/merchantIdentityResolver.js
 import {
   discoverManifestUrl,
   discoverMerchantArtworkCandidates,
+  type MerchantArtworkCandidateKind,
   type MerchantManifestDocument,
 } from "./merchantFirstPartyAssetDiscovery.js";
 import {
@@ -39,7 +40,7 @@ export interface MerchantIconIngestionSuccess {
   readonly canonicalName: string;
   readonly domain: string;
   readonly identityKind: "exact-alias" | "descriptor-prefix";
-  readonly artworkKind: "apple-touch-icon" | "icon" | "manifest-icon" | "og-image";
+  readonly artworkKind: MerchantArtworkCandidateKind;
   readonly sourceUrl: string;
   readonly content: StoredMerchantIconContent;
 }
@@ -84,11 +85,14 @@ export async function ingestMerchantIconPhase1({
     const candidates = discoverMerchantArtworkCandidates({
       html: page.html,
       pageUrl: page.url,
+      merchantName: identity.merchant.canonicalName,
       manifest,
       manifestUrl,
     });
 
-    for (const candidate of candidates) {
+    // Lower-confidence site/app artwork is still useful diagnostic evidence,
+    // but it must not silently become automatic merchant knowledge.
+    for (const candidate of candidates.filter(({ autoAccept }) => autoAccept)) {
       let asset: MerchantIconAssetResponse;
       try {
         asset = await network.fetchAsset(candidate.url);
