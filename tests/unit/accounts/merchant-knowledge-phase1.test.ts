@@ -76,7 +76,7 @@ describe("first-party brand artwork discovery", () => {
     assert.equal(candidates[0].autoAccept, true);
   });
 
-  it("uses a merchant-matching logo URL as corroboration", () => {
+  it("uses only a clean primary-brand logo URL as URL corroboration", () => {
     const candidates = discoverMerchantArtworkCandidates({
       html: '<img class="site-logo" src="/globalassets/group-logos/wilsonparking_logo4x.png" alt="Logo">',
       pageUrl: "https://www.wilsonparking.com.au/",
@@ -85,6 +85,28 @@ describe("first-party brand artwork discovery", () => {
     assert.equal(candidates[0].kind, "logo-image");
     assert.equal(candidates[0].confidence, "high");
     assert.equal(candidates[0].autoAccept, true);
+  });
+
+  it("does not auto-accept a merchant sub-brand logo merely because its URL contains the merchant name", () => {
+    const candidates = discoverMerchantArtworkCandidates({
+      html: '<img class="brand-logo" src="https://images.example.test/chemist-warehouse-mco-beauty-logo.jpg" alt="Logo">',
+      pageUrl: "https://www.chemistwarehouse.com.au/",
+      merchantName: "Chemist Warehouse",
+    });
+    const candidate = candidates.find(({ kind }) => kind === "logo-image");
+    assert.equal(candidate?.confidence, "medium");
+    assert.equal(candidate?.autoAccept, false);
+  });
+
+  it("does not auto-accept opaque logo-labelled assets from merchant-name page context", () => {
+    const candidates = discoverMerchantArtworkCandidates({
+      html: '<img class="bunnings-logo" src="https://media.bunnings.com.au/api/public/content/1a4ce26ae4c142e6add7fd917c99670e" alt="Bunnings logo">',
+      pageUrl: "https://www.bunnings.com.au/",
+      merchantName: "Bunnings",
+    });
+    const candidate = candidates.find(({ kind }) => kind === "logo-image");
+    assert.equal(candidate?.confidence, "medium");
+    assert.equal(candidate?.autoAccept, false);
   });
 
   it("keeps favicon, touch, manifest, and social artwork as evidence only", () => {
