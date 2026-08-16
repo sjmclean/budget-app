@@ -6,6 +6,12 @@ export interface MerchantIdentityDefinition {
   readonly officialDomains: readonly string[];
   readonly aliases: readonly string[];
   /**
+   * HTTPS asset hosts that the merchant's official site explicitly uses for
+   * brand artwork. These do not participate in identity resolution and are
+   * scoped to the owning merchant rather than becoming global proxy allowlists.
+   */
+  readonly trustedArtworkHosts?: readonly string[];
+  /**
    * Bank descriptors frequently append a store, suburb or channel after a brand.
    * Prefixes are intentionally explicit so Phase 1 never turns generic substring
    * matching into merchant identity.
@@ -19,7 +25,14 @@ const definitions = [
   // is region-ambiguous. Australian-specific descriptors remain safe enough.
   merchant("woolworths-au", "Woolworths Australia", ["woolworths.com.au"], ["woolies", "ww metro", "woolworths metro"], ["woolies", "ww metro", "woolworths metro"]),
   merchant("bakers-delight", "Bakers Delight", ["bakersdelight.com.au"], ["bakers delight"], ["bakers delight"]),
-  merchant("chemist-warehouse", "Chemist Warehouse", ["chemistwarehouse.com.au"], ["chemist warehouse", "cwh"], ["chemist warehouse", "cwh"]),
+  merchant(
+    "chemist-warehouse",
+    "Chemist Warehouse",
+    ["chemistwarehouse.com.au"],
+    ["chemist warehouse", "cwh"],
+    ["chemist warehouse", "cwh"],
+    ["images.ctfassets.net"],
+  ),
   merchant("aldi", "ALDI", ["aldi.com"], ["aldi"], ["aldi"]),
   // Kmart and Target are intentionally absent until market context is available.
   merchant("mcdonalds", "McDonald's", ["mcdonalds.com"], ["mcdonalds", "mcdonald's", "maccas"], ["mcdonalds", "mcdonald's", "maccas"]),
@@ -113,6 +126,7 @@ function merchant(
   officialDomains: readonly string[],
   aliases: readonly string[],
   descriptorPrefixes?: readonly string[],
+  trustedArtworkHosts?: readonly string[],
 ): MerchantIdentityDefinition {
-  return { id, canonicalName, officialDomains, aliases, descriptorPrefixes };
+  return { id, canonicalName, officialDomains, aliases, descriptorPrefixes, trustedArtworkHosts };
 }
