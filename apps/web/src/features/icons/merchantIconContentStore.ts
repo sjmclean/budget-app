@@ -11,7 +11,7 @@ const MAX_ICON_BYTES = 512 * 1024;
 export interface MerchantIconContentRecord {
   readonly formatVersion: 1;
   readonly contentHash: string;
-  readonly mimeType: "image/png" | "image/jpeg" | "image/webp";
+  readonly mimeType: "image/png" | "image/jpeg" | "image/webp" | "image/x-icon";
   readonly sourceDomain: string;
   readonly sourceUrl: string;
   readonly acquiredAt: string;
@@ -38,7 +38,7 @@ export async function storeMerchantIconContent({
 }): Promise<StoredMerchantIconContent> {
   const mimeType = validateMerchantIconBytes(bytes, contentType);
   if (!mimeType) {
-    throw new TypeError("Merchant icon is not a supported PNG, JPEG, or WebP image.");
+    throw new TypeError("Merchant icon is not a supported PNG, JPEG, WebP, or ICO image.");
   }
 
   const canonicalHash = await calculateAttachmentContentHash(bytes);
@@ -127,7 +127,10 @@ function isContentHash(value: string): boolean {
 }
 
 function isSupportedMimeType(value: unknown): value is MerchantIconContentRecord["mimeType"] {
-  return value === "image/png" || value === "image/jpeg" || value === "image/webp";
+  return value === "image/png" ||
+    value === "image/jpeg" ||
+    value === "image/webp" ||
+    value === "image/x-icon";
 }
 
 function detectImageType(
@@ -149,6 +152,13 @@ function detectImageType(
     ascii(bytes, 0, 4) === "RIFF" &&
     ascii(bytes, 8, 12) === "WEBP"
   ) return "image/webp";
+
+  if (
+    bytes.length >= 6 &&
+    bytes[0] === 0x00 && bytes[1] === 0x00 &&
+    bytes[2] === 0x01 && bytes[3] === 0x00 &&
+    (bytes[4] !== 0x00 || bytes[5] !== 0x00)
+  ) return "image/x-icon";
 
   return undefined;
 }
