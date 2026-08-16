@@ -2,6 +2,7 @@ import { createBudgetScopedStorage } from "../budget/budgetDataScope.js";
 import { parsePayeeIconReference } from "../icons/payeeIconReference.js";
 import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage.js";
 import { resolveMerchantIdentity } from "./merchantIdentityResolver.js";
+import type { MerchantArtworkCandidateKind } from "../icons/merchantFirstPartyAssetDiscovery.js";
 
 const STORAGE_KEY = "budget-app.merchant-icon-knowledge.v1";
 
@@ -11,7 +12,7 @@ export interface MerchantIconKnowledgeRecord {
   readonly domain: string;
   readonly contentRef: string;
   readonly sourceUrl: string;
-  readonly artworkKind: "apple-touch-icon" | "icon" | "manifest-icon" | "og-image";
+  readonly artworkKind: MerchantArtworkCandidateKind;
   readonly acquiredAt: string;
 }
 
@@ -88,12 +89,18 @@ function isKnowledgeRecord(value: unknown): value is MerchantIconKnowledgeRecord
     typeof record.contentRef === "string" &&
     parsePayeeIconReference(record.contentRef).kind === "content" &&
     typeof record.sourceUrl === "string" &&
-    (record.artworkKind === "apple-touch-icon" ||
-      record.artworkKind === "icon" ||
-      record.artworkKind === "manifest-icon" ||
-      record.artworkKind === "og-image") &&
+    isArtworkKind(record.artworkKind) &&
     typeof record.acquiredAt === "string"
   );
+}
+
+function isArtworkKind(value: unknown): value is MerchantArtworkCandidateKind {
+  return value === "structured-logo" ||
+    value === "logo-image" ||
+    value === "apple-touch-icon" ||
+    value === "icon" ||
+    value === "manifest-icon" ||
+    value === "og-image";
 }
 
 function emptyStore(): MerchantIconKnowledgeStore {
