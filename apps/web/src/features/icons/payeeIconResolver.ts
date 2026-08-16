@@ -1,3 +1,4 @@
+import { resolveAutomaticMerchantIconContentHash } from "../accounts/merchantIconKnowledge.js";
 import type { PayeeView } from "../accounts/payeeService.js";
 import { parsePayeeIconReference, type PayeeBuiltinIconKey } from "./payeeIconReference.js";
 
@@ -18,6 +19,18 @@ export function resolvePayeeIcon({ payee, state = "payee" }: ResolvePayeeIconInp
   if (state === "none" || !payee) return { kind: "none" };
   const reference = parsePayeeIconReference(payee.iconRef);
   if (reference.kind === "builtin" || reference.kind === "content") return reference;
+
+  if (reference.kind === "automatic") {
+    const automaticContentHash = resolveAutomaticMerchantIconContentHash(payee.name);
+    if (automaticContentHash) return { kind: "content", contentHash: automaticContentHash };
+  }
+
+  return automaticPayeeIconFallback(payee);
+}
+
+export function automaticPayeeIconFallback(
+  payee: Pick<PayeeView, "id" | "name">,
+): Extract<ResolvedPayeeIcon, { readonly kind: "initials" }> {
   return {
     kind: "initials",
     initials: payeeInitials(payee.name),
