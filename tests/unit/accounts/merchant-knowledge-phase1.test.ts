@@ -12,9 +12,16 @@ describe("Phase 1 merchant identity", () => {
     assert.equal(resolveMerchantIdentity("Leaptel")?.merchant.officialDomains[0], "leaptel.com.au");
     assert.equal(resolveMerchantIdentity("WILSONS PARKING MELBOURNE")?.merchant.id, "wilson-parking");
     assert.equal(resolveMerchantIdentity("CWH GREENSBOROUGH PLAZA 0123")?.merchant.id, "chemist-warehouse");
-    assert.equal(resolveMerchantIdentity("WOOLWORTHS/CNR ST HELENA")?.merchant.id, "woolworths");
+    assert.equal(resolveMerchantIdentity("WOOLIES METRO 1042")?.merchant.id, "woolworths-au");
     assert.equal(resolveMerchantIdentity("ELITE ELEVEN DONCASTER")?.merchant.officialDomains[0], "eliteelevensporting.com");
-    assert.equal(resolveMerchantIdentity("THE MEXICAN KITCHEN TEMPLESTOWE")?.merchant.officialDomains[0], "themexicankitchen.com.au");
+    assert.equal(resolveMerchantIdentity("AMAZON MARKETPLACE AU")?.merchant.officialDomains[0], "amazon.com");
+  });
+
+  it("does not assume an Australian identity for region-ambiguous names", () => {
+    assert.equal(resolveMerchantIdentity("Woolworths"), undefined);
+    assert.equal(resolveMerchantIdentity("Kmart"), undefined);
+    assert.equal(resolveMerchantIdentity("Target"), undefined);
+    assert.equal(resolveMerchantIdentity("The Mexican Kitchen"), undefined);
   });
 
   it("does not invent identities for unknown or merely similar names", () => {
