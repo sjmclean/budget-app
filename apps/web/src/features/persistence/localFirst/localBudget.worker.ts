@@ -38,6 +38,7 @@ import type {
 import { parseRegisterAmountSearchCents } from "../../accounts/registerSearch";
 import { readFinancialOverviewFlow } from "./financialOverviewFlow";
 import { uncategorisedTransactionPredicate } from "./uncategorisedTransactionSql";
+import { mergePayeeIconReferences } from "../../icons/payeeIconReference";
 
 type SqliteDatabase = {
   pointer: unknown;
@@ -1145,8 +1146,15 @@ function applyRemoteMutations(
             targetPayeeId?: string;
             targetPayeeName?: string;
             sourcePayeeIds?: readonly string[];
+            mergedIconRef?: string;
           };
           if (target.targetPayeeId) {
+            if (typeof target.mergedIconRef === "string") {
+              execute(
+                "UPDATE local_payees SET icon_ref = ?, updated_at = ? WHERE budget_id = ? AND id = ?",
+                [target.mergedIconRef, mutation.createdAt, activeBudgetId, target.targetPayeeId],
+              );
+            }
             const remoteSourceIds = target.sourcePayeeIds?.length
               ? target.sourcePayeeIds
               : [mutation.entityId];
@@ -3672,14 +3680,25 @@ function mergePayees(
       throw workerError("PAYEE_NOT_FOUND", "Select at least one source payee to merge.");
     }
     const targetKnowledge = resultRows<{
-      defaultCategoryId: string | null; defaultCategoryName: string | null;
+      defaultCategoryId: string | null; defaultCategoryName: string | null; iconRef: string | null;
     }>(
       `SELECT default_category_id AS defaultCategoryId,
-              default_category_name AS defaultCategoryName
+              default_category_name AS defaultCategoryName,
+              icon_ref AS iconRef
        FROM local_payees WHERE budget_id = ? AND id = ?`,
       [budgetId, targetPayeeId],
     )[0];
     if (!targetKnowledge) throw workerError("PAYEE_NOT_FOUND", "The merge target payee does not exist.");
+    const sourceIconRefs = resultRows<{ iconRef: string | null }>(
+      `SELECT icon_ref AS iconRef FROM local_payees
+       WHERE budget_id = ? AND id IN (${sourceIds.map(() => "?").join(",")})`,
+      [budgetId, ...sourceIds],
+    ).map(({ iconRef }) => iconRef);
+    const mergedIconRef = mergePayeeIconReferences(targetKnowledge.iconRef, sourceIconRefs);
+    if (mergedIconRef !== (targetKnowledge.iconRef ?? "")) execute(
+      `UPDATE local_payees SET icon_ref = ?, updated_at = ? WHERE budget_id = ? AND id = ?`,
+      [mergedIconRef, new Date().toISOString(), budgetId, targetPayeeId],
+    );
     if (!targetKnowledge.defaultCategoryId) {
       const sourceDefaults = resultRows<{
         defaultCategoryId: string; defaultCategoryName: string | null;
@@ -3777,7 +3796,13 @@ function mergePayees(
       execute("UPDATE local_payees SET archived = 1, updated_at = ? WHERE budget_id = ? AND id = ?", [new Date().toISOString(), budgetId, sourcePayeeId]);
     }
     }
-    insertOutbox(mutation);
+    insertOutbox({
+      ...mutation,
+      payload: {
+        ...(mutation.payload as Record<string, unknown>),
+        mergedIconRef,
+      },
+    });
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
     resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");
