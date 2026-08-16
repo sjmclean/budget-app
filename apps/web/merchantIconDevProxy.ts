@@ -2,10 +2,10 @@ import type { Plugin } from "vite";
 import { MERCHANT_IDENTITY_CATALOGUE } from "./src/features/accounts/merchantIdentityCatalog.js";
 
 const ROUTE = "/__merchant-icon-fetch";
-const PAGE_LIMIT = 1024 * 1024;
+const PAGE_LIMIT = 2 * 1024 * 1024;
 const MANIFEST_LIMIT = 256 * 1024;
 const ASSET_LIMIT = 512 * 1024;
-const REQUEST_TIMEOUT_MS = 8_000;
+const REQUEST_TIMEOUT_MS = 12_000;
 const MAX_REDIRECTS = 5;
 
 const allowedDomains = new Set(
@@ -39,7 +39,7 @@ export function merchantIconDevProxy(): Plugin {
           }
 
           if (kind === "page") {
-            const fetched = await fetchRestricted(`https://${domain}/`, domain, PAGE_LIMIT);
+            const fetched = await fetchRestricted(`https://${domain}/`, domain, PAGE_LIMIT, "page");
             const contentType = fetched.contentType.toLowerCase();
             if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) {
               sendText(response, 415, "Merchant page did not return HTML.");
@@ -62,7 +62,7 @@ export function merchantIconDevProxy(): Plugin {
           }
 
           if (kind === "manifest") {
-            const fetched = await fetchRestricted(target, domain, MANIFEST_LIMIT);
+            const fetched = await fetchRestricted(target, domain, MANIFEST_LIMIT, "manifest");
             let value: unknown;
             try {
               value = JSON.parse(new TextDecoder().decode(fetched.bytes));
@@ -78,7 +78,7 @@ export function merchantIconDevProxy(): Plugin {
           }
 
           if (kind === "asset") {
-            const fetched = await fetchRestricted(target, domain, ASSET_LIMIT);
+            const fetched = await fetchRestricted(target, domain, ASSET_LIMIT, "asset");
             response.statusCode = 200;
             response.setHeader("Content-Type", fetched.contentType || "application/octet-stream");
             response.setHeader("Content-Length", String(fetched.bytes.byteLength));
@@ -102,6 +102,7 @@ async function fetchRestricted(
   initialUrl: string,
   allowedDomain: string,
   maximumBytes: number,
+  kind: "page" | "manifest" | "asset",
 ): Promise<{ url: string; contentType: string; bytes: Uint8Array }> {
   let current = validateTarget(initialUrl, allowedDomain);
 
@@ -109,10 +110,7 @@ async function fetchRestricted(
     const fetched = await fetch(current, {
       redirect: "manual",
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      headers: {
-        "User-Agent": "BudgetApp-MerchantIconDiscovery/1.0",
-        Accept: "text/html,application/json,image/*;q=0.9,*/*;q=0.1",
-      },
+      headers: requestHeaders(kind),
     });
 
     if (fetched.status >= 300 && fetched.status < 400) {
@@ -124,15 +122,23 @@ async function fetchRestricted(
       continue;
     }
 
-    if (!fetched.ok) throw new Error(`Merchant site returned HTTP ${fetched.status}.`);
+    if (!fetched.ok) {
+      throw new Error(
+        `Merchant site returned HTTP ${fetched.status} ${fetched.statusText || "upstream error"} for ${current.hostname}.`,
+      );
+    }
     const declaredLength = Number(fetched.headers.get("content-length"));
     if (Number.isFinite(declaredLength) && declaredLength > maximumBytes) {
-      throw new Error("Merchant response exceeded the allowed size.");
+      throw new Error(
+        `Merchant response declared ${declaredLength} bytes, above the ${maximumBytes}-byte ${kind} limit.`,
+      );
     }
 
     const bytes = new Uint8Array(await fetched.arrayBuffer());
     if (bytes.byteLength > maximumBytes) {
-      throw new Error("Merchant response exceeded the allowed size.");
+      throw new Error(
+        `Merchant response contained ${bytes.byteLength} bytes, above the ${maximumBytes}-byte ${kind} limit.`,
+      );
     }
     return {
       url: current.toString(),
@@ -142,6 +148,22 @@ async function fetchRestricted(
   }
 
   throw new Error("Merchant request failed.");
+}
+
+function requestHeaders(kind: "page" | "manifest" | "asset"): Record<string, string> {
+  const accept = kind === "page"
+    ? "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+    : kind === "manifest"
+      ? "application/manifest+json,application/json;q=0.9,*/*;q=0.5"
+      : "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8";
+
+  return {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+    Accept: accept,
+    "Accept-Language": "en-AU,en;q=0.9",
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
+  };
 }
 
 function validateTarget(value: string, allowedDomain: string): URL {
