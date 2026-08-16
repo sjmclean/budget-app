@@ -35,7 +35,12 @@ export function PayeeIcon({
     if (src) {
       return (
         <span {...common} {...accessibility}>
-          <img src={src} alt="" aria-hidden="true" className="payee-icon-image" />
+          <img
+            src={src}
+            alt=""
+            aria-hidden="true"
+            style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+          />
         </span>
       );
     }
