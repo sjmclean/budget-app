@@ -17,6 +17,12 @@ describe("Phase 1 merchant identity", () => {
     assert.equal(resolveMerchantIdentity("AMAZON MARKETPLACE AU")?.merchant.officialDomains[0], "amazon.com");
   });
 
+  it("keeps merchant-scoped artwork hosts out of identity matching", () => {
+    const chemistWarehouse = resolveMerchantIdentity("CWH GREENSBOROUGH PLAZA 0123")?.merchant;
+    assert.deepEqual(chemistWarehouse?.trustedArtworkHosts, ["images.ctfassets.net"]);
+    assert.equal(resolveMerchantIdentity("images.ctfassets.net"), undefined);
+  });
+
   it("does not assume an Australian identity for region-ambiguous names", () => {
     assert.equal(resolveMerchantIdentity("Woolworths"), undefined);
     assert.equal(resolveMerchantIdentity("Kmart"), undefined);
@@ -70,6 +76,17 @@ describe("first-party brand artwork discovery", () => {
     assert.equal(candidates[0].autoAccept, true);
   });
 
+  it("uses a merchant-matching logo URL as corroboration", () => {
+    const candidates = discoverMerchantArtworkCandidates({
+      html: '<img class="site-logo" src="/globalassets/group-logos/wilsonparking_logo4x.png" alt="Logo">',
+      pageUrl: "https://www.wilsonparking.com.au/",
+      merchantName: "Wilson Parking",
+    });
+    assert.equal(candidates[0].kind, "logo-image");
+    assert.equal(candidates[0].confidence, "high");
+    assert.equal(candidates[0].autoAccept, true);
+  });
+
   it("keeps favicon, touch, manifest, and social artwork as evidence only", () => {
     const html = `
       <html><head>
@@ -112,7 +129,7 @@ describe("first-party brand artwork discovery", () => {
 });
 
 describe("merchant icon byte validation", () => {
-  it("accepts supported image signatures and rejects disguised responses", () => {
+  it("accepts supported raster signatures and rejects disguised responses", () => {
     const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
     const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xdb, 0, 0]);
     const webp = Uint8Array.from([
@@ -125,5 +142,20 @@ describe("merchant icon byte validation", () => {
     assert.equal(validateMerchantIconBytes(webp, "image/webp"), "image/webp");
     assert.equal(validateMerchantIconBytes(ico, "image/x-icon"), "image/x-icon");
     assert.equal(validateMerchantIconBytes(html, "image/png"), undefined);
+  });
+
+  it("accepts passive SVG logos and rejects active SVG content", () => {
+    const passive = new TextEncoder().encode(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><path d="M0 0h100v40H0z"/></svg>',
+    );
+    const scripted = new TextEncoder().encode(
+      '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+    );
+    const external = new TextEncoder().encode(
+      '<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.com/a.png"/></svg>',
+    );
+    assert.equal(validateMerchantIconBytes(passive, "image/svg+xml"), "image/svg+xml");
+    assert.equal(validateMerchantIconBytes(scripted, "image/svg+xml"), undefined);
+    assert.equal(validateMerchantIconBytes(external, "image/svg+xml"), undefined);
   });
 });
