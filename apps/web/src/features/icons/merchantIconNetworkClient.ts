@@ -24,7 +24,7 @@ export function createSameOriginMerchantIconNetworkPort(): MerchantIconNetworkPo
         `${DEV_FETCH_ENDPOINT}?kind=page&domain=${encodeURIComponent(activeDomain)}`,
         { headers: { Accept: "application/json" } },
       );
-      if (!response.ok) throw new Error(`Merchant page fetch failed (${response.status}).`);
+      if (!response.ok) throw await proxyError("Merchant page fetch failed", response);
       const value = await response.json() as Partial<MerchantIconPageResponse>;
       if (typeof value.url !== "string" || typeof value.html !== "string") {
         throw new Error("Merchant page response was invalid.");
@@ -38,7 +38,7 @@ export function createSameOriginMerchantIconNetworkPort(): MerchantIconNetworkPo
         headers: { Accept: "application/json" },
       });
       if (response.status === 404) return null;
-      if (!response.ok) throw new Error(`Merchant manifest fetch failed (${response.status}).`);
+      if (!response.ok) throw await proxyError("Merchant manifest fetch failed", response);
       const value = await response.json();
       return value && typeof value === "object" ? value as MerchantManifestDocument : null;
     },
@@ -48,7 +48,7 @@ export function createSameOriginMerchantIconNetworkPort(): MerchantIconNetworkPo
       const response = await fetch(proxyUrl("asset", activeDomain, url), {
         headers: { Accept: "image/*" },
       });
-      if (!response.ok) throw new Error(`Merchant asset fetch failed (${response.status}).`);
+      if (!response.ok) throw await proxyError("Merchant asset fetch failed", response);
       return {
         url: response.headers.get("X-Merchant-Final-Url") ?? url,
         bytes: new Uint8Array(await response.arrayBuffer()),
@@ -61,6 +61,15 @@ export function createSameOriginMerchantIconNetworkPort(): MerchantIconNetworkPo
 function proxyUrl(kind: "manifest" | "asset", domain: string, target: string): string {
   const params = new URLSearchParams({ kind, domain, target });
   return `${DEV_FETCH_ENDPOINT}?${params.toString()}`;
+}
+
+async function proxyError(prefix: string, response: Response): Promise<Error> {
+  const detail = (await response.text().catch(() => "")).trim();
+  return new Error(
+    detail
+      ? `${prefix} (${response.status}): ${detail}`
+      : `${prefix} (${response.status}).`,
+  );
 }
 
 function normaliseDomain(value: string): string {
