@@ -1,3 +1,4 @@
+import { recordMerchantIconKnowledge } from "../accounts/merchantIconKnowledge.js";
 import { resolveMerchantIdentity } from "../accounts/merchantIdentityResolver.js";
 import {
   discoverManifestUrl,
@@ -97,11 +98,22 @@ export async function ingestMerchantIconPhase1({
       if (!validateMerchantIconBytes(asset.bytes, asset.contentType)) continue;
 
       try {
+        const acquiredAt = new Date().toISOString();
         const content = await storeMerchantIconContent({
           bytes: asset.bytes,
           contentType: asset.contentType,
           sourceDomain: domain,
           sourceUrl: asset.url,
+          acquiredAt,
+        });
+        recordMerchantIconKnowledge({
+          merchantId: identity.merchant.id,
+          canonicalName: identity.merchant.canonicalName,
+          domain,
+          contentRef: content.contentRef,
+          sourceUrl: asset.url,
+          artworkKind: candidate.kind,
+          acquiredAt,
         });
         return {
           status: "cached",
