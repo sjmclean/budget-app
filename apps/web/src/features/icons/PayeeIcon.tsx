@@ -5,7 +5,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { PayeeView } from "../accounts/payeeService.js";
-import { resolvePayeeIcon, type ResolvedPayeeIcon } from "./payeeIconResolver.js";
+import {
+  automaticPayeeIconFallback,
+  resolvePayeeIcon,
+  type ResolvedPayeeIcon,
+} from "./payeeIconResolver.js";
 import type { PayeeBuiltinIconKey } from "./payeeIconReference.js";
 import { readMerchantIconContentBlob } from "./merchantIconContentStore.js";
 
@@ -52,8 +56,12 @@ function ContentPayeeIcon({
   readonly decorative: boolean;
 }) {
   const [src, setSrc] = useState<string | null>(null);
-  const fallback = useMemo(
-    () => resolvePayeeIcon({ payee: payee ? { ...payee, iconRef: "" } : payee, state }),
+  const fallback = useMemo<Exclude<ResolvedPayeeIcon, { readonly kind: "content" }>>(
+    () => {
+      if (state === "transfer") return { kind: "transfer" };
+      if (state === "none" || !payee) return { kind: "none" };
+      return automaticPayeeIconFallback(payee);
+    },
     [payee, state],
   );
 
