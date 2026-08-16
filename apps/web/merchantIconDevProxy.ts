@@ -14,6 +14,14 @@ const allowedDomains = new Set(
   ),
 );
 
+const trustedArtworkHostsByDomain = new Map<string, ReadonlySet<string>>();
+for (const merchant of MERCHANT_IDENTITY_CATALOGUE) {
+  const trustedHosts = new Set((merchant.trustedArtworkHosts ?? []).map(normaliseHostname));
+  for (const domain of merchant.officialDomains) {
+    trustedArtworkHostsByDomain.set(normaliseDomain(domain), trustedHosts);
+  }
+}
+
 export function merchantIconDevProxy(): Plugin {
   return {
     name: "budget-app-merchant-icon-dev-proxy",
@@ -78,7 +86,14 @@ export function merchantIconDevProxy(): Plugin {
           }
 
           if (kind === "asset") {
-            const fetched = await fetchRestricted(target, domain, ASSET_LIMIT, "asset");
+            const trustedArtworkHosts = trustedArtworkHostsByDomain.get(domain) ?? new Set<string>();
+            const fetched = await fetchRestricted(
+              target,
+              domain,
+              ASSET_LIMIT,
+              "asset",
+              trustedArtworkHosts,
+            );
             response.statusCode = 200;
             response.setHeader("Content-Type", fetched.contentType || "application/octet-stream");
             response.setHeader("Content-Length", String(fetched.bytes.byteLength));
@@ -123,8 +138,9 @@ async function fetchRestricted(
   allowedDomain: string,
   maximumBytes: number,
   kind: "page" | "manifest" | "asset",
+  trustedArtworkHosts: ReadonlySet<string> = new Set<string>(),
 ): Promise<{ url: string; contentType: string; bytes: Uint8Array }> {
-  let current = validateTarget(initialUrl, allowedDomain);
+  let current = validateTarget(initialUrl, allowedDomain, trustedArtworkHosts);
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
     let fetched: Response;
@@ -143,7 +159,11 @@ async function fetchRestricted(
       if (!location || redirectCount === MAX_REDIRECTS) {
         throw new Error("Merchant request exceeded its redirect limit.");
       }
-      current = validateTarget(new URL(location, current).toString(), allowedDomain);
+      current = validateTarget(
+        new URL(location, current).toString(),
+        allowedDomain,
+        trustedArtworkHosts,
+      );
       continue;
     }
 
@@ -191,15 +211,21 @@ function requestHeaders(kind: "page" | "manifest" | "asset"): Record<string, str
   };
 }
 
-function validateTarget(value: string, allowedDomain: string): URL {
+function validateTarget(
+  value: string,
+  allowedDomain: string,
+  trustedArtworkHosts: ReadonlySet<string> = new Set<string>(),
+): URL {
   const url = new URL(value);
   if (url.protocol !== "https:") throw new Error("Only HTTPS merchant URLs are allowed.");
   if (url.username || url.password) throw new Error("Merchant URLs may not contain credentials.");
   if (url.port && url.port !== "443") throw new Error("Merchant URLs may only use HTTPS port 443.");
 
-  const hostname = normaliseDomain(url.hostname);
-  if (!isSameDomainOrSubdomain(hostname, allowedDomain)) {
-    throw new Error("Merchant URL left the approved official domain.");
+  const hostname = normaliseHostname(url.hostname);
+  const sameMerchantDomain = isSameDomainOrSubdomain(hostname, allowedDomain);
+  const trustedArtworkHost = trustedArtworkHosts.has(hostname);
+  if (!sameMerchantDomain && !trustedArtworkHost) {
+    throw new Error("Merchant URL left the approved official/artwork domain boundary.");
   }
   return url;
 }
@@ -209,7 +235,11 @@ function isSameDomainOrSubdomain(hostname: string, allowedDomain: string): boole
 }
 
 function normaliseDomain(value: string): string {
-  return value.trim().toLowerCase().replace(/^www\./u, "").replace(/\.$/u, "");
+  return normaliseHostname(value).replace(/^www\./u, "");
+}
+
+function normaliseHostname(value: string): string {
+  return value.trim().toLowerCase().replace(/\.$/u, "");
 }
 
 function describeError(error: unknown): string {
