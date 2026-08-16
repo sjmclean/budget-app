@@ -6,6 +6,7 @@ import {
 import type { PayeeView } from "../accounts/payeeService.js";
 import { resolvePayeeIcon } from "./payeeIconResolver.js";
 import type { PayeeBuiltinIconKey } from "./payeeIconReference.js";
+import { readMerchantIconContentDataUrl } from "./merchantIconContentStore.js";
 
 const builtinComponents: Record<PayeeBuiltinIconKey, LucideIcon> = {
   merchant: Store, shopping: ShoppingBag, groceries: ShoppingBasket, dining: Utensils,
@@ -29,7 +30,21 @@ export function PayeeIcon({
     const Icon = builtinComponents[resolved.key];
     return <span {...common} {...accessibility}><Icon aria-hidden="true" /></span>;
   }
+  if (resolved.kind === "content") {
+    const src = readMerchantIconContentDataUrl(resolved.contentHash);
+    if (src) {
+      return (
+        <span {...common} {...accessibility}>
+          <img src={src} alt="" aria-hidden="true" className="payee-icon-image" />
+        </span>
+      );
+    }
+  }
   if (resolved.kind === "transfer") return <span {...common} {...accessibility}><ArrowRightLeft aria-hidden="true" /></span>;
   if (resolved.kind === "none") return <span {...common} {...accessibility}><UserRound aria-hidden="true" /></span>;
-  return <span {...common} {...accessibility} data-avatar-token={resolved.token}>{resolved.initials}</span>;
+  const fallback = resolved.kind === "initials"
+    ? resolved
+    : resolvePayeeIcon({ payee: payee ? { ...payee, iconRef: "" } : payee, state });
+  if (fallback.kind !== "initials") return <span {...common} {...accessibility}><UserRound aria-hidden="true" /></span>;
+  return <span {...common} {...accessibility} data-avatar-token={fallback.token}>{fallback.initials}</span>;
 }
