@@ -67,6 +67,16 @@ describe("first-party artwork discovery", () => {
     });
     assert.equal(candidates.length, 1);
   });
+
+  it("tries the conventional favicon path only when no icon metadata exists", () => {
+    const candidates = discoverMerchantArtworkCandidates({
+      html: '<meta property="og:image" content="/social.jpg">',
+      pageUrl: "https://example.com/shop",
+    });
+    assert.equal(candidates[0].url, "https://example.com/favicon.ico");
+    assert.equal(candidates[0].kind, "icon");
+    assert.equal(candidates[1].kind, "og-image");
+  });
 });
 
 describe("merchant icon byte validation", () => {
@@ -76,10 +86,12 @@ describe("merchant icon byte validation", () => {
     const webp = Uint8Array.from([
       0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50,
     ]);
+    const ico = Uint8Array.from([0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x10, 0x10]);
     const html = new TextEncoder().encode("<html>not an image</html>");
     assert.equal(validateMerchantIconBytes(png, "image/png"), "image/png");
     assert.equal(validateMerchantIconBytes(jpeg, "image/jpeg"), "image/jpeg");
     assert.equal(validateMerchantIconBytes(webp, "image/webp"), "image/webp");
+    assert.equal(validateMerchantIconBytes(ico, "image/x-icon"), "image/x-icon");
     assert.equal(validateMerchantIconBytes(html, "image/png"), undefined);
   });
 });
