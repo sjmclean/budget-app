@@ -33,7 +33,7 @@ describe("Phase 1 merchant identity", () => {
 });
 
 describe("first-party artwork discovery", () => {
-  it("ranks declared touch and manifest icons ahead of generic page imagery", () => {
+  it("prefers site identity artwork over app-install and social artwork", () => {
     const html = `
       <html><head>
         <link rel="icon" sizes="32x32" href="/favicon-32.png">
@@ -52,30 +52,34 @@ describe("first-party artwork discovery", () => {
       },
     });
     assert.deepEqual(candidates.map(({ kind }) => kind), [
+      "icon",
+      "icon",
       "apple-touch-icon",
       "manifest-icon",
-      "icon",
       "og-image",
     ]);
-    assert.equal(candidates[0].url, "https://example.com/apple-touch.png");
+    assert.equal(candidates[0].url, "https://example.com/favicon-32.png");
+    assert.equal(candidates[1].url, "https://example.com/favicon.ico");
   });
 
-  it("deduplicates repeated declarations", () => {
+  it("deduplicates repeated declarations and the conventional favicon", () => {
     const candidates = discoverMerchantArtworkCandidates({
-      html: '<link rel="icon" href="/favicon.png"><link rel="shortcut icon" href="/favicon.png">',
+      html: '<link rel="icon" href="/favicon.ico"><link rel="shortcut icon" href="/favicon.ico">',
       pageUrl: "https://example.com/",
     });
     assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].url, "https://example.com/favicon.ico");
   });
 
-  it("tries the conventional favicon path only when no icon metadata exists", () => {
+  it("considers the conventional favicon even when app metadata exists", () => {
     const candidates = discoverMerchantArtworkCandidates({
-      html: '<meta property="og:image" content="/social.jpg">',
+      html: '<link rel="apple-touch-icon" href="/touch.png"><meta property="og:image" content="/social.jpg">',
       pageUrl: "https://example.com/shop",
     });
     assert.equal(candidates[0].url, "https://example.com/favicon.ico");
     assert.equal(candidates[0].kind, "icon");
-    assert.equal(candidates[1].kind, "og-image");
+    assert.equal(candidates[1].kind, "apple-touch-icon");
+    assert.equal(candidates[2].kind, "og-image");
   });
 });
 
