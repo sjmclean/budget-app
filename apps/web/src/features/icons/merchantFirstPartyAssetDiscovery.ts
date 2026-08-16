@@ -224,13 +224,14 @@ function discoverExplicitLogoCandidates(
 
     const source = attributes.src ?? attributes.content ?? attributes.href ?? firstSrcsetUrl(attributes.srcset);
     if (!source) continue;
-    const semanticName = normaliseIdentityText(semanticText);
-    const nameMatches = identityNamesMatch(normalisedMerchantName, semanticName);
+    const resolvedSource = resolveUrl(source, pageUrl);
+    const semanticIdentity = normaliseIdentityText(`${semanticText} ${resolvedSource}`);
+    const nameMatches = identityNamesMatch(normalisedMerchantName, semanticIdentity);
     const itempropLogo = itemprop.split(/\s+/u).includes("logo");
     const confidence: MerchantArtworkConfidence = itempropLogo || nameMatches ? "high" : "medium";
     pushCandidate(candidates, {
       kind: "logo-image",
-      url: resolveUrl(source, pageUrl),
+      url: resolvedSource,
       mimeType: attributes.type,
       score: confidence === "high" ? 950 : 780,
       confidence,
@@ -238,7 +239,7 @@ function discoverExplicitLogoCandidates(
       reason: itempropLogo
         ? "Page explicitly marks this asset with itemprop=logo."
         : nameMatches
-          ? "Logo-labelled page asset also matches the merchant name."
+          ? "Logo-labelled page asset also matches the merchant name in its semantic text or URL."
           : "Page labels this asset as a logo, but merchant-name corroboration is incomplete.",
     });
   }
@@ -289,6 +290,11 @@ function recognisedBrandEntityType(value: unknown): boolean {
 function identityNamesMatch(left: string, right: string): boolean {
   if (!left || !right) return false;
   if (left === right) return true;
+
+  const leftCompact = left.replace(/[^\p{L}\p{N}]+/gu, "");
+  const rightCompact = right.replace(/[^\p{L}\p{N}]+/gu, "");
+  if (leftCompact.length >= 5 && rightCompact.includes(leftCompact)) return true;
+
   const leftTokens = left.split(" ").filter((token) => token.length >= 3);
   const rightTokens = new Set(right.split(" "));
   return leftTokens.length > 0 && leftTokens.every((token) => rightTokens.has(token));
