@@ -240,6 +240,7 @@ export type LocalBudgetWorkerRequest =
         readonly mutation: LocalBudgetMutation;
         readonly resolveConflictId?: string;
       }[];
+      readonly requireAbsentTransactionIds?: readonly string[];
     }
   | {
       readonly requestId: string;

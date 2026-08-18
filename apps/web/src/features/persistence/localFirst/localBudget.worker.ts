@@ -2961,11 +2961,54 @@ function writeTransactionBatch(
     readonly mutation: LocalBudgetMutation;
     readonly resolveConflictId?: string;
   }[],
+  requireAbsentTransactionIds: readonly string[] = [],
 ): LocalBudgetManifest {
   for (const { mutation } of writes) assertMutationScope(mutation);
   if (writes.length === 0) return currentManifest();
+
+  const requiredAbsentIds = new Set(requireAbsentTransactionIds);
+  if (requiredAbsentIds.size !== requireAbsentTransactionIds.length) {
+    throw workerError(
+      "INVALID_TRANSACTION_BATCH",
+      "Transaction additions contain duplicate transaction IDs.",
+    );
+  }
+
+  const writeCounts = new Map<string, number>();
+  for (const { transaction } of writes) {
+    writeCounts.set(
+      transaction.id,
+      (writeCounts.get(transaction.id) ?? 0) + 1,
+    );
+  }
+
   execute("BEGIN IMMEDIATE");
   try {
+    for (const transactionId of requiredAbsentIds) {
+      if (writeCounts.get(transactionId) !== 1) {
+        throw workerError(
+          "INVALID_TRANSACTION_BATCH",
+          `Transaction addition ${transactionId} must appear exactly once in the write batch.`,
+        );
+      }
+
+      const exists =
+        resultRows<{ found: number }>(
+          `SELECT 1 AS found
+           FROM local_transactions
+           WHERE budget_id = ? AND id = ?
+           LIMIT 1`,
+          [activeBudgetId, transactionId],
+        ).length > 0;
+
+      if (exists) {
+        throw workerError(
+          "TRANSACTION_ALREADY_EXISTS",
+          `Transaction ${transactionId} already exists and cannot be added again.`,
+        );
+      }
+    }
+
     for (const { transaction, mutation, resolveConflictId } of writes) {
       resolveLocalConflictInTransaction(resolveConflictId);
 
@@ -4286,7 +4329,10 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
     case "writeTransaction":
       return writeTransaction(request.transaction, request.mutation, request.resolveConflictId);
     case "writeTransactionBatch":
-      return writeTransactionBatch(request.writes);
+      return writeTransactionBatch(
+        request.writes,
+        request.requireAbsentTransactionIds,
+      );
     case "deleteTransaction":
       return deleteTransaction(request.transactionId, request.mutation, request.resolveConflictId);
     case "deleteTransactionBatch":

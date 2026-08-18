@@ -121,7 +121,35 @@ function createHarness(participation: Record<string, "on-budget" | "off-budget">
 
     async writeTransactionBatch(
       writes: readonly { readonly transaction: LocalTransactionRecord }[],
+      options?: {
+        readonly requireAbsentTransactionIds?: readonly string[];
+      },
     ) {
+      const requiredAbsentIds =
+        options?.requireAbsentTransactionIds ?? [];
+
+      if (new Set(requiredAbsentIds).size !== requiredAbsentIds.length) {
+        throw new Error("Transaction additions contain duplicate transaction IDs.");
+      }
+
+      for (const transactionId of requiredAbsentIds) {
+        const writeCount = writes.filter(
+          ({ transaction }) => transaction.id === transactionId,
+        ).length;
+
+        if (writeCount !== 1) {
+          throw new Error(
+            `Transaction addition ${transactionId} must appear exactly once.`,
+          );
+        }
+
+        if (transactions.has(transactionId)) {
+          throw new Error(
+            `Transaction ${transactionId} already exists and cannot be added again.`,
+          );
+        }
+      }
+
       for (const write of writes) {
         transactions.set(write.transaction.id, write.transaction);
       }
@@ -316,22 +344,42 @@ test("moving a transfer with broken reciprocal linkage is refused without changi
   assert.deepEqual(transactions.get("transfer-target"), targetBefore);
 });
 
-test("deleting a transfer with a missing counterpart is refused without deleting the surviving leg", async () => {
+test("deleting a transfer with a missing counterpart removes the surviving orphan", async () => {
   const { client, transactions } = createHarness();
 
   transactions.delete("transfer-target");
-  const sourceBefore = transactions.get("transfer-source");
 
-  await assert.rejects(
-    client.deleteTransaction("transfer-source", {
-      budgetId: BUDGET_ID,
-      accountId: "checking",
-    }),
-    /other side|missing|link/i,
-  );
+  await client.deleteTransaction("transfer-source", {
+    budgetId: BUDGET_ID,
+    accountId: "checking",
+  });
 
-  assert.deepEqual(transactions.get("transfer-source"), sourceBefore);
+  assert.equal(transactions.has("transfer-source"), false);
   assert.equal(transactions.has("transfer-target"), false);
+});
+
+test("deleting a transfer with stale non-reciprocal linkage does not delete the unrelated row", async () => {
+  const { client, transactions } = createHarness();
+
+  const target = transactions.get("transfer-target");
+  assert.ok(target);
+
+  transactions.set("transfer-target", {
+    ...target,
+    transferTransactionId: "some-other-source",
+  });
+
+  await client.deleteTransaction("transfer-source", {
+    budgetId: BUDGET_ID,
+    accountId: "checking",
+  });
+
+  assert.equal(transactions.has("transfer-source"), false);
+  assert.equal(transactions.has("transfer-target"), true);
+  assert.equal(
+    transactions.get("transfer-target")?.transferTransactionId,
+    "some-other-source",
+  );
 });
 
 test("adding a top-level transfer creates an equal-and-opposite reciprocal pair", async () => {
@@ -411,6 +459,38 @@ test("batch-adding a top-level transfer creates both reciprocal legs", async () 
   assert.equal(counterpart.amount, 4_250);
   assert.equal(counterpart.transferAccountId, "checking");
   assert.equal(counterpart.transferTransactionId, source.id);
+});
+
+test("batch addition cannot overwrite an existing transfer source and orphan its old counterpart", async () => {
+  const { client, transactions } = createHarness();
+
+  const sourceBefore = transactions.get("transfer-source");
+  const targetBefore = transactions.get("transfer-target");
+  const idsBefore = [...transactions.keys()].sort();
+
+  await assert.rejects(
+    client.commitTransactionBatch({
+      budgetId: BUDGET_ID,
+      accountId: "checking",
+      additions: [
+        {
+          id: "transfer-source",
+          budgetId: BUDGET_ID,
+          accountId: "checking",
+          date: "2026-08-18",
+          amount: -10_000,
+          memo: "Repeated import row",
+          transferAccountId: "savings",
+        },
+      ],
+      updates: [],
+    }),
+    /already exists|cannot be added again/i,
+  );
+
+  assert.deepEqual(transactions.get("transfer-source"), sourceBefore);
+  assert.deepEqual(transactions.get("transfer-target"), targetBefore);
+  assert.deepEqual([...transactions.keys()].sort(), idsBefore);
 });
 
 test("batch-updating a linked transfer updates both legs consistently", async () => {

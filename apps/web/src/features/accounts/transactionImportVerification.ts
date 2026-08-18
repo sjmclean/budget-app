@@ -31,10 +31,14 @@ export function verifyPersistedImportTransactions(
     if (!transaction.id) throw new Error("A committed import transaction has no stable ID.");
     const actual = byId.get(transaction.id);
     if (!actual) throw new Error(`Committed import transaction ${transaction.id} was not found after persistence.`);
+    const transferIdentityMatches = transaction.transferAccountId
+      ? actual.transferAccountId === transaction.transferAccountId
+      : !actual.transferAccountId && actual.payee === transaction.payee;
+
     if (actual.date !== transaction.date ||
         Math.round(actual.inflow * 100) !== Math.round(transaction.inflow * 100) ||
         Math.round(actual.outflow * 100) !== Math.round(transaction.outflow * 100) ||
-        actual.payee !== transaction.payee ||
+        !transferIdentityMatches ||
         actual.rawPayee !== transaction.rawPayee) {
       throw new Error(`Committed import transaction ${transaction.id} differs from the reviewed commit plan.`);
     }

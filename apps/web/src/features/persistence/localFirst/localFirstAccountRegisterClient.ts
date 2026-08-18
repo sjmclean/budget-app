@@ -524,6 +524,34 @@ export function createLocalFirstAccountRegisterQueryClient(
     return counterpart;
   }
 
+  async function findReciprocalTransferCounterpartForDelete(
+    local: LocalBudgetDatabaseClient,
+    transaction: LocalTransactionRecord,
+  ): Promise<LocalTransactionRecord | null> {
+    if (
+      !transaction.transferAccountId ||
+      !transaction.transferTransactionId
+    ) {
+      return null;
+    }
+
+    const counterpart = await local.getTransaction(
+      transaction.budgetId,
+      transaction.transferTransactionId,
+    );
+
+    if (
+      !counterpart ||
+      counterpart.accountId !== transaction.transferAccountId ||
+      counterpart.transferAccountId !== transaction.accountId ||
+      counterpart.transferTransactionId !== transaction.id
+    ) {
+      return null;
+    }
+
+    return counterpart;
+  }
+
   async function accountParticipation(
     local: LocalBudgetDatabaseClient,
     budgetId: string,
@@ -1289,8 +1317,20 @@ export function createLocalFirstAccountRegisterQueryClient(
     },
     async addTransaction(input) {
       const local = await requireDatabase(input.budgetId);
+      const existing = await local.getTransaction(input.budgetId, input.id);
+      if (existing) {
+        throw new Error(
+          `Transaction ${input.id} already exists and cannot be added again.`,
+        );
+      }
+
       const records = await buildNewTransactionRecords(local, input.id, input);
-      await local.writeTransactionBatch(transactionWrites(records));
+      await local.writeTransactionBatch(
+        transactionWrites(records),
+        {
+          requireAbsentTransactionIds: records.map((record) => record.id),
+        },
+      );
       notifyLocalFirstMutationCommitted(input.budgetId);
     },
     async commitTransactionBatch(input) {
@@ -1299,12 +1339,24 @@ export function createLocalFirstAccountRegisterQueryClient(
         transaction: LocalTransactionRecord;
         mutation: LocalBudgetMutation;
       }[] = [];
+      const requireAbsentTransactionIds: string[] = [];
+      const additionIds = new Set<string>();
 
       for (const addition of input.additions) {
+        if (additionIds.has(addition.id)) {
+          throw new Error(
+            `Transaction ${addition.id} appears more than once in the additions batch.`,
+          );
+        }
+        additionIds.add(addition.id);
+
         const records = await buildNewTransactionRecords(
           local,
           addition.id,
           addition,
+        );
+        requireAbsentTransactionIds.push(
+          ...records.map((record) => record.id),
         );
         writes.push(...transactionWrites(records));
       }
@@ -1324,7 +1376,9 @@ export function createLocalFirstAccountRegisterQueryClient(
         writes.push(...transactionWrites(records));
       }
 
-      await local.writeTransactionBatch(writes);
+      await local.writeTransactionBatch(writes, {
+        requireAbsentTransactionIds,
+      });
       if (writes.length > 0) {
         notifyLocalFirstMutationCommitted(input.budgetId);
       }
@@ -1483,7 +1537,8 @@ export function createLocalFirstAccountRegisterQueryClient(
 
       requireMutableTransaction(existing);
 
-      const counterpart = await requireTransferCounterpart(local, existing);
+      const counterpart =
+        await findReciprocalTransferCounterpartForDelete(local, existing);
       if (counterpart) {
         requireMutableTransaction(counterpart);
       }
@@ -1496,7 +1551,12 @@ export function createLocalFirstAccountRegisterQueryClient(
             "transactions",
             transactionId,
             "delete",
-            null,
+            {
+              accountId: existing.accountId,
+              amount: existing.amount,
+              transferAccountId: existing.transferAccountId,
+              transferTransactionId: existing.transferTransactionId,
+            },
           ),
         );
         notifyLocalFirstMutationCommitted(input.budgetId);

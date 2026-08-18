@@ -408,11 +408,20 @@ export class LocalBudgetDatabaseClient {
       readonly mutation: LocalBudgetMutation;
       readonly resolveConflictId?: string;
     }[],
+    options: {
+      readonly requireAbsentTransactionIds?: readonly string[];
+    } = {},
   ): Promise<LocalBudgetManifest> {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "writeTransactionBatch",
       writes,
+      ...(options.requireAbsentTransactionIds?.length
+        ? {
+            requireAbsentTransactionIds:
+              options.requireAbsentTransactionIds,
+          }
+        : {}),
     });
   }
 
