@@ -10,6 +10,14 @@ import {
   buildUpdateRegisterTransactionInput,
 } from "../../../apps/web/src/features/accounts/registerTransactionDrafts.js";
 import type { RegisterTransactionView } from "../../../apps/web/src/features/accounts/accountRegisterTypes.js";
+import {
+  splitDraftsFromTransaction,
+} from "../../../apps/web/src/features/accounts/registerSplitDrafts.js";
+import {
+  resolveRegisterTransactionCategory,
+  resolveRegisterTransactionEditCategory,
+  SPLIT_CATEGORY_LABEL,
+} from "../../../apps/web/src/features/accounts/registerCategoryMatching.js";
 
 test("split validation rejects opposite-side amounts that break signed parent conservation", () => {
   const result = validateRegisterTransactionDraft({
@@ -203,5 +211,101 @@ test("new inflows default to Ready to Assign without recategorising imported unr
       ...common, id: "imported-income", category: "Ready to Assign",
     })?.categoryId,
     "__ready_to_assign__",
+  );
+});
+
+test("split structure takes precedence over a missing parent category", () => {
+  assert.equal(
+    resolveRegisterTransactionCategory({
+      splitLineCount: 10,
+      categoryId: null,
+      categoryName: null,
+      transferAccountId: null,
+    }),
+    SPLIT_CATEGORY_LABEL,
+  );
+
+  assert.equal(
+    resolveRegisterTransactionEditCategory(
+      "Uncategorised",
+      10,
+    ),
+    SPLIT_CATEGORY_LABEL,
+  );
+});
+
+test("editing a ten-line split preserves every split and emits a split parent", () => {
+  const splitLines = Array.from(
+    { length: 10 },
+    (_, index) => ({
+      id: `split-${index + 1}`,
+      category: `Category ${index + 1}`,
+      categoryId: `category-${index + 1}`,
+      memo: `Split ${index + 1}`,
+      inflow: 10,
+      outflow: 0,
+    }),
+  );
+
+  const transaction = row({
+    id: "ten-line-split",
+    payee: "Department Of Education",
+    category: "Uncategorised",
+    categoryId: undefined,
+    inflow: 100,
+    outflow: 0,
+    splitLines,
+  });
+
+  const drafts = splitDraftsFromTransaction(transaction);
+
+  assert.equal(
+    drafts.length,
+    10,
+    "opening edit must hydrate every persisted split line",
+  );
+
+  assert.deepEqual(
+    drafts.map(({ id }) => id),
+    splitLines.map(({ id }) => id),
+    "split identity and ordering must survive edit hydration",
+  );
+
+  const categoryOptions = splitLines.map((line) => ({
+    id: line.categoryId!,
+    name: line.category,
+    groupName: "Test",
+    archived: false,
+  }));
+
+  const updated = buildUpdateRegisterTransactionInput({
+    id: transaction.id,
+    date: transaction.date,
+    payee: transaction.payee,
+    category: resolveRegisterTransactionEditCategory(
+      transaction.category,
+      drafts.length,
+    ),
+    memo: transaction.memo ?? "",
+    checkNumber: transaction.checkNumber ?? "",
+    outflow: "",
+    inflow: "100.00",
+    splitLines: drafts,
+    categoryOptions,
+  });
+
+  assert.ok(updated);
+  assert.equal(updated.category, "Split");
+  assert.equal(updated.categoryId, undefined);
+  assert.equal(
+    updated.splitLines?.length,
+    10,
+    "saving an unchanged split must emit every hydrated split line",
+  );
+
+  assert.deepEqual(
+    updated.splitLines?.map(({ id }) => id),
+    splitLines.map(({ id }) => id),
+    "save must preserve split identity and ordering",
   );
 });

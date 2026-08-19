@@ -40,6 +40,7 @@ import {
 import {
   findCategoryOption,
   isSplitCategoryValue,
+  resolveRegisterTransactionEditCategory,
   SPLIT_CATEGORY_LABEL,
 } from "../registerCategoryMatching";
 import {
@@ -1514,7 +1515,13 @@ export function TransactionEditRow({
   const [transferAccountId, setTransferAccountId] = useState<string | undefined>(
     transaction.transferAccountId,
   );
-  const [category, setCategory] = useState(transaction.category);
+  const initialSplitLines = splitDraftsFromTransaction(transaction);
+  const [category, setCategory] = useState(
+    resolveRegisterTransactionEditCategory(
+      transaction.category,
+      initialSplitLines.length,
+    ),
+  );
   const [memo, setMemo] = useState(transaction.memo ?? "");
   const [checkNumber, setCheckNumber] = useState(transaction.checkNumber ?? "");
   const [outflow, setOutflow] = useState(
@@ -1524,7 +1531,7 @@ export function TransactionEditRow({
     transaction.inflow ? transaction.inflow.toFixed(2) : "",
   );
   const [splitLines, setSplitLines] = useState<SplitLineDraft[]>(
-    splitDraftsFromTransaction(transaction),
+    initialSplitLines,
   );
 
   function handleCategoryChange(value: string) {

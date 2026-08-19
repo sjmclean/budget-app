@@ -4,6 +4,7 @@ import { getBudgetPersistenceProvider } from "../persistence";
 import { usePersistenceChangeVersion } from "../persistence/persistenceChangeBus";
 import { generateDueScheduledTransactionsForBudget } from "./scheduledTransactionMaintenance";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
+import { resolveRegisterTransactionCategory } from "./registerCategoryMatching";
 import { getRegisterLoadMoreContinuation } from "./registerPagination";
 import {
   calculateAttachmentContentHash,
@@ -772,11 +773,12 @@ export function mapSqliteTransactions(
         : row.payeeName ?? "Imported Payee",
       rawPayee: row.rawPayeeName ?? undefined,
       payeeId: row.payeeId ?? undefined,
-      category: row.categoryId
-        ? row.categoryName ?? "Uncategorised"
-        : row.transferAccountId
-          ? "Transfer"
-          : "Uncategorised",
+      category: resolveRegisterTransactionCategory({
+        splitLineCount: row.splitLines.length,
+        categoryId: row.categoryId,
+        categoryName: row.categoryName,
+        transferAccountId: row.transferAccountId,
+      }),
       categoryId: row.categoryId ?? undefined,
       memo: row.memo ?? undefined,
       checkNumber: row.checkNumber ?? undefined,

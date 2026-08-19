@@ -2978,6 +2978,8 @@
 /* v2.34.3 split allocation panel */
 .register-split-allocation-panel {
   min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: row;
   margin: 0.42rem 0.72rem 0.7rem;
   padding: 0.72rem 0.8rem 0.82rem;
   border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent));
@@ -3065,6 +3067,7 @@
 }
 
 .register-split-allocation-actions {
+  grid-column: 1;
   justify-content: flex-end;
   margin-top: 0.72rem;
   padding-top: 0.72rem;
