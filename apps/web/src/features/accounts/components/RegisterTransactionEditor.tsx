@@ -12,6 +12,7 @@ import {
 } from "./TransactionRow";
 import { RegisterDateField } from "./RegisterDateField";
 import { PayeeInput } from "./PayeeInput";
+import { resolvePayeeForSubmission } from "../resolvePayeeForSubmission";
 import {
   RegisterCategoryInput,
   type RegisterInlineCategoryCreateInput,
@@ -733,8 +734,14 @@ export function TransactionEntryRow({
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
-  onSave: (input: NewRegisterTransactionInput, accountId: string) => void;
-  onSaveAndAddAnother: (input: NewRegisterTransactionInput, accountId: string) => void;
+  onSave: (
+    input: NewRegisterTransactionInput,
+    accountId: string,
+  ) => Promise<void>;
+  onSaveAndAddAnother: (
+    input: NewRegisterTransactionInput,
+    accountId: string,
+  ) => Promise<void>;
   onCancel: () => void;
   onCreateCategory?: (
     input: RegisterInlineCategoryCreateInput,
@@ -760,6 +767,8 @@ export function TransactionEntryRow({
   const [mobilePositiveSplitIds, setMobilePositiveSplitIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [mobileVisualViewport, setMobileVisualViewport] = useState(() => ({
     left: 0,
     width: typeof window === "undefined" ? 0 : window.innerWidth,
@@ -824,25 +833,55 @@ export function TransactionEntryRow({
     setCategory(value);
   }
 
-  function save() {
+  async function save() {
     const input = buildInput();
 
-    if (!input) {
+    if (!input || isSaving) {
       return;
     }
 
-    onSave(input, selectedAccountId);
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const resolvedInput = await resolvePayeeForSubmission(
+        input,
+        onCreatePayee,
+      );
+      await onSave(resolvedInput, selectedAccountId);
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Unable to save transaction.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  function saveAndAddAnother() {
+  async function saveAndAddAnother() {
     const input = buildInput();
 
-    if (!input) {
+    if (!input || isSaving) {
       return;
     }
 
-    onSaveAndAddAnother(input, selectedAccountId);
-    clearForNext();
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const resolvedInput = await resolvePayeeForSubmission(
+        input,
+        onCreatePayee,
+      );
+      await onSaveAndAddAnother(resolvedInput, selectedAccountId);
+      clearForNext();
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Unable to save transaction.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   if (layoutMode === "mobile") {
@@ -1256,7 +1295,7 @@ export function TransactionEntryRow({
           </button>
           <strong id="mobile-transaction-sheet-title">Add transaction</strong>
           {mobileStep === "details" ? (
-            <button type="button" onClick={save}>Save</button>
+            <button type="button" onClick={() => void save()}>Save</button>
           ) : <span aria-hidden="true" />}
         </header>
 
@@ -1359,7 +1398,17 @@ export function TransactionEntryRow({
 
         {mobileStep === "details" ? (
         <footer className="mobile-transaction-sheet-footer">
-          <button className="button button-primary" type="button" onClick={save}>
+          {saveError ? (
+            <p className="register-category-create-error" role="alert">
+              {saveError}
+            </p>
+          ) : null}
+          <button
+            className="button button-primary"
+            type="button"
+            disabled={isSaving}
+            onClick={() => void save()}
+          >
             Save transaction
           </button>
         </footer>
@@ -1420,7 +1469,6 @@ export function TransactionEntryRow({
                 }}
                 transferAccounts={transferAccounts}
                 payeeOptions={payeeOptions}
-                onCreatePayee={onCreatePayee}
                 autoFocus
               />
             );
@@ -1492,18 +1540,24 @@ export function TransactionEntryRow({
 
       {splitLines.length === 0 ? (
         <div className="register-entry-actions-panel register-entry-actions-panel-commit-only">
+          {saveError ? (
+            <p className="register-category-create-error" role="alert">
+              {saveError}
+            </p>
+          ) : null}
           <div className="register-entry-actions register-entry-commit-actions">
             <button
               className="button button-primary"
               type="button"
-              onClick={saveAndAddAnother}
+              disabled={isSaving}
+              onClick={() => void saveAndAddAnother()}
             >
               Save & add another
             </button>
             <button
               className="button button-secondary"
               type="button"
-              onClick={save}
+              onClick={() => void save()}
             >
               Save
             </button>
@@ -1530,10 +1584,15 @@ export function TransactionEntryRow({
         layoutMode={layoutMode}
         onCreateCategory={onCreateCategory}
       >
+        {saveError ? (
+          <p className="register-category-create-error" role="alert">
+            {saveError}
+          </p>
+        ) : null}
         <button
           className="button button-primary"
           type="button"
-          onClick={saveAndAddAnother}
+          onClick={() => void saveAndAddAnother()}
           disabled={
             !isSplitDraftBalanced(
               parseRegisterMoney(outflow),
@@ -1547,7 +1606,7 @@ export function TransactionEntryRow({
         <button
           className="button button-secondary"
           type="button"
-          onClick={save}
+          onClick={() => void save()}
           disabled={
             !isSplitDraftBalanced(
               parseRegisterMoney(outflow),
@@ -1604,7 +1663,7 @@ export function TransactionEditRow({
     inflow: number;
     outflow: number;
     splitLines?: RegisterSplitLineView[];
-  }) => void;
+  }) => Promise<void>;
   onCancel: () => void;
   onManageTransactionAttachments: (transactionId: string) => void;
   visibleColumns: Set<RegisterColumnId>;
@@ -1640,6 +1699,8 @@ export function TransactionEditRow({
   const [splitLines, setSplitLines] = useState<SplitLineDraft[]>(
     initialSplitLines,
   );
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   function handleCategoryChange(value: string) {
     if (isSplitCategoryValue(value)) {
@@ -1669,7 +1730,7 @@ export function TransactionEditRow({
     });
   }
 
-  function save() {
+  async function save() {
     const input = buildUpdateRegisterTransactionInput({
       id: transaction.id,
       date,
@@ -1685,11 +1746,26 @@ export function TransactionEditRow({
       categoryOptions,
     });
 
-    if (!input) {
+    if (!input || isSaving) {
       return;
     }
 
-    onSave(input);
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const resolvedInput = await resolvePayeeForSubmission(
+        input,
+        onCreatePayee,
+      );
+      await onSave(resolvedInput);
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Unable to save transaction.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   const outflowColumnIndex = visibleColumnIds.indexOf("outflow");
@@ -1709,7 +1785,7 @@ export function TransactionEditRow({
             event.key === "Enter" &&
             !(event.target instanceof HTMLTextAreaElement)
           ) {
-            save();
+            void save();
           }
 
           if (event.key === "Escape") {
@@ -1749,7 +1825,6 @@ export function TransactionEditRow({
           }}
           transferAccounts={transferAccounts}
           payeeOptions={payeeOptions}
-          onCreatePayee={onCreatePayee}
         />
         <RegisterCategoryInput
           value={category}
@@ -1799,10 +1874,15 @@ export function TransactionEditRow({
           rowStyle={rowStyle}
           layoutMode={layoutMode}
         >
+          {saveError ? (
+            <p className="register-category-create-error" role="alert">
+              {saveError}
+            </p>
+          ) : null}
           <button
             className="button button-primary"
             type="button"
-            onClick={save}
+            onClick={() => void save()}
             disabled={
               !isSplitDraftBalanced(
                 parseRegisterMoney(outflow),
@@ -1823,6 +1903,11 @@ export function TransactionEditRow({
         </SplitEditor>
       ) : (
         <div className="register-edit-actions-panel" style={rowStyle}>
+          {saveError ? (
+            <p className="register-category-create-error" role="alert">
+              {saveError}
+            </p>
+          ) : null}
           <div
             className="register-edit-actions register-edit-commit-actions"
             style={{ gridColumn: editActionGridColumn }}
@@ -1830,7 +1915,7 @@ export function TransactionEditRow({
             <button
               className="button button-primary"
               type="button"
-              onClick={save}
+              onClick={() => void save()}
             >
               Save
             </button>

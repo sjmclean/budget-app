@@ -23,7 +23,6 @@ export function PayeeInput({
   payeeOptions,
   autoFocus,
   openOnFocus = false,
-  onCreatePayee,
   onSelection,
   onCancel,
   onBlurOutside,
@@ -36,7 +35,6 @@ export function PayeeInput({
   payeeOptions: PayeeView[];
   autoFocus?: boolean;
   openOnFocus?: boolean;
-  onCreatePayee?: (name: string) => Promise<PayeeView>;
   onSelection?: (value: string) => void;
   onCancel?: () => void;
   onBlurOutside?: () => void;
@@ -46,9 +44,6 @@ export function PayeeInput({
   const [isOpen, setIsOpen] = useState(false);
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
-  const [isCreatingPayee, setIsCreatingPayee] = useState(false);
-  const [isSavingPayee, setIsSavingPayee] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
 
   const autocompleteOptions = useMemo(
     () => buildPayeeAutocompleteOptions({ transferAccounts, payeeOptions }),
@@ -74,29 +69,16 @@ export function PayeeInput({
     suggestions[
       Math.min(highlightedIndex, Math.max(suggestions.length - 1, 0))
     ];
-  const trimmedValue = value.replace(/\s+/g, " ").trim();
-  const hasExactPayeeMatch = payeeOptions.some(
-    (payee) =>
-      payee.name.replace(/\s+/g, " ").trim().toLocaleLowerCase() ===
-      trimmedValue.toLocaleLowerCase(),
-  );
-  const canCreatePayee =
-    Boolean(onCreatePayee) &&
-    trimmedValue.length > 0 &&
-    !hasExactPayeeMatch &&
-    !trimmedValue.toLocaleLowerCase().startsWith("transfer:");
   const ghostCompletion = getAutocompleteCompletion(
     value,
     highlightedSuggestion?.value,
   );
   const shouldShowSuggestions = isOpen && suggestions.length > 0;
-  const shouldShowPopup =
-    isOpen && (suggestions.length > 0 || canCreatePayee || isCreatingPayee);
+  const shouldShowPopup = shouldShowSuggestions;
   const shouldShowGhost =
     shouldShowSuggestions && !showAllSuggestions && Boolean(ghostCompletion);
-  const { anchorRef, popupStyle } = useRegisterAutocompletePopupStyle(
-    shouldShowPopup,
-  );
+  const { anchorRef, popupStyle } =
+    useRegisterAutocompletePopupStyle(shouldShowPopup);
 
   function selectSuggestion(selection: PayeeSelection) {
     onChange(selection.value);
@@ -106,8 +88,6 @@ export function PayeeInput({
     setIsOpen(false);
     setShowAllSuggestions(false);
     setHighlightedIndex(0);
-    setIsCreatingPayee(false);
-    setCreateError(null);
   }
 
   function openSuggestionList(showAll = false) {
@@ -119,39 +99,11 @@ export function PayeeInput({
   function closeSuggestionList() {
     setIsOpen(false);
     setShowAllSuggestions(false);
-    setIsCreatingPayee(false);
-    setCreateError(null);
   }
 
   function setInputElement(element: HTMLInputElement | null) {
     inputRef.current = element;
     anchorRef.current = element;
-  }
-
-
-  function beginCreatePayee() {
-    if (!canCreatePayee) return;
-    setIsCreatingPayee(true);
-    setCreateError(null);
-    setIsOpen(true);
-  }
-
-  async function submitCreatePayee() {
-    if (!onCreatePayee || !canCreatePayee || isSavingPayee) return;
-
-    setIsSavingPayee(true);
-    setCreateError(null);
-    try {
-      const created = await onCreatePayee(trimmedValue);
-      selectSuggestion({ value: created.name, payeeId: created.id });
-      window.setTimeout(() => inputRef.current?.focus(), 0);
-    } catch (error) {
-      setCreateError(
-        error instanceof Error ? error.message : "Unable to create payee.",
-      );
-    } finally {
-      setIsSavingPayee(false);
-    }
   }
 
   function acceptHighlightedSuggestion() {
@@ -169,14 +121,14 @@ export function PayeeInput({
         ref={setInputElement}
         value={value}
         onChange={(event) => {
-          const nextValue = event.target.value;
-
-          onChange(nextValue);
+          onChange(event.target.value);
           onPayeeIdChange?.(undefined);
           onTransferAccountIdChange?.(undefined);
           openSuggestionList(false);
         }}
-        onFocus={() => openSuggestionList(openOnFocus || value.trim().length === 0)}
+        onFocus={() =>
+          openSuggestionList(openOnFocus || value.trim().length === 0)
+        }
         onBlur={() =>
           window.setTimeout(() => {
             if (!popupRef.current?.contains(document.activeElement)) {
@@ -233,13 +185,6 @@ export function PayeeInput({
             return;
           }
 
-          if (event.key === "Enter" && canCreatePayee && !isCreatingPayee) {
-            event.preventDefault();
-            event.stopPropagation();
-            beginCreatePayee();
-            return;
-          }
-
           if (event.key === "Escape") {
             event.preventDefault();
             closeSuggestionList();
@@ -252,6 +197,7 @@ export function PayeeInput({
         aria-autocomplete="list"
         aria-expanded={shouldShowPopup}
       />
+
       <button
         type="button"
         className="register-combobox-arrow"
@@ -321,6 +267,7 @@ export function PayeeInput({
                     ) : null}
                     <span>{getPayeeSuggestionText(suggestion)}</span>
                   </span>
+
                   {isTransfer ? null : (
                     <small>
                       {suggestion.metadata?.label ?? suggestion.label}
@@ -330,56 +277,6 @@ export function PayeeInput({
               </div>
             );
           })}
-
-          {canCreatePayee && !isCreatingPayee ? (
-            <button
-              type="button"
-              className="register-category-create-option register-payee-create-option"
-              onMouseDown={(event) => {
-                event.preventDefault();
-                beginCreatePayee();
-              }}
-            >
-              <span aria-hidden="true">＋</span>
-              <span>Create “{trimmedValue}”</span>
-            </button>
-          ) : null}
-
-          {isCreatingPayee ? (
-            <div className="register-category-create-panel register-payee-create-panel">
-              <strong>Create payee</strong>
-              <span className="register-category-create-name">{trimmedValue}</span>
-              <p className="register-payee-create-help">
-                This payee will be available throughout the current budget.
-              </p>
-              {createError ? (
-                <p className="register-category-create-error" role="alert">
-                  {createError}
-                </p>
-              ) : null}
-              <div className="register-category-create-actions">
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  onClick={() => {
-                    setIsCreatingPayee(false);
-                    setCreateError(null);
-                    inputRef.current?.focus();
-                  }}
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  className="button button-primary"
-                  disabled={isSavingPayee}
-                  onClick={() => void submitCreatePayee()}
-                >
-                  {isSavingPayee ? "Creating…" : "Create"}
-                </button>
-              </div>
-            </div>
-          ) : null}
         </div>
       ) : null}
     </div>

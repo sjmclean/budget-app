@@ -1328,9 +1328,9 @@ export function TransactionImportDialog({
   function beginProposedTransactionEdit(
     candidateId: string,
     field: ProposedTransactionEditField,
-    _value: string,
+    value: string,
   ) {
-    setProposedTransactionEdit({ candidateId, field, draftValue: "" });
+    setProposedTransactionEdit({ candidateId, field, draftValue: value });
   }
 
   function updateProposedTransactionDraft(value: string) {
@@ -1370,6 +1370,42 @@ export function TransactionImportDialog({
         transferAccountName: undefined,
       });
     }
+    setProposedTransactionEdit(null);
+  }
+
+  function commitMatchedPayeeEdit(
+    candidate: TransactionImportCandidate,
+    value: string,
+  ) {
+    const built = buildTransactionImportMerchantProposal({
+      store: merchantKnowledgeRef.current,
+      rawPayee: value,
+      transaction: candidate.parsed,
+      fallbackCategoryName: candidate.matchedTransaction?.category,
+    });
+    const transferAccount = transferAccounts.find(
+      (account) =>
+        account.name.toLocaleLowerCase() ===
+        built.proposal.transferAccountName?.toLocaleLowerCase(),
+    );
+    const suggestedCategory = categoryOptions.find(
+      (category) =>
+        category.name.toLocaleLowerCase() ===
+        built.proposal.categoryName?.toLocaleLowerCase(),
+    );
+
+    updateMatchedTransactionDetails(candidate.id, {
+      payee: built.proposal.payee,
+      payeeId: undefined,
+      transferAccountId: transferAccount?.id,
+      category: built.proposal.categoryName ?? "",
+      categoryId: built.proposal.transferAccountName
+        ? undefined
+        : suggestedCategory?.id ?? candidate.matchedTransaction?.categoryId,
+      splitLines: built.proposal.transferAccountName
+        ? undefined
+        : candidate.matchedTransaction?.splitLines,
+    });
     setProposedTransactionEdit(null);
   }
 
@@ -1627,6 +1663,7 @@ export function TransactionImportDialog({
           },
         },
         {
+          resolvePayee: onCreatePayee,
           ...(onCommitRegisterChanges
             ? { commitTransactionBatch: onCommitRegisterChanges }
             : {}),
@@ -2507,7 +2544,6 @@ export function TransactionImportDialog({
                                 payeeOptions={payeeOptions}
                                 autoFocus
                                 openOnFocus
-                                onCreatePayee={onCreatePayee}
                                 onChange={updateProposedTransactionDraft}
                                 onSelection={(value) => {
                                   const built =
@@ -2545,7 +2581,12 @@ export function TransactionImportDialog({
                                   setProposedTransactionEdit(null);
                                 }}
                                 onCancel={cancelProposedTransactionEdit}
-                                onBlurOutside={cancelProposedTransactionEdit}
+                                onBlurOutside={() =>
+                                  commitMatchedPayeeEdit(
+                                    candidate,
+                                    activeProposedTransactionEdit.draftValue,
+                                  )
+                                }
                               />
                             ) : candidate.matchCandidates &&
                               candidate.matchCandidates.length > 1 ? (
@@ -2785,11 +2826,22 @@ export function TransactionImportDialog({
                               payeeOptions={payeeOptions}
                               autoFocus
                               openOnFocus
-                              onCreatePayee={onCreatePayee}
                               onChange={updateProposedTransactionDraft}
-                              onSelection={(value) => commitProposedTransactionEdit(candidate.id, "payee", value)}
+                              onSelection={(value) =>
+                                commitProposedTransactionEdit(
+                                  candidate.id,
+                                  "payee",
+                                  value,
+                                )
+                              }
                               onCancel={cancelProposedTransactionEdit}
-                              onBlurOutside={cancelProposedTransactionEdit}
+                              onBlurOutside={() =>
+                                commitProposedTransactionEdit(
+                                  candidate.id,
+                                  "payee",
+                                  activeProposedTransactionEdit.draftValue,
+                                )
+                              }
                             />
                           ) : (
                             <RegisterCategoryInput

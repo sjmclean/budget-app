@@ -28,6 +28,7 @@ import { getBudgetPersistenceProvider } from "../../features/persistence";
 import { usePersistenceChangeVersion } from "../../features/persistence/persistenceChangeBus";
 import type { SidebarAccount } from "../../features/accounts/accountService";
 import type { PayeeView } from "../../features/accounts/payeeService";
+import { PayeeInput } from "../../features/accounts/components/PayeeInput";
 import { createRuntimeUuid } from "../../features/ids/createRuntimeUuid";
 import type { BudgetCategoryOption } from "../../features/budget/budgetViewTypes";
 import { formatDateForDisplay } from "../../features/settings/dateFormatting";
@@ -689,24 +690,37 @@ function ScheduledForm({
               <span>Transaction details</span>
             </div>
 
-            <label>
+            <div className="scheduled-payee-field">
               <span>Payee</span>
-              <input
+              <PayeeInput
                 value={draft.payee}
-                onChange={(event) => setDraft({ ...draft, payee: event.target.value })}
-                placeholder="Payee"
-                list="scheduled-payee-options"
+                transferAccounts={transferAccounts}
+                payeeOptions={payeeOptions}
                 autoFocus
+                onChange={(payee) =>
+                  setDraft({
+                    ...draft,
+                    payee,
+                    payeeId: undefined,
+                  })
+                }
+                onPayeeIdChange={(payeeId) => {
+                  if (!payeeId) {
+                    return;
+                  }
+
+                  const selectedPayee = payeeOptions.find(
+                    (candidate) => candidate.id === payeeId,
+                  );
+
+                  setDraft({
+                    ...draft,
+                    payee: selectedPayee?.name ?? draft.payee,
+                    payeeId,
+                  });
+                }}
               />
-            </label>
-            <datalist id="scheduled-payee-options">
-              {payeeOptions.map((payee) => (
-                <option key={payee.id} value={payee.name} />
-              ))}
-              {transferAccounts.map((account) => (
-                <option key={account.id} value={`Transfer: ${account.name}`} label="Transfer" />
-              ))}
-            </datalist>
+            </div>
 
             <div className="scheduled-editor-row scheduled-editor-row-two">
               <label>

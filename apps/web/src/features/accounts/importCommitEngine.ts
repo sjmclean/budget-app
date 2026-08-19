@@ -33,6 +33,7 @@ import {
 } from "./transactionImportKnowledge";
 import { getActiveBudgetIdFromStorage } from "../budget/budgetDataScope";
 import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
+import { resolvePayeeForSubmission, type PayeeSubmissionResolver } from "./resolvePayeeForSubmission";
 
 export interface ImportCommitCategory {
   id: string;
@@ -70,6 +71,7 @@ export interface ImportCommitSession {
 }
 
 export interface ImportCommitAdapters {
+  resolvePayee?: PayeeSubmissionResolver;
   commitTransactionBatch?: (
     accountId: string,
     additions: NewRegisterTransactionInput[],
@@ -688,6 +690,40 @@ export async function commitImportSession(
   try {
     failedStage = "Prepare import commit";
     plan = prepareImportCommit(session, stages);
+
+    if (adapters.resolvePayee) {
+      failedStage = "Resolve payees";
+      const payeeCache = new Map<
+        string,
+        Awaited<ReturnType<PayeeSubmissionResolver>>
+      >();
+
+      const resolvePayee: PayeeSubmissionResolver = async (name) => {
+        const key = name.replace(/\s+/g, " ").trim().toLocaleLowerCase();
+        const cached = payeeCache.get(key);
+        if (cached) {
+          return cached;
+        }
+
+        const resolved = await adapters.resolvePayee!(name);
+        payeeCache.set(key, resolved);
+        return resolved;
+      };
+
+      plan = await measureAsyncStage(stages, failedStage, async () => ({
+        ...plan!,
+        additions: await Promise.all(
+          plan!.additions.map((transaction) =>
+            resolvePayeeForSubmission(transaction, resolvePayee),
+          ),
+        ),
+        matchedTransactionUpdates: await Promise.all(
+          plan!.matchedTransactionUpdates.map((transaction) =>
+            resolvePayeeForSubmission(transaction, resolvePayee),
+          ),
+        ),
+      }));
+    }
 
     if (plan.additions.length > 0 || plan.matchedTransactionUpdates.length > 0) {
       failedStage = adapters.commitTransactionBatch

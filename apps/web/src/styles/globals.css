@@ -8616,3 +8616,19 @@ strong {
   line-height: 1.2;
   text-transform: uppercase;
 }
+
+
+.scheduled-payee-field {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.scheduled-payee-field > span {
+  font-weight: 600;
+}
+
+.scheduled-payee-field .register-payee-autocomplete {
+  width: 100%;
+  min-width: 0;
+}

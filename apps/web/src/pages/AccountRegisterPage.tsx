@@ -2024,11 +2024,11 @@ export function AccountRegisterPage() {
               rowStyle={registerEntryRowStyle}
               layoutMode={registerLayoutMode}
               onCreateCategory={createInlineCategory}
-              onSave={(input, targetAccountId) => {
+              onSave={async (input, targetAccountId) => {
                 if (targetAccountId === data.accountId) {
-                  addTransaction(input);
+                  await addTransaction(input);
                 } else {
-                  void persistenceGateway.accountRegisters.addTransaction({
+                  await persistenceGateway.accountRegisters.addTransaction({
                     accountId: targetAccountId,
                     transaction: input,
                   });
@@ -2036,11 +2036,11 @@ export function AccountRegisterPage() {
                 setLastEntryDate(input.date);
                 setShowEntryRow(false);
               }}
-              onSaveAndAddAnother={(input, targetAccountId) => {
+              onSaveAndAddAnother={async (input, targetAccountId) => {
                 if (targetAccountId === data.accountId) {
-                  addTransaction(input);
+                  await addTransaction(input);
                 } else {
-                  void persistenceGateway.accountRegisters.addTransaction({
+                  await persistenceGateway.accountRegisters.addTransaction({
                     accountId: targetAccountId,
                     transaction: input,
                   });
@@ -2079,8 +2079,8 @@ export function AccountRegisterPage() {
                     payeeOptions={payeeOptions}
                     onCreatePayee={createInlinePayee}
                     currencyCode={data.currencyCode}
-                    onSave={(input) => {
-                      updateTransaction(input);
+                    onSave={async (input) => {
+                      await updateTransaction(input);
                       setEditingTransactionId(null);
                       setEditingTransactionFocusField("date");
                     }}
