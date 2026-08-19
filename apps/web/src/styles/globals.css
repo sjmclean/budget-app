@@ -8113,13 +8113,15 @@ strong {
   }
 
   .budget-ready-summary-heading {
-    height: 100%;
+    height: auto;
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0;
-    border: 0;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    padding: 0 0 0.45rem;
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--accent) 20%, var(--border-soft));
   }
 
   .budget-ready-summary-heading span {
@@ -8127,23 +8129,33 @@ strong {
   }
 
   .budget-ready-summary-heading strong {
-    max-width: 65%;
-    overflow: hidden;
-    font-size: clamp(1.35rem, 8vw, 1.85rem);
-    text-overflow: ellipsis;
+    max-width: 100%;
+    margin-left: auto;
+    overflow: visible;
+    font-size: clamp(1.25rem, 7vw, 1.65rem);
+    text-overflow: clip;
     white-space: nowrap;
   }
 
-  .budget-ready-summary dl,
+  .budget-ready-summary dl {
+    display: grid;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+  }
+
   .budget-ready-summary-total {
-    display: none;
+    display: flex;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
   }
 
   .budget-month-navigation {
     width: 100%;
+    min-width: 0;
     justify-content: stretch;
     gap: 0.35rem;
     padding-top: 0;
+    overflow: hidden;
   }
 
   .budget-month-step {
@@ -8155,7 +8167,9 @@ strong {
   .budget-month-current {
     min-width: 0;
     min-height: 2.35rem;
-    flex: 1 1 auto;
+    flex: 1 1 0;
+    overflow: hidden;
+    white-space: nowrap;
   }
 
   .budget-planning-tabs {
@@ -8175,16 +8189,20 @@ strong {
   .budget-sticky-working-header .budget-workspace-table-head,
   .budget-workspace-group-header,
   .budget-workspace-row {
-    width: 100%;
-    min-width: 0;
-    grid-template-columns: minmax(0, 1fr) 5.6rem 5.6rem !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    grid-template-columns: minmax(0, 1fr) minmax(5.8rem, auto) !important;
     gap: 0.3rem;
   }
 
-  .budget-sticky-working-header .budget-workspace-table-head > :nth-child(3),
-  .budget-workspace-group-header > :nth-child(3),
-  .budget-workspace-row > :nth-child(3) {
-    display: none;
+  .budget-column-assigned,
+  .budget-column-activity,
+  .budget-workspace-group-header > .budget-assigned-cell,
+  .budget-workspace-group-header > .budget-activity-cell,
+  .budget-workspace-row > .assigned-button,
+  .budget-workspace-row > .assigned-input,
+  .budget-workspace-row > .activity-drilldown-button {
+    display: none !important;
   }
 
   .budget-sticky-working-header .budget-workspace-table-head {

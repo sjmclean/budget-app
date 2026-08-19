@@ -884,6 +884,63 @@ export function TransactionEntryRow({
     const visiblePayees = payeeOptions
       .filter((option) => !option.isArchived)
       .filter((option) => !searchTerm || option.name.toLocaleLowerCase().includes(searchTerm));
+
+    const searchedMobilePayeeChoices = searchTerm
+      ? [
+          ...transferAccounts.map((account) => ({
+            kind: "transfer" as const,
+            id: account.id,
+            label: `Transfer: ${account.name}`,
+            searchValue: account.name,
+            accountId: account.id,
+            payeeId: undefined,
+            defaultCategoryName: undefined,
+          })),
+          ...payeeOptions
+            .filter((option) => !option.isArchived)
+            .map((option) => ({
+              kind: "payee" as const,
+              id: option.id,
+              label: option.name,
+              searchValue: option.name,
+              accountId: undefined,
+              payeeId: option.id,
+              defaultCategoryName: option.defaultCategoryName,
+            })),
+        ]
+          .filter((choice) =>
+            choice.searchValue.toLocaleLowerCase().includes(searchTerm),
+          )
+          .sort((left, right) => {
+            const rank = (value: string) => {
+              const normalised = value.toLocaleLowerCase();
+
+              if (normalised === searchTerm) {
+                return 0;
+              }
+
+              if (normalised.startsWith(searchTerm)) {
+                return 1;
+              }
+
+              return 2;
+            };
+
+            const rankDifference =
+              rank(left.searchValue) - rank(right.searchValue);
+
+            if (rankDifference !== 0) {
+              return rankDifference;
+            }
+
+            return left.searchValue.localeCompare(
+              right.searchValue,
+              undefined,
+              { sensitivity: "base" },
+            );
+          })
+      : [];
+
     const visibleCategories = categoryOptions
       .filter((option) => !option.isArchived)
       .filter((option) => !searchTerm || `${option.groupName} ${option.name}`.toLocaleLowerCase().includes(searchTerm));
@@ -972,32 +1029,82 @@ export function TransactionEntryRow({
 
           {mobilePicker === "payee" ? (
             <div className="mobile-picker-list">
-              {transferAccounts.map((account) => (
-                <button key={`transfer-${account.id}`} type="button" onClick={() => {
-                  setPayee(`Transfer: ${account.name}`);
-                  setPayeeId(undefined);
-                  setTransferAccountId(account.id);
-                  setMobilePicker(null);
-                  setMobileSearch("");
-                }}>
-                  <span>{`Transfer: ${account.name}`}</span><span aria-hidden="true">›</span>
-                </button>
-              ))}
-              {visiblePayees.map((option) => (
-                <button key={option.id} type="button" onClick={() => {
-                  setPayee(option.name);
-                  setPayeeId(option.id);
-                  setTransferAccountId(undefined);
-                  if (option.defaultCategoryName) {
-                    setCategory(option.defaultCategoryName);
-                  }
-                  setMobilePicker(null);
-                  setMobileSearch("");
-                }}>
-                  <span>{option.name}</span><span aria-hidden="true">›</span>
-                </button>
-              ))}
-              {visiblePayees.length === 0 ? <p className="mobile-picker-empty">No matching payees.</p> : null}
+              {searchTerm ? (
+                <>
+                  {searchedMobilePayeeChoices.map((choice) => (
+                    <button
+                      key={`${choice.kind}-${choice.id}`}
+                      type="button"
+                      onClick={() => {
+                        setPayee(choice.label);
+
+                        if (choice.kind === "transfer") {
+                          setPayeeId(undefined);
+                          setTransferAccountId(choice.accountId);
+                        } else {
+                          setPayeeId(choice.payeeId);
+                          setTransferAccountId(undefined);
+
+                          if (choice.defaultCategoryName) {
+                            setCategory(choice.defaultCategoryName);
+                          }
+                        }
+
+                        setMobilePicker(null);
+                        setMobileSearch("");
+                      }}
+                    >
+                      <span>{choice.label}</span>
+                      <span aria-hidden="true">›</span>
+                    </button>
+                  ))}
+
+                  {searchedMobilePayeeChoices.length === 0 ? (
+                    <p className="mobile-picker-empty">No matching payees.</p>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  {transferAccounts.map((account) => (
+                    <button
+                      key={`transfer-${account.id}`}
+                      type="button"
+                      onClick={() => {
+                        setPayee(`Transfer: ${account.name}`);
+                        setPayeeId(undefined);
+                        setTransferAccountId(account.id);
+                        setMobilePicker(null);
+                        setMobileSearch("");
+                      }}
+                    >
+                      <span>{`Transfer: ${account.name}`}</span>
+                      <span aria-hidden="true">›</span>
+                    </button>
+                  ))}
+
+                  {visiblePayees.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => {
+                        setPayee(option.name);
+                        setPayeeId(option.id);
+                        setTransferAccountId(undefined);
+
+                        if (option.defaultCategoryName) {
+                          setCategory(option.defaultCategoryName);
+                        }
+
+                        setMobilePicker(null);
+                        setMobileSearch("");
+                      }}
+                    >
+                      <span>{option.name}</span>
+                      <span aria-hidden="true">›</span>
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
           ) : null}
 

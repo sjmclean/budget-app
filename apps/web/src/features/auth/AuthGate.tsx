@@ -43,7 +43,40 @@ export function AuthGate({ children }: { readonly children: ReactNode }) {
     }
   }
 
-  if (status?.authenticated) return <>{children}</>;
+  if (!status) {
+    if (error) {
+      return (
+        <main className="auth-screen">
+          <section className="auth-card" role="alert">
+            <div>
+              <p className="auth-eyebrow">Budget App</p>
+              <h1>Unable to start the application</h1>
+              <p className="muted">{error}</p>
+            </div>
+            <button
+              className="button-primary"
+              type="button"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </button>
+          </section>
+        </main>
+      );
+    }
+
+    return (
+      <main
+        className="route-loading-screen"
+        role="status"
+        aria-live="polite"
+      >
+        Loading application…
+      </main>
+    );
+  }
+
+  if (status.authenticated) return <>{children}</>;
 
   return (
     <main className="auth-screen">

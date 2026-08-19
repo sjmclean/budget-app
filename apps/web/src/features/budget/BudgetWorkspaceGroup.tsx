@@ -482,17 +482,21 @@ export function BudgetGroup({
         </div>
 
         {isBudgetColumnVisible("assigned") ? (
-          <strong>{formatMoney(group.assigned, currencyCode)}</strong>
+          <strong className="budget-assigned-cell">
+            {formatMoney(group.assigned, currencyCode)}
+          </strong>
         ) : null}
         {isBudgetColumnVisible("activity") ? (
-          <strong>{formatMoney(group.activity, currencyCode)}</strong>
+          <strong className="budget-activity-cell">
+            {formatMoney(group.activity, currencyCode)}
+          </strong>
         ) : null}
         {isBudgetColumnVisible("available") ? (
           <strong
-            className={getAvailableClass(
+            className={`${getAvailableClass(
               group.available,
               groupHasOverassignedCategory,
-            )}
+            )} budget-available-cell`}
           >
             {formatMoney(group.available, currencyCode)}
           </strong>

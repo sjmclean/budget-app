@@ -930,7 +930,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
               style={budgetTableLayout.rowStyle}
             >
               {budgetTableLayout.visibleColumns.map((column) => (
-                <span className="table-layout-resizable-head-cell" key={column.id}>
+                <span
+                  className={`table-layout-resizable-head-cell budget-column-${column.id}`}
+                  key={column.id}
+                >
                   {column.id === "category" ? (
                     <span className="budget-category-header-label">
                       <span>{column.label}</span>
