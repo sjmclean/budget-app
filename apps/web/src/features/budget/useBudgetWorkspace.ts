@@ -14,6 +14,7 @@ import { createBudgetAssignmentEditSession } from "./budgetAssignmentEditing";
 import {
   executeUndoableBudgetAssignmentChanges,
   executeUndoableBudgetMoneyMovement,
+  executeUndoableBudgetMoneyMovementFromMultipleSources,
   registerBudgetUndoRedoContext,
 } from "./budgetUndoRedo";
 import { previewCategoryAssignment } from "./budgetAssignmentPreview";
@@ -36,8 +37,10 @@ interface UseBudgetWorkspaceState {
   setCategoryOverspendingHandling: (categoryId: string, overspendingHandling: OverspendingHandling) => void;
   coverOverspending: (input: {
     overspentCategoryId: string;
-    coveringCategoryId: string;
-    amount: number;
+    sources: {
+      categoryId: string;
+      amount: number;
+    }[];
   }) => void;
   renameCategory: (categoryId: string, name: string) => void;
   setCategoryArchived: (categoryId: string, isArchived: boolean) => void;
@@ -387,42 +390,83 @@ export function useBudgetWorkspace(
 
   function coverOverspending(input: {
     overspentCategoryId: string;
-    coveringCategoryId: string;
-    amount: number;
+    sources: {
+      categoryId: string;
+      amount: number;
+    }[];
   }) {
     setLastEditedCategoryId(input.overspentCategoryId);
     setSaveError(null);
 
-    const coveringCategory = data?.categoryGroups
-      .flatMap((group) => group.categories)
-      .find((category) => category.id === input.coveringCategoryId);
-    const overspentCategory = data?.categoryGroups
-      .flatMap((group) => group.categories)
-      .find((category) => category.id === input.overspentCategoryId);
+    const categories =
+      data?.categoryGroups.flatMap((group) => group.categories) ?? [];
+    const overspentCategory = categories.find(
+      (category) => category.id === input.overspentCategoryId,
+    );
 
-    if (!coveringCategory || !overspentCategory) {
-      setSaveError("Unable to find the categories required to cover overspending.");
+    if (!overspentCategory) {
+      setSaveError("Unable to find the overspent category.");
       return;
     }
 
-    if (!Number.isFinite(input.amount) || input.amount <= 0) {
-      setSaveError("Cover amount must be positive.");
+    const overspentAmount = Math.abs(Math.min(0, overspentCategory.available));
+
+    if (overspentAmount <= 0) {
+      setSaveError("Category is no longer overspent.");
       return;
     }
 
-    if (coveringCategory.available < input.amount) {
-      setSaveError("Covering category has insufficient available funds.");
+    if (input.sources.length === 0) {
+      setSaveError("Choose at least one category to cover overspending.");
+      return;
+    }
+
+    let total = 0;
+    const seenCategoryIds = new Set<string>();
+
+    for (const source of input.sources) {
+      if (seenCategoryIds.has(source.categoryId)) {
+        setSaveError("A covering category was selected more than once.");
+        return;
+      }
+      seenCategoryIds.add(source.categoryId);
+
+      const category = categories.find(
+        (candidate) => candidate.id === source.categoryId,
+      );
+
+      if (!category) {
+        setSaveError("Unable to find a covering category.");
+        return;
+      }
+
+      if (!Number.isFinite(source.amount) || source.amount <= 0) {
+        setSaveError("Cover amounts must be positive.");
+        return;
+      }
+
+      if (category.available < source.amount) {
+        setSaveError(
+          `${category.name} has insufficient available funds.`,
+        );
+        return;
+      }
+
+      total += source.amount;
+    }
+
+    if (total > overspentAmount + 0.000001) {
+      setSaveError("Cover amount cannot exceed the current overspending.");
       return;
     }
 
     const workspaceIdentity = workspaceIdentityRef.current;
     const mutationVersion = ++mutationVersionRef.current;
 
-    void executeUndoableBudgetMoneyMovement({
+    void executeUndoableBudgetMoneyMovementFromMultipleSources({
       month,
-      sourceCategoryId: input.coveringCategoryId,
       destinationCategoryId: input.overspentCategoryId,
-      amount: input.amount,
+      sources: input.sources,
     }).then((result) => {
       if (
         !isWorkspaceCurrent(workspaceIdentity) ||

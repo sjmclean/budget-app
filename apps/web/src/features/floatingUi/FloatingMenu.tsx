@@ -7,6 +7,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 import "./floatingMenu.css";
 
 export interface FloatingMenuProps {
@@ -146,7 +147,7 @@ export function FloatingMenu({
     left: position.left,
   };
 
-  return (
+  return createPortal(
     <div
       className={[layerClassName, className].filter(Boolean).join(" ")}
       role="presentation"
@@ -168,7 +169,8 @@ export function FloatingMenu({
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

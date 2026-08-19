@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
 import { BarChart3, CalendarDays, Plus, Redo2, Undo2 } from "lucide-react";
@@ -584,6 +590,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   const budgetUndoRedo = useBudgetUndoRedo();
 
+  const budgetWorkspaceMainRef = useRef<HTMLElement | null>(null);
+
   const budgetTableLayout = useTableLayout({
     storageKeyPrefix: BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
     scopeId: budgetId,
@@ -713,6 +721,51 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     setBudgetContextMenu(null);
   }
 
+  function resolveCoverOverspendingPosition(): FloatingPosition {
+    const viewportPadding = 12;
+    const preferredWidth = 544;
+    const viewportWidth = window.innerWidth;
+
+    const workspaceRect =
+      budgetWorkspaceMainRef.current?.getBoundingClientRect();
+
+    if (!workspaceRect) {
+      return {
+        top: viewportPadding,
+        left: Math.max(
+          viewportPadding,
+          (viewportWidth - preferredWidth) / 2,
+        ),
+        placement: "bottom-start",
+      };
+    }
+
+    const usableLeft = Math.max(
+      viewportPadding,
+      workspaceRect.left + viewportPadding,
+    );
+    const usableRight = Math.min(
+      viewportWidth - viewportPadding,
+      workspaceRect.right - viewportPadding,
+    );
+    const usableWidth = Math.max(0, usableRight - usableLeft);
+    const actualWidth = Math.min(preferredWidth, usableWidth);
+
+    const budgetContentOffset = 180;
+
+    return {
+      top: Math.max(
+        viewportPadding,
+        workspaceRect.top + budgetContentOffset,
+      ),
+      left: Math.max(
+        usableLeft,
+        usableLeft + (usableWidth - actualWidth) / 2,
+      ),
+      placement: "bottom-start",
+    };
+  }
+
   function closeCoverOverspendingMenu() {
     setCoverOverspendingMenu(null);
   }
@@ -745,12 +798,11 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
     setCoverOverspendingMenu({
       category,
-      position: budgetContextMenu.position,
+      position: resolveCoverOverspendingPosition(),
     });
   }
 
   function openCoverOverspendingMenuFromRow({
-    event,
     category,
   }: {
     event: MouseEvent<HTMLElement>;
@@ -759,10 +811,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     selectCategory(category.id);
     setCoverOverspendingMenu({
       category,
-      position: resolveFloatingPositionFromMouseEvent(event.nativeEvent, {
-        floatingSize: { width: 360, height: 320 },
-        viewport: { width: window.innerWidth, height: window.innerHeight },
-      }),
+      position: resolveCoverOverspendingPosition(),
     });
   }
 
@@ -795,7 +844,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   return (
     <>
       <WorkspaceLayout className="budget-workspace-screen budget-workspace-layout">
-        <main className="budget-workspace-main">
+        <main
+          className="budget-workspace-main"
+          ref={budgetWorkspaceMainRef}
+        >
           <WorkspaceStickyHeader className="budget-sticky-working-header">
             <section className="budget-planning-header" aria-label="Budget month workspace">
               <div className="budget-planning-title">

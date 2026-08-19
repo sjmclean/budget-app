@@ -3,6 +3,7 @@ import type {
   BudgetCategoryView,
 } from "./budgetViewTypes";
 import { isMoneyNegative } from "./moneyMath";
+import { isCreditCardPaymentCategory } from "./creditCardPaymentCategories";
 
 export interface OverspendingCoverOption {
   id: string;
@@ -114,7 +115,11 @@ export function buildOverspendingCoverOptions(
 ): OverspendingCoverOption[] {
   return categoryGroups.flatMap((group) =>
     group.categories
-      .filter((category) => !category.isArchived)
+      .filter(
+        (category) =>
+          !category.isArchived &&
+          !isCreditCardPaymentCategory(category.id),
+      )
       .map((category) => ({
         id: category.id,
         name: category.name,

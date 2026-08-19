@@ -5,9 +5,11 @@ import {
   type UndoRedoSnapshot,
 } from "../history";
 import {
+  createMoveBudgetMoneyFromMultipleSourcesCommand,
   moveBudgetMoneyWithUndo,
   type BudgetMoneyMovementContext,
   type MoveBudgetMoneyCommandInput,
+  type MoveBudgetMoneyFromMultipleSourcesCommandInput,
 } from "./budgetMoneyMovement";
 import {
   executeBudgetAssignmentChangesWithUndo,
@@ -65,6 +67,14 @@ export function executeUndoableBudgetMoneyMovement(
   input: MoveBudgetMoneyCommandInput,
 ): Promise<UndoRedoResult> {
   return moveBudgetMoneyWithUndo(controller, input);
+}
+
+export function executeUndoableBudgetMoneyMovementFromMultipleSources(
+  input: MoveBudgetMoneyFromMultipleSourcesCommandInput,
+): Promise<UndoRedoResult> {
+  return controller.execute(
+    createMoveBudgetMoneyFromMultipleSourcesCommand(input),
+  );
 }
 
 export function executeUndoableBudgetAssignmentChanges(

@@ -18,6 +18,17 @@ export interface MoveBudgetMoneyCommandInput {
   amount: number;
 }
 
+export interface MultiSourceBudgetMoneyMovementSource {
+  categoryId: string;
+  amount: number;
+}
+
+export interface MoveBudgetMoneyFromMultipleSourcesCommandInput {
+  month: string;
+  destinationCategoryId: string;
+  sources: MultiSourceBudgetMoneyMovementSource[];
+}
+
 export interface BudgetCategoryAssignedValue {
   categoryId: string;
   assigned: number;
@@ -44,14 +55,19 @@ interface CategoryLocation {
   category: BudgetCategoryView;
 }
 
-interface MoneyMovementCapture {
-  sourceCategoryId: string;
-  sourceCategoryName: string;
+interface MoneyMovementSourceCapture {
+  categoryId: string;
+  categoryName: string;
+  originalAssigned: number;
+  amount: number;
+}
+
+interface MultiSourceMoneyMovementCapture {
+  sources: MoneyMovementSourceCapture[];
   destinationCategoryId: string;
   destinationCategoryName: string;
-  currencyCode: string;
-  originalSourceAssigned: number;
   originalDestinationAssigned: number;
+  currencyCode: string;
 }
 
 function validateMonth(month: string): void {
@@ -63,19 +79,43 @@ function validateMonth(month: string): void {
   }
 }
 
-function validateMoveInput(input: MoveBudgetMoneyCommandInput): void {
+function validateMultiSourceMoveInput(
+  input: MoveBudgetMoneyFromMultipleSourcesCommandInput,
+): void {
   validateMonth(input.month);
 
-  if (!Number.isFinite(input.amount)) {
-    throw new Error("Move amount must be finite.");
+  if (!input.destinationCategoryId) {
+    throw new Error("Destination category is required.");
   }
 
-  if (input.amount <= 0) {
-    throw new Error("Move amount must be positive.");
+  if (input.sources.length === 0) {
+    throw new Error("Choose at least one source category.");
   }
 
-  if (input.sourceCategoryId === input.destinationCategoryId) {
-    throw new Error("Choose two different categories to move money.");
+  const sourceIds = new Set<string>();
+
+  for (const source of input.sources) {
+    if (!source.categoryId) {
+      throw new Error("Source category is required.");
+    }
+
+    if (!Number.isFinite(source.amount)) {
+      throw new Error("Move amount must be finite.");
+    }
+
+    if (source.amount <= 0) {
+      throw new Error("Move amount must be positive.");
+    }
+
+    if (source.categoryId === input.destinationCategoryId) {
+      throw new Error("Source and destination categories must be different.");
+    }
+
+    if (sourceIds.has(source.categoryId)) {
+      throw new Error("Source categories must not contain duplicates.");
+    }
+
+    sourceIds.add(source.categoryId);
   }
 }
 
@@ -86,13 +126,21 @@ function formatMovementAmount(amount: number, currencyCode: string): string {
   }).format(amount);
 }
 
-function createMovementLabel(input: {
+function createMultiSourceMovementLabel(input: {
   amount: number;
+  sourceCount: number;
   currencyCode: string;
-  sourceCategoryName: string;
   destinationCategoryName: string;
 }): string {
-  return `Move ${formatMovementAmount(input.amount, input.currencyCode)} from ${input.sourceCategoryName} to ${input.destinationCategoryName}`;
+  const sourceLabel =
+    input.sourceCount === 1
+      ? "1 category"
+      : `${input.sourceCount} categories`;
+
+  return `Move ${formatMovementAmount(
+    input.amount,
+    input.currencyCode,
+  )} from ${sourceLabel} to ${input.destinationCategoryName}`;
 }
 
 function findCategoryLocation(
@@ -110,56 +158,75 @@ function findCategoryLocation(
   return null;
 }
 
-function requireMovementCapture(
+function requireMultiSourceMovementCapture(
   view: BudgetMonthView,
-  input: MoveBudgetMoneyCommandInput,
-): MoneyMovementCapture {
-  const source = findCategoryLocation(view, input.sourceCategoryId);
+  input: MoveBudgetMoneyFromMultipleSourcesCommandInput,
+): MultiSourceMoneyMovementCapture {
   const destination = findCategoryLocation(view, input.destinationCategoryId);
-
-  if (!source) {
-    throw new Error("Source category was not found.");
-  }
 
   if (!destination) {
     throw new Error("Destination category was not found.");
   }
 
+  const sources = input.sources.map((inputSource) => {
+    const source = findCategoryLocation(view, inputSource.categoryId);
+
+    if (!source) {
+      throw new Error("Source category was not found.");
+    }
+
+    if (source.category.available < inputSource.amount) {
+      throw new Error(
+        `${source.category.name} has insufficient available funds.`,
+      );
+    }
+
+    return {
+      categoryId: source.category.id,
+      categoryName: source.category.name,
+      originalAssigned: source.category.assigned,
+      amount: normaliseMoney(inputSource.amount),
+    };
+  });
+
   return {
-    sourceCategoryId: source.category.id,
-    sourceCategoryName: source.category.name,
+    sources,
     destinationCategoryId: destination.category.id,
     destinationCategoryName: destination.category.name,
-    currencyCode: view.currencyCode,
-    originalSourceAssigned: source.category.assigned,
     originalDestinationAssigned: destination.category.assigned,
+    currencyCode: view.currencyCode,
   };
 }
 
-function movementAssignments(
-  capture: MoneyMovementCapture,
-  amount: number,
+function movedAssignments(
+  capture: MultiSourceMoneyMovementCapture,
 ): BudgetCategoryAssignedValue[] {
+  const movedTotal = normaliseMoney(
+    capture.sources.reduce((total, source) => total + source.amount, 0),
+  );
+
   return [
-    {
-      categoryId: capture.sourceCategoryId,
-      assigned: normaliseMoney(capture.originalSourceAssigned - amount),
-    },
+    ...capture.sources.map((source) => ({
+      categoryId: source.categoryId,
+      assigned: normaliseMoney(source.originalAssigned - source.amount),
+    })),
     {
       categoryId: capture.destinationCategoryId,
-      assigned: normaliseMoney(capture.originalDestinationAssigned + amount),
+      assigned: normaliseMoney(
+        capture.originalDestinationAssigned + movedTotal,
+      ),
     },
   ];
 }
 
 function originalAssignments(
-  capture: MoneyMovementCapture,
+  capture: MultiSourceMoneyMovementCapture,
 ): BudgetCategoryAssignedValue[] {
   return [
-    {
-      categoryId: capture.sourceCategoryId,
-      assigned: capture.originalSourceAssigned,
-    },
+    ...capture.sources.map((source) => ({
+      categoryId: source.categoryId,
+      assigned: source.originalAssigned,
+    })),
     {
       categoryId: capture.destinationCategoryId,
       assigned: capture.originalDestinationAssigned,
@@ -304,36 +371,43 @@ export function createBudgetViewMoneyMovementContext({
   };
 }
 
-export function createMoveBudgetMoneyCommand(
-  input: MoveBudgetMoneyCommandInput,
+export function createMoveBudgetMoneyFromMultipleSourcesCommand(
+  input: MoveBudgetMoneyFromMultipleSourcesCommandInput,
 ): UndoableCommand<BudgetMoneyMovementContext> {
-  let capture: MoneyMovementCapture | null = null;
-  let label = `Move ${formatMovementAmount(input.amount, "USD")} between categories`;
+  let capture: MultiSourceMoneyMovementCapture | null = null;
+  let label = "Move budget money between categories";
 
   return {
-    id: `move-budget-money:${input.month}:${input.sourceCategoryId}:${input.destinationCategoryId}:${input.amount}`,
+    id: `move-budget-money:${input.month}:${input.destinationCategoryId}:${input.sources
+      .map((source) => `${source.categoryId}:${source.amount}`)
+      .join("|")}`,
     get label() {
       return label;
     },
     async execute(context) {
-      validateMoveInput(input);
+      validateMultiSourceMoveInput(input);
 
       const view = await context.getBudgetMonthView(input.month);
-      const nextCapture = requireMovementCapture(view, input);
-      const nextLabel = createMovementLabel({
-        amount: input.amount,
-        currencyCode: nextCapture.currencyCode,
-        sourceCategoryName: nextCapture.sourceCategoryName,
-        destinationCategoryName: nextCapture.destinationCategoryName,
-      });
+      const nextCapture = requireMultiSourceMovementCapture(view, input);
+      const movedTotal = normaliseMoney(
+        nextCapture.sources.reduce(
+          (total, source) => total + source.amount,
+          0,
+        ),
+      );
 
       await context.setCategoryAssignedValues({
         month: input.month,
-        assignments: movementAssignments(nextCapture, input.amount),
+        assignments: movedAssignments(nextCapture),
       });
 
       capture = nextCapture;
-      label = nextLabel;
+      label = createMultiSourceMovementLabel({
+        amount: movedTotal,
+        sourceCount: nextCapture.sources.length,
+        currencyCode: nextCapture.currencyCode,
+        destinationCategoryName: nextCapture.destinationCategoryName,
+      });
     },
     async undo(context) {
       if (!capture) {
@@ -352,10 +426,25 @@ export function createMoveBudgetMoneyCommand(
 
       await context.setCategoryAssignedValues({
         month: input.month,
-        assignments: movementAssignments(capture, input.amount),
+        assignments: movedAssignments(capture),
       });
     },
   };
+}
+
+export function createMoveBudgetMoneyCommand(
+  input: MoveBudgetMoneyCommandInput,
+): UndoableCommand<BudgetMoneyMovementContext> {
+  return createMoveBudgetMoneyFromMultipleSourcesCommand({
+    month: input.month,
+    destinationCategoryId: input.destinationCategoryId,
+    sources: [
+      {
+        categoryId: input.sourceCategoryId,
+        amount: input.amount,
+      },
+    ],
+  });
 }
 
 export function moveBudgetMoneyWithUndo(
@@ -363,4 +452,20 @@ export function moveBudgetMoneyWithUndo(
   input: MoveBudgetMoneyCommandInput,
 ): Promise<UndoRedoResult> {
   return controller.execute(createMoveBudgetMoneyCommand(input));
+}
+
+export function executeUndoableBudgetMoneyMovement(
+  controller: UndoRedoController<BudgetMoneyMovementContext>,
+  input: MoveBudgetMoneyCommandInput,
+): Promise<UndoRedoResult> {
+  return moveBudgetMoneyWithUndo(controller, input);
+}
+
+export function executeUndoableBudgetMoneyMovementFromMultipleSources(
+  controller: UndoRedoController<BudgetMoneyMovementContext>,
+  input: MoveBudgetMoneyFromMultipleSourcesCommandInput,
+): Promise<UndoRedoResult> {
+  return controller.execute(
+    createMoveBudgetMoneyFromMultipleSourcesCommand(input),
+  );
 }
