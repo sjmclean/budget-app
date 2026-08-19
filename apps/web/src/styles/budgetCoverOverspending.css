@@ -491,3 +491,125 @@
     gap: 0.1rem;
   }
 }
+
+/* Mobile Cover Overspending is a focused full-screen task page. */
+@media (max-width: 680px) {
+  .budget-cover-menu-layer {
+    background: var(--surface);
+  }
+
+  .budget-cover-menu.budget-cover-menu-multi {
+    inset: 0 !important;
+    width: 100%;
+    height: 100dvh;
+    min-width: 0;
+    max-width: none;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding:
+      env(safe-area-inset-top, 0px)
+      env(safe-area-inset-right, 0px)
+      env(safe-area-inset-bottom, 0px)
+      env(safe-area-inset-left, 0px);
+  }
+
+  .budget-cover-menu-multi .budget-cover-menu-heading {
+    position: relative;
+    top: auto;
+    margin: 0;
+    padding: 0.9rem 1rem 0.8rem;
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--surface);
+  }
+
+  .budget-cover-menu-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .budget-cover-menu-multi .budget-overspending-handling {
+    padding: 1rem;
+  }
+
+  .budget-cover-menu-multi .budget-cover-section {
+    padding: 1rem;
+  }
+
+  .budget-cover-menu-multi .budget-cover-summary {
+    margin-top: 0.8rem;
+  }
+
+  .budget-cover-selected-row {
+    grid-template-columns: minmax(0, 1fr) 6.75rem 2.25rem;
+    gap: 0.5rem;
+    padding: 0.8rem;
+  }
+
+  .budget-cover-selected-copy small {
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .budget-cover-add-category {
+    min-height: 3rem;
+  }
+
+  .budget-cover-category-picker {
+    min-height: 0;
+  }
+
+  .budget-cover-picker-list {
+    min-height: 0;
+  }
+
+  .budget-cover-picker-option {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 3.25rem;
+    padding: 0.7rem 0.65rem;
+  }
+
+  .budget-cover-menu-multi .budget-cover-menu-footer {
+    position: relative;
+    flex: 0 0 auto;
+    gap: 0.65rem;
+    padding:
+      0.8rem
+      1rem
+      max(0.8rem, env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border-soft);
+    background: var(--surface);
+  }
+
+  .budget-cover-menu-multi .budget-cover-menu-footer > button {
+    min-height: 2.9rem;
+  }
+
+  .budget-cover-menu-multi .budget-cover-menu-footer > button:last-child {
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 680px) {
+  .budget-cover-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .budget-cover-summary > div {
+    min-width: 0;
+    text-align: center;
+  }
+
+  .budget-cover-summary span {
+    white-space: nowrap;
+  }
+
+  .budget-cover-summary strong {
+    font-size: 0.95rem;
+    white-space: nowrap;
+  }
+}
