@@ -9,6 +9,11 @@ import type { ParsedImportTransaction } from "./transactionImportParser";
  */
 export const TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS = 7;
 
+const TRANSACTION_IMPORT_REVIEW_MIN_PAYEE_SIMILARITY = 25;
+const TRANSACTION_IMPORT_EXACT_DATE_AUTO_MATCH_SIMILARITY = 85;
+const TRANSACTION_IMPORT_NEAR_DATE_AUTO_MATCH_SIMILARITY = 95;
+const TRANSACTION_IMPORT_NEAR_DATE_AUTO_MATCH_DAYS = 3;
+
 /** @deprecated Reconciliation now uses one deterministic seven-day window. */
 export const HIGH_CONFIDENCE_IMPORT_MATCH_DAYS =
   TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS;
@@ -123,7 +128,7 @@ export function reconcileTransactionImportCandidate({
     });
   }
 
-  const candidates = existingTransactions
+  const sameAmountDateWindowAnalyses = existingTransactions
     .filter((transaction) => !excludedTransactionIds.has(transaction.id))
     .map((transaction) =>
       analyseImportMatchCandidate(transaction, parsed, merchantResolution),
@@ -132,6 +137,14 @@ export function reconcileTransactionImportCandidate({
       (analysis) =>
         analysis.amountMatches &&
         analysis.daysApart <= TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS,
+    );
+
+  const candidates = sameAmountDateWindowAnalyses
+    .filter(
+      (analysis) =>
+        analysis.merchantMatches ||
+        analysis.payeeSimilarity >=
+          TRANSACTION_IMPORT_REVIEW_MIN_PAYEE_SIMILARITY,
     )
     .sort(compareImportMatchCandidates)
     .map(toCandidateAssessment);
@@ -324,13 +337,26 @@ function analyseImportMatchCandidate(
       merchantResolution?.canonicalPayeeId &&
       transaction.payeeId === merchantResolution.canonicalPayeeId,
   );
-  const merchantMatches =
-    canonicalIdMatches ||
-    merchantsResolveToSameIdentity(existingMerchant, importedMerchant);
   const payeeSimilarity = calculatePayeeSimilarity(
     transaction.payee,
     resolvedImportedPayee,
   );
+
+  const identityMerchantMatches =
+    merchantsResolveToSameIdentity(existingMerchant, importedMerchant);
+
+  const inferredMerchantMatches =
+    (daysApart === 0 &&
+      payeeSimilarity >=
+        TRANSACTION_IMPORT_EXACT_DATE_AUTO_MATCH_SIMILARITY) ||
+    (daysApart <= TRANSACTION_IMPORT_NEAR_DATE_AUTO_MATCH_DAYS &&
+      payeeSimilarity >=
+        TRANSACTION_IMPORT_NEAR_DATE_AUTO_MATCH_SIMILARITY);
+
+  const merchantMatches =
+    canonicalIdMatches ||
+    identityMerchantMatches ||
+    inferredMerchantMatches;
 
   return {
     transaction,
@@ -469,10 +495,45 @@ function calculatePayeeSimilarity(left: string, right: string): number {
   const rightTokens = rightMerchant.tokens;
   if (leftTokens.length === 0 || rightTokens.length === 0) return 0;
 
+  const leftTokenSet = new Set(leftTokens);
   const rightTokenSet = new Set(rightTokens);
-  const overlap = leftTokens.filter((token) => rightTokenSet.has(token)).length;
-  const union = new Set([...leftTokens, ...rightTokens]).size;
-  return Math.round((overlap / union) * 100);
+  const intersection = [...leftTokenSet].filter((token) =>
+    rightTokenSet.has(token),
+  );
+  const union = new Set([...leftTokenSet, ...rightTokenSet]);
+
+  const jaccard =
+    union.size > 0
+      ? Math.round((intersection.length / union.size) * 100)
+      : 0;
+
+  const leftDistinctive = [
+    ...new Set(leftTokens.filter((token) => token.length >= 4)),
+  ];
+  const rightDistinctive = [
+    ...new Set(rightTokens.filter((token) => token.length >= 4)),
+  ];
+
+  let distinctiveCoverage = 0;
+
+  if (leftDistinctive.length > 0 && rightDistinctive.length > 0) {
+    const smaller =
+      leftDistinctive.length <= rightDistinctive.length
+        ? leftDistinctive
+        : rightDistinctive;
+
+    const larger = new Set(
+      smaller === leftDistinctive ? rightDistinctive : leftDistinctive,
+    );
+
+    const shared = smaller.filter((token) => larger.has(token)).length;
+
+    distinctiveCoverage = Math.round(
+      (shared / smaller.length) * 100,
+    );
+  }
+
+  return Math.max(jaccard, distinctiveCoverage);
 }
 
 function formatImportDateDistance(daysApart: number): string {
