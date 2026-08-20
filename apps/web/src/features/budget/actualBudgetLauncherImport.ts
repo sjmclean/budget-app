@@ -396,6 +396,7 @@ function mapActualBudgetForLocalFirst(
         scheduledOccurrenceDate: null,
         splitLines,
         tagIds: [],
+        importProvenance: [],
         updatedAt: nowIso,
       });
     }

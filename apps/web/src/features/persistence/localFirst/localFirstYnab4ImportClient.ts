@@ -159,6 +159,7 @@ export function createLocalFirstYnab4ImportClient(
             generatedFromSchedule: false,
             scheduledTransactionId: null,
             scheduledOccurrenceDate: null,
+            importProvenance: [],
             updatedAt: new Date(row.updatedAt).toISOString(),
           }));
           for (const row of transactions) ids.transactions.add(row.id);

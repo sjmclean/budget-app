@@ -1491,6 +1491,10 @@ function upsertTransaction(transaction: LocalTransactionRecord): void {
   );
   execute("DELETE FROM local_transaction_splits WHERE transaction_id = ?", [transaction.id]);
   execute("DELETE FROM local_transaction_tags WHERE transaction_id = ?", [transaction.id]);
+  execute(
+    "DELETE FROM local_transaction_import_provenance WHERE transaction_id = ?",
+    [transaction.id],
+  );
   for (const split of transaction.splitLines) {
     execute(
       `INSERT INTO local_transaction_splits(
@@ -1513,6 +1517,25 @@ function upsertTransaction(transaction: LocalTransactionRecord): void {
     execute(
       "INSERT INTO local_transaction_tags(transaction_id, tag_id) VALUES (?, ?)",
       [transaction.id, tagId],
+    );
+  }
+
+  for (const provenance of transaction.importProvenance) {
+    execute(
+      `INSERT INTO local_transaction_import_provenance(
+         transaction_id,
+         file_type,
+         identity,
+         occurrence,
+         imported_at
+       ) VALUES (?, ?, ?, ?, ?)`,
+      [
+        transaction.id,
+        provenance.fileType,
+        provenance.identity,
+        provenance.occurrence,
+        provenance.importedAt,
+      ],
     );
   }
 }
@@ -2909,6 +2932,21 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
       "SELECT tag_id AS tagId FROM local_transaction_tags WHERE transaction_id = ? ORDER BY tag_id",
       [transactionId],
     ).map(({ tagId }) => tagId),
+    importProvenance: resultRows<{
+      fileType: "csv" | "qif" | "ofx" | "qfx";
+      identity: string;
+      occurrence: number;
+      importedAt: string;
+    }>(
+      `SELECT file_type AS fileType,
+         identity,
+         occurrence,
+         imported_at AS importedAt
+       FROM local_transaction_import_provenance
+       WHERE transaction_id = ?
+       ORDER BY file_type, identity, occurrence`,
+      [transactionId],
+    ),
   };
 }
 
@@ -2976,6 +3014,21 @@ function getPersistedTransactionForVerification(
        ORDER BY tag_id`,
       [transactionId],
     ).map(({ tagId }) => tagId),
+    importProvenance: resultRows<{
+      fileType: "csv" | "qif" | "ofx" | "qfx";
+      identity: string;
+      occurrence: number;
+      importedAt: string;
+    }>(
+      `SELECT file_type AS fileType,
+         identity,
+         occurrence,
+         imported_at AS importedAt
+       FROM local_transaction_import_provenance
+       WHERE transaction_id = ?
+       ORDER BY file_type, identity, occurrence`,
+      [transactionId],
+    ),
   };
 }
 
@@ -3124,6 +3177,20 @@ function writeTransactionBatch(
           }))
           .sort((left, right) => left.id.localeCompare(right.id)),
         tagIds: [...transaction.tagIds].sort(),
+        importProvenance: [...transaction.importProvenance]
+          .map((provenance) => ({
+            fileType: provenance.fileType,
+            identity: provenance.identity,
+            occurrence: provenance.occurrence,
+            importedAt: provenance.importedAt,
+          }))
+          .sort(
+            (left, right) =>
+              left.fileType.localeCompare(right.fileType) ||
+              left.identity.localeCompare(right.identity) ||
+              left.occurrence - right.occurrence ||
+              left.importedAt.localeCompare(right.importedAt),
+          ),
         updatedAt: transaction.updatedAt,
       });
 

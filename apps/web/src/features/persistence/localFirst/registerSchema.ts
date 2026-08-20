@@ -150,6 +150,27 @@ export const LOCAL_REGISTER_SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS local_transaction_tags_tag
     ON local_transaction_tags(tag_id, transaction_id);
 
+  CREATE TABLE IF NOT EXISTS local_transaction_import_provenance (
+    transaction_id TEXT NOT NULL,
+    file_type TEXT NOT NULL
+      CHECK(file_type IN ('csv', 'qif', 'ofx', 'qfx')),
+    identity TEXT NOT NULL,
+    occurrence INTEGER NOT NULL CHECK(occurrence >= 1),
+    imported_at TEXT NOT NULL,
+    PRIMARY KEY(transaction_id, file_type, identity, occurrence),
+    FOREIGN KEY(transaction_id)
+      REFERENCES local_transactions(id)
+      ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS local_transaction_import_provenance_identity
+    ON local_transaction_import_provenance(
+      file_type,
+      identity,
+      occurrence,
+      transaction_id
+    );
+
   CREATE TABLE IF NOT EXISTS local_transaction_attachments (
     id TEXT PRIMARY KEY,
     budget_id TEXT NOT NULL,
@@ -220,6 +241,13 @@ export interface LocalTransactionSplitRecord {
   readonly amount: number;
 }
 
+export interface LocalTransactionImportProvenanceRecord {
+  readonly fileType: "csv" | "qif" | "ofx" | "qfx";
+  readonly identity: string;
+  readonly occurrence: number;
+  readonly importedAt: string;
+}
+
 export interface LocalTransactionRecord {
   readonly id: string;
   readonly budgetId: string;
@@ -241,6 +269,7 @@ export interface LocalTransactionRecord {
   readonly scheduledOccurrenceDate: string | null;
   readonly splitLines: readonly LocalTransactionSplitRecord[];
   readonly tagIds: readonly string[];
+  readonly importProvenance: readonly LocalTransactionImportProvenanceRecord[];
   readonly updatedAt: string;
 }
 

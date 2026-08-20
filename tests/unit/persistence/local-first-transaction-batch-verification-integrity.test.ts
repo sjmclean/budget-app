@@ -87,6 +87,12 @@ test("transaction batch verification reads physical SQLite values without refere
     "verification must read physical tag rows",
   );
 
+  assert.match(
+    helper,
+    /FROM local_transaction_import_provenance/,
+    "verification must read physical import provenance rows",
+  );
+
   assert.doesNotMatch(
     helper,
     /JOIN local_categories|COALESCE\s*\(/,
@@ -101,6 +107,46 @@ test("transaction batch verification reads physical SQLite values without refere
     batch,
     /getPersistedTransactionForVerification\(/,
     "transactional verification must use the physical persistence reader",
+  );
+
+  assert.match(
+    batch,
+    /importProvenance:\s*\[\.\.\.transaction\.importProvenance\]/,
+    "transactional verification must compare import provenance before COMMIT",
+  );
+});
+
+test("transaction upsert replaces transaction-owned import provenance atomically", () => {
+  const start = worker.indexOf("function upsertTransaction(");
+  const end = worker.indexOf(
+    "\nfunction assertActiveStagedImport(",
+    start,
+  );
+
+  assert.ok(start >= 0, "upsertTransaction must exist");
+  assert.ok(end > start, "upsertTransaction boundary must be discoverable");
+
+  const upsert = worker.slice(start, end);
+
+  const deleteProvenance = upsert.indexOf(
+    "DELETE FROM local_transaction_import_provenance",
+  );
+  const insertProvenance = upsert.indexOf(
+    "INSERT INTO local_transaction_import_provenance",
+  );
+
+  assert.ok(
+    deleteProvenance >= 0,
+    "transaction upsert must clear previous provenance",
+  );
+  assert.ok(
+    insertProvenance > deleteProvenance,
+    "transaction upsert must rewrite the complete provenance collection",
+  );
+  assert.match(
+    upsert,
+    /for \(const provenance of transaction\.importProvenance\)/,
+    "provenance persistence must come from the transaction record itself",
   );
 });
 

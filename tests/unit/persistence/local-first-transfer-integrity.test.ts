@@ -67,6 +67,7 @@ function createTransferPair(): [LocalTransactionRecord, LocalTransactionRecord] 
     scheduledOccurrenceDate: null,
     splitLines: [],
     tagIds: [],
+    importProvenance: [],
     updatedAt: "2026-08-13T00:00:00.000Z",
   };
 
@@ -1260,9 +1261,47 @@ function importedOrdinary(id: string): LocalTransactionRecord {
     categoryName: null, transferAccountId: null, transferTransactionId: null,
     generatedFromSchedule: false, scheduledTransactionId: null,
     scheduledOccurrenceDate: null, splitLines: [], tagIds: [],
+    importProvenance: [{
+      fileType: "qif",
+      identity: `qif:external:test-${id}`,
+      occurrence: 1,
+      importedAt: "2026-08-27T00:00:00.000Z",
+    }],
     updatedAt: "2026-08-27T00:00:00.000Z",
   };
 }
+
+test("ordinary editing preserves transaction import provenance", async () => {
+  const { client, transactions } = createHarness();
+  transactions.set("provenance-edit", importedOrdinary("provenance-edit"));
+
+  const existing = transactions.get("provenance-edit");
+  assert.ok(existing);
+
+  await client.updateTransaction(existing.id, {
+    budgetId: BUDGET_ID,
+    accountId: existing.accountId,
+    date: "2026-08-28",
+    amount: existing.amount,
+    memo: "Edited after import",
+    payeeId: existing.payeeId,
+    payeeName: existing.payeeName,
+    rawPayee: existing.rawPayeeName,
+    categoryId: existing.categoryId,
+    categoryName: existing.categoryName,
+    transferAccountId: undefined,
+    generatedFromSchedule: false,
+    scheduledTransactionId: null,
+    scheduledOccurrenceDate: null,
+    splitLines: [],
+    tagIds: [],
+  });
+
+  const updated = transactions.get(existing.id);
+  assert.ok(updated);
+  assert.equal(updated.memo, "Edited after import");
+  assert.deepEqual(updated.importProvenance, existing.importProvenance);
+});
 
 test("normal pointer-selection draft path converts an imported row into a valid internal transfer", async () => {
   const { client, transactions } = createHarness();
@@ -1288,6 +1327,17 @@ test("normal pointer-selection draft path converts an imported row into a valid 
   assert.equal(counterpart.amount, 2_500);
   assert.equal(counterpart.transferAccountId, "checking");
   assert.equal(counterpart.transferTransactionId, source.id);
+  assert.deepEqual(source.importProvenance, [{
+    fileType: "qif",
+    identity: "qif:external:test-ui-internal",
+    occurrence: 1,
+    importedAt: "2026-08-27T00:00:00.000Z",
+  }]);
+  assert.deepEqual(
+    counterpart.importProvenance,
+    [],
+    "synthetic transfer counterpart must not inherit source-file provenance",
+  );
   assert.equal(isUncategorisedRegisterTransaction({
     id: source.id, date: source.date, attachmentCount: 0,
     payee: "Transfer: Savings", category: "Transfer",

@@ -474,6 +474,7 @@ export function createLocalFirstAccountRegisterQueryClient(
         amount: split.amount,
       })),
       tagIds: input.tagIds ?? [],
+      importProvenance: existing?.importProvenance ?? [],
       updatedAt: new Date().toISOString(),
     };
   }
@@ -626,6 +627,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       categoryName: sourceRecord.categoryName,
       transferAccountId: sourceRecord.accountId,
       transferTransactionId: sourceRecord.id,
+      importProvenance: [],
     };
 
     return applyTransferCategorySemantics(local, sourceRecord, counterpartRecord);
