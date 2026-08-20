@@ -428,6 +428,7 @@ test("batch-adding a top-level transfer creates both reciprocal legs", async () 
   const beforeIds = new Set(transactions.keys());
 
   await client.commitTransactionBatch({
+    provenanceAssignments: [],
     budgetId: BUDGET_ID,
     accountId: "checking",
     additions: [
@@ -472,6 +473,7 @@ test("batch addition cannot overwrite an existing transfer source and orphan its
 
   await assert.rejects(
     client.commitTransactionBatch({
+      provenanceAssignments: [],
       budgetId: BUDGET_ID,
       accountId: "checking",
       additions: [
@@ -499,6 +501,7 @@ test("batch-updating a linked transfer updates both legs consistently", async ()
   const { client, transactions } = createHarness();
 
   await client.commitTransactionBatch({
+    provenanceAssignments: [],
     budgetId: BUDGET_ID,
     accountId: "checking",
     additions: [],
@@ -752,6 +755,7 @@ test("batch update cannot modify a reconciled transaction", async () => {
 
   await assert.rejects(
     client.commitTransactionBatch({
+      provenanceAssignments: [],
       budgetId: BUDGET_ID,
       accountId: "checking",
       additions: [],

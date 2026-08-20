@@ -40,6 +40,7 @@ interface UseAccountRegisterState {
   commitTransactionBatch: (input: {
     additions: NewRegisterTransactionInput[];
     updates: UpdateRegisterTransactionInput[];
+    provenanceAssignments: readonly import("../persistence/accountRegisterQueryContracts").RegisterTransactionImportProvenanceAssignment[];
   }) => Promise<void>;
   updateTransaction: (input: UpdateRegisterTransactionInput) => Promise<void>;
   toggleCleared: (transactionId: string) => Promise<void>;
@@ -433,6 +434,7 @@ export function useAccountRegister(
           ...toTransactionWriteInput(input),
         })),
         updates: [],
+        provenanceAssignments: [],
       }));
       return;
     }
@@ -452,6 +454,7 @@ export function useAccountRegister(
   const commitTransactionBatch = useCallback(async (input: {
     additions: NewRegisterTransactionInput[];
     updates: UpdateRegisterTransactionInput[];
+    provenanceAssignments: readonly import("../persistence/accountRegisterQueryContracts").RegisterTransactionImportProvenanceAssignment[];
   }) => {
     if (storageMode === "sqlite" && budgetId && accountRegisterQueries) {
       await runSqliteMutation(() => accountRegisterQueries.commitTransactionBatch({
@@ -469,9 +472,16 @@ export function useAccountRegister(
           id: transaction.id,
           ...toTransactionWriteInput(transaction),
         })),
+        provenanceAssignments: input.provenanceAssignments,
       }));
       return;
     }
+    if (input.provenanceAssignments.length > 0) {
+      throw new Error(
+        "Import provenance requires SQLite transaction persistence.",
+      );
+    }
+
     if (!accountRegisters.commitTransactionBatch) {
       await runMutation(async () => {
         if (input.additions.length > 0) {
@@ -489,7 +499,11 @@ export function useAccountRegister(
     }
 
     await runMutation(async () =>
-      (await accountRegisters.commitTransactionBatch!({ accountId, ...input })).register,
+      (await accountRegisters.commitTransactionBatch!({
+        accountId,
+        additions: input.additions,
+        updates: input.updates,
+      })).register,
     );
   }, [
     accountId,

@@ -1731,6 +1731,35 @@ export function AccountRegisterPage() {
                 requested.has(transaction.id),
               );
             }}
+            loadImportedTransactionSourceOccurrences={async (
+              destinationAccountId,
+              sourceFileType,
+            ) => {
+              const queries = persistenceGateway.accountRegisterQueries;
+              if (
+                storageMode !== "sqlite" ||
+                !activeBudgetId ||
+                !queries
+              ) {
+                throw new Error(
+                  "Transaction import duplicate detection requires SQLite transaction persistence.",
+                );
+              }
+
+              const occurrences =
+                await queries.getImportedTransactionSourceOccurrences({
+                  budgetId: activeBudgetId,
+                  accountId: destinationAccountId,
+                  fileType: sourceFileType,
+                });
+
+              return Object.fromEntries(
+                occurrences.map(({ identity, occurrenceCount }) => [
+                  identity,
+                  occurrenceCount,
+                ]),
+              );
+            }}
             loadAccountWorkingBalance={async (destinationAccountId) => {
               const queries = persistenceGateway.accountRegisterQueries;
               if (activeBudgetId && queries) {
@@ -1762,6 +1791,7 @@ export function AccountRegisterPage() {
                     ...toTransactionWriteInput(transaction),
                   })),
                   updates: [],
+                  provenanceAssignments: [],
                 });
                 return;
               }
@@ -1774,6 +1804,7 @@ export function AccountRegisterPage() {
               destinationAccountId,
               additions,
               transactions,
+              provenanceAssignments,
             ) => {
               const updates = transactions.map((transaction) => ({
                 id: transaction.id,
@@ -1791,7 +1822,11 @@ export function AccountRegisterPage() {
               }));
 
               if (destinationAccountId === accountId) {
-                await commitTransactionBatch({ additions, updates });
+                await commitTransactionBatch({
+                  additions,
+                  updates,
+                  provenanceAssignments,
+                });
                 return;
               }
 
@@ -1812,8 +1847,15 @@ export function AccountRegisterPage() {
                     id: transaction.id,
                     ...toTransactionWriteInput(transaction),
                   })),
+                  provenanceAssignments,
                 });
                 return;
+              }
+
+              if (provenanceAssignments.length > 0) {
+                throw new Error(
+                  "Import provenance requires SQLite transaction persistence.",
+                );
               }
 
               const adapter = persistenceGateway.accountRegisters;

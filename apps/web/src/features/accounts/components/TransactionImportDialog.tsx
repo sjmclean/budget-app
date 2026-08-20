@@ -19,6 +19,7 @@ import type {
   NewRegisterTransactionInput,
   RegisterTransactionView,
 } from "../accountRegisterTypes";
+import type { RegisterTransactionImportProvenanceAssignment } from "../../persistence/accountRegisterQueryContracts";
 import {
   analyseTransactionCsvImport,
   createTransactionImportPerformanceReport,
@@ -88,8 +89,9 @@ import {
   findImportedFileFingerprint,
   rememberAccountImportKnowledge,
   partitionPreviouslyImportedCandidates,
-  readPreviouslyImportedSourceOccurrences,
+  projectPreviouslyImportedSourceOccurrences,
   type ImportedTransactionFileType,
+  type TransactionImportSourceIdentity,
 } from "../transactionImportKnowledge";
 import { calculateTransactionImportBalancePreview } from "../transactionImportBalancePreview";
 import { resolvePayeeRecognition } from "../payeeRecognition";
@@ -244,6 +246,7 @@ export function TransactionImportDialog({
   onClose,
   loadAccountTransactions,
   loadTransactionsByIds,
+  loadImportedTransactionSourceOccurrences,
   loadAccountWorkingBalance,
   onImportTransactions,
   onUpdateMatchedTransactionDates,
@@ -265,6 +268,10 @@ export function TransactionImportDialog({
     accountId: string,
     transactionIds: readonly string[],
   ) => Promise<RegisterTransactionView[]>;
+  loadImportedTransactionSourceOccurrences: (
+    accountId: string,
+    fileType: ImportedTransactionFileType,
+  ) => Promise<Readonly<Record<string, number>>>;
   loadAccountWorkingBalance: (accountId: string) => Promise<number>;
   onImportTransactions: (
     accountId: string,
@@ -278,6 +285,7 @@ export function TransactionImportDialog({
     accountId: string,
     additions: NewRegisterTransactionInput[],
     updates: RegisterTransactionView[],
+    provenanceAssignments: readonly RegisterTransactionImportProvenanceAssignment[],
   ) => Promise<void>;
   payeeOptions: PayeeView[];
   categoryOptions: BudgetCategoryOption[];
@@ -336,6 +344,9 @@ export function TransactionImportDialog({
   );
   const [bankCandidateDetails, setBankCandidateDetails] = useState<
     Record<string, TransactionImportCandidate["parsed"]>
+  >({});
+  const [sourceIdentities, setSourceIdentities] = useState<
+    Record<string, TransactionImportSourceIdentity>
   >({});
   const [processedCandidates, setProcessedCandidates] = useState<
     ProcessedImportCandidate[]
@@ -404,6 +415,7 @@ export function TransactionImportDialog({
     setPreview(saved.preview);
     setCandidates(saved.candidates);
     setBankCandidateDetails(saved.bankCandidateDetails);
+    setSourceIdentities(saved.sourceIdentities);
     setProcessedCandidates(saved.processedCandidates);
     setMatchEditorOrigins(saved.matchEditorOrigins);
     setMatchedTransactionOrigins(saved.matchedTransactionOrigins);
@@ -426,7 +438,7 @@ export function TransactionImportDialog({
     }
     importSessionSaveTimerRef.current = window.setTimeout(() => {
       writeTransactionImportSession({
-        version: 1,
+        version: 2,
         accountId: selectedAccountId,
         savedAt: new Date().toISOString(),
         fileName,
@@ -444,6 +456,7 @@ export function TransactionImportDialog({
         preview,
         candidates,
         bankCandidateDetails,
+        sourceIdentities,
         processedCandidates,
         matchEditorOrigins,
         matchedTransactionOrigins,
@@ -463,7 +476,8 @@ export function TransactionImportDialog({
     step, preview, fileType, selectedAccountId, fileName, fileHash, csvText,
     qifText, ofxText, ofxInspection, qifDetection, qifDateFormat,
     qifAmountFormat, analysis, mapping, candidates, bankCandidateDetails,
-    processedCandidates, matchEditorOrigins, matchedTransactionOrigins,
+    sourceIdentities, processedCandidates, matchEditorOrigins,
+    matchedTransactionOrigins,
     previouslyImportedCount, alreadyRepresentedCount, excludeMemos,
     updateMatchedTransactionDates,
   ]);
@@ -576,6 +590,7 @@ export function TransactionImportDialog({
     setPreview(null);
     setCandidates([]);
     setBankCandidateDetails({});
+    setSourceIdentities({});
     setProcessedCandidates([]);
     setMatchedTransactionOrigins({});
     setHistoryOpen(false);
@@ -629,7 +644,7 @@ export function TransactionImportDialog({
     );
   }
 
-  function applyPreview(
+  async function applyPreview(
     nextPreview: TransactionImportPreview,
     existingTransactions: RegisterTransactionView[],
     nextMessage: string,
@@ -637,16 +652,23 @@ export function TransactionImportDialog({
     accountId = selectedAccountId,
     sourceFileHash: string | null = fileHash,
   ) {
+    const importedOccurrenceCounts =
+      await loadImportedTransactionSourceOccurrences(
+        accountId,
+        sourceFileType,
+      );
+
     const partition = partitionPreviouslyImportedCandidates({
-      accountId,
       fileType: sourceFileType,
       candidates: nextPreview.candidates,
+      importedOccurrenceCounts,
     });
+
     const previouslyImportedSourceOccurrences =
-      readPreviouslyImportedSourceOccurrences({
-        accountId,
-        fileType: sourceFileType,
+      projectPreviouslyImportedSourceOccurrences({
         candidates: partition.activeCandidates,
+        sourceIdentities: partition.sourceIdentities,
+        importedOccurrenceCounts,
       });
     const prepared = prepareTransactionImportPreview({
       partition,
@@ -660,6 +682,7 @@ export function TransactionImportDialog({
     });
 
     setBankCandidateDetails(prepared.bankCandidateDetails);
+    setSourceIdentities(prepared.sourceIdentities);
     setPreview(prepared.preview);
     setCandidates(sortImportCandidates(prepared.reviewCandidates));
     setPreviouslyImportedCount(prepared.previouslyImportedCount);
@@ -697,6 +720,7 @@ export function TransactionImportDialog({
     setPreview(null);
     setCandidates([]);
     setBankCandidateDetails({});
+    setSourceIdentities({});
     setProcessedCandidates([]);
     setHistoryOpen(false);
     setAliasSuggestions([]);
@@ -753,7 +777,7 @@ export function TransactionImportDialog({
         },
         resolveMerchantForMatching,
       );
-      applyPreview(
+      await applyPreview(
         nextPreview,
         nextTransactions,
         `${nextPreview.summary.totalRows} QIF transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
@@ -769,7 +793,7 @@ export function TransactionImportDialog({
         nextTransactions,
         resolveMerchantForMatching,
       );
-      applyPreview(
+      await applyPreview(
         nextPreview,
         nextTransactions,
         `${nextPreview.summary.totalRows} ${getFileTypeLabel(fileType)} transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
@@ -794,7 +818,7 @@ export function TransactionImportDialog({
           nextMapping,
           resolveMerchantForMatching,
         );
-        applyPreview(
+        await applyPreview(
           nextPreview,
           nextTransactions,
           `${nextPreview.summary.totalRows} CSV transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
@@ -961,7 +985,7 @@ export function TransactionImportDialog({
     }
   }
 
-  function updateQifInterpretation(
+  async function updateQifInterpretation(
     nextDateFormat: QifDateFormat,
     nextAmountFormat: QifAmountFormat,
   ) {
@@ -983,7 +1007,7 @@ export function TransactionImportDialog({
       },
       resolveMerchantForMatching,
     );
-    applyPreview(
+    await applyPreview(
       nextPreview,
       transactions,
       `${nextPreview.summary.totalRows} QIF transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
@@ -1017,7 +1041,7 @@ export function TransactionImportDialog({
     updateQifInterpretation(qifDateFormat, nextAmountFormat);
   }
 
-  function buildQifPreview() {
+  async function buildQifPreview() {
     if (!qifText) {
       setError("Choose a QIF file first.");
       return;
@@ -1040,7 +1064,7 @@ export function TransactionImportDialog({
       setError("The QIF file does not appear to contain any transactions.");
       return;
     }
-    applyPreview(
+    await applyPreview(
       nextPreview,
       transactions,
       `${nextPreview.summary.totalRows} QIF transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
@@ -1050,7 +1074,7 @@ export function TransactionImportDialog({
     );
   }
 
-  function buildOfxPreview() {
+  async function buildOfxPreview() {
     if (!ofxText || (fileType !== "ofx" && fileType !== "qfx")) {
       setError("Choose an OFX or QFX file first.");
       return;
@@ -1064,7 +1088,7 @@ export function TransactionImportDialog({
       setError("The OFX/QFX file does not appear to contain any transactions.");
       return;
     }
-    applyPreview(
+    await applyPreview(
       nextPreview,
       transactions,
       `${nextPreview.summary.totalRows} ${getFileTypeLabel(fileType)} transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
@@ -1074,7 +1098,7 @@ export function TransactionImportDialog({
     );
   }
 
-  function buildCsvPreview(
+  async function buildCsvPreview(
     nextCsvText = csvText,
     nextMapping: CsvImportColumnMapping = mapping,
     options: {
@@ -1115,7 +1139,7 @@ export function TransactionImportDialog({
           resolveMerchantForMatching,
         ),
     );
-    applyPreview(
+    await applyPreview(
       nextPreview,
       existingTransactions,
       `${nextPreview.summary.totalRows} CSV transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
@@ -1631,6 +1655,7 @@ export function TransactionImportDialog({
           importedCandidates,
           matchedCandidates,
           completedSourceCandidates,
+          sourceIdentities,
           skippedCount: uniqueProcessedCandidates.filter(
             (entry) => entry.action === "skipped",
           ).length,

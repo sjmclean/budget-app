@@ -7,13 +7,10 @@ import { createBudgetScopedStorage } from "../budget/budgetDataScope";
 import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
 import {
   createImportedFileFingerprintRepository,
-  createImportedTransactionFingerprintRepository,
   importedFileFingerprintEntityId,
-  importedTransactionFingerprintEntityId,
   importFingerprintTimestamp,
   projectEntityFields,
   upsertImportedFileFingerprintEntity,
-  upsertImportedTransactionFingerprintEntity,
 } from "./entities/importFingerprintEntity";
 import { accountImportKnowledgeEntityId, findAccountImportKnowledgeEntity, upsertAccountImportKnowledgeEntity } from "./entities/importKnowledgeEntity";
 
@@ -44,14 +41,6 @@ export interface ImportedFileFingerprint {
 
 export type ImportedTransactionFileType = "csv" | "qif" | "ofx" | "qfx";
 
-export interface ImportedTransactionFingerprint {
-  accountId: string;
-  fileType: ImportedTransactionFileType;
-  identity: string;
-  occurrenceCount: number;
-  firstImportedAt: string;
-  lastImportedAt: string;
-}
 
 interface ImportIdentityCandidate {
   id: string;
@@ -265,79 +254,105 @@ export interface PreviouslyImportedSourceOccurrence {
   occurrenceCount: number;
 }
 
-export function readPreviouslyImportedSourceOccurrences<
+export interface TransactionImportSourceIdentity {
+  readonly candidateId: string;
+  readonly identity: string;
+  readonly occurrence: number;
+}
+
+export function projectPreviouslyImportedSourceOccurrences<
   T extends ImportIdentityCandidate & { id: string },
 >({
-  accountId,
-  fileType,
   candidates,
+  sourceIdentities,
+  importedOccurrenceCounts,
 }: {
-  accountId: string;
-  fileType: ImportedTransactionFileType;
-  candidates: T[];
+  candidates: readonly T[];
+  sourceIdentities: Readonly<Record<string, TransactionImportSourceIdentity>>;
+  importedOccurrenceCounts: Readonly<Record<string, number>>;
 }): Record<string, PreviouslyImportedSourceOccurrence> {
-  const importedCounts = new Map(
-    createImportedTransactionFingerprintRepository(getImportKnowledgeStorage())
-      .list()
-      .map(projectEntityFields)
-      .filter(
-        (entry) => entry.accountId === accountId && entry.fileType === fileType,
-      )
-      .map((entry) => [entry.identity, entry.occurrenceCount]),
-  );
-
   return Object.fromEntries(
     candidates.map((candidate) => {
-      const identity = createImportedTransactionIdentity(fileType, candidate);
+      const sourceIdentity = sourceIdentities[candidate.id];
+      if (!sourceIdentity) {
+        throw new Error(
+          `Import source identity was not prepared for candidate ${candidate.id}.`,
+        );
+      }
+
       return [
         candidate.id,
         {
-          identity,
-          occurrenceCount: importedCounts.get(identity) ?? 0,
+          identity: sourceIdentity.identity,
+          occurrenceCount:
+            importedOccurrenceCounts[sourceIdentity.identity] ?? 0,
         },
       ];
     }),
   );
 }
 
-export function partitionPreviouslyImportedCandidates<
-  T extends ImportIdentityCandidate,
->({
-  accountId,
-  fileType,
-  candidates,
-}: {
-  accountId: string;
-  fileType: ImportedTransactionFileType;
-  candidates: T[];
-}): {
-  activeCandidates: T[];
-  previouslyImportedCandidates: T[];
-  alreadyRepresentedCandidates: T[];
-} {
-  const importedCounts = new Map(
-    createImportedTransactionFingerprintRepository(getImportKnowledgeStorage())
-      .list()
-      .map(projectEntityFields)
-      .filter(
-        (entry) => entry.accountId === accountId && entry.fileType === fileType,
-      )
-      .map((entry) => [entry.identity, entry.occurrenceCount]),
-  );
+export function buildTransactionImportSourceIdentities<
+  T extends ImportIdentityCandidate & { id: string },
+>(
+  fileType: ImportedTransactionFileType,
+  candidates: readonly T[],
+): Record<string, TransactionImportSourceIdentity> {
   const seenCounts = new Map<string, number>();
-  const activeCandidates: T[] = [];
-  const previouslyImportedCandidates: T[] = [];
+  const sourceIdentities: Record<string, TransactionImportSourceIdentity> = {};
 
   for (const candidate of candidates) {
     const identity = createImportedTransactionIdentity(fileType, candidate);
     const occurrence = (seenCounts.get(identity) ?? 0) + 1;
     seenCounts.set(identity, occurrence);
 
+    sourceIdentities[candidate.id] = {
+      candidateId: candidate.id,
+      identity,
+      occurrence,
+    };
+  }
+
+  return sourceIdentities;
+}
+
+export function partitionPreviouslyImportedCandidates<
+  T extends ImportIdentityCandidate & { id: string },
+>({
+  fileType,
+  candidates,
+  importedOccurrenceCounts,
+}: {
+  fileType: ImportedTransactionFileType;
+  candidates: T[];
+  importedOccurrenceCounts: Readonly<Record<string, number>>;
+}): {
+  activeCandidates: T[];
+  previouslyImportedCandidates: T[];
+  alreadyRepresentedCandidates: T[];
+  sourceIdentities: Record<string, TransactionImportSourceIdentity>;
+} {
+  const activeCandidates: T[] = [];
+  const previouslyImportedCandidates: T[] = [];
+  const sourceIdentities = buildTransactionImportSourceIdentities(
+    fileType,
+    candidates,
+  );
+
+  for (const candidate of candidates) {
+    const sourceIdentity = sourceIdentities[candidate.id];
+    if (!sourceIdentity) {
+      throw new Error(
+        `Import source identity was not prepared for candidate ${candidate.id}.`,
+      );
+    }
+
+    const { identity, occurrence } = sourceIdentity;
     const hasStrongExternalIdentity = identity.includes(":external:");
 
     if (
       hasStrongExternalIdentity &&
-      occurrence <= (importedCounts.get(identity) ?? 0)
+      occurrence <= (importedOccurrenceCounts[identity] ?? 0)
     ) {
       previouslyImportedCandidates.push(candidate);
     } else {
@@ -349,50 +364,6 @@ export function partitionPreviouslyImportedCandidates<
     activeCandidates,
     previouslyImportedCandidates,
     alreadyRepresentedCandidates: [],
+    sourceIdentities,
   };
-}
-
-export function rememberImportedTransactionCandidates({
-  accountId,
-  fileType,
-  candidates,
-  importedAt = new Date().toISOString(),
-}: {
-  accountId: string;
-  fileType: ImportedTransactionFileType;
-  candidates: ImportIdentityCandidate[];
-  importedAt?: string;
-}): ImportedTransactionFingerprint[] {
-  const storage = getImportKnowledgeStorage();
-  const repository = createImportedTransactionFingerprintRepository(storage);
-  const sessionCounts = new Map<string, number>();
-
-  for (const candidate of candidates) {
-    const identity = createImportedTransactionIdentity(fileType, candidate);
-    sessionCounts.set(identity, (sessionCounts.get(identity) ?? 0) + 1);
-  }
-
-  let counter = 0;
-  for (const [identity, occurrenceCount] of sessionCounts) {
-    const id = importedTransactionFingerprintEntityId(accountId, fileType, identity);
-    const existingEntity = repository.get(id);
-    const existing = existingEntity ? projectEntityFields(existingEntity) : undefined;
-    upsertImportedTransactionFingerprintEntity(
-      storage,
-      {
-        accountId,
-        fileType,
-        identity,
-        occurrenceCount: Math.max(existing?.occurrenceCount ?? 0, occurrenceCount),
-        firstImportedAt: existing?.firstImportedAt ?? importedAt,
-        lastImportedAt: importedAt,
-      },
-      importFingerprintTimestamp(new Date(importedAt), counter++),
-    );
-  }
-
-  return createImportedTransactionFingerprintRepository(storage)
-    .list()
-    .map(projectEntityFields)
-    .filter((entry) => entry.accountId === accountId && entry.fileType === fileType);
 }

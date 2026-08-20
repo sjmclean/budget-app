@@ -388,6 +388,25 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
+  getImportedTransactionSourceOccurrences(
+    budgetId: string,
+    accountId: string,
+    fileType: "csv" | "qif" | "ofx" | "qfx",
+  ): Promise<
+    readonly {
+      readonly identity: string;
+      readonly occurrenceCount: number;
+    }[]
+  > {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "getImportedTransactionSourceOccurrences",
+      budgetId,
+      accountId,
+      fileType,
+    });
+  }
+
   writeTransaction(
     transaction: LocalTransactionRecord,
     mutation: LocalBudgetMutation,

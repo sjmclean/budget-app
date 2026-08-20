@@ -28,12 +28,14 @@ import {
   createQifStructureSignature,
   rememberAccountImportKnowledge,
   rememberImportedFileFingerprint,
-  rememberImportedTransactionCandidates,
   type ImportedTransactionFileType,
+  type TransactionImportSourceIdentity,
 } from "./transactionImportKnowledge";
 import { getActiveBudgetIdFromStorage } from "../budget/budgetDataScope";
 import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
 import { resolvePayeeForSubmission, type PayeeSubmissionResolver } from "./resolvePayeeForSubmission";
+import { stableImportTransactionId } from "./transactionImportCommit";
+import type { RegisterTransactionImportProvenanceAssignment } from "../persistence/accountRegisterQueryContracts";
 
 export interface ImportCommitCategory {
   id: string;
@@ -58,6 +60,9 @@ export interface ImportCommitSession {
   importedCandidates: TransactionImportCandidate[];
   matchedCandidates: TransactionImportCandidate[];
   completedSourceCandidates: TransactionImportCandidate[];
+  sourceIdentities: Readonly<
+    Record<string, TransactionImportSourceIdentity>
+  >;
   skippedCount: number;
   previouslyImportedCount: number;
   alreadyRepresentedCount: number;
@@ -76,6 +81,7 @@ export interface ImportCommitAdapters {
     accountId: string,
     additions: NewRegisterTransactionInput[],
     updates: RegisterTransactionView[],
+    provenanceAssignments: readonly RegisterTransactionImportProvenanceAssignment[],
   ) => Promise<void>;
   addTransactions: (
     accountId: string,
@@ -118,12 +124,14 @@ export interface ImportCommitAuditRecord {
   registerRollbackAttempted: boolean;
   registerRollbackSucceeded: boolean;
   knowledgePersisted: boolean;
+  knowledgePersistenceError: string | null;
   stages: TransactionImportPerformanceEntry[];
 }
 
 export interface ImportCommitPlan {
   additions: NewRegisterTransactionInput[];
   matchedTransactionUpdates: RegisterTransactionView[];
+  provenanceAssignments: RegisterTransactionImportProvenanceAssignment[];
   merchantKnowledge: MerchantKnowledgeStore;
 }
 
@@ -358,12 +366,6 @@ function rememberCommitKnowledge(
   merchantKnowledge: MerchantKnowledgeStore,
 ) {
   persistMerchantKnowledge(merchantKnowledge);
-  rememberImportedTransactionCandidates({
-    accountId: session.accountId,
-    fileType: session.file.fileType,
-    candidates: session.completedSourceCandidates,
-  });
-
   if (session.file.fileType === "csv" && session.file.csvAnalysis) {
     rememberAccountImportKnowledge({
       accountId: session.accountId,
@@ -626,6 +628,62 @@ function validateImportCommitSession(
   }
 }
 
+function buildImportProvenanceAssignments(
+  session: ImportCommitSession,
+  importedAt: string,
+): RegisterTransactionImportProvenanceAssignment[] {
+  const identityScope = session.file.fileHash?.trim();
+  const importedCandidateIds = new Set(
+    session.importedCandidates.map((candidate) => candidate.id),
+  );
+  const matchedCandidateIds = new Set(
+    session.matchedCandidates.map((candidate) => candidate.id),
+  );
+
+  return session.completedSourceCandidates.map((candidate) => {
+    const sourceIdentity = session.sourceIdentities[candidate.id];
+    if (!sourceIdentity) {
+      throw new ImportCommitValidationError([
+        `Completed import candidate ${candidate.id} has no prepared source identity.`,
+      ]);
+    }
+
+    let transactionId: string;
+
+    if (importedCandidateIds.has(candidate.id)) {
+      if (!identityScope) {
+        throw new ImportCommitValidationError([
+          `Imported candidate ${candidate.id} requires a source file hash.`,
+        ]);
+      }
+      transactionId = stableImportTransactionId(candidate, identityScope);
+    } else if (matchedCandidateIds.has(candidate.id)) {
+      transactionId =
+        candidate.matchedTransaction?.id ??
+        candidate.matchedTransactionId ??
+        "";
+
+      if (!transactionId) {
+        throw new ImportCommitValidationError([
+          `Matched candidate ${candidate.id} has no destination transaction.`,
+        ]);
+      }
+    } else {
+      throw new ImportCommitValidationError([
+        `Completed candidate ${candidate.id} is neither imported nor matched.`,
+      ]);
+    }
+
+    return {
+      transactionId,
+      fileType: session.file.fileType,
+      identity: sourceIdentity.identity,
+      occurrence: sourceIdentity.occurrence,
+      importedAt,
+    };
+  });
+}
+
 export function prepareImportCommit(
   session: ImportCommitSession,
   stages: TransactionImportPerformanceEntry[] = [],
@@ -651,11 +709,21 @@ export function prepareImportCommit(
     "Build matched updates",
     () => buildMatchedTransactionUpdates(session),
   );
+  const provenanceAssignments = measureStage(
+    stages,
+    "Build import provenance",
+    () => buildImportProvenanceAssignments(session, new Date().toISOString()),
+  );
   const merchantKnowledge = measureStage(stages, "Stage merchant knowledge", () =>
     learnFromCommittedCandidates(session),
   );
 
-  const plan = { additions, matchedTransactionUpdates, merchantKnowledge };
+  const plan = {
+    additions,
+    matchedTransactionUpdates,
+    provenanceAssignments,
+    merchantKnowledge,
+  };
   measureStage(stages, "Validate commit plan", () =>
     validateImportCommitSession(session, plan),
   );
@@ -685,6 +753,7 @@ export async function commitImportSession(
   let registerRollbackAttempted = false;
   let registerRollbackSucceeded = false;
   let knowledgePersisted = false;
+  let knowledgePersistenceError: string | null = null;
   let plan: ImportCommitPlan | null = null;
 
   try {
@@ -725,7 +794,20 @@ export async function commitImportSession(
       }));
     }
 
-    if (plan.additions.length > 0 || plan.matchedTransactionUpdates.length > 0) {
+    if (
+      plan.provenanceAssignments.length > 0 &&
+      !adapters.commitTransactionBatch
+    ) {
+      throw new Error(
+        "Import provenance requires atomic register batch persistence.",
+      );
+    }
+
+    if (
+      plan.additions.length > 0 ||
+      plan.matchedTransactionUpdates.length > 0 ||
+      plan.provenanceAssignments.length > 0
+    ) {
       failedStage = adapters.commitTransactionBatch
         ? "Commit register batch"
         : "Commit register changes";
@@ -736,6 +818,7 @@ export async function commitImportSession(
             session.accountId,
             plan!.additions,
             plan!.matchedTransactionUpdates,
+            plan!.provenanceAssignments,
           );
           return;
         }
@@ -760,14 +843,24 @@ export async function commitImportSession(
     }
 
     failedStage = "Remember import knowledge";
-    measureStage(stages, failedStage, () => {
-      rememberCommitKnowledge(
-        session,
-        plan!.additions.length,
-        plan!.merchantKnowledge,
+    try {
+      measureStage(stages, failedStage, () => {
+        rememberCommitKnowledge(
+          session,
+          plan!.additions.length,
+          plan!.merchantKnowledge,
+        );
+        knowledgePersisted = true;
+      });
+    } catch (error) {
+      knowledgePersistenceError = errorMessage(error);
+      console.warn(
+        "Transaction import committed successfully, but optional import knowledge could not be persisted.",
+        error,
       );
-      knowledgePersisted = true;
-    });
+    }
+
+    failedStage = null;
 
     const completedAt = new Date();
     const audit: ImportCommitAuditRecord = {
@@ -797,6 +890,7 @@ export async function commitImportSession(
       registerRollbackAttempted,
       registerRollbackSucceeded,
       knowledgePersisted,
+      knowledgePersistenceError,
       stages: [...stages],
     };
     rememberAudit(audit);
@@ -840,6 +934,7 @@ export async function commitImportSession(
       registerRollbackAttempted,
       registerRollbackSucceeded,
       knowledgePersisted,
+      knowledgePersistenceError,
       stages: [...stages],
     };
     rememberAudit(audit);

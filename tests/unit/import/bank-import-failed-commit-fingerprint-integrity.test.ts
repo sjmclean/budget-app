@@ -10,6 +10,7 @@ import {
   previewTransactionCsvImport,
 } from "../../../apps/web/src/features/accounts/transactionImport.js";
 import {
+  buildTransactionImportSourceIdentities,
   createImportFileHash,
   findImportedFileFingerprint,
   partitionPreviouslyImportedCandidates,
@@ -93,6 +94,10 @@ test("failed register commit does not persist import fingerprints or suppress re
       importedCandidates: [candidate],
       matchedCandidates: [],
       completedSourceCandidates: [candidate],
+      sourceIdentities: buildTransactionImportSourceIdentities(
+        "csv",
+        [candidate],
+      ),
       skippedCount: 0,
       previouslyImportedCount: 0,
       alreadyRepresentedCount: 0,
@@ -137,15 +142,15 @@ test("failed register commit does not persist import fingerprints or suppress re
     );
 
     const retryPartition = partitionPreviouslyImportedCandidates({
-      accountId: "checking",
       fileType: "csv",
       candidates: [candidate],
+      importedOccurrenceCounts: {},
     });
 
     assert.deepEqual(
       retryPartition.previouslyImportedCandidates,
       [],
-      "a failed commit must not create a transaction fingerprint",
+      "a failed commit must not create durable transaction provenance",
     );
 
     assert.deepEqual(

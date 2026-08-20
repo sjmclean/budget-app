@@ -32,7 +32,7 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 const isTransactionImportSession = (
   fields: Readonly<Record<string, unknown>>,
 ): fields is TransactionImportSessionSnapshot & Readonly<Record<string, unknown>> =>
-  fields.version === 1 &&
+  fields.version === 2 &&
   typeof fields.accountId === "string" &&
   typeof fields.savedAt === "string" &&
   (fields.fileName === null || typeof fields.fileName === "string") &&
@@ -41,6 +41,7 @@ const isTransactionImportSession = (
   isRecord(fields.preview) &&
   Array.isArray(fields.candidates) &&
   isRecord(fields.bankCandidateDetails) &&
+  isRecord(fields.sourceIdentities) &&
   Array.isArray(fields.processedCandidates) &&
   isRecord(fields.matchEditorOrigins) &&
   isRecord(fields.matchedTransactionOrigins) &&

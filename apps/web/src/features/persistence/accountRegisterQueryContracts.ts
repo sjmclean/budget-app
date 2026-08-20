@@ -50,6 +50,12 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
 
   getBudgetStatus(budgetId: string): Promise<BudgetEngineStatus>;
 
+  getImportedTransactionSourceOccurrences(input: {
+    readonly budgetId: string;
+    readonly accountId: string;
+    readonly fileType: "csv" | "qif" | "ofx" | "qfx";
+  }): Promise<readonly ImportedTransactionSourceOccurrence[]>;
+
   getAccountRegisterBootstrap(
     input: AccountTransactionQuery,
   ): Promise<AccountRegisterBootstrap>;
@@ -129,6 +135,7 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     readonly updates: readonly (
       TransactionWriteInput & { readonly id: string }
     )[];
+    readonly provenanceAssignments: readonly RegisterTransactionImportProvenanceAssignment[];
   }): Promise<void>;
 
   moveTransactions(input: {
@@ -399,6 +406,19 @@ export interface AccountRegisterBootstrap {
 export interface TransactionTarget {
   readonly budgetId: string;
   readonly accountId: string;
+}
+
+export interface RegisterTransactionImportProvenanceAssignment {
+  readonly transactionId: string;
+  readonly fileType: "csv" | "qif" | "ofx" | "qfx";
+  readonly identity: string;
+  readonly occurrence: number;
+  readonly importedAt: string;
+}
+
+export interface ImportedTransactionSourceOccurrence {
+  readonly identity: string;
+  readonly occurrenceCount: number;
 }
 
 export interface TransactionWriteInput extends TransactionTarget {

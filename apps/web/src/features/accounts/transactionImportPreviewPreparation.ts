@@ -4,6 +4,7 @@ import type {
   TransactionImportPreview,
 } from "./transactionImport";
 import { stableImportTransactionId } from "./transactionImportCommit";
+import type { TransactionImportSourceIdentity } from "./transactionImportKnowledge";
 import { applyTransactionImportMerchantProposal } from "./transactionImportMerchantProposal";
 import { appendTransactionImportTrace } from "./transactionImportTrace";
 
@@ -11,6 +12,7 @@ export interface TransactionImportIdentityPartition {
   activeCandidates: TransactionImportCandidate[];
   previouslyImportedCandidates: TransactionImportCandidate[];
   alreadyRepresentedCandidates: TransactionImportCandidate[];
+  sourceIdentities: Record<string, TransactionImportSourceIdentity>;
 }
 
 export interface PrepareTransactionImportPreviewInput {
@@ -34,6 +36,7 @@ export interface PreparedTransactionImportPreview {
     string,
     TransactionImportCandidate["parsed"]
   >;
+  sourceIdentities: Record<string, TransactionImportSourceIdentity>;
   previouslyImportedCount: number;
   alreadyRepresentedCount: number;
   totalExistingCount: number;
@@ -457,6 +460,7 @@ export function prepareTransactionImportPreview(
         { ...candidate.parsed },
       ]),
     ),
+    sourceIdentities: input.partition.sourceIdentities,
     previouslyImportedCount,
     alreadyRepresentedCount,
     totalExistingCount: previouslyImportedCount + alreadyRepresentedCount,

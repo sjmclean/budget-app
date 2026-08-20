@@ -13,26 +13,12 @@ export const IMPORTED_FILE_FINGERPRINT_ENTITY_INDEX_KEY =
   "budget-app.entity-replication.v1/imported-file-fingerprint-index";
 export const IMPORTED_FILE_FINGERPRINT_ENTITY_RECORD_PREFIX =
   "budget-app.entity-replication.v1/imported-file-fingerprint/";
-export const IMPORTED_TRANSACTION_FINGERPRINT_ENTITY_INDEX_KEY =
-  "budget-app.entity-replication.v1/imported-transaction-fingerprint-index";
-export const IMPORTED_TRANSACTION_FINGERPRINT_ENTITY_RECORD_PREFIX =
-  "budget-app.entity-replication.v1/imported-transaction-fingerprint/";
-
 export interface ImportedFileFingerprintEntityFields {
   accountId: string;
   fileHash: string;
   fileName: string;
   importedAt: string;
   transactionCount: number;
-}
-
-export interface ImportedTransactionFingerprintEntityFields {
-  accountId: string;
-  fileType: "csv" | "qif" | "ofx" | "qfx";
-  identity: string;
-  occurrenceCount: number;
-  firstImportedAt: string;
-  lastImportedAt: string;
 }
 
 function validFileFields(fields: Readonly<Record<string, unknown>>): fields is ImportedFileFingerprintEntityFields & Readonly<Record<string, unknown>> {
@@ -43,20 +29,8 @@ function validFileFields(fields: Readonly<Record<string, unknown>>): fields is I
     typeof fields.transactionCount === "number" && Number.isInteger(fields.transactionCount) && fields.transactionCount >= 0;
 }
 
-function validTransactionFields(fields: Readonly<Record<string, unknown>>): fields is ImportedTransactionFingerprintEntityFields & Readonly<Record<string, unknown>> {
-  return typeof fields.accountId === "string" && fields.accountId.length > 0 &&
-    (fields.fileType === "csv" || fields.fileType === "qif" || fields.fileType === "ofx" || fields.fileType === "qfx") &&
-    typeof fields.identity === "string" && fields.identity.length > 0 &&
-    typeof fields.occurrenceCount === "number" && Number.isInteger(fields.occurrenceCount) && fields.occurrenceCount >= 1 &&
-    typeof fields.firstImportedAt === "string" && fields.firstImportedAt.length > 0 &&
-    typeof fields.lastImportedAt === "string" && fields.lastImportedAt.length > 0;
-}
-
 export const importedFileFingerprintEntityCodec =
   createJsonReplicatedEntityCodec<ImportedFileFingerprintEntityFields>(validFileFields);
-export const importedTransactionFingerprintEntityCodec =
-  createJsonReplicatedEntityCodec<ImportedTransactionFingerprintEntityFields>(validTransactionFields);
-
 function adapter(storage: KeyValueStoragePort): EntityRecordStorage {
   return {
     getItem: (key) => storage.getItem(key),
@@ -119,21 +93,8 @@ export function createImportedFileFingerprintRepository(storage: KeyValueStorage
   });
 }
 
-export function createImportedTransactionFingerprintRepository(storage: KeyValueStoragePort) {
-  return indexedRepository({
-    storage,
-    entityType: "imported-transaction-fingerprint",
-    indexKey: IMPORTED_TRANSACTION_FINGERPRINT_ENTITY_INDEX_KEY,
-    codec: importedTransactionFingerprintEntityCodec,
-  });
-}
-
 export function importedFileFingerprintEntityId(accountId: string, fileHash: string): string {
   return JSON.stringify([accountId, fileHash]);
-}
-
-export function importedTransactionFingerprintEntityId(accountId: string, fileType: string, identity: string): string {
-  return JSON.stringify([accountId, fileType, identity]);
 }
 
 export function importFingerprintTimestamp(now = new Date(), counter = 0): HybridTimestamp {
@@ -164,19 +125,6 @@ export function upsertImportedFileFingerprintEntity(
 ): ReplicatedEntity<ImportedFileFingerprintEntityFields> {
   const repository = createImportedFileFingerprintRepository(storage);
   const id = importedFileFingerprintEntityId(fields.accountId, fields.fileHash);
-  const current = repository.get(id);
-  const next = current ? updateEntity(current, fields, timestamp) : createEntity(id, fields, timestamp);
-  repository.save(next);
-  return next;
-}
-
-export function upsertImportedTransactionFingerprintEntity(
-  storage: KeyValueStoragePort,
-  fields: ImportedTransactionFingerprintEntityFields,
-  timestamp = importFingerprintTimestamp(),
-): ReplicatedEntity<ImportedTransactionFingerprintEntityFields> {
-  const repository = createImportedTransactionFingerprintRepository(storage);
-  const id = importedTransactionFingerprintEntityId(fields.accountId, fields.fileType, fields.identity);
   const current = repository.get(id);
   const next = current ? updateEntity(current, fields, timestamp) : createEntity(id, fields, timestamp);
   repository.save(next);

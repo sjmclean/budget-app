@@ -189,6 +189,13 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "getImportedTransactionSourceOccurrences";
+      readonly budgetId: string;
+      readonly accountId: string;
+      readonly fileType: "csv" | "qif" | "ofx" | "qfx";
+    }
+  | {
+      readonly requestId: string;
       readonly type: "getAccountSummary";
       readonly budgetId: string;
       readonly accountId: string;

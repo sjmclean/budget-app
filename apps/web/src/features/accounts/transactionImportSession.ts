@@ -16,6 +16,9 @@ import {
   tombstoneTransactionImportSessionEntity,
   writeTransactionImportSessionEntity,
 } from "./entities/importSessionEntity";
+import type {
+  TransactionImportSourceIdentity,
+} from "./transactionImportKnowledge";
 
 export type PersistedImportFileType = "csv" | "qif" | "ofx" | "qfx";
 export type PersistedImportAction = "imported" | "matched" | "skipped";
@@ -27,7 +30,7 @@ export interface PersistedProcessedImportCandidate {
 }
 
 export interface TransactionImportSessionSnapshot {
-  version: 1;
+  version: 2;
   accountId: string;
   savedAt: string;
   fileName: string | null;
@@ -45,6 +48,7 @@ export interface TransactionImportSessionSnapshot {
   preview: TransactionImportPreview;
   candidates: TransactionImportCandidate[];
   bankCandidateDetails: Record<string, TransactionImportCandidate["parsed"]>;
+  sourceIdentities: Record<string, TransactionImportSourceIdentity>;
   processedCandidates: PersistedProcessedImportCandidate[];
   matchEditorOrigins: Record<string, TransactionImportCandidate>;
   matchedTransactionOrigins: Record<string, RegisterTransactionView>;

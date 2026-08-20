@@ -15,6 +15,9 @@ import {
 import type {
   TransactionImportCandidate,
 } from "../../../apps/web/src/features/accounts/transactionImport.js";
+import {
+  buildTransactionImportSourceIdentities,
+} from "../../../apps/web/src/features/accounts/transactionImportKnowledge.js";
 
 function transferCandidate(): TransactionImportCandidate {
   return {
@@ -62,6 +65,10 @@ test("bank import commit plan carries the destination account ID for a transfer"
     importedCandidates: [candidate],
     matchedCandidates: [],
     completedSourceCandidates: [candidate],
+    sourceIdentities: buildTransactionImportSourceIdentities(
+      "csv",
+      [candidate],
+    ),
     skippedCount: 0,
     previouslyImportedCount: 0,
     alreadyRepresentedCount: 0,
@@ -114,6 +121,10 @@ test("bank import verifier rejects transfer metadata that does not match the nam
     importedCandidates: [candidate],
     matchedCandidates: [],
     completedSourceCandidates: [candidate],
+    sourceIdentities: buildTransactionImportSourceIdentities(
+      "csv",
+      [candidate],
+    ),
     skippedCount: 0,
     previouslyImportedCount: 0,
     alreadyRepresentedCount: 0,

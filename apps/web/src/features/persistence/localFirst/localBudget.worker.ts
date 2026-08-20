@@ -25,6 +25,9 @@ import {
   type LocalTransactionRecord,
 } from "./registerSchema";
 import {
+  readImportedTransactionSourceOccurrences,
+} from "./importedTransactionSourceOccurrences";
+import {
   applyBudgetProjectionToSnapshot,
   diagnoseSqliteBudgetProjection,
   toMinorUnits,
@@ -3046,6 +3049,22 @@ function getTransactionsByIds(
     );
 }
 
+function getImportedTransactionSourceOccurrences(
+  budgetId: string,
+  accountId: string,
+  fileType: "csv" | "qif" | "ofx" | "qfx",
+): readonly {
+  readonly identity: string;
+  readonly occurrenceCount: number;
+}[] {
+  return readImportedTransactionSourceOccurrences(
+    resultRows,
+    budgetId,
+    accountId,
+    fileType,
+  );
+}
+
 function writeTransaction(
   transaction: LocalTransactionRecord,
   mutation: LocalBudgetMutation,
@@ -4504,6 +4523,12 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
         request.budgetId,
         request.accountId,
         request.transactionIds,
+      );
+    case "getImportedTransactionSourceOccurrences":
+      return getImportedTransactionSourceOccurrences(
+        request.budgetId,
+        request.accountId,
+        request.fileType,
       );
     case "getAccountSummary":
       return getAccountSummary(request.budgetId, request.accountId);

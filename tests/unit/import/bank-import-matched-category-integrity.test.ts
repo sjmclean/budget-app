@@ -15,6 +15,9 @@ import type {
 import type {
   TransactionImportCandidate,
 } from "../../../apps/web/src/features/accounts/transactionImport.js";
+import {
+  buildTransactionImportSourceIdentities,
+} from "../../../apps/web/src/features/accounts/transactionImportKnowledge.js";
 
 function matchedTransaction(): RegisterTransactionView {
   return {
@@ -83,6 +86,10 @@ test("matched import rejects a category name paired with a different category ID
     importedCandidates: [],
     matchedCandidates: [candidate],
     completedSourceCandidates: [candidate],
+    sourceIdentities: buildTransactionImportSourceIdentities(
+      "csv",
+      [candidate],
+    ),
     skippedCount: 0,
     previouslyImportedCount: 0,
     alreadyRepresentedCount: 0,
@@ -125,6 +132,10 @@ test("matched import accepts a consistent changed category name and ID", () => {
     importedCandidates: [],
     matchedCandidates: [candidate],
     completedSourceCandidates: [candidate],
+    sourceIdentities: buildTransactionImportSourceIdentities(
+      "csv",
+      [candidate],
+    ),
     skippedCount: 0,
     previouslyImportedCount: 0,
     alreadyRepresentedCount: 0,
@@ -173,6 +184,10 @@ test("automatic matched import retains bank raw payee without changing user-faci
     importedCandidates: [],
     matchedCandidates: [candidate],
     completedSourceCandidates: [candidate],
+    sourceIdentities: buildTransactionImportSourceIdentities(
+      "csv",
+      [candidate],
+    ),
     skippedCount: 0,
     previouslyImportedCount: 0,
     alreadyRepresentedCount: 0,
@@ -220,6 +235,10 @@ test("matched import never overwrites existing retained bank raw payee", () => {
     importedCandidates: [],
     matchedCandidates: [candidate],
     completedSourceCandidates: [candidate],
+    sourceIdentities: buildTransactionImportSourceIdentities(
+      "csv",
+      [candidate],
+    ),
     skippedCount: 0,
     previouslyImportedCount: 0,
     alreadyRepresentedCount: 0,
