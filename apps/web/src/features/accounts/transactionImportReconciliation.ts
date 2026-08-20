@@ -9,10 +9,30 @@ import type { ParsedImportTransaction } from "./transactionImportParser";
  */
 export const TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS = 7;
 
+/**
+ * Matching candidates remain constrained to ±7 days, but exact-amount
+ * competition is measured over a wider ±14-day local window. The wider
+ * window provides context only; transactions outside the candidate window
+ * can never become matches.
+ */
+export const TRANSACTION_IMPORT_AMOUNT_COMPETITION_WINDOW_DAYS = 14;
+
 const TRANSACTION_IMPORT_REVIEW_MIN_PAYEE_SIMILARITY = 25;
 const TRANSACTION_IMPORT_EXACT_DATE_AUTO_MATCH_SIMILARITY = 85;
 const TRANSACTION_IMPORT_NEAR_DATE_AUTO_MATCH_SIMILARITY = 95;
 const TRANSACTION_IMPORT_NEAR_DATE_AUTO_MATCH_DAYS = 3;
+
+/**
+ * Confidence thresholds are intentionally explicit and provisional. They are
+ * expected to be tuned from representative real-world imports rather than
+ * relaxed ad hoc for individual examples.
+ */
+const TRANSACTION_IMPORT_AUTO_MATCH_MIN_SCORE = 80;
+const TRANSACTION_IMPORT_AUTO_MATCH_WINNER_MARGIN = 10;
+
+const TRANSACTION_IMPORT_MERCHANT_WEIGHT = 0.7;
+const TRANSACTION_IMPORT_DATE_WEIGHT = 0.2;
+const TRANSACTION_IMPORT_AMOUNT_COMPETITION_WEIGHT = 0.1;
 
 /** @deprecated Reconciliation now uses one deterministic seven-day window. */
 export const HIGH_CONFIDENCE_IMPORT_MATCH_DAYS =
@@ -35,6 +55,8 @@ export interface TransactionImportMatchCandidateAssessment {
   daysApart: number;
   payeeSimilarity: number;
   merchantMatches: boolean;
+  amountCompetitionCount: number;
+  matchScore: number;
   automaticMatch: boolean;
   reason: string;
 }
@@ -88,17 +110,21 @@ export interface ReconcileTransactionImportCandidateInput {
 }
 
 /**
- * Reconciles one valid imported row using deterministic passes inspired by
- * Actual Budget:
- * 1. same signed amount within ±7 days;
- * 2. prefer the same resolved/canonical merchant;
- * 3. within each group choose the closest date;
- * 4. consume each register row at most once (handled by excluded IDs).
+ * Reconciles one valid imported row using deterministic evidence:
+ * 1. exact signed amount is mandatory;
+ * 2. actual candidates are constrained to ±7 days;
+ * 3. exact-amount competition is measured locally over ±14 days;
+ * 4. trusted merchant identity or sufficiently strong merchant similarity is
+ *    required before automatic matching is possible;
+ * 5. merchant evidence, graded date proximity, and local amount competition
+ *    produce an explainable confidence score;
+ * 6. the best automatic candidate must also beat the next credible candidate
+ *    by the configured winner margin;
+ * 7. each register row may be consumed at most once (handled by excluded IDs).
  *
- * Only an exact signed amount, compatible date and compatible merchant is an
- * automatic match. Same-amount/date rows with a different merchant remain
- * visible as manual candidates but are imported as new unless the user chooses
- * one explicitly.
+ * Local amount uniqueness is supporting evidence only. It cannot turn an
+ * incompatible merchant into an automatic match, and transactions outside the
+ * ±7-day candidate window never become match candidates.
  */
 export function reconcileTransactionImportCandidate({
   parsed,
@@ -128,10 +154,25 @@ export function reconcileTransactionImportCandidate({
     });
   }
 
-  const sameAmountDateWindowAnalyses = existingTransactions
-    .filter((transaction) => !excludedTransactionIds.has(transaction.id))
+  const availableTransactions = existingTransactions.filter(
+    (transaction) => !excludedTransactionIds.has(transaction.id),
+  );
+
+  const amountCompetitionCount = availableTransactions.filter(
+    (transaction) =>
+      amountsEqual(transaction, parsed) &&
+      daysBetween(transaction.date, parsed.date) <=
+        TRANSACTION_IMPORT_AMOUNT_COMPETITION_WINDOW_DAYS,
+  ).length;
+
+  const sameAmountDateWindowAnalyses = availableTransactions
     .map((transaction) =>
-      analyseImportMatchCandidate(transaction, parsed, merchantResolution),
+      analyseImportMatchCandidate(
+        transaction,
+        parsed,
+        merchantResolution,
+        amountCompetitionCount,
+      ),
     )
     .filter(
       (analysis) =>
@@ -269,6 +310,8 @@ interface ImportMatchAnalysis {
   daysApart: number;
   payeeSimilarity: number;
   merchantMatches: boolean;
+  amountCompetitionCount: number;
+  matchScore: number;
   automaticMatch: boolean;
   evidence: TransactionImportMatchEvidence[];
   reason: string;
@@ -287,6 +330,8 @@ function analyseTransferMatchCandidate(
     daysApart,
     payeeSimilarity: 100,
     merchantMatches: true,
+    amountCompetitionCount: 1,
+    matchScore: 100,
     automaticMatch: amountMatches && daysApart <= TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS,
     evidence: [
       {
@@ -320,7 +365,8 @@ function analyseTransferMatchCandidate(
 function analyseImportMatchCandidate(
   transaction: RegisterTransactionView,
   parsed: ParsedImportTransaction,
-  merchantResolution?: TransactionImportMerchantResolution,
+  merchantResolution: TransactionImportMerchantResolution | undefined,
+  amountCompetitionCount: number,
 ): ImportMatchAnalysis {
   const amountMatches = amountsEqual(transaction, parsed);
   const daysApart = daysBetween(transaction.date, parsed.date);
@@ -358,16 +404,30 @@ function analyseImportMatchCandidate(
     identityMerchantMatches ||
     inferredMerchantMatches;
 
+  const merchantScore =
+    canonicalIdMatches || identityMerchantMatches ? 100 : payeeSimilarity;
+  const dateScore = calculateImportDateScore(daysApart);
+  const amountCompetitionScore =
+    calculateAmountCompetitionScore(amountCompetitionCount);
+  const matchScore = calculateImportMatchScore({
+    merchantScore,
+    dateScore,
+    amountCompetitionScore,
+  });
+
   return {
     transaction,
     amountMatches,
     daysApart,
     payeeSimilarity,
     merchantMatches,
+    amountCompetitionCount,
+    matchScore,
     automaticMatch:
       amountMatches &&
       daysApart <= TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS &&
-      merchantMatches,
+      merchantMatches &&
+      matchScore >= TRANSACTION_IMPORT_AUTO_MATCH_MIN_SCORE,
     evidence: [
       {
         label: "Amount",
@@ -400,6 +460,22 @@ function analyseImportMatchCandidate(
             : "Same resolved merchant."
           : `${payeeSimilarity}% normalised payee similarity.`,
       },
+      {
+        label: "Local amount competition",
+        result: amountCompetitionCount === 1 ? "positive" : "neutral",
+        detail:
+          amountCompetitionCount === 1
+            ? `Only one available transaction with this exact signed amount exists within ±${TRANSACTION_IMPORT_AMOUNT_COMPETITION_WINDOW_DAYS} days.`
+            : `${amountCompetitionCount} available transactions with this exact signed amount exist within ±${TRANSACTION_IMPORT_AMOUNT_COMPETITION_WINDOW_DAYS} days.`,
+      },
+      {
+        label: "Match confidence",
+        result:
+          matchScore >= TRANSACTION_IMPORT_AUTO_MATCH_MIN_SCORE
+            ? "positive"
+            : "neutral",
+        detail: `${matchScore}/100 provisional deterministic confidence score.`,
+      },
     ],
     reason: merchantMatches
       ? `Same resolved merchant and exact amount, ${formatImportDateDistance(daysApart)} apart.`
@@ -410,18 +486,21 @@ function analyseImportMatchCandidate(
 export function hasAmbiguousAutomaticImportMatch(
   candidates: readonly TransactionImportMatchCandidateAssessment[],
 ): boolean {
-  const automatic = candidates.filter(
+  const bestAutomatic = candidates.find(
     (candidate) => candidate.automaticMatch,
   );
+  if (!bestAutomatic) return false;
 
-  if (automatic.length < 2) return false;
-
-  const [first, second] = automatic;
+  const nearestCredibleCompetitor = candidates.find(
+    (candidate) =>
+      candidate !== bestAutomatic &&
+      candidate.merchantMatches,
+  );
+  if (!nearestCredibleCompetitor) return false;
 
   return (
-    first.merchantMatches === second.merchantMatches &&
-    first.daysApart === second.daysApart &&
-    first.payeeSimilarity === second.payeeSimilarity
+    bestAutomatic.matchScore - nearestCredibleCompetitor.matchScore <
+    TRANSACTION_IMPORT_AUTO_MATCH_WINNER_MARGIN
   );
 }
 
@@ -431,6 +510,7 @@ function compareImportMatchCandidates(
 ): number {
   return (
     Number(right.merchantMatches) - Number(left.merchantMatches) ||
+    right.matchScore - left.matchScore ||
     left.daysApart - right.daysApart ||
     right.payeeSimilarity - left.payeeSimilarity ||
     left.transaction.date.localeCompare(right.transaction.date) ||
@@ -447,6 +527,8 @@ function toCandidateAssessment(
     daysApart: analysis.daysApart,
     payeeSimilarity: analysis.payeeSimilarity,
     merchantMatches: analysis.merchantMatches,
+    amountCompetitionCount: analysis.amountCompetitionCount,
+    matchScore: analysis.matchScore,
     automaticMatch: analysis.automaticMatch,
     reason: analysis.reason,
   };
@@ -534,6 +616,57 @@ function calculatePayeeSimilarity(left: string, right: string): number {
   }
 
   return Math.max(jaccard, distinctiveCoverage);
+}
+
+function calculateImportDateScore(daysApart: number): number {
+  if (!Number.isFinite(daysApart) || daysApart > 7) return 0;
+
+  switch (daysApart) {
+    case 0:
+      return 100;
+    case 1:
+      return 95;
+    case 2:
+      return 90;
+    case 3:
+      return 85;
+    case 4:
+      return 70;
+    case 5:
+      return 60;
+    case 6:
+      return 50;
+    case 7:
+      return 40;
+    default:
+      return 0;
+  }
+}
+
+function calculateAmountCompetitionScore(
+  amountCompetitionCount: number,
+): number {
+  if (amountCompetitionCount <= 1) return 100;
+  if (amountCompetitionCount === 2) return 70;
+  if (amountCompetitionCount === 3) return 40;
+  return 0;
+}
+
+function calculateImportMatchScore({
+  merchantScore,
+  dateScore,
+  amountCompetitionScore,
+}: {
+  merchantScore: number;
+  dateScore: number;
+  amountCompetitionScore: number;
+}): number {
+  return Math.round(
+    merchantScore * TRANSACTION_IMPORT_MERCHANT_WEIGHT +
+      dateScore * TRANSACTION_IMPORT_DATE_WEIGHT +
+      amountCompetitionScore *
+        TRANSACTION_IMPORT_AMOUNT_COMPETITION_WEIGHT,
+  );
 }
 
 function formatImportDateDistance(daysApart: number): string {

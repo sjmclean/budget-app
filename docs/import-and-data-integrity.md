@@ -27,10 +27,103 @@ merely because the application also stores normalized values.
 
 ## Matching
 
-Automatic matching must require meaningful identity evidence.
+Automatic bank-transaction matching uses deterministic, explainable evidence.
+The current thresholds are deliberately provisional: representative real-world
+imports should be used for a period before they are tightened or loosened.
 
-Amount and date alone are not sufficient to assume that unrelated transactions
-or merchants represent the same entity.
+### Candidate and competition windows
+
+The two date windows have different purposes:
+
+- **candidate window: ±7 days** — only register transactions inside this window
+  may represent the imported transaction;
+- **local amount-competition window: ±14 days** — transactions in this wider
+  window provide context about how many nearby register occurrences share the
+  imported transaction's exact signed amount.
+
+A transaction in the ±14-day competition window but outside ±7 days contributes
+context only. It can never become a match candidate.
+
+Exact signed amount is mandatory for matching. Amount uniqueness is supporting
+evidence, not transaction identity.
+
+### Merchant evidence remains authoritative
+
+Merchant compatibility is a hard requirement for automatic matching.
+
+Evidence is evaluated in this order:
+
+1. explicit user recognition rule;
+2. trusted canonical payee or confirmed alias identity;
+3. deterministic normalized merchant identity;
+4. high-confidence merchant similarity;
+5. date proximity and local amount competition.
+
+Date or amount evidence cannot override a contradictory merchant. A transaction
+does not become an automatic match merely because it is the only nearby
+transaction with the same amount.
+
+### Provisional confidence score
+
+Eligible candidates receive a deterministic score from three components:
+
+- merchant evidence: **70%**;
+- date proximity: **20%**;
+- local exact-amount competition: **10%**.
+
+The current date scores are:
+
+| Days apart | Score |
+| ---: | ---: |
+| 0 | 100 |
+| 1 | 95 |
+| 2 | 90 |
+| 3 | 85 |
+| 4 | 70 |
+| 5 | 60 |
+| 6 | 50 |
+| 7 | 40 |
+| more than 7 | not a candidate |
+
+The current local exact-amount competition scores are:
+
+| Available same-amount occurrences within ±14 days | Score |
+| ---: | ---: |
+| 1 | 100 |
+| 2 | 70 |
+| 3 | 40 |
+| 4 or more | 0 |
+
+An automatic match currently requires:
+
+- exact signed amount;
+- a date inside the ±7-day candidate window;
+- compatible merchant evidence;
+- a confidence score of at least **80/100**; and
+- when another credible candidate exists, a winning margin of at least
+  **10 points** over the next candidate.
+
+The winner margin matters particularly for recurring fixed amounts. For example,
+three nearby `$25` transactions from the same merchant are not made unique by
+their amount. The closest date receives more weight, but two nearly adjacent
+occurrences remain reviewable when their scores are too close.
+
+### Tuning policy
+
+These values are not claims of universal banking behaviour. They are the first
+conservative production heuristic and must be tuned from observed imports.
+
+When adjusting thresholds:
+
+- preserve exact signed amount as mandatory;
+- do not allow local amount uniqueness to override merchant contradiction;
+- prefer false negatives that remain reviewable over silent false-positive
+  matches;
+- add a regression representing the real transaction pattern before changing a
+  threshold;
+- keep transfer reconciliation separate from ordinary merchant matching; and
+- do not introduce AI or broader fuzzy matching merely to make an isolated
+  example pass.
 
 Ambiguous candidates should remain reviewable rather than being silently
 collapsed.
