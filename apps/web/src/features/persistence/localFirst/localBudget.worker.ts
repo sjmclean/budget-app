@@ -2912,6 +2912,73 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
   };
 }
 
+function getPersistedTransactionForVerification(
+  budgetId: string,
+  transactionId: string,
+): LocalTransactionRecord | null {
+  const row = resultRows<{
+    id: string;
+    budgetId: string;
+    accountId: string;
+    date: string;
+    amount: number;
+    memo: string | null;
+    checkNumber: string | null;
+    clearedStatus: string;
+    payeeId: string | null;
+    payeeName: string | null;
+    rawPayeeName: string | null;
+    categoryId: string | null;
+    categoryName: string | null;
+    transferAccountId: string | null;
+    transferTransactionId: string | null;
+    generatedFromSchedule: number;
+    scheduledTransactionId: string | null;
+    scheduledOccurrenceDate: string | null;
+    updatedAt: string;
+  }>(
+    `SELECT id, budget_id AS budgetId, account_id AS accountId,
+       date, amount, memo, check_number AS checkNumber,
+       cleared_status AS clearedStatus, payee_id AS payeeId,
+       payee_name AS payeeName, raw_payee_name AS rawPayeeName,
+       category_id AS categoryId, category_name AS categoryName,
+       transfer_account_id AS transferAccountId,
+       transfer_transaction_id AS transferTransactionId,
+       generated_from_schedule AS generatedFromSchedule,
+       scheduled_transaction_id AS scheduledTransactionId,
+       scheduled_occurrence_date AS scheduledOccurrenceDate,
+       updated_at AS updatedAt
+     FROM local_transactions
+     WHERE budget_id = ? AND id = ?`,
+    [budgetId, transactionId],
+  )[0];
+
+  if (!row) return null;
+
+  return {
+    ...row,
+    generatedFromSchedule: row.generatedFromSchedule === 1,
+    splitLines: resultRows(
+      `SELECT id, category_id AS categoryId,
+         category_name AS categoryName,
+         transfer_account_id AS transferAccountId,
+         transfer_transaction_id AS transferTransactionId,
+         memo, amount
+       FROM local_transaction_splits
+       WHERE transaction_id = ?
+       ORDER BY id`,
+      [transactionId],
+    ),
+    tagIds: resultRows<{ tagId: string }>(
+      `SELECT tag_id AS tagId
+       FROM local_transaction_tags
+       WHERE transaction_id = ?
+       ORDER BY tag_id`,
+      [transactionId],
+    ).map(({ tagId }) => tagId),
+  };
+}
+
 function getTransactionsByIds(
   budgetId: string,
   accountId: string,
@@ -2962,6 +3029,7 @@ function writeTransactionBatch(
     readonly resolveConflictId?: string;
   }[],
   requireAbsentTransactionIds: readonly string[] = [],
+  verifyWrittenTransactions = false,
 ): LocalBudgetManifest {
   for (const { mutation } of writes) assertMutationScope(mutation);
   if (writes.length === 0) return currentManifest();
@@ -3024,6 +3092,70 @@ function writeTransactionBatch(
       );
       insertOutbox(mutation);
     }
+    if (verifyWrittenTransactions) {
+      const normaliseTransactionRecord = (transaction: LocalTransactionRecord) => ({
+        id: transaction.id,
+        budgetId: transaction.budgetId,
+        accountId: transaction.accountId,
+        date: transaction.date,
+        amount: transaction.amount,
+        memo: transaction.memo,
+        checkNumber: transaction.checkNumber,
+        clearedStatus: transaction.clearedStatus,
+        payeeId: transaction.payeeId,
+        payeeName: transaction.payeeName,
+        rawPayeeName: transaction.rawPayeeName ?? null,
+        categoryId: transaction.categoryId,
+        categoryName: transaction.categoryName,
+        transferAccountId: transaction.transferAccountId,
+        transferTransactionId: transaction.transferTransactionId,
+        generatedFromSchedule: transaction.generatedFromSchedule,
+        scheduledTransactionId: transaction.scheduledTransactionId,
+        scheduledOccurrenceDate: transaction.scheduledOccurrenceDate,
+        splitLines: [...transaction.splitLines]
+          .map((line) => ({
+            id: line.id,
+            categoryId: line.categoryId,
+            categoryName: line.categoryName,
+            transferAccountId: line.transferAccountId,
+            transferTransactionId: line.transferTransactionId,
+            memo: line.memo,
+            amount: line.amount,
+          }))
+          .sort((left, right) => left.id.localeCompare(right.id)),
+        tagIds: [...transaction.tagIds].sort(),
+        updatedAt: transaction.updatedAt,
+      });
+
+      const expectedById = new Map<string, LocalTransactionRecord>();
+      for (const { transaction } of writes) {
+        expectedById.set(transaction.id, transaction);
+      }
+
+      for (const [transactionId, expected] of expectedById) {
+        const actual = getPersistedTransactionForVerification(
+          activeBudgetId,
+          transactionId,
+        );
+        if (!actual) {
+          throw workerError(
+            "TRANSACTION_BATCH_VERIFICATION_FAILED",
+            `Transaction ${transactionId} was not found after its batch write.`,
+          );
+        }
+
+        if (
+          JSON.stringify(normaliseTransactionRecord(actual)) !==
+          JSON.stringify(normaliseTransactionRecord(expected))
+        ) {
+          throw workerError(
+            "TRANSACTION_BATCH_VERIFICATION_FAILED",
+            `Transaction ${transactionId} differs from the record prepared for persistence.`,
+          );
+        }
+      }
+    }
+
     writeMetadata(
       "localRevision",
       String(Number(readMetadata("localRevision") ?? "0") + writes.length),
@@ -4332,6 +4464,7 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return writeTransactionBatch(
         request.writes,
         request.requireAbsentTransactionIds,
+        request.verifyWrittenTransactions,
       );
     case "deleteTransaction":
       return deleteTransaction(request.transactionId, request.mutation, request.resolveConflictId);

@@ -410,6 +410,7 @@ export class LocalBudgetDatabaseClient {
     }[],
     options: {
       readonly requireAbsentTransactionIds?: readonly string[];
+      readonly verifyWrittenTransactions?: boolean;
     } = {},
   ): Promise<LocalBudgetManifest> {
     return this.#request({
@@ -421,6 +422,9 @@ export class LocalBudgetDatabaseClient {
             requireAbsentTransactionIds:
               options.requireAbsentTransactionIds,
           }
+        : {}),
+      ...(options.verifyWrittenTransactions
+        ? { verifyWrittenTransactions: true }
         : {}),
     });
   }

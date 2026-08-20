@@ -31,16 +31,62 @@ export function verifyPersistedImportTransactions(
     if (!transaction.id) throw new Error("A committed import transaction has no stable ID.");
     const actual = byId.get(transaction.id);
     if (!actual) throw new Error(`Committed import transaction ${transaction.id} was not found after persistence.`);
-    const transferIdentityMatches = transaction.transferAccountId
-      ? actual.transferAccountId === transaction.transferAccountId
-      : !actual.transferAccountId && actual.payee === transaction.payee;
+    const differences: string[] = [];
 
-    if (actual.date !== transaction.date ||
-        Math.round(actual.inflow * 100) !== Math.round(transaction.inflow * 100) ||
-        Math.round(actual.outflow * 100) !== Math.round(transaction.outflow * 100) ||
-        !transferIdentityMatches ||
-        actual.rawPayee !== transaction.rawPayee) {
-      throw new Error(`Committed import transaction ${transaction.id} differs from the reviewed commit plan.`);
+    if (actual.date !== transaction.date) {
+      differences.push(
+        `date expected=${JSON.stringify(transaction.date)} actual=${JSON.stringify(actual.date)}`,
+      );
+    }
+
+    if (
+      Math.round(actual.inflow * 100) !==
+      Math.round(transaction.inflow * 100)
+    ) {
+      differences.push(
+        `inflow expected=${transaction.inflow} actual=${actual.inflow}`,
+      );
+    }
+
+    if (
+      Math.round(actual.outflow * 100) !==
+      Math.round(transaction.outflow * 100)
+    ) {
+      differences.push(
+        `outflow expected=${transaction.outflow} actual=${actual.outflow}`,
+      );
+    }
+
+    if (transaction.transferAccountId) {
+      if (actual.transferAccountId !== transaction.transferAccountId) {
+        differences.push(
+          `transferAccountId expected=${JSON.stringify(transaction.transferAccountId)} actual=${JSON.stringify(actual.transferAccountId)}`,
+        );
+      }
+    } else {
+      if (actual.transferAccountId) {
+        differences.push(
+          `transferAccountId expected=null actual=${JSON.stringify(actual.transferAccountId)}`,
+        );
+      }
+
+      if (actual.payee !== transaction.payee) {
+        differences.push(
+          `payee expected=${JSON.stringify(transaction.payee)} actual=${JSON.stringify(actual.payee)}`,
+        );
+      }
+    }
+
+    if (actual.rawPayee !== transaction.rawPayee) {
+      differences.push(
+        `rawPayee expected=${JSON.stringify(transaction.rawPayee)} actual=${JSON.stringify(actual.rawPayee)}`,
+      );
+    }
+
+    if (differences.length > 0) {
+      throw new Error(
+        `Committed import transaction ${transaction.id} differs from the reviewed commit plan: ${differences.join("; ")}.`,
+      );
     }
   }
 }

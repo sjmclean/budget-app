@@ -123,6 +123,7 @@ function createHarness(participation: Record<string, "on-budget" | "off-budget">
       writes: readonly { readonly transaction: LocalTransactionRecord }[],
       options?: {
         readonly requireAbsentTransactionIds?: readonly string[];
+        readonly verifyWrittenTransactions?: boolean;
       },
     ) {
       const requiredAbsentIds =

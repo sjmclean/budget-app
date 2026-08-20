@@ -1378,6 +1378,7 @@ export function createLocalFirstAccountRegisterQueryClient(
 
       await local.writeTransactionBatch(writes, {
         requireAbsentTransactionIds,
+        verifyWrittenTransactions: true,
       });
       if (writes.length > 0) {
         notifyLocalFirstMutationCommitted(input.budgetId);

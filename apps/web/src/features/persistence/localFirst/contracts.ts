@@ -241,6 +241,7 @@ export type LocalBudgetWorkerRequest =
         readonly resolveConflictId?: string;
       }[];
       readonly requireAbsentTransactionIds?: readonly string[];
+      readonly verifyWrittenTransactions?: boolean;
     }
   | {
       readonly requestId: string;

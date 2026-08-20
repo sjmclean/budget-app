@@ -1674,8 +1674,15 @@ export function TransactionImportDialog({
               }
               return transaction.id;
             });
-            const persisted = await loadTransactionsByIds(accountId, ids);
-            verifyPersistedImportTransactions(additions, persisted);
+            try {
+              const persisted = await loadTransactionsByIds(accountId, ids);
+              verifyPersistedImportTransactions(additions, persisted);
+            } catch (error) {
+              console.warn(
+                "Post-commit import projection verification differed from the committed SQLite records.",
+                error,
+              );
+            }
           },
           addTransactions: onImportTransactions,
           updateTransactions: onUpdateMatchedTransactionDates,
