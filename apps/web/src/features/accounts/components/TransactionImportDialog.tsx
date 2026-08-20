@@ -251,6 +251,7 @@ export function TransactionImportDialog({
   onImportTransactions,
   onUpdateMatchedTransactionDates,
   onCommitRegisterChanges,
+  onImportCommitComplete,
   payeeOptions,
   categoryOptions,
   transferAccounts,
@@ -287,6 +288,11 @@ export function TransactionImportDialog({
     updates: RegisterTransactionView[],
     provenanceAssignments: readonly RegisterTransactionImportProvenanceAssignment[],
   ) => Promise<void>;
+  onImportCommitComplete?: (input: {
+    accountId: string;
+    importedTransactionIds: string[];
+    matchedTransactionIds: string[];
+  }) => void;
   payeeOptions: PayeeView[];
   categoryOptions: BudgetCategoryOption[];
   transferAccounts: SidebarAccount[];
@@ -1713,6 +1719,23 @@ export function TransactionImportDialog({
           updateTransactions: onUpdateMatchedTransactionDates,
         },
       );
+
+      const importedTransactionIds = result.additions.flatMap(
+        (transaction) => transaction.id ? [transaction.id] : [],
+      );
+      const matchedTransactionIds = matchedCandidates.flatMap((candidate) => {
+        const transactionId =
+          candidate.matchedTransaction?.id ??
+          candidate.matchedTransactionId ??
+          "";
+        return transactionId ? [transactionId] : [];
+      });
+
+      onImportCommitComplete?.({
+        accountId: selectedAccountId,
+        importedTransactionIds,
+        matchedTransactionIds,
+      });
 
       merchantKnowledgeRef.current = result.merchantKnowledge;
       setMerchantKnowledge(result.merchantKnowledge);

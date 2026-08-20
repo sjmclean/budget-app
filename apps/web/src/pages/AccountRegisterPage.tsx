@@ -98,6 +98,105 @@ import {
   type RegisterPerformanceTimings,
 } from "../features/performance/registerPerformanceInstrumentation";
 
+interface RecentImportActivity {
+  readonly version: 1;
+  readonly budgetId: string;
+  readonly accountId: string;
+  readonly importedTransactionIds: readonly string[];
+  readonly matchedTransactionIds: readonly string[];
+}
+
+const RECENT_IMPORT_ACTIVITY_STORAGE_PREFIX =
+  "budget-app.recent-import-activity.v1";
+
+function recentImportActivityStorageKey(
+  budgetId: string,
+  accountId: string,
+): string {
+  return `${RECENT_IMPORT_ACTIVITY_STORAGE_PREFIX}/${encodeURIComponent(
+    budgetId,
+  )}/${encodeURIComponent(accountId)}`;
+}
+
+function readRecentImportActivity(
+  budgetId: string,
+  accountId: string,
+): RecentImportActivity | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(
+      recentImportActivityStorageKey(budgetId, accountId),
+    );
+    if (!raw) {
+      return null;
+    }
+
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      typeof parsed !== "object" ||
+      parsed === null ||
+      Array.isArray(parsed)
+    ) {
+      return null;
+    }
+
+    const value = parsed as Record<string, unknown>;
+    if (
+      value.version !== 1 ||
+      value.budgetId !== budgetId ||
+      value.accountId !== accountId ||
+      !Array.isArray(value.importedTransactionIds) ||
+      !value.importedTransactionIds.every(
+        (transactionId) => typeof transactionId === "string",
+      ) ||
+      !Array.isArray(value.matchedTransactionIds) ||
+      !value.matchedTransactionIds.every(
+        (transactionId) => typeof transactionId === "string",
+      )
+    ) {
+      return null;
+    }
+
+    return {
+      version: 1,
+      budgetId,
+      accountId,
+      importedTransactionIds: [
+        ...new Set(value.importedTransactionIds as string[]),
+      ],
+      matchedTransactionIds: [
+        ...new Set(value.matchedTransactionIds as string[]),
+      ],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeRecentImportActivity(
+  activity: RecentImportActivity,
+): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(
+      recentImportActivityStorageKey(
+        activity.budgetId,
+        activity.accountId,
+      ),
+      JSON.stringify(activity),
+    );
+  } catch {
+    // Highlighting is presentation-only. A storage failure must not affect
+    // a successfully committed import.
+  }
+}
+
 interface RegisterContextMenuPosition {
   transactionId: string;
   top: number;
@@ -368,8 +467,37 @@ export function AccountRegisterPage() {
     useState(false);
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
   const [isTransactionImportOpening, setIsTransactionImportOpening] = useState(false);
+  const [recentImportActivity, setRecentImportActivity] =
+    useState<RecentImportActivity | null>(() =>
+      activeBudgetId
+        ? readRecentImportActivity(activeBudgetId, accountId)
+        : null,
+    );
   const [registerContextMenuPosition, setRegisterContextMenuPosition] =
     useState<RegisterContextMenuPosition | null>(null);
+  useEffect(() => {
+    setRecentImportActivity(
+      activeBudgetId
+        ? readRecentImportActivity(activeBudgetId, accountId)
+        : null,
+    );
+  }, [activeBudgetId, accountId]);
+
+  const recentlyImportedTransactionIds = useMemo(
+    () =>
+      new Set(
+        recentImportActivity?.importedTransactionIds ?? [],
+      ),
+    [recentImportActivity],
+  );
+  const recentlyMatchedTransactionIds = useMemo(
+    () =>
+      new Set(
+        recentImportActivity?.matchedTransactionIds ?? [],
+      ),
+    [recentImportActivity],
+  );
+
   const [registerSearchDraft, setRegisterSearchDraft] = useState("");
   const [committedRegisterSearch, setCommittedRegisterSearch] =
     useState<RegisterSearchCommit | null>(null);
@@ -1690,6 +1818,25 @@ export function AccountRegisterPage() {
             onClose={() => {
               setIsTransactionImportOpen(false);
             }}
+            onImportCommitComplete={(activity) => {
+              if (!activeBudgetId) {
+                return;
+              }
+
+              const recentActivity: RecentImportActivity = {
+                version: 1,
+                budgetId: activeBudgetId,
+                accountId: activity.accountId,
+                importedTransactionIds: activity.importedTransactionIds,
+                matchedTransactionIds: activity.matchedTransactionIds,
+              };
+
+              writeRecentImportActivity(recentActivity);
+
+              if (activity.accountId === accountId) {
+                setRecentImportActivity(recentActivity);
+              }
+            }}
             loadAccountTransactions={async (destinationAccountId) => {
               const queries = persistenceGateway.accountRegisterQueries;
               if (storageMode === "sqlite" && activeBudgetId && queries) {
@@ -2145,6 +2292,13 @@ export function AccountRegisterPage() {
                     currencyCode={data.currencyCode}
                     dateFormat={dateFormat}
                     isSelected={registerSelection.isSelected(transaction.id)}
+                    recentImportStatus={
+                      recentlyImportedTransactionIds.has(transaction.id)
+                        ? "imported"
+                        : recentlyMatchedTransactionIds.has(transaction.id)
+                          ? "matched"
+                          : null
+                    }
                     onSelectTransaction={handleSelectTransaction}
                     onToggleTransactionSelection={
                       handleToggleTransactionSelection

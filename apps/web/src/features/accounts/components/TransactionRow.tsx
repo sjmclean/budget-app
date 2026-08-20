@@ -463,6 +463,34 @@ function ScheduledTransactionBadge({
   );
 }
 
+type RecentImportStatus = "imported" | "matched";
+
+function RecentImportBadge({
+  status,
+}: {
+  status?: RecentImportStatus | null;
+}) {
+  if (!status) {
+    return null;
+  }
+
+  return (
+    <span
+      className={[
+        "register-import-activity-badge",
+        `register-import-activity-badge-${status}`,
+      ].join(" ")}
+      title={
+        status === "imported"
+          ? "Added by the most recent transaction import"
+          : "Matched by the most recent transaction import"
+      }
+    >
+      {status === "imported" ? "Imported" : "Matched"}
+    </span>
+  );
+}
+
 export function AttachmentIndicator({
   count,
   onClick,
@@ -596,6 +624,7 @@ interface TransactionRowRendererProps {
   currencyCode: string;
   dateFormat: ReturnType<typeof useDateFormatPreference>;
   isSelected: boolean;
+  recentImportStatus?: RecentImportStatus | null;
   onSelectTransaction: (transactionId: string, event: MouseEvent<HTMLElement>) => void;
   onToggleTransactionSelection: (transactionId: string) => void;
   onEditTransaction: (transactionId: string) => void;
@@ -626,6 +655,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
   currencyCode,
   dateFormat,
   isSelected,
+  recentImportStatus,
   onSelectTransaction,
   onToggleTransactionSelection,
   onEditTransaction,
@@ -654,6 +684,9 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
         className={[
           "register-row",
           isSelected ? "register-row-selected" : "",
+          recentImportStatus
+            ? `register-row-recent-${recentImportStatus}`
+            : "",
           isUncategorised ? "register-row-uncategorised" : "",
         ].filter(Boolean).join(" ")}
         onClick={(event) => onSelectTransaction(transaction.id, event)}
@@ -691,6 +724,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
         <div className="register-payee-cell">
           <strong>{transaction.payee}</strong>
           <ScheduledTransactionBadge transaction={transaction} />
+          <RecentImportBadge status={recentImportStatus} />
         </div>
 
         {categoriesEnabled ? <CategoryDisplay
@@ -785,6 +819,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   currencyCode,
   dateFormat,
   isSelected,
+  recentImportStatus,
   onSelectTransaction,
   onToggleTransactionSelection,
   onEditTransaction,
@@ -816,6 +851,9 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
         className={[
           "register-row-compact",
           isSelected ? "register-row-selected" : "",
+          recentImportStatus
+            ? `register-row-recent-${recentImportStatus}`
+            : "",
           hasSplitLines && isSplitExpanded ? "register-row-compact-expanded" : "",
           isUncategorised ? "register-row-uncategorised" : "",
         ].filter(Boolean).join(" ")}
@@ -864,6 +902,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
           <span className="register-compact-payee-line">
             <strong title={transaction.payee}>{transaction.payee}</strong>
             <ScheduledTransactionBadge transaction={transaction} />
+          <RecentImportBadge status={recentImportStatus} />
           </span>
           {categoriesEnabled || hasMemo ? (
             <span className="register-compact-secondary">
@@ -987,6 +1026,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
   currencyCode,
   dateFormat,
   isSelected,
+  recentImportStatus,
   onSelectTransaction,
   onToggleTransactionSelection,
   onEditTransaction,
@@ -1022,6 +1062,9 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
         className={[
           "register-row-tablet",
           isSelected ? "register-row-selected" : "",
+          recentImportStatus
+            ? `register-row-recent-${recentImportStatus}`
+            : "",
           hasSplitLines && isSplitExpanded ? "register-row-tablet-expanded" : "",
           isUncategorised ? "register-row-uncategorised" : "",
         ].filter(Boolean).join(" ")}
@@ -1049,6 +1092,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
                 {transaction.payee}
               </strong>
               <ScheduledTransactionBadge transaction={transaction} />
+          <RecentImportBadge status={recentImportStatus} />
             </span>
             <span className={amountClassName}>{amountLabel}</span>
           </div>
@@ -1192,6 +1236,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
   currencyCode,
   dateFormat,
   isSelected,
+  recentImportStatus,
   onSelectTransaction,
   onToggleTransactionSelection,
   onEditTransaction,
@@ -1223,6 +1268,9 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
         className={[
           "register-row-mobile",
           isSelected ? "register-row-selected" : "",
+          recentImportStatus
+            ? `register-row-recent-${recentImportStatus}`
+            : "",
           hasSplitLines && isSplitExpanded ? "register-row-mobile-expanded" : "",
           isUncategorised ? "register-row-uncategorised" : "",
         ].filter(Boolean).join(" ")}
@@ -1241,6 +1289,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
               {transaction.payee}
             </strong>
             <ScheduledTransactionBadge transaction={transaction} />
+          <RecentImportBadge status={recentImportStatus} />
           </div>
           <span className={amountClassName}>{amountLabel}</span>
         </div>

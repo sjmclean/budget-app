@@ -7386,3 +7386,53 @@
     padding-top: 0.4rem;
   }
 }
+
+/* Recent transaction import activity.
+   Presentation-only: the latest successful import in this browser-tab session. */
+
+.register-import-activity-badge {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 0.08rem 0.42rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.register-import-activity-badge-imported {
+  background: color-mix(in srgb, var(--accent-soft) 82%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-soft));
+  color: var(--accent-strong);
+}
+
+.register-import-activity-badge-matched {
+  background: color-mix(in srgb, var(--positive) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--positive) 30%, var(--border-soft));
+  color: color-mix(in srgb, var(--positive) 82%, var(--text));
+}
+
+.register-row-recent-imported:not(.register-row-selected),
+.register-row-recent-imported:not(.register-row-selected):hover {
+  background: color-mix(in srgb, var(--accent-soft) 42%, var(--surface));
+  box-shadow: inset 3px 0 0
+    color-mix(in srgb, var(--accent) 58%, transparent);
+}
+
+.register-row-recent-matched:not(.register-row-selected),
+.register-row-recent-matched:not(.register-row-selected):hover {
+  background: color-mix(in srgb, var(--positive) 7%, var(--surface));
+  box-shadow: inset 3px 0 0
+    color-mix(in srgb, var(--positive) 46%, transparent);
+}
+
+/* Selection remains the dominant visual state. */
+.register-row-recent-imported.register-row-selected,
+.register-row-recent-matched.register-row-selected {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
