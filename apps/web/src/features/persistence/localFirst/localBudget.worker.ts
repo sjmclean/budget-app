@@ -2685,6 +2685,16 @@ function queryTransactions(query: LocalTransactionQuery) {
     where.push("(transaction_row.date, transaction_row.id) < (?, ?)");
     bind.push(query.before.date, query.before.id);
   }
+  if (query.dateRange) {
+    where.push(
+      "transaction_row.date >= ?",
+      "transaction_row.date <= ?",
+    );
+    bind.push(
+      query.dateRange.startDate,
+      query.dateRange.endDate,
+    );
+  }
   if (query.categoryFilter === "uncategorised") {
     where.push(
       uncategorisedTransactionPredicate(),

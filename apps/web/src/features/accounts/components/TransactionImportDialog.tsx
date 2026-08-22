@@ -35,6 +35,9 @@ import {
   previewTransactionCsvImport,
   previewTransactionQifImport,
   previewTransactionOfxImport,
+  parseTransactionCsv,
+  parseTransactionQif,
+  parseTransactionOfx,
   readTransactionPayeeAliases,
   formatImportDuration,
   getCsvImportSignature,
@@ -99,6 +102,10 @@ import {
   type TransactionImportSourceIdentity,
 } from "../transactionImportKnowledge";
 import { calculateTransactionImportBalancePreview } from "../transactionImportBalancePreview";
+import {
+  loadTransactionImportEvidence,
+  type TransactionImportEvidenceDateRange,
+} from "../transactionImportEvidence";
 import { resolvePayeeRecognition } from "../payeeRecognition";
 import {
   summariseTransactionImportOutcomes,
@@ -268,6 +275,7 @@ export function TransactionImportDialog({
   onClose: () => void;
   loadAccountTransactions: (
     accountId: string,
+    dateRange?: TransactionImportEvidenceDateRange,
   ) => Promise<RegisterTransactionView[]>;
   loadTransactionsByIds: (
     accountId: string,
@@ -774,9 +782,19 @@ export function TransactionImportDialog({
         !qifDetection.amountFormatNeedsConfirmation ||
           Boolean(knowledge?.qifAmountFormat),
       );
+      const parsedTransactions = parseTransactionQif(qifText, {
+        dateFormat: nextDateFormat,
+        amountFormat: nextAmountFormat,
+      });
+      const evidenceTransactions = await loadTransactionImportEvidence(
+        accountId,
+        parsedTransactions,
+        loadAccountTransactions,
+      );
+
       const nextPreview = previewTransactionQifImport(
         qifText,
-        nextTransactions,
+        evidenceTransactions,
         {
           sourceAccountName: nextAccountName,
           availableTransferAccountNames: accounts
@@ -789,7 +807,7 @@ export function TransactionImportDialog({
       );
       await applyPreview(
         nextPreview,
-        nextTransactions,
+        evidenceTransactions,
         `${nextPreview.summary.totalRows} QIF transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
         "qif",
         accountId,
@@ -798,14 +816,21 @@ export function TransactionImportDialog({
     }
 
     if ((fileType === "ofx" || fileType === "qfx") && ofxText) {
+      const parsedTransactions = parseTransactionOfx(ofxText);
+      const evidenceTransactions = await loadTransactionImportEvidence(
+        accountId,
+        parsedTransactions,
+        loadAccountTransactions,
+      );
+
       const nextPreview = previewTransactionOfxImport(
         ofxText,
-        nextTransactions,
+        evidenceTransactions,
         resolveMerchantForMatching,
       );
       await applyPreview(
         nextPreview,
-        nextTransactions,
+        evidenceTransactions,
         `${nextPreview.summary.totalRows} ${getFileTypeLabel(fileType)} transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
         fileType,
         accountId,
@@ -822,15 +847,25 @@ export function TransactionImportDialog({
       const nextMapping = knowledge?.csvMapping ?? analysis.suggestedMapping;
       setMapping(nextMapping);
       if (hasRequiredCsvMapping(nextMapping)) {
+        const parsedTransactions = parseTransactionCsv(
+          csvText,
+          nextMapping,
+        );
+        const evidenceTransactions = await loadTransactionImportEvidence(
+          accountId,
+          parsedTransactions,
+          loadAccountTransactions,
+        );
+
         const nextPreview = previewTransactionCsvImport(
           csvText,
-          nextTransactions,
+          evidenceTransactions,
           nextMapping,
           resolveMerchantForMatching,
         );
         await applyPreview(
           nextPreview,
-          nextTransactions,
+          evidenceTransactions,
           `${nextPreview.summary.totalRows} CSV transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
           "csv",
           accountId,
@@ -1003,9 +1038,20 @@ export function TransactionImportDialog({
 
     setQifDateFormat(nextDateFormat);
     setQifAmountFormat(nextAmountFormat);
+
+    const parsedTransactions = parseTransactionQif(qifText, {
+      dateFormat: nextDateFormat,
+      amountFormat: nextAmountFormat,
+    });
+    const existingTransactions = await loadTransactionImportEvidence(
+      selectedAccountId,
+      parsedTransactions,
+      loadAccountTransactions,
+    );
+
     const nextPreview = previewTransactionQifImport(
       qifText,
-      transactions,
+      existingTransactions,
       {
         sourceAccountName: accountName,
         availableTransferAccountNames: transferAccountNames,
@@ -1019,7 +1065,7 @@ export function TransactionImportDialog({
     );
     await applyPreview(
       nextPreview,
-      transactions,
+      existingTransactions,
       `${nextPreview.summary.totalRows} QIF transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
       "qif",
     );
@@ -1056,9 +1102,19 @@ export function TransactionImportDialog({
       setError("Choose a QIF file first.");
       return;
     }
+    const parsedTransactions = parseTransactionQif(qifText, {
+      dateFormat: qifDateFormat,
+      amountFormat: qifAmountFormat,
+    });
+    const existingTransactions = await loadTransactionImportEvidence(
+      selectedAccountId,
+      parsedTransactions,
+      loadAccountTransactions,
+    );
+
     const nextPreview = previewTransactionQifImport(
       qifText,
-      transactions,
+      existingTransactions,
       {
         sourceAccountName: accountName,
         availableTransferAccountNames: transferAccountNames,
@@ -1076,7 +1132,7 @@ export function TransactionImportDialog({
     }
     await applyPreview(
       nextPreview,
-      transactions,
+      existingTransactions,
       `${nextPreview.summary.totalRows} QIF transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
       "qif",
       selectedAccountId,
@@ -1089,9 +1145,16 @@ export function TransactionImportDialog({
       setError("Choose an OFX or QFX file first.");
       return;
     }
+    const parsedTransactions = parseTransactionOfx(ofxText);
+    const existingTransactions = await loadTransactionImportEvidence(
+      selectedAccountId,
+      parsedTransactions,
+      loadAccountTransactions,
+    );
+
     const nextPreview = previewTransactionOfxImport(
       ofxText,
-      transactions,
+      existingTransactions,
       resolveMerchantForMatching,
     );
     if (nextPreview.candidates.length === 0) {
@@ -1100,7 +1163,7 @@ export function TransactionImportDialog({
     }
     await applyPreview(
       nextPreview,
-      transactions,
+      existingTransactions,
       `${nextPreview.summary.totalRows} ${getFileTypeLabel(fileType)} transaction${nextPreview.summary.totalRows === 1 ? "" : "s"} ready for review.`,
       fileType,
       selectedAccountId,
@@ -1137,7 +1200,17 @@ export function TransactionImportDialog({
     }
 
     const timings = options.timings ?? [];
-    const existingTransactions = options.existingTransactions ?? transactions;
+    const parsedTransactions = parseTransactionCsv(
+      nextCsvText,
+      nextMapping,
+    );
+    const existingTransactions =
+      options.existingTransactions ??
+      await loadTransactionImportEvidence(
+        selectedAccountId,
+        parsedTransactions,
+        loadAccountTransactions,
+      );
     const nextPreview = measureImportStage(
       timings,
       "Parse and preview CSV",

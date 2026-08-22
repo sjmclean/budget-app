@@ -356,6 +356,10 @@ export interface LocalTransactionQuery {
   readonly limit: number;
   readonly offset?: number;
   readonly before?: { readonly date: string; readonly id: string };
+  readonly dateRange?: {
+    readonly startDate: string;
+    readonly endDate: string;
+  };
   readonly includeTotalCount?: boolean;
   readonly search?: {
     readonly query: string;

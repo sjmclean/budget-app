@@ -15,6 +15,10 @@ export interface AccountTransactionQuery {
   readonly limit: number;
   readonly before?: AccountTransactionCursor;
   readonly offset?: number;
+  readonly dateRange?: {
+    readonly startDate: string;
+    readonly endDate: string;
+  };
   readonly search?: {
     readonly query: string;
     readonly scope: "all" | "payee" | "category" | "memo" | "amount";

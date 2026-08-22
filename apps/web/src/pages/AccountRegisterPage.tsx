@@ -37,6 +37,7 @@ import {
   useAccountRegister,
 } from "../features/accounts/useAccountRegister";
 import { createRuntimeUuid } from "../features/ids/createRuntimeUuid";
+import { loadTransactionImportRegisterEvidence } from "../features/accounts/loadTransactionImportRegisterEvidence";
 import { useRegisterLayoutMode } from "../features/accounts/registerLayoutMode";
 import { useRegisterSelection } from "../features/accounts/useRegisterSelection";
 import { useRegisterSelectionActions } from "../features/accounts/useRegisterSelectionActions";
@@ -1836,23 +1837,50 @@ export function AccountRegisterPage() {
                 setRecentImportActivity(recentActivity);
               }
             }}
-            loadAccountTransactions={async (destinationAccountId) => {
+            loadAccountTransactions={async (
+              destinationAccountId,
+              dateRange,
+            ) => {
               const queries = persistenceGateway.accountRegisterQueries;
+
               if (storageMode === "sqlite" && activeBudgetId && queries) {
+                if (dateRange) {
+                  const rows = await loadTransactionImportRegisterEvidence({
+                    budgetId: activeBudgetId,
+                    accountId: destinationAccountId,
+                    dateRange,
+                    queryPage: (input) =>
+                      queries.queryTransactions(input),
+                  });
+
+                  return mapSqliteTransactions(rows, 0);
+                }
+
                 const page = await queries.queryTransactions({
                   budgetId: activeBudgetId,
                   accountId: destinationAccountId,
                   limit: 250,
                 });
+
                 return mapSqliteTransactions(page.rows, 0);
               }
+
               const view =
                 await persistenceGateway.accountRegisters.getAccountRegisterView(
                   {
                     accountId: destinationAccountId,
                   },
                 );
-              return view.transactions;
+
+              if (!dateRange) {
+                return view.transactions;
+              }
+
+              return view.transactions.filter(
+                (transaction) =>
+                  transaction.date >= dateRange.startDate &&
+                  transaction.date <= dateRange.endDate,
+              );
             }}
             loadTransactionsByIds={async (destinationAccountId, transactionIds) => {
               const queries = persistenceGateway.accountRegisterQueries;
