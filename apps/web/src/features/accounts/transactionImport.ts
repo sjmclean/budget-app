@@ -286,7 +286,7 @@ export function previewTransactionQifImport(
   return validateQifTransferDestinations(preview, options);
 }
 
-function assignTransactionImportMatches(
+export function assignTransactionImportMatches(
   candidates: TransactionImportCandidate[],
 ): TransactionImportCandidate[] {
   const automaticOptions = candidates.map((candidate) => {
@@ -300,42 +300,391 @@ function assignTransactionImportMatches(
       (assessment) => assessment.automaticMatch,
     );
   });
-  const transactionOwners = new Map<string, number>();
+
+  const assignableCandidateIndexes = candidates
+    .map((candidate, index) => ({
+      id: candidate.id,
+      index,
+    }))
+    .filter(({ index }) => automaticOptions[index].length > 0)
+    .sort(
+      (left, right) =>
+        left.id.localeCompare(right.id) ||
+        left.index - right.index,
+    );
+
+  const stableCandidateRank = new Map(
+    assignableCandidateIndexes.map(
+      ({ index }, rank) => [index, rank],
+    ),
+  );
+
+  const transactionCandidateIndexes = new Map<
+    string,
+    number[]
+  >();
+
+  for (const { index: candidateIndex } of assignableCandidateIndexes) {
+    for (const assessment of automaticOptions[candidateIndex]) {
+      const transactionId = assessment.transaction.id;
+      const existing =
+        transactionCandidateIndexes.get(transactionId);
+
+      if (existing) {
+        existing.push(candidateIndex);
+      } else {
+        transactionCandidateIndexes.set(
+          transactionId,
+          [candidateIndex],
+        );
+      }
+    }
+  }
+
+  for (const candidateIndexes of transactionCandidateIndexes.values()) {
+    candidateIndexes.sort(
+      (left, right) =>
+        (stableCandidateRank.get(left) ?? 0) -
+        (stableCandidateRank.get(right) ?? 0),
+    );
+  }
+
+  interface AssignmentComponent {
+    readonly candidateIndexes: readonly number[];
+    readonly transactionIds: readonly string[];
+  }
+
+  function buildAssignmentComponents(): AssignmentComponent[] {
+    const visitedCandidates = new Set<number>();
+    const components: AssignmentComponent[] = [];
+
+    for (const { index: startCandidateIndex } of assignableCandidateIndexes) {
+      if (visitedCandidates.has(startCandidateIndex)) {
+        continue;
+      }
+
+      const componentCandidateIndexes: number[] = [];
+      const componentTransactionIds = new Set<string>();
+      const candidateQueue = [startCandidateIndex];
+      visitedCandidates.add(startCandidateIndex);
+
+      for (
+        let queueIndex = 0;
+        queueIndex < candidateQueue.length;
+        queueIndex += 1
+      ) {
+        const candidateIndex = candidateQueue[queueIndex];
+        componentCandidateIndexes.push(candidateIndex);
+
+        const transactionIds = automaticOptions[candidateIndex]
+          .map((assessment) => assessment.transaction.id)
+          .sort((left, right) => left.localeCompare(right));
+
+        for (const transactionId of transactionIds) {
+          if (componentTransactionIds.has(transactionId)) {
+            continue;
+          }
+
+          componentTransactionIds.add(transactionId);
+
+          for (
+            const connectedCandidateIndex of
+              transactionCandidateIndexes.get(transactionId) ?? []
+          ) {
+            if (
+              visitedCandidates.has(connectedCandidateIndex)
+            ) {
+              continue;
+            }
+
+            visitedCandidates.add(connectedCandidateIndex);
+            candidateQueue.push(connectedCandidateIndex);
+          }
+        }
+      }
+
+      componentCandidateIndexes.sort(
+        (left, right) =>
+          (stableCandidateRank.get(left) ?? 0) -
+          (stableCandidateRank.get(right) ?? 0),
+      );
+
+      components.push({
+        candidateIndexes: componentCandidateIndexes,
+        transactionIds: [
+          ...componentTransactionIds,
+        ].sort((left, right) => left.localeCompare(right)),
+      });
+    }
+
+    return components;
+  }
+
   const assignedAssessments = new Map<
     number,
     TransactionImportMatchCandidateAssessment
   >();
 
-  function assignCandidate(
-    candidateIndex: number,
-    visitedTransactionIds: Set<string>,
-  ): boolean {
-    for (const assessment of automaticOptions[candidateIndex]) {
-      const transactionId = assessment.transaction.id;
-      if (visitedTransactionIds.has(transactionId)) {
-        continue;
-      }
-      visitedTransactionIds.add(transactionId);
-
-      const currentOwner = transactionOwners.get(transactionId);
-      if (
-        currentOwner === undefined ||
-        assignCandidate(currentOwner, visitedTransactionIds)
-      ) {
-        transactionOwners.set(transactionId, candidateIndex);
-        assignedAssessments.set(candidateIndex, assessment);
-        return true;
-      }
-    }
-
-    return false;
+  interface FlowEdge {
+    readonly to: number;
+    readonly reverseIndex: number;
+    capacity: number;
+    readonly cost: number;
+    readonly candidateIndex?: number;
+    readonly assessment?: TransactionImportMatchCandidateAssessment;
   }
 
-  for (let index = 0; index < candidates.length; index += 1) {
-    if (automaticOptions[index].length === 0) {
-      continue;
+  function solveAssignmentComponent(
+    component: AssignmentComponent,
+  ): void {
+    /*
+     * The overwhelmingly common case requires no flow solver at all:
+     * one imported row has exactly one automatic register candidate.
+     */
+    if (
+      component.candidateIndexes.length === 1 &&
+      component.transactionIds.length === 1
+    ) {
+      const candidateIndex = component.candidateIndexes[0];
+      const transactionId = component.transactionIds[0];
+
+      const assessment = automaticOptions[candidateIndex].find(
+        (option) =>
+          option.transaction.id === transactionId,
+      );
+
+      if (!assessment) {
+        throw new Error(
+          `Missing automatic assessment for import assignment ${transactionId}.`,
+        );
+      }
+
+      assignedAssessments.set(candidateIndex, assessment);
+      return;
     }
-    assignCandidate(index, new Set<string>());
+
+    /*
+     * Solve only this connected bipartite conflict component as
+     * minimum-cost maximum-flow.
+     *
+     * Each source -> candidate -> transaction -> sink path contributes one
+     * match. Augmenting until no path remains therefore maximises cardinality.
+     *
+     * Candidate -> transaction edges use negative matchScore, so among all
+     * maximum-cardinality solutions the minimum-cost result has the greatest
+     * total confidence.
+     *
+     * Candidate and transaction nodes use stable ID ordering, keeping equal
+     * cost outcomes deterministic and independent of source-row ordering.
+     */
+    const candidateIndexes = [...component.candidateIndexes];
+    const transactionIds = [...component.transactionIds];
+
+    const transactionIndexById = new Map(
+      transactionIds.map((id, index) => [id, index]),
+    );
+
+    const source = 0;
+    const candidateNodeOffset = 1;
+    const transactionNodeOffset =
+      candidateNodeOffset + candidateIndexes.length;
+    const sink = transactionNodeOffset + transactionIds.length;
+
+    const graph: FlowEdge[][] = Array.from(
+      { length: sink + 1 },
+      () => [],
+    );
+
+    function addFlowEdge(
+      from: number,
+      to: number,
+      capacity: number,
+      cost: number,
+      metadata: {
+        readonly candidateIndex?: number;
+        readonly assessment?: TransactionImportMatchCandidateAssessment;
+      } = {},
+    ) {
+      const forward: FlowEdge = {
+        to,
+        reverseIndex: graph[to].length,
+        capacity,
+        cost,
+        ...metadata,
+      };
+
+      const reverse: FlowEdge = {
+        to: from,
+        reverseIndex: graph[from].length,
+        capacity: 0,
+        cost: -cost,
+      };
+
+      graph[from].push(forward);
+      graph[to].push(reverse);
+    }
+
+    candidateIndexes.forEach(
+      (candidateIndex, componentCandidateIndex) => {
+        const candidateNode =
+          candidateNodeOffset + componentCandidateIndex;
+
+        addFlowEdge(source, candidateNode, 1, 0);
+
+        const options = [...automaticOptions[candidateIndex]]
+          .filter((assessment) =>
+            transactionIndexById.has(
+              assessment.transaction.id,
+            ),
+          )
+          .sort(
+            (left, right) =>
+              right.matchScore - left.matchScore ||
+              left.transaction.id.localeCompare(
+                right.transaction.id,
+              ),
+          );
+
+        for (const assessment of options) {
+          const transactionIndex =
+            transactionIndexById.get(
+              assessment.transaction.id,
+            );
+
+          if (transactionIndex === undefined) {
+            throw new Error(
+              `Missing transaction node for import match ${assessment.transaction.id}.`,
+            );
+          }
+
+          addFlowEdge(
+            candidateNode,
+            transactionNodeOffset + transactionIndex,
+            1,
+            -assessment.matchScore,
+            {
+              candidateIndex,
+              assessment,
+            },
+          );
+        }
+      },
+    );
+
+    transactionIds.forEach((_, transactionIndex) => {
+      addFlowEdge(
+        transactionNodeOffset + transactionIndex,
+        sink,
+        1,
+        0,
+      );
+    });
+
+    while (true) {
+      const distance = Array<number>(graph.length).fill(
+        Number.POSITIVE_INFINITY,
+      );
+      const previousNode = Array<number>(graph.length).fill(-1);
+      const previousEdge = Array<number>(graph.length).fill(-1);
+
+      distance[source] = 0;
+
+      /*
+       * Bellman-Ford handles the negative residual costs required when a
+       * previous assignment must be displaced to produce a better global
+       * solution. Component decomposition keeps these graphs small.
+       */
+      for (
+        let iteration = 0;
+        iteration < graph.length - 1;
+        iteration += 1
+      ) {
+        let changed = false;
+
+        for (
+          let from = 0;
+          from < graph.length;
+          from += 1
+        ) {
+          if (!Number.isFinite(distance[from])) {
+            continue;
+          }
+
+          for (
+            let edgeIndex = 0;
+            edgeIndex < graph[from].length;
+            edgeIndex += 1
+          ) {
+            const edge = graph[from][edgeIndex];
+
+            if (edge.capacity <= 0) {
+              continue;
+            }
+
+            const nextDistance =
+              distance[from] + edge.cost;
+
+            if (nextDistance < distance[edge.to]) {
+              distance[edge.to] = nextDistance;
+              previousNode[edge.to] = from;
+              previousEdge[edge.to] = edgeIndex;
+              changed = true;
+            }
+          }
+        }
+
+        if (!changed) {
+          break;
+        }
+      }
+
+      if (!Number.isFinite(distance[sink])) {
+        break;
+      }
+
+      let node = sink;
+
+      while (node !== source) {
+        const from = previousNode[node];
+        const edgeIndex = previousEdge[node];
+
+        if (from < 0 || edgeIndex < 0) {
+          throw new Error(
+            "Import assignment flow path is incomplete.",
+          );
+        }
+
+        const edge = graph[from][edgeIndex];
+        edge.capacity -= 1;
+        graph[node][edge.reverseIndex].capacity += 1;
+        node = from;
+      }
+    }
+
+    candidateIndexes.forEach(
+      (candidateIndex, componentCandidateIndex) => {
+        const candidateNode =
+          candidateNodeOffset + componentCandidateIndex;
+
+        for (const edge of graph[candidateNode]) {
+          if (
+            edge.assessment &&
+            edge.candidateIndex === candidateIndex &&
+            edge.capacity === 0
+          ) {
+            assignedAssessments.set(
+              candidateIndex,
+              edge.assessment,
+            );
+            break;
+          }
+        }
+      },
+    );
+  }
+
+  for (const component of buildAssignmentComponents()) {
+    solveAssignmentComponent(component);
   }
 
   return candidates.map((candidate, index) => {
@@ -344,6 +693,7 @@ function assignTransactionImportMatches(
     }
 
     const assigned = assignedAssessments.get(index);
+
     if (assigned) {
       return {
         ...candidate,
