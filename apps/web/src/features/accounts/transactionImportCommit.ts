@@ -51,7 +51,14 @@ function toRegisterTransactionInput(
       )
     : undefined;
   const isTransfer = Boolean(requestedTransferAccountName);
-  const requestedCategoryName = proposal.categoryName?.trim() || null;
+  const reviewedSplitLines =
+    proposal.splitLines?.length
+      ? proposal.splitLines.map((line) => ({ ...line }))
+      : undefined;
+  const isSplit =
+    !isTransfer && Boolean(reviewedSplitLines?.length);
+  const requestedCategoryName =
+    !isSplit ? proposal.categoryName?.trim() || null : null;
   const resolvedCategory = requestedCategoryName
     ? options.categories?.find(
         (category) =>
@@ -61,14 +68,17 @@ function toRegisterTransactionInput(
     : undefined;
   const isReadyToAssignIncome =
     !isTransfer &&
+    !isSplit &&
     !resolvedCategory &&
     parsed.inflow > 0 &&
     parsed.outflow === 0;
 
   const categoryName = isTransfer
     ? "Transfer"
-    : resolvedCategory?.name ??
-      (isReadyToAssignIncome ? "Ready to Assign" : "Uncategorised");
+    : isSplit
+      ? "Split"
+      : resolvedCategory?.name ??
+        (isReadyToAssignIncome ? "Ready to Assign" : "Uncategorised");
 
   const transaction: PlannedImportRegisterTransactionInput = {
     id: stableImportTransactionId(candidate, identityScope),
@@ -78,14 +88,16 @@ function toRegisterTransactionInput(
       ? `Transfer: ${requestedTransferAccountName}`
       : proposal.payee,
     category: categoryName,
-    categoryId: isTransfer
-      ? undefined
-      : resolvedCategory?.id ??
-        (isReadyToAssignIncome ? "__ready_to_assign__" : undefined),
+    categoryId:
+      isTransfer || isSplit
+        ? undefined
+        : resolvedCategory?.id ??
+          (isReadyToAssignIncome ? "__ready_to_assign__" : undefined),
     transferAccountId: isTransfer ? resolvedTransferAccount?.id : undefined,
     memo: options.includeMemos === false ? undefined : parsed.memo,
     outflow: parsed.outflow,
     inflow: parsed.inflow,
+    splitLines: reviewedSplitLines,
   };
 
   return transaction;

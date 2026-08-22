@@ -6,7 +6,10 @@ import {
   replaceTransactionImportProfileEntities,
   replaceTransactionPayeeAliasEntities,
 } from "./entities/importPreferenceEntity";
-import type { RegisterTransactionView } from "./accountRegisterTypes";
+import type {
+  RegisterSplitLineView,
+  RegisterTransactionView,
+} from "./accountRegisterTypes";
 import { buildRegisterTransactionsFromImport } from "./transactionImportCommit";
 import { parseTransactionOfx } from "./transactionImportParser";
 import type { ParsedImportTransaction } from "./transactionImportParser";
@@ -144,6 +147,11 @@ export interface TransactionImportProposal {
   payee: string;
   categoryName: string | null;
   transferAccountName: string | null;
+  /**
+   * Final reviewed split allocation for the imported transaction.
+   * Editor-only string drafts remain outside the import domain model.
+   */
+  splitLines?: RegisterSplitLineView[];
 }
 
 export type TransactionImportRecognitionProvenance =

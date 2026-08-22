@@ -83,6 +83,105 @@ export function verifyPersistedImportTransactions(
       );
     }
 
+    const expectedSplitLines = transaction.splitLines ?? [];
+    const actualSplitLines = actual.splitLines ?? [];
+
+    if (
+      transaction.category === "Split" ||
+      expectedSplitLines.length > 0 ||
+      actual.category === "Split" ||
+      actualSplitLines.length > 0
+    ) {
+      if (actual.category !== transaction.category) {
+        differences.push(
+          `category expected=${JSON.stringify(transaction.category)} actual=${JSON.stringify(actual.category)}`,
+        );
+      }
+
+      if (actual.categoryId !== transaction.categoryId) {
+        differences.push(
+          `categoryId expected=${JSON.stringify(transaction.categoryId)} actual=${JSON.stringify(actual.categoryId)}`,
+        );
+      }
+
+      if (actualSplitLines.length !== expectedSplitLines.length) {
+        differences.push(
+          `splitLines.length expected=${expectedSplitLines.length} actual=${actualSplitLines.length}`,
+        );
+      }
+
+      const count = Math.min(
+        expectedSplitLines.length,
+        actualSplitLines.length,
+      );
+
+      for (let index = 0; index < count; index += 1) {
+        const expectedLine = expectedSplitLines[index];
+        const actualLine = actualSplitLines[index];
+        const prefix = `splitLines[${index}]`;
+
+        if (actualLine.id !== expectedLine.id) {
+          differences.push(
+            `${prefix}.id expected=${JSON.stringify(expectedLine.id)} actual=${JSON.stringify(actualLine.id)}`,
+          );
+        }
+
+        if (actualLine.category !== expectedLine.category) {
+          differences.push(
+            `${prefix}.category expected=${JSON.stringify(expectedLine.category)} actual=${JSON.stringify(actualLine.category)}`,
+          );
+        }
+
+        if (actualLine.categoryId !== expectedLine.categoryId) {
+          differences.push(
+            `${prefix}.categoryId expected=${JSON.stringify(expectedLine.categoryId)} actual=${JSON.stringify(actualLine.categoryId)}`,
+          );
+        }
+
+        if ((actualLine.memo ?? "") !== (expectedLine.memo ?? "")) {
+          differences.push(
+            `${prefix}.memo expected=${JSON.stringify(expectedLine.memo ?? "")} actual=${JSON.stringify(actualLine.memo ?? "")}`,
+          );
+        }
+
+        if (
+          Math.round(actualLine.inflow * 100) !==
+          Math.round(expectedLine.inflow * 100)
+        ) {
+          differences.push(
+            `${prefix}.inflow expected=${expectedLine.inflow} actual=${actualLine.inflow}`,
+          );
+        }
+
+        if (
+          Math.round(actualLine.outflow * 100) !==
+          Math.round(expectedLine.outflow * 100)
+        ) {
+          differences.push(
+            `${prefix}.outflow expected=${expectedLine.outflow} actual=${actualLine.outflow}`,
+          );
+        }
+
+        if (
+          actualLine.transferAccountId !==
+          expectedLine.transferAccountId
+        ) {
+          differences.push(
+            `${prefix}.transferAccountId expected=${JSON.stringify(expectedLine.transferAccountId)} actual=${JSON.stringify(actualLine.transferAccountId)}`,
+          );
+        }
+
+        if (
+          actualLine.transferTransactionId !==
+          expectedLine.transferTransactionId
+        ) {
+          differences.push(
+            `${prefix}.transferTransactionId expected=${JSON.stringify(expectedLine.transferTransactionId)} actual=${JSON.stringify(actualLine.transferTransactionId)}`,
+          );
+        }
+      }
+    }
+
     if (differences.length > 0) {
       throw new Error(
         `Committed import transaction ${transaction.id} differs from the reviewed commit plan: ${differences.join("; ")}.`,

@@ -9,6 +9,7 @@ import {
   RegisterCategoryInput,
   type RegisterInlineCategoryCreateInput,
 } from "./RegisterCategoryInput";
+import { RegisterSplitEditor } from "./RegisterSplitEditor";
 import type { PayeeView } from "../payeeService";
 import { createRuntimeUuid } from "../../ids/createRuntimeUuid";
 import type { SidebarAccount } from "../accountService";
@@ -111,6 +112,15 @@ import {
   summariseTransactionImportOutcomes,
   verifyPersistedImportTransactions,
 } from "../transactionImportVerification";
+import {
+  buildSplitLines,
+  createSplitLineDraft,
+  hasIncompleteSplitDrafts,
+  isSplitBalanced,
+  isSplitDraftBalanced,
+  splitDraftsFromTransaction,
+  type SplitLineDraft,
+} from "../registerSplitDrafts";
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -132,6 +142,19 @@ interface ProposedTransactionEdit {
   field: ProposedTransactionEditField;
   draftValue: string;
 }
+
+interface TransactionImportSplitEdit {
+  candidateId: string;
+  target: "proposal" | "matched";
+  splitLines: SplitLineDraft[];
+}
+
+const IMPORT_SPLIT_VISIBLE_COLUMN_IDS = [
+  "category",
+  "memo",
+  "outflow",
+  "inflow",
+] as const;
 
 interface ProcessedImportCandidate {
   candidate: TransactionImportCandidate;
@@ -233,8 +256,42 @@ function canImportReviewedCandidate(
   const hasValidTransfer =
     !transferAccountName ||
     availableTransferAccountNames.includes(transferAccountName);
+  const splitLines = candidate.lifecycle.proposal.splitLines ?? [];
+  const declaresSplit =
+    candidate.lifecycle.proposal.categoryName === "Split";
+  const hasSplitLines = splitLines.length > 0;
+  const hasValidSplit =
+    !declaresSplit && !hasSplitLines
+      ? true
+      : declaresSplit &&
+        hasSplitLines &&
+        !transferAccountName &&
+        splitLines.length >= 2 &&
+      splitLines.every(
+        (line) =>
+          Boolean(line.id.trim()) &&
+          Boolean(line.category.trim()) &&
+          line.category !== "Split" &&
+          Number.isFinite(line.inflow) &&
+          Number.isFinite(line.outflow) &&
+          line.inflow >= 0 &&
+          line.outflow >= 0 &&
+          ((line.inflow > 0 && line.outflow === 0) ||
+            (line.outflow > 0 && line.inflow === 0)),
+      ) &&
+        isSplitBalanced(
+          proposed.outflow,
+          proposed.inflow,
+          splitLines,
+        );
 
-  return hasDate && hasPayee && hasAmount && hasValidTransfer;
+  return (
+    hasDate &&
+    hasPayee &&
+    hasAmount &&
+    hasValidTransfer &&
+    hasValidSplit
+  );
 }
 
 async function measureAsyncImportStage<T>(
@@ -377,6 +434,8 @@ export function TransactionImportDialog({
   >({});
   const [proposedTransactionEdit, setProposedTransactionEdit] =
     useState<ProposedTransactionEdit | null>(null);
+  const [splitEdit, setSplitEdit] =
+    useState<TransactionImportSplitEdit | null>(null);
   const [weakMatchReviewCandidateId, setWeakMatchReviewCandidateId] =
     useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -1432,6 +1491,155 @@ export function TransactionImportDialog({
     setError(null);
   }
 
+  function updateCandidateProposal(
+    candidateId: string,
+    updates: Partial<TransactionImportCandidate["lifecycle"]["proposal"]>,
+  ) {
+    setCandidates((current) =>
+      current.map((candidate) =>
+        candidate.id === candidateId
+          ? {
+              ...candidate,
+              lifecycle: {
+                ...candidate.lifecycle,
+                proposal: {
+                  ...candidate.lifecycle.proposal,
+                  ...updates,
+                },
+              },
+            }
+          : candidate,
+      ),
+    );
+    setError(null);
+  }
+
+  function beginProposalSplitEdit(candidate: TransactionImportCandidate) {
+    const existing = candidate.lifecycle.proposal.splitLines;
+
+    setProposedTransactionEdit(null);
+    setSplitEdit({
+      candidateId: candidate.id,
+      target: "proposal",
+      splitLines: existing?.length
+        ? existing.map((line) => ({
+            id: line.id,
+            category: line.category,
+            categoryId: line.categoryId,
+            transferAccountId: line.transferAccountId,
+            transferAccountParticipation:
+              line.transferAccountParticipation,
+            transferTransactionId: line.transferTransactionId,
+            memo: line.memo ?? "",
+            outflow: line.outflow ? line.outflow.toFixed(2) : "",
+            inflow: line.inflow ? line.inflow.toFixed(2) : "",
+          }))
+        : [createSplitLineDraft(), createSplitLineDraft()],
+    });
+  }
+
+  function beginMatchedSplitEdit(candidate: TransactionImportCandidate) {
+    if (!candidate.matchedTransaction) {
+      return;
+    }
+
+    setProposedTransactionEdit(null);
+    setSplitEdit({
+      candidateId: candidate.id,
+      target: "matched",
+      splitLines: candidate.matchedTransaction.splitLines?.length
+        ? splitDraftsFromTransaction(candidate.matchedTransaction)
+        : [createSplitLineDraft(), createSplitLineDraft()],
+    });
+  }
+
+  function updateSplitEditLines(
+    updater: (current: SplitLineDraft[]) => SplitLineDraft[],
+  ) {
+    setSplitEdit((current) =>
+      current
+        ? {
+            ...current,
+            splitLines: updater(current.splitLines),
+          }
+        : current,
+    );
+  }
+
+  function cancelSplitEdit() {
+    setSplitEdit(null);
+  }
+
+  function applySplitEdit(candidate: TransactionImportCandidate) {
+    if (!splitEdit || splitEdit.candidateId !== candidate.id) {
+      return;
+    }
+
+    const parent =
+      splitEdit.target === "matched"
+        ? candidate.matchedTransaction
+        : getCandidateProposalTransaction(candidate);
+
+    if (!parent) {
+      setError("The split transaction is no longer available.");
+      return;
+    }
+
+    if (
+      splitEdit.splitLines.length < 2 ||
+      hasIncompleteSplitDrafts(splitEdit.splitLines) ||
+      !isSplitDraftBalanced(
+        parent.outflow,
+        parent.inflow,
+        splitEdit.splitLines,
+      )
+    ) {
+      setError(
+        "Complete at least two split categories and assign the full transaction amount before applying the split.",
+      );
+      return;
+    }
+
+    const splitLines = buildSplitLines(
+      splitEdit.splitLines,
+      categoryOptions,
+    );
+
+    if (splitLines.length < 2) {
+      setError(
+        "A split transaction requires at least two complete category lines.",
+      );
+      return;
+    }
+
+    if (splitEdit.target === "matched") {
+      updateMatchedTransactionDetails(candidate.id, {
+        category: "Split",
+        categoryId: undefined,
+        transferAccountId: undefined,
+        transferTransactionId: undefined,
+        splitLines,
+      });
+    } else {
+      updateCandidateProposal(candidate.id, {
+        categoryName: "Split",
+        transferAccountName: null,
+        splitLines,
+      });
+    }
+
+    setSplitEdit(null);
+    setError(null);
+  }
+
+  function clearProposalSplit(candidateId: string, categoryName: string | null) {
+    updateCandidateProposal(candidateId, {
+      categoryName,
+      transferAccountName: null,
+      splitLines: undefined,
+    });
+  }
+
   function beginProposedTransactionEdit(
     candidateId: string,
     field: ProposedTransactionEditField,
@@ -1472,10 +1680,16 @@ export function TransactionImportDialog({
         importedCategoryName: built.proposal.categoryName ?? undefined,
       });
     } else {
-      updateCandidateDetails(candidateId, {
-        importedCategoryName: value || undefined,
-        transferAccountName: undefined,
-      });
+      const currentCandidate = candidates.find(
+        (candidate) => candidate.id === candidateId,
+      );
+
+      if (value === "Split" && currentCandidate) {
+        beginProposalSplitEdit(currentCandidate);
+        return;
+      }
+
+      clearProposalSplit(candidateId, value || null);
     }
     setProposedTransactionEdit(null);
   }
@@ -2840,18 +3054,21 @@ export function TransactionImportDialog({
                                 onCreateCategory={onCreateCategory}
                                 onChange={updateProposedTransactionDraft}
                                 onSelection={(value) => {
+                                  if (value === "Split") {
+                                    beginMatchedSplitEdit(candidate);
+                                    return;
+                                  }
+
                                   const selectedCategory = categoryOptions.find(
                                     (category) => category.name === value,
                                   );
+
                                   updateMatchedTransactionDetails(candidate.id, {
                                     category: value,
-                                    categoryId:
-                                      value === "Split"
-                                        ? undefined
-                                        : selectedCategory?.id,
-                                    splitLines: value === "Split"
-                                      ? candidate.matchedTransaction?.splitLines
-                                      : undefined,
+                                    categoryId: selectedCategory?.id,
+                                    transferAccountId: undefined,
+                                    transferTransactionId: undefined,
+                                    splitLines: undefined,
                                   });
                                   setProposedTransactionEdit(null);
                                 }}
@@ -2901,6 +3118,59 @@ export function TransactionImportDialog({
                     </div>
                   ) : null}
 
+                  {splitEdit?.candidateId === candidate.id ? (
+                    <div className="transaction-import-split-editor">
+                      <RegisterSplitEditor
+                        splitLines={splitEdit.splitLines}
+                        setSplitLines={updateSplitEditLines}
+                        categoryOptions={categoryOptions}
+                        parentOutflow={
+                          splitEdit.target === "matched"
+                            ? candidate.matchedTransaction?.outflow ?? 0
+                            : getCandidateProposalTransaction(candidate).outflow
+                        }
+                        parentInflow={
+                          splitEdit.target === "matched"
+                            ? candidate.matchedTransaction?.inflow ?? 0
+                            : getCandidateProposalTransaction(candidate).inflow
+                        }
+                        currencyCode={currencyCode}
+                        visibleColumnIds={IMPORT_SPLIT_VISIBLE_COLUMN_IDS}
+                        rowStyle={{}}
+                        layoutMode="desktop"
+                        onCreateCategory={onCreateCategory}
+                      >
+                        <button
+                          className="button button-primary"
+                          type="button"
+                          disabled={
+                            splitEdit.splitLines.length < 2 ||
+                            hasIncompleteSplitDrafts(splitEdit.splitLines) ||
+                            !isSplitDraftBalanced(
+                              splitEdit.target === "matched"
+                                ? candidate.matchedTransaction?.outflow ?? 0
+                                : getCandidateProposalTransaction(candidate).outflow,
+                              splitEdit.target === "matched"
+                                ? candidate.matchedTransaction?.inflow ?? 0
+                                : getCandidateProposalTransaction(candidate).inflow,
+                              splitEdit.splitLines,
+                            )
+                          }
+                          onClick={() => applySplitEdit(candidate)}
+                        >
+                          Apply Split
+                        </button>
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          onClick={cancelSplitEdit}
+                        >
+                          Cancel Split
+                        </button>
+                      </RegisterSplitEditor>
+                    </div>
+                  ) : null}
+
                   {candidate.status === "exact-match" ? (
                     <>
                       <div className="transaction-import-edit-actions">
@@ -2918,12 +3188,24 @@ export function TransactionImportDialog({
                         >
                           Edit Category
                         </button>
+                        {candidate.matchedTransaction?.splitLines?.length ? (
+                          <button
+                            className="button button-secondary"
+                            type="button"
+                            onClick={() => beginMatchedSplitEdit(candidate)}
+                          >
+                            Edit Split
+                          </button>
+                        ) : null}
                       </div>
                       <div className="transaction-import-match-actions">
                       <button
                         className="button button-primary"
                         type="button"
-                        disabled={Boolean(processingCandidate)}
+                        disabled={
+                          Boolean(processingCandidate) ||
+                          splitEdit?.candidateId === candidate.id
+                        }
                         onClick={() => acceptMatchedCandidate(candidate.id)}
                       >
                         {matchedTransactionOrigins[candidate.id]
@@ -3016,7 +3298,7 @@ export function TransactionImportDialog({
                             <RegisterCategoryInput
                               value={activeProposedTransactionEdit.draftValue}
                               categoryOptions={categoryOptions}
-                              includeSplitOption={false}
+                              includeSplitOption
                               autoFocus
                               openOnFocus
                               onCreateCategory={onCreateCategory}
@@ -3066,6 +3348,7 @@ export function TransactionImportDialog({
                         type="button"
                         disabled={
                           Boolean(processingCandidate) ||
+                          splitEdit?.candidateId === candidate.id ||
                           !canImportReviewedCandidate(
                           candidate,
                           transferAccountNames,

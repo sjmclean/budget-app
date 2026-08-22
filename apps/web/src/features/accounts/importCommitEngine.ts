@@ -2,6 +2,7 @@ import type { SidebarAccount } from "./accountService";
 import { RegisterTransactionBatchCommitError } from "./accountRegisterPersistencePort";
 import type {
   NewRegisterTransactionInput,
+  RegisterSplitLineView,
   RegisterTransactionView,
 } from "./accountRegisterTypes";
 import {
@@ -38,6 +39,7 @@ import {
   stableImportTransactionId,
   type PlannedImportRegisterTransactionInput,
 } from "./transactionImportCommit";
+import { isSplitBalanced } from "./registerSplitDrafts";
 import type {
   RegisterTransactionImportPayeeCreation,
   RegisterTransactionImportProvenanceAssignment,
@@ -171,6 +173,7 @@ export type ImportCommitVerificationIssueCode =
   | "invalid-transaction-amount"
   | "invalid-transfer"
   | "invalid-category-reference"
+  | "invalid-split"
   | "invalid-import-identity"
   | "invalid-statistics";
 
@@ -331,7 +334,11 @@ function learnFromCommittedCandidates(
           observedAt,
         });
       }
-    } else if (proposal.categoryName) {
+    } else if (
+      !proposal.splitLines?.length &&
+      proposal.categoryName &&
+      proposal.categoryName !== "Split"
+    ) {
       store = recordMerchantCategoryEvidence({
         store,
         merchantName,
@@ -371,7 +378,11 @@ function learnFromCommittedCandidates(
       accountId: session.accountId,
       observedAt,
     });
-    if (candidate.matchedTransaction.category) {
+    if (
+      candidate.matchedTransaction.category &&
+      candidate.matchedTransaction.category !== "Split" &&
+      !candidate.matchedTransaction.splitLines?.length
+    ) {
       store = recordMerchantCategoryEvidence({
         store,
         merchantName: payee,
@@ -729,12 +740,227 @@ export function verifyImportCommitPlan(
     }
   };
 
+  const verifySplitTransaction = (
+    transaction: {
+      id?: string;
+      category: string;
+      categoryId?: string;
+      transferAccountId?: string;
+      inflow: number;
+      outflow: number;
+      splitLines?: RegisterSplitLineView[];
+    },
+    label: string,
+  ): boolean => {
+    const splitLines = transaction.splitLines ?? [];
+    const declaresSplit = transaction.category === "Split";
+    const hasSplitLines = splitLines.length > 0;
+
+    if (!declaresSplit && !hasSplitLines) {
+      return false;
+    }
+
+    if (!declaresSplit || !hasSplitLines) {
+      addIssue({
+        code: "invalid-split",
+        transactionId: transaction.id,
+        message:
+          `${label} must use category Split exactly when split lines are present.`,
+      });
+      return true;
+    }
+
+    if (transaction.categoryId !== undefined) {
+      addIssue({
+        code: "invalid-split",
+        transactionId: transaction.id,
+        message: `${label} cannot carry a parent category ID when split.`,
+      });
+    }
+
+    if (transaction.transferAccountId) {
+      addIssue({
+        code: "invalid-split",
+        transactionId: transaction.id,
+        message:
+          `${label} cannot be both a parent transfer and a split transaction.`,
+      });
+    }
+
+    if (splitLines.length < 2) {
+      addIssue({
+        code: "invalid-split",
+        transactionId: transaction.id,
+        message: `${label} requires at least two split lines.`,
+      });
+    }
+
+    const splitIds = new Set<string>();
+
+    for (const [splitIndex, line] of splitLines.entries()) {
+      const splitLabel = `${label} split ${splitIndex + 1}`;
+      const splitId = line.id?.trim();
+
+      if (!splitId) {
+        addIssue({
+          code: "invalid-split",
+          transactionId: transaction.id,
+          message: `${splitLabel} requires a stable split-line ID.`,
+        });
+      } else if (splitIds.has(splitId)) {
+        addIssue({
+          code: "invalid-split",
+          transactionId: transaction.id,
+          message: `${label} contains duplicate split-line ID ${splitId}.`,
+        });
+      } else {
+        splitIds.add(splitId);
+      }
+
+      if (
+        !Number.isFinite(line.inflow) ||
+        !Number.isFinite(line.outflow) ||
+        line.inflow < 0 ||
+        line.outflow < 0 ||
+        (line.inflow > 0 && line.outflow > 0) ||
+        (line.inflow === 0 && line.outflow === 0)
+      ) {
+        addIssue({
+          code: "invalid-split",
+          transactionId: transaction.id,
+          message:
+            `${splitLabel} must contain exactly one positive inflow or outflow.`,
+        });
+      }
+
+      if (!line.category.trim()) {
+        addIssue({
+          code: "invalid-split",
+          transactionId: transaction.id,
+          message: `${splitLabel} requires a category.`,
+        });
+        continue;
+      }
+
+      if (line.category === "Split") {
+        addIssue({
+          code: "invalid-split",
+          transactionId: transaction.id,
+          message: `${splitLabel} cannot itself use category Split.`,
+        });
+        continue;
+      }
+
+      /*
+       * Existing register split lines can represent transfer participation.
+       * Preserve that capability while still requiring a valid destination.
+       */
+      if (line.transferAccountId) {
+        const destination = accountById.get(line.transferAccountId);
+
+        if (
+          !destination ||
+          destination.id === session.accountId ||
+          line.categoryId !== undefined
+        ) {
+          addIssue({
+            code: "invalid-split",
+            transactionId: transaction.id,
+            message:
+              `${splitLabel} contains an invalid split transfer destination.`,
+          });
+        }
+
+        continue;
+      }
+
+      if (line.transferTransactionId) {
+        addIssue({
+          code: "invalid-split",
+          transactionId: transaction.id,
+          message:
+            `${splitLabel} has transfer transaction metadata without a transfer account.`,
+        });
+        continue;
+      }
+
+      if (line.category === "Uncategorised") {
+        if (line.categoryId !== undefined) {
+          addIssue({
+            code: "invalid-split",
+            transactionId: transaction.id,
+            message:
+              `${splitLabel} cannot attach a category ID to Uncategorised.`,
+          });
+        }
+        continue;
+      }
+
+      if (line.category === "Ready to Assign") {
+        if (
+          line.categoryId !== "__ready_to_assign__" ||
+          line.inflow <= 0 ||
+          line.outflow !== 0
+        ) {
+          addIssue({
+            code: "invalid-split",
+            transactionId: transaction.id,
+            message: `${splitLabel} uses Ready to Assign incorrectly.`,
+          });
+        }
+        continue;
+      }
+
+      const byName = categoryByName.get(
+        line.category.trim().toLocaleLowerCase(),
+      );
+      const byId = line.categoryId
+        ? categoryById.get(line.categoryId)
+        : undefined;
+
+      if (!byName || !byId || byName.id !== byId.id) {
+        addIssue({
+          code: "invalid-split",
+          transactionId: transaction.id,
+          message:
+            `${splitLabel} references an unavailable or inconsistent category.`,
+        });
+      }
+    }
+
+    if (
+      !isSplitBalanced(
+        transaction.outflow,
+        transaction.inflow,
+        splitLines,
+      )
+    ) {
+      addIssue({
+        code: "invalid-split",
+        transactionId: transaction.id,
+        message: `${label} split lines do not balance to the parent amount.`,
+      });
+    }
+
+    return true;
+  };
+
   for (const [index, transaction] of plan.additions.entries()) {
     verifyMoney(transaction, `Addition ${index + 1}`);
     const isTransfer = transaction.payee.startsWith("Transfer: ");
     if (isTransfer) {
       const destinationName = transaction.payee.slice("Transfer: ".length).trim();
       const destination = session.accounts.find((account) => account.name === destinationName);
+
+      if (transaction.splitLines?.length) {
+        addIssue({
+          code: "invalid-split",
+          transactionId: transaction.id,
+          message:
+            `Addition ${index + 1} cannot be both a transfer and a split transaction.`,
+        });
+      }
+
       if (
         transaction.category !== "Transfer" ||
         transaction.categoryId !== undefined ||
@@ -747,6 +973,10 @@ export function verifyImportCommitPlan(
           message: `Addition ${index + 1} has an invalid transfer destination or category.`,
         });
       }
+      continue;
+    }
+
+    if (verifySplitTransaction(transaction, `Addition ${index + 1}`)) {
       continue;
     }
 
@@ -792,9 +1022,14 @@ export function verifyImportCommitPlan(
       });
     }
 
+    const isVerifiedSplit = verifySplitTransaction(
+      transaction,
+      `Register update ${transaction.id}`,
+    );
+
     if (
+      !isVerifiedSplit &&
       transaction.category !== "Transfer" &&
-      transaction.category !== "Split" &&
       transaction.category !== "Uncategorised" &&
       transaction.category !== "Ready to Assign"
     ) {
