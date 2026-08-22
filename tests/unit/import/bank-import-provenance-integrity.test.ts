@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 
 import {
   commitImportSession,
   ImportCommitExecutionError,
   prepareImportCommit,
+  verifyImportCommitPlan,
   type ImportCommitSession,
 } from "../../../apps/web/src/features/accounts/importCommitEngine.js";
 import type {
@@ -379,4 +381,255 @@ test("missing prepared source identity fails before any register mutation begins
   } finally {
     resetBudgetPersistenceProvider();
   }
+});
+
+
+test("payee resolution preserves the stable imported transaction ID and provenance target", async () => {
+  configureBudgetPersistenceProvider({
+    metadata: {
+      kind: "local-database",
+      label: "test",
+      description: "test",
+      isProductionPersistence: false,
+    },
+    capabilities: {
+      sharedAcrossDevices: false,
+      liveUpdates: false,
+      offlineWrites: true,
+      backups: false,
+    },
+    keyValueStorage: createMemoryStorage(),
+  } as never);
+
+  try {
+    const candidate = newCandidate();
+    const session = importedSession(candidate);
+
+    let capturedAdditionId: string | undefined;
+    let capturedProvenanceTransactionId: string | undefined;
+    let resolveCalls = 0;
+
+    await commitImportSession(session, {
+      resolvePayee: async (name) => {
+        resolveCalls += 1;
+        assert.equal(name, "Example Merchant");
+        return {
+          id: "payee-example",
+          name: "Example Merchant",
+        };
+      },
+      commitTransactionBatch: async (
+        _accountId,
+        additions,
+        _updates,
+        provenanceAssignments,
+      ) => {
+        assert.equal(additions.length, 1);
+        assert.equal(provenanceAssignments.length, 1);
+
+        capturedAdditionId = additions[0]?.id;
+        capturedProvenanceTransactionId =
+          provenanceAssignments[0]?.transactionId;
+
+        assert.equal(additions[0]?.payeeId, "payee-example");
+      },
+      addTransactions: async () => {
+        assert.fail("legacy add path must not run");
+      },
+      updateTransactions: async () => {
+        assert.fail("legacy update path must not run");
+      },
+    });
+
+    const expectedTransactionId = stableImportTransactionId(
+      candidate,
+      session.file.fileHash!,
+    );
+
+    assert.equal(resolveCalls, 1);
+    assert.equal(capturedAdditionId, expectedTransactionId);
+    assert.equal(
+      capturedProvenanceTransactionId,
+      expectedTransactionId,
+    );
+  } finally {
+    resetBudgetPersistenceProvider();
+  }
+});
+
+test("repeated unknown payee resolutions share one in-flight creation", async () => {
+  configureBudgetPersistenceProvider({
+    metadata: {
+      kind: "local-database",
+      label: "test",
+      description: "test",
+      isProductionPersistence: false,
+    },
+    capabilities: {
+      sharedAcrossDevices: false,
+      liveUpdates: false,
+      offlineWrites: true,
+      backups: false,
+    },
+    keyValueStorage: createMemoryStorage(),
+  } as never);
+
+  try {
+    const first = newCandidate();
+    const second: TransactionImportCandidate = {
+      ...newCandidate(),
+      id: "row-3",
+      parsed: {
+        ...newCandidate().parsed,
+        rowNumber: 3,
+      },
+      lifecycle: {
+        ...newCandidate().lifecycle,
+        source: {
+          ...newCandidate().lifecycle.source,
+          rowNumber: 3,
+        },
+      },
+    };
+
+    const fileHash = "sha256:shared-payee-fixture";
+    const candidates = [first, second];
+
+    const session: ImportCommitSession = {
+      ...importedSession(first),
+      importedCandidates: candidates,
+      completedSourceCandidates: candidates,
+      sourceIdentities: buildTransactionImportSourceIdentities(
+        "csv",
+        candidates,
+      ),
+      file: {
+        ...importedSession(first).file,
+        fileHash,
+      },
+    };
+
+    let resolveCalls = 0;
+
+    await commitImportSession(session, {
+      resolvePayee: async () => {
+        resolveCalls += 1;
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        return {
+          id: "payee-example",
+          name: "Example Merchant",
+        };
+      },
+      commitTransactionBatch: async (
+        _accountId,
+        additions,
+        _updates,
+        provenanceAssignments,
+      ) => {
+        assert.equal(additions.length, 2);
+        assert.equal(provenanceAssignments.length, 2);
+        assert.equal(additions[0]?.payeeId, "payee-example");
+        assert.equal(additions[1]?.payeeId, "payee-example");
+      },
+      addTransactions: async () => {
+        assert.fail("legacy add path must not run");
+      },
+      updateTransactions: async () => {
+        assert.fail("legacy update path must not run");
+      },
+    });
+
+    assert.equal(
+      resolveCalls,
+      1,
+      "identical unresolved payees must share one in-flight resolution",
+    );
+  } finally {
+    resetBudgetPersistenceProvider();
+  }
+});
+
+test("commit-plan verification rejects addition and provenance identity divergence", () => {
+  const candidate = newCandidate();
+  const session = importedSession(candidate);
+  const plan = prepareImportCommit(session);
+  const addition = plan.additions[0];
+
+  assert.ok(addition);
+
+  const corruptedTransactionId = "import-corrupted-row-2";
+  const verification = verifyImportCommitPlan(session, {
+    additions: [
+      {
+        ...addition,
+        id: corruptedTransactionId,
+      },
+    ],
+    matchedTransactionUpdates: plan.matchedTransactionUpdates,
+    provenanceAssignments: plan.provenanceAssignments,
+    payeeCreations: plan.payeeCreations,
+  });
+
+  assert.equal(verification.valid, false);
+  assert.ok(
+    verification.issues.some(
+      (issue) =>
+        issue.code === "invalid-import-identity" &&
+        issue.candidateId === candidate.id,
+    ),
+    "the expected stable transaction ID must remain represented by the additions",
+  );
+  assert.ok(
+    verification.issues.some(
+      (issue) =>
+        issue.code === "invalid-import-identity" &&
+        issue.transactionId === plan.provenanceAssignments[0]?.transactionId,
+    ),
+    "provenance must not target a transaction absent from the prepared additions",
+  );
+});
+
+test("planned import transaction identity is enumerable and survives object spread", () => {
+  const candidate = newCandidate();
+  const session = importedSession(candidate);
+  const plan = prepareImportCommit(session);
+  const addition = plan.additions[0];
+
+  assert.ok(addition);
+  assert.ok(addition.id);
+
+  const descriptor = Object.getOwnPropertyDescriptor(addition, "id");
+
+  assert.equal(descriptor?.enumerable, true);
+  assert.equal(
+    { ...addition }.id,
+    addition.id,
+    "ordinary submission transformations must preserve import identity",
+  );
+});
+
+
+test("provenance-bearing register batch rejects additions without stable IDs", () => {
+  const source = fs.readFileSync(
+    new URL(
+      "../../../apps/web/src/features/accounts/useAccountRegister.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(
+    source,
+    /provenanceAssignments\.length > 0/,
+  );
+  assert.match(
+    source,
+    /additions\.find\([\s\S]*?!transaction\.id\?\.trim\(\)/,
+  );
+  assert.match(
+    source,
+    /An imported transaction lost its planned stable ID before persistence\./,
+  );
 });

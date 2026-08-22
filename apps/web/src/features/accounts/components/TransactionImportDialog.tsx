@@ -10,16 +10,21 @@ import {
   type RegisterInlineCategoryCreateInput,
 } from "./RegisterCategoryInput";
 import type { PayeeView } from "../payeeService";
+import { createRuntimeUuid } from "../../ids/createRuntimeUuid";
 import type { SidebarAccount } from "../accountService";
 import {
   commitImportSession,
   ImportCommitExecutionError,
+  type ImportPayeeResolution,
 } from "../importCommitEngine";
 import type {
   NewRegisterTransactionInput,
   RegisterTransactionView,
 } from "../accountRegisterTypes";
-import type { RegisterTransactionImportProvenanceAssignment } from "../../persistence/accountRegisterQueryContracts";
+import type {
+  RegisterTransactionImportPayeeCreation,
+  RegisterTransactionImportProvenanceAssignment,
+} from "../../persistence/accountRegisterQueryContracts";
 import {
   analyseTransactionCsvImport,
   createTransactionImportPerformanceReport,
@@ -255,7 +260,6 @@ export function TransactionImportDialog({
   payeeOptions,
   categoryOptions,
   transferAccounts,
-  onCreatePayee,
   onCreateCategory,
 }: {
   initialAccountId: string;
@@ -287,6 +291,7 @@ export function TransactionImportDialog({
     additions: NewRegisterTransactionInput[],
     updates: RegisterTransactionView[],
     provenanceAssignments: readonly RegisterTransactionImportProvenanceAssignment[],
+    payeeCreations: readonly RegisterTransactionImportPayeeCreation[],
   ) => Promise<void>;
   onImportCommitComplete?: (input: {
     accountId: string;
@@ -296,7 +301,6 @@ export function TransactionImportDialog({
   payeeOptions: PayeeView[];
   categoryOptions: BudgetCategoryOption[];
   transferAccounts: SidebarAccount[];
-  onCreatePayee?: (name: string) => Promise<PayeeView>;
   onCreateCategory?: (
     input: RegisterInlineCategoryCreateInput,
   ) => Promise<BudgetCategoryOption>;
@@ -1694,7 +1698,44 @@ export function TransactionImportDialog({
           },
         },
         {
-          resolvePayee: onCreatePayee,
+          resolvePayee: async (
+            name,
+          ): Promise<ImportPayeeResolution> => {
+            const normalisedName = name.replace(/\s+/g, " ").trim();
+            if (!normalisedName) {
+              throw new Error("Enter a payee name.");
+            }
+            if (
+              normalisedName.toLocaleLowerCase().startsWith("transfer:")
+            ) {
+              throw new Error(
+                "Transfer payees are created by choosing an account.",
+              );
+            }
+
+            const existing = payeeOptions.find(
+              (payee) =>
+                payee.name
+                  .replace(/\s+/g, " ")
+                  .trim()
+                  .toLocaleLowerCase() ===
+                normalisedName.toLocaleLowerCase(),
+            );
+
+            if (existing) {
+              return {
+                kind: "existing",
+                id: existing.id,
+                name: existing.name,
+              };
+            }
+
+            return {
+              kind: "create",
+              id: createRuntimeUuid(),
+              name: normalisedName,
+            };
+          },
           ...(onCommitRegisterChanges
             ? { commitTransactionBatch: onCommitRegisterChanges }
             : {}),

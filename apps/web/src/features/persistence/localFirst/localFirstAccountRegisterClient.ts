@@ -745,6 +745,240 @@ export function createLocalFirstAccountRegisterQueryClient(
     return records.map((record) => transactionWrite(record));
   }
 
+  type TransactionBatchPreparationInput = Pick<
+    Parameters<AccountRegisterQueryClient["commitImportBatch"]>[0],
+    | "budgetId"
+    | "accountId"
+    | "additions"
+    | "updates"
+    | "provenanceAssignments"
+  >;
+
+  async function prepareTransactionBatchWrites(
+    local: LocalBudgetDatabaseClient,
+    input: TransactionBatchPreparationInput,
+  ): Promise<{
+    readonly writes: {
+      readonly transaction: LocalTransactionRecord;
+      readonly mutation: LocalBudgetMutation;
+    }[];
+    readonly requireAbsentTransactionIds: string[];
+  }> {
+    const writes: {
+      transaction: LocalTransactionRecord;
+      mutation: LocalBudgetMutation;
+    }[] = [];
+    const requireAbsentTransactionIds: string[] = [];
+    const additionIds = new Set<string>();
+
+    const provenanceByTransactionId = new Map<
+      string,
+      LocalTransactionRecord["importProvenance"][number][]
+    >();
+
+    for (const assignment of input.provenanceAssignments) {
+      if (!assignment.transactionId.trim()) {
+        throw new Error("Import provenance requires a transaction id.");
+      }
+
+      if (!assignment.identity.trim()) {
+        throw new Error(
+          `Import provenance for transaction ${assignment.transactionId} requires an identity.`,
+        );
+      }
+
+      if (
+        !Number.isInteger(assignment.occurrence) ||
+        assignment.occurrence < 1
+      ) {
+        throw new Error(
+          `Import provenance for transaction ${assignment.transactionId} has an invalid occurrence.`,
+        );
+      }
+
+      const existingAssignments =
+        provenanceByTransactionId.get(assignment.transactionId) ?? [];
+
+      existingAssignments.push({
+        fileType: assignment.fileType,
+        identity: assignment.identity,
+        occurrence: assignment.occurrence,
+        importedAt: assignment.importedAt,
+      });
+
+      provenanceByTransactionId.set(
+        assignment.transactionId,
+        existingAssignments,
+      );
+    }
+
+    const appendImportProvenance = (
+      record: LocalTransactionRecord,
+    ): LocalTransactionRecord => {
+      const additions = provenanceByTransactionId.get(record.id);
+      if (!additions || additions.length === 0) {
+        return record;
+      }
+
+      const seen = new Set(
+        record.importProvenance.map(
+          (entry) =>
+            `${entry.fileType}\u0000${entry.identity}\u0000${entry.occurrence}`,
+        ),
+      );
+
+      const importProvenance = [...record.importProvenance];
+
+      for (const entry of additions) {
+        const key =
+          `${entry.fileType}\u0000${entry.identity}\u0000${entry.occurrence}`;
+
+        if (seen.has(key)) {
+          continue;
+        }
+
+        seen.add(key);
+        importProvenance.push(entry);
+      }
+
+      return {
+        ...record,
+        importProvenance,
+      };
+    };
+
+    const provenanceAppliedTransactionIds = new Set<string>();
+
+    for (const addition of input.additions) {
+      if (additionIds.has(addition.id)) {
+        throw new Error(
+          `Transaction ${addition.id} appears more than once in the additions batch.`,
+        );
+      }
+
+      additionIds.add(addition.id);
+
+      const records = (
+        await buildNewTransactionRecords(
+          local,
+          addition.id,
+          addition,
+        )
+      ).map((record) => {
+        const next = appendImportProvenance(record);
+
+        if (next !== record) {
+          provenanceAppliedTransactionIds.add(record.id);
+        }
+
+        return next;
+      });
+
+      requireAbsentTransactionIds.push(
+        ...records.map((record) => record.id),
+      );
+
+      writes.push(...transactionWrites(records));
+    }
+
+    for (const update of input.updates) {
+      const existing = await local.getTransaction(
+        input.budgetId,
+        update.id,
+      );
+
+      if (!existing) {
+        throw new Error("The local transaction was not found.");
+      }
+
+      const records = (
+        await buildUpdatedTransactionRecords(
+          local,
+          update.id,
+          update,
+          existing,
+        )
+      ).map((record) => {
+        const next = appendImportProvenance(record);
+
+        if (next !== record) {
+          provenanceAppliedTransactionIds.add(record.id);
+        }
+
+        return next;
+      });
+
+      writes.push(...transactionWrites(records));
+    }
+
+    for (const [
+      transactionId,
+      assignments,
+    ] of provenanceByTransactionId.entries()) {
+      if (provenanceAppliedTransactionIds.has(transactionId)) {
+        continue;
+      }
+
+      if (additionIds.has(transactionId)) {
+        throw new Error(
+          `Import provenance for new transaction ${transactionId} was not attached to its addition record.`,
+        );
+      }
+
+      const existing = await local.getTransaction(
+        input.budgetId,
+        transactionId,
+      );
+
+      if (!existing) {
+        throw new Error(
+          `Import provenance targets missing transaction ${transactionId}.`,
+        );
+      }
+
+      if (existing.accountId !== input.accountId) {
+        throw new Error(
+          `Import provenance targets transaction ${transactionId} outside the destination account.`,
+        );
+      }
+
+      requireMutableTransaction(existing);
+
+      const updated: LocalTransactionRecord =
+        appendImportProvenance({
+          ...existing,
+          updatedAt: new Date().toISOString(),
+        });
+
+      if (
+        updated.importProvenance.length ===
+          existing.importProvenance.length &&
+        assignments.length > 0
+      ) {
+        // Every requested provenance row was already represented. No write is
+        // required, but the assignment is still valid and satisfied.
+        provenanceAppliedTransactionIds.add(transactionId);
+        continue;
+      }
+
+      provenanceAppliedTransactionIds.add(transactionId);
+      writes.push(...transactionWrites([updated]));
+    }
+
+    for (const transactionId of provenanceByTransactionId.keys()) {
+      if (!provenanceAppliedTransactionIds.has(transactionId)) {
+        throw new Error(
+          `Import provenance for transaction ${transactionId} was not applied.`,
+        );
+      }
+    }
+
+    return {
+      writes,
+      requireAbsentTransactionIds,
+    };
+  }
+
   function journalMutation(value: LocalBudgetMutation) {
     const key = `local-first/${value.domain}/${value.entityId}`;
     return value.operation === "delete"
@@ -1346,186 +1580,77 @@ export function createLocalFirstAccountRegisterQueryClient(
     },
     async commitTransactionBatch(input) {
       const local = await requireDatabase(input.budgetId);
-      const writes: {
-        transaction: LocalTransactionRecord;
-        mutation: LocalBudgetMutation;
-      }[] = [];
-      const requireAbsentTransactionIds: string[] = [];
-      const additionIds = new Set<string>();
-      const provenanceByTransactionId = new Map<
-        string,
-        LocalTransactionRecord["importProvenance"][number][]
-      >();
 
-      for (const assignment of input.provenanceAssignments) {
-        if (!assignment.transactionId.trim()) {
-          throw new Error("Import provenance requires a transaction id.");
-        }
-        if (!assignment.identity.trim()) {
-          throw new Error(
-            `Import provenance for transaction ${assignment.transactionId} requires an identity.`,
-          );
-        }
-        if (!Number.isInteger(assignment.occurrence) || assignment.occurrence < 1) {
-          throw new Error(
-            `Import provenance for transaction ${assignment.transactionId} has an invalid occurrence.`,
-          );
-        }
-
-        const existingAssignments =
-          provenanceByTransactionId.get(assignment.transactionId) ?? [];
-        existingAssignments.push({
-          fileType: assignment.fileType,
-          identity: assignment.identity,
-          occurrence: assignment.occurrence,
-          importedAt: assignment.importedAt,
-        });
-        provenanceByTransactionId.set(
-          assignment.transactionId,
-          existingAssignments,
-        );
-      }
-
-      const appendImportProvenance = (
-        record: LocalTransactionRecord,
-      ): LocalTransactionRecord => {
-        const additions = provenanceByTransactionId.get(record.id);
-        if (!additions || additions.length === 0) return record;
-
-        const seen = new Set(
-          record.importProvenance.map(
-            (entry) =>
-              `${entry.fileType}\u0000${entry.identity}\u0000${entry.occurrence}`,
-          ),
-        );
-        const importProvenance = [...record.importProvenance];
-
-        for (const entry of additions) {
-          const key =
-            `${entry.fileType}\u0000${entry.identity}\u0000${entry.occurrence}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          importProvenance.push(entry);
-        }
-
-        return {
-          ...record,
-          importProvenance,
-        };
-      };
-
-      const provenanceAppliedTransactionIds = new Set<string>();
-
-      for (const addition of input.additions) {
-        if (additionIds.has(addition.id)) {
-          throw new Error(
-            `Transaction ${addition.id} appears more than once in the additions batch.`,
-          );
-        }
-        additionIds.add(addition.id);
-
-        const records = (
-          await buildNewTransactionRecords(
-            local,
-            addition.id,
-            addition,
-          )
-        ).map((record) => {
-          const next = appendImportProvenance(record);
-          if (next !== record) provenanceAppliedTransactionIds.add(record.id);
-          return next;
-        });
-        requireAbsentTransactionIds.push(
-          ...records.map((record) => record.id),
-        );
-        writes.push(...transactionWrites(records));
-      }
-
-      for (const update of input.updates) {
-        const existing = await local.getTransaction(input.budgetId, update.id);
-        if (!existing) {
-          throw new Error("The local transaction was not found.");
-        }
-
-        const records = (
-          await buildUpdatedTransactionRecords(
-            local,
-            update.id,
-            update,
-            existing,
-          )
-        ).map((record) => {
-          const next = appendImportProvenance(record);
-          if (next !== record) provenanceAppliedTransactionIds.add(record.id);
-          return next;
-        });
-        writes.push(...transactionWrites(records));
-      }
-
-      for (const [
-        transactionId,
-        assignments,
-      ] of provenanceByTransactionId.entries()) {
-        if (provenanceAppliedTransactionIds.has(transactionId)) continue;
-
-        if (additionIds.has(transactionId)) {
-          throw new Error(
-            `Import provenance for new transaction ${transactionId} was not attached to its addition record.`,
-          );
-        }
-
-        const existing = await local.getTransaction(
-          input.budgetId,
-          transactionId,
-        );
-        if (!existing) {
-          throw new Error(
-            `Import provenance targets missing transaction ${transactionId}.`,
-          );
-        }
-        if (existing.accountId !== input.accountId) {
-          throw new Error(
-            `Import provenance targets transaction ${transactionId} outside the destination account.`,
-          );
-        }
-
-        requireMutableTransaction(existing);
-
-        const updated: LocalTransactionRecord = appendImportProvenance({
-          ...existing,
-          updatedAt: new Date().toISOString(),
-        });
-
-        if (
-          updated.importProvenance.length === existing.importProvenance.length &&
-          assignments.length > 0
-        ) {
-          // Every requested provenance row was already represented. No write is
-          // required, but the assignment is still valid and satisfied.
-          provenanceAppliedTransactionIds.add(transactionId);
-          continue;
-        }
-
-        provenanceAppliedTransactionIds.add(transactionId);
-        writes.push(...transactionWrites([updated]));
-      }
-
-      for (const transactionId of provenanceByTransactionId.keys()) {
-        if (!provenanceAppliedTransactionIds.has(transactionId)) {
-          throw new Error(
-            `Import provenance for transaction ${transactionId} was not applied.`,
-          );
-        }
-      }
+      const {
+        writes,
+        requireAbsentTransactionIds,
+      } = await prepareTransactionBatchWrites(local, input);
 
       await local.writeTransactionBatch(writes, {
         requireAbsentTransactionIds,
-        verifyWrittenTransactions: true,
+        verifyWrittenTransactions:
+          input.provenanceAssignments.length > 0,
       });
+
       if (writes.length > 0) {
         notifyLocalFirstMutationCommitted(input.budgetId);
       }
     },
+
+    async commitImportBatch(input) {
+      const local = await requireDatabase(input.budgetId);
+
+      const {
+        writes,
+        requireAbsentTransactionIds,
+      } = await prepareTransactionBatchWrites(local, input);
+
+      const payeeWrites = input.payeeCreations.map((creation) => {
+        const now = new Date().toISOString();
+        const name = creation.name.replace(/\s+/g, " ").trim();
+
+        if (!creation.id.trim() || !name) {
+          throw new Error(
+            "A staged import payee requires both an ID and a name.",
+          );
+        }
+
+        const payee: LocalPayeeRecord = {
+          id: creation.id,
+          budgetId: input.budgetId,
+          name,
+          note: "",
+          archived: false,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        return {
+          payee,
+          mutation: mutation(
+            input.budgetId,
+            "payees",
+            payee.id,
+            "upsert",
+            payee,
+          ),
+        };
+      });
+
+      await local.writeImportBatch(
+        payeeWrites,
+        writes,
+        {
+          requireAbsentTransactionIds,
+          verifyWrittenTransactions: true,
+        },
+      );
+
+      if (payeeWrites.length > 0 || writes.length > 0) {
+        notifyLocalFirstMutationCommitted(input.budgetId);
+      }
+    },
+
     async moveTransactions(input) {
       const local = await requireDatabase(input.budgetId);
       const writes: {

@@ -13,10 +13,13 @@ export interface BuildRegisterTransactionsFromImportOptions {
   identityScope?: string;
 }
 
+export type PlannedImportRegisterTransactionInput =
+  NewRegisterTransactionInput & { id: string };
+
 export function buildRegisterTransactionsFromImport(
   candidates: TransactionImportCandidate[],
   options: BuildRegisterTransactionsFromImportOptions = {},
-): NewRegisterTransactionInput[] {
+): PlannedImportRegisterTransactionInput[] {
   const selectedCandidates = candidates.filter(
     (candidate) => candidate.selected && candidate.status === "new",
   );
@@ -37,7 +40,7 @@ function toRegisterTransactionInput(
   candidate: TransactionImportCandidate,
   options: BuildRegisterTransactionsFromImportOptions,
   identityScope: string,
-): NewRegisterTransactionInput {
+): PlannedImportRegisterTransactionInput {
   const { parsed } = candidate;
   const proposal = candidate.lifecycle.proposal;
   const requestedTransferAccountName =
@@ -67,7 +70,8 @@ function toRegisterTransactionInput(
     : resolvedCategory?.name ??
       (isReadyToAssignIncome ? "Ready to Assign" : "Uncategorised");
 
-  const transaction: NewRegisterTransactionInput = {
+  const transaction: PlannedImportRegisterTransactionInput = {
+    id: stableImportTransactionId(candidate, identityScope),
     date: parsed.date,
     rawPayee: candidate.lifecycle.source.rawPayee,
     payee: isTransfer
@@ -84,12 +88,6 @@ function toRegisterTransactionInput(
     inflow: parsed.inflow,
   };
 
-  // Keep the stable commit-plan identity available to persistence without
-  // changing the enumerable command shape consumed by older integrations.
-  Object.defineProperty(transaction, "id", {
-    value: stableImportTransactionId(candidate, identityScope),
-    enumerable: false,
-  });
   return transaction;
 }
 

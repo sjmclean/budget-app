@@ -1813,7 +1813,6 @@ export function AccountRegisterPage() {
             payeeOptions={payeeOptions}
             categoryOptions={categoryOptions}
             transferAccounts={transferAccounts}
-            onCreatePayee={createInlinePayee}
             onCreateCategory={createInlineCategory}
             onClose={() => {
               setIsTransactionImportOpen(false);
@@ -1952,6 +1951,7 @@ export function AccountRegisterPage() {
               additions,
               transactions,
               provenanceAssignments,
+              payeeCreations,
             ) => {
               const updates = transactions.map((transaction) => ({
                 id: transaction.id,
@@ -1959,6 +1959,7 @@ export function AccountRegisterPage() {
                 tagIds: transaction.tagIds,
                 payee: transaction.payee,
                 payeeId: transaction.payeeId,
+                rawPayee: transaction.rawPayee,
                 category: transaction.category,
                 categoryId: transaction.categoryId,
                 memo: transaction.memo,
@@ -1973,13 +1974,23 @@ export function AccountRegisterPage() {
                   additions,
                   updates,
                   provenanceAssignments,
+                  payeeCreations,
                 });
                 return;
               }
 
               const queries = persistenceGateway.accountRegisterQueries;
               if (storageMode === "sqlite" && activeBudgetId && queries) {
-                await queries.commitTransactionBatch({
+                if (
+                  provenanceAssignments.length > 0 &&
+                  additions.some((transaction) => !transaction.id?.trim())
+                ) {
+                  throw new Error(
+                    "An imported transaction lost its planned stable ID before persistence.",
+                  );
+                }
+
+                await queries.commitImportBatch({
                   budgetId: activeBudgetId,
                   accountId: destinationAccountId,
                   additions: additions.map((transaction) => ({
@@ -1995,13 +2006,17 @@ export function AccountRegisterPage() {
                     ...toTransactionWriteInput(transaction),
                   })),
                   provenanceAssignments,
+                  payeeCreations,
                 });
                 return;
               }
 
-              if (provenanceAssignments.length > 0) {
+              if (
+                provenanceAssignments.length > 0 ||
+                payeeCreations.length > 0
+              ) {
                 throw new Error(
-                  "Import provenance requires SQLite transaction persistence.",
+                  "Import provenance or staged payee creation requires SQLite transaction persistence.",
                 );
               }
 

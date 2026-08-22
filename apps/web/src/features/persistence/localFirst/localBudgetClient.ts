@@ -13,6 +13,7 @@ import {
 } from "./contracts";
 import type {
   LocalRegisterImportBatch,
+  LocalPayeeRecord,
   LocalTransactionQuery,
   LocalTransactionAttachmentRecord,
   LocalTransactionRecord,
@@ -435,6 +436,38 @@ export class LocalBudgetDatabaseClient {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "writeTransactionBatch",
+      writes,
+      ...(options.requireAbsentTransactionIds?.length
+        ? {
+            requireAbsentTransactionIds:
+              options.requireAbsentTransactionIds,
+          }
+        : {}),
+      ...(options.verifyWrittenTransactions
+        ? { verifyWrittenTransactions: true }
+        : {}),
+    });
+  }
+
+  writeImportBatch(
+    payeeWrites: readonly {
+      readonly payee: LocalPayeeRecord;
+      readonly mutation: LocalBudgetMutation;
+    }[],
+    writes: readonly {
+      readonly transaction: LocalTransactionRecord;
+      readonly mutation: LocalBudgetMutation;
+      readonly resolveConflictId?: string;
+    }[],
+    options: {
+      readonly requireAbsentTransactionIds?: readonly string[];
+      readonly verifyWrittenTransactions?: boolean;
+    } = {},
+  ): Promise<LocalBudgetManifest> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "writeImportBatch",
+      payeeWrites,
       writes,
       ...(options.requireAbsentTransactionIds?.length
         ? {

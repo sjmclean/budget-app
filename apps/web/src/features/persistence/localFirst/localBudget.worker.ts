@@ -3094,18 +3094,22 @@ function writeTransaction(
   return currentManifest();
 }
 
-function writeTransactionBatch(
-  writes: readonly {
-    readonly transaction: LocalTransactionRecord;
-    readonly mutation: LocalBudgetMutation;
-    readonly resolveConflictId?: string;
-  }[],
+type TransactionBatchWrite = {
+  readonly transaction: LocalTransactionRecord;
+  readonly mutation: LocalBudgetMutation;
+  readonly resolveConflictId?: string;
+};
+
+type ImportPayeeWrite = {
+  readonly payee: import("./registerSchema").LocalPayeeRecord;
+  readonly mutation: LocalBudgetMutation;
+};
+
+function applyTransactionBatchInCurrentTransaction(
+  writes: readonly TransactionBatchWrite[],
   requireAbsentTransactionIds: readonly string[] = [],
   verifyWrittenTransactions = false,
-): LocalBudgetManifest {
-  for (const { mutation } of writes) assertMutationScope(mutation);
-  if (writes.length === 0) return currentManifest();
-
+): void {
   const requiredAbsentIds = new Set(requireAbsentTransactionIds);
   if (requiredAbsentIds.size !== requireAbsentTransactionIds.length) {
     throw workerError(
@@ -3122,135 +3126,361 @@ function writeTransactionBatch(
     );
   }
 
+  for (const transactionId of requiredAbsentIds) {
+    if (writeCounts.get(transactionId) !== 1) {
+      throw workerError(
+        "INVALID_TRANSACTION_BATCH",
+        `Transaction addition ${transactionId} must appear exactly once in the write batch.`,
+      );
+    }
+
+    const exists =
+      resultRows<{ found: number }>(
+        `SELECT 1 AS found
+         FROM local_transactions
+         WHERE budget_id = ? AND id = ?
+         LIMIT 1`,
+        [activeBudgetId, transactionId],
+      ).length > 0;
+
+    if (exists) {
+      throw workerError(
+        "TRANSACTION_ALREADY_EXISTS",
+        `Transaction ${transactionId} already exists and cannot be added again.`,
+      );
+    }
+  }
+
+  for (const { transaction, mutation, resolveConflictId } of writes) {
+    resolveLocalConflictInTransaction(resolveConflictId);
+
+    const previousMonth = resultRows<{ month: string }>(
+      "SELECT substr(date, 1, 7) AS month FROM local_transactions WHERE budget_id = ? AND id = ?",
+      [activeBudgetId, transaction.id],
+    )[0]?.month;
+
+    upsertTransaction(transaction);
+
+    markBudgetProjectionDirty(
+      previousMonth && previousMonth < transaction.date.slice(0, 7)
+        ? previousMonth
+        : transaction.date.slice(0, 7),
+    );
+
+    insertOutbox(mutation);
+  }
+
+  if (!verifyWrittenTransactions) return;
+
+  const normaliseTransactionRecord = (
+    transaction: LocalTransactionRecord,
+  ) => ({
+    id: transaction.id,
+    budgetId: transaction.budgetId,
+    accountId: transaction.accountId,
+    date: transaction.date,
+    amount: transaction.amount,
+    memo: transaction.memo,
+    checkNumber: transaction.checkNumber,
+    clearedStatus: transaction.clearedStatus,
+    payeeId: transaction.payeeId,
+    payeeName: transaction.payeeName,
+    rawPayeeName: transaction.rawPayeeName ?? null,
+    categoryId: transaction.categoryId,
+    categoryName: transaction.categoryName,
+    transferAccountId: transaction.transferAccountId,
+    transferTransactionId: transaction.transferTransactionId,
+    generatedFromSchedule: transaction.generatedFromSchedule,
+    scheduledTransactionId: transaction.scheduledTransactionId,
+    scheduledOccurrenceDate: transaction.scheduledOccurrenceDate,
+    splitLines: [...transaction.splitLines]
+      .map((line) => ({
+        id: line.id,
+        categoryId: line.categoryId,
+        categoryName: line.categoryName,
+        transferAccountId: line.transferAccountId,
+        transferTransactionId: line.transferTransactionId,
+        memo: line.memo,
+        amount: line.amount,
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id)),
+    tagIds: [...transaction.tagIds].sort(),
+    importProvenance: [...transaction.importProvenance]
+      .map((provenance) => ({
+        fileType: provenance.fileType,
+        identity: provenance.identity,
+        occurrence: provenance.occurrence,
+        importedAt: provenance.importedAt,
+      }))
+      .sort(
+        (left, right) =>
+          left.fileType.localeCompare(right.fileType) ||
+          left.identity.localeCompare(right.identity) ||
+          left.occurrence - right.occurrence ||
+          left.importedAt.localeCompare(right.importedAt),
+      ),
+    updatedAt: transaction.updatedAt,
+  });
+
+  const expectedById = new Map<string, LocalTransactionRecord>();
+  for (const { transaction } of writes) {
+    expectedById.set(transaction.id, transaction);
+  }
+
+  for (const [transactionId, expected] of expectedById) {
+    const actual = getPersistedTransactionForVerification(
+      activeBudgetId,
+      transactionId,
+    );
+
+    if (!actual) {
+      throw workerError(
+        "TRANSACTION_BATCH_VERIFICATION_FAILED",
+        `Transaction ${transactionId} was not found after its batch write.`,
+      );
+    }
+
+    if (
+      JSON.stringify(normaliseTransactionRecord(actual)) !==
+      JSON.stringify(normaliseTransactionRecord(expected))
+    ) {
+      throw workerError(
+        "TRANSACTION_BATCH_VERIFICATION_FAILED",
+        `Transaction ${transactionId} differs from the record prepared for persistence.`,
+      );
+    }
+  }
+}
+
+function writeTransactionBatch(
+  writes: readonly TransactionBatchWrite[],
+  requireAbsentTransactionIds: readonly string[] = [],
+  verifyWrittenTransactions = false,
+): LocalBudgetManifest {
+  for (const { mutation } of writes) assertMutationScope(mutation);
+  if (writes.length === 0) return currentManifest();
+
   execute("BEGIN IMMEDIATE");
   try {
-    for (const transactionId of requiredAbsentIds) {
-      if (writeCounts.get(transactionId) !== 1) {
-        throw workerError(
-          "INVALID_TRANSACTION_BATCH",
-          `Transaction addition ${transactionId} must appear exactly once in the write batch.`,
-        );
-      }
-
-      const exists =
-        resultRows<{ found: number }>(
-          `SELECT 1 AS found
-           FROM local_transactions
-           WHERE budget_id = ? AND id = ?
-           LIMIT 1`,
-          [activeBudgetId, transactionId],
-        ).length > 0;
-
-      if (exists) {
-        throw workerError(
-          "TRANSACTION_ALREADY_EXISTS",
-          `Transaction ${transactionId} already exists and cannot be added again.`,
-        );
-      }
-    }
-
-    for (const { transaction, mutation, resolveConflictId } of writes) {
-      resolveLocalConflictInTransaction(resolveConflictId);
-
-      const previousMonth = resultRows<{ month: string }>(
-        "SELECT substr(date, 1, 7) AS month FROM local_transactions WHERE budget_id = ? AND id = ?",
-        [activeBudgetId, transaction.id],
-      )[0]?.month;
-      upsertTransaction(transaction);
-      markBudgetProjectionDirty(
-        previousMonth && previousMonth < transaction.date.slice(0, 7)
-          ? previousMonth
-          : transaction.date.slice(0, 7),
-      );
-      insertOutbox(mutation);
-    }
-    if (verifyWrittenTransactions) {
-      const normaliseTransactionRecord = (transaction: LocalTransactionRecord) => ({
-        id: transaction.id,
-        budgetId: transaction.budgetId,
-        accountId: transaction.accountId,
-        date: transaction.date,
-        amount: transaction.amount,
-        memo: transaction.memo,
-        checkNumber: transaction.checkNumber,
-        clearedStatus: transaction.clearedStatus,
-        payeeId: transaction.payeeId,
-        payeeName: transaction.payeeName,
-        rawPayeeName: transaction.rawPayeeName ?? null,
-        categoryId: transaction.categoryId,
-        categoryName: transaction.categoryName,
-        transferAccountId: transaction.transferAccountId,
-        transferTransactionId: transaction.transferTransactionId,
-        generatedFromSchedule: transaction.generatedFromSchedule,
-        scheduledTransactionId: transaction.scheduledTransactionId,
-        scheduledOccurrenceDate: transaction.scheduledOccurrenceDate,
-        splitLines: [...transaction.splitLines]
-          .map((line) => ({
-            id: line.id,
-            categoryId: line.categoryId,
-            categoryName: line.categoryName,
-            transferAccountId: line.transferAccountId,
-            transferTransactionId: line.transferTransactionId,
-            memo: line.memo,
-            amount: line.amount,
-          }))
-          .sort((left, right) => left.id.localeCompare(right.id)),
-        tagIds: [...transaction.tagIds].sort(),
-        importProvenance: [...transaction.importProvenance]
-          .map((provenance) => ({
-            fileType: provenance.fileType,
-            identity: provenance.identity,
-            occurrence: provenance.occurrence,
-            importedAt: provenance.importedAt,
-          }))
-          .sort(
-            (left, right) =>
-              left.fileType.localeCompare(right.fileType) ||
-              left.identity.localeCompare(right.identity) ||
-              left.occurrence - right.occurrence ||
-              left.importedAt.localeCompare(right.importedAt),
-          ),
-        updatedAt: transaction.updatedAt,
-      });
-
-      const expectedById = new Map<string, LocalTransactionRecord>();
-      for (const { transaction } of writes) {
-        expectedById.set(transaction.id, transaction);
-      }
-
-      for (const [transactionId, expected] of expectedById) {
-        const actual = getPersistedTransactionForVerification(
-          activeBudgetId,
-          transactionId,
-        );
-        if (!actual) {
-          throw workerError(
-            "TRANSACTION_BATCH_VERIFICATION_FAILED",
-            `Transaction ${transactionId} was not found after its batch write.`,
-          );
-        }
-
-        if (
-          JSON.stringify(normaliseTransactionRecord(actual)) !==
-          JSON.stringify(normaliseTransactionRecord(expected))
-        ) {
-          throw workerError(
-            "TRANSACTION_BATCH_VERIFICATION_FAILED",
-            `Transaction ${transactionId} differs from the record prepared for persistence.`,
-          );
-        }
-      }
-    }
+    applyTransactionBatchInCurrentTransaction(
+      writes,
+      requireAbsentTransactionIds,
+      verifyWrittenTransactions,
+    );
 
     writeMetadata(
       "localRevision",
-      String(Number(readMetadata("localRevision") ?? "0") + writes.length),
+      String(
+        Number(readMetadata("localRevision") ?? "0") +
+          writes.length
+      ),
     );
+
     execute("COMMIT");
   } catch (error) {
     execute("ROLLBACK");
     throw error;
   }
+
+  return currentManifest();
+}
+
+function writeImportBatch(
+  payeeWrites: readonly ImportPayeeWrite[],
+  writes: readonly TransactionBatchWrite[],
+  requireAbsentTransactionIds: readonly string[] = [],
+  verifyWrittenTransactions = false,
+): LocalBudgetManifest {
+  for (const { mutation } of payeeWrites) assertMutationScope(mutation);
+  for (const { mutation } of writes) assertMutationScope(mutation);
+
+  if (payeeWrites.length === 0 && writes.length === 0) {
+    return currentManifest();
+  }
+
+  const payeeIds = new Set<string>();
+  const payeeNames = new Set<string>();
+
+  for (const { payee, mutation } of payeeWrites) {
+    const payeeId = payee.id.trim();
+    const payeeName = payee.name.replace(/\s+/g, " ").trim();
+    const normalisedPayeeName = normalisePayeeIdentity(payeeName);
+
+    if (!payeeId || !payeeName || !normalisedPayeeName) {
+      throw workerError(
+        "INVALID_IMPORT_PAYEE",
+        "Import payee creation requires both an ID and a name.",
+      );
+    }
+
+    if (payee.budgetId !== activeBudgetId) {
+      throw workerError(
+        "INVALID_IMPORT_PAYEE",
+        `Import payee ${payeeId} belongs to a different budget.`,
+      );
+    }
+
+    if (
+      mutation.domain !== "payees" ||
+      mutation.entityId !== payeeId ||
+      mutation.operation !== "upsert"
+    ) {
+      throw workerError(
+        "INVALID_IMPORT_PAYEE",
+        `Import payee ${payeeId} has inconsistent mutation metadata.`,
+      );
+    }
+
+    if (payeeIds.has(payeeId)) {
+      throw workerError(
+        "INVALID_IMPORT_PAYEE",
+        `Import payee ${payeeId} appears more than once.`,
+      );
+    }
+
+    if (payeeNames.has(normalisedPayeeName)) {
+      throw workerError(
+        "INVALID_IMPORT_PAYEE",
+        `Import payee ${payeeName} appears more than once.`,
+      );
+    }
+
+    payeeIds.add(payeeId);
+    payeeNames.add(normalisedPayeeName);
+  }
+
+  execute("BEGIN IMMEDIATE");
+  try {
+    const persistedPayees = resultRows<{
+      id: string;
+      name: string;
+    }>(
+      `SELECT id, name
+       FROM local_payees
+       WHERE budget_id = ?`,
+      [activeBudgetId],
+    );
+
+    const persistedPayeeIdByName = new Map(
+      persistedPayees.map((existing) => [
+        normalisePayeeIdentity(existing.name),
+        existing.id,
+      ]),
+    );
+
+    for (const { payee, mutation } of payeeWrites) {
+      const exists =
+        resultRows<{ found: number }>(
+          `SELECT 1 AS found
+           FROM local_payees
+           WHERE budget_id = ? AND id = ?
+           LIMIT 1`,
+          [activeBudgetId, payee.id],
+        ).length > 0;
+
+      if (exists) {
+        throw workerError(
+          "PAYEE_ALREADY_EXISTS",
+          `Import payee ${payee.id} already exists and cannot be created again.`,
+        );
+      }
+
+      const conflictingPayeeId = persistedPayeeIdByName.get(
+        normalisePayeeIdentity(payee.name),
+      );
+      if (conflictingPayeeId) {
+        throw workerError(
+          "PAYEE_ALREADY_EXISTS",
+          `Import payee ${payee.name} already exists as ${conflictingPayeeId}.`,
+        );
+      }
+
+      execute(
+        `INSERT INTO local_payees(
+           id,
+           budget_id,
+           name,
+           note,
+           archived,
+           default_category_id,
+           default_category_name,
+           icon_ref,
+           created_at,
+           updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          payee.id,
+          payee.budgetId,
+          payee.name,
+          payee.note,
+          payee.archived ? 1 : 0,
+          payee.defaultCategoryId ?? null,
+          payee.defaultCategoryName ?? null,
+          payee.iconRef ?? null,
+          payee.createdAt ?? mutation.createdAt,
+          payee.updatedAt ?? mutation.createdAt,
+        ],
+      );
+
+      insertOutbox(mutation);
+    }
+
+    applyTransactionBatchInCurrentTransaction(
+      writes,
+      requireAbsentTransactionIds,
+      verifyWrittenTransactions,
+    );
+
+    for (const { payee } of payeeWrites) {
+      const actual = resultRows<{
+        id: string;
+        budgetId: string;
+        name: string;
+        note: string;
+        archived: number;
+      }>(
+        `SELECT
+           id,
+           budget_id AS budgetId,
+           name,
+           note,
+           archived
+         FROM local_payees
+         WHERE budget_id = ? AND id = ?
+         LIMIT 1`,
+        [activeBudgetId, payee.id],
+      )[0];
+
+      if (
+        !actual ||
+        actual.id !== payee.id ||
+        actual.budgetId !== payee.budgetId ||
+        actual.name !== payee.name ||
+        actual.note !== payee.note ||
+        Boolean(actual.archived) !== payee.archived
+      ) {
+        throw workerError(
+          "IMPORT_PAYEE_VERIFICATION_FAILED",
+          `Import payee ${payee.id} differs from the record prepared for persistence.`,
+        );
+      }
+    }
+
+    writeMetadata(
+      "localRevision",
+      String(
+        Number(readMetadata("localRevision") ?? "0") +
+          payeeWrites.length +
+          writes.length
+      ),
+    );
+
+    execute("COMMIT");
+  } catch (error) {
+    execute("ROLLBACK");
+    throw error;
+  }
+
   return currentManifest();
 }
 
@@ -4554,6 +4784,13 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return writeTransaction(request.transaction, request.mutation, request.resolveConflictId);
     case "writeTransactionBatch":
       return writeTransactionBatch(
+        request.writes,
+        request.requireAbsentTransactionIds,
+        request.verifyWrittenTransactions,
+      );
+    case "writeImportBatch":
+      return writeImportBatch(
+        request.payeeWrites,
         request.writes,
         request.requireAbsentTransactionIds,
         request.verifyWrittenTransactions,

@@ -138,6 +138,19 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     readonly provenanceAssignments: readonly RegisterTransactionImportProvenanceAssignment[];
   }): Promise<void>;
 
+  commitImportBatch(input: {
+    readonly budgetId: string;
+    readonly accountId: string;
+    readonly additions: readonly (
+      TransactionWriteInput & { readonly id: string }
+    )[];
+    readonly updates: readonly (
+      TransactionWriteInput & { readonly id: string }
+    )[];
+    readonly provenanceAssignments: readonly RegisterTransactionImportProvenanceAssignment[];
+    readonly payeeCreations: readonly RegisterTransactionImportPayeeCreation[];
+  }): Promise<void>;
+
   moveTransactions(input: {
     readonly budgetId: string;
     readonly sourceAccountId: string;
@@ -406,6 +419,11 @@ export interface AccountRegisterBootstrap {
 export interface TransactionTarget {
   readonly budgetId: string;
   readonly accountId: string;
+}
+
+export interface RegisterTransactionImportPayeeCreation {
+  readonly id: string;
+  readonly name: string;
 }
 
 export interface RegisterTransactionImportProvenanceAssignment {

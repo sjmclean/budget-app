@@ -18,39 +18,83 @@ const registerClient = readFileSync(
   "utf8",
 );
 
-test("transaction batch verification occurs before SQLite COMMIT and is covered by ROLLBACK", () => {
-  const start = worker.indexOf("function writeTransactionBatch(");
+test("atomic import batch covers payee creation and verified transaction persistence with one SQLite rollback boundary", () => {
+  const helperStart = worker.indexOf(
+    "function applyTransactionBatchInCurrentTransaction(",
+  );
+  const helperEnd = worker.indexOf(
+    "\nfunction writeTransactionBatch(",
+    helperStart,
+  );
+
+  assert.ok(
+    helperStart >= 0,
+    "transaction-neutral batch helper must exist",
+  );
+  assert.ok(
+    helperEnd > helperStart,
+    "transaction-neutral batch helper boundary must be discoverable",
+  );
+
+  const helper = worker.slice(helperStart, helperEnd);
+
+  assert.match(
+    helper,
+    /if \(!verifyWrittenTransactions\) return;/,
+    "the shared transaction helper must retain physical verification",
+  );
+  assert.match(
+    helper,
+    /TRANSACTION_BATCH_VERIFICATION_FAILED/,
+    "the shared transaction helper must retain an explicit verification failure path",
+  );
+
+  const start = worker.indexOf("function writeImportBatch(");
   const end = worker.indexOf("\nfunction deleteTransaction(", start);
 
-  assert.ok(start >= 0, "writeTransactionBatch must exist");
-  assert.ok(end > start, "writeTransactionBatch boundary must be discoverable");
+  assert.ok(start >= 0, "writeImportBatch must exist");
+  assert.ok(end > start, "writeImportBatch boundary must be discoverable");
 
   const batch = worker.slice(start, end);
 
   const begin = batch.indexOf('execute("BEGIN IMMEDIATE")');
-  const verification = batch.indexOf("if (verifyWrittenTransactions)");
-  const verificationFailure = batch.indexOf(
-    '"TRANSACTION_BATCH_VERIFICATION_FAILED"',
+  const payeeInsert = batch.indexOf("INSERT INTO local_payees");
+  const transactionApply = batch.indexOf(
+    "applyTransactionBatchInCurrentTransaction(",
+  );
+  const payeeVerification = batch.indexOf(
+    '"IMPORT_PAYEE_VERIFICATION_FAILED"',
+  );
+  const revision = batch.indexOf(
+    'writeMetadata(\n      "localRevision"',
   );
   const commit = batch.indexOf('execute("COMMIT")');
   const rollback = batch.indexOf('execute("ROLLBACK")');
 
-  assert.ok(begin >= 0, "batch must begin a SQLite transaction");
+  assert.ok(begin >= 0, "import batch must begin one SQLite transaction");
   assert.ok(
-    verification > begin,
-    "verification must occur after BEGIN IMMEDIATE",
+    payeeInsert > begin,
+    "staged payees must be inserted after BEGIN IMMEDIATE",
   );
   assert.ok(
-    verificationFailure > verification,
-    "verification must have an explicit failure path",
+    transactionApply > payeeInsert,
+    "transaction/provenance writes must run after staged payee creation inside the same transaction",
   );
   assert.ok(
-    commit > verificationFailure,
-    "COMMIT must occur only after verification succeeds",
+    payeeVerification > transactionApply,
+    "staged payee verification must occur after transaction persistence",
+  );
+  assert.ok(
+    revision > payeeVerification,
+    "local revision must advance only after both persistence domains verify",
+  );
+  assert.ok(
+    commit > revision,
+    "COMMIT must occur only after all writes and verification succeed",
   );
   assert.ok(
     rollback > commit,
-    "the batch catch path must rollback a verification failure",
+    "the import batch catch path must rollback failures from the shared transaction",
   );
 });
 
@@ -99,18 +143,26 @@ test("transaction batch verification reads physical SQLite values without refere
     "verification must not hydrate category names from reference tables",
   );
 
-  const batchStart = worker.indexOf("function writeTransactionBatch(");
-  const batchEnd = worker.indexOf("\nfunction deleteTransaction(", batchStart);
-  const batch = worker.slice(batchStart, batchEnd);
+  const transactionHelperStart = worker.indexOf(
+    "function applyTransactionBatchInCurrentTransaction(",
+  );
+  const transactionHelperEnd = worker.indexOf(
+    "\nfunction writeTransactionBatch(",
+    transactionHelperStart,
+  );
+  const transactionHelper = worker.slice(
+    transactionHelperStart,
+    transactionHelperEnd,
+  );
 
   assert.match(
-    batch,
+    transactionHelper,
     /getPersistedTransactionForVerification\(/,
     "transactional verification must use the physical persistence reader",
   );
 
   assert.match(
-    batch,
+    transactionHelper,
     /importProvenance:\s*\[\.\.\.transaction\.importProvenance\]/,
     "transactional verification must compare import provenance before COMMIT",
   );
@@ -150,18 +202,21 @@ test("transaction upsert replaces transaction-owned import provenance atomically
   );
 });
 
-test("register batch commits request transactional persisted-record verification", () => {
-  const start = registerClient.indexOf("async commitTransactionBatch(input)");
-  const end = registerClient.indexOf("\n    async moveTransactions(", start);
+test("dedicated import commits request physical verification through the atomic import worker operation", () => {
+  const start = registerClient.indexOf("async commitImportBatch(input)");
+  const end = registerClient.indexOf(
+    "\n    async moveTransactions(",
+    start,
+  );
 
-  assert.ok(start >= 0, "commitTransactionBatch must exist");
-  assert.ok(end > start, "commitTransactionBatch boundary must be discoverable");
+  assert.ok(start >= 0, "commitImportBatch must exist");
+  assert.ok(end > start, "commitImportBatch boundary must be discoverable");
 
   const commit = registerClient.slice(start, end);
 
   assert.match(
     commit,
-    /writeTransactionBatch\(writes,\s*\{\s*requireAbsentTransactionIds,\s*verifyWrittenTransactions:\s*true,/s,
-    "register/import batch commits must enable verification before SQLite commit",
+    /writeImportBatch\(\s*payeeWrites,\s*writes,\s*\{[\s\S]*?requireAbsentTransactionIds,[\s\S]*?verifyWrittenTransactions:\s*true,/,
+    "import commits must enable physical verification before the atomic worker commit",
   );
 });

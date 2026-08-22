@@ -157,6 +157,8 @@ test("bank import verifier rejects transfer metadata that does not match the nam
       },
     ],
     matchedTransactionUpdates: plan.matchedTransactionUpdates,
+    provenanceAssignments: plan.provenanceAssignments,
+    payeeCreations: plan.payeeCreations,
   });
 
   assert.equal(verification.valid, false);

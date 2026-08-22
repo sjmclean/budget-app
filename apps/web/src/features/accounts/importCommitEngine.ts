@@ -34,8 +34,14 @@ import {
 import { getActiveBudgetIdFromStorage } from "../budget/budgetDataScope";
 import { getActiveKeyValueStorage } from "../persistence/activeKeyValueStorage";
 import { resolvePayeeForSubmission, type PayeeSubmissionResolver } from "./resolvePayeeForSubmission";
-import { stableImportTransactionId } from "./transactionImportCommit";
-import type { RegisterTransactionImportProvenanceAssignment } from "../persistence/accountRegisterQueryContracts";
+import {
+  stableImportTransactionId,
+  type PlannedImportRegisterTransactionInput,
+} from "./transactionImportCommit";
+import type {
+  RegisterTransactionImportPayeeCreation,
+  RegisterTransactionImportProvenanceAssignment,
+} from "../persistence/accountRegisterQueryContracts";
 
 export interface ImportCommitCategory {
   id: string;
@@ -75,13 +81,30 @@ export interface ImportCommitSession {
   file: ImportCommitFileContext;
 }
 
+export type ImportPayeeResolution =
+  | {
+      readonly kind: "existing";
+      readonly id: string;
+      readonly name: string;
+    }
+  | {
+      readonly kind: "create";
+      readonly id: string;
+      readonly name: string;
+    };
+
+export type ImportPayeeResolver = (
+  name: string,
+) => Promise<ImportPayeeResolution>;
+
 export interface ImportCommitAdapters {
-  resolvePayee?: PayeeSubmissionResolver;
+  resolvePayee?: ImportPayeeResolver;
   commitTransactionBatch?: (
     accountId: string,
     additions: NewRegisterTransactionInput[],
     updates: RegisterTransactionView[],
     provenanceAssignments: readonly RegisterTransactionImportProvenanceAssignment[],
+    payeeCreations: readonly RegisterTransactionImportPayeeCreation[],
   ) => Promise<void>;
   addTransactions: (
     accountId: string,
@@ -129,9 +152,10 @@ export interface ImportCommitAuditRecord {
 }
 
 export interface ImportCommitPlan {
-  additions: NewRegisterTransactionInput[];
+  additions: PlannedImportRegisterTransactionInput[];
   matchedTransactionUpdates: RegisterTransactionView[];
   provenanceAssignments: RegisterTransactionImportProvenanceAssignment[];
+  payeeCreations: RegisterTransactionImportPayeeCreation[];
   merchantKnowledge: MerchantKnowledgeStore;
 }
 
@@ -147,6 +171,7 @@ export type ImportCommitVerificationIssueCode =
   | "invalid-transaction-amount"
   | "invalid-transfer"
   | "invalid-category-reference"
+  | "invalid-import-identity"
   | "invalid-statistics";
 
 export interface ImportCommitVerificationIssue {
@@ -405,7 +430,13 @@ function createSessionId(now = new Date()): string {
 
 export function verifyImportCommitPlan(
   session: ImportCommitSession,
-  plan: Pick<ImportCommitPlan, "additions" | "matchedTransactionUpdates">,
+  plan: Pick<
+    ImportCommitPlan,
+    | "additions"
+    | "matchedTransactionUpdates"
+    | "provenanceAssignments"
+    | "payeeCreations"
+  >,
 ): ImportCommitVerificationResult {
   const issues: ImportCommitVerificationIssue[] = [];
   const addIssue = (issue: ImportCommitVerificationIssue) => issues.push(issue);
@@ -505,6 +536,177 @@ export function verifyImportCommitPlan(
       code: "invalid-import-candidate",
       message: `Prepared additions (${plan.additions.length}) do not match accepted candidates (${session.importedCandidates.length}).`,
     });
+  }
+
+  const additionIds = new Set<string>();
+  for (const [index, addition] of plan.additions.entries()) {
+    const transactionId = addition.id?.trim();
+
+    if (!transactionId) {
+      addIssue({
+        code: "invalid-import-identity",
+        message: `Prepared import addition ${index + 1} has no stable transaction ID.`,
+      });
+      continue;
+    }
+
+    if (additionIds.has(transactionId)) {
+      addIssue({
+        code: "invalid-import-identity",
+        transactionId,
+        message: `Prepared import transaction ID ${transactionId} appears more than once.`,
+      });
+    }
+
+    additionIds.add(transactionId);
+  }
+
+  const identityScope = session.file.fileHash?.trim();
+  if (identityScope) {
+    for (const candidate of session.importedCandidates) {
+      const expectedTransactionId = stableImportTransactionId(
+        candidate,
+        identityScope,
+      );
+
+      if (!additionIds.has(expectedTransactionId)) {
+        addIssue({
+          code: "invalid-import-identity",
+          candidateId: candidate.id,
+          transactionId: expectedTransactionId,
+          message:
+            `Imported candidate ${candidate.id} lost its planned transaction identity ${expectedTransactionId}.`,
+        });
+      }
+    }
+  }
+
+  if (
+    plan.provenanceAssignments.length !==
+    session.completedSourceCandidates.length
+  ) {
+    addIssue({
+      code: "invalid-import-identity",
+      message:
+        `Prepared provenance assignments (${plan.provenanceAssignments.length}) ` +
+        `do not match completed import candidates (${session.completedSourceCandidates.length}).`,
+    });
+  }
+
+  const validProvenanceTargets = new Set([
+    ...additionIds,
+    ...matchedRegisterIds,
+  ]);
+
+  for (const assignment of plan.provenanceAssignments) {
+    if (!validProvenanceTargets.has(assignment.transactionId)) {
+      addIssue({
+        code: "invalid-import-identity",
+        transactionId: assignment.transactionId,
+        message:
+          `Import provenance targets transaction ${assignment.transactionId}, ` +
+          "which is neither a planned addition nor an accepted existing match.",
+      });
+    }
+  }
+
+  for (const transactionId of additionIds) {
+    if (
+      !plan.provenanceAssignments.some(
+        (assignment) => assignment.transactionId === transactionId,
+      )
+    ) {
+      addIssue({
+        code: "invalid-import-identity",
+        transactionId,
+        message:
+          `Prepared import transaction ${transactionId} has no provenance assignment.`,
+      });
+    }
+  }
+
+  const stagedPayeesById = new Map<
+    string,
+    RegisterTransactionImportPayeeCreation
+  >();
+  const stagedPayeeIdsByNormalisedName = new Map<string, string>();
+
+  for (const creation of plan.payeeCreations) {
+    const payeeId = creation.id.trim();
+    const payeeName = creation.name.replace(/\s+/g, " ").trim();
+    const normalisedName = payeeName.toLocaleLowerCase();
+
+    if (!payeeId || !payeeName) {
+      addIssue({
+        code: "invalid-import-identity",
+        message: "A staged import payee requires both an ID and a name.",
+      });
+      continue;
+    }
+
+    const existingById = stagedPayeesById.get(payeeId);
+    if (existingById) {
+      addIssue({
+        code: "invalid-import-identity",
+        transactionId: payeeId,
+        message: `Staged import payee ID ${payeeId} appears more than once.`,
+      });
+      continue;
+    }
+
+    const existingNameId =
+      stagedPayeeIdsByNormalisedName.get(normalisedName);
+    if (existingNameId && existingNameId !== payeeId) {
+      addIssue({
+        code: "invalid-import-identity",
+        message:
+          `Staged import payee ${payeeName} is represented by more than one ID.`,
+      });
+    }
+
+    stagedPayeesById.set(payeeId, {
+      id: payeeId,
+      name: payeeName,
+    });
+    stagedPayeeIdsByNormalisedName.set(normalisedName, payeeId);
+  }
+
+  const referencedStagedPayeeIds = new Set<string>();
+  const payeeBearingTransactions = [
+    ...plan.additions,
+    ...plan.matchedTransactionUpdates,
+  ];
+
+  for (const transaction of payeeBearingTransactions) {
+    const payeeId = transaction.payeeId?.trim();
+    if (!payeeId) continue;
+
+    const stagedPayee = stagedPayeesById.get(payeeId);
+    if (!stagedPayee) continue;
+
+    referencedStagedPayeeIds.add(payeeId);
+
+    const transactionPayee = transaction.payee.replace(/\s+/g, " ").trim();
+    if (transactionPayee !== stagedPayee.name) {
+      addIssue({
+        code: "invalid-import-identity",
+        transactionId: transaction.id,
+        message:
+          `Transaction ${transaction.id ?? "(new)"} references staged payee ` +
+          `${payeeId} but does not use its canonical name.`,
+      });
+    }
+  }
+
+  for (const stagedPayeeId of stagedPayeesById.keys()) {
+    if (!referencedStagedPayeeIds.has(stagedPayeeId)) {
+      addIssue({
+        code: "invalid-import-identity",
+        transactionId: stagedPayeeId,
+        message:
+          `Staged import payee ${stagedPayeeId} is not referenced by the commit plan.`,
+      });
+    }
   }
 
   const verifyMoney = (
@@ -618,7 +820,13 @@ export function verifyImportCommitPlan(
 
 function validateImportCommitSession(
   session: ImportCommitSession,
-  plan: Pick<ImportCommitPlan, "additions" | "matchedTransactionUpdates">,
+  plan: Pick<
+    ImportCommitPlan,
+    | "additions"
+    | "matchedTransactionUpdates"
+    | "provenanceAssignments"
+    | "payeeCreations"
+  >,
 ): void {
   const verification = verifyImportCommitPlan(session, plan);
   if (!verification.valid) {
@@ -722,6 +930,7 @@ export function prepareImportCommit(
     additions,
     matchedTransactionUpdates,
     provenanceAssignments,
+    payeeCreations: [] as RegisterTransactionImportPayeeCreation[],
     merchantKnowledge,
   };
   measureStage(stages, "Validate commit plan", () =>
@@ -764,49 +973,91 @@ export async function commitImportSession(
       failedStage = "Resolve payees";
       const payeeCache = new Map<
         string,
-        Awaited<ReturnType<PayeeSubmissionResolver>>
+        Promise<ImportPayeeResolution>
+      >();
+      const stagedPayeesById = new Map<
+        string,
+        RegisterTransactionImportPayeeCreation
       >();
 
-      const resolvePayee: PayeeSubmissionResolver = async (name) => {
+      const resolveImportPayee = async (
+        name: string,
+      ): Promise<ImportPayeeResolution> => {
         const key = name.replace(/\s+/g, " ").trim().toLocaleLowerCase();
         const cached = payeeCache.get(key);
         if (cached) {
           return cached;
         }
 
-        const resolved = await adapters.resolvePayee!(name);
-        payeeCache.set(key, resolved);
-        return resolved;
+        const pending = adapters.resolvePayee!(name);
+        payeeCache.set(key, pending);
+
+        try {
+          const resolved = await pending;
+
+          if (resolved.kind === "create") {
+            stagedPayeesById.set(resolved.id, {
+              id: resolved.id,
+              name: resolved.name,
+            });
+          }
+
+          return resolved;
+        } catch (error) {
+          payeeCache.delete(key);
+          throw error;
+        }
       };
 
-      plan = await measureAsyncStage(stages, failedStage, async () => ({
-        ...plan!,
-        additions: await Promise.all(
+      const resolvePayee: PayeeSubmissionResolver = async (name) => {
+        const resolved = await resolveImportPayee(name);
+        return {
+          id: resolved.id,
+          name: resolved.name,
+        };
+      };
+
+      plan = await measureAsyncStage(stages, failedStage, async () => {
+        const additions = await Promise.all(
           plan!.additions.map((transaction) =>
             resolvePayeeForSubmission(transaction, resolvePayee),
           ),
-        ),
-        matchedTransactionUpdates: await Promise.all(
+        );
+        const matchedTransactionUpdates = await Promise.all(
           plan!.matchedTransactionUpdates.map((transaction) =>
             resolvePayeeForSubmission(transaction, resolvePayee),
           ),
-        ),
-      }));
+        );
+
+        return {
+          ...plan!,
+          additions,
+          matchedTransactionUpdates,
+          payeeCreations: [...stagedPayeesById.values()],
+        };
+      });
+
+      failedStage = "Validate resolved commit plan";
+      measureStage(stages, failedStage, () =>
+        validateImportCommitSession(session, plan!),
+      );
     }
 
-    if (
-      plan.provenanceAssignments.length > 0 &&
-      !adapters.commitTransactionBatch
-    ) {
+    const requiresAtomicImportBatch =
+      plan.provenanceAssignments.length > 0 ||
+      plan.payeeCreations.length > 0;
+
+    if (requiresAtomicImportBatch && !adapters.commitTransactionBatch) {
       throw new Error(
-        "Import provenance requires atomic register batch persistence.",
+        "Import provenance or staged payee creation requires atomic register batch persistence.",
       );
     }
 
     if (
       plan.additions.length > 0 ||
       plan.matchedTransactionUpdates.length > 0 ||
-      plan.provenanceAssignments.length > 0
+      plan.provenanceAssignments.length > 0 ||
+      plan.payeeCreations.length > 0
     ) {
       failedStage = adapters.commitTransactionBatch
         ? "Commit register batch"
@@ -819,6 +1070,7 @@ export async function commitImportSession(
             plan!.additions,
             plan!.matchedTransactionUpdates,
             plan!.provenanceAssignments,
+            plan!.payeeCreations,
           );
           return;
         }

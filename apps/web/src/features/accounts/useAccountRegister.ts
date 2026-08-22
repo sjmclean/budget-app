@@ -41,6 +41,7 @@ interface UseAccountRegisterState {
     additions: NewRegisterTransactionInput[];
     updates: UpdateRegisterTransactionInput[];
     provenanceAssignments: readonly import("../persistence/accountRegisterQueryContracts").RegisterTransactionImportProvenanceAssignment[];
+    payeeCreations: readonly import("../persistence/accountRegisterQueryContracts").RegisterTransactionImportPayeeCreation[];
   }) => Promise<void>;
   updateTransaction: (input: UpdateRegisterTransactionInput) => Promise<void>;
   toggleCleared: (transactionId: string) => Promise<void>;
@@ -455,9 +456,21 @@ export function useAccountRegister(
     additions: NewRegisterTransactionInput[];
     updates: UpdateRegisterTransactionInput[];
     provenanceAssignments: readonly import("../persistence/accountRegisterQueryContracts").RegisterTransactionImportProvenanceAssignment[];
+    payeeCreations: readonly import("../persistence/accountRegisterQueryContracts").RegisterTransactionImportPayeeCreation[];
   }) => {
+    if (input.provenanceAssignments.length > 0) {
+      const missingStableId = input.additions.find(
+        (transaction) => !transaction.id?.trim(),
+      );
+      if (missingStableId) {
+        throw new Error(
+          "An imported transaction lost its planned stable ID before persistence.",
+        );
+      }
+    }
+
     if (storageMode === "sqlite" && budgetId && accountRegisterQueries) {
-      await runSqliteMutation(() => accountRegisterQueries.commitTransactionBatch({
+      await runSqliteMutation(() => accountRegisterQueries.commitImportBatch({
         budgetId,
         accountId,
         additions: input.additions.map((transaction) => ({
@@ -473,12 +486,16 @@ export function useAccountRegister(
           ...toTransactionWriteInput(transaction),
         })),
         provenanceAssignments: input.provenanceAssignments,
+        payeeCreations: input.payeeCreations,
       }));
       return;
     }
-    if (input.provenanceAssignments.length > 0) {
+    if (
+      input.provenanceAssignments.length > 0 ||
+      input.payeeCreations.length > 0
+    ) {
       throw new Error(
-        "Import provenance requires SQLite transaction persistence.",
+        "Import provenance or staged payee creation requires SQLite transaction persistence.",
       );
     }
 
