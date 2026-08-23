@@ -44,6 +44,7 @@ import { readFinancialOverviewFlow } from "./financialOverviewFlow";
 import { uncategorisedTransactionPredicate } from "./uncategorisedTransactionSql";
 import { mergePayeeIconReferences } from "../../icons/payeeIconReference";
 import { transactionHistorySnapshotsEqual } from "./transactionHistorySnapshot";
+import type { ScheduledTransactionView } from "../../accounts/scheduledTransactionTypes";
 
 type SqliteDatabase = {
   pointer: unknown;
@@ -3743,6 +3744,125 @@ function replaceTransactionHistorySnapshot(
   return currentManifest();
 }
 
+function readScheduledTransactionForHistory(scheduleId: string): ScheduledTransactionView | null {
+  const row = resultRows<{ payloadJson: string }>(
+    "SELECT payload_json AS payloadJson FROM local_scheduled_transactions WHERE budget_id = ? AND id = ?",
+    [activeBudgetId, scheduleId],
+  )[0];
+  return row ? JSON.parse(row.payloadJson) as ScheduledTransactionView : null;
+}
+
+function scheduledTransactionsEqual(
+  left: ScheduledTransactionView | null,
+  right: ScheduledTransactionView | null,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function replaceScheduledTransactionHistoryState(input: {
+  readonly scheduleId: string;
+  readonly expectedSchedule: ScheduledTransactionView | null;
+  readonly replacementSchedule: ScheduledTransactionView | null;
+  readonly expectedTransaction: TransactionHistorySnapshot | null;
+  readonly replacementTransaction: TransactionHistorySnapshot | null;
+  readonly mutations: readonly LocalBudgetMutation[];
+}): LocalBudgetManifest {
+  const { scheduleId, expectedSchedule, replacementSchedule, expectedTransaction, replacementTransaction, mutations } = input;
+  if (
+    (expectedSchedule && expectedSchedule.id !== scheduleId) ||
+    (replacementSchedule && replacementSchedule.id !== scheduleId)
+  ) {
+    throw workerError("INVALID_SCHEDULE_HISTORY", "Scheduled transaction identity does not match its history target.");
+  }
+  if (expectedTransaction) validateHistorySnapshot(expectedTransaction);
+  if (replacementTransaction) validateHistorySnapshot(replacementTransaction);
+  if (expectedTransaction && replacementTransaction && expectedTransaction.budgetId !== replacementTransaction.budgetId) {
+    throw workerError("BUDGET_SCOPE_MISMATCH", "Generated transaction history cannot cross budgets.");
+  }
+
+  const scheduleMutations = mutations.filter(({ domain }) => domain === "scheduledTransactions");
+  const transactionMutations = mutations.filter(({ domain }) => domain === "transactions");
+  if (
+    scheduleMutations.length !== 1 ||
+    scheduleMutations[0]!.entityId !== scheduleId ||
+    scheduleMutations[0]!.operation !== (replacementSchedule ? "upsert" : "delete") ||
+    scheduleMutations.length + transactionMutations.length !== mutations.length
+  ) {
+    throw workerError("INVALID_SCHEDULE_HISTORY_MUTATIONS", "Schedule history mutations are incomplete or inconsistent.");
+  }
+  assertMutationScope(scheduleMutations[0]!);
+  if (expectedTransaction && replacementTransaction) {
+    validateHistoryReplacementMutations(expectedTransaction, replacementTransaction, transactionMutations);
+  } else if (expectedTransaction) {
+    validateHistoryMutations(expectedTransaction, transactionMutations, "delete");
+  } else if (replacementTransaction) {
+    validateHistoryMutations(replacementTransaction, transactionMutations, "upsert");
+  } else if (transactionMutations.length > 0) {
+    throw workerError("INVALID_SCHEDULE_HISTORY_MUTATIONS", "Schedule-only history cannot contain transaction mutations.");
+  }
+
+  execute("BEGIN IMMEDIATE");
+  try {
+    if (!scheduledTransactionsEqual(readScheduledTransactionForHistory(scheduleId), expectedSchedule)) {
+      throw workerError("SCHEDULE_HISTORY_CONFLICT", "Persisted scheduled transaction no longer matches expected state.");
+    }
+    if (expectedTransaction) {
+      const current = captureTransactionHistorySnapshots(
+        expectedTransaction.budgetId,
+        expectedTransaction.transactions.map(({ id }) => id),
+      );
+      if (!transactionHistorySnapshotsEqual(current, expectedTransaction)) {
+        throw workerError("TRANSACTION_HISTORY_CONFLICT", "Generated transaction graph no longer matches expected state.");
+      }
+    } else if (replacementTransaction) {
+      for (const transaction of replacementTransaction.transactions) {
+        if (getPersistedTransactionForVerification(activeBudgetId, transaction.id)) {
+          throw workerError("TRANSACTION_ALREADY_EXISTS", `Transaction ${transaction.id} already exists.`);
+        }
+      }
+    }
+
+    for (const transaction of expectedTransaction?.transactions ?? []) {
+      execute("DELETE FROM local_transactions WHERE budget_id = ? AND id = ?", [activeBudgetId, transaction.id]);
+      markBudgetProjectionDirty(transaction.date.slice(0, 7));
+    }
+    for (const transaction of replacementTransaction?.transactions ?? []) {
+      upsertTransaction(transaction);
+      markBudgetProjectionDirty(transaction.date.slice(0, 7));
+    }
+    for (const attachment of replacementTransaction?.attachments ?? []) {
+      const { content, ...metadata } = attachment;
+      upsertTransactionAttachment(metadata, content);
+    }
+
+    if (replacementSchedule) {
+      writeNormalisedDomainEntity("scheduledTransactions", scheduleId, replacementSchedule, replacementSchedule.updatedAt);
+    } else {
+      deleteNormalisedDomainEntity("scheduledTransactions", scheduleId);
+    }
+    for (const mutation of mutations) insertOutbox(mutation);
+    writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + mutations.length));
+
+    if (!scheduledTransactionsEqual(readScheduledTransactionForHistory(scheduleId), replacementSchedule)) {
+      throw workerError("SCHEDULE_HISTORY_VERIFICATION_FAILED", "Scheduled transaction differs after persistence.");
+    }
+    if (replacementTransaction) {
+      const restored = captureTransactionHistorySnapshots(
+        replacementTransaction.budgetId,
+        replacementTransaction.transactions.map(({ id }) => id),
+      );
+      if (!transactionHistorySnapshotsEqual(restored, replacementTransaction)) {
+        throw workerError("TRANSACTION_HISTORY_VERIFICATION_FAILED", "Generated transaction graph differs after persistence.");
+      }
+    }
+    execute("COMMIT");
+  } catch (error) {
+    execute("ROLLBACK");
+    throw error;
+  }
+  return currentManifest();
+}
+
 function deleteTransaction(
   transactionId: string,
   mutation: LocalBudgetMutation,
@@ -5015,6 +5135,8 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return deleteTransactionHistorySnapshot(request.snapshot, request.mutations);
     case "replaceTransactionHistorySnapshot":
       return replaceTransactionHistorySnapshot(request.expected, request.replacement, request.mutations);
+    case "replaceScheduledTransactionHistoryState":
+      return replaceScheduledTransactionHistoryState(request);
     case "getTransactionsByIds":
       return getTransactionsByIds(
         request.budgetId,

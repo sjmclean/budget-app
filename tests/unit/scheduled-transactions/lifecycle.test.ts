@@ -60,6 +60,19 @@ describe("scheduled transaction lifecycle", () => {
     assert.notEqual(input.splitLines?.[0], schedule.splitLines?.[0]);
   });
 
+  it("round-trips a scheduled transfer target into generated Register input", async () => {
+    const service = createScheduledHarness();
+    const schedule = await createSchedule(service, {
+      payee: "Transfer: Savings",
+      transferAccountId: "savings",
+      category: "",
+      outflow: 250,
+    });
+    const input = service.toRegisterInput(schedule);
+    assert.equal(schedule.transferAccountId, "savings");
+    assert.equal(input.transferAccountId, "savings");
+  });
+
   it("preserves split lines when editing transaction details", async () => {
     const service = createScheduledHarness();
     const schedule = await createSchedule(service, {

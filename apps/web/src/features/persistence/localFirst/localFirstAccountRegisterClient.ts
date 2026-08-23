@@ -18,6 +18,7 @@ import type {
   LocalTransactionAttachmentRecord,
   LocalPayeeRecord,
   LocalTransactionRecord,
+  TransactionHistorySnapshot,
 } from "./registerSchema";
 import { createLocalFirstRelayTransport } from "./relayTransport";
 import { bootstrapLocalBudget } from "./baselineCoordinator";
@@ -34,6 +35,7 @@ import {
   advanceScheduledTransaction,
   buildScheduledTransaction,
 } from "../../accounts/scheduledTransactionLifecycle";
+import { scheduledTransactionToRegisterInput } from "../../accounts/scheduledTransactionToRegisterInput";
 import type { TransactionTagDefinition } from "../../tags/transactionTagTypes";
 import { createRuntimeUuid } from "../../ids/createRuntimeUuid";
 import type { ReplicationConflict } from "../conflictResolution";
@@ -416,6 +418,50 @@ export function createLocalFirstAccountRegisterQueryClient(
           left.nextDueDate.localeCompare(right.nextDueDate) || left.id.localeCompare(right.id)));
   }
 
+  async function captureSchedule(
+    budgetId: string,
+    scheduleId: string,
+    syncBeforeRead = true,
+  ): Promise<ScheduledTransactionView | null> {
+    if (syncBeforeRead) await synchronise(budgetId);
+    const schedules = await (await requireDatabase(budgetId))
+      .listEntities<ScheduledTransactionView>("scheduledTransactions");
+    return schedules.find(({ id }) => id === scheduleId) ?? null;
+  }
+
+  function scheduledRegisterWrite(
+    budgetId: string,
+    accountId: string,
+    schedule: ScheduledTransactionView,
+  ): TransactionWriteInput {
+    const input = scheduledTransactionToRegisterInput(schedule);
+    return {
+      budgetId,
+      accountId,
+      date: input.date,
+      amount: Math.round((input.inflow - input.outflow) * 100),
+      payeeId: input.payeeId,
+      payeeName: input.payee,
+      transferAccountId: input.transferAccountId,
+      categoryId: input.categoryId,
+      categoryName: input.category,
+      memo: input.memo,
+      tagIds: input.tagIds,
+      generatedFromSchedule: true,
+      scheduledTransactionId: schedule.id,
+      scheduledOccurrenceDate: input.scheduledOccurrenceDate,
+      splitLines: (input.splitLines ?? []).map((line) => ({
+        id: line.id,
+        categoryId: line.categoryId,
+        categoryName: line.category,
+        transferAccountId: line.transferAccountId,
+        transferTransactionId: line.transferTransactionId,
+        memo: line.memo,
+        amount: Math.round((line.inflow - line.outflow) * 100),
+      })),
+    };
+  }
+
   async function listLocalAccounts(budgetId: string) {
     return (await requireDatabase(budgetId)).listAccountNavigation(budgetId)
       .then((rows) => rows.map((row) => ({
@@ -763,6 +809,61 @@ export function createLocalFirstAccountRegisterQueryClient(
     };
     return records.map((record) =>
       transactionWrite(record, operationGroupId, operationGroup));
+  }
+
+  function scheduledHistoryMembers(input: {
+    readonly scheduleId: string;
+    readonly expectedSchedule: ScheduledTransactionView | null;
+    readonly replacementSchedule: ScheduledTransactionView | null;
+    readonly expectedTransaction: TransactionHistorySnapshot | null;
+    readonly replacementTransaction: TransactionHistorySnapshot | null;
+  }): LocalBudgetOperationGroup["members"] {
+    const nextTransactionIds = new Set(
+      input.replacementTransaction?.transactions.map(({ id }) => id) ?? [],
+    );
+    const nextAttachmentIds = new Set(
+      input.replacementTransaction?.attachments.map(({ id }) => id) ?? [],
+    );
+    return [
+      {
+        domain: "scheduledTransactions" as const,
+        entityId: input.scheduleId,
+        operation: input.replacementSchedule ? "upsert" as const : "delete" as const,
+        payload: input.replacementSchedule,
+      },
+      ...(input.expectedTransaction?.transactions ?? [])
+        .filter(({ id }) => !nextTransactionIds.has(id))
+        .map((transaction) => ({
+          domain: "transactions" as const,
+          entityId: transaction.id,
+          operation: "delete" as const,
+          payload: { accountId: transaction.accountId, amount: transaction.amount,
+            transferAccountId: transaction.transferAccountId, transferTransactionId: transaction.transferTransactionId },
+        })),
+      ...(input.expectedTransaction?.attachments ?? [])
+        .filter(({ id }) => !nextAttachmentIds.has(id))
+        .map((attachment) => ({
+          domain: "transactions" as const,
+          entityId: `attachment:${attachment.id}`,
+          operation: "delete" as const,
+          payload: { kind: "transaction-attachment-delete" as const,
+            attachment: (({ content: _content, ...metadata }) => metadata)(attachment) },
+        })),
+      ...(input.replacementTransaction?.transactions ?? []).map((transaction) => ({
+        domain: "transactions" as const,
+        entityId: transaction.id,
+        operation: "upsert" as const,
+        payload: transaction,
+      })),
+      ...(input.replacementTransaction?.attachments ?? []).map((attachment) => ({
+        domain: "transactions" as const,
+        entityId: `attachment:${attachment.id}`,
+        operation: "upsert" as const,
+        payload: { kind: "transaction-attachment-upsert" as const,
+          attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
+          contentBase64: encodeBase64(attachment.content) },
+      })),
+    ];
   }
 
   type TransactionBatchPreparationInput = Pick<
@@ -2486,6 +2587,74 @@ export function createLocalFirstAccountRegisterQueryClient(
     },
     listScheduledTransactions(budgetId, accountId) {
       return listSchedules(budgetId, accountId);
+    },
+    captureScheduledTransaction(budgetId, scheduleId) {
+      return captureSchedule(budgetId, scheduleId);
+    },
+    async replaceScheduledTransactionHistoryState(input) {
+      const local = await requireDatabase(input.budgetId);
+      const members = scheduledHistoryMembers(input);
+      const operationGroupId = createRuntimeUuid();
+      const group: LocalBudgetOperationGroup = { members };
+      await local.replaceScheduledTransactionHistoryState({
+        scheduleId: input.scheduleId,
+        expectedSchedule: input.expectedSchedule,
+        replacementSchedule: input.replacementSchedule,
+        expectedTransaction: input.expectedTransaction,
+        replacementTransaction: input.replacementTransaction,
+        mutations: members.map((member) => mutation(
+          input.budgetId,
+          member.domain,
+          member.entityId,
+          member.operation,
+          member.payload,
+          operationGroupId,
+          group,
+        )),
+      });
+      notifyLocalFirstMutationCommitted(input.budgetId);
+    },
+    async enterScheduledTransaction(input) {
+      const local = await requireDatabase(input.budgetId);
+      const current = await captureSchedule(input.budgetId, input.schedule.id);
+      if (!current || JSON.stringify(current) !== JSON.stringify(input.schedule)) {
+        throw new Error("The scheduled transaction no longer matches its expected state.");
+      }
+      const advanced = advanceScheduledTransaction(current);
+      const afterSchedule = advanced.action === "delete" ? null : advanced.transaction;
+      let transaction: TransactionHistorySnapshot | null = null;
+      if (input.createTransaction) {
+        const records = await buildNewTransactionRecords(
+          local,
+          input.transactionId,
+          scheduledRegisterWrite(input.budgetId, input.accountId, current),
+        );
+        const attachedAt = new Date().toISOString();
+        transaction = {
+          budgetId: input.budgetId,
+          transactions: records,
+          attachments: (current.attachments ?? []).map((attachment) => ({
+            id: `${input.transactionId}:attachment:${attachment.id}`,
+            budgetId: input.budgetId,
+            transactionId: input.transactionId,
+            fileName: attachment.fileName,
+            fileSize: attachment.fileSize,
+            mimeType: attachment.mimeType,
+            attachedAt,
+            contentHash: attachment.contentHash,
+            content: decodeBase64(attachment.contentBase64),
+          })),
+        };
+      }
+      await client.replaceScheduledTransactionHistoryState({
+        budgetId: input.budgetId,
+        scheduleId: current.id,
+        expectedSchedule: current,
+        replacementSchedule: afterSchedule,
+        expectedTransaction: null,
+        replacementTransaction: transaction,
+      });
+      return { afterSchedule, transaction };
     },
     async createScheduledTransaction(budgetId, input) {
       const schedule = buildScheduledTransaction(input);

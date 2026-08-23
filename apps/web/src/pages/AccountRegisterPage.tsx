@@ -345,7 +345,6 @@ export function AccountRegisterPage() {
     data,
     isLoading,
     error,
-    addTransaction: addTransactionWithoutHistory,
     addTransactions,
     commitTransactionBatch,
     updateTransaction: updateTransactionWithoutHistory,
@@ -1493,6 +1492,7 @@ export function AccountRegisterPage() {
 
         <ScheduledTransactionsPanel
           key={accountId}
+          budgetId={activeBudgetId}
           accountId={accountId}
           isOpen={activeRegisterView === "scheduled"}
           categoryOptions={categoryOptions}
@@ -1503,9 +1503,6 @@ export function AccountRegisterPage() {
           onClose={() => setActiveRegisterView("register")}
           presentation="workspace"
           onDueCountChange={setScheduledDueCount}
-          onEnter={async (input) => {
-            await addTransactionWithoutHistory(input);
-          }}
         />
 
         {isTransactionTagManagerOpen ? (

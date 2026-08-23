@@ -426,6 +426,21 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
+  replaceScheduledTransactionHistoryState(input: {
+    readonly scheduleId: string;
+    readonly expectedSchedule: import("../../accounts/scheduledTransactionTypes").ScheduledTransactionView | null;
+    readonly replacementSchedule: import("../../accounts/scheduledTransactionTypes").ScheduledTransactionView | null;
+    readonly expectedTransaction: TransactionHistorySnapshot | null;
+    readonly replacementTransaction: TransactionHistorySnapshot | null;
+    readonly mutations: readonly LocalBudgetMutation[];
+  }): Promise<LocalBudgetManifest> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "replaceScheduledTransactionHistoryState",
+      ...input,
+    });
+  }
+
   getTransactionsByIds(
     budgetId: string,
     accountId: string,

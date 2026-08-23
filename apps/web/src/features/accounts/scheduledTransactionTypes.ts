@@ -66,6 +66,7 @@ export interface ScheduledTransactionView {
   weekendPolicy?: ScheduledWeekendPolicy;
   payee: string;
   payeeId?: string;
+  transferAccountId?: string;
   category: string;
   categoryId?: string;
   memo?: string;
@@ -99,6 +100,7 @@ export interface UpsertScheduledTransactionInput {
   weekendPolicy?: ScheduledWeekendPolicy;
   payee: string;
   payeeId?: string;
+  transferAccountId?: string;
   category: string;
   categoryId?: string;
   memo?: string;

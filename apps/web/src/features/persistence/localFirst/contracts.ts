@@ -259,6 +259,16 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "replaceScheduledTransactionHistoryState";
+      readonly scheduleId: string;
+      readonly expectedSchedule: import("../../accounts/scheduledTransactionTypes").ScheduledTransactionView | null;
+      readonly replacementSchedule: import("../../accounts/scheduledTransactionTypes").ScheduledTransactionView | null;
+      readonly expectedTransaction: import("./registerSchema").TransactionHistorySnapshot | null;
+      readonly replacementTransaction: import("./registerSchema").TransactionHistorySnapshot | null;
+      readonly mutations: readonly LocalBudgetMutation[];
+    }
+  | {
+      readonly requestId: string;
       readonly type: "writeTransaction";
       readonly transaction: LocalTransactionRecord;
       readonly mutation: LocalBudgetMutation;

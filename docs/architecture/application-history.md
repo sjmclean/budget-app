@@ -241,6 +241,63 @@ mounted consumer. Phase 3 remains the physical `better-sqlite3` schema/BLOB and
 rollback evidence. Source wiring tests are not DOM/browser event tests, and the
 browser OPFS Worker remains outside the Node test environment.
 
+### Phase 5 scheduled transaction command routing
+
+User-initiated scheduled mutations now enter through
+`useScheduledTransactionHistory` and the factories under
+`history/commands/scheduled`:
+
+| UI action | History command |
+| --- | --- |
+| Save a new schedule | `createScheduledTransactionCommand` |
+| Save an edited schedule | `editScheduledTransactionCommand` |
+| Confirm schedule deletion | `deleteScheduledTransactionCommand` |
+| Enter or skip the current occurrence | `enterScheduledTransactionCommand` |
+
+The panel remains a form/view layer. It does not call scheduled create, update,
+delete, advance, or Register Add persistence methods. Commands plan stable
+schedule and occurrence transaction IDs and resolve current persistence services
+from `ApplicationHistoryContext`. Payee-management reference rewrites remain part
+of the later payee-management phase rather than a parallel scheduled history
+path.
+
+Schedules are captured as their complete authoritative JSON entity from
+`local_scheduled_transactions`. This includes recurrence kind and rule,
+specific instalments and index, occurrence counters, weekend and end policies,
+stable split IDs, transfer account identity, tags, and attachment-template
+content. Create captures the exact resulting entity; edit stores authoritative
+before and after entities; delete stores the exact entity before removal. Undo
+and Redo compare the expected persisted entity before replacement.
+
+Manual Enter is one cross-domain command. It plans the deterministic occurrence
+transaction ID, derives the normal Register write from the captured schedule,
+advances or completes the schedule, and submits both the resulting Register
+graph and schedule state to one Worker transaction and one logical outbox group.
+It never calls the public undoable Register Add command, so no nested history
+entry is created. Generated transfers include both reciprocal transaction IDs;
+splits, tags, and copied attachment bytes are carried in the Phase 3 transaction
+graph snapshot.
+
+Undo Enter first validates both the expected generated graph and expected
+post-Enter schedule state inside `BEGIN IMMEDIATE`, then deletes the graph and
+restores the pre-Enter schedule. Redo performs the inverse using the same IDs and
+bytes. A one-time or terminal specific-date schedule uses `null` as its exact
+post-state. A skipped weekend occurrence has no generated graph but still stores
+and reverses its schedule progression. Any mismatch rolls back both domains and
+the application-history controller retains the failed entry.
+
+Automatic due generation in `scheduledTransactionMaintenance` and
+`scheduledTransactionGenerationService` deliberately continues to use the
+lower-level persistence boundary. It does not execute an application-history
+command and therefore cannot pollute the user's Undo stack.
+
+Scheduled command tests use an authoritative identity-keyed adapter for command
+semantics and navigation/global ordering. Worker source-contract tests prove the
+combined precondition checks, transaction boundary, attachment write, readback,
+commit, and rollback wiring. Phase 3 supplies physical `better-sqlite3`
+transaction graph/BLOB evidence; recurrence/lifecycle tests exercise the real
+schedule model. Browser OPFS Worker and DOM event execution are not claimed.
+
 ## Command rules
 
 - One user gesture creates one history entry.
@@ -262,7 +319,7 @@ browser OPFS Worker remains outside the Node test environment.
    and physical readback tests.
 4. **Complete:** route normal Register mutations through validated
    application-history commands.
-5. Add scheduled transaction commands, including compound Enter.
+5. **Complete:** add scheduled transaction commands, including compound Enter.
 6. Extend safe reversible coverage to accounts, categories/groups, payees, tags,
    and attachments; keep unsafe merges explicitly non-undoable.
 7. Wire lifecycle history boundaries, re-run the mutation audit, and remove dead

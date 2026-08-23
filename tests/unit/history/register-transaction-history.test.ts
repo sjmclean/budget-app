@@ -258,7 +258,8 @@ test("production source routes normal UI mutations through the shared command ho
   assert.match(page, /useRegisterTransactionHistory\(activeBudgetId, accountId\)/);
   assert.match(page, /onSave=\{async \(input, targetAccountId\) => \{\s*await addTransaction\(input, targetAccountId\)/);
   assert.match(page, /onSave=\{async \(input\) => \{\s*await updateTransaction\(input\)/);
-  assert.match(page, /onEnter=\{async \(input\) => \{\s*await addTransactionWithoutHistory\(input\)/);
+  assert.match(page, /<ScheduledTransactionsPanel\s+key=\{accountId\}\s+budgetId=\{activeBudgetId\}/);
+  assert.doesNotMatch(page, /addTransactionWithoutHistory/);
   assert.match(selection, /await deleteTransactions\(selectedTransactionIds\)/);
   assert.doesNotMatch(selection, /for \(const transactionId of selectedTransactionIds\)/);
 });

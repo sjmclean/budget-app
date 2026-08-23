@@ -25,6 +25,7 @@ export function scheduledTransactionToRegisterInput(
     tagIds: normaliseTagIds(transaction.tagIds),
     payee: transaction.payee,
     payeeId: transaction.payeeId,
+    transferAccountId: transaction.transferAccountId,
     category: transaction.category,
     categoryId: transaction.categoryId,
     memo: transaction.memo,

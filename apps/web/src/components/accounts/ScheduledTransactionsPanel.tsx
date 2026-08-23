@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { NewRegisterTransactionInput, ScheduledAttachmentTemplate } from "../../features/accounts/accountRegisterTypes";
+import type { ScheduledAttachmentTemplate } from "../../features/accounts/accountRegisterTypes";
 import { calculateAttachmentContentHash } from "../../features/attachments/attachmentContentStore";
 import { alertDialog, confirmDialog } from "../../features/ui/appDialogService";
 import type {
@@ -20,7 +20,6 @@ import {
   normaliseSpecificInstalments,
   resolveOccurrenceDate,
   resolveRecurrence,
-  shouldSkipOccurrence,
 } from "../../features/accounts/scheduledTransactionRecurrence";
 import type { RegisterSplitLineView } from "../../features/accounts/accountRegisterTypes";
 import { getSplitBalanceStatus } from "../../features/accounts/registerSplitDrafts";
@@ -37,8 +36,10 @@ import type { TransactionTagDefinition } from "../../features/tags/transactionTa
 import { TransactionTagPicker } from "../../features/accounts/components/TransactionRow";
 import { localCalendarDate } from "../../features/dates/localCalendarDate";
 import { MoneyInput } from "../../features/money/MoneyInput";
+import { useScheduledTransactionHistory } from "../../features/accounts/useScheduledTransactionHistory";
 
 interface ScheduledTransactionsPanelProps {
+  budgetId: string | null;
   accountId: string;
   isOpen: boolean;
   categoryOptions: BudgetCategoryOption[];
@@ -47,7 +48,6 @@ interface ScheduledTransactionsPanelProps {
   tags: readonly TransactionTagDefinition[];
   onCreateTag: (name: string) => TransactionTagDefinition;
   onClose: () => void;
-  onEnter: (transaction: NewRegisterTransactionInput) => Promise<void>;
   onDueCountChange?: (count: number) => void;
   presentation?: "overlay" | "workspace";
 }
@@ -77,6 +77,7 @@ interface ScheduledFormDraft {
   weekendPolicy: ScheduledWeekendPolicy;
   payee: string;
   payeeId?: string;
+  transferAccountId?: string;
   category: string;
   categoryId?: string;
   memo: string;
@@ -87,6 +88,7 @@ interface ScheduledFormDraft {
 type ScheduledFrequencyChoice = "once" | "daily" | "weekly" | "fortnightly" | "monthly" | "quarterly" | "half-yearly" | "yearly" | "custom" | "specific-dates";
 
 export function ScheduledTransactionsPanel({
+  budgetId,
   accountId,
   isOpen,
   categoryOptions,
@@ -95,11 +97,12 @@ export function ScheduledTransactionsPanel({
   tags,
   onCreateTag,
   onClose,
-  onEnter,
   onDueCountChange,
   presentation = "overlay",
 }: ScheduledTransactionsPanelProps) {
   const scheduledTransactionsPersistence = getBudgetPersistenceProvider().scheduledTransactions;
+  const { createSchedule, editSchedule, deleteSchedule, enterSchedule } =
+    useScheduledTransactionHistory(budgetId, accountId);
   const persistenceChangeVersion = usePersistenceChangeVersion();
   const dateFormat = useDateFormatPreference();
   const [scheduledTransactions, setScheduledTransactions] = useState<ScheduledTransactionView[]>([]);
@@ -222,6 +225,7 @@ export function ScheduledTransactionsPanel({
       weekendPolicy: draft.weekendPolicy,
       payee: draft.payee.trim(),
       payeeId: draft.payeeId,
+      transferAccountId: draft.transferAccountId,
       category: draft.category.trim(),
       categoryId: draft.categoryId,
       memo: draft.memo.trim(),
@@ -231,9 +235,9 @@ export function ScheduledTransactionsPanel({
       attachments: draft.attachments,
     };
 
-    const next = draft.id
-      ? await scheduledTransactionsPersistence.update({ ...input, id: draft.id })
-      : await scheduledTransactionsPersistence.create(input);
+    if (draft.id) await editSchedule({ ...input, id: draft.id });
+    else await createSchedule(input);
+    const next = await scheduledTransactionsPersistence.listByAccount(accountId);
 
     setScheduledTransactions(next);
     onDueCountChange?.(countDue(next));
@@ -251,17 +255,15 @@ export function ScheduledTransactionsPanel({
       return;
     }
 
-    const next = await scheduledTransactionsPersistence.delete(accountId, transaction.id);
+    await deleteSchedule(transaction.id);
+    const next = await scheduledTransactionsPersistence.listByAccount(accountId);
     setScheduledTransactions(next);
     onDueCountChange?.(countDue(next));
   }
 
   async function enterScheduled(transaction: ScheduledTransactionView) {
-    const anchorDate = transaction.recurrenceAnchorDate ?? transaction.nextDueDate;
-    if (!shouldSkipOccurrence(anchorDate, transaction.weekendPolicy ?? "same-day")) {
-      await onEnter(scheduledTransactionsPersistence.toRegisterInput(transaction));
-    }
-    const next = await scheduledTransactionsPersistence.advanceAfterEnter(accountId, transaction.id);
+    await enterSchedule(transaction);
+    const next = await scheduledTransactionsPersistence.listByAccount(accountId);
     setScheduledTransactions(next);
     onDueCountChange?.(countDue(next));
   }
@@ -703,7 +705,11 @@ function ScheduledForm({
                     ...draft,
                     payee,
                     payeeId: undefined,
+                    transferAccountId: undefined,
                   })
+                }
+                onTransferAccountIdChange={(transferAccountId) =>
+                  setDraft({ ...draft, transferAccountId, payeeId: undefined })
                 }
                 onPayeeIdChange={(payeeId) => {
                   if (!payeeId) {
@@ -1202,6 +1208,7 @@ function createEmptyDraft(): ScheduledFormDraft {
     weekendPolicy: "same-day",
     payee: "",
     payeeId: undefined,
+    transferAccountId: undefined,
     category: "",
     categoryId: undefined,
     memo: "",
@@ -1246,6 +1253,7 @@ function draftFromScheduled(transaction: ScheduledTransactionView): ScheduledFor
     weekendPolicy: transaction.weekendPolicy ?? "same-day",
     payee: transaction.payee,
     payeeId: transaction.payeeId,
+    transferAccountId: transaction.transferAccountId,
     category: transaction.category,
     categoryId: transaction.categoryId,
     memo: transaction.memo ?? "",

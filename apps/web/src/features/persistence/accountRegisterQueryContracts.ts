@@ -320,6 +320,31 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     accountId: string,
   ): Promise<readonly ScheduledTransactionView[]>;
 
+  captureScheduledTransaction(
+    budgetId: string,
+    scheduleId: string,
+  ): Promise<ScheduledTransactionView | null>;
+
+  replaceScheduledTransactionHistoryState(input: {
+    readonly budgetId: string;
+    readonly scheduleId: string;
+    readonly expectedSchedule: ScheduledTransactionView | null;
+    readonly replacementSchedule: ScheduledTransactionView | null;
+    readonly expectedTransaction: TransactionHistorySnapshot | null;
+    readonly replacementTransaction: TransactionHistorySnapshot | null;
+  }): Promise<void>;
+
+  enterScheduledTransaction(input: {
+    readonly budgetId: string;
+    readonly accountId: string;
+    readonly schedule: ScheduledTransactionView;
+    readonly transactionId: string;
+    readonly createTransaction: boolean;
+  }): Promise<{
+    readonly afterSchedule: ScheduledTransactionView | null;
+    readonly transaction: TransactionHistorySnapshot | null;
+  }>;
+
   createScheduledTransaction(
     budgetId: string,
     input: UpsertScheduledTransactionInput,
