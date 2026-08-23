@@ -441,6 +441,28 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
+  replaceAccountHistoryState(input: {
+    readonly accountId: string;
+    readonly expected: import("./registerSchema").LocalAccountRecord | null;
+    readonly replacement: import("./registerSchema").LocalAccountRecord | null;
+    readonly mutation: LocalBudgetMutation;
+  }): Promise<LocalBudgetManifest> {
+    return this.#request({ requestId: createRuntimeUuid(), type: "replaceAccountHistoryState", ...input });
+  }
+
+  readAccountForHistory(accountId: string): Promise<import("./registerSchema").LocalAccountRecord | null> {
+    return this.#request({ requestId: createRuntimeUuid(), type: "readAccountForHistory", accountId });
+  }
+
+  replaceBudgetMonthHistoryState(input: {
+    readonly month: string;
+    readonly expected: import("../../budget/budgetViewTypes").BudgetMonthView;
+    readonly replacement: import("../../budget/budgetViewTypes").BudgetMonthView;
+    readonly mutation: LocalBudgetMutation;
+  }): Promise<LocalBudgetManifest> {
+    return this.#request({ requestId: createRuntimeUuid(), type: "replaceBudgetMonthHistoryState", ...input });
+  }
+
   getTransactionsByIds(
     budgetId: string,
     accountId: string,

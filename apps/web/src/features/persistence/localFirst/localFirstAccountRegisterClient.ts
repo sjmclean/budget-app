@@ -2226,7 +2226,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       const currencyCode = navigation[0]?.currencyCode ?? "AUD";
       const now = new Date().toISOString();
       const account = {
-        id: createRuntimeUuid(),
+        id: input.id ?? createRuntimeUuid(),
         budgetId,
         name: input.name,
         type: input.type,
@@ -2243,6 +2243,36 @@ export function createLocalFirstAccountRegisterQueryClient(
       );
       notifyLocalFirstMutationCommitted(budgetId);
       return listLocalAccounts(budgetId);
+    },
+    async captureAccount(budgetId, accountId) {
+      await synchronise(budgetId);
+      return (await requireDatabase(budgetId)).readAccountForHistory(accountId);
+    },
+    async replaceAccountHistoryState(input) {
+      const local = await requireDatabase(input.budgetId);
+      await local.replaceAccountHistoryState({
+        accountId: input.accountId,
+        expected: input.expected,
+        replacement: input.replacement,
+        mutation: mutation(
+          input.budgetId,
+          "accounts",
+          input.accountId,
+          input.replacement ? "upsert" : "delete",
+          input.replacement,
+        ),
+      });
+      notifyLocalFirstMutationCommitted(input.budgetId);
+    },
+    async replaceBudgetMonthHistoryState(input) {
+      const local = await requireDatabase(input.budgetId);
+      await local.replaceBudgetMonthHistoryState({
+        month: input.month,
+        expected: input.expected,
+        replacement: input.replacement,
+        mutation: mutation(input.budgetId, "budgetMonths", input.month, "upsert", input.replacement),
+      });
+      notifyLocalFirstMutationCommitted(input.budgetId);
     },
     async updateAccount(budgetId, input) {
       const local = await requireDatabase(budgetId);
@@ -2802,7 +2832,7 @@ function mutateBudgetCategory(
       groups = [...groups, group];
     }
     group.categories.push({
-      id: createRuntimeUuid(),
+      id: categoryId || createRuntimeUuid(),
       name: String(input.name ?? "New category"),
       previousAvailable: 0, assigned: 0, activity: 0, available: 0,
       isOverspent: false, isArchived: false, note: "",

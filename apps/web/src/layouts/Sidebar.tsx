@@ -37,13 +37,13 @@ import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { getCurrentBudgetMonth } from "../features/budget/budgetMonthNavigation";
 import type { CreditCardBehaviour } from "../features/budget/budgetPreferences";
 import { getBudgetPersistenceProvider } from "../features/persistence";
-import { isActiveSqliteBudget } from "../features/persistence/sqliteBudgetSafety";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import { isLargeStreamingYnab4Budget } from "../features/budget/ynab4/finaliseYnab4Import.js";
 import { alertDialog, confirmDialog } from "../features/ui/appDialogService";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import { navigationModel, type NavigationIcon } from "./navigationModel";
+import { useAccountHistory } from "../features/accounts/useAccountHistory";
 import type { AdaptiveNavigationMode } from "./useAdaptiveNavigation";
 
 interface AccountNavigationSummary {
@@ -101,6 +101,7 @@ export function Sidebar({
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
   const activeBudget = budgets.find((budget) => budget.id === activeBudgetId);
+  const accountHistory = useAccountHistory(activeBudgetId);
   const [accountsOpen, setAccountsOpen] = useState(true);
   const [budgetAccountsOpen, setBudgetAccountsOpen] = useState(true);
   const [creditCardsOpen, setCreditCardsOpen] = useState(true);
@@ -279,23 +280,13 @@ export function Sidebar({
   }
 
   async function addAccount(input: CreateAccountInput) {
-    const nextAccounts =
-      activeBudgetId &&
-      accountRegisterQueries &&
-      await isActiveSqliteBudget(accountRegisterQueries, activeBudgetId)
-        ? [...await accountRegisterQueries.createAccount(activeBudgetId, input)]
-        : await accountsPersistence.createAccount(input);
+    const nextAccounts = await accountHistory.createAccount(input);
     setAccounts(nextAccounts);
     setAccountNavigationRevision((revision) => revision + 1);
   }
 
   async function updateAccount(input: UpdateAccountInput) {
-    const nextAccounts =
-      activeBudgetId &&
-      accountRegisterQueries &&
-      await isActiveSqliteBudget(accountRegisterQueries, activeBudgetId)
-        ? [...await accountRegisterQueries.updateAccount(activeBudgetId, input)]
-        : await accountsPersistence.updateAccount(input);
+    const nextAccounts = await accountHistory.updateAccount(input);
     setAccounts(nextAccounts);
     setEditingAccount(null);
     setOpenMenuAccountId(null);
@@ -313,57 +304,19 @@ export function Sidebar({
       return;
     }
 
-    if (
-      activeBudgetId &&
-      accountRegisterQueries &&
-      (await accountRegisterQueries.getBudgetStatus(activeBudgetId).catch(() => null))
-        ?.capabilities.accountRegisters
-    ) {
-      await accountRegisterQueries.setAccountClosed({
-        budgetId: activeBudgetId,
-        accountId: account.id,
-        closed: true,
-      });
-      setAccounts((current) => current.map((candidate) =>
-        candidate.id === account.id
-          ? { ...candidate, closedAt: new Date().toISOString() }
-          : candidate,
-      ));
-    } else {
-      const nextAccounts = await accountsPersistence.closeAccount(account.id);
-      setAccounts(nextAccounts);
-    }
+    setAccounts(await accountHistory.closeAccount(account.id));
     setOpenMenuAccountId(null);
   }
 
   async function reopenAccount(account: SidebarAccount) {
-    if (
-      activeBudgetId &&
-      accountRegisterQueries &&
-      (await accountRegisterQueries.getBudgetStatus(activeBudgetId).catch(() => null))
-        ?.capabilities.accountRegisters
-    ) {
-      await accountRegisterQueries.setAccountClosed({
-        budgetId: activeBudgetId,
-        accountId: account.id,
-        closed: false,
-      });
-      setAccounts((current) => current.map((candidate) =>
-        candidate.id === account.id
-          ? { ...candidate, closedAt: null }
-          : candidate,
-      ));
-    } else {
-      const nextAccounts = await accountsPersistence.reopenAccount(account.id);
-      setAccounts(nextAccounts);
-    }
+    setAccounts(await accountHistory.reopenAccount(account.id));
     setOpenMenuAccountId(null);
   }
 
   async function deleteAccount(account: SidebarAccount) {
     const shouldDelete = await confirmDialog({
       title: `Delete "${account.name}"?`,
-      message: "Only empty accounts can be permanently deleted. This cannot be undone.",
+      message: "Only empty accounts can be permanently deleted.",
       confirmLabel: "Delete account",
       tone: "danger",
     });
@@ -372,15 +325,12 @@ export function Sidebar({
       return;
     }
 
-    const result =
-      activeBudgetId &&
-      accountRegisterQueries &&
-      await isActiveSqliteBudget(accountRegisterQueries, activeBudgetId)
-        ? await accountRegisterQueries.deleteAccount(activeBudgetId, account.id)
-        : await accountsPersistence.deleteAccount(account.id);
-
-    if (!result.deleted) {
-      await alertDialog({ message: result.reason ?? "This account cannot be deleted." });
+    let result;
+    try {
+      result = await accountHistory.deleteAccount(account.id);
+    } catch (error) {
+      await alertDialog({ message: error instanceof Error ? error.message : "This account cannot be deleted." });
+      return;
     }
 
     setAccounts(result.accounts);

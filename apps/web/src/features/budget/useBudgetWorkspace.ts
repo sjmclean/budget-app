@@ -17,6 +17,7 @@ import {
 } from "./budgetApplicationHistory";
 import { applicationHistory } from "../history";
 import { previewCategoryAssignment } from "./budgetAssignmentPreview";
+import { useCategoryHistory } from "./useCategoryHistory";
 
 interface UseBudgetWorkspaceState {
   data: BudgetMonthView | null;
@@ -73,6 +74,7 @@ export function useBudgetWorkspace(
 ): UseBudgetWorkspaceState {
   const persistenceGateway = getBudgetPersistenceProvider();
   const categoriesPersistence = persistenceGateway.categories;
+  const categoryHistory = useCategoryHistory(budgetId, month);
   const budgetViewPersistence = persistenceGateway.budgetView;
   const budgetView = useBudgetView(budgetId, month);
   const [editedData, setEditedData] = useState<BudgetMonthView | null>(null);
@@ -465,7 +467,7 @@ export function useBudgetWorkspace(
 
   function renameCategory(categoryId: string, name: string) {
     runWorkspaceMutation(
-      () => categoriesPersistence.renameCategory({ budgetId, month, categoryId, name }),
+      () => categoryHistory.renameCategory({ categoryId, name }),
       (nextData) => {
         setEditedData(nextData);
         setSelectedCategoryId(categoryId);
@@ -476,7 +478,7 @@ export function useBudgetWorkspace(
 
   function setCategoryArchived(categoryId: string, isArchived: boolean) {
     runWorkspaceMutation(
-      () => categoriesPersistence.setCategoryArchived({ budgetId, month, categoryId, isArchived }),
+      () => categoryHistory.setCategoryArchived({ categoryId, isArchived }),
       (nextData) => {
         setEditedData(nextData);
         setSelectedCategoryId(categoryId);
@@ -487,7 +489,7 @@ export function useBudgetWorkspace(
 
   function moveCategory(categoryId: string, direction: "up" | "down") {
     runWorkspaceMutation(
-      () => categoriesPersistence.moveCategory({ budgetId, month, categoryId, direction }),
+      () => categoryHistory.moveCategory({ categoryId, direction }),
       (nextData) => {
         setEditedData(nextData);
         setSelectedCategoryId(categoryId);
@@ -502,9 +504,7 @@ export function useBudgetWorkspace(
     placement: "before" | "after",
   ) {
     runWorkspaceMutation(
-      () => categoriesPersistence.moveCategoryToPosition({
-        budgetId,
-        month,
+      () => categoryHistory.moveCategoryToPosition({
         categoryId,
         targetCategoryId,
         placement,
@@ -519,7 +519,7 @@ export function useBudgetWorkspace(
 
   function moveCategoryGroup(groupId: string, direction: "up" | "down") {
     runWorkspaceMutation(
-      () => categoriesPersistence.moveCategoryGroup({ budgetId, month, groupId, direction }),
+      () => categoryHistory.moveCategoryGroup({ groupId, direction }),
       (nextData) => setEditedData(nextData),
       "Failed to move category group.",
     );
@@ -531,9 +531,7 @@ export function useBudgetWorkspace(
     placement: "before" | "after",
   ) {
     runWorkspaceMutation(
-      () => categoriesPersistence.moveCategoryGroupToPosition({
-        budgetId,
-        month,
+      () => categoryHistory.moveCategoryGroupToPosition({
         groupId,
         targetGroupId,
         placement,
@@ -545,7 +543,7 @@ export function useBudgetWorkspace(
 
   function updateCategoryNote(categoryId: string, note: string) {
     runWorkspaceMutation(
-      () => categoriesPersistence.updateCategoryNote({ budgetId, month, categoryId, note }),
+      () => categoryHistory.updateCategoryNote({ categoryId, note }),
       (nextData) => {
         setEditedData(nextData);
         setSelectedCategoryId(categoryId);
@@ -556,7 +554,7 @@ export function useBudgetWorkspace(
 
   function updateCategoryGroupNote(groupId: string, note: string) {
     runWorkspaceMutation(
-      () => categoriesPersistence.updateCategoryGroupNote({ budgetId, month, groupId, note }),
+      () => categoryHistory.updateCategoryGroupNote({ groupId, note }),
       (nextData) => setEditedData(nextData),
       "Failed to update category group note.",
     );
@@ -639,11 +637,7 @@ export function useBudgetWorkspace(
     groupId: string;
     groupName: string;
   }) {
-    const nextView = await categoriesPersistence.createCategory({
-      budgetId,
-      month,
-      ...input,
-    });
+    const nextView = await categoryHistory.createCategory(input);
     setEditedData(nextView);
   }
 

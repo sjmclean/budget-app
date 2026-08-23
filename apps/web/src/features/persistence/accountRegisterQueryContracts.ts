@@ -246,6 +246,22 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     input: CreateAccountInput,
   ): Promise<readonly SidebarAccount[]>;
 
+  captureAccount(budgetId: string, accountId: string): Promise<import("./localFirst/registerSchema").LocalAccountRecord | null>;
+
+  replaceAccountHistoryState(input: {
+    readonly budgetId: string;
+    readonly accountId: string;
+    readonly expected: import("./localFirst/registerSchema").LocalAccountRecord | null;
+    readonly replacement: import("./localFirst/registerSchema").LocalAccountRecord | null;
+  }): Promise<void>;
+
+  replaceBudgetMonthHistoryState(input: {
+    readonly budgetId: string;
+    readonly month: string;
+    readonly expected: BudgetMonthView;
+    readonly replacement: BudgetMonthView;
+  }): Promise<void>;
+
   updateAccount(
     budgetId: string,
     input: UpdateAccountInput,

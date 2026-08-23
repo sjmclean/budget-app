@@ -66,6 +66,7 @@ export interface BudgetCategoryOption {
 }
 
 export interface CreateBudgetCategoryInput {
+  categoryId?: string;
   budgetId: string;
   month: string;
   name: string;

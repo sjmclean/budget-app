@@ -13,6 +13,7 @@ export interface SidebarAccount {
 }
 
 export interface CreateAccountInput {
+  id?: string;
   name: string;
   type: SidebarAccountType;
   startingBalance: number;
@@ -47,7 +48,7 @@ class BrowserPersistentAccountService {
 
   async createAccount(input: CreateAccountInput): Promise<SidebarAccount[]> {
     const accounts = readAccounts(this.dependencies.storage);
-    const account: SidebarAccount = { id: createAccountId(input.name, accounts), name: input.name, type: input.type, startingBalance: input.startingBalance, createdAt: new Date().toISOString(), closedAt: null };
+    const account: SidebarAccount = { id: input.id ?? createAccountId(input.name, accounts), name: input.name, type: input.type, startingBalance: input.startingBalance, createdAt: new Date().toISOString(), closedAt: null };
     this.repository().save(createAccountEntity(account, this.timestamp()));
     return readAccounts(this.dependencies.storage);
   }

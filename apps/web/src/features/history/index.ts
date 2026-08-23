@@ -36,3 +36,4 @@ export type { UseApplicationHistoryState } from "./useApplicationHistory";
 export { useApplicationHistory } from "./useApplicationHistory";
 export * from "./commands/transactions";
 export * from "./commands/scheduled";
+export * from "./commands/management";

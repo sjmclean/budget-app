@@ -269,6 +269,27 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "replaceAccountHistoryState";
+      readonly accountId: string;
+      readonly expected: import("./registerSchema").LocalAccountRecord | null;
+      readonly replacement: import("./registerSchema").LocalAccountRecord | null;
+      readonly mutation: LocalBudgetMutation;
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "readAccountForHistory";
+      readonly accountId: string;
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "replaceBudgetMonthHistoryState";
+      readonly month: string;
+      readonly expected: import("../../budget/budgetViewTypes").BudgetMonthView;
+      readonly replacement: import("../../budget/budgetViewTypes").BudgetMonthView;
+      readonly mutation: LocalBudgetMutation;
+    }
+  | {
+      readonly requestId: string;
       readonly type: "writeTransaction";
       readonly transaction: LocalTransactionRecord;
       readonly mutation: LocalBudgetMutation;

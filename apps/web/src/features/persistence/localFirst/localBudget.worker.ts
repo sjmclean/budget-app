@@ -4528,6 +4528,85 @@ function deleteAccount(
   return currentManifest();
 }
 
+function readAccountForHistory(accountId: string): import("./registerSchema").LocalAccountRecord | null {
+  return resultRows<import("./registerSchema").LocalAccountRecord>(
+    `SELECT id, budget_id AS budgetId, name, type, participation,
+            opening_balance AS openingBalance, currency_code AS currencyCode,
+            created_at AS createdAt, closed_at AS closedAt
+     FROM local_accounts WHERE budget_id = ? AND id = ?`,
+    [activeBudgetId, accountId],
+  )[0] ?? null;
+}
+
+function replaceAccountHistoryState(
+  accountId: string,
+  expected: import("./registerSchema").LocalAccountRecord | null,
+  replacement: import("./registerSchema").LocalAccountRecord | null,
+  mutation: LocalBudgetMutation,
+): LocalBudgetManifest {
+  assertMutationScope(mutation);
+  if (
+    mutation.domain !== "accounts" || mutation.entityId !== accountId ||
+    mutation.operation !== (replacement ? "upsert" : "delete") ||
+    (expected && expected.id !== accountId) || (replacement && replacement.id !== accountId)
+  ) throw workerError("INVALID_ACCOUNT_HISTORY", "Account history state is inconsistent.");
+  execute("BEGIN IMMEDIATE");
+  try {
+    if (JSON.stringify(readAccountForHistory(accountId)) !== JSON.stringify(expected)) {
+      throw workerError("ACCOUNT_HISTORY_CONFLICT", "Persisted account no longer matches expected state.");
+    }
+    if (replacement) upsertAccount(replacement);
+    else {
+      assertAccountDeletable(activeBudgetId, accountId);
+      execute("DELETE FROM local_accounts WHERE budget_id = ? AND id = ?", [activeBudgetId, accountId]);
+    }
+    if (replacement) reconcileCreditCardPaymentCategoryForAccount(replacement);
+    markAllBudgetProjectionsDirty();
+    insertOutbox(mutation);
+    writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
+    if (JSON.stringify(readAccountForHistory(accountId)) !== JSON.stringify(replacement)) {
+      throw workerError("ACCOUNT_HISTORY_VERIFICATION_FAILED", "Account differs after persistence.");
+    }
+    execute("COMMIT");
+  } catch (error) {
+    execute("ROLLBACK");
+    throw error;
+  }
+  return currentManifest();
+}
+
+function replaceBudgetMonthHistoryState(
+  month: string,
+  expected: BudgetMonthView,
+  replacement: BudgetMonthView,
+  mutation: LocalBudgetMutation,
+): LocalBudgetManifest {
+  assertMutationScope(mutation);
+  if (
+    mutation.domain !== "budgetMonths" || mutation.entityId !== month || mutation.operation !== "upsert" ||
+    expected.budgetId !== activeBudgetId || replacement.budgetId !== activeBudgetId
+  ) throw workerError("INVALID_CATEGORY_HISTORY", "Category history state is inconsistent.");
+  execute("BEGIN IMMEDIATE");
+  try {
+    const current = readNormalisedDomainEntity("budgetMonths", month).value;
+    if (JSON.stringify(current) !== JSON.stringify(expected)) {
+      throw workerError("CATEGORY_HISTORY_CONFLICT", "Persisted category state no longer matches expected state.");
+    }
+    writeNormalisedDomainEntity("budgetMonths", month, replacement, new Date().toISOString());
+    insertOutbox(mutation);
+    writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
+    const restored = readNormalisedDomainEntity("budgetMonths", month).value;
+    if (JSON.stringify(restored) !== JSON.stringify(replacement)) {
+      throw workerError("CATEGORY_HISTORY_VERIFICATION_FAILED", "Category state differs after persistence.");
+    }
+    execute("COMMIT");
+  } catch (error) {
+    execute("ROLLBACK");
+    throw error;
+  }
+  return currentManifest();
+}
+
 function mergePayees(
   budgetId: string,
   sourcePayeeId: string,
@@ -5241,6 +5320,12 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
         request.mutation,
         request.resolveConflictId,
       );
+    case "replaceAccountHistoryState":
+      return replaceAccountHistoryState(request.accountId, request.expected, request.replacement, request.mutation);
+    case "readAccountForHistory":
+      return readAccountForHistory(request.accountId);
+    case "replaceBudgetMonthHistoryState":
+      return replaceBudgetMonthHistoryState(request.month, request.expected, request.replacement, request.mutation);
     case "mergePayees":
       return mergePayees(
         request.budgetId,
