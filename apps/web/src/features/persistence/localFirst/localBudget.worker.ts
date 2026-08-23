@@ -3304,7 +3304,8 @@ function writeImportBatch(
   writes: readonly TransactionBatchWrite[],
   requireAbsentTransactionIds: readonly string[] = [],
   verifyWrittenTransactions = false,
-): LocalBudgetManifest {
+  history?: { readonly transactionIds: readonly string[]; readonly payeeIds: readonly string[] },
+): LocalBudgetManifest | { readonly before: ImportHistorySnapshot; readonly after: ImportHistorySnapshot } {
   for (const { mutation } of payeeWrites) assertMutationScope(mutation);
   for (const { mutation } of writes) assertMutationScope(mutation);
 
@@ -3365,6 +3366,9 @@ function writeImportBatch(
 
   execute("BEGIN IMMEDIATE");
   try {
+    const before = history
+      ? captureImportHistorySnapshot(activeBudgetId!, history.transactionIds, history.payeeIds)
+      : null;
     const persistedPayees = resultRows<{
       id: string;
       name: string;
@@ -3489,7 +3493,12 @@ function writeImportBatch(
       ),
     );
 
+    const after = history
+      ? captureImportHistorySnapshot(activeBudgetId!, history.transactionIds, history.payeeIds)
+      : null;
+
     execute("COMMIT");
+    if (before && after) return { before, after };
   } catch (error) {
     execute("ROLLBACK");
     throw error;
@@ -5447,6 +5456,14 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
         request.writes,
         request.requireAbsentTransactionIds,
         request.verifyWrittenTransactions,
+      );
+    case "writeImportBatchWithHistory":
+      return writeImportBatch(
+        request.payeeWrites,
+        request.writes,
+        request.requireAbsentTransactionIds,
+        request.verifyWrittenTransactions,
+        { transactionIds: request.historyTransactionIds, payeeIds: request.historyPayeeIds },
       );
     case "deleteTransaction":
       return deleteTransaction(request.transactionId, request.mutation, request.resolveConflictId);

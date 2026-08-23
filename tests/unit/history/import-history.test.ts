@@ -106,6 +106,10 @@ test("production import wiring has one command and worker replacement is transac
   assert.match(source, /IMPORT_HISTORY_VERIFICATION_FAILED/);
   assert.match(source, /COMMIT/);
   assert.match(source, /ROLLBACK/);
+  const writeStart = worker.indexOf("function writeImportBatch(");
+  const writeSource = worker.slice(writeStart, worker.indexOf("\nfunction captureTransactionHistorySnapshots", writeStart));
+  assert.ok(writeSource.indexOf("const before = history") < writeSource.indexOf("applyTransactionBatchInCurrentTransaction"));
+  assert.ok(writeSource.indexOf("const after = history") < writeSource.indexOf('execute("COMMIT")'));
 });
 
 test("restore, reset and delete are explicit history boundaries", () => {

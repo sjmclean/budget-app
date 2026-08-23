@@ -1886,6 +1886,18 @@ export function createLocalFirstAccountRegisterQueryClient(
       }
     },
     async commitImportBatchWithHistory(input) {
+      const local = await requireDatabase(input.budgetId);
+      const { writes, requireAbsentTransactionIds } = await prepareTransactionBatchWrites(local, input);
+      const payeeWrites = input.payeeCreations.map((creation) => {
+        const now = new Date().toISOString();
+        const name = creation.name.replace(/\s+/g, " ").trim();
+        if (!creation.id.trim() || !name) throw new Error("A staged import payee requires both an ID and a name.");
+        const payee: LocalPayeeRecord = {
+          id: creation.id, budgetId: input.budgetId, name, note: "", archived: false,
+          createdAt: now, updatedAt: now,
+        };
+        return { payee, mutation: mutation(input.budgetId, "payees", payee.id, "upsert", payee) };
+      });
       const transactionIds = [...new Set([
         ...input.additions.map(({ id }) => id),
         ...input.updates.map(({ id }) => id),
@@ -1895,11 +1907,14 @@ export function createLocalFirstAccountRegisterQueryClient(
       if (transactionIds.length === 0 && payeeIds.length === 0) {
         throw new Error("An import history command requires at least one persisted object.");
       }
-      const local = await requireDatabase(input.budgetId);
-      const before = await local.captureImportHistorySnapshot(input.budgetId, transactionIds, payeeIds);
-      await client.commitImportBatch(input);
-      const after = await local.captureImportHistorySnapshot(input.budgetId, transactionIds, payeeIds);
-      return { before, after };
+      const snapshots = await local.writeImportBatchWithHistory(payeeWrites, writes, {
+        requireAbsentTransactionIds,
+        verifyWrittenTransactions: true,
+        historyTransactionIds: transactionIds,
+        historyPayeeIds: payeeIds,
+      });
+      notifyLocalFirstMutationCommitted(input.budgetId);
+      return snapshots;
     },
     async replaceImportHistorySnapshot({ expected, replacement }) {
       if (expected.budgetId !== replacement.budgetId) {

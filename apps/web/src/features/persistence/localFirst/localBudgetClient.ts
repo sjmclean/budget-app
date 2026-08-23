@@ -606,6 +606,25 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
+  writeImportBatchWithHistory(
+    payeeWrites: readonly { readonly payee: LocalPayeeRecord; readonly mutation: LocalBudgetMutation }[],
+    writes: readonly { readonly transaction: LocalTransactionRecord; readonly mutation: LocalBudgetMutation; readonly resolveConflictId?: string }[],
+    options: {
+      readonly requireAbsentTransactionIds?: readonly string[];
+      readonly verifyWrittenTransactions?: boolean;
+      readonly historyTransactionIds: readonly string[];
+      readonly historyPayeeIds: readonly string[];
+    },
+  ): Promise<{ readonly before: ImportHistorySnapshot; readonly after: ImportHistorySnapshot }> {
+    return this.#request({
+      requestId: createRuntimeUuid(), type: "writeImportBatchWithHistory", payeeWrites, writes,
+      requireAbsentTransactionIds: options.requireAbsentTransactionIds,
+      verifyWrittenTransactions: options.verifyWrittenTransactions,
+      historyTransactionIds: options.historyTransactionIds,
+      historyPayeeIds: options.historyPayeeIds,
+    });
+  }
+
   deleteTransaction(
     transactionId: string,
     mutation: LocalBudgetMutation,

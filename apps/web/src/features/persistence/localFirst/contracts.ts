@@ -344,6 +344,23 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "writeImportBatchWithHistory";
+      readonly payeeWrites: readonly {
+        readonly payee: import("./registerSchema").LocalPayeeRecord;
+        readonly mutation: LocalBudgetMutation;
+      }[];
+      readonly writes: readonly {
+        readonly transaction: LocalTransactionRecord;
+        readonly mutation: LocalBudgetMutation;
+        readonly resolveConflictId?: string;
+      }[];
+      readonly requireAbsentTransactionIds?: readonly string[];
+      readonly verifyWrittenTransactions?: boolean;
+      readonly historyTransactionIds: readonly string[];
+      readonly historyPayeeIds: readonly string[];
+    }
+  | {
+      readonly requestId: string;
       readonly type: "deleteTransaction";
       readonly transactionId: string;
       readonly mutation: LocalBudgetMutation;
