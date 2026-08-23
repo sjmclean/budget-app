@@ -41,6 +41,10 @@ export type {
   TransactionTarget,
   TransactionWriteInput,
 } from "./accountRegisterQueryContracts";
+export type {
+  TransactionHistoryAttachmentSnapshot,
+  TransactionHistorySnapshot,
+} from "./localFirst/registerSchema";
 export {
   assertLegacyBudgetFeatureAvailable,
   SQLITE_BUDGET_FEATURE_UNAVAILABLE_CODE,
@@ -97,4 +101,3 @@ export type {
   ReplicationStatus,
 } from "./replicationService";
 export { useReplicationStatus } from "./useReplicationStatus";
-

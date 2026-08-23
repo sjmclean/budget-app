@@ -337,6 +337,18 @@ export interface LocalTransactionAttachmentRecord {
   readonly contentHash: string;
 }
 
+export interface TransactionHistoryAttachmentSnapshot
+  extends LocalTransactionAttachmentRecord {
+  readonly content: Uint8Array;
+}
+
+/** Complete authoritative SQLite state for a transaction graph. */
+export interface TransactionHistorySnapshot {
+  readonly budgetId: string;
+  readonly transactions: readonly LocalTransactionRecord[];
+  readonly attachments: readonly TransactionHistoryAttachmentSnapshot[];
+}
+
 export interface LocalTransactionAttachmentMutationPayload {
   readonly kind: "transaction-attachment-upsert" | "transaction-attachment-delete";
   readonly attachment: LocalTransactionAttachmentRecord;

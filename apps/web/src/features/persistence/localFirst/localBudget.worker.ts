@@ -23,6 +23,7 @@ import {
   type LocalTransactionAttachmentRecord,
   type LocalTransactionQuery,
   type LocalTransactionRecord,
+  type TransactionHistorySnapshot,
 } from "./registerSchema";
 import {
   readImportedTransactionSourceOccurrences,
@@ -42,6 +43,7 @@ import { parseRegisterAmountSearchCents } from "../../accounts/registerSearch";
 import { readFinancialOverviewFlow } from "./financialOverviewFlow";
 import { uncategorisedTransactionPredicate } from "./uncategorisedTransactionSql";
 import { mergePayeeIconReferences } from "../../icons/payeeIconReference";
+import { transactionHistorySnapshotsEqual } from "./transactionHistorySnapshot";
 
 type SqliteDatabase = {
   pointer: unknown;
@@ -3494,6 +3496,173 @@ function writeImportBatch(
   return currentManifest();
 }
 
+function captureTransactionHistorySnapshots(
+  budgetId: string,
+  transactionIds: readonly string[],
+): TransactionHistorySnapshot {
+  if (budgetId !== activeBudgetId) {
+    throw workerError("BUDGET_SCOPE_MISMATCH", "Transaction history belongs to another budget.");
+  }
+  const pending = [...new Set(transactionIds)];
+  const transactions = new Map<string, LocalTransactionRecord>();
+  while (pending.length > 0) {
+    const transactionId = pending.shift()!;
+    if (transactions.has(transactionId)) continue;
+    const transaction = getPersistedTransactionForVerification(budgetId, transactionId);
+    if (!transaction) {
+      throw workerError("TRANSACTION_NOT_FOUND", `Transaction ${transactionId} was not found.`);
+    }
+    transactions.set(transactionId, transaction);
+    const linkedIds = [
+      transaction.transferTransactionId,
+      ...transaction.splitLines.map((line) => line.transferTransactionId),
+    ].filter((id): id is string => Boolean(id));
+    linkedIds.push(...resultRows<{ id: string }>(
+      `SELECT id FROM local_transactions
+       WHERE budget_id = ? AND transfer_transaction_id = ?
+       UNION
+       SELECT parent.id
+       FROM local_transaction_splits AS split
+       JOIN local_transactions AS parent ON parent.id = split.transaction_id
+       WHERE parent.budget_id = ? AND split.transfer_transaction_id = ?`,
+      [budgetId, transactionId, budgetId, transactionId],
+    ).map(({ id }) => id));
+    for (const linkedId of linkedIds) if (!transactions.has(linkedId)) pending.push(linkedId);
+  }
+  const ids = [...transactions.keys()];
+  const attachments = ids.length === 0 ? [] : resultRows<{
+    id: string; budgetId: string; transactionId: string; fileName: string;
+    fileSize: number; mimeType: string; attachedAt: string; contentHash: string;
+    content: Uint8Array;
+  }>(
+    `SELECT id, budget_id AS budgetId, transaction_id AS transactionId,
+       file_name AS fileName, file_size AS fileSize, mime_type AS mimeType,
+       attached_at AS attachedAt, content_hash AS contentHash, content
+     FROM local_transaction_attachments
+     WHERE budget_id = ? AND transaction_id IN (${ids.map(() => "?").join(",")})
+     ORDER BY transaction_id, attached_at, id`,
+    [budgetId, ...ids],
+  ).map((attachment) => ({ ...attachment, content: Uint8Array.from(attachment.content) }));
+  return {
+    budgetId,
+    transactions: [...transactions.values()].sort((a, b) => a.id.localeCompare(b.id)),
+    attachments,
+  };
+}
+
+function validateHistorySnapshot(snapshot: TransactionHistorySnapshot): void {
+  if (snapshot.budgetId !== activeBudgetId || snapshot.transactions.length === 0) {
+    throw workerError("INVALID_TRANSACTION_HISTORY", "Transaction history snapshot is empty or out of scope.");
+  }
+  const ids = new Set<string>();
+  for (const transaction of snapshot.transactions) {
+    if (transaction.budgetId !== snapshot.budgetId || ids.has(transaction.id)) {
+      throw workerError("INVALID_TRANSACTION_HISTORY", "Transaction history contains duplicate or out-of-scope IDs.");
+    }
+    ids.add(transaction.id);
+  }
+  for (const transaction of snapshot.transactions) {
+    const linked = [transaction.transferTransactionId, ...transaction.splitLines.map((line) => line.transferTransactionId)]
+      .filter((id): id is string => Boolean(id));
+    for (const linkedId of linked) {
+      if (!ids.has(linkedId)) throw workerError("INCOMPLETE_TRANSACTION_GRAPH", `Linked transaction ${linkedId} is missing.`);
+    }
+  }
+  const attachmentIds = new Set<string>();
+  for (const attachment of snapshot.attachments) {
+    if (attachment.budgetId !== snapshot.budgetId || !ids.has(attachment.transactionId)) {
+      throw workerError("INVALID_TRANSACTION_HISTORY", "Attachment is outside the captured transaction graph.");
+    }
+    if (attachmentIds.has(attachment.id)) {
+      throw workerError("INVALID_TRANSACTION_HISTORY", "Attachment IDs must be unique.");
+    }
+    attachmentIds.add(attachment.id);
+  }
+}
+
+function validateHistoryMutations(
+  snapshot: TransactionHistorySnapshot,
+  mutations: readonly LocalBudgetMutation[],
+  operation: "upsert" | "delete",
+): void {
+  const expected = new Set([
+    ...snapshot.transactions.map(({ id }) => id),
+    ...snapshot.attachments.map(({ id }) => `attachment:${id}`),
+  ]);
+  const actual = new Set<string>();
+  for (const mutation of mutations) {
+    assertMutationScope(mutation);
+    if (mutation.domain !== "transactions" || mutation.operation !== operation || actual.has(mutation.entityId)) {
+      throw workerError("INVALID_TRANSACTION_HISTORY_MUTATIONS", "History mutations are duplicated or inconsistent.");
+    }
+    actual.add(mutation.entityId);
+  }
+  if (actual.size !== expected.size || [...expected].some((id) => !actual.has(id))) {
+    throw workerError("INVALID_TRANSACTION_HISTORY_MUTATIONS", "History mutations do not cover the complete graph.");
+  }
+}
+
+function restoreTransactionHistorySnapshot(
+  snapshot: TransactionHistorySnapshot,
+  mutations: readonly LocalBudgetMutation[],
+): LocalBudgetManifest {
+  validateHistorySnapshot(snapshot);
+  validateHistoryMutations(snapshot, mutations, "upsert");
+  execute("BEGIN IMMEDIATE");
+  try {
+    for (const transaction of snapshot.transactions) {
+      if (getPersistedTransactionForVerification(activeBudgetId, transaction.id)) {
+        throw workerError("TRANSACTION_ALREADY_EXISTS", `Transaction ${transaction.id} already exists.`);
+      }
+    }
+    for (const transaction of snapshot.transactions) {
+      upsertTransaction(transaction);
+      markBudgetProjectionDirty(transaction.date.slice(0, 7));
+    }
+    for (const attachment of snapshot.attachments) {
+      const { content, ...metadata } = attachment;
+      upsertTransactionAttachment(metadata, content);
+    }
+    for (const mutation of mutations) insertOutbox(mutation);
+    writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + mutations.length));
+    const restored = captureTransactionHistorySnapshots(snapshot.budgetId, snapshot.transactions.map(({ id }) => id));
+    if (!transactionHistorySnapshotsEqual(restored, snapshot)) {
+      throw workerError("TRANSACTION_HISTORY_VERIFICATION_FAILED", "Restored transaction graph differs from its snapshot.");
+    }
+    execute("COMMIT");
+  } catch (error) {
+    execute("ROLLBACK");
+    throw error;
+  }
+  return currentManifest();
+}
+
+function deleteTransactionHistorySnapshot(
+  snapshot: TransactionHistorySnapshot,
+  mutations: readonly LocalBudgetMutation[],
+): LocalBudgetManifest {
+  validateHistorySnapshot(snapshot);
+  validateHistoryMutations(snapshot, mutations, "delete");
+  execute("BEGIN IMMEDIATE");
+  try {
+    const current = captureTransactionHistorySnapshots(snapshot.budgetId, snapshot.transactions.map(({ id }) => id));
+    if (!transactionHistorySnapshotsEqual(current, snapshot)) {
+      throw workerError("TRANSACTION_HISTORY_CONFLICT", "Persisted transaction graph no longer matches its snapshot.");
+    }
+    for (const transaction of snapshot.transactions) {
+      execute("DELETE FROM local_transactions WHERE budget_id = ? AND id = ?", [activeBudgetId, transaction.id]);
+      markBudgetProjectionDirty(transaction.date.slice(0, 7));
+    }
+    for (const mutation of mutations) insertOutbox(mutation);
+    writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + mutations.length));
+    execute("COMMIT");
+  } catch (error) {
+    execute("ROLLBACK");
+    throw error;
+  }
+  return currentManifest();
+}
+
 function deleteTransaction(
   transactionId: string,
   mutation: LocalBudgetMutation,
@@ -4758,6 +4927,12 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return queryTransactions(request.query);
     case "getTransaction":
       return getTransaction(request.budgetId, request.transactionId);
+    case "captureTransactionHistorySnapshots":
+      return captureTransactionHistorySnapshots(request.budgetId, request.transactionIds);
+    case "restoreTransactionHistorySnapshot":
+      return restoreTransactionHistorySnapshot(request.snapshot, request.mutations);
+    case "deleteTransactionHistorySnapshot":
+      return deleteTransactionHistorySnapshot(request.snapshot, request.mutations);
     case "getTransactionsByIds":
       return getTransactionsByIds(
         request.budgetId,

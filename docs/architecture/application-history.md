@@ -137,6 +137,50 @@ tests demonstrate parent, split, transfer-pair, tag, attachment bytes, scheduled
 provenance, and import provenance preservation as applicable. Fake-port tests
 can prove command ordering and failure behavior only.
 
+### Phase 3 findings and contract
+
+The authoritative local-first schema has five transaction-owned tables:
+
+| Table | Ownership and delete behavior |
+| --- | --- |
+| `local_transactions` | Parent and every ordinary, transfer, scheduled-origin, and timestamp field. |
+| `local_transaction_splits` | Children keyed by `(transaction_id, id)`, including category, transfer linkage, memo, and amount. `ON DELETE CASCADE`. No position column exists; persisted order is split-ID order. |
+| `local_transaction_tags` | Exact tag assignments. `ON DELETE CASCADE`. |
+| `local_transaction_import_provenance` | File type, source identity, occurrence, and imported timestamp. `ON DELETE CASCADE`. Source-occurrence/dedup evidence is derived from these rows. There is no separate active native-bank provenance or transaction-fingerprint table; OFX/QFX are represented here. |
+| `local_transaction_attachments` | Metadata, hash, and actual BLOB bytes. `ON DELETE CASCADE`. The authoritative local-first path has no external attachment content store. |
+
+The parent stores `generated_from_schedule`, `scheduled_transaction_id`, and
+`scheduled_occurrence_date`. Transfers are two parents with reciprocal
+transaction/account links; split rows can also link to transfer transactions.
+Capture walks outgoing and incoming parent/split transfer links so a requested
+ID expands to its complete connected graph, including legacy asymmetric links.
+
+`TransactionHistorySnapshot` is deliberately not `RegisterTransactionView`. It
+contains authoritative `LocalTransactionRecord` rows plus attachment metadata
+and copied bytes. Capture fails for missing requested or linked records.
+Canonical comparison checks every stored field and byte while sorting parents,
+splits, tags, provenance, and attachments deterministically.
+
+The worker exposes bulk-capable capture, delete, and restore requests. Delete
+rejects a graph that differs from its expected snapshot. Restore requires every
+parent ID to be absent, preserves IDs, and makes repeated restore fail instead
+of overwriting later data. It restores parents, splits, tags, provenance, and
+attachment BLOBs in one `BEGIN IMMEDIATE` transaction, then recaptures and
+compares before `COMMIT`; every failure executes `ROLLBACK`.
+
+The local-first client emits one operation group for all transaction and
+attachment mutations. SQLite revisions, outbox IDs/sequences, projection-dirty
+rows, and mutation timestamps are regenerated persistence machinery.
+Transaction `updated_at`, attachment timestamps, and import timestamps are
+identity-bearing snapshot fields and restore exactly.
+
+Phase 3 tests execute capture, cascade delete, restore, authoritative readback,
+duplicate rejection, and forced rollback against physical `better-sqlite3`
+using the same local register schema. They also assert the sqlite-wasm worker's
+transaction wrapper, recapture, comparison, commit, and rollback wiring. This
+is physical SQLite schema/readback evidence, but not execution inside a browser
+OPFS sqlite-wasm Worker; that remains a separate end-to-end layer.
+
 ## Command rules
 
 - One user gesture creates one history entry.
@@ -154,7 +198,8 @@ can prove command ordering and failure behavior only.
 1. **Complete:** introduce application history ownership and isolation tests.
 2. **Complete:** move assignment and money-movement commands and all
    toolbar/shortcut callers, then delete `budgetUndoRedo.ts`.
-3. Add exact SQLite transaction graph capture/restore contracts and readback tests.
+3. **Complete:** add exact SQLite transaction graph capture/restore contracts
+   and physical readback tests.
 4. Route Register mutations through validated application-history commands.
 5. Add scheduled transaction commands, including compound Enter.
 6. Extend safe reversible coverage to accounts, categories/groups, payees, tags,

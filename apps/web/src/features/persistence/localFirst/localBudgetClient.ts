@@ -17,6 +17,7 @@ import type {
   LocalTransactionQuery,
   LocalTransactionAttachmentRecord,
   LocalTransactionRecord,
+  TransactionHistorySnapshot,
 } from "./registerSchema";
 import type {
   AccountRegisterSummary,
@@ -372,6 +373,42 @@ export class LocalBudgetDatabaseClient {
       type: "getTransaction",
       budgetId,
       transactionId,
+    });
+  }
+
+  captureTransactionHistorySnapshots(
+    budgetId: string,
+    transactionIds: readonly string[],
+  ): Promise<TransactionHistorySnapshot> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "captureTransactionHistorySnapshots",
+      budgetId,
+      transactionIds,
+    });
+  }
+
+  restoreTransactionHistorySnapshot(
+    snapshot: TransactionHistorySnapshot,
+    mutations: readonly LocalBudgetMutation[],
+  ): Promise<LocalBudgetManifest> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "restoreTransactionHistorySnapshot",
+      snapshot,
+      mutations,
+    });
+  }
+
+  deleteTransactionHistorySnapshot(
+    snapshot: TransactionHistorySnapshot,
+    mutations: readonly LocalBudgetMutation[],
+  ): Promise<LocalBudgetManifest> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "deleteTransactionHistorySnapshot",
+      snapshot,
+      mutations,
     });
   }
 

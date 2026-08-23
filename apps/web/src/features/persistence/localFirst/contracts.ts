@@ -234,6 +234,24 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "captureTransactionHistorySnapshots";
+      readonly budgetId: string;
+      readonly transactionIds: readonly string[];
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "restoreTransactionHistorySnapshot";
+      readonly snapshot: import("./registerSchema").TransactionHistorySnapshot;
+      readonly mutations: readonly LocalBudgetMutation[];
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "deleteTransactionHistorySnapshot";
+      readonly snapshot: import("./registerSchema").TransactionHistorySnapshot;
+      readonly mutations: readonly LocalBudgetMutation[];
+    }
+  | {
+      readonly requestId: string;
       readonly type: "writeTransaction";
       readonly transaction: LocalTransactionRecord;
       readonly mutation: LocalBudgetMutation;

@@ -30,6 +30,7 @@ import type {
   ScheduledTransactionView,
   UpsertScheduledTransactionInput,
 } from "../accounts/scheduledTransactionTypes";
+import type { TransactionHistorySnapshot } from "./localFirst/registerSchema";
 
 export interface BudgetEngineStatus {
   readonly budgetId: string;
@@ -171,6 +172,19 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
   deleteTransaction(
     transactionId: string,
     input: TransactionTarget,
+  ): Promise<void>;
+
+  captureTransactionHistorySnapshots(input: {
+    readonly budgetId: string;
+    readonly transactionIds: readonly string[];
+  }): Promise<TransactionHistorySnapshot>;
+
+  restoreTransactionHistorySnapshot(
+    snapshot: TransactionHistorySnapshot,
+  ): Promise<void>;
+
+  deleteTransactionHistorySnapshot(
+    snapshot: TransactionHistorySnapshot,
   ): Promise<void>;
 
   addTransactionAttachment(input: TransactionTarget & {

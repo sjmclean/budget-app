@@ -1560,6 +1560,78 @@ export function createLocalFirstAccountRegisterQueryClient(
         input.fileType,
       );
     },
+    async captureTransactionHistorySnapshots(input) {
+      return (await syncThenDatabase(input.budgetId)).captureTransactionHistorySnapshots(
+        input.budgetId,
+        input.transactionIds,
+      );
+    },
+    async restoreTransactionHistorySnapshot(snapshot) {
+      const local = await requireDatabase(snapshot.budgetId);
+      const operationGroupId = createRuntimeUuid();
+      const members: LocalBudgetOperationGroup["members"] = [
+        ...snapshot.transactions.map((transaction) => ({
+          domain: "transactions" as const,
+          entityId: transaction.id,
+          operation: "upsert" as const,
+          payload: transaction,
+        })),
+        ...snapshot.attachments.map((attachment) => ({
+          domain: "transactions" as const,
+          entityId: `attachment:${attachment.id}`,
+          operation: "upsert" as const,
+          payload: {
+            kind: "transaction-attachment-upsert" as const,
+            attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
+            contentBase64: encodeBase64(attachment.content),
+          },
+        })),
+      ];
+      const group: LocalBudgetOperationGroup = { members };
+      await local.restoreTransactionHistorySnapshot(
+        snapshot,
+        members.map((member) => mutation(
+          snapshot.budgetId, member.domain, member.entityId,
+          member.operation, member.payload, operationGroupId, group,
+        )),
+      );
+      notifyLocalFirstMutationCommitted(snapshot.budgetId);
+    },
+    async deleteTransactionHistorySnapshot(snapshot) {
+      const local = await requireDatabase(snapshot.budgetId);
+      const operationGroupId = createRuntimeUuid();
+      const members: LocalBudgetOperationGroup["members"] = [
+        ...snapshot.transactions.map((transaction) => ({
+          domain: "transactions" as const,
+          entityId: transaction.id,
+          operation: "delete" as const,
+          payload: {
+            accountId: transaction.accountId,
+            amount: transaction.amount,
+            transferAccountId: transaction.transferAccountId,
+            transferTransactionId: transaction.transferTransactionId,
+          },
+        })),
+        ...snapshot.attachments.map((attachment) => ({
+          domain: "transactions" as const,
+          entityId: `attachment:${attachment.id}`,
+          operation: "delete" as const,
+          payload: {
+            kind: "transaction-attachment-delete" as const,
+            attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
+          },
+        })),
+      ];
+      const group: LocalBudgetOperationGroup = { members };
+      await local.deleteTransactionHistorySnapshot(
+        snapshot,
+        members.map((member) => mutation(
+          snapshot.budgetId, member.domain, member.entityId,
+          member.operation, member.payload, operationGroupId, group,
+        )),
+      );
+      notifyLocalFirstMutationCommitted(snapshot.budgetId);
+    },
     async addTransaction(input) {
       const local = await requireDatabase(input.budgetId);
       const existing = await local.getTransaction(input.budgetId, input.id);
