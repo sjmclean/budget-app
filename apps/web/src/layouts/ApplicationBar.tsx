@@ -2,7 +2,7 @@ import { ArrowLeftRight, Redo2, Undo2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { resolveActiveBudget } from "../features/budget/activeBudget";
-import { useBudgetUndoRedo } from "../features/budget/budgetUndoRedo";
+import { useApplicationHistory } from "../features/history";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore, type ThemeMode } from "../stores/uiStore";
 
@@ -13,7 +13,7 @@ export function ApplicationBar() {
   const theme = useUIStore((state) => state.theme);
   const setTheme = useUIStore((state) => state.setTheme);
   const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
-  const { canUndo, canRedo, undoLabel, redoLabel, isBusy, undo, redo } = useBudgetUndoRedo();
+  const { canUndo, canRedo, undoLabel, redoLabel, isBusy, undo, redo } = useApplicationHistory();
   const undoTitle = canUndo && undoLabel
     ? `Undo ${undoLabel} (Ctrl/Cmd+Z)`
     : "Nothing to undo";

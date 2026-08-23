@@ -80,3 +80,20 @@ test("destroy removes a deleted budget's stack", async () => {
   service.destroy("budget-a");
   assert.equal(service.getSnapshot("budget-a").undoDepth, 0);
 });
+
+test("flushes pending editing-surface work before undo", async () => {
+  const { service } = createHarness();
+  const order: string[] = [];
+  await service.execute("budget-a", {
+    id: "edit",
+    label: "Edit",
+    execute() { order.push("execute"); },
+    undo() { order.push("undo"); },
+  });
+  const unregister = service.registerPendingEditFlush("budget-a", () => {
+    order.push("flush");
+  });
+  await service.undo("budget-a");
+  unregister();
+  assert.deepEqual(order, ["execute", "flush", "undo"]);
+});

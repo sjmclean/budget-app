@@ -12,11 +12,10 @@ import type {
 import { isMoneyNegative } from "./moneyMath";
 import { createBudgetAssignmentEditSession } from "./budgetAssignmentEditing";
 import {
-  executeUndoableBudgetAssignmentChanges,
-  executeUndoableBudgetMoneyMovement,
-  executeUndoableBudgetMoneyMovementFromMultipleSources,
-  registerBudgetUndoRedoContext,
-} from "./budgetUndoRedo";
+  executeApplicationBudgetAssignmentChanges,
+  executeApplicationBudgetMoneyMovementFromMultipleSources,
+} from "./budgetApplicationHistory";
+import { applicationHistory } from "../history";
 import { previewCategoryAssignment } from "./budgetAssignmentPreview";
 
 interface UseBudgetWorkspaceState {
@@ -123,48 +122,28 @@ export function useBudgetWorkspace(
 
       const pendingChanges = assignmentEditSessionRef.current.consume();
       if (pendingChanges.length > 0) {
-        void budgetViewPersistence
-          .setCategoryAssignedValues({
-            budgetId,
-            month,
-            assignments: pendingChanges.map((change) => ({
-              categoryId: change.categoryId,
-              assigned: change.finalAssigned,
-            })),
-          })
-          .catch((error) => {
-            console.error("Failed to flush pending Budget assignments.", error);
-          });
+        void executeApplicationBudgetAssignmentChanges(budgetId, {
+          month,
+          changes: pendingChanges,
+        }).then((result) => {
+          if (!result.performed) {
+            console.error(
+              "Failed to flush pending Budget assignments.",
+              result.error ?? result.reason,
+            );
+          }
+        });
       }
     };
   }, [budgetId, budgetViewPersistence, month]);
 
-  useEffect(() =>
-    registerBudgetUndoRedoContext(`${budgetId}:${month}`, {
-      getBudgetMonthView(requestedMonth) {
-        return budgetViewPersistence.getBudgetMonthView({
-          budgetId,
-          month: requestedMonth,
-        });
-      },
-      async setCategoryAssignedValues({ month: requestedMonth, assignments }) {
-        const workspaceIdentity = `${budgetId}:${requestedMonth}`;
-        const nextData = await budgetViewPersistence.setCategoryAssignedValues({
-          budgetId,
-          month: requestedMonth,
-          assignments,
-        });
-
-        if (isWorkspaceCurrent(workspaceIdentity)) {
-          setEditedData(nextData);
-        }
-
-        return nextData;
-      },
-    }, {
-      flushPending: () => flushPendingAssignmentEdits(),
-    }),
-  [budgetId, budgetViewPersistence, month]);
+  useEffect(
+    () => applicationHistory.registerPendingEditFlush(
+      budgetId,
+      () => flushPendingAssignmentEdits(),
+    ),
+    [budgetId, month],
+  );
 
   useEffect(() => {
     setEditedData(null);
@@ -191,7 +170,7 @@ export function useBudgetWorkspace(
       return;
     }
 
-    const result = await executeUndoableBudgetAssignmentChanges({ month, changes });
+    const result = await executeApplicationBudgetAssignmentChanges(budgetId, { month, changes });
     if (!result.performed && isWorkspaceCurrent(workspaceIdentity)) {
       setSaveError(result.error ?? "Failed to save budget assignment changes.");
     }
@@ -463,7 +442,7 @@ export function useBudgetWorkspace(
     const workspaceIdentity = workspaceIdentityRef.current;
     const mutationVersion = ++mutationVersionRef.current;
 
-    void executeUndoableBudgetMoneyMovementFromMultipleSources({
+    void executeApplicationBudgetMoneyMovementFromMultipleSources(budgetId, {
       month,
       destinationCategoryId: input.overspentCategoryId,
       sources: input.sources,

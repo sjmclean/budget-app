@@ -1,8 +1,4 @@
-import type {
-  UndoableCommand,
-  UndoRedoController,
-  UndoRedoResult,
-} from "../history";
+import type { UndoableCommand } from "../history";
 import type {
   BudgetCategoryGroupView,
   BudgetCategoryView,
@@ -445,27 +441,4 @@ export function createMoveBudgetMoneyCommand(
       },
     ],
   });
-}
-
-export function moveBudgetMoneyWithUndo(
-  controller: UndoRedoController<BudgetMoneyMovementContext>,
-  input: MoveBudgetMoneyCommandInput,
-): Promise<UndoRedoResult> {
-  return controller.execute(createMoveBudgetMoneyCommand(input));
-}
-
-export function executeUndoableBudgetMoneyMovement(
-  controller: UndoRedoController<BudgetMoneyMovementContext>,
-  input: MoveBudgetMoneyCommandInput,
-): Promise<UndoRedoResult> {
-  return moveBudgetMoneyWithUndo(controller, input);
-}
-
-export function executeUndoableBudgetMoneyMovementFromMultipleSources(
-  controller: UndoRedoController<BudgetMoneyMovementContext>,
-  input: MoveBudgetMoneyFromMultipleSourcesCommandInput,
-): Promise<UndoRedoResult> {
-  return controller.execute(
-    createMoveBudgetMoneyFromMultipleSourcesCommand(input),
-  );
 }

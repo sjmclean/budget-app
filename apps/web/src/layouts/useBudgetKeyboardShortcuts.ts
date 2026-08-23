@@ -1,9 +1,8 @@
 import { useEffect } from "react";
-import { useBudgetUndoRedo } from "../features/budget/budgetUndoRedo";
-import { createUndoRedoKeyboardHandler } from "../features/history";
+import { createUndoRedoKeyboardHandler, useApplicationHistory } from "../features/history";
 
 export function useBudgetKeyboardShortcuts() {
-  const { undo, redo } = useBudgetUndoRedo();
+  const { undo, redo } = useApplicationHistory();
 
   useEffect(() => {
     const handleKeyDown = createUndoRedoKeyboardHandler({

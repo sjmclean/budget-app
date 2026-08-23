@@ -38,6 +38,7 @@ function requireBudgetId(budgetId: string): string {
 
 export class ApplicationHistoryService<TContext> {
   private readonly controllers = new Map<string, UndoRedoController<TContext>>();
+  private readonly pendingFlushes = new Map<string, Set<() => void | Promise<void>>>();
   private readonly getContext: (budgetId: string) => TContext;
   private readonly maxHistoryLength?: number;
 
@@ -53,12 +54,16 @@ export class ApplicationHistoryService<TContext> {
     return this.controllerFor(budgetId).execute(command);
   }
 
-  undo(budgetId: string): Promise<UndoRedoResult> {
-    return this.controllerFor(budgetId).undo();
+  async undo(budgetId: string): Promise<UndoRedoResult> {
+    const key = requireBudgetId(budgetId);
+    await this.flushPending(key);
+    return this.controllerFor(key).undo();
   }
 
-  redo(budgetId: string): Promise<UndoRedoResult> {
-    return this.controllerFor(budgetId).redo();
+  async redo(budgetId: string): Promise<UndoRedoResult> {
+    const key = requireBudgetId(budgetId);
+    await this.flushPending(key);
+    return this.controllerFor(key).redo();
   }
 
   clear(budgetId: string): UndoRedoResult {
@@ -67,7 +72,26 @@ export class ApplicationHistoryService<TContext> {
   }
 
   destroy(budgetId: string): void {
-    this.controllers.delete(requireBudgetId(budgetId));
+    const key = requireBudgetId(budgetId);
+    this.controllers.delete(key);
+    this.pendingFlushes.delete(key);
+  }
+
+  registerPendingEditFlush(
+    budgetId: string,
+    flush: () => void | Promise<void>,
+  ): () => void {
+    const key = requireBudgetId(budgetId);
+    let flushes = this.pendingFlushes.get(key);
+    if (!flushes) {
+      flushes = new Set();
+      this.pendingFlushes.set(key, flushes);
+    }
+    flushes.add(flush);
+    return () => {
+      flushes?.delete(flush);
+      if (flushes?.size === 0) this.pendingFlushes.delete(key);
+    };
   }
 
   getSnapshot(budgetId: string | null | undefined): UndoRedoSnapshot {
@@ -95,6 +119,11 @@ export class ApplicationHistoryService<TContext> {
       this.controllers.set(key, controller);
     }
     return controller;
+  }
+
+  private async flushPending(budgetId: string): Promise<void> {
+    const flushes = Array.from(this.pendingFlushes.get(budgetId) ?? []);
+    for (const flush of flushes) await flush();
   }
 }
 

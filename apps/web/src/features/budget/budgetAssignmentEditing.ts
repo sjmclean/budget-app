@@ -1,4 +1,4 @@
-import type { UndoableCommand, UndoRedoController, UndoRedoResult } from "../history";
+import type { UndoableCommand } from "../history";
 import type {
   BudgetCategoryAssignedValue,
   BudgetMoneyMovementContext,
@@ -99,13 +99,6 @@ export function createBudgetAssignmentChangesCommand(
       });
     },
   };
-}
-
-export function executeBudgetAssignmentChangesWithUndo(
-  controller: UndoRedoController<BudgetMoneyMovementContext>,
-  input: BudgetAssignmentChangesCommandInput,
-): Promise<UndoRedoResult> {
-  return controller.execute(createBudgetAssignmentChangesCommand(input));
 }
 
 export interface BudgetAssignmentEditSession {

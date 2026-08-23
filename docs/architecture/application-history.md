@@ -19,15 +19,15 @@ History boundaries are explicit:
 - switching budgets selects another stack without clearing either stack;
 - reload naturally discards all stacks.
 
-## Existing history audit
+## Legacy history audit and Phase 2 migration
 
-Before this architecture, `budgetUndoRedo.ts` owns one module-level
+Before this architecture, `budgetUndoRedo.ts` owned one module-level
 `UndoRedoController<BudgetMoneyMovementContext>`. `useBudgetWorkspace` registers
 a callback context under `${budgetId}:${month}`. Registration clears history
 when that key changes and cleanup clears it on unmount. Consequently history is
 Budget-page-owned and cannot survive month, account, or route navigation.
 
-Current symbol usage at the start of this work:
+Symbol usage found at the start of this work:
 
 | Symbol | Callers / role |
 | --- | --- |
@@ -36,6 +36,25 @@ Current symbol usage at the start of this work:
 | `UndoRedoController` | generic implementation, budget assignment commands, budget money-movement commands, and the legacy singleton |
 | `useUndoRedo` | exported generic component-local hook; no production caller |
 | direct persistence mutations | Budget workspace, Account Register, scheduled panel/workflows, account/category/payee/tag/attachment managers, import workflows, and Settings |
+
+Phase 2 removed `budgetUndoRedo.ts` after migrating every production caller.
+`BudgetPage`, `AccountRegisterPage`, `TopBar`, `ApplicationBar`, and the global
+keyboard hook now observe `useApplicationHistory()`. Assignment, single-source
+movement, and multi-source/overspending-cover factories remain Budget-domain
+commands; `budgetApplicationHistory.ts` adapts their context and submits them to
+the selected budget's application stack. The adapter resolves `budgetView` from
+the configured persistence provider on every execute, undo, and redo. It does
+not retain a mounted page or its state setters.
+
+The old `flushPendingBudgetEdits()` existed because Assigned edits are applied
+optimistically and coalesced for 75 ms before persistence. Undo during that
+window would otherwise target the previous persisted state. The replacement is
+a general per-budget pending-edit flush registry on `ApplicationHistoryService`.
+`useBudgetWorkspace` registers only its flush operation while mounted and
+unregisters it without clearing history. Undo/Redo awaits registered editing
+surfaces, while the commands themselves continue to use fresh application
+persistence context. Unmount cleanup independently persists pending assignment
+changes, so no page closure is required after navigation.
 
 The generic keyboard resolver ignores input, textarea, select, and
 contenteditable targets, preserving browser-native editable-field Undo. It
@@ -132,10 +151,9 @@ can prove command ordering and failure behavior only.
 
 ## Migration checkpoints
 
-1. Introduce application history ownership and isolation tests while retaining
-   the legacy Budget controller.
-2. Move assignment and money-movement commands and all toolbar/shortcut callers,
-   then delete `budgetUndoRedo.ts`.
+1. **Complete:** introduce application history ownership and isolation tests.
+2. **Complete:** move assignment and money-movement commands and all
+   toolbar/shortcut callers, then delete `budgetUndoRedo.ts`.
 3. Add exact SQLite transaction graph capture/restore contracts and readback tests.
 4. Route Register mutations through validated application-history commands.
 5. Add scheduled transaction commands, including compound Enter.

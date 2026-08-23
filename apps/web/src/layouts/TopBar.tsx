@@ -3,8 +3,7 @@ import { Menu, Redo2, Undo2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { resolveActiveBudget } from "../features/budget/activeBudget";
-import { useBudgetUndoRedo } from "../features/budget/budgetUndoRedo";
-import { createUndoRedoKeyboardHandler } from "../features/history";
+import { createUndoRedoKeyboardHandler, useApplicationHistory } from "../features/history";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore, type ThemeMode } from "../stores/uiStore";
 
@@ -27,7 +26,7 @@ export function TopBar({ onOpenNavigation }: TopBarProps) {
     isBusy,
     undo,
     redo,
-  } = useBudgetUndoRedo();
+  } = useApplicationHistory();
 
   useEffect(() => {
     const handleKeyDown = createUndoRedoKeyboardHandler({

@@ -74,7 +74,7 @@ import { getBudgetPersistenceProvider } from "../features/persistence";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
-import { useBudgetUndoRedo } from "../features/budget/budgetUndoRedo";
+import { useApplicationHistory } from "../features/history";
 import { createBudgetScopedStorage } from "../features/budget/budgetDataScope";
 import {
   TransactionTagManager,
@@ -310,7 +310,7 @@ export function AccountRegisterPage() {
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
   const currentBudgetMonth = useCurrentBudgetMonth();
-  const { canUndo, canRedo, undoLabel, redoLabel, isBusy: isHistoryBusy, undo, redo } = useBudgetUndoRedo();
+  const { canUndo, canRedo, undoLabel, redoLabel, isBusy: isHistoryBusy, undo, redo } = useApplicationHistory();
   const undoTitle = canUndo && undoLabel ? `Undo ${undoLabel}` : "Nothing to undo";
   const redoTitle = canRedo && redoLabel ? `Redo ${redoLabel}` : "Nothing to redo";
   const transactionTagStorage = useMemo(

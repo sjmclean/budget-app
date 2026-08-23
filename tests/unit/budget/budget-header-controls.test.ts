@@ -38,11 +38,11 @@ test("Budget planning toolbar exposes compact accessible history controls only",
 
   assert.match(
     budgetPageSource,
-    /onClick=\{\(\) => void budgetUndoRedo\.undo\(\)\}[\s\S]*disabled=\{!budgetUndoRedo\.canUndo\}[\s\S]*aria-label="Undo"[\s\S]*title="Undo"/,
+    /onClick=\{\(\) => void applicationHistory\.undo\(\)\}[\s\S]*disabled=\{!applicationHistory\.canUndo\}[\s\S]*aria-label="Undo"[\s\S]*title="Undo"/,
   );
   assert.match(
     budgetPageSource,
-    /onClick=\{\(\) => void budgetUndoRedo\.redo\(\)\}[\s\S]*disabled=\{!budgetUndoRedo\.canRedo\}[\s\S]*aria-label="Redo"[\s\S]*title="Redo"/,
+    /onClick=\{\(\) => void applicationHistory\.redo\(\)\}[\s\S]*disabled=\{!applicationHistory\.canRedo\}[\s\S]*aria-label="Redo"[\s\S]*title="Redo"/,
   );
   assert.doesNotMatch(budgetPageSource, />\s*Undo\s*</);
   assert.doesNotMatch(budgetPageSource, />\s*Redo\s*</);

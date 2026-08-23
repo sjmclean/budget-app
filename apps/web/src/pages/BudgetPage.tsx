@@ -22,7 +22,7 @@ import {
   getPreviousBudgetMonth,
 } from "../features/budget/budgetMonthNavigation";
 import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
-import { useBudgetUndoRedo } from "../features/budget/budgetUndoRedo";
+import { useApplicationHistory } from "../features/history";
 import { readAuthoritativeBudgetSummary } from "../features/budget/authoritativeBudgetSummary";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
@@ -588,7 +588,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     closeActivityDrilldown,
   } = useBudgetWorkspace(budgetId, selectedMonth);
 
-  const budgetUndoRedo = useBudgetUndoRedo();
+  const applicationHistory = useApplicationHistory();
 
   const budgetWorkspaceMainRef = useRef<HTMLElement | null>(null);
 
@@ -956,8 +956,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   <button
                     className="button button-secondary budget-history-icon-button"
                     type="button"
-                    onClick={() => void budgetUndoRedo.undo()}
-                    disabled={!budgetUndoRedo.canUndo}
+                    onClick={() => void applicationHistory.undo()}
+                    disabled={!applicationHistory.canUndo}
                     aria-label="Undo"
                     title="Undo"
                   >
@@ -966,8 +966,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   <button
                     className="button button-secondary budget-history-icon-button"
                     type="button"
-                    onClick={() => void budgetUndoRedo.redo()}
-                    disabled={!budgetUndoRedo.canRedo}
+                    onClick={() => void applicationHistory.redo()}
+                    disabled={!applicationHistory.canRedo}
                     aria-label="Redo"
                     title="Redo"
                   >
