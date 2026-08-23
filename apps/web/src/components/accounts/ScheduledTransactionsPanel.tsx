@@ -36,6 +36,7 @@ import { useDateFormatPreference } from "../../features/settings/useDateFormatPr
 import type { TransactionTagDefinition } from "../../features/tags/transactionTagTypes";
 import { TransactionTagPicker } from "../../features/accounts/components/TransactionRow";
 import { localCalendarDate } from "../../features/dates/localCalendarDate";
+import { MoneyInput } from "../../features/money/MoneyInput";
 
 interface ScheduledTransactionsPanelProps {
   accountId: string;
@@ -137,8 +138,8 @@ export function ScheduledTransactionsPanel({
       return;
     }
 
-    const enteredOutflow = parseMoney(draft.outflow);
-    const enteredInflow = parseMoney(draft.inflow);
+    const enteredOutflow = storedMoneyValue(draft.outflow);
+    const enteredInflow = storedMoneyValue(draft.inflow);
     const specificInstalments = normaliseSpecificInstalments(
       draft.specificInstalments,
       draft.specificDates,
@@ -380,8 +381,8 @@ function ScheduledForm({
         specificInstalments: normaliseSpecificInstalments(
           draft.specificInstalments,
           dates,
-          parseMoney(draft.outflow),
-          parseMoney(draft.inflow),
+          storedMoneyValue(draft.outflow),
+          storedMoneyValue(draft.inflow),
         ),
         specificDateIndex: 0,
         endCondition: "never",
@@ -418,19 +419,19 @@ function ScheduledForm({
     });
   }
 
-  function updateOutflow(value: string) {
+  function updateOutflow(value: number) {
     setDraft({
       ...draft,
-      outflow: value,
-      inflow: parseMoney(value) > 0 ? "" : draft.inflow,
+      outflow: value === 0 ? "" : value.toFixed(2),
+      inflow: value > 0 ? "" : draft.inflow,
     });
   }
 
-  function updateInflow(value: string) {
+  function updateInflow(value: number) {
     setDraft({
       ...draft,
-      inflow: value,
-      outflow: parseMoney(value) > 0 ? "" : draft.outflow,
+      inflow: value === 0 ? "" : value.toFixed(2),
+      outflow: value > 0 ? "" : draft.outflow,
     });
   }
 
@@ -511,8 +512,8 @@ function ScheduledForm({
               {frequencyChoice === "specific-dates" ? (
                 <InstalmentsEditor
                   instalments={draft.specificInstalments}
-                  defaultOutflow={parseMoney(draft.outflow)}
-                  defaultInflow={parseMoney(draft.inflow)}
+                  defaultOutflow={storedMoneyValue(draft.outflow)}
+                  defaultInflow={storedMoneyValue(draft.inflow)}
                   onChange={(specificInstalments) => {
                     const normalised = normaliseSpecificInstalments(specificInstalments, [], 0, 0);
                     const dates = normalised.map((instalment) => instalment.date);
@@ -725,21 +726,23 @@ function ScheduledForm({
             <div className="scheduled-editor-row scheduled-editor-row-two">
               <label>
                 <span>Outflow</span>
-                <input
-                  value={draft.outflow}
-                  onChange={(event) => updateOutflow(event.target.value)}
+                <MoneyInput
+                  value={storedMoneyValue(draft.outflow)}
+                  onCommit={updateOutflow}
+                  validate={(value) => value >= 0}
+                  emptyWhenZero
                   placeholder="0.00"
-                  inputMode="decimal"
                 />
               </label>
 
               <label>
                 <span>Inflow</span>
-                <input
-                  value={draft.inflow}
-                  onChange={(event) => updateInflow(event.target.value)}
+                <MoneyInput
+                  value={storedMoneyValue(draft.inflow)}
+                  onCommit={updateInflow}
+                  validate={(value) => value >= 0}
+                  emptyWhenZero
                   placeholder="0.00"
-                  inputMode="decimal"
                 />
               </label>
             </div>
@@ -788,8 +791,8 @@ function ScheduledForm({
                 splitLines={draft.splitLines ?? []}
                 categoryOptions={categoryOptions}
                 onChange={(splitLines) => setDraft({ ...draft, splitLines, category: "Split", categoryId: undefined })}
-                parentOutflow={parseMoney(draft.outflow)}
-                parentInflow={parseMoney(draft.inflow)}
+                parentOutflow={storedMoneyValue(draft.outflow)}
+                parentInflow={storedMoneyValue(draft.inflow)}
               />
             ) : null}
             <datalist id="scheduled-category-options">
@@ -924,21 +927,18 @@ function InstalmentsEditor({
           />
           <label className="scheduled-instalment-amount">
             <span aria-hidden="true">$</span>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              inputMode="decimal"
+            <MoneyInput
               aria-label={`Instalment ${index + 1} amount`}
-              value={(instalment.inflow > 0 ? instalment.inflow : instalment.outflow) || ""}
-              onChange={(event) => {
-                const amount = Math.max(0, Number.parseFloat(event.target.value) || 0);
+              value={instalment.inflow > 0 ? instalment.inflow : instalment.outflow}
+              onCommit={(amount) => {
                 const next = [...displayInstalments];
                 next[index] = instalment.inflow > 0
                   ? { ...instalment, inflow: amount, outflow: 0 }
                   : { ...instalment, outflow: amount, inflow: 0 };
                 onChange(next);
               }}
+              validate={(amount) => amount >= 0}
+              emptyWhenZero
             />
           </label>
           <button
@@ -1013,15 +1013,19 @@ function ScheduledSplitEditor({
             }}
           />
           <input value={line.memo ?? ""} placeholder="Memo" onChange={(event) => updateLine(line.id, { memo: event.target.value })} />
-          <ScheduledSplitAmountInput
+          <MoneyInput
             value={line.outflow}
             placeholder="Outflow"
-            onValueChange={(outflow) => updateLine(line.id, { outflow, inflow: outflow > 0 ? 0 : line.inflow })}
+            onCommit={(outflow) => updateLine(line.id, { outflow, inflow: outflow > 0 ? 0 : line.inflow })}
+            validate={(amount) => amount >= 0}
+            emptyWhenZero
           />
-          <ScheduledSplitAmountInput
+          <MoneyInput
             value={line.inflow}
             placeholder="Inflow"
-            onValueChange={(inflow) => updateLine(line.id, { inflow, outflow: inflow > 0 ? 0 : line.outflow })}
+            onCommit={(inflow) => updateLine(line.id, { inflow, outflow: inflow > 0 ? 0 : line.outflow })}
+            validate={(amount) => amount >= 0}
+            emptyWhenZero
           />
           <button className="scheduled-split-remove" type="button" aria-label="Remove split line" onClick={() => onChange(splitLines.filter((candidate) => candidate.id !== line.id))}>×</button>
         </div>
@@ -1043,41 +1047,6 @@ function ScheduledSplitEditor({
         Add split line
       </button>
     </div>
-  );
-}
-
-function ScheduledSplitAmountInput({
-  value,
-  placeholder,
-  onValueChange,
-}: {
-  value: number;
-  placeholder: string;
-  onValueChange: (value: number) => void;
-}) {
-  const [text, setText] = useState(value > 0 ? value.toFixed(2) : "");
-
-  useEffect(() => {
-    if (value === 0 && parseMoney(text) !== 0) {
-      setText("");
-    }
-  }, [text, value]);
-
-  return (
-    <input
-      value={text}
-      inputMode="decimal"
-      placeholder={placeholder}
-      onChange={(event) => {
-        const nextText = event.target.value;
-        setText(nextText);
-        onValueChange(parseMoney(nextText));
-      }}
-      onBlur={() => {
-        const parsed = parseMoney(text);
-        setText(parsed > 0 ? parsed.toFixed(2) : "");
-      }}
-    />
   );
 }
 
@@ -1382,9 +1351,9 @@ function formatScheduleDate(value: string): string {
   }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function parseMoney(value: string): number {
-  const parsed = Number.parseFloat(value.replace(/[$,\s]/g, ""));
-  return Number.isFinite(parsed) ? parsed : 0;
+function storedMoneyValue(value: string): number {
+  const amount = Number(value || 0);
+  return Number.isFinite(amount) ? amount : 0;
 }
 
 

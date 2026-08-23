@@ -1663,7 +1663,8 @@ strong {
   text-align: right;
 }
 
-.assigned-input-error {
+.assigned-input-error,
+.money-input-error {
   border-color: var(--negative);
   box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.14);
 }

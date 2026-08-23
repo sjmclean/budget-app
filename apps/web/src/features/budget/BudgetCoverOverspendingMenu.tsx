@@ -11,6 +11,8 @@ import type {
   OverspendingHandling,
 } from "./budgetViewTypes";
 import type { OverspendingCoverOption } from "./budgetWorkspaceSelectors";
+import { MoneyInput } from "../money/MoneyInput";
+import { roundMoney } from "../money/moneyExpression";
 
 interface BudgetCoverOverspendingMenuProps {
   isOpen: boolean;
@@ -66,15 +68,9 @@ function groupCoverOptions(
   return groups;
 }
 
-function parseAmount(value: string): number {
-  if (!value.trim()) return 0;
-
-  const parsed = Number(value.replace(/,/g, ""));
-  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
-}
-
-function normaliseAmount(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+function amountValue(value: string): number {
+  const amount = Number(value || 0);
+  return Number.isFinite(amount) ? amount : 0;
 }
 
 export function BudgetCoverOverspendingMenu({
@@ -126,7 +122,7 @@ export function BudgetCoverOverspendingMenu({
   });
 
   const selectedSources = selectedOptions.flatMap((option) => {
-    const amount = normaliseAmount(parseAmount(amounts[option.id] ?? ""));
+    const amount = roundMoney(amountValue(amounts[option.id] ?? ""));
 
     return amount > 0
       ? [
@@ -138,18 +134,18 @@ export function BudgetCoverOverspendingMenu({
       : [];
   });
 
-  const selectedTotal = normaliseAmount(
+  const selectedTotal = roundMoney(
     selectedSources.reduce((total, source) => total + source.amount, 0),
   );
 
-  const remaining = normaliseAmount(
+  const remaining = roundMoney(
     Math.max(0, overspentAmount - selectedTotal),
   );
 
   const overSelected = selectedTotal > overspentAmount + 0.000001;
 
   const sourceHasError = selectedOptions.some((option) => {
-    const amount = parseAmount(amounts[option.id] ?? "");
+    const amount = amountValue(amounts[option.id] ?? "");
     return amount > option.available + 0.000001;
   });
 
@@ -185,7 +181,7 @@ export function BudgetCoverOverspendingMenu({
     overspentCategory.overspendingHandling ?? "reduce-next-month";
 
   function addCategory(option: OverspendingCoverOption) {
-    const amount = normaliseAmount(
+    const amount = roundMoney(
       Math.min(remaining, option.available),
     );
 
@@ -328,7 +324,7 @@ export function BudgetCoverOverspendingMenu({
                 <div className="budget-cover-selected-list">
                   {selectedOptions.map((option) => {
                     const value = amounts[option.id] ?? "";
-                    const amount = parseAmount(value);
+                    const amount = amountValue(value);
 
                     const exceedsAvailable =
                       amount > option.available + 0.000001;
@@ -352,28 +348,23 @@ export function BudgetCoverOverspendingMenu({
                           </small>
                         </div>
 
-                        <input
+                        <MoneyInput
                           className={
                             exceedsAvailable
                               ? "budget-cover-amount budget-cover-amount-error"
                               : "budget-cover-amount"
                           }
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          max={option.available}
-                          inputMode="decimal"
-                          value={value}
+                          value={amount}
                           placeholder="0.00"
                           aria-label={`Amount from ${option.name}`}
-                          onChange={(event) => {
-                            const nextValue = event.target.value;
-
+                          onCommit={(nextValue) => {
                             setAmounts((current) => ({
                               ...current,
-                              [option.id]: nextValue,
+                              [option.id]: nextValue === 0 ? "" : nextValue.toFixed(2),
                             }));
                           }}
+                          validate={(nextValue) => nextValue >= 0 && nextValue <= option.available + 0.000001}
+                          emptyWhenZero
                         />
 
                         <button

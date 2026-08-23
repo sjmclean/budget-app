@@ -48,6 +48,7 @@ import {
   buildUpdateRegisterTransactionInput,
 } from "../registerTransactionDrafts";
 import type { BudgetCategoryOption } from "../../budget/budgetViewTypes";
+import { MoneyInput } from "../../money/MoneyInput";
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -557,17 +558,18 @@ export function TransactionEntryRow({
                       <span>{line.category || `Split ${index + 1}: choose category`}</span>
                       <span aria-hidden="true">›</span>
                     </button>
-                    <input
-                      value={line.outflow || line.inflow}
-                      onChange={(event) => setSplitLines((lines) => lines.map((candidate) =>
+                    <MoneyInput
+                      value={parseRegisterMoney(line.outflow || line.inflow)}
+                      onCommit={(value) => setSplitLines((lines) => lines.map((candidate) =>
                         candidate.id === line.id
                           ? {
                               ...candidate,
-                              outflow: lineIsInflow ? "" : event.target.value,
-                              inflow: lineIsInflow ? event.target.value : "",
+                              outflow: lineIsInflow || value === 0 ? "" : value.toFixed(2),
+                              inflow: lineIsInflow && value !== 0 ? value.toFixed(2) : "",
                             }
                           : candidate))}
-                      inputMode="decimal"
+                      validate={(value) => value >= 0}
+                      emptyWhenZero
                       placeholder="0.00"
                       aria-label={`Split ${index + 1} amount`}
                     />
@@ -859,26 +861,34 @@ export function TransactionEntryRow({
 
           if (columnId === "outflow") {
             return (
-              <input
+              <MoneyInput
                 className="register-money-input"
                 key={columnId}
-                value={outflow}
-                onChange={(event) => setOutflow(event.target.value)}
+                value={parseRegisterMoney(outflow)}
+                onCommit={(value) => {
+                  setOutflow(value === 0 ? "" : value.toFixed(2));
+                  if (value > 0) setInflow("");
+                }}
+                validate={(value) => value >= 0}
+                emptyWhenZero
                 placeholder="Outflow"
-                inputMode="decimal"
               />
             );
           }
 
           if (columnId === "inflow") {
             return (
-              <input
+              <MoneyInput
                 className="register-money-input"
                 key={columnId}
-                value={inflow}
-                onChange={(event) => setInflow(event.target.value)}
+                value={parseRegisterMoney(inflow)}
+                onCommit={(value) => {
+                  setInflow(value === 0 ? "" : value.toFixed(2));
+                  if (value > 0) setOutflow("");
+                }}
+                validate={(value) => value >= 0}
+                emptyWhenZero
                 placeholder="Inflow"
-                inputMode="decimal"
               />
             );
           }
@@ -1196,19 +1206,27 @@ export function TransactionEditRow({
             placeholder="Check #"
           />
         ) : null}
-        <input
+        <MoneyInput
           className="register-money-input"
-          value={outflow}
-          onChange={(event) => setOutflow(event.target.value)}
+          value={parseRegisterMoney(outflow)}
+          onCommit={(value) => {
+            setOutflow(value === 0 ? "" : value.toFixed(2));
+            if (value > 0) setInflow("");
+          }}
+          validate={(value) => value >= 0}
+          emptyWhenZero
           placeholder="Outflow"
-          inputMode="decimal"
         />
-        <input
+        <MoneyInput
           className="register-money-input"
-          value={inflow}
-          onChange={(event) => setInflow(event.target.value)}
+          value={parseRegisterMoney(inflow)}
+          onCommit={(value) => {
+            setInflow(value === 0 ? "" : value.toFixed(2));
+            if (value > 0) setOutflow("");
+          }}
+          validate={(value) => value >= 0}
+          emptyWhenZero
           placeholder="Inflow"
-          inputMode="decimal"
         />
       </div>
       {splitLines.length > 0 ? (

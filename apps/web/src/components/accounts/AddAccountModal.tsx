@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { CreditCardBehaviour } from "../../features/budget/budgetPreferences";
+import { MoneyInput } from "../../features/money/MoneyInput";
 
 type AccountType = "on-budget" | "credit-card" | "tracking";
 
@@ -26,12 +27,6 @@ interface AddAccountModalProps {
     name: string;
     type: AccountType;
   }) => void;
-}
-
-function parseMoney(value: string) {
-  const cleaned = value.replace(/[$,\s]/g, "");
-  const parsed = Number.parseFloat(cleaned);
-  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function formatStartingBalance(value: number): string {
@@ -100,7 +95,7 @@ export function AddAccountModal({
     onCreate({
       name: name.trim(),
       type,
-      startingBalance: parseMoney(startingBalance),
+      startingBalance: Number(startingBalance || 0),
     });
 
     setName("");
@@ -160,11 +155,11 @@ export function AddAccountModal({
 
           <label>
             <span>Starting balance</span>
-            <input
-              value={startingBalance}
-              onChange={(event) => setStartingBalance(event.target.value)}
+            <MoneyInput
+              value={Number(startingBalance || 0)}
+              onCommit={(value) => setStartingBalance(value === 0 ? "" : value.toFixed(2))}
+              emptyWhenZero
               placeholder="0.00"
-              inputMode="decimal"
               disabled={isEditing}
             />
           </label>

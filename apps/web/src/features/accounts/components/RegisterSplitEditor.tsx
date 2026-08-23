@@ -19,6 +19,7 @@ import {
   type SplitLineDraft,
 } from "../registerSplitDrafts";
 import { findCategoryOption } from "../registerCategoryMatching";
+import { MoneyInput } from "../../money/MoneyInput";
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -194,22 +195,23 @@ export function RegisterSplitEditor({
       return renderWithOptionalRemove(
         columnId,
         line,
-        <input
+        <MoneyInput
           className="register-money-input"
           key={columnId}
-          value={line.outflow}
-          onChange={(event) =>
+          value={parseRegisterMoney(line.outflow)}
+          onCommit={(value) =>
             setSplitLines((current) =>
               current.map((item) =>
                 item.id === line.id
-                  ? { ...item, outflow: event.target.value }
+                  ? { ...item, outflow: value === 0 ? "" : value.toFixed(2), inflow: value > 0 ? "" : item.inflow }
                   : item,
               ),
             )
           }
+          validate={(value) => value >= 0}
+          emptyWhenZero
           placeholder="Outflow"
-          inputMode="decimal"
-          onKeyDown={(event) => addSplitOnTab(event, line)}
+          onMoneyKeyDown={(event) => addSplitOnTab(event, line)}
         />,
       );
     }
@@ -218,22 +220,23 @@ export function RegisterSplitEditor({
       return renderWithOptionalRemove(
         columnId,
         line,
-        <input
+        <MoneyInput
           className="register-money-input"
           key={columnId}
-          value={line.inflow}
-          onChange={(event) =>
+          value={parseRegisterMoney(line.inflow)}
+          onCommit={(value) =>
             setSplitLines((current) =>
               current.map((item) =>
                 item.id === line.id
-                  ? { ...item, inflow: event.target.value }
+                  ? { ...item, inflow: value === 0 ? "" : value.toFixed(2), outflow: value > 0 ? "" : item.outflow }
                   : item,
               ),
             )
           }
+          validate={(value) => value >= 0}
+          emptyWhenZero
           placeholder="Inflow"
-          inputMode="decimal"
-          onKeyDown={(event) => addSplitOnTab(event, line)}
+          onMoneyKeyDown={(event) => addSplitOnTab(event, line)}
         />,
       );
     }
@@ -423,38 +426,40 @@ export function RegisterSplitEditor({
             </div>
 
             <div className="register-split-compact-money">
-              <input
+              <MoneyInput
                 className="register-money-input"
-                value={line.outflow}
-                onChange={(event) =>
+                value={parseRegisterMoney(line.outflow)}
+                onCommit={(value) =>
                   setSplitLines((current) =>
                     current.map((item) =>
                       item.id === line.id
-                        ? { ...item, outflow: event.target.value }
+                        ? { ...item, outflow: value === 0 ? "" : value.toFixed(2), inflow: value > 0 ? "" : item.inflow }
                         : item,
                     ),
                   )
                 }
+                validate={(value) => value >= 0}
+                emptyWhenZero
                 placeholder="Outflow"
-                inputMode="decimal"
-                onKeyDown={(event) => addSplitOnTab(event, line)}
+                onMoneyKeyDown={(event) => addSplitOnTab(event, line)}
               />
 
-              <input
+              <MoneyInput
                 className="register-money-input"
-                value={line.inflow}
-                onChange={(event) =>
+                value={parseRegisterMoney(line.inflow)}
+                onCommit={(value) =>
                   setSplitLines((current) =>
                     current.map((item) =>
                       item.id === line.id
-                        ? { ...item, inflow: event.target.value }
+                        ? { ...item, inflow: value === 0 ? "" : value.toFixed(2), outflow: value > 0 ? "" : item.outflow }
                         : item,
                     ),
                   )
                 }
+                validate={(value) => value >= 0}
+                emptyWhenZero
                 placeholder="Inflow"
-                inputMode="decimal"
-                onKeyDown={(event) => addSplitOnTab(event, line)}
+                onMoneyKeyDown={(event) => addSplitOnTab(event, line)}
               />
             </div>
           </div>
@@ -593,38 +598,40 @@ export function RegisterSplitEditor({
             placeholder="Split memo"
           />
 
-          <input
+          <MoneyInput
             className="register-money-input register-split-allocation-amount register-split-allocation-outflow"
-            value={line.outflow}
-            onChange={(event) =>
+            value={parseRegisterMoney(line.outflow)}
+            onCommit={(value) =>
               setSplitLines((current) =>
                 current.map((item) =>
                   item.id === line.id
-                    ? { ...item, outflow: event.target.value }
+                    ? { ...item, outflow: value === 0 ? "" : value.toFixed(2), inflow: value > 0 ? "" : item.inflow }
                     : item,
                 ),
               )
             }
+            validate={(value) => value >= 0}
+            emptyWhenZero
             placeholder="Outflow"
-            inputMode="decimal"
-            onKeyDown={(event) => addSplitOnTab(event, line)}
+            onMoneyKeyDown={(event) => addSplitOnTab(event, line)}
           />
 
-          <input
+          <MoneyInput
             className="register-money-input register-split-allocation-amount register-split-allocation-inflow"
-            value={line.inflow}
-            onChange={(event) =>
+            value={parseRegisterMoney(line.inflow)}
+            onCommit={(value) =>
               setSplitLines((current) =>
                 current.map((item) =>
                   item.id === line.id
-                    ? { ...item, inflow: event.target.value }
+                    ? { ...item, inflow: value === 0 ? "" : value.toFixed(2), outflow: value > 0 ? "" : item.outflow }
                     : item,
                 ),
               )
             }
+            validate={(value) => value >= 0}
+            emptyWhenZero
             placeholder="Inflow"
-            inputMode="decimal"
-            onKeyDown={(event) => addSplitOnTab(event, line)}
+            onMoneyKeyDown={(event) => addSplitOnTab(event, line)}
           />
         </div>
       ))}

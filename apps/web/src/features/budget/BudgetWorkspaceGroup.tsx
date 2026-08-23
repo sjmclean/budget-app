@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type MouseEvent } from "react";
 import { ArrowRight } from "lucide-react";
-import { evaluateAssignedInput } from "./evaluateAssignedInput";
+import { MoneyInput } from "../money/MoneyInput";
 import type { BudgetCategoryGroupView, BudgetCategoryView } from "./budgetViewTypes";
 import { isCreditCardPaymentCategory } from "./creditCardPaymentCategories";
 import { formatMoney, getAvailableClass } from "./budgetMoneyDisplay";
@@ -46,47 +46,20 @@ function EditableAssignedCell({
   onSave: (value: number) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState(category.assigned.toFixed(2));
-  const [hasError, setHasError] = useState(false);
-
-  function save() {
-    const value = evaluateAssignedInput(draft, category.assigned);
-
-    if (value === null) {
-      setHasError(true);
-      return;
-    }
-
-    setHasError(false);
-    onSave(value);
-    setIsEditing(false);
-  }
 
   if (isEditing) {
     return (
-      <input
-        className={
-          hasError ? "assigned-input assigned-input-error" : "assigned-input"
-        }
+      <MoneyInput
+        className="assigned-input"
+        errorClassName="assigned-input-error"
         autoFocus
-        value={draft}
+        value={category.assigned}
         onFocus={(event) => event.currentTarget.select()}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          setHasError(false);
+        onCommit={(value) => {
+          onSave(value);
+          setIsEditing(false);
         }}
-        onBlur={save}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            save();
-          }
-
-          if (event.key === "Escape") {
-            setDraft(category.assigned.toFixed(2));
-            setHasError(false);
-            setIsEditing(false);
-          }
-        }}
+        onCancel={() => setIsEditing(false)}
         title="Try 150, +50, -25, 100+50, or 200/2"
       />
     );
@@ -102,8 +75,6 @@ function EditableAssignedCell({
       type="button"
       onClick={(event) => {
         event.stopPropagation();
-        setDraft(category.assigned === 0 ? "" : category.assigned.toFixed(2));
-        setHasError(false);
         setIsEditing(true);
       }}
       title="Click to edit. Supports +50, -25, or 100+50."

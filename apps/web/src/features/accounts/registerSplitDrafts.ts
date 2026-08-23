@@ -16,7 +16,7 @@ export interface SplitLineDraft {
 
 export function parseRegisterMoney(value: string): number {
   const cleaned = value.replace(/[$,\s]/g, "");
-  const parsed = Number.parseFloat(cleaned);
+  const parsed = Number(cleaned || 0);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
