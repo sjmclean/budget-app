@@ -12,6 +12,7 @@ import "./transactionTagManager.css";
 
 interface TransactionTagManagerProps {
   service: TransactionTagService;
+  onPersist?: (label: string, tags: readonly TransactionTagDefinition[]) => Promise<void>;
 }
 
 interface NewTagDraft {
@@ -29,6 +30,7 @@ const emptyDraft: NewTagDraft = {
 
 export function TransactionTagManager({
   service,
+  onPersist,
 }: TransactionTagManagerProps) {
   const [tags, setTags] = useState<TransactionTagDefinition[]>(() =>
     service.listTags(),
@@ -51,8 +53,10 @@ export function TransactionTagManager({
 
   const canReorder = search.trim().length === 0;
 
-  function refreshTags() {
-    setTags(service.listTags());
+  function refreshTags(label?: string) {
+    const next = service.listTags({ includeArchived: true });
+    setTags(next.filter((tag) => !tag.archived));
+    if (label && onPersist) void onPersist(label, next);
   }
 
   function reorderTag(draggedId: string, targetId: string) {
@@ -72,7 +76,9 @@ export function TransactionTagManager({
     nextTags.splice(targetIndex, 0, draggedTag);
 
     try {
-      setTags(service.reorderTags(nextTags.map((tag) => tag.id)));
+      const reordered = service.reorderTags(nextTags.map((tag) => tag.id));
+      setTags(reordered);
+      if (onPersist) void onPersist("Reorder tags", service.listTags({ includeArchived: true }));
       setStatusMessage("Tag order saved.");
     } catch (error) {
       setStatusMessage(
@@ -93,7 +99,7 @@ export function TransactionTagManager({
       setStatusMessage(`${created.name} created.`);
       setDraft(emptyDraft);
       setIsAdding(false);
-      refreshTags();
+      refreshTags("Create tag");
     } catch (error) {
       setStatusMessage(
         error instanceof Error ? error.message : "Could not create the tag.",
@@ -122,7 +128,7 @@ export function TransactionTagManager({
           tag.autoTagImportedTransactions,
       });
       setStatusMessage(`${updated.name} saved.`);
-      refreshTags();
+      refreshTags("Update tag");
     } catch (error) {
       setStatusMessage(
         error instanceof Error ? error.message : "Could not update the tag.",
@@ -134,24 +140,22 @@ export function TransactionTagManager({
   async function deleteTag(tag: TransactionTagDefinition) {
     const usage = service.getUsage(tag.id);
 
-    if (
-      usage.transactionCount > 0 &&
-      !(await confirmDialog({
-        title: "Delete tag",
-        message: `Delete "${tag.name}"? This will remove it from ${usage.transactionCount} transaction${
-          usage.transactionCount === 1 ? "" : "s"
-        }.`,
-        confirmLabel: "Delete tag",
-        tone: "danger",
-      }))
-    ) {
+    if (usage.transactionCount > 0) {
+      setStatusMessage(`Remove ${tag.name} from its transactions before deleting it.`);
       return;
     }
+
+    if (!(await confirmDialog({
+      title: "Delete tag",
+      message: `Delete "${tag.name}"?`,
+      confirmLabel: "Delete tag",
+      tone: "danger",
+    }))) return;
 
     try {
       service.deleteTag(tag.id);
       setStatusMessage(`${tag.name} deleted.`);
-      refreshTags();
+      refreshTags("Delete tag");
     } catch (error) {
       setStatusMessage(
         error instanceof Error ? error.message : "Could not delete the tag.",
@@ -356,9 +360,9 @@ export function TransactionTagManager({
                 aria-label={`Delete ${tag.name}`}
                 title={
                   usage.transactionCount > 0
-                    ? `Delete tag and remove it from ${usage.transactionCount} transaction${
+                    ? `Remove the tag from ${usage.transactionCount} transaction${
                         usage.transactionCount === 1 ? "" : "s"
-                      }`
+                      } before deleting it`
                     : "Delete tag"
                 }
               >
@@ -376,4 +380,3 @@ export function TransactionTagManager({
     </div>
   );
 }
-

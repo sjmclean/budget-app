@@ -2510,16 +2510,47 @@ export function createLocalFirstAccountRegisterQueryClient(
     async keepPayeesSeparate(budgetId, pairs) {
       await (await requireDatabase(budgetId)).keepPayeesSeparate(budgetId, pairs);
     },
-    async createPayee(budgetId, name) {
+    async createPayee(budgetId, name, payeeId) {
       const now = new Date().toISOString();
       const payee = {
-        id: createRuntimeUuid(), budgetId, name: name.trim(),
+        id: payeeId ?? createRuntimeUuid(), budgetId, name: name.trim(),
         note: "", archived: false,
       };
       const local = await requireDatabase(budgetId);
       await local.writePayee(payee, mutation(budgetId, "payees", payee.id, "upsert", payee));
       notifyLocalFirstMutationCommitted(budgetId);
       return listPersistedPayees(budgetId, false);
+    },
+    async capturePayee(budgetId, payeeId) {
+      const all = [
+        ...await client.listPayees(budgetId, false),
+        ...await client.listPayees(budgetId, true),
+      ];
+      return all.find(({ id }) => id === payeeId) ?? null;
+    },
+    async replacePayeeHistoryState(input) {
+      const current = await client.capturePayee(input.budgetId, input.payeeId);
+      if (JSON.stringify(current) !== JSON.stringify(input.expected)) {
+        throw new Error("PAYEE_HISTORY_CONFLICT");
+      }
+      const local = await requireDatabase(input.budgetId);
+      if (input.replacement) {
+        const { isArchived, ...replacement } = input.replacement;
+        const payee = {
+          ...replacement,
+          budgetId: input.budgetId,
+          note: replacement.note ?? "",
+          archived: isArchived === true,
+        };
+        await local.writePayee(payee, mutation(input.budgetId, "payees", input.payeeId, "upsert", payee));
+      } else {
+        await local.deleteUnusedPayee(
+          input.budgetId,
+          input.payeeId,
+          mutation(input.budgetId, "payees", input.payeeId, "delete", { kind: "history" }),
+        );
+      }
+      notifyLocalFirstMutationCommitted(input.budgetId);
     },
     async updatePayee(budgetId, input) {
       const local = await requireDatabase(budgetId);
@@ -2614,6 +2645,13 @@ export function createLocalFirstAccountRegisterQueryClient(
       }
       for (const tag of tags) await writeEntity(budgetId, "transactionTags", tag.id, tag);
       return tags;
+    },
+    async replaceTransactionTagsHistoryState(input) {
+      const current = await client.listTransactionTags(input.budgetId);
+      if (JSON.stringify(current) !== JSON.stringify(input.expected)) {
+        throw new Error("TRANSACTION_TAG_HISTORY_CONFLICT");
+      }
+      return client.replaceTransactionTags(input.budgetId, input.replacement);
     },
     listScheduledTransactions(budgetId, accountId) {
       return listSchedules(budgetId, accountId);

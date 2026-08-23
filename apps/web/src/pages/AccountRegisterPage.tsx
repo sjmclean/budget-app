@@ -43,6 +43,7 @@ import { useRegisterSelection } from "../features/accounts/useRegisterSelection"
 import { useRegisterSelectionActions } from "../features/accounts/useRegisterSelectionActions";
 import { useRegisterCommands } from "../features/accounts/useRegisterCommands";
 import { usePayeeManagerWorkflow } from "../features/accounts/usePayeeManagerWorkflow";
+import { usePayeeHistory } from "../features/accounts/usePayeeHistory";
 import { useRegisterAttachmentWorkflow } from "../features/accounts/useRegisterAttachmentWorkflow";
 import { useRegisterViewModel } from "../features/accounts/useRegisterViewModel";
 import { useRegisterTransactionHistory } from "../features/accounts/useRegisterTransactionHistory";
@@ -76,6 +77,7 @@ import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValue
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
 import { useApplicationHistory } from "../features/history";
+import { setTransactionTagsCommand } from "../features/history/commands/management/tagCommands";
 import { createBudgetScopedStorage } from "../features/budget/budgetDataScope";
 import {
   TransactionTagManager,
@@ -310,8 +312,9 @@ export function AccountRegisterPage() {
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
+  const payeeHistory = usePayeeHistory(activeBudgetId);
   const currentBudgetMonth = useCurrentBudgetMonth();
-  const { canUndo, canRedo, undoLabel, redoLabel, isBusy: isHistoryBusy, undo, redo } = useApplicationHistory();
+  const { canUndo, canRedo, undoLabel, redoLabel, undoDepth, redoDepth, isBusy: isHistoryBusy, execute: executeHistory, undo, redo } = useApplicationHistory();
   const undoTitle = canUndo && undoLabel ? `Undo ${undoLabel}` : "Nothing to undo";
   const redoTitle = canRedo && redoLabel ? `Redo ${redoLabel}` : "Nothing to redo";
   const transactionTagStorage = useMemo(
@@ -367,18 +370,21 @@ export function AccountRegisterPage() {
     moveTransactions,
   } = useRegisterTransactionHistory(activeBudgetId, accountId);
 
-  const syncTransactionTagsToPersistence = useCallback(async () => {
+  const syncTransactionTagsToPersistence = useCallback(async (label = "Update tags") => {
     const queries = persistenceGateway.accountRegisterQueries;
     if (storageMode !== "sqlite" || !activeBudgetId || !queries) return;
-    await queries.replaceTransactionTags(
-      activeBudgetId,
+    const result = await executeHistory(setTransactionTagsCommand(
+      `tags:${Date.now()}`,
+      label,
       transactionTagService.listTags({ includeArchived: true }),
-    );
+    ));
+    if (!result.performed) throw new Error(result.error ?? "Tag history command failed.");
   }, [
     activeBudgetId,
     persistenceGateway.accountRegisterQueries,
     storageMode,
     transactionTagService,
+    executeHistory,
   ]);
 
   useEffect(() => {
@@ -398,6 +404,8 @@ export function AccountRegisterPage() {
     persistenceGateway.accountRegisterQueries,
     storageMode,
     transactionTagService,
+    undoDepth,
+    redoDepth,
   ]);
 
   const payeesPersistence = useMemo(() => {
@@ -413,16 +421,16 @@ export function AccountRegisterPage() {
         return [...await queries.listPayees(activeBudgetId, true)];
       },
       async recordPayee(name: string) {
-        return [...await queries.createPayee(activeBudgetId, name)];
+        return await payeeHistory.createPayee(name);
       },
       async renamePayee(input: { id: string; name: string }) {
-        return [...await queries.updatePayee(activeBudgetId, input)];
+        return await payeeHistory.updatePayee(input);
       },
       async archivePayee(id: string) {
-        return [...await queries.setPayeeArchived(activeBudgetId, id, true)];
+        return await payeeHistory.setPayeeArchived(id, true);
       },
       async restorePayee(id: string) {
-        return [...await queries.setPayeeArchived(activeBudgetId, id, false)];
+        return await payeeHistory.setPayeeArchived(id, false);
       },
       async mergePayees(input: {
         sourcePayeeId: string;
@@ -435,6 +443,7 @@ export function AccountRegisterPage() {
     activeBudgetId,
     legacyPayeesPersistence,
     persistenceGateway.accountRegisterQueries,
+    payeeHistory,
     storageMode,
   ]);
 
@@ -762,6 +771,7 @@ export function AccountRegisterPage() {
   }, [registerSelection.prune, registerTransactions]);
 
   const registerAttachmentWorkflow = useRegisterAttachmentWorkflow({
+    budgetId: activeBudgetId,
     transactions: registerTransactions,
     addAttachment,
     removeAttachment,
@@ -953,7 +963,7 @@ export function AccountRegisterPage() {
         colour: "blue",
       });
       setTransactionTags(transactionTagService.listTags());
-      void syncTransactionTagsToPersistence();
+      void syncTransactionTagsToPersistence("Create tag");
       return tag;
     },
     [syncTransactionTagsToPersistence, transactionTagService],
@@ -1518,14 +1528,16 @@ export function AccountRegisterPage() {
                   type="button"
                   onClick={() => {
                     setTransactionTags(transactionTagService.listTags());
-                    void syncTransactionTagsToPersistence();
                     setIsTransactionTagManagerOpen(false);
                   }}
                 >
                   Close
                 </button>
               </div>
-              <TransactionTagManager service={transactionTagService} />
+              <TransactionTagManager
+                service={transactionTagService}
+                onPersist={syncTransactionTagsToPersistence}
+              />
             </Card>
           </div>
         ) : null}

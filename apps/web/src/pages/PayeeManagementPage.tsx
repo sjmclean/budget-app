@@ -6,6 +6,7 @@ import type {
   PayeeRuleMatchType,
   PayeeView,
 } from "../features/accounts/payeeService";
+import { usePayeeHistory } from "../features/accounts/usePayeeHistory";
 import type { BudgetCategoryOption } from "../features/budget/budgetViewTypes";
 import { confirmDialog } from "../features/ui/appDialogService";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
@@ -257,6 +258,7 @@ export function PayeeManagementPage() {
     string | null
   >(null);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
+  const payeeHistory = usePayeeHistory(activeBudgetId);
   const [duplicateSuppressions, setDuplicateSuppressions] = useState<PossibleDuplicateSuppression[]>([]);
   const [selectedDuplicateGroupId, setSelectedDuplicateGroupId] = useState<string | null>(null);
   const [selectedDuplicateMemberIds, setSelectedDuplicateMemberIds] = useState<string[]>([]);
@@ -473,7 +475,7 @@ export function PayeeManagementPage() {
         : { kind: "automatic" as const },
     };
     const nextPayees = activeBudgetId && persistenceGateway.accountRegisterQueries
-      ? [...await persistenceGateway.accountRegisterQueries.updatePayee(activeBudgetId, update)]
+      ? await payeeHistory.updatePayee(update)
       : await payeesPersistence.updatePayee(update);
     setPayees(nextPayees);
     setIsIconPickerOpen(false);
@@ -571,7 +573,7 @@ export function PayeeManagementPage() {
     };
     const nextPayees =
       activeBudgetId && persistenceGateway.accountRegisterQueries
-        ? [...await persistenceGateway.accountRegisterQueries.updatePayee(activeBudgetId, update)]
+        ? await payeeHistory.updatePayee(update)
         : await payeesPersistence.updatePayee(update);
 
     setPayees(nextPayees);
@@ -608,7 +610,7 @@ export function PayeeManagementPage() {
     };
     const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
     const nextPayees = hosted
-      ? [...await persistenceGateway.accountRegisterQueries!.updatePayee(activeBudgetId!, update)]
+      ? await payeeHistory.updatePayee(update)
       : await payeesPersistence.updatePayee(update);
     setPayees(nextPayees);
     setSelectedPayeeId(selectedPayee.id);
@@ -640,7 +642,7 @@ export function PayeeManagementPage() {
 
     const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
     const nextPayees = hosted
-      ? [...await persistenceGateway.accountRegisterQueries!.setPayeeArchived(activeBudgetId!, selectedPayee.id, true)]
+      ? await payeeHistory.setPayeeArchived(selectedPayee.id, true)
       : await payeesPersistence.archivePayee(selectedPayee.id);
     const nextArchivedPayees = hosted
       ? [...await persistenceGateway.accountRegisterQueries!.listPayees(activeBudgetId!, true)]
@@ -659,7 +661,7 @@ export function PayeeManagementPage() {
 
     const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
     const nextPayees = hosted
-      ? [...await persistenceGateway.accountRegisterQueries!.setPayeeArchived(activeBudgetId!, selectedPayee.id, false)]
+      ? await payeeHistory.setPayeeArchived(selectedPayee.id, false)
       : await payeesPersistence.restorePayee(selectedPayee.id);
     const nextArchivedPayees = hosted
       ? [...await persistenceGateway.accountRegisterQueries!.listPayees(activeBudgetId!, true)]
@@ -687,7 +689,7 @@ export function PayeeManagementPage() {
     if (!confirmed) return;
     const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
     const nextPayees = hosted && persistenceGateway.accountRegisterQueries!.deleteUnusedPayee
-      ? [...await persistenceGateway.accountRegisterQueries!.deleteUnusedPayee(activeBudgetId!, selectedPayee.id)]
+      ? await payeeHistory.deleteUnusedPayee(selectedPayee.id)
       : await payeesPersistence.deletePayee(selectedPayee.id);
     setPayees(nextPayees);
     setSelectedPayeeId(nextPayees[0]?.id ?? null);

@@ -297,7 +297,17 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
   createPayee(
     budgetId: string,
     name: string,
+    payeeId?: string,
   ): Promise<readonly PayeeView[]>;
+
+  capturePayee(budgetId: string, payeeId: string): Promise<PayeeView | null>;
+
+  replacePayeeHistoryState(input: {
+    readonly budgetId: string;
+    readonly payeeId: string;
+    readonly expected: PayeeView | null;
+    readonly replacement: PayeeView | null;
+  }): Promise<void>;
 
   updatePayee(
     budgetId: string,
@@ -330,6 +340,12 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     budgetId: string,
     tags: readonly TransactionTagDefinition[],
   ): Promise<readonly TransactionTagDefinition[]>;
+
+  replaceTransactionTagsHistoryState(input: {
+    readonly budgetId: string;
+    readonly expected: readonly TransactionTagDefinition[];
+    readonly replacement: readonly TransactionTagDefinition[];
+  }): Promise<readonly TransactionTagDefinition[]>;
 
   listScheduledTransactions(
     budgetId: string,
