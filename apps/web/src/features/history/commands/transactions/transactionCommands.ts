@@ -59,7 +59,7 @@ export function createAddTransactionCommand(input: {
   };
 }
 
-function createGraphChangeCommand(input: {
+export function createTransactionGraphChangeCommand(input: {
   readonly id: string;
   readonly label: string;
   readonly transactionIds: readonly string[];
@@ -90,7 +90,7 @@ export function createEditTransactionCommand(input: {
   readonly transactionId: string;
   readonly write: TransactionWriteInput;
 }): UndoableCommand<ApplicationHistoryContext> {
-  return createGraphChangeCommand({
+  return createTransactionGraphChangeCommand({
     id: `edit-transaction:${input.transactionId}:${Date.now()}`,
     label: "Edit transaction",
     transactionIds: [input.transactionId],
@@ -103,7 +103,7 @@ export function createSetTransactionsClearedCommand(input: {
   readonly cleared: boolean;
 }): UndoableCommand<ApplicationHistoryContext> {
   const ids = [...new Set(input.transactionIds)];
-  return createGraphChangeCommand({
+  return createTransactionGraphChangeCommand({
     id: `set-transactions-cleared:${ids.join("|")}:${Date.now()}`,
     label: label(input.cleared ? "Clear" : "Unclear", ids.length),
     transactionIds: ids,
@@ -145,7 +145,7 @@ export function createMoveTransactionsCommand(input: {
   readonly transactionIds: readonly string[];
 }): UndoableCommand<ApplicationHistoryContext> {
   const ids = [...new Set(input.transactionIds)];
-  return createGraphChangeCommand({
+  return createTransactionGraphChangeCommand({
     id: `move-transactions:${ids.join("|")}:${Date.now()}`,
     label: label("Move", ids.length),
     transactionIds: ids,
