@@ -30,7 +30,7 @@ import type {
   ScheduledTransactionView,
   UpsertScheduledTransactionInput,
 } from "../accounts/scheduledTransactionTypes";
-import type { TransactionHistorySnapshot } from "./localFirst/registerSchema";
+import type { ImportHistorySnapshot, TransactionHistorySnapshot } from "./localFirst/registerSchema";
 
 export interface BudgetEngineStatus {
   readonly budgetId: string;
@@ -150,6 +150,20 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     )[];
     readonly provenanceAssignments: readonly RegisterTransactionImportProvenanceAssignment[];
     readonly payeeCreations: readonly RegisterTransactionImportPayeeCreation[];
+  }): Promise<void>;
+
+  commitImportBatchWithHistory(input: {
+    readonly budgetId: string;
+    readonly accountId: string;
+    readonly additions: readonly (TransactionWriteInput & { readonly id: string })[];
+    readonly updates: readonly (TransactionWriteInput & { readonly id: string })[];
+    readonly provenanceAssignments: readonly RegisterTransactionImportProvenanceAssignment[];
+    readonly payeeCreations: readonly RegisterTransactionImportPayeeCreation[];
+  }): Promise<{ readonly before: ImportHistorySnapshot; readonly after: ImportHistorySnapshot }>;
+
+  replaceImportHistorySnapshot(input: {
+    readonly expected: ImportHistorySnapshot;
+    readonly replacement: ImportHistorySnapshot;
   }): Promise<void>;
 
   moveTransactions(input: {

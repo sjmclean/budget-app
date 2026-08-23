@@ -13,6 +13,7 @@ import {
 } from "./contracts";
 import type {
   LocalRegisterImportBatch,
+  ImportHistorySnapshot,
   LocalPayeeRecord,
   LocalTransactionQuery,
   LocalTransactionAttachmentRecord,
@@ -420,6 +421,34 @@ export class LocalBudgetDatabaseClient {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "replaceTransactionHistorySnapshot",
+      expected,
+      replacement,
+      mutations,
+    });
+  }
+
+  captureImportHistorySnapshot(
+    budgetId: string,
+    transactionIds: readonly string[],
+    payeeIds: readonly string[],
+  ): Promise<ImportHistorySnapshot> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "captureImportHistorySnapshot",
+      budgetId,
+      transactionIds,
+      payeeIds,
+    });
+  }
+
+  replaceImportHistorySnapshot(
+    expected: ImportHistorySnapshot,
+    replacement: ImportHistorySnapshot,
+    mutations: readonly LocalBudgetMutation[],
+  ): Promise<LocalBudgetManifest> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "replaceImportHistorySnapshot",
       expected,
       replacement,
       mutations,

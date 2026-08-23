@@ -259,6 +259,20 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "captureImportHistorySnapshot";
+      readonly budgetId: string;
+      readonly transactionIds: readonly string[];
+      readonly payeeIds: readonly string[];
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "replaceImportHistorySnapshot";
+      readonly expected: import("./registerSchema").ImportHistorySnapshot;
+      readonly replacement: import("./registerSchema").ImportHistorySnapshot;
+      readonly mutations: readonly LocalBudgetMutation[];
+    }
+  | {
+      readonly requestId: string;
       readonly type: "replaceScheduledTransactionHistoryState";
       readonly scheduleId: string;
       readonly expectedSchedule: import("../../accounts/scheduledTransactionTypes").ScheduledTransactionView | null;

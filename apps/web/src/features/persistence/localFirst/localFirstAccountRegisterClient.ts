@@ -15,6 +15,7 @@ import type { BudgetDomain } from "./contracts";
 import { LocalBudgetDatabaseClient } from "./localBudgetClient";
 import type {
   LocalTransactionAttachmentMutationPayload,
+  ImportHistorySnapshot,
   LocalTransactionAttachmentRecord,
   LocalPayeeRecord,
   LocalTransactionRecord,
@@ -1883,6 +1884,65 @@ export function createLocalFirstAccountRegisterQueryClient(
       if (payeeWrites.length > 0 || writes.length > 0) {
         notifyLocalFirstMutationCommitted(input.budgetId);
       }
+    },
+    async commitImportBatchWithHistory(input) {
+      const transactionIds = [...new Set([
+        ...input.additions.map(({ id }) => id),
+        ...input.updates.map(({ id }) => id),
+        ...input.provenanceAssignments.map(({ transactionId }) => transactionId),
+      ])].sort();
+      const payeeIds = [...new Set(input.payeeCreations.map(({ id }) => id))].sort();
+      if (transactionIds.length === 0 && payeeIds.length === 0) {
+        throw new Error("An import history command requires at least one persisted object.");
+      }
+      const local = await requireDatabase(input.budgetId);
+      const before = await local.captureImportHistorySnapshot(input.budgetId, transactionIds, payeeIds);
+      await client.commitImportBatch(input);
+      const after = await local.captureImportHistorySnapshot(input.budgetId, transactionIds, payeeIds);
+      return { before, after };
+    },
+    async replaceImportHistorySnapshot({ expected, replacement }) {
+      if (expected.budgetId !== replacement.budgetId) {
+        throw new Error("Import history replacement cannot cross budgets.");
+      }
+      const local = await requireDatabase(expected.budgetId);
+      const nextTransactionIds = new Set(replacement.transactions.transactions.map(({ id }) => id));
+      const nextAttachmentIds = new Set(replacement.transactions.attachments.map(({ id }) => id));
+      const nextPayeeIds = new Set(replacement.payees.map(({ id }) => id));
+      const members: LocalBudgetOperationGroup["members"] = [
+        ...expected.transactions.transactions.filter(({ id }) => !nextTransactionIds.has(id)).map((transaction) => ({
+          domain: "transactions" as const, entityId: transaction.id, operation: "delete" as const,
+          payload: { accountId: transaction.accountId, amount: transaction.amount,
+            transferAccountId: transaction.transferAccountId, transferTransactionId: transaction.transferTransactionId },
+        })),
+        ...expected.transactions.attachments.filter(({ id }) => !nextAttachmentIds.has(id)).map((attachment) => ({
+          domain: "transactions" as const, entityId: `attachment:${attachment.id}`, operation: "delete" as const,
+          payload: { kind: "transaction-attachment-delete" as const,
+            attachment: (({ content: _content, ...metadata }) => metadata)(attachment) },
+        })),
+        ...replacement.transactions.transactions.map((transaction) => ({
+          domain: "transactions" as const, entityId: transaction.id, operation: "upsert" as const, payload: transaction,
+        })),
+        ...replacement.transactions.attachments.map((attachment) => ({
+          domain: "transactions" as const, entityId: `attachment:${attachment.id}`, operation: "upsert" as const,
+          payload: { kind: "transaction-attachment-upsert" as const,
+            attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
+            contentBase64: encodeBase64(attachment.content) },
+        })),
+        ...expected.payees.filter(({ id }) => !nextPayeeIds.has(id)).map((payee) => ({
+          domain: "payees" as const, entityId: payee.id, operation: "delete" as const, payload: payee,
+        })),
+        ...replacement.payees.map((payee) => ({
+          domain: "payees" as const, entityId: payee.id, operation: "upsert" as const, payload: payee,
+        })),
+      ];
+      const operationGroupId = createRuntimeUuid();
+      const group: LocalBudgetOperationGroup = { members };
+      await local.replaceImportHistorySnapshot(expected, replacement, members.map((member) => mutation(
+        expected.budgetId, member.domain, member.entityId, member.operation,
+        member.payload, operationGroupId, group,
+      )));
+      notifyLocalFirstMutationCommitted(expected.budgetId);
     },
 
     async moveTransactions(input) {

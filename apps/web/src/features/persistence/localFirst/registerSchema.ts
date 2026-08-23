@@ -349,6 +349,17 @@ export interface TransactionHistorySnapshot {
   readonly attachments: readonly TransactionHistoryAttachmentSnapshot[];
 }
 
+/** Exact authoritative SQLite objects changed by one committed bank import. */
+export interface ImportHistorySnapshot {
+  readonly budgetId: string;
+  /** May be empty for the pre-state of an additions-only import. */
+  readonly transactions: TransactionHistorySnapshot;
+  readonly payees: readonly LocalPayeeRecord[];
+  /** Stable roots preserve the tracked set while objects are absent. */
+  readonly transactionIds: readonly string[];
+  readonly payeeIds: readonly string[];
+}
+
 export interface LocalTransactionAttachmentMutationPayload {
   readonly kind: "transaction-attachment-upsert" | "transaction-attachment-delete";
   readonly attachment: LocalTransactionAttachmentRecord;

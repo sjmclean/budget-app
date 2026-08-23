@@ -19,6 +19,7 @@ import {
   LOCAL_TRANSACTION_UPSERT_SQL,
   localTransactionUpsertBindings,
   type LocalRegisterImportBatch,
+  type ImportHistorySnapshot,
   type LocalTransactionAttachmentMutationPayload,
   type LocalTransactionAttachmentRecord,
   type LocalTransactionQuery,
@@ -3500,6 +3501,7 @@ function writeImportBatch(
 function captureTransactionHistorySnapshots(
   budgetId: string,
   transactionIds: readonly string[],
+  allowMissing = false,
 ): TransactionHistorySnapshot {
   if (budgetId !== activeBudgetId) {
     throw workerError("BUDGET_SCOPE_MISMATCH", "Transaction history belongs to another budget.");
@@ -3511,6 +3513,7 @@ function captureTransactionHistorySnapshots(
     if (transactions.has(transactionId)) continue;
     const transaction = getPersistedTransactionForVerification(budgetId, transactionId);
     if (!transaction) {
+      if (allowMissing) continue;
       throw workerError("TRANSACTION_NOT_FOUND", `Transaction ${transactionId} was not found.`);
     }
     transactions.set(transactionId, transaction);
@@ -3549,6 +3552,143 @@ function captureTransactionHistorySnapshots(
     transactions: [...transactions.values()].sort((a, b) => a.id.localeCompare(b.id)),
     attachments,
   };
+}
+
+function physicalPayeeForImportHistory(budgetId: string, payeeId: string) {
+  const payee = [
+    ...listPayees(budgetId, false),
+    ...listPayees(budgetId, true),
+  ].find(({ id }) => id === payeeId);
+  if (!payee) return null;
+  const { useCount: _useCount, scheduledUseCount: _scheduledUseCount,
+    firstUsedAt: _firstUsedAt, lastUsedAt: _lastUsedAt, ...physical } = payee;
+  return {
+    ...physical,
+    budgetId,
+    defaultCategoryId: physical.defaultCategoryId ?? undefined,
+    defaultCategoryName: physical.defaultCategoryName ?? undefined,
+    iconRef: physical.iconRef ?? undefined,
+    createdAt: physical.createdAt ?? undefined,
+    updatedAt: physical.updatedAt ?? undefined,
+    importRules: physical.importRules.map((rule) => ({
+      ...rule,
+      defaultCategoryId: rule.defaultCategoryId ?? undefined,
+      defaultCategoryName: rule.defaultCategoryName ?? undefined,
+    })),
+  };
+}
+
+function captureImportHistorySnapshot(
+  budgetId: string,
+  transactionIds: readonly string[],
+  payeeIds: readonly string[],
+): ImportHistorySnapshot {
+  if (budgetId !== activeBudgetId) {
+    throw workerError("BUDGET_SCOPE_MISMATCH", "Import history belongs to another budget.");
+  }
+  const stableTransactionIds = [...new Set(transactionIds)].sort();
+  const stablePayeeIds = [...new Set(payeeIds)].sort();
+  return {
+    budgetId,
+    transactionIds: stableTransactionIds,
+    payeeIds: stablePayeeIds,
+    transactions: captureTransactionHistorySnapshots(budgetId, stableTransactionIds, true),
+    payees: stablePayeeIds
+      .map((payeeId) => physicalPayeeForImportHistory(budgetId, payeeId))
+      .filter((payee): payee is NonNullable<typeof payee> => payee !== null),
+  };
+}
+
+function importHistorySnapshotsEqual(left: ImportHistorySnapshot, right: ImportHistorySnapshot) {
+  return left.budgetId === right.budgetId &&
+    JSON.stringify(left.transactionIds) === JSON.stringify(right.transactionIds) &&
+    JSON.stringify(left.payeeIds) === JSON.stringify(right.payeeIds) &&
+    transactionHistorySnapshotsEqual(left.transactions, right.transactions) &&
+    JSON.stringify(left.payees) === JSON.stringify(right.payees);
+}
+
+function upsertImportHistoryPayee(payee: import("./registerSchema").LocalPayeeRecord) {
+  execute(`INSERT INTO local_payees(id,budget_id,name,note,archived,default_category_id,
+    default_category_name,icon_ref,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(id) DO UPDATE SET name=excluded.name,note=excluded.note,
+    archived=excluded.archived,default_category_id=excluded.default_category_id,
+    default_category_name=excluded.default_category_name,icon_ref=excluded.icon_ref,
+    created_at=excluded.created_at,updated_at=excluded.updated_at`,
+  [payee.id,payee.budgetId,payee.name,payee.note,payee.archived ? 1 : 0,
+   payee.defaultCategoryId ?? null,payee.defaultCategoryName ?? null,payee.iconRef ?? null,
+   payee.createdAt ?? null,payee.updatedAt ?? null]);
+  execute("DELETE FROM local_payee_aliases WHERE budget_id = ? AND payee_id = ?", [payee.budgetId, payee.id]);
+  for (const alias of payee.aliases ?? []) execute(
+    `INSERT INTO local_payee_aliases(id,budget_id,payee_id,value,normalized_value,created_at)
+     VALUES(?,?,?,?,?,?)`, [alias.id,payee.budgetId,payee.id,alias.value,normalisePayeeIdentity(alias.value),payee.createdAt ?? new Date().toISOString()]);
+  execute("DELETE FROM local_payee_recognition_rules WHERE budget_id = ? AND payee_id = ?", [payee.budgetId, payee.id]);
+  for (const rule of payee.importRules ?? []) execute(
+    `INSERT INTO local_payee_recognition_rules(id,budget_id,payee_id,match_type,pattern,
+      normalized_pattern,default_category_id,default_category_name,priority,enabled,created_at,updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, [rule.id,payee.budgetId,payee.id,rule.matchType,rule.text,
+      normalisePayeeIdentity(rule.text),rule.defaultCategoryId ?? null,rule.defaultCategoryName ?? null,
+      rule.priority ?? 0,rule.enabled === false ? 0 : 1,payee.createdAt ?? new Date().toISOString(),payee.updatedAt ?? new Date().toISOString()]);
+}
+
+function replaceImportHistorySnapshot(
+  expected: ImportHistorySnapshot,
+  replacement: ImportHistorySnapshot,
+  mutations: readonly LocalBudgetMutation[],
+): LocalBudgetManifest {
+  if (expected.budgetId !== activeBudgetId || replacement.budgetId !== activeBudgetId ||
+      JSON.stringify(expected.transactionIds) !== JSON.stringify(replacement.transactionIds) ||
+      JSON.stringify(expected.payeeIds) !== JSON.stringify(replacement.payeeIds)) {
+    throw workerError("INVALID_IMPORT_HISTORY", "Import history snapshots do not describe the same scoped objects.");
+  }
+  for (const mutation of mutations) assertMutationScope(mutation);
+  execute("BEGIN IMMEDIATE");
+  try {
+    const current = captureImportHistorySnapshot(activeBudgetId!, expected.transactionIds, expected.payeeIds);
+    if (!importHistorySnapshotsEqual(current, expected)) {
+      throw workerError("IMPORT_HISTORY_CONFLICT", "Current import-owned state no longer matches the expected snapshot.");
+    }
+    const trackedTransactionIds = new Set([
+      ...expected.transactions.transactions.map(({ id }) => id),
+      ...replacement.transactions.transactions.map(({ id }) => id),
+    ]);
+    for (const transactionId of trackedTransactionIds) {
+      const currentTransaction = getPersistedTransactionForVerification(activeBudgetId!, transactionId);
+      if (currentTransaction) markBudgetProjectionDirty(currentTransaction.date.slice(0, 7));
+      execute("DELETE FROM local_transactions WHERE budget_id = ? AND id = ?", [activeBudgetId, transactionId]);
+    }
+    for (const payee of replacement.payees) upsertImportHistoryPayee(payee);
+    for (const transaction of replacement.transactions.transactions) {
+      upsertTransaction(transaction);
+      markBudgetProjectionDirty(transaction.date.slice(0, 7));
+    }
+    for (const attachment of replacement.transactions.attachments) {
+      const { content, ...metadata } = attachment;
+      upsertTransactionAttachment(metadata, content);
+    }
+    const replacementPayeeIds = new Set(replacement.payees.map(({ id }) => id));
+    for (const payeeId of expected.payeeIds) {
+      if (replacementPayeeIds.has(payeeId)) continue;
+      const transactionReference = resultRows<{ found: number }>(
+        "SELECT 1 AS found FROM local_transactions WHERE budget_id = ? AND payee_id = ? LIMIT 1", [activeBudgetId, payeeId]).length > 0;
+      const scheduleReference = resultRows<{ found: number }>(
+        `SELECT 1 AS found FROM local_scheduled_transactions WHERE budget_id = ?
+         AND json_extract(payload_json, '$.payeeId') = ? LIMIT 1`, [activeBudgetId, payeeId]).length > 0;
+      if (transactionReference || scheduleReference) {
+        throw workerError("IMPORT_PAYEE_IN_USE", `Import-created payee ${payeeId} has later references.`);
+      }
+      execute("DELETE FROM local_payee_aliases WHERE budget_id = ? AND payee_id = ?", [activeBudgetId, payeeId]);
+      execute("DELETE FROM local_payee_recognition_rules WHERE budget_id = ? AND payee_id = ?", [activeBudgetId, payeeId]);
+      execute("DELETE FROM local_payees WHERE budget_id = ? AND id = ?", [activeBudgetId, payeeId]);
+    }
+    for (const mutation of mutations) insertOutbox(mutation);
+    writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + mutations.length));
+    const restored = captureImportHistorySnapshot(activeBudgetId!, replacement.transactionIds, replacement.payeeIds);
+    if (!importHistorySnapshotsEqual(restored, replacement)) {
+      throw workerError("IMPORT_HISTORY_VERIFICATION_FAILED", "Import history replacement did not restore its exact snapshot.");
+    }
+    execute("COMMIT");
+  } catch (error) { execute("ROLLBACK"); throw error; }
+  return currentManifest();
 }
 
 function validateHistorySnapshot(snapshot: TransactionHistorySnapshot): void {
@@ -5214,6 +5354,10 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return deleteTransactionHistorySnapshot(request.snapshot, request.mutations);
     case "replaceTransactionHistorySnapshot":
       return replaceTransactionHistorySnapshot(request.expected, request.replacement, request.mutations);
+    case "captureImportHistorySnapshot":
+      return captureImportHistorySnapshot(request.budgetId, request.transactionIds, request.payeeIds);
+    case "replaceImportHistorySnapshot":
+      return replaceImportHistorySnapshot(request.expected, request.replacement, request.mutations);
     case "replaceScheduledTransactionHistoryState":
       return replaceScheduledTransactionHistoryState(request);
     case "getTransactionsByIds":
