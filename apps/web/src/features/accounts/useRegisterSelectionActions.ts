@@ -7,8 +7,8 @@ import type { RegisterTransactionView } from "./accountRegisterTypes";
 interface UseRegisterSelectionActionsInput {
   selectedTransactionIds: string[];
   selectedTransactions: RegisterTransactionView[];
-  toggleCleared: (transactionId: string) => Promise<void>;
-  deleteTransaction: (transactionId: string) => Promise<void>;
+  setTransactionsCleared: (transactionIds: readonly string[], cleared: boolean) => Promise<void>;
+  deleteTransactions: (transactionIds: readonly string[]) => Promise<void>;
   clearSelection: () => void;
   editTransaction: (transactionId: string | null) => void;
   openMoveTransactions?: () => void;
@@ -23,8 +23,8 @@ interface UseRegisterSelectionActionsResult {
 export function useRegisterSelectionActions({
   selectedTransactionIds,
   selectedTransactions,
-  toggleCleared,
-  deleteTransaction,
+  setTransactionsCleared,
+  deleteTransactions,
   clearSelection,
   editTransaction,
   openMoveTransactions,
@@ -38,13 +38,12 @@ export function useRegisterSelectionActions({
 
   const setSelectedTransactionsCleared = useCallback(
     async (cleared: boolean) => {
-      for (const transaction of selectedTransactions) {
-        if (transaction.cleared !== cleared) {
-          await toggleCleared(transaction.id);
-        }
-      }
+      await setTransactionsCleared(
+        selectedTransactions.map(({ id }) => id),
+        cleared,
+      );
     },
-    [selectedTransactions, toggleCleared],
+    [selectedTransactions, setTransactionsCleared],
   );
 
   const toggleSelectedCleared = useCallback(async () => {
@@ -59,8 +58,8 @@ export function useRegisterSelectionActions({
     const confirmed = await confirmDialog({
       message:
         selectedCount === 1
-          ? "Delete this transaction? This cannot be undone yet."
-          : `Delete ${selectedCount} selected transactions? This cannot be undone yet.`,
+          ? "Delete this transaction?"
+          : `Delete ${selectedCount} selected transactions?`,
       confirmLabel:
         selectedCount === 1 ? "Delete transaction" : "Delete transactions",
       tone: "danger",
@@ -70,15 +69,13 @@ export function useRegisterSelectionActions({
       return;
     }
 
-    for (const transactionId of selectedTransactionIds) {
-      await deleteTransaction(transactionId);
-    }
+    await deleteTransactions(selectedTransactionIds);
 
     clearSelection();
     editTransaction(null);
   }, [
     clearSelection,
-    deleteTransaction,
+    deleteTransactions,
     editTransaction,
     selectedCount,
     selectedTransactionIds,

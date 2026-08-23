@@ -169,6 +169,12 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     input: TransactionTarget,
   ): Promise<void>;
 
+  setTransactionsCleared(input: {
+    readonly budgetId: string;
+    readonly transactionIds: readonly string[];
+    readonly cleared: boolean;
+  }): Promise<void>;
+
   deleteTransaction(
     transactionId: string,
     input: TransactionTarget,
@@ -186,6 +192,11 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
   deleteTransactionHistorySnapshot(
     snapshot: TransactionHistorySnapshot,
   ): Promise<void>;
+
+  replaceTransactionHistorySnapshot(input: {
+    readonly expected: TransactionHistorySnapshot;
+    readonly replacement: TransactionHistorySnapshot;
+  }): Promise<void>;
 
   addTransactionAttachment(input: TransactionTarget & {
     readonly transactionId: string;

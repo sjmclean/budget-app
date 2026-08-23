@@ -181,6 +181,66 @@ transaction wrapper, recapture, comparison, commit, and rollback wiring. This
 is physical SQLite schema/readback evidence, but not execution inside a browser
 OPFS sqlite-wasm Worker; that remains a separate end-to-end layer.
 
+### Phase 4 Register command routing
+
+Normal user-facing Register mutations now enter through
+`useRegisterTransactionHistory` and the command factories under
+`history/commands/transactions`. The audited routes are:
+
+| UI route | Command path |
+| --- | --- |
+| Entry row Save / Save and add another, including another target account | `createAddTransactionCommand` |
+| Inline edit and tag assignment edit | `createEditTransactionCommand` |
+| Row/context clear toggle | `createToggleTransactionClearedCommand` |
+| Selection-bar clear/unclear | one `createSetTransactionsClearedCommand` for all selected IDs |
+| Selection/context delete | one `createDeleteTransactionsCommand` for all selected IDs |
+| Selection/context move | one `createMoveTransactionsCommand` for all selected IDs |
+
+Desktop, responsive rows, context menus, and selection controls feed these same
+page-level handlers; transaction row components do not own persistence or Undo.
+The hook only plans IDs and submits commands. Command execute/undo/redo resolves
+the current query service from `ApplicationHistoryContext` and stores no React
+setter, visible row, sort position, or refresh callback. Persistence mutation
+notifications reload any mounted Register.
+
+Imports (`addTransactions`, import batch updates) remain intentionally direct
+and non-undoable until the import compound-command phase. Scheduled Enter uses
+the explicitly named `addTransactionWithoutHistory` route until scheduled
+generation and schedule advancement can be one command. Attachment add/remove
+management and account/payee/category/tag-definition management remain later
+coverage; deleting a transaction with an existing attachment is fully covered
+because the attachment BLOB is part of its graph snapshot.
+
+Add plans the source transaction ID before execution. A created transfer's
+counterpart is captured after persistence, so Undo/Redo preserves both IDs.
+Delete captures and deduplicates the connected graph before one atomic graph
+delete. Bulk selection IDs that belong to one transfer graph therefore do not
+duplicate restoration. Redo uses the same expected snapshot.
+
+Edit, clear/unclear, and move capture authoritative before and after graphs.
+Undo uses atomic `replaceTransactionHistorySnapshot(expected: after,
+replacement: before)`; redo reverses those arguments. The worker compares the
+current graph before replacing it, so an external or later incompatible write
+fails without changing persistence. The generic controller retains a failed
+command on Undo and does not alter redo. `useApplicationHistory` surfaces the
+failure through the application alert/toast host.
+
+Splits remain children of one parent command and stable split IDs round-trip.
+Transfer add, edit, and delete commands expand to the full linked graph,
+including counterpart IDs, directions, account linkage, tags, provenance, and
+attachments. The existing selection UI still excludes transfer rows from Move;
+there was no user-facing transfer-move route to migrate in this phase. Supported
+moves use account identity, never UI ordering. Import provenance stays in every
+before and after snapshot, so ordinary edit/delete Undo does not erase future
+deduplication evidence.
+
+Command tests use an authoritative identity-keyed persistence harness and prove
+labels, one-entry bulk behavior, stable IDs, compound graph restoration,
+conflict refusal, global Budget/Register ordering, and survival without a
+mounted consumer. Phase 3 remains the physical `better-sqlite3` schema/BLOB and
+rollback evidence. Source wiring tests are not DOM/browser event tests, and the
+browser OPFS Worker remains outside the Node test environment.
+
 ## Command rules
 
 - One user gesture creates one history entry.
@@ -200,7 +260,8 @@ OPFS sqlite-wasm Worker; that remains a separate end-to-end layer.
    toolbar/shortcut callers, then delete `budgetUndoRedo.ts`.
 3. **Complete:** add exact SQLite transaction graph capture/restore contracts
    and physical readback tests.
-4. Route Register mutations through validated application-history commands.
+4. **Complete:** route normal Register mutations through validated
+   application-history commands.
 5. Add scheduled transaction commands, including compound Enter.
 6. Extend safe reversible coverage to accounts, categories/groups, payees, tags,
    and attachments; keep unsafe merges explicitly non-undoable.

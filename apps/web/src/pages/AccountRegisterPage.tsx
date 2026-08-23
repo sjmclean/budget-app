@@ -45,6 +45,7 @@ import { useRegisterCommands } from "../features/accounts/useRegisterCommands";
 import { usePayeeManagerWorkflow } from "../features/accounts/usePayeeManagerWorkflow";
 import { useRegisterAttachmentWorkflow } from "../features/accounts/useRegisterAttachmentWorkflow";
 import { useRegisterViewModel } from "../features/accounts/useRegisterViewModel";
+import { useRegisterTransactionHistory } from "../features/accounts/useRegisterTransactionHistory";
 import {
   nextRegisterSort,
   readRegisterSort,
@@ -344,13 +345,10 @@ export function AccountRegisterPage() {
     data,
     isLoading,
     error,
-    addTransaction,
+    addTransaction: addTransactionWithoutHistory,
     addTransactions,
     commitTransactionBatch,
-    updateTransaction,
-    toggleCleared,
-    deleteTransaction,
-    moveTransactions,
+    updateTransaction: updateTransactionWithoutHistory,
     addAttachment,
     removeAttachment,
     renamePayeeReferences,
@@ -361,6 +359,14 @@ export function AccountRegisterPage() {
     storageMode,
     setRegisterViewQuery,
   } = useAccountRegister(accountId, activeBudgetId);
+  const {
+    addTransaction,
+    updateTransaction,
+    deleteTransactions,
+    toggleCleared,
+    setTransactionsCleared,
+    moveTransactions,
+  } = useRegisterTransactionHistory(activeBudgetId, accountId);
 
   const syncTransactionTagsToPersistence = useCallback(async () => {
     const queries = persistenceGateway.accountRegisterQueries;
@@ -1057,8 +1063,8 @@ export function AccountRegisterPage() {
   const registerSelectionActions = useRegisterSelectionActions({
     selectedTransactionIds: selectedRegisterActionTransactionIds,
     selectedTransactions: selectedRegisterActionTransactions,
-    toggleCleared,
-    deleteTransaction,
+    deleteTransactions,
+    setTransactionsCleared,
     clearSelection: clearRegisterSelection,
     editTransaction: (transactionId) => {
       setEditingTransactionFocusField("date");
@@ -1498,7 +1504,7 @@ export function AccountRegisterPage() {
           presentation="workspace"
           onDueCountChange={setScheduledDueCount}
           onEnter={async (input) => {
-            await addTransaction(input);
+            await addTransactionWithoutHistory(input);
           }}
         />
 
@@ -2092,7 +2098,7 @@ export function AccountRegisterPage() {
                 };
 
                 if (destinationAccountId === accountId) {
-                  await updateTransaction(update);
+                  await updateTransactionWithoutHistory(update);
                 } else {
                   await persistenceGateway.accountRegisters.updateTransaction({
                     accountId: destinationAccountId,
@@ -2257,26 +2263,12 @@ export function AccountRegisterPage() {
               layoutMode={registerLayoutMode}
               onCreateCategory={createInlineCategory}
               onSave={async (input, targetAccountId) => {
-                if (targetAccountId === data.accountId) {
-                  await addTransaction(input);
-                } else {
-                  await persistenceGateway.accountRegisters.addTransaction({
-                    accountId: targetAccountId,
-                    transaction: input,
-                  });
-                }
+                await addTransaction(input, targetAccountId);
                 setLastEntryDate(input.date);
                 setShowEntryRow(false);
               }}
               onSaveAndAddAnother={async (input, targetAccountId) => {
-                if (targetAccountId === data.accountId) {
-                  await addTransaction(input);
-                } else {
-                  await persistenceGateway.accountRegisters.addTransaction({
-                    accountId: targetAccountId,
-                    transaction: input,
-                  });
-                }
+                await addTransaction(input, targetAccountId);
                 setLastEntryDate(input.date);
               }}
               onCancel={() => setShowEntryRow(false)}

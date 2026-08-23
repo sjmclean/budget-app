@@ -3602,6 +3602,37 @@ function validateHistoryMutations(
   }
 }
 
+function validateHistoryReplacementMutations(
+  expected: TransactionHistorySnapshot,
+  replacement: TransactionHistorySnapshot,
+  mutations: readonly LocalBudgetMutation[],
+): void {
+  const replacementTransactionIds = new Set(replacement.transactions.map(({ id }) => id));
+  const replacementAttachmentIds = new Set(replacement.attachments.map(({ id }) => id));
+  const required = new Set([
+    ...expected.transactions
+      .filter(({ id }) => !replacementTransactionIds.has(id))
+      .map(({ id }) => `delete:${id}`),
+    ...expected.attachments
+      .filter(({ id }) => !replacementAttachmentIds.has(id))
+      .map(({ id }) => `delete:attachment:${id}`),
+    ...replacement.transactions.map(({ id }) => `upsert:${id}`),
+    ...replacement.attachments.map(({ id }) => `upsert:attachment:${id}`),
+  ]);
+  const actual = new Set<string>();
+  for (const mutation of mutations) {
+    assertMutationScope(mutation);
+    const key = `${mutation.operation}:${mutation.entityId}`;
+    if (mutation.domain !== "transactions" || actual.has(key)) {
+      throw workerError("INVALID_TRANSACTION_HISTORY_MUTATIONS", "Replacement mutations are duplicated or inconsistent.");
+    }
+    actual.add(key);
+  }
+  if (actual.size !== required.size || [...required].some((key) => !actual.has(key))) {
+    throw workerError("INVALID_TRANSACTION_HISTORY_MUTATIONS", "Replacement mutations do not cover the complete graph change.");
+  }
+}
+
 function restoreTransactionHistorySnapshot(
   snapshot: TransactionHistorySnapshot,
   mutations: readonly LocalBudgetMutation[],
@@ -3655,6 +3686,55 @@ function deleteTransactionHistorySnapshot(
     }
     for (const mutation of mutations) insertOutbox(mutation);
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + mutations.length));
+    execute("COMMIT");
+  } catch (error) {
+    execute("ROLLBACK");
+    throw error;
+  }
+  return currentManifest();
+}
+
+function replaceTransactionHistorySnapshot(
+  expected: TransactionHistorySnapshot,
+  replacement: TransactionHistorySnapshot,
+  mutations: readonly LocalBudgetMutation[],
+): LocalBudgetManifest {
+  validateHistorySnapshot(expected);
+  validateHistorySnapshot(replacement);
+  if (expected.budgetId !== replacement.budgetId) {
+    throw workerError("BUDGET_SCOPE_MISMATCH", "Replacement graph belongs to another budget.");
+  }
+  validateHistoryReplacementMutations(expected, replacement, mutations);
+  execute("BEGIN IMMEDIATE");
+  try {
+    const current = captureTransactionHistorySnapshots(
+      expected.budgetId,
+      expected.transactions.map(({ id }) => id),
+    );
+    if (!transactionHistorySnapshotsEqual(current, expected)) {
+      throw workerError("TRANSACTION_HISTORY_CONFLICT", "Persisted transaction graph no longer matches expected state.");
+    }
+    for (const transaction of expected.transactions) {
+      execute("DELETE FROM local_transactions WHERE budget_id = ? AND id = ?", [activeBudgetId, transaction.id]);
+      markBudgetProjectionDirty(transaction.date.slice(0, 7));
+    }
+    for (const transaction of replacement.transactions) {
+      upsertTransaction(transaction);
+      markBudgetProjectionDirty(transaction.date.slice(0, 7));
+    }
+    for (const attachment of replacement.attachments) {
+      const { content, ...metadata } = attachment;
+      upsertTransactionAttachment(metadata, content);
+    }
+    for (const mutation of mutations) insertOutbox(mutation);
+    writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + mutations.length));
+    const restored = captureTransactionHistorySnapshots(
+      replacement.budgetId,
+      replacement.transactions.map(({ id }) => id),
+    );
+    if (!transactionHistorySnapshotsEqual(restored, replacement)) {
+      throw workerError("TRANSACTION_HISTORY_VERIFICATION_FAILED", "Replacement graph differs after persistence.");
+    }
     execute("COMMIT");
   } catch (error) {
     execute("ROLLBACK");
@@ -4933,6 +5013,8 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return restoreTransactionHistorySnapshot(request.snapshot, request.mutations);
     case "deleteTransactionHistorySnapshot":
       return deleteTransactionHistorySnapshot(request.snapshot, request.mutations);
+    case "replaceTransactionHistorySnapshot":
+      return replaceTransactionHistorySnapshot(request.expected, request.replacement, request.mutations);
     case "getTransactionsByIds":
       return getTransactionsByIds(
         request.budgetId,

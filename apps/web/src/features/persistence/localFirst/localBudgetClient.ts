@@ -412,6 +412,20 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
+  replaceTransactionHistorySnapshot(
+    expected: TransactionHistorySnapshot,
+    replacement: TransactionHistorySnapshot,
+    mutations: readonly LocalBudgetMutation[],
+  ): Promise<LocalBudgetManifest> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "replaceTransactionHistorySnapshot",
+      expected,
+      replacement,
+      mutations,
+    });
+  }
+
   getTransactionsByIds(
     budgetId: string,
     accountId: string,

@@ -745,6 +745,26 @@ export function createLocalFirstAccountRegisterQueryClient(
     return records.map((record) => transactionWrite(record));
   }
 
+  function transactionWritesAsSingleOperationGroup(
+    records: readonly LocalTransactionRecord[],
+  ): readonly {
+    readonly transaction: LocalTransactionRecord;
+    readonly mutation: LocalBudgetMutation;
+  }[] {
+    if (records.length === 0) return [];
+    const operationGroupId = createRuntimeUuid();
+    const operationGroup: LocalBudgetOperationGroup = {
+      members: records.map((record) => ({
+        domain: "transactions",
+        entityId: record.id,
+        operation: "upsert",
+        payload: record,
+      })),
+    };
+    return records.map((record) =>
+      transactionWrite(record, operationGroupId, operationGroup));
+  }
+
   type TransactionBatchPreparationInput = Pick<
     Parameters<AccountRegisterQueryClient["commitImportBatch"]>[0],
     | "budgetId"
@@ -1632,6 +1652,47 @@ export function createLocalFirstAccountRegisterQueryClient(
       );
       notifyLocalFirstMutationCommitted(snapshot.budgetId);
     },
+    async replaceTransactionHistorySnapshot({ expected, replacement }) {
+      if (expected.budgetId !== replacement.budgetId) {
+        throw new Error("Transaction history replacement cannot cross budgets.");
+      }
+      const local = await requireDatabase(expected.budgetId);
+      const nextTransactionIds = new Set(replacement.transactions.map(({ id }) => id));
+      const nextAttachmentIds = new Set(replacement.attachments.map(({ id }) => id));
+      const members: LocalBudgetOperationGroup["members"] = [
+        ...expected.transactions.filter(({ id }) => !nextTransactionIds.has(id)).map((transaction) => ({
+          domain: "transactions" as const, entityId: transaction.id, operation: "delete" as const,
+          payload: { accountId: transaction.accountId, amount: transaction.amount,
+            transferAccountId: transaction.transferAccountId, transferTransactionId: transaction.transferTransactionId },
+        })),
+        ...expected.attachments.filter(({ id }) => !nextAttachmentIds.has(id)).map((attachment) => ({
+          domain: "transactions" as const, entityId: `attachment:${attachment.id}`, operation: "delete" as const,
+          payload: { kind: "transaction-attachment-delete" as const,
+            attachment: (({ content: _content, ...metadata }) => metadata)(attachment) },
+        })),
+        ...replacement.transactions.map((transaction) => ({
+          domain: "transactions" as const, entityId: transaction.id, operation: "upsert" as const,
+          payload: transaction,
+        })),
+        ...replacement.attachments.map((attachment) => ({
+          domain: "transactions" as const, entityId: `attachment:${attachment.id}`, operation: "upsert" as const,
+          payload: { kind: "transaction-attachment-upsert" as const,
+            attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
+            contentBase64: encodeBase64(attachment.content) },
+        })),
+      ];
+      const operationGroupId = createRuntimeUuid();
+      const group: LocalBudgetOperationGroup = { members };
+      await local.replaceTransactionHistorySnapshot(
+        expected,
+        replacement,
+        members.map((member) => mutation(
+          expected.budgetId, member.domain, member.entityId,
+          member.operation, member.payload, operationGroupId, group,
+        )),
+      );
+      notifyLocalFirstMutationCommitted(expected.budgetId);
+    },
     async addTransaction(input) {
       const local = await requireDatabase(input.budgetId);
       const existing = await local.getTransaction(input.budgetId, input.id);
@@ -1814,7 +1875,11 @@ export function createLocalFirstAccountRegisterQueryClient(
         );
       }
 
-      await local.writeTransactionBatch(writes);
+      await local.writeTransactionBatch(
+        transactionWritesAsSingleOperationGroup(
+          writes.map(({ transaction }) => transaction),
+        ),
+      );
       if (writes.length > 0) notifyLocalFirstMutationCommitted(input.budgetId);
     },
     async updateTransaction(transactionId, input) {
@@ -1855,6 +1920,24 @@ export function createLocalFirstAccountRegisterQueryClient(
         mutation(input.budgetId, "transactions", transactionId, "upsert", record),
       );
       notifyLocalFirstMutationCommitted(input.budgetId);
+    },
+    async setTransactionsCleared(input) {
+      const local = await requireDatabase(input.budgetId);
+      const records: LocalTransactionRecord[] = [];
+      for (const transactionId of [...new Set(input.transactionIds)]) {
+        const existing = await local.getTransaction(input.budgetId, transactionId);
+        if (!existing) throw new Error(`Transaction ${transactionId} was not found.`);
+        requireMutableTransaction(existing);
+        records.push({
+          ...existing,
+          clearedStatus: input.cleared ? "cleared" : "uncleared",
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      await local.writeTransactionBatch(transactionWritesAsSingleOperationGroup(records), {
+        verifyWrittenTransactions: true,
+      });
+      if (records.length > 0) notifyLocalFirstMutationCommitted(input.budgetId);
     },
     async deleteTransaction(transactionId, input) {
       const local = await requireDatabase(input.budgetId);

@@ -252,6 +252,13 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "replaceTransactionHistorySnapshot";
+      readonly expected: import("./registerSchema").TransactionHistorySnapshot;
+      readonly replacement: import("./registerSchema").TransactionHistorySnapshot;
+      readonly mutations: readonly LocalBudgetMutation[];
+    }
+  | {
+      readonly requestId: string;
       readonly type: "writeTransaction";
       readonly transaction: LocalTransactionRecord;
       readonly mutation: LocalBudgetMutation;
