@@ -108,6 +108,7 @@ test("production import wiring has one command and worker replacement is transac
   assert.match(source, /ROLLBACK/);
   const writeStart = worker.indexOf("function writeImportBatch(");
   const writeSource = worker.slice(writeStart, worker.indexOf("\nfunction captureTransactionHistorySnapshots", writeStart));
+  assert.match(writeSource, /Import history capture requires at least one authoritative write/);
   assert.ok(writeSource.indexOf("const before = history") < writeSource.indexOf("applyTransactionBatchInCurrentTransaction"));
   assert.ok(writeSource.indexOf("const after = history") < writeSource.indexOf('execute("COMMIT")'));
 });

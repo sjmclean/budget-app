@@ -3310,6 +3310,12 @@ function writeImportBatch(
   for (const { mutation } of writes) assertMutationScope(mutation);
 
   if (payeeWrites.length === 0 && writes.length === 0) {
+    if (history) {
+      throw workerError(
+        "INVALID_IMPORT_HISTORY",
+        "Import history capture requires at least one authoritative write.",
+      );
+    }
     return currentManifest();
   }
 
