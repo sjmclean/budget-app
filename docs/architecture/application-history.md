@@ -34,7 +34,7 @@ Symbol usage found at the start of this work:
 | `useBudgetUndoRedo` | `BudgetPage`, `AccountRegisterPage`, `TopBar`, `ApplicationBar`, `useBudgetKeyboardShortcuts` |
 | `registerBudgetUndoRedoContext` | `useBudgetWorkspace` only |
 | `UndoRedoController` | generic implementation, budget assignment commands, budget money-movement commands, and the legacy singleton |
-| `useUndoRedo` | exported generic component-local hook; no production caller |
+| `useUndoRedo` | generic component-local hook with no production caller; deleted in Phase 8 so it cannot create a second domain controller |
 | direct persistence mutations | Budget workspace, Account Register, scheduled panel/workflows, account/category/payee/tag/attachment managers, import workflows, and Settings |
 
 Phase 2 removed `budgetUndoRedo.ts` after migrating every production caller.
@@ -60,7 +60,7 @@ The generic keyboard resolver ignores input, textarea, select, and
 contenteditable targets, preserving browser-native editable-field Undo. It
 supports Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z, and non-Mac Ctrl+Y.
 
-## Persistent mutation inventory
+## Historical migration inventory
 
 “Target” describes the intended end state of this project. “Compound” means a
 complete snapshot/restore or atomic multi-record command is required; it must
@@ -106,6 +106,64 @@ not be represented by several user-visible entries.
 | Import-session draft/reset/selection changes | import session UI/session storage | Not undoable | Intentionally non-undoable | Ephemeral workflow state, not committed budget data. |
 | Version-history snapshot creation | budget switch/delete lifecycle | Separate version history | Intentionally non-undoable | Recovery/versioning mechanism, not a user command. |
 | Sync, conflict replay, replication, checkpoint and maintenance writes | persistence runtime | Not undoable | Intentionally non-undoable | System-originated effects must not create user history entries. |
+
+## Definitive production mutation coverage matrix
+
+This Phase 8 matrix supersedes the historical target inventory above. The
+production entry point is the highest user-facing route; lower persistence
+primitives may be called directly only by the named command, system path, or
+history boundary. `packages/application` contains server/library application
+services but is not the active web mutation entry point except for the imported
+read/query contracts and budget-import provider called out below.
+
+| Domain | User action | Production entry point | Persistence mutation | History command | Classification | Atomicity | Conflict protection | Test evidence | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Budget | Edit one or coalesced assignments | `useBudgetWorkspace.updateAssigned` | `setCategoryAssignedValues` | assignment command | **UNDOABLE** | One category-state write | Expected before/after assignments | application-budget history | Pending edits flush before Undo and on unmount. |
+| Budget | Move assigned money / cover overspending | Budget move and cover menus | `setCategoryAssignedValues` | single/multi-source movement command | **UNDOABLE** | One compound assignment write | Expected source/destination values | application-budget history | One gesture, one entry. |
+| Category | Change overspending handling | `useBudgetWorkspace.setCategoryOverspendingHandling` | category port `setCategoryOverspendingHandling` | `setCategoryOverspendingHandlingCommand` | **UNDOABLE** | Exact budget-month replacement | Whole expected month view | account-category history | Phase 8 closed the final direct Budget mutation bypass. |
+| Transaction | Add ordinary/split/transfer transaction | Register save handlers | graph create/capture/delete/restore | `createAddTransactionCommand` | **UNDOABLE** | One Worker transaction for connected graph | Absence and exact graph checks | register history + physical SQLite | Stable parent, split and transfer IDs. |
+| Transaction | Edit ordinary/split/transfer transaction | Register edit handlers | graph replacement | `createEditTransactionCommand` | **UNDOABLE** | One Worker transaction | Exact expected graph | register history + physical SQLite | Redo restores captured post-state. |
+| Transaction | Clear/unclear one or many | Row/context/selection handlers | graph replacement | toggle/set-cleared commands | **UNDOABLE** | One graph batch | Exact expected graph | register history | No blind toggle on Undo/Redo. |
+| Transaction | Delete one or many | Context/selection delete | graph delete/restore | `createDeleteTransactionsCommand` | **UNDOABLE** | One connected-graph transaction | Exact graph/absence checks | register history + physical SQLite | Attachments and transfer counterparts included. |
+| Transaction | Move one or many between accounts | Register move handlers | graph replacement | `createMoveTransactionsCommand` | **UNDOABLE** | One graph batch | Exact expected graph | register history | Transfer rows are not offered by this UI. |
+| Attachment | Add attachment | `useRegisterAttachmentWorkflow` | transaction graph replacement | `createTransactionGraphChangeCommand` | **UNDOABLE** | Same graph transaction | Expected graph | management history + physical BLOB test | Stable attachment ID, metadata, hash and bytes. |
+| Attachment | Remove attachment | `useRegisterAttachmentWorkflow` | transaction graph replacement | `createTransactionGraphChangeCommand` | **UNDOABLE** | Same graph transaction | Expected graph | management history + physical BLOB test | Undo restores exact content. |
+| Schedule | Create/edit/delete schedule | `ScheduledTransactionsPanel` via history hook | exact schedule replacement | scheduled create/edit/delete commands | **UNDOABLE** | Exact schedule write | Expected schedule/absence | scheduled history | Stable schedule/split IDs and attachment template. |
+| Schedule | Manually enter or skip occurrence | scheduled panel action | combined schedule + transaction graph replacement | `enterScheduledTransactionCommand` | **UNDOABLE** | One SQLite transaction | Both domains checked before write | scheduled history + structural Worker | One compound entry. |
+| Account | Create/update/close/reopen | Sidebar/account modal via `useAccountHistory` | account create/update/replacement | account commands | **UNDOABLE** | Exact account row transition | Expected row/absence | account-category history | Stable account ID. |
+| Account | Delete empty account | account management via `useAccountHistory` | account delete/replacement | `deleteEmptyAccountCommand` | **UNDOABLE** | Exact row transition | Reference restrictions plus expected state | account-category history | Referenced accounts cannot use this route. |
+| Category | Create/rename/archive/restore | Budget workspace via `useCategoryHistory` | category mutation + month replacement | category commands | **UNDOABLE** | Exact budget-month transition | Whole expected month view | account-category history | Stable category and implicit group identities. |
+| Category | Move category/group or edit notes | Budget workspace via `useCategoryHistory` | category mutation + month replacement | category move/note commands | **UNDOABLE** | Exact budget-month transition | Whole expected month view | account-category history | Redo never recalculates ordering. |
+| Category | Merge categories | Persistence capability; no current `BudgetPage` control | multi-month merge graph | none | **DEFERRED** | Complete atomic contract absent | Complete later-reference validator absent | Phase 7 audit | Transactions, splits, schedules, assignments, goals, ordering and metadata make partial Undo unsafe; no exposed UI currently needs a warning. |
+| Payee | Create/update/rename/archive/restore | Register and Payee Management via `usePayeeHistory` | exact payee replacement | payee commands | **UNDOABLE** | Exact payee transition | Expected payee/absence | management history | Aliases/rules included where relevant. |
+| Payee | Delete unused payee | Payee Management via history hook | exact payee replacement | `deleteUnusedPayeeCommand` | **UNDOABLE** | Exact row transition | Authoritative reference checks | management history | UI confirmation remains appropriate for deletion. |
+| Payee | Keep duplicates separate | Payee Management via history hook | suppression-set replacement | `keepPayeesSeparateCommand` | **UNDOABLE** | One SQLite transaction | Exact normalized set | import history | Never a blind toggle. |
+| Payee | Merge payees | Payee Management preview/confirm flow | `mergePayees` compound graph | none | **DEFERRED** | Complete cross-domain restore absent | Complete reference/knowledge validator absent | Phase 7 audit | Rewrites transactions, schedules, aliases/rules, icons, suppressions and recognition state; UI states that it cannot be undone and requires confirmation. |
+| Tag | Create/update/rename/archive/reorder or delete unused | `TransactionTagManager` through page history adapter | complete definition-set replacement | tag set commands | **UNDOABLE** | Exact set replacement | Expected definition set | management history | Stable tag IDs. |
+| Tag | Assign/unassign tags | Register transaction edit | transaction graph replacement | transaction edit command | **UNDOABLE** | Same graph transaction | Expected graph | register history | Assignment rows are graph children. |
+| Tag | Delete assigned tag | Tag manager restriction | definition + assignment graphs | none | **DEFERRED** | Cross-API atomic transition absent | Complete assignment snapshot absent | management history | Partial Undo is unsafe; UI blocks deletion and tells the user to remove assignments first. |
+| Import | Commit CSV/QIF/OFX/QFX bank import | `TransactionImportDialog` → import command | `commitImportBatchWithHistory` | `createImportTransactionsCommand` | **UNDOABLE** | Capture and writes in one SQLite transaction | Exact transaction/payee snapshot | import history + source occurrence + graph tests | One entry; Redo restores IDs/provenance without rematching. |
+| Import | Persist merchant/payee/category/account learning and format preferences | post-commit learning stage | budget-scoped entity/key-value writes | none | **EXPLICITLY NON-UNDOABLE** | Outside SQLite import transaction | Best-effort, independently validated storage | import knowledge suites | Deliberately durable learning; split synthetic category invariant retained. |
+| Import | Edit preview/session/mapping/selection | import dialog/session storage | transient session/preference writes | none | **EXPLICITLY NON-UNDOABLE** | UI/session store | Not budget-authoritative | import session suites | No committed budget mutation. |
+| Budget import | Create/import a whole budget (YNAB4/Actual/package) | budget selector import/finalisation | staged database and registry promotion | none | **HISTORY BOUNDARY** | Staged/promoted lifecycle transaction where supported | Import validation and rollback | launcher/import suites | Creates/replaces a budget rather than editing the active stack. |
+| Budget lifecycle | Successful backup/package/version restore | Settings restore handlers | restore database/snapshot | none | **HISTORY BOUNDARY** | Restore mechanism owns atomicity | History cleared only after success | import-history + coverage audit structural evidence | Failure retains the stack. |
+| Budget lifecycle | Successful reset | Settings reset handlers | `resetBudget` or scoped storage reset | none | **HISTORY BOUNDARY** | Reset mechanism owns atomicity | History cleared only after success | import-history structural evidence | Failure retains the stack. |
+| Budget lifecycle | Successful delete | `completeBudgetDeletion` | delete database, scoped data and registry | none | **HISTORY BOUNDARY** | Lifecycle coordinator | Stack destroyed only after completion | import-history structural evidence | Failed/incomplete deletion retains it. |
+| Budget registry | Rename/update budget shell metadata | registry/settings flows | registry store write | none | **EXPLICITLY NON-UNDOABLE** | Registry record write | Registry validation | registry suites | Outside budget-domain application history. |
+| Preferences | Theme, table layout, collapsed groups, navigation, import preferences | settings/UI hooks | local preference storage | none | **EXPLICITLY NON-UNDOABLE** | Preference record write | Schema/default validation | preference/layout suites | Presentation or workflow configuration, not budget data. |
+| Navigation | Route/account/month changes, dialogs, pagination, filters/search/sort, unmount/remount | React/router/view state | no authoritative budget mutation | none | **SYSTEM/AUTOMATIC — NO HISTORY** | Not applicable | Per-budget service ownership | mixed-domain coverage audit | Cannot clear or reorder history. |
+| Budget selection | Change active budget | UI registry selection | selected-budget preference | none | **SYSTEM/AUTOMATIC — NO HISTORY** | Preference write | Each budget retains its own controller | application-history tests | Selects, never moves, a stack. |
+| Schedule maintenance | Automatic due generation and advancement | maintenance/generation services | lower-level schedule and graph writes | none | **SYSTEM/AUTOMATIC — NO HISTORY** | Worker/domain transaction as implemented | Generation idempotence/provenance | scheduled history + maintenance suites | Not a user gesture; must not pollute Undo. |
+| Persistence runtime | Bootstrap/migration/projection repair | provider startup and Worker maintenance | schema/entity/projection writes | none | **SYSTEM/AUTOMATIC — NO HISTORY** | Persistence-owned transactions | Schema/version checks | persistence suites | No user mutation is hidden here. |
+| Sync runtime | Replication, conflict replay, checkpoints, outbox/revision/journal | local-first runtime | protocol bookkeeping and replay | none | **SYSTEM/AUTOMATIC — NO HISTORY** | Operation groups/Worker transactions | Conflict protocol | local-first suites | Append-only machinery is not restored user state. |
+| Recovery | Automatic version snapshot creation | lifecycle/version service | recovery snapshot write | none | **SYSTEM/AUTOMATIC — NO HISTORY** | Recovery store | Version validation | version-history suites | Recovery mechanism, not an Undo entry. |
+| `packages/application` | Repository-backed transaction/category/payee/tag/reconciliation/settings operations | server/library application services; not called by active web mutation UI | repository methods | legacy package-specific facilities | **SYSTEM/AUTOMATIC — NO HISTORY** | Repository transaction policy | Package service validation | package unit suites where present | They are outside the web per-budget controller; importing a type/query contract does not create a second history architecture. |
+
+The audit found no other production React call that mutates authoritative budget
+state outside one of these rows. Low-level methods in `useAccountRegister`, the
+import engine adapters, persistence clients, and Worker are primitives used by
+commands, automatic generation, legacy non-SQLite fallback, or lifecycle
+boundaries; they are not additional user-facing Undo controllers.
 
 ## Physical SQLite transaction graph audit
 
@@ -394,4 +452,7 @@ registry removal succeed. Failed lifecycle operations retain history.
 7. **Complete:** make committed bank imports exact compound commands, implement
    duplicate-suppression replacement, audit destructive deferrals, and wire
    restore/reset/delete history boundaries.
-8. Re-run the final mutation audit and remove dead legacy paths.
+8. **Complete:** exhaustively classify production mutations, route overspending
+   policy changes through category history, remove the unused component-local
+   controller hook and obsolete import row-adapter props, and add mixed-domain
+   orchestration/source audit evidence.
