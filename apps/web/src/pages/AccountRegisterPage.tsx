@@ -78,6 +78,7 @@ import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
 import { useApplicationHistory } from "../features/history";
 import { setTransactionTagsCommand } from "../features/history/commands/management/tagCommands";
+import { createImportTransactionsCommand } from "../features/history/commands/imports/importCommands";
 import { createBudgetScopedStorage } from "../features/budget/budgetDataScope";
 import {
   TransactionTagManager,
@@ -2012,16 +2013,6 @@ export function AccountRegisterPage() {
                 splitLines: transaction.splitLines,
               }));
 
-              if (destinationAccountId === accountId) {
-                await commitTransactionBatch({
-                  additions,
-                  updates,
-                  provenanceAssignments,
-                  payeeCreations,
-                });
-                return;
-              }
-
               const queries = persistenceGateway.accountRegisterQueries;
               if (storageMode === "sqlite" && activeBudgetId && queries) {
                 if (
@@ -2033,7 +2024,7 @@ export function AccountRegisterPage() {
                   );
                 }
 
-                await queries.commitImportBatch({
+                const result = await executeHistory(createImportTransactionsCommand({
                   budgetId: activeBudgetId,
                   accountId: destinationAccountId,
                   additions: additions.map((transaction) => ({
@@ -2050,7 +2041,15 @@ export function AccountRegisterPage() {
                   })),
                   provenanceAssignments,
                   payeeCreations,
-                });
+                }));
+                if (!result.performed) {
+                  throw new Error(result.error ?? "Import history command failed.");
+                }
+                return;
+              }
+
+              if (destinationAccountId === accountId) {
+                await commitTransactionBatch({ additions, updates, provenanceAssignments, payeeCreations });
                 return;
               }
 
