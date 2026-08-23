@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-23T04:54:10.123Z",
+  "generatedAt": "2026-08-23T05:15:22.027Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -941,7 +941,7 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/completeBudgetDeletion.ts",
-      "line": 21
+      "line": 22
     },
     {
       "kind": "persistenceBoundary",
@@ -1904,19 +1904,19 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localBudgetClient.ts",
-      "line": 46,
-      "classification": "review-required"
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/persistence/localFirst/localBudgetClient.ts",
       "line": 47,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
+      "path": "apps/web/src/features/persistence/localFirst/localBudgetClient.ts",
+      "line": 48,
+      "classification": "review-required"
+    },
+    {
+      "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
-      "line": 73,
+      "line": 74,
       "classification": "review-required"
     },
     {
