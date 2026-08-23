@@ -81,21 +81,21 @@ not be represented by several user-visible entries.
 | Create/edit/delete a transfer | register editor; transaction writes with transfer linkage | Not undoable | Undoable, compound | Both account-side transactions and linkage restore atomically. |
 | Add/edit/delete scheduled transaction | scheduled panel; scheduled persistence port | Not undoable | Undoable | Preserve schedule ID and recurrence state. |
 | Enter scheduled transaction | scheduled panel/generation service; add transaction then advance schedule | Not undoable | Undoable, compound | Generated graph and schedule advancement are one atomic command. |
-| Create/update/close/reopen account | account modal/settings; account port/query client | Not undoable | Undoable | Account creation can also create opening-balance transaction and credit-card payment category, so use exact effects. |
-| Delete account | account settings; `deleteAccount` | Not undoable | Undoable only when exact | SQLite currently permits deletion only when references allow it; capture all account side effects. |
-| Create/rename/archive/restore category | Budget workspace; category mutations | Not undoable | Undoable | Includes group ordering/projection facts touched by mutation. |
-| Move category or group | Budget drag/menus; category mutations | Not undoable | Undoable | Restore exact ordering positions. |
-| Edit category/group note | Budget workspace; category mutations | Not undoable | Undoable | Restore prior text. |
+| Create/update/close/reopen account | account modal/settings; account port/query client | Undoable | Undoable | Stable account IDs and exact physical account replacement are implemented. |
+| Delete account | account settings; `deleteAccount` | Undoable when empty | Undoable only when exact | SQLite permits deletion only when transaction, schedule and transfer references allow exact row restoration. |
+| Create/rename/archive/restore category | Budget workspace; category mutations | Undoable | Undoable | Exact authoritative month state includes group ordering/projection facts. |
+| Move category or group | Budget drag/menus; category mutations | Undoable | Undoable | Exact ordering positions are restored. |
+| Edit category/group note | Budget workspace; category mutations | Undoable | Undoable | Prior text is restored with the month state. |
 | Merge categories | Budget workspace; `mergeCategory` | Not undoable | Intentionally non-undoable initially; compound | Merge redirects transaction, scheduled, assignment, goal, and category references. Enable only with exact reference snapshot. |
 | Create group | category creation flow may create/reuse group | Not undoable | Undoable, compound when implicit | Remove an implicitly created group only if still empty and unchanged. |
-| Create/update/rename/archive/restore payee | Register payee manager; payee port/query client | Not undoable | Undoable | Rename also updates register and scheduled references. |
-| Delete unused payee | payee manager/query client | Not undoable | Undoable only with exact snapshot | Aliases and recognition rules are physically deleted too. |
+| Create/update/rename/archive/restore payee | Register payee manager; payee port/query client | Undoable | Undoable | Both management surfaces route ordinary payee changes through application history. |
+| Delete unused payee | payee manager/query client | Undoable when unused | Undoable only with exact snapshot | The captured payee includes aliases and recognition rules; physical reference restrictions remain authoritative. |
 | Merge payees | payee manager; `mergePayees` | Not undoable | Intentionally non-undoable initially; compound | Redirects transactions, schedules, aliases/rules, tag-like knowledge and suppressions; partial inverse is prohibited. |
-| Keep duplicate payees separate | payee manager; duplicate suppression write | Not undoable | Undoable | Restore suppression set exactly. |
-| Create/update/delete/reorder tag | tag manager; `replaceTransactionTags` | Not undoable | Undoable, compound | Replacement writes the full definition set; assignments must remain valid. |
-| Assign/unassign transaction tags | transaction add/edit; `tagIds` | Not undoable | Undoable as part of transaction command | Assignment rows are part of the transaction graph. |
-| Add attachment | attachment workflow; `addTransactionAttachment` | Not undoable | Undoable, compound | Snapshot metadata and byte content. |
-| Remove attachment | attachment workflow; `removeTransactionAttachment` | Not undoable | Undoable, compound | Undo must restore actual bytes, hash, storage metadata, and stable ID. |
+| Keep duplicate payees separate | payee manager; duplicate suppression write | Not undoable | Deferred pending exact suppression replacement | The durable and legacy-local suppression stores must be restored together; direct writes remain explicit. |
+| Create/update/delete/reorder tag | tag manager; `replaceTransactionTags` | Undoable for definitions and unused deletion | Undoable, compound | Full definition-set replacement is one command. In-use deletion is prohibited until assignments are removed through transaction history. |
+| Assign/unassign transaction tags | transaction add/edit; `tagIds` | Undoable | Undoable as part of transaction command | Assignment rows are part of the transaction graph. |
+| Add attachment | attachment workflow; `addTransactionAttachment` | Undoable | Undoable, compound | Exact transaction graph captures metadata and byte content. |
+| Remove attachment | attachment workflow; `removeTransactionAttachment` | Undoable | Undoable, compound | Undo restores bytes, hash, storage metadata, and stable ID. |
 | Commit bank import | import dialog/commit engine; `commitImportBatch` or batch mutations | Not undoable | Deferred unless exact compound command is implemented | One entry covering additions, matched updates, provenance occurrences, and payee creations. Never one entry per row. |
 | Commit YNAB4/budget import | import launcher/staging/finalisation | Not undoable | Intentionally non-undoable initially | Whole-budget import/staging is a lifecycle operation, not a register edit. |
 | Restore backup | Settings; query client restore or snapshot restore | Not undoable | History boundary | Clear affected stack only after successful restore. |
@@ -320,7 +320,8 @@ schedule model. Browser OPFS Worker and DOM event execution are not claimed.
 4. **Complete:** route normal Register mutations through validated
    application-history commands.
 5. **Complete:** add scheduled transaction commands, including compound Enter.
-6. Extend safe reversible coverage to accounts, categories/groups, payees, tags,
-   and attachments; keep unsafe merges explicitly non-undoable.
+6. **Complete:** extend safe reversible coverage to accounts, categories/groups,
+   ordinary payee and tag management, and attachments; keep unsafe merges and
+   duplicate-suppression replacement explicitly deferred.
 7. Wire lifecycle history boundaries, re-run the mutation audit, and remove dead
    legacy paths.
