@@ -24,3 +24,13 @@ export type {
   UseUndoRedoState,
 } from "./useUndoRedo";
 export { useUndoRedo } from "./useUndoRedo";
+export type {
+  ApplicationHistoryContext,
+  ApplicationHistoryServiceOptions,
+} from "./applicationHistory";
+export {
+  ApplicationHistoryService,
+  applicationHistory,
+} from "./applicationHistory";
+export type { UseApplicationHistoryState } from "./useApplicationHistory";
+export { useApplicationHistory } from "./useApplicationHistory";
