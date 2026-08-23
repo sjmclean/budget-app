@@ -15,7 +15,7 @@ test("post-commit import projection verification is diagnostic-only", () => {
     "verifyCommittedTransactions: async (accountId, additions) => {",
   );
   const adapterEnd = dialog.indexOf(
-    "\n          addTransactions:",
+    "\n          },\n        },",
     adapterStart,
   );
 
