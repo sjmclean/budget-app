@@ -455,6 +455,14 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
+  replacePayeeDuplicateSuppressionsHistoryState(input: {
+    readonly budgetId: string;
+    readonly expected: readonly { readonly leftPayeeId: string; readonly rightPayeeId: string }[];
+    readonly replacement: readonly { readonly leftPayeeId: string; readonly rightPayeeId: string }[];
+  }): Promise<LocalBudgetManifest> {
+    return this.#request({ requestId: createRuntimeUuid(), type: "replacePayeeDuplicateSuppressionsHistoryState", ...input });
+  }
+
   replaceScheduledTransactionHistoryState(input: {
     readonly scheduleId: string;
     readonly expectedSchedule: import("../../accounts/scheduledTransactionTypes").ScheduledTransactionView | null;

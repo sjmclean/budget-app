@@ -308,6 +308,12 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     }[],
   ): Promise<void>;
 
+  replacePayeeDuplicateSuppressionsHistoryState?(input: {
+    readonly budgetId: string;
+    readonly expected: readonly { readonly leftPayeeId: string; readonly rightPayeeId: string }[];
+    readonly replacement: readonly { readonly leftPayeeId: string; readonly rightPayeeId: string }[];
+  }): Promise<void>;
+
   createPayee(
     budgetId: string,
     name: string,

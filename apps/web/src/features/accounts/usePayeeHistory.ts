@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import type { UpdatePayeeInput } from "./payeeService";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 import { applicationHistory } from "../history/applicationHistory";
-import { createPayeeCommand, deleteUnusedPayeeCommand, setPayeeArchivedCommand, updatePayeeCommand } from "../history/commands/management/payeeCommands";
+import { createPayeeCommand, deleteUnusedPayeeCommand, keepPayeesSeparateCommand, setPayeeArchivedCommand, updatePayeeCommand } from "../history/commands/management/payeeCommands";
 import { getBudgetPersistenceProvider } from "../persistence";
 
 export function usePayeeHistory(budgetId: string | null) {
@@ -17,5 +17,6 @@ export function usePayeeHistory(budgetId: string | null) {
     updatePayee: (input: Pick<UpdatePayeeInput, "id"> & Partial<Omit<UpdatePayeeInput, "id">>) => execute(updatePayeeCommand(input)),
     setPayeeArchived: (payeeId: string, archived: boolean) => execute(setPayeeArchivedCommand(payeeId, archived)),
     deleteUnusedPayee: (payeeId: string) => execute(deleteUnusedPayeeCommand(payeeId)),
+    keepPayeesSeparate: (pairs: readonly { readonly leftPayeeId: string; readonly rightPayeeId: string }[]) => execute(keepPayeesSeparateCommand(pairs)),
   }), [execute]);
 }

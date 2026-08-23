@@ -4,6 +4,7 @@ import {
   clearBudgetDeletionMarker,
   markBudgetDeletionInProgress,
 } from "./budgetDeletionMarkers";
+import { applicationHistory } from "../history/applicationHistory";
 
 export function shouldRestoreBudgetSelectionAfterDeletionFailure(error: unknown): boolean {
   return !Boolean(
@@ -38,6 +39,7 @@ export async function completeBudgetDeletion(
       authoritativeDeletionCompleted = true;
     }
     const result = removeRegistryEntry();
+    if (result.completed) applicationHistory.destroy(budgetId);
     if (result.completed && storage) {
       clearBudgetDeletionMarker(storage, budgetId);
       await provider.flush?.();

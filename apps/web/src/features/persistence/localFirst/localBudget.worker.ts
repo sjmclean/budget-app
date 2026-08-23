@@ -4246,6 +4246,45 @@ function keepPayeesSeparate(
   } catch (error) { execute("ROLLBACK"); throw error; }
 }
 
+type PayeeSuppressionPair = { readonly leftPayeeId: string; readonly rightPayeeId: string };
+
+function normalisePayeeSuppressionPairs(pairs: readonly PayeeSuppressionPair[]) {
+  const unique = new Map<string, PayeeSuppressionPair>();
+  for (const pair of pairs) {
+    const [leftPayeeId, rightPayeeId] = [pair.leftPayeeId.trim(), pair.rightPayeeId.trim()].sort();
+    if (!leftPayeeId || !rightPayeeId || leftPayeeId === rightPayeeId) continue;
+    unique.set(`${leftPayeeId}\u0000${rightPayeeId}`, { leftPayeeId, rightPayeeId });
+  }
+  return [...unique.values()].sort((left, right) =>
+    left.leftPayeeId.localeCompare(right.leftPayeeId) || left.rightPayeeId.localeCompare(right.rightPayeeId));
+}
+
+function replacePayeeDuplicateSuppressionsHistoryState(
+  budgetId: string,
+  expected: readonly PayeeSuppressionPair[],
+  replacement: readonly PayeeSuppressionPair[],
+) {
+  if (budgetId !== activeBudgetId) throw workerError("BUDGET_SCOPE_MISMATCH", "Payee suppressions belong to another budget.");
+  execute("BEGIN IMMEDIATE");
+  try {
+    const current = normalisePayeeSuppressionPairs(listPayeeDuplicateSuppressions(budgetId));
+    if (JSON.stringify(current) !== JSON.stringify(normalisePayeeSuppressionPairs(expected))) {
+      throw workerError("PAYEE_SUPPRESSION_HISTORY_CONFLICT", "Payee suppression state changed after this action.");
+    }
+    execute("DELETE FROM local_payee_duplicate_suppressions WHERE budget_id = ?", [budgetId]);
+    for (const pair of normalisePayeeSuppressionPairs(replacement)) execute(
+      `INSERT INTO local_payee_duplicate_suppressions(
+        budget_id,left_payee_id,right_payee_id,decision,created_at) VALUES(?,?,?,?,?)`,
+      [budgetId,pair.leftPayeeId,pair.rightPayeeId,"keep-separate",new Date().toISOString()]);
+    const restored = normalisePayeeSuppressionPairs(listPayeeDuplicateSuppressions(budgetId));
+    if (JSON.stringify(restored) !== JSON.stringify(normalisePayeeSuppressionPairs(replacement))) {
+      throw workerError("PAYEE_SUPPRESSION_HISTORY_VERIFICATION_FAILED", "Payee suppression replacement was not exact.");
+    }
+    execute("COMMIT");
+  } catch (error) { execute("ROLLBACK"); throw error; }
+  return currentManifest();
+}
+
 function writePayee(
   payee: import("./registerSchema").LocalPayeeRecord,
   mutation: LocalBudgetMutation,
@@ -5358,6 +5397,8 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return captureImportHistorySnapshot(request.budgetId, request.transactionIds, request.payeeIds);
     case "replaceImportHistorySnapshot":
       return replaceImportHistorySnapshot(request.expected, request.replacement, request.mutations);
+    case "replacePayeeDuplicateSuppressionsHistoryState":
+      return replacePayeeDuplicateSuppressionsHistoryState(request.budgetId, request.expected, request.replacement);
     case "replaceScheduledTransactionHistoryState":
       return replaceScheduledTransactionHistoryState(request);
     case "getTransactionsByIds":

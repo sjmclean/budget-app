@@ -273,6 +273,13 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "replacePayeeDuplicateSuppressionsHistoryState";
+      readonly budgetId: string;
+      readonly expected: readonly { readonly leftPayeeId: string; readonly rightPayeeId: string }[];
+      readonly replacement: readonly { readonly leftPayeeId: string; readonly rightPayeeId: string }[];
+    }
+  | {
+      readonly requestId: string;
       readonly type: "replaceScheduledTransactionHistoryState";
       readonly scheduleId: string;
       readonly expectedSchedule: import("../../accounts/scheduledTransactionTypes").ScheduledTransactionView | null;

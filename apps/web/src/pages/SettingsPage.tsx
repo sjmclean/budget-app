@@ -20,6 +20,7 @@ import {
   type PortableBudgetPackagePreview,
 } from "../features/budget/portableBudgetPackage";
 import { deleteBudgetById, resetCurrentBudget } from "../features/budget/budgetLifecycle";
+import { applicationHistory } from "../features/history/applicationHistory";
 import {
   completeBudgetDeletion,
   shouldRestoreBudgetSelectionAfterDeletionFailure,
@@ -490,6 +491,7 @@ export function SettingsPage({
         setDataStatusMessage(result.errors[0] ?? "Portable package restore failed.");
         return;
       }
+      if (activeBudget?.id) applicationHistory.clear(activeBudget.id);
       setDataStatusMessage(`Portable package restored: ${result.writtenRecords} records and ${result.restoredAttachments} attachment files. Reload the app if open screens still show old data.`);
       setPortablePackagePreview(null);
       setPortablePackageRaw(null);
@@ -560,6 +562,7 @@ export function SettingsPage({
           activeBudget.id,
           hostedRestoreFile,
         );
+        applicationHistory.clear(activeBudget.id);
         setHostedRestoreFile(null);
         setDataStatusMessage(
           `Hosted restore complete: ${result.counts.accounts} accounts and ` +
@@ -597,6 +600,8 @@ export function SettingsPage({
       setDataStatusMessage(result.errors[0] ?? "Restore failed. No data has been changed.");
       return;
     }
+
+    if (activeBudget?.id) applicationHistory.clear(activeBudget.id);
 
     setDataStatusMessage(
       `Restore complete for current budget: ${result.writtenRecords} records restored, ${result.skippedGlobalRecords} global snapshots skipped. Reload the app if open screens still show old data.`,
@@ -641,6 +646,8 @@ export function SettingsPage({
       return;
     }
 
+    if (activeBudget?.id) applicationHistory.clear(activeBudget.id);
+
     refreshVersionHistory();
     setDataStatusMessage(`Restored ${selectedSnapshot.budgetName} to ${formatHistoryDateTime(selectedSnapshot.createdAt)}.`);
   }
@@ -664,6 +671,7 @@ export function SettingsPage({
       try {
         await accountRegisterQueries.resetBudget(activeBudget.id, getCurrentBudgetMonth());
         resetCurrentBudget(getActiveKeyValueStorage());
+        applicationHistory.clear(activeBudget.id);
         setRestorePreview(null);
         setRestorePackageRaw(null);
         setHostedRestoreFile(null);
@@ -684,6 +692,8 @@ export function SettingsPage({
       setDataStatusMessage(result.errors[0] ?? "Reset failed. No data has been changed.");
       return;
     }
+
+    if (activeBudget?.id) applicationHistory.clear(activeBudget.id);
 
     setRestorePreview(null);
     setRestorePackageRaw(null);

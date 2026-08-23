@@ -2570,6 +2570,10 @@ export function createLocalFirstAccountRegisterQueryClient(
     async keepPayeesSeparate(budgetId, pairs) {
       await (await requireDatabase(budgetId)).keepPayeesSeparate(budgetId, pairs);
     },
+    async replacePayeeDuplicateSuppressionsHistoryState(input) {
+      await (await requireDatabase(input.budgetId)).replacePayeeDuplicateSuppressionsHistoryState(input);
+      notifyLocalFirstMutationCommitted(input.budgetId);
+    },
     async createPayee(budgetId, name, payeeId) {
       const now = new Date().toISOString();
       const payee = {

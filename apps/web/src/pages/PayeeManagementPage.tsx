@@ -821,7 +821,7 @@ export function PayeeManagementPage() {
       !existing.has([leftPayeeId, rightPayeeId].sort().join(":")))];
     const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
     if (hosted && persistenceGateway.accountRegisterQueries!.keepPayeesSeparate) {
-      await persistenceGateway.accountRegisterQueries!.keepPayeesSeparate(activeBudgetId!, additions);
+      await payeeHistory.keepPayeesSeparate(additions);
     } else {
       writeDuplicateSuppressions(activeBudgetId, next);
     }
@@ -858,10 +858,7 @@ export function PayeeManagementPage() {
       hosted &&
       persistenceGateway.accountRegisterQueries!.keepPayeesSeparate
     ) {
-      await persistenceGateway.accountRegisterQueries!.keepPayeesSeparate(
-        activeBudgetId!,
-        additions,
-      );
+      await payeeHistory.keepPayeesSeparate(additions);
     } else {
       writeDuplicateSuppressions(activeBudgetId, next);
     }

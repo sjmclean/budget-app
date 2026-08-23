@@ -91,12 +91,12 @@ not be represented by several user-visible entries.
 | Create/update/rename/archive/restore payee | Register payee manager; payee port/query client | Undoable | Undoable | Both management surfaces route ordinary payee changes through application history. |
 | Delete unused payee | payee manager/query client | Undoable when unused | Undoable only with exact snapshot | The captured payee includes aliases and recognition rules; physical reference restrictions remain authoritative. |
 | Merge payees | payee manager; `mergePayees` | Not undoable | Intentionally non-undoable initially; compound | Redirects transactions, schedules, aliases/rules, tag-like knowledge and suppressions; partial inverse is prohibited. |
-| Keep duplicate payees separate | payee manager; duplicate suppression write | Not undoable | Deferred pending exact suppression replacement | The durable and legacy-local suppression stores must be restored together; direct writes remain explicit. |
+| Keep duplicate payees separate | payee manager; duplicate suppression write | Undoable | Undoable | Exact normalized suppression sets are compared and replaced in one SQLite transaction. |
 | Create/update/delete/reorder tag | tag manager; `replaceTransactionTags` | Undoable for definitions and unused deletion | Undoable, compound | Full definition-set replacement is one command. In-use deletion is prohibited until assignments are removed through transaction history. |
 | Assign/unassign transaction tags | transaction add/edit; `tagIds` | Undoable | Undoable as part of transaction command | Assignment rows are part of the transaction graph. |
 | Add attachment | attachment workflow; `addTransactionAttachment` | Undoable | Undoable, compound | Exact transaction graph captures metadata and byte content. |
 | Remove attachment | attachment workflow; `removeTransactionAttachment` | Undoable | Undoable, compound | Undo restores bytes, hash, storage metadata, and stable ID. |
-| Commit bank import | import dialog/commit engine; `commitImportBatch` or batch mutations | Not undoable | Deferred unless exact compound command is implemented | One entry covering additions, matched updates, provenance occurrences, and payee creations. Never one entry per row. |
+| Commit bank import | import dialog/commit engine; `commitImportBatchWithHistory` | Undoable | Undoable, compound | One entry covers additions, matched updates, provenance/source occurrences and created payees. Durable learning is intentionally retained. |
 | Commit YNAB4/budget import | import launcher/staging/finalisation | Not undoable | Intentionally non-undoable initially | Whole-budget import/staging is a lifecycle operation, not a register edit. |
 | Restore backup | Settings; query client restore or snapshot restore | Not undoable | History boundary | Clear affected stack only after successful restore. |
 | Reset budget | Settings; lifecycle reset / key-value reset | Not undoable | History boundary | Clear affected stack only after successful reset. |
@@ -298,6 +298,74 @@ commit, and rollback wiring. Phase 3 supplies physical `better-sqlite3`
 transaction graph/BLOB evidence; recurrence/lifecycle tests exercise the real
 schedule model. Browser OPFS Worker and DOM event execution are not claimed.
 
+### Phase 7 committed import history
+
+The production import pipeline is `TransactionImportDialog` →
+`commitImportSession` → its single `commitTransactionBatch` adapter →
+`createImportTransactionsCommand` → `commitImportBatchWithHistory` → the
+local-first client/Worker. Preview, mapping, reconciliation, verification and
+session bookkeeping remain non-authoritative UI workflow and create no history
+entry. Public Add/Edit history commands are not called by the compound command.
+
+The audited successful SQLite mutation graph is:
+
+| Physical state | Import effect | Snapshot policy |
+| --- | --- | --- |
+| `local_transactions` | New rows and matched-existing row changes, including date, memo, category, cleared state, raw/canonical payee and schedule/transfer fields | Exact before/after graph |
+| `local_transaction_splits` | Imported or edited split children with stable IDs and allocation | Owned by transaction graph |
+| Transfer parents/split links | Reciprocal transactions when supported by the prepared import plan | Capture walks the complete connected graph |
+| `local_transaction_tags` | Tags retained or changed on matched rows | Owned by transaction graph |
+| `local_transaction_attachments` | Imports currently do not create attachments, but existing matched-graph attachment metadata and BLOB bytes are captured | Owned by transaction graph |
+| `local_transaction_import_provenance` | CSV/QIF/OFX/QFX identity, occurrence and import timestamp for additions and matches | Exact graph state; duplicate/source-occurrence evidence is derived from these rows |
+| `local_payees`, aliases and rules | Staged payees created by the import | Exact import-owned payee state |
+| projection-dirty rows, revision and outbox | Sync/projection machinery for forward and inverse mutations | Regenerated append-only machinery, not restored user state |
+
+`ImportHistorySnapshot` stores stable transaction roots and created-payee IDs
+plus the exact authoritative objects present in the pre- or post-state. Its
+transaction member is a `TransactionHistorySnapshot`, including connected
+transfers, split rows, tags, provenance and attachment bytes. An additions-only
+pre-state may contain no transaction rows; matched rows remain present in both
+states. Redo replaces the pre-state with the captured post-state and never
+reruns parsing, matching, reconciliation, payee resolution, or ID generation.
+
+Undo and Redo compare every tracked graph and payee before writing. The Worker
+performs graph deletion, payee upsert/deletion, graph restoration and recapture
+verification in one `BEGIN IMMEDIATE` transaction. A later edit to a tracked
+transaction or transfer member rejects the operation. Before deleting an
+import-created payee, the Worker checks all remaining transaction and scheduled
+references. A later manual reference therefore makes Undo fail safely; the
+history entry and later data remain intact. Every failed precondition or
+verification rolls back the compound transition.
+
+Undo removes provenance rows, so importing the same file afterward follows the
+normal no-provenance duplicate path. Redo restores the exact identities and
+occurrence numbers; importing the file afterward again sees the original source
+evidence. This applies equally to CSV, QIF and OFX/QFX strong identities.
+
+Merchant normalization, alias/category/account learning and CSV/QIF format
+preferences live in budget-scoped key-value/entity storage and are persisted
+after the SQLite commit as explicitly best-effort learning. They cannot share
+the SQLite atomic boundary and are intentionally durable across Import Undo.
+The rule that split imports do not teach the synthetic `Split` name or
+child-category merchant learning remains in `learnFromCommittedCandidates`.
+Import audit diagnostics and recent-import UI activity are observational/session
+state and are not reversed.
+
+### Phase 7 deferred compound-mutation audit
+
+| Action | Physical graph and atomicity assessment | Decision |
+| --- | --- | --- |
+| Category merge | Deletes/recreates source/target category facts across every budget month; rewrites parent and split transaction category references, schedules, assignments/goals, group ordering/archive/note metadata, projection facts and outbox state. A complete multi-month graph and later-reference validator do not yet exist. | **Defer.** High implementation size and risk; source-category-only recreation is prohibited. |
+| Payee merge | Rewrites source/target payee rows, aliases, recognition rules, icons, transaction and schedule references, duplicate suppressions and merge knowledge. No exact cross-domain readback contract covers every member or later reference. | **Defer.** High risk; a partial inverse would corrupt recognition/reference state. |
+| Keep duplicate payees separate | One normalized set in `local_payee_duplicate_suppressions` on the authoritative path. Exact comparison, replacement and readback fit one SQLite transaction. | **Implemented in Phase 7.** One `Keep payees separate` history entry. |
+| Delete assigned tag | Requires the exact tag definition plus every affected transaction graph and assignment row. Definitions and assignments currently cross separate persistence APIs, so one atomic transition is unavailable. | **Defer.** Remove assignments through undoable transaction edits before deleting the unused tag. |
+
+Restore, reset and delete remain history boundaries rather than commands.
+Settings clears the affected budget stack only after a successful portable,
+SQLite, package, version-history restore or reset. Shared budget deletion calls
+`applicationHistory.destroy(budgetId)` only after authoritative deletion and
+registry removal succeed. Failed lifecycle operations retain history.
+
 ## Command rules
 
 - One user gesture creates one history entry.
@@ -321,7 +389,9 @@ schedule model. Browser OPFS Worker and DOM event execution are not claimed.
    application-history commands.
 5. **Complete:** add scheduled transaction commands, including compound Enter.
 6. **Complete:** extend safe reversible coverage to accounts, categories/groups,
-   ordinary payee and tag management, and attachments; keep unsafe merges and
-   duplicate-suppression replacement explicitly deferred.
-7. Wire lifecycle history boundaries, re-run the mutation audit, and remove dead
-   legacy paths.
+   ordinary payee and tag management, and attachments; keep unsafe merges
+   explicitly deferred.
+7. **Complete:** make committed bank imports exact compound commands, implement
+   duplicate-suppression replacement, audit destructive deferrals, and wire
+   restore/reset/delete history boundaries.
+8. Re-run the final mutation audit and remove dead legacy paths.

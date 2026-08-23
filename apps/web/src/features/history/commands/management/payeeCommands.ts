@@ -82,3 +82,29 @@ export function deleteUnusedPayeeCommand(payeeId: string): UndoableCommand<Appli
     },
   };
 }
+
+type SuppressionPair = { readonly leftPayeeId: string; readonly rightPayeeId: string };
+
+export function keepPayeesSeparateCommand(additions: readonly SuppressionPair[]): UndoableCommand<ApplicationHistoryContext> {
+  let before: readonly SuppressionPair[] = [];
+  let after: readonly SuppressionPair[] = [];
+  return {
+    id: `keep-payees-separate:${Date.now()}`, label: "Keep payees separate",
+    async execute(context) {
+      const client = queries(context);
+      if (!client.listPayeeDuplicateSuppressions || !client.keepPayeesSeparate ||
+          !client.replacePayeeDuplicateSuppressionsHistoryState) {
+        throw new Error("Payee suppression history is unavailable.");
+      }
+      before = await client.listPayeeDuplicateSuppressions(context.budgetId);
+      await client.keepPayeesSeparate(context.budgetId, additions);
+      after = await client.listPayeeDuplicateSuppressions(context.budgetId);
+    },
+    async undo(context) {
+      await queries(context).replacePayeeDuplicateSuppressionsHistoryState!({ budgetId: context.budgetId, expected: after, replacement: before });
+    },
+    async redo(context) {
+      await queries(context).replacePayeeDuplicateSuppressionsHistoryState!({ budgetId: context.budgetId, expected: before, replacement: after });
+    },
+  };
+}
