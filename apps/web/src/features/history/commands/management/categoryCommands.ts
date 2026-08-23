@@ -61,3 +61,6 @@ export function positionCategoryGroupCommand(write: Parameters<CategoryPersisten
 export function updateCategoryGroupNoteCommand(write: Parameters<CategoryPersistencePort["updateCategoryGroupNote"]>[0]) {
   return categoryHistoryCommand({ id: `category-group-note:${write.groupId}:${Date.now()}`, label: "Update category group note", month: write.month, mutate: (port) => port.updateCategoryGroupNote(write) });
 }
+export function setCategoryOverspendingHandlingCommand(write: Parameters<CategoryPersistencePort["setCategoryOverspendingHandling"]>[0]) {
+  return categoryHistoryCommand({ id: `category-overspending:${write.categoryId}:${Date.now()}`, label: "Change overspending handling", month: write.month, mutate: (port) => port.setCategoryOverspendingHandling(write) });
+}

@@ -317,8 +317,6 @@ export function TransactionImportDialog({
   loadTransactionsByIds,
   loadImportedTransactionSourceOccurrences,
   loadAccountWorkingBalance,
-  onImportTransactions,
-  onUpdateMatchedTransactionDates,
   onCommitRegisterChanges,
   onImportCommitComplete,
   payeeOptions,
@@ -343,15 +341,7 @@ export function TransactionImportDialog({
     fileType: ImportedTransactionFileType,
   ) => Promise<Readonly<Record<string, number>>>;
   loadAccountWorkingBalance: (accountId: string) => Promise<number>;
-  onImportTransactions: (
-    accountId: string,
-    transactions: NewRegisterTransactionInput[],
-  ) => Promise<void>;
-  onUpdateMatchedTransactionDates: (
-    accountId: string,
-    transactions: RegisterTransactionView[],
-  ) => Promise<void>;
-  onCommitRegisterChanges?: (
+  onCommitRegisterChanges: (
     accountId: string,
     additions: NewRegisterTransactionInput[],
     updates: RegisterTransactionView[],
@@ -2023,9 +2013,7 @@ export function TransactionImportDialog({
               name: normalisedName,
             };
           },
-          ...(onCommitRegisterChanges
-            ? { commitTransactionBatch: onCommitRegisterChanges }
-            : {}),
+          commitTransactionBatch: onCommitRegisterChanges,
           verifyCommittedTransactions: async (accountId, additions) => {
             const ids = additions.map((transaction) => {
               if (!transaction.id) {
@@ -2043,8 +2031,6 @@ export function TransactionImportDialog({
               );
             }
           },
-          addTransactions: onImportTransactions,
-          updateTransactions: onUpdateMatchedTransactionDates,
         },
       );
 

@@ -108,11 +108,11 @@ export interface ImportCommitAdapters {
     provenanceAssignments: readonly RegisterTransactionImportProvenanceAssignment[],
     payeeCreations: readonly RegisterTransactionImportPayeeCreation[],
   ) => Promise<void>;
-  addTransactions: (
+  addTransactions?: (
     accountId: string,
     transactions: NewRegisterTransactionInput[],
   ) => Promise<void>;
-  updateTransactions: (
+  updateTransactions?: (
     accountId: string,
     transactions: RegisterTransactionView[],
   ) => Promise<void>;
@@ -1308,6 +1308,10 @@ export async function commitImportSession(
             plan!.payeeCreations,
           );
           return;
+        }
+
+        if (!adapters.addTransactions || !adapters.updateTransactions) {
+          throw new Error("Import commit requires a batch adapter or both legacy row adapters.");
         }
 
         if (plan!.additions.length > 0) {

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { ApplicationHistoryService, type ApplicationHistoryContext } from "../../../apps/web/src/features/history/applicationHistory.ts";
 import { createAccountCommand, deleteEmptyAccountCommand, setAccountClosedCommand, updateAccountCommand } from "../../../apps/web/src/features/history/commands/management/accountCommands.ts";
-import { archiveCategoryCommand, createCategoryCommand, moveCategoryCommand, moveCategoryGroupCommand, renameCategoryCommand, updateCategoryGroupNoteCommand, updateCategoryNoteCommand } from "../../../apps/web/src/features/history/commands/management/categoryCommands.ts";
+import { archiveCategoryCommand, createCategoryCommand, moveCategoryCommand, moveCategoryGroupCommand, renameCategoryCommand, setCategoryOverspendingHandlingCommand, updateCategoryGroupNoteCommand, updateCategoryNoteCommand } from "../../../apps/web/src/features/history/commands/management/categoryCommands.ts";
 import type { LocalAccountRecord } from "../../../apps/web/src/features/persistence/localFirst/registerSchema.ts";
 import type { BudgetMonthView } from "../../../apps/web/src/features/budget/budgetViewTypes.ts";
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.ts";
@@ -47,6 +47,7 @@ function harness() {
     async moveCategoryGroup() { budgetView.categoryGroups.reverse(); return budgetView; },
     async updateCategoryNote(input: any) { budgetView.categoryGroups.flatMap(({ categories }) => categories).find(({ id }) => id === input.categoryId)!.note = input.note; return budgetView; },
     async updateCategoryGroupNote(input: any) { budgetView.categoryGroups.find(({ id }) => id === input.groupId)!.note = input.note; return budgetView; },
+    async setCategoryOverspendingHandling(input: any) { budgetView.categoryGroups.flatMap(({ categories }) => categories).find(({ id }) => id === input.categoryId)!.overspendingHandling = input.overspendingHandling; return budgetView; },
   };
   const persistence = { accountRegisterQueries: queries, categories } as unknown as BudgetPersistenceProvider;
   const service = new ApplicationHistoryService<ApplicationHistoryContext>({ getContext: (id) => ({ budgetId: id, persistence }) });
@@ -86,6 +87,9 @@ test("category create/rename/archive/move/notes and group order round-trip exact
   await service.execute(budgetId, renameCategoryCommand({ budgetId, month, categoryId: "cat-a", name: "Mortgage" }));
   await service.execute(budgetId, archiveCategoryCommand({ budgetId, month, categoryId: "cat-a", isArchived: true }));
   await service.execute(budgetId, updateCategoryNoteCommand({ budgetId, month, categoryId: "cat-a", note: "changed note" }));
+  await service.execute(budgetId, setCategoryOverspendingHandlingCommand({ budgetId, month, categoryId: "cat-a", overspendingHandling: "carry-category" }));
+  await service.undo(budgetId); assert.equal(getView().categoryGroups[0].categories.find(({ id }) => id === "cat-a")!.overspendingHandling, undefined);
+  await service.redo(budgetId); assert.equal(getView().categoryGroups[0].categories.find(({ id }) => id === "cat-a")!.overspendingHandling, "carry-category");
   await service.execute(budgetId, moveCategoryCommand({ budgetId, month, categoryId: "cat-a", direction: "down" }));
   assert.equal(getView().categoryGroups[0].categories[0].id, "stable-category");
   await service.undo(budgetId); assert.equal(getView().categoryGroups[0].categories[0].id, "cat-a");
@@ -105,7 +109,7 @@ test("category conflict and production wiring preserve safe boundaries", async (
   assert.doesNotMatch(sidebar, /accountRegisterQueries\.(createAccount|updateAccount|setAccountClosed|deleteAccount)/);
   assert.match(workspace, /useCategoryHistory\(budgetId, month\)/);
   assert.match(workspace, /categoriesPersistence\.mergeCategory/);
-  assert.doesNotMatch(workspace, /categoriesPersistence\.(renameCategory|setCategoryArchived|moveCategory|moveCategoryToPosition|moveCategoryGroup|moveCategoryGroupToPosition|updateCategoryNote|updateCategoryGroupNote|createCategory)/);
+  assert.doesNotMatch(workspace, /categoriesPersistence\.(renameCategory|setCategoryArchived|setCategoryOverspendingHandling|moveCategory|moveCategoryToPosition|moveCategoryGroup|moveCategoryGroupToPosition|updateCategoryNote|updateCategoryGroupNote|createCategory)/);
 });
 
 test("worker account/category replacements compare, transact, verify and roll back", () => {

@@ -349,9 +349,7 @@ export function AccountRegisterPage() {
     data,
     isLoading,
     error,
-    addTransactions,
     commitTransactionBatch,
-    updateTransaction: updateTransactionWithoutHistory,
     addAttachment,
     removeAttachment,
     renamePayeeReferences,
@@ -1961,35 +1959,6 @@ export function AccountRegisterPage() {
               });
               return view.workingBalance;
             }}
-            onImportTransactions={async (
-              destinationAccountId,
-              transactions,
-            ) => {
-              if (destinationAccountId === accountId) {
-                await addTransactions(transactions);
-                return;
-              }
-              const queries = persistenceGateway.accountRegisterQueries;
-              if (storageMode === "sqlite" && activeBudgetId && queries) {
-                await queries.commitTransactionBatch({
-                  budgetId: activeBudgetId,
-                  accountId: destinationAccountId,
-                  additions: transactions.map((transaction) => ({
-                    budgetId: activeBudgetId,
-                    accountId: destinationAccountId,
-                    id: transaction.id ?? createRuntimeUuid(),
-                    ...toTransactionWriteInput(transaction),
-                  })),
-                  updates: [],
-                  provenanceAssignments: [],
-                });
-                return;
-              }
-              await persistenceGateway.accountRegisters.addTransactions({
-                accountId: destinationAccountId,
-                transactions,
-              });
-            }}
             onCommitRegisterChanges={async (
               destinationAccountId,
               additions,
@@ -2083,36 +2052,6 @@ export function AccountRegisterPage() {
                   accountId: destinationAccountId,
                   transaction,
                 });
-              }
-            }}
-            onUpdateMatchedTransactionDates={async (
-              destinationAccountId,
-              transactions,
-            ) => {
-              for (const transaction of transactions) {
-                const update = {
-                  id: transaction.id,
-                  date: transaction.date,
-                  tagIds: transaction.tagIds,
-                  payee: transaction.payee,
-                  payeeId: transaction.payeeId,
-                  category: transaction.category,
-                  categoryId: transaction.categoryId,
-                  memo: transaction.memo,
-                  checkNumber: transaction.checkNumber,
-                  inflow: transaction.inflow,
-                  outflow: transaction.outflow,
-                  splitLines: transaction.splitLines,
-                };
-
-                if (destinationAccountId === accountId) {
-                  await updateTransactionWithoutHistory(update);
-                } else {
-                  await persistenceGateway.accountRegisters.updateTransaction({
-                    accountId: destinationAccountId,
-                    transaction: update,
-                  });
-                }
               }
             }}
           />

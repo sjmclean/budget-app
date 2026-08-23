@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { applicationHistory, archiveCategoryCommand, createCategoryCommand, moveCategoryCommand, moveCategoryGroupCommand, positionCategoryCommand, positionCategoryGroupCommand, renameCategoryCommand, updateCategoryGroupNoteCommand, updateCategoryNoteCommand, type UndoRedoResult } from "../history";
+import { applicationHistory, archiveCategoryCommand, createCategoryCommand, moveCategoryCommand, moveCategoryGroupCommand, positionCategoryCommand, positionCategoryGroupCommand, renameCategoryCommand, setCategoryOverspendingHandlingCommand, updateCategoryGroupNoteCommand, updateCategoryNoteCommand, type UndoRedoResult } from "../history";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 import { getBudgetPersistenceProvider } from "../persistence";
 import type { CategoryPersistencePort } from "./categoryPersistencePort";
@@ -21,5 +21,6 @@ export function useCategoryHistory(budgetId: string, month: string) {
     moveCategoryGroupToPosition: useCallback((input: Omit<Parameters<CategoryPersistencePort["moveCategoryGroupToPosition"]>[0], "budgetId" | "month">) => execute(positionCategoryGroupCommand({ budgetId, month, ...input })), [budgetId, execute, month]),
     updateCategoryNote: useCallback((input: Omit<Parameters<CategoryPersistencePort["updateCategoryNote"]>[0], "budgetId" | "month">) => execute(updateCategoryNoteCommand({ budgetId, month, ...input })), [budgetId, execute, month]),
     updateCategoryGroupNote: useCallback((input: Omit<Parameters<CategoryPersistencePort["updateCategoryGroupNote"]>[0], "budgetId" | "month">) => execute(updateCategoryGroupNoteCommand({ budgetId, month, ...input })), [budgetId, execute, month]),
+    setCategoryOverspendingHandling: useCallback((input: Omit<Parameters<CategoryPersistencePort["setCategoryOverspendingHandling"]>[0], "budgetId" | "month">) => execute(setCategoryOverspendingHandlingCommand({ budgetId, month, ...input })), [budgetId, execute, month]),
   };
 }

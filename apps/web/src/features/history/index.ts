@@ -20,11 +20,6 @@ export {
   resolveUndoRedoKeyboardShortcut,
 } from "./undoRedo";
 export type {
-  UseUndoRedoOptions,
-  UseUndoRedoState,
-} from "./useUndoRedo";
-export { useUndoRedo } from "./useUndoRedo";
-export type {
   ApplicationHistoryContext,
   ApplicationHistoryServiceOptions,
 } from "./applicationHistory";

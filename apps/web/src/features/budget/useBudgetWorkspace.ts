@@ -340,33 +340,14 @@ export function useBudgetWorkspace(
     categoryId: string,
     overspendingHandling: OverspendingHandling,
   ) {
-    setSaveError(null);
-    const workspaceIdentity = workspaceIdentityRef.current;
-    const mutationVersion = ++mutationVersionRef.current;
-
-    void categoriesPersistence
-      .setCategoryOverspendingHandling({
-        budgetId,
-        month,
+    runWorkspaceMutation(
+      () => categoryHistory.setCategoryOverspendingHandling({
         categoryId,
         overspendingHandling,
-      })
-      .then((nextData) => {
-        if (
-          isWorkspaceCurrent(workspaceIdentity) &&
-          mutationVersionRef.current === mutationVersion
-        ) {
-          setEditedData(nextData);
-        }
-      })
-      .catch((error) => {
-        if (
-          isWorkspaceCurrent(workspaceIdentity) &&
-          mutationVersionRef.current === mutationVersion
-        ) {
-          setSaveError(error instanceof Error ? error.message : "Failed to update overspending handling.");
-        }
-      });
+      }),
+      (nextData) => setEditedData(nextData),
+      "Failed to update overspending handling.",
+    );
   }
 
   function coverOverspending(input: {
