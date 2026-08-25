@@ -14,6 +14,9 @@ import {
 } from "../../../apps/web/src/features/persistence/localFirst/categoryGoalPersistence.js";
 import { LOCAL_REGISTER_SCHEMA_SQL } from "../../../apps/web/src/features/persistence/localFirst/registerSchema.js";
 import { getPersistenceChangeVersion } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
+import { ApplicationHistoryService, type ApplicationHistoryContext } from "../../../apps/web/src/features/history/applicationHistory.js";
+import { createCategoryGoalCommand, updateCategoryGoalCommand } from "../../../apps/web/src/features/history/commands/management/categoryGoalCommands.js";
+import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.js";
 
 function goal(overrides: Partial<CategoryGoal> = {}): CategoryGoal {
   return {
@@ -275,6 +278,42 @@ test("exact history replacement covers all transitions and conflicts have no sid
     assert.equal(readGoal(db, "budget-1", "category-1"), null);
     assert.equal((db.prepare("SELECT value FROM test_goal_revision").get() as { value: number }).value, 3);
     assert.equal((db.prepare("SELECT COUNT(*) AS count FROM test_goal_outbox").get() as { count: number }).count, 3);
+  } finally { db.close(); }
+});
+
+test("application history commands round-trip through physical SQLite Goal state", async () => {
+  const db = openDatabase();
+  try {
+    const categoryGoals = {
+      async getCategoryGoal(input: { budgetId: string; categoryId: string }) {
+        return readGoal(db, input.budgetId, input.categoryId);
+      },
+      async replaceCategoryGoalHistoryState(input: {
+        budgetId: string; categoryId: string;
+        expected: CategoryGoal | null; replacement: CategoryGoal | null;
+      }) {
+        assert.equal(input.budgetId, "budget-1");
+        assert.equal(input.categoryId, "category-1");
+        return replaceExactGoal(db, input.expected, input.replacement);
+      },
+    };
+    const persistence = { categoryGoals } as unknown as BudgetPersistenceProvider;
+    const history = new ApplicationHistoryService<ApplicationHistoryContext>({
+      getContext: (budgetId) => ({ budgetId, persistence }),
+    });
+    const created = goal({ targetAmount: 12.35 });
+    const updated = goal({ type: "target-balance", targetAmount: 50, updatedAt: "later" });
+    assert.equal((await history.execute("budget-1", createCategoryGoalCommand(created))).performed, true);
+    assert.deepEqual(readGoal(db, "budget-1", "category-1"), created);
+    assert.equal((await history.execute("budget-1", updateCategoryGoalCommand(updated))).performed, true);
+    assert.deepEqual(readGoal(db, "budget-1", "category-1"), updated);
+    await history.undo("budget-1");
+    assert.deepEqual(readGoal(db, "budget-1", "category-1"), created);
+    await history.undo("budget-1");
+    assert.equal(readGoal(db, "budget-1", "category-1"), null);
+    await history.redo("budget-1");
+    await history.redo("budget-1");
+    assert.deepEqual(readGoal(db, "budget-1", "category-1"), updated);
   } finally { db.close(); }
 });
 
