@@ -80,6 +80,7 @@ function manifest(
       transactions: 0,
       payees: 0,
       categories: 0,
+      categoryGoals: 0,
       budgetMonths: 0,
       scheduledTransactions: 0,
       transactionTags: 0,

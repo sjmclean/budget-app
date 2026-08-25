@@ -31,6 +31,7 @@ import type {
   UpsertScheduledTransactionInput,
 } from "../accounts/scheduledTransactionTypes";
 import type { ImportHistorySnapshot, TransactionHistorySnapshot } from "./localFirst/registerSchema";
+import type { CategoryGoal } from "../../../../../packages/types/src/CategoryGoal";
 
 export interface BudgetEngineStatus {
   readonly budgetId: string;
@@ -46,6 +47,18 @@ export interface BudgetEngineStatus {
 }
 
 export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
+  getCategoryGoal(input: { readonly budgetId: string; readonly categoryId: string }): Promise<CategoryGoal | null>;
+  listCategoryGoals(input: { readonly budgetId: string }): Promise<readonly CategoryGoal[]>;
+  createCategoryGoal(goal: CategoryGoal): Promise<CategoryGoal>;
+  updateCategoryGoal(goal: CategoryGoal): Promise<CategoryGoal>;
+  deleteCategoryGoal(input: { readonly budgetId: string; readonly categoryId: string }): Promise<CategoryGoal | null>;
+  replaceCategoryGoalHistoryState(input: {
+    readonly budgetId: string;
+    readonly categoryId: string;
+    readonly expected: CategoryGoal | null;
+    readonly replacement: CategoryGoal | null;
+  }): Promise<CategoryGoal | null>;
+
   /** Releases this tab's OPFS worker before an exclusive import/restore operation. */
   releaseLocalDatabase?(): Promise<void>;
 

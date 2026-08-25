@@ -67,6 +67,7 @@ export function createKeyValueBudgetPersistenceProvider(
     accountRegisterQueries: options.accountRegisterQueries,
     budgetView: sqliteBudgetView,
     categories: sqliteBudgetView,
+    categoryGoals: options.accountRegisterQueries,
     payees: payeeService,
     scheduledTransactions,
     keyValueStorage: options.storage,

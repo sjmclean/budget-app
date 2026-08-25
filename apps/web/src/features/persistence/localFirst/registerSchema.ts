@@ -91,6 +91,22 @@ export const LOCAL_REGISTER_SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS local_categories_budget_group
     ON local_categories(budget_id, archived, group_name, name);
 
+  CREATE TABLE IF NOT EXISTS local_category_goals (
+    id TEXT PRIMARY KEY,
+    budget_id TEXT NOT NULL,
+    category_id TEXT NOT NULL,
+    type TEXT NOT NULL CHECK(type IN ('monthly-funding','target-balance','target-balance-by-date')),
+    target_amount INTEGER NOT NULL CHECK(target_amount > 0),
+    target_month TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(budget_id, category_id),
+    CHECK(
+      (type = 'target-balance-by-date' AND target_month IS NOT NULL)
+      OR (type != 'target-balance-by-date' AND target_month IS NULL)
+    ),
+    FOREIGN KEY(category_id) REFERENCES local_categories(id) ON DELETE CASCADE
+  );
   CREATE TABLE IF NOT EXISTS local_transactions (
     id TEXT PRIMARY KEY,
     budget_id TEXT NOT NULL,

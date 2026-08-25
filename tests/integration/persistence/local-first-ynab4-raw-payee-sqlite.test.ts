@@ -197,6 +197,7 @@ test("raw YNAB4 reader preserves active provenance through SQLite staged validat
           ).get("budget-lifecycle") as { count: number }).count),
           payees: 0,
           categories: 0,
+          categoryGoals: 0,
           budgetMonths: 0,
           scheduledTransactions: 0,
           transactionTags: 0,

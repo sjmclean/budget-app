@@ -6,6 +6,7 @@ export const REQUIRED_BUDGET_DOMAINS = [
   "transactions",
   "payees",
   "categories",
+  "categoryGoals",
   "budgetMonths",
   "scheduledTransactions",
   "transactionTags",
@@ -18,6 +19,7 @@ export interface BudgetDomainCounts {
   readonly transactions: number;
   readonly payees: number;
   readonly categories: number;
+  readonly categoryGoals: number;
   readonly budgetMonths: number;
   readonly scheduledTransactions: number;
   readonly transactionTags: number;
@@ -544,6 +546,40 @@ export type LocalBudgetWorkerRequest =
   | {
       readonly requestId: string;
       readonly type: "deleteBudgetFile";
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "getCategoryGoal";
+      readonly budgetId: string;
+      readonly categoryId: string;
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "listCategoryGoals";
+      readonly budgetId: string;
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "writeCategoryGoal";
+      readonly mode: "create" | "update";
+      readonly goal: import("../../../../../../packages/types/src/CategoryGoal").CategoryGoal;
+      readonly mutation: LocalBudgetMutation;
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "deleteCategoryGoal";
+      readonly budgetId: string;
+      readonly categoryId: string;
+      readonly mutation: LocalBudgetMutation;
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "replaceCategoryGoalHistoryState";
+      readonly budgetId: string;
+      readonly categoryId: string;
+      readonly expected: import("../../../../../../packages/types/src/CategoryGoal").CategoryGoal | null;
+      readonly replacement: import("../../../../../../packages/types/src/CategoryGoal").CategoryGoal | null;
+      readonly mutation: LocalBudgetMutation;
     };
 
 export type LocalBudgetWorkerResponse =
@@ -567,6 +603,7 @@ export function emptyDomainCounts(): BudgetDomainCounts {
     transactions: 0,
     payees: 0,
     categories: 0,
+    categoryGoals: 0,
     budgetMonths: 0,
     scheduledTransactions: 0,
     transactionTags: 0,

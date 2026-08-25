@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-23T05:15:22.027Z",
+  "generatedAt": "2026-08-25T04:13:54.644Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -1399,12 +1399,12 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
-      "line": 40
+      "line": 41
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
-      "line": 53
+      "line": 55
     },
     {
       "kind": "operationJournal",
@@ -1414,7 +1414,7 @@
     {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
-      "line": 54
+      "line": 56
     },
     {
       "kind": "checkpoints",
@@ -1424,7 +1424,7 @@
     {
       "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
-      "line": 55
+      "line": 57
     },
     {
       "kind": "persistenceBoundary",
@@ -1916,7 +1916,7 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
-      "line": 74,
+      "line": 79,
       "classification": "review-required"
     },
     {

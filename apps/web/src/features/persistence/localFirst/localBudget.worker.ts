@@ -46,6 +46,15 @@ import { uncategorisedTransactionPredicate } from "./uncategorisedTransactionSql
 import { mergePayeeIconReferences } from "../../icons/payeeIconReference";
 import { transactionHistorySnapshotsEqual } from "./transactionHistorySnapshot";
 import type { ScheduledTransactionView } from "../../accounts/scheduledTransactionTypes";
+import type { CategoryGoal } from "../../../../../../packages/types/src/CategoryGoal";
+import {
+  assertValidCategoryGoalForPersistence,
+  assertCategoryGoalCategoryForPersistence,
+  categoryGoalFromRow,
+  categoryGoalsEqual,
+  prepareCategoryGoalWriteForPersistence,
+  type LocalCategoryGoalRow,
+} from "./categoryGoalPersistence";
 
 type SqliteDatabase = {
   pointer: unknown;
@@ -135,6 +144,50 @@ function resultRows<T>(sql: string, bind: readonly unknown[] = []): T[] {
 function execute(sql: string, bind: readonly unknown[] = []): void {
   if (!database) throw workerError("DATABASE_NOT_OPEN", "The local budget is not open.");
   database.exec({ sql, bind });
+}
+
+function assertCategoryGoalOwner(budgetId: string, categoryId: string): void {
+  const category = resultRows<{ budgetId: string; groupId: string }>(
+    `SELECT budget_id AS budgetId, group_id AS groupId
+     FROM local_categories WHERE id = ? LIMIT 1`,
+    [categoryId],
+  )[0];
+  if (budgetId !== activeBudgetId) throw workerError("BUDGET_SCOPE_MISMATCH", "The Category Goal belongs to another budget.");
+  try {
+    assertCategoryGoalCategoryForPersistence(
+      { budgetId, categoryId },
+      category ?? null,
+    );
+  } catch (error) {
+    throw workerError("INVALID_CATEGORY_GOAL_CATEGORY", (error as Error).message);
+  }
+}
+
+function readCategoryGoal(budgetId: string, categoryId: string): CategoryGoal | null {
+  if (budgetId !== activeBudgetId) {
+    throw workerError("BUDGET_SCOPE_MISMATCH", "The Category Goal belongs to another budget.");
+  }
+  const row = resultRows<LocalCategoryGoalRow>(
+    `SELECT id, budget_id AS budgetId, category_id AS categoryId, type,
+       target_amount AS targetAmount, target_month AS targetMonth,
+       created_at AS createdAt, updated_at AS updatedAt
+     FROM local_category_goals WHERE budget_id = ? AND category_id = ? LIMIT 1`,
+    [budgetId, categoryId],
+  )[0];
+  return row ? categoryGoalFromRow(row) : null;
+}
+
+function listCategoryGoals(budgetId: string): CategoryGoal[] {
+  if (budgetId !== activeBudgetId) {
+    throw workerError("BUDGET_SCOPE_MISMATCH", "The Category Goals belong to another budget.");
+  }
+  return resultRows<LocalCategoryGoalRow>(
+    `SELECT id, budget_id AS budgetId, category_id AS categoryId, type,
+       target_amount AS targetAmount, target_month AS targetMonth,
+       created_at AS createdAt, updated_at AS updatedAt
+     FROM local_category_goals WHERE budget_id = ? ORDER BY category_id`,
+    [budgetId],
+  ).map(categoryGoalFromRow);
 }
 
 function attachmentEntityId(attachmentId: string): string {
@@ -419,6 +472,34 @@ function writeNormalisedDomainEntity(
   payload: unknown,
   updatedAt: string,
 ): boolean {
+  if (domain === "categoryGoals") {
+    const goal = payload as CategoryGoal;
+    if (goal.budgetId !== activeBudgetId || goal.categoryId !== entityId) {
+      throw workerError("INVALID_CATEGORY_GOAL", "Category Goal scope is invalid.");
+    }
+    const category = resultRows<{ budgetId: string; groupId: string }>(
+      `SELECT budget_id AS budgetId, group_id AS groupId
+       FROM local_categories WHERE id = ? LIMIT 1`,
+      [goal.categoryId],
+    )[0] ?? null;
+    const row = prepareCategoryGoalWriteForPersistence(
+      goal,
+      category,
+      readCategoryGoal(goal.budgetId, goal.categoryId),
+    );
+    execute(
+      `INSERT INTO local_category_goals(
+         id, budget_id, category_id, type, target_amount, target_month, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(budget_id, category_id) DO UPDATE SET
+         id = excluded.id, type = excluded.type, target_amount = excluded.target_amount,
+         target_month = excluded.target_month, created_at = excluded.created_at,
+         updated_at = excluded.updated_at`,
+      [row.id, row.budgetId, row.categoryId, row.type, row.targetAmount,
+       row.targetMonth, row.createdAt, row.updatedAt],
+    );
+    return true;
+  }
   if (domain === "budgetMonths") {
     const assignment = payload as {
       kind?: string;
@@ -544,6 +625,12 @@ function deleteNormalisedDomainEntity(
   domain: BudgetDomain,
   entityId: string,
 ): boolean {
+  if (domain === "categoryGoals") {
+    execute("DELETE FROM local_category_goals WHERE budget_id = ? AND category_id = ?", [
+      activeBudgetId, entityId,
+    ]);
+    return true;
+  }
   if (domain === "budgetMonths") {
     if (entityId.startsWith("assignment:")) {
       const [, month, categoryId] = entityId.split(":");
@@ -825,6 +912,9 @@ function readNormalisedDomainEntity(
   domain: BudgetDomain,
   entityId: string,
 ): { handled: boolean; value: unknown | null } {
+  if (domain === "categoryGoals") {
+    return { handled: true, value: readCategoryGoal(activeBudgetId, entityId) };
+  }
   if (domain === "budgetMonths") {
     return { handled: true, value: readBudgetMonth(entityId) };
   }
@@ -848,6 +938,9 @@ function readNormalisedDomainEntity(
 function listNormalisedDomainEntities(
   domain: BudgetDomain,
 ): { handled: boolean; values: unknown[] } {
+  if (domain === "categoryGoals") {
+    return { handled: true, values: listCategoryGoals(activeBudgetId) };
+  }
   if (domain === "budgetMonths") {
     const months = resultRows<{ month: string }>(
       `SELECT month FROM local_budget_months
@@ -896,6 +989,7 @@ function currentManifest(): LocalBudgetManifest {
     transactions: "SELECT COUNT(*) AS count FROM local_transactions WHERE budget_id = ?",
     payees: "SELECT COUNT(*) AS count FROM local_payees WHERE budget_id = ?",
     categories: "SELECT COUNT(*) AS count FROM local_categories WHERE budget_id = ?",
+    categoryGoals: "SELECT COUNT(*) AS count FROM local_category_goals WHERE budget_id = ?",
     transactionTags:
       "SELECT COUNT(*) AS count FROM local_transaction_tag_definitions WHERE budget_id = ?",
     budgetMonths:
@@ -1045,6 +1139,98 @@ function applyMutationBatch(
     throw error;
   }
   return currentManifest();
+}
+
+function replaceCategoryGoalHistoryState(
+  budgetId: string,
+  categoryId: string,
+  expected: CategoryGoal | null,
+  replacementGoal: CategoryGoal | null,
+  mutation: LocalBudgetMutation,
+): CategoryGoal | null {
+  assertMutationScope(mutation);
+  if (
+    mutation.domain !== "categoryGoals" ||
+    mutation.entityId !== categoryId ||
+    mutation.operation !== (replacementGoal ? "upsert" : "delete") ||
+    budgetId !== activeBudgetId ||
+    (replacementGoal && !categoryGoalsEqual(mutation.payload as CategoryGoal, replacementGoal))
+  ) {
+    throw workerError("INVALID_CATEGORY_GOAL", "Category Goal replacement scope is invalid.");
+  }
+  execute("BEGIN IMMEDIATE");
+  try {
+    const current = readCategoryGoal(budgetId, categoryId);
+    if (!categoryGoalsEqual(current, expected)) {
+      throw workerError("CATEGORY_GOAL_HISTORY_CONFLICT", "Category Goal durable state changed unexpectedly.");
+    }
+    if (categoryGoalsEqual(expected, replacementGoal)) {
+      execute("COMMIT");
+      return current;
+    }
+    if (replacementGoal) {
+      writeNormalisedDomainEntity("categoryGoals", categoryId, replacementGoal, replacementGoal.updatedAt);
+    } else {
+      deleteNormalisedDomainEntity("categoryGoals", categoryId);
+    }
+    const readback = readCategoryGoal(budgetId, categoryId);
+    if (!categoryGoalsEqual(readback, replacementGoal)) {
+      throw workerError("CATEGORY_GOAL_WRITE_FAILED", "Category Goal exact readback failed.");
+    }
+    insertOutbox(mutation);
+    const revision = Number(readMetadata("localRevision") ?? "0") + 1;
+    writeMetadata("localRevision", String(revision));
+    execute("COMMIT");
+    return readback;
+  } catch (error) {
+    execute("ROLLBACK");
+    throw error;
+  }
+}
+
+function writeCategoryGoal(
+  mode: "create" | "update",
+  goal: CategoryGoal,
+  mutation: LocalBudgetMutation,
+): CategoryGoal {
+  const current = readCategoryGoal(goal.budgetId, goal.categoryId);
+  if (mode === "create" && current) {
+    throw workerError("CATEGORY_GOAL_EXISTS", "The category already has a Goal.");
+  }
+  if (mode === "update" && (!current || current.id !== goal.id)) {
+    throw workerError("CATEGORY_GOAL_NOT_FOUND", "The Category Goal to update was not found.");
+  }
+  if (
+    mutation.domain !== "categoryGoals" ||
+    mutation.entityId !== goal.categoryId ||
+    mutation.operation !== "upsert" ||
+    !categoryGoalsEqual(mutation.payload as CategoryGoal, goal)
+  ) {
+    throw workerError("INVALID_CATEGORY_GOAL", "Category Goal mutation scope is invalid.");
+  }
+  applyMutation(mutation);
+  const readback = readCategoryGoal(goal.budgetId, goal.categoryId);
+  if (!readback || !categoryGoalsEqual(readback, goal)) {
+    throw workerError("CATEGORY_GOAL_WRITE_FAILED", "Category Goal exact readback failed.");
+  }
+  return readback;
+}
+
+function deleteCategoryGoal(
+  budgetId: string,
+  categoryId: string,
+  mutation: LocalBudgetMutation,
+): CategoryGoal | null {
+  const current = readCategoryGoal(budgetId, categoryId);
+  if (!current) return null;
+  if (mutation.domain !== "categoryGoals" || mutation.entityId !== categoryId || mutation.operation !== "delete") {
+    throw workerError("INVALID_CATEGORY_GOAL", "Category Goal mutation scope is invalid.");
+  }
+  applyMutation(mutation);
+  if (readCategoryGoal(budgetId, categoryId)) {
+    throw workerError("CATEGORY_GOAL_WRITE_FAILED", "Category Goal deletion readback failed.");
+  }
+  return current;
 }
 
 function applyRemoteMutations(
@@ -5396,6 +5582,19 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return commitStagedImport(request.expectedCounts);
     case "rollbackStagedImport":
       return rollbackStagedImport();
+    case "getCategoryGoal":
+      return readCategoryGoal(request.budgetId, request.categoryId);
+    case "listCategoryGoals":
+      return listCategoryGoals(request.budgetId);
+    case "writeCategoryGoal":
+      return writeCategoryGoal(request.mode, request.goal, request.mutation);
+    case "deleteCategoryGoal":
+      return deleteCategoryGoal(request.budgetId, request.categoryId, request.mutation);
+    case "replaceCategoryGoalHistoryState":
+      return replaceCategoryGoalHistoryState(
+        request.budgetId, request.categoryId, request.expected,
+        request.replacement, request.mutation,
+      );
     case "queryTransactions":
       return queryTransactions(request.query);
     case "getTransaction":

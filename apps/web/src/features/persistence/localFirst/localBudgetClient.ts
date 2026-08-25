@@ -966,6 +966,32 @@ export class LocalBudgetDatabaseClient {
     this.#worker.terminate();
   }
 
+  getCategoryGoal(budgetId: string, categoryId: string): Promise<import("../../../../../../packages/types/src/CategoryGoal").CategoryGoal | null> {
+    return this.#request({ requestId: createRuntimeUuid(), type: "getCategoryGoal", budgetId, categoryId });
+  }
+
+  listCategoryGoals(budgetId: string): Promise<readonly import("../../../../../../packages/types/src/CategoryGoal").CategoryGoal[]> {
+    return this.#request({ requestId: createRuntimeUuid(), type: "listCategoryGoals", budgetId });
+  }
+
+  writeCategoryGoal(mode: "create" | "update", goal: import("../../../../../../packages/types/src/CategoryGoal").CategoryGoal, mutation: LocalBudgetMutation): Promise<import("../../../../../../packages/types/src/CategoryGoal").CategoryGoal> {
+    return this.#request({ requestId: createRuntimeUuid(), type: "writeCategoryGoal", mode, goal, mutation });
+  }
+
+  deleteCategoryGoal(budgetId: string, categoryId: string, mutation: LocalBudgetMutation): Promise<import("../../../../../../packages/types/src/CategoryGoal").CategoryGoal | null> {
+    return this.#request({ requestId: createRuntimeUuid(), type: "deleteCategoryGoal", budgetId, categoryId, mutation });
+  }
+
+  replaceCategoryGoalHistoryState(input: {
+    budgetId: string;
+    categoryId: string;
+    expected: import("../../../../../../packages/types/src/CategoryGoal").CategoryGoal | null;
+    replacement: import("../../../../../../packages/types/src/CategoryGoal").CategoryGoal | null;
+    mutation: LocalBudgetMutation;
+  }): Promise<import("../../../../../../packages/types/src/CategoryGoal").CategoryGoal | null> {
+    return this.#request({ requestId: createRuntimeUuid(), type: "replaceCategoryGoalHistoryState", ...input });
+  }
+
   async deleteBudgetFile(): Promise<void> {
     const manifest = await this.getManifest();
 
