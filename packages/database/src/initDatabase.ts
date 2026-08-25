@@ -154,20 +154,6 @@ CREATE TABLE IF NOT EXISTS split_transaction_lines (
       payload_json TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS goals (
-      id TEXT PRIMARY KEY,
-      budget_id TEXT NOT NULL,
-      category_id TEXT NOT NULL,
-      type TEXT NOT NULL,
-      name TEXT NOT NULL,
-      target_amount INTEGER NOT NULL,
-      target_date TEXT,
-      monthly_amount INTEGER,
-      is_active INTEGER NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
     CREATE TABLE IF NOT EXISTS budget_metadata (
       id TEXT PRIMARY KEY,
       budget_id TEXT NOT NULL,
@@ -615,7 +601,6 @@ CREATE TABLE IF NOT EXISTS split_transaction_lines (
     CREATE INDEX IF NOT EXISTS idx_budget_months_budget_month ON budget_months(budget_id, month);
     CREATE INDEX IF NOT EXISTS idx_category_months_budget_month_id ON category_months(budget_month_id);
     CREATE INDEX IF NOT EXISTS idx_category_months_category_id ON category_months(category_id);
-    CREATE INDEX IF NOT EXISTS idx_goals_budget_category ON goals(budget_id, category_id);
     CREATE INDEX IF NOT EXISTS idx_domain_events_budget_time ON domain_events(budget_id, occurred_at);
 
     CREATE INDEX IF NOT EXISTS idx_transaction_flags_transaction_id ON transaction_flags(transaction_id);

@@ -1,6 +1,5 @@
 export * from "./BudgetApplicationService.js";
 export * from "./TransactionApplicationService.js";
-export * from "./GoalApplicationService.js";
 export * from "./MetadataApplicationService.js";
 export * from "./HistoryService.js";
 export * from "./UndoService.js";

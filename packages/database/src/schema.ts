@@ -143,20 +143,6 @@ export const domainEvents = sqliteTable("domain_events", {
 });
 
 
-export const goals = sqliteTable("goals", {
-  id: text("id").primaryKey(),
-  budgetId: text("budget_id").notNull(),
-  categoryId: text("category_id").notNull(),
-  type: text("type").notNull(),
-  name: text("name").notNull(),
-  targetAmount: integer("target_amount").notNull(),
-  targetDate: text("target_date"),
-  monthlyAmount: integer("monthly_amount"),
-  isActive: integer("is_active", { mode: "boolean" }).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull()
-});
-
 export const budgetMetadata = sqliteTable("budget_metadata", {
   id: text("id").primaryKey(),
   budgetId: text("budget_id").notNull(),
