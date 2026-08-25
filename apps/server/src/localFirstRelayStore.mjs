@@ -17,6 +17,7 @@ export const LOCAL_FIRST_REQUIRED_DOMAINS = [
   "transactions",
   "payees",
   "categories",
+  "categoryGoals",
   "budgetMonths",
   "scheduledTransactions",
   "transactionTags",
