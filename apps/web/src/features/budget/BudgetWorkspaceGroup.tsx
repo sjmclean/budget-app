@@ -1,5 +1,6 @@
-import { useState, type CSSProperties, type MouseEvent } from "react";
-import { ArrowRight } from "lucide-react";
+import React, { useState, type CSSProperties, type MouseEvent } from "react";
+import { ArrowRight, Check, Target, TriangleAlert } from "lucide-react";
+import type { CategoryGoalProjection } from "../../../../../packages/types/src/CategoryGoalProjection";
 import { MoneyInput } from "../money/MoneyInput";
 import type { BudgetCategoryGroupView, BudgetCategoryView } from "./budgetViewTypes";
 import { isCreditCardPaymentCategory } from "./creditCardPaymentCategories";
@@ -32,6 +33,73 @@ export function getSortableKind(id: string): BudgetSortableKind | null {
 
 export function getSortableEntityId(id: string) {
   return id.split(":").slice(1).join(":");
+}
+
+function formatGoalTargetMonth(month: string): string {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-AU", { month: "short", year: "numeric" })
+    .format(new Date(year!, monthNumber! - 1, 1));
+}
+
+export function formatCategoryGoalRowStatus(
+  projection: CategoryGoalProjection,
+  currencyCode: string,
+): { copy: string; tone: "normal" | "funded" | "overdue" } {
+  if (projection.status === "funded") {
+    return { copy: "Goal funded", tone: "funded" };
+  }
+  if (projection.goal.type === "monthly-funding") {
+    return {
+      copy: `${formatMoney(projection.remainingAmount, currencyCode)} needed this month`,
+      tone: "normal",
+    };
+  }
+  if (projection.goal.type === "target-balance") {
+    return {
+      copy: `${formatMoney(projection.progressAmount, currencyCode)} / ${formatMoney(projection.goal.targetAmount, currencyCode)}`,
+      tone: "normal",
+    };
+  }
+  const targetMonth = formatGoalTargetMonth(projection.goal.targetMonth!);
+  const amount = formatMoney(
+    projection.recommendedAssignment ?? projection.remainingAmount,
+    currencyCode,
+  );
+  return projection.status === "overdue"
+    ? { copy: `${amount} overdue · ${targetMonth}`, tone: "overdue" }
+    : { copy: `${amount} needed · ${targetMonth}`, tone: "normal" };
+}
+
+export function CategoryGoalRowStatus({
+  category,
+  currencyCode,
+  managed = false,
+  onSelect,
+}: {
+  category: BudgetCategoryView;
+  currencyCode: string;
+  managed?: boolean;
+  onSelect?: () => void;
+}) {
+  if (managed || !category.goal) return null;
+  const status = formatCategoryGoalRowStatus(category.goal, currencyCode);
+  const Icon = status.tone === "funded"
+    ? Check
+    : status.tone === "overdue"
+      ? TriangleAlert
+      : Target;
+  return (
+    <span
+      className={`budget-category-goal-status budget-category-goal-status-${status.tone}`}
+      onClick={onSelect ? (event) => {
+        event.stopPropagation();
+        onSelect();
+      } : undefined}
+    >
+      <Icon aria-hidden="true" />
+      <span>{status.copy}</span>
+    </span>
+  );
 }
 
 function EditableAssignedCell({
@@ -237,6 +305,12 @@ function BudgetCategoryRow({
               Originally in {originalGroupName}
             </span>
           ) : null}
+          <CategoryGoalRowStatus
+            category={category}
+            currencyCode={currencyCode}
+            managed={isCreditCardPaymentCategory}
+            onSelect={onSelect}
+          />
 
         </div>
       </div>

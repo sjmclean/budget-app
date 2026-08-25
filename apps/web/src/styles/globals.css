@@ -1599,6 +1599,41 @@ strong {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
+.budget-category-goal-status {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding-left: 0.18rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.budget-category-goal-status svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: 0 0 auto;
+}
+
+.budget-category-goal-status > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.budget-category-goal-status-funded {
+  color: var(--positive);
+}
+
+.budget-category-goal-status-overdue {
+  color: var(--warning-text);
+}
+
 .category-archived-badge {
   border: 1px solid var(--border);
   border-radius: 999px;
