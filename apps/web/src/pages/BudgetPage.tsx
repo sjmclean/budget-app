@@ -55,7 +55,7 @@ import {
   BudgetGroup,
   type BudgetColumnId,
 } from "../features/budget/BudgetWorkspaceGroup";
-
+import { CategoryGoalInspectorSection } from "../features/goals/CategoryGoalInspectorSection";
 const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
 const BUDGET_COLLAPSED_GROUPS_STORAGE_KEY_PREFIX =
   "budget-app.budget-collapsed-groups.v1";
@@ -124,6 +124,7 @@ const BUDGET_COLUMN_DEFINITIONS: readonly TableColumnDefinition<BudgetColumnId>[
 ];
 
 function CategoryInspector({
+  budgetId,
   category,
   group,
   currencyCode,
@@ -132,6 +133,7 @@ function CategoryInspector({
   onOpenManageCategory,
   isCreditCardPaymentCategory,
 }: {
+  budgetId: string;
   category: BudgetCategoryView | null;
   group: BudgetCategoryGroupView | null;
   currencyCode: string;
@@ -201,6 +203,13 @@ function CategoryInspector({
           <strong>{statusLabel}</strong>
         </div>
       </div>
+
+      <CategoryGoalInspectorSection
+        budgetId={budgetId}
+        category={category}
+        currencyCode={currencyCode}
+        managed={isCreditCardPaymentCategory}
+      />
 
       {hasCategoryNote || hasGroupNote ? (
         <div className="inspector-note category-details-note-summary">
@@ -1056,6 +1065,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
         <aside className="budget-month-panel">
           <CategoryInspector
+            budgetId={budgetId}
             category={visibleSelectedCategory}
             group={visibleSelectedGroup}
             currencyCode={data.currencyCode}

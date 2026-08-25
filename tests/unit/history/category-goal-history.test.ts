@@ -152,3 +152,39 @@ test("Goal commands are isolated by budget and use the shared budget history sta
   assert.equal(history.getSnapshot(budgetA).undoLabel, "Delete goal");
   assert.equal(history.getSnapshot(budgetB).undoDepth, 0);
 });
+
+test("application boundary allocates stable create identity once and update timestamp once", async () => {
+  const { history, states } = harness();
+  let idCalls = 0;
+  let nowCalls = 0;
+  const service = createCategoryGoalHistoryService(history, {
+    createId: () => { idCalls += 1; return "allocated-goal"; },
+    now: () => { nowCalls += 1; return nowCalls === 1 ? "created-once" : "updated-once"; },
+  });
+  await service.createNewCategoryGoal({
+    budgetId: budgetA, categoryId: "category-1", type: "monthly-funding",
+    targetAmount: 25, targetMonth: null,
+  });
+  const created = states.get(`${budgetA}:category-1`)!;
+  assert.deepEqual(created, {
+    id: "allocated-goal", budgetId: budgetA, categoryId: "category-1",
+    type: "monthly-funding", targetAmount: 25, targetMonth: null,
+    createdAt: "created-once", updatedAt: "created-once",
+  });
+  await history.undo(budgetA);
+  await history.redo(budgetA);
+  assert.deepEqual(states.get(`${budgetA}:category-1`), created);
+  assert.equal(idCalls, 1);
+  assert.equal(nowCalls, 1);
+
+  await service.updateCategoryGoalConfiguration({
+    goal: created, type: "target-balance-by-date", targetAmount: 100,
+    targetMonth: "2027-01",
+  });
+  assert.deepEqual(states.get(`${budgetA}:category-1`), {
+    ...created, type: "target-balance-by-date", targetAmount: 100,
+    targetMonth: "2027-01", updatedAt: "updated-once",
+  });
+  assert.equal(idCalls, 1);
+  assert.equal(nowCalls, 2);
+});

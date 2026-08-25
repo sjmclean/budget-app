@@ -1773,6 +1773,125 @@ strong {
   gap: 0.35rem;
 }
 
+.category-goal-section {
+  padding: 1rem;
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.category-goal-section-header h3,
+.category-goal-options legend {
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.category-goal-empty,
+.category-goal-summary {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.category-goal-progress {
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+}
+
+.category-goal-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.category-goal-details {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.category-goal-details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.category-goal-details span,
+.category-goal-readonly {
+  color: var(--text-muted);
+}
+
+.category-goal-overdue,
+.category-goal-form-error {
+  color: var(--negative);
+}
+
+.category-goal-dialog {
+  width: min(34rem, calc(100vw - 2rem));
+}
+
+.category-goal-dialog form,
+.category-goal-form-fields {
+  display: grid;
+  gap: 1rem;
+}
+
+.category-goal-options {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.category-goal-options legend {
+  margin-bottom: 0.65rem;
+}
+
+.category-goal-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  cursor: pointer;
+}
+
+.category-goal-option span,
+.category-goal-form-fields label {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.category-goal-option small {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.category-goal-form-fields input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  padding: 0.55rem 0.65rem;
+}
+
+.category-goal-form-error {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.category-goal-dialog-actions .category-goal-delete {
+  margin-right: auto;
+}
+
 .quick-action {
   width: 100%;
   border: 0;
