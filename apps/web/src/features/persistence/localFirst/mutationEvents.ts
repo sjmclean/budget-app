@@ -1,3 +1,5 @@
+import { publishPersistenceChange } from "../persistenceChangeBus";
+
 export const LOCAL_FIRST_MUTATION_COMMITTED_EVENT =
   "budget-app:local-first-mutation-committed";
 
@@ -6,7 +8,11 @@ export interface LocalFirstMutationCommittedDetail {
 }
 
 export function notifyLocalFirstMutationCommitted(budgetId: string): void {
-  if (!budgetId || typeof globalThis.CustomEvent !== "function") return;
+  if (!budgetId) return;
+
+  publishPersistenceChange({ source: "local" });
+
+  if (typeof globalThis.CustomEvent !== "function") return;
   globalThis.dispatchEvent?.(
     new CustomEvent<LocalFirstMutationCommittedDetail>(
       LOCAL_FIRST_MUTATION_COMMITTED_EVENT,
