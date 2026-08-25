@@ -1,5 +1,5 @@
 import React, { useState, type CSSProperties, type MouseEvent } from "react";
-import { ArrowRight, Check, Target, TriangleAlert } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { CategoryGoalProjection } from "../../../../../packages/types/src/CategoryGoalProjection";
 import { MoneyInput } from "../money/MoneyInput";
 import type { BudgetCategoryGroupView, BudgetCategoryView } from "./budgetViewTypes";
@@ -37,37 +37,35 @@ export function getSortableEntityId(id: string) {
 
 function formatGoalTargetMonth(month: string): string {
   const [year, monthNumber] = month.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-AU", { month: "short", year: "numeric" })
-    .format(new Date(year!, monthNumber! - 1, 1));
+  const monthLabels = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  return `${monthLabels[monthNumber! - 1]} ${year}`;
 }
 
 export function formatCategoryGoalRowStatus(
   projection: CategoryGoalProjection,
   currencyCode: string,
-): { copy: string; tone: "normal" | "funded" | "overdue" } {
-  if (projection.status === "funded") {
-    return { copy: "Goal funded", tone: "funded" };
-  }
-  if (projection.goal.type === "monthly-funding") {
-    return {
-      copy: `${formatMoney(projection.remainingAmount, currencyCode)} needed this month`,
-      tone: "normal",
-    };
-  }
-  if (projection.goal.type === "target-balance") {
-    return {
-      copy: `${formatMoney(projection.progressAmount, currencyCode)} / ${formatMoney(projection.goal.targetAmount, currencyCode)}`,
-      tone: "normal",
-    };
-  }
-  const targetMonth = formatGoalTargetMonth(projection.goal.targetMonth!);
-  const amount = formatMoney(
-    projection.recommendedAssignment ?? projection.remainingAmount,
-    currencyCode,
-  );
-  return projection.status === "overdue"
-    ? { copy: `${amount} overdue · ${targetMonth}`, tone: "overdue" }
-    : { copy: `${amount} needed · ${targetMonth}`, tone: "normal" };
+): { copy: string; percentComplete: number; tone: "normal" | "funded" | "overdue" } {
+  const progress = `${formatMoney(projection.progressAmount, currencyCode)} / ${formatMoney(projection.goal.targetAmount, currencyCode)}`;
+  const targetMonth = projection.goal.type === "target-balance-by-date"
+    ? ` · ${formatGoalTargetMonth(projection.goal.targetMonth!)}`
+    : "";
+  const status = projection.status === "funded"
+    ? " ✓"
+    : projection.status === "overdue"
+      ? " · Overdue"
+      : "";
+  return {
+    copy: `${progress}${targetMonth}${status}`,
+    percentComplete: Math.min(100, Math.max(0, projection.percentComplete)),
+    tone: projection.status === "funded"
+      ? "funded"
+      : projection.status === "overdue"
+        ? "overdue"
+        : "normal",
+  };
 }
 
 export function CategoryGoalRowStatus({
@@ -83,11 +81,6 @@ export function CategoryGoalRowStatus({
 }) {
   if (managed || !category.goal) return null;
   const status = formatCategoryGoalRowStatus(category.goal, currencyCode);
-  const Icon = status.tone === "funded"
-    ? Check
-    : status.tone === "overdue"
-      ? TriangleAlert
-      : Target;
   return (
     <span
       className={`budget-category-goal-status budget-category-goal-status-${status.tone}`}
@@ -96,8 +89,17 @@ export function CategoryGoalRowStatus({
         onSelect();
       } : undefined}
     >
-      <Icon aria-hidden="true" />
-      <span>{status.copy}</span>
+      <span className="budget-category-goal-status-text">{status.copy}</span>
+      <span
+        className="budget-category-goal-progress"
+        role="progressbar"
+        aria-label={`${category.name} Goal progress`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={status.percentComplete}
+      >
+        <span style={{ width: `${status.percentComplete}%` }} />
+      </span>
     </span>
   );
 }

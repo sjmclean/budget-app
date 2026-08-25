@@ -1601,37 +1601,52 @@ strong {
 
 .budget-category-goal-status {
   min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.28rem;
+  display: grid;
+  gap: 0.2rem;
   padding-left: 0.18rem;
   color: var(--text-muted);
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.2;
+}
+
+.budget-category-goal-status-text {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.budget-category-goal-status svg {
-  width: 0.75rem;
-  height: 0.75rem;
-  flex: 0 0 auto;
+.budget-category-goal-progress {
+  display: block;
+  width: min(100%, 11rem);
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-subtle) 72%, var(--border-soft));
 }
 
-.budget-category-goal-status > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.budget-category-goal-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent) 55%, var(--text-muted));
 }
 
 .budget-category-goal-status-funded {
   color: var(--positive);
 }
 
+.budget-category-goal-status-funded .budget-category-goal-progress > span {
+  background: var(--positive);
+}
+
 .budget-category-goal-status-overdue {
   color: var(--warning-text);
+}
+
+.budget-category-goal-status-overdue .budget-category-goal-progress > span {
+  background: var(--warning);
 }
 
 .category-archived-badge {
