@@ -94,19 +94,26 @@ interface RegisterDateFieldProps {
   value: string;
   onChange: (value: string) => void;
   autoFocus?: boolean;
+  selectOnInitialFocus?: boolean;
 }
 
 export function RegisterDateField({
   value,
   onChange,
   autoFocus,
+  selectOnInitialFocus = false,
 }: RegisterDateFieldProps) {
   const [draft, setDraft] = useState(formatDateForInput(value));
   const hiddenDateInputRef = useRef<HTMLInputElement | null>(null);
+  const initialSelectionPending = useRef(selectOnInitialFocus);
 
   useEffect(() => {
     setDraft(formatDateForInput(value));
   }, [value]);
+
+  useEffect(() => {
+    initialSelectionPending.current = selectOnInitialFocus;
+  }, [selectOnInitialFocus]);
 
   function commit() {
     const parsed = parseDateInput(draft);
@@ -122,6 +129,12 @@ export function RegisterDateField({
       <input
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
+        onFocus={(event) => {
+          if (initialSelectionPending.current) {
+            event.currentTarget.select();
+            initialSelectionPending.current = false;
+          }
+        }}
         onBlur={commit}
         onKeyDown={(event) => {
           if (event.key === "Enter") {

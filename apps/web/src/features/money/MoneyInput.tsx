@@ -18,6 +18,7 @@ export interface MoneyInputProps extends NativeProps {
   validate?: (value: number) => boolean;
   onMoneyKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
   emptyWhenZero?: boolean;
+  selectOnInitialFocus?: boolean;
   errorClassName?: string;
 }
 
@@ -29,6 +30,7 @@ export function MoneyInput({
   validate,
   onMoneyKeyDown,
   emptyWhenZero = false,
+  selectOnInitialFocus = false,
   errorClassName = "money-input-error",
   className,
   onFocus,
@@ -40,10 +42,15 @@ export function MoneyInput({
     emptyWhenZero && amount === 0 ? "" : formatValue(amount);
   const [session, setSession] = useState(() => createMoneyInputSession(value, display));
   const suppressNextBlur = useRef(false);
+  const initialSelectionPending = useRef(selectOnInitialFocus);
 
   useEffect(() => {
     setSession((current) => synchroniseMoneyInputValue(current, value, display));
   }, [display, value]);
+
+  useEffect(() => {
+    initialSelectionPending.current = selectOnInitialFocus;
+  }, [selectOnInitialFocus]);
 
   function commit(invalidMode: "editing" | "invalid-pending"): boolean {
     const result = commitMoneyInputEdit(session, formatDisplayValue, validate, invalidMode);
@@ -66,6 +73,12 @@ export function MoneyInput({
       onFocus={(event) => {
         suppressNextBlur.current = false;
         setSession((current) => beginMoneyInputEdit(current, value, display));
+
+        if (initialSelectionPending.current) {
+          event.currentTarget.select();
+          initialSelectionPending.current = false;
+        }
+
         onFocus?.(event);
       }}
       onChange={(event) => {

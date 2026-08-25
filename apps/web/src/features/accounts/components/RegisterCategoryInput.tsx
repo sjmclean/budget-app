@@ -38,6 +38,7 @@ export function RegisterCategoryInput({
   categoryOptions,
   includeSplitOption = true,
   autoFocus = false,
+  selectOnInitialFocus = autoFocus,
   openOnFocus = false,
   onCreateCategory,
   onSelection,
@@ -49,6 +50,7 @@ export function RegisterCategoryInput({
   categoryOptions: BudgetCategoryOption[];
   includeSplitOption?: boolean;
   autoFocus?: boolean;
+  selectOnInitialFocus?: boolean;
   openOnFocus?: boolean;
   onCreateCategory?: (
     input: RegisterInlineCategoryCreateInput,
@@ -59,6 +61,7 @@ export function RegisterCategoryInput({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const popupRef = useRef<HTMLDivElement | null>(null);
+  const initialSelectionPending = useRef(selectOnInitialFocus);
   const [isOpen, setIsOpen] = useState(false);
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
@@ -184,17 +187,23 @@ export function RegisterCategoryInput({
   );
 
   useEffect(() => {
+    initialSelectionPending.current = selectOnInitialFocus;
+
     if (!autoFocus) {
       return;
     }
 
     inputRef.current?.focus();
-    inputRef.current?.select();
+
+    if (selectOnInitialFocus) {
+      inputRef.current?.select();
+      initialSelectionPending.current = false;
+    }
 
     if (openOnFocus) {
       openSuggestionList(true);
     }
-  }, [autoFocus, openOnFocus]);
+  }, [autoFocus, openOnFocus, selectOnInitialFocus]);
 
   function setInputElement(element: HTMLInputElement | null) {
     inputRef.current = element;
@@ -295,7 +304,14 @@ export function RegisterCategoryInput({
           onChange(nextValue);
           openSuggestionList(false);
         }}
-        onFocus={() => openSuggestionList(openOnFocus || value.trim().length === 0)}
+        onFocus={(event) => {
+          if (initialSelectionPending.current) {
+            event.currentTarget.select();
+            initialSelectionPending.current = false;
+          }
+
+          openSuggestionList(openOnFocus || value.trim().length === 0);
+        }}
         onBlur={() =>
           window.setTimeout(() => {
             if (!popupRef.current?.contains(document.activeElement)) {

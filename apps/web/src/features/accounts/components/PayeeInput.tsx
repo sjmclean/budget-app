@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRegisterAutocompletePopupStyle } from "../useRegisterAutocompletePopupStyle";
 import {
   getAutocompleteCompletion,
@@ -22,6 +22,7 @@ export function PayeeInput({
   transferAccounts,
   payeeOptions,
   autoFocus,
+  selectOnInitialFocus = false,
   openOnFocus = false,
   onSelection,
   onCancel,
@@ -34,6 +35,7 @@ export function PayeeInput({
   transferAccounts: SidebarAccount[];
   payeeOptions: PayeeView[];
   autoFocus?: boolean;
+  selectOnInitialFocus?: boolean;
   openOnFocus?: boolean;
   onSelection?: (value: string) => void;
   onCancel?: () => void;
@@ -41,9 +43,14 @@ export function PayeeInput({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const popupRef = useRef<HTMLDivElement | null>(null);
+  const initialSelectionPending = useRef(selectOnInitialFocus);
   const [isOpen, setIsOpen] = useState(false);
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+
+  useEffect(() => {
+    initialSelectionPending.current = selectOnInitialFocus;
+  }, [selectOnInitialFocus]);
 
   const autocompleteOptions = useMemo(
     () => buildPayeeAutocompleteOptions({ transferAccounts, payeeOptions }),
@@ -126,9 +133,14 @@ export function PayeeInput({
           onTransferAccountIdChange?.(undefined);
           openSuggestionList(false);
         }}
-        onFocus={() =>
-          openSuggestionList(openOnFocus || value.trim().length === 0)
-        }
+        onFocus={(event) => {
+          if (initialSelectionPending.current) {
+            event.currentTarget.select();
+            initialSelectionPending.current = false;
+          }
+
+          openSuggestionList(openOnFocus || value.trim().length === 0);
+        }}
         onBlur={() =>
           window.setTimeout(() => {
             if (!popupRef.current?.contains(document.activeElement)) {
