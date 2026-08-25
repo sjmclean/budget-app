@@ -1,3 +1,5 @@
+import type { CategoryGoalProjection } from "../../../../../packages/types/src/CategoryGoalProjection";
+
 export type OverspendingHandling = "reduce-next-month" | "carry-category";
 
 export interface BudgetCategoryView {
@@ -13,6 +15,7 @@ export interface BudgetCategoryView {
   isArchived: boolean;
   overspendingHandling?: OverspendingHandling;
   note: string;
+  goal?: CategoryGoalProjection;
 }
 
 export interface BudgetCategoryGroupView {

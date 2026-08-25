@@ -17,6 +17,8 @@ import { getPersistenceChangeVersion } from "../../../apps/web/src/features/pers
 import { ApplicationHistoryService, type ApplicationHistoryContext } from "../../../apps/web/src/features/history/applicationHistory.js";
 import { createCategoryGoalCommand, updateCategoryGoalCommand } from "../../../apps/web/src/features/history/commands/management/categoryGoalCommands.js";
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.js";
+import { projectCategoryGoalsOntoBudgetView } from "../../../apps/web/src/features/budget/categoryGoalBudgetProjection.js";
+import type { BudgetMonthView } from "../../../apps/web/src/features/budget/budgetViewTypes.js";
 
 function goal(overrides: Partial<CategoryGoal> = {}): CategoryGoal {
   return {
@@ -314,6 +316,43 @@ test("application history commands round-trip through physical SQLite Goal state
     await history.redo("budget-1");
     await history.redo("budget-1");
     assert.deepEqual(readGoal(db, "budget-1", "category-1"), updated);
+  } finally { db.close(); }
+});
+
+test("physical Goal and Budget month records compose into BudgetCategoryView.goal", () => {
+  const db = openDatabase();
+  try {
+    db.exec(`CREATE TABLE local_budget_months(
+      budget_id TEXT NOT NULL, month TEXT NOT NULL, view_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL, PRIMARY KEY(budget_id, month)
+    )`);
+    const financialView: BudgetMonthView = {
+      budgetId: "budget-1", budgetName: "Budget", monthLabel: "August 2026", currencyCode: "AUD",
+      readyToAssign: 100, totalAssigned: 350, totalActivity: -25, totalAvailable: 325,
+      categoryGroups: [{
+        id: "living", name: "Living", previousAvailable: 0, assigned: 350,
+        activity: -25, available: 325, note: "",
+        categories: [{
+          id: "category-1", name: "Groceries", previousAvailable: 0, assigned: 350,
+          activity: -25, available: 325, isOverspent: false, isArchived: false, note: "",
+        }],
+      }],
+    };
+    db.prepare("INSERT INTO local_budget_months VALUES(?,?,?,?)")
+      .run("budget-1", "2026-08", JSON.stringify(financialView), "updated");
+    insertGoal(db, goal({ targetAmount: 500 }));
+    const storedView = JSON.parse((db.prepare(
+      "SELECT view_json AS viewJson FROM local_budget_months WHERE budget_id=? AND month=?",
+    ).get("budget-1", "2026-08") as { viewJson: string }).viewJson) as BudgetMonthView;
+    const storedGoal = readGoal(db, "budget-1", "category-1")!;
+    const projected = projectCategoryGoalsOntoBudgetView(storedView, "2026-08", [storedGoal]);
+    assert.equal(projected.categoryGroups[0]!.categories[0]!.goal?.remainingAmount, 150);
+    assert.equal(projected.categoryGroups[0]!.categories[0]!.assigned, 350);
+    assert.equal(projected.readyToAssign, 100);
+    const persistedAgain = JSON.parse((db.prepare(
+      "SELECT view_json AS viewJson FROM local_budget_months WHERE budget_id=? AND month=?",
+    ).get("budget-1", "2026-08") as { viewJson: string }).viewJson) as BudgetMonthView;
+    assert.equal(persistedAgain.categoryGroups[0]!.categories[0]!.goal, undefined);
   } finally { db.close(); }
 });
 
