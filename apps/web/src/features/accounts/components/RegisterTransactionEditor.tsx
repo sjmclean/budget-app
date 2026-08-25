@@ -1,7 +1,9 @@
 import {
   useEffect,
+  useRef,
   useState,
   type CSSProperties,
+  type FocusEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -49,6 +51,11 @@ import {
 } from "../registerTransactionDrafts";
 import type { BudgetCategoryOption } from "../../budget/budgetViewTypes";
 import { MoneyInput } from "../../money/MoneyInput";
+import {
+  getTransactionFieldEditBehaviour,
+  type TransactionEditableField,
+  type TransactionEditIntent,
+} from "../../transactions/transactionEditIntent";
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -1001,7 +1008,7 @@ export function TransactionEditRow({
   visibleColumnIds,
   rowStyle,
   layoutMode,
-  autoFocusField = "date",
+  editIntent,
   onCreatePayee,
 }: {
   transaction: RegisterTransactionView;
@@ -1029,7 +1036,7 @@ export function TransactionEditRow({
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
-  autoFocusField?: "date" | "category";
+  editIntent: TransactionEditIntent;
   onCreatePayee?: (name: string) => Promise<PayeeView>;
 }) {
   const [date, setDate] = useState(transaction.date);
@@ -1060,6 +1067,41 @@ export function TransactionEditRow({
   );
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const consumedTextSelections = useRef(
+    new Set<TransactionEditableField>(),
+  );
+
+  const dateEditBehaviour =
+    getTransactionFieldEditBehaviour(editIntent, "date");
+  const payeeEditBehaviour =
+    getTransactionFieldEditBehaviour(editIntent, "payee");
+  const categoryEditBehaviour =
+    getTransactionFieldEditBehaviour(editIntent, "category");
+  const memoEditBehaviour =
+    getTransactionFieldEditBehaviour(editIntent, "memo");
+  const checkNumberEditBehaviour =
+    getTransactionFieldEditBehaviour(editIntent, "checkNumber");
+  const outflowEditBehaviour =
+    getTransactionFieldEditBehaviour(editIntent, "outflow");
+  const inflowEditBehaviour =
+    getTransactionFieldEditBehaviour(editIntent, "inflow");
+
+  function handleInitialTextFocus(
+    field: TransactionEditableField,
+    event: FocusEvent<HTMLInputElement>,
+  ) {
+    const behaviour = getTransactionFieldEditBehaviour(editIntent, field);
+
+    if (
+      !behaviour.selectOnInitialFocus ||
+      consumedTextSelections.current.has(field)
+    ) {
+      return;
+    }
+
+    event.currentTarget.select();
+    consumedTextSelections.current.add(field);
+  }
 
   function handleCategoryChange(value: string) {
     if (isSplitCategoryValue(value)) {
@@ -1156,7 +1198,8 @@ export function TransactionEditRow({
         <RegisterDateField
           value={date}
           onChange={setDate}
-          autoFocus={autoFocusField === "date"}
+          autoFocus={dateEditBehaviour.autoFocus}
+          selectOnInitialFocus={dateEditBehaviour.selectOnInitialFocus}
         />
         {isRegisterColumnVisible("tags", visibleColumns) ? (
           <span className="register-entry-placeholder-cell" aria-hidden="true" />
@@ -1184,18 +1227,24 @@ export function TransactionEditRow({
           }}
           transferAccounts={transferAccounts}
           payeeOptions={payeeOptions}
+          autoFocus={payeeEditBehaviour.autoFocus}
+          selectOnInitialFocus={payeeEditBehaviour.selectOnInitialFocus}
+          openOnFocus={payeeEditBehaviour.openOnFocus}
         />
         <RegisterCategoryInput
           value={category}
           onChange={handleCategoryChange}
           categoryOptions={categoryOptions}
-          autoFocus={autoFocusField === "category"}
-          openOnFocus={autoFocusField === "category"}
+          autoFocus={categoryEditBehaviour.autoFocus}
+          selectOnInitialFocus={categoryEditBehaviour.selectOnInitialFocus}
+          openOnFocus={categoryEditBehaviour.openOnFocus}
         />
         {isRegisterColumnVisible("memo", visibleColumns) ? (
           <input
             value={memo}
             onChange={(event) => setMemo(event.target.value)}
+            onFocus={(event) => handleInitialTextFocus("memo", event)}
+            autoFocus={memoEditBehaviour.autoFocus}
             placeholder="Memo"
           />
         ) : null}
@@ -1203,6 +1252,10 @@ export function TransactionEditRow({
           <input
             value={checkNumber}
             onChange={(event) => setCheckNumber(event.target.value)}
+            onFocus={(event) =>
+              handleInitialTextFocus("checkNumber", event)
+            }
+            autoFocus={checkNumberEditBehaviour.autoFocus}
             placeholder="Check #"
           />
         ) : null}
@@ -1215,6 +1268,8 @@ export function TransactionEditRow({
           }}
           validate={(value) => value >= 0}
           emptyWhenZero
+          autoFocus={outflowEditBehaviour.autoFocus}
+          selectOnInitialFocus={outflowEditBehaviour.selectOnInitialFocus}
           placeholder="Outflow"
         />
         <MoneyInput
@@ -1226,6 +1281,8 @@ export function TransactionEditRow({
           }}
           validate={(value) => value >= 0}
           emptyWhenZero
+          autoFocus={inflowEditBehaviour.autoFocus}
+          selectOnInitialFocus={inflowEditBehaviour.selectOnInitialFocus}
           placeholder="Inflow"
         />
       </div>

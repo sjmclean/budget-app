@@ -16,6 +16,7 @@ import { useDateFormatPreference } from "../../settings/useDateFormatPreference"
 import { isUncategorisedRegisterTransaction } from "../registerUncategorised";
 import { CategoryLabel } from "../../icons/CategoryIcon";
 import type { TransactionTagDefinition } from "../../tags/transactionTagTypes";
+import type { TransactionEditableField } from "../../transactions/transactionEditIntent";
 import { TransactionTagIconGraphic } from "../../tags/transactionTagIcons";
 
 const EMPTY_TRANSACTION_TAG_IDS: readonly string[] = Object.freeze([]);
@@ -82,6 +83,53 @@ function getSignedAmountClassName(value: number, prefix = "register-money") {
   }
 
   return `${prefix} register-amount-neutral`;
+}
+
+function resolveTransactionEditField(
+  target: EventTarget | null,
+  transaction: RegisterTransactionView,
+): TransactionEditableField {
+  if (!(target instanceof Element)) {
+    return "date";
+  }
+
+  if (
+    target.closest(
+      ".register-payee-cell, .register-compact-payee-line, .register-tablet-payee, .register-mobile-payee",
+    )
+  ) {
+    return "payee";
+  }
+
+  if (
+    target.closest(
+      ".register-category-display, .register-category-uncategorised-chip, .register-split-category-cell, .register-compact-category, .register-tablet-category, .register-mobile-category-line",
+    )
+  ) {
+    return "category";
+  }
+
+  if (
+    target.closest(
+      ".register-memo-cell, .register-compact-memo, .register-tablet-memo, .register-mobile-memo",
+    )
+  ) {
+    return "memo";
+  }
+
+  if (
+    target.closest(
+      ".register-check-number-cell, .register-tablet-check-number, .register-mobile-check-number",
+    )
+  ) {
+    return "checkNumber";
+  }
+
+  if (target.closest(".register-money")) {
+    return transaction.inflow > 0 ? "inflow" : "outflow";
+  }
+
+  return "date";
 }
 
 
@@ -568,7 +616,11 @@ function CategoryDisplay({
     );
   }
 
-  return <CategoryLabel categoryName={transaction.category} />;
+  return (
+    <span className="register-category-display">
+      <CategoryLabel categoryName={transaction.category} />
+    </span>
+  );
 }
 
 function TransactionStatus({
@@ -627,8 +679,10 @@ interface TransactionRowRendererProps {
   recentImportStatus?: RecentImportStatus | null;
   onSelectTransaction: (transactionId: string, event: MouseEvent<HTMLElement>) => void;
   onToggleTransactionSelection: (transactionId: string) => void;
-  onEditTransaction: (transactionId: string) => void;
-  onEditTransactionCategory: (transactionId: string) => void;
+  onEditTransaction: (
+    transactionId: string,
+    field: TransactionEditableField,
+  ) => void;
   onToggleClearedTransaction: (transactionId: string) => void;
   onManageTransactionAttachments: (transactionId: string) => void;
   tags: readonly TransactionTagDefinition[];
@@ -659,7 +713,6 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
   onSelectTransaction,
   onToggleTransactionSelection,
   onEditTransaction,
-  onEditTransactionCategory,
   onToggleClearedTransaction,
   onManageTransactionAttachments,
   tags,
@@ -690,11 +743,16 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
           isUncategorised ? "register-row-uncategorised" : "",
         ].filter(Boolean).join(" ")}
         onClick={(event) => onSelectTransaction(transaction.id, event)}
-        onDoubleClick={() => onEditTransaction(transaction.id)}
+        onDoubleClick={(event) =>
+          onEditTransaction(
+            transaction.id,
+            resolveTransactionEditField(event.target, transaction),
+          )
+        }
         onContextMenu={(event) => onOpenContextMenu(transaction.id, event)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
-            onEditTransaction(transaction.id);
+            onEditTransaction(transaction.id, "date");
           }
         }}
         style={rowStyle}
@@ -704,7 +762,9 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
           isSelected={isSelected}
           onToggleTransactionSelection={onToggleTransactionSelection}
         />
-        <span>{formatDateForDisplay(transaction.date, dateFormat)}</span>
+        <span className="register-date-cell">
+          {formatDateForDisplay(transaction.date, dateFormat)}
+        </span>
         {isRegisterColumnVisible("tags", visibleColumns) ? (
           <TransactionTagPicker
             selectedTagIds={transaction.tagIds ?? EMPTY_TRANSACTION_TAG_IDS}
@@ -738,7 +798,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
           }}
           onEditCategory={(event) => {
             event.stopPropagation();
-            onEditTransactionCategory(transaction.id);
+            onEditTransaction(transaction.id, "category");
           }}
         /> : null}
         {isRegisterColumnVisible("memo", visibleColumns) ? (
@@ -778,7 +838,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
               key={line.id}
               style={rowStyle}
               onClick={(event) => onSelectTransaction(transaction.id, event)}
-              onDoubleClick={() => onEditTransaction(transaction.id)}
+              onDoubleClick={() => onEditTransaction(transaction.id, "date")}
             >
               <span className="register-split-readonly-spacer" aria-hidden="true" />
               <span />
@@ -823,7 +883,6 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   onSelectTransaction,
   onToggleTransactionSelection,
   onEditTransaction,
-  onEditTransactionCategory,
   onToggleClearedTransaction,
   onManageTransactionAttachments,
   tags,
@@ -858,11 +917,16 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
           isUncategorised ? "register-row-uncategorised" : "",
         ].filter(Boolean).join(" ")}
         onClick={(event) => onSelectTransaction(transaction.id, event)}
-        onDoubleClick={() => onEditTransaction(transaction.id)}
+        onDoubleClick={(event) =>
+          onEditTransaction(
+            transaction.id,
+            resolveTransactionEditField(event.target, transaction),
+          )
+        }
         onContextMenu={(event) => onOpenContextMenu(transaction.id, event)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
-            onEditTransaction(transaction.id);
+            onEditTransaction(transaction.id, "date");
           }
         }}
       >
@@ -929,7 +993,10 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
                 </button>
               ) : null}
               {categoriesEnabled ? (
-                <span title={hasSplitLines ? `Split (${splitLines.length})` : isUncategorised ? "Uncategorised" : transaction.category}>
+                <span
+                  className="register-compact-category"
+                  title={hasSplitLines ? `Split (${splitLines.length})` : isUncategorised ? "Uncategorised" : transaction.category}
+                >
                   {hasSplitLines ? (
                     `Split (${splitLines.length})`
                   ) : isUncategorised ? (
@@ -940,7 +1007,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
                       aria-label="Choose a category for this uncategorised transaction"
                       onClick={(event) => {
                         event.stopPropagation();
-                        onEditTransactionCategory(transaction.id);
+                        onEditTransaction(transaction.id, "category");
                       }}
                     >
                       <span aria-hidden="true">⚠</span>
@@ -952,7 +1019,11 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
                 </span>
               ) : null}
               {categoriesEnabled && hasMemo ? <span className="register-compact-dot">•</span> : null}
-              {hasMemo ? <span title={transaction.memo}>{transaction.memo}</span> : null}
+              {hasMemo ? (
+                <span className="register-compact-memo" title={transaction.memo}>
+                  {transaction.memo}
+                </span>
+              ) : null}
             </span>
           ) : null}
         </div>
@@ -991,7 +1062,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
                 type="button"
                 key={line.id}
                 onClick={(event) => onSelectTransaction(transaction.id, event)}
-                onDoubleClick={() => onEditTransaction(transaction.id)}
+                onDoubleClick={() => onEditTransaction(transaction.id, "date")}
               >
                 <span className="register-compact-select" aria-hidden="true" />
                 <span className="register-compact-date" aria-hidden="true" />
@@ -1030,7 +1101,6 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
   onSelectTransaction,
   onToggleTransactionSelection,
   onEditTransaction,
-  onEditTransactionCategory,
   onToggleClearedTransaction,
   onManageTransactionAttachments,
   tags,
@@ -1069,11 +1139,16 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
           isUncategorised ? "register-row-uncategorised" : "",
         ].filter(Boolean).join(" ")}
         onClick={(event) => onSelectTransaction(transaction.id, event)}
-        onDoubleClick={() => onEditTransaction(transaction.id)}
+        onDoubleClick={(event) =>
+          onEditTransaction(
+            transaction.id,
+            resolveTransactionEditField(event.target, transaction),
+          )
+        }
         onContextMenu={(event) => onOpenContextMenu(transaction.id, event)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
-            onEditTransaction(transaction.id);
+            onEditTransaction(transaction.id, "date");
           }
         }}
       >
@@ -1133,7 +1208,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
                       aria-label="Choose a category for this uncategorised transaction"
                       onClick={(event) => {
                         event.stopPropagation();
-                        onEditTransactionCategory(transaction.id);
+                        onEditTransaction(transaction.id, "category");
                       }}
                     >
                       <span aria-hidden="true">⚠</span>
@@ -1154,10 +1229,12 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
           </div>
 
           <div className="register-tablet-meta-line">
-            <span>{formattedDate}</span>
+            <span className="register-tablet-date">{formattedDate}</span>
 
             {isRegisterColumnVisible("checkNumber", visibleColumns) && hasCheckNumber ? (
-              <span>#{transaction.checkNumber}</span>
+              <span className="register-tablet-check-number">
+                #{transaction.checkNumber}
+              </span>
             ) : null}
 
             {isRegisterColumnVisible("runningBalance", visibleColumns) ? (
@@ -1213,7 +1290,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
                 type="button"
                 key={line.id}
                 onClick={(event) => onSelectTransaction(transaction.id, event)}
-                onDoubleClick={() => onEditTransaction(transaction.id)}
+                onDoubleClick={() => onEditTransaction(transaction.id, "date")}
               >
                 <span className="register-tablet-split-icon" aria-hidden="true">
                   <CornerDownRight size={14} />
@@ -1240,7 +1317,6 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
   onSelectTransaction,
   onToggleTransactionSelection,
   onEditTransaction,
-  onEditTransactionCategory,
   onToggleClearedTransaction,
   onManageTransactionAttachments,
   tags,
@@ -1275,7 +1351,12 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
           isUncategorised ? "register-row-uncategorised" : "",
         ].filter(Boolean).join(" ")}
         onClick={(event) => onSelectTransaction(transaction.id, event)}
-        onDoubleClick={() => onEditTransaction(transaction.id)}
+        onDoubleClick={(event) =>
+          onEditTransaction(
+            transaction.id,
+            resolveTransactionEditField(event.target, transaction),
+          )
+        }
         onContextMenu={(event) => onOpenContextMenu(transaction.id, event)}
       >
         <div className="register-mobile-card-topline">
@@ -1317,7 +1398,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
-                onEditTransactionCategory(transaction.id);
+                onEditTransaction(transaction.id, "category");
               }}
             >
               <span aria-hidden="true">⚠</span> Uncategorised
@@ -1332,9 +1413,11 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
         ) : null}
 
         <div className="register-mobile-meta-row">
-          <span>{formattedDate}</span>
+          <span className="register-mobile-date">{formattedDate}</span>
           {isRegisterColumnVisible("checkNumber", visibleColumns) && transaction.checkNumber?.trim() ? (
-            <span>#{transaction.checkNumber}</span>
+            <span className="register-mobile-check-number">
+              #{transaction.checkNumber}
+            </span>
           ) : null}
           {isRegisterColumnVisible("runningBalance", visibleColumns) ? (
             <span>Balance {formatMoney(transaction.runningBalance, currencyCode)}</span>
@@ -1366,7 +1449,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
           <button
             className="button button-secondary register-mobile-edit-action"
             type="button"
-            onClick={() => onEditTransaction(transaction.id)}
+            onClick={() => onEditTransaction(transaction.id, "date")}
           >
             Edit
           </button>
@@ -1382,7 +1465,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
                 type="button"
                 key={line.id}
                 onClick={(event) => onSelectTransaction(transaction.id, event)}
-                onDoubleClick={() => onEditTransaction(transaction.id)}
+                onDoubleClick={() => onEditTransaction(transaction.id, "date")}
               >
                 <CornerDownRight size={14} aria-hidden="true" />
                 <span>

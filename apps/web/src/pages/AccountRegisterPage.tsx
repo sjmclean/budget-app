@@ -78,6 +78,10 @@ import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
 import { useApplicationHistory } from "../features/history";
 import { setTransactionTagsCommand } from "../features/history/commands/management/tagCommands";
+import type {
+  TransactionEditableField,
+  TransactionEditIntent,
+} from "../features/transactions/transactionEditIntent";
 import { createImportTransactionsCommand } from "../features/history/commands/imports/importCommands";
 import { createBudgetScopedStorage } from "../features/budget/budgetDataScope";
 import {
@@ -456,8 +460,8 @@ export function AccountRegisterPage() {
   const [editingTransactionId, setEditingTransactionId] = useState<
     string | null
   >(null);
-  const [editingTransactionFocusField, setEditingTransactionFocusField] =
-    useState<"date" | "category">("date");
+  const [transactionEditIntent, setTransactionEditIntent] =
+    useState<TransactionEditIntent>({ field: "date" });
   const [lastEntryDate, setLastEntryDate] = useState(
     new Date().toISOString().slice(0, 10),
   );
@@ -943,12 +947,11 @@ export function AccountRegisterPage() {
   const handleSelectTransaction = registerCommands.selectTransaction;
   const handleToggleTransactionSelection =
     registerCommands.toggleTransactionSelection;
-  const handleEditTransaction = (transactionId: string) => {
-    setEditingTransactionFocusField("date");
-    registerCommands.editTransaction(transactionId);
-  };
-  const handleEditTransactionCategory = (transactionId: string) => {
-    setEditingTransactionFocusField("category");
+  const handleEditTransaction = (
+    transactionId: string,
+    field: TransactionEditableField,
+  ) => {
+    setTransactionEditIntent({ field });
     registerCommands.editTransaction(transactionId);
   };
   const handleToggleClearedTransaction =
@@ -1075,7 +1078,7 @@ export function AccountRegisterPage() {
     setTransactionsCleared,
     clearSelection: clearRegisterSelection,
     editTransaction: (transactionId) => {
-      setEditingTransactionFocusField("date");
+      setTransactionEditIntent({ field: "date" });
       setEditingTransactionId(transactionId);
     },
     openMoveTransactions: openMoveTransactionDialog,
@@ -1142,6 +1145,7 @@ export function AccountRegisterPage() {
 
       const transactionId = selectedRegisterTransactionIds[0];
       if (transactionId) {
+        setTransactionEditIntent({ field: "date" });
         setEditingTransactionId(transactionId);
       }
     }
@@ -2253,11 +2257,11 @@ export function AccountRegisterPage() {
                     onSave={async (input) => {
                       await updateTransaction(input);
                       setEditingTransactionId(null);
-                      setEditingTransactionFocusField("date");
+                      setTransactionEditIntent({ field: "date" });
                     }}
                     onCancel={() => {
                       setEditingTransactionId(null);
-                      setEditingTransactionFocusField("date");
+                      setTransactionEditIntent({ field: "date" });
                     }}
                     onManageTransactionAttachments={
                       handleManageTransactionAttachments
@@ -2266,7 +2270,7 @@ export function AccountRegisterPage() {
                     visibleColumnIds={data.accountType === "Tracking" ? registerEditVisibleColumnIds.filter((columnId) => columnId !== "category") : registerEditVisibleColumnIds}
                     rowStyle={registerEditRowStyle}
                     layoutMode={registerLayoutMode}
-                    autoFocusField={editingTransactionFocusField}
+                    editIntent={transactionEditIntent}
                   />
                 ) : (
                   <TransactionRow
@@ -2286,7 +2290,6 @@ export function AccountRegisterPage() {
                       handleToggleTransactionSelection
                     }
                     onEditTransaction={handleEditTransaction}
-                    onEditTransactionCategory={handleEditTransactionCategory}
                     onToggleClearedTransaction={handleToggleClearedTransaction}
                     onManageTransactionAttachments={
                       handleManageTransactionAttachments
