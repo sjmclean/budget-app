@@ -10,6 +10,10 @@ import {
   type RegisterInlineCategoryCreateInput,
 } from "./RegisterCategoryInput";
 import { RegisterSplitEditor } from "./RegisterSplitEditor";
+import {
+  getTransactionFieldEditBehaviour,
+  type TransactionEditIntent,
+} from "../../transactions/transactionEditIntent";
 import type { PayeeView } from "../payeeService";
 import { createRuntimeUuid } from "../../ids/createRuntimeUuid";
 import type { SidebarAccount } from "../accountService";
@@ -2791,6 +2795,20 @@ export function TransactionImportDialog({
                 proposedTransactionEdit?.candidateId === candidate.id
                   ? proposedTransactionEdit
                   : null;
+              const proposedTransactionEditIntent: TransactionEditIntent | null =
+                activeProposedTransactionEdit
+                  ? { field: activeProposedTransactionEdit.field }
+                  : null;
+              const proposedPayeeEditBehaviour =
+                getTransactionFieldEditBehaviour(
+                  proposedTransactionEditIntent,
+                  "payee",
+                );
+              const proposedCategoryEditBehaviour =
+                getTransactionFieldEditBehaviour(
+                  proposedTransactionEditIntent,
+                  "category",
+                );
               const matchedIdsUsedByOtherRows = new Set(
                 candidates
                   .filter((entry) => entry.id !== candidate.id)
@@ -2911,8 +2929,15 @@ export function TransactionImportDialog({
                                   (account) => account.id !== selectedAccountId,
                                 )}
                                 payeeOptions={payeeOptions}
-                                autoFocus
-                                openOnFocus
+                                autoFocus={
+                                  proposedPayeeEditBehaviour.autoFocus
+                                }
+                                selectOnInitialFocus={
+                                  proposedPayeeEditBehaviour.selectOnInitialFocus
+                                }
+                                openOnFocus={
+                                  proposedPayeeEditBehaviour.openOnFocus
+                                }
                                 onChange={updateProposedTransactionDraft}
                                 onSelection={(value) => {
                                   const built =
@@ -3035,8 +3060,15 @@ export function TransactionImportDialog({
                                 value={activeProposedTransactionEdit.draftValue}
                                 categoryOptions={categoryOptions}
                                 includeSplitOption
-                                autoFocus
-                                openOnFocus
+                                autoFocus={
+                                  proposedCategoryEditBehaviour.autoFocus
+                                }
+                                selectOnInitialFocus={
+                                  proposedCategoryEditBehaviour.selectOnInitialFocus
+                                }
+                                openOnFocus={
+                                  proposedCategoryEditBehaviour.openOnFocus
+                                }
                                 onCreateCategory={onCreateCategory}
                                 onChange={updateProposedTransactionDraft}
                                 onSelection={(value) => {
@@ -3261,8 +3293,15 @@ export function TransactionImportDialog({
                               value={activeProposedTransactionEdit.draftValue}
                               transferAccounts={transferAccounts.filter((account) => account.id !== selectedAccountId)}
                               payeeOptions={payeeOptions}
-                              autoFocus
-                              openOnFocus
+                              autoFocus={
+                                proposedPayeeEditBehaviour.autoFocus
+                              }
+                              selectOnInitialFocus={
+                                proposedPayeeEditBehaviour.selectOnInitialFocus
+                              }
+                              openOnFocus={
+                                proposedPayeeEditBehaviour.openOnFocus
+                              }
                               onChange={updateProposedTransactionDraft}
                               onSelection={(value) =>
                                 commitProposedTransactionEdit(
@@ -3285,8 +3324,15 @@ export function TransactionImportDialog({
                               value={activeProposedTransactionEdit.draftValue}
                               categoryOptions={categoryOptions}
                               includeSplitOption
-                              autoFocus
-                              openOnFocus
+                              autoFocus={
+                                proposedCategoryEditBehaviour.autoFocus
+                              }
+                              selectOnInitialFocus={
+                                proposedCategoryEditBehaviour.selectOnInitialFocus
+                              }
+                              openOnFocus={
+                                proposedCategoryEditBehaviour.openOnFocus
+                              }
                               onCreateCategory={onCreateCategory}
                               onChange={updateProposedTransactionDraft}
                               onSelection={(value) => commitProposedTransactionEdit(candidate.id, "category", value)}
