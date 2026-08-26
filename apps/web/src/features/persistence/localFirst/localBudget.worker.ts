@@ -55,6 +55,14 @@ import {
   prepareCategoryGoalWriteForPersistence,
   type LocalCategoryGoalRow,
 } from "./categoryGoalPersistence";
+import {
+  CATEGORY_GOAL_MERGE_CONFLICT_MESSAGE,
+  planCategoryGoalMerge,
+} from "../../budget/categoryGoalMergePolicy";
+import {
+  isCreditCardPaymentCategory,
+  isCreditCardPaymentGroup,
+} from "../../budget/creditCardPaymentCategories";
 
 type SqliteDatabase = {
   pointer: unknown;
@@ -1421,8 +1429,46 @@ function applyRemoteMutations(
         const target = mutation.payload as {
           targetCategoryId?: string;
           targetCategoryName?: string;
+          transferredGoal?: CategoryGoal;
         };
         if (target.targetCategoryId) {
+          const mergeCategories = resultRows<{ id: string; groupId: string }>(
+            `SELECT id, group_id AS groupId FROM local_categories
+             WHERE budget_id = ? AND id IN (?, ?)`,
+            [activeBudgetId, mutation.entityId, target.targetCategoryId],
+          );
+          if (mergeCategories.some((category) =>
+            isCreditCardPaymentCategory(category.id) || isCreditCardPaymentGroup(category.groupId))) {
+            throw workerError(
+              "MANAGED_CATEGORY_MERGE_FORBIDDEN",
+              "Managed credit-card payment categories cannot be merged.",
+            );
+          }
+          const sourceGoal = readCategoryGoal(activeBudgetId, mutation.entityId);
+          const targetGoal = readCategoryGoal(activeBudgetId, target.targetCategoryId);
+          if (sourceGoal && targetGoal) {
+            throw workerError("CATEGORY_GOAL_MERGE_CONFLICT", CATEGORY_GOAL_MERGE_CONFLICT_MESSAGE);
+          }
+          const transferredGoal = target.transferredGoal ?? (sourceGoal
+            ? { ...sourceGoal, categoryId: target.targetCategoryId }
+            : null);
+          if (transferredGoal && !targetGoal) {
+            if (
+              transferredGoal.budgetId !== activeBudgetId ||
+              transferredGoal.categoryId !== target.targetCategoryId
+            ) {
+              throw workerError("INVALID_CATEGORY_GOAL", "Transferred Category Goal scope is invalid.");
+            }
+            deleteNormalisedDomainEntity("categoryGoals", mutation.entityId);
+            writeNormalisedDomainEntity(
+              "categoryGoals",
+              target.targetCategoryId,
+              transferredGoal,
+              transferredGoal.updatedAt,
+            );
+          } else if (transferredGoal && targetGoal && !categoryGoalsEqual(transferredGoal, targetGoal)) {
+            throw workerError("CATEGORY_GOAL_MERGE_CONFLICT", CATEGORY_GOAL_MERGE_CONFLICT_MESSAGE);
+          }
           redirectMergedCategoryReferences(
             activeBudgetId,
             mutation.entityId,
@@ -5284,6 +5330,56 @@ function mergeCategories(
   assertMutationScope(mutation);
   execute("BEGIN IMMEDIATE");
   try {
+    const categories = resultRows<{ id: string; groupId: string }>(
+      `SELECT id, group_id AS groupId FROM local_categories
+       WHERE budget_id = ? AND id IN (?, ?)`,
+      [budgetId, sourceCategoryId, targetCategoryId],
+    );
+    if (categories.length !== 2) {
+      throw workerError("CATEGORY_MERGE_INVALID", "Both categories are required for a merge.");
+    }
+    if (categories.some((category) =>
+      isCreditCardPaymentCategory(category.id) || isCreditCardPaymentGroup(category.groupId))) {
+      throw workerError(
+        "MANAGED_CATEGORY_MERGE_FORBIDDEN",
+        "Managed credit-card payment categories cannot be merged.",
+      );
+    }
+    const targetGoal = readCategoryGoal(budgetId, targetCategoryId);
+    const plannedGoal = planCategoryGoalMerge({
+      budgetId,
+      sourceCategoryId,
+      targetCategoryId,
+      sourceGoal: readCategoryGoal(budgetId, sourceCategoryId),
+      targetGoal,
+    });
+    const requestedGoal = (mutation.payload as { transferredGoal?: CategoryGoal })
+      .transferredGoal ?? null;
+    if (
+      requestedGoal &&
+      ((plannedGoal && !categoryGoalsEqual(requestedGoal, plannedGoal)) ||
+        (targetGoal && !categoryGoalsEqual(requestedGoal, targetGoal)))
+    ) {
+      throw workerError("CATEGORY_GOAL_MERGE_CONFLICT", CATEGORY_GOAL_MERGE_CONFLICT_MESSAGE);
+    }
+    const transferredGoal = requestedGoal ?? plannedGoal;
+    if (transferredGoal) {
+      if (
+        transferredGoal.budgetId !== budgetId ||
+        transferredGoal.categoryId !== targetCategoryId
+      ) {
+        throw workerError("INVALID_CATEGORY_GOAL", "Transferred Category Goal scope is invalid.");
+      }
+      deleteNormalisedDomainEntity("categoryGoals", sourceCategoryId);
+      if (!targetGoal) {
+        writeNormalisedDomainEntity(
+          "categoryGoals",
+          targetCategoryId,
+          transferredGoal,
+          transferredGoal.updatedAt,
+        );
+      }
+    }
     redirectMergedCategoryReferences(
       budgetId,
       sourceCategoryId,
@@ -5293,7 +5389,13 @@ function mergeCategories(
     execute("DELETE FROM local_categories WHERE budget_id = ? AND id = ?", [
       budgetId, sourceCategoryId,
     ]);
-    insertOutbox(mutation);
+    insertOutbox({
+      ...mutation,
+      payload: {
+        ...(mutation.payload as Record<string, unknown>),
+        ...(transferredGoal ? { transferredGoal } : {}),
+      },
+    });
     writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
     resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");

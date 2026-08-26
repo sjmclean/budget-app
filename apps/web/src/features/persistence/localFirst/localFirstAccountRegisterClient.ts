@@ -53,6 +53,7 @@ import {
   commitCategoryGoalMutation,
   normaliseCategoryGoalForPersistence,
 } from "./categoryGoalPersistence";
+import { isCreditCardPaymentCategory } from "../../budget/creditCardPaymentCategories";
 
 const DEVICE_ID_KEY = "budget-app.local-first.device-id";
 const SYNC_EPOCH_KEY_PREFIX = "budget-app.local-first.sync-epoch.";
@@ -2567,11 +2568,17 @@ export function createLocalFirstAccountRegisterQueryClient(
       }
       if (input.operation === "merge") {
         const targetCategoryId = String(input.targetCategoryId);
+        const sourceCategoryId = String(input.categoryId);
+        if (
+          isCreditCardPaymentCategory(sourceCategoryId) ||
+          isCreditCardPaymentCategory(targetCategoryId)
+        ) {
+          throw new Error("Managed credit-card payment categories cannot be merged.");
+        }
         const target = view.categoryGroups.flatMap(({ categories }) => categories)
           .find(({ id }) => id === targetCategoryId);
         if (!target) throw new Error("The target local category was not found.");
         const local = await requireDatabase(budgetId);
-        const sourceCategoryId = String(input.categoryId);
         const payload = {
           targetCategoryId,
           targetCategoryName: target.name,

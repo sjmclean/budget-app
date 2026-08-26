@@ -187,7 +187,13 @@ test("physical SQLite update/delete, archive, cascade, isolation, and rollback a
     assert.equal(readGoal(db, "budget-2", "category-1"), null);
 
     db.prepare("UPDATE local_categories SET archived=1 WHERE id='category-1'").run();
-    assert.equal(readGoal(db, "budget-1", "category-1")?.id, "goal-1");
+    const archivedGoal = readGoal(db, "budget-1", "category-1");
+    assert.equal(archivedGoal?.id, "goal-1");
+    db.prepare("UPDATE local_categories SET archived=0 WHERE id='category-1'").run();
+    assert.deepEqual(readGoal(db, "budget-1", "category-1"), archivedGoal);
+
+    db.prepare("DELETE FROM local_categories WHERE id='category-3'").run();
+    assert.deepEqual(readGoal(db, "budget-1", "category-1"), archivedGoal);
 
     assert.throws(() => db.transaction(() => {
       db.prepare("DELETE FROM local_category_goals").run();
@@ -198,6 +204,54 @@ test("physical SQLite update/delete, archive, cascade, isolation, and rollback a
     db.prepare("DELETE FROM local_categories WHERE id='category-1'").run();
     assert.equal(readGoal(db, "budget-1", "category-1"), null);
   } finally { db.close(); }
+});
+
+test("raw SQLite backup and restore preserves exact Category Goal state", () => {
+  const db = openDatabase();
+  insertGoal(db, goal({
+    type: "target-balance-by-date", targetAmount: 1234.56, targetMonth: "2028-04",
+  }));
+  const expected = readGoal(db, "budget-1", "category-1");
+  const backup = db.serialize();
+  db.close();
+
+  const restored = new Database(backup);
+  restored.pragma("foreign_keys = ON");
+  try {
+    assert.deepEqual(readGoal(restored, "budget-1", "category-1"), expected);
+    assert.equal((restored.prepare(
+      "SELECT COUNT(*) count FROM local_category_goals WHERE budget_id=? AND category_id=?",
+    ).get("budget-1", "category-1") as { count: number }).count, 1);
+  } finally { restored.close(); }
+});
+
+test("production transaction-import and staged-import paths do not synthesize or mutate Goals", () => {
+  const worker = readFileSync(new URL(
+    "../../../apps/web/src/features/persistence/localFirst/localBudget.worker.ts",
+    import.meta.url,
+  ), "utf8");
+  const importStart = worker.indexOf("function writeImportBatch(");
+  const importEnd = worker.indexOf("\nfunction ", importStart + 1);
+  const transactionImport = worker.slice(importStart, importEnd);
+  assert.notEqual(importStart, -1);
+  assert.doesNotMatch(transactionImport, /local_category_goals|categoryGoals/);
+
+  const stagedClient = readFileSync(new URL(
+    "../../../apps/web/src/features/persistence/localFirst/localFirstYnab4ImportClient.ts",
+    import.meta.url,
+  ), "utf8");
+  assert.match(stagedClient, /categoryGoals:\s*new Set<string>\(\)/);
+  assert.doesNotMatch(stagedClient, /categoryGoals\.add\(/);
+});
+
+test("baseline backup/restore and budget deletion operate on the whole SQLite file", () => {
+  const worker = readFileSync(new URL(
+    "../../../apps/web/src/features/persistence/localFirst/localBudget.worker.ts",
+    import.meta.url,
+  ), "utf8");
+  assert.match(worker, /function prepareBaselineExport\([\s\S]*?exportFile\(activeFilename\)/);
+  assert.match(worker, /beginBaselineReplacement[\s\S]*?temporaryName/);
+  assert.match(worker, /case "deleteBudgetFile"[\s\S]*?removeOpfsFile\(filename\)/);
 });
 
 test("remote Goal application creates, updates, dates, deletes, and preserves identity", () => {
