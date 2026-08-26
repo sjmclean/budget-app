@@ -18,6 +18,11 @@ import {
 import { applicationHistory } from "../history";
 import { previewCategoryAssignment } from "./budgetAssignmentPreview";
 import { useCategoryHistory } from "./useCategoryHistory";
+import {
+  applyGoalRecommendedAssignment,
+  type GoalRecommendedAssignmentResult,
+} from "./goalRecommendedAssignment";
+import type { UndoRedoResult } from "../history";
 
 interface UseBudgetWorkspaceState {
   data: BudgetMonthView | null;
@@ -34,6 +39,7 @@ interface UseBudgetWorkspaceState {
   closeActivityDrilldown: () => void;
   selectCategory: (categoryId: string) => void;
   updateAssigned: (categoryId: string, assigned: number) => void;
+  assignGoalRecommendation: (categoryId: string) => Promise<GoalRecommendedAssignmentResult>;
   setCategoryOverspendingHandling: (categoryId: string, overspendingHandling: OverspendingHandling) => void;
   coverOverspending: (input: {
     overspentCategoryId: string;
@@ -101,6 +107,7 @@ export function useBudgetWorkspace(
   const activityRequestVersionRef = useRef(0);
   const mergePreviewRequestVersionRef = useRef(0);
   const mutationVersionRef = useRef(0);
+  const goalRecommendationBusyRef = useRef(false);
 
   workspaceIdentityRef.current = `${budgetId}:${month}`;
 
@@ -142,7 +149,7 @@ export function useBudgetWorkspace(
   useEffect(
     () => applicationHistory.registerPendingEditFlush(
       budgetId,
-      () => flushPendingAssignmentEdits(),
+      async () => { await flushPendingAssignmentEdits(); },
     ),
     [budgetId, month],
   );
@@ -160,7 +167,7 @@ export function useBudgetWorkspace(
   const data = editedData ?? budgetView.data;
   dataRef.current = data;
 
-  async function flushPendingAssignmentEdits() {
+  async function flushPendingAssignmentEdits(reportError = true): Promise<UndoRedoResult | null> {
     const workspaceIdentity = workspaceIdentityRef.current;
     if (assignmentEditTimerRef.current) {
       clearTimeout(assignmentEditTimerRef.current);
@@ -169,13 +176,14 @@ export function useBudgetWorkspace(
 
     const changes = assignmentEditSessionRef.current.consume();
     if (changes.length === 0) {
-      return;
+      return null;
     }
 
     const result = await executeApplicationBudgetAssignmentChanges(budgetId, { month, changes });
-    if (!result.performed && isWorkspaceCurrent(workspaceIdentity)) {
+    if (reportError && !result.performed && isWorkspaceCurrent(workspaceIdentity)) {
       setSaveError(result.error ?? "Failed to save budget assignment changes.");
     }
+    return result;
   }
 
   const selected = useMemo(() => {
@@ -304,6 +312,38 @@ export function useBudgetWorkspace(
     assignmentEditTimerRef.current = setTimeout(() => {
       void flushPendingAssignmentEdits();
     }, 75);
+  }
+
+  async function assignGoalRecommendation(categoryId: string): Promise<GoalRecommendedAssignmentResult> {
+    if (goalRecommendationBusyRef.current) {
+      return { performed: false, reason: "busy" };
+    }
+
+    goalRecommendationBusyRef.current = true;
+    const workspaceIdentity = workspaceIdentityRef.current;
+    try {
+      const result = await applyGoalRecommendedAssignment(
+        { categoryId, month },
+        {
+          flushPendingAssignments: () => flushPendingAssignmentEdits(false),
+          readBudgetView: () => budgetViewPersistence.getBudgetMonthView({ budgetId, month }),
+          executeAssignment: (input) => executeApplicationBudgetAssignmentChanges(budgetId, input),
+        },
+      );
+      if (result.performed && isWorkspaceCurrent(workspaceIdentity)) {
+        setEditedData(result.view);
+        setLastEditedCategoryId(categoryId);
+      }
+      return result;
+    } catch (error) {
+      return {
+        performed: false,
+        reason: "failed",
+        error: error instanceof Error ? error.message : "Failed to apply the recommended assignment.",
+      };
+    } finally {
+      goalRecommendationBusyRef.current = false;
+    }
   }
 
   function runWorkspaceMutation(
@@ -637,6 +677,7 @@ export function useBudgetWorkspace(
     closeActivityDrilldown,
     selectCategory,
     updateAssigned,
+    assignGoalRecommendation,
     setCategoryOverspendingHandling,
     coverOverspending,
     renameCategory,

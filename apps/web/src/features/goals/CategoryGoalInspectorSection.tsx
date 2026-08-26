@@ -5,6 +5,7 @@ import { formatMoney } from "../budget/budgetMoneyDisplay";
 import { MoneyInput } from "../money/MoneyInput";
 import { confirmDialog } from "../ui/appDialogService";
 import { categoryGoalHistory } from "./categoryGoalHistory";
+import type { GoalRecommendedAssignmentResult } from "../budget/goalRecommendedAssignment";
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -63,17 +64,39 @@ export function CategoryGoalInspectorSection({
   category,
   currencyCode,
   managed,
+  onAssignRecommendation,
 }: {
   budgetId: string;
   category: BudgetCategoryView;
   currencyCode: string;
   managed: boolean;
+  onAssignRecommendation: () => Promise<GoalRecommendedAssignmentResult>;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const projection = category.goal;
   const interactive = !managed && !category.isArchived;
 
-  useEffect(() => setDialogOpen(false), [category.id]);
+  useEffect(() => {
+    setDialogOpen(false);
+    setAssignmentError(null);
+  }, [category.id]);
+
+  async function assignRecommendation() {
+    if (assigning) return;
+    setAssigning(true);
+    setAssignmentError(null);
+    try {
+      const result = await onAssignRecommendation();
+      if (result.performed) return;
+      setAssignmentError("The recommended amount could not be assigned. Review the category and try again.");
+    } catch {
+      setAssignmentError("The recommended amount could not be assigned. Review the category and try again.");
+    } finally {
+      setAssigning(false);
+    }
+  }
 
   if (managed) return null;
 
@@ -125,6 +148,14 @@ export function CategoryGoalInspectorSection({
               <div><span>Status</span><strong className="category-goal-overdue">Overdue</strong></div>
             ) : null}
           </div>
+          {interactive &&
+          (projection.goal.type === "monthly-funding" || projection.goal.type === "target-balance-by-date") &&
+          projection.recommendedAssignment !== null && projection.recommendedAssignment > 0 ? (
+            <button className="button button-primary" type="button" onClick={() => void assignRecommendation()} disabled={assigning}>
+              {assigning ? "Assigning…" : `Assign ${formatMoney(projection.recommendedAssignment, currencyCode)}`}
+            </button>
+          ) : null}
+          {assignmentError ? <p className="category-goal-form-error" role="alert">{assignmentError}</p> : null}
           {interactive ? (
             <button className="button button-secondary" type="button" onClick={() => setDialogOpen(true)}>
               Edit goal

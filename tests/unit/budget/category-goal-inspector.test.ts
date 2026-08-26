@@ -38,6 +38,7 @@ function projection(overrides: Partial<CategoryGoalProjection> = {}): CategoryGo
 function render(value: BudgetCategoryView, managed = false): string {
   return renderToStaticMarkup(createElement(CategoryGoalInspectorSection, {
     budgetId: "budget-1", category: value, currencyCode: "AUD", managed,
+    onAssignRecommendation: async () => ({ performed: false, reason: "failed" }),
   }));
 }
 
@@ -55,6 +56,7 @@ test("monthly, balance, dated, funded, and overdue projections render canonical 
   assert.match(monthly, /Still needed/);
   assert.match(monthly, /role="progressbar"/);
   assert.match(monthly, /70% complete/);
+  assert.match(monthly, />Assign .*150/);
 
   const balance = render(category(projection({
     goal: { ...projection().goal, type: "target-balance", targetAmount: 10000 },
@@ -64,6 +66,7 @@ test("monthly, balance, dated, funded, and overdue projections render canonical 
   assert.match(balance, /Available/);
   assert.match(balance, /Remaining/);
   assert.doesNotMatch(balance, /Needed this month/);
+  assert.doesNotMatch(balance, />Assign /);
 
   const dated = render(category(projection({
     goal: { ...projection().goal, type: "target-balance-by-date", targetAmount: 2400, targetMonth: "2027-07" },
@@ -71,8 +74,11 @@ test("monthly, balance, dated, funded, and overdue projections render canonical 
   })));
   assert.match(dated, /Reach .*2,400.* by July 2027/);
   assert.match(dated, /Needed this month/);
+  assert.match(dated, />Assign .*120/);
 
-  assert.match(render(category(projection({ remainingAmount: 0, recommendedAssignment: 0, percentComplete: 100, status: "funded" }))), /Goal funded/);
+  const funded = render(category(projection({ remainingAmount: 0, recommendedAssignment: 0, percentComplete: 100, status: "funded" })));
+  assert.match(funded, /Goal funded/);
+  assert.doesNotMatch(funded, />Assign /);
   assert.match(render(category(projection({
     goal: { ...projection().goal, type: "target-balance-by-date", targetMonth: "2026-07" },
     status: "overdue",
@@ -86,6 +92,7 @@ test("archived retained Goal is informational and has no mutation controls", () 
   assert.match(archived, /Restore this category to edit its goal/);
   assert.doesNotMatch(archived, />Edit goal</);
   assert.doesNotMatch(archived, />Delete goal</);
+  assert.doesNotMatch(archived, />Assign /);
 });
 
 test("Goal form configuration validates amount/month and canonicalises targetMonth by type", () => {

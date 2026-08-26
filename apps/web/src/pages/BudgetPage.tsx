@@ -132,6 +132,7 @@ function CategoryInspector({
   onSetCategoryArchived,
   onOpenManageCategory,
   isCreditCardPaymentCategory,
+  onAssignGoalRecommendation,
 }: {
   budgetId: string;
   category: BudgetCategoryView | null;
@@ -141,6 +142,7 @@ function CategoryInspector({
   onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   onOpenManageCategory: () => void;
   isCreditCardPaymentCategory: boolean;
+  onAssignGoalRecommendation: ReturnType<typeof useBudgetWorkspace>["assignGoalRecommendation"];
 }) {
   if (!category || !group) {
     return (
@@ -209,6 +211,7 @@ function CategoryInspector({
         category={category}
         currencyCode={currencyCode}
         managed={isCreditCardPaymentCategory}
+        onAssignRecommendation={() => onAssignGoalRecommendation(category.id)}
       />
 
       {hasCategoryNote || hasGroupNote ? (
@@ -583,6 +586,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     overassignedCategoryIds,
     selectCategory,
     updateAssigned,
+    assignGoalRecommendation,
     setCategoryOverspendingHandling,
     coverOverspending,
     renameCategory,
@@ -1076,6 +1080,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
               visibleSelectedCategory !== null &&
               isCreditCardPaymentCategory(visibleSelectedCategory.id)
             }
+            onAssignGoalRecommendation={assignGoalRecommendation}
           />
 
           <Card className="budget-health-card">
