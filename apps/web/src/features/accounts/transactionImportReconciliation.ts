@@ -181,12 +181,6 @@ export function reconcileTransactionImportCandidate({
     );
 
   const candidates = sameAmountDateWindowAnalyses
-    .filter(
-      (analysis) =>
-        analysis.merchantMatches ||
-        analysis.payeeSimilarity >=
-          TRANSACTION_IMPORT_REVIEW_MIN_PAYEE_SIMILARITY,
-    )
     .sort(compareImportMatchCandidates)
     .map(toCandidateAssessment);
 
@@ -204,7 +198,7 @@ export function reconcileTransactionImportCandidate({
       reason: ambiguousAutomaticMatch
         ? "Multiple register transactions are equally plausible matches; review them manually before choosing one."
         : candidates.length > 0
-          ? `Same-amount transactions were found, but none has a compatible merchant; review them manually or import as new.`
+          ? `${candidates.length} same-amount register ${candidates.length === 1 ? "transaction is" : "transactions are"} available for review, but none is confident enough to match automatically.`
           : `No same-amount register transaction was found within ${TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS} days.`,
       candidates,
       transfer: unresolvedTransfer,

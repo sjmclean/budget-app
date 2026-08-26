@@ -63,6 +63,13 @@ import {
   type OfxImportInspection,
 } from "../transactionImport";
 import {
+  findTransactionImportMatchOwner,
+  getAvailableTransactionImportMatches,
+  getTransactionImportMatchedTransactionId,
+  isTransactionImportMatchAvailable,
+  repairTransactionImportReviewOwnership,
+} from "../transactionImportMatchOwnership";
+import {
   buildMerchantKnowledgeFromTransactions,
   readMerchantKnowledge,
   writeMerchantKnowledge,
@@ -484,10 +491,16 @@ export function TransactionImportDialog({
     setAnalysis(saved.analysis);
     setMapping(saved.mapping);
     setPreview(saved.preview);
-    setCandidates(saved.candidates);
+    const restoredOwnership = repairTransactionImportReviewOwnership(
+      saved.candidates,
+      saved.processedCandidates,
+    );
+    setCandidates(
+      sortImportCandidates(restoredOwnership.pendingCandidates),
+    );
     setBankCandidateDetails(saved.bankCandidateDetails);
     setSourceIdentities(saved.sourceIdentities);
-    setProcessedCandidates(saved.processedCandidates);
+    setProcessedCandidates(restoredOwnership.processedCandidates);
     setMatchEditorOrigins(saved.matchEditorOrigins);
     setMatchedTransactionOrigins(saved.matchedTransactionOrigins);
     setPreviouslyImportedCount(saved.previouslyImportedCount);
@@ -496,7 +509,9 @@ export function TransactionImportDialog({
     setUpdateMatchedTransactionDates(saved.updateMatchedTransactionDates);
     setStep("review");
     setMessage(
-      `Restored your saved review for ${saved.fileName ?? "this import"}.`,
+      restoredOwnership.releasedCandidateIds.length > 0
+        ? `Restored your saved review for ${saved.fileName ?? "this import"}. ${restoredOwnership.releasedCandidateIds.length} conflicting match${restoredOwnership.releasedCandidateIds.length === 1 ? " was" : "es were"} returned to review because the selected register transaction was already linked to another imported transaction.`
+        : `Restored your saved review for ${saved.fileName ?? "this import"}.`,
     );
   }, [selectedAccountId]);
 
@@ -1327,6 +1342,30 @@ export function TransactionImportDialog({
     const candidate = candidates.find((entry) => entry.id === candidateId);
     if (!candidate) return;
 
+    if (action === "matched") {
+      const transactionId =
+        getTransactionImportMatchedTransactionId(candidate);
+
+      if (!transactionId) {
+        setError("Choose a register transaction before accepting this match.");
+        return;
+      }
+
+      const owner = findTransactionImportMatchOwner(
+        transactionId,
+        candidate.id,
+        candidates,
+        processedCandidates,
+      );
+
+      if (owner) {
+        setError(
+          "That register transaction is already linked to another imported transaction. Choose another possible match.",
+        );
+        return;
+      }
+    }
+
     processingCandidateRef.current = candidateId;
     setProcessingCandidate({ id: candidateId, action });
     setError(null);
@@ -1446,6 +1485,8 @@ export function TransactionImportDialog({
         return {
           ...candidate,
           status: "new",
+          matchedTransactionId: undefined,
+          matchedTransaction: undefined,
           selected: true,
           reviewDecision: "import-as-new",
           reason: "Review the new transaction details before importing it.",
@@ -1751,6 +1792,20 @@ export function TransactionImportDialog({
     candidateId: string,
     transactionId: string,
   ) {
+    if (
+      !isTransactionImportMatchAvailable(
+        transactionId,
+        candidateId,
+        candidates,
+        processedCandidates,
+      )
+    ) {
+      setError(
+        "That register transaction is already linked to another imported transaction. Choose another possible match.",
+      );
+      return;
+    }
+
     setCandidates((current) =>
       current.map((candidate) => {
         if (candidate.id !== candidateId) return candidate;
@@ -2178,6 +2233,13 @@ export function TransactionImportDialog({
         (candidate) => candidate.id === weakMatchReviewCandidateId,
       ) ?? null
     : null;
+  const weakMatchAvailableCandidates = weakMatchReviewCandidate
+    ? getAvailableTransactionImportMatches(
+        weakMatchReviewCandidate,
+        candidates,
+        processedCandidates,
+      )
+    : [];
 
   return (
     <div
@@ -2809,12 +2871,12 @@ export function TransactionImportDialog({
                   proposedTransactionEditIntent,
                   "category",
                 );
-              const matchedIdsUsedByOtherRows = new Set(
-                candidates
-                  .filter((entry) => entry.id !== candidate.id)
-                  .map((entry) => entry.matchedTransactionId)
-                  .filter((id): id is string => Boolean(id)),
-              );
+              const availableMatchCandidates =
+                getAvailableTransactionImportMatches(
+                  candidate,
+                  candidates,
+                  processedCandidates,
+                );
 
               return (
                 <article
@@ -2982,8 +3044,7 @@ export function TransactionImportDialog({
                                   )
                                 }
                               />
-                            ) : candidate.matchCandidates &&
-                              candidate.matchCandidates.length > 1 ? (
+                            ) : availableMatchCandidates.length > 1 ? (
                               <details className="transaction-import-register-match-picker">
                                 <summary
                                   className="transaction-import-register-match-summary"
@@ -2998,15 +3059,10 @@ export function TransactionImportDialog({
                                   role="listbox"
                                   aria-label="Eligible register transactions"
                                 >
-                                  {candidate.matchCandidates.map((option) => {
+                                  {availableMatchCandidates.map((option) => {
                                     const isSelected =
                                       option.transaction.id ===
                                       candidate.matchedTransactionId;
-                                    const isUnavailable =
-                                      !isSelected &&
-                                      matchedIdsUsedByOtherRows.has(
-                                        option.transaction.id,
-                                      );
 
                                     return (
                                       <button
@@ -3019,7 +3075,6 @@ export function TransactionImportDialog({
                                         type="button"
                                         role="option"
                                         aria-selected={isSelected}
-                                        disabled={isUnavailable}
                                         onClick={(event) => {
                                           selectMatchedRegisterTransaction(
                                             candidate.id,
@@ -3365,7 +3420,7 @@ export function TransactionImportDialog({
                   {candidate.status === "new" ||
                   candidate.status === "invalid" ? (
                     <div className="transaction-import-match-actions">
-                      {candidate.status === "new" && candidate.matchCandidates?.length ? (
+                      {candidate.status === "new" && availableMatchCandidates.length ? (
                         <button
                           className="button button-secondary"
                           type="button"
@@ -3489,7 +3544,7 @@ export function TransactionImportDialog({
           </div>
         ) : null}
 
-        {weakMatchReviewCandidate?.matchCandidates?.length ? (
+        {weakMatchReviewCandidate && weakMatchAvailableCandidates.length ? (
           <div
             className="transaction-import-possible-match-backdrop"
             role="presentation"
@@ -3526,7 +3581,7 @@ export function TransactionImportDialog({
                 role="listbox"
                 aria-label="Possible register transactions"
               >
-                {weakMatchReviewCandidate.matchCandidates.map((option) => {
+                {weakMatchAvailableCandidates.map((option) => {
                   const transaction = option.transaction;
                   const signedAmount = transaction.inflow - transaction.outflow;
                   return (

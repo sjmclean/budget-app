@@ -12,7 +12,7 @@ const mapping = {
   2: "outflow",
 } as const;
 
-test("Montmorency automatically matches while unrelated same-amount Belong rows are hidden", () => {
+test("Montmorency automatically matches while unrelated same-amount rows remain manual alternatives", () => {
   const csv = [
     "Date,Payee,Outflow",
     "2026-08-17,COM*MONTMORENCY SC MONTMORENCY,25.00",
@@ -52,7 +52,13 @@ test("Montmorency automatically matches while unrelated same-amount Belong rows 
 
   assert.deepEqual(
     candidate.matchCandidates?.map((entry) => entry.transaction.id),
-    ["montmorency"],
+    ["montmorency", "belong-13", "belong-11"],
+  );
+  assert.equal(
+    candidate.matchCandidates?.find(
+      (entry) => entry.transaction.id === "belong-13",
+    )?.automaticMatch,
+    false,
   );
 });
 
@@ -106,7 +112,16 @@ test("same amount and exact date alone do not justify an automatic match", () =>
 
   assert.equal(preview.summary.exactMatches, 0);
   assert.equal(preview.summary.newTransactions, 1);
-  assert.deepEqual(preview.candidates[0]?.matchCandidates, []);
+  assert.deepEqual(
+    preview.candidates[0]?.matchCandidates?.map(
+      (entry) => entry.transaction.id,
+    ),
+    ["belong"],
+  );
+  assert.equal(
+    preview.candidates[0]?.matchCandidates?.[0]?.automaticMatch,
+    false,
+  );
 });
 
 test("RACV posted-date shift auto-matches when amount is exact and merchant identity remains strong", () => {
@@ -184,7 +199,7 @@ test("Northern Motor Group posted-date shift auto-matches when merchant and amou
   );
 });
 
-test("date proximity and exact amount still do not override a contradictory merchant", () => {
+test("date proximity and exact amount offer a contradictory merchant for manual review without auto-matching", () => {
   const csv = [
     "Date,Payee,Outflow",
     "2026-08-17,RACV MELBOURNE,1211.76",
@@ -205,7 +220,16 @@ test("date proximity and exact amount still do not override a contradictory merc
 
   assert.equal(preview.summary.exactMatches, 0);
   assert.equal(preview.summary.newTransactions, 1);
-  assert.deepEqual(preview.candidates[0]?.matchCandidates, []);
+  assert.deepEqual(
+    preview.candidates[0]?.matchCandidates?.map(
+      (entry) => entry.transaction.id,
+    ),
+    ["unrelated"],
+  );
+  assert.equal(
+    preview.candidates[0]?.matchCandidates?.[0]?.automaticMatch,
+    false,
+  );
 });
 
 test("shared location token does not auto-match distinct merchants on the same date and amount", () => {
@@ -340,7 +364,7 @@ test("same-amount transactions outside the match window still contribute local c
   assert.equal(candidates[0]?.amountCompetitionCount, 2);
 });
 
-test("local amount uniqueness cannot override contradictory merchant evidence", () => {
+test("local amount uniqueness offers contradictory merchant evidence for manual review without auto-matching", () => {
   const csv = [
     "Date,Payee,Outflow",
     "2026-08-17,RACV MELBOURNE,963.40",
@@ -361,7 +385,18 @@ test("local amount uniqueness cannot override contradictory merchant evidence", 
 
   assert.equal(preview.summary.exactMatches, 0);
   assert.equal(preview.summary.newTransactions, 1);
-  assert.deepEqual(preview.candidates[0]?.matchCandidates, []);
+
+  const candidates = preview.candidates[0]?.matchCandidates ?? [];
+  assert.equal(candidates.length, 1);
+  assert.equal(
+    candidates[0]?.transaction.id,
+    "unrelated-rare-amount",
+  );
+  assert.equal(candidates[0]?.daysApart, 0);
+  assert.equal(candidates[0]?.payeeSimilarity, 0);
+  assert.equal(candidates[0]?.merchantMatches, false);
+  assert.equal(candidates[0]?.amountCompetitionCount, 1);
+  assert.equal(candidates[0]?.automaticMatch, false);
 });
 
 test("a review-only merchant candidate cannot veto a strong automatic match", () => {
