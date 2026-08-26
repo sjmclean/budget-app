@@ -1,4 +1,4 @@
-import { CheckCircle2, MoveRight, Pencil, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, MoveRight, Pencil, Trash2 } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import type { SelectionAction } from "../../components/ui/SelectionBar";
 import { confirmDialog } from "../ui/appDialogService";
@@ -12,6 +12,7 @@ interface UseRegisterSelectionActionsInput {
   clearSelection: () => void;
   editTransaction: (transactionId: string | null) => void;
   openMoveTransactions?: () => void;
+  exportTransactions?: () => void;
 }
 
 interface UseRegisterSelectionActionsResult {
@@ -28,6 +29,7 @@ export function useRegisterSelectionActions({
   clearSelection,
   editTransaction,
   openMoveTransactions,
+  exportTransactions,
 }: UseRegisterSelectionActionsInput): UseRegisterSelectionActionsResult {
   const selectedCount = selectedTransactionIds.length;
   const selectedTransactionId = selectedTransactionIds[0] ?? null;
@@ -39,11 +41,11 @@ export function useRegisterSelectionActions({
   const setSelectedTransactionsCleared = useCallback(
     async (cleared: boolean) => {
       await setTransactionsCleared(
-        selectedTransactions.map(({ id }) => id),
+        selectedTransactionIds,
         cleared,
       );
     },
-    [selectedTransactions, setTransactionsCleared],
+    [selectedTransactionIds, setTransactionsCleared],
   );
 
   const toggleSelectedCleared = useCallback(async () => {
@@ -133,6 +135,15 @@ export function useRegisterSelectionActions({
       },
     });
 
+    if (exportTransactions) {
+      nextActions.push({
+        id: "export",
+        label: "Export",
+        icon: Download,
+        onClick: exportTransactions,
+      });
+    }
+
     nextActions.push({
       id: "delete",
       label: "Delete",
@@ -148,6 +159,7 @@ export function useRegisterSelectionActions({
     areAllSelectedTransactionsCleared,
     deleteSelectedTransactions,
     editTransaction,
+    exportTransactions,
     openMoveTransactions,
     selectedCount,
     selectedTransactionId,

@@ -2234,6 +2234,23 @@
   padding: 0.55rem 0.9rem;
 }
 
+.register-month-selection-checkbox {
+  width: 1rem;
+  height: 1rem;
+  margin: 0 0.6rem 0 0;
+  accent-color: var(--accent);
+  vertical-align: middle;
+}
+
+.register-selection-error {
+  margin: 0;
+  padding: 0.45rem 1rem;
+  color: var(--danger-text, #a32626);
+  background: var(--danger-soft, #fff0f0);
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 0.82rem;
+}
+
 /* v2.21 split transaction balancing and read-only expansion */
 .register-split-category-cell {
   display: inline-flex;

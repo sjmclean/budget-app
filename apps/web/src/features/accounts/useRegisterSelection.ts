@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import {
+  addRegisterTransactionsToSelection,
   clearRegisterSelection as buildClearedRegisterSelection,
+  deselectRegisterTransactions,
   emptyRegisterSelectionState,
   focusRegisterTransaction,
   isRegisterTransactionSelected,
@@ -28,6 +30,8 @@ export interface RegisterSelectionController {
   isSelected: (transactionId: string) => boolean;
   selectSingle: (transactionId: string) => void;
   selectAll: (transactionIds: string[]) => void;
+  add: (transactionIds: readonly string[]) => void;
+  deselect: (transactionIds: readonly string[]) => void;
   toggle: (transactionId: string) => void;
   selectRange: (transactionId: string) => void;
   selectFromPointer: (
@@ -53,6 +57,18 @@ export function useRegisterSelection(
 
   const selectAll = useCallback((transactionIds: string[]) => {
     setState(selectRegisterTransactions(transactionIds));
+  }, []);
+
+  const add = useCallback((transactionIds: readonly string[]) => {
+    setState((currentState) =>
+      addRegisterTransactionsToSelection(currentState, transactionIds),
+    );
+  }, []);
+
+  const deselect = useCallback((transactionIds: readonly string[]) => {
+    setState((currentState) =>
+      deselectRegisterTransactions(currentState, transactionIds),
+    );
   }, []);
 
   const toggle = useCallback((transactionId: string) => {
@@ -125,6 +141,8 @@ export function useRegisterSelection(
         isRegisterTransactionSelected(state, transactionId),
       selectSingle,
       selectAll,
+      add,
+      deselect,
       toggle,
       selectRange,
       selectFromPointer,
@@ -134,6 +152,8 @@ export function useRegisterSelection(
     }),
     [
       clear,
+      add,
+      deselect,
       focus,
       prune,
       selectFromPointer,

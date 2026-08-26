@@ -54,6 +54,36 @@ export function selectRegisterTransactions(
   };
 }
 
+export function addRegisterTransactionsToSelection(
+  state: RegisterSelectionState,
+  transactionIds: readonly string[],
+): RegisterSelectionState {
+  const selectedIds = uniqueIds([...state.selectedIds, ...transactionIds]);
+  const focusedId = transactionIds.at(-1) ?? state.focusedId;
+  return {
+    selectedIds,
+    anchorId: state.anchorId ?? transactionIds[0] ?? null,
+    focusedId,
+  };
+}
+
+export function deselectRegisterTransactions(
+  state: RegisterSelectionState,
+  transactionIds: readonly string[],
+): RegisterSelectionState {
+  const removedIds = new Set(transactionIds);
+  const selectedIds = state.selectedIds.filter((id) => !removedIds.has(id));
+  return {
+    selectedIds,
+    anchorId: state.anchorId && !removedIds.has(state.anchorId)
+      ? state.anchorId
+      : selectedIds.at(-1) ?? null,
+    focusedId: state.focusedId && !removedIds.has(state.focusedId)
+      ? state.focusedId
+      : selectedIds.at(-1) ?? null,
+  };
+}
+
 export function toggleRegisterTransactionSelection(
   state: RegisterSelectionState,
   transactionId: string,

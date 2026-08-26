@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
@@ -41,6 +42,17 @@ import { loadTransactionImportRegisterEvidence } from "../features/accounts/load
 import { useRegisterLayoutMode } from "../features/accounts/registerLayoutMode";
 import { useRegisterSelection } from "../features/accounts/useRegisterSelection";
 import { useRegisterSelectionActions } from "../features/accounts/useRegisterSelectionActions";
+import {
+  getRegisterMonthCheckboxState,
+  getRegisterMonthKey,
+  loadRegisterTransactionIdsForMonth,
+} from "../features/accounts/registerMonthSelection";
+import {
+  buildSortedSelectedTransactionsCsv,
+  createSelectedTransactionsFilename,
+  downloadCsv,
+  loadSelectedAccountTransactionRows,
+} from "../features/accounts/registerSelectedTransactionsCsv";
 import { useRegisterCommands } from "../features/accounts/useRegisterCommands";
 import { usePayeeManagerWorkflow } from "../features/accounts/usePayeeManagerWorkflow";
 import { usePayeeHistory } from "../features/accounts/usePayeeHistory";
@@ -243,6 +255,36 @@ function formatRegisterMonthSeparator(date: string) {
     month: "long",
     year: "numeric",
   }).format(parsedDate);
+}
+
+function RegisterMonthSelectionCheckbox({
+  label,
+  state,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  state: "unchecked" | "checked" | "mixed";
+  disabled: boolean;
+  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = state === "mixed";
+  }, [state]);
+  const selecting = state !== "checked";
+  return (
+    <input
+      ref={ref}
+      className="register-month-selection-checkbox"
+      type="checkbox"
+      checked={state === "checked"}
+      disabled={disabled}
+      aria-checked={state === "mixed" ? "mixed" : state === "checked"}
+      aria-label={`${selecting ? "Select" : "Deselect"} all ${label} transactions`}
+      onChange={onChange}
+    />
+  );
 }
 
 function formatMoney(value: number, currencyCode: string) {
@@ -724,6 +766,7 @@ export function AccountRegisterPage() {
     registerSearchSuggestions,
     searchedRegisterTransactions,
     categoryFilteredRegisterTransactions,
+    sortedRegisterTransactions,
     registerPagination,
     visibleTransactions,
     visibleTransactionIds,
@@ -751,10 +794,14 @@ export function AccountRegisterPage() {
   }, [categoryFilter, data?.accountType]);
 
   const registerSelection = useRegisterSelection(visibleTransactionIds);
+  const [monthTransactionIds, setMonthTransactionIds] = useState<
+    Record<string, string[]>
+  >({});
+  const [selectionExportError, setSelectionExportError] = useState<string | null>(null);
   const selectedRegisterTransactionIds = registerSelection.selectedIds;
   const selectedRegisterTransactionCount = registerSelection.selectedCount;
   const selectedRegisterActionTransactionIds = selectedRegisterTransactionIds;
-  const selectedRegisterActionTransactions = useMemo(() => {
+  const loadedSelectedRegisterActionTransactions = useMemo(() => {
     if (selectedRegisterActionTransactionIds.length === 0) {
       return [];
     }
@@ -766,12 +813,112 @@ export function AccountRegisterPage() {
       selectedRegisterActionIdSet.has(transaction.id),
     );
   }, [registerTransactions, selectedRegisterActionTransactionIds]);
+  const [authoritativeSelectedRegisterTransactions, setAuthoritativeSelectedRegisterTransactions] =
+    useState<RegisterTransactionView[]>([]);
+  const selectedRegisterActionTransactions = storageMode === "sqlite"
+    ? authoritativeSelectedRegisterTransactions
+    : loadedSelectedRegisterActionTransactions;
 
   useEffect(() => {
-    registerSelection.prune(
-      registerTransactions.map((transaction) => transaction.id),
-    );
-  }, [registerSelection.prune, registerTransactions]);
+    let active = true;
+    if (storageMode !== "sqlite") {
+      setAuthoritativeSelectedRegisterTransactions([]);
+      return () => { active = false; };
+    }
+    if (selectedRegisterActionTransactionIds.length === 0) {
+      setAuthoritativeSelectedRegisterTransactions([]);
+      return () => { active = false; };
+    }
+    const queries = persistenceGateway.accountRegisterQueries;
+    if (!activeBudgetId || !queries?.getTransactionsByIds) {
+      return () => { active = false; };
+    }
+    const getTransactionsByIds = queries.getTransactionsByIds.bind(queries);
+    const selectedIds = [...selectedRegisterActionTransactionIds];
+    void (async () => {
+      const rows: Awaited<ReturnType<typeof getTransactionsByIds>>[number][] = [];
+      for (let offset = 0; offset < selectedIds.length; offset += 250) {
+        rows.push(...await getTransactionsByIds({
+          budgetId: activeBudgetId,
+          accountId,
+          ids: selectedIds.slice(offset, offset + 250),
+        }));
+      }
+      if (!active) return;
+      registerSelection.prune(rows.map((row) => row.id));
+      setAuthoritativeSelectedRegisterTransactions(mapSqliteTransactions(rows, 0));
+    })().catch(() => {
+      if (active) setSelectionExportError("Selected transactions could not be revalidated. Please retry.");
+    });
+    return () => { active = false; };
+  }, [
+    accountId,
+    activeBudgetId,
+    persistenceGateway.accountRegisterQueries,
+    registerSelection.prune,
+    selectedRegisterActionTransactionIds,
+    storageMode,
+  ]);
+
+  useEffect(() => {
+    registerSelection.clear();
+    setMonthTransactionIds({});
+    setSelectionExportError(null);
+  }, [accountId, categoryFilter, committedRegisterSearch, registerSort]);
+
+  const visibleMonthKeys = useMemo(
+    () => [...new Set(visibleTransactions
+      .map((transaction) => getRegisterMonthKey(transaction.date))
+      .filter((monthKey): monthKey is string => monthKey !== null))],
+    [visibleTransactions],
+  );
+
+  useEffect(() => {
+    let active = true;
+    if (storageMode !== "sqlite") {
+      const idsByMonth: Record<string, string[]> = {};
+      for (const transaction of sortedRegisterTransactions) {
+        const monthKey = getRegisterMonthKey(transaction.date);
+        if (monthKey) (idsByMonth[monthKey] ??= []).push(transaction.id);
+      }
+      setMonthTransactionIds(idsByMonth);
+      return () => { active = false; };
+    }
+
+    const queries = persistenceGateway.accountRegisterQueries;
+    if (!activeBudgetId || !queries) return () => { active = false; };
+    setMonthTransactionIds({});
+    void Promise.all(visibleMonthKeys.map(async (monthKey) => [
+      monthKey,
+      await loadRegisterTransactionIdsForMonth({
+        monthKey,
+        query: {
+          budgetId: activeBudgetId,
+          accountId,
+          search: committedRegisterSearch ?? undefined,
+          categoryFilter: data?.accountType === "Tracking" ? "all" : categoryFilter,
+          sort: registerSort,
+        },
+        queryPage: (query) => queries.queryTransactions(query),
+      }),
+    ] as const)).then((entries) => {
+      if (active) setMonthTransactionIds(Object.fromEntries(entries));
+    }).catch(() => {
+      if (active) setSelectionExportError("Could not load all transactions for month selection. Please retry.");
+    });
+    return () => { active = false; };
+  }, [
+    accountId,
+    activeBudgetId,
+    categoryFilter,
+    committedRegisterSearch,
+    data?.accountType,
+    persistenceGateway.accountRegisterQueries,
+    registerSort,
+    sortedRegisterTransactions,
+    storageMode,
+    visibleMonthKeys,
+  ]);
 
   const registerAttachmentWorkflow = useRegisterAttachmentWorkflow({
     budgetId: activeBudgetId,
@@ -1071,6 +1218,74 @@ export function AccountRegisterPage() {
     [clearRegisterSelection, moveTransactions, moveableSelectedTransactions],
   );
 
+  const handleExportSelectedTransactions = useCallback(async () => {
+    const selectedIds = [...selectedRegisterActionTransactionIds];
+    if (selectedIds.length === 0) return;
+    setSelectionExportError(null);
+
+    try {
+      let transactions: RegisterTransactionView[];
+      if (storageMode === "sqlite") {
+        const queries = persistenceGateway.accountRegisterQueries;
+        if (!activeBudgetId || !queries?.getTransactionsByIds) {
+          throw new Error("Authoritative transaction loading is unavailable.");
+        }
+        const rows = await loadSelectedAccountTransactionRows({
+          selectedIds,
+          loadByIds: (ids) => queries.getTransactionsByIds!({
+            budgetId: activeBudgetId,
+            accountId,
+            ids,
+          }),
+        });
+        transactions = mapSqliteTransactions(rows, 0);
+      } else {
+        const selected = new Set(selectedIds);
+        transactions = registerTransactions.filter((transaction) => selected.has(transaction.id));
+        if (transactions.length !== selected.size) {
+          throw new Error("One or more selected transactions no longer exist. Nothing was exported.");
+        }
+      }
+
+      const tagNamesById = new Map(transactionTags.map((tag) => [tag.id, tag.name]));
+      const accountNamesById = new Map([
+        [data?.accountId ?? accountId, data?.accountName ?? accountId],
+        ...transferAccounts.map((account) => [account.id, account.name] as const),
+      ]);
+      const csv = buildSortedSelectedTransactionsCsv({
+        transactions,
+        sort: registerSort,
+        tagNamesById,
+        accountNamesById,
+      });
+      downloadCsv(
+        csv,
+        createSelectedTransactionsFilename(
+          data?.accountName ?? "account",
+          new Date().toISOString().slice(0, 10),
+        ),
+      );
+    } catch (error) {
+      setSelectionExportError(
+        error instanceof Error
+          ? error.message
+          : "Selected transactions could not be exported. Please retry.",
+      );
+    }
+  }, [
+    accountId,
+    activeBudgetId,
+    data?.accountId,
+    data?.accountName,
+    persistenceGateway.accountRegisterQueries,
+    registerSort,
+    registerTransactions,
+    selectedRegisterActionTransactionIds,
+    storageMode,
+    transactionTags,
+    transferAccounts,
+  ]);
+
   const registerSelectionActions = useRegisterSelectionActions({
     selectedTransactionIds: selectedRegisterActionTransactionIds,
     selectedTransactions: selectedRegisterActionTransactions,
@@ -1082,6 +1297,7 @@ export function AccountRegisterPage() {
       setEditingTransactionId(transactionId);
     },
     openMoveTransactions: openMoveTransactionDialog,
+    exportTransactions: () => { void handleExportSelectedTransactions(); },
   });
   const hasRegisterActionSelection = registerSelectionActions.hasSelection;
   const visibleSelectedRegisterTransactionCount = visibleTransactionIds.filter(
@@ -2231,10 +2447,17 @@ export function AccountRegisterPage() {
               transactionIndex > 0
                 ? visibleTransactions[transactionIndex - 1]
                 : null;
+            const monthKey = getRegisterMonthKey(transaction.date);
+            const previousMonthKey = getRegisterMonthKey(previousTransaction?.date ?? "");
             const showMonthSeparator =
               transactionIndex === 0 ||
-              formatRegisterMonthSeparator(previousTransaction?.date ?? "") !==
-                formatRegisterMonthSeparator(transaction.date);
+              previousMonthKey !== monthKey;
+            const monthLabel = formatRegisterMonthSeparator(transaction.date);
+            const idsForMonth = monthKey ? monthTransactionIds[monthKey] : undefined;
+            const monthCheckboxState = getRegisterMonthCheckboxState(
+              idsForMonth ?? [],
+              selectedRegisterTransactionIds,
+            );
 
             return (
               <div
@@ -2243,7 +2466,23 @@ export function AccountRegisterPage() {
               >
                 {showMonthSeparator ? (
                   <div className="register-month-separator">
-                    {formatRegisterMonthSeparator(transaction.date)}
+                    {monthKey ? (
+                      <RegisterMonthSelectionCheckbox
+                        label={monthLabel}
+                        state={monthCheckboxState}
+                        disabled={!idsForMonth}
+                        onChange={() => {
+                          setEditingTransactionId(null);
+                          if (!idsForMonth) return;
+                          if (monthCheckboxState === "checked") {
+                            registerSelection.deselect(idsForMonth);
+                          } else {
+                            registerSelection.add(idsForMonth);
+                          }
+                        }}
+                      />
+                    ) : null}
+                    <span>{monthLabel}</span>
                   </div>
                 ) : null}
                 {editingTransactionId === transaction.id ? (
@@ -2310,13 +2549,20 @@ export function AccountRegisterPage() {
         </div>
 
         {hasRegisterActionSelection && !editingTransactionId ? (
-          <SelectionBar
-            selectionCount={registerSelectionActions.selectedCount}
-            itemLabel="Transaction"
-            ariaLabel="Selected transaction actions"
-            actions={registerSelectionActions.actions}
-            onClearSelection={clearRegisterSelection}
-          />
+          <>
+            <SelectionBar
+              selectionCount={registerSelectionActions.selectedCount}
+              itemLabel="Transaction"
+              ariaLabel="Selected transaction actions"
+              actions={registerSelectionActions.actions}
+              onClearSelection={clearRegisterSelection}
+            />
+            {selectionExportError ? (
+              <p className="register-selection-error" role="alert">
+                {selectionExportError}
+              </p>
+            ) : null}
+          </>
         ) : null}
 
         <div className="register-pagination" aria-label="Register pagination">
