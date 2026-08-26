@@ -297,17 +297,15 @@ export function previewTransactionQifImport(
 export function assignTransactionImportMatches(
   candidates: TransactionImportCandidate[],
 ): TransactionImportCandidate[] {
-  const automaticOptions = candidates.map((candidate) => {
-    const matchCandidates = candidate.matchCandidates ?? [];
+  const locallyAmbiguous = candidates.map((candidate) =>
+    hasAmbiguousAutomaticImportMatch(candidate.matchCandidates ?? []),
+  );
 
-    if (hasAmbiguousAutomaticImportMatch(matchCandidates)) {
-      return [];
-    }
-
-    return matchCandidates.filter(
+  const automaticOptions = candidates.map((candidate) =>
+    (candidate.matchCandidates ?? []).filter(
       (assessment) => assessment.automaticMatch,
-    );
-  });
+    ),
+  );
 
   const assignableCandidateIndexes = candidates
     .map((candidate, index) => ({
@@ -360,6 +358,75 @@ export function assignTransactionImportMatches(
   interface AssignmentComponent {
     readonly candidateIndexes: readonly number[];
     readonly transactionIds: readonly string[];
+  }
+
+  interface ExcludedAssignmentEdge {
+    readonly candidateIndex: number;
+    readonly transactionId: string;
+  }
+
+  function maximumMatchingCardinality(
+    component: AssignmentComponent,
+    excludedEdge?: ExcludedAssignmentEdge,
+  ): number {
+    const componentTransactionIds = new Set(component.transactionIds);
+    const matchedCandidateByTransactionId = new Map<string, number>();
+
+    function tryAssign(
+      candidateIndex: number,
+      visitedTransactionIds: Set<string>,
+    ): boolean {
+      const options = [...automaticOptions[candidateIndex]]
+        .filter(
+          (assessment) =>
+            componentTransactionIds.has(assessment.transaction.id) &&
+            !(
+              excludedEdge?.candidateIndex === candidateIndex &&
+              excludedEdge.transactionId === assessment.transaction.id
+            ),
+        )
+        .sort(
+          (left, right) =>
+            right.matchScore - left.matchScore ||
+            left.transaction.id.localeCompare(right.transaction.id),
+        );
+
+      for (const assessment of options) {
+        const transactionId = assessment.transaction.id;
+
+        if (visitedTransactionIds.has(transactionId)) {
+          continue;
+        }
+
+        visitedTransactionIds.add(transactionId);
+
+        const currentlyMatchedCandidate =
+          matchedCandidateByTransactionId.get(transactionId);
+
+        if (
+          currentlyMatchedCandidate === undefined ||
+          tryAssign(currentlyMatchedCandidate, visitedTransactionIds)
+        ) {
+          matchedCandidateByTransactionId.set(
+            transactionId,
+            candidateIndex,
+          );
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    let cardinality = 0;
+
+    for (const candidateIndex of component.candidateIndexes) {
+      if (tryAssign(candidateIndex, new Set<string>())) {
+        cardinality += 1;
+      }
+    }
+
+    return cardinality;
   }
 
   function buildAssignmentComponents(): AssignmentComponent[] {
@@ -467,7 +534,9 @@ export function assignTransactionImportMatches(
         );
       }
 
-      assignedAssessments.set(candidateIndex, assessment);
+      if (!locallyAmbiguous[candidateIndex]) {
+        assignedAssessments.set(candidateIndex, assessment);
+      }
       return;
     }
 
@@ -669,6 +738,9 @@ export function assignTransactionImportMatches(
       }
     }
 
+    const maximumCardinality =
+      maximumMatchingCardinality(component);
+
     candidateIndexes.forEach(
       (candidateIndex, componentCandidateIndex) => {
         const candidateNode =
@@ -680,10 +752,20 @@ export function assignTransactionImportMatches(
             edge.candidateIndex === candidateIndex &&
             edge.capacity === 0
           ) {
-            assignedAssessments.set(
-              candidateIndex,
-              edge.assessment,
-            );
+            const assignmentIsResolved =
+              !locallyAmbiguous[candidateIndex] ||
+              maximumMatchingCardinality(component, {
+                candidateIndex,
+                transactionId: edge.assessment.transaction.id,
+              }) < maximumCardinality;
+
+            if (assignmentIsResolved) {
+              assignedAssessments.set(
+                candidateIndex,
+                edge.assessment,
+              );
+            }
+
             break;
           }
         }

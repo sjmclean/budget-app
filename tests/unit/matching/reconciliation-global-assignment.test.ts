@@ -132,3 +132,50 @@ test("global assignment does not auto-match an imported row with equally plausib
     "both plausible matches must remain available for explicit review",
   );
 });
+
+test("global assignment keeps a fully interchangeable component manual", () => {
+  const preview = previewTransactionCsvImport(
+    [
+      "Date,Payee,Outflow",
+      "2026-08-14,Coffee Shop,20.00",
+      "2026-08-14,Coffee Shop,20.00",
+    ].join("\n"),
+    [
+      buildRegisterTransaction({
+        id: "manual-a",
+        date: "2026-08-14",
+        payee: "Coffee Shop",
+        outflow: 20,
+      }),
+      buildRegisterTransaction({
+        id: "manual-b",
+        date: "2026-08-14",
+        payee: "Coffee Shop",
+        outflow: 20,
+      }),
+    ],
+    {
+      0: "date",
+      1: "payee",
+      2: "outflow",
+    },
+  );
+
+  assert.equal(preview.summary.exactMatches, 0);
+  assert.equal(preview.summary.newTransactions, 2);
+
+  assert.deepEqual(
+    preview.candidates.map((candidate) => candidate.matchedTransactionId),
+    [undefined, undefined],
+    "an interchangeable maximum-cardinality assignment must not be treated as uniquely resolved",
+  );
+
+  for (const candidate of preview.candidates) {
+    assert.deepEqual(
+      candidate.matchCandidates?.map(
+        (assessment) => assessment.transaction.id,
+      ),
+      ["manual-a", "manual-b"],
+    );
+  }
+});
