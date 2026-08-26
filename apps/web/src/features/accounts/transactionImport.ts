@@ -509,53 +509,21 @@ export function assignTransactionImportMatches(
     readonly assessment?: TransactionImportMatchCandidateAssessment;
   }
 
-  function solveAssignmentComponent(
-    component: AssignmentComponent,
-  ): void {
-    /*
-     * The overwhelmingly common case requires no flow solver at all:
-     * one imported row has exactly one automatic register candidate.
-     */
+  function solveMinimumCostMaximumFlow(
+    candidateIndexes: readonly number[],
+    transactionIds: readonly string[],
+  ): Map<number, TransactionImportMatchCandidateAssessment> {
+    const assignments = new Map<
+      number,
+      TransactionImportMatchCandidateAssessment
+    >();
+
     if (
-      component.candidateIndexes.length === 1 &&
-      component.transactionIds.length === 1
+      candidateIndexes.length === 0 ||
+      transactionIds.length === 0
     ) {
-      const candidateIndex = component.candidateIndexes[0];
-      const transactionId = component.transactionIds[0];
-
-      const assessment = automaticOptions[candidateIndex].find(
-        (option) =>
-          option.transaction.id === transactionId,
-      );
-
-      if (!assessment) {
-        throw new Error(
-          `Missing automatic assessment for import assignment ${transactionId}.`,
-        );
-      }
-
-      if (!locallyAmbiguous[candidateIndex]) {
-        assignedAssessments.set(candidateIndex, assessment);
-      }
-      return;
+      return assignments;
     }
-
-    /*
-     * Solve only this connected bipartite conflict component as
-     * minimum-cost maximum-flow.
-     *
-     * Each source -> candidate -> transaction -> sink path contributes one
-     * match. Augmenting until no path remains therefore maximises cardinality.
-     *
-     * Candidate -> transaction edges use negative matchScore, so among all
-     * maximum-cardinality solutions the minimum-cost result has the greatest
-     * total confidence.
-     *
-     * Candidate and transaction nodes use stable ID ordering, keeping equal
-     * cost outcomes deterministic and independent of source-row ordering.
-     */
-    const candidateIndexes = [...component.candidateIndexes];
-    const transactionIds = [...component.transactionIds];
 
     const transactionIndexById = new Map(
       transactionIds.map((id, index) => [id, index]),
@@ -738,9 +706,6 @@ export function assignTransactionImportMatches(
       }
     }
 
-    const maximumCardinality =
-      maximumMatchingCardinality(component);
-
     candidateIndexes.forEach(
       (candidateIndex, componentCandidateIndex) => {
         const candidateNode =
@@ -752,25 +717,142 @@ export function assignTransactionImportMatches(
             edge.candidateIndex === candidateIndex &&
             edge.capacity === 0
           ) {
-            const assignmentIsResolved =
-              !locallyAmbiguous[candidateIndex] ||
-              maximumMatchingCardinality(component, {
-                candidateIndex,
-                transactionId: edge.assessment.transaction.id,
-              }) < maximumCardinality;
-
-            if (assignmentIsResolved) {
-              assignedAssessments.set(
-                candidateIndex,
-                edge.assessment,
-              );
-            }
-
+            assignments.set(candidateIndex, edge.assessment);
             break;
           }
         }
       },
     );
+
+    return assignments;
+  }
+
+  function solveAssignmentComponent(
+    component: AssignmentComponent,
+  ): void {
+    /*
+     * The overwhelmingly common case requires no flow solver at all:
+     * one imported row has exactly one automatic register candidate.
+     */
+    if (
+      component.candidateIndexes.length === 1 &&
+      component.transactionIds.length === 1
+    ) {
+      const candidateIndex = component.candidateIndexes[0];
+      const transactionId = component.transactionIds[0];
+
+      const assessment = automaticOptions[candidateIndex].find(
+        (option) =>
+          option.transaction.id === transactionId,
+      );
+
+      if (!assessment) {
+        throw new Error(
+          `Missing automatic assessment for import assignment ${transactionId}.`,
+        );
+      }
+
+      if (!locallyAmbiguous[candidateIndex]) {
+        assignedAssessments.set(candidateIndex, assessment);
+      }
+      return;
+    }
+
+    /*
+     * First solve the complete automatic graph. This establishes maximum
+     * cardinality and reveals whether an ambiguous selected edge is globally
+     * forced: removing that edge must reduce maximum matching cardinality.
+     *
+     * This first solution is diagnostic only. An ambiguous edge that is not
+     * forced must not consume a register transaction in the final assignment.
+     */
+    const initialAssignments =
+      solveMinimumCostMaximumFlow(
+        component.candidateIndexes,
+        component.transactionIds,
+      );
+
+    const maximumCardinality =
+      maximumMatchingCardinality(component);
+
+    const forcedAmbiguousAssignments = new Map<
+      number,
+      TransactionImportMatchCandidateAssessment
+    >();
+
+    for (
+      const [candidateIndex, assessment] of initialAssignments
+    ) {
+      if (!locallyAmbiguous[candidateIndex]) {
+        continue;
+      }
+
+      const cardinalityWithoutSelectedEdge =
+        maximumMatchingCardinality(component, {
+          candidateIndex,
+          transactionId: assessment.transaction.id,
+        });
+
+      if (
+        cardinalityWithoutSelectedEdge < maximumCardinality
+      ) {
+        forcedAmbiguousAssignments.set(
+          candidateIndex,
+          assessment,
+        );
+      }
+    }
+
+    /*
+     * Forced ambiguous assignments are safe to retain because their selected
+     * edge is necessary to preserve maximum cardinality. Reserve those rows.
+     *
+     * All unresolved ambiguous candidates are excluded from automatic
+     * assignment. Re-solve the remaining graph so a discarded ambiguous
+     * assignment cannot starve a safe candidate that needs the same row.
+     */
+    const reservedTransactionIds = new Set(
+      [...forcedAmbiguousAssignments.values()].map(
+        (assessment) => assessment.transaction.id,
+      ),
+    );
+
+    const finalCandidateIndexes =
+      component.candidateIndexes.filter(
+        (candidateIndex) =>
+          !locallyAmbiguous[candidateIndex],
+      );
+
+    const finalTransactionIds =
+      component.transactionIds.filter(
+        (transactionId) =>
+          !reservedTransactionIds.has(transactionId),
+      );
+
+    const finalAssignments =
+      solveMinimumCostMaximumFlow(
+        finalCandidateIndexes,
+        finalTransactionIds,
+      );
+
+    for (
+      const [candidateIndex, assessment] of
+      forcedAmbiguousAssignments
+    ) {
+      assignedAssessments.set(
+        candidateIndex,
+        assessment,
+      );
+    }
+
+    for (
+      const [candidateIndex, assessment] of finalAssignments
+    ) {
+      assignedAssessments.set(
+        candidateIndex,
+        assessment,
+      );
+    }
   }
 
   for (const component of buildAssignmentComponents()) {

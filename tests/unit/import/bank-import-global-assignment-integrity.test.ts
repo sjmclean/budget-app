@@ -347,3 +347,53 @@ test("large independent assignment sets retain every deterministic match", () =>
 
   assert.equal(totalAssignedScore(result), size * 100);
 });
+
+test("a rejected ambiguous assignment does not consume the register row needed by a safe candidate", () => {
+  /*
+   * A has the strongest automatic claim on X, but A is locally ambiguous
+   * because Y is a credible merchant-matching competitor within the winner
+   * margin. Y is deliberately review-only, so it does not participate in
+   * the automatic assignment graph.
+   *
+   * B has one safe automatic option: X.
+   *
+   * The first maximum-cardinality flow can therefore choose A -> X. If A's
+   * assignment is subsequently rejected as ambiguous, X must be reconsidered
+   * for B rather than remaining consumed by the discarded assignment.
+   */
+  const ambiguousReviewOnlyCompetitor = {
+    ...assessment("register-y", 95),
+    automaticMatch: false,
+  };
+
+  const result = assignTransactionImportMatches([
+    candidate("import-a", [
+      assessment("register-x", 100),
+      ambiguousReviewOnlyCompetitor,
+    ]),
+    candidate("import-b", [
+      assessment("register-x", 90),
+    ]),
+  ]);
+
+  assert.deepEqual(
+    assignments(result),
+    {
+      "import-a": undefined,
+      "import-b": "register-x",
+    },
+    "rejecting A's ambiguous assignment must release X for the safe nonambiguous candidate B",
+  );
+
+  assert.equal(
+    result.find((entry) => entry.id === "import-a")?.status,
+    "new",
+    "the locally ambiguous candidate must remain available for explicit review",
+  );
+
+  assert.equal(
+    result.find((entry) => entry.id === "import-b")?.status,
+    "exact-match",
+    "the safe candidate must retain its automatic match after the ambiguous assignment is rejected",
+  );
+});
