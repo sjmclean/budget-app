@@ -104,6 +104,7 @@ test("staged local-first validation reports provenance lost after persistence", 
           budgetMonths: 0,
           scheduledTransactions: 0,
           transactionTags: 0,
+          categoryGoals: 0,
         },
       };
     },
@@ -228,6 +229,7 @@ test("active provenance is required while tombstones create no destination expec
           budgetMonths: 0,
           scheduledTransactions: 0,
           transactionTags: 0,
+          categoryGoals: 0,
         },
       };
     },
@@ -284,6 +286,7 @@ test("active provenance without a mapped destination account fails explicitly", 
           budgetMonths: 0,
           scheduledTransactions: 0,
           transactionTags: 0,
+          categoryGoals: 0,
         },
       };
     },
@@ -429,6 +432,7 @@ test("staged provenance diagnostics distinguish missing, wrong-account, and diff
               budgetMonths: 0,
               scheduledTransactions: 0,
               transactionTags: 0,
+              categoryGoals: 0,
             },
           };
         },

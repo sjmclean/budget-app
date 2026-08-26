@@ -107,5 +107,10 @@ test("import review defers payee persistence until import commit", () => {
   );
 
   assert.doesNotMatch(source, /onCreatePayee=\{onCreatePayee\}/);
-  assert.match(source, /resolvePayee:\s*onCreatePayee/);
+  assert.match(source, /await commitImportSession\(/);
+  assert.match(source, /resolvePayee:\s*async\s*\(/);
+  assert.match(
+    source,
+    /commitTransactionBatch:\s*onCommitRegisterChanges/,
+  );
 });
