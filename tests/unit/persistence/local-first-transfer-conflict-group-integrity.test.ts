@@ -58,35 +58,59 @@ test("transaction batch worker requests can resolve conflicts per row", () => {
 });
 
 test("transaction batch writes resolve conflicts inside their SQLite transaction", () => {
-  const start = worker.indexOf("function writeTransactionBatch(");
-  const end = worker.indexOf(
-    "\nfunction deleteTransaction(",
-    start,
+  const applyStart = worker.indexOf(
+    "function applyTransactionBatchInCurrentTransaction(",
+  );
+  const applyEnd = worker.indexOf(
+    "\nfunction writeTransactionBatch(",
+    applyStart,
   );
 
-  assert.ok(start >= 0 && end > start);
-  const body = worker.slice(start, end);
+  assert.ok(applyStart >= 0 && applyEnd > applyStart);
+  const applyBody = worker.slice(applyStart, applyEnd);
 
   assert.match(
-    body,
-    /resolveConflictId/,
-    "batch writes must carry the conflict being resolved",
+    applyBody,
+    /for \(const \{ transaction, mutation, resolveConflictId \} of writes\)/,
+    "each grouped transaction write must carry its corresponding conflict ID",
   );
 
   assert.match(
-    body,
+    applyBody,
     /resolveLocalConflictInTransaction\(resolveConflictId\)/,
-    "each conflict must be resolved before the batch transaction commits",
+    "each conflict must be resolved while applying the batch",
   );
 
-  const commit = body.indexOf('execute("COMMIT")');
-  const resolve = body.indexOf(
-    "resolveLocalConflictInTransaction(resolveConflictId)",
+  const writeStart = worker.indexOf("function writeTransactionBatch(");
+  const writeEnd = worker.indexOf(
+    "\nfunction writeImportBatch(",
+    writeStart,
   );
+
+  assert.ok(writeStart >= 0 && writeEnd > writeStart);
+  const writeBody = worker.slice(writeStart, writeEnd);
+
+  assert.match(
+    writeBody,
+    /execute\("BEGIN IMMEDIATE"\)/,
+    "transaction batch writes must open one SQLite transaction",
+  );
+
+  assert.match(
+    writeBody,
+    /applyTransactionBatchInCurrentTransaction\(/,
+    "transaction writes and conflict resolution must run through the current-transaction helper",
+  );
+
+  const begin = writeBody.indexOf('execute("BEGIN IMMEDIATE")');
+  const apply = writeBody.indexOf(
+    "applyTransactionBatchInCurrentTransaction(",
+  );
+  const commit = writeBody.indexOf('execute("COMMIT")');
 
   assert.ok(
-    resolve >= 0 && commit > resolve,
-    "conflict resolution must happen inside the same SQLite transaction as replay",
+    begin >= 0 && apply > begin && commit > apply,
+    "conflict resolution and transaction replay must occur before the same SQLite transaction commits",
   );
 });
 
