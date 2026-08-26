@@ -1969,25 +1969,9 @@ async function ensurePersistentSqlite() {
 async function reservePersistentDatabaseCapacity(): Promise<void> {
   if (persistentBackend !== "opfs-sahpool" || !sahPool) return;
 
-  const fileCountBefore = sahPool.getFileCount();
-  const capacityBefore = sahPool.getCapacity();
-  const requestedCapacity =
-    fileCountBefore + SAH_TRANSIENT_SPARE_CAPACITY;
-
-  console.info("[local-sqlite:sah-capacity] before", {
-    fileCount: fileCountBefore,
-    capacity: capacityBefore,
-    requestedCapacity,
-    files: sahPool.getFileNames(),
-  });
-
-  await sahPool.reserveMinimumCapacity(requestedCapacity);
-
-  console.info("[local-sqlite:sah-capacity] after", {
-    fileCount: sahPool.getFileCount(),
-    capacity: sahPool.getCapacity(),
-    files: sahPool.getFileNames(),
-  });
+  await sahPool.reserveMinimumCapacity(
+    sahPool.getFileCount() + SAH_TRANSIENT_SPARE_CAPACITY,
+  );
 }
 
 function openPersistentDatabase(filename: string): SqliteDatabase {
