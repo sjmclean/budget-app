@@ -8,6 +8,7 @@ import { adaptBudgetCommandToApplicationHistory } from "../../../apps/web/src/fe
 import { applyCategoryAssignedValues } from "../../../apps/web/src/features/budget/budgetMoneyMovement.js";
 import { ApplicationHistoryService, type ApplicationHistoryContext } from "../../../apps/web/src/features/history/applicationHistory.js";
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.js";
+import { resolveBudgetWorkspaceData } from "../../../apps/web/src/features/budget/useBudgetWorkspace.js";
 
 function view(
   assigned: number,
@@ -193,4 +194,29 @@ test("reuses Budget history so assign, undo, and redo preserve the Goal and appl
   assert.equal(current.categoryGroups[0]!.categories[0]!.assigned, 500);
   assert.equal(current.readyToAssign, 850);
   assert.deepEqual(current.categoryGroups[0]!.categories[0]!.goal!.goal, originalGoal);
+});
+
+test("a newer subscribed authoritative view replaces the assignment overlay after Undo and Redo", () => {
+  const assignedOverlay = view(500, 0);
+  const undone = view(350, 150);
+  const redone = view(500, 0);
+  const edited = { data: assignedOverlay, persistenceVersion: 10 };
+
+  assert.equal(
+    resolveBudgetWorkspaceData(edited, assignedOverlay, 10)?.categoryGroups[0]!.categories[0]!.assigned,
+    500,
+  );
+
+  const afterUndo = resolveBudgetWorkspaceData(edited, undone, 11)!;
+  assert.equal(afterUndo.categoryGroups[0]!.categories[0]!.assigned, 350);
+  assert.equal(afterUndo.categoryGroups[0]!.categories[0]!.goal!.recommendedAssignment, 150);
+  assert.equal(afterUndo.readyToAssign, 1000);
+
+  const afterRedo = resolveBudgetWorkspaceData(edited, redone, 12)!;
+  assert.equal(afterRedo.categoryGroups[0]!.categories[0]!.assigned, 500);
+  assert.equal(afterRedo.categoryGroups[0]!.categories[0]!.goal!.recommendedAssignment, 0);
+  assert.deepEqual(
+    afterRedo.categoryGroups[0]!.categories[0]!.goal!.goal,
+    assignedOverlay.categoryGroups[0]!.categories[0]!.goal!.goal,
+  );
 });

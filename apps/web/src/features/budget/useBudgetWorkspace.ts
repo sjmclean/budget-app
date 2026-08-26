@@ -23,6 +23,7 @@ import {
   type GoalRecommendedAssignmentResult,
 } from "./goalRecommendedAssignment";
 import type { UndoRedoResult } from "../history";
+import { getPersistenceChangeVersion } from "../persistence/persistenceChangeBus";
 
 interface UseBudgetWorkspaceState {
   data: BudgetMonthView | null;
@@ -74,6 +75,16 @@ interface UseBudgetWorkspaceState {
   createCategory: (input: { name: string; groupId: string; groupName: string }) => Promise<void>;
 }
 
+export function resolveBudgetWorkspaceData(
+  editedData: { data: BudgetMonthView; persistenceVersion: number } | null,
+  authoritativeData: BudgetMonthView | null,
+  authoritativeDataVersion: number,
+): BudgetMonthView | null {
+  return editedData && editedData.persistenceVersion >= authoritativeDataVersion
+    ? editedData.data
+    : authoritativeData;
+}
+
 export function useBudgetWorkspace(
   budgetId: string,
   month: string,
@@ -83,7 +94,10 @@ export function useBudgetWorkspace(
   const categoryHistory = useCategoryHistory(budgetId, month);
   const budgetViewPersistence = persistenceGateway.budgetView;
   const budgetView = useBudgetView(budgetId, month);
-  const [editedData, setEditedData] = useState<BudgetMonthView | null>(null);
+  const [editedData, setEditedDataState] = useState<{
+    data: BudgetMonthView;
+    persistenceVersion: number;
+  } | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
   );
@@ -110,6 +124,13 @@ export function useBudgetWorkspace(
   const goalRecommendationBusyRef = useRef(false);
 
   workspaceIdentityRef.current = `${budgetId}:${month}`;
+
+  function setEditedData(nextData: BudgetMonthView | null): void {
+    setEditedDataState(nextData ? {
+      data: nextData,
+      persistenceVersion: getPersistenceChangeVersion(),
+    } : null);
+  }
 
   function isWorkspaceCurrent(identity: string): boolean {
     return mountedRef.current && workspaceIdentityRef.current === identity;
@@ -164,7 +185,7 @@ export function useBudgetWorkspace(
     setIsActivityDrilldownLoading(false);
   }, [budgetId, month]);
 
-  const data = editedData ?? budgetView.data;
+  const data = resolveBudgetWorkspaceData(editedData, budgetView.data, budgetView.dataVersion);
   dataRef.current = data;
 
   async function flushPendingAssignmentEdits(reportError = true): Promise<UndoRedoResult | null> {

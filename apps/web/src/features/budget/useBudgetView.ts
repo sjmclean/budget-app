@@ -5,6 +5,7 @@ import type { BudgetMonthView } from "./budgetViewTypes";
 
 interface UseBudgetViewState {
   data: BudgetMonthView | null;
+  dataVersion: number;
   isLoading: boolean;
   error: string | null;
 }
@@ -19,6 +20,7 @@ export function useBudgetView(
   const persistenceChangeVersion = usePersistenceChangeVersion();
   const [state, setState] = useState<UseBudgetViewState>({
     data: null,
+    dataVersion: persistenceChangeVersion,
     isLoading: true,
     error: null,
   });
@@ -27,7 +29,7 @@ export function useBudgetView(
     let isMounted = true;
 
     if (!enabled) {
-      setState({ data: null, isLoading: false, error: null });
+      setState({ data: null, dataVersion: persistenceChangeVersion, isLoading: false, error: null });
       return () => {
         isMounted = false;
       };
@@ -36,6 +38,7 @@ export function useBudgetView(
     async function loadBudgetView() {
       setState((current) => ({
         data: current.data,
+        dataVersion: current.dataVersion,
         isLoading: current.data === null,
         error: null,
       }));
@@ -52,6 +55,7 @@ export function useBudgetView(
 
         setState({
           data,
+          dataVersion: persistenceChangeVersion,
           isLoading: false,
           error: null,
         });
@@ -62,6 +66,7 @@ export function useBudgetView(
 
         setState({
           data: null,
+          dataVersion: persistenceChangeVersion,
           isLoading: false,
           error:
             error instanceof Error

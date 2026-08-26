@@ -16,6 +16,12 @@ import {
   type ApplicationHistoryContext,
 } from "../../../apps/web/src/features/history/applicationHistory.ts";
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.ts";
+import {
+  getPersistenceChangeVersion,
+  subscribePersistenceChanges,
+} from "../../../apps/web/src/features/persistence/persistenceChangeBus.ts";
+import { notifyLocalFirstMutationCommitted } from "../../../apps/web/src/features/persistence/localFirst/mutationEvents.ts";
+import { resolveBudgetWorkspaceData } from "../../../apps/web/src/features/budget/useBudgetWorkspace.ts";
 
 function initialView(): BudgetMonthView {
   const category = (id: string, name: string, assigned: number) => ({
@@ -70,6 +76,66 @@ test("assignment persists and remains undoable after the Budget consumer disappe
   await service.redo("budget-a");
   assert.equal(current().categoryGroups[0].categories[0].assigned, 50);
   assert.equal(writes(), 3);
+});
+
+test("assignment execute, undo, and redo each notify the Budget-view refresh subscription", async () => {
+  let current = initialView();
+  const observedAssignments: number[] = [];
+  const versions: number[] = [];
+  const unsubscribe = subscribePersistenceChanges(() => {
+    versions.push(getPersistenceChangeVersion());
+    observedAssignments.push(current.categoryGroups[0]!.categories[0]!.assigned);
+  });
+  const budgetView = {
+    getBudgetMonthView: async () => current,
+    setCategoryAssignedValues: async (input: { assignments: { categoryId: string; assigned: number }[] }) => {
+      current = applyCategoryAssignedValues(current, input.assignments);
+      notifyLocalFirstMutationCommitted("budget-a");
+      return current;
+    },
+  };
+  const service = new ApplicationHistoryService<ApplicationHistoryContext>({
+    getContext: (budgetId) => ({
+      budgetId,
+      persistence: { budgetView } as unknown as BudgetPersistenceProvider,
+    }),
+  });
+
+  try {
+    await service.execute("budget-a", adaptBudgetCommandToApplicationHistory(
+      createBudgetAssignmentChangesCommand({ month: "2026-08", changes: [{
+        categoryId: "groceries", categoryName: "Groceries", originalAssigned: 60, finalAssigned: 100,
+      }] }),
+    ));
+    const ordinaryAssignedEditOverlay = {
+      data: current,
+      persistenceVersion: versions[0]!,
+    };
+
+    await service.undo("budget-a");
+    const renderedAfterUndo = resolveBudgetWorkspaceData(
+      ordinaryAssignedEditOverlay,
+      current,
+      versions[1]!,
+    );
+    assert.equal(renderedAfterUndo?.categoryGroups[0]!.categories[0]!.assigned, 60);
+    assert.equal(renderedAfterUndo?.readyToAssign, 0);
+
+    await service.redo("budget-a");
+    const renderedAfterRedo = resolveBudgetWorkspaceData(
+      ordinaryAssignedEditOverlay,
+      current,
+      versions[2]!,
+    );
+    assert.equal(renderedAfterRedo?.categoryGroups[0]!.categories[0]!.assigned, 100);
+    assert.equal(renderedAfterRedo?.readyToAssign, -40);
+  } finally {
+    unsubscribe();
+  }
+
+  assert.deepEqual(observedAssignments, [100, 60, 100]);
+  assert.equal(versions[1], versions[0]! + 1);
+  assert.equal(versions[2], versions[1]! + 1);
 });
 
 test("single and multi-source movements are persistent one-entry commands", async () => {
