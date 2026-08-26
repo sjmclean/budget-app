@@ -81,6 +81,9 @@ let persistentBackend: "opfs" | "opfs-sahpool" | null = null;
 let sahPool: Awaited<
   ReturnType<Awaited<ReturnType<typeof sqlite3InitModule>>["installOpfsSAHPoolVfs"]>
 > | null = null;
+
+const SAH_TRANSIENT_SPARE_CAPACITY = 4;
+
 let baselineExportBytes: Uint8Array | null = null;
 let durable = false;
 let activeBudgetId = "";
@@ -1963,6 +1966,30 @@ async function ensurePersistentSqlite() {
   }
 }
 
+async function reservePersistentDatabaseCapacity(): Promise<void> {
+  if (persistentBackend !== "opfs-sahpool" || !sahPool) return;
+
+  const fileCountBefore = sahPool.getFileCount();
+  const capacityBefore = sahPool.getCapacity();
+  const requestedCapacity =
+    fileCountBefore + SAH_TRANSIENT_SPARE_CAPACITY;
+
+  console.info("[local-sqlite:sah-capacity] before", {
+    fileCount: fileCountBefore,
+    capacity: capacityBefore,
+    requestedCapacity,
+    files: sahPool.getFileNames(),
+  });
+
+  await sahPool.reserveMinimumCapacity(requestedCapacity);
+
+  console.info("[local-sqlite:sah-capacity] after", {
+    fileCount: sahPool.getFileCount(),
+    capacity: sahPool.getCapacity(),
+    files: sahPool.getFileNames(),
+  });
+}
+
 function openPersistentDatabase(filename: string): SqliteDatabase {
   if (!sqliteRuntime || !persistentBackend) {
     throw workerError("PERSISTENT_SQLITE_UNAVAILABLE", "Durable browser SQLite is unavailable.");
@@ -2016,6 +2043,7 @@ async function beginStagedImport(
   }
 
   await ensurePersistentSqlite();
+  await reservePersistentDatabaseCapacity();
 
   const stage: StagedImportState = {
     budgetId: request.budgetId,
@@ -2113,6 +2141,8 @@ async function commitStagedImport(expectedCounts: BudgetDomainCounts) {
   const targetFilename = createPhysicalGenerationFilename(stage.budgetId);
 
   try {
+    await reservePersistentDatabaseCapacity();
+
     // Copy-on-write promotion: the previously authoritative physical database
     // remains untouched until the complete candidate has been validated.
     await copyOpfsDatabase(stage.filename, targetFilename);
@@ -2154,9 +2184,13 @@ async function commitStagedImport(expectedCounts: BudgetDomainCounts) {
       );
     }
 
+    const supersededPhysicalFilename = stage.previousFilename || null;
     stagedImport = null;
     await removeOpfsFile(stage.filename).catch(() => undefined);
-    return promotedManifest;
+    return {
+      manifest: promotedManifest,
+      supersededPhysicalFilename,
+    };
   } catch (error) {
     database?.close();
     database = null;
@@ -5562,6 +5596,8 @@ async function commitBaselineReplacement() {
   const targetFilename = createPhysicalGenerationFilename(current.budgetId);
 
   try {
+    await reservePersistentDatabaseCapacity();
+
     let offset = 0;
     await importPersistentDatabase(targetFilename, async () => {
       if (offset >= temporaryFile.size) return undefined;
@@ -5614,10 +5650,14 @@ async function commitBaselineReplacement() {
 
     const promotedManifest = currentManifest();
 
+    const supersededPhysicalFilename = previousFilename || null;
     replacement = null;
     await root.removeEntry(current.temporaryName).catch(() => undefined);
 
-    return promotedManifest;
+    return {
+      manifest: promotedManifest,
+      supersededPhysicalFilename,
+    };
   } catch (error) {
     database?.close();
     database = null;
@@ -5893,6 +5933,35 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       database = null;
       baselineExportBytes = null;
       return null;
+    case "retirePhysicalDatabaseFile": {
+      if (!isAllowedPhysicalFilename(
+        request.budgetId,
+        request.physicalFilename,
+      )) {
+        throw workerError(
+          "INVALID_PHYSICAL_DATABASE_FILE",
+          "The local SQLite physical generation selected for retirement is invalid.",
+        );
+      }
+      if (
+        request.physicalFilename === activeFilename &&
+        database
+      ) {
+        throw workerError(
+          "ACTIVE_PHYSICAL_DATABASE_FILE",
+          "The open active local SQLite physical generation cannot be retired.",
+        );
+      }
+
+      if (request.physicalFilename === activeFilename) {
+        activeFilename = "";
+        activeBudgetId = "";
+        activeSyncEpoch = "";
+      }
+
+      await removeOpfsFile(request.physicalFilename);
+      return null;
+    }
     case "deleteBudgetFile": {
       const filename = activeFilename;
       database?.close();

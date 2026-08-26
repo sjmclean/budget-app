@@ -35,6 +35,11 @@ export interface LocalBudgetManifest {
   readonly counts: BudgetDomainCounts;
 }
 
+export interface LocalDatabasePromotionResult {
+  readonly manifest: LocalBudgetManifest;
+  readonly supersededPhysicalFilename: string | null;
+}
+
 export interface LocalBudgetSyncState {
   readonly budgetId: string;
   readonly syncEpoch: string;
@@ -170,6 +175,12 @@ export type LocalBudgetWorkerRequest =
   | {
       readonly requestId: string;
       readonly type: "rollbackStagedImport";
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "retirePhysicalDatabaseFile";
+      readonly budgetId: string;
+      readonly physicalFilename: string;
     }
   | {
       readonly requestId: string;

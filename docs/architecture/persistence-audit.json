@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-26T00:41:22.919Z",
+  "generatedAt": "2026-08-26T10:56:54.726Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -1904,13 +1904,13 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localBudgetClient.ts",
-      "line": 47,
+      "line": 50,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localBudgetClient.ts",
-      "line": 48,
+      "line": 51,
       "classification": "review-required"
     },
     {

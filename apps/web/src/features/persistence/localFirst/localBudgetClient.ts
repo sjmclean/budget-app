@@ -4,6 +4,7 @@ import {
   type BudgetDomainCounts,
   type LocalImportEntity,
   type LocalBudgetManifest,
+  type LocalDatabasePromotionResult,
   type LocalBudgetMutation,
   type LocalBudgetSyncState,
   type LocalFirstMutationConflict,
@@ -33,7 +34,9 @@ interface PendingRequest {
 
 type LocalBudgetFilePointerStorage =
   Pick<Storage, "getItem" | "setItem"> &
-  Partial<Pick<Storage, "removeItem">>;
+  Partial<Pick<Storage, "removeItem">> & {
+    readonly flush?: () => Promise<void>;
+  };
 
 const LOCAL_DATABASE_FILE_KEY_PREFIX =
   "budget-app.local-first.database-file.";
@@ -48,6 +51,54 @@ function defaultFilePointerStorage(): LocalBudgetFilePointerStorage | null {
     return globalThis.localStorage;
   } catch {
     return null;
+  }
+}
+
+async function publishDatabaseFilePointer(
+  storage: LocalBudgetFilePointerStorage,
+  budgetId: string,
+  physicalFilename: string,
+): Promise<void> {
+  storage.setItem(
+    databaseFilePointerKey(budgetId),
+    physicalFilename,
+  );
+  await storage.flush?.();
+}
+
+async function restoreDatabaseFilePointer(
+  storage: LocalBudgetFilePointerStorage,
+  budgetId: string,
+  previousPhysicalFilename: string | null,
+): Promise<void> {
+  const key = databaseFilePointerKey(budgetId);
+
+  if (previousPhysicalFilename === null) {
+    if (!storage.removeItem) {
+      throw new Error(
+        "The previous local SQLite physical-file pointer cannot be restored because this storage does not support removal.",
+      );
+    }
+    storage.removeItem(key);
+  } else {
+    storage.setItem(key, previousPhysicalFilename);
+  }
+
+  await storage.flush?.();
+}
+
+function databaseFilePointerMatches(
+  storage: LocalBudgetFilePointerStorage,
+  budgetId: string,
+  expectedPhysicalFilename: string | null,
+): boolean {
+  try {
+    return (
+      storage.getItem(databaseFilePointerKey(budgetId)) ===
+      expectedPhysicalFilename
+    );
+  } catch {
+    return false;
   }
 }
 
@@ -170,24 +221,61 @@ export class LocalBudgetDatabaseClient {
   }
 
   async commitBaselineReplacement(): Promise<LocalBudgetManifest> {
-    const manifest = await this.#request<LocalBudgetManifest>({
+    const promotion = await this.#request<LocalDatabasePromotionResult>({
       requestId: createRuntimeUuid(),
       type: "commitBaselineReplacement",
     });
+    const manifest = promotion.manifest;
     assertCompleteManifest(manifest);
 
     const storage = this.#storage;
     if (storage) {
+      const previousPhysicalFilename = storage.getItem(
+        databaseFilePointerKey(manifest.budgetId),
+      );
+
       try {
-        storage.setItem(
-          databaseFilePointerKey(manifest.budgetId),
+        await publishDatabaseFilePointer(
+          storage,
+          manifest.budgetId,
           manifest.physicalFilename,
         );
       } catch (error) {
+        let previousPointerRestored = false;
+        try {
+          await restoreDatabaseFilePointer(
+            storage,
+            manifest.budgetId,
+            previousPhysicalFilename,
+          );
+          previousPointerRestored = true;
+        } catch {
+          // A synchronous publication failure may leave the previous pointer
+          // completely untouched. If that can be observed directly, the old
+          // generation remains authoritative and the candidate is disposable.
+          //
+          // Otherwise preserve the candidate: a leaked generation is
+          // recoverable; deleting a possibly referenced generation is not.
+          previousPointerRestored = databaseFilePointerMatches(
+            storage,
+            manifest.budgetId,
+            previousPhysicalFilename,
+          );
+        }
+
         await this.#request({
           requestId: createRuntimeUuid(),
           type: "close",
         }).catch(() => undefined);
+
+        if (previousPointerRestored) {
+          await this.#request({
+            requestId: createRuntimeUuid(),
+            type: "retirePhysicalDatabaseFile",
+            budgetId: manifest.budgetId,
+            physicalFilename: manifest.physicalFilename,
+          }).catch(() => undefined);
+        }
         throw Object.assign(
           new Error(
             "The replacement database was completed, but its durable active-file pointer could not be published.",
@@ -197,6 +285,15 @@ export class LocalBudgetDatabaseClient {
             cause: error,
           },
         );
+      }
+
+      if (promotion.supersededPhysicalFilename) {
+        await this.#request({
+          requestId: createRuntimeUuid(),
+          type: "retirePhysicalDatabaseFile",
+          budgetId: manifest.budgetId,
+          physicalFilename: promotion.supersededPhysicalFilename,
+        }).catch(() => undefined);
       }
     }
 
@@ -241,25 +338,62 @@ export class LocalBudgetDatabaseClient {
   async commitStagedImport(
     expectedCounts: BudgetDomainCounts,
   ): Promise<LocalBudgetManifest> {
-    const manifest = await this.#request<LocalBudgetManifest>({
+    const promotion = await this.#request<LocalDatabasePromotionResult>({
       requestId: createRuntimeUuid(),
       type: "commitStagedImport",
       expectedCounts,
     });
+    const manifest = promotion.manifest;
     assertCompleteManifest(manifest);
 
     const storage = this.#storage;
     if (storage) {
+      const previousPhysicalFilename = storage.getItem(
+        databaseFilePointerKey(manifest.budgetId),
+      );
+
       try {
-        storage.setItem(
-          databaseFilePointerKey(manifest.budgetId),
+        await publishDatabaseFilePointer(
+          storage,
+          manifest.budgetId,
           manifest.physicalFilename,
         );
       } catch (error) {
+        let previousPointerRestored = false;
+        try {
+          await restoreDatabaseFilePointer(
+            storage,
+            manifest.budgetId,
+            previousPhysicalFilename,
+          );
+          previousPointerRestored = true;
+        } catch {
+          // A synchronous publication failure may leave the previous pointer
+          // completely untouched. If that can be observed directly, the old
+          // generation remains authoritative and the candidate is disposable.
+          //
+          // Otherwise preserve the candidate: a leaked generation is
+          // recoverable; deleting a possibly referenced generation is not.
+          previousPointerRestored = databaseFilePointerMatches(
+            storage,
+            manifest.budgetId,
+            previousPhysicalFilename,
+          );
+        }
+
         await this.#request({
           requestId: createRuntimeUuid(),
           type: "close",
         }).catch(() => undefined);
+
+        if (previousPointerRestored) {
+          await this.#request({
+            requestId: createRuntimeUuid(),
+            type: "retirePhysicalDatabaseFile",
+            budgetId: manifest.budgetId,
+            physicalFilename: manifest.physicalFilename,
+          }).catch(() => undefined);
+        }
         throw Object.assign(
           new Error(
             "The imported database was completed, but its durable active-file pointer could not be published.",
@@ -269,6 +403,15 @@ export class LocalBudgetDatabaseClient {
             cause: error,
           },
         );
+      }
+
+      if (promotion.supersededPhysicalFilename) {
+        await this.#request({
+          requestId: createRuntimeUuid(),
+          type: "retirePhysicalDatabaseFile",
+          budgetId: manifest.budgetId,
+          physicalFilename: promotion.supersededPhysicalFilename,
+        }).catch(() => undefined);
       }
     }
 
