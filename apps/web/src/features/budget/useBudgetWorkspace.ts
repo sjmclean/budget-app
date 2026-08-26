@@ -85,6 +85,30 @@ export function resolveBudgetWorkspaceData(
     : authoritativeData;
 }
 
+export function resolveActiveCategorySelection(
+  selectedCategoryId: string | null,
+  data: BudgetMonthView,
+  preferredCategoryId?: string,
+): string | null {
+  const activeCategoryIds = new Set(
+    data.categoryGroups.flatMap((group) =>
+      group.categories
+        .filter((category) => !category.isArchived)
+        .map((category) => category.id),
+    ),
+  );
+
+  if (preferredCategoryId !== undefined) {
+    return activeCategoryIds.has(preferredCategoryId)
+      ? preferredCategoryId
+      : null;
+  }
+
+  return selectedCategoryId !== null && activeCategoryIds.has(selectedCategoryId)
+    ? selectedCategoryId
+    : null;
+}
+
 export function useBudgetWorkspace(
   budgetId: string,
   month: string,
@@ -523,7 +547,9 @@ export function useBudgetWorkspace(
       () => categoryHistory.setCategoryArchived({ categoryId, isArchived }),
       (nextData) => {
         setEditedData(nextData);
-        setSelectedCategoryId(categoryId);
+        setSelectedCategoryId((current) =>
+          resolveActiveCategorySelection(current, nextData),
+        );
       },
       "Failed to update category archive status.",
     );
@@ -661,7 +687,9 @@ export function useBudgetWorkspace(
       }),
       (nextData) => {
         setEditedData(nextData);
-        setSelectedCategoryId(targetCategoryId);
+        setSelectedCategoryId((current) =>
+          resolveActiveCategorySelection(current, nextData, targetCategoryId),
+        );
         setCategoryMergePreview(null);
       },
       "Failed to merge categories.",
