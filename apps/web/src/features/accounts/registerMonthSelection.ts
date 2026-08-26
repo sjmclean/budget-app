@@ -16,10 +16,19 @@ export function getRegisterMonthDateRange(monthKey: string): {
   startDate: string;
   endDate: string;
 } {
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthKey)) {
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(monthKey);
+  if (!match) {
     throw new Error("Invalid register month key.");
   }
-  return { startDate: `${monthKey}-01`, endDate: `${monthKey}-31` };
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+  return {
+    startDate: `${monthKey}-01`,
+    endDate: `${monthKey}-${String(daysInMonth).padStart(2, "0")}`,
+  };
 }
 
 export type RegisterMonthCheckboxState = "unchecked" | "checked" | "mixed";

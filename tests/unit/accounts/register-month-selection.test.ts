@@ -3,6 +3,7 @@ import test from "node:test";
 import type { AccountTransactionRow } from "../../../packages/application/src/accountRegister/AccountRegisterQueryPort.js";
 import {
   getRegisterMonthCheckboxState,
+  getRegisterMonthDateRange,
   getRegisterMonthKey,
   loadRegisterTransactionIdsForMonth,
 } from "../../../apps/web/src/features/accounts/registerMonthSelection.js";
@@ -28,6 +29,33 @@ test("month identity is derived directly from ISO date text without timezone con
   assert.equal(getRegisterMonthKey("2026-01-01"), "2026-01");
   assert.equal(getRegisterMonthKey("2026-13-01"), null);
   assert.equal(getRegisterMonthKey("August 2026"), null);
+});
+
+test("month date ranges use the real final calendar day", () => {
+  assert.deepEqual(
+    getRegisterMonthDateRange("2026-01"),
+    { startDate: "2026-01-01", endDate: "2026-01-31" },
+  );
+  assert.deepEqual(
+    getRegisterMonthDateRange("2026-02"),
+    { startDate: "2026-02-01", endDate: "2026-02-28" },
+  );
+  assert.deepEqual(
+    getRegisterMonthDateRange("2028-02"),
+    { startDate: "2028-02-01", endDate: "2028-02-29" },
+  );
+  assert.deepEqual(
+    getRegisterMonthDateRange("2026-04"),
+    { startDate: "2026-04-01", endDate: "2026-04-30" },
+  );
+  assert.deepEqual(
+    getRegisterMonthDateRange("2026-12"),
+    { startDate: "2026-12-01", endDate: "2026-12-31" },
+  );
+  assert.throws(
+    () => getRegisterMonthDateRange("2026-13"),
+    /Invalid register month key/,
+  );
 });
 
 test("month ID loading spans bounded pages and preserves active query scope", async () => {
