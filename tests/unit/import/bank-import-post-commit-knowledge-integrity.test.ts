@@ -94,6 +94,12 @@ test("optional post-commit knowledge failure does not turn a successful register
     keyValueStorage: throwingStorage(),
   } as never);
 
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
+
   try {
     const sourceCandidate = candidate();
 
@@ -147,7 +153,20 @@ test("optional post-commit knowledge failure does not turn a successful register
       result.audit.knowledgePersistenceError ?? "",
       /knowledge storage unavailable/i,
     );
+
+    assert.equal(warnings.length, 1);
+    assert.equal(
+      warnings[0]?.[0],
+      "Transaction import committed successfully, but optional import knowledge could not be persisted.",
+    );
+    assert.match(
+      warnings[0]?.[1] instanceof Error
+        ? warnings[0][1].message
+        : String(warnings[0]?.[1] ?? ""),
+      /knowledge storage unavailable/i,
+    );
   } finally {
+    console.warn = originalWarn;
     resetBudgetPersistenceProvider();
   }
 });
