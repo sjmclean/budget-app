@@ -28,6 +28,7 @@ import {
   switchPayeeMergeTarget,
 } from "../features/accounts/payeeMergeSelection";
 import { PayeeIcon } from "../features/icons/PayeeIcon";
+import { PayeeCustomImagePicker } from "../features/icons/PayeeCustomImagePicker";
 import {
   PAYEE_BUILTIN_ICONS,
   serialisePayeeIconReference,
@@ -1622,6 +1623,7 @@ export function PayeeManagementPage() {
               <div><h2 id="payee-icon-picker-title">Change icon</h2><p>Choose an icon for {selectedPayee.name}.</p></div>
               <button className="button button-ghost" type="button" onClick={() => setIsIconPickerOpen(false)} aria-label="Close">×</button>
             </div>
+            <PayeeCustomImagePicker payee={selectedPayee} value={iconPickerDraft} onChange={setIconPickerDraft} />
             <div className="payee-icon-picker-grid" role="radiogroup" aria-label="Payee icon">
               <button type="button" role="radio" aria-checked={iconPickerDraft === ""}
                 className={iconPickerDraft === "" ? "is-selected" : ""} onClick={() => setIconPickerDraft("")}>
