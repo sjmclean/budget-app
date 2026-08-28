@@ -11,6 +11,7 @@ import {
 import { resolvePayeeIcon } from "../../../apps/web/src/features/icons/payeeIconResolver.js";
 import {
   fitPayeeIconDimensions,
+  normalisePayeeIconImage,
   PAYEE_ICON_MAX_DIMENSION,
   PAYEE_ICON_UPLOAD_MAX_BYTES,
   validatePayeeIconUploadCandidate,
@@ -98,7 +99,7 @@ describe("custom payee icon references", () => {
 
 describe("custom payee image upload policy", () => {
   it("accepts supported image MIME types up to the upload limit", () => {
-    for (const type of ["image/jpeg", "image/png", "image/webp"]) {
+    for (const type of ["image/jpeg", "image/png", "image/webp", "image/svg+xml"]) {
       assert.doesNotThrow(() => validatePayeeIconUploadCandidate({ size: 1024, type }));
     }
     assert.doesNotThrow(() => validatePayeeIconUploadCandidate({
@@ -107,13 +108,39 @@ describe("custom payee image upload policy", () => {
     }));
   });
 
-  it("rejects SVG, empty files and files over 5 MB", () => {
-    assert.throws(() => validatePayeeIconUploadCandidate({ size: 1024, type: "image/svg+xml" }));
+  it("rejects empty files and files over 5 MB, including SVG", () => {
     assert.throws(() => validatePayeeIconUploadCandidate({ size: 0, type: "image/png" }));
     assert.throws(() => validatePayeeIconUploadCandidate({
       size: PAYEE_ICON_UPLOAD_MAX_BYTES + 1,
       type: "image/jpeg",
     }));
+    assert.throws(() => validatePayeeIconUploadCandidate({
+      size: PAYEE_ICON_UPLOAD_MAX_BYTES + 1,
+      type: "image/svg+xml",
+    }));
+  });
+
+  it("does not add SVG as a persisted embedded icon format", () => {
+    assert.equal(parsePayeeIconReference(`embedded:v1:svg:${embeddedData}`).kind, "unknown");
+    for (const format of ["webp", "png"] as const) {
+      const reference = serialisePayeeIconReference({ kind: "embedded", format, data: embeddedData });
+      assert.equal(parsePayeeIconReference(reference).kind, "embedded");
+    }
+  });
+
+  it("surfaces malformed SVG or raster decode failures as a safe error", async () => {
+    const malformedSvg = {
+      size: 128,
+      type: "image/svg+xml",
+    } as File;
+
+    await assert.rejects(
+      normalisePayeeIconImage(
+        malformedSvg,
+        async () => { throw new TypeError("The selected file is not a valid image."); },
+      ),
+      /selected file is not a valid image/i,
+    );
   });
 
   it("fits images within 256px without changing aspect ratio", () => {

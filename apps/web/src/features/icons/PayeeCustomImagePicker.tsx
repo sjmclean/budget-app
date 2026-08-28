@@ -53,7 +53,7 @@ export function PayeeCustomImagePicker({
       <PayeeIcon payee={{ ...payee, iconRef: value }} size={64} decorative />
       <div style={{ display: "grid", gap: "0.4rem" }}>
         <strong>{isCustomImage ? "Custom image" : "Use your own image"}</strong>
-        <span className="muted">JPEG, PNG or WebP · maximum 5 MB. Images are resized to fit within 256 × 256.</span>
+        <span className="muted">JPG, PNG, WebP or SVG · maximum 5 MB. Images are resized to fit within 256 × 256.</span>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
           <button
             className="button button-secondary"

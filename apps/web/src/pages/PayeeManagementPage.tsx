@@ -24,6 +24,7 @@ import {
 } from "../features/accounts/payeeRecognition";
 import {
   createPayeeMergeSelection,
+  filterPayeeMergeCandidates,
   getPayeeMergeParticipantIds,
   switchPayeeMergeTarget,
 } from "../features/accounts/payeeMergeSelection";
@@ -284,7 +285,7 @@ export function PayeeManagementPage() {
     setMergeTargetPayeeId(selectedPayee.id);
     setMergeSearch("");
     setMergeError("");
-    setMergeDialogStep("confirm");
+    setMergeDialogStep("select");
     setIsActionsOpen(false);
   }
 
@@ -512,9 +513,10 @@ export function PayeeManagementPage() {
   const selectedMergeNoteCount = selectedMergePayees.filter((payee) =>
     payee.note?.trim(),
   ).length;
-  const mergeCandidates = payees.filter((payee) =>
-    payee.id !== selectedPayee?.id &&
-    payee.name.toLocaleLowerCase().includes(mergeSearch.trim().toLocaleLowerCase()),
+  const mergeCandidates = filterPayeeMergeCandidates(
+    payees,
+    mergeTargetPayeeId,
+    mergeSearch,
   );
   const mergeScheduledCount = selectedMergePayees.reduce(
     (total, payee) => total + (payee.scheduledUseCount ?? 0),
@@ -1529,11 +1531,13 @@ export function PayeeManagementPage() {
                   autoFocus
                 />
                 <div className="payee-merge-choice-list">
-                  <label className={`payee-merge-choice ${mergeTargetPayeeId === selectedPayee.id ? "is-destination" : ""}`}>
-                    <input type="radio" name="merge-target" checked={mergeTargetPayeeId === selectedPayee.id} onChange={() => chooseMergeTarget(selectedPayee.id)} />
-                    <span><strong>{selectedPayee.name}</strong><small>Payee to keep</small></span>
-                    <small>{selectedPayee.useCount} transactions · {selectedPayee.scheduledUseCount ?? 0} scheduled</small>
-                  </label>
+                  {mergeTargetPayee ? (
+                    <label className="payee-merge-choice is-destination">
+                      <input type="radio" name="merge-target" checked readOnly />
+                      <span><strong>{mergeTargetPayee.name}</strong><small>Payee to keep</small></span>
+                      <small>{mergeTargetPayee.useCount} transactions · {mergeTargetPayee.scheduledUseCount ?? 0} scheduled</small>
+                    </label>
+                  ) : null}
                   {mergeCandidates.map((payee) => (
                     <label className={`payee-merge-choice ${mergeTargetPayeeId === payee.id ? "is-destination" : ""}`} key={payee.id}>
                       <span className="payee-merge-choice-controls">
@@ -1544,6 +1548,9 @@ export function PayeeManagementPage() {
                       <small>{payee.useCount} transactions · {payee.scheduledUseCount ?? 0} scheduled</small>
                     </label>
                   ))}
+                  {mergeCandidates.length === 0 ? (
+                    <p className="payee-management-empty">No matching payees found.</p>
+                  ) : null}
                 </div>
                 <div className="app-dialog-actions">
                   <button className="button button-secondary" type="button" onClick={() => setMergeDialogStep("closed")}>Cancel</button>

@@ -39,6 +39,25 @@ test("merge confirmation puts the payee to keep first", () => {
   assert.match(page, />Payee to keep</);
 });
 
+test("manual merge opens searchable selection with an empty source list", () => {
+  assert.match(
+    page,
+    /function openMergeDialog\(\)[\s\S]*?setSelectedMergePayeeIds\(\[\]\)[\s\S]*?setMergeTargetPayeeId\(selectedPayee\.id\)[\s\S]*?setMergeDialogStep\("select"\)/,
+  );
+  assert.match(page, /filterPayeeMergeCandidates/);
+  assert.match(page, /No matching payees found\./);
+});
+
+test("payee directory and detail use separate desktop scroll regions with a mobile reset", () => {
+  const styles = readFileSync(
+    new URL("../../../apps/web/src/styles/globals.css", import.meta.url),
+    "utf8",
+  );
+  assert.match(styles, /\.payee-management-page \.payee-management-list[\s\S]*?overflow-y: auto/);
+  assert.match(styles, /\.payee-management-page \.payee-management-detail-panel[\s\S]*?overflow-y: auto/);
+  assert.match(styles, /@media \(max-width: 820px\)[\s\S]*?height: auto[\s\S]*?\.payee-management-page \.payee-management-list \{ overflow: visible; \}/);
+});
+
 test("high-confidence duplicate groups are discoverable from the list", () => {
   assert.match(page, /highConfidenceDuplicateCount/);
   assert.match(page, /isStrictEquivalentDuplicateGroup/);
