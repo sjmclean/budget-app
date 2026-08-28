@@ -1,0 +1,107 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import {
+  isExplicitPayeeIconReference,
+  mergePayeeIconReferences,
+  parsePayeeIconReference,
+  serialisePayeeIconReference,
+  validatePayeeIconReferenceForWrite,
+} from "../../../apps/web/src/features/icons/payeeIconReference.js";
+import { resolvePayeeIcon } from "../../../apps/web/src/features/icons/payeeIconResolver.js";
+import {
+  fitPayeeIconDimensions,
+  PAYEE_ICON_MAX_DIMENSION,
+  PAYEE_ICON_UPLOAD_MAX_BYTES,
+  validatePayeeIconUploadCandidate,
+} from "../../../apps/web/src/features/icons/payeeCustomImage.js";
+
+const embeddedData = "AQIDBA==";
+const embeddedWebp = `embedded:v1:webp:${embeddedData}`;
+const embeddedPng = `embedded:v1:png:${embeddedData}`;
+
+function payee(iconRef = "") {
+  return {
+    id: "payee-1",
+    name: "Merchant",
+    iconRef,
+  };
+}
+
+describe("custom payee icon references", () => {
+  it("parses, serialises and validates embedded WebP and PNG references", () => {
+    assert.deepEqual(parsePayeeIconReference(embeddedWebp), {
+      kind: "embedded",
+      format: "webp",
+      data: embeddedData,
+    });
+    assert.deepEqual(parsePayeeIconReference(embeddedPng), {
+      kind: "embedded",
+      format: "png",
+      data: embeddedData,
+    });
+    assert.equal(
+      serialisePayeeIconReference({ kind: "embedded", format: "webp", data: embeddedData }),
+      embeddedWebp,
+    );
+    assert.equal(validatePayeeIconReferenceForWrite(embeddedPng), embeddedPng);
+  });
+
+  it("rejects unsupported formats and malformed embedded data", () => {
+    assert.equal(parsePayeeIconReference(`embedded:v1:svg:${embeddedData}`).kind, "unknown");
+    assert.equal(parsePayeeIconReference("embedded:v1:webp:not base64").kind, "unknown");
+    assert.equal(parsePayeeIconReference("embedded:v1:webp:AQIDB").kind, "unknown");
+    assert.throws(() => validatePayeeIconReferenceForWrite("embedded:v1:svg:AQIDBA=="));
+  });
+
+  it("treats uploaded images as explicit merge overrides", () => {
+    assert.equal(isExplicitPayeeIconReference(embeddedWebp), true);
+    assert.equal(mergePayeeIconReferences("", [embeddedWebp]), embeddedWebp);
+    assert.equal(mergePayeeIconReferences("builtin:v1:shopping", [embeddedWebp]), "builtin:v1:shopping");
+    assert.equal(mergePayeeIconReferences("", [embeddedWebp, "builtin:v1:shopping"]), "");
+  });
+
+  it("resolves uploaded images to a data URL while reserved content refs still fall back", () => {
+    assert.deepEqual(resolvePayeeIcon({ payee: payee(embeddedWebp) }), {
+      kind: "image",
+      src: `data:image/webp;base64,${embeddedData}`,
+    });
+    assert.equal(
+      resolvePayeeIcon({ payee: payee(`content:v1:${"a".repeat(64)}`) }).kind,
+      "initials",
+    );
+  });
+});
+
+describe("custom payee image upload policy", () => {
+  it("accepts supported image MIME types up to the upload limit", () => {
+    for (const type of ["image/jpeg", "image/png", "image/webp"]) {
+      assert.doesNotThrow(() => validatePayeeIconUploadCandidate({ size: 1024, type }));
+    }
+    assert.doesNotThrow(() => validatePayeeIconUploadCandidate({
+      size: PAYEE_ICON_UPLOAD_MAX_BYTES,
+      type: "image/jpeg",
+    }));
+  });
+
+  it("rejects SVG, empty files and files over 5 MB", () => {
+    assert.throws(() => validatePayeeIconUploadCandidate({ size: 1024, type: "image/svg+xml" }));
+    assert.throws(() => validatePayeeIconUploadCandidate({ size: 0, type: "image/png" }));
+    assert.throws(() => validatePayeeIconUploadCandidate({
+      size: PAYEE_ICON_UPLOAD_MAX_BYTES + 1,
+      type: "image/jpeg",
+    }));
+  });
+
+  it("fits images within 256px without changing aspect ratio", () => {
+    assert.deepEqual(fitPayeeIconDimensions(128, 64), { width: 128, height: 64 });
+    assert.deepEqual(fitPayeeIconDimensions(1024, 512), {
+      width: PAYEE_ICON_MAX_DIMENSION,
+      height: PAYEE_ICON_MAX_DIMENSION / 2,
+    });
+    assert.deepEqual(fitPayeeIconDimensions(400, 800), {
+      width: PAYEE_ICON_MAX_DIMENSION / 2,
+      height: PAYEE_ICON_MAX_DIMENSION,
+    });
+    assert.throws(() => fitPayeeIconDimensions(0, 100));
+  });
+});
