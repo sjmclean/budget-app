@@ -29,6 +29,19 @@ export function PayeeIcon({
     const Icon = builtinComponents[resolved.key];
     return <span {...common} {...accessibility}><Icon aria-hidden="true" /></span>;
   }
+  if (resolved.kind === "image") {
+    return (
+      <span {...common} {...accessibility}>
+        <img
+          src={resolved.src}
+          alt=""
+          aria-hidden="true"
+          className="payee-icon-image"
+          style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "20%" }}
+        />
+      </span>
+    );
+  }
   if (resolved.kind === "transfer") return <span {...common} {...accessibility}><ArrowRightLeft aria-hidden="true" /></span>;
   if (resolved.kind === "none") return <span {...common} {...accessibility}><UserRound aria-hidden="true" /></span>;
   return <span {...common} {...accessibility} data-avatar-token={resolved.token}>{resolved.initials}</span>;
