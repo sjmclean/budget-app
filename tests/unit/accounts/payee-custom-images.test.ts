@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { createPayeeService } from "../../../apps/web/src/features/accounts/payeeService.js";
 import {
   isExplicitPayeeIconReference,
   mergePayeeIconReferences,
@@ -24,6 +25,16 @@ function payee(iconRef = "") {
     id: "payee-1",
     name: "Merchant",
     iconRef,
+  };
+}
+
+function storage() {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => void values.set(key, value),
+    removeItem: (key: string) => void values.delete(key),
+    listKeys: () => [...values.keys()],
   };
 }
 
@@ -69,6 +80,19 @@ describe("custom payee icon references", () => {
       resolvePayeeIcon({ payee: payee(`content:v1:${"a".repeat(64)}`) }).kind,
       "initials",
     );
+  });
+
+  it("persists embedded references through the existing payee write contract", async () => {
+    const service = createPayeeService({ storage: storage() });
+    await service.recordPayee("Merchant");
+    const current = (await service.listPayees())[0];
+    await service.updatePayee({
+      id: current.id,
+      name: current.name,
+      note: "",
+      iconUpdate: { kind: "set", iconRef: embeddedWebp },
+    });
+    assert.equal((await service.listPayees())[0].iconRef, embeddedWebp);
   });
 });
 
