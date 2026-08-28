@@ -62,7 +62,10 @@ function canvasToBlob(
   return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
 }
 
-function dimensionsWithinLimit(width: number, height: number) {
+export function fitPayeeIconDimensions(width: number, height: number) {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    throw new TypeError("Image dimensions must be positive finite numbers.");
+  }
   const longest = Math.max(width, height);
   const scale = longest > PAYEE_ICON_MAX_DIMENSION
     ? PAYEE_ICON_MAX_DIMENSION / longest
@@ -80,7 +83,7 @@ export async function normalisePayeeIconImage(file: File): Promise<string> {
     throw new TypeError("The selected file has invalid image dimensions.");
   }
 
-  const dimensions = dimensionsWithinLimit(image.naturalWidth, image.naturalHeight);
+  const dimensions = fitPayeeIconDimensions(image.naturalWidth, image.naturalHeight);
   const canvas = document.createElement("canvas");
   canvas.width = dimensions.width;
   canvas.height = dimensions.height;
