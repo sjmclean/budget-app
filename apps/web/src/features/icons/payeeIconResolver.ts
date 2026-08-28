@@ -3,6 +3,7 @@ import { parsePayeeIconReference, type PayeeBuiltinIconKey } from "./payeeIconRe
 
 export type ResolvedPayeeIcon =
   | { readonly kind: "builtin"; readonly key: PayeeBuiltinIconKey }
+  | { readonly kind: "image"; readonly src: string }
   | { readonly kind: "initials"; readonly initials: string; readonly token: string }
   | { readonly kind: "transfer" }
   | { readonly kind: "none" };
@@ -17,6 +18,12 @@ export function resolvePayeeIcon({ payee, state = "payee" }: ResolvePayeeIconInp
   if (state === "none" || !payee) return { kind: "none" };
   const reference = parsePayeeIconReference(payee.iconRef);
   if (reference.kind === "builtin") return reference;
+  if (reference.kind === "embedded") {
+    return {
+      kind: "image",
+      src: `data:image/${reference.format};base64,${reference.data}`,
+    };
+  }
   return {
     kind: "initials",
     initials: payeeInitials(payee.name),

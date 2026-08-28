@@ -30,8 +30,11 @@ test("ignored duplicate suggestions are durable rather than session-only", () =>
 });
 
 test("merge confirmation puts the payee to keep first", () => {
-  assert.match(page, /const orderedSelectedMergePayees =/);
-  assert.match(page, /left\.id === mergeTargetPayeeId/);
+  assert.match(page, /getPayeeMergeParticipantIds/);
+  assert.match(
+    page,
+    /getPayeeMergeParticipantIds\(\s*selectedMergePayeeIds,\s*mergeTargetPayeeId,\s*\)/,
+  );
   assert.match(page, /orderedSelectedMergePayees\.map/);
   assert.match(page, />Payee to keep</);
 });
