@@ -22,6 +22,11 @@ import {
   normalisePayeeIdentity,
   type PossibleDuplicateSuppression,
 } from "../features/accounts/payeeRecognition";
+import {
+  createPayeeMergeSelection,
+  getPayeeMergeParticipantIds,
+  switchPayeeMergeTarget,
+} from "../features/accounts/payeeMergeSelection";
 import { PayeeIcon } from "../features/icons/PayeeIcon";
 import {
   PAYEE_BUILTIN_ICONS,
@@ -489,16 +494,12 @@ export function PayeeManagementPage() {
   const selectedMergePayees = payees.filter((payee) =>
     selectedMergePayeeIds.includes(payee.id),
   );
-  const orderedSelectedMergePayees = [...selectedMergePayees].sort(
-    (left, right) => {
-      if (left.id === mergeTargetPayeeId) return -1;
-      if (right.id === mergeTargetPayeeId) return 1;
-      return (
-        right.useCount - left.useCount ||
-        left.name.localeCompare(right.name)
-      );
-    },
-  );
+  const orderedSelectedMergePayees = getPayeeMergeParticipantIds(
+    selectedMergePayeeIds,
+    mergeTargetPayeeId,
+  )
+    .map((payeeId) => payees.find((payee) => payee.id === payeeId))
+    .filter((payee): payee is PayeeView => Boolean(payee));
   const selectedMergeTransactionCount = selectedMergePayees.reduce(
     (total, payee) => total + payee.useCount,
     0,
@@ -521,13 +522,13 @@ export function PayeeManagementPage() {
   const mergeTargetPayee = payees.find((payee) => payee.id === mergeTargetPayeeId) ?? selectedPayee;
 
   function chooseMergeTarget(payeeId: string) {
-    setSelectedMergePayeeIds((sourceIds) => {
-      const withoutTarget = sourceIds.filter((id) => id !== payeeId);
-      return mergeTargetPayeeId && mergeTargetPayeeId !== payeeId
-        ? Array.from(new Set([...withoutTarget, mergeTargetPayeeId]))
-        : withoutTarget;
-    });
-    setMergeTargetPayeeId(payeeId);
+    const nextSelection = switchPayeeMergeTarget(
+      selectedMergePayeeIds,
+      mergeTargetPayeeId,
+      payeeId,
+    );
+    setSelectedMergePayeeIds(nextSelection.sourcePayeeIds);
+    setMergeTargetPayeeId(nextSelection.targetPayeeId);
   }
 
   const hasUnsavedChanges =
@@ -755,16 +756,13 @@ export function PayeeManagementPage() {
   }
 
   function toggleMergeSelection(payeeId: string, checked: boolean) {
-    setSelectedMergePayeeIds((currentIds) => {
-      const nextIds = checked
-        ? Array.from(new Set([...currentIds, payeeId]))
-        : currentIds.filter((id) => id !== payeeId);
-
-      setMergeTargetPayeeId((currentTargetId) =>
-        nextIds.includes(currentTargetId) ? currentTargetId : nextIds[0] ?? "",
-      );
-      return nextIds;
-    });
+    setSelectedMergePayeeIds((currentIds) =>
+      checked
+        ? Array.from(new Set([...currentIds, payeeId])).filter(
+            (id) => id !== mergeTargetPayeeId,
+          )
+        : currentIds.filter((id) => id !== payeeId),
+    );
     setStatusMessage(
       checked
         ? "Payee selected for merge."
@@ -773,15 +771,13 @@ export function PayeeManagementPage() {
   }
 
   function previewSelectedMerge() {
-    if (selectedMergePayeeIds.length < 2 || !mergeTargetPayeeId) {
-      setStatusMessage("Select at least two payees and choose the payee to keep.");
+    if (selectedMergePayeeIds.length < 1 || !mergeTargetPayeeId) {
+      setStatusMessage("Select at least one payee to merge and choose the payee to keep.");
       return;
     }
 
     const targetPayee = payees.find((payee) => payee.id === mergeTargetPayeeId);
-    const sourcePayeeId = selectedMergePayeeIds.find(
-      (payeeId) => payeeId !== mergeTargetPayeeId,
-    );
+    const sourcePayeeId = selectedMergePayeeIds[0];
     if (targetPayee && sourcePayeeId) {
       void mergePayeesIntoTarget(targetPayee, sourcePayeeId);
     }
@@ -793,8 +789,12 @@ export function PayeeManagementPage() {
       return;
     }
     const selectedMembers = selectedDuplicateGroup.payees.filter(({ id }) => selectedDuplicateMemberIds.includes(id));
-    setSelectedMergePayeeIds(selectedMembers.map(({ id }) => id));
-    setMergeTargetPayeeId(selectedDuplicateGroup.anchorPayeeId);
+    const mergeSelection = createPayeeMergeSelection(
+      selectedMembers.map(({ id }) => id),
+      selectedDuplicateGroup.anchorPayeeId,
+    );
+    setSelectedMergePayeeIds(mergeSelection.sourcePayeeIds);
+    setMergeTargetPayeeId(mergeSelection.targetPayeeId);
     const selectedCandidateIds = new Set(selectedMembers.filter(({ id }) => id !== selectedDuplicateGroup.anchorPayeeId).map(({ id }) => id));
     const evidence = selectedDuplicateGroup.candidates.flatMap(({ payeeId, reasons }) =>
       selectedCandidateIds.has(payeeId) ? reasons : []).find((reason) =>
@@ -974,8 +974,8 @@ export function PayeeManagementPage() {
   }
 
   async function confirmSelectedMerge() {
-    if (!mergeTargetPayee || selectedMergePayeeIds.length < 2 || isMergeSubmitting) return;
-    const sourcePayeeId = selectedMergePayeeIds.find((id) => id !== mergeTargetPayee.id);
+    if (!mergeTargetPayee || selectedMergePayeeIds.length < 1 || isMergeSubmitting) return;
+    const sourcePayeeId = selectedMergePayeeIds[0];
     if (!sourcePayeeId) return;
     setIsMergeSubmitting(true);
     setMergeError("");
@@ -1167,7 +1167,7 @@ export function PayeeManagementPage() {
                 <button
                   className="button button-primary"
                   type="button"
-                  disabled={selectedMergePayeeIds.length < 2}
+                  disabled={selectedMergePayeeIds.length < 1}
                   onClick={previewSelectedMerge}
                 >
                   Merge selected
@@ -1180,7 +1180,7 @@ export function PayeeManagementPage() {
             <div className="payee-drag-merge-help">
               <strong>Merge payees</strong>
               <span>
-                Tick two or more payees, choose the payee to keep, then confirm
+                Tick one or more source payees, choose the payee to keep, then confirm
                 how linked register and scheduled transactions should be updated.
                 {selectedMergePayeeIds.length > 0
                   ? ` ${selectedMergePayeeIds.length} selected · ${selectedMergeTransactionCount} transactions.`
@@ -1499,7 +1499,7 @@ export function PayeeManagementPage() {
                 <div className="payee-merge-preview-grid">
                   <div><span>Register transactions updated</span><strong>{selectedMergeTransactionCount}</strong></div>
                   <div><span>Scheduled transactions updated</span><strong>{mergeScheduledCount}</strong></div>
-                  <div><span>Exact names learned as aliases</span><strong>{Math.max(0, selectedMergePayeeIds.length - 1)}</strong></div>
+                  <div><span>Exact names learned as aliases</span><strong>{selectedMergePayeeIds.length}</strong></div>
                   <div><span>Recognition rules redirected</span><strong>{selectedMergeRuleCount}</strong></div>
                 </div>
                 <p className="payee-merge-warning">This atomic change cannot be undone. Original imported descriptions remain unchanged.</p>
@@ -1507,7 +1507,7 @@ export function PayeeManagementPage() {
                 <div className="app-dialog-actions">
                   <button className="button button-secondary" type="button" disabled={isMergeSubmitting}
                     onClick={() => setMergeDialogStep("closed")}>Cancel</button>
-                  <button className="button button-primary" type="button" disabled={isMergeSubmitting || !mergeTargetPayee}
+                  <button className="button button-primary" type="button" disabled={isMergeSubmitting || !mergeTargetPayee || selectedMergePayeeIds.length === 0}
                     onClick={() => void confirmSelectedMerge()}>{isMergeSubmitting ? "Merging…" : "Merge payees"}</button>
                 </div>
               </>
