@@ -1,0 +1,190 @@
+name: Apply payee keeper fix
+
+on:
+  push:
+    branches:
+      - fix/payee-duplicate-keeper-selection
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/payee-duplicate-keeper-selection
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Apply guarded PayeeManagementPage changes
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/web/src/pages/PayeeManagementPage.tsx')
+          text = path.read_text()
+
+          def replace_once(old: str, new: str, label: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+          '''} from "../features/accounts/payeeRecognition";
+          import { PayeeIcon } from "../features/icons/PayeeIcon";''',
+          '''} from "../features/accounts/payeeRecognition";
+          import {
+            createPayeeMergeSelection,
+            getPayeeMergeParticipantIds,
+            switchPayeeMergeTarget,
+          } from "../features/accounts/payeeMergeSelection";
+          import { PayeeIcon } from "../features/icons/PayeeIcon";''',
+          'merge-selection import',
+          )
+
+          replace_once(
+          '''  const orderedSelectedMergePayees = [...selectedMergePayees].sort(
+            (left, right) => {
+              if (left.id === mergeTargetPayeeId) return -1;
+              if (right.id === mergeTargetPayeeId) return 1;
+              return (
+                right.useCount - left.useCount ||
+                left.name.localeCompare(right.name)
+              );
+            },
+          );''',
+          '''  const orderedSelectedMergePayees = getPayeeMergeParticipantIds(
+            selectedMergePayeeIds,
+            mergeTargetPayeeId,
+          )
+            .map((payeeId) => payees.find((payee) => payee.id === payeeId))
+            .filter((payee): payee is PayeeView => Boolean(payee));''',
+          'confirmation participant list',
+          )
+
+          replace_once(
+          '''  function chooseMergeTarget(payeeId: string) {
+            setSelectedMergePayeeIds((sourceIds) => {
+              const withoutTarget = sourceIds.filter((id) => id !== payeeId);
+              return mergeTargetPayeeId && mergeTargetPayeeId !== payeeId
+                ? Array.from(new Set([...withoutTarget, mergeTargetPayeeId]))
+                : withoutTarget;
+            });
+            setMergeTargetPayeeId(payeeId);
+          }''',
+          '''  function chooseMergeTarget(payeeId: string) {
+            const nextSelection = switchPayeeMergeTarget(
+              selectedMergePayeeIds,
+              mergeTargetPayeeId,
+              payeeId,
+            );
+            setSelectedMergePayeeIds(nextSelection.sourcePayeeIds);
+            setMergeTargetPayeeId(nextSelection.targetPayeeId);
+          }''',
+          'keeper switch',
+          )
+
+          replace_once(
+          '''  function toggleMergeSelection(payeeId: string, checked: boolean) {
+            setSelectedMergePayeeIds((currentIds) => {
+              const nextIds = checked
+                ? Array.from(new Set([...currentIds, payeeId]))
+                : currentIds.filter((id) => id !== payeeId);
+
+              setMergeTargetPayeeId((currentTargetId) =>
+                nextIds.includes(currentTargetId) ? currentTargetId : nextIds[0] ?? "",
+              );
+              return nextIds;
+            });''',
+          '''  function toggleMergeSelection(payeeId: string, checked: boolean) {
+            setSelectedMergePayeeIds((currentIds) =>
+              checked
+                ? Array.from(new Set([...currentIds, payeeId])).filter(
+                    (id) => id !== mergeTargetPayeeId,
+                  )
+                : currentIds.filter((id) => id !== payeeId),
+            );''',
+          'source selection toggle',
+          )
+
+          replace_once(
+          '''    if (selectedMergePayeeIds.length < 2 || !mergeTargetPayeeId) {
+              setStatusMessage("Select at least two payees and choose the payee to keep.");''',
+          '''    if (selectedMergePayeeIds.length < 1 || !mergeTargetPayeeId) {
+              setStatusMessage("Select at least one payee to merge and choose the payee to keep.");''',
+          'preview validation',
+          )
+
+          replace_once(
+          '''    setSelectedMergePayeeIds(selectedMembers.map(({ id }) => id));
+            setMergeTargetPayeeId(selectedDuplicateGroup.anchorPayeeId);''',
+          '''    const mergeSelection = createPayeeMergeSelection(
+              selectedMembers.map(({ id }) => id),
+              selectedDuplicateGroup.anchorPayeeId,
+            );
+            setSelectedMergePayeeIds(mergeSelection.sourcePayeeIds);
+            setMergeTargetPayeeId(mergeSelection.targetPayeeId);''',
+          'duplicate review initialization',
+          )
+
+          replace_once(
+          '''  async function confirmSelectedMerge() {
+            if (!mergeTargetPayee || selectedMergePayeeIds.length < 2 || isMergeSubmitting) return;
+            const sourcePayeeId = selectedMergePayeeIds.find((id) => id !== mergeTargetPayee.id);
+            if (!sourcePayeeId) return;''',
+          '''  async function confirmSelectedMerge() {
+            if (!mergeTargetPayee || selectedMergePayeeIds.length < 1 || isMergeSubmitting) return;
+            const sourcePayeeId = selectedMergePayeeIds[0];
+            if (!sourcePayeeId) return;''',
+          'merge confirmation validation',
+          )
+
+          replace_once(
+          '''<div><span>Exact names learned as aliases</span><strong>{Math.max(0, selectedMergePayeeIds.length - 1)}</strong></div>''',
+          '''<div><span>Exact names learned as aliases</span><strong>{selectedMergePayeeIds.length}</strong></div>''',
+          'source alias count',
+          )
+
+          replace_once(
+          '''<button className="button button-primary" type="button" disabled={isMergeSubmitting || !mergeTargetPayee}
+                    onClick={() => void confirmSelectedMerge()}>{isMergeSubmitting ? "Merging…" : "Merge payees"}</button>''',
+          '''<button className="button button-primary" type="button" disabled={isMergeSubmitting || !mergeTargetPayee || selectedMergePayeeIds.length === 0}
+                    onClick={() => void confirmSelectedMerge()}>{isMergeSubmitting ? "Merging…" : "Merge payees"}</button>''',
+          'confirm button validation',
+          )
+
+          path.write_text(text)
+          PY
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run payee merge selection tests
+        run: node scripts/run-node-tests.mjs tests/unit/accounts/payee-merge-selection.test.ts tests/unit/accounts/payee-duplicate-name-equivalence.test.ts
+
+      - name: Build web app
+        run: pnpm test:web-build
+
+      - name: Commit fix and remove one-off workflow
+        shell: bash
+        run: |
+          rm .github/workflows/apply-payee-keeper-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/src/pages/PayeeManagementPage.tsx .github/workflows/apply-payee-keeper-fix.yml
+          git commit -m "fix(payees): preserve selected duplicate merge keeper"
+          git push origin HEAD:fix/payee-duplicate-keeper-selection
