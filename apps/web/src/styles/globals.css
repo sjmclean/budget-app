@@ -8610,28 +8610,32 @@ strong {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: 0;
-  overflow: visible;
+  height: min(46rem, calc(100vh - 9rem));
+  min-height: 32rem;
+  overflow: hidden;
   grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr);
 }
 
 .payee-management-page .payee-management-list-panel {
   min-width: 0;
   max-width: 100%;
-  overflow: visible;
-  grid-template-rows: auto auto auto auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   align-content: start;
 }
 
 .payee-management-page .payee-management-list {
   width: 100%;
   min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: none;
-  overflow: visible;
-  scrollbar-width: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
-
-.payee-management-page .payee-management-list::-webkit-scrollbar { display: none; }
 
 .payee-management-page .payee-management-filters {
   min-width: 0;
@@ -8661,7 +8665,8 @@ strong {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden;
+  min-height: 0;
+  overflow-y: auto;
   gap: 0.7rem;
 }
 
@@ -8740,7 +8745,14 @@ strong {
 }
 
 @media (max-width: 820px) {
-  .payee-management-page .payee-management-workspace { grid-template-columns: 1fr; }
+  .payee-management-page .payee-management-workspace {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    grid-template-columns: 1fr;
+  }
+  .payee-management-page .payee-management-list-panel { overflow: visible; }
+  .payee-management-page .payee-management-list { overflow: visible; }
   .payee-management-page .payee-management-detail-panel { overflow: visible; }
   .payee-overview-grid { grid-template-columns: 1fr; }
 }

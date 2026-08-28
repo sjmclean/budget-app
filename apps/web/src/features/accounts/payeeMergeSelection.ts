@@ -3,6 +3,23 @@ export type PayeeMergeSelection = {
   sourcePayeeIds: string[];
 };
 
+export type PayeeMergeCandidate = {
+  readonly id: string;
+  readonly name: string;
+};
+
+export function filterPayeeMergeCandidates<T extends PayeeMergeCandidate>(
+  payees: readonly T[],
+  targetPayeeId: string,
+  search: string,
+): T[] {
+  const query = search.trim().toLocaleLowerCase();
+  return payees.filter((payee) =>
+    payee.id !== targetPayeeId &&
+    payee.name.toLocaleLowerCase().includes(query),
+  );
+}
+
 export function createPayeeMergeSelection(
   participantPayeeIds: readonly string[],
   targetPayeeId: string,

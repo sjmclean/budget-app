@@ -5,9 +5,14 @@ import {
 
 export const PAYEE_ICON_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 export const PAYEE_ICON_MAX_DIMENSION = 256;
-export const PAYEE_ICON_ACCEPT = "image/jpeg,image/png,image/webp";
+export const PAYEE_ICON_ACCEPT = "image/jpeg,image/png,image/webp,image/svg+xml";
 
-const supportedInputTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const supportedInputTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/svg+xml",
+]);
 
 export interface PayeeIconUploadCandidate {
   readonly size: number;
@@ -18,7 +23,7 @@ export function validatePayeeIconUploadCandidate(
   candidate: PayeeIconUploadCandidate,
 ): void {
   if (!supportedInputTypes.has(candidate.type.toLowerCase())) {
-    throw new TypeError("Choose a JPEG, PNG or WebP image.");
+    throw new TypeError("Choose a JPEG, PNG, WebP or SVG image.");
   }
   if (!Number.isFinite(candidate.size) || candidate.size <= 0) {
     throw new TypeError("The selected image is empty or invalid.");
@@ -76,9 +81,12 @@ export function fitPayeeIconDimensions(width: number, height: number) {
   };
 }
 
-export async function normalisePayeeIconImage(file: File): Promise<string> {
+export async function normalisePayeeIconImage(
+  file: File,
+  decodeImage: (candidate: File) => Promise<HTMLImageElement> = loadImage,
+): Promise<string> {
   validatePayeeIconUploadCandidate(file);
-  const image = await loadImage(file);
+  const image = await decodeImage(file);
   if (!image.naturalWidth || !image.naturalHeight) {
     throw new TypeError("The selected file has invalid image dimensions.");
   }
@@ -104,5 +112,12 @@ export async function normalisePayeeIconImage(file: File): Promise<string> {
   const separator = dataUrl.indexOf(",");
   const data = separator >= 0 ? dataUrl.slice(separator + 1) : "";
   if (!data) throw new Error("The processed image is empty.");
-  return serialisePayeeIconReference({ kind: "embedded", format, data });
+  try {
+    return serialisePayeeIconReference({ kind: "embedded", format, data });
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new TypeError("The processed image is too large. Choose a simpler image.");
+    }
+    throw error;
+  }
 }

@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   createPayeeMergeSelection,
+  filterPayeeMergeCandidates,
   getPayeeMergeParticipantIds,
   switchPayeeMergeTarget,
 } from "../../../apps/web/src/features/accounts/payeeMergeSelection.ts";
@@ -76,4 +77,25 @@ test("one source and one target is a valid two-payee merge shape", () => {
     getPayeeMergeParticipantIds(selection.sourcePayeeIds, selection.targetPayeeId).length,
     2,
   );
+});
+
+test("manual merge candidates exclude the keeper and filter case-insensitively", () => {
+  const payees = [
+    { id: "aldi", name: "Aldi" },
+    { id: "aldi-au", name: "Aldi Australia" },
+    { id: "aldi-vic", name: "ALDI VIC 056" },
+    { id: "coles", name: "Coles" },
+  ];
+
+  assert.deepEqual(
+    filterPayeeMergeCandidates(payees, "aldi", "aLdI").map(({ id }) => id),
+    ["aldi-au", "aldi-vic"],
+  );
+});
+
+test("manual merge selection starts with the keeper and no sources", () => {
+  assert.deepEqual(createPayeeMergeSelection(["aldi"], "aldi"), {
+    targetPayeeId: "aldi",
+    sourcePayeeIds: [],
+  });
 });
