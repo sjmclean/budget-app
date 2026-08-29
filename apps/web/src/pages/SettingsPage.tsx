@@ -924,6 +924,20 @@ export function SettingsPage({
               <label className="settings-field settings-field-wide settings-checkbox-field">
                 <input
                   type="checkbox"
+                  checked={settings.general.showMerchantIconsInRegister}
+                  onChange={(event) =>
+                    updateGeneral("showMerchantIconsInRegister", event.target.checked)
+                  }
+                />
+                <span>
+                  Show merchant icons in the register
+                  <small>Display the saved payee icon beside merchant names in account registers.</small>
+                </span>
+              </label>
+
+              <label className="settings-field settings-field-wide settings-checkbox-field">
+                <input
+                  type="checkbox"
                   checked={settings.general.developerPerformanceMode}
                   onChange={(event) =>
                     updateGeneral("developerPerformanceMode", event.target.checked)

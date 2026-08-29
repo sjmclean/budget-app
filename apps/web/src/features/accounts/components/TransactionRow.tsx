@@ -18,6 +18,8 @@ import { CategoryLabel } from "../../icons/CategoryIcon";
 import type { TransactionTagDefinition } from "../../tags/transactionTagTypes";
 import type { TransactionEditableField } from "../../transactions/transactionEditIntent";
 import { TransactionTagIconGraphic } from "../../tags/transactionTagIcons";
+import { PayeeIcon } from "../../icons/PayeeIcon";
+import type { PayeeView } from "../payeeService";
 
 const EMPTY_TRANSACTION_TAG_IDS: readonly string[] = Object.freeze([]);
 
@@ -698,6 +700,7 @@ interface TransactionRowRendererProps {
   visibleColumns: Set<RegisterColumnId>;
   rowStyle: CSSProperties;
   categoriesEnabled?: boolean;
+  canonicalPayee?: Pick<PayeeView, "id" | "name" | "iconRef">;
 }
 
 interface TransactionRowProps extends TransactionRowRendererProps {
@@ -722,6 +725,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
   visibleColumns,
   rowStyle,
   categoriesEnabled = true,
+  canonicalPayee,
 }: TransactionRowRendererProps) {
   const [isSplitExpanded, setIsSplitExpanded] = useState(false);
   const splitLines = transaction.splitLines ?? [];
@@ -782,6 +786,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
         ) : null}
 
         <div className="register-payee-cell">
+          {canonicalPayee ? <PayeeIcon payee={canonicalPayee} size={20} decorative /> : null}
           <strong>{transaction.payee}</strong>
           <ScheduledTransactionBadge transaction={transaction} />
           <RecentImportBadge status={recentImportStatus} />
@@ -891,6 +896,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   onOpenContextMenu,
   visibleColumns,
   categoriesEnabled = true,
+  canonicalPayee,
 }: TransactionRowRendererProps) {
   const [isSplitExpanded, setIsSplitExpanded] = useState(false);
   const splitLines = transaction.splitLines ?? [];
@@ -964,6 +970,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
 
         <div className="register-compact-main">
           <span className="register-compact-payee-line">
+            {canonicalPayee ? <PayeeIcon payee={canonicalPayee} size={20} decorative /> : null}
             <strong title={transaction.payee}>{transaction.payee}</strong>
             <ScheduledTransactionBadge transaction={transaction} />
           <RecentImportBadge status={recentImportStatus} />
@@ -1109,6 +1116,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
   onOpenContextMenu,
   visibleColumns,
   categoriesEnabled = true,
+  canonicalPayee,
 }: TransactionRowRendererProps) {
   const [isSplitExpanded, setIsSplitExpanded] = useState(false);
   const splitLines = transaction.splitLines ?? [];
@@ -1163,6 +1171,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
         <div className="register-tablet-main">
           <div className="register-tablet-primary-line">
             <span className="register-tablet-payee-line">
+              {canonicalPayee ? <PayeeIcon payee={canonicalPayee} size={20} decorative /> : null}
               <strong className="register-tablet-payee" title={transaction.payee}>
                 {transaction.payee}
               </strong>
@@ -1325,6 +1334,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
   onOpenContextMenu,
   visibleColumns,
   categoriesEnabled = true,
+  canonicalPayee,
 }: TransactionRowRendererProps) {
   const [isSplitExpanded, setIsSplitExpanded] = useState(false);
   const splitLines = transaction.splitLines ?? [];
@@ -1366,6 +1376,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
             onToggleTransactionSelection={onToggleTransactionSelection}
           />
           <div className="register-mobile-payee-wrap">
+            {canonicalPayee ? <PayeeIcon payee={canonicalPayee} size={20} decorative /> : null}
             <strong className="register-mobile-payee" title={transaction.payee}>
               {transaction.payee}
             </strong>

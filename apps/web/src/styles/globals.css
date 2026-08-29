@@ -7484,6 +7484,13 @@ strong {
   white-space: nowrap;
 }
 
+.register-payee-cell > .payee-icon,
+.register-compact-payee-line > .payee-icon,
+.register-tablet-payee-line > .payee-icon,
+.register-mobile-payee-wrap > .payee-icon {
+  flex: 0 0 20px;
+}
+
 
 /* v2.66 register right-click context menu */
 
