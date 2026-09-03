@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { releaseActiveBudgetPersistence } from "../features/persistence/budgetDatabaseLifecycle";
+import { isDatabaseReleasedError } from "../features/persistence/localFirst/budgetDatabaseOwnership";
 import { AddAccountModal } from "../components/accounts/AddAccountModal";
 import { isUncategorisedRegisterTransaction } from "../features/accounts/registerUncategorised";
 import type { AccountRegisterView } from "../features/accounts/accountRegisterTypes";
@@ -92,6 +94,9 @@ export function Sidebar({
     window.location.assign("/");
   }
   const navigate = useNavigate();
+  const switchingBudget = useRef(false);
+  const [isSwitchingBudget, setIsSwitchingBudget] = useState(false);
+  const [switchBudgetError, setSwitchBudgetError] = useState<string | null>(null);
   const location = useLocation();
   const persistenceProvider = getBudgetPersistenceProvider();
   const accountsPersistence = persistenceProvider.accounts;
@@ -246,7 +251,10 @@ export function Sidebar({
       }
     }
 
-    void loadAccountNavigation();
+    void loadAccountNavigation().catch((error) => {
+      if (!active || isDatabaseReleasedError(error)) return;
+      console.error("Account navigation could not load.", error);
+    });
 
     return () => {
       active = false;
@@ -337,9 +345,26 @@ export function Sidebar({
     setOpenMenuAccountId(null);
   }
 
-  function openSettingsDestination(path: string) {
-    setIsSettingsMenuOpen(false);
-    navigate(path);
+  async function openSettingsDestination(path: string) {
+    if (switchingBudget.current) return;
+    if (path !== "/") {
+      setIsSettingsMenuOpen(false);
+      navigate(path);
+      return;
+    }
+    switchingBudget.current = true;
+    setIsSwitchingBudget(true);
+    setSwitchBudgetError(null);
+    try {
+      await releaseActiveBudgetPersistence();
+      useUIStore.getState().clearSelectedBudget();
+      navigate("/");
+    } catch (error) {
+      setSwitchBudgetError(error instanceof Error ? error.message : "The budget could not be closed.");
+    } finally {
+      switchingBudget.current = false;
+      setIsSwitchingBudget(false);
+    }
   }
 
   function renderAccount(account: SidebarAccount) {
@@ -726,6 +751,8 @@ export function Sidebar({
         </nav>
 
         <div className="sidebar-settings">
+          {isSwitchingBudget ? <p role="status">Closing budget…</p> : null}
+          {switchBudgetError ? <p role="alert">{switchBudgetError}</p> : null}
           <div className="sidebar-settings-menu">
             {isSettingsMenuOpen ? (
               <div className="sidebar-settings-menu-panel" role="menu">
@@ -737,7 +764,8 @@ export function Sidebar({
                       key={destination.path}
                       type="button"
                       role="menuitem"
-                      onClick={() => openSettingsDestination(destination.path)}
+                      disabled={isSwitchingBudget}
+                      onClick={() => void openSettingsDestination(destination.path)}
                     >
                       <Icon size={16} />
                       <span>{destination.label}</span>

@@ -106,6 +106,9 @@ export class LocalBudgetDatabaseClient {
   readonly #worker: Worker;
   readonly #storage: LocalBudgetFilePointerStorage | null;
   readonly #pending = new Map<string, PendingRequest>();
+  #closing: Promise<void> | null = null;
+  #closed = false;
+  #workerError: Error | null = null;
 
   constructor(
     worker = new Worker(new URL("./localBudget.worker.ts", import.meta.url), {
@@ -131,6 +134,7 @@ export class LocalBudgetDatabaseClient {
     };
     worker.onerror = (event) => {
       const error = new Error(event.message || "The local SQLite worker failed.");
+      this.#workerError = error;
       for (const pending of this.#pending.values()) pending.reject(error);
       this.#pending.clear();
     };
@@ -1101,12 +1105,23 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
-  async close(): Promise<void> {
-    await this.#request({
+  close(): Promise<void> {
+    if (this.#closed) return Promise.resolve();
+    if (this.#closing) return this.#closing;
+    this.#closing = this.#request({
       requestId: createRuntimeUuid(),
       type: "close",
+      releaseOwnership: true,
+    }).then(() => {
+      this.#closed = true;
+      this.#worker.terminate();
+    }).catch((cause) => {
+      this.#closing = null;
+      throw Object.assign(new Error("The local budget database could not release ownership.", { cause }), {
+        code: "LOCAL_DATABASE_RELEASE_FAILED",
+      });
     });
-    this.#worker.terminate();
+    return this.#closing;
   }
 
   getCategoryGoal(budgetId: string, categoryId: string): Promise<import("../../../../../../packages/types/src/CategoryGoal").CategoryGoal | null> {
@@ -1155,6 +1170,10 @@ export class LocalBudgetDatabaseClient {
     request: LocalBudgetWorkerRequest,
     transfer: Transferable[] = [],
   ): Promise<T> {
+    if (this.#workerError) return Promise.reject(this.#workerError);
+    if (this.#closed || (this.#closing && request.type !== "close")) {
+      return Promise.reject(new Error("The local budget database client is closing or closed."));
+    }
     return new Promise<T>((resolve, reject) => {
       this.#pending.set(request.requestId, {
         resolve: (result) => resolve(result as T),

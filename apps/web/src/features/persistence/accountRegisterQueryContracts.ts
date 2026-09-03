@@ -61,6 +61,10 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
 
   /** Releases this tab's OPFS worker before an exclusive import/restore operation. */
   releaseLocalDatabase?(): Promise<void>;
+  /** Explicitly admit requests for a selected budget after leaving the launcher. */
+  activateLocalBudget?(budgetId: string): Promise<void>;
+  isLocalDatabaseReleased?(): boolean;
+  runWithExclusiveLocalDatabase?<T>(operation: () => Promise<T>): Promise<T>;
 
   getBudgetStatus(budgetId: string): Promise<BudgetEngineStatus>;
 

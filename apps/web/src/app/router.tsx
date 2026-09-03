@@ -2,15 +2,29 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "../layouts/AppShell";
 import { BudgetSelectorPage } from "../pages/BudgetSelectorPage";
 import { RouteErrorScreen } from "./errors/RouteErrorScreen";
+import { activateBudgetPersistence, releaseActiveBudgetPersistence } from "../features/persistence/budgetDatabaseLifecycle";
+import { useUIStore } from "../stores/uiStore";
 
 export const router = createBrowserRouter([
   {
     path: "/",
+    async loader({ request }) {
+      await releaseActiveBudgetPersistence();
+      if (!request.signal.aborted) useUIStore.getState().clearSelectedBudget();
+      return null;
+    },
+    hydrateFallbackElement: <p role="status">Preparing budgets…</p>,
     element: <BudgetSelectorPage />,
     errorElement: <RouteErrorScreen />,
   },
   {
     element: <AppShell />,
+    async loader() {
+      const budgetId = useUIStore.getState().selectedBudgetId;
+      if (budgetId) await activateBudgetPersistence(budgetId);
+      return null;
+    },
+    hydrateFallbackElement: <p role="status">Opening budget…</p>,
     errorElement: <RouteErrorScreen />,
     children: [
       {

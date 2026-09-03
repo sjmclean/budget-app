@@ -102,11 +102,12 @@ export async function createLocalFirstBudgetFromSetup(
 
     return budget;
   } catch (error) {
+    let closeError: unknown;
     if (database) {
       if (staged) {
         await database.rollbackStagedImport().catch(() => undefined);
       }
-      await database.close().catch(() => undefined);
+      await database.close().catch((failure) => { closeError = failure; });
     }
 
     if (provisioned) {
@@ -114,6 +115,6 @@ export async function createLocalFirstBudgetFromSetup(
     }
 
     deleteBudgetRegistryEntry(storage, budget.id);
-    throw error;
+    throw closeError ?? error;
   }
 }

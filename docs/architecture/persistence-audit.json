@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-26T10:56:54.726Z",
+  "generatedAt": "2026-09-03T02:28:12.444Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -619,7 +619,7 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 579,
+      "line": 581,
       "classification": "review-required"
     },
     {
@@ -640,32 +640,32 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 496
+      "line": 498
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 615
+      "line": 617
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 656
+      "line": 658
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 661
+      "line": 663
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 1184
+      "line": 1186
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 1213
+      "line": 1215
     },
     {
       "kind": "persistenceBoundary",
@@ -1916,7 +1916,7 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
-      "line": 80,
+      "line": 81,
       "classification": "review-required"
     },
     {
@@ -2377,13 +2377,13 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/layouts/AppShell.tsx",
-      "line": 18,
+      "line": 19,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/layouts/AppShell.tsx",
-      "line": 48,
+      "line": 49,
       "classification": "review-required"
     },
     {
@@ -2413,13 +2413,13 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/PayeeManagementPage.tsx",
-      "line": 73,
+      "line": 80,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/PayeeManagementPage.tsx",
-      "line": 82,
+      "line": 89,
       "classification": "review-required"
     },
     {
