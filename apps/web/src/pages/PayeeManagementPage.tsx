@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Card } from "../components/ui/Card";
+import { rankPayeeSearchMatches, rankPayeeSearchGroups } from "../features/accounts/payeeSearchRanking";
 import { getBudgetPersistenceProvider } from "../features/persistence";
 import type {
   PayeeImportRuleView,
@@ -361,16 +362,7 @@ export function PayeeManagementPage() {
   ).length;
 
   const filteredDuplicateGroups = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase();
-    const matchingGroups = query
-      ? duplicateGroups.filter(({ payees: members }) =>
-          members.some(({ name }) =>
-            name.toLocaleLowerCase().includes(query),
-          ),
-        )
-      : [...duplicateGroups];
-
-    return [...matchingGroups].sort((left, right) => {
+    return rankPayeeSearchGroups(duplicateGroups, search, (left, right) => {
       const confidenceDifference =
         Number(isStrictEquivalentDuplicateGroup(right)) -
         Number(isStrictEquivalentDuplicateGroup(left));
@@ -409,9 +401,7 @@ export function PayeeManagementPage() {
       return visiblePayees;
     }
 
-    return visiblePayees.filter((payee) =>
-      payee.name.toLocaleLowerCase().includes(query),
-    );
+    return rankPayeeSearchMatches(visiblePayees, query);
   }, [visiblePayees, search]);
 
   const directoryPayees = useMemo(() => {

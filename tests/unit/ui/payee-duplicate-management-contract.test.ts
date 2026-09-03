@@ -18,6 +18,14 @@ test("duplicate review brings the selected group into view", () => {
   );
 });
 
+test("directory and duplicate search share ranking while compact and range-selection paths remain", () => {
+  assert.match(page, /rankPayeeSearchMatches\(visiblePayees, query\)/);
+  assert.match(page, /rankPayeeSearchGroups\(duplicateGroups, search,/);
+  assert.match(page, /if \(search\.trim\(\) \|\| showAllPayees\)/);
+  assert.match(page, /\.slice\(0, COMPACT_PAYEE_LIMIT\)/);
+  assert.match(page, /const rangeIds = filteredPayees\s*\.slice\(/);
+});
+
 test("ignored duplicate suggestions are durable rather than session-only", () => {
   assert.match(page, /async function ignoreDuplicateGroup\(\)/);
   assert.match(page, /buildDuplicateGroupSuppressions/);
