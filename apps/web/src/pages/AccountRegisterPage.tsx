@@ -58,6 +58,7 @@ import { usePayeeManagerWorkflow } from "../features/accounts/usePayeeManagerWor
 import { usePayeeHistory } from "../features/accounts/usePayeeHistory";
 import { useRegisterAttachmentWorkflow } from "../features/accounts/useRegisterAttachmentWorkflow";
 import { useRegisterViewModel } from "../features/accounts/useRegisterViewModel";
+import { getRegisterTransactions } from "../features/accounts/registerTransactionData";
 import { useRegisterTransactionHistory } from "../features/accounts/useRegisterTransactionHistory";
 import {
   nextRegisterSort,
@@ -763,7 +764,7 @@ export function AccountRegisterPage() {
     storageMode,
   ]);
 
-  const registerTransactions = data?.transactions ?? [];
+  const registerTransactions = getRegisterTransactions(data);
   const {
     setRegisterPage,
     registerSearchSuggestions,
