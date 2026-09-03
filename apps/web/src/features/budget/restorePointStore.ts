@@ -16,10 +16,24 @@ export interface RestorePointFiles {
   remove(name: string): Promise<void>;
 }
 
-export function opfsRestorePointFiles(): RestorePointFiles {
+/** Fixed-width UTF-16 encoding is injective, even for unpaired surrogates.
+ * Only ASCII hex reaches OPFS: no separators, dot segments or normalization collisions.
+ */
+export function restorePointBudgetDirectory(budgetId: string): string {
+  if (typeof budgetId !== "string" || !budgetId) throw new Error("Invalid restore point budget id.");
+  let encoded = "budget-";
+  for (let index = 0; index < budgetId.length; index++) {
+    encoded += budgetId.charCodeAt(index).toString(16).padStart(4, "0");
+  }
+  return encoded;
+}
+
+export function opfsRestorePointFiles(budgetId: string): RestorePointFiles {
+  const budgetDirectory = restorePointBudgetDirectory(budgetId);
   async function directory() {
     const root = await navigator.storage.getDirectory();
-    return root.getDirectoryHandle(RESTORE_POINT_DIRECTORY, { create: true });
+    const parent = await root.getDirectoryHandle(RESTORE_POINT_DIRECTORY, { create: true });
+    return parent.getDirectoryHandle(budgetDirectory, { create: true });
   }
   return {
     async names() {
@@ -89,8 +103,11 @@ export async function hashSqliteFile(file: File): Promise<string> {
   return `sha256:${hasher.digest("hex")}`;
 }
 
-export function createRestorePointStore(files: RestorePointFiles = opfsRestorePointFiles()) {
+export function createRestorePointStore(
+  filesForBudget: (budgetId: string) => RestorePointFiles = opfsRestorePointFiles,
+) {
   async function list(budgetId: string): Promise<RestorePointMetadata[]> {
+    const files = filesForBudget(budgetId);
     const points: RestorePointMetadata[] = [];
     for (const name of await files.names()) {
       if (!name.endsWith(".json")) continue;
@@ -102,13 +119,15 @@ export function createRestorePointStore(files: RestorePointFiles = opfsRestorePo
       if (!raw) continue;
       const point = validateMetadata(JSON.parse(raw));
       if (name !== `${point.id}.json`) throw new Error("Restore point filename mismatch.");
-      if (point.budgetId === budgetId) points.push(point);
+      if (point.budgetId !== budgetId) throw new Error("Restore point budget mismatch.");
+      points.push(point);
     }
     return points.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
   }
 
   async function read(budgetId: string, id: string) {
     payloadName(id);
+    const files = filesForBudget(budgetId);
     const point = validateMetadata(JSON.parse(await (await files.read(`${id}.json`)).text()));
     if (point.budgetId !== budgetId || point.id !== id) throw new Error("Restore point budget mismatch.");
     const file = await files.read(payloadName(id));
@@ -123,6 +142,7 @@ export function createRestorePointStore(files: RestorePointFiles = opfsRestorePo
     totalBytes: number,
     readChunk: (offset: number, length: number) => Promise<Uint8Array>,
   ) {
+    const files = filesForBudget(metadata.budgetId);
     const existing = await list(metadata.budgetId);
     const equivalent = existing.find((point) => point.reason === metadata.reason &&
       point.syncEpoch === metadata.syncEpoch && point.localRevision === metadata.localRevision);

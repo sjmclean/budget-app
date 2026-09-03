@@ -1490,6 +1490,21 @@ export function createLocalFirstAccountRegisterQueryClient(
     }));
   }
 
+  async function releaseLocalDatabase(deletingBudgetId?: string) {
+    await opening?.catch(() => null);
+    await synchronising?.promise.catch(() => undefined);
+    // A deleted budget has no product recovery workflow. Other open budgets
+    // still require their usual safety capture before giving up ownership.
+    if (database && activeBudgetId && activeBudgetId !== deletingBudgetId) {
+      await captureOwnedRestorePoint(activeBudgetId, "before-switch");
+    }
+    await database?.close();
+    database = null;
+    activeBudgetId = null;
+    activeSyncEpoch = null;
+    activePulledCursor = 0;
+  }
+
   const client: AccountRegisterQueryClient & {
     publishLocalBaseline(budgetId: string): Promise<boolean>;
     listSyncConflicts(budgetId: string): Promise<ReplicationConflict[]>;
@@ -1499,16 +1514,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       resolution: "keep-local" | "accept-remote",
     ): Promise<void>;
   } = {
-    async releaseLocalDatabase() {
-      await opening?.catch(() => null);
-      await synchronising?.promise.catch(() => undefined);
-      if (database && activeBudgetId) await captureOwnedRestorePoint(activeBudgetId, "before-switch");
-      await database?.close();
-      database = null;
-      activeBudgetId = null;
-      activeSyncEpoch = null;
-      activePulledCursor = 0;
-    },
+    releaseLocalDatabase: () => releaseLocalDatabase(),
     getBudgetExportUrl: lifecycle.getBudgetExportUrl,
     listRestorePoints: (budgetId) => restorePoints.list(budgetId),
     createRestorePoint: captureOwnedRestorePoint,
@@ -1603,7 +1609,6 @@ export function createLocalFirstAccountRegisterQueryClient(
     },
     async deleteBudget(budgetId) {
       const local = await readyDatabase(budgetId);
-      if (local) await captureOwnedRestorePoint(budgetId, "before-delete");
       await lifecycle.deleteBudget(budgetId);
       try {
         await local?.deleteBudgetFile();
@@ -3046,8 +3051,8 @@ export function createLocalFirstAccountRegisterQueryClient(
         // leaves it closed. Restore/reset reuse the active client's lease.
         if (key === "deleteBudget") return ownership.exclusive(async () => {
           try { return await value.apply(target, args); }
-          finally { await client.releaseLocalDatabase!(); }
-        });
+          finally { await releaseLocalDatabase(args[0] as string); }
+        }, () => releaseLocalDatabase(args[0] as string));
         const budgetId = resolveOwnedBudgetId(key, args);
         return ownership.run(budgetId, () => value.apply(target, args));
       };

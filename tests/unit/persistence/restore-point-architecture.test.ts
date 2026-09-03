@@ -43,13 +43,12 @@ test("pending restore quarantines already queued work and blocks lifecycle relea
   await assert.rejects(ownership.leave(), { code: "RESTORE_PENDING" });
 });
 
-test("destructive entry points capture before replacement/reset/delete and import points follow promotion", () => {
+test("replacement/reset capture safety points and import points follow promotion", () => {
   const query = read("features/persistence/localFirst/localFirstAccountRegisterClient.ts");
   const restore = query.slice(query.indexOf("async restoreRestorePoint("), query.indexOf("async exportBudget("));
   assert.ok(restore.indexOf('"before-restore"') < restore.indexOf(".restore(budgetId, pointId)"));
   for (const [method, reason, operation] of [
     ["async resetBudget(", '"before-reset"', "relay.resetEpoch("],
-    ["async deleteBudget(", '"before-delete"', "lifecycle.deleteBudget("],
   ]) {
     const body = query.slice(query.indexOf(method));
     assert.ok(body.indexOf(reason) >= 0 && body.indexOf(reason) < body.indexOf(operation));

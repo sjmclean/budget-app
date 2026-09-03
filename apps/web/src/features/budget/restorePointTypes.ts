@@ -2,7 +2,7 @@ import type { BudgetDomainCounts } from "../persistence/localFirst/contracts";
 
 export const RESTORE_POINT_REASONS = [
   "timed", "initial-import", "before-import", "before-switch",
-  "before-reset", "before-restore", "before-delete", "manual",
+  "before-reset", "before-restore", "manual",
 ] as const;
 export type RestorePointReason = typeof RESTORE_POINT_REASONS[number];
 
@@ -34,6 +34,5 @@ export const RESTORE_POINT_LABELS: Record<RestorePointReason, string> = {
   "before-switch": "Before switching budgets",
   "before-reset": "Before reset",
   "before-restore": "Before restore",
-  "before-delete": "Before deletion",
   manual: "Manual restore point",
 };

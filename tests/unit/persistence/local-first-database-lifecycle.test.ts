@@ -15,11 +15,16 @@ globalThis.fetch = async (url) => {
 };
 after(() => { globalThis.fetch = originalFetch; });
 
-function harness(hooks: { open?: () => Promise<void>; sync?: () => Promise<void>; close?: () => Promise<void>; capture?: () => Promise<void> } = {}) {
+function harness(hooks: {
+  open?: () => Promise<void>; sync?: () => Promise<void>; close?: () => Promise<void>;
+  capture?: () => Promise<void>; deleteRelay?: () => Promise<void>; deleteFile?: () => Promise<void>;
+} = {}) {
   const values = new Map([ ["budget-app.local-first.device-id", "test-device"], ...["A", "B"].map((id) => [`budget-app.local-first.sync-epoch.${id}`, "epoch"])]);
   const events: string[] = [];
   let owner: string | null = null;
-  const client = createLocalFirstAccountRegisterQueryClient({} as never, {
+  const client = createLocalFirstAccountRegisterQueryClient({
+    async deleteBudget(id: string) { events.push(`delete-relay:${id}`); await hooks.deleteRelay?.(); },
+  } as never, {
     storage: { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value); } },
     tabSyncCoordinator: { run: async (_id, operation) => operation(), close() {} },
     restorePointStore: { list: async () => [{ syncEpoch: "epoch", localRevision: 0 }] as never },
@@ -35,6 +40,7 @@ function harness(hooks: { open?: () => Promise<void>; sync?: () => Promise<void>
           return {};
         },
         async close() { await hooks.close?.(); events.push(`close:${id}`); owner = null; },
+        async deleteBudgetFile() { events.push(`delete-file:${id}`); await hooks.deleteFile?.(); },
         async getManifest() { return { syncEpoch: "epoch", localRevision: hooks.capture ? 1 : 0 }; },
         async captureRestorePoint() { events.push(`capture:${id}`); await hooks.capture?.(); return {}; },
         async getSyncState() { return { syncEpoch: "epoch", pulledCursor: 0, baselineHash: "hash" }; },
@@ -182,4 +188,68 @@ test("failed safety capture prevents release and leaves the currently owned data
   await assert.rejects(client.releaseLocalDatabase!(), /snapshot quota/);
   assert.equal(owner(), "A");
   assert.equal(events.includes("close:A"), false);
+});
+
+for (const openBudget of [null, "A", "B"]) {
+  test(`deletion creates no target restore point and cleans up (open budget: ${openBudget})`, async () => {
+    const { client, events, owner } = harness({ capture: async () => {} });
+    if (openBudget) await client.listAccountNavigation(openBudget);
+    await client.deleteBudget("A");
+    assert.equal(owner(), null);
+    assert.equal(events.includes("capture:A"), false, "no inaccessible target snapshot is created");
+    const prefix = openBudget === "A" ? ["open:A", "read:A", "close:A"]
+      : openBudget === "B" ? ["open:B", "read:B", "capture:B", "close:B"] : [];
+    assert.deepEqual(events, [...prefix, "open:A", "delete-relay:A", "delete-file:A", "close:A"]);
+    await client.activateLocalBudget!("B");
+    await client.listAccountNavigation("B");
+    await client.releaseLocalDatabase!();
+    assert.equal(owner(), null, "deletion leaves ownership usable for another budget");
+  });
+}
+
+test("deletion drains admitted work and refuses new queries before cleaning up without a snapshot", async () => {
+  const started = deferred();
+  const finish = deferred();
+  let firstSync = true;
+  const { client, events, owner } = harness({
+    capture: async () => { assert.fail("deletion must not capture"); },
+    sync: async () => { if (firstSync) { firstSync = false; started.resolve(); await finish.promise; } },
+  });
+  const reading = client.listAccountNavigation("A");
+  await started.promise;
+  const deleting = client.deleteBudget("A");
+  assert.equal(owner(), "A");
+  assert.deepEqual(events, ["open:A"]);
+  await assert.rejects(client.listAccountNavigation("B"), { code: "BUDGET_DATABASE_RELEASED" });
+  finish.resolve();
+  await reading;
+  await deleting;
+  assert.deepEqual(events, ["open:A", "read:A", "close:A", "open:A", "delete-relay:A", "delete-file:A", "close:A"]);
+});
+
+for (const phase of ["deleteRelay", "deleteFile"] as const) {
+  test(`failed ${phase} preserves deletion error semantics and does not capture`, async () => {
+    const failure = new Error("injected deletion failure");
+    const { client, events, owner } = harness({
+      capture: async () => { assert.fail("deletion must not capture"); },
+      [phase]: async () => { throw failure; },
+    });
+    await client.listAccountNavigation("A");
+    await assert.rejects(client.deleteBudget("A"), (error: unknown) => {
+      assert.equal(error, failure);
+      assert.equal(Boolean((error as { authoritativeDeletionCompleted?: boolean }).authoritativeDeletionCompleted), phase === "deleteFile");
+      return true;
+    });
+    assert.equal(owner(), null);
+    assert.equal(events.includes("capture:A"), false);
+    assert.equal(events.includes("delete-file:A"), phase === "deleteFile");
+  });
+}
+
+test("deleting A still blocks on failed safety capture for a different open budget B", async () => {
+  const { client, events, owner } = harness({ capture: async () => { throw new Error("snapshot quota"); } });
+  await client.listAccountNavigation("B");
+  await assert.rejects(client.deleteBudget("A"), /snapshot quota/);
+  assert.equal(owner(), "B");
+  assert.deepEqual(events, ["open:B", "read:B", "capture:B"]);
 });

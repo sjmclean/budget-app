@@ -55,7 +55,10 @@ for (const mode of ["opfs", "opfs-sahpool", "wal"] as const) {
       resultRows: (sql: string) => database.prepare(sql).all(),
       currentManifest: () => ({ budgetId: "large-budget", syncEpoch: "epoch", localRevision: 1,
         counts: { ...emptyDomainCounts(), transactions: 30_001 } }),
-      testRestorePointStore: () => createRestorePointStore(port),
+      testRestorePointStore: () => createRestorePointStore((budgetId) => {
+        assert.equal(budgetId, "large-budget");
+        return port;
+      }),
       workerError: (code: string, message: string) => Object.assign(new Error(message), { code }),
       navigator: { storage: { getDirectory: async () => ({
         getFileHandle: async () => ({ getFile: async () => new File([readFileSync(filename)], "active.sqlite3") }),
@@ -70,7 +73,7 @@ for (const mode of ["opfs", "opfs-sahpool", "wal"] as const) {
       const capture = runInNewContext(`${captureSource}\ncaptureRestorePoint`, context);
       const point = await capture({ budgetName: "Large import", reason: "initial-import", mutationCount: 0 });
       assert.equal(point.counts.transactions, 30_001);
-      const stored = await createRestorePointStore(port).read("large-budget", point.id);
+      const stored = await createRestorePointStore(() => port).read("large-budget", point.id);
       const snapshot = new Database(Buffer.from(await stored.file.arrayBuffer()));
       try {
         assert.equal(snapshot.prepare("SELECT COUNT(*) AS count FROM transactions").get().count, 30_001);

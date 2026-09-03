@@ -31,16 +31,26 @@ The query ownership queue admits a timed capture without releasing its SQLite
 lease. The worker serializes requests and holds a SQLite `BEGIN IMMEDIATE` lock
 while reading the snapshot; this also excludes another native OPFS writer.
 It runs `quick_check`, records the manifest, completes a unique `.sqlite3` file
-under `budget-app-sqlite-restore-points`, and reads it back to verify its SQLite
+under `budget-app-sqlite-restore-points/<encoded-budget-id>/`, and reads it back to verify its SQLite
 header, page-aligned length and SHA-256 digest. Only then does it atomically close
 the corresponding lightweight `.json` manifest. Empty, not-yet-published OPFS
 manifest handles are not catalogue entries. Payloads never enter key/value storage.
 
-After publication, timed retention removes each obsolete manifest before its
+Each budget has its own catalogue and payload directory. The directory name is
+`budget-` followed by four lowercase hexadecimal digits per UTF-16 code unit of
+the budget ID. This deterministic, injective encoding contains no separators or
+dot segments and does not normalize distinct Unicode IDs. Listing enumerates only
+that budget's child directory; capture, restore reads and pruning use the same
+budget-scoped adapter. No flat-directory migration or fallback exists.
+Malformed/unreadable manifests fail that budget's catalogue, never another's.
+Nonempty manifests must have valid metadata, match their filename and name the
+requested budget. Payload names are derived only from validated restore-point IDs.
+
+After publication, timed/event retention removes each obsolete manifest before its
 payload. Cleanup failures cannot invalidate the new checkpoint. Files left by
 interruption or failed physical pruning may consume space; no broad orphan sweep
 risks deleting a live capture. Files and manifests live outside budget KV cleanup
-and outside the active physical-generation pool, including before-delete points.
+and outside the active physical-generation pool.
 
 Native rollback-journal OPFS capture reads/writes in 4 MiB chunks. SAH-pool's
 installed `exportFile` API returns one full database-sized byte array; capture
@@ -62,7 +72,15 @@ persisted checkpoint, even when transient mutation tracking was lost.
 
 Timed points retain 10-minute buckets for six hours, hourly buckets until one day,
 daily buckets until seven days, Monday-anchored weekly buckets until five weeks,
-and calendar months thereafter. Event/manual points are not bucket-thinned.
+and calendar months thereafter. Ordinary safety events (switch, import, reset and
+restore) use independent buckets: keep all for the first 24 hours, then the latest
+per UTC day until seven days, per Monday-anchored week until five weeks, and per
+UTC calendar month thereafter. Age thresholds enter the older tier at exactly
+6 hours / 24 hours / 7 days / 35 days as applicable. Tier keys are separate.
+Timed points and safety events never consume each other's buckets, and budgets
+never compete. Newest timestamp wins, with descending ID as a deterministic tie-break.
+Manual and initial-import points are protected from automatic bucket thinning;
+they are long-lived independently of both rolling classes.
 An equivalent reason + epoch + revision reuses its existing point. Retention is
 applied when a point is published; there is no normal count cap.
 
@@ -72,7 +90,12 @@ Successful YNAB4 and Actual imports capture their initial point after full local
 promotion and baseline publication, before closing the import worker. Import
 entry captures an active budget when applicable. Switch capture is awaited inside
 the drained ownership boundary before closing persistence; selection/navigation
-follow release. Reset and delete capture before their destructive operations.
+follow release. Reset captures before its destructive operation. Budget deletion
+does not capture a restore point, including at the target budget's lease-release
+boundary. If another budget is open, its normal switch protection is preserved.
+Deletion retains the existing authoritative relay deletion, local file cleanup,
+worker close and ownership lifecycle. There is no deleted-budget recovery workflow
+in this branch; use an ordinary exported backup to recover a deleted budget.
 The Settings catalogue reads the new service and retains date grouping and clear
 semantic labels, without the old fixed-limit language.
 
@@ -103,10 +126,14 @@ until recovery can decide safely.
 ## Boundaries and operational limitations
 
 - Browser quota/eviction remains a storage limit. Safety capture failures block
-  destructive operations; users still need exported backups outside this origin.
-- Semantic points, deleted-budget payloads, and interrupted-upload/orphan files can
-  accumulate. Before-delete files remain recoverable SQLite artifacts, but the
-  active-budget Settings screen is not a deleted-budget recreation interface.
+  protected switch/reset/restore operations; users still need exported backups
+  outside this origin. Deletion intentionally has no automatic safety capture.
+- Manual/initial-import points can accumulate without a count ceiling; no emergency
+  cap is imposed. Rolling history retains monthly representatives, not a fixed
+  total count. Interrupted captures/failed pruning can also leave orphan files.
+  Existing points remain outside budget deletion cleanup and can outlive a deleted
+  budget; deletion creates no new snapshot. There is no UI to recreate deleted
+  budgets from these remaining files, and no orphan sweep is introduced here.
 - Large SAH-pool snapshots allocate a database-sized buffer and hold the query lease
   during copy/validation. No real-device latency/quota benchmark is claimed.
 - Tests execute the capture function against real SQLite, including concurrent
@@ -119,7 +146,7 @@ until recovery can decide safely.
 
 ## Validation and change inventory
 
-Validated on 2026-09-03:
+Original implementation validated on 2026-09-03 (corrective-pass results below):
 
 - All 135 unit-test files passed, including the four new focused restore-point files.
 - All 11 integration-test files passed, including real SQLite capture/locking and relay epoch transitions.
@@ -177,3 +204,42 @@ Changed files (23):
 The two superseded budget snapshot/lifecycle modules are deleted, not retained as
 adapters. The starting commit and rollback tag remain unchanged; work is confined
 to `feature/sqlite-restore-points`.
+
+## Corrective pass
+
+This pass isolates OPFS catalogues, separates timed/event/protected retention, and
+removes deletion-triggered capture without changing SQLite capture or staged restore
+architecture. Focused tests cover corrupt/unreadable neighbouring catalogues,
+namespace encoding and traversal inputs, manifest identity and SHA-256 validation,
+independent retention classes and UTC boundaries, plus deletion with the target,
+another budget, or no budget open. Existing capture failure, switch draining,
+mutation scheduling, restore quarantine and real-SQLite integration checks remain.
+No real-browser performance validation is claimed. SAH-pool export still allocates
+a full database-sized buffer in the worker; WAL serialization can likewise require
+database-sized WASM memory.
+
+Corrective-pass validation on 2026-09-03:
+
+- Focused catalogue/retention/coordinator tests: 22 passed; database lifecycle
+  tests: 16 passed, including seven deletion cases; architecture tests: 4 passed.
+- Full unit suite: 135/135 files passed, including lifecycle/ownership,
+  mutation-only scheduling, restore replacement and pending-recovery quarantine.
+- Full integration suite: 11/11 files passed, including both restore-point suites
+  (real SQLite snapshots with 30,001 transactions and concurrent writer exclusion;
+  owner-authorized relay restore transitions) and launcher lifecycle coverage.
+- Existing regressions: 2/2 files passed, covering deletion resurrection and
+  import rollback. All files were discovered and run individually with the installed
+  `tsx` CLI, as above; the expanded focused files were also rerun separately.
+- `pnpm test:web-build`: TypeScript and production Vite build passed.
+- `pnpm audit:persistence` regenerated the inventory (only its timestamp changed);
+  `pnpm docs:architecture:check` passed, including `audit:persistence:check`.
+- `git diff --check` passed. The requested obsolete-name and deletion-reason
+  searches found no matches. Storage-path search confirms budget-scoped adapters
+  for list/capture/read/pruning, with no flat-layout fallback.
+
+Corrective changes are confined to the restore-point store, retention and types;
+the ownership/exclusive-release and query-client deletion boundary; this document
+and generated persistence inventory; the restore-point unit and architecture tests,
+database lifecycle tests, and worker integration test adapter. No change is made to
+the worker capture, staged replacement, relay restore or import algorithms.
+Test success is evidence for review, not independent merge approval.
