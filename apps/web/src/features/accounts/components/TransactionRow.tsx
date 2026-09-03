@@ -786,7 +786,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
         ) : null}
 
         <div className="register-payee-cell">
-          {canonicalPayee ? <PayeeIcon payee={canonicalPayee} size={20} decorative /> : null}
+          {canonicalPayee ? <PayeeIcon payee={canonicalPayee} size={24} decorative /> : null}
           <strong>{transaction.payee}</strong>
           <ScheduledTransactionBadge transaction={transaction} />
           <RecentImportBadge status={recentImportStatus} />
@@ -970,7 +970,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
 
         <div className="register-compact-main">
           <span className="register-compact-payee-line">
-            {canonicalPayee ? <PayeeIcon payee={canonicalPayee} size={20} decorative /> : null}
+            {canonicalPayee ? <PayeeIcon payee={canonicalPayee} size={24} decorative /> : null}
             <strong title={transaction.payee}>{transaction.payee}</strong>
             <ScheduledTransactionBadge transaction={transaction} />
           <RecentImportBadge status={recentImportStatus} />
@@ -1171,7 +1171,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
         <div className="register-tablet-main">
           <div className="register-tablet-primary-line">
             <span className="register-tablet-payee-line">
-              {canonicalPayee ? <PayeeIcon payee={canonicalPayee} size={20} decorative /> : null}
+              {canonicalPayee ? <PayeeIcon payee={canonicalPayee} size={24} decorative /> : null}
               <strong className="register-tablet-payee" title={transaction.payee}>
                 {transaction.payee}
               </strong>
@@ -1376,7 +1376,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
             onToggleTransactionSelection={onToggleTransactionSelection}
           />
           <div className="register-mobile-payee-wrap">
-            {canonicalPayee ? <PayeeIcon payee={canonicalPayee} size={20} decorative /> : null}
+            {canonicalPayee ? <PayeeIcon payee={canonicalPayee} size={24} decorative /> : null}
             <strong className="register-mobile-payee" title={transaction.payee}>
               {transaction.payee}
             </strong>
