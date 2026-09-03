@@ -16,14 +16,6 @@ import type {
   CreateActualBudgetLauncherImportInput,
   ActualBudgetLauncherImportResult,
 } from "../features/budget/actualBudgetLauncherImport";
-import {
-  createDailyVersionHistorySnapshotOnAppOpen,
-  createVersionHistorySnapshotAfterActualImport,
-  createVersionHistorySnapshotAfterYnab4Import,
-  createVersionHistorySnapshotBeforeBudgetDelete,
-  createVersionHistorySnapshotBeforeBudgetImport,
-  createVersionHistorySnapshotBeforeBudgetSwitch,
-} from "../features/budget/versionHistoryLifecycle";
 import { deleteBudgetById, type BudgetLifecycleResult } from "../features/budget/budgetLifecycle";
 import { createLocalFirstBudgetFromSetup } from "../features/budget/newBudget/createLocalFirstBudgetFromSetup";
 import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
@@ -41,8 +33,6 @@ interface BudgetRegistryState {
   deleteBudget: (budgetId: string) => BudgetLifecycleResult;
   refreshBudgets: () => void;
 }
-
-createDailyVersionHistorySnapshotOnAppOpen(getActiveKeyValueStorage());
 
 export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
   budgets: readBudgetRegistry(getActiveKeyValueStorage()),
@@ -67,13 +57,7 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
       "../features/budget/ynab4LauncherImport"
     );
 
-    createVersionHistorySnapshotBeforeBudgetImport(getActiveKeyValueStorage(), {
-      now: input.now,
-    });
     const result = await createYnab4LauncherBudgetImportWithBackend(getActiveKeyValueStorage(), input);
-    createVersionHistorySnapshotAfterYnab4Import(getActiveKeyValueStorage(), {
-      now: input.now,
-    });
     set({ budgets: result.budgets });
     return result;
   }),
@@ -83,13 +67,7 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
       "../features/budget/actualBudgetLauncherImport"
     );
 
-    createVersionHistorySnapshotBeforeBudgetImport(getActiveKeyValueStorage(), {
-      now: input.now,
-    });
     const result = await createActualBudgetLauncherImportWithBackend(getActiveKeyValueStorage(), input);
-    createVersionHistorySnapshotAfterActualImport(getActiveKeyValueStorage(), {
-      now: input.now,
-    });
     set({ budgets: result.budgets });
     return result;
   }),
@@ -101,15 +79,12 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
   },
 
   markBudgetOpened: (budgetId) => {
-    createVersionHistorySnapshotBeforeBudgetSwitch(getActiveKeyValueStorage(), budgetId);
-
     const budget = markBudgetRegistryOpened(getActiveKeyValueStorage(), budgetId);
     set({ budgets: readBudgetRegistry(getActiveKeyValueStorage()) });
     return budget;
   },
 
   deleteBudget: (budgetId) => {
-    createVersionHistorySnapshotBeforeBudgetDelete(getActiveKeyValueStorage(), budgetId);
     const result = deleteBudgetById(getActiveKeyValueStorage(), budgetId);
     set({ budgets: readBudgetRegistry(getActiveKeyValueStorage()) });
     return result;

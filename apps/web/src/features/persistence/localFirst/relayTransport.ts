@@ -219,6 +219,20 @@ export function createLocalFirstRelayTransport(options: {
       });
     },
 
+    beginRestore(expected: { syncEpoch: string; latestCursor: number; baselineId: string | null }, manifest: RelayBaselineManifest) {
+      return json<{ baselineId: string; chunkCount: number }>(
+        `/api/local-first/restores?${query(manifest.budgetId)}`,
+        { method: "POST", body: JSON.stringify({ expected, manifest }) },
+      );
+    },
+
+    commitRestore(input: { budgetId: string; syncEpoch: string; baselineId: string }) {
+      return json<{ baselineId: string; contentHash: string; totalBytes: number }>(
+        `/api/local-first/restores/${encodeURIComponent(input.baselineId)}/commit?${query(input.budgetId)}`,
+        { method: "POST", body: JSON.stringify({ syncEpoch: input.syncEpoch }) },
+      );
+    },
+
     beginBaseline(manifest: RelayBaselineManifest) {
       return json<{ readonly baselineId: string; readonly chunkCount: number }>(
         `/api/local-first/baselines?${query(manifest.budgetId)}`,

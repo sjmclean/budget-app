@@ -76,11 +76,11 @@
   "deferred-architecture": [
     {
       "risk": "restore replaces authoritative local-first SQLite state and starts compatible sync history",
-      "reason": "current restore and version-history restore still use the budget package/key-value restore path rather than an end-to-end local-first SQLite replacement with sync epoch transition"
+      "reason": "normal/manual SQLite restore retains its existing same-epoch implementation; internal restore points now use staged SQLite promotion and a recoverable relay epoch transition"
     },
     {
       "risk": "pre-restore newer sync history cannot replay over restored state",
-      "reason": "depends on the authoritative local-first restore/epoch architecture that is not yet implemented end-to-end"
+      "reason": "remains a limitation of normal/manual restore; internal restore points explicitly start a new epoch and are covered by replacement and relay integration tests"
     }
   ]
 }

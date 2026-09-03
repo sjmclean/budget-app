@@ -258,6 +258,13 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     kind: "backup" | "export",
   ): Promise<Blob>;
 
+  listRestorePoints?(budgetId: string): Promise<import("../budget/restorePointTypes").RestorePointMetadata[]>;
+  createRestorePoint?(
+    budgetId: string,
+    reason: import("../budget/restorePointTypes").RestorePointReason,
+  ): Promise<import("../budget/restorePointTypes").RestorePointMetadata | null>;
+  restoreRestorePoint?(budgetId: string, pointId: string): Promise<BudgetRestoreResult>;
+
   restoreBudget(
     budgetId: string,
     file: Blob,

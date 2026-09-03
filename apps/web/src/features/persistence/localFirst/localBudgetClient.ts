@@ -172,6 +172,16 @@ export class LocalBudgetDatabaseClient {
     return manifest;
   }
 
+  async captureRestorePoint(
+    input: import("../../budget/restorePointTypes").CaptureRestorePointInput,
+  ): Promise<import("../../budget/restorePointTypes").RestorePointMetadata> {
+    const point = await this.#request<import("../../budget/restorePointTypes").RestorePointMetadata>({ requestId: createRuntimeUuid(), type: "captureRestorePoint", input });
+    if (typeof globalThis.CustomEvent === "function") {
+      globalThis.dispatchEvent?.(new CustomEvent("budget-app:restore-points-changed", { detail: { budgetId: point.budgetId } }));
+    }
+    return point;
+  }
+
   prepareBaselineExport(): Promise<{ readonly totalBytes: number }> {
     return this.#request({
       requestId: createRuntimeUuid(),
@@ -229,6 +239,37 @@ export class LocalBudgetDatabaseClient {
       requestId: createRuntimeUuid(),
       type: "commitBaselineReplacement",
     });
+    return this.#publishDatabasePromotion(promotion);
+  }
+
+  prepareRestorePoint(input: { budgetId: string; pointId: string; syncEpoch: string; deviceId: string }): Promise<LocalDatabasePromotionResult> {
+    return this.#request({ requestId: createRuntimeUuid(), type: "prepareRestorePoint", ...input });
+  }
+
+  isGenerationPublished(promotion: LocalDatabasePromotionResult): boolean {
+    return Boolean(this.#storage && databaseFilePointerMatches(this.#storage,
+      promotion.manifest.budgetId, promotion.manifest.physicalFilename));
+  }
+
+  openPreparedRestorePoint(promotion: LocalDatabasePromotionResult, previousSyncEpoch: string, deviceId: string): Promise<LocalDatabasePromotionResult> {
+    return this.#request({ requestId: createRuntimeUuid(), type: "openPreparedRestorePoint", promotion, previousSyncEpoch, deviceId });
+  }
+
+  abortPreparedRestorePoint(): Promise<void> {
+    return this.#request({ requestId: createRuntimeUuid(), type: "abortPreparedRestorePoint" });
+  }
+
+  async commitPreparedRestorePoint(promotion: LocalDatabasePromotionResult): Promise<LocalBudgetManifest> {
+    if (!this.#storage) throw new Error("Internal restore requires durable generation-pointer storage.");
+    const manifest = await this.#publishDatabasePromotion(promotion, true);
+    await this.#request({ requestId: createRuntimeUuid(), type: "completePreparedRestorePoint" });
+    return manifest;
+  }
+
+  async #publishDatabasePromotion(
+    promotion: LocalDatabasePromotionResult,
+    preserveCandidateOnFailure = false,
+  ): Promise<LocalBudgetManifest> {
     const manifest = promotion.manifest;
     assertCompleteManifest(manifest);
 
@@ -272,7 +313,7 @@ export class LocalBudgetDatabaseClient {
           type: "close",
         }).catch(() => undefined);
 
-        if (previousPointerRestored) {
+        if (previousPointerRestored && !preserveCandidateOnFailure) {
           await this.#request({
             requestId: createRuntimeUuid(),
             type: "retirePhysicalDatabaseFile",

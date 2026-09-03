@@ -71,7 +71,7 @@ export function createBudgetDatabaseOwnership(close: () => Promise<void>) {
         if (unsafeCleanup) throw unsafeCleanup;
         try { return await operation(); }
         catch (error) {
-          if ((error as { code?: string })?.code === "LOCAL_DATABASE_RELEASE_FAILED") {
+          if (["LOCAL_DATABASE_RELEASE_FAILED", "RESTORE_PENDING"].includes((error as { code?: string })?.code ?? "")) {
             unsafeCleanup = error;
             accepting = false;
           }
@@ -101,7 +101,7 @@ export function createBudgetDatabaseOwnership(close: () => Promise<void>) {
         try {
           return await operation();
         } catch (error) {
-          if ((error as { code?: string })?.code === "LOCAL_DATABASE_RELEASE_FAILED") unsafeCleanup = error;
+          if (["LOCAL_DATABASE_RELEASE_FAILED", "RESTORE_PENDING"].includes((error as { code?: string })?.code ?? "")) unsafeCleanup = error;
           throw error;
         }
       });

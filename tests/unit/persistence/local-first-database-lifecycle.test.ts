@@ -15,13 +15,14 @@ globalThis.fetch = async (url) => {
 };
 after(() => { globalThis.fetch = originalFetch; });
 
-function harness(hooks: { open?: () => Promise<void>; sync?: () => Promise<void>; close?: () => Promise<void> } = {}) {
+function harness(hooks: { open?: () => Promise<void>; sync?: () => Promise<void>; close?: () => Promise<void>; capture?: () => Promise<void> } = {}) {
   const values = new Map([ ["budget-app.local-first.device-id", "test-device"], ...["A", "B"].map((id) => [`budget-app.local-first.sync-epoch.${id}`, "epoch"])]);
   const events: string[] = [];
   let owner: string | null = null;
   const client = createLocalFirstAccountRegisterQueryClient({} as never, {
     storage: { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value); } },
     tabSyncCoordinator: { run: async (_id, operation) => operation(), close() {} },
+    restorePointStore: { list: async () => [{ syncEpoch: "epoch", localRevision: 0 }] as never },
     databaseFactory: () => {
       let id = "";
       return {
@@ -34,6 +35,8 @@ function harness(hooks: { open?: () => Promise<void>; sync?: () => Promise<void>
           return {};
         },
         async close() { await hooks.close?.(); events.push(`close:${id}`); owner = null; },
+        async getManifest() { return { syncEpoch: "epoch", localRevision: hooks.capture ? 1 : 0 }; },
+        async captureRestorePoint() { events.push(`capture:${id}`); await hooks.capture?.(); return {}; },
         async getSyncState() { return { syncEpoch: "epoch", pulledCursor: 0, baselineHash: "hash" }; },
         async readOutbox() { await hooks.sync?.(); return []; },
         async listAccountNavigation(budgetId: string) { assert.equal(budgetId, id); events.push(`read:${id}`); return []; },
@@ -156,4 +159,27 @@ test("entity-id-first update routes ownership using the transaction input budget
   );
 
   await client.releaseLocalDatabase!();
+});
+
+test("switch awaits the safety point before release and refuses new queries while capture is pending", async () => {
+  const started = deferred();
+  const finish = deferred();
+  const { client, events, owner } = harness({ capture: async () => { started.resolve(); await finish.promise; } });
+  await client.listAccountNavigation("A");
+  const leaving = client.releaseLocalDatabase!();
+  await started.promise;
+  assert.equal(owner(), "A");
+  assert.equal(events.includes("close:A"), false);
+  await assert.rejects(client.listAccountNavigation("B"), { code: "BUDGET_DATABASE_RELEASED" });
+  finish.resolve();
+  await leaving;
+  assert.deepEqual(events, ["open:A", "read:A", "capture:A", "close:A"]);
+});
+
+test("failed safety capture prevents release and leaves the currently owned database intact", async () => {
+  const { client, events, owner } = harness({ capture: async () => { throw new Error("snapshot quota"); } });
+  await client.listAccountNavigation("A");
+  await assert.rejects(client.releaseLocalDatabase!(), /snapshot quota/);
+  assert.equal(owner(), "A");
+  assert.equal(events.includes("close:A"), false);
 });

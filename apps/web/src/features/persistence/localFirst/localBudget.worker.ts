@@ -98,6 +98,11 @@ type StagedImportState = {
 };
 
 let stagedImport: StagedImportState | null = null;
+let restoreCandidate: {
+  promotion: import("./contracts").LocalDatabasePromotionResult;
+  previousSyncEpoch: string;
+  deviceId: string;
+} | null = null;
 let replacement: {
   readonly budgetId: string;
   readonly syncEpoch: string;
@@ -5457,6 +5462,119 @@ async function openBudget(request: Extract<LocalBudgetWorkerRequest, { type: "op
   return currentManifest();
 }
 
+async function captureRestorePoint(
+  input: import("../../budget/restorePointTypes").CaptureRestorePointInput,
+) {
+  if (!database || stagedImport || replacement || restoreCandidate) {
+    throw workerError("RESTORE_POINT_DATABASE_BUSY", "A complete owned budget is required for a restore point.");
+  }
+  const { createRestorePointStore } = await import("../../budget/restorePointStore");
+  // The ownership queue serializes this client. SQLite's reserved write lock
+  // additionally prevents another native-OPFS connection changing the file
+  // during asynchronous chunk reads. No application writes occur in this txn.
+  execute("BEGIN IMMEDIATE");
+  try {
+    const check = resultRows<Record<string, unknown>>("PRAGMA quick_check");
+    if (check.length !== 1 || Object.values(check[0])[0] !== "ok") {
+      throw workerError("RESTORE_POINT_DATABASE_CORRUPT", "SQLite integrity validation failed before capture.");
+    }
+    const manifest = currentManifest();
+    const journalMode = Object.values(resultRows<Record<string, unknown>>("PRAGMA journal_mode")[0])[0];
+    let totalBytes: number;
+    if (journalMode === "wal") {
+      // A main-file copy cannot represent uncheckpointed WAL pages. SQLite
+      // serialization includes the transaction's complete logical database.
+      baselineExportBytes = sqliteRuntime!.capi.sqlite3_js_db_export(database!.pointer as number);
+      baselineExportBytes[18] = baselineExportBytes[19] = 1;
+      totalBytes = baselineExportBytes.byteLength;
+    } else if (persistentBackend === "opfs-sahpool") {
+      // The pool API exports a whole Uint8Array; this is the only full copy in
+      // JS memory. Chunk writes remain in this worker, never a download Blob.
+      baselineExportBytes = await sahPool!.exportFile(activeFilename);
+      totalBytes = baselineExportBytes.byteLength;
+    } else {
+      const root = await navigator.storage.getDirectory();
+      const file = await (await root.getFileHandle(activeFilename.replace(/^\//, ""))).getFile();
+      totalBytes = file.size;
+    }
+    return await createRestorePointStore().capture({
+      budgetId: manifest.budgetId,
+      budgetName: input.budgetName,
+      createdAt: new Date().toISOString(),
+      reason: input.reason,
+      syncEpoch: manifest.syncEpoch,
+      localRevision: manifest.localRevision,
+      counts: manifest.counts,
+      mutationCount: input.mutationCount,
+    }, totalBytes, (offset, length) => baselineExportBytes
+      ? Promise.resolve(baselineExportBytes.slice(offset, offset + length))
+      : readBaselineExportChunk(offset, length));
+  } finally {
+    baselineExportBytes = null;
+    try { execute("ROLLBACK"); }
+    catch { throw workerError("LOCAL_DATABASE_RELEASE_FAILED", "The snapshot lock could not be released safely. Reload before using this budget."); }
+  }
+}
+
+async function prepareRestorePoint(request: Extract<LocalBudgetWorkerRequest, { type: "prepareRestorePoint" }>) {
+  if (!database || activeBudgetId !== request.budgetId || stagedImport || replacement || restoreCandidate) {
+    throw workerError("RESTORE_POINT_DATABASE_BUSY", "An exclusively owned budget is required for restore.");
+  }
+  const previousSyncEpoch = activeSyncEpoch;
+  const { createRestorePointStore } = await import("../../budget/restorePointStore");
+  const { point, file } = await createRestorePointStore().read(request.budgetId, request.pointId);
+  try {
+    await beginBaselineReplacement({
+      requestId: request.requestId, type: "beginBaselineReplacement",
+      budgetId: request.budgetId, syncEpoch: point.syncEpoch,
+      deviceId: request.deviceId, totalBytes: file.size,
+    });
+    for (let offset = 0; offset < file.size; offset += 4 * 1024 * 1024) {
+      await appendBaselineReplacement(offset, new Uint8Array(await file.slice(offset, offset + 4 * 1024 * 1024).arrayBuffer()));
+    }
+    const promotion = await commitBaselineReplacement();
+    restoreCandidate = { promotion, previousSyncEpoch, deviceId: request.deviceId };
+    const check = resultRows<Record<string, unknown>>("PRAGMA quick_check");
+    if (check.length !== 1 || Object.values(check[0])[0] !== "ok" ||
+        REQUIRED_BUDGET_DOMAINS.some((domain) => promotion.manifest.counts[domain] !== point.counts[domain])) {
+      throw workerError("RESTORE_POINT_DATABASE_CORRUPT", "The restored SQLite candidate failed validation.");
+    }
+    execute("BEGIN IMMEDIATE");
+    try {
+      writeMetadata("syncEpoch", request.syncEpoch);
+      writeMetadata("pulledCursor", "0");
+      writeMetadata("baselineHash", "");
+      execute("COMMIT");
+    } catch (error) {
+      execute("ROLLBACK");
+      throw error;
+    }
+    activeSyncEpoch = request.syncEpoch;
+    restoreCandidate.promotion = { ...promotion, manifest: currentManifest() };
+    return restoreCandidate.promotion;
+  } catch (error) {
+    await abortBaselineReplacement().catch(() => undefined);
+    try { await abortPreparedRestorePoint(); }
+    catch { throw workerError("RESTORE_PENDING", "Restore candidate rollback needs recovery; reload before using this budget."); }
+    throw error;
+  }
+}
+
+async function abortPreparedRestorePoint() {
+  const candidate = restoreCandidate;
+  if (!candidate) return null;
+  const { promotion } = candidate;
+  if (!promotion.supersededPhysicalFilename) throw workerError("RESTORE_ROLLBACK_MISSING", "The previous SQLite generation is missing.");
+  await openBudget({
+    requestId: "restore-rollback", type: "open", budgetId: promotion.manifest.budgetId,
+    syncEpoch: candidate.previousSyncEpoch, deviceId: candidate.deviceId,
+    physicalFilename: promotion.supersededPhysicalFilename,
+  });
+  restoreCandidate = null;
+  await removeOpfsFile(promotion.manifest.physicalFilename).catch(() => undefined);
+  return null;
+}
+
 async function prepareBaselineExport() {
   if (!database || !sqliteRuntime) {
     throw workerError("DATABASE_NOT_OPEN", "The local budget is not open.");
@@ -5683,6 +5801,27 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return openBudget(request);
     case "manifest":
       return currentManifest();
+    case "prepareRestorePoint":
+      return prepareRestorePoint(request);
+    case "openPreparedRestorePoint": {
+      const manifest = await openBudget({
+        requestId: request.requestId, type: "open",
+        budgetId: request.promotion.manifest.budgetId,
+        syncEpoch: request.promotion.manifest.syncEpoch,
+        physicalFilename: request.promotion.manifest.physicalFilename,
+        deviceId: request.deviceId,
+      });
+      restoreCandidate = { promotion: { ...request.promotion, manifest },
+        previousSyncEpoch: request.previousSyncEpoch, deviceId: request.deviceId };
+      return restoreCandidate.promotion;
+    }
+    case "abortPreparedRestorePoint":
+      return abortPreparedRestorePoint();
+    case "completePreparedRestorePoint":
+      restoreCandidate = null;
+      return null;
+    case "captureRestorePoint":
+      return captureRestorePoint(request.input);
     case "prepareBaselineExport":
       return prepareBaselineExport();
     case "readBaselineExportChunk":
@@ -5963,9 +6102,12 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
   }
 }
 
+let requestTail: Promise<unknown> = Promise.resolve();
 self.onmessage = (event: MessageEvent<LocalBudgetWorkerRequest>) => {
   const request = event.data;
-  void handle(request).then(
+  const operation = requestTail.then(() => handle(request));
+  requestTail = operation.catch(() => undefined);
+  void operation.then(
     (result) => {
       const response: LocalBudgetWorkerResponse = {
         requestId: request.requestId,

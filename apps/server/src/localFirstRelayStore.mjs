@@ -99,10 +99,32 @@ export function createLocalFirstRelayStore(database, options = {}) {
     syncEpoch,
     baselineId,
     committedAt,
+    restoring = false,
   ) => {
-    const epoch = requireEpoch(budgetId, syncEpoch);
     const baseline = readBaseline.get(baselineId);
     const manifest = JSON.parse(baseline.manifestJson);
+    if (restoring) {
+      const expected = manifest.restore;
+      if (!expected) throw relayError(409, "RESTORE_NOT_STAGED", "This baseline is not an explicit restore.");
+      const epoch = ensureEpoch(budgetId);
+      if (epoch.syncEpoch !== expected.syncEpoch || epoch.latestCursor !== expected.latestCursor ||
+          (epoch.baselineId ?? null) !== expected.baselineId) {
+        throw relayError(409, "RESTORE_REJECTED", "The budget changed while the restore was staged. Nothing was replaced.",
+          { details: { restoreNotCommitted: true } });
+      }
+      database.prepare(`
+        UPDATE local_first_baselines SET state = 'committed', committed_at = ?
+        WHERE baseline_id = ?
+      `).run(committedAt, baselineId);
+      database.prepare(`
+        UPDATE local_first_sync_epochs SET sync_epoch = ?, baseline_id = ?,
+          latest_cursor = 0, reset_at = ? WHERE budget_id = ?
+      `).run(syncEpoch, baselineId, committedAt, budgetId);
+      const removed = database.prepare("DELETE FROM local_first_mutations WHERE budget_id = ?").run(budgetId).changes;
+      return { previousBaselineId: epoch.baselineId, compactedMutationCount: removed, baseCursor: 0 };
+    }
+    if (manifest.restore) throw relayError(403, "RESTORE_REQUIRES_OWNER", "Use the owner-authorized restore endpoint.");
+    const epoch = requireEpoch(budgetId, syncEpoch);
     if ((epoch.baselineId ?? null) !== manifest.previousBaselineId) {
       throw relayError(
         409,
@@ -264,6 +286,7 @@ export function createLocalFirstRelayStore(database, options = {}) {
     },
 
     beginBaseline(budgetId, syncEpoch, manifest) {
+      if (manifest?.restore) throw relayError(400, "INVALID_BASELINE_MANIFEST", "Restore intent cannot be submitted as an ordinary baseline.");
       const epoch = requireEpoch(budgetId, syncEpoch);
       const validated = validateBaselineManifest(manifest, {
         budgetId,
@@ -286,10 +309,35 @@ export function createLocalFirstRelayStore(database, options = {}) {
       return { baselineId, chunkCount: validated.chunkCount };
     },
 
+    beginRestore(budgetId, expected, manifest) {
+      const epoch = requireEpoch(budgetId, expected?.syncEpoch);
+      if (expected.latestCursor !== epoch.latestCursor || expected.baselineId !== (epoch.baselineId ?? null)) {
+        throw relayError(409, "RESTORE_SUPERSEDED", "The budget changed before restore staging.");
+      }
+      if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(manifest?.syncEpoch ?? "") || manifest.syncEpoch === epoch.syncEpoch ||
+          manifest.baseCursor !== 0 || manifest.previousBaselineId !== null || manifest.restore) {
+        throw relayError(400, "INVALID_RESTORE_MANIFEST", "Restore requires a fresh epoch and empty sync history.");
+      }
+      if (database.prepare("SELECT 1 FROM local_first_baselines WHERE budget_id = ? AND sync_epoch = ? LIMIT 1").get(budgetId, manifest.syncEpoch)) {
+        throw relayError(409, "RESTORE_EPOCH_REUSED", "Restore must not reuse a previously staged or committed epoch.");
+      }
+      const validated = validateBaselineManifest(manifest, {
+        budgetId, syncEpoch: manifest.syncEpoch, schemaVersion: epoch.schemaVersion,
+      });
+      const baselineId = randomUUID();
+      database.prepare(`
+        INSERT INTO local_first_baselines(baseline_id, budget_id, sync_epoch, manifest_json,
+          state, created_at, committed_at) VALUES (?, ?, ?, ?, 'staging', ?, NULL)
+      `).run(baselineId, budgetId, manifest.syncEpoch, JSON.stringify({
+        ...validated, restore: { syncEpoch: epoch.syncEpoch, latestCursor: epoch.latestCursor, baselineId: epoch.baselineId ?? null },
+      }), new Date().toISOString());
+      return { baselineId, chunkCount: validated.chunkCount };
+    },
+
     saveBaselineChunk(budgetId, syncEpoch, baselineId, chunkIndex, contentHash, content) {
-      requireEpoch(budgetId, syncEpoch);
       const baseline = requireStagingBaseline(baselineId, budgetId, syncEpoch);
       const manifest = JSON.parse(baseline.manifestJson);
+      requireEpoch(budgetId, manifest.restore?.syncEpoch ?? syncEpoch);
       if (!Number.isSafeInteger(chunkIndex) || chunkIndex < 0 || chunkIndex >= manifest.chunkCount) {
         throw relayError(400, "INVALID_BASELINE_CHUNK", "Baseline chunk index is out of range.");
       }
@@ -333,10 +381,22 @@ export function createLocalFirstRelayStore(database, options = {}) {
       return { baselineId, chunkIndex, contentHash: actualHash, size: content.length };
     },
 
-    commitBaseline(budgetId, syncEpoch, baselineId) {
-      requireEpoch(budgetId, syncEpoch);
+    commitBaseline(budgetId, syncEpoch, baselineId, restoring = false) {
+      const previous = readBaseline.get(baselineId);
+      // A lost commit acknowledgement must be safely retryable. The active
+      // epoch/baseline remains the source of truth, never the HTTP response.
+      if (restoring && previous?.budgetId === budgetId && previous.syncEpoch === syncEpoch && previous.state === "committed") {
+        const epoch = requireEpoch(budgetId, syncEpoch);
+        if (epoch.baselineId !== baselineId) throw relayError(409, "RESTORE_SUPERSEDED", "This restore was superseded.");
+        const manifest = JSON.parse(previous.manifestJson);
+        if (!manifest.restore) throw relayError(409, "RESTORE_NOT_STAGED", "Not a restore baseline.");
+        return { baselineId, contentHash: manifest.contentHash, totalBytes: manifest.totalBytes,
+          committedAt: previous.committedAt, baseCursor: 0, compactedMutationCount: 0 };
+      }
       const baseline = requireStagingBaseline(baselineId, budgetId, syncEpoch);
       const manifest = JSON.parse(baseline.manifestJson);
+      if (restoring !== Boolean(manifest.restore)) throw relayError(403, "RESTORE_REQUIRES_OWNER", "Use the matching authorized commit endpoint.");
+      if (!restoring) requireEpoch(budgetId, syncEpoch);
       const chunks = listChunks.all(baselineId);
       if (chunks.length !== manifest.chunkCount) {
         throw relayError(409, "BASELINE_INCOMPLETE",
@@ -368,6 +428,7 @@ export function createLocalFirstRelayStore(database, options = {}) {
           syncEpoch,
           baselineId,
           committedAt,
+          restoring,
         );
       } catch (error) {
         if (error?.code === "BASELINE_DATA_REGRESSION") {
@@ -375,7 +436,9 @@ export function createLocalFirstRelayStore(database, options = {}) {
         }
         throw error;
       }
-      pruneSupersededBaselines(budgetId, syncEpoch, 2);
+      // Cleanup is not part of the durable commit acknowledgement.
+      try { pruneSupersededBaselines(budgetId, syncEpoch, 2); }
+      catch (error) { console.warn("Committed baseline cleanup failed.", error); }
       return {
         baselineId,
         contentHash,
