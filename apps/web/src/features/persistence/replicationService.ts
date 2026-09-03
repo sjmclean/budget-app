@@ -167,7 +167,7 @@ export function startReplicationBackgroundService(
     };
 
     const syncNow = async (): Promise<ReplicationRunResult | null> => {
-      if (stopped) return null;
+      if (stopped || provider.accountRegisterQueries?.isLocalDatabaseReleased?.()) return null;
       if (running) return running;
       running = (async () => {
         connectEvents();
@@ -200,9 +200,11 @@ export function startReplicationBackgroundService(
             });
           }
           const status = await provider.accountRegisterQueries.getBudgetStatus(budgetId);
+          if (provider.accountRegisterQueries.isLocalDatabaseReleased?.()) return null;
           // Local-first query clients synchronise the transactional outbox and
           // pull remote mutations before returning navigation data.
           await provider.accountRegisterQueries.listAccountNavigation(budgetId);
+          if (provider.accountRegisterQueries.isLocalDatabaseReleased?.()) return null;
           const conflicts = await localConflictClient()
             ?.listSyncConflicts?.(budgetId) ?? [];
           const result: ReplicationRunResult = {

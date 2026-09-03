@@ -54,6 +54,7 @@ import {
   normaliseCategoryGoalForPersistence,
 } from "./categoryGoalPersistence";
 import { isCreditCardPaymentCategory } from "../../budget/creditCardPaymentCategories";
+import { createBudgetDatabaseOwnership } from "./budgetDatabaseOwnership";
 
 const DEVICE_ID_KEY = "budget-app.local-first.device-id";
 const SYNC_EPOCH_KEY_PREFIX = "budget-app.local-first.sync-epoch.";
@@ -143,18 +144,23 @@ export function createLocalFirstAccountRegisterQueryClient(
     if (opening) return opening;
     opening = (async () => {
       const remote = await relay.getBootstrap(budgetId).catch(() => null);
-      await database?.close().catch(() => undefined);
-      const next =
-        options.databaseFactory?.() ??
-        new LocalBudgetDatabaseClient(undefined, storage);
+      await database?.close();
+      database = null;
+      activeBudgetId = null;
+      activeSyncEpoch = null;
+      activePulledCursor = 0;
       const cachedSyncEpoch = storage.getItem(
         `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
       );
+      if (!remote && !cachedSyncEpoch) return null;
+      if (remote && (!remote.baseline || remote.schemaVersion !== LOCAL_BUDGET_SCHEMA_VERSION)) return null;
+      const next =
+        options.databaseFactory?.() ??
+        new LocalBudgetDatabaseClient(undefined, storage);
       let oldGenerationProvenSafe = false;
-
-      if (!remote) {
-        if (!cachedSyncEpoch) return null;
-        try {
+      try {
+        if (!remote) {
+          if (!cachedSyncEpoch) return null;
           await next.open({
             budgetId,
             syncEpoch: cachedSyncEpoch,
@@ -165,94 +171,60 @@ export function createLocalFirstAccountRegisterQueryClient(
           activeBudgetId = budgetId;
           activeSyncEpoch = cachedSyncEpoch;
           return next;
-        } catch (error) {
-          await next.close().catch(() => undefined);
-          throw error;
         }
-      }
-      if (!remote.baseline || remote.schemaVersion !== LOCAL_BUDGET_SCHEMA_VERSION) {
-        return null;
-      }
-
-      if (cachedSyncEpoch && cachedSyncEpoch !== remote.syncEpoch) {
-        await next.open({
-          budgetId,
-          syncEpoch: cachedSyncEpoch,
-          deviceId,
-        });
-        const pendingOldGeneration = await next.readOutbox(0, 1);
-        if (pendingOldGeneration.length > 0) {
-          await next.close().catch(() => undefined);
-          throw Object.assign(
-            new Error(
-              "This device has unsynced local changes from the previous sync generation. " +
-              "They must be recovered explicitly before rebuilding from the relay.",
-            ),
-            { code: "UNSYNCED_LOCAL_CHANGES" },
-          );
+        if (!remote.baseline || remote.schemaVersion !== LOCAL_BUDGET_SCHEMA_VERSION) {
+          return null;
         }
 
-        oldGenerationProvenSafe = true;
-      }
-
-      try {
-        const local = await next.open({
-          budgetId,
-          syncEpoch: remote.syncEpoch,
-          deviceId,
-        });
-        const syncState = await next.getSyncState();
-        activePulledCursor = syncState.pulledCursor;
-        if (
-          syncState.baselineHash !== remote.baseline.manifest.contentHash ||
-          syncState.pulledCursor < remote.baseline.manifest.baseCursor ||
-          local.counts.accounts !== remote.baseline.manifest.counts.accounts ||
-          local.counts.transactions !== remote.baseline.manifest.counts.transactions
-        ) {
-          await drainLocalOutbox(next, budgetId, remote.syncEpoch);
-          await bootstrapLocalBudget({
+        if (cachedSyncEpoch && cachedSyncEpoch !== remote.syncEpoch) {
+          await next.open({
             budgetId,
+            syncEpoch: cachedSyncEpoch,
             deviceId,
-            database: next,
-            relay,
-            localState: syncState.baselineHash ? {
-              budgetId,
-              syncEpoch: syncState.syncEpoch,
-              baselineHash: syncState.baselineHash,
-              pulledCursor: syncState.pulledCursor,
-            } : null,
           });
-          activePulledCursor = (await next.getSyncState()).pulledCursor;
-        }
-        database = next;
-        activeBudgetId = budgetId;
-        activeSyncEpoch = remote.syncEpoch;
-        storage.setItem(
-          `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
-          remote.syncEpoch,
-        );
-        return next;
-      } catch (error) {
-        if ((error as { code?: string }).code === "STALE_SYNC_EPOCH") {
-          if (!oldGenerationProvenSafe) {
-            await next.close().catch(() => undefined);
+          const pendingOldGeneration = await next.readOutbox(0, 1);
+          if (pendingOldGeneration.length > 0) {
             throw Object.assign(
               new Error(
-                "The local SQLite budget belongs to an unexpected previous sync generation. " +
-                "Its unsynced changes could not be inspected safely, so automatic rebuild was refused.",
+                "This device has unsynced local changes from the previous sync generation. " +
+                "They must be recovered explicitly before rebuilding from the relay.",
               ),
-              { code: "UNVERIFIED_STALE_LOCAL_GENERATION" },
+              { code: "UNSYNCED_LOCAL_CHANGES" },
             );
           }
 
-          await bootstrapLocalBudget({
+          oldGenerationProvenSafe = true;
+        }
+
+        try {
+          const local = await next.open({
             budgetId,
+            syncEpoch: remote.syncEpoch,
             deviceId,
-            database: next,
-            relay,
-            localState: null,
           });
-          activePulledCursor = (await next.getSyncState()).pulledCursor;
+          const syncState = await next.getSyncState();
+          activePulledCursor = syncState.pulledCursor;
+          if (
+            syncState.baselineHash !== remote.baseline.manifest.contentHash ||
+            syncState.pulledCursor < remote.baseline.manifest.baseCursor ||
+            local.counts.accounts !== remote.baseline.manifest.counts.accounts ||
+            local.counts.transactions !== remote.baseline.manifest.counts.transactions
+          ) {
+            await drainLocalOutbox(next, budgetId, remote.syncEpoch);
+            await bootstrapLocalBudget({
+              budgetId,
+              deviceId,
+              database: next,
+              relay,
+              localState: syncState.baselineHash ? {
+                budgetId,
+                syncEpoch: syncState.syncEpoch,
+                baselineHash: syncState.baselineHash,
+                pulledCursor: syncState.pulledCursor,
+              } : null,
+            });
+            activePulledCursor = (await next.getSyncState()).pulledCursor;
+          }
           database = next;
           activeBudgetId = budgetId;
           activeSyncEpoch = remote.syncEpoch;
@@ -261,9 +233,41 @@ export function createLocalFirstAccountRegisterQueryClient(
             remote.syncEpoch,
           );
           return next;
+        } catch (error) {
+          if ((error as { code?: string }).code === "STALE_SYNC_EPOCH") {
+            if (!oldGenerationProvenSafe) {
+              throw Object.assign(
+                new Error(
+                  "The local SQLite budget belongs to an unexpected previous sync generation. " +
+                  "Its unsynced changes could not be inspected safely, so automatic rebuild was refused.",
+                ),
+                { code: "UNVERIFIED_STALE_LOCAL_GENERATION" },
+              );
+            }
+
+            await bootstrapLocalBudget({
+              budgetId,
+              deviceId,
+              database: next,
+              relay,
+              localState: null,
+            });
+            activePulledCursor = (await next.getSyncState()).pulledCursor;
+            database = next;
+            activeBudgetId = budgetId;
+            activeSyncEpoch = remote.syncEpoch;
+            storage.setItem(
+              `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
+              remote.syncEpoch,
+            );
+            return next;
+          }
+          throw error;
         }
-        await next.close().catch(() => undefined);
-        throw error;
+      } finally {
+        // Unpublished workers must relinquish the pool on every failed open,
+        // stale-generation check, and bootstrap failure. Never hide close errors.
+        if (database !== next) await next.close();
       }
     })().finally(() => {
       opening = null;
@@ -1461,7 +1465,7 @@ export function createLocalFirstAccountRegisterQueryClient(
     async releaseLocalDatabase() {
       await opening?.catch(() => null);
       await synchronising?.promise.catch(() => undefined);
-      await database?.close().catch(() => undefined);
+      await database?.close();
       database = null;
       activeBudgetId = null;
       activeSyncEpoch = null;
@@ -1550,6 +1554,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       await lifecycle.deleteBudget(budgetId);
       try {
         await local?.deleteBudgetFile();
+        await local?.close();
       } catch (error) {
         throw Object.assign(
           error instanceof Error ? error : new Error("Local budget cleanup failed."),
@@ -2470,7 +2475,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       );
       if (!view) throw new Error(`Budget month ${input.month} is not available locally.`);
       if (storage.getItem(BUDGET_ENGINE_DIAGNOSTIC_STORAGE_KEY) === "true") {
-        void local.getBudgetProjectionDiagnostic(input.budgetId, input.month).then(
+        await local.getBudgetProjectionDiagnostic(input.budgetId, input.month).then(
           (diagnostic) => {
             if (!diagnostic.matchesSnapshot) {
               console.warn("Budget engine diagnostic differs from the legacy snapshot.", diagnostic);
@@ -2955,9 +2960,52 @@ export function createLocalFirstAccountRegisterQueryClient(
       }
     },
   };
+  const ownership = createBudgetDatabaseOwnership(() => client.releaseLocalDatabase!());
+  // The raw client is deliberately retained for nested calls. Wrapping those
+  // calls again would deadlock the operation already holding the lease.
+  const methods = new Map<PropertyKey, unknown>();
+  const owned = new Proxy(client, {
+    get(target, key) {
+      if (key === "releaseLocalDatabase") return ownership.leave;
+      if (key === "activateLocalBudget") return ownership.enter;
+      if (key === "isLocalDatabaseReleased") return ownership.isReleased;
+      if (key === "runWithExclusiveLocalDatabase") return ownership.exclusive;
+      if (methods.has(key)) return methods.get(key);
+      const value = Reflect.get(target, key);
+      if (typeof value !== "function") return value;
+      if (key === "getBudgetStatus" || key === "getBudgetExportUrl") {
+        const method = value.bind(target);
+        methods.set(key, method);
+        return method;
+      }
+      if (key === "prefetchAccountRegister" || key === "prefetchBudgetMonthView") {
+        const method = (input: { budgetId: string } & Record<string, unknown>) => {
+          if (ownership.isReleased()) return;
+          void ownership.run<unknown>(input.budgetId, () => key === "prefetchAccountRegister"
+            ? target.getAccountRegisterBootstrap(input as never)
+            : target.getBudgetMonthView(input as never)).catch(() => undefined);
+        };
+        methods.set(key, method);
+        return method;
+      }
+      const method = (...args: unknown[]) => {
+        const first = args[0];
+        const budgetId = typeof first === "string" ? first : (first as { budgetId?: string } | undefined)?.budgetId;
+        // Deleting a launcher entry explicitly owns a temporary database and
+        // leaves it closed. Restore/reset reuse the active client's lease.
+        if (key === "deleteBudget") return ownership.exclusive(async () => {
+          try { return await value.apply(target, args); }
+          finally { await client.releaseLocalDatabase!(); }
+        });
+        return ownership.run(budgetId, () => value.apply(target, args));
+      };
+      methods.set(key, method);
+      return method;
+    },
+  });
   registerLocalSqliteAttachmentReader((budgetId, attachmentId) =>
-    client.readTransactionAttachment({ budgetId, attachmentId }));
-  return client;
+    owned.readTransactionAttachment({ budgetId, attachmentId }));
+  return owned;
 }
 
 function toLocalQuery(input: AccountTransactionQuery) {

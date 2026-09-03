@@ -61,8 +61,56 @@ class FakeWorker {
       );
   }
 
-  terminate(): void {}
+  terminations = 0;
+  terminate(): void { this.terminations += 1; }
 }
+
+test("close waits for worker ownership acknowledgement and is idempotent", async () => {
+  let acknowledge!: () => void;
+  const acknowledgement = new Promise<void>((resolve) => { acknowledge = resolve; });
+  const worker = new FakeWorker(() => acknowledgement);
+  const client = new LocalBudgetDatabaseClient(worker as unknown as Worker, memoryStorage());
+  const closing = client.close();
+  assert.equal(client.close(), closing);
+  assert.equal(worker.terminations, 0);
+  await assert.rejects(client.getManifest(), /closing or closed/);
+  acknowledge();
+  await closing;
+  await client.close();
+  assert.equal(worker.terminations, 1);
+  assert.deepEqual(worker.requests.map((r) => r.type), ["close"]);
+  assert.equal(worker.requests[0].releaseOwnership, true);
+});
+
+test("a failed close is surfaced and can be retried without pretending ownership was released", async () => {
+  let failed = true;
+  const worker = new FakeWorker(() => { if (failed) throw new Error("pool still held"); });
+  const client = new LocalBudgetDatabaseClient(worker as unknown as Worker, memoryStorage());
+  await assert.rejects(client.close(), { code: "LOCAL_DATABASE_RELEASE_FAILED" });
+  assert.equal(worker.terminations, 0);
+  failed = false;
+  await client.close();
+  assert.equal(worker.terminations, 1);
+});
+
+test("a genuine second-owner busy error remains a failure and the failed worker closes", async () => {
+  const worker = new FakeWorker((request) => {
+    if (request.type === "open") throw Object.assign(new Error("database in use"), { code: "SQLITE_DATABASE_BUSY" });
+  });
+  const client = new LocalBudgetDatabaseClient(worker as unknown as Worker, memoryStorage());
+  await assert.rejects(client.open({ budgetId: "budget-1", syncEpoch: "epoch-1", deviceId: "device" }), { code: "SQLITE_DATABASE_BUSY" });
+  await client.close();
+  assert.equal(worker.terminations, 1);
+});
+
+test("close after a fatal worker error rejects instead of waiting forever for a dead worker", async () => {
+  const worker = new FakeWorker(() => assert.fail("must not send to failed worker"));
+  const client = new LocalBudgetDatabaseClient(worker as unknown as Worker, memoryStorage());
+  worker.onerror?.({ message: "worker failed to load" } as ErrorEvent);
+  await assert.rejects(client.close(), { code: "LOCAL_DATABASE_RELEASE_FAILED" });
+  assert.equal(worker.requests.length, 0);
+  assert.equal(worker.terminations, 0);
+});
 
 function manifest(
   physicalFilename: string,

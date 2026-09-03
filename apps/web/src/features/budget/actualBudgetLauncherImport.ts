@@ -244,11 +244,12 @@ export async function createActualBudgetLauncherImportWithBackend(
       budgets: readBudgetRegistry(storage),
     };
   } catch (error) {
+    let closeError: unknown;
     if (database) {
       if (staged) {
         await database.rollbackStagedImport().catch(() => undefined);
       }
-      await database.close().catch(() => undefined);
+      await database.close().catch((failure) => { closeError = failure; });
     }
 
     if (provisioned && budget) {
@@ -264,6 +265,7 @@ export async function createActualBudgetLauncherImportWithBackend(
 
     await storage.flush?.();
 
+    if (closeError) throw closeError;
     if (isStorageQuotaError(error)) {
       throw new Error(
         "Actual Budget import requires more browser storage than is available. No budget was created and no partial data was saved.",

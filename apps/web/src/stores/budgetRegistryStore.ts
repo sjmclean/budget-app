@@ -28,7 +28,7 @@ import { deleteBudgetById, type BudgetLifecycleResult } from "../features/budget
 import { createLocalFirstBudgetFromSetup } from "../features/budget/newBudget/createLocalFirstBudgetFromSetup";
 import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
-import { getBudgetPersistenceProvider } from "../features/persistence/budgetPersistenceProviderFactory";
+import { runWithExclusiveBudgetDatabase } from "../features/persistence/budgetDatabaseLifecycle";
 
 interface BudgetRegistryState {
   budgets: BudgetSummary[];
@@ -53,22 +53,20 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
     return budget;
   },
 
-  createBudgetWithSetup: async (setup) => {
+  createBudgetWithSetup: async (setup) => runWithExclusiveBudgetDatabase(async () => {
     const budget = await createLocalFirstBudgetFromSetup(
       getActiveKeyValueStorage(),
       setup,
     );
     set({ budgets: readBudgetRegistry(getActiveKeyValueStorage()) });
     return budget;
-  },
+  }),
 
-  importYnab4Budget: async (input) => {
+  importYnab4Budget: async (input) => runWithExclusiveBudgetDatabase(async () => {
     const { createYnab4LauncherBudgetImportWithBackend } = await import(
       "../features/budget/ynab4LauncherImport"
     );
 
-    await getBudgetPersistenceProvider().accountRegisterQueries
-      ?.releaseLocalDatabase?.();
     createVersionHistorySnapshotBeforeBudgetImport(getActiveKeyValueStorage(), {
       now: input.now,
     });
@@ -78,9 +76,9 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
     });
     set({ budgets: result.budgets });
     return result;
-  },
+  }),
 
-  importActualBudget: async (input) => {
+  importActualBudget: async (input) => runWithExclusiveBudgetDatabase(async () => {
     const { createActualBudgetLauncherImportWithBackend } = await import(
       "../features/budget/actualBudgetLauncherImport"
     );
@@ -94,7 +92,7 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
     });
     set({ budgets: result.budgets });
     return result;
-  },
+  }),
 
   updateBudget: (budgetId, input) => {
     const budget = updateBudgetRegistryEntry(getActiveKeyValueStorage(), budgetId, input);

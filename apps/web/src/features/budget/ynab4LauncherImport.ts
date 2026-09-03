@@ -350,7 +350,7 @@ export async function createYnab4LauncherBudgetImportWithBackend(
     await storage.flush?.();
     throw error;
   } finally {
-    await localDatabase?.close().catch(() => undefined);
+    await localDatabase?.close();
   }
 }
 

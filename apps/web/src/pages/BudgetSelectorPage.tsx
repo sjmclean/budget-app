@@ -94,9 +94,6 @@ export function BudgetSelectorPage() {
   const [activeBudgetMenuId, setActiveBudgetMenuId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
-  const [hostedStats, setHostedStats] = useState<
-    Record<string, { accountCount: number; transactionCount: number }>
-  >({});
 
   const sortedBudgets = useMemo(
     () =>
@@ -110,39 +107,12 @@ export function BudgetSelectorPage() {
     () =>
       sortedBudgets.map((budget, index) => ({
         budget,
-        stats: hostedStats[budget.id] ?? readBudgetStats(budget),
+        // Persisted launcher metadata only; never open a SQLite budget for cards.
+        stats: readBudgetStats(budget),
         tone: index % 2 === 0 ? "home" : "business",
       })),
-    [hostedStats, sortedBudgets, persistenceChangeVersion],
+    [sortedBudgets, persistenceChangeVersion],
   );
-
-  useEffect(() => {
-    const hosted = getBudgetPersistenceProvider().accountRegisterQueries;
-    if (!hosted) return;
-    let cancelled = false;
-    void Promise.all(sortedBudgets.map(async (budget) => {
-      const status = await hosted.getBudgetStatus(budget.id).catch(() => null);
-      if (!status?.capabilities.accountRegisters) return null;
-      const accounts = await hosted.listAccountNavigation(budget.id);
-      return [budget.id, {
-        accountCount: accounts.length,
-        transactionCount: accounts.reduce(
-          (total, account) => total + account.transactionCount,
-          0,
-        ),
-      }] as const;
-    })).then((entries) => {
-      if (cancelled) return;
-      setHostedStats(Object.fromEntries(entries.filter(
-        (entry): entry is NonNullable<typeof entry> => entry !== null,
-      )));
-    }).catch(() => {
-      // Keep the local/checkpoint-derived summary if hosted SQLite is absent.
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [persistenceChangeVersion, sortedBudgets]);
 
   const budgetPendingDelete = useMemo(
     () => budgets.find((budget) => budget.id === deleteBudgetId) ?? null,
