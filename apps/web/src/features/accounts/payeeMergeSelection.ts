@@ -1,3 +1,5 @@
+import { rankPayeeSearchMatches } from "./payeeSearchRanking";
+
 export type PayeeMergeSelection = {
   targetPayeeId: string;
   sourcePayeeIds: string[];
@@ -13,11 +15,8 @@ export function filterPayeeMergeCandidates<T extends PayeeMergeCandidate>(
   targetPayeeId: string,
   search: string,
 ): T[] {
-  const query = search.trim().toLocaleLowerCase();
-  return payees.filter((payee) =>
-    payee.id !== targetPayeeId &&
-    payee.name.toLocaleLowerCase().includes(query),
-  );
+  const eligible = payees.filter((payee) => payee.id !== targetPayeeId);
+  return rankPayeeSearchMatches(eligible, search);
 }
 
 export function createPayeeMergeSelection(

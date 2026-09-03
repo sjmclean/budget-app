@@ -99,3 +99,16 @@ test("manual merge selection starts with the keeper and no sources", () => {
     sourcePayeeIds: [],
   });
 });
+
+test("merge search ranks eligible matches without changing keeper/source eligibility", () => {
+  const payees = [
+    { id: "weak", name: "Credited Amount" },
+    { id: "keeper", name: "Red" },
+    { id: "source", name: "Red Energy" },
+    { id: "word", name: "Shop-Red" },
+    { id: "other", name: "Blue Store" },
+  ];
+  assert.deepEqual(filterPayeeMergeCandidates(payees, "keeper", "  RED ").map(p => p.id), ["source", "word", "weak"]);
+  assert.deepEqual(filterPayeeMergeCandidates(payees, "keeper", "").map(p => p.id), ["weak", "source", "word", "other"]);
+  assert.deepEqual(createPayeeMergeSelection(["keeper", "source"], "keeper").sourcePayeeIds, ["source"]);
+});
