@@ -55,6 +55,7 @@ import {
 } from "./categoryGoalPersistence";
 import { isCreditCardPaymentCategory } from "../../budget/creditCardPaymentCategories";
 import { createBudgetDatabaseOwnership } from "./budgetDatabaseOwnership";
+import { resolveOwnedBudgetId } from "./budgetDatabaseOwnershipRouting";
 
 const DEVICE_ID_KEY = "budget-app.local-first.device-id";
 const SYNC_EPOCH_KEY_PREFIX = "budget-app.local-first.sync-epoch.";
@@ -2989,14 +2990,13 @@ export function createLocalFirstAccountRegisterQueryClient(
         return method;
       }
       const method = (...args: unknown[]) => {
-        const first = args[0];
-        const budgetId = typeof first === "string" ? first : (first as { budgetId?: string } | undefined)?.budgetId;
         // Deleting a launcher entry explicitly owns a temporary database and
         // leaves it closed. Restore/reset reuse the active client's lease.
         if (key === "deleteBudget") return ownership.exclusive(async () => {
           try { return await value.apply(target, args); }
           finally { await client.releaseLocalDatabase!(); }
         });
+        const budgetId = resolveOwnedBudgetId(key, args);
         return ownership.run(budgetId, () => value.apply(target, args));
       };
       methods.set(key, method);

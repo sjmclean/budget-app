@@ -57,7 +57,7 @@ test("repeated A/selector/B transitions require explicit activation and reject s
   for (const id of ["A", "B", "A", "B"]) {
     await lifecycle.enter(id);
     await lifecycle.run(id, async () => { assert.equal(owner, null); owner = id; events.push(`open:${id}`); });
-    await assert.rejects(lifecycle.run(id === "A" ? "B" : "A", async () => {}), { code: "BUDGET_DATABASE_RELEASED" });
+    await assert.rejects(lifecycle.run(id === "A" ? "B" : "A", async () => {}), { code: "BUDGET_DATABASE_BUDGET_MISMATCH" });
     await lifecycle.leave();
     await lifecycle.leave();
     assert.equal(owner, null);
@@ -135,4 +135,21 @@ test("leave requested immediately after an exclusive operation waits for that op
   await leaving;
   assert.equal(left, true);
   assert.equal(lifecycle.isReleased(), true);
+});
+
+test("selected-budget mismatch is distinct from a released database", async () => {
+  const lifecycle = createBudgetDatabaseOwnership(async () => {});
+  await lifecycle.enter("A");
+
+  await assert.rejects(
+    lifecycle.run("B", async () => {}),
+    { code: "BUDGET_DATABASE_BUDGET_MISMATCH" },
+  );
+  assert.equal(lifecycle.isReleased(), false);
+
+  await lifecycle.leave();
+  await assert.rejects(
+    lifecycle.run("A", async () => {}),
+    { code: "BUDGET_DATABASE_RELEASED" },
+  );
 });
