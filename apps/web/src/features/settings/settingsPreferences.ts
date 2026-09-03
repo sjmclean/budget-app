@@ -14,6 +14,7 @@ export interface GeneralSettingsPreference {
   firstDayOfWeek: FirstDayOfWeekPreference;
   language: string;
   developerPerformanceMode: boolean;
+  showMerchantIconsInRegister: boolean;
 }
 
 export interface BudgetSettingsPreference {
@@ -37,6 +38,7 @@ export const defaultSettingsPreferences: SettingsPreferences = {
     firstDayOfWeek: "monday",
     language: "English",
     developerPerformanceMode: false,
+    showMerchantIconsInRegister: false,
   },
   budget: {
     budgetName: "Household Budget",
@@ -105,6 +107,10 @@ function normalisePreferences(value: unknown): SettingsPreferences {
       developerPerformanceMode: readBoolean(
         general.developerPerformanceMode,
         defaults.general.developerPerformanceMode,
+      ),
+      showMerchantIconsInRegister: readBoolean(
+        general.showMerchantIconsInRegister,
+        defaults.general.showMerchantIconsInRegister,
       ),
     },
     budget: {

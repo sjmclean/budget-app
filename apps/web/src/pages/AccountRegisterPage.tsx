@@ -58,6 +58,7 @@ import { usePayeeManagerWorkflow } from "../features/accounts/usePayeeManagerWor
 import { usePayeeHistory } from "../features/accounts/usePayeeHistory";
 import { useRegisterAttachmentWorkflow } from "../features/accounts/useRegisterAttachmentWorkflow";
 import { useRegisterViewModel } from "../features/accounts/useRegisterViewModel";
+import { getRegisterTransactions } from "../features/accounts/registerTransactionData";
 import { useRegisterTransactionHistory } from "../features/accounts/useRegisterTransactionHistory";
 import {
   nextRegisterSort,
@@ -112,6 +113,8 @@ import { useUIStore } from "../stores/uiStore";
 import { formatDateForDisplay } from "../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../features/settings/useDateFormatPreference";
 import { useDeveloperPerformanceMode } from "../features/settings/useDeveloperPerformanceMode";
+import { useRegisterMerchantIconsPreference } from "../features/settings/useRegisterMerchantIconsPreference";
+import { resolveRegisterPayee } from "../features/accounts/registerMerchantIcons";
 import {
   buildRegisterPerformanceSnapshot,
   formatPerformanceMs,
@@ -605,6 +608,7 @@ export function AccountRegisterPage() {
   const registerSearchInputRef = useRef<HTMLInputElement | null>(null);
   const dateFormat = useDateFormatPreference();
   const developerPerformanceMode = useDeveloperPerformanceMode();
+  const showMerchantIconsInRegister = useRegisterMerchantIconsPreference();
   const registerPerformanceTimingsRef = useRef<RegisterPerformanceTimings>({});
   const registerRenderStartedAt = getPerformanceNow(developerPerformanceMode);
 
@@ -760,7 +764,7 @@ export function AccountRegisterPage() {
     storageMode,
   ]);
 
-  const registerTransactions = data?.transactions ?? [];
+  const registerTransactions = getRegisterTransactions(data);
   const {
     setRegisterPage,
     registerSearchSuggestions,
@@ -929,6 +933,7 @@ export function AccountRegisterPage() {
 
   const {
     payeeOptions,
+    allManagedPayees,
     createInlinePayee,
     isPayeeManagerOpen,
     setIsPayeeManagerOpen,
@@ -963,6 +968,13 @@ export function AccountRegisterPage() {
     developerPerformanceMode,
     performanceTimingsRef: registerPerformanceTimingsRef,
   });
+
+  const registerPayeesById = useMemo(
+    () => showMerchantIconsInRegister
+      ? new Map(allManagedPayees.map((payee) => [payee.id, payee]))
+      : new Map(),
+    [allManagedPayees, showMerchantIconsInRegister],
+  );
 
   const registerPerformanceSnapshot = buildRegisterPerformanceSnapshot({
     enabled: developerPerformanceMode,
@@ -2541,6 +2553,9 @@ export function AccountRegisterPage() {
                     rowStyle={registerTableLayout.rowStyle}
                     layoutMode={registerLayoutMode}
                     categoriesEnabled={data.accountType !== "Tracking"}
+                    canonicalPayee={showMerchantIconsInRegister
+                      ? resolveRegisterPayee(registerPayeesById, transaction)
+                      : undefined}
                   />
                 )}
               </div>

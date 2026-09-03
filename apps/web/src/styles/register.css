@@ -475,6 +475,15 @@
   gap: 0.12rem;
 }
 
+/* Keep the icon and shrinking payee on one line, without changing icons-OFF. */
+.register-payee-cell:has(> .payee-icon) {
+  display: flex;
+  overflow: visible;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+}
+
 .register-payee-cell small,
 .register-memo-cell,
 .register-row span {
@@ -6639,6 +6648,11 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.register-mobile-payee-wrap:has(> .payee-icon) {
+  flex-wrap: nowrap;
+  gap: 0.4rem;
 }
 
 .register-mobile-payee {

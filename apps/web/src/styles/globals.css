@@ -7471,17 +7471,34 @@ strong {
   gap: 0.35rem;
 }
 
+.register-payee-cell:has(> .payee-icon),
+.register-compact-payee-line:has(> .payee-icon),
+.register-tablet-payee-line:has(> .payee-icon) {
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+}
+
 .register-compact-payee-line,
 .register-tablet-payee-line {
   max-width: 100%;
 }
 
+.register-payee-cell strong,
 .register-compact-payee-line strong,
 .register-tablet-payee-line strong {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.register-payee-cell > .payee-icon,
+.register-compact-payee-line > .payee-icon,
+.register-tablet-payee-line > .payee-icon,
+.register-mobile-payee-wrap > .payee-icon {
+  flex: 0 0 24px;
+  /* Use existing row clearance rather than enlarging the text line/row. */
+  margin-block: -3px;
 }
 
 
