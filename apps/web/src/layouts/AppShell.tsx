@@ -10,6 +10,7 @@ import { useBudgetKeyboardShortcuts } from "./useBudgetKeyboardShortcuts";
 import { SyncStatusIndicator } from "./SyncStatusIndicator";
 import { getBudgetPersistenceProvider } from "../features/persistence";
 import { generateDueScheduledTransactionsForBudget } from "../features/accounts/scheduledTransactionMaintenance";
+import { isDatabaseReleasedError } from "../features/persistence/localFirst/budgetDatabaseOwnership";
 
 const RAIL_EXPANDED_STORAGE_KEY = "budget-app-navigation-rail-expanded";
 
@@ -81,9 +82,11 @@ export function AppShell() {
     if (!activeBudgetId) return;
     let disposed = false;
     const generate = () => {
-      if (disposed) return;
+      if (disposed || persistenceProvider.accountRegisterQueries?.isLocalDatabaseReleased?.()) return;
       void generateDueScheduledTransactionsForBudget(persistenceProvider, activeBudgetId)
-        .catch((error) => console.error("Scheduled transaction generation failed.", error));
+        .catch((error) => {
+          if (!isDatabaseReleasedError(error)) console.error("Scheduled transaction generation failed.", error);
+        });
     };
     const onVisible = () => {
       if (document.visibilityState === "visible") generate();

@@ -553,6 +553,8 @@ export type LocalBudgetWorkerRequest =
   | {
       readonly requestId: string;
       readonly type: "close";
+      /** Final client shutdown, rather than an internal file-pointer cleanup. */
+      readonly releaseOwnership?: boolean;
     }
   | {
       readonly requestId: string;

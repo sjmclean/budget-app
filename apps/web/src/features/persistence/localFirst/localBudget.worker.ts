@@ -1954,7 +1954,7 @@ async function ensurePersistentSqlite() {
     if (/another open Access Handle|Access Handles cannot be created|Writable stream/i.test(detail)) {
       throw workerError(
         "SQLITE_DATABASE_BUSY",
-        "Budget App's local database is already open in another browser tab or an earlier import session. Close other Budget App tabs and retry the import.",
+        "The local budget database is currently in use and could not be opened. Another tab or a budget operation may still own it.",
       );
     }
     throw workerError(
@@ -5916,6 +5916,10 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       database?.close();
       database = null;
       baselineExportBytes = null;
+      // Release pooled AccessHandles before acknowledging ownership handoff.
+      // Closing SQLite alone leaves the SAH VFS pool holding every handle.
+      // Internal pointer recovery still needs the pool to retire its candidate.
+      if (request.releaseOwnership) sahPool?.pauseVfs();
       return null;
     case "retirePhysicalDatabaseFile": {
       if (!isAllowedPhysicalFilename(
