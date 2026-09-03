@@ -37,6 +37,11 @@ function harness(hooks: { open?: () => Promise<void>; sync?: () => Promise<void>
         async getSyncState() { return { syncEpoch: "epoch", pulledCursor: 0, baselineHash: "hash" }; },
         async readOutbox() { await hooks.sync?.(); return []; },
         async listAccountNavigation(budgetId: string) { assert.equal(budgetId, id); events.push(`read:${id}`); return []; },
+        async getTransaction(budgetId: string) {
+          assert.equal(budgetId, id);
+          events.push(`get-transaction:${id}`);
+          return null;
+        },
       } as unknown as LocalBudgetDatabaseClient;
     },
   });
@@ -110,4 +115,45 @@ test("release propagates a close failure and does not admit a new owner", async 
   fail = false;
   await client.releaseLocalDatabase!();
   assert.equal(owner(), null);
+});
+
+
+test("entity-id-first update routes ownership using the transaction input budget", async () => {
+  const { client, events } = harness();
+
+  await client.activateLocalBudget!("A");
+
+  await assert.rejects(
+    client.updateTransaction(
+      "transaction-123",
+      {
+        budgetId: "A",
+        accountId: "account-1",
+        date: "2026-09-03",
+        amount: -1000,
+      },
+    ),
+    /The local transaction was not found/,
+  );
+
+  assert.equal(
+    events.includes("get-transaction:A"),
+    true,
+    "the raw update path should be admitted for the active budget",
+  );
+
+  await assert.rejects(
+    client.updateTransaction(
+      "transaction-123",
+      {
+        budgetId: "B",
+        accountId: "account-1",
+        date: "2026-09-03",
+        amount: -1000,
+      },
+    ),
+    { code: "BUDGET_DATABASE_BUDGET_MISMATCH" },
+  );
+
+  await client.releaseLocalDatabase!();
 });

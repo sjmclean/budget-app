@@ -8,6 +8,19 @@ export function isDatabaseReleasedError(error: unknown): boolean {
   return (error as { code?: string } | null)?.code === "BUDGET_DATABASE_RELEASED";
 }
 
+export function databaseBudgetMismatchError(
+  selectedBudget: string,
+  requestedBudget: string,
+) {
+  return Object.assign(
+    new Error(
+      `The requested operation belongs to budget ${requestedBudget}, ` +
+      `but budget ${selectedBudget} currently owns the local database.`,
+    ),
+    { code: "BUDGET_DATABASE_BUDGET_MISMATCH" },
+  );
+}
+
 /** One ownership queue for this query client, including complete async operations.
  * Internal calls stay inside their parent's lease; public calls enter the queue.
  * Release stops admission synchronously, drains admitted work, then closes.
@@ -46,8 +59,13 @@ export function createBudgetDatabaseOwnership(close: () => Promise<void>) {
   return {
     isReleased: () => !accepting,
     run<T>(budgetId: string | undefined, operation: () => Promise<T>): Promise<T> {
-      if (!accepting || (selectedBudget && budgetId && selectedBudget !== budgetId)) {
+      if (!accepting) {
         return Promise.reject(databaseReleasedError());
+      }
+      if (selectedBudget && budgetId && selectedBudget !== budgetId) {
+        return Promise.reject(
+          databaseBudgetMismatchError(selectedBudget, budgetId),
+        );
       }
       return enqueue(async () => {
         if (unsafeCleanup) throw unsafeCleanup;
