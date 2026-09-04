@@ -322,3 +322,129 @@ policy, ownership and restore journal/relay algorithms are unchanged. Tests add
 candidate-size/page-range diagnostics, realistic same-edit comparison, all-page-size
 alignment and malformed-layout coverage. Audit tooling and documentation record
 the tradeoffs. Test success is evidence for independent review, not merge approval.
+
+## Real-world page-churn investigation
+
+### Evidence boundaries
+
+**Actual browser evidence supplied by the user:** a roughly 37.7 MiB budget with
+20,769 transactions stored 17/151 new 256 KiB chunks (4,296 KiB) after one memo
+edit, and 58/604 new 64 KiB chunks (3,712 KiB) after one mutation. The 13.6%
+reduction invalidates the earlier assumption that chunk amplification alone
+explains the result. The two measurements are not known to be byte-for-byte the
+same database and mutation. No before/after images were available, so they cannot
+distinguish 58 scattered changed pages from hundreds of changed pages.
+
+**Controlled fixture evidence:** `sqlite-page-churn.ts` creates 20,769 records
+using the real register schema and invokes function bodies extracted from the
+shipped persistence worker. The 23.9 MiB fixture has 8 KiB pages. It intentionally
+contains eight accounts, 300 payees, 80 categories, provenance for every row,
+tags for one third, and splits for one twentieth. Each case starts from identical
+bytes and has one outbox mutation and a local-revision delta of one:
+
+| Mutation | Changed pages / page bytes | 64 KiB new bytes | Ranges (1-based) |
+|---|---:|---:|---|
+| memo | 15 / 120 KiB | 504 KiB | 1-2, 17-18, 26-30, 90-91, 108, 367, 1761, 3053 |
+| amount | 17 / 136 KiB | 632 KiB | 1-2, 17-18, 26-30, 90-91, 108, 199, 367, 1761, 2771, 3053 |
+| payee | 16 / 128 KiB | 568 KiB | 1-2, 17-18, 26-30, 90-91, 108, 367, 878, 1761, 3053 |
+| cleared | 16 / 128 KiB | 568 KiB | 1-2, 17-18, 26-30, 90-91, 108, 199, 367, 1761, 3053 |
+| add | 23 / 184 KiB | 1016 KiB | 1-2, 17-18, 26-30, 64, 199, 367, 458, 1140, 1749, 1761, 1870, 2122, 2771, 3023, 3039, 3053, 3055 |
+| delete | 20 / 160 KiB | 832 KiB | 1-2, 17-18, 26-30, 90-91, 108, 126, 199, 367, 925, 1140, 1749, 1761, 2771 |
+| category assignment | 10 / 80 KiB | 256 KiB | 1-2, 9, 17-18, 26-30 |
+| split memo | 28 / 224 KiB | 1144 KiB | 1-2, 17-18, 26-30, 89, 91, 108, 130, 132, 134, 178, 181, 256, 341, 367, 423, 904, 1336, 1761, 2900, 2939, 3033, 3053 |
+
+The page-level content cost equals the page-byte column because these changed
+pages are unique. Object attribution via `dbstat` identifies transaction and
+register indexes, the outbox and its indexes, metadata, projection-dirty state,
+and child provenance/tag/split structures. Unchanged pages remain byte-identical
+and add/delete do not shift downstream pages. An artificial twelve-month 3 MiB
+projection cache raises a memo edit only to 19 changed pages (152 KiB page cost,
+640 KiB at 64 KiB); freed overflow pages mostly retain identical bytes. This is a
+sensitivity experiment, not a claim about real projection payloads. `VACUUM`
+rewrites 3,029/3,055 pages (99.15%), as expected.
+
+### Memo-edit write trace and amplification
+
+The UI account-register hook executes the history transaction command, which
+routes `updateTransaction` through the budget's local-first owner. Record
+generation loads the existing record; ordinary edits emit one record, while a
+transfer edit emits both legs in one operation group. The client then calls the
+worker's transaction batch and reports the committed mutation.
+
+For an ordinary memo edit the worker executes: `BEGIN IMMEDIATE`; select the old
+month; full-row transaction upsert; delete all splits; delete all tags; delete all
+import provenance; reinsert every supplied split, tag and provenance row; upsert
+the projection-dirty month; delete projection-cache rows from that month onward;
+insert an outbox row containing the full transaction payload (and operation-group
+JSON for paired transfers); read then upsert `localRevision`; `COMMIT`; then
+read-only count/metadata queries for the returned manifest. SQLite maintains the
+transaction primary key and six register/summary/category/month/payee indexes.
+There are no FTS virtual tables or triggers. Payee/account/category rows are not
+updated. Undo/redo commands live in an in-memory per-budget controller rather than
+another SQLite history table. The unconditional child delete/reinsert, full
+payload journal write and projection-cache invalidation are surprising possible
+amplifiers; this audit deliberately does not change them.
+
+### Native, SAH and WAL/export evidence
+
+Bundled SQLite 3.53.0 exposes `dbstat` and `sqlite_dbpage`; its default page size
+is 8 KiB. For a populated real-schema database, repeated
+`sqlite3_js_db_export()` was byte-identical and export output exactly equalled the
+ordered `sqlite_dbpage` bytes before and after an isolated update: two underlying
+pages changed and export added zero. Native SQLite 3.53.2 WAL serialization was
+stable across repeated exports. An uncheckpointed main file lacked the same 15
+pages changed by the logical mutation; after `wal_checkpoint(TRUNCATE)` its bytes
+exactly equalled serialization. Production's WAL capture normalization changes
+only header offsets 18 and 19 (one page, two bytes). Schema cookie, page count and
+freelist header fields stayed stable in that update. Raw native-file results model
+native OPFS/SAH byte semantics; Node cannot execute the browser SAH-pool or OPFS
+VFS, so this is not direct browser proof.
+
+Run `pnpm tsx tools/performance/sqlite-page-diff.ts before.sqlite after.sqlite`
+against ordinary SQLite backups taken immediately before and after a single edit.
+The deterministic JSON includes header counters, sizes/counts, differing bytes,
+ranges and offset deciles, before/after `dbstat` ownership plus freelist pages, and
+actual content-addressed cost at the page size and 8/16/32/64/128/256 KiB. It
+deserializes copies in memory and never writes the supplied files. Existing normal
+manual SQLite backup/export is the development extraction path: in Settings,
+External Backups, choose **Backup budget** (not Budget package), and preserve the
+downloaded `.budget-sqlite` file as A. Perform exactly one edit, repeat Backup
+budget and preserve B. Pass those files directly to the command; renaming is not
+required. Navigating back to Settings and background sync can add work, so also
+record the two local revisions, pending outbox count, backend and journal mode
+when available; do not call the pair a pure memo test if other mutations occurred.
+Do not copy an uncheckpointed WAL main file alone;
+use the complete export or include/checkpoint its WAL. Keep files private: they
+contain financial data, and the report intentionally emits no row values.
+
+**Recommendation (inference):** investigate the actual browser image pair next.
+The realistic shipped-worker fixture strongly favors page-level content addressing
+(120 KiB versus 504 KiB for a memo edit), but the unexplained real 3,712 KiB result
+is too large to authorize that architecture yet. If the actual pair shows roughly
+58-100 scattered pages, page-level dedupe is the likely next option. If it shows
+hundreds of genuinely changed pages, first investigate the unconditional child,
+outbox and projection writes. Retain 64 KiB if measured savings are small relative
+to object/file-count complexity; abandon page-level dedupe only if repeated real
+images show unstable or broadly rewritten page content. No production behavior,
+chunk size, schema, GC, lifecycle, retention, ownership or restore logic changed.
+
+Reproduce the controlled runs with `pnpm tsx tools/performance/sqlite-page-churn.ts`
+and `pnpm tsx tools/performance/sqlite-export-audit.ts`. The first emits the full
+ordered SQL statement trace (bindings omitted), affected-row counts, differing
+bytes and ownership for every case. The memo fixture changes only 1,163 actual
+byte positions, despite representing 120 KiB of changed pages. Physical page
+attribution cannot separate memo bytes from cell reorganization, `updated_at`,
+or freed payloads; it is not a byte-perfect logical-field accounting system.
+The fixture starts with no outbox and does not exercise transfer edits, projection
+repopulation after invalidation, background replication, or the full UI/ownership
+queue. Native default pages are 4 KiB; the fixture explicitly selects 8 KiB to
+match the bundled runtime, not to assert the actual imported budget's page size.
+All cases have 3,055 pages before and after; a memo leaves 99.51% byte-identical.
+
+Validation for this audit: five diagnostic unit tests; real-worker mutation
+integration; all 136 unit files, 12 integration files and two regression files
+passed. This includes focused restore-point, local-first transaction, ownership
+and worker/relay tests. `pnpm test:web-build`, `pnpm audit:persistence`,
+`pnpm docs:architecture:check` and `git diff --check` passed. Suite files were run
+through the installed tsx CLI individually because of the existing Windows runner
+resolution limitation. The export script's byte-equality assertions also passed.
