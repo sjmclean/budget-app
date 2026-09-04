@@ -5507,7 +5507,7 @@ async function captureRestorePoint(
       counts: manifest.counts,
       mutationCount: input.mutationCount,
     }, totalBytes, (offset, length) => baselineExportBytes
-      ? Promise.resolve(baselineExportBytes.slice(offset, offset + length))
+      ? Promise.resolve(baselineExportBytes.subarray(offset, offset + length))
       : readBaselineExportChunk(offset, length));
   } finally {
     baselineExportBytes = null;
@@ -5522,16 +5522,21 @@ async function prepareRestorePoint(request: Extract<LocalBudgetWorkerRequest, { 
   }
   const previousSyncEpoch = activeSyncEpoch;
   const { createRestorePointStore } = await import("../../budget/restorePointStore");
-  const { point, file } = await createRestorePointStore().read(request.budgetId, request.pointId);
   try {
-    await beginBaselineReplacement({
-      requestId: request.requestId, type: "beginBaselineReplacement",
-      budgetId: request.budgetId, syncEpoch: point.syncEpoch,
-      deviceId: request.deviceId, totalBytes: file.size,
+    const point = await createRestorePointStore().read(request.budgetId, request.pointId, async (point, chunks) => {
+      await beginBaselineReplacement({
+        requestId: request.requestId, type: "beginBaselineReplacement",
+        budgetId: request.budgetId, syncEpoch: point.syncEpoch,
+        deviceId: request.deviceId, totalBytes: point.totalBytes,
+      });
+      let offset = 0;
+      for await (const chunk of chunks) {
+        await appendBaselineReplacement(offset, chunk);
+        offset += chunk.byteLength;
+      }
+      return point;
     });
-    for (let offset = 0; offset < file.size; offset += 4 * 1024 * 1024) {
-      await appendBaselineReplacement(offset, new Uint8Array(await file.slice(offset, offset + 4 * 1024 * 1024).arrayBuffer()));
-    }
+    // read resolves only after every chunk AND the full image hash verify.
     const promotion = await commitBaselineReplacement();
     restoreCandidate = { promotion, previousSyncEpoch, deviceId: request.deviceId };
     const check = resultRows<Record<string, unknown>>("PRAGMA quick_check");

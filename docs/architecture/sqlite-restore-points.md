@@ -2,244 +2,264 @@
 
 ## Scope and audit
 
-Restore Points now capture authoritative SQLite, not budget-package exports from
-the metadata key/value backend. The obsolete snapshot/index/daily-marker code,
-fixed 30-point cap, immediate hourly thinning, and large-import exclusion have
-been removed. Previously stored packages are neither read nor migrated. Normal
-downloadable SQLite Backup/Restore remains separate; its existing replacement
-algorithm is unchanged, with a before-restore safety capture added at its boundary.
+Restore points represent complete authoritative SQLite database images, not domain
+mutation chains. Full-file copies were replaced because a user's approximately
+37.7 MiB / 20,769-transaction budget consumed another full image after two edits.
+The v2 content-addressed format reuses unchanged bytes while each manifest remains
+independently reconstructible. No base snapshot, mutation replay, WAL replay chain,
+or compatibility path for this unmerged branch's earlier storage formats exists.
+Normal downloadable SQLite Backup/Restore is separate and unchanged.
 
-The audit covered the worker/client export and replacement contracts, durable
-physical-generation promotion, the query ownership proxy, mutation notifications,
-staged YNAB4/Actual imports, switch/reset/delete entry points, and relay baseline
-publication. Reusing normal restore was unsafe: it promotes locally before relay
-publication, and ordinary baseline publication correctly rejects unexplained
-reductions. Internal restore therefore has an explicit staged epoch transition.
+The audit covered capture/export, the installed SQLite WASM code, OPFS publication,
+staged replacement, retention, ownership, lifecycle and relay recovery. The installed
+`@sqlite.org/sqlite-wasm@3.53.0-build1` runtime reports an 8192-byte default page size
+and `auto_vacuum=0`. Production code sets neither page size nor automatic vacuum and
+does not run VACUUM. Imported databases can differ: capture validates the actual
+SQLite header, not an assumed default. The user's actual database was not available
+for byte-level audit in this run.
 
-## Responsibilities
+SAH-pool `exportFile()` removes the pool's private prefix and returns the ordinary
+SQLite image. Its installed implementation allocates one full-size Uint8Array.
+Native rollback-journal OPFS exposes the database file for bounded reads. The
+existing WAL capture uses SQLite serialization (including uncheckpointed pages)
+and normalizes header read/write modes to rollback-journal format.
 
-- `restorePointTypes.ts`: metadata, reasons and semantic labels.
-- `restorePointRetention.ts`: deterministic, budget-isolated UTC time buckets.
-- `restorePointStore.ts`: OPFS payloads, integrity checks, metadata publication and pruning.
-- `restorePointCoordinator.ts`: dirty mutation counts, coalescing and due eligibility.
-- `restorePointLifecycle.ts`: one mutation subscription, 30-second heartbeat and focus/visibility reevaluation.
-- `restorePointReplacement.ts`: durable replacement intent and interrupted-commit recovery.
+SQLite uses fixed-size pages: ordinary localized edits do not insert bytes into
+the file and shift every later offset. B-tree splits, index updates, overflow and
+freelist changes can touch multiple pages or append/reuse pages. A major import,
+page-size change or VACUUM may reshape most of the image; no reuse guarantee is
+made for those operations. VACUUM rebuilds the database rather than preserving
+physical layout. Sources: [SQLite file format](https://www.sqlite.org/fileformat.html),
+[VACUUM](https://www.sqlite.org/lang_vacuum.html),
+[SQLite WASM persistence](https://www.sqlite.org/wasm/doc/trunk/persistence.md).
 
-## Capture and durability
+## Chunk size decision and measured locality
 
-The query ownership queue admits a timed capture without releasing its SQLite
-lease. The worker serializes requests and holds a SQLite `BEGIN IMMEDIATE` lock
-while reading the snapshot; this also excludes another native OPFS writer.
-It runs `quick_check`, records the manifest, completes a unique `.sqlite3` file
-under `budget-app-sqlite-restore-points/<encoded-budget-id>/`, and reads it back to verify its SQLite
-header, page-aligned length and SHA-256 digest. Only then does it atomically close
-the corresponding lightweight `.json` manifest. Empty, not-yet-published OPFS
-manifest handles are not catalogue entries. Payloads never enter key/value storage.
+Chunks are **256 KiB**, starting at byte zero; the final chunk may be shorter.
+256 KiB is a multiple of every valid SQLite page size (512 through 65536 bytes).
+Thus chunk boundaries never split a page. Hashes cover content only, without offset,
+reason or revision; lengths and reconstruction order belong in the manifest.
+Identical byte sequences can be reused at different offsets.
 
-Each budget has its own catalogue and payload directory. The directory name is
-`budget-` followed by four lowercase hexadecimal digits per UTF-16 code unit of
-the budget ID. This deterministic, injective encoding contains no separators or
-dot segments and does not normalize distinct Unicode IDs. Listing enumerates only
-that budget's child directory; capture, restore reads and pruning use the same
-budget-scoped adapter. No flat-directory migration or fallback exists.
-Malformed/unreadable manifests fail that budget's catalogue, never another's.
-Nonempty manifests must have valid metadata, match their filename and name the
-requested budget. Payload names are derived only from validated restore-point IDs.
+A native SQLite 3.53.2 audit fixture used 20,769 rows, an amount index, 1750-character
+memos, and 8 KiB pages to match the bundled WASM default. Its image was 42,876,928
+bytes (40.9 MiB); repeated serialization without edits was byte-identical.
+One amount edit and one fixed-length memo edit produced:
 
-After publication, timed/event retention removes each obsolete manifest before its
-payload. Cleanup failures cannot invalidate the new checkpoint. Files left by
-interruption or failed physical pruning may consume space; no broad orphan sweep
-risks deleting a live capture. Files and manifests live outside budget KV cleanup
-and outside the active physical-generation pool.
+| Chunk size | References/image | New chunks | New payload bytes |
+| --- | ---: | ---: | ---: |
+| SQLite page (8 KiB) | 5,234 | 3 | 24,576 |
+| 64 KiB | 655 | 2 | 131,072 |
+| 256 KiB | 164 | 2 | 524,288 |
+| 1 MiB | 41 | 1 | 1,048,576 |
+| 4 MiB | 11 | 1 | 4,194,304 |
 
-Native rollback-journal OPFS capture reads/writes in 4 MiB chunks. SAH-pool's
-installed `exportFile` API returns one full database-sized byte array; capture
-keeps that allocation in the worker and streams it to ordinary OPFS. A WAL-mode
-database uses SQLite serialization so uncheckpointed WAL pages are included;
-the exported header is marked as a standalone rollback-journal database.
-Serialization has additional WASM memory cost. No automatic path creates a
-download Blob or serializes domain data through JSON. Large imports are not skipped.
+The chosen size balances small-edit amplification with OPFS file/open/GC overhead:
+about 151 references for a 37.7 MiB image rather than thousands of page files.
+64 KiB improves locality but roughly quadruples file/reference operations; 1–4 MiB
+reduces catalogue overhead but rewrites much more for sparse changes. All choices
+must scan/hash the complete image; this is storage deduplication, not incremental
+capture CPU. A 4 KiB-page audit also showed stable exports and localized changes.
 
-## Scheduling and retention
+After deleting every third row and running VACUUM, the 8 KiB fixture produced a
+28,573,696-byte image with no chunk reuse at any tested size, including page-sized.
+Page-sized storage therefore does not guarantee protection from wholesale
+reshaping. Fixed page-aligned chunks were effective for the small edits tested.
 
-Successful SQLite mutation notifications are the only live dirty signal. Dirty
-state and mutation counts are transient. Mutations coalesce for about ten minutes;
-an unchanged budget creates no timed points. A throttled/sleeping tab produces at
-most one overdue point when evaluated again, never fabricated historical points.
-Capture failure leaves it dirty. Restarted applications also protect changes at
-the switch boundary by comparing the actual SQLite epoch/revision with the latest
-persisted checkpoint, even when transient mutation tracking was lost.
+The shipped capture function is also tested with a real 35,168,256-byte database,
+30,001 padded transactions and 8 KiB pages (135 references). Two adjacent memo edits
+added 524,288 bytes in native-OPFS and SAH-pool adapters, and 262,144 bytes in WAL
+serialization. A subsequent identical image added zero chunk bytes in all three
+modes. These are reproducible integration-fixture observations, not measurements
+or promised percentages for the user's budget. Real app edits can additionally
+modify projections, metadata, indexes and outbox pages.
 
-Timed points retain 10-minute buckets for six hours, hourly buckets until one day,
-daily buckets until seven days, Monday-anchored weekly buckets until five weeks,
-and calendar months thereafter. Ordinary safety events (switch, import, reset and
-restore) use independent buckets: keep all for the first 24 hours, then the latest
-per UTC day until seven days, per Monday-anchored week until five weeks, and per
-UTC calendar month thereafter. Age thresholds enter the older tier at exactly
-6 hours / 24 hours / 7 days / 35 days as applicable. Tier keys are separate.
-Timed points and safety events never consume each other's buckets, and budgets
-never compete. Newest timestamp wins, with descending ID as a deterministic tie-break.
-Manual and initial-import points are protected from automatic bucket thinning;
-they are long-lived independently of both rolling classes.
-An equivalent reason + epoch + revision reuses its existing point. Retention is
-applied when a point is published; there is no normal count cap.
+## Responsibilities and layout
 
-## Lifecycle and restore
+- `restorePointTypes.ts`: v2 metadata, reasons and semantic labels.
+- `restorePointRetention.ts`: unchanged independent UTC retention classes.
+- `restorePointStore.ts`: budget-scoped chunks, manifests, integrity and GC.
+- `restorePointCoordinator.ts`: unchanged dirty mutation coalescing.
+- `restorePointLifecycle.ts`: unchanged mutation subscription and reevaluation.
+- `localBudget.worker.ts`: consistent capture and streamed candidate construction.
+- `restorePointReplacement.ts`: unchanged journal/epoch transition and recovery.
 
-Successful YNAB4 and Actual imports capture their initial point after full local
-promotion and baseline publication, before closing the import worker. Import
-entry captures an active budget when applicable. Switch capture is awaited inside
-the drained ownership boundary before closing persistence; selection/navigation
-follow release. Reset captures before its destructive operation. Budget deletion
-does not capture a restore point, including at the target budget's lease-release
-boundary. If another budget is open, its normal switch protection is preserved.
-Deletion retains the existing authoritative relay deletion, local file cleanup,
-worker close and ownership lifecycle. There is no deleted-budget recovery workflow
-in this branch; use an ordinary exported backup to recover a deleted budget.
-The Settings catalogue reads the new service and retains date grouping and clear
-semantic labels, without the old fixed-limit language.
+```
+budget-app-sqlite-restore-points/
+  <encoded-budget-id>/
+    manifests/<restore-point-id>.json
+    chunks/<sha256-hex>.bin
+    chunks/<unique-id>.partial       # unpublished, disposable staging
+```
 
-Internal restore first synchronises and captures a protected before-restore point.
-It imports the selected, integrity-checked SQLite payload into a new physical
-generation using the existing baseline replacement mechanism. The old durable
-pointer and physical generation remain authoritative while staging. The candidate
-has a fresh epoch, empty outbox/conflict inbox, cursor zero and the current device
-identity; historical operations cannot replay over restored data.
+Budget directory encoding remains `budget-` followed by four lowercase hexadecimal
+digits per UTF-16 code unit. It is deterministic and injective, including unusual
+Unicode IDs, with no separators or dot segments. No global manifest scan exists.
+Corrupt/unreadable Budget B manifests cannot affect Budget A operations.
 
-Owner-only relay restore endpoints stage and hash-check all chunks without changing
-authority. Commit transactionally compares the previous epoch, baseline and latest
-cursor, then installs the new baseline/epoch and clears the old mutation stream.
-Ordinary editor baseline endpoints cannot bypass destructive-baseline protection.
-Concurrent changes reject the restore without overwriting them.
+The schema is `sqlite-restore-point.v2`: ID, budget ID/name, reason, timestamp,
+epoch/revision, mutation count, domain counts, full `totalBytes`, full SHA-256
+`databaseHash`, ordered `chunks: { hash, length }[]`, `newBytesStored` and
+`newChunkCount`. Hashes are 64 lowercase hexadecimal characters. The complete list,
+exact expected chunk lengths, ID/filename, budget ownership and metadata are
+validated. A manifest does not refer to another restore point.
 
-A durable local intent is flushed before remote commit. Only after commit is
-confirmed does the client publish the new physical-generation pointer and retire
-the old file through the established promotion protocol. Pre-intent failures and
-certified relay rejections abort the candidate and retain the original generation.
-Local storage and the relay cannot share one atomic transaction: an uncertain
-post-intent outcome is explicitly **pending recovery**, not a reported successful
-restore or an assumed rollback. Ownership is quarantined, including already queued
-operations. Reload replays the durable intent idempotently before normal bootstrap.
-Lost acknowledgements and local pointer-publication failures retain both generations
-until recovery can decide safely.
+## Capture publication and interruption
 
-## Boundaries and operational limitations
+Capture still runs inside the drained owned SQLite operation and a SQLite
+`BEGIN IMMEDIATE` transaction. `quick_check` must pass before reading the image.
+The WAL path includes uncheckpointed data. No application mutations compete with
+capture. Every storage capture, listing, reconstruction and GC uses the same
+exclusive per-budget Web Lock, shared across workers/tabs. Lack of Web Locks fails
+closed; there is no unsafe single-context fallback.
 
-- Browser quota/eviction remains a storage limit. Safety capture failures block
-  protected switch/reset/restore operations; users still need exported backups
-  outside this origin. Deletion intentionally has no automatic safety capture.
-- Manual/initial-import points can accumulate without a count ceiling; no emergency
-  cap is imposed. Rolling history retains monthly representatives, not a fixed
-  total count. Interrupted captures/failed pruning can also leave orphan files.
-  Existing points remain outside budget deletion cleanup and can outlive a deleted
-  budget; deletion creates no new snapshot. There is no UI to recreate deleted
-  budgets from these remaining files, and no orphan sweep is introduced here.
-- Large SAH-pool snapshots allocate a database-sized buffer and hold the query lease
-  during copy/validation. No real-device latency/quota benchmark is claimed.
-- Tests execute the capture function against real SQLite, including concurrent
-  writer exclusion and 30,001 transactions, with simulated OPFS handles. They do
-  not substitute for testing browser-specific storage eviction or process crashes.
-- Normal manual SQLite restore retains its pre-existing same-epoch implementation;
-  this change does not claim to repair that separate workflow's sync limitations.
-- Deploy the matching relay endpoints with the web client. An older server rejects
-  staging before any active generation is changed.
+1. Read and validate that budget's catalogue under the lock.
+2. Obtain bounded ranges from the consistent database image; validate the header,
+   page-aligned total size and each returned range.
+3. Hash the complete ordered stream incrementally and each chunk independently.
+4. For an existing final chunk, verify length and SHA-256 before reuse.
+5. Write absent content to a unique partial file and verify it.
+6. Publish the verified bytes at the hash-derived final name using OPFS writable
+   atomic close, then verify the final file. This portable bounded copy avoids
+   relying on file-move support. Writable staging is not authoritative until close.
+7. Only after all chunks validate, publish the unique manifest by atomic close.
+   That close is the commit point; published manifests are never rewritten.
+8. Remove obsolete manifests according to existing retention, then run safe GC.
 
-## Validation and change inventory
+An interrupted write can leave a partial file or empty final handle; neither is a
+valid chunk. Valid final identities are immutable. An invalid final handle is
+removed/rebuilt only after the locked complete catalogue proves it unreferenced.
+Invalid referenced content fails closed, without overwriting it. Lost final-chunk
+or manifest-close acknowledgements are accepted only if the final bytes verify.
+If verification is uncertain, capture reports failure and leaks storage rather
+than deleting something that might have been published.
 
-Original implementation validated on 2026-09-03 (corrective-pass results below):
+Failed capture before manifest publication creates no listed restore point.
+Empty manifest handles remain unpublished, matching the earlier failure policy.
+A nonempty malformed or unreadable manifest surfaces as that budget's catalogue
+problem. Abrupt browser/storage failures may leak temporary/unreferenced data;
+OPFS quota/eviction and filesystem durability remain platform constraints.
 
-- All 135 unit-test files passed, including the four new focused restore-point files.
-- All 11 integration-test files passed, including real SQLite capture/locking and relay epoch transitions.
-- Both existing regression-test files passed.
-- `pnpm test:web-build` passed TypeScript and the production Vite build.
-- `pnpm docs:architecture:check` passed after regenerating the persistence inventory.
-- `git diff --check` passed. The requested obsolete identifier/schema search found no matches.
+## Retention and garbage collection
 
-Tests were discovered from the complete test directories and executed individually
-with the installed `tsx` CLI. This avoids the existing Windows runner's
-`spawnSync pnpm` executable-resolution issue; no tests were disabled or omitted.
+Retention policy is unchanged:
 
-Added files (13):
+- Timed: 10-minute buckets below 6 hours; hourly below 24 hours; daily below 7 days;
+  Monday-anchored weekly below 35 days; UTC calendar-month buckets thereafter.
+- Ordinary semantic safety events: keep all below 24 hours; then latest per UTC day
+  below 7 days, per Monday-anchored week below 35 days, and per UTC month thereafter.
+- Manual and initial-import points are protected from automatic bucket thinning.
 
-- `apps/web/src/features/budget/restorePointTypes.ts`
-- `apps/web/src/features/budget/restorePointRetention.ts`
-- `apps/web/src/features/budget/restorePointStore.ts`
-- `apps/web/src/features/budget/restorePointCoordinator.ts`
-- `apps/web/src/features/budget/restorePointLifecycle.ts`
-- `apps/web/src/features/persistence/localFirst/restorePointReplacement.ts`
-- `docs/architecture/sqlite-restore-points.md`
-- `tests/unit/persistence/restore-points.test.ts`
-- `tests/unit/persistence/restore-point-replacement.test.ts`
-- `tests/unit/persistence/restore-point-architecture.test.ts`
-- `tests/unit/persistence/restore-point-lifecycle.test.ts`
-- `tests/integration/persistence/restore-point-relay.test.ts`
-- `tests/integration/persistence/restore-point-worker.test.ts`
+Classes and budgets never compete. Newest timestamp wins, then descending ID.
+Equivalent reason + epoch + revision still reuses the existing point. There is no
+count ceiling, and no automatic capture for unchanged budgets.
 
-Changed files (23):
+GC re-enumerates and validates the entire current budget catalogue after manifest
+pruning, derives the union of referenced chunk hashes, and only then deletes
+unreferenced hash-named chunk files and recognized partial files. No persisted
+reference count is authoritative. Corrupt/unreadable catalogues abort GC before
+any chunk removal. The lock spans captures and complete reconstruction, so GC
+cannot race a not-yet-published manifest or a selected point being read.
+Unknown filenames are not swept.
 
-- `apps/server/src/localFirstRelayStore.mjs`
-- `apps/server/src/server.mjs`
-- `apps/web/src/features/budget/actualBudgetLauncherImport.ts`
-- `apps/web/src/features/budget/ynab4LauncherImport.ts`
-- `apps/web/src/features/persistence/accountRegisterQueryContracts.ts`
-- `apps/web/src/features/persistence/budgetDatabaseLifecycle.ts`
-- `apps/web/src/features/persistence/configuredPersistenceProvider.ts`
-- `apps/web/src/features/persistence/localFirst/budgetDatabaseOwnership.ts`
-- `apps/web/src/features/persistence/localFirst/budgetDatabaseOwnershipRouting.ts`
-- `apps/web/src/features/persistence/localFirst/contracts.ts`
-- `apps/web/src/features/persistence/localFirst/localBudget.worker.ts`
-- `apps/web/src/features/persistence/localFirst/localBudgetClient.ts`
-- `apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts`
-- `apps/web/src/features/persistence/localFirst/relayTransport.ts`
-- `apps/web/src/main.tsx`
-- `apps/web/src/pages/SettingsPage.tsx`
-- `apps/web/src/stores/budgetRegistryStore.ts`
-- `docs/architecture/README.md`
-- `docs/architecture/persistence-audit-phase-1.md`
-- `docs/architecture/persistence-audit.json`
-- `tests/RISKS.json`
-- `tests/integration/persistence/budget-launcher-database-lifecycle.test.ts`
-- `tests/unit/persistence/local-first-database-lifecycle.test.ts`
+Retention/GC failure cannot fail an already completed capture. Shared chunks survive
+removal of any one manifest while another references them; deleting the last
+reference allows reclamation. An explicit store `collectGarbage(budgetId)` pass
+also exists; there is no new UI cleanup workflow. Protected manifests, monthly
+representatives, failed cleanup and snapshots predating budget deletion may still
+accumulate. Budget deletion does not sweep this separate storage namespace.
 
-The two superseded budget snapshot/lifecycle modules are deleted, not retained as
-adapters. The starting commit and rollback tag remain unchanged; work is confined
-to `feature/sqlite-restore-points`.
+## Reconstruction and atomic restore
 
-## Corrective pass
+The worker loads the validated manifest and streams its references in order while
+holding the budget storage lock. Each chunk is length/hash checked before append
+to the existing temporary baseline-replacement file. A streaming full-image hash
+and exact length must verify before `read()` returns; partial stream consumption
+fails. Only then may the worker commit the staged physical candidate. Missing,
+corrupt or truncated chunks, or a wrong full-image hash, abort staging and never
+promote a candidate. There is no concatenated database-sized main-thread buffer.
 
-This pass isolates OPFS catalogues, separates timed/event/protected retention, and
-removes deletion-triggered capture without changing SQLite capture or staged restore
-architecture. Focused tests cover corrupt/unreadable neighbouring catalogues,
-namespace encoding and traversal inputs, manifest identity and SHA-256 validation,
-independent retention classes and UTC boundaries, plus deletion with the target,
-another budget, or no budget open. Existing capture failure, switch draining,
-mutation scheduling, restore quarantine and real-SQLite integration checks remain.
-No real-browser performance validation is claimed. SAH-pool export still allocates
-a full database-sized buffer in the worker; WAL serialization can likewise require
-database-sized WASM memory.
+The rest of restore is preserved: synchronise, capture a before-restore safety
+point, construct a new physical generation, validate SQLite/domain counts, start
+a fresh epoch with empty outbox/conflict inbox and cursor zero, stage/hash-check
+relay chunks, persist/flush durable local intent, then owner-authorized relay
+commit. Concurrent epoch/baseline/cursor changes reject without overwriting them.
+Only confirmed remote commit permits local authoritative pointer publication.
+Certified rejection rolls back; uncertain commit yields `RESTORE_PENDING`,
+quarantines queued work and replays the durable intent on reload. Ordinary editor
+baseline APIs do not bypass this protocol.
 
-Corrective-pass validation on 2026-09-03:
+## Scheduling and lifecycle preserved
 
-- Focused catalogue/retention/coordinator tests: 22 passed; database lifecycle
-  tests: 16 passed, including seven deletion cases; architecture tests: 4 passed.
-- Full unit suite: 135/135 files passed, including lifecycle/ownership,
-  mutation-only scheduling, restore replacement and pending-recovery quarantine.
-- Full integration suite: 11/11 files passed, including both restore-point suites
-  (real SQLite snapshots with 30,001 transactions and concurrent writer exclusion;
-  owner-authorized relay restore transitions) and launcher lifecycle coverage.
-- Existing regressions: 2/2 files passed, covering deletion resurrection and
-  import rollback. All files were discovered and run individually with the installed
-  `tsx` CLI, as above; the expanded focused files were also rerun separately.
-- `pnpm test:web-build`: TypeScript and production Vite build passed.
-- `pnpm audit:persistence` regenerated the inventory (only its timestamp changed);
-  `pnpm docs:architecture:check` passed, including `audit:persistence:check`.
-- `git diff --check` passed. The requested obsolete-name and deletion-reason
-  searches found no matches. Storage-path search confirms budget-scoped adapters
-  for list/capture/read/pruning, with no flat-layout fallback.
+Successful local mutation events are the only automatic dirty signal. Mutations
+coalesce for approximately ten minutes; sleep/resume creates at most one overdue
+point. The 30-second heartbeat and focus/visibility reevaluation remain. Failed
+capture leaves dirty state pending.
 
-Corrective changes are confined to the restore-point store, retention and types;
-the ownership/exclusive-release and query-client deletion boundary; this document
-and generated persistence inventory; the restore-point unit and architecture tests,
-database lifecycle tests, and worker integration test adapter. No change is made to
-the worker capture, staged replacement, relay restore or import algorithms.
-Test success is evidence for review, not independent merge approval.
+Switch safety capture is awaited before release; failure blocks release/switch.
+Import/reset/restore safety and initial-import after local promotion plus relay
+publication remain. There is no transaction-count snapshot skip. Deletion creates
+no restore point, including its target's release boundary; protection for another
+open budget remains. No deleted-budget recovery UI/workflow is implemented.
+Users need ordinary exported backups to recover deleted budgets.
+
+## Memory, UI metrics and remaining limits
+
+- Native rollback-journal capture reads bounded 256 KiB ranges.
+- SAH-pool still allocates one complete worker-side database buffer in its installed
+  export API. Capture uses `subarray()` views, not repeated whole-buffer copies.
+- Installed WAL serialization allocates a database-sized WASM result, copies it to
+  a full JS Uint8Array, then frees the WASM allocation. This existing peak remains.
+- Deduplication adds bounded chunk buffers (source, staged verification, atomic
+  write copy and readback) and SHA-256 state, not another full database buffer.
+  Manifest/catalogue/live-set memory scales with retained references.
+- Restore reconstructs to an OPFS staged file in the worker. The existing physical
+  importer uses bounded ranges; no new main-thread full-image copy is introduced.
+  The separate relay baseline upload and its existing memory/network costs remain.
+- All image bytes are still read/hashed, and reused chunks are verified. Smaller
+  physical growth does not eliminate capture time or the held query lease.
+- Settings reports logical database size, new chunk payload KiB at capture,
+  new unique chunk count and ordered reference count. These are historical capture
+  metrics, excluding JSON manifests, transient staging, filesystem overhead and
+  later GC. No ambiguous cumulative savings or reuse percentage is displayed.
+- Deduplication is per budget, not cross-budget. Major reshaping can require nearly
+  a full new image. No compression or fixed storage ceiling is introduced.
+- No real-browser performance, eviction or crash durability validation is claimed;
+  simulated OPFS/locking adapters and native SQLite do not replace that testing.
+
+## Validation
+
+Focused tests cover unchanged scheduling/retention plus identical-content reuse,
+single-chunk edits, duplicate content within an image, chunk/manifest integrity,
+failed/interrupted/uncertain writes, safe repair of unreferenced incomplete
+identities, shared-chunk liveness, failed pruning/GC, corrupt catalogue isolation,
+cross-instance lock ordering, strict stream completion and namespace safety.
+Worker integration executes shipped capture/prepare functions against real SQLite
+with simulated OPFS and checks exact reconstruction, material dedupe, concurrent
+writer exclusion, staged append sizes and no promotion on corruption.
+Relay, ownership, lifecycle, initial-import and pending-recovery tests remain.
+
+Validation on 2026-09-04:
+
+- Focused restore-point unit file: 45 tests passed; architecture/UI contracts:
+  4 tests passed; shipped worker integration: 6 tests passed; relay restore:
+  2 tests passed.
+- Full unit suite: 135/135 files passed, including ownership/lifecycle regression,
+  mutation scheduling, retention, deletion and pending-restore recovery.
+- Full integration suite: 11/11 files passed, including worker/relay restore and
+  launcher/import lifecycle. Existing regressions: 2/2 files passed.
+- Suites were discovered from their complete directories and run individually
+  with the installed tsx CLI, avoiding the existing Windows runner's pnpm spawn
+  resolution problem. No tests were disabled or omitted.
+- pnpm test:web-build passed TypeScript and production Vite build.
+- pnpm audit:persistence regenerated the inventory;
+  pnpm docs:architecture:check passed, including audit:persistence:check.
+- git diff --check passed. Production-source searches found no stale restore-point
+  payload filename helper, v1 schema or full-copy UI description. Remaining
+  .sqlite3 references belong to active/physical/staged databases and normal export;
+  totalBytes describes logical image length or separate baseline/relay transfer.
+
+Scheduling/retention, deletion policy, ownership and restore journal/relay algorithms
+are unchanged. This pass changes only the snapshot storage/types, worker capture
+range and reconstruction adapters, Settings metrics, associated tests and audit
+documentation. Test success is evidence for independent review, not merge approval.

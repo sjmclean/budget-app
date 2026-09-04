@@ -184,7 +184,7 @@ function getHistoryGroupLabel(isoTimestamp: string, now = new Date()): string {
 }
 
 function describeSnapshot(snapshot: RestorePointMetadata): string {
-  return `${RESTORE_POINT_LABELS[snapshot.reason]}. Complete SQLite snapshot (${(snapshot.totalBytes / 1024 / 1024).toFixed(1)} MiB).`;
+  return `${RESTORE_POINT_LABELS[snapshot.reason]}. Database size: ${(snapshot.totalBytes / 1024 / 1024).toFixed(1)} MiB. New chunk storage at capture: ${(snapshot.newBytesStored / 1024).toFixed(0)} KiB (${snapshot.newChunkCount} new / ${snapshot.chunks.length} referenced chunks). Excludes manifest and temporary-file overhead.`;
 }
 
 function formatSnapshotReason(snapshot: RestorePointMetadata): string {

@@ -16,6 +16,11 @@ test("Settings and registry use only the new restore service, with no superseded
   assert.doesNotMatch(settings, /of 30 restore points|unsaved changes/i);
   assert.match(settings, /restoreRestorePoint/);
   assert.match(settings, /approximately every 10 minutes while you make changes/);
+  assert.doesNotMatch(settings, /Complete SQLite snapshot/);
+  assert.match(settings, /Database size:/);
+  assert.match(settings, /New chunk storage at capture:/);
+  assert.match(settings, /snapshot.newBytesStored/);
+  assert.match(settings, /Excludes manifest and temporary-file overhead/);
 });
 
 test("capture, listing and restore are explicitly owned methods", () => {

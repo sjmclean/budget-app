@@ -2,17 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createRestorePointCoordinator } from "../../../apps/web/src/features/budget/restorePointCoordinator";
 import { retainRestorePoints, RESTORE_POINT_INTERVAL_MS as INTERVAL } from "../../../apps/web/src/features/budget/restorePointRetention";
-import { createRestorePointStore, opfsRestorePointFiles, restorePointBudgetDirectory, RESTORE_POINT_DIRECTORY, type RestorePointFiles } from "../../../apps/web/src/features/budget/restorePointStore";
+import { createRestorePointStore, opfsRestorePointFiles, restorePointBudgetDirectory, RESTORE_POINT_DIRECTORY, RESTORE_POINT_CHUNK_BYTES as CHUNK } from "../../../apps/web/src/features/budget/restorePointStore";
 import type { RestorePointMetadata, RestorePointReason } from "../../../apps/web/src/features/budget/restorePointTypes";
 import { emptyDomainCounts } from "../../../apps/web/src/features/persistence/localFirst/contracts";
 
 const NOW = Date.parse("2026-09-03T12:05:00Z");
 function point(id: string, age: number, reason: RestorePointReason = "timed"): RestorePointMetadata {
   return {
-    schema: "sqlite-restore-point.v1", id, budgetId: "budget-A", budgetName: "A",
+    schema: "sqlite-restore-point.v2", id, budgetId: "budget-A", budgetName: "A",
     createdAt: new Date(NOW - age).toISOString(), reason, syncEpoch: "epoch-A",
     localRevision: 1, mutationCount: 1, totalBytes: 512,
-    contentHash: `sha256:${"a".repeat(64)}`, counts: emptyDomainCounts(),
+    databaseHash: "a".repeat(64), chunks: [{ hash: "a".repeat(64), length: 512 }], newBytesStored: 512, newChunkCount: 1, counts: emptyDomainCounts(),
   };
 }
 
@@ -147,212 +147,309 @@ test("tier boundaries, Monday weeks and calendar months are UTC-stable", () => {
   }
 });
 
-function memoryFiles() {
-  const entries = new Map<string, File>();
-  const operations: string[] = [];
-  let failWrite: string | null = null;
-  let failRemove = false;
-  const files: RestorePointFiles = {
-    async names() { return [...entries.keys()]; },
-    async read(name) {
-      const value = entries.get(name);
-      if (!value) throw new Error("missing");
-      return value;
-    },
-    async write(name, chunks) {
-      const parts: Uint8Array<ArrayBuffer>[] = [];
-      for await (const chunk of chunks) parts.push(Uint8Array.from(chunk));
-      if (failWrite === "empty-manifest" && name.endsWith(".json")) {
-        entries.set(name, new File([], name));
-        throw new Error("metadata close failed");
-      }
-      if (failWrite && name.endsWith(failWrite)) throw new Error("quota");
-      entries.set(name, new File(parts, name));
-      operations.push(`write:${name}`);
-    },
-    async remove(name) {
-      if (failRemove) throw new Error("cleanup denied");
-      operations.push(`remove:${name}`);
-      entries.delete(name);
-    },
-  };
-  const catalogues = new Map<string, RestorePointFiles>([["budget-A", files]]);
-  const forBudget = (budgetId: string) => {
-    if (!catalogues.has(budgetId)) catalogues.set(budgetId, memoryFiles().files);
-    return catalogues.get(budgetId)!;
-  };
-  return { files, forBudget, entries, operations,
-    failWrite: (suffix: string) => { failWrite = suffix; },
-    failRemove: () => { failRemove = true; },
-  };
-}
 
-function sqliteBytes() {
-  const bytes = new Uint8Array(512);
+import { memoryRestorePointFiles, collectRestorePointBytes as collect } from "../../helpers/restorePointFiles";
+
+function sqliteBytes(size = CHUNK * 3 + 8192) {
+  const bytes = new Uint8Array(size);
+  for (let i = 0; i < size; i++) bytes[i] = (Math.floor(i / CHUNK) * 31 + i) % 251;
   bytes.set(new TextEncoder().encode("SQLite format 3\0"));
-  bytes[16] = 2;
+  bytes[16] = 32; bytes[17] = 0;
   return bytes;
 }
 
-test("payload completion and verification precede metadata; pruning removes metadata before payload", async () => {
-  const memory = memoryFiles();
+function harness() {
+  const memory = memoryRestorePointFiles();
   const store = createRestorePointStore(memory.forBudget);
-  const bytes = sqliteBytes();
-  const old = await store.capture({ ...point("ignored", 1000), localRevision: 1 }, 512, async () => bytes);
-  const next = await store.capture({ ...point("ignored", 0), localRevision: 2 }, 512, async () => bytes);
-  assert.deepEqual(memory.operations, [
-    `write:${old.id}.sqlite3`, `write:${old.id}.json`,
-    `write:${next.id}.sqlite3`, `write:${next.id}.json`,
-    `remove:${old.id}.json`, `remove:${old.id}.sqlite3`,
-  ]);
-  assert.equal((await store.read("budget-A", next.id)).file.size, 512);
-  await assert.rejects(store.read("budget-B", next.id), /missing/);
+  const capture = (data = sqliteBytes(), revision = 1, reason: RestorePointReason = "manual", budgetId = "budget-A") =>
+    store.capture({ ...point("unused", 0, reason), createdAt: new Date(NOW + revision * 1000).toISOString(), localRevision: revision, budgetId }, data.length,
+      async (offset, length) => data.subarray(offset, offset + length));
+  return { memory, store, capture, a: memory.budget("budget-A") };
+}
+
+test("identical images across metadata/reasons reuse every immutable chunk; exact reconstruction", async () => {
+  const { capture, a, store } = harness();
+  const data = sqliteBytes();
+  const first = await capture(data);
+  const before = [...a.entries].filter(([path]) => path.endsWith(".bin"));
+  const second = await capture(data, 2, "before-restore");
+  assert.notEqual(first.id, second.id);
+  assert.deepEqual(second.chunks, first.chunks);
+  assert.equal(second.databaseHash, first.databaseHash);
+  assert.equal(second.newBytesStored, 0);
+  assert.equal(second.newChunkCount, 0);
+  assert.deepEqual([...a.entries].filter(([path]) => path.endsWith(".bin")), before);
+  assert.deepEqual(await store.read("budget-A", first.id, collect), Buffer.from(data));
+  assert.deepEqual(await store.read("budget-A", second.id, collect), Buffer.from(data));
 });
 
-test("incomplete/corrupt payload and metadata failures never publish a point", async () => {
-  for (const failure of ["short", "corrupt", "payload", "metadata", "empty-manifest"]) {
-    const memory = memoryFiles();
-    const store = createRestorePointStore(memory.forBudget);
-    if (failure === "payload") memory.failWrite(".sqlite3");
-    if (failure === "metadata") memory.failWrite(".json");
-    if (failure === "empty-manifest") memory.failWrite("empty-manifest");
-    await assert.rejects(store.capture(point("ignored", 0), 512, async () =>
-      failure === "short" ? new Uint8Array(10) : failure === "corrupt" ? new Uint8Array(512) : sqliteBytes()));
-    assert.equal((await store.list("budget-A")).length, 0);
-    assert.equal(memory.entries.size, 0);
-  }
+test("one changed chunk adds only its bytes; reused data and manifests are not overwritten", async () => {
+  const { capture, a } = harness();
+  const data = sqliteBytes();
+  const first = await capture(data);
+  const manifest = a.entries.get(`manifests/${first.id}.json`);
+  a.operations.length = 0;
+  data[CHUNK + 700]++;
+  const next = await capture(data, 2);
+  assert.equal(next.newChunkCount, 1);
+  assert.equal(next.newBytesStored, CHUNK);
+  assert.equal(next.chunks.filter((chunk, i) => chunk.hash === first.chunks[i].hash).length, first.chunks.length - 1);
+  assert.equal(a.operations.filter((op) => op.startsWith("write:chunks/") && op.endsWith(".bin")).length, 1);
+  assert.equal(a.entries.get(`manifests/${first.id}.json`), manifest);
 });
 
-test("pruning failure preserves the newly published point and equivalent safety points deduplicate", async () => {
-  const memory = memoryFiles();
-  const store = createRestorePointStore(memory.forBudget);
-  await store.capture(point("ignored", 1000), 512, async () => sqliteBytes());
-  memory.failRemove();
-  const next = await store.capture({ ...point("ignored", 0), localRevision: 2 }, 512, async () => sqliteBytes());
-  assert.equal((await store.read("budget-A", next.id)).point.id, next.id);
-  const safety = await store.capture(point("ignored", 0, "before-restore"), 512, async () => sqliteBytes());
-  const duplicate = await store.capture(point("ignored", 0, "before-restore"), 512, async () => { throw new Error("must not copy"); });
-  assert.equal(duplicate.id, safety.id);
+test("duplicate content within a snapshot is physically stored once", async () => {
+  const { capture, a } = harness();
+  const data = sqliteBytes(CHUNK * 3);
+  data.set(data.subarray(CHUNK, CHUNK * 2), CHUNK * 2);
+  const p = await capture(data);
+  assert.equal(p.newChunkCount, 2);
+  assert.equal(p.newBytesStored, CHUNK * 2);
+  assert.equal([...a.entries.keys()].filter((key) => key.endsWith(".bin")).length, 2);
 });
 
-test("uncertain metadata publication never removes a potentially published payload", async () => {
-  const memory = memoryFiles();
-  let unreadable = true;
-  const store = createRestorePointStore(() => ({
-    ...memory.files,
-    async write(name, chunks) {
-      await memory.files.write(name, chunks);
-      if (name.endsWith(".json")) throw new Error("lost close acknowledgement");
-    },
-    async read(name) {
-      if (name.endsWith(".json") && unreadable) throw new Error("temporary read failure");
-      return memory.files.read(name);
-    },
-  }));
-  await assert.rejects(store.capture(point("ignored", 0), 512, async () => sqliteBytes()));
-  assert.equal(memory.entries.size, 2);
-  unreadable = false;
-  const [completed] = await store.list("budget-A");
-  assert.ok(completed);
-  assert.equal((await store.read("budget-A", completed.id)).file.size, 512);
-});
-
-for (const corrupt of ["malformed", "unreadable"] as const) {
-  test(`${corrupt} Budget B catalogue cannot affect A listing, capture, restore read or pruning`, async () => {
-    const memory = memoryFiles();
-    const budgetB = memoryFiles();
-    budgetB.entries.set("broken.json", new File(["{broken"], "broken.json"));
-    budgetB.entries.set("broken.sqlite3", new File([sqliteBytes()], "broken.sqlite3"));
-    const originalB = [...budgetB.entries];
-    const inspected: string[] = [];
-    const store = createRestorePointStore((budgetId) => {
-      inspected.push(budgetId);
-      if (budgetId === "budget-A") return memory.files;
-      assert.equal(budgetId, "budget-B");
-      return { ...budgetB.files, async read(name) {
-        if (corrupt === "unreadable") throw new Error("catalogue unreadable");
-        return budgetB.files.read(name);
-      } };
-    });
-    const old = await store.capture(point("ignored", 1000), 512, async () => sqliteBytes());
-    assert.deepEqual((await store.list("budget-A")).map(({ id }) => id), [old.id]);
-    const next = await store.capture({ ...point("ignored", 0), localRevision: 2 }, 512, async () => sqliteBytes());
-    assert.deepEqual((await store.list("budget-A")).map(({ id }) => id), [next.id]);
-    assert.equal((await store.read("budget-A", next.id)).file.size, 512);
-    assert.ok(memory.operations.includes(`remove:${old.id}.sqlite3`));
-    assert.ok(inspected.every((budgetId) => budgetId === "budget-A"));
-    assert.deepEqual([...budgetB.entries], originalB);
-    assert.deepEqual(budgetB.operations, []);
-    await assert.rejects(store.list("budget-B"), corrupt === "unreadable" ? /catalogue unreadable/ : SyntaxError);
-    await assert.rejects(store.capture({ ...point("ignored", 0), budgetId: "budget-B" }, 512, async () => {
-      assert.fail("must surface own catalogue corruption before copying");
-    }));
+for (const failure of ["missing", "corrupt", "length", "database-hash", "malformed", "wrong-reference-length", "wrong-budget", "wrong-id"]) {
+  test(`restore fails closed: ${failure}`, async () => {
+    const { capture, a, store } = harness();
+    const p = await capture();
+    const path = `chunks/${p.chunks[1].hash}.bin`;
+    const manifestPath = `manifests/${p.id}.json`;
+    if (failure === "missing") a.entries.delete(path);
+    if (failure === "corrupt") a.entries.set(path, new File([new Uint8Array(CHUNK)], path));
+    if (failure === "length") a.entries.set(path, new File([new Uint8Array(512)], path));
+    if (failure === "malformed") a.entries.set(manifestPath, new File(["{broken"], manifestPath));
+    if (failure === "database-hash") a.entries.set(manifestPath, new File([JSON.stringify({ ...p, databaseHash: "b".repeat(64) })], manifestPath));
+    if (failure === "wrong-reference-length") a.entries.set(manifestPath, new File([JSON.stringify({ ...p, chunks: [{ ...p.chunks[0], length: 1 }, ...p.chunks.slice(1)] })], manifestPath));
+    if (failure === "wrong-budget") a.entries.set(manifestPath, new File([JSON.stringify({ ...p, budgetId: "B" })], manifestPath));
+    if (failure === "wrong-id") a.entries.set(manifestPath, new File([JSON.stringify({ ...p, id: "../escape" })], manifestPath));
+    await assert.rejects(store.read("budget-A", p.id, collect));
   });
 }
 
-test("catalogue identity and payload integrity validation remain strict", async () => {
-  const memory = memoryFiles();
-  const store = createRestorePointStore(memory.forBudget);
-  const captured = await store.capture(point("ignored", 0), 512, async () => sqliteBytes());
-  const name = `${captured.id}.json`;
-  memory.entries.set("wrong.json", memory.entries.get(name)!);
-  await assert.rejects(store.list("budget-A"), /filename mismatch/);
-  memory.entries.delete("wrong.json");
-  memory.entries.set(name, new File([JSON.stringify({ ...captured, budgetId: "budget-B" })], name));
-  await assert.rejects(store.list("budget-A"), /budget mismatch/);
-  await assert.rejects(store.read("budget-A", captured.id), /budget mismatch/);
-  memory.entries.set(name, new File([JSON.stringify(captured)], name));
-  const modified = sqliteBytes();
-  modified[100] = 1;
-  memory.entries.set(`${captured.id}.sqlite3`, new File([modified], `${captured.id}.sqlite3`));
-  await assert.rejects(store.read("budget-A", captured.id), /integrity validation/);
-  await assert.rejects(store.read("budget-A", "../escape"), /Invalid restore point id/);
-  memory.entries.set(name, new File([JSON.stringify({ ...captured, id: "../escape" })], name));
-  await assert.rejects(store.list("budget-A"), /Invalid SQLite restore point metadata/);
+for (const failure of ["partial", "final", "manifest", "empty-manifest"]) {
+  test(`failed ${failure} publication exposes no restore point; GC reclaims unreferenced files`, async () => {
+    const { capture, a, store } = harness();
+    a.faults.beforeWrite = (path) => {
+      if ((failure === "partial" && path.endsWith(".partial")) ||
+          (failure === "final" && path.endsWith(".bin")) ||
+          ((failure === "manifest" || failure === "empty-manifest") && path.startsWith("manifests/"))) {
+        if (failure === "empty-manifest" || failure === "partial") a.entries.set(path, new File([], path));
+        throw new Error("quota");
+      }
+    };
+    await assert.rejects(capture(), /quota/);
+    assert.deepEqual(await store.list("budget-A"), []);
+    a.faults.beforeWrite = undefined;
+    await store.collectGarbage("budget-A");
+    assert.equal([...a.entries.keys()].filter((key) => key.startsWith("chunks/")).length, 0);
+  });
+}
+
+test("pre-existing valid chunk and interrupted temporary files are safe; incomplete final identity is not reused", async () => {
+  const { capture, a, store } = harness();
+  const first = await capture();
+  a.entries.delete(`manifests/${first.id}.json`);
+  a.entries.set("chunks/interrupted.partial", new File([new Uint8Array(13)], "interrupted.partial"));
+  const second = await capture(sqliteBytes(), 2);
+  assert.equal(second.newBytesStored, 0);
+  assert.equal(a.entries.has("chunks/interrupted.partial"), false);
+  const path = `chunks/${second.chunks[0].hash}.bin`;
+  a.entries.set(path, new File([], path));
+  await assert.rejects(capture(sqliteBytes(), 3), /length mismatch/);
+  assert.equal((await store.list("budget-A")).length, 1);
 });
 
-test("OPFS adapter enters only the encoded budget child, never enumerating the global directory", async () => {
-  const ids = ["budget-A", "budget-B", "../escape", "..", "/", "\\", "%2f", "a/b", "a\\b", "é", "é", "😀", "\ud800", "\ufffd", "\0"];
+test("lost chunk/manifest close acknowledgements are verified before reporting success", async () => {
+  const { capture, a, store } = harness();
+  a.faults.afterWrite = (path) => { if (path.endsWith(".bin") || path.endsWith(".json")) throw new Error("lost acknowledgement"); };
+  const p = await capture();
+  assert.deepEqual(await store.read("budget-A", p.id, collect), Buffer.from(sqliteBytes()));
+});
+
+test("invalid unreferenced final handle from interruption is recovered, never silently reused", async () => {
+  const { capture, a, store } = harness();
+  const p = await capture();
+  a.entries.delete(`manifests/${p.id}.json`);
+  a.entries.set(`chunks/${p.chunks[0].hash}.bin`, new File([], "interrupted-final"));
+  const recovered = await capture(sqliteBytes(), 2);
+  assert.equal(recovered.newChunkCount, 1);
+  assert.equal(recovered.newBytesStored, p.chunks[0].length);
+  assert.deepEqual(await store.read("budget-A", recovered.id, collect), Buffer.from(sqliteBytes()));
+});
+
+for (const extension of [".partial", ".bin"]) {
+  test(`written ${extension} corruption is detected before manifest publication`, async () => {
+    const { capture, a, store } = harness();
+    a.faults.afterWrite = (path) => {
+      if (path.endsWith(extension)) a.entries.set(path, new File([new Uint8Array(CHUNK)], path));
+    };
+    await assert.rejects(capture(), /integrity validation/);
+    assert.deepEqual(await store.list("budget-A"), []);
+  });
+}
+
+test("unexpected catalogue corruption during cleanup preserves completed capture and all chunks", async () => {
+  const { capture, a, store } = harness();
+  a.faults.afterWrite = (path) => {
+    if (path.endsWith(".json")) a.entries.set("manifests/corrupt.json", new File(["{broken"], "corrupt.json"));
+  };
+  const p = await capture();
+  assert.deepEqual(await store.read("budget-A", p.id, collect), Buffer.from(sqliteBytes()));
+  assert.equal(a.operations.some((op) => op.startsWith("remove:chunks/") && op.endsWith(".bin")), false);
+  await assert.rejects(store.collectGarbage("budget-A"));
+});
+
+test("uncertain unreadable manifest publication leaks safely; later recovery can read it", async () => {
+  const { capture, a, store } = harness();
+  a.faults.afterWrite = (path) => {
+    if (path.endsWith(".json")) {
+      a.faults.beforeRead = (path) => { if (path.endsWith(".json")) throw new Error("unreadable"); };
+      throw new Error("lost acknowledgement");
+    }
+  };
+  await assert.rejects(capture(), /lost acknowledgement/);
+  const count = a.entries.size;
+  await assert.rejects(store.collectGarbage("budget-A"), /unreadable/);
+  assert.equal(a.entries.size, count);
+  a.faults.beforeRead = undefined;
+  const [p] = await store.list("budget-A");
+  assert.deepEqual(await store.read("budget-A", p.id, collect), Buffer.from(sqliteBytes()));
+});
+
+test("retention removes manifests first; shared chunks survive until last reference disappears", async () => {
+  const { capture, store, a } = harness();
+  const first = await capture(sqliteBytes(), 1, "timed");
+  const other = await capture(sqliteBytes(), 2, "manual");
+  const data = sqliteBytes(); data[CHUNK + 100]++;
+  const next = await capture(data, 3, "timed");
+  assert.equal(a.entries.has(`manifests/${first.id}.json`), false);
+  assert.equal(a.entries.has(`chunks/${first.chunks[1].hash}.bin`), true, "manual still references old chunk");
+  assert.deepEqual(await store.read("budget-A", other.id, collect), Buffer.from(sqliteBytes()));
+  a.entries.delete(`manifests/${other.id}.json`);
+  await store.collectGarbage("budget-A");
+  assert.equal(a.entries.has(`chunks/${first.chunks[1].hash}.bin`), false);
+  assert.deepEqual(await store.read("budget-A", next.id, collect), Buffer.from(data));
+});
+
+for (const failure of ["prune", "gc"]) {
+  test(`${failure} failure does not invalidate newly published snapshot`, async () => {
+    const { capture, a, store } = harness();
+    await capture(sqliteBytes(), 1, "timed");
+    a.faults.beforeRemove = (path) => { if (failure === "prune" ? path.endsWith(".json") : path.endsWith(".bin")) throw new Error("cleanup denied"); };
+    const data = sqliteBytes(); data[CHUNK]++;
+    const next = await capture(data, 2, "timed");
+    assert.deepEqual(await store.read("budget-A", next.id, collect), Buffer.from(data));
+  });
+}
+
+for (const failure of ["malformed", "unreadable"]) {
+  test(`Budget B ${failure} catalogue cannot affect A listing/capture/read/GC; own corrupt catalogue prevents all GC deletes`, async () => {
+    const { memory, capture, a, store } = harness();
+    const b = memory.budget("B");
+    b.entries.set("manifests/broken.json", new File(["{broken"], "broken.json"));
+    b.entries.set(`chunks/${"c".repeat(64)}.bin`, new File([new Uint8Array(512)], "orphan"));
+    if (failure === "unreadable") b.faults.beforeRead = () => { throw new Error("unreadable"); };
+    const original = [...b.entries];
+    await capture(sqliteBytes(), 1, "timed");
+    const next = await capture(sqliteBytes(), 2, "timed");
+    await store.list("budget-A");
+    await store.read("budget-A", next.id, collect);
+    await store.collectGarbage("budget-A");
+    assert.deepEqual(b.operations, []);
+    assert.deepEqual([...b.entries], original);
+    await assert.rejects(store.collectGarbage("B"));
+    await assert.rejects(store.list("B"));
+    await assert.rejects(capture(sqliteBytes(), 1, "manual", "B"));
+    assert.deepEqual([...b.entries], original);
+    assert.equal(b.operations.some((op) => op.startsWith("remove:")), false);
+    assert.ok(a.operations.some((op) => op.startsWith("remove:manifests/")));
+  });
+}
+
+test("capture/read locks exclude GC until publication/stream verification completes across store instances", async () => {
+  const { capture, a, memory, store } = harness();
+  const other = createRestorePointStore(memory.forBudget);
+  let release!: () => void;
+  let entered!: () => void;
+  let gate = new Promise<void>((resolve) => { release = resolve; });
+  let started = new Promise<void>((resolve) => { entered = resolve; });
+  a.faults.beforeWrite = async (path) => { if (path.endsWith(".json")) { entered(); await gate; } };
+  const capturing = capture();
+  await started;
+  let cleaned = false;
+  const cleaning = other.collectGarbage("budget-A").then(() => { cleaned = true; });
+  await Promise.resolve(); assert.equal(cleaned, false);
+  release(); const p = await capturing; await cleaning;
+  gate = new Promise<void>((resolve) => { release = resolve; });
+  started = new Promise<void>((resolve) => { entered = resolve; });
+  const reading = store.read("budget-A", p.id, async (_p, chunks) => {
+    entered(); await gate; return collect(_p, chunks);
+  });
+  await started; cleaned = false;
+  const cleaningAgain = other.collectGarbage("budget-A").then(() => { cleaned = true; });
+  await Promise.resolve(); assert.equal(cleaned, false);
+  release(); await reading; await cleaningAgain;
+});
+
+test("concurrent identical captures deduplicate and incomplete stream consumption fails", async () => {
+  const { capture, a, store } = harness();
+  const [first, second] = await Promise.all([capture(), capture(sqliteBytes(), 2)]);
+  assert.equal(second.newBytesStored, 0);
+  assert.equal([...a.entries.keys()].filter((key) => key.endsWith(".bin")).length, first.chunks.length);
+  await assert.rejects(store.read("budget-A", first.id, async () => null), /not completely verified/);
+});
+
+test("SQLite header/page length, manifest filename and restore ID validation are preserved", async () => {
+  const { capture, a, store } = harness();
+  await assert.rejects(capture(new Uint8Array(CHUNK)), /complete SQLite/);
+  await assert.rejects(capture(sqliteBytes(CHUNK + 1)), /complete SQLite/);
+  const p = await capture();
+  a.entries.set("manifests/wrong.json", a.entries.get(`manifests/${p.id}.json`)!);
+  await assert.rejects(store.list("budget-A"), /filename mismatch/);
+  await assert.rejects(store.read("budget-A", "../escape", collect), /Invalid restore point id/);
+});
+
+test("OPFS namespaces and locks are deterministic, budget-scoped and cannot escape", async () => {
+  const ids = ["budget-A", "budget-B", "../escape", "..", "/", "\\", "%2f", "é", "é", "😀", "\ud800", "\ufffd", "\0"];
   const encoded = ids.map(restorePointBudgetDirectory);
   assert.equal(new Set(encoded).size, ids.length);
-  for (let index = 0; index < ids.length; index++) {
-    assert.match(encoded[index], /^budget-(?:[a-f0-9]{4})+$/);
-    assert.equal(restorePointBudgetDirectory(ids[index]), encoded[index]);
-  }
+  for (const name of encoded) assert.match(name, /^budget-(?:[a-f0-9]{4})+$/);
   assert.throws(() => restorePointBudgetDirectory(""), /Invalid/);
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, "navigator");
   const calls: string[] = [];
-  const contents = new Map(encoded.map((name) => [name, [`${name}.json`]]));
-  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { storage: {
-    async getDirectory() { return {
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: {
+    locks: { async request(name: string, operation: () => Promise<unknown>) { calls.push(name); return operation(); } },
+    storage: { async getDirectory() { return {
       async getDirectoryHandle(parent: string) {
         assert.equal(parent, RESTORE_POINT_DIRECTORY);
-        return { async getDirectoryHandle(child: string) {
-          calls.push(child);
-          assert.ok(contents.has(child));
-          return {
-            async *keys() { yield* contents.get(child)!; },
-            async getFileHandle(name: string) { return {
-              async getFile() { return new File([child], name); },
-              async createWritable() { return {
-                async write(chunk: Uint8Array) { assert.deepEqual(chunk, sqliteBytes()); },
-                async close() {}, async abort() {},
+        return { async getDirectoryHandle(budget: string) {
+          assert.ok(encoded.includes(budget));
+          return { async getDirectoryHandle(kind: string) {
+            assert.ok(["chunks", "manifests"].includes(kind)); calls.push(`${budget}/${kind}`);
+            return {
+              async *keys() { yield "entry"; },
+              async getFileHandle(name: string) { return {
+                async getFile() { return new File([budget], name); },
+                async createWritable() { return { async write() {}, async close() {}, async abort() {} }; },
               }; },
-            }; },
-            async removeEntry(name: string) { assert.equal(name, "obsolete.json"); },
-          };
+              async removeEntry() {},
+            };
+          } };
         } };
       },
-    }; },
-  } } });
+    }; } },
+  } });
   try {
-    for (let index = 0; index < ids.length; index++) {
-      const files = opfsRestorePointFiles(ids[index]);
-      assert.deepEqual(await files.names(), contents.get(encoded[index]));
-      assert.equal(await (await files.read("point.json")).text(), encoded[index]);
-      await files.write("point.sqlite3", (async function* () { yield sqliteBytes(); })());
-      await files.remove("obsolete.json");
-      assert.deepEqual(calls.splice(0), Array(4).fill(encoded[index]));
+    for (let i = 0; i < ids.length; i++) {
+      const files = opfsRestorePointFiles(ids[i]);
+      await files.exclusive(async () => {
+        await files.names("manifests");
+        await files.read("chunks", "point.bin");
+        await files.write("chunks", "point.partial", (async function* () { yield sqliteBytes(); })());
+        await files.remove("chunks", "point.partial");
+      });
+      assert.deepEqual(calls.splice(0), [`${RESTORE_POINT_DIRECTORY}:${encoded[i]}`,
+        `${encoded[i]}/manifests`, ...Array(3).fill(`${encoded[i]}/chunks`)]);
     }
   } finally {
     if (descriptor) Object.defineProperty(globalThis, "navigator", descriptor);

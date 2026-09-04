@@ -6,7 +6,8 @@ import { runInNewContext } from "node:vm";
 import test from "node:test";
 import Database from "better-sqlite3";
 import ts from "typescript";
-import { createRestorePointStore, type RestorePointFiles } from "../../../apps/web/src/features/budget/restorePointStore";
+import { createRestorePointStore, RESTORE_POINT_CHUNK_BYTES } from "../../../apps/web/src/features/budget/restorePointStore";
+import { memoryRestorePointFiles, collectRestorePointBytes } from "../../helpers/restorePointFiles";
 import { emptyDomainCounts } from "../../../apps/web/src/features/persistence/localFirst/contracts";
 
 // Execute the shipped capture function with real SQLite locking/serialization.
@@ -19,29 +20,27 @@ const captureSource = ts.transpile(declaration.getText(parsed).replace(
   'await import("../../budget/restorePointStore")', "({ createRestorePointStore: testRestorePointStore })",
 ), { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext });
 
+const prepareDeclaration = parsed.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "prepareRestorePoint");
+assert.ok(prepareDeclaration);
+const prepareSource = ts.transpile(prepareDeclaration.getText(parsed).replace(
+  'await import("../../budget/restorePointStore")', "({ createRestorePointStore: testRestorePointStore })",
+), { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext });
+
 for (const mode of ["opfs", "opfs-sahpool", "wal"] as const) {
   test(`${mode}: a 30,001-transaction SQLite snapshot is complete and excludes concurrent writers`, async () => {
     const directory = mkdtempSync(join(tmpdir(), "restore-worker-"));
     const filename = join(directory, "active.sqlite3");
     const database = new Database(filename);
+    database.pragma("page_size = 8192");
     database.pragma(`journal_mode = ${mode === "wal" ? "WAL" : "DELETE"}`);
     database.exec("CREATE TABLE transactions(id INTEGER PRIMARY KEY, memo TEXT)");
     database.transaction(() => {
       const insert = database.prepare("INSERT INTO transactions VALUES (?, ?)");
-      for (let id = 1; id <= 30_001; id++) insert.run(id, `Imported transaction ${id}`);
+      for (let id = 1; id <= 30_001; id++) insert.run(id, `Imported transaction ${id}`.padEnd(1100, "x"));
     })();
     const other = new Database(filename, { timeout: 0 });
-    const files = new Map<string, File>();
-    const port: RestorePointFiles = {
-      names: async () => [...files.keys()],
-      read: async (name) => { const file = files.get(name); if (!file) throw new Error("missing"); return file; },
-      write: async (name, chunks) => {
-        const parts: Uint8Array<ArrayBuffer>[] = [];
-        for await (const chunk of chunks) parts.push(Uint8Array.from(chunk));
-        files.set(name, new File(parts, name));
-      },
-      remove: async (name) => { files.delete(name); },
-    };
+    const memory = memoryRestorePointFiles();
+    const store = createRestorePointStore(memory.forBudget);
     const events: string[] = [];
     const writerIsBlocked = () => assert.throws(() => other.prepare("INSERT INTO transactions VALUES (40000, 'racing write')").run(), { code: "SQLITE_BUSY" });
     const exportBytes = () => { writerIsBlocked(); return new Uint8Array(database.serialize()); };
@@ -55,10 +54,7 @@ for (const mode of ["opfs", "opfs-sahpool", "wal"] as const) {
       resultRows: (sql: string) => database.prepare(sql).all(),
       currentManifest: () => ({ budgetId: "large-budget", syncEpoch: "epoch", localRevision: 1,
         counts: { ...emptyDomainCounts(), transactions: 30_001 } }),
-      testRestorePointStore: () => createRestorePointStore((budgetId) => {
-        assert.equal(budgetId, "large-budget");
-        return port;
-      }),
+      testRestorePointStore: () => store,
       workerError: (code: string, message: string) => Object.assign(new Error(message), { code }),
       navigator: { storage: { getDirectory: async () => ({
         getFileHandle: async () => ({ getFile: async () => new File([readFileSync(filename)], "active.sqlite3") }),
@@ -73,13 +69,33 @@ for (const mode of ["opfs", "opfs-sahpool", "wal"] as const) {
       const capture = runInNewContext(`${captureSource}\ncaptureRestorePoint`, context);
       const point = await capture({ budgetName: "Large import", reason: "initial-import", mutationCount: 0 });
       assert.equal(point.counts.transactions, 30_001);
-      const stored = await createRestorePointStore(() => port).read("large-budget", point.id);
-      const snapshot = new Database(Buffer.from(await stored.file.arrayBuffer()));
+      assert.ok(point.totalBytes > 32 * 1024 * 1024, "realistic many-chunk database");
+      const image = await store.read("large-budget", point.id, collectRestorePointBytes);
+      const expected = database.serialize();
+      if (mode === "wal") expected[18] = expected[19] = 1;
+      assert.deepEqual(image, expected);
+      const snapshot = new Database(image);
       try {
         assert.equal(snapshot.prepare("SELECT COUNT(*) AS count FROM transactions").get().count, 30_001);
         assert.equal(snapshot.pragma("quick_check", { simple: true }), "ok");
       } finally { snapshot.close(); }
       assert.deepEqual(events, ["BEGIN IMMEDIATE", "ROLLBACK"]);
+      database.transaction(() => {
+        database.prepare("UPDATE transactions SET memo=? WHERE id=?").run("Small edited transaction".padEnd(1100, "y"), 15000);
+        database.prepare("UPDATE transactions SET memo=? WHERE id=?").run("Second edited transaction".padEnd(1100, "z"), 15001);
+      })();
+      const second = await capture({ budgetName: "Large import", reason: "timed", mutationCount: 2 });
+      assert.ok(second.newBytesStored < point.totalBytes / 10, "localized changes add materially less than a full image");
+      assert.ok(second.newBytesStored > 0);
+      assert.ok(second.newChunkCount < second.chunks.length);
+      const identical = await capture({ budgetName: "Large import", reason: "manual", mutationCount: 2 });
+      assert.equal(identical.newBytesStored, 0);
+      assert.equal(identical.newChunkCount, 0);
+      const changedImage = await store.read("large-budget", second.id, collectRestorePointBytes);
+      const changedExpected = database.serialize();
+      if (mode === "wal") changedExpected[18] = changedExpected[19] = 1;
+      assert.deepEqual(changedImage, changedExpected);
+      console.log(`${mode}: database=${point.totalBytes}, references=${point.chunks.length}, newBytesAfterTwoEdits=${second.newBytesStored}, newChunks=${second.newChunkCount}, identicalNewBytes=${identical.newBytesStored}, chunkSize=${RESTORE_POINT_CHUNK_BYTES}`);
       other.prepare("INSERT INTO transactions VALUES (40000, 'after capture')").run();
     } finally {
       other.close();
@@ -87,5 +103,70 @@ for (const mode of ["opfs", "opfs-sahpool", "wal"] as const) {
       assert.ok(resolve(directory).startsWith(resolve(tmpdir()) + "\\") || resolve(directory).startsWith(resolve(tmpdir()) + "/"));
       rmSync(directory, { recursive: true, force: true });
     }
+  });
+}
+
+for (const fault of ["none", "last-chunk", "database-hash"] as const) {
+  test(`shipped prepareRestorePoint streams into staging and verifies before promotion (${fault})`, async () => {
+    const db = new Database(":memory:");
+    db.pragma("page_size=8192");
+    db.exec("CREATE TABLE fixture (id INTEGER PRIMARY KEY, content BLOB)");
+    db.prepare("INSERT INTO fixture VALUES (1, zeroblob(?))").run(2 * 1024 * 1024);
+    const original = db.serialize();
+    const memory = memoryRestorePointFiles();
+    const store = createRestorePointStore(memory.forBudget);
+    const counts = emptyDomainCounts();
+    const point = await store.capture({ budgetId: "A", budgetName: "A", reason: "manual",
+      createdAt: new Date().toISOString(), syncEpoch: "old", localRevision: 1, mutationCount: 1, counts },
+      original.length, async (offset, length) => original.subarray(offset, offset + length));
+    const entries = memory.budget("A").entries;
+    if (fault === "last-chunk") entries.delete(`chunks/${point.chunks.at(-1)!.hash}.bin`);
+    if (fault === "database-hash") entries.set(`manifests/${point.id}.json`, new File([
+      JSON.stringify({ ...point, databaseHash: "0".repeat(64) }),
+    ], "manifest"));
+    const events: string[] = [];
+    const appended: Uint8Array[] = [];
+    let received = 0;
+    const promotion = { manifest: { budgetId: "A", syncEpoch: "old", counts, physicalFilename: "candidate" }, supersededPhysicalFilename: "original" };
+    const context = {
+      database: {}, activeBudgetId: "A", activeSyncEpoch: "old", stagedImport: null, replacement: null, restoreCandidate: null,
+      testRestorePointStore: () => store,
+      workerError: (code: string, message: string) => Object.assign(new Error(message), { code }),
+      beginBaselineReplacement: async (input: { totalBytes: number }) => {
+        assert.equal(input.totalBytes, original.length); events.push("begin-stage");
+      },
+      appendBaselineReplacement: async (offset: number, chunk: Uint8Array) => {
+        assert.equal(offset, received);
+        assert.ok(chunk.length <= RESTORE_POINT_CHUNK_BYTES);
+        assert.equal(chunk.byteOffset, 0);
+        assert.equal(chunk.buffer.byteLength, chunk.length);
+        appended.push(chunk); received += chunk.length;
+      },
+      commitBaselineReplacement: async () => {
+        assert.deepEqual(Buffer.concat(appended), original);
+        events.push("commit-candidate"); return promotion;
+      },
+      resultRows: () => [{ quick_check: "ok" }], REQUIRED_BUDGET_DOMAINS: Object.keys(counts),
+      execute: (sql: string) => { events.push(sql); },
+      writeMetadata: (key: string, value: string) => { events.push(`${key}:${value}`); },
+      currentManifest: () => ({ ...promotion.manifest, syncEpoch: "fresh" }),
+      abortBaselineReplacement: async () => { events.push("abort-stage"); },
+      abortPreparedRestorePoint: async () => { events.push("abort-candidate"); },
+    };
+    try {
+      const prepare = runInNewContext(`${prepareSource}\nprepareRestorePoint`, context);
+      const input = { requestId: "test", budgetId: "A", pointId: point.id, syncEpoch: "fresh", deviceId: "device" };
+      if (fault === "none") {
+        const result = await prepare(input);
+        assert.equal(result.manifest.syncEpoch, "fresh");
+        assert.ok(events.includes("commit-candidate"));
+        assert.ok(events.includes("syncEpoch:fresh"));
+      } else {
+        await assert.rejects(prepare(input));
+        assert.equal(events.includes("commit-candidate"), false);
+        assert.equal(events.includes("syncEpoch:fresh"), false);
+        assert.deepEqual(events.slice(-2), ["abort-stage", "abort-candidate"]);
+      }
+    } finally { db.close(); }
   });
 }
