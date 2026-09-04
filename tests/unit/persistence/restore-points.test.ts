@@ -167,6 +167,34 @@ function harness() {
   return { memory, store, capture, a: memory.budget("budget-A") };
 }
 
+test("fixed chunk size aligns with every supported SQLite page size and verifies final partial chunks", async () => {
+  for (const pageSize of [512, 1024, 2048, 4096, 8192, 16384, 32768, 65536]) {
+    assert.equal(CHUNK % pageSize, 0);
+    const { capture, store } = harness();
+    const size = CHUNK * 2 + pageSize;
+    const data = sqliteBytes(size);
+    data[16] = pageSize === 65536 ? 0 : pageSize / 256;
+    data[17] = pageSize === 65536 ? 1 : 0;
+    const p = await capture(data);
+    assert.equal(p.chunks.at(-1)!.length, pageSize);
+    assert.equal(p.chunks.length, Math.ceil(size / CHUNK));
+    assert.deepEqual(await store.read("budget-A", p.id, collect), Buffer.from(data));
+  }
+});
+
+test("fixed-size v2 rejects old coarse layouts, missing references, and extra references", async () => {
+  for (const layout of ["coarse", "missing", "extra"]) {
+    const { capture, store, a } = harness();
+    const p = await capture(sqliteBytes(CHUNK * 4));
+    const chunks = layout === "coarse" ? [{ hash: p.databaseHash, length: CHUNK * 4 }]
+      : layout === "missing" ? p.chunks.slice(1) : [...p.chunks, p.chunks[0]];
+    a.entries.set(`manifests/${p.id}.json`, new File([JSON.stringify({ ...p, chunks })], "malformed-layout"));
+    await assert.rejects(store.list("budget-A"), /Invalid SQLite restore point metadata/);
+    await assert.rejects(store.read("budget-A", p.id, collect), /Invalid SQLite restore point metadata/);
+    await assert.rejects(store.collectGarbage("budget-A"), /Invalid SQLite restore point metadata/);
+  }
+});
+
 test("identical images across metadata/reasons reuse every immutable chunk; exact reconstruction", async () => {
   const { capture, a, store } = harness();
   const data = sqliteBytes();

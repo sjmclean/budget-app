@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { closeSync, mkdtempSync, openSync, readFileSync, readSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { runInNewContext } from "node:vm";
@@ -9,6 +9,7 @@ import ts from "typescript";
 import { createRestorePointStore, RESTORE_POINT_CHUNK_BYTES } from "../../../apps/web/src/features/budget/restorePointStore";
 import { memoryRestorePointFiles, collectRestorePointBytes } from "../../helpers/restorePointFiles";
 import { emptyDomainCounts } from "../../../apps/web/src/features/persistence/localFirst/contracts";
+import { compareGranularity } from "../../helpers/restorePointGranularity";
 
 // Execute the shipped capture function with real SQLite locking/serialization.
 // OPFS handles are an adapter, not a claim of browser-engine coverage.
@@ -39,6 +40,7 @@ for (const mode of ["opfs", "opfs-sahpool", "wal"] as const) {
       for (let id = 1; id <= 30_001; id++) insert.run(id, `Imported transaction ${id}`.padEnd(1100, "x"));
     })();
     const other = new Database(filename, { timeout: 0 });
+    const readHandle = openSync(filename, "r");
     const memory = memoryRestorePointFiles();
     const store = createRestorePointStore(memory.forBudget);
     const events: string[] = [];
@@ -61,13 +63,18 @@ for (const mode of ["opfs", "opfs-sahpool", "wal"] as const) {
       }) } },
       readBaselineExportChunk: async (offset: number, length: number) => {
         writerIsBlocked();
-        return new Uint8Array(readFileSync(filename).subarray(offset, offset + length));
+        // Model production's bounded File.slice read, not a full read per chunk.
+        const content = new Uint8Array(length);
+        assert.equal(readSync(readHandle, content, 0, length, offset), length);
+        return content;
       },
       Uint8Array, Date, Promise,
     };
     try {
       const capture = runInNewContext(`${captureSource}\ncaptureRestorePoint`, context);
+      const captureStart = performance.now();
       const point = await capture({ budgetName: "Large import", reason: "initial-import", mutationCount: 0 });
+      const initialCaptureMs = performance.now() - captureStart;
       assert.equal(point.counts.transactions, 30_001);
       assert.ok(point.totalBytes > 32 * 1024 * 1024, "realistic many-chunk database");
       const image = await store.read("large-budget", point.id, collectRestorePointBytes);
@@ -80,24 +87,35 @@ for (const mode of ["opfs", "opfs-sahpool", "wal"] as const) {
         assert.equal(snapshot.pragma("quick_check", { simple: true }), "ok");
       } finally { snapshot.close(); }
       assert.deepEqual(events, ["BEGIN IMMEDIATE", "ROLLBACK"]);
-      database.transaction(() => {
-        database.prepare("UPDATE transactions SET memo=? WHERE id=?").run("Small edited transaction".padEnd(1100, "y"), 15000);
-        database.prepare("UPDATE transactions SET memo=? WHERE id=?").run("Second edited transaction".padEnd(1100, "z"), 15001);
-      })();
-      const second = await capture({ budgetName: "Large import", reason: "timed", mutationCount: 2 });
+      database.prepare("UPDATE transactions SET memo=? WHERE id=?").run("Small edited transaction".padEnd(1100, "y"), 15000);
+      const editCaptureStart = performance.now();
+      const second = await capture({ budgetName: "Large import", reason: "timed", mutationCount: 1 });
+      const editCaptureMs = performance.now() - editCaptureStart;
       assert.ok(second.newBytesStored < point.totalBytes / 10, "localized changes add materially less than a full image");
       assert.ok(second.newBytesStored > 0);
       assert.ok(second.newChunkCount < second.chunks.length);
-      const identical = await capture({ budgetName: "Large import", reason: "manual", mutationCount: 2 });
+      const identical = await capture({ budgetName: "Large import", reason: "manual", mutationCount: 1 });
       assert.equal(identical.newBytesStored, 0);
       assert.equal(identical.newChunkCount, 0);
+      const restoreStart = performance.now();
       const changedImage = await store.read("large-budget", second.id, collectRestorePointBytes);
+      const restoreMs = performance.now() - restoreStart;
       const changedExpected = database.serialize();
       if (mode === "wal") changedExpected[18] = changedExpected[19] = 1;
       assert.deepEqual(changedImage, changedExpected);
-      console.log(`${mode}: database=${point.totalBytes}, references=${point.chunks.length}, newBytesAfterTwoEdits=${second.newBytesStored}, newChunks=${second.newChunkCount}, identicalNewBytes=${identical.newBytesStored}, chunkSize=${RESTORE_POINT_CHUNK_BYTES}`);
+      const comparison = await compareGranularity(image, changedImage);
+      const selected = comparison.rows.find((row) => row.chunkSize === RESTORE_POINT_CHUNK_BYTES)!;
+      const baseline = comparison.rows.find((row) => row.chunkSize === 256 * 1024)!;
+      assert.equal(second.newBytesStored, selected.newBytesStored);
+      assert.ok(selected.newBytesStored <= baseline.newBytesStored / 2, "same edit materially improves over 256 KiB baseline");
+      assert.equal(point.chunks.length, Math.ceil(point.totalBytes / RESTORE_POINT_CHUNK_BYTES));
+      assert.ok(point.chunks.length > 500, "exercise higher catalogue/reference counts");
+      await store.collectGarbage("large-budget");
+      assert.deepEqual(await store.read("large-budget", point.id, collectRestorePointBytes), image);
+      console.log(JSON.stringify({ mode, comparison, actualManifestBytes: Buffer.byteLength(JSON.stringify(second)), initialCaptureMs, editCaptureMs, restoreMs, identicalNewBytes: identical.newBytesStored }));
       other.prepare("INSERT INTO transactions VALUES (40000, 'after capture')").run();
     } finally {
+      closeSync(readHandle);
       other.close();
       database.close();
       assert.ok(resolve(directory).startsWith(resolve(tmpdir()) + "\\") || resolve(directory).startsWith(resolve(tmpdir()) + "/"));

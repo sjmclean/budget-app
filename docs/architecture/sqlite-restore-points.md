@@ -35,44 +35,101 @@ physical layout. Sources: [SQLite file format](https://www.sqlite.org/fileformat
 
 ## Chunk size decision and measured locality
 
-Chunks are **256 KiB**, starting at byte zero; the final chunk may be shorter.
-256 KiB is a multiple of every valid SQLite page size (512 through 65536 bytes).
-Thus chunk boundaries never split a page. Hashes cover content only, without offset,
-reason or revision; lengths and reconstruction order belong in the manifest.
-Identical byte sequences can be reused at different offsets.
+Chunks are **64 KiB**, starting at byte zero; the final chunk may be shorter.
+This is the smallest globally fixed size divisible by every supported SQLite page
+size (512 through 65536 bytes). The bundled runtime was rechecked: 8192-byte pages,
+SQLite 3.53.0, auto_vacuum=0. Blank creation, Actual import and the YNAB4 import
+client all call beginStagedImport, which creates a fresh database with that runtime
+default and does not override page size. Physical promotion/export preserves page
+boundaries. Previously restored/external SQLite images can have other page sizes;
+the user's existing browser database header was not directly inspected.
 
-A native SQLite 3.53.2 audit fixture used 20,769 rows, an amount index, 1750-character
-memos, and 8 KiB pages to match the bundled WASM default. Its image was 42,876,928
-bytes (40.9 MiB); repeated serialization without edits was byte-identical.
-One amount edit and one fixed-length memo edit produced:
+### User-reported browser observations at the previous 256 KiB size
 
-| Chunk size | References/image | New chunks | New payload bytes |
-| --- | ---: | ---: | ---: |
-| SQLite page (8 KiB) | 5,234 | 3 | 24,576 |
-| 64 KiB | 655 | 2 | 131,072 |
-| 256 KiB | 164 | 2 | 524,288 |
-| 1 MiB | 41 | 1 | 1,048,576 |
-| 4 MiB | 11 | 1 | 4,194,304 |
+For approximately 20,769 transactions / 37.7 MiB and 151 references, the initial
+seed added 38,584 KiB (151 new chunks). Later checkpoints added 6,344 KiB (25 new)
+and 4,296 KiB (17 new) after one memo edit. This is evidence of storage amplification
+for the real workload, not proof that exactly 17 individual SQLite pages changed.
+These observations came from the user, not a browser benchmark run by this agent.
 
-The chosen size balances small-edit amplification with OPFS file/open/GC overhead:
-about 151 references for a 37.7 MiB image rather than thousands of page files.
-64 KiB improves locality but roughly quadruples file/reference operations; 1–4 MiB
-reduces catalogue overhead but rewrites much more for sparse changes. All choices
-must scan/hash the complete image; this is storage deduplication, not incremental
-capture CPU. A 4 KiB-page audit also showed stable exports and localized changes.
+### Same-edit synthetic comparison
 
-After deleting every third row and running VACUUM, the 8 KiB fixture produced a
-28,573,696-byte image with no chunk reuse at any tested size, including page-sized.
-Page-sized storage therefore does not guarantee protection from wholesale
-reshaping. Fixed page-aligned chunks were effective for the small edits tested.
+The retained 30,001-row integration fixture has a 35,168,256-byte image and 8 KiB
+pages. One fixed-length memo edit changes page 2148; rollback-journal/native-file
+exports also change header page 1. Candidate comparison hashes the exact before
+and after images captured by the shipped worker, not a hypothetical fixed count.
 
-The shipped capture function is also tested with a real 35,168,256-byte database,
-30,001 padded transactions and 8 KiB pages (135 references). Two adjacent memo edits
-added 524,288 bytes in native-OPFS and SAH-pool adapters, and 262,144 bytes in WAL
-serialization. A subsequent identical image added zero chunk bytes in all three
-modes. These are reproducible integration-fixture observations, not measurements
-or promised percentages for the user's budget. Real app edits can additionally
-modify projections, metadata, indexes and outbox pages.
+| Chunk size | References | New bytes: native/SAH | New bytes: WAL | Approx. manifest bytes |
+| --- | ---: | ---: | ---: | ---: |
+| 32 KiB | 1,074 | 65,536 (2 chunks) | 32,768 (1) | 98,281 |
+| 64 KiB | 537 | 131,072 (2 chunks) | 65,536 (1) | 49,416 |
+| 128 KiB | 269 | 262,144 (2 chunks) | 131,072 (1) | 25,296 |
+| 256 KiB comparison baseline | 135 | 524,288 (2 chunks) | 262,144 (1) | 12,968 |
+
+Actual selected-size manifests were 49,421–49,422 bytes (metadata strings affect
+JSON length). Identical snapshots still add zero chunk bytes. Tests assert relative
+improvement and valid reconstruction, not one brittle exact changed-chunk count.
+At 64 KiB this fixture writes one quarter of the baseline's changed payload bytes.
+It does not reproduce all application projections/index/outbox writes and does not
+promise that fraction for the real memo-edit workload.
+
+64 KiB is selected over 128 KiB for better locality, and over 32 KiB because it
+halves file/reference overhead and supports 64 KiB-page databases without adding
+page-dependent layout policy or schema fields. 32 KiB was measured for the 8 KiB
+fixture but is not aligned to a supported 64 KiB page. 256 KiB remains only an
+explicit historical/comparison baseline.
+
+### Overhead and reproducibility
+
+For the user's rounded 37.7 MiB image, expect approximately 603–604 references,
+versus 151 at the previous granularity, and roughly 55.5 KB (54.2 KiB) of manifest
+JSON with comparable metadata. Chunk data hashes still cover content only; metadata,
+timestamps, reason and offsets do not affect sharing.
+
+A single local CPU/Blob diagnostic run over the 33.5 MiB fixture took approximately
+74–90 ms to hash/chunk the image across candidates. Simulated per-file verified
+reconstruction took approximately 165–250 ms. In-memory chunk-name/live-set
+enumeration was usually sub-millisecond, with a roughly 3 ms outlier at 64 KiB
+and warm-up-sensitive 6 ms results at 32 KiB. These are not OPFS measurements or speed assertions.
+There are roughly four times as many file operations at 64 KiB as at 256 KiB.
+
+The shipped selected-size capture with bounded test file reads took approximately
+1.0–1.4 seconds to seed, 0.7–0.9 seconds for the memo checkpoint, and 0.4–0.5 seconds
+for verified reconstruction in sampled native/SAH/WAL adapters. The native adapter
+now models bounded reads rather than rereading a complete database per chunk;
+old timings from that test artifact are not valid comparison baselines. Actual
+OPFS open/close latency, browser memory and capture duration require manual testing.
+
+Illustrative upper bounds before retention, assuming 48 dirty checkpoints over an
+8-hour day and 604 distinct seed chunks: one newly unique chunk per checkpoint
+leaves 652 chunk files; 17 per checkpoint leaves 1,420. Add up to 49 manifests.
+This is a workload assumption, not a measured typical day; broad writes can add far
+more and retention/shared content can reduce it. Known-name scans and GC remain
+linear in stored chunks plus manifest references. At these low-thousands estimates
+the existing scan remains simple; no measured browser evidence justifies a new
+chunk index. Long histories and protected snapshots remain a file-count risk.
+Restore must open/verify approximately four times as many smaller chunk files,
+while still hashing the same logical byte length.
+
+Reproduce locality/CPU diagnostics with:
+`node node_modules/tsx/dist/cli.mjs tools/performance/restore-point-granularity.ts`.
+The helper reports 1-based changed-page ranges, candidate counts/JSON sizes,
+physical-file counts, hashing, simulated restore and GC enumeration times.
+The worker integration repeats comparison on native-file, SAH and WAL images.
+
+### Format and broad rewrites
+
+Schema remains sqlite-restore-point.v2 with globally fixed layout validation.
+No chunkSize field or migration is needed for this unreleased internal format.
+Existing 256 KiB manifests are intentionally incompatible and fail closed; testing
+the new build requires a clean restore-point catalogue. This change does not
+automatically delete or migrate earlier test snapshots. The active budget and
+ordinary exported backups are unaffected.
+
+Earlier audit results showed that deleting every third row and running VACUUM
+could rewrite essentially all content at every tested granularity. Major imports,
+VACUUM, page-size changes and widespread projection updates can still produce
+large checkpoints. No storage ceiling or guaranteed real-browser target is added.
 
 ## Responsibilities and layout
 
@@ -205,7 +262,7 @@ Users need ordinary exported backups to recover deleted budgets.
 
 ## Memory, UI metrics and remaining limits
 
-- Native rollback-journal capture reads bounded 256 KiB ranges.
+- Native rollback-journal capture reads bounded 64 KiB ranges.
 - SAH-pool still allocates one complete worker-side database buffer in its installed
   export API. Capture uses `subarray()` views, not repeated whole-buffer copies.
 - Installed WAL serialization allocates a database-sized WASM result, copies it to
@@ -241,7 +298,7 @@ Relay, ownership, lifecycle, initial-import and pending-recovery tests remain.
 
 Validation on 2026-09-04:
 
-- Focused restore-point unit file: 45 tests passed; architecture/UI contracts:
+- Focused restore-point unit file: 47 tests passed; architecture/UI contracts:
   4 tests passed; shipped worker integration: 6 tests passed; relay restore:
   2 tests passed.
 - Full unit suite: 135/135 files passed, including ownership/lifecycle regression,
@@ -259,7 +316,9 @@ Validation on 2026-09-04:
   .sqlite3 references belong to active/physical/staged databases and normal export;
   totalBytes describes logical image length or separate baseline/relay transfer.
 
-Scheduling/retention, deletion policy, ownership and restore journal/relay algorithms
-are unchanged. This pass changes only the snapshot storage/types, worker capture
-range and reconstruction adapters, Settings metrics, associated tests and audit
-documentation. Test success is evidence for independent review, not merge approval.
+This granularity follow-up changes one production constant. Storage architecture,
+schema fields, GC, reconstruction, Settings metrics, scheduling/retention, deletion
+policy, ownership and restore journal/relay algorithms are unchanged. Tests add
+candidate-size/page-range diagnostics, realistic same-edit comparison, all-page-size
+alignment and malformed-layout coverage. Audit tooling and documentation record
+the tradeoffs. Test success is evidence for independent review, not merge approval.

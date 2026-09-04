@@ -6,7 +6,7 @@ import { REQUIRED_BUDGET_DOMAINS } from "../persistence/localFirst/contracts";
 
 export const RESTORE_POINT_DIRECTORY = "budget-app-sqlite-restore-points";
 // A multiple of every supported SQLite page size (512 through 65536 bytes).
-export const RESTORE_POINT_CHUNK_BYTES = 256 * 1024;
+export const RESTORE_POINT_CHUNK_BYTES = 64 * 1024;
 const SAFE_ID = /^[a-zA-Z0-9-]{1,100}$/;
 const HASH = /^[a-f0-9]{64}$/;
 type Directory = "manifests" | "chunks";
