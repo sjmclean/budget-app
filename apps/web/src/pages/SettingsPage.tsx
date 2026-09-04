@@ -1259,6 +1259,7 @@ export function SettingsPage({
                   <aside className="settings-history-detail" aria-label="Selected restore point details">
                     {selectedSnapshot ? (
                       <>
+                        <div className="settings-history-detail-content" tabIndex={0} role="region" aria-label="Restore point metadata and warning">
                         <div>
                           <p className="eyebrow">Restore point</p>
                           <h3>{getHistoryGroupLabel(selectedSnapshot.createdAt)}</h3>
@@ -1300,6 +1301,7 @@ export function SettingsPage({
                         <p className="settings-history-warning">
                           Restoring replaces your current budget with the selected version. Budget App creates safety restore points automatically before major changes.
                         </p>
+                        </div>
 
                         <div className="settings-history-actions settings-history-actions--restore-only">
                           <Button type="button" variant="primary" onClick={restoreSelectedSnapshot} disabled={restorePointBusy}>

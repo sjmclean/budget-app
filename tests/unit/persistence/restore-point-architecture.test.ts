@@ -6,6 +6,26 @@ import { resolveOwnedBudgetId } from "../../../apps/web/src/features/persistence
 
 const read = (path: string) => readFileSync(new URL(`../../../apps/web/src/${path}`, import.meta.url), "utf8");
 
+test("Restore Points keeps metadata scrollable and its action in a reserved footer", () => {
+  const settings = read("pages/SettingsPage.tsx");
+  const css = read("styles/globals.css");
+  const rule = (selector: string) => {
+    const start = css.indexOf(`\n${selector} {`, selector === ".settings-history-detail" ? css.indexOf(".settings-history-row.selected .settings-history-dot") : 0);
+    assert.ok(start >= 0, selector);
+    return css.slice(start, css.indexOf("}", start));
+  };
+  assert.match(settings, /className="settings-history-detail-content" tabIndex=\{0\} role="region" aria-label="Restore point metadata and warning"/);
+  assert.match(settings, /className="settings-history-warning">[\s\S]*?<\/p>\s*<\/div>\s*<div className="settings-history-actions settings-history-actions--restore-only">/);
+  assert.match(settings, /onClick=\{restoreSelectedSnapshot\} disabled=\{restorePointBusy\}/);
+  assert.match(rule(".settings-history-list,\n.settings-history-detail"), /max-height: min\(32rem, 55dvh\)/);
+  assert.match(rule(".settings-history-list"), /overflow-y: auto/);
+  assert.match(rule(".settings-history-detail"), /grid-template-rows: minmax\(0, 1fr\) auto/);
+  assert.match(rule(".settings-history-detail-content"), /min-height: 0/);
+  assert.match(rule(".settings-history-detail-content"), /overflow-y: auto/);
+  assert.match(rule(".settings-history-detail > .settings-history-actions--restore-only"), /grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(css, /@media \(max-width: 900px\)\s*\{[\s\S]*?\.settings-history-layout\s*\{\s*grid-template-columns: 1fr/);
+});
+
 test("Settings and registry use only the new restore service, with no superseded files", () => {
   const obsolete = ["version", "History"].join("");
   for (const suffix of ["", "Lifecycle"]) assert.equal(existsSync(new URL(`../../../apps/web/src/features/budget/${obsolete}${suffix}.ts`, import.meta.url)), false);
