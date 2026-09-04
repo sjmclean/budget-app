@@ -14,6 +14,8 @@ import {
   type HostedBudgetCatalogueEntry,
 } from "./features/budget/budgetRegistry";
 import "./styles/globals.css";
+import { startRestorePointLifecycle } from "./features/budget/restorePointLifecycle";
+import { SELECTED_BUDGET_STORAGE_KEY } from "./features/budget/budgetDataScope";
 
 function getApplicationRoot(): HTMLElement {
   const root = document.getElementById("root");
@@ -73,6 +75,15 @@ export async function bootstrapApp() {
       await persistenceProvider.flush?.();
     }
     installPersistenceProviderLifecycle(persistenceProvider);
+    if (persistenceProvider.accountRegisterQueries?.createRestorePoint) {
+      const queries = persistenceProvider.accountRegisterQueries;
+      startRestorePointLifecycle({
+        activeBudgetId: () => queries.isLocalDatabaseReleased?.() ? null :
+          persistenceProvider.keyValueStorage?.getItem(SELECTED_BUDGET_STORAGE_KEY) ?? null,
+        capture: (budgetId) => queries.createRestorePoint!(budgetId, "timed"),
+        onError: (error) => console.error("Automatic restore point could not be completed.", error),
+      });
+    }
     startReplicationBackgroundService(persistenceProvider, {
       apiBaseUrl: (import.meta as ImportMeta & { env?: { VITE_BUDGET_API_URL?: string } }).env?.VITE_BUDGET_API_URL,
     });

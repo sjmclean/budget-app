@@ -61,6 +61,12 @@ test("switch followed immediately by real blank, YNAB4 and Actual workflows; rol
             break;
           case "rollbackStagedImport": events.push("rollback"); break;
           case "manifest": result = this.manifest; break;
+          case "captureRestorePoint":
+            assert.equal(request.input.reason, "initial-import");
+            assert.ok(events.indexOf("commit") < events.length);
+            events.push("initial-import");
+            result = { budgetId: this.manifest.budgetId };
+            break;
           case "getSyncState": result = { syncEpoch: "epoch", pulledCursor: 0, baselineHash: null }; break;
           case "prepareBaselineExport": result = { totalBytes: 1 }; break;
           case "readBaselineExportChunk": result = new Uint8Array([1]); break;
@@ -128,6 +134,10 @@ test("switch followed immediately by real blank, YNAB4 and Actual workflows; rol
       assert.equal(owner, null, name);
       assert.equal(events[0], "release:A", name);
       assert.ok(events.includes("stage") && events.includes("commit") && events.includes("upload"), name);
+      if (name !== "blank") {
+        assert.ok(events.indexOf("initial-import") > events.indexOf("commit"), name);
+        assert.ok(events.indexOf("initial-import") < events.indexOf("close"), name);
+      }
       assert.deepEqual(events.slice(-2), ["close", "terminate"], name);
     }
     const beforeFailure = useBudgetRegistryStore.getState().budgets.length;

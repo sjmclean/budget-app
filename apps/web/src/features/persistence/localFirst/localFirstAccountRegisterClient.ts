@@ -56,6 +56,10 @@ import {
 import { isCreditCardPaymentCategory } from "../../budget/creditCardPaymentCategories";
 import { createBudgetDatabaseOwnership } from "./budgetDatabaseOwnership";
 import { resolveOwnedBudgetId } from "./budgetDatabaseOwnershipRouting";
+import { createRestorePointStore } from "../../budget/restorePointStore";
+import { restorePointCoordinator } from "../../budget/restorePointCoordinator";
+import type { RestorePointReason } from "../../budget/restorePointTypes";
+import { createRestorePointReplacement } from "./restorePointReplacement";
 
 const DEVICE_ID_KEY = "budget-app.local-first.device-id";
 const SYNC_EPOCH_KEY_PREFIX = "budget-app.local-first.sync-epoch.";
@@ -67,6 +71,8 @@ export interface LocalFirstRegisterRuntimeOptions {
   readonly databaseFactory?: () => LocalBudgetDatabaseClient;
   readonly storage?: Pick<Storage, "getItem" | "setItem">;
   readonly tabSyncCoordinator?: LocalFirstTabSyncCoordinator;
+  readonly restorePointStore?: Pick<ReturnType<typeof createRestorePointStore>, "list" | "deleteBudget">;
+  readonly restorePointBudgetName?: (budgetId: string) => string | undefined;
 }
 
 /**
@@ -81,6 +87,7 @@ export function createLocalFirstAccountRegisterQueryClient(
   const relay = createLocalFirstRelayTransport({ apiBaseUrl: options.apiBaseUrl });
   const storage = options.storage ?? globalThis.localStorage;
   const deviceId = readOrCreateDeviceId(storage);
+  const restorePoints = options.restorePointStore ?? createRestorePointStore();
   const tabSyncCoordinator =
     options.tabSyncCoordinator ?? createLocalFirstTabSyncCoordinator();
   const sequenceKey = `budget-app.local-first.device-sequence.${deviceId}`;
@@ -95,6 +102,31 @@ export function createLocalFirstAccountRegisterQueryClient(
     readonly budgetId: string;
     readonly promise: Promise<void>;
   } | null = null;
+
+  async function captureOwnedRestorePoint(budgetId: string, reason: RestorePointReason) {
+    const local = database;
+    if (!local || activeBudgetId !== budgetId) {
+      if (reason === "timed" || reason === "before-switch" || reason === "before-import") return null;
+      throw new Error("Open the budget before creating its safety restore point.");
+    }
+    const mutationCount = restorePointCoordinator.count(budgetId);
+    const capturedVersion = restorePointCoordinator.version(budgetId);
+    if (reason === "timed" && mutationCount === 0) return null;
+    if (reason === "before-switch" || reason === "timed") {
+      const manifest = await local.getManifest();
+      const latest = (await restorePoints.list(budgetId))[0];
+      if (latest?.syncEpoch === manifest.syncEpoch && latest.localRevision === manifest.localRevision) {
+        restorePointCoordinator.checkpoint(budgetId, capturedVersion);
+        return null;
+      }
+    }
+    const point = await local.captureRestorePoint({
+      budgetName: options.restorePointBudgetName?.(budgetId) ?? budgetId,
+      reason, mutationCount,
+    });
+    restorePointCoordinator.checkpoint(budgetId, capturedVersion);
+    return point;
+  }
 
   async function drainLocalOutbox(
     local: LocalBudgetDatabaseClient,
@@ -144,22 +176,26 @@ export function createLocalFirstAccountRegisterQueryClient(
     if (database && activeBudgetId === budgetId) return database;
     if (opening) return opening;
     opening = (async () => {
-      const remote = await relay.getBootstrap(budgetId).catch(() => null);
+      let remote = await relay.getBootstrap(budgetId).catch(() => null);
+      if (database && activeBudgetId) await captureOwnedRestorePoint(activeBudgetId, "before-switch");
       await database?.close();
       database = null;
       activeBudgetId = null;
       activeSyncEpoch = null;
       activePulledCursor = 0;
-      const cachedSyncEpoch = storage.getItem(
+      let cachedSyncEpoch = storage.getItem(
         `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
       );
-      if (!remote && !cachedSyncEpoch) return null;
-      if (remote && (!remote.baseline || remote.schemaVersion !== LOCAL_BUDGET_SCHEMA_VERSION)) return null;
       const next =
         options.databaseFactory?.() ??
         new LocalBudgetDatabaseClient(undefined, storage);
       let oldGenerationProvenSafe = false;
       try {
+        const recovered = await createRestorePointReplacement({ database: next, relay, storage, deviceId }).recover(budgetId);
+        cachedSyncEpoch = storage.getItem(`${SYNC_EPOCH_KEY_PREFIX}${budgetId}`);
+        if (recovered) remote = await relay.getBootstrap(budgetId).catch(() => null);
+        if (!remote && !cachedSyncEpoch) return null;
+        if (remote && (!remote.baseline || remote.schemaVersion !== LOCAL_BUDGET_SCHEMA_VERSION)) return null;
         if (!remote) {
           if (!cachedSyncEpoch) return null;
           await next.open({
@@ -1454,6 +1490,21 @@ export function createLocalFirstAccountRegisterQueryClient(
     }));
   }
 
+  async function releaseLocalDatabase(deletingBudgetId?: string) {
+    await opening?.catch(() => null);
+    await synchronising?.promise.catch(() => undefined);
+    // A deleted budget has no product recovery workflow. Other open budgets
+    // still require their usual safety capture before giving up ownership.
+    if (database && activeBudgetId && activeBudgetId !== deletingBudgetId) {
+      await captureOwnedRestorePoint(activeBudgetId, "before-switch");
+    }
+    await database?.close();
+    database = null;
+    activeBudgetId = null;
+    activeSyncEpoch = null;
+    activePulledCursor = 0;
+  }
+
   const client: AccountRegisterQueryClient & {
     publishLocalBaseline(budgetId: string): Promise<boolean>;
     listSyncConflicts(budgetId: string): Promise<ReplicationConflict[]>;
@@ -1463,16 +1514,20 @@ export function createLocalFirstAccountRegisterQueryClient(
       resolution: "keep-local" | "accept-remote",
     ): Promise<void>;
   } = {
-    async releaseLocalDatabase() {
-      await opening?.catch(() => null);
-      await synchronising?.promise.catch(() => undefined);
-      await database?.close();
-      database = null;
-      activeBudgetId = null;
-      activeSyncEpoch = null;
-      activePulledCursor = 0;
-    },
+    releaseLocalDatabase: () => releaseLocalDatabase(),
     getBudgetExportUrl: lifecycle.getBudgetExportUrl,
+    listRestorePoints: (budgetId) => restorePoints.list(budgetId),
+    createRestorePoint: captureOwnedRestorePoint,
+    async restoreRestorePoint(budgetId, pointId) {
+      await synchronise(budgetId);
+      const local = await requireDatabase(budgetId);
+      await captureOwnedRestorePoint(budgetId, "before-restore");
+      const manifest = await createRestorePointReplacement({ database: local, relay, storage, deviceId }).restore(budgetId, pointId);
+      activeSyncEpoch = manifest.syncEpoch;
+      activePulledCursor = 0;
+      notifyLocalFirstMutationCommitted(budgetId);
+      return { restored: true, counts: { ...manifest.counts, transactionTagAssignments: 0 } };
+    },
     async exportBudget(budgetId) {
       await synchronise(budgetId);
       const local = await requireDatabase(budgetId);
@@ -1494,6 +1549,7 @@ export function createLocalFirstAccountRegisterQueryClient(
     async restoreBudget(budgetId, file) {
       await synchronise(budgetId);
       const local = await requireDatabase(budgetId);
+      await captureOwnedRestorePoint(budgetId, "before-restore");
       await local.beginBaselineReplacement({
         budgetId,
         syncEpoch: activeSyncEpoch!,
@@ -1529,6 +1585,7 @@ export function createLocalFirstAccountRegisterQueryClient(
     },
     async resetBudget(budgetId) {
       const local = await requireDatabase(budgetId);
+      await captureOwnedRestorePoint(budgetId, "before-reset");
       const epoch = await relay.resetEpoch(
         budgetId,
         LOCAL_BUDGET_SCHEMA_VERSION,
@@ -1553,6 +1610,16 @@ export function createLocalFirstAccountRegisterQueryClient(
     async deleteBudget(budgetId) {
       const local = await readyDatabase(budgetId);
       await lifecycle.deleteBudget(budgetId);
+      try {
+        await restorePoints.deleteBudget(budgetId);
+      } catch (error) {
+        // Authoritative deletion is committed. Storage cleanup cannot undo it or
+        // prevent registry removal; retain the existing boundary for diagnostics.
+        console.warn("Budget deleted; restore-point storage cleanup failed.", Object.assign(
+          new Error("Post-delete restore-point storage cleanup failed.", { cause: error }),
+          { authoritativeDeletionCompleted: true, budgetId },
+        ));
+      }
       try {
         await local?.deleteBudgetFile();
         await local?.close();
@@ -2994,8 +3061,8 @@ export function createLocalFirstAccountRegisterQueryClient(
         // leaves it closed. Restore/reset reuse the active client's lease.
         if (key === "deleteBudget") return ownership.exclusive(async () => {
           try { return await value.apply(target, args); }
-          finally { await client.releaseLocalDatabase!(); }
-        });
+          finally { await releaseLocalDatabase(args[0] as string); }
+        }, () => releaseLocalDatabase(args[0] as string));
         const budgetId = resolveOwnedBudgetId(key, args);
         return ownership.run(budgetId, () => value.apply(target, args));
       };

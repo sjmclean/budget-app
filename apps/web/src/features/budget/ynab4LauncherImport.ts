@@ -310,6 +310,7 @@ export async function createYnab4LauncherBudgetImportWithBackend(
           if (phase === "uploading") input.onProgress?.({ ...lastProgress, phase: "committing" });
         },
       });
+      await localDatabase.captureRestorePoint({ budgetName: budget.name, reason: "initial-import", mutationCount: 0 });
       await localDatabase.close();
       localDatabase = null;
     }

@@ -104,6 +104,30 @@ export interface LocalImportEntity {
 export type LocalBudgetWorkerRequest =
   | {
       readonly requestId: string;
+      readonly type: "prepareRestorePoint";
+      readonly budgetId: string;
+      readonly pointId: string;
+      readonly syncEpoch: string;
+      readonly deviceId: string;
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "openPreparedRestorePoint";
+      readonly promotion: LocalDatabasePromotionResult;
+      readonly previousSyncEpoch: string;
+      readonly deviceId: string;
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "abortPreparedRestorePoint" | "completePreparedRestorePoint";
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "captureRestorePoint";
+      readonly input: import("../../budget/restorePointTypes").CaptureRestorePointInput;
+    }
+  | {
+      readonly requestId: string;
       readonly type: "open";
       readonly budgetId: string;
       readonly syncEpoch: string;

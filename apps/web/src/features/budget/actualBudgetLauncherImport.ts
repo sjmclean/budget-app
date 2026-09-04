@@ -216,6 +216,7 @@ export async function createActualBudgetLauncherImportWithBackend(
       relay: provisioned.relay,
     });
 
+    await database.captureRestorePoint({ budgetName: budget.name, reason: "initial-import", mutationCount: 0 });
     await database.close();
     database = null;
 

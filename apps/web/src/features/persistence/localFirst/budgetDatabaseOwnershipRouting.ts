@@ -1,5 +1,8 @@
 const FIRST_ARGUMENT_BUDGET_METHODS = new Set([
   "exportBudget",
+  "listRestorePoints",
+  "createRestorePoint",
+  "restoreRestorePoint",
   "restoreBudget",
   "resetBudget",
   "publishLocalBaseline",

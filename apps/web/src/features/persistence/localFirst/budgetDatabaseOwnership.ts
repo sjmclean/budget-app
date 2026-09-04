@@ -42,14 +42,14 @@ export function createBudgetDatabaseOwnership(close: () => Promise<void>) {
     return result;
   }
 
-  function leave(): Promise<void> {
+  function leave(closeOperation: () => Promise<void> = close): Promise<void> {
     generation += 1;
     accepting = false;
     selectedBudget = undefined;
     if (release) return release;
     const result = enqueue(async () => {
       if (unsafeCleanup) throw unsafeCleanup;
-      await close();
+      await closeOperation();
     });
     release = result;
     void result.finally(() => { if (release === result) release = null; }).catch(() => undefined);
@@ -71,7 +71,7 @@ export function createBudgetDatabaseOwnership(close: () => Promise<void>) {
         if (unsafeCleanup) throw unsafeCleanup;
         try { return await operation(); }
         catch (error) {
-          if ((error as { code?: string })?.code === "LOCAL_DATABASE_RELEASE_FAILED") {
+          if (["LOCAL_DATABASE_RELEASE_FAILED", "RESTORE_PENDING"].includes((error as { code?: string })?.code ?? "")) {
             unsafeCleanup = error;
             accepting = false;
           }
@@ -79,7 +79,7 @@ export function createBudgetDatabaseOwnership(close: () => Promise<void>) {
         }
       });
     },
-    leave,
+    leave: () => leave(),
     enter(budgetId: string): Promise<void> {
       if (accepting && selectedBudget === budgetId) return Promise.resolve();
       const released = leave();
@@ -92,16 +92,16 @@ export function createBudgetDatabaseOwnership(close: () => Promise<void>) {
         accepting = true;
       });
     },
-    exclusive<T>(operation: () => Promise<T>): Promise<T> {
+    exclusive<T>(operation: () => Promise<T>, closeOperation?: () => Promise<void>): Promise<T> {
       // Reserve the exclusive slot immediately, before another enter/operation.
-      const released = leave();
+      const released = leave(closeOperation);
       return enqueue(async () => {
         await released;
         if (unsafeCleanup) throw unsafeCleanup;
         try {
           return await operation();
         } catch (error) {
-          if ((error as { code?: string })?.code === "LOCAL_DATABASE_RELEASE_FAILED") unsafeCleanup = error;
+          if (["LOCAL_DATABASE_RELEASE_FAILED", "RESTORE_PENDING"].includes((error as { code?: string })?.code ?? "")) unsafeCleanup = error;
           throw error;
         }
       });

@@ -27,14 +27,9 @@ import {
 } from "../features/budget/completeBudgetDeletion";
 import { resolveActiveBudget } from "../features/budget/activeBudget";
 import {
-  listVersionHistorySnapshots,
-  restoreVersionHistorySnapshot,
-  type VersionHistorySnapshotMetadata,
-} from "../features/budget/versionHistory";
-import {
-  createVersionHistorySnapshotBeforeBudgetDelete,
-  createVersionHistorySnapshotBeforeBudgetReset,
-} from "../features/budget/versionHistoryLifecycle";
+  RESTORE_POINT_LABELS,
+  type RestorePointMetadata,
+} from "../features/budget/restorePointTypes";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import {
   assertLegacyBudgetFeatureAvailable,
@@ -188,37 +183,22 @@ function getHistoryGroupLabel(isoTimestamp: string, now = new Date()): string {
   }).format(date);
 }
 
-function describeSnapshot(snapshot: VersionHistorySnapshotMetadata): string {
-  if (snapshot.description) {
-    return snapshot.description;
-  }
-
-  if (snapshot.source === "manual") {
-    return "Created manually.";
-  }
-
-  return "Created automatically by Budget App.";
+function describeSnapshot(snapshot: RestorePointMetadata): string {
+  return `${RESTORE_POINT_LABELS[snapshot.reason]}. Database size: ${(snapshot.totalBytes / 1024 / 1024).toFixed(1)} MiB. New chunk storage at capture: ${(snapshot.newBytesStored / 1024).toFixed(0)} KiB (${snapshot.newChunkCount} new / ${snapshot.chunks.length} referenced chunks). Excludes manifest and temporary-file overhead.`;
 }
 
-function formatSnapshotReason(snapshot: VersionHistorySnapshotMetadata): string {
-  return snapshot.reason
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+function formatSnapshotReason(snapshot: RestorePointMetadata): string {
+  return RESTORE_POINT_LABELS[snapshot.reason];
 }
 
-function formatSnapshotOrigin(snapshot: VersionHistorySnapshotMetadata): string {
-  return snapshot.origin === "manual" ? "Manual" : "Automatic";
-}
-
-function formatSnapshotChangedAreas(snapshot: VersionHistorySnapshotMetadata): string {
-  return snapshot.changedAreas.length ? snapshot.changedAreas.join(", ") : "Not specified";
+function formatSnapshotOrigin(snapshot: RestorePointMetadata): string {
+  return snapshot.reason === "manual" ? "Manual" : snapshot.reason === "timed" ? "Timed" : "Safety boundary";
 }
 
 function groupSnapshotsByDate(
-  snapshots: VersionHistorySnapshotMetadata[],
-): Array<{ label: string; snapshots: VersionHistorySnapshotMetadata[] }> {
-  const groups: Array<{ label: string; snapshots: VersionHistorySnapshotMetadata[] }> = [];
+  snapshots: RestorePointMetadata[],
+): Array<{ label: string; snapshots: RestorePointMetadata[] }> {
+  const groups: Array<{ label: string; snapshots: RestorePointMetadata[] }> = [];
 
   for (const snapshot of snapshots) {
     const label = getHistoryGroupLabel(snapshot.createdAt);
@@ -268,9 +248,8 @@ export function SettingsPage({
   const [portablePackagePreview, setPortablePackagePreview] = useState<PortableBudgetPackagePreview | null>(null);
   const [portablePackageRaw, setPortablePackageRaw] = useState<string | null>(null);
   const [portablePackageBusy, setPortablePackageBusy] = useState(false);
-  const [historySnapshots, setHistorySnapshots] = useState<VersionHistorySnapshotMetadata[]>(() =>
-    listVersionHistorySnapshots(getActiveKeyValueStorage()),
-  );
+  const [historySnapshots, setHistorySnapshots] = useState<RestorePointMetadata[]>([]);
+  const [restorePointBusy, setRestorePointBusy] = useState(false);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   useEffect(() => {
     if (!replicationStatus.supported) {
@@ -300,14 +279,22 @@ export function SettingsPage({
   }, [theme]);
 
   useEffect(() => {
-    const snapshots = listVersionHistorySnapshots(getActiveKeyValueStorage(), activeBudget?.id);
-    setHistorySnapshots(snapshots);
-    setSelectedSnapshotId((current) =>
-      current && snapshots.some((snapshot) => snapshot.id === current)
-        ? current
-        : snapshots[0]?.id ?? null,
-    );
-  }, [activeBudget?.id]);
+    let disposed = false;
+    setHistorySnapshots([]);
+    const refresh = () => {
+      if (!activeBudget?.id || !accountRegisterQueries?.listRestorePoints) return;
+      void accountRegisterQueries.listRestorePoints(activeBudget.id).then((snapshots) => {
+        if (disposed) return;
+        setHistorySnapshots(snapshots);
+        setSelectedSnapshotId((current) => current && snapshots.some(({ id }) => id === current) ? current : snapshots[0]?.id ?? null);
+      }).catch((error) => {
+        if (!disposed) setDataStatusMessage(error instanceof Error ? error.message : "Restore points could not be loaded.");
+      });
+    };
+    refresh();
+    window.addEventListener("budget-app:restore-points-changed", refresh);
+    return () => { disposed = true; window.removeEventListener("budget-app:restore-points-changed", refresh); };
+  }, [activeBudget?.id, accountRegisterQueries]);
 
 
 
@@ -610,8 +597,9 @@ export function SettingsPage({
     setRestorePackageRaw(null);
   }
 
-  function refreshVersionHistory() {
-    const snapshots = listVersionHistorySnapshots(getActiveKeyValueStorage(), activeBudget?.id);
+  async function refreshRestorePoints() {
+    const snapshots = activeBudget?.id && accountRegisterQueries?.listRestorePoints
+      ? await accountRegisterQueries.listRestorePoints(activeBudget.id) : [];
     setHistorySnapshots(snapshots);
     setSelectedSnapshotId((current) =>
       current && snapshots.some((snapshot) => snapshot.id === current)
@@ -621,8 +609,8 @@ export function SettingsPage({
   }
 
   async function restoreSelectedSnapshot() {
-    if (!(await ensureHostedDataOperationSupported("Version-history restore"))) return;
-    if (!selectedSnapshot) {
+    if (restorePointBusy) return;
+    if (!selectedSnapshot || !activeBudget || !accountRegisterQueries?.restoreRestorePoint) {
       setDataStatusMessage("Choose a restore point before restoring.");
       return;
     }
@@ -639,17 +627,17 @@ export function SettingsPage({
       return;
     }
 
-    const result = restoreVersionHistorySnapshot(getActiveKeyValueStorage(), selectedSnapshot.id);
-
-    if (!result.restored) {
-      setDataStatusMessage(result.errors[0] ?? "Restore point could not be restored.");
-      return;
+    setRestorePointBusy(true);
+    try {
+      await accountRegisterQueries.restoreRestorePoint(activeBudget.id, selectedSnapshot.id);
+      applicationHistory.clear(activeBudget.id);
+      await refreshRestorePoints();
+      setDataStatusMessage(`Restored ${selectedSnapshot.budgetName} to ${formatHistoryDateTime(selectedSnapshot.createdAt)}. A before-restore safety point was preserved.`);
+    } catch (error) {
+      setDataStatusMessage(error instanceof Error ? error.message : "Restore point could not be restored.");
+    } finally {
+      setRestorePointBusy(false);
     }
-
-    if (activeBudget?.id) applicationHistory.clear(activeBudget.id);
-
-    refreshVersionHistory();
-    setDataStatusMessage(`Restored ${selectedSnapshot.budgetName} to ${formatHistoryDateTime(selectedSnapshot.createdAt)}.`);
   }
 
   async function handleResetCurrentBudget() {
@@ -684,7 +672,6 @@ export function SettingsPage({
       return;
     }
 
-    createVersionHistorySnapshotBeforeBudgetReset(getActiveKeyValueStorage());
     const result = resetCurrentBudget(getActiveKeyValueStorage());
     refreshBudgets();
 
@@ -721,23 +708,20 @@ export function SettingsPage({
       return;
     }
 
-    createVersionHistorySnapshotBeforeBudgetDelete(
-      getActiveKeyValueStorage(),
-      activeBudget.id,
-    );
-
     let result;
     const deletingBudgetId = activeBudget.id;
-    clearSelectedBudget();
     try {
       result = await completeBudgetDeletion(
         getBudgetPersistenceProvider(),
         deletingBudgetId,
         () => deleteBudgetById(getActiveKeyValueStorage(), deletingBudgetId),
       );
+      clearSelectedBudget();
     } catch (error) {
       if (shouldRestoreBudgetSelectionAfterDeletionFailure(error)) {
         selectBudget(deletingBudgetId);
+      } else {
+        clearSelectedBudget();
       }
       setDataStatusMessage(error instanceof Error ? error.message : "Budget deletion failed.");
       return;
@@ -1071,7 +1055,7 @@ export function SettingsPage({
                   >
                     <h3>Restore Points</h3>
                     <p className="muted">Review and restore one of the rolling restore points for the active budget.</p>
-                    <strong>{historySnapshots.length} of 30 restore points</strong>
+                    <strong>{historySnapshots.length} restore points</strong>
                   </button>
                   <div className="settings-action-card">
                     <h3>External Backups</h3>
@@ -1228,9 +1212,9 @@ export function SettingsPage({
                     <p className="eyebrow">Data protection</p>
                     <h2>Restore Points</h2>
                     <p className="muted">
-                      Budget App automatically keeps the last 30 restore points for {activeBudget?.name ?? "the active budget"}.
-                      Choose a point in time and restore when you need to recover your budget. Version History is separate from
-                      Undo/Redo and exported backup packages.
+                      Budget App creates restore points approximately every 10 minutes while you make changes.
+                      Recent restore points are kept at higher detail and older history is gradually thinned.
+                      Restore Points are separate from Undo/Redo and exported backups.
                     </p>
                   </div>
                   <Button type="button" variant="ghost" onClick={() => setDataView("overview")}>
@@ -1246,7 +1230,7 @@ export function SettingsPage({
                         <section key={group.label} className="settings-history-group">
                           <h3>{group.label}</h3>
                           <div className="settings-history-rows">
-                            {group.snapshots.map((snapshot, snapshotIndex) => (
+                            {group.snapshots.map((snapshot) => (
                               <button
                                 key={snapshot.id}
                                 type="button"
@@ -1256,11 +1240,8 @@ export function SettingsPage({
                                 <span className="settings-history-dot" aria-hidden="true" />
                                 <span>
                                   <strong>{formatHistoryTime(snapshot.createdAt)}</strong>
-                                  {snapshot.description ? <small>{snapshot.description}</small> : null}
+                                  <small>{formatSnapshotReason(snapshot)}</small>
                                 </span>
-                                {snapshotIndex === 0 && group.label === "Today" ? (
-                                  <em>Current</em>
-                                ) : null}
                                 <span aria-hidden="true">›</span>
                               </button>
                             ))}
@@ -1278,11 +1259,12 @@ export function SettingsPage({
                   <aside className="settings-history-detail" aria-label="Selected restore point details">
                     {selectedSnapshot ? (
                       <>
+                        <div className="settings-history-detail-content" tabIndex={0} role="region" aria-label="Restore point metadata and warning">
                         <div>
                           <p className="eyebrow">Restore point</p>
                           <h3>{getHistoryGroupLabel(selectedSnapshot.createdAt)}</h3>
                           <strong>{formatHistoryTime(selectedSnapshot.createdAt)}</strong>
-                          {selectedSnapshot.description ? <p>{selectedSnapshot.description}</p> : null}
+                          <p>{formatSnapshotReason(selectedSnapshot)}</p>
                         </div>
 
                         <dl>
@@ -1307,22 +1289,23 @@ export function SettingsPage({
                             <dd>{formatSnapshotReason(selectedSnapshot)}</dd>
                           </div>
                           <div>
-                            <dt>Changed areas</dt>
-                            <dd>{formatSnapshotChangedAreas(selectedSnapshot)}</dd>
+                            <dt>Transactions</dt>
+                            <dd>{selectedSnapshot.counts.transactions.toLocaleString()}</dd>
                           </div>
                           <div>
-                            <dt>Approximate changes</dt>
-                            <dd>{selectedSnapshot.approximateChanges}</dd>
+                            <dt>Mutations since checkpoint</dt>
+                            <dd>{selectedSnapshot.mutationCount.toLocaleString()}</dd>
                           </div>
                         </dl>
 
                         <p className="settings-history-warning">
                           Restoring replaces your current budget with the selected version. Budget App creates safety restore points automatically before major changes.
                         </p>
+                        </div>
 
                         <div className="settings-history-actions settings-history-actions--restore-only">
-                          <Button type="button" variant="primary" onClick={restoreSelectedSnapshot}>
-                            Restore
+                          <Button type="button" variant="primary" onClick={restoreSelectedSnapshot} disabled={restorePointBusy}>
+                            {restorePointBusy ? "Restoring…" : "Restore"}
                           </Button>
                         </div>
                       </>
@@ -1336,7 +1319,7 @@ export function SettingsPage({
                 </div>
 
                 <p className="settings-history-summary">
-                  Showing {historySnapshots.length} of 30 restore points. Older entries are thinned by time bucket automatically.
+                  Showing {historySnapshots.length} restore points. Older restore points are gradually thinned; safety points are retained independently from timed checkpoints.
                 </p>
               </>
             )}

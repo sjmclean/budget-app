@@ -619,6 +619,32 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/local-first/restores" && request.method === "POST") {
+      const body = await readJsonBody(request);
+      const result = performAuthorizedBudgetMutation(
+        authStore, authenticatedUser, localFirstBudgetId, "owner",
+        () => localFirstRelayStore.beginRestore(localFirstBudgetId, body.expected, body.manifest),
+      );
+      sendJson(response, 201, result);
+      return;
+    }
+
+    const localFirstRestoreMatch = url.pathname.match(/^\/api\/local-first\/restores\/([^/]+)\/commit$/);
+    if (localFirstRestoreMatch && request.method === "POST") {
+      const body = await readJsonBody(request);
+      const result = performAuthorizedBudgetMutation(
+        authStore, authenticatedUser, localFirstBudgetId, "owner",
+        () => localFirstRelayStore.commitBaseline(localFirstBudgetId, body.syncEpoch,
+          decodeURIComponent(localFirstRestoreMatch[1]), true),
+      );
+      sendJson(response, 201, result);
+      localFirstRelayEvents.publish(localFirstBudgetId, {
+        type: "epoch-reset", budgetId: localFirstBudgetId,
+        syncEpoch: body.syncEpoch, latestCursor: 0,
+      });
+      return;
+    }
+
     if (url.pathname === "/api/local-first/baselines" && request.method === "POST") {
       const body = await readJsonBody(request);
       sendJson(

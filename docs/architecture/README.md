@@ -4,6 +4,7 @@
 - [`persistence-audit-phase-1.md`](./persistence-audit-phase-1.md) — generated human-readable persistence inventory.
 - [`persistence-audit.json`](./persistence-audit.json) — generated machine-readable persistence inventory.
 - [`undo-redo.md`](./undo-redo.md) — undo/redo architecture.
+- [`sqlite-restore-points.md`](./sqlite-restore-points.md) — SQLite snapshots, rolling retention and recoverable epoch replacement.
 
 Run `pnpm audit:persistence` after persistence-related source changes and `pnpm docs:architecture:check` before committing architecture changes.
 

@@ -5401,7 +5401,7 @@ strong {
 
 .settings-history-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 0.85fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr);
   gap: 1rem;
   align-items: start;
 }
@@ -5409,6 +5409,10 @@ strong {
 .settings-history-list,
 .settings-history-detail {
   min-width: 0;
+  min-height: 0;
+  /* Fit within the modal's page scroller, including short desktop windows. */
+  max-height: min(32rem, 55dvh);
+  overflow-wrap: anywhere;
   border: 1px solid var(--border-soft);
   border-radius: 0.85rem;
   background: var(--surface);
@@ -5416,6 +5420,8 @@ strong {
 
 .settings-history-list {
   display: grid;
+  align-content: start;
+  overflow-y: auto;
   gap: 1rem;
   padding: 1rem;
 }
@@ -5501,8 +5507,30 @@ strong {
   position: sticky;
   top: 0;
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.settings-history-detail-content {
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  display: grid;
   gap: 1.1rem;
   padding: 1.1rem;
+}
+
+.settings-history-detail-content:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+
+/* Separate grid row reserves space: no metadata sits behind the action. */
+.settings-history-detail > .settings-history-actions--restore-only {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0.85rem 1.1rem;
+  border-top: 1px solid var(--border-soft);
+  background: var(--surface);
 }
 
 .settings-history-detail h3 {
@@ -5510,7 +5538,7 @@ strong {
   font-size: 1.3rem;
 }
 
-.settings-history-detail > div > strong {
+.settings-history-detail-content > div > strong {
   display: block;
   font-size: 1.15rem;
   margin-top: 0.15rem;
