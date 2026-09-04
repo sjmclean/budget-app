@@ -14,6 +14,7 @@ import {
   completeBudgetDeletion,
   shouldRestoreBudgetSelectionAfterDeletionFailure,
 } from "../features/budget/completeBudgetDeletion";
+import { BudgetBackupRestoreDialog } from "./budgetSelector/BudgetBackupRestoreDialog";
 
 
 type LaunchMode = "list" | "empty" | "budgetImport";
@@ -86,6 +87,7 @@ export function BudgetSelectorPage() {
   const selectBudget = useUIStore((state) => state.selectBudget);
   const clearSelectedBudget = useUIStore((state) => state.clearSelectedBudget);
   const [launchMode, setLaunchMode] = useState<LaunchMode>("list");
+  const [restoreBackupOpen, setRestoreBackupOpen] = useState(false);
   const [deleteBudgetId, setDeleteBudgetId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
@@ -152,6 +154,11 @@ export function BudgetSelectorPage() {
     markBudgetOpened(budgetId);
     selectBudget(budgetId);
     navigate("/dashboard");
+  }
+
+  function handleRestoredBudget(budgetId: string) {
+    setRestoreBackupOpen(false);
+    handleOpenBudget(budgetId);
   }
 
   function handleReturnToBudgets() {
@@ -437,10 +444,14 @@ export function BudgetSelectorPage() {
                   <em>Start Migration →</em>
                 </button>
 
-                <button type="button" className="budget-manager-action-card" disabled>
+                <button
+                  type="button"
+                  className="budget-manager-action-card"
+                  onClick={() => setRestoreBackupOpen(true)}
+                >
                   <span className="budget-manager-action-icon budget-manager-action-icon-amber" aria-hidden="true">▢</span>
                   <strong>Restore Backup</strong>
-                  <span>Restore a budget from a previous backup.</span>
+                  <span>Restore an existing budget from a previous SQLite backup.</span>
                   <em>Restore Now →</em>
                 </button>
 
@@ -484,6 +495,14 @@ export function BudgetSelectorPage() {
               onOpenBudget={handleOpenBudget}
             />
           </Suspense>
+        ) : null}
+
+        {restoreBackupOpen ? (
+          <BudgetBackupRestoreDialog
+            budgets={sortedBudgets}
+            onCancel={() => setRestoreBackupOpen(false)}
+            onRestored={handleRestoredBudget}
+          />
         ) : null}
 
         {budgetPendingRename ? (
@@ -572,7 +591,7 @@ export function BudgetSelectorPage() {
                   disabled={deleteInProgress}
                   onClick={handleConfirmDeleteBudget}
                 >
-                  {deleteInProgress ? "Deletingâ€¦" : "Delete Budget"}
+                  {deleteInProgress ? "Deleting…" : "Delete Budget"}
                 </Button>
               </div>
             </section>
