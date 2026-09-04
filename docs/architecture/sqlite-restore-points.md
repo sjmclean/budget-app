@@ -223,8 +223,16 @@ Retention/GC failure cannot fail an already completed capture. Shared chunks sur
 removal of any one manifest while another references them; deleting the last
 reference allows reclamation. An explicit store `collectGarbage(budgetId)` pass
 also exists; there is no new UI cleanup workflow. Protected manifests, monthly
-representatives, failed cleanup and snapshots predating budget deletion may still
-accumulate. Budget deletion does not sweep this separate storage namespace.
+representatives and failed cleanup may still accumulate. After authoritative
+budget deletion, the local-first client removes that budget's entire restore-point
+namespace under the same per-budget Web Lock as capture/read/GC, before local
+database-file cleanup. Recursive removal includes manifests, chunks, partials and
+unknown/orphan artifacts; the shared parent and other budgets are untouched.
+Missing namespaces are already clean. Cleanup failure is logged as a post-delete
+storage problem with `authoritativeDeletionCompleted: true`; it does not reject
+the completed deletion or prevent launcher removal. Other local cleanup failures
+retain their existing `authoritativeDeletionCompleted` error semantics. A failed
+OPFS cleanup can leave residual files; no automatic retry or recovery UI is added.
 
 ## Reconstruction and atomic restore
 

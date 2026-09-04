@@ -41,6 +41,8 @@ test("Settings and registry use only the new restore service, with no superseded
   assert.match(settings, /New chunk storage at capture:/);
   assert.match(settings, /snapshot.newBytesStored/);
   assert.match(settings, /Excludes manifest and temporary-file overhead/);
+  assert.match(settings, /safety points are retained independently from timed checkpoints/);
+  assert.doesNotMatch(settings, /safety points are protected/);
 });
 
 test("capture, listing and restore are explicitly owned methods", () => {

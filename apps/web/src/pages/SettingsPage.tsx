@@ -1319,7 +1319,7 @@ export function SettingsPage({
                 </div>
 
                 <p className="settings-history-summary">
-                  Showing {historySnapshots.length} restore points. Older timed entries are thinned automatically; safety points are protected.
+                  Showing {historySnapshots.length} restore points. Older restore points are gradually thinned; safety points are retained independently from timed checkpoints.
                 </p>
               </>
             )}

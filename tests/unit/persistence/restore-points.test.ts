@@ -167,6 +167,65 @@ function harness() {
   return { memory, store, capture, a: memory.budget("budget-A") };
 }
 
+test("budget deletion removes all namespace artifacts, preserves B, and waits for readers", async () => {
+  const { memory, store, capture, a } = harness();
+  const first = await capture();
+  const other = await capture(sqliteBytes(), 1, "manual", "budget-B");
+  for (const path of ["chunks/interrupted.partial", "chunks/orphan.bin", "manifests/broken.json", "unknown/nested/artifact"]) {
+    a.entries.set(path, new File(["orphan"], "artifact"));
+  }
+  let release!: () => void, started!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const reading = new Promise<void>(resolve => { started = resolve; });
+  const reader = store.read("budget-A", first.id, async (point, chunks) => {
+    started(); await gate; return collect(point, chunks);
+  });
+  await reading;
+  const deletion = createRestorePointStore(memory.forBudget).deleteBudget("budget-A");
+  await Promise.resolve();
+  assert.ok(a.entries.size > 0);
+  assert.equal(a.operations.includes("remove-budget-namespace"), false);
+  release(); await reader; await deletion;
+  assert.equal(a.entries.size, 0);
+  assert.equal((await store.list("budget-B"))[0].id, other.id);
+  assert.deepEqual(await store.read("budget-B", other.id, collect), Buffer.from(sqliteBytes()));
+  await store.deleteBudget("budget-A"); // idempotent
+});
+
+test("OPFS deletion uses the existing budget lock and removes only its encoded child recursively", async () => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  const calls: string[] = [];
+  let locked = false;
+  let failure: Error | undefined;
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: {
+    locks: { async request(name: string, operation: () => Promise<void>) {
+      calls.push(name); locked = true; try { await operation(); } finally { locked = false; }
+    } },
+    storage: { async getDirectory() { return {
+      async getDirectoryHandle(name: string, options: unknown) {
+        assert.equal(name, RESTORE_POINT_DIRECTORY); assert.equal(options, undefined);
+        assert.equal(locked, true);
+        if (failure) throw failure;
+        return { async removeEntry(child: string, options: unknown) {
+          assert.equal(locked, true); assert.equal(child, restorePointBudgetDirectory("A/../B"));
+          assert.deepEqual(options, { recursive: true }); calls.push(child);
+        } };
+      },
+    }; } },
+  } });
+  try {
+    await createRestorePointStore().deleteBudget("A/../B");
+    assert.deepEqual(calls, [`${RESTORE_POINT_DIRECTORY}:${restorePointBudgetDirectory("A/../B")}`, restorePointBudgetDirectory("A/../B")]);
+    failure = new DOMException("missing", "NotFoundError");
+    await createRestorePointStore().deleteBudget("A/../B");
+    failure = new DOMException("denied", "NotAllowedError");
+    await assert.rejects(createRestorePointStore().deleteBudget("A/../B"), /denied/);
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, "navigator", descriptor);
+    else Reflect.deleteProperty(globalThis, "navigator");
+  }
+});
+
 test("fixed chunk size aligns with every supported SQLite page size and verifies final partial chunks", async () => {
   for (const pageSize of [512, 1024, 2048, 4096, 8192, 16384, 32768, 65536]) {
     assert.equal(CHUNK % pageSize, 0);

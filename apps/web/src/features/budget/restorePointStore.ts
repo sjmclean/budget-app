@@ -11,7 +11,7 @@ const SAFE_ID = /^[a-zA-Z0-9-]{1,100}$/;
 const HASH = /^[a-f0-9]{64}$/;
 type Directory = "manifests" | "chunks";
 
-/** Every read/capture/GC holds the same cross-context, per-budget lock.
+/** Every read/capture/GC/namespace deletion holds the same cross-context, per-budget lock.
  * write must atomically publish complete contents on close, never partial bytes.
  */
 export interface RestorePointFiles {
@@ -20,6 +20,7 @@ export interface RestorePointFiles {
   read(directory: Directory, name: string): Promise<File>;
   write(directory: Directory, name: string, chunks: AsyncIterable<Uint8Array>): Promise<void>;
   remove(directory: Directory, name: string): Promise<void>;
+  removeBudgetNamespace(): Promise<void>;
 }
 
 /** Injective UTF-16 encoding: no separators, dot segments or Unicode normalization. */
@@ -63,6 +64,17 @@ export function opfsRestorePointFiles(budgetId: string): RestorePointFiles {
       }
     },
     async remove(kind, name) { await (await directory(kind)).removeEntry(name); },
+    async removeBudgetNamespace() {
+      // Resolve only the injectively encoded budget child; never remove the parent.
+      // Do not create directories during cleanup. Missing storage is already clean.
+      try {
+        const root = await navigator.storage.getDirectory();
+        const parent = await root.getDirectoryHandle(RESTORE_POINT_DIRECTORY);
+        await parent.removeEntry(budgetDirectory, { recursive: true });
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "NotFoundError")) throw error;
+      }
+    },
   };
 }
 
@@ -187,6 +199,11 @@ export function createRestorePointStore(filesForBudget: (budgetId: string) => Re
     return files.exclusive(() => garbageCollectUnlocked(files, budgetId));
   }
 
+  async function deleteBudget(budgetId: string) {
+    const files = filesForBudget(budgetId);
+    return files.exclusive(() => files.removeBudgetNamespace());
+  }
+
   async function capture(metadata: RestorePointCaptureMetadata, totalBytes: number,
     readChunk: (offset: number, length: number) => Promise<Uint8Array>) {
     const files = filesForBudget(metadata.budgetId);
@@ -258,5 +275,5 @@ export function createRestorePointStore(filesForBudget: (budgetId: string) => Re
       return point;
     });
   }
-  return { list, read, capture, collectGarbage };
+  return { list, read, capture, collectGarbage, deleteBudget };
 }

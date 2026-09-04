@@ -18,6 +18,7 @@ after(() => { globalThis.fetch = originalFetch; });
 function harness(hooks: {
   open?: () => Promise<void>; sync?: () => Promise<void>; close?: () => Promise<void>;
   capture?: () => Promise<void>; deleteRelay?: () => Promise<void>; deleteFile?: () => Promise<void>;
+  deleteRestorePoints?: () => Promise<void>;
 } = {}) {
   const values = new Map([ ["budget-app.local-first.device-id", "test-device"], ...["A", "B"].map((id) => [`budget-app.local-first.sync-epoch.${id}`, "epoch"])]);
   const events: string[] = [];
@@ -27,7 +28,8 @@ function harness(hooks: {
   } as never, {
     storage: { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value); } },
     tabSyncCoordinator: { run: async (_id, operation) => operation(), close() {} },
-    restorePointStore: { list: async () => [{ syncEpoch: "epoch", localRevision: 0 }] as never },
+    restorePointStore: { list: async () => [{ syncEpoch: "epoch", localRevision: 0 }] as never,
+      deleteBudget: async () => { await hooks.deleteRestorePoints?.(); } },
     databaseFactory: () => {
       let id = "";
       return {
@@ -56,6 +58,35 @@ function harness(hooks: {
   });
   return { client, events, owner: () => owner };
 }
+
+test("restore-point cleanup follows authoritative deletion; failure is diagnostic, not deletion failure", async () => {
+  const order: string[] = [];
+  const warnings: unknown[][] = [];
+  const warn = console.warn;
+  console.warn = (...args) => { warnings.push(args); };
+  try {
+    const { client, owner } = harness({
+      deleteRelay: async () => { order.push("authoritative"); },
+      deleteRestorePoints: async () => { order.push("restore-points"); throw new Error("OPFS denied"); },
+      deleteFile: async () => { order.push("local-file"); },
+      capture: async () => { assert.fail("no before-delete capture"); },
+    });
+    await client.deleteBudget("A");
+    assert.deepEqual(order, ["authoritative", "restore-points", "local-file"]);
+    assert.equal(owner(), null);
+    assert.equal(warnings.length, 1);
+    assert.match(String(warnings[0][0]), /Budget deleted; restore-point storage cleanup failed/);
+    assert.equal((warnings[0][1] as {authoritativeDeletionCompleted:boolean}).authoritativeDeletionCompleted, true);
+  } finally { console.warn = warn; }
+});
+
+test("failed authoritative deletion never removes restore-point storage", async () => {
+  const { client } = harness({
+    deleteRelay: async () => { throw new Error("relay rejected"); },
+    deleteRestorePoints: async () => { assert.fail("authoritative deletion must succeed first"); },
+  });
+  await assert.rejects(client.deleteBudget("A"), /relay rejected/);
+});
 
 test("simultaneous requests for different budgets do not share the global opening promise", async () => {
   const { client, events } = harness();

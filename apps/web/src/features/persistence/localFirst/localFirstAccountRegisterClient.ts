@@ -71,7 +71,7 @@ export interface LocalFirstRegisterRuntimeOptions {
   readonly databaseFactory?: () => LocalBudgetDatabaseClient;
   readonly storage?: Pick<Storage, "getItem" | "setItem">;
   readonly tabSyncCoordinator?: LocalFirstTabSyncCoordinator;
-  readonly restorePointStore?: Pick<ReturnType<typeof createRestorePointStore>, "list">;
+  readonly restorePointStore?: Pick<ReturnType<typeof createRestorePointStore>, "list" | "deleteBudget">;
   readonly restorePointBudgetName?: (budgetId: string) => string | undefined;
 }
 
@@ -1610,6 +1610,16 @@ export function createLocalFirstAccountRegisterQueryClient(
     async deleteBudget(budgetId) {
       const local = await readyDatabase(budgetId);
       await lifecycle.deleteBudget(budgetId);
+      try {
+        await restorePoints.deleteBudget(budgetId);
+      } catch (error) {
+        // Authoritative deletion is committed. Storage cleanup cannot undo it or
+        // prevent registry removal; retain the existing boundary for diagnostics.
+        console.warn("Budget deleted; restore-point storage cleanup failed.", Object.assign(
+          new Error("Post-delete restore-point storage cleanup failed.", { cause: error }),
+          { authoritativeDeletionCompleted: true, budgetId },
+        ));
+      }
       try {
         await local?.deleteBudgetFile();
         await local?.close();

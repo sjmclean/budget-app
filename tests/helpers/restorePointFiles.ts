@@ -11,6 +11,7 @@ export function memoryRestorePointFiles() {
       afterWrite?: (path: string) => void | Promise<void>;
       beforeRead?: (path: string) => void;
       beforeRemove?: (path: string) => void;
+      beforeRemoveBudgetNamespace?: () => void;
     } = {};
     let tail: Promise<unknown> = Promise.resolve();
     const files: RestorePointFiles = {
@@ -45,6 +46,11 @@ export function memoryRestorePointFiles() {
         faults.beforeRemove?.(path);
         operations.push(`remove:${path}`);
         entries.delete(path);
+      },
+      async removeBudgetNamespace() {
+        faults.beforeRemoveBudgetNamespace?.();
+        operations.push("remove-budget-namespace");
+        entries.clear();
       },
     };
     return { entries, operations, faults, files };
