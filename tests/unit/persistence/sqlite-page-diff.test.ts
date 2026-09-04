@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { compareSqliteImages, contentCost, sqliteHeader } from "../../../tools/performance/sqlitePageDiff";
-import { createRestorePointStore } from "../../../apps/web/src/features/budget/restorePointStore";
+import { createRestorePointStore, RESTORE_POINT_CHUNK_BYTES } from "../../../apps/web/src/features/budget/restorePointStore";
 import { emptyDomainCounts } from "../../../apps/web/src/features/persistence/localFirst/contracts";
 import { memoryRestorePointFiles } from "../../helpers/restorePointFiles";
 
@@ -11,6 +11,12 @@ function image(pages=40, size=8192) {
   bytes.write("SQLite format 3\0",0,"binary"); bytes.writeUInt16BE(size===65536?1:size,16);
   return bytes;
 }
+test("selected 64 KiB chunk size aligns with every supported SQLite page size",()=>{
+  assert.equal(RESTORE_POINT_CHUNK_BYTES,64*1024);
+  for(const size of [512,1024,2048,4096,8192,16384,32768,65536]) {
+    assert.equal(RESTORE_POINT_CHUNK_BYTES % size,0);
+  }
+});
 test("all legal page sizes and invalid headers",()=>{
   for(const size of [512,1024,2048,4096,8192,16384,32768,65536]) assert.equal(sqliteHeader(image(2,size)).pageSize,size);
   assert.throws(()=>sqliteHeader(Buffer.alloc(100)));

@@ -327,13 +327,43 @@ the tradeoffs. Test success is evidence for independent review, not merge approv
 
 ### Evidence boundaries
 
-**Actual browser evidence supplied by the user:** a roughly 37.7 MiB budget with
-20,769 transactions stored 17/151 new 256 KiB chunks (4,296 KiB) after one memo
-edit, and 58/604 new 64 KiB chunks (3,712 KiB) after one mutation. The 13.6%
-reduction invalidates the earlier assumption that chunk amplification alone
-explains the result. The two measurements are not known to be byte-for-byte the
-same database and mutation. No before/after images were available, so they cannot
-distinguish 58 scattered changed pages from hundreds of changed pages.
+**Earlier restore-point observations supplied by the user:** a roughly 37.7 MiB
+budget with about 20,769 transactions showed 17/151 new 256 KiB chunks (4,296 KiB)
+and 58/604 new 64 KiB chunks (3,712 KiB). These were capture-interval measurements,
+not an isolated before/after memo pair. The apparent 13.6% improvement prompted
+the investigation but must not be interpreted as the cost of a pure memo edit.
+
+**Isolated real-browser backup-pair evidence supplied subsequently by the user:**
+exactly one memo edit in a 39,526,400-byte database with 8,192-byte pages and about
+20,769 transactions changed **14 / 4,825 pages** (0.2902%). The other 4,811 pages
+remained identical. Changed pages represent 114,688 bytes (112 KiB), but only
+**523 byte positions** differ. These are supplied measurements, not a new run of
+the user's private files in this documentation follow-up.
+
+Changed page ranges (1-based): `1-2, 15, 17, 26-30, 1036, 3150, 4695, 4706, 4804`.
+Attribution includes `sqlite_schema`, `local_budget_metadata`,
+`local_budget_projection_cache`, its version/index structures,
+`local_budget_projection_dirty`, `local_budget_outbox`, outbox indexes,
+`sqlite_sequence`, `local_budget_outbox_pending`, `local_transactions`, and the
+freelist. The transaction page has 129 differing bytes and the outbox page 322;
+most remaining pages differ by only a handful of bytes.
+
+Content-addressed cost for this same isolated pair (payload only):
+
+| Chunk size | Ordered references | New chunks | New storage |
+|---|---:|---:|---:|
+| 8 KiB | 4,825 | 14 | 112 KiB |
+| 16 KiB | 2,413 | 11 | 176 KiB |
+| 32 KiB | 1,207 | 10 | 320 KiB |
+| **64 KiB** | **604** | **9** | **576 KiB** |
+| 128 KiB | 302 | 7 | 896 KiB |
+| 256 KiB | 151 | 6 | approximately 1.45 MiB |
+
+The 256 KiB storage value retains the supplied rounding; the other storage values
+are exact. The clean memo edit costs **576 KiB**, not 3,712 KiB, under current
+64 KiB chunking. The earlier 3,712 KiB restore point therefore included additional
+SQLite changes between captures; its precise intervening changes are not identified
+by this pair. It is not evidence that dedupe is ineffective.
 
 **Controlled fixture evidence:** `sqlite-page-churn.ts` creates 20,769 records
 using the real register schema and invokes function bodies extracted from the
@@ -417,16 +447,25 @@ Do not copy an uncheckpointed WAL main file alone;
 use the complete export or include/checkpoint its WAL. Keep files private: they
 contain financial data, and the report intentionally emits no row values.
 
-**Recommendation (inference):** investigate the actual browser image pair next.
-The realistic shipped-worker fixture strongly favors page-level content addressing
-(120 KiB versus 504 KiB for a memo edit), but the unexplained real 3,712 KiB result
-is too large to authorize that architecture yet. If the actual pair shows roughly
-58-100 scattered pages, page-level dedupe is the likely next option. If it shows
-hundreds of genuinely changed pages, first investigate the unconditional child,
-outbox and projection writes. Retain 64 KiB if measured savings are small relative
-to object/file-count complexity; abandon page-level dedupe only if repeated real
-images show unstable or broadly rewritten page content. No production behavior,
-chunk size, schema, GC, lifecycle, retention, ownership or restore logic changed.
+### Decision: retain 64 KiB
+
+The isolated real pair confirms sparse, scattered page changes, not hundreds of
+genuinely rewritten pages. Nevertheless, **64 KiB remains the selected production
+chunk size**. Page-level 8 KiB dedupe would reduce this checkpoint from 576 KiB to
+112 KiB, but increase ordered references from 604 to 4,825 (roughly 8x), with
+potentially many more unique OPFS files and per-chunk read/hash, manifest,
+catalogue, reconstruction and GC operations. References are not necessarily
+distinct files because identical content is shared. The additional complexity
+and operation pressure outweigh the storage benefit for the selected balance;
+page-level production dedupe is rejected for now, not deemed technically invalid.
+
+32 KiB would reduce this edit to 320 KiB but approximately double reference/file
+pressure. It also loses 64 KiB's alignment with every supported SQLite page size
+from 512 bytes through 64 KiB. It is therefore not selected either. Broad
+operations such as `VACUUM` or imports may still rewrite most pages; smaller chunks
+cannot guarantee small checkpoints for those operations. No production behavior,
+chunk size, schema, GC, lifecycle, retention, scheduling, ownership or restore
+logic changed, and chunk-size implementation is not reopened by this follow-up.
 
 Reproduce the controlled runs with `pnpm tsx tools/performance/sqlite-page-churn.ts`
 and `pnpm tsx tools/performance/sqlite-export-audit.ts`. The first emits the full
@@ -448,3 +487,11 @@ and worker/relay tests. `pnpm test:web-build`, `pnpm audit:persistence`,
 `pnpm docs:architecture:check` and `git diff --check` passed. Suite files were run
 through the installed tsx CLI individually because of the existing Windows runner
 resolution limitation. The export script's byte-equality assertions also passed.
+
+Final browser-evidence documentation/test follow-up: six focused page-diff tests
+and 47 focused restore-point tests passed, along with `pnpm test:web-build`,
+`pnpm docs:architecture:check` (including `audit:persistence:check`) and
+`git diff --check`. The added guard asserts that the selected production constant
+remains 64 KiB and aligns with every supported page size; no private database
+layout is encoded in tests. No production code changed, so full suites were not
+rerun for this small follow-up.
