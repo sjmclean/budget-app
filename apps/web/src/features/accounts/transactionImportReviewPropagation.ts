@@ -65,6 +65,13 @@ export function propagateImportReviewField({
   );
   if (!sourceIdentity) return [...candidates];
 
+  // A user choosing a transfer is changing transaction semantics, not merely
+  // teaching a merchant name. Never project that transfer choice onto sibling
+  // bank rows that happen to share the same statement description.
+  const sourceIsTransfer = Boolean(
+    sourceCandidate.lifecycle.proposal.transferAccountName,
+  );
+
   return candidates.map((candidate) => {
     const isSource = candidate.id === sourceCandidateId;
     const hasSameSource =
@@ -78,7 +85,9 @@ export function propagateImportReviewField({
     const proposal = candidate.lifecycle.proposal;
 
     if (field === "payee") {
-      if (!isSource && proposal.transferAccountName) return candidate;
+      if (!isSource && (sourceIsTransfer || proposal.transferAccountName)) {
+        return candidate;
+      }
       return {
         ...candidate,
         lifecycle: {
@@ -126,7 +135,11 @@ export function findHistoricalRegisterPayeeMatches(
   const eligible: HistoricalRegisterPayeeUpdate[] = [];
   let reconciledExcluded = 0;
 
-  if (!sourceIdentity || !targetIdentity) {
+  if (
+    !sourceIdentity ||
+    !targetIdentity ||
+    targetPayee.trim().toLocaleLowerCase().startsWith("transfer:")
+  ) {
     return { eligible, reconciledExcluded };
   }
 
