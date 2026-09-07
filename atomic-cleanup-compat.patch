@@ -1,0 +1,38 @@
+--- a/apps/web/src/features/accounts/importCommitEngine.ts
++++ b/apps/web/src/features/accounts/importCommitEngine.ts
+@@ -446,10 +446,10 @@ export function verifyImportCommitPlan(
+   plan: Pick<
+     ImportCommitPlan,
+     | "additions"
+     | "matchedTransactionUpdates"
+-    | "historicalPayeeUpdates"
+     | "provenanceAssignments"
+     | "payeeCreations"
+-  >,
++  > &
++    Partial<Pick<ImportCommitPlan, "historicalPayeeUpdates">>,
+ ): ImportCommitVerificationResult {
+   const issues: ImportCommitVerificationIssue[] = [];
+   const addIssue = (issue: ImportCommitVerificationIssue) => issues.push(issue);
+@@ -688,10 +688,11 @@ export function verifyImportCommitPlan(
+   }
+ 
+   const referencedStagedPayeeIds = new Set<string>();
++  const historicalPayeeUpdates = plan.historicalPayeeUpdates ?? [];
+   const payeeBearingTransactions = [
+     ...plan.additions,
+     ...plan.matchedTransactionUpdates,
+-    ...plan.historicalPayeeUpdates,
++    ...historicalPayeeUpdates,
+   ];
+ 
+   for (const transaction of payeeBearingTransactions) {
+@@ -1040,7 +1041,7 @@ export function verifyImportCommitPlan(
+     }
+   }
+ 
+-  for (const transaction of plan.historicalPayeeUpdates) {
++  for (const transaction of historicalPayeeUpdates) {
+     if (updateIds.has(transaction.id)) {
+       addIssue({
+         code: "duplicate-register-update",
