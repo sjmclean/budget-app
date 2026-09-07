@@ -1756,9 +1756,11 @@ export function TransactionImportDialog({
     if (!sourceIdentity) return;
     setHistoricalRegisterPayeeUpdates((current) =>
       current.filter((entry) => {
-        const source =
-          entry.transaction.rawPayee?.trim() || entry.transaction.payee;
-        return getImportRawPayeeIdentity(source) !== sourceIdentity;
+        const source = entry.transaction.rawPayee?.trim();
+        return (
+          !source ||
+          getImportRawPayeeIdentity(source) !== sourceIdentity
+        );
       }),
     );
   }
@@ -1776,10 +1778,23 @@ export function TransactionImportDialog({
     historicalPayeeOfferRef.current.add(offerKey);
 
     removeHistoricalPayeeMapping(sourceRawPayee);
+    const protectedMatchedTransactionIds = new Set(
+      [
+        ...candidates.filter((candidate) => candidate.status === "exact-match"),
+        ...matchedCandidates,
+      ].flatMap((candidate) => {
+        const transactionId =
+          candidate.matchedTransaction?.id ??
+          candidate.matchedTransactionId ??
+          "";
+        return transactionId ? [transactionId] : [];
+      }),
+    );
     const matches = findHistoricalRegisterPayeeMatches(
       transactions,
       sourceRawPayee,
       targetPayee,
+      protectedMatchedTransactionIds,
     );
     if (matches.eligible.length === 0) {
       historicalPayeeOfferRef.current.delete(offerKey);
@@ -1808,9 +1823,11 @@ export function TransactionImportDialog({
       if (confirmed) {
         setHistoricalRegisterPayeeUpdates((current) => {
           const withoutPrevious = current.filter((entry) => {
-            const source =
-              entry.transaction.rawPayee?.trim() || entry.transaction.payee;
-            return getImportRawPayeeIdentity(source) !== sourceIdentity;
+            const source = entry.transaction.rawPayee?.trim();
+            return (
+              !source ||
+              getImportRawPayeeIdentity(source) !== sourceIdentity
+            );
           });
           return [...withoutPrevious, ...matches.eligible];
         });
@@ -2114,12 +2131,27 @@ export function TransactionImportDialog({
   ): Promise<number> {
     if (historicalRegisterPayeeUpdates.length === 0) return 0;
 
-    const stagedByTransactionId = new Map(
-      historicalRegisterPayeeUpdates.map((entry) => [
-        entry.transaction.id,
-        entry,
-      ] as const),
+    const acceptedMatchedTransactionIds = new Set(
+      matchedCandidates.flatMap((candidate) => {
+        const transactionId =
+          candidate.matchedTransaction?.id ??
+          candidate.matchedTransactionId ??
+          "";
+        return transactionId ? [transactionId] : [];
+      }),
     );
+    const stagedByTransactionId = new Map(
+      historicalRegisterPayeeUpdates
+        .filter(
+          (entry) =>
+            !acceptedMatchedTransactionIds.has(entry.transaction.id),
+        )
+        .map((entry) => [
+          entry.transaction.id,
+          entry,
+        ] as const),
+    );
+    if (stagedByTransactionId.size === 0) return 0;
     const transactionIds = [...stagedByTransactionId.keys()];
     const freshTransactions = await loadTransactionsByIds(
       selectedAccountId,
@@ -2155,12 +2187,13 @@ export function TransactionImportDialog({
       if (!staged || transaction.reconciled || isTransferTransaction(transaction)) {
         continue;
       }
-      const sourceRawPayee =
-        staged.transaction.rawPayee?.trim() || staged.transaction.payee;
+      const sourceRawPayee = staged.transaction.rawPayee?.trim();
+      if (!sourceRawPayee) continue;
       const stillEligible = findHistoricalRegisterPayeeMatches(
         [transaction],
         sourceRawPayee,
         staged.payee,
+        acceptedMatchedTransactionIds,
       );
       if (stillEligible.eligible.length === 0) continue;
 
