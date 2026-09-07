@@ -16,6 +16,9 @@ import type {
   CreateActualBudgetLauncherImportInput,
   ActualBudgetLauncherImportResult,
 } from "../features/budget/actualBudgetLauncherImport";
+import type {
+  CreateLocalFirstBudgetFromBackupInput,
+} from "../features/budget/createLocalFirstBudgetFromBackup";
 import { deleteBudgetById, type BudgetLifecycleResult } from "../features/budget/budgetLifecycle";
 import { createLocalFirstBudgetFromSetup } from "../features/budget/newBudget/createLocalFirstBudgetFromSetup";
 import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
@@ -26,6 +29,7 @@ interface BudgetRegistryState {
   budgets: BudgetSummary[];
   createBudget: (input?: CreateBudgetRegistryInput) => BudgetSummary;
   createBudgetWithSetup: (setup: NewBudgetSetup) => Promise<BudgetSummary>;
+  restoreBackupAsNewBudget: (input: CreateLocalFirstBudgetFromBackupInput) => Promise<BudgetSummary>;
   importYnab4Budget: (input: CreateYnab4LauncherBudgetImportInput) => Promise<Ynab4LauncherImportResult>;
   importActualBudget: (input: CreateActualBudgetLauncherImportInput) => Promise<ActualBudgetLauncherImportResult>;
   updateBudget: (budgetId: string, input: UpdateBudgetRegistryInput) => BudgetSummary | null;
@@ -47,6 +51,18 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
     const budget = await createLocalFirstBudgetFromSetup(
       getActiveKeyValueStorage(),
       setup,
+    );
+    set({ budgets: readBudgetRegistry(getActiveKeyValueStorage()) });
+    return budget;
+  }),
+
+  restoreBackupAsNewBudget: async (input) => runWithExclusiveBudgetDatabase(async () => {
+    const { createLocalFirstBudgetFromBackup } = await import(
+      "../features/budget/createLocalFirstBudgetFromBackup"
+    );
+    const budget = await createLocalFirstBudgetFromBackup(
+      getActiveKeyValueStorage(),
+      input,
     );
     set({ budgets: readBudgetRegistry(getActiveKeyValueStorage()) });
     return budget;
