@@ -129,6 +129,7 @@ export function findHistoricalRegisterPayeeMatches(
   transactions: readonly RegisterTransactionView[],
   sourceRawPayee: string,
   targetPayee: string,
+  excludedTransactionIds: ReadonlySet<string> = new Set(),
 ): HistoricalRegisterPayeeMatchResult {
   const sourceIdentity = getImportRawPayeeIdentity(sourceRawPayee);
   const targetIdentity = normalisePayeeIdentity(targetPayee);
@@ -144,6 +145,7 @@ export function findHistoricalRegisterPayeeMatches(
   }
 
   for (const transaction of transactions) {
+    if (excludedTransactionIds.has(transaction.id)) continue;
     if (isTransferTransaction(transaction)) continue;
 
     const transactionSource = transaction.rawPayee?.trim();
