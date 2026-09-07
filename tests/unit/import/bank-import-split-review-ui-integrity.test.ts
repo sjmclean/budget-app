@@ -42,7 +42,7 @@ test("bank import review uses the shared register split editor", () => {
 test("selecting Split opens an editor instead of immediately persisting an empty split", () => {
   assert.match(
     dialogSource,
-    /if\s*\(value === "Split" && currentCandidate\)\s*\{\s*beginProposalSplitEdit\(currentCandidate\);\s*return;/,
+    /if\s*\(value === "Split"\)\s*\{[\s\S]*?markImportReviewFieldEdited\(current, candidateId, "category"\)[\s\S]*?beginProposalSplitEdit\(currentCandidate\);\s*return;/,
   );
 
   assert.match(
