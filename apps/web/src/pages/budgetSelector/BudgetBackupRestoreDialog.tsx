@@ -1,8 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "../../components/ui/Button";
-import { getBudgetPersistenceProvider } from "../../features/persistence/budgetPersistenceProviderFactory";
-import { confirmDialog } from "../../features/ui/appDialogService";
-import type { BudgetSummary } from "../../stores/budgetRegistryStore";
+import { useBudgetRegistryStore, type BudgetSummary } from "../../stores/budgetRegistryStore";
 
 const SQLITE_HEADER = "SQLite format 3\u0000";
 
@@ -33,6 +31,35 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MiB`;
 }
 
+function normaliseBackupName(fileName: string): string {
+  return fileName
+    .replace(/\.(?:budget-sqlite|sqlite3?|db)$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function suggestRestoredBudgetName(
+  fileName: string,
+  budgets: readonly Pick<BudgetSummary, "name">[],
+): string {
+  const base = normaliseBackupName(fileName) || "Restored Budget";
+  const existing = new Set(
+    budgets.map((budget) => budget.name.trim().toLocaleLowerCase()),
+  );
+
+  if (!existing.has(base.toLocaleLowerCase())) return base;
+
+  const firstRestored = `${base} (Restored)`;
+  if (!existing.has(firstRestored.toLocaleLowerCase())) return firstRestored;
+
+  let suffix = 2;
+  while (existing.has(`${base} (Restored ${suffix})`.toLocaleLowerCase())) {
+    suffix += 1;
+  }
+  return `${base} (Restored ${suffix})`;
+}
+
 export function BudgetBackupRestoreDialog({
   budgets,
   onCancel,
@@ -42,11 +69,14 @@ export function BudgetBackupRestoreDialog({
   onCancel: () => void;
   onRestored: (budgetId: string) => void;
 }) {
-  const [budgetId, setBudgetId] = useState("");
+  const restoreBackupAsNewBudget = useBudgetRegistryStore(
+    (state) => state.restoreBackupAsNewBudget,
+  );
   const [backupFile, setBackupFile] = useState<File | null>(null);
+  const [budgetName, setBudgetName] = useState("");
+  const [nameWasEdited, setNameWasEdited] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const targetBudget = budgets.find((budget) => budget.id === budgetId) ?? null;
 
   async function selectBackupFile(file: File | null) {
     setBackupFile(null);
@@ -60,6 +90,10 @@ export function BudgetBackupRestoreDialog({
         return;
       }
       setBackupFile(file);
+      if (!nameWasEdited || !budgetName.trim()) {
+        setBudgetName(suggestRestoredBudgetName(file.name, budgets));
+        setNameWasEdited(false);
+      }
     } catch {
       setError("Budget App could not read the selected backup file.");
     }
@@ -68,58 +102,30 @@ export function BudgetBackupRestoreDialog({
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
-    if (!targetBudget) {
-      setError("Choose the existing budget this backup belongs to.");
-      return;
-    }
     if (!backupFile) {
       setError("Choose a valid SQLite budget backup.");
       return;
     }
 
-    const confirmed = await confirmDialog({
-      title: `Restore “${targetBudget.name}” from backup?`,
-      message:
-        "Budget App will verify that the backup belongs to this budget before replacing anything. If validation succeeds, the current budget data will be replaced atomically with the backup.",
-      confirmLabel: "Restore budget",
-      cancelLabel: "Cancel",
-      tone: "danger",
-    });
-    if (!confirmed) return;
-
-    const queries = getBudgetPersistenceProvider().accountRegisterQueries;
-    if (
-      !queries?.restoreBudget ||
-      !queries.activateLocalBudget ||
-      !queries.releaseLocalDatabase
-    ) {
-      setError("SQLite budget restore is unavailable in this browser session.");
+    const nextName = budgetName.trim();
+    if (!nextName) {
+      setError("Enter a name for the restored budget.");
       return;
     }
 
     setBusy(true);
     setError(null);
-    let activated = false;
     try {
-      await queries.activateLocalBudget(targetBudget.id);
-      activated = true;
-      await queries.restoreBudget(targetBudget.id, backupFile);
-      onRestored(targetBudget.id);
+      const budget = await restoreBackupAsNewBudget({
+        name: nextName,
+        file: backupFile,
+      });
+      onRestored(budget.id);
     } catch (restoreError) {
-      if (activated) {
-        try {
-          await queries.releaseLocalDatabase();
-        } catch (releaseError) {
-          console.error(
-            "Budget restore failed and the temporary launcher database could not be released.",
-            releaseError,
-          );
-        }
-      }
       setError(
         restoreError instanceof Error
           ? restoreError.message
-          : "The budget backup could not be restored.",
+          : "The budget backup could not be restored as a new budget.",
       );
     } finally {
       setBusy(false);
@@ -139,57 +145,47 @@ export function BudgetBackupRestoreDialog({
             Restore Backup
           </h2>
           <p className="app-dialog-message">
-            Restore an existing budget from a SQLite backup created by Budget App.
-            Choose the budget first, then select its backup file. The backup identity
-            and sync lineage are checked before any replacement is activated.
+            Create a new independent budget from a SQLite backup created by Budget App.
+            Existing budgets will not be changed or replaced.
           </p>
 
-          {budgets.length === 0 ? (
-            <p className="form-error" role="alert">
-              There are no existing budgets to restore. Backup restore currently
-              requires the original budget to exist in Budget Manager.
+          <label className="form-field">
+            <span className="field-label">Backup file</span>
+            <input
+              type="file"
+              accept=".budget-sqlite,application/vnd.sqlite3,application/x-sqlite3,application/octet-stream"
+              disabled={busy}
+              onChange={(event) =>
+                void selectBackupFile(event.currentTarget.files?.[0] ?? null)
+              }
+            />
+          </label>
+
+          {backupFile ? (
+            <p className="muted">
+              Selected: {backupFile.name} · {formatFileSize(backupFile.size)}
             </p>
-          ) : (
-            <>
-              <label className="form-field">
-                <span className="field-label">Budget to restore</span>
-                <select
-                  className="text-input"
-                  value={budgetId}
-                  disabled={busy}
-                  onChange={(event) => {
-                    setBudgetId(event.target.value);
-                    setError(null);
-                  }}
-                >
-                  <option value="">Choose a budget…</option>
-                  {budgets.map((budget) => (
-                    <option key={budget.id} value={budget.id}>
-                      {budget.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+          ) : null}
 
-              <label className="form-field">
-                <span className="field-label">Backup file</span>
-                <input
-                  type="file"
-                  accept=".budget-sqlite,application/vnd.sqlite3,application/x-sqlite3,application/octet-stream"
-                  disabled={busy}
-                  onChange={(event) =>
-                    void selectBackupFile(event.currentTarget.files?.[0] ?? null)
-                  }
-                />
-              </label>
+          <label className="form-field">
+            <span className="field-label">Budget name</span>
+            <input
+              className="text-input"
+              type="text"
+              value={budgetName}
+              disabled={busy}
+              placeholder="Restored Budget"
+              onChange={(event) => {
+                setBudgetName(event.target.value);
+                setNameWasEdited(true);
+                setError(null);
+              }}
+            />
+          </label>
 
-              {backupFile ? (
-                <p className="muted">
-                  Selected: {backupFile.name} · {formatFileSize(backupFile.size)}
-                </p>
-              ) : null}
-            </>
-          )}
+          <p className="muted">
+            The restored copy receives a new budget identity and sync history, so it can safely coexist with the original budget.
+          </p>
 
           {error ? <p className="form-error" role="alert">{error}</p> : null}
 
@@ -204,9 +200,9 @@ export function BudgetBackupRestoreDialog({
             </Button>
             <Button
               type="submit"
-              disabled={busy || !targetBudget || !backupFile}
+              disabled={busy || !backupFile || !budgetName.trim()}
             >
-              {busy ? "Restoring…" : "Restore Budget"}
+              {busy ? "Restoring…" : "Restore as New Budget"}
             </Button>
           </div>
         </form>
