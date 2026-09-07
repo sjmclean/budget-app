@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T03:12:02.276Z",
+  "generatedAt": "2026-09-07T02:35:51.131Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -15,7 +15,7 @@
     "localStorage": 17,
     "indexedDB": 2,
     "replicationApi": 2,
-    "persistenceBoundary": 65,
+    "persistenceBoundary": 66,
     "operationJournal": 11,
     "checkpoints": 7
   },
@@ -73,6 +73,7 @@
     "apps/web/src/features/budget/budgetViewService.ts",
     "apps/web/src/features/budget/categoryEntities.ts",
     "apps/web/src/features/budget/completeBudgetDeletion.ts",
+    "apps/web/src/features/budget/createLocalFirstBudgetFromBackup.ts",
     "apps/web/src/features/budget/creditCardBehaviourService.ts",
     "apps/web/src/features/budget/creditCardPaymentCategories.ts",
     "apps/web/src/features/budget/entities/budgetMonthEntity.ts",
@@ -940,6 +941,16 @@
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/completeBudgetDeletion.ts",
       "line": 22
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/createLocalFirstBudgetFromBackup.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/createLocalFirstBudgetFromBackup.ts",
+      "line": 29
     },
     {
       "kind": "persistenceBoundary",
