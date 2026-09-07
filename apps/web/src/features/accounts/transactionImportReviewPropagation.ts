@@ -146,7 +146,8 @@ export function findHistoricalRegisterPayeeMatches(
   for (const transaction of transactions) {
     if (isTransferTransaction(transaction)) continue;
 
-    const transactionSource = transaction.rawPayee?.trim() || transaction.payee;
+    const transactionSource = transaction.rawPayee?.trim();
+    if (!transactionSource) continue;
     if (getImportRawPayeeIdentity(transactionSource) !== sourceIdentity) {
       continue;
     }

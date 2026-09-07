@@ -171,10 +171,11 @@ test("same-file propagation does not silently edit matched register candidates",
   assert.equal(updated[1].lifecycle.proposal.payee, "XYZ PTY LTD");
 });
 
-test("historical register payee matches prefer rawPayee and exclude protected rows", () => {
+test("historical register payee matches require rawPayee and exclude protected rows", () => {
   const transactions = [
     registerTransaction({ id: "eligible", payee: "Old Display", rawPayee: "XYZ PTY LTD" }),
     registerTransaction({ id: "normalised", payee: "Other Display", rawPayee: "xyz  pty-ltd" }),
+    registerTransaction({ id: "display-only", payee: "XYZ PTY LTD" }),
     registerTransaction({ id: "reconciled", payee: "Old Display", rawPayee: "XYZ PTY LTD", reconciled: true }),
     registerTransaction({ id: "transfer", payee: "Transfer: Savings", rawPayee: "XYZ PTY LTD", transferAccountId: "savings" }),
     registerTransaction({ id: "already", payee: "XXX YYY", rawPayee: "XYZ PTY LTD" }),
