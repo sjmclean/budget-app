@@ -4,7 +4,7 @@ import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 import { LOCAL_BUDGET_SCHEMA_VERSION } from "../persistence/localFirst/contracts";
 
 type SqliteDatabase = {
-  pointer: unknown;
+  pointer: number;
   exec(options: string | {
     sql: string;
     bind?: readonly unknown[];
