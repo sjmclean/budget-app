@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { MutableRefObject } from "react";
 import type { RegisterTransactionView } from "./accountRegisterTypes";
-import type { PayeeView } from "./payeeService";
+import type { PayeeView, UpdatePayeeInput } from "./payeeService";
+import { createRuntimeUuid } from "../ids/createRuntimeUuid";
+import { appendCanonicalPayeeAlias } from "./payeeAliasLearning";
 import { buildPayeeRegisterSummaries } from "./payeeRegisterSummaries";
 import {
   measureRegisterPerformance,
@@ -11,6 +13,7 @@ import {
 interface PayeeManagerPayeesPersistence {
   listPayees(): Promise<PayeeView[]>;
   recordPayee(name: string): Promise<PayeeView[]>;
+  updatePayee(input: UpdatePayeeInput): Promise<PayeeView[]>;
   listArchivedPayees(): Promise<PayeeView[]>;
   renamePayee(input: { id: string; name: string }): Promise<PayeeView[]>;
   archivePayee(id: string): Promise<PayeeView[]>;
@@ -219,6 +222,33 @@ export function usePayeeManagerWorkflow({
     return created;
   }
 
+  async function learnPayeeAlias(
+    payeeId: string,
+    rawPayee: string,
+  ): Promise<boolean> {
+    const payee = payeeOptions.find((entry) => entry.id === payeeId);
+    if (!payee) return false;
+
+    const aliases = appendCanonicalPayeeAlias({
+      payee,
+      rawPayee,
+      aliasId: createRuntimeUuid(),
+    });
+    if (!aliases) return false;
+
+    const nextPayees = await payeesPersistence.updatePayee({
+      id: payee.id,
+      name: payee.name,
+      note: payee.note ?? "",
+      defaultCategoryId: payee.defaultCategoryId,
+      defaultCategoryName: payee.defaultCategoryName,
+      importRules: payee.importRules,
+      aliases,
+    });
+    setPayeeOptions(nextPayees);
+    return true;
+  }
+
   async function handleRenamePayee() {
     if (!selectedPayeeSummary) {
       return;
@@ -368,6 +398,7 @@ export function usePayeeManagerWorkflow({
   archivedPayeeOptions,
   refreshPayees,
   createInlinePayee,
+  learnPayeeAlias,
 
   isPayeeManagerOpen,
   setIsPayeeManagerOpen,

@@ -337,6 +337,7 @@ export function TransactionImportDialog({
   categoryOptions,
   transferAccounts,
   onCreateCategory,
+  onLearnPayeeAlias,
 }: {
   initialAccountId: string;
   accounts: { id: string; name: string }[];
@@ -373,6 +374,7 @@ export function TransactionImportDialog({
   onCreateCategory?: (
     input: RegisterInlineCategoryCreateInput,
   ) => Promise<BudgetCategoryOption>;
+  onLearnPayeeAlias: (payeeId: string, rawPayee: string) => Promise<boolean>;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const dateFormat = useDateFormatPreference();
@@ -2063,7 +2065,7 @@ export function TransactionImportDialog({
     setError(null);
   }
 
-  function acceptAliasSuggestion(suggestionId: string) {
+  async function acceptAliasSuggestion(suggestionId: string) {
     const suggestion = aliasSuggestions.find(
       (entry) => entry.id === suggestionId,
     );
@@ -2086,6 +2088,20 @@ export function TransactionImportDialog({
     });
     merchantKnowledgeRef.current = nextMerchantKnowledge;
     setMerchantKnowledge(nextMerchantKnowledge);
+
+    const canonicalPayee = payeeOptions.find(
+      (payee) =>
+        getImportRawPayeeIdentity(payee.name) ===
+        getImportRawPayeeIdentity(suggestion.suggestedTargetPayee),
+    );
+    if (canonicalPayee) {
+      try {
+        await onLearnPayeeAlias(canonicalPayee.id, suggestion.sourcePayee);
+      } catch (error) {
+        console.warn("Could not mirror accepted import alias to Payee Management.", error);
+      }
+    }
+
     setAliasSuggestions((current) =>
       current.filter((entry) => entry.id !== suggestion.id),
     );
@@ -2186,6 +2202,56 @@ export function TransactionImportDialog({
     return updates;
   }
 
+  function confirmedPayeeAliasLearnings(): Array<{
+    rawPayee: string;
+    targetPayee: string;
+  }> {
+    const learnings = [
+      ...importedCandidates.flatMap((candidate) =>
+        manualCandidateEdits[candidate.id]?.payee
+          ? [{
+              rawPayee: candidate.lifecycle.source.rawPayee,
+              targetPayee: candidate.lifecycle.proposal.payee,
+            }]
+          : [],
+      ),
+      ...matchedCandidates.flatMap((candidate) => {
+        const origin = matchedTransactionOrigins[candidate.id];
+        const targetPayee = candidate.matchedTransaction?.payee ?? "";
+        if (
+          !origin ||
+          !targetPayee ||
+          getImportRawPayeeIdentity(origin.payee) ===
+            getImportRawPayeeIdentity(targetPayee)
+        ) {
+          return [];
+        }
+        return [{
+          rawPayee: candidate.lifecycle.source.rawPayee,
+          targetPayee,
+        }];
+      }),
+    ];
+
+    return [...new Map(
+      learnings
+        .filter(({ rawPayee, targetPayee }) => {
+          const rawIdentity = getImportRawPayeeIdentity(rawPayee);
+          const targetIdentity = getImportRawPayeeIdentity(targetPayee);
+          return Boolean(
+            rawIdentity &&
+            targetIdentity &&
+            rawIdentity !== targetIdentity &&
+            !targetPayee.trim().toLocaleLowerCase().startsWith("transfer:"),
+          );
+        })
+        .map((learning) => [
+          `${getImportRawPayeeIdentity(learning.rawPayee)}\u0000${getImportRawPayeeIdentity(learning.targetPayee)}`,
+          learning,
+        ] as const),
+    ).values()];
+  }
+
   async function importSelected() {
     if (!["csv", "qif", "ofx", "qfx"].includes(fileType)) {
       setError("The selected file type cannot be committed.");
@@ -2205,6 +2271,7 @@ export function TransactionImportDialog({
     );
 
     try {
+      const payeeAliasLearnings = confirmedPayeeAliasLearnings();
       const historicalPayeeUpdates =
         await prepareHistoricalRegisterPayeeUpdates();
 
@@ -2322,6 +2389,40 @@ export function TransactionImportDialog({
       const historicalPayeesUpdated =
         result.historicalPayeeUpdates.length;
 
+      const committedPayeeIdsByName = new Map<string, string>();
+      for (const payee of payeeOptions) {
+        committedPayeeIdsByName.set(getImportRawPayeeIdentity(payee.name), payee.id);
+      }
+      for (const transaction of [
+        ...result.additions,
+        ...result.matchedTransactionUpdates,
+        ...result.historicalPayeeUpdates,
+      ]) {
+        if (transaction.payeeId) {
+          committedPayeeIdsByName.set(
+            getImportRawPayeeIdentity(transaction.payee),
+            transaction.payeeId,
+          );
+        }
+      }
+
+      let canonicalAliasesLearned = 0;
+      let canonicalAliasLearningFailed = false;
+      for (const learning of payeeAliasLearnings) {
+        const payeeId = committedPayeeIdsByName.get(
+          getImportRawPayeeIdentity(learning.targetPayee),
+        );
+        if (!payeeId) continue;
+        try {
+          if (await onLearnPayeeAlias(payeeId, learning.rawPayee)) {
+            canonicalAliasesLearned += 1;
+          }
+        } catch (error) {
+          canonicalAliasLearningFailed = true;
+          console.warn("Committed import payee alias could not be saved.", error);
+        }
+      }
+
       onImportCommitComplete?.({
         accountId: selectedAccountId,
         importedTransactionIds,
@@ -2357,6 +2458,12 @@ export function TransactionImportDialog({
           `${completion.failed} failed in ${accountName}.` +
           (historicalPayeesUpdated > 0
             ? ` ${historicalPayeesUpdated} existing payee${historicalPayeesUpdated === 1 ? "" : "s"} updated.`
+            : "") +
+          (canonicalAliasesLearned > 0
+            ? ` ${canonicalAliasesLearned} payee alias${canonicalAliasesLearned === 1 ? "" : "es"} learned.`
+            : "") +
+          (canonicalAliasLearningFailed
+            ? " Some payee aliases could not be added to Payee Management."
             : ""),
       );
       deleteTransactionImportSession(selectedAccountId);
