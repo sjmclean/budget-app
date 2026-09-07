@@ -1,0 +1,320 @@
+--- a/apps/web/src/features/accounts/importCommitEngine.ts
++++ b/apps/web/src/features/accounts/importCommitEngine.ts
+@@ -67,6 +67,7 @@
+   accountName: string;
+   importedCandidates: TransactionImportCandidate[];
+   matchedCandidates: TransactionImportCandidate[];
++  historicalPayeeUpdates?: RegisterTransactionView[];
+   completedSourceCandidates: TransactionImportCandidate[];
+   sourceIdentities: Readonly<
+     Record<string, TransactionImportSourceIdentity>
+@@ -156,6 +156,7 @@
+ export interface ImportCommitPlan {
+   additions: PlannedImportRegisterTransactionInput[];
+   matchedTransactionUpdates: RegisterTransactionView[];
++  historicalPayeeUpdates: RegisterTransactionView[];
+   provenanceAssignments: RegisterTransactionImportProvenanceAssignment[];
+   payeeCreations: RegisterTransactionImportPayeeCreation[];
+   merchantKnowledge: MerchantKnowledgeStore;
+@@ -168,4 +169,5 @@
+   | "completed-candidate-mismatch"
+   | "invalid-import-candidate"
+   | "invalid-matched-candidate"
++  | "invalid-historical-payee-update"
+   | "duplicate-register-update"
+@@ -203,6 +203,7 @@
+ export interface ImportCommitResult {
+   additions: NewRegisterTransactionInput[];
+   matchedTransactionUpdates: RegisterTransactionView[];
++  historicalPayeeUpdates: RegisterTransactionView[];
+   merchantKnowledge: MerchantKnowledgeStore;
+   audit: ImportCommitAuditRecord;
+ }
+@@ -446,6 +446,7 @@
+     ImportCommitPlan,
+     | "additions"
+     | "matchedTransactionUpdates"
++    | "historicalPayeeUpdates"
+     | "provenanceAssignments"
+     | "payeeCreations"
+   >,
+@@ -689,6 +689,7 @@
+   const payeeBearingTransactions = [
+     ...plan.additions,
+     ...plan.matchedTransactionUpdates,
++    ...plan.historicalPayeeUpdates,
+   ];
+ 
+   for (const transaction of payeeBearingTransactions) {
+@@ -1039,5 +1039,44 @@
+     }
+   }
+ 
++  for (const transaction of plan.historicalPayeeUpdates) {
++    if (updateIds.has(transaction.id)) {
++      addIssue({
++        code: "duplicate-register-update",
++        transactionId: transaction.id,
++        message: `Register transaction ${transaction.id} is scheduled for update more than once.`,
++      });
++    }
++    updateIds.add(transaction.id);
++
++    const hasTransferSemantics =
++      transaction.category === "Transfer" ||
++      transaction.payee.startsWith("Transfer: ") ||
++      Boolean(transaction.transferAccountId) ||
++      Boolean(transaction.transferTransactionId) ||
++      Boolean(
++        transaction.splitLines?.some(
++          (line) =>
++            Boolean(line.transferAccountId) ||
++            Boolean(line.transferTransactionId),
++        ),
++      );
++
++    if (
++      matchedRegisterIds.has(transaction.id) ||
++      transaction.reconciled ||
++      hasTransferSemantics ||
++      !transaction.rawPayee?.trim()
++    ) {
++      addIssue({
++        code: "invalid-historical-payee-update",
++        transactionId: transaction.id,
++        message:
++          `Historical payee update ${transaction.id} must be a distinct, ` +
++          "unreconciled, non-transfer transaction with retained raw payee provenance.",
++      });
++    }
++  }
++
+   return { valid: issues.length === 0, issues };
+ }
+@@ -1060,6 +1060,7 @@
+     ImportCommitPlan,
+     | "additions"
+     | "matchedTransactionUpdates"
++    | "historicalPayeeUpdates"
+     | "provenanceAssignments"
+     | "payeeCreations"
+   >,
+@@ -1165,6 +1165,9 @@
+   const plan = {
+     additions,
+     matchedTransactionUpdates,
++    historicalPayeeUpdates: [
++      ...(session.historicalPayeeUpdates ?? []),
++    ],
+     provenanceAssignments,
+     payeeCreations: [] as RegisterTransactionImportPayeeCreation[],
+     merchantKnowledge,
+@@ -1255,5 +1255,10 @@
+         const matchedTransactionUpdates = await Promise.all(
+           plan!.matchedTransactionUpdates.map((transaction) =>
++            resolvePayeeForSubmission(transaction, resolvePayee),
++          ),
++        );
++        const historicalPayeeUpdates = await Promise.all(
++          plan!.historicalPayeeUpdates.map((transaction) =>
+             resolvePayeeForSubmission(transaction, resolvePayee),
+           ),
+         );
+@@ -1262,5 +1267,6 @@
+           ...plan!,
+           additions,
+           matchedTransactionUpdates,
++          historicalPayeeUpdates,
+           payeeCreations: [...stagedPayeesById.values()],
+         };
+@@ -1284,16 +1284,22 @@
+     const requiresAtomicImportBatch =
+       plan.provenanceAssignments.length > 0 ||
+-      plan.payeeCreations.length > 0;
++      plan.payeeCreations.length > 0 ||
++      plan.historicalPayeeUpdates.length > 0;
+ 
+     if (requiresAtomicImportBatch && !adapters.commitTransactionBatch) {
+       throw new Error(
+-        "Import provenance or staged payee creation requires atomic register batch persistence.",
++        "Import provenance, staged payee creation, or historical payee cleanup requires atomic register batch persistence.",
+       );
+     }
+ 
++    const registerUpdates = [
++      ...plan.matchedTransactionUpdates,
++      ...plan.historicalPayeeUpdates,
++    ];
++
+     if (
+       plan.additions.length > 0 ||
+-      plan.matchedTransactionUpdates.length > 0 ||
++      registerUpdates.length > 0 ||
+       plan.provenanceAssignments.length > 0 ||
+       plan.payeeCreations.length > 0
+     ) {
+@@ -1312,7 +1312,7 @@
+           await adapters.commitTransactionBatch(
+             session.accountId,
+             plan!.additions,
+-            plan!.matchedTransactionUpdates,
++            registerUpdates,
+             plan!.provenanceAssignments,
+             plan!.payeeCreations,
+           );
+@@ -1335,6 +1335,6 @@
+-        if (plan!.matchedTransactionUpdates.length > 0) {
++        if (registerUpdates.length > 0) {
+           await adapters.updateTransactions(
+             session.accountId,
+-            plan!.matchedTransactionUpdates,
++            registerUpdates,
+           );
+         }
+@@ -1400,6 +1400,7 @@
+     return {
+       additions: plan.additions,
+       matchedTransactionUpdates: plan.matchedTransactionUpdates,
++      historicalPayeeUpdates: plan.historicalPayeeUpdates,
+       merchantKnowledge: plan.merchantKnowledge,
+       audit,
+     };
+--- a/apps/web/src/features/accounts/components/TransactionImportDialog.tsx
++++ b/apps/web/src/features/accounts/components/TransactionImportDialog.tsx
+@@ -20,6 +20,5 @@
+ import {
+   commitImportSession,
+   ImportCommitExecutionError,
+-  type ImportCommitResult,
+   type ImportPayeeResolution,
+ } from "../importCommitEngine";
+@@ -2128,7 +2128,7 @@
+-  async function applyHistoricalRegisterPayeeUpdates(
+-    result: ImportCommitResult,
+-  ): Promise<number> {
+-    if (historicalRegisterPayeeUpdates.length === 0) return 0;
++  async function prepareHistoricalRegisterPayeeUpdates(): Promise<
++    RegisterTransactionView[]
++  > {
++    if (historicalRegisterPayeeUpdates.length === 0) return [];
+ 
+     const acceptedMatchedTransactionIds = new Set(
+       matchedCandidates.flatMap((candidate) => {
+@@ -2150,35 +2150,12 @@
+           entry,
+         ] as const),
+     );
+-    if (stagedByTransactionId.size === 0) return 0;
+-    const transactionIds = [...stagedByTransactionId.keys()];
++    if (stagedByTransactionId.size === 0) return [];
++
+     const freshTransactions = await loadTransactionsByIds(
+       selectedAccountId,
+-      transactionIds,
++      [...stagedByTransactionId.keys()],
+     );
+-
+-    const resolvedPayees = new Map<string, { id: string; name: string }>();
+-    for (const payee of payeeOptions) {
+-      resolvedPayees.set(getImportRawPayeeIdentity(payee.name), {
+-        id: payee.id,
+-        name: payee.name,
+-      });
+-    }
+-    for (const transaction of [
+-      ...result.additions,
+-      ...result.matchedTransactionUpdates,
+-    ]) {
+-      if (!transaction.payeeId) continue;
+-      resolvedPayees.set(getImportRawPayeeIdentity(transaction.payee), {
+-        id: transaction.payeeId,
+-        name: transaction.payee,
+-      });
+-    }
+-
+-    const payeeCreationsByIdentity = new Map<
+-      string,
+-      RegisterTransactionImportPayeeCreation
+-    >();
+     const updates: RegisterTransactionView[] = [];
+ 
+     for (const transaction of freshTransactions) {
+@@ -2196,37 +2173,15 @@
+       );
+       if (stillEligible.eligible.length === 0) continue;
+ 
+-      const targetIdentity = getImportRawPayeeIdentity(staged.payee);
+-      let resolved = resolvedPayees.get(targetIdentity);
+-      if (!resolved) {
+-        const existingCreation = payeeCreationsByIdentity.get(targetIdentity);
+-        if (existingCreation) {
+-          resolved = existingCreation;
+-        } else {
+-          const creation = {
+-            id: createRuntimeUuid(),
+-            name: staged.payee.replace(/\s+/g, " ").trim(),
+-          };
+-          payeeCreationsByIdentity.set(targetIdentity, creation);
+-          resolved = creation;
+-        }
+-        resolvedPayees.set(targetIdentity, resolved);
+-      }
++      const targetPayee = staged.payee.replace(/\s+/g, " ").trim();
++      if (!targetPayee) continue;
+ 
+       updates.push({
+         ...transaction,
+-        payee: resolved.name,
+-        payeeId: resolved.id,
++        payee: targetPayee,
++        payeeId: undefined,
+       });
+     }
+ 
+-    if (updates.length === 0) return 0;
+-    await onCommitRegisterChanges(
+-      selectedAccountId,
+-      [],
+-      updates,
+-      [],
+-      [...payeeCreationsByIdentity.values()],
+-    );
+-    return updates.length;
++    return updates;
+   }
+@@ -2248,8 +2248,12 @@
+     try {
++      const historicalPayeeUpdates =
++        await prepareHistoricalRegisterPayeeUpdates();
++
+       const result = await commitImportSession(
+         {
+           accountId: selectedAccountId,
+           accountName,
+           importedCandidates,
+           matchedCandidates,
++          historicalPayeeUpdates,
+           completedSourceCandidates,
+@@ -2340,13 +2340,4 @@
+-      let historicalPayeesUpdated = 0;
+-      let historicalPayeeCleanupFailed = false;
+-      try {
+-        historicalPayeesUpdated = await applyHistoricalRegisterPayeeUpdates(result);
+-      } catch (cleanupError) {
+-        historicalPayeeCleanupFailed = true;
+-        console.error(
+-          "Import completed, but historical payee cleanup failed.",
+-          cleanupError,
+-        );
+-      }
++      const historicalPayeesUpdated =
++        result.historicalPayeeUpdates.length;
+ 
+       onImportCommitComplete?.({
+@@ -2388,6 +2388,3 @@
+           (historicalPayeesUpdated > 0
+             ? ` ${historicalPayeesUpdated} existing payee${historicalPayeesUpdated === 1 ? "" : "s"} updated.`
+-            : "") +
+-          (historicalPayeeCleanupFailed
+-            ? " The import succeeded, but the requested existing-payee updates could not be completed."
+             : ""),
