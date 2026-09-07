@@ -62,7 +62,7 @@ export interface TransactionImportSessionSnapshot {
   updateMatchedTransactionDates: boolean;
   /** Optional for snapshots written before import-review propagation existed. */
   manualCandidateEdits?: ImportReviewManualEdits;
-  /** Payee-only historical cleanups staged for the final atomic import commit. */
+  /** Payee-only historical cleanups staged to run after a successful import. */
   historicalRegisterPayeeUpdates?: HistoricalRegisterPayeeUpdate[];
 }
 
