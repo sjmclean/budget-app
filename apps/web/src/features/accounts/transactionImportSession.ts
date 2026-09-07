@@ -11,6 +11,10 @@ import type {
 } from "./transactionImport";
 import type { OfxImportInspection } from "./transactionImportInspection";
 import type { RegisterTransactionView } from "./accountRegisterTypes";
+import type {
+  HistoricalRegisterPayeeUpdate,
+  ImportReviewManualEdits,
+} from "./transactionImportReviewPropagation";
 import {
   readTransactionImportSessionEntity,
   tombstoneTransactionImportSessionEntity,
@@ -56,6 +60,10 @@ export interface TransactionImportSessionSnapshot {
   alreadyRepresentedCount: number;
   excludeMemos: boolean;
   updateMatchedTransactionDates: boolean;
+  /** Optional for snapshots written before import-review propagation existed. */
+  manualCandidateEdits?: ImportReviewManualEdits;
+  /** Payee-only historical cleanups staged for the final atomic import commit. */
+  historicalRegisterPayeeUpdates?: HistoricalRegisterPayeeUpdate[];
 }
 
 function getStorage() {
