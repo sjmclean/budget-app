@@ -180,12 +180,14 @@ test("historical register payee matches require rawPayee and exclude protected r
     registerTransaction({ id: "transfer", payee: "Transfer: Savings", rawPayee: "XYZ PTY LTD", transferAccountId: "savings" }),
     registerTransaction({ id: "already", payee: "XXX YYY", rawPayee: "XYZ PTY LTD" }),
     registerTransaction({ id: "different", payee: "Old Display", rawPayee: "ABC STORE" }),
+    registerTransaction({ id: "current-match", payee: "Explicit Current Edit", rawPayee: "XYZ PTY LTD" }),
   ];
 
   const matches = findHistoricalRegisterPayeeMatches(
     transactions,
     "XYZ PTY LTD",
     "XXX YYY",
+    new Set(["current-match"]),
   );
 
   assert.deepEqual(matches.eligible.map(({ transaction }) => transaction.id), [
