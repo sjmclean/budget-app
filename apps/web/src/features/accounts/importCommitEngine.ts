@@ -67,6 +67,7 @@ export interface ImportCommitSession {
   accountName: string;
   importedCandidates: TransactionImportCandidate[];
   matchedCandidates: TransactionImportCandidate[];
+  historicalPayeeUpdates?: RegisterTransactionView[];
   completedSourceCandidates: TransactionImportCandidate[];
   sourceIdentities: Readonly<
     Record<string, TransactionImportSourceIdentity>
@@ -156,6 +157,7 @@ export interface ImportCommitAuditRecord {
 export interface ImportCommitPlan {
   additions: PlannedImportRegisterTransactionInput[];
   matchedTransactionUpdates: RegisterTransactionView[];
+  historicalPayeeUpdates: RegisterTransactionView[];
   provenanceAssignments: RegisterTransactionImportProvenanceAssignment[];
   payeeCreations: RegisterTransactionImportPayeeCreation[];
   merchantKnowledge: MerchantKnowledgeStore;
@@ -168,6 +170,7 @@ export type ImportCommitVerificationIssueCode =
   | "completed-candidate-mismatch"
   | "invalid-import-candidate"
   | "invalid-matched-candidate"
+  | "invalid-historical-payee-update"
   | "duplicate-register-update"
   | "duplicate-register-match"
   | "invalid-transaction-amount"
@@ -214,6 +217,7 @@ export class ImportCommitExecutionError extends Error {
 export interface ImportCommitResult {
   additions: NewRegisterTransactionInput[];
   matchedTransactionUpdates: RegisterTransactionView[];
+  historicalPayeeUpdates: RegisterTransactionView[];
   merchantKnowledge: MerchantKnowledgeStore;
   audit: ImportCommitAuditRecord;
 }
@@ -445,6 +449,7 @@ export function verifyImportCommitPlan(
     ImportCommitPlan,
     | "additions"
     | "matchedTransactionUpdates"
+    | "historicalPayeeUpdates"
     | "provenanceAssignments"
     | "payeeCreations"
   >,
@@ -686,6 +691,7 @@ export function verifyImportCommitPlan(
   const payeeBearingTransactions = [
     ...plan.additions,
     ...plan.matchedTransactionUpdates,
+    ...(plan.historicalPayeeUpdates ?? []),
   ];
 
   for (const transaction of payeeBearingTransactions) {
@@ -1050,6 +1056,45 @@ export function verifyImportCommitPlan(
     }
   }
 
+  for (const transaction of plan.historicalPayeeUpdates ?? []) {
+    if (updateIds.has(transaction.id)) {
+      addIssue({
+        code: "duplicate-register-update",
+        transactionId: transaction.id,
+        message: `Register transaction ${transaction.id} is scheduled for update more than once.`,
+      });
+    }
+    updateIds.add(transaction.id);
+
+    const hasTransferSemantics =
+      transaction.category === "Transfer" ||
+      transaction.payee.startsWith("Transfer: ") ||
+      Boolean(transaction.transferAccountId) ||
+      Boolean(transaction.transferTransactionId) ||
+      Boolean(
+        transaction.splitLines?.some(
+          (line) =>
+            Boolean(line.transferAccountId) ||
+            Boolean(line.transferTransactionId),
+        ),
+      );
+
+    if (
+      matchedRegisterIds.has(transaction.id) ||
+      transaction.reconciled ||
+      hasTransferSemantics ||
+      !transaction.rawPayee?.trim()
+    ) {
+      addIssue({
+        code: "invalid-historical-payee-update",
+        transactionId: transaction.id,
+        message:
+          `Historical payee update ${transaction.id} must be a distinct, ` +
+          "unreconciled, non-transfer transaction with retained raw payee provenance.",
+      });
+    }
+  }
+
   return { valid: issues.length === 0, issues };
 }
 
@@ -1059,6 +1104,7 @@ function validateImportCommitSession(
     ImportCommitPlan,
     | "additions"
     | "matchedTransactionUpdates"
+    | "historicalPayeeUpdates"
     | "provenanceAssignments"
     | "payeeCreations"
   >,
@@ -1164,6 +1210,9 @@ export function prepareImportCommit(
   const plan = {
     additions,
     matchedTransactionUpdates,
+    historicalPayeeUpdates: [
+      ...(session.historicalPayeeUpdates ?? []),
+    ],
     provenanceAssignments,
     payeeCreations: [] as RegisterTransactionImportPayeeCreation[],
     merchantKnowledge,
@@ -1263,11 +1312,17 @@ export async function commitImportSession(
             resolvePayeeForSubmission(transaction, resolvePayee),
           ),
         );
+        const historicalPayeeUpdates = await Promise.all(
+          plan!.historicalPayeeUpdates.map((transaction) =>
+            resolvePayeeForSubmission(transaction, resolvePayee),
+          ),
+        );
 
         return {
           ...plan!,
           additions,
           matchedTransactionUpdates,
+          historicalPayeeUpdates,
           payeeCreations: [...stagedPayeesById.values()],
         };
       });
@@ -1280,17 +1335,23 @@ export async function commitImportSession(
 
     const requiresAtomicImportBatch =
       plan.provenanceAssignments.length > 0 ||
-      plan.payeeCreations.length > 0;
+      plan.payeeCreations.length > 0 ||
+      plan.historicalPayeeUpdates.length > 0;
 
     if (requiresAtomicImportBatch && !adapters.commitTransactionBatch) {
       throw new Error(
-        "Import provenance or staged payee creation requires atomic register batch persistence.",
+        "Import provenance, staged payee creation, or historical payee cleanup requires atomic register batch persistence.",
       );
     }
 
+    const registerUpdates = [
+      ...plan.matchedTransactionUpdates,
+      ...plan.historicalPayeeUpdates,
+    ];
+
     if (
       plan.additions.length > 0 ||
-      plan.matchedTransactionUpdates.length > 0 ||
+      registerUpdates.length > 0 ||
       plan.provenanceAssignments.length > 0 ||
       plan.payeeCreations.length > 0
     ) {
@@ -1303,7 +1364,7 @@ export async function commitImportSession(
           await adapters.commitTransactionBatch(
             session.accountId,
             plan!.additions,
-            plan!.matchedTransactionUpdates,
+            registerUpdates,
             plan!.provenanceAssignments,
             plan!.payeeCreations,
           );
@@ -1317,10 +1378,10 @@ export async function commitImportSession(
         if (plan!.additions.length > 0) {
           await adapters.addTransactions(session.accountId, plan!.additions);
         }
-        if (plan!.matchedTransactionUpdates.length > 0) {
+        if (registerUpdates.length > 0) {
           await adapters.updateTransactions(
             session.accountId,
-            plan!.matchedTransactionUpdates,
+            registerUpdates,
           );
         }
       });
@@ -1389,6 +1450,7 @@ export async function commitImportSession(
     return {
       additions: plan.additions,
       matchedTransactionUpdates: plan.matchedTransactionUpdates,
+      historicalPayeeUpdates: plan.historicalPayeeUpdates,
       merchantKnowledge: plan.merchantKnowledge,
       audit,
     };

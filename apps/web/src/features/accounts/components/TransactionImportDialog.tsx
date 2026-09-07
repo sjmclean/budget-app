@@ -20,7 +20,6 @@ import type { SidebarAccount } from "../accountService";
 import {
   commitImportSession,
   ImportCommitExecutionError,
-  type ImportCommitResult,
   type ImportPayeeResolution,
 } from "../importCommitEngine";
 import type {
@@ -2126,10 +2125,10 @@ export function TransactionImportDialog({
     return date ? formatDateForDisplay(date, dateFormat) : "—";
   }
 
-  async function applyHistoricalRegisterPayeeUpdates(
-    result: ImportCommitResult,
-  ): Promise<number> {
-    if (historicalRegisterPayeeUpdates.length === 0) return 0;
+  async function prepareHistoricalRegisterPayeeUpdates(): Promise<
+    RegisterTransactionView[]
+  > {
+    if (historicalRegisterPayeeUpdates.length === 0) return [];
 
     const acceptedMatchedTransactionIds = new Set(
       matchedCandidates.flatMap((candidate) => {
@@ -2151,35 +2150,12 @@ export function TransactionImportDialog({
           entry,
         ] as const),
     );
-    if (stagedByTransactionId.size === 0) return 0;
-    const transactionIds = [...stagedByTransactionId.keys()];
+    if (stagedByTransactionId.size === 0) return [];
+
     const freshTransactions = await loadTransactionsByIds(
       selectedAccountId,
-      transactionIds,
+      [...stagedByTransactionId.keys()],
     );
-
-    const resolvedPayees = new Map<string, { id: string; name: string }>();
-    for (const payee of payeeOptions) {
-      resolvedPayees.set(getImportRawPayeeIdentity(payee.name), {
-        id: payee.id,
-        name: payee.name,
-      });
-    }
-    for (const transaction of [
-      ...result.additions,
-      ...result.matchedTransactionUpdates,
-    ]) {
-      if (!transaction.payeeId) continue;
-      resolvedPayees.set(getImportRawPayeeIdentity(transaction.payee), {
-        id: transaction.payeeId,
-        name: transaction.payee,
-      });
-    }
-
-    const payeeCreationsByIdentity = new Map<
-      string,
-      RegisterTransactionImportPayeeCreation
-    >();
     const updates: RegisterTransactionView[] = [];
 
     for (const transaction of freshTransactions) {
@@ -2197,39 +2173,17 @@ export function TransactionImportDialog({
       );
       if (stillEligible.eligible.length === 0) continue;
 
-      const targetIdentity = getImportRawPayeeIdentity(staged.payee);
-      let resolved = resolvedPayees.get(targetIdentity);
-      if (!resolved) {
-        const existingCreation = payeeCreationsByIdentity.get(targetIdentity);
-        if (existingCreation) {
-          resolved = existingCreation;
-        } else {
-          const creation = {
-            id: createRuntimeUuid(),
-            name: staged.payee.replace(/\s+/g, " ").trim(),
-          };
-          payeeCreationsByIdentity.set(targetIdentity, creation);
-          resolved = creation;
-        }
-        resolvedPayees.set(targetIdentity, resolved);
-      }
+      const targetPayee = staged.payee.replace(/\s+/g, " ").trim();
+      if (!targetPayee) continue;
 
       updates.push({
         ...transaction,
-        payee: resolved.name,
-        payeeId: resolved.id,
+        payee: targetPayee,
+        payeeId: undefined,
       });
     }
 
-    if (updates.length === 0) return 0;
-    await onCommitRegisterChanges(
-      selectedAccountId,
-      [],
-      updates,
-      [],
-      [...payeeCreationsByIdentity.values()],
-    );
-    return updates.length;
+    return updates;
   }
 
   async function importSelected() {
@@ -2251,12 +2205,16 @@ export function TransactionImportDialog({
     );
 
     try {
+      const historicalPayeeUpdates =
+        await prepareHistoricalRegisterPayeeUpdates();
+
       const result = await commitImportSession(
         {
           accountId: selectedAccountId,
           accountName,
           importedCandidates,
           matchedCandidates,
+          historicalPayeeUpdates,
           completedSourceCandidates,
           sourceIdentities,
           skippedCount: uniqueProcessedCandidates.filter(
@@ -2361,17 +2319,8 @@ export function TransactionImportDialog({
         return transactionId ? [transactionId] : [];
       });
 
-      let historicalPayeesUpdated = 0;
-      let historicalPayeeCleanupFailed = false;
-      try {
-        historicalPayeesUpdated = await applyHistoricalRegisterPayeeUpdates(result);
-      } catch (cleanupError) {
-        historicalPayeeCleanupFailed = true;
-        console.error(
-          "Import completed, but historical payee cleanup failed.",
-          cleanupError,
-        );
-      }
+      const historicalPayeesUpdated =
+        result.historicalPayeeUpdates.length;
 
       onImportCommitComplete?.({
         accountId: selectedAccountId,
@@ -2408,9 +2357,6 @@ export function TransactionImportDialog({
           `${completion.failed} failed in ${accountName}.` +
           (historicalPayeesUpdated > 0
             ? ` ${historicalPayeesUpdated} existing payee${historicalPayeesUpdated === 1 ? "" : "s"} updated.`
-            : "") +
-          (historicalPayeeCleanupFailed
-            ? " The import succeeded, but the requested existing-payee updates could not be completed."
             : ""),
       );
       deleteTransactionImportSession(selectedAccountId);
