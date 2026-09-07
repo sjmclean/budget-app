@@ -20,6 +20,7 @@ import type { SidebarAccount } from "../accountService";
 import {
   commitImportSession,
   ImportCommitExecutionError,
+  type ImportCommitResult,
   type ImportPayeeResolution,
 } from "../importCommitEngine";
 import type {
@@ -112,6 +113,16 @@ import {
   type TransactionImportEvidenceDateRange,
 } from "../transactionImportEvidence";
 import { resolvePayeeRecognition } from "../payeeRecognition";
+import {
+  findHistoricalRegisterPayeeMatches,
+  getImportRawPayeeIdentity,
+  isTransferTransaction,
+  markImportReviewFieldEdited,
+  propagateImportReviewField,
+  type HistoricalRegisterPayeeUpdate,
+  type ImportReviewManualEdits,
+  type ImportReviewPropagationField,
+} from "../transactionImportReviewPropagation";
 import {
   summariseTransactionImportOutcomes,
   verifyPersistedImportTransactions,
@@ -420,6 +431,10 @@ export function TransactionImportDialog({
   const [processedCandidates, setProcessedCandidates] = useState<
     ProcessedImportCandidate[]
   >([]);
+  const [manualCandidateEdits, setManualCandidateEdits] =
+    useState<ImportReviewManualEdits>({});
+  const [historicalRegisterPayeeUpdates, setHistoricalRegisterPayeeUpdates] =
+    useState<HistoricalRegisterPayeeUpdate[]>([]);
   const [matchEditorOrigins, setMatchEditorOrigins] = useState<
     Record<string, TransactionImportCandidate>
   >({});
@@ -439,6 +454,7 @@ export function TransactionImportDialog({
     action: ProcessedImportAction;
   } | null>(null);
   const processingCandidateRef = useRef<string | null>(null);
+  const historicalPayeeOfferRef = useRef<Set<string>>(new Set());
   const [historyPulse, setHistoryPulse] = useState(false);
   const [aliasSuggestions, setAliasSuggestions] = useState<
     TransactionPayeeAliasSuggestion[]
@@ -488,6 +504,10 @@ export function TransactionImportDialog({
     setBankCandidateDetails(saved.bankCandidateDetails);
     setSourceIdentities(saved.sourceIdentities);
     setProcessedCandidates(saved.processedCandidates);
+    setManualCandidateEdits(saved.manualCandidateEdits ?? {});
+    setHistoricalRegisterPayeeUpdates(
+      saved.historicalRegisterPayeeUpdates ?? [],
+    );
     setMatchEditorOrigins(saved.matchEditorOrigins);
     setMatchedTransactionOrigins(saved.matchedTransactionOrigins);
     setPreviouslyImportedCount(saved.previouslyImportedCount);
@@ -535,6 +555,8 @@ export function TransactionImportDialog({
         alreadyRepresentedCount,
         excludeMemos,
         updateMatchedTransactionDates,
+        manualCandidateEdits,
+        historicalRegisterPayeeUpdates,
       });
     }, 250);
     return () => {
@@ -550,7 +572,8 @@ export function TransactionImportDialog({
     sourceIdentities, processedCandidates, matchEditorOrigins,
     matchedTransactionOrigins,
     previouslyImportedCount, alreadyRepresentedCount, excludeMemos,
-    updateMatchedTransactionDates,
+    updateMatchedTransactionDates, manualCandidateEdits,
+    historicalRegisterPayeeUpdates,
   ]);
 
   useEffect(() => {
@@ -663,6 +686,9 @@ export function TransactionImportDialog({
     setBankCandidateDetails({});
     setSourceIdentities({});
     setProcessedCandidates([]);
+    setManualCandidateEdits({});
+    setHistoricalRegisterPayeeUpdates([]);
+    historicalPayeeOfferRef.current.clear();
     setMatchedTransactionOrigins({});
     setHistoryOpen(false);
     setProcessingCandidate(null);
@@ -759,6 +785,9 @@ export function TransactionImportDialog({
     setPreviouslyImportedCount(prepared.previouslyImportedCount);
     setAlreadyRepresentedCount(prepared.alreadyRepresentedCount);
     setProcessedCandidates([]);
+    setManualCandidateEdits({});
+    setHistoricalRegisterPayeeUpdates([]);
+    historicalPayeeOfferRef.current.clear();
     setHistoryOpen(false);
     setAliasSuggestions(
       suggestTransactionPayeeAliases({
@@ -793,6 +822,9 @@ export function TransactionImportDialog({
     setBankCandidateDetails({});
     setSourceIdentities({});
     setProcessedCandidates([]);
+    setManualCandidateEdits({});
+    setHistoricalRegisterPayeeUpdates([]);
+    historicalPayeeOfferRef.current.clear();
     setHistoryOpen(false);
     setAliasSuggestions([]);
     setDuplicateFileMessage(
@@ -948,8 +980,8 @@ export function TransactionImportDialog({
 
     try {
       const detectedType = measureImportStage(timings, "Detect file type", () =>
-      detectImportFileType(file.name),
-    );
+        detectImportFileType(file.name),
+      );
     setFileName(file.name);
     setFileType(detectedType);
 
@@ -1620,6 +1652,9 @@ export function TransactionImportDialog({
         transferAccountName: null,
         splitLines,
       });
+      setManualCandidateEdits((current) =>
+        markImportReviewFieldEdited(current, candidate.id, "category"),
+      );
     }
 
     setSplitEdit(null);
@@ -1652,38 +1687,192 @@ export function TransactionImportDialog({
     setProposedTransactionEdit(null);
   }
 
+  function applySameFileReviewCorrection({
+    sourceCandidate,
+    field,
+    value,
+    sourceProposalUpdates,
+  }: {
+    sourceCandidate: TransactionImportCandidate;
+    field: ImportReviewPropagationField;
+    value: string;
+    sourceProposalUpdates: Partial<
+      TransactionImportCandidate["lifecycle"]["proposal"]
+    >;
+  }) {
+    const nextManualEdits = markImportReviewFieldEdited(
+      manualCandidateEdits,
+      sourceCandidate.id,
+      field,
+    );
+    setManualCandidateEdits(nextManualEdits);
+
+    const sourceWithEdit: TransactionImportCandidate = {
+      ...sourceCandidate,
+      lifecycle: {
+        ...sourceCandidate.lifecycle,
+        proposal: {
+          ...sourceCandidate.lifecycle.proposal,
+          ...sourceProposalUpdates,
+        },
+      },
+    };
+    const combined = [
+      ...candidates.map((candidate) =>
+        candidate.id === sourceCandidate.id ? sourceWithEdit : candidate,
+      ),
+      ...processedCandidates.map((entry) => entry.candidate),
+    ];
+    const propagated = propagateImportReviewField({
+      candidates: combined,
+      sourceCandidateId: sourceCandidate.id,
+      field,
+      value,
+      manualEdits: nextManualEdits,
+    });
+    const propagatedById = new Map(
+      propagated.map((candidate) => [candidate.id, candidate] as const),
+    );
+
+    setCandidates((current) =>
+      current.map((candidate) => propagatedById.get(candidate.id) ?? candidate),
+    );
+    setProcessedCandidates((current) =>
+      current.map((entry) =>
+        entry.action === "imported"
+          ? {
+              ...entry,
+              candidate:
+                propagatedById.get(entry.candidate.id) ?? entry.candidate,
+            }
+          : entry,
+      ),
+    );
+    setError(null);
+  }
+
+  function removeHistoricalPayeeMapping(sourceRawPayee: string) {
+    const sourceIdentity = getImportRawPayeeIdentity(sourceRawPayee);
+    if (!sourceIdentity) return;
+    setHistoricalRegisterPayeeUpdates((current) =>
+      current.filter((entry) => {
+        const source =
+          entry.transaction.rawPayee?.trim() || entry.transaction.payee;
+        return getImportRawPayeeIdentity(source) !== sourceIdentity;
+      }),
+    );
+  }
+
+  async function offerHistoricalPayeeUpdate(
+    sourceRawPayee: string,
+    targetPayee: string,
+  ) {
+    const sourceIdentity = getImportRawPayeeIdentity(sourceRawPayee);
+    const targetIdentity = getImportRawPayeeIdentity(targetPayee);
+    if (!sourceIdentity || !targetIdentity) return;
+
+    const offerKey = `${selectedAccountId}\u0000${sourceIdentity}\u0000${targetIdentity}`;
+    if (historicalPayeeOfferRef.current.has(offerKey)) return;
+    historicalPayeeOfferRef.current.add(offerKey);
+
+    removeHistoricalPayeeMapping(sourceRawPayee);
+    const matches = findHistoricalRegisterPayeeMatches(
+      transactions,
+      sourceRawPayee,
+      targetPayee,
+    );
+    if (matches.eligible.length === 0) {
+      historicalPayeeOfferRef.current.delete(offerKey);
+      return;
+    }
+
+    try {
+      const confirmed = await confirmDialog({
+        title: "Update existing payees?",
+        message:
+          `We found ${matches.eligible.length} existing transaction${
+            matches.eligible.length === 1 ? "" : "s"
+          } in ${accountName} recorded from “${sourceRawPayee.trim()}”. ` +
+          `Change ${matches.eligible.length === 1 ? "its" : "their"} payee to “${targetPayee.trim()}” after this import succeeds? ` +
+          "Categories will not be changed." +
+          (matches.reconciledExcluded > 0
+            ? ` ${matches.reconciledExcluded} reconciled transaction${
+                matches.reconciledExcluded === 1 ? "" : "s"
+              } will be left unchanged.`
+            : ""),
+        confirmLabel: `Update ${matches.eligible.length} payee${
+          matches.eligible.length === 1 ? "" : "s"
+        }`,
+      });
+
+      if (confirmed) {
+        setHistoricalRegisterPayeeUpdates((current) => {
+          const withoutPrevious = current.filter((entry) => {
+            const source =
+              entry.transaction.rawPayee?.trim() || entry.transaction.payee;
+            return getImportRawPayeeIdentity(source) !== sourceIdentity;
+          });
+          return [...withoutPrevious, ...matches.eligible];
+        });
+      }
+    } finally {
+      historicalPayeeOfferRef.current.delete(offerKey);
+    }
+  }
+
   function commitProposedTransactionEdit(
     candidateId: string,
     field: ProposedTransactionEditField,
     value: string,
   ) {
+    const currentCandidate = candidates.find(
+      (candidate) => candidate.id === candidateId,
+    );
+    if (!currentCandidate) {
+      setProposedTransactionEdit(null);
+      return;
+    }
+
     if (field === "payee") {
-      const currentCandidate = candidates.find(
-        (candidate) => candidate.id === candidateId,
-      );
       const built = buildTransactionImportMerchantProposal({
         store: merchantKnowledgeRef.current,
         rawPayee: value,
-        transaction: currentCandidate?.parsed ?? { inflow: 0, outflow: 0 },
-        currentProposal: currentCandidate?.lifecycle.proposal,
+        transaction: currentCandidate.parsed,
+        currentProposal: currentCandidate.lifecycle.proposal,
       });
-      updateCandidateDetails(candidateId, {
-        payee: built.proposal.payee,
-        transferAccountName:
-          built.proposal.transferAccountName ?? undefined,
-        importedCategoryName: built.proposal.categoryName ?? undefined,
+      applySameFileReviewCorrection({
+        sourceCandidate: currentCandidate,
+        field: "payee",
+        value: built.proposal.payee,
+        sourceProposalUpdates: {
+          payee: built.proposal.payee,
+          transferAccountName: built.proposal.transferAccountName ?? null,
+          categoryName: built.proposal.categoryName ?? null,
+        },
       });
-    } else {
-      const currentCandidate = candidates.find(
-        (candidate) => candidate.id === candidateId,
+      void offerHistoricalPayeeUpdate(
+        currentCandidate.lifecycle.source.rawPayee,
+        built.proposal.payee,
       );
-
-      if (value === "Split" && currentCandidate) {
+    } else {
+      if (value === "Split") {
+        setManualCandidateEdits((current) =>
+          markImportReviewFieldEdited(current, candidateId, "category"),
+        );
         beginProposalSplitEdit(currentCandidate);
         return;
       }
 
-      clearProposalSplit(candidateId, value || null);
+      applySameFileReviewCorrection({
+        sourceCandidate: currentCandidate,
+        field: "category",
+        value,
+        sourceProposalUpdates: {
+          categoryName: value || null,
+          transferAccountName: null,
+          splitLines: undefined,
+        },
+      });
     }
     setProposedTransactionEdit(null);
   }
@@ -1920,6 +2109,96 @@ export function TransactionImportDialog({
     return date ? formatDateForDisplay(date, dateFormat) : "—";
   }
 
+  async function applyHistoricalRegisterPayeeUpdates(
+    result: ImportCommitResult,
+  ): Promise<number> {
+    if (historicalRegisterPayeeUpdates.length === 0) return 0;
+
+    const stagedByTransactionId = new Map(
+      historicalRegisterPayeeUpdates.map((entry) => [
+        entry.transaction.id,
+        entry,
+      ] as const),
+    );
+    const transactionIds = [...stagedByTransactionId.keys()];
+    const freshTransactions = await loadTransactionsByIds(
+      selectedAccountId,
+      transactionIds,
+    );
+
+    const resolvedPayees = new Map<string, { id: string; name: string }>();
+    for (const payee of payeeOptions) {
+      resolvedPayees.set(getImportRawPayeeIdentity(payee.name), {
+        id: payee.id,
+        name: payee.name,
+      });
+    }
+    for (const transaction of [
+      ...result.additions,
+      ...result.matchedTransactionUpdates,
+    ]) {
+      if (!transaction.payeeId) continue;
+      resolvedPayees.set(getImportRawPayeeIdentity(transaction.payee), {
+        id: transaction.payeeId,
+        name: transaction.payee,
+      });
+    }
+
+    const payeeCreationsByIdentity = new Map<
+      string,
+      RegisterTransactionImportPayeeCreation
+    >();
+    const updates: RegisterTransactionView[] = [];
+
+    for (const transaction of freshTransactions) {
+      const staged = stagedByTransactionId.get(transaction.id);
+      if (!staged || transaction.reconciled || isTransferTransaction(transaction)) {
+        continue;
+      }
+      const sourceRawPayee =
+        staged.transaction.rawPayee?.trim() || staged.transaction.payee;
+      const stillEligible = findHistoricalRegisterPayeeMatches(
+        [transaction],
+        sourceRawPayee,
+        staged.payee,
+      );
+      if (stillEligible.eligible.length === 0) continue;
+
+      const targetIdentity = getImportRawPayeeIdentity(staged.payee);
+      let resolved = resolvedPayees.get(targetIdentity);
+      if (!resolved) {
+        const existingCreation = payeeCreationsByIdentity.get(targetIdentity);
+        if (existingCreation) {
+          resolved = existingCreation;
+        } else {
+          const creation = {
+            id: createRuntimeUuid(),
+            name: staged.payee.replace(/\s+/g, " ").trim(),
+          };
+          payeeCreationsByIdentity.set(targetIdentity, creation);
+          resolved = creation;
+        }
+        resolvedPayees.set(targetIdentity, resolved);
+      }
+
+      updates.push({
+        ...transaction,
+        payee: resolved.name,
+        payeeId: resolved.id,
+      });
+    }
+
+    if (updates.length === 0) return 0;
+    await onCommitRegisterChanges(
+      selectedAccountId,
+      [],
+      updates,
+      [],
+      [...payeeCreationsByIdentity.values()],
+    );
+    return updates.length;
+  }
+
   async function importSelected() {
     if (!["csv", "qif", "ofx", "qfx"].includes(fileType)) {
       setError("The selected file type cannot be committed.");
@@ -2049,6 +2328,18 @@ export function TransactionImportDialog({
         return transactionId ? [transactionId] : [];
       });
 
+      let historicalPayeesUpdated = 0;
+      let historicalPayeeCleanupFailed = false;
+      try {
+        historicalPayeesUpdated = await applyHistoricalRegisterPayeeUpdates(result);
+      } catch (cleanupError) {
+        historicalPayeeCleanupFailed = true;
+        console.error(
+          "Import completed, but historical payee cleanup failed.",
+          cleanupError,
+        );
+      }
+
       onImportCommitComplete?.({
         accountId: selectedAccountId,
         importedTransactionIds,
@@ -2081,7 +2372,13 @@ export function TransactionImportDialog({
       setMessage(
         `${completion.imported} imported · ${completion.matched} matched · ` +
           `${completion.skipped} skipped · ${completion.alreadyPresent} already present · ` +
-          `${completion.failed} failed in ${accountName}.`,
+          `${completion.failed} failed in ${accountName}.` +
+          (historicalPayeesUpdated > 0
+            ? ` ${historicalPayeesUpdated} existing payee${historicalPayeesUpdated === 1 ? "" : "s"} updated.`
+            : "") +
+          (historicalPayeeCleanupFailed
+            ? " The import succeeded, but the requested existing-payee updates could not be completed."
+            : ""),
       );
       deleteTransactionImportSession(selectedAccountId);
       const completedDiagnostics = uniqueProcessedCandidates.map((entry) => ({
