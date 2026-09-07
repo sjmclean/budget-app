@@ -451,15 +451,8 @@ export function BudgetSelectorPage() {
                 >
                   <span className="budget-manager-action-icon budget-manager-action-icon-amber" aria-hidden="true">▢</span>
                   <strong>Restore Backup</strong>
-                  <span>Restore an existing budget from a previous SQLite backup.</span>
+                  <span>Create a new budget from a previous SQLite backup.</span>
                   <em>Restore Now →</em>
-                </button>
-
-                <button type="button" className="budget-manager-action-card" disabled>
-                  <span className="budget-manager-action-icon budget-manager-action-icon-blue" aria-hidden="true">□</span>
-                  <strong>Open Budget File</strong>
-                  <span>Open a portable budget package from your computer.</span>
-                  <em>Browse Files →</em>
                 </button>
               </div>
             </section>
