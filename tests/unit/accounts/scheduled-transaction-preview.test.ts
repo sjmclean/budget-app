@@ -3,6 +3,7 @@ import test from "node:test";
 import { buildScheduledPreview, readScheduledPreviewDays, writeScheduledPreviewDays, SCHEDULED_PREVIEW_DAYS_KEY } from "../../../apps/web/src/features/accounts/scheduledTransactionPreview";
 import { createFixedBudgetScopedStorage, getBudgetScopedStorageKey, isBudgetScopedStorageKey } from "../../../apps/web/src/features/budget/budgetDataScope";
 import type { ScheduledTransactionView } from "../../../apps/web/src/features/accounts/scheduledTransactionTypes";
+import { readFileSync } from "node:fs";
 
 const schedule=(id:string,date:string)=>({id,accountId:"a",nextDueDate:date,frequency:"once",payee:id,category:"",outflow:1,inflow:0,createdAt:"",updatedAt:""}) as ScheduledTransactionView;
 test("preview horizons include overdue and boundary dates, exclude later dates, and sort deterministically",()=>{
@@ -14,6 +15,12 @@ test("preview horizons include overdue and boundary dates, exclude later dates, 
   assert.deepEqual(buildScheduledPreview(values,"2026-09-05",7).items.map(x=>x.id),["z","a","b"]);
 });
 test("preview caps visible items at five and reports remainder",()=>{const result=buildScheduledPreview(Array.from({length:8},(_,i)=>schedule(String(i),"2026-09-06")),"2026-09-05",7);assert.equal(result.items.length,5);assert.equal(result.total,8);assert.equal(result.remaining,3)});
+test("schedules outside the horizon retain configuration and application-formatted presentation",()=>{
+  const result=buildScheduledPreview([schedule("future","2026-09-20")],"2026-09-05",7);
+  assert.equal(result.scheduledTotal,1);assert.equal(result.total,0);assert.deepEqual(result.items,[]);
+  const component=readFileSync(new URL("../../../apps/web/src/components/accounts/ScheduledTransactionsPreview.tsx",import.meta.url),"utf8");
+  assert.match(component,/if\(!preview\.scheduledTotal\)return null/);assert.match(component,/No scheduled transactions in the next \{days\} days/);assert.match(component,/formatDateForDisplay\(item\.nextDueDate,dateFormat\)/);assert.match(component,/<time dateTime=\{item\.nextDueDate\}>/);
+});
 test("budget-scoped preset preference defaults safely and round-trips",()=>{
   const values=new Map<string,string>();const raw={getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>{values.set(k,v)},removeItem:(k:string)=>{values.delete(k)}};
   const storage=createFixedBudgetScopedStorage(raw,"budget-a");assert.equal(isBudgetScopedStorageKey(SCHEDULED_PREVIEW_DAYS_KEY),true);assert.equal(readScheduledPreviewDays(storage),7);

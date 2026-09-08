@@ -23,5 +23,5 @@ export function addLocalCalendarDays(today: string, days: number): string {
 export function buildScheduledPreview(schedules: readonly ScheduledTransactionView[], today: string, days: ScheduledPreviewDays) {
   const horizon=addLocalCalendarDays(today,days);
   const eligible=schedules.filter(item=>item.nextDueDate<=horizon).sort((a,b)=>a.nextDueDate.localeCompare(b.nextDueDate)||a.id.localeCompare(b.id));
-  return {items:eligible.slice(0,MAX_SCHEDULED_PREVIEW_ROWS),total:eligible.length,remaining:Math.max(0,eligible.length-MAX_SCHEDULED_PREVIEW_ROWS),horizon};
+  return {items:eligible.slice(0,MAX_SCHEDULED_PREVIEW_ROWS),total:eligible.length,scheduledTotal:schedules.length,remaining:Math.max(0,eligible.length-MAX_SCHEDULED_PREVIEW_ROWS),horizon};
 }

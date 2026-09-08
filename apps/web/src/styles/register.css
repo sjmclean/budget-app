@@ -7483,6 +7483,7 @@
 .register-scheduled-preview-row > div { display:flex; justify-content:flex-end; gap:.2rem; }
 .register-scheduled-preview-more { display:block; width:100%; text-align:left; padding:.4rem .8rem!important; }
 .register-scheduled-preview-error { margin:0; padding:.4rem .8rem; color:var(--negative); font-size:.78rem; }
+.register-scheduled-preview-empty { margin:0; padding:.55rem .8rem; color:var(--text-muted); font-size:.8rem; }
 @media (max-width:760px) {
   .register-scheduled-preview > header { align-items:flex-start; flex-wrap:wrap; }
   .register-scheduled-preview-row { grid-template-columns:minmax(5.5rem,.7fr) minmax(0,1.3fr) minmax(6.5rem,.8fr); }
