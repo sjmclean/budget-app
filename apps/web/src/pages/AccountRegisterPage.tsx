@@ -20,6 +20,7 @@ import {
 } from "../components/workspace";
 import { SelectionBar } from "../components/ui/SelectionBar";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
+import { ScheduledTransactionsPreview } from "../components/accounts/ScheduledTransactionsPreview";
 import { AttachmentManager } from "../features/accounts/components/AttachmentManager";
 import { TransactionImportDialog } from "../features/accounts/components/TransactionImportDialog";
 import { RegisterToolbar } from "../features/accounts/components/RegisterToolbar";
@@ -1735,6 +1736,8 @@ export function AccountRegisterPage() {
             </div>
           ) : null}
         </WorkspaceStickyHeader>
+
+        {activeRegisterView === "register" ? <ScheduledTransactionsPreview budgetId={activeBudgetId} accountId={accountId} currencyCode={data.currencyCode} onViewAll={() => setActiveRegisterView("scheduled")} /> : null}
 
         <ScheduledTransactionsPanel
           key={accountId}

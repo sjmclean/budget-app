@@ -5,6 +5,7 @@ import {
   deleteScheduledTransactionCommand,
   editScheduledTransactionCommand,
   enterScheduledTransactionCommand,
+  skipScheduledTransactionCommand,
   type UndoRedoResult,
 } from "../history";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
@@ -43,5 +44,8 @@ export function useScheduledTransactionHistory(budgetId: string | null, accountI
         transactionId: occurrenceTransactionId(accountId, schedule),
       }));
     }, [accountId, execute]),
+    skipSchedule: useCallback(async (schedule: ScheduledTransactionView) => {
+      await execute(skipScheduledTransactionCommand(schedule.id));
+    }, [execute]),
   };
 }

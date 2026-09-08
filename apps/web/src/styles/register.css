@@ -7467,3 +7467,25 @@
   background: var(--accent-soft);
   box-shadow: inset 3px 0 0 var(--accent);
 }
+
+.register-scheduled-preview { border-bottom:1px solid var(--border-soft); background:color-mix(in srgb,var(--surface-subtle) 78%,var(--surface)); color:var(--text); }
+.register-scheduled-preview > header { min-width:0; display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:.5rem .8rem; border-bottom:1px solid var(--border-soft); font-size:.8rem; }
+.register-scheduled-preview > header > div { min-width:0; display:flex; align-items:center; gap:.4rem; }
+.register-scheduled-preview button,.register-scheduled-preview select { font:inherit; color:inherit; }
+.register-scheduled-preview select { border:1px solid var(--border-soft); border-radius:.35rem; background:var(--surface); padding:.15rem .3rem; }
+.register-scheduled-preview button { border:0; background:transparent; color:var(--accent-strong); cursor:pointer; font-weight:700; padding:.25rem .4rem; }
+.register-scheduled-preview button:disabled { cursor:wait; opacity:.55; }
+.register-scheduled-preview-row { min-width:0; display:grid; grid-template-columns:minmax(6rem,.7fr) minmax(9rem,1.4fr) minmax(8rem,1fr) minmax(7rem,.7fr) auto; align-items:center; gap:.65rem; padding:.42rem .8rem; border-bottom:1px solid var(--border-soft); font-size:.8rem; }
+.register-scheduled-preview-row > * { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.register-scheduled-preview-row > b { text-align:right; font-variant-numeric:tabular-nums; }
+.register-scheduled-preview-row > b.positive { color:var(--positive); }
+.register-scheduled-preview-row > b.negative { color:var(--negative); }
+.register-scheduled-preview-row > div { display:flex; justify-content:flex-end; gap:.2rem; }
+.register-scheduled-preview-more { display:block; width:100%; text-align:left; padding:.4rem .8rem!important; }
+.register-scheduled-preview-error { margin:0; padding:.4rem .8rem; color:var(--negative); font-size:.78rem; }
+@media (max-width:760px) {
+  .register-scheduled-preview > header { align-items:flex-start; flex-wrap:wrap; }
+  .register-scheduled-preview-row { grid-template-columns:minmax(5.5rem,.7fr) minmax(0,1.3fr) minmax(6.5rem,.8fr); }
+  .register-scheduled-preview-row > span { display:none; }
+  .register-scheduled-preview-row > div { grid-column:2 / -1; }
+}

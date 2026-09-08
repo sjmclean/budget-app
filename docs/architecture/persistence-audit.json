@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T03:12:02.276Z",
+  "generatedAt": "2026-09-08T06:28:58.534Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -15,7 +15,7 @@
     "localStorage": 17,
     "indexedDB": 2,
     "replicationApi": 2,
-    "persistenceBoundary": 65,
+    "persistenceBoundary": 66,
     "operationJournal": 11,
     "checkpoints": 7
   },
@@ -62,6 +62,7 @@
     "apps/web/src/features/accounts/scheduledTransactionGenerationService.ts",
     "apps/web/src/features/accounts/scheduledTransactionMaintenance.ts",
     "apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts",
+    "apps/web/src/features/accounts/scheduledTransactionPreview.ts",
     "apps/web/src/features/accounts/transactionImportPreferences.ts",
     "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
     "apps/web/src/features/budget/budgetDataExport.ts",
@@ -588,6 +589,21 @@
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts",
       "line": 29
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/accounts/scheduledTransactionPreview.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/accounts/scheduledTransactionPreview.ts",
+      "line": 10
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/accounts/scheduledTransactionPreview.ts",
+      "line": 15
     },
     {
       "kind": "persistenceBoundary",
