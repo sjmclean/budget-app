@@ -20,6 +20,7 @@ test("schedules outside the horizon retain configuration and application-formatt
   assert.equal(result.scheduledTotal,1);assert.equal(result.total,0);assert.deepEqual(result.items,[]);
   const component=readFileSync(new URL("../../../apps/web/src/components/accounts/ScheduledTransactionsPreview.tsx",import.meta.url),"utf8");
   assert.match(component,/if\(!preview\.scheduledTotal\)return null/);assert.match(component,/No scheduled transactions in the next \{days\} days/);assert.match(component,/formatDateForDisplay\(item\.nextDueDate,dateFormat\)/);assert.match(component,/<time dateTime=\{item\.nextDueDate\}>/);
+  assert.doesNotMatch(component,/window\.confirm/);assert.match(component,/confirmDialog\(\{/);assert.ok(component.includes('due ${formatDateForDisplay(item.nextDueDate,dateFormat)}?'));assert.match(component,/confirmLabel:"Skip occurrence"/);
 });
 test("budget-scoped preset preference defaults safely and round-trips",()=>{
   const values=new Map<string,string>();const raw={getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>{values.set(k,v)},removeItem:(k:string)=>{values.delete(k)}};
