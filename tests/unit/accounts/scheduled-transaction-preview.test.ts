@@ -19,8 +19,22 @@ test("schedules outside the horizon retain configuration and application-formatt
   const result=buildScheduledPreview([schedule("future","2026-09-20")],"2026-09-05",7);
   assert.equal(result.scheduledTotal,1);assert.equal(result.total,0);assert.deepEqual(result.items,[]);
   const component=readFileSync(new URL("../../../apps/web/src/components/accounts/ScheduledTransactionsPreview.tsx",import.meta.url),"utf8");
-  assert.match(component,/if\(!preview\.scheduledTotal\)return null/);assert.match(component,/No scheduled transactions in the next \{days\} days/);assert.match(component,/formatDateForDisplay\(item\.nextDueDate,dateFormat\)/);assert.match(component,/<time dateTime=\{item\.nextDueDate\}>/);
-  assert.doesNotMatch(component,/window\.confirm/);assert.match(component,/confirmDialog\(\{/);assert.ok(component.includes('due ${formatDateForDisplay(item.nextDueDate,dateFormat)}?'));assert.match(component,/confirmLabel:"Skip occurrence"/);
+  assert.match(component,/if \(!preview\.scheduledTotal\) return null/);assert.match(component,/No scheduled transactions in the next \{days\} days/);assert.match(component,/formatDateForDisplay\(item\.nextDueDate, dateFormat\)/);assert.match(component,/<time dateTime=\{item\.nextDueDate\}>/);
+  assert.doesNotMatch(component,/window\.confirm/);assert.match(component,/confirmDialog\(\{/);assert.match(component,/due \$\{formatDateForDisplay\(item\.nextDueDate, dateFormat\)\}\?/);assert.match(component,/confirmLabel: "Skip occurrence"/);
+});
+test("preview presentation stays integrated with the register and responsive",()=>{
+  const component=readFileSync(new URL("../../../apps/web/src/components/accounts/ScheduledTransactionsPreview.tsx",import.meta.url),"utf8");
+  const page=readFileSync(new URL("../../../apps/web/src/pages/AccountRegisterPage.tsx",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../../../apps/web/src/styles/register.css",import.meta.url),"utf8");
+  assert.doesNotMatch(component,/TransactionRow/);
+  assert.ok(page.indexOf("<ScheduledTransactionsPreview")<page.indexOf("<TransactionRow"));
+  assert.match(component,/Upcoming scheduled transaction horizon/);
+  assert.match(component,/>\s*Enter now\s*</);
+  assert.match(component,/>\s*Skip\s*</);
+  assert.match(component,/register-scheduled-preview-content/);
+  assert.match(css,/\.register-scheduled-preview\s*\{[\s\S]*var\(--surface-subtle\) 88%/);
+  assert.match(css,/grid-template-columns:[\s\S]*1\.8rem minmax\(5\.2rem, 6\.4rem\)[\s\S]*minmax\(5\.6rem, 7\.2rem\)/);
+  assert.match(css,/@media \(max-width: 760px\)[\s\S]*\.register-scheduled-preview-actions/);
 });
 test("budget-scoped preset preference defaults safely and round-trips",()=>{
   const values=new Map<string,string>();const raw={getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>{values.set(k,v)},removeItem:(k:string)=>{values.delete(k)}};
