@@ -1,5 +1,6 @@
 import { Download, Redo2, Tags, Undo2 } from "lucide-react";
 import type { KeyboardEvent, RefObject } from "react";
+import "../../../styles/registerHeaderFixes.css";
 import { WorkspaceActions, WorkspaceHeader } from "../../../components/workspace";
 import { DropdownMenu } from "../../ui/DropdownMenu";
 import { ColumnVisibilityMenu } from "../../tableLayout/ColumnVisibilityMenu";

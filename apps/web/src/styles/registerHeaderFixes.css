@@ -1,0 +1,29 @@
+/* Register header theme/readability and global sync-indicator collision fixes. */
+
+.register-main-balance-positive strong {
+  color: var(--positive);
+}
+
+.register-main-balance-negative strong {
+  color: var(--negative);
+}
+
+.register-main-balance-neutral strong,
+.register-main-balance .register-balance-breakdown b {
+  color: var(--text);
+}
+
+/*
+ * The global sync indicator is fixed to the viewport's top-right corner.
+ * Reserve that footprint in the sticky register header so the account balance
+ * remains readable and clickable instead of sitting underneath the indicator.
+ */
+.register-sticky-stack .register-clean-header {
+  padding-inline-end: max(10rem, calc(env(safe-area-inset-right) + 9.25rem));
+}
+
+@media (max-width: 42rem) {
+  .register-sticky-stack .register-clean-header {
+    padding-inline-end: max(3.75rem, calc(env(safe-area-inset-right) + 3rem));
+  }
+}
