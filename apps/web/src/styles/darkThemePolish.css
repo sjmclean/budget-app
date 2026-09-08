@@ -35,7 +35,7 @@
 :root[data-theme="dark"] .budget-workspace-group-header-system {
   border-block-color: var(--border-soft);
   background: color-mix(in srgb, var(--surface-subtle) 72%, var(--surface));
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 38%, var(--border));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--text-muted) 38%, var(--border));
 }
 
 :root[data-theme="dark"] .budget-workspace-row,
@@ -50,8 +50,19 @@
 
 :root[data-theme="dark"] .budget-workspace-row-selected,
 :root[data-theme="dark"] .budget-workspace-row-selected:hover {
-  background: color-mix(in srgb, var(--accent-soft) 62%, var(--surface));
-  box-shadow: inset 3px 0 0 var(--accent);
+  background: color-mix(in srgb, var(--surface-subtle) 88%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--text-muted);
+}
+
+:root[data-theme="dark"] .activity-drilldown-button {
+  color: var(--text);
+  text-decoration-color: color-mix(in srgb, var(--text-muted) 72%, transparent);
+}
+
+:root[data-theme="dark"] .activity-drilldown-button:hover:not(:disabled),
+:root[data-theme="dark"] .activity-drilldown-button:focus-visible:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-subtle);
 }
 
 :root[data-theme="dark"] .available-pill {
@@ -84,13 +95,16 @@
 }
 
 :root[data-theme="dark"] .ready-to-assign-pill {
-  border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
+  border-color: var(--border);
   background: color-mix(in srgb, var(--surface-subtle) 76%, var(--surface));
 }
 
-:root[data-theme="dark"] .ready-to-assign-pill span,
+:root[data-theme="dark"] .ready-to-assign-pill span {
+  color: var(--text-muted);
+}
+
 :root[data-theme="dark"] .ready-to-assign-pill strong {
-  color: var(--accent-strong);
+  color: var(--text);
 }
 
 :root[data-theme="dark"] .ready-to-assign-negative {
