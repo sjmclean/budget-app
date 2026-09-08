@@ -116,3 +116,25 @@
 :root[data-theme="dark"] .ready-to-assign-negative strong {
   color: var(--negative);
 }
+
+/* Ready to Assign uses financial state, not the theme accent. */
+:root[data-theme="dark"] .budget-ready-summary-positive .budget-ready-summary-heading span,
+:root[data-theme="dark"] .budget-ready-summary-positive .budget-ready-summary-heading strong,
+:root[data-theme="dark"] .budget-ready-summary-positive .budget-ready-summary-total span,
+:root[data-theme="dark"] .budget-ready-summary-positive .budget-ready-summary-total strong {
+  color: var(--positive);
+}
+
+:root[data-theme="dark"] .budget-ready-summary-negative .budget-ready-summary-heading span,
+:root[data-theme="dark"] .budget-ready-summary-negative .budget-ready-summary-heading strong,
+:root[data-theme="dark"] .budget-ready-summary-negative .budget-ready-summary-total span,
+:root[data-theme="dark"] .budget-ready-summary-negative .budget-ready-summary-total strong {
+  color: var(--negative);
+}
+
+:root[data-theme="dark"] .budget-ready-summary-neutral .budget-ready-summary-heading span,
+:root[data-theme="dark"] .budget-ready-summary-neutral .budget-ready-summary-heading strong,
+:root[data-theme="dark"] .budget-ready-summary-neutral .budget-ready-summary-total span,
+:root[data-theme="dark"] .budget-ready-summary-neutral .budget-ready-summary-total strong {
+  color: var(--text);
+}

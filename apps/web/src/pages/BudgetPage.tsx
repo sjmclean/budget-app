@@ -38,7 +38,7 @@ import { ColumnResizeHandle } from "../features/tableLayout/ColumnResizeHandle";
 import { useTableLayout, type TableColumnDefinition } from "../features/tableLayout/tableLayout";
 import { isCreditCardPaymentCategory, isCreditCardPaymentGroup } from "../features/budget/creditCardPaymentCategories";
 import { formatMoney, getAvailableClass } from "../features/budget/budgetMoneyDisplay";
-import { isMoneyNegative } from "../features/budget/moneyMath";
+import { isMoneyNegative, isMoneyZero } from "../features/budget/moneyMath";
 import {
   ARCHIVED_CATEGORIES_GROUP_ID,
   buildArchivedCategoriesGroup,
@@ -913,7 +913,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 className={
                   isBudgetOverassigned
                     ? "budget-ready-summary budget-ready-summary-negative"
-                    : "budget-ready-summary"
+                    : isMoneyZero(data.readyToAssign)
+                      ? "budget-ready-summary budget-ready-summary-neutral"
+                      : "budget-ready-summary budget-ready-summary-positive"
                 }
                 aria-label={`Ready to assign ${formatMoney(data.readyToAssign, data.currencyCode)}`}
               >
