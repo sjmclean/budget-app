@@ -1,0 +1,38 @@
+/* Theme integration for scheduled transaction cards. */
+
+:root[data-theme="dark"] .scheduled-item {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--surface-subtle) 82%, var(--surface));
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .scheduled-item-main > strong {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .scheduled-item-main > span {
+  color: var(--text-muted);
+}
+
+:root[data-theme="dark"] .scheduled-item .negative {
+  color: var(--negative);
+}
+
+:root[data-theme="dark"] .scheduled-item .positive {
+  color: var(--positive);
+}
+
+:root[data-theme="dark"] .scheduled-item .scheduled-split-toggle {
+  color: var(--accent-strong);
+}
+
+:root[data-theme="dark"] .scheduled-split-details,
+:root[data-theme="dark"] .scheduled-split-line {
+  border-color: var(--border-soft);
+  background: var(--surface);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .scheduled-split-line small {
+  color: var(--text-muted);
+}

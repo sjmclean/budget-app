@@ -1,0 +1,140 @@
+/* Focused dark-theme polish for semantic balance emphasis and budget consistency. */
+
+:root[data-theme="dark"] .register-main-balance.register-main-balance-negative {
+  border-color: color-mix(in srgb, var(--negative) 48%, var(--border));
+  background: color-mix(in srgb, var(--negative-bg) 66%, var(--surface));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--negative) 88%, transparent);
+}
+
+:root[data-theme="dark"] .register-main-balance.register-main-balance-negative strong {
+  color: var(--negative);
+}
+
+:root[data-theme="dark"] .register-main-balance.register-main-balance-negative .register-main-balance-label {
+  color: color-mix(in srgb, var(--text-muted) 78%, var(--negative));
+}
+
+:root[data-theme="dark"] .register-main-balance .register-balance-breakdown b {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .budget-workspace-table-card {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+:root[data-theme="dark"] .budget-workspace-table-head {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--surface-subtle) 78%, var(--surface));
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .budget-workspace-group-header,
+:root[data-theme="dark"] .budget-workspace-group-system .budget-workspace-group-header,
+:root[data-theme="dark"] .budget-workspace-group-header-system {
+  border-block-color: var(--border-soft);
+  background: color-mix(in srgb, var(--surface-subtle) 72%, var(--surface));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--text-muted) 38%, var(--border));
+}
+
+:root[data-theme="dark"] .budget-workspace-row,
+:root[data-theme="dark"] .interactive-budget-row {
+  background: var(--surface);
+}
+
+:root[data-theme="dark"] .budget-workspace-row:hover,
+:root[data-theme="dark"] .interactive-budget-row:hover {
+  background: color-mix(in srgb, var(--surface-subtle) 82%, var(--surface));
+}
+
+:root[data-theme="dark"] .budget-workspace-row-selected,
+:root[data-theme="dark"] .budget-workspace-row-selected:hover {
+  background: color-mix(in srgb, var(--surface-subtle) 88%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--text-muted);
+}
+
+:root[data-theme="dark"] .activity-drilldown-button {
+  color: var(--text);
+  text-decoration-color: color-mix(in srgb, var(--text-muted) 72%, transparent);
+}
+
+:root[data-theme="dark"] .activity-drilldown-button:hover:not(:disabled),
+:root[data-theme="dark"] .activity-drilldown-button:focus-visible:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-subtle);
+}
+
+:root[data-theme="dark"] .available-pill {
+  border: 1px solid var(--border-soft);
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .available-pill-positive {
+  border-color: color-mix(in srgb, var(--positive) 26%, var(--border));
+  background: color-mix(in srgb, var(--positive-bg) 54%, var(--surface-subtle));
+  color: color-mix(in srgb, var(--positive) 88%, var(--text));
+}
+
+:root[data-theme="dark"] .available-pill-negative {
+  border-color: color-mix(in srgb, var(--negative) 40%, var(--border));
+  background: color-mix(in srgb, var(--negative-bg) 72%, var(--surface-subtle));
+  color: var(--negative);
+}
+
+:root[data-theme="dark"] .available-pill-zero {
+  border-color: var(--border-soft);
+  background: color-mix(in srgb, var(--surface-subtle) 82%, var(--surface));
+  color: var(--text-muted);
+}
+
+:root[data-theme="dark"] .available-pill-warning {
+  border-color: color-mix(in srgb, var(--warning) 34%, var(--border));
+  background: color-mix(in srgb, var(--warning-bg) 58%, var(--surface-subtle));
+  color: var(--warning-text);
+}
+
+:root[data-theme="dark"] .ready-to-assign-pill {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--surface-subtle) 76%, var(--surface));
+}
+
+:root[data-theme="dark"] .ready-to-assign-pill span {
+  color: var(--text-muted);
+}
+
+:root[data-theme="dark"] .ready-to-assign-pill strong {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .ready-to-assign-negative {
+  border-color: color-mix(in srgb, var(--negative) 42%, var(--border));
+  background: color-mix(in srgb, var(--negative-bg) 70%, var(--surface));
+}
+
+:root[data-theme="dark"] .ready-to-assign-negative span,
+:root[data-theme="dark"] .ready-to-assign-negative strong {
+  color: var(--negative);
+}
+
+/* Ready to Assign uses financial state, not the theme accent. */
+:root[data-theme="dark"] .budget-ready-summary-positive .budget-ready-summary-heading span,
+:root[data-theme="dark"] .budget-ready-summary-positive .budget-ready-summary-heading strong,
+:root[data-theme="dark"] .budget-ready-summary-positive .budget-ready-summary-total span,
+:root[data-theme="dark"] .budget-ready-summary-positive .budget-ready-summary-total strong {
+  color: var(--positive);
+}
+
+:root[data-theme="dark"] .budget-ready-summary-negative .budget-ready-summary-heading span,
+:root[data-theme="dark"] .budget-ready-summary-negative .budget-ready-summary-heading strong,
+:root[data-theme="dark"] .budget-ready-summary-negative .budget-ready-summary-total span,
+:root[data-theme="dark"] .budget-ready-summary-negative .budget-ready-summary-total strong {
+  color: var(--negative);
+}
+
+:root[data-theme="dark"] .budget-ready-summary-neutral .budget-ready-summary-heading span,
+:root[data-theme="dark"] .budget-ready-summary-neutral .budget-ready-summary-heading strong,
+:root[data-theme="dark"] .budget-ready-summary-neutral .budget-ready-summary-total span,
+:root[data-theme="dark"] .budget-ready-summary-neutral .budget-ready-summary-total strong {
+  color: var(--text);
+}

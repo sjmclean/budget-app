@@ -1,0 +1,36 @@
+/* Medium-width budget workspace refinement.
+ * Keep the desktop composition useful when the budget main column becomes
+ * narrow because the sidebar/inspector consume horizontal space.
+ */
+
+@container budget-workspace-main (min-width: 34rem) and (max-width: 44rem) {
+  .budget-planning-header {
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 16rem);
+    grid-template-areas:
+      "title summary"
+      "month summary"
+      "tabs summary"
+      "toolbar toolbar";
+    gap: 0.55rem 0.75rem;
+  }
+
+  .budget-ready-summary {
+    justify-self: end;
+    width: min(16rem, 100%);
+  }
+}
+
+@container budget-workspace-main (min-width: 34rem) and (max-width: 64rem) {
+  .budget-sticky-working-header .budget-workspace-table-head,
+  .budget-workspace-group-header,
+  .budget-workspace-row {
+    width: 100% !important;
+    min-width: 0 !important;
+    grid-template-columns:
+      minmax(13rem, 1fr)
+      minmax(5.75rem, 6.5rem)
+      minmax(5.75rem, 6.5rem)
+      minmax(5.75rem, 6.5rem) !important;
+    gap: 0.35rem;
+  }
+}
