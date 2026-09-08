@@ -81,6 +81,7 @@ import {
   type RegisterSearchSuggestion,
 } from "../features/accounts/registerSearch";
 import type { SidebarAccount } from "../features/accounts/accountService";
+import type { UpdatePayeeInput } from "../features/accounts/payeeService";
 import {
   countTransactionTagReferences,
   removeTransactionTagReferences,
@@ -470,6 +471,9 @@ export function AccountRegisterPage() {
       },
       async recordPayee(name: string) {
         return await payeeHistory.createPayee(name);
+      },
+      async updatePayee(input: UpdatePayeeInput) {
+        return await payeeHistory.updatePayee(input);
       },
       async renamePayee(input: { id: string; name: string }) {
         return await payeeHistory.updatePayee(input);
@@ -935,6 +939,7 @@ export function AccountRegisterPage() {
     payeeOptions,
     allManagedPayees,
     createInlinePayee,
+    learnPayeeAlias,
     isPayeeManagerOpen,
     setIsPayeeManagerOpen,
     selectedPayeeId,
@@ -2061,6 +2066,7 @@ export function AccountRegisterPage() {
             categoryOptions={categoryOptions}
             transferAccounts={transferAccounts}
             onCreateCategory={createInlineCategory}
+            onLearnPayeeAlias={learnPayeeAlias}
             onClose={() => {
               setIsTransactionImportOpen(false);
             }}
