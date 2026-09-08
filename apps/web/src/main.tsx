@@ -14,6 +14,7 @@ import {
   type HostedBudgetCatalogueEntry,
 } from "./features/budget/budgetRegistry";
 import "./styles/globals.css";
+import "./styles/darkThemePolish.css";
 import { startRestorePointLifecycle } from "./features/budget/restorePointLifecycle";
 import { SELECTED_BUDGET_STORAGE_KEY } from "./features/budget/budgetDataScope";
 
