@@ -526,9 +526,11 @@ export function AccountRegisterPage() {
     left: number;
   } | null>(null);
   const [activeRegisterView, setActiveRegisterView] = useState<"register" | "scheduled">("register");
+  const [scheduleToEditId, setScheduleToEditId] = useState<string | null>(null);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
   useEffect(() => {
     setActiveRegisterView("register");
+    setScheduleToEditId(null);
     setScheduledDueCount(0);
   }, [accountId]);
   const [isTransactionTagManagerOpen, setIsTransactionTagManagerOpen] =
@@ -1737,7 +1739,18 @@ export function AccountRegisterPage() {
           ) : null}
         </WorkspaceStickyHeader>
 
-        {activeRegisterView === "register" ? <ScheduledTransactionsPreview budgetId={activeBudgetId} accountId={accountId} currencyCode={data.currencyCode} onViewAll={() => setActiveRegisterView("scheduled")} /> : null}
+        {activeRegisterView === "register" ? (
+          <ScheduledTransactionsPreview
+            budgetId={activeBudgetId}
+            accountId={accountId}
+            currencyCode={data.currencyCode}
+            onViewAll={() => setActiveRegisterView("scheduled")}
+            onEditSchedule={(scheduleId) => {
+              setScheduleToEditId(scheduleId);
+              setActiveRegisterView("scheduled");
+            }}
+          />
+        ) : null}
 
         <ScheduledTransactionsPanel
           key={accountId}
@@ -1752,6 +1765,8 @@ export function AccountRegisterPage() {
           onClose={() => setActiveRegisterView("register")}
           presentation="workspace"
           onDueCountChange={setScheduledDueCount}
+          editScheduleId={scheduleToEditId}
+          onEditScheduleHandled={() => setScheduleToEditId(null)}
         />
 
         {isTransactionTagManagerOpen ? (

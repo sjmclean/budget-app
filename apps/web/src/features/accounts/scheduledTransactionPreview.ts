@@ -20,6 +20,13 @@ export function addLocalCalendarDays(today: string, days: number): string {
   const year=date.getFullYear(),month=String(date.getMonth()+1).padStart(2,"0"),day=String(date.getDate()).padStart(2,"0");
   return `${year}-${month}-${day}`;
 }
+export function getScheduledPreviewRelativeLabel(occurrenceDate: string, today: string): string {
+  if (occurrenceDate === today) return "Today";
+  if (occurrenceDate === addLocalCalendarDays(today, 1)) return "Tomorrow";
+  if (occurrenceDate === addLocalCalendarDays(today, 2)) return "In 2 days";
+  if (occurrenceDate === addLocalCalendarDays(today, 3)) return "In 3 days";
+  return "Scheduled";
+}
 export function buildScheduledPreview(schedules: readonly ScheduledTransactionView[], today: string, days: ScheduledPreviewDays) {
   const horizon=addLocalCalendarDays(today,days);
   const eligible=schedules.filter(item=>item.nextDueDate<=horizon).sort((a,b)=>a.nextDueDate.localeCompare(b.nextDueDate)||a.id.localeCompare(b.id));
