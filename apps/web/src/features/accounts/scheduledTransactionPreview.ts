@@ -1,11 +1,25 @@
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
 import type { ScheduledTransactionView } from "./scheduledTransactionTypes";
+import type { RegisterColumnId } from "./components/TransactionRow";
 
 export const SCHEDULED_PREVIEW_DAYS_KEY = "budget-app.register.scheduled-preview-days.v1";
 export const SCHEDULED_PREVIEW_DAY_OPTIONS = [3, 7, 14, 30] as const;
 export const DEFAULT_SCHEDULED_PREVIEW_DAYS = 7;
 export const MAX_SCHEDULED_PREVIEW_ROWS = 5;
 export type ScheduledPreviewDays = typeof SCHEDULED_PREVIEW_DAY_OPTIONS[number];
+export interface ScheduledPreviewColumnPlan {
+  columnIds: RegisterColumnId[];
+  actionColumnId: "status" | "payee";
+}
+
+export function buildScheduledPreviewColumnPlan(
+  visibleColumnIds: readonly RegisterColumnId[],
+): ScheduledPreviewColumnPlan {
+  return {
+    columnIds: [...visibleColumnIds],
+    actionColumnId: visibleColumnIds.includes("status") ? "status" : "payee",
+  };
+}
 
 export function readScheduledPreviewDays(storage: Pick<KeyValueStoragePort,"getItem">): ScheduledPreviewDays {
   const value = Number(storage.getItem(SCHEDULED_PREVIEW_DAYS_KEY));

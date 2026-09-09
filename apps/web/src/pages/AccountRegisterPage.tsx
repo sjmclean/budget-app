@@ -1749,6 +1749,15 @@ export function AccountRegisterPage() {
               setScheduleToEditId(scheduleId);
               setActiveRegisterView("scheduled");
             }}
+            visibleColumnIds={
+              data.accountType === "Tracking"
+                ? registerTableLayout.visibleColumnIds.filter(
+                    (columnId) => columnId !== "category",
+                  )
+                : registerTableLayout.visibleColumnIds
+            }
+            rowStyle={registerTableLayout.rowStyle}
+            layoutMode={registerLayoutMode}
           />
         ) : null}
 

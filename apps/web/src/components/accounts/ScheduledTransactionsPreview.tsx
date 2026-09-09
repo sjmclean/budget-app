@@ -1,6 +1,7 @@
 import { Clock3 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
+  buildScheduledPreviewColumnPlan,
   buildScheduledPreview,
   getScheduledPreviewRelativeLabel,
   readScheduledPreviewDays,
@@ -19,6 +20,8 @@ import { formatDateForDisplay } from "../../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../../features/settings/useDateFormatPreference";
 import { confirmDialog } from "../../features/ui/appDialogService";
 import { DropdownMenu } from "../../features/ui/DropdownMenu";
+import type { RegisterColumnId } from "../../features/accounts/components/TransactionRow";
+import type { RegisterLayoutMode } from "../../features/accounts/registerLayoutMode";
 
 type ScheduledTransactionsPreviewProps = {
   budgetId: string | null;
@@ -26,6 +29,9 @@ type ScheduledTransactionsPreviewProps = {
   currencyCode: string;
   onViewAll: () => void;
   onEditSchedule: (scheduleId: string) => void;
+  visibleColumnIds: readonly RegisterColumnId[];
+  rowStyle: CSSProperties;
+  layoutMode: RegisterLayoutMode;
 };
 
 export function ScheduledTransactionsPreview({
@@ -34,6 +40,9 @@ export function ScheduledTransactionsPreview({
   currencyCode,
   onViewAll,
   onEditSchedule,
+  visibleColumnIds,
+  rowStyle,
+  layoutMode,
 }: ScheduledTransactionsPreviewProps) {
   const persistence = getBudgetPersistenceProvider().scheduledTransactions;
   const version = usePersistenceChangeVersion();
@@ -75,6 +84,10 @@ export function ScheduledTransactionsPreview({
     () => buildScheduledPreview(schedules, today, days),
     [schedules, today, days],
   );
+  const columnPlan = useMemo(
+    () => buildScheduledPreviewColumnPlan(visibleColumnIds),
+    [visibleColumnIds],
+  );
 
   if (!preview.scheduledTotal) return null;
 
@@ -111,6 +124,164 @@ export function ScheduledTransactionsPreview({
     }
   };
 
+  const actionMenu = (item: ScheduledTransactionView, payee: string) => (
+    <DropdownMenu
+      label={<Clock3 size={15} aria-hidden="true" />}
+      ariaLabel={`Scheduled transaction actions for ${payee}`}
+      buttonClassName="register-scheduled-ghost-action"
+      className="register-scheduled-ghost-menu"
+      panelClassName="dropdown-menu-panel register-scheduled-ghost-menu-panel"
+    >
+      {({ closeMenu }) => (
+        <>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={busyId !== null}
+            onClick={() => {
+              void act(item, "enter").finally(() =>
+                closeMenu({ restoreFocus: true }),
+              );
+            }}
+          >
+            Enter now
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={busyId !== null}
+            onClick={() => {
+              void act(item, "skip").finally(() =>
+                closeMenu({ restoreFocus: true }),
+              );
+            }}
+          >
+            Skip this occurrence
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              closeMenu();
+              onEditSchedule(item.id);
+            }}
+          >
+            Edit schedule
+          </button>
+        </>
+      )}
+    </DropdownMenu>
+  );
+
+  const compactRow = (
+    item: ScheduledTransactionView,
+    payee: string,
+    amount: number,
+  ) => (
+    <div
+      className={`register-scheduled-ghost-row register-scheduled-ghost-row-${layoutMode}`}
+      key={item.id}
+    >
+      <span
+        className="register-scheduled-ghost-select-placeholder"
+        aria-hidden="true"
+      />
+      <time dateTime={item.nextDueDate}>
+        {formatDateForDisplay(item.nextDueDate, dateFormat)}
+      </time>
+      {layoutMode === "compact" ? (
+        <>
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
+        </>
+      ) : null}
+      <div className="register-scheduled-ghost-content">
+        <strong>{payee}</strong>
+        <span>
+          {item.category ? <>{item.category} · </> : null}
+          {getScheduledPreviewRelativeLabel(item.nextDueDate, today)}
+        </span>
+      </div>
+      <b className={amount >= 0 ? "positive" : "negative"}>
+        {money.format(amount)}
+      </b>
+      {actionMenu(item, payee)}
+    </div>
+  );
+
+  const desktopRow = (
+    item: ScheduledTransactionView,
+    payee: string,
+    amount: number,
+  ) => (
+    <div
+      className="register-row register-scheduled-ghost-row register-scheduled-ghost-row-desktop"
+      key={item.id}
+      style={rowStyle}
+    >
+      {columnPlan.columnIds.map((columnId) => {
+        switch (columnId) {
+          case "select":
+          case "tags":
+          case "attachments":
+          case "runningBalance":
+          case "checkNumber":
+            return <span key={columnId} aria-hidden="true" />;
+          case "date":
+            return (
+              <time key={columnId} dateTime={item.nextDueDate}>
+                {formatDateForDisplay(item.nextDueDate, dateFormat)}
+              </time>
+            );
+          case "payee":
+            return (
+              <div className="register-scheduled-ghost-content" key={columnId}>
+                <span className="register-scheduled-ghost-payee-line">
+                  <strong>{payee}</strong>
+                  {columnPlan.actionColumnId === "payee"
+                    ? actionMenu(item, payee)
+                    : null}
+                </span>
+                <span>
+                  {getScheduledPreviewRelativeLabel(item.nextDueDate, today)}
+                </span>
+              </div>
+            );
+          case "category":
+            return (
+              <span className="register-scheduled-ghost-detail" key={columnId}>
+                {item.category}
+              </span>
+            );
+          case "memo":
+            return (
+              <span className="register-scheduled-ghost-detail" key={columnId}>
+                {item.memo}
+              </span>
+            );
+          case "amount":
+            return (
+              <b
+                className={amount >= 0 ? "positive" : "negative"}
+                key={columnId}
+              >
+                {money.format(amount)}
+              </b>
+            );
+          case "status":
+            return (
+              <span
+                className="register-scheduled-ghost-status-cell"
+                key={columnId}
+              >
+                {actionMenu(item, payee)}
+              </span>
+            );
+        }
+      })}
+    </div>
+  );
+
   return (
     <section
       className="register-scheduled-ghosts"
@@ -145,77 +316,9 @@ export function ScheduledTransactionsPreview({
             const amount = item.inflow - item.outflow;
             const payee = item.payee || "Scheduled transaction";
             return (
-              <div className="register-scheduled-ghost-row" key={item.id}>
-                <span
-                  className="register-scheduled-ghost-select-placeholder"
-                  aria-hidden="true"
-                />
-                <time dateTime={item.nextDueDate}>
-                  {formatDateForDisplay(item.nextDueDate, dateFormat)}
-                </time>
-                <span className="register-scheduled-ghost-utility" aria-hidden="true" />
-                <span className="register-scheduled-ghost-utility" aria-hidden="true" />
-                <div className="register-scheduled-ghost-content">
-                  <strong>{payee}</strong>
-                  <span>
-                    {item.category ? <>{item.category} · </> : null}
-                    {getScheduledPreviewRelativeLabel(item.nextDueDate, today)}
-                  </span>
-                </div>
-                <b className={amount >= 0 ? "positive" : "negative"}>
-                  {money.format(amount)}
-                </b>
-                <span
-                  className="register-scheduled-ghost-balance-placeholder"
-                  aria-hidden="true"
-                />
-                <DropdownMenu
-                  label={<Clock3 size={15} aria-hidden="true" />}
-                  ariaLabel={`Scheduled transaction actions for ${payee}`}
-                  buttonClassName="register-scheduled-ghost-action"
-                  className="register-scheduled-ghost-menu"
-                  panelClassName="dropdown-menu-panel register-scheduled-ghost-menu-panel"
-                >
-                  {({ closeMenu }) => (
-                    <>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        disabled={busyId !== null}
-                        onClick={() => {
-                          void act(item, "enter").finally(() =>
-                            closeMenu({ restoreFocus: true }),
-                          );
-                        }}
-                      >
-                        Enter now
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        disabled={busyId !== null}
-                        onClick={() => {
-                          void act(item, "skip").finally(() =>
-                            closeMenu({ restoreFocus: true }),
-                          );
-                        }}
-                      >
-                        Skip this occurrence
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          closeMenu();
-                          onEditSchedule(item.id);
-                        }}
-                      >
-                        Edit schedule
-                      </button>
-                    </>
-                  )}
-                </DropdownMenu>
-              </div>
+              layoutMode === "desktop"
+                ? desktopRow(item, payee, amount)
+                : compactRow(item, payee, amount)
             );
           })}
         </div>

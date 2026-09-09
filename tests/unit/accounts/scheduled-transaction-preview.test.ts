@@ -3,12 +3,14 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   buildScheduledPreview,
+  buildScheduledPreviewColumnPlan,
   getScheduledPreviewRelativeLabel,
   readScheduledPreviewDays,
   SCHEDULED_PREVIEW_DAYS_KEY,
   writeScheduledPreviewDays,
 } from "../../../apps/web/src/features/accounts/scheduledTransactionPreview";
 import type { ScheduledTransactionView } from "../../../apps/web/src/features/accounts/scheduledTransactionTypes";
+import { REGISTER_COLUMN_DEFINITIONS } from "../../../apps/web/src/features/accounts/registerColumns";
 import {
   createFixedBudgetScopedStorage,
   getBudgetScopedStorageKey,
@@ -79,6 +81,52 @@ test("relative labels use local calendar boundaries without an overdue state", (
   assert.equal(getScheduledPreviewRelativeLabel("2026-12-29", today), "Scheduled");
 });
 
+test("desktop ghost-column plan follows active visibility and preserves actions", () => {
+  const defaultColumnIds = REGISTER_COLUMN_DEFINITIONS.map((column) => column.id);
+  assert.deepEqual(
+    buildScheduledPreviewColumnPlan(defaultColumnIds).columnIds,
+    defaultColumnIds,
+  );
+
+  const withoutOptionalColumns = buildScheduledPreviewColumnPlan([
+    "select",
+    "date",
+    "payee",
+    "category",
+    "memo",
+    "checkNumber",
+    "amount",
+    "status",
+  ]);
+  assert.deepEqual(withoutOptionalColumns.columnIds, [
+    "select",
+    "date",
+    "payee",
+    "category",
+    "memo",
+    "checkNumber",
+    "amount",
+    "status",
+  ]);
+  assert.equal(withoutOptionalColumns.actionColumnId, "status");
+
+  const withoutStatus = buildScheduledPreviewColumnPlan([
+    "select",
+    "date",
+    "payee",
+    "category",
+    "amount",
+  ]);
+  assert.deepEqual(withoutStatus.columnIds, [
+    "select",
+    "date",
+    "payee",
+    "category",
+    "amount",
+  ]);
+  assert.equal(withoutStatus.actionColumnId, "payee");
+});
+
 test("schedules outside the horizon retain the compact control and empty state", () => {
   const result = buildScheduledPreview(
     [schedule("future", "2026-09-20")],
@@ -127,15 +175,17 @@ test("ghost rows remain presentation-only and expose scheduled actions", () => {
     "utf8",
   );
 
-  assert.doesNotMatch(component, /TransactionRow|type="checkbox"|register-status-cleared/);
+  assert.doesNotMatch(component, /<TransactionRow|type="checkbox"|register-status-cleared/);
   assert.ok(
     page.indexOf("<ScheduledTransactionsPreview") <
       page.indexOf("<TransactionRow"),
   );
   assert.match(component, /register-scheduled-ghost-row/);
   assert.match(component, /register-scheduled-ghost-select-placeholder/);
-  assert.match(component, /register-scheduled-ghost-balance-placeholder/);
   assert.match(component, /register-scheduled-ghost-content/);
+  assert.match(component, /columnPlan\.columnIds\.map/);
+  assert.match(component, /style=\{rowStyle\}/);
+  assert.match(component, /columnPlan\.actionColumnId === "payee"/);
   assert.match(component, /getScheduledPreviewRelativeLabel/);
   assert.match(component, /ariaLabel=\{`Scheduled transaction actions for/);
   assert.match(component, />\s*Enter now\s*</);
@@ -149,9 +199,9 @@ test("ghost rows remain presentation-only and expose scheduled actions", () => {
 
   assert.doesNotMatch(css, /\.register-scheduled-preview/);
   assert.match(css, /\.register-scheduled-ghosts\s*\{[\s\S]*border-bottom: 2px/);
-  assert.match(css, /\.register-scheduled-ghost-row\s*\{[\s\S]*grid-template-columns/);
+  assert.match(css, /\.register-scheduled-ghost-row-compact\s*\{[\s\S]*grid-template-columns/);
   assert.match(css, /\.register-scheduled-ghost-action:focus-visible/);
-  assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.register-scheduled-ghost-row/);
+  assert.match(css, /\.register-scheduled-ghost-row-mobile/);
 });
 
 test("budget-scoped preset preference defaults safely and round-trips", () => {
