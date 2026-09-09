@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T06:28:58.534Z",
+  "generatedAt": "2026-09-09T01:33:38.806Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -598,12 +598,12 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionPreview.ts",
-      "line": 10
+      "line": 24
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionPreview.ts",
-      "line": 15
+      "line": 29
     },
     {
       "kind": "persistenceBoundary",
