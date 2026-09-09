@@ -36,8 +36,9 @@ test("preview presentation stays integrated with the register and responsive",()
   assert.match(component,/register-scheduled-preview-action-row/);
   assert.match(css,/\.register-scheduled-preview\s*\{[\s\S]*var\(--surface-subtle\) 88%/);
   assert.match(css,/grid-template-columns:[\s\S]*1\.8rem minmax\(5\.2rem, 6\.4rem\)[\s\S]*minmax\(5\.6rem, 7\.2rem\)/);
-  assert.match(css,/\.register-scheduled-preview-action-row\s*\{[\s\S]*grid-column: 5 \/ -1/);
-  assert.match(css,/@media \(max-width: 760px\)[\s\S]*\.register-scheduled-preview-action-row/);
+  assert.match(css,/\.register-scheduled-preview-action-row\s*\{[\s\S]*grid-column: 6;[\s\S]*justify-content: flex-end/);
+  assert.match(css,/@media \(max-width: 1100px\)[\s\S]*\.register-scheduled-preview-action-row \{ grid-column: 4; \}/);
+  assert.match(css,/@media \(max-width: 760px\)[\s\S]*\.register-scheduled-preview-action-row \{ grid-column: 3; \}/);
 });
 test("budget-scoped preset preference defaults safely and round-trips",()=>{
   const values=new Map<string,string>();const raw={getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>{values.set(k,v)},removeItem:(k:string)=>{values.delete(k)}};

@@ -7582,9 +7582,10 @@
 .register-scheduled-preview-main > b.negative { color: var(--negative); }
 
 .register-scheduled-preview-action-row {
-  grid-column: 5 / -1;
+  grid-column: 6;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 0.08rem;
   margin-top: -0.08rem;
@@ -7622,7 +7623,7 @@
   }
 
   .register-scheduled-preview-utility { display: none; }
-  .register-scheduled-preview-action-row { grid-column: 3 / -1; }
+  .register-scheduled-preview-action-row { grid-column: 4; }
 }
 
 @media (max-width: 760px) {
@@ -7637,5 +7638,5 @@
   }
 
   .register-scheduled-preview-marker { display: none; }
-  .register-scheduled-preview-action-row { grid-column: 2 / -1; }
+  .register-scheduled-preview-action-row { grid-column: 3; }
 }
