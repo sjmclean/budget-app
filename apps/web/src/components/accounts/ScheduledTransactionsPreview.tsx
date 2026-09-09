@@ -146,43 +146,45 @@ export function ScheduledTransactionsPreview({
             const amount = item.inflow - item.outflow;
             return (
               <div className="register-scheduled-preview-row" key={item.id}>
-                <span
-                  className="register-scheduled-preview-marker"
-                  aria-hidden="true"
-                />
-                <time dateTime={item.nextDueDate}>
-                  {formatDateForDisplay(item.nextDueDate, dateFormat)}
-                </time>
-                <span
-                  className="register-scheduled-preview-utility"
-                  aria-hidden="true"
-                />
-                <span
-                  className="register-scheduled-preview-utility"
-                  aria-hidden="true"
-                />
-                <div className="register-scheduled-preview-content">
-                  <strong>{item.payee || "Scheduled transaction"}</strong>
-                  {item.category ? <span>{item.category}</span> : null}
-                </div>
-                <b className={amount >= 0 ? "positive" : "negative"}>
-                  {money.format(amount)}
-                </b>
-                <div className="register-scheduled-preview-actions">
-                  <button
-                    type="button"
-                    disabled={busyId !== null}
-                    onClick={() => void act(item, "enter")}
-                  >
-                    Enter now
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busyId !== null}
-                    onClick={() => void act(item, "skip")}
-                  >
-                    Skip
-                  </button>
+                <div className="register-scheduled-preview-main">
+                  <span
+                    className="register-scheduled-preview-marker"
+                    aria-hidden="true"
+                  />
+                  <time dateTime={item.nextDueDate}>
+                    {formatDateForDisplay(item.nextDueDate, dateFormat)}
+                  </time>
+                  <span
+                    className="register-scheduled-preview-utility"
+                    aria-hidden="true"
+                  />
+                  <span
+                    className="register-scheduled-preview-utility"
+                    aria-hidden="true"
+                  />
+                  <div className="register-scheduled-preview-content">
+                    <strong>{item.payee || "Scheduled transaction"}</strong>
+                    {item.category ? <span>{item.category}</span> : null}
+                  </div>
+                  <b className={amount >= 0 ? "positive" : "negative"}>
+                    {money.format(amount)}
+                  </b>
+                  <div className="register-scheduled-preview-action-row">
+                    <button
+                      type="button"
+                      disabled={busyId !== null}
+                      onClick={() => void act(item, "enter")}
+                    >
+                      Enter now
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busyId !== null}
+                      onClick={() => void act(item, "skip")}
+                    >
+                      Skip
+                    </button>
+                  </div>
                 </div>
               </div>
             );

@@ -32,9 +32,12 @@ test("preview presentation stays integrated with the register and responsive",()
   assert.match(component,/>\s*Enter now\s*</);
   assert.match(component,/>\s*Skip\s*</);
   assert.match(component,/register-scheduled-preview-content/);
+  assert.match(component,/register-scheduled-preview-main/);
+  assert.match(component,/register-scheduled-preview-action-row/);
   assert.match(css,/\.register-scheduled-preview\s*\{[\s\S]*var\(--surface-subtle\) 88%/);
   assert.match(css,/grid-template-columns:[\s\S]*1\.8rem minmax\(5\.2rem, 6\.4rem\)[\s\S]*minmax\(5\.6rem, 7\.2rem\)/);
-  assert.match(css,/@media \(max-width: 760px\)[\s\S]*\.register-scheduled-preview-actions/);
+  assert.match(css,/\.register-scheduled-preview-action-row\s*\{[\s\S]*grid-column: 5 \/ -1/);
+  assert.match(css,/@media \(max-width: 760px\)[\s\S]*\.register-scheduled-preview-action-row/);
 });
 test("budget-scoped preset preference defaults safely and round-trips",()=>{
   const values=new Map<string,string>();const raw={getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>{values.set(k,v)},removeItem:(k:string)=>{values.delete(k)}};
