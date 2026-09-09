@@ -6,6 +6,7 @@ import {
   deleteScheduledTransactionCommand,
   editScheduledTransactionCommand,
   enterScheduledTransactionCommand,
+  skipScheduledTransactionCommand,
 } from "../../../apps/web/src/features/history/commands/scheduled/scheduledTransactionCommands.ts";
 import { ApplicationHistoryService, type ApplicationHistoryContext } from "../../../apps/web/src/features/history/applicationHistory.ts";
 import { advanceScheduledTransaction, buildScheduledTransaction } from "../../../apps/web/src/features/accounts/scheduledTransactionLifecycle.ts";
@@ -129,6 +130,15 @@ test("recurring Enter is one command and round-trips schedule, split, tags and a
   assert.deepEqual(Array.from(getGenerated()!.attachments[0].content), [1, 2, 3]);
   await service.undo(budgetId); assert.equal(schedules.get("recurring")!.occurrencesCompleted, 0); assert.equal(getGenerated(), null);
   await service.redo(budgetId); assert.equal(getGenerated()!.transactions[0].id, "stable-occurrence");
+});
+
+test("future Enter retains occurrence date and skip advances without a transaction with Undo/Redo",async()=>{
+  const future=buildScheduledTransaction(input({id:"future",nextDueDate:"2026-09-09",recurrenceAnchorDate:"2026-09-09"}),{id:"future",now:"2026-09-05T00:00:00.000Z"});
+  const entered=harness([future]);await entered.service.execute(budgetId,enterScheduledTransactionCommand({accountId:"account-a",scheduleId:"future",transactionId:"stable-future"}));
+  assert.equal(entered.getGenerated()!.transactions[0].date,"2026-09-09");assert.equal(entered.getGenerated()!.transactions[0].generatedFromSchedule,true);assert.equal(entered.getGenerated()!.transactions[0].scheduledOccurrenceDate,"2026-09-09");assert.equal(entered.schedules.get("future")!.nextDueDate,"2026-10-09");
+  await entered.service.undo(budgetId);assert.equal(entered.getGenerated(),null);assert.equal(entered.schedules.get("future")!.nextDueDate,"2026-09-09");await entered.service.redo(budgetId);assert.equal(entered.getGenerated()!.transactions[0].id,"stable-future");
+  const skipped=harness([future]);await skipped.service.execute(budgetId,skipScheduledTransactionCommand("future"));assert.equal(skipped.getGenerated(),null);assert.equal(skipped.schedules.get("future")!.nextDueDate,"2026-10-09");assert.equal(skipped.service.getSnapshot(budgetId).undoLabel,"Skip scheduled transaction");await skipped.service.undo(budgetId);assert.deepEqual(skipped.schedules.get("future"),future);await skipped.service.redo(budgetId);assert.equal(skipped.schedules.get("future")!.nextDueDate,"2026-10-09");
+  for(const terminal of [buildScheduledTransaction(input({id:"once-skip",frequency:"once"}),{id:"once-skip"}),buildScheduledTransaction(input({id:"specific-skip",frequency:"custom",recurrenceKind:"specific-dates",specificInstalments:[{date:"2026-09-09",outflow:1,inflow:0}]}),{id:"specific-skip"})]){const h=harness([terminal]);await h.service.execute(budgetId,skipScheduledTransactionCommand(terminal.id));assert.equal(h.schedules.has(terminal.id),false);assert.equal(h.getGenerated(),null);await h.service.undo(budgetId);assert.deepEqual(h.schedules.get(terminal.id),terminal);}
 });
 
 test("one-time, terminal specific-date and skipped occurrences restore exact progression", async () => {

@@ -20,6 +20,7 @@ import {
 } from "../components/workspace";
 import { SelectionBar } from "../components/ui/SelectionBar";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
+import { ScheduledTransactionsPreview } from "../components/accounts/ScheduledTransactionsPreview";
 import { AttachmentManager } from "../features/accounts/components/AttachmentManager";
 import { TransactionImportDialog } from "../features/accounts/components/TransactionImportDialog";
 import { RegisterToolbar } from "../features/accounts/components/RegisterToolbar";
@@ -525,9 +526,11 @@ export function AccountRegisterPage() {
     left: number;
   } | null>(null);
   const [activeRegisterView, setActiveRegisterView] = useState<"register" | "scheduled">("register");
+  const [scheduleToEditId, setScheduleToEditId] = useState<string | null>(null);
   const [scheduledDueCount, setScheduledDueCount] = useState(0);
   useEffect(() => {
     setActiveRegisterView("register");
+    setScheduleToEditId(null);
     setScheduledDueCount(0);
   }, [accountId]);
   const [isTransactionTagManagerOpen, setIsTransactionTagManagerOpen] =
@@ -1736,6 +1739,28 @@ export function AccountRegisterPage() {
           ) : null}
         </WorkspaceStickyHeader>
 
+        {activeRegisterView === "register" ? (
+          <ScheduledTransactionsPreview
+            budgetId={activeBudgetId}
+            accountId={accountId}
+            currencyCode={data.currencyCode}
+            onViewAll={() => setActiveRegisterView("scheduled")}
+            onEditSchedule={(scheduleId) => {
+              setScheduleToEditId(scheduleId);
+              setActiveRegisterView("scheduled");
+            }}
+            visibleColumnIds={
+              data.accountType === "Tracking"
+                ? registerTableLayout.visibleColumnIds.filter(
+                    (columnId) => columnId !== "category",
+                  )
+                : registerTableLayout.visibleColumnIds
+            }
+            rowStyle={registerTableLayout.rowStyle}
+            layoutMode={registerLayoutMode}
+          />
+        ) : null}
+
         <ScheduledTransactionsPanel
           key={accountId}
           budgetId={activeBudgetId}
@@ -1749,6 +1774,8 @@ export function AccountRegisterPage() {
           onClose={() => setActiveRegisterView("register")}
           presentation="workspace"
           onDueCountChange={setScheduledDueCount}
+          editScheduleId={scheduleToEditId}
+          onEditScheduleHandled={() => setScheduleToEditId(null)}
         />
 
         {isTransactionTagManagerOpen ? (

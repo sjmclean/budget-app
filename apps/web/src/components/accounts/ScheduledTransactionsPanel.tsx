@@ -50,6 +50,8 @@ interface ScheduledTransactionsPanelProps {
   onClose: () => void;
   onDueCountChange?: (count: number) => void;
   presentation?: "overlay" | "workspace";
+  editScheduleId?: string | null;
+  onEditScheduleHandled?: () => void;
 }
 
 interface ScheduledFormDraft {
@@ -99,6 +101,8 @@ export function ScheduledTransactionsPanel({
   onClose,
   onDueCountChange,
   presentation = "overlay",
+  editScheduleId = null,
+  onEditScheduleHandled,
 }: ScheduledTransactionsPanelProps) {
   const scheduledTransactionsPersistence = getBudgetPersistenceProvider().scheduledTransactions;
   const { createSchedule, editSchedule, deleteSchedule, enterSchedule } =
@@ -107,6 +111,14 @@ export function ScheduledTransactionsPanel({
   const dateFormat = useDateFormatPreference();
   const [scheduledTransactions, setScheduledTransactions] = useState<ScheduledTransactionView[]>([]);
   const [draft, setDraft] = useState<ScheduledFormDraft | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !editScheduleId) return;
+    const schedule = scheduledTransactions.find((item) => item.id === editScheduleId);
+    if (!schedule) return;
+    setDraft(draftFromScheduled(schedule));
+    onEditScheduleHandled?.();
+  }, [editScheduleId, isOpen, onEditScheduleHandled, scheduledTransactions]);
 
   useEffect(() => {
     let mounted = true;

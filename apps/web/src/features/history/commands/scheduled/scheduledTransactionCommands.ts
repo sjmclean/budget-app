@@ -3,6 +3,7 @@ import type {
   UpsertScheduledTransactionInput,
 } from "../../../accounts/scheduledTransactionTypes";
 import { shouldSkipOccurrence } from "../../../accounts/scheduledTransactionRecurrence";
+import { advanceScheduledTransaction } from "../../../accounts/scheduledTransactionLifecycle";
 import type { TransactionHistorySnapshot } from "../../../persistence";
 import type { ApplicationHistoryContext } from "../../applicationHistory";
 import type { UndoableCommand } from "../../undoRedo";
@@ -138,6 +139,30 @@ export function enterScheduledTransactionCommand(input: {
     async redo(context) {
       if (!beforeSchedule) throw new Error("Enter schedule command has no captured state.");
       await replaceSchedule(context, input.scheduleId, beforeSchedule, afterSchedule, null, transaction);
+    },
+  };
+}
+
+export function skipScheduledTransactionCommand(scheduleId: string): UndoableCommand<ApplicationHistoryContext> {
+  let before: ScheduledTransactionView | null = null;
+  let after: ScheduledTransactionView | null = null;
+  return {
+    id: `skip-scheduled-transaction:${scheduleId}:${Date.now()}`,
+    label: "Skip scheduled transaction",
+    async execute(context) {
+      before = await queries(context).captureScheduledTransaction(context.budgetId, scheduleId);
+      if (!before) throw new Error("Scheduled transaction was not found.");
+      const advanced = advanceScheduledTransaction(before);
+      after = advanced.action === "delete" ? null : advanced.transaction;
+      await replaceSchedule(context, scheduleId, before, after);
+    },
+    async undo(context) {
+      if (!before) throw new Error("Skip schedule command has no captured state.");
+      await replaceSchedule(context, scheduleId, after, before);
+    },
+    async redo(context) {
+      if (!before) throw new Error("Skip schedule command has no captured state.");
+      await replaceSchedule(context, scheduleId, before, after);
     },
   };
 }

@@ -7467,3 +7467,214 @@
   background: var(--accent-soft);
   box-shadow: inset 3px 0 0 var(--accent);
 }
+
+.register-scheduled-ghosts {
+  color: var(--text);
+  border-bottom: 2px solid
+    color-mix(in srgb, var(--border) 72%, var(--border-soft));
+}
+
+.register-scheduled-ghost-controls {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  padding: 0.22rem 0.62rem;
+  background: color-mix(in srgb, var(--surface-subtle) 88%, var(--surface));
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.register-scheduled-ghost-controls select,
+.register-scheduled-ghost-controls button,
+.register-scheduled-ghost-more {
+  font: inherit;
+}
+
+.register-scheduled-ghost-controls select {
+  border: 1px solid var(--border-soft);
+  border-radius: 0.32rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.08rem 0.25rem;
+}
+
+.register-scheduled-ghost-controls button,
+.register-scheduled-ghost-more {
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.15rem 0.28rem;
+}
+
+.register-scheduled-ghost-controls button {
+  margin-left: auto;
+}
+
+.register-scheduled-ghost-row {
+  border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--surface-subtle) 66%, var(--surface));
+  cursor: default;
+}
+
+.register-scheduled-ghost-row:hover {
+  background: color-mix(in srgb, var(--surface-subtle) 66%, var(--surface));
+}
+
+.register-scheduled-ghost-row-compact {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    1.8rem minmax(4.8rem, 6rem) 2.2rem 2.2rem minmax(0, 1fr)
+    minmax(8.2rem, 11rem) 2.2rem;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.48rem 0.72rem;
+  font-size: 0.84rem;
+}
+
+.register-scheduled-ghost-row-tablet,
+.register-scheduled-ghost-row-mobile {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    1.8rem minmax(4.8rem, 5.7rem) minmax(0, 1fr)
+    minmax(6.2rem, auto) 2.2rem;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.52rem 0.72rem;
+  font-size: 0.82rem;
+}
+
+.register-scheduled-ghost-row time,
+.register-scheduled-ghost-content strong,
+.register-scheduled-ghost-content > span,
+.register-scheduled-ghost-row > b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.register-scheduled-ghost-row time,
+.register-scheduled-ghost-content strong {
+  color: color-mix(in srgb, var(--text-muted) 86%, var(--text));
+}
+
+.register-scheduled-ghost-content {
+  min-width: 0;
+  display: grid;
+  gap: 0.08rem;
+  line-height: 1.15;
+}
+
+.register-scheduled-ghost-payee-line {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.register-scheduled-ghost-payee-line > strong {
+  flex: 1 1 auto;
+}
+
+.register-scheduled-ghost-detail {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.register-scheduled-ghost-content > span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.register-scheduled-ghost-row > b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.register-scheduled-ghost-row > b.positive { color: var(--positive); }
+.register-scheduled-ghost-row > b.negative { color: var(--negative); }
+
+.register-scheduled-ghost-menu {
+  position: relative;
+  justify-self: center;
+}
+
+.register-scheduled-ghost-status-cell {
+  display: grid;
+  place-items: center;
+}
+
+.register-scheduled-ghost-action {
+  width: 1.6rem;
+  height: 1.6rem;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.register-scheduled-ghost-action:hover {
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+
+.register-scheduled-ghost-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.register-scheduled-ghost-menu-panel {
+  top: calc(100% + 0.3rem);
+  right: 0;
+  left: auto;
+  min-width: 11.5rem;
+  z-index: 8;
+}
+
+.register-scheduled-ghost-more {
+  display: block;
+  width: 100%;
+  padding: 0.22rem 0.62rem;
+  text-align: right;
+}
+
+.register-scheduled-ghost-error,
+.register-scheduled-ghost-empty {
+  margin: 0;
+  padding: 0.38rem 0.62rem;
+  background: color-mix(in srgb, var(--surface-subtle) 66%, var(--surface));
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.register-scheduled-ghost-error { color: var(--negative); }
+
+@media (max-width: 680px) {
+  .register-scheduled-ghost-controls {
+    flex-wrap: wrap;
+  }
+
+  .register-scheduled-ghost-row-mobile {
+    grid-template-columns:
+      minmax(4.8rem, 5.7rem) minmax(0, 1fr) minmax(6.2rem, auto) 2.2rem;
+    gap: 0.38rem;
+    padding: 0.46rem 0.62rem;
+  }
+
+  .register-scheduled-ghost-select-placeholder {
+    display: none;
+  }
+}
