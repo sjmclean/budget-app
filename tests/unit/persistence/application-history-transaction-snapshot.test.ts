@@ -151,6 +151,68 @@ test("plain transaction capture and restore preserves its stable ID and fields",
   } finally { db.close(); }
 });
 
+test("client-built scheduled occurrence equals its physical SQLite graph", () => {
+  const db = openDatabase();
+  try {
+    const expected: LocalTransactionRecord = {
+      id: "scheduled:account-a:schedule-1:2026-08-19",
+      budgetId,
+      accountId: "account-a",
+      date: "2026-08-19",
+      amount: -1234,
+      memo: "Weekly groceries",
+      checkNumber: null,
+      clearedStatus: "uncleared",
+      payeeId: "payee-1",
+      payeeName: "Woolies",
+      rawPayeeName: null,
+      categoryId: "category-1",
+      categoryName: "Groceries",
+      transferAccountId: null,
+      transferTransactionId: null,
+      generatedFromSchedule: true,
+      scheduledTransactionId: "schedule-1",
+      scheduledOccurrenceDate: "2026-08-19",
+      splitLines: [],
+      tagIds: ["tag-1", "tag-2"],
+      importProvenance: [],
+      updatedAt: "2026-08-19T10:00:00.000Z",
+    };
+
+    writeTransaction(db, expected);
+    const persisted = capture(db);
+
+    assert.deepEqual(persisted.transactions[0], expected);
+    assert.equal(
+      transactionHistorySnapshotsEqual(
+        { budgetId, transactions: [expected], attachments: [] },
+        persisted,
+      ),
+      true,
+      "physical readback should match the client-built scheduled occurrence",
+    );
+    assert.equal(
+      transactionHistorySnapshotsEqual(
+        { budgetId, transactions: [{ ...expected, amount: -1235 }], attachments: [] },
+        persisted,
+      ),
+      false,
+      "canonical comparison must still reject a meaningful graph difference",
+    );
+    const { rawPayeeName: _rawPayeeName, ...legacyExpected } = expected;
+    assert.equal(
+      transactionHistorySnapshotsEqual(
+        { budgetId, transactions: [legacyExpected], attachments: [] },
+        persisted,
+      ),
+      true,
+      "legacy omitted raw payee state should match SQLite's canonical null",
+    );
+  } finally {
+    db.close();
+  }
+});
+
 test("physical SQLite restore failure rolls back the whole graph", () => {
   const source = openDatabase();
   const target = openDatabase();
