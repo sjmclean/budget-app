@@ -723,6 +723,7 @@ function ScheduledForm({
                 transferAccounts={transferAccounts}
                 payeeOptions={payeeOptions}
                 autoFocus
+                openWhenEmptyOnFocus={false}
                 onChange={(payee) =>
                   setDraft((current) =>
                     current ? applyScheduledPayeeText(current, payee) : current,
@@ -746,6 +747,9 @@ function ScheduledForm({
                           current,
                           payeeId,
                           selectedPayee?.name,
+                          selectedPayee?.defaultCategoryId,
+                          selectedPayee?.defaultCategoryName,
+                          categoryOptions,
                         )
                       : current,
                   );

@@ -14,6 +14,18 @@ import {
   type PayeeSelection,
 } from "../registerPayeeAutocomplete";
 
+export function shouldOpenPayeeSuggestionsOnFocus({
+  value,
+  openOnFocus,
+  openWhenEmptyOnFocus,
+}: {
+  value: string;
+  openOnFocus: boolean;
+  openWhenEmptyOnFocus: boolean;
+}): boolean {
+  return openOnFocus || (openWhenEmptyOnFocus && value.trim().length === 0);
+}
+
 export function PayeeInput({
   value,
   onChange,
@@ -24,6 +36,7 @@ export function PayeeInput({
   autoFocus,
   selectOnInitialFocus = false,
   openOnFocus = false,
+  openWhenEmptyOnFocus = true,
   onSelection,
   onCancel,
   onBlurOutside,
@@ -37,6 +50,7 @@ export function PayeeInput({
   autoFocus?: boolean;
   selectOnInitialFocus?: boolean;
   openOnFocus?: boolean;
+  openWhenEmptyOnFocus?: boolean;
   onSelection?: (value: string) => void;
   onCancel?: () => void;
   onBlurOutside?: () => void;
@@ -139,7 +153,15 @@ export function PayeeInput({
             initialSelectionPending.current = false;
           }
 
-          openSuggestionList(openOnFocus || value.trim().length === 0);
+          if (
+            shouldOpenPayeeSuggestionsOnFocus({
+              value,
+              openOnFocus,
+              openWhenEmptyOnFocus,
+            })
+          ) {
+            openSuggestionList(true);
+          }
         }}
         onBlur={() =>
           window.setTimeout(() => {
