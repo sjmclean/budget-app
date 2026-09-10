@@ -2562,6 +2562,7 @@ export function AccountRegisterPage() {
                     currencyCode={data.currencyCode}
                     dateFormat={dateFormat}
                     isSelected={registerSelection.isSelected(transaction.id)}
+                    isFocused={registerSelection.focusedId === transaction.id}
                     recentImportStatus={
                       recentlyImportedTransactionIds.has(transaction.id)
                         ? "imported"

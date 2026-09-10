@@ -14,12 +14,6 @@ import {
   type RegisterSelectionState,
 } from "./registerSelection";
 
-export interface RegisterSelectionPointerOptions {
-  shiftKey?: boolean;
-  metaKey?: boolean;
-  ctrlKey?: boolean;
-}
-
 export interface RegisterSelectionController {
   state: RegisterSelectionState;
   selectedIds: string[];
@@ -34,10 +28,6 @@ export interface RegisterSelectionController {
   deselect: (transactionIds: readonly string[]) => void;
   toggle: (transactionId: string) => void;
   selectRange: (transactionId: string) => void;
-  selectFromPointer: (
-    transactionId: string,
-    options?: RegisterSelectionPointerOptions,
-  ) => void;
   focus: (transactionId: string | null) => void;
   clear: () => void;
   prune: (availableTransactionIds: string[]) => void;
@@ -90,31 +80,6 @@ export function useRegisterSelection(
     [orderedTransactionIds],
   );
 
-  const selectFromPointer = useCallback(
-    (transactionId: string, options: RegisterSelectionPointerOptions = {}) => {
-      if (options.shiftKey) {
-        setState((currentState) =>
-          selectRegisterTransactionRange(
-            currentState,
-            orderedTransactionIds,
-            transactionId,
-          ),
-        );
-        return;
-      }
-
-      if (options.metaKey || options.ctrlKey || selectedCount > 0) {
-        setState((currentState) =>
-          toggleRegisterTransactionSelection(currentState, transactionId),
-        );
-        return;
-      }
-
-      setState(selectSingleRegisterTransaction(transactionId));
-    },
-    [orderedTransactionIds, selectedCount],
-  );
-
   const focus = useCallback((transactionId: string | null) => {
     setState((currentState) => focusRegisterTransaction(currentState, transactionId));
   }, []);
@@ -145,7 +110,6 @@ export function useRegisterSelection(
       deselect,
       toggle,
       selectRange,
-      selectFromPointer,
       focus,
       clear,
       prune,
@@ -156,7 +120,6 @@ export function useRegisterSelection(
       deselect,
       focus,
       prune,
-      selectFromPointer,
       selectRange,
       selectAll,
       selectSingle,

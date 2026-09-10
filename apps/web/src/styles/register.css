@@ -7462,6 +7462,11 @@
     color-mix(in srgb, var(--positive) 46%, transparent);
 }
 
+.register-row-focused:not(.register-row-selected) {
+  background: color-mix(in srgb, var(--accent-soft) 38%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
 /* Selection remains the dominant visual state. */
 .register-row-recent-imported.register-row-selected,
 .register-row-recent-matched.register-row-selected {
