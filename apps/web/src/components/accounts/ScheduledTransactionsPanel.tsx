@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import type { ScheduledAttachmentTemplate } from "../../features/accounts/accountRegisterTypes";
 import { calculateAttachmentContentHash } from "../../features/attachments/attachmentContentStore";
 import { alertDialog, confirmDialog } from "../../features/ui/appDialogService";
@@ -37,6 +43,11 @@ import { TransactionTagPicker } from "../../features/accounts/components/Transac
 import { localCalendarDate } from "../../features/dates/localCalendarDate";
 import { MoneyInput } from "../../features/money/MoneyInput";
 import { useScheduledTransactionHistory } from "../../features/accounts/useScheduledTransactionHistory";
+import {
+  applyScheduledPayeeText,
+  applyScheduledSavedPayee,
+  applyScheduledTransferAccount,
+} from "../../features/accounts/scheduledPayeeDraft";
 
 interface ScheduledTransactionsPanelProps {
   budgetId: string | null;
@@ -366,7 +377,7 @@ function ScheduledForm({
   onSave,
 }: {
   draft: ScheduledFormDraft;
-  setDraft: (draft: ScheduledFormDraft) => void;
+  setDraft: Dispatch<SetStateAction<ScheduledFormDraft | null>>;
   categoryOptions: BudgetCategoryOption[];
   transferAccounts: SidebarAccount[];
   payeeOptions: PayeeView[];
@@ -712,31 +723,36 @@ function ScheduledForm({
                 transferAccounts={transferAccounts}
                 payeeOptions={payeeOptions}
                 autoFocus
+                openWhenEmptyOnFocus={false}
                 onChange={(payee) =>
-                  setDraft({
-                    ...draft,
-                    payee,
-                    payeeId: undefined,
-                    transferAccountId: undefined,
-                  })
+                  setDraft((current) =>
+                    current ? applyScheduledPayeeText(current, payee) : current,
+                  )
                 }
                 onTransferAccountIdChange={(transferAccountId) =>
-                  setDraft({ ...draft, transferAccountId, payeeId: undefined })
+                  setDraft((current) =>
+                    current
+                      ? applyScheduledTransferAccount(current, transferAccountId)
+                      : current,
+                  )
                 }
                 onPayeeIdChange={(payeeId) => {
-                  if (!payeeId) {
-                    return;
-                  }
-
                   const selectedPayee = payeeOptions.find(
                     (candidate) => candidate.id === payeeId,
                   );
 
-                  setDraft({
-                    ...draft,
-                    payee: selectedPayee?.name ?? draft.payee,
-                    payeeId,
-                  });
+                  setDraft((current) =>
+                    current
+                      ? applyScheduledSavedPayee(
+                          current,
+                          payeeId,
+                          selectedPayee?.name,
+                          selectedPayee?.defaultCategoryId,
+                          selectedPayee?.defaultCategoryName,
+                          categoryOptions,
+                        )
+                      : current,
+                  );
                 }}
               />
             </div>

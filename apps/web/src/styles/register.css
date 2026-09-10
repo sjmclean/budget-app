@@ -5740,7 +5740,8 @@
 .scheduled-attachment-section {
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--border-soft, rgba(15, 23, 42, 0.1));
-  background: #fff;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .scheduled-attachment-heading,

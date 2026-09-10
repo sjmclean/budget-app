@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { shouldOpenPayeeSuggestionsOnFocus } from "../../../apps/web/src/features/accounts/components/PayeeInput";
 
 function read(path: string): string {
   return readFileSync(path, "utf8");
@@ -45,9 +46,43 @@ test("shared transaction inputs expose initial replacement selection capability"
 });
 
 test("payee preserves suggestion opening independently of initial selection", () => {
+  assert.equal(
+    shouldOpenPayeeSuggestionsOnFocus({
+      value: "",
+      openOnFocus: false,
+      openWhenEmptyOnFocus: true,
+    }),
+    true,
+    "empty payee inputs should keep the backwards-compatible focus-open default",
+  );
+  assert.equal(
+    shouldOpenPayeeSuggestionsOnFocus({
+      value: "Existing payee",
+      openOnFocus: true,
+      openWhenEmptyOnFocus: false,
+    }),
+    true,
+    "openOnFocus should open suggestions independently of the input value",
+  );
+  assert.equal(
+    shouldOpenPayeeSuggestionsOnFocus({
+      value: "",
+      openOnFocus: false,
+      openWhenEmptyOnFocus: false,
+    }),
+    false,
+    "consumers should be able to keep an empty auto-focused input collapsed",
+  );
+
+  assert.match(payeeInput, /openWhenEmptyOnFocus = true/);
   assert.match(
     payeeInput,
-    /openSuggestionList\(openOnFocus \|\| value\.trim\(\)\.length === 0\)/,
+    /shouldOpenPayeeSuggestionsOnFocus\(\{\s*value,\s*openOnFocus,\s*openWhenEmptyOnFocus,\s*\}\)/,
+  );
+  assert.match(
+    payeeInput,
+    /if \(initialSelectionPending\.current\) \{[\s\S]*?\.select\(\)[\s\S]*?\}[\s\S]*?shouldOpenPayeeSuggestionsOnFocus/,
+    "one-shot text selection should remain separate from suggestion opening",
   );
 });
 
