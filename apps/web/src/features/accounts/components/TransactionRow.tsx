@@ -678,6 +678,7 @@ interface TransactionRowRendererProps {
   currencyCode: string;
   dateFormat: ReturnType<typeof useDateFormatPreference>;
   isSelected: boolean;
+  isFocused: boolean;
   recentImportStatus?: RecentImportStatus | null;
   onSelectTransaction: (transactionId: string, event: MouseEvent<HTMLElement>) => void;
   onToggleTransactionSelection: (transactionId: string) => void;
@@ -712,6 +713,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
   currencyCode,
   dateFormat,
   isSelected,
+  isFocused,
   recentImportStatus,
   onSelectTransaction,
   onToggleTransactionSelection,
@@ -741,6 +743,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
         className={[
           "register-row",
           isSelected ? "register-row-selected" : "",
+          isFocused ? "register-row-focused" : "",
           recentImportStatus
             ? `register-row-recent-${recentImportStatus}`
             : "",
@@ -884,6 +887,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   currencyCode,
   dateFormat,
   isSelected,
+  isFocused,
   recentImportStatus,
   onSelectTransaction,
   onToggleTransactionSelection,
@@ -916,6 +920,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
         className={[
           "register-row-compact",
           isSelected ? "register-row-selected" : "",
+          isFocused ? "register-row-focused" : "",
           recentImportStatus
             ? `register-row-recent-${recentImportStatus}`
             : "",
@@ -1104,6 +1109,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
   currencyCode,
   dateFormat,
   isSelected,
+  isFocused,
   recentImportStatus,
   onSelectTransaction,
   onToggleTransactionSelection,
@@ -1140,6 +1146,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
         className={[
           "register-row-tablet",
           isSelected ? "register-row-selected" : "",
+          isFocused ? "register-row-focused" : "",
           recentImportStatus
             ? `register-row-recent-${recentImportStatus}`
             : "",
@@ -1322,6 +1329,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
   currencyCode,
   dateFormat,
   isSelected,
+  isFocused,
   recentImportStatus,
   onSelectTransaction,
   onToggleTransactionSelection,
@@ -1354,6 +1362,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
         className={[
           "register-row-mobile",
           isSelected ? "register-row-selected" : "",
+          isFocused ? "register-row-focused" : "",
           recentImportStatus
             ? `register-row-recent-${recentImportStatus}`
             : "",

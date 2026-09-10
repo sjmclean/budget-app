@@ -2,15 +2,7 @@ import { useCallback, type MouseEvent } from "react";
 import type { RegisterTransactionView } from "./accountRegisterTypes";
 
 interface RegisterSelectionController {
-  selectFromPointer: (
-    transactionId: string,
-    options?: {
-      shiftKey?: boolean;
-      metaKey?: boolean;
-      ctrlKey?: boolean;
-    },
-  ) => void;
-  selectSingle: (transactionId: string) => void;
+  focus: (transactionId: string | null) => void;
   toggle: (transactionId: string) => void;
 }
 
@@ -55,14 +47,9 @@ export function useRegisterCommands({
   updateTransaction,
 }: UseRegisterCommandsInput): UseRegisterCommandsResult {
   const selectTransaction = useCallback(
-    (transactionId: string, event?: MouseEvent<HTMLElement>) => {
+    (transactionId: string, _event?: MouseEvent<HTMLElement>) => {
       setEditingTransactionId(null);
-
-      registerSelection.selectFromPointer(transactionId, {
-        shiftKey: event?.shiftKey,
-        metaKey: event?.metaKey,
-        ctrlKey: event?.ctrlKey,
-      });
+      registerSelection.focus(transactionId);
     },
     [registerSelection, setEditingTransactionId],
   );
@@ -77,7 +64,7 @@ export function useRegisterCommands({
 
   const editTransaction = useCallback(
     (transactionId: string) => {
-      registerSelection.selectSingle(transactionId);
+      registerSelection.focus(transactionId);
       setShowEntryRow(false);
       setEditingTransactionId(transactionId);
     },
@@ -93,7 +80,7 @@ export function useRegisterCommands({
 
   const manageTransactionAttachments = useCallback(
     (transactionId: string) => {
-      registerSelection.selectSingle(transactionId);
+      registerSelection.focus(transactionId);
       openAttachmentManager(transactionId);
     },
     [openAttachmentManager, registerSelection],
