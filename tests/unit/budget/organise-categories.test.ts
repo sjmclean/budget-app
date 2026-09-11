@@ -4,6 +4,7 @@ import test from "node:test";
 import { createRequire } from "node:module";
 import {
   getOrganisableCategoryGroups,
+  moveOrganisableCategoryToGroup,
   OrganiseCategoriesDialog,
 } from "../../../apps/web/src/features/budget/OrganiseCategoriesDialog.js";
 import type { BudgetCategoryGroupView } from "../../../apps/web/src/features/budget/budgetViewTypes.js";
@@ -22,6 +23,8 @@ const groups: BudgetCategoryGroupView[] = [
   { id: "credit-card-payments", name: "Cards", previousAvailable: 0, assigned: 0, activity: 0, available: 0, note: "", categories: [category("credit-card-payment-card-1")] },
   { id: "g1", name: "First", previousAvailable: 0, assigned: 0, activity: 0, available: 0, note: "", categories: [category("a"), category("archived", true), category("b")] },
   { id: "g2", name: "Second", previousAvailable: 0, assigned: 0, activity: 0, available: 0, note: "", categories: [category("c")] },
+  { id: "empty", name: "Empty", previousAvailable: 0, assigned: 0, activity: 0, available: 0, note: "", categories: [] },
+  { id: "archived-only", name: "Archived only", previousAvailable: 0, assigned: 0, activity: 0, available: 0, note: "", categories: [category("old", true)] },
 ];
 
 test("organiser includes normal active structure in persisted order and excludes managed and archived categories", () => {
@@ -29,6 +32,8 @@ test("organiser includes normal active structure in persisted order and excludes
   assert.deepEqual(result.map((group) => [group.id, group.categories.map(({ id }) => id)]), [
     ["g1", ["a", "b"]],
     ["g2", ["c"]],
+    ["empty", []],
+    ["archived-only", []],
   ]);
   assert.strictEqual(result[0]?.categories[0], groups[1]?.categories[0], "category identity and durable state are preserved");
 });
@@ -42,8 +47,22 @@ test("organiser renders semantic movement fallbacks without nested buttons", () 
   assert.match(html, /Organise Categories/);
   assert.match(html, /aria-label="Move a to group"/);
   assert.match(html, /aria-label="Move First group down"/);
-  assert.doesNotMatch(html, /credit-card-payment|archived/);
+  assert.match(html, /<option value="empty">Empty<\/option>/);
+  assert.match(html, /Archived only/);
+  assert.match(html, /Drop a category here/);
+  assert.doesNotMatch(html, /credit-card-payment|>archived</);
   assert.doesNotMatch(html, /<button[^>]*>(?:(?!<\/button>)[\s\S])*<button/);
+});
+
+test("non-drag fallback targets an empty normal group through the position command", () => {
+  const calls: unknown[][] = [];
+  moveOrganisableCategoryToGroup(
+    getOrganisableCategoryGroups(groups),
+    "a",
+    "empty",
+    (...args) => calls.push(args),
+  );
+  assert.deepEqual(calls, [["a", undefined, "after", "empty"]]);
 });
 
 test("budget header opens organiser and main grid has no drag wording or handles", () => {

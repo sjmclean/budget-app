@@ -1427,11 +1427,15 @@ export function createBudgetViewService(
     );
   },
 
-  async moveCategoryToPosition({ budgetId, month, categoryId, targetCategoryId, placement }) {
+  async moveCategoryToPosition({ budgetId, month, categoryId, targetCategoryId, targetGroupId, placement }) {
     const current = await loadBudgetView(dependencies, budgetId, month);
 
-    if (categoryId === targetCategoryId) {
+    if (targetCategoryId && categoryId === targetCategoryId) {
       return current;
+    }
+
+    if (!targetCategoryId && !targetGroupId) {
+      throw new Error("A target category or group is required.");
     }
 
     let categoryToMove: BudgetCategoryView | null = null;
@@ -1462,6 +1466,11 @@ export function createBudgetViewService(
     let inserted = false;
 
     const nextGroups = groupsWithoutSourceCategory.map((group) => {
+      if (!targetCategoryId && group.id === targetGroupId) {
+        inserted = true;
+        return { ...group, categories: [...group.categories, movedCategory] };
+      }
+
       const targetIndex = group.categories.findIndex(
         (category) => category.id === targetCategoryId,
       );

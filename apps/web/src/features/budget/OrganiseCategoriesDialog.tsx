@@ -14,8 +14,21 @@ export function getOrganisableCategoryGroups(groups: BudgetCategoryGroupView[]) 
       categories: group.categories.filter(
         (category) => !category.isArchived && !isCreditCardPaymentCategory(category.id),
       ),
-    }))
-    .filter((group) => group.categories.length > 0);
+    }));
+}
+
+export function moveOrganisableCategoryToGroup(
+  groups: BudgetCategoryGroupView[],
+  categoryId: string,
+  targetGroupId: string,
+  positionCategory: (categoryId: string, targetCategoryId: string | undefined, placement: "before" | "after", targetGroupId?: string) => void,
+) {
+  const sourceGroup = groups.find((group) =>
+    group.categories.some((category) => category.id === categoryId),
+  );
+  if (!sourceGroup || sourceGroup.id === targetGroupId) return;
+  const target = groups.find((group) => group.id === targetGroupId)?.categories.at(-1);
+  positionCategory(categoryId, target?.id, "after", target ? undefined : targetGroupId);
 }
 
 export function OrganiseCategoriesDialog({
@@ -29,7 +42,7 @@ export function OrganiseCategoriesDialog({
   groups: BudgetCategoryGroupView[];
   onClose: () => void;
   onMoveCategory: (categoryId: string, direction: "up" | "down") => void;
-  onPositionCategory: (categoryId: string, targetCategoryId: string, placement: "before" | "after") => void;
+  onPositionCategory: (categoryId: string, targetCategoryId: string | undefined, placement: "before" | "after", targetGroupId?: string) => void;
   onMoveGroup: (groupId: string, direction: "up" | "down") => void;
   onPositionGroup: (groupId: string, targetGroupId: string, placement: "before" | "after") => void;
 }) {
@@ -55,12 +68,9 @@ export function OrganiseCategoriesDialog({
   }
 
   function moveToGroup(categoryId: string, targetGroupId: string) {
-    const sourceGroup = organisableGroups.find((group) =>
-      group.categories.some((category) => category.id === categoryId),
+    moveOrganisableCategoryToGroup(
+      organisableGroups, categoryId, targetGroupId, onPositionCategory,
     );
-    if (!sourceGroup || sourceGroup.id === targetGroupId) return;
-    const target = organisableGroups.find((group) => group.id === targetGroupId)?.categories.at(-1);
-    if (target) onPositionCategory(categoryId, target.id, "after");
   }
 
   return (
@@ -117,6 +127,24 @@ export function OrganiseCategoriesDialog({
                 </span>
               </header>
               <ul>
+                {group.categories.length === 0 ? (
+                  <li
+                    className="organise-category-empty-drop"
+                    onDragOver={(event) => {
+                      if (!draggedCategoryId) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (draggedCategoryId) {
+                        onPositionCategory(draggedCategoryId, undefined, "after", group.id);
+                      }
+                      setDraggedCategoryId(null);
+                    }}
+                  >Drop a category here</li>
+                ) : null}
                 {group.categories.map((category, categoryIndex) => (
                   <li
                     key={category.id}

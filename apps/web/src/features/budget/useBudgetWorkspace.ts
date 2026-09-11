@@ -54,8 +54,9 @@ interface UseBudgetWorkspaceState {
   moveCategory: (categoryId: string, direction: "up" | "down") => void;
   moveCategoryToPosition: (
     categoryId: string,
-    targetCategoryId: string,
+    targetCategoryId: string | undefined,
     placement: "before" | "after",
+    targetGroupId?: string,
   ) => void;
   moveCategoryGroup: (groupId: string, direction: "up" | "down") => void;
   moveCategoryGroupToPosition: (
@@ -568,13 +569,15 @@ export function useBudgetWorkspace(
 
   function moveCategoryToPosition(
     categoryId: string,
-    targetCategoryId: string,
+    targetCategoryId: string | undefined,
     placement: "before" | "after",
+    targetGroupId?: string,
   ) {
     runWorkspaceMutation(
       () => categoryHistory.moveCategoryToPosition({
         categoryId,
         targetCategoryId,
+        targetGroupId,
         placement,
       }),
       (nextData) => {

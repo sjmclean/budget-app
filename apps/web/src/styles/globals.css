@@ -2357,6 +2357,7 @@ strong {
 .organise-category-group ul { margin: 0; padding: 0; list-style: none; }
 .organise-category-group li { position: relative; background: var(--surface); }
 .organise-category-group li + li { border-top: 1px solid var(--border-soft); }
+.organise-category-group .organise-category-empty-drop { justify-content: center; min-height: 3rem; border: 1px dashed var(--border-soft); color: var(--text-muted); font-size: 0.8rem; }
 .organise-category-name { flex: 1; min-width: 0; }
 .organise-category-actions { display: flex; align-items: center; gap: 0.3rem; margin-left: auto; }
 .organise-category-actions button { width: 1.8rem; height: 1.8rem; display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--border-soft); border-radius: 0.35rem; background: var(--surface); color: inherit; }

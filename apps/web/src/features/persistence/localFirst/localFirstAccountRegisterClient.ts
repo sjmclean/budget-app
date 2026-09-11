@@ -3133,8 +3133,9 @@ function mutateBudgetCategory(
     groups = moveBudgetCategoryToTarget(
       groups,
       categoryId,
-      String(input.targetCategoryId),
+      input.targetCategoryId === undefined ? undefined : String(input.targetCategoryId),
       String(input.placement),
+      input.targetGroupId === undefined ? undefined : String(input.targetGroupId),
     );
   }
   if (input.operation === "position-group") {
@@ -3173,10 +3174,11 @@ export function moveBudgetCategoryToTarget<
 >(
   groups: readonly TGroup[],
   categoryId: string,
-  targetCategoryId: string,
+  targetCategoryId: string | undefined,
   placement: string,
+  targetGroupId?: string,
 ): TGroup[] {
-  if (categoryId === targetCategoryId) {
+  if (targetCategoryId && categoryId === targetCategoryId) {
     return groups.map((group) => ({
       ...group,
       categories: [...group.categories],
@@ -3214,6 +3216,11 @@ export function moveBudgetCategoryToTarget<
   let inserted = false;
 
   const moved = withoutSource.map((group) => {
+    if (!targetCategoryId && group.id === targetGroupId) {
+      inserted = true;
+      return { ...group, categories: [...group.categories, categoryToMove!] };
+    }
+
     const targetIndex = group.categories.findIndex(
       (category) => category.id === targetCategoryId,
     );
