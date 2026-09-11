@@ -233,14 +233,14 @@ export function BudgetCategoryRow({
             ? "budget-category-cell budget-category-system-cell"
             : isArchivedCollection
               ? "budget-category-cell budget-category-archived-collection-cell"
-              : "budget-category-cell budget-category-drag-region"
+              : "budget-category-cell"
         }
         title={
           isCreditCardPaymentCategory
             ? "Credit card payment categories are managed by the budget"
             : isArchivedCollection
               ? `Archived category${originalGroupName ? ` from ${originalGroupName}` : ""}`
-              : "Drag category name to reorder"
+              : undefined
         }
       >
         {isCreditCardPaymentCategory ? (
@@ -255,14 +255,7 @@ export function BudgetCategoryRow({
           <span className="budget-category-archived-icon" aria-hidden="true">
             ↳
           </span>
-        ) : (
-          <span
-            className="drag-handle drag-handle-active"
-            aria-hidden="true"
-          >
-            ⋮⋮
-          </span>
-        )}
+        ) : null}
 
         <div className="budget-category-label-stack">
           <span className="budget-category-name-line">
@@ -456,14 +449,14 @@ export function BudgetGroup({
               ? "budget-group-title budget-group-system-title"
               : isArchivedCategoriesGroup
                 ? "budget-group-title budget-group-archived-title"
-                : "budget-group-title budget-group-name-drag-region"
+                : "budget-group-title"
           }
           title={
             isCreditCardPaymentGroup
               ? "Money reserved to pay your credit cards"
               : isArchivedCategoriesGroup
                 ? "Archived categories from all category groups"
-                : "Drag category group name to reorder groups"
+                : undefined
           }
         >
           {isCreditCardPaymentGroup ? (
@@ -477,14 +470,7 @@ export function BudgetGroup({
             <span className="budget-group-archived-icon" aria-hidden="true">
               ◫
             </span>
-          ) : (
-            <span
-              className="drag-handle drag-handle-active budget-group-drag-handle"
-              aria-hidden="true"
-            >
-              ⋮⋮
-            </span>
-          )}
+          ) : null}
           <button
             className="budget-group-collapse-button"
             type="button"

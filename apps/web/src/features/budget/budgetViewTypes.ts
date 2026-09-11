@@ -187,7 +187,8 @@ export interface BudgetViewService {
     budgetId: string;
     month: string;
     categoryId: string;
-    targetCategoryId: string;
+    targetCategoryId?: string;
+    targetGroupId?: string;
     placement: "before" | "after";
   }): Promise<BudgetMonthView>;
 

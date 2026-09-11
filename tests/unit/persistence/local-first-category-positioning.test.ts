@@ -148,6 +148,21 @@ test("position-category still reorders within the same group", () => {
   );
 });
 
+test("position-category moves a category into an empty target group", () => {
+  const category = { id: "category-a", name: "Category A", assigned: 200, note: "keep me" };
+  const groups = [
+    { id: "group-a", categories: [category] },
+    { id: "group-empty", categories: [] },
+  ];
+
+  const moved = moveBudgetCategoryToTarget(
+    groups, "category-a", undefined, "after", "group-empty",
+  );
+
+  assert.deepEqual(moved.map((group) => group.categories.map(({ id }) => id)), [[], ["category-a"]]);
+  assert.strictEqual(moved[1]?.categories[0], category);
+});
+
 test("position-category preserves the original grouping when the target is missing", () => {
   const groups = [
     {
