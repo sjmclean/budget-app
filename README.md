@@ -41,6 +41,7 @@ Private implementation workspaces do not carry independent release versions.
 ```bash
 corepack enable
 pnpm install
+pnpm exec playwright install chromium
 ```
 
 ## Development
@@ -61,18 +62,26 @@ the same origin. Development HTTPS can be enabled by providing both
 ## Build and validation
 
 - `pnpm verify` — the canonical local and CI gate: lint/static checks, web TypeScript,
-  required tests, production build, documentation/audit freshness, and build budgets.
+  required tests, production build, documentation/audit freshness, build budgets,
+  and the Chromium browser smoke test. Install Chromium with the command above first.
 - `pnpm test:quality-gates` — compatibility alias for `pnpm verify`.
 - `pnpm lint` — conservative ESLint correctness checks, including React hook call order.
 - `pnpm static:check` — lint plus syntax validation for server and script JavaScript.
 - `pnpm typecheck` — strict TypeScript validation for the web application and the
   shared package modules reachable from it.
+- `pnpm test:e2e` — run the headless Chromium smoke against isolated local server state.
+- `pnpm test:e2e:headed` — run the browser smoke with Chromium visible.
+- `pnpm test:e2e:debug` — open Playwright's interactive debugger.
 - `pnpm test:required` — all discovered unit, integration, and regression tests.
 - `pnpm test:web-build` — TypeScript-check and build the web application.
 - `pnpm docs:architecture:check` — validate documentation structure and persistence-audit freshness.
 - `pnpm audit:persistence` — regenerate the persistence inventory after relevant source changes.
 - `pnpm audit:persistence:check` — verify the generated inventory is current.
 - `pnpm build:performance` — build the web client and analyze its output budgets.
+
+Browser smoke tests start the real API and Vite application on localhost and use
+a new temporary server data directory per run. They need no external account or
+service and never read or reset the normal developer database.
 
 ## Documentation
 

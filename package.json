@@ -27,8 +27,11 @@
     "test:integration": "node scripts/run-node-tests.mjs tests/integration",
     "test:regression": "node scripts/run-node-tests.mjs tests/regression",
     "test:required": "node scripts/run-node-tests.mjs tests",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
     "test:quality-gates": "pnpm verify",
-    "verify": "pnpm static:check && pnpm typecheck && pnpm test:required && pnpm test:web-build && pnpm docs:architecture:check && pnpm performance:analyze"
+    "verify": "pnpm static:check && pnpm typecheck && pnpm test:required && pnpm test:web-build && pnpm docs:architecture:check && pnpm performance:analyze && pnpm test:e2e"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
@@ -38,6 +41,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
     "@types/better-sqlite3": "^7.6.13",
     "eslint": "10.10.0",
     "eslint-plugin-react-hooks": "7.1.1",

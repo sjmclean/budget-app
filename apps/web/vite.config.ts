@@ -10,7 +10,9 @@ const certificatePath =
   process.env.BUDGET_APP_HTTPS_CERT?.trim() || defaultCertificatePath;
 const privateKeyPath =
   process.env.BUDGET_APP_HTTPS_KEY?.trim() || defaultPrivateKeyPath;
-const https = existsSync(certificatePath) && existsSync(privateKeyPath)
+const https = process.env.BUDGET_APP_E2E_HTTP === "1"
+  ? undefined
+  : existsSync(certificatePath) && existsSync(privateKeyPath)
   ? {
       cert: readFileSync(certificatePath),
       key: readFileSync(privateKeyPath),
