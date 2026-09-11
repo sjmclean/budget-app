@@ -1,5 +1,9 @@
 # Milestone 2: Local database authority
 
+> Historical design record: this activation milestone is complete. Its commands
+> and rollback modes below describe the migration period and are not current
+> runtime configuration. See [`../persistence-and-sync.md`](../persistence-and-sync.md).
+
 ## Status
 
 Implemented in the browser runtime with a reversible first-launch migration.
