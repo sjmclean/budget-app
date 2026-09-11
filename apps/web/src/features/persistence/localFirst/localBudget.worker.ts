@@ -5565,6 +5565,44 @@ async function prepareRestorePoint(request: Extract<LocalBudgetWorkerRequest, { 
   }
 }
 
+async function prepareUploadedRestore(
+  request: Extract<LocalBudgetWorkerRequest, { type: "prepareUploadedRestore" }>,
+) {
+  if (!replacement) {
+    throw workerError("BASELINE_REPLACEMENT_MISSING", "No uploaded SQLite replacement is ready.");
+  }
+  try {
+    const promotion = await commitBaselineReplacement();
+    restoreCandidate = {
+      promotion,
+      previousSyncEpoch: request.previousSyncEpoch,
+      deviceId: request.deviceId,
+    };
+    const check = resultRows<Record<string, unknown>>("PRAGMA quick_check");
+    if (check.length !== 1 || Object.values(check[0])[0] !== "ok") {
+      throw workerError("BASELINE_DATABASE_CORRUPT", "The uploaded SQLite candidate failed integrity validation.");
+    }
+    execute("BEGIN IMMEDIATE");
+    try {
+      writeMetadata("syncEpoch", request.syncEpoch);
+      writeMetadata("pulledCursor", "0");
+      writeMetadata("baselineHash", "");
+      execute("COMMIT");
+    } catch (error) {
+      execute("ROLLBACK");
+      throw error;
+    }
+    activeSyncEpoch = request.syncEpoch;
+    restoreCandidate.promotion = { ...promotion, manifest: currentManifest() };
+    return restoreCandidate.promotion;
+  } catch (error) {
+    await abortBaselineReplacement().catch(() => undefined);
+    try { await abortPreparedRestorePoint(); }
+    catch { throw workerError("RESTORE_PENDING", "Uploaded restore rollback needs recovery; reload before using this budget."); }
+    throw error;
+  }
+}
+
 async function abortPreparedRestorePoint() {
   const candidate = restoreCandidate;
   if (!candidate) return null;
@@ -5808,6 +5846,8 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return currentManifest();
     case "prepareRestorePoint":
       return prepareRestorePoint(request);
+    case "prepareUploadedRestore":
+      return prepareUploadedRestore(request);
     case "openPreparedRestorePoint": {
       const manifest = await openBudget({
         requestId: request.requestId, type: "open",

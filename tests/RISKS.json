@@ -73,14 +73,5 @@
       "reason": "writeTransactionBatch is implemented as one SQLite transaction, but the canonical suite does not yet execute the browser SQLite worker behaviourally under an injected mid-batch failure"
     }
   ],
-  "deferred-architecture": [
-    {
-      "risk": "restore replaces authoritative local-first SQLite state and starts compatible sync history",
-      "reason": "normal/manual SQLite restore retains its existing same-epoch implementation; internal restore points now use staged SQLite promotion and a recoverable relay epoch transition"
-    },
-    {
-      "risk": "pre-restore newer sync history cannot replay over restored state",
-      "reason": "remains a limitation of normal/manual restore; internal restore points explicitly start a new epoch and are covered by replacement and relay integration tests"
-    }
-  ]
+  "deferred-architecture": []
 }

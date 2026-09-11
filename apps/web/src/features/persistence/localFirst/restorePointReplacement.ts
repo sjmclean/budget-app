@@ -7,6 +7,8 @@ import { LOCAL_FIRST_BASELINE_CHUNK_BYTES as CHUNK_BYTES,
 
 type Database = Pick<LocalBudgetDatabaseClient,
   "getManifest" | "getSyncState" | "setSyncState" | "prepareRestorePoint" |
+  "beginBaselineReplacement" | "appendBaselineReplacement" | "prepareUploadedRestore" |
+  "abortBaselineReplacement" |
   "openPreparedRestorePoint" | "abortPreparedRestorePoint" | "commitPreparedRestorePoint" |
   "prepareBaselineExport" | "readBaselineExportChunk" | "finishBaselineExport" | "isGenerationPublished">;
 type Relay = Pick<ReturnType<typeof createLocalFirstRelayTransport>,
@@ -102,7 +104,10 @@ export function createRestorePointReplacement(input: {
     }
   }
 
-  async function restore(budgetId: string, pointId: string): Promise<LocalBudgetManifest> {
+  async function replace(
+    budgetId: string,
+    prepare: (currentSyncEpoch: string, nextSyncEpoch: string) => Promise<LocalDatabasePromotionResult>,
+  ): Promise<LocalBudgetManifest> {
     if (input.storage.getItem(journalKey(budgetId))) throw restorePendingError("A previous restore needs recovery.");
     const current = await input.database.getManifest();
     const state = await input.database.getSyncState();
@@ -115,9 +120,7 @@ export function createRestorePointReplacement(input: {
     let intentAttempted = false;
     let prepared = false;
     try {
-      const promotion = await input.database.prepareRestorePoint({
-        budgetId, pointId, syncEpoch: createRuntimeUuid(), deviceId: input.deviceId,
-      });
+      const promotion = await prepare(current.syncEpoch, createRuntimeUuid());
       prepared = true;
       const { totalBytes } = await input.database.prepareBaselineExport();
       let journal: RestoreJournal;
@@ -177,5 +180,29 @@ export function createRestorePointReplacement(input: {
       throw error;
     }
   }
-  return { restore, recover };
+
+  async function restore(budgetId: string, pointId: string) {
+    return replace(budgetId, (_currentSyncEpoch, syncEpoch) =>
+      input.database.prepareRestorePoint({ budgetId, pointId, syncEpoch, deviceId: input.deviceId }));
+  }
+
+  async function restoreDatabase(budgetId: string, file: Blob) {
+    return replace(budgetId, async (previousSyncEpoch, syncEpoch) => {
+      await input.database.beginBaselineReplacement({
+        budgetId, syncEpoch: previousSyncEpoch, deviceId: input.deviceId, totalBytes: file.size,
+      });
+      try {
+        for (let offset = 0; offset < file.size; offset += 4 * 1024 * 1024) {
+          const chunk = new Uint8Array(await file.slice(offset, offset + 4 * 1024 * 1024).arrayBuffer());
+          await input.database.appendBaselineReplacement(offset, chunk);
+        }
+        return await input.database.prepareUploadedRestore({ previousSyncEpoch, syncEpoch, deviceId: input.deviceId });
+      } catch (error) {
+        await input.database.abortBaselineReplacement().catch(() => undefined);
+        await input.database.abortPreparedRestorePoint().catch(() => undefined);
+        throw error;
+      }
+    });
+  }
+  return { restore, restoreDatabase, recover };
 }

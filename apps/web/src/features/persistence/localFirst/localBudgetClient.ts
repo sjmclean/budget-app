@@ -246,6 +246,10 @@ export class LocalBudgetDatabaseClient {
     return this.#request({ requestId: createRuntimeUuid(), type: "prepareRestorePoint", ...input });
   }
 
+  prepareUploadedRestore(input: { previousSyncEpoch: string; syncEpoch: string; deviceId: string }): Promise<LocalDatabasePromotionResult> {
+    return this.#request({ requestId: createRuntimeUuid(), type: "prepareUploadedRestore", ...input });
+  }
+
   isGenerationPublished(promotion: LocalDatabasePromotionResult): boolean {
     return Boolean(this.#storage && databaseFilePointerMatches(this.#storage,
       promotion.manifest.budgetId, promotion.manifest.physicalFilename));

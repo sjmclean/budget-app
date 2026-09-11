@@ -112,6 +112,13 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "prepareUploadedRestore";
+      readonly previousSyncEpoch: string;
+      readonly syncEpoch: string;
+      readonly deviceId: string;
+    }
+  | {
+      readonly requestId: string;
       readonly type: "openPreparedRestorePoint";
       readonly promotion: LocalDatabasePromotionResult;
       readonly previousSyncEpoch: string;

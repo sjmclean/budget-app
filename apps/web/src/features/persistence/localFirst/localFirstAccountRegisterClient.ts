@@ -1550,38 +1550,12 @@ export function createLocalFirstAccountRegisterQueryClient(
       await synchronise(budgetId);
       const local = await requireDatabase(budgetId);
       await captureOwnedRestorePoint(budgetId, "before-restore");
-      await local.beginBaselineReplacement({
-        budgetId,
-        syncEpoch: activeSyncEpoch!,
-        deviceId,
-        totalBytes: file.size,
-      });
-      try {
-        for (let offset = 0; offset < file.size; offset += 4 * 1024 * 1024) {
-          const chunk = new Uint8Array(
-            await file.slice(offset, offset + 4 * 1024 * 1024).arrayBuffer(),
-          );
-          await local.appendBaselineReplacement(offset, chunk);
-        }
-        const manifest = await local.commitBaselineReplacement();
-        await publishLocalBaseline({
-          budgetId,
-          syncEpoch: activeSyncEpoch!,
-          database: local,
-          relay,
-        });
-        notifyLocalFirstMutationCommitted(budgetId);
-        return {
-          restored: true,
-          counts: {
-            ...manifest.counts,
-            transactionTagAssignments: 0,
-          },
-        };
-      } catch (error) {
-        await local.abortBaselineReplacement().catch(() => undefined);
-        throw error;
-      }
+      const manifest = await createRestorePointReplacement({ database: local, relay, storage, deviceId })
+        .restoreDatabase(budgetId, file);
+      activeSyncEpoch = manifest.syncEpoch;
+      activePulledCursor = 0;
+      notifyLocalFirstMutationCommitted(budgetId);
+      return { restored: true, counts: { ...manifest.counts, transactionTagAssignments: 0 } };
     },
     async resetBudget(budgetId) {
       const local = await requireDatabase(budgetId);
