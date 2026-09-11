@@ -33,6 +33,9 @@ The repository does not currently enforce a Node.js version. Use a Node release
 supported by the checked-in toolchain. The package manager is pnpm 10.28.2, as
 declared by the root `packageManager` field.
 
+The root `package.json` version is the single Budget App product-version source.
+Private implementation workspaces do not carry independent release versions.
+
 ## Install
 
 ```bash
