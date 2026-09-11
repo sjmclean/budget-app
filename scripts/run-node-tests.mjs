@@ -37,11 +37,12 @@ if (tests.length === 0) {
 }
 
 let passed = 0;
+const tsxCli = resolve("node_modules/tsx/dist/cli.mjs");
 
 for (const test of tests) {
   const result = spawnSync(
-    "pnpm",
-    ["exec", "tsx", test],
+    process.execPath,
+    [tsxCli, test],
     {
       stdio: "inherit",
       shell: false,

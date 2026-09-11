@@ -29,9 +29,9 @@ canonical runtime description.
 
 ## Requirements
 
-The repository does not currently enforce a Node.js version. Use a Node release
-supported by the checked-in toolchain. The package manager is pnpm 10.28.2, as
-declared by the root `packageManager` field.
+Use Node.js 22.12.0 or newer. CI runs on Node.js 22. The package manager is pnpm
+10.28.2, as declared by the root `packageManager` field; Corepack can activate
+that pinned version.
 
 The root `package.json` version is the single Budget App product-version source.
 Private implementation workspaces do not carry independent release versions.
@@ -39,6 +39,7 @@ Private implementation workspaces do not carry independent release versions.
 ## Install
 
 ```bash
+corepack enable
 pnpm install
 ```
 
@@ -59,7 +60,13 @@ the same origin. Development HTTPS can be enabled by providing both
 
 ## Build and validation
 
-- `pnpm test:quality-gates` — required tests, production web build, and persistence-audit freshness.
+- `pnpm verify` — the canonical local and CI gate: lint/static checks, web TypeScript,
+  required tests, production build, documentation/audit freshness, and build budgets.
+- `pnpm test:quality-gates` — compatibility alias for `pnpm verify`.
+- `pnpm lint` — conservative ESLint correctness checks, including React hook call order.
+- `pnpm static:check` — lint plus syntax validation for server and script JavaScript.
+- `pnpm typecheck` — strict TypeScript validation for the web application and the
+  shared package modules reachable from it.
 - `pnpm test:required` — all discovered unit, integration, and regression tests.
 - `pnpm test:web-build` — TypeScript-check and build the web application.
 - `pnpm docs:architecture:check` — validate documentation structure and persistence-audit freshness.

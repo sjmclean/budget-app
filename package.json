@@ -3,6 +3,9 @@
   "version": "1.2.15",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:web": "pnpm --filter @budget-app/web dev",
@@ -12,6 +15,9 @@
     "performance:analyze": "tsx tools/performance/analyze-vite-build.ts",
     "build:performance": "pnpm --filter @budget-app/web build && pnpm performance:analyze",
     "docs:architecture:check": "node scripts/check-architecture-docs.mjs && pnpm audit:persistence:check",
+    "lint": "eslint . --max-warnings 0",
+    "static:check": "pnpm lint && node scripts/check-javascript-syntax.mjs",
+    "typecheck": "pnpm --filter @budget-app/web typecheck",
     "benchmark:sync": "tsx tools/performance/v524-sync-benchmark.ts",
     "benchmark:sync:large": "BENCHMARK_OPERATIONS=100000 BENCHMARK_BATCH_SIZE=1000 tsx tools/performance/v524-sync-benchmark.ts",
     "test:web-build": "pnpm --filter @budget-app/web build",
@@ -21,7 +27,8 @@
     "test:integration": "node scripts/run-node-tests.mjs tests/integration",
     "test:regression": "node scripts/run-node-tests.mjs tests/regression",
     "test:required": "node scripts/run-node-tests.mjs tests",
-    "test:quality-gates": "pnpm test:required && pnpm test:web-build && pnpm audit:persistence:check"
+    "test:quality-gates": "pnpm verify",
+    "verify": "pnpm static:check && pnpm typecheck && pnpm test:required && pnpm test:web-build && pnpm docs:architecture:check && pnpm performance:analyze"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
@@ -30,10 +37,14 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "react-test-renderer": "19.2.7",
+    "@eslint/js": "10.0.1",
     "@types/better-sqlite3": "^7.6.13",
+    "eslint": "10.10.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "react-test-renderer": "19.2.7",
     "tsx": "^4.22.4",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "8.70.0"
   },
   "packageManager": "pnpm@10.28.2"
 }
