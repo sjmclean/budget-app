@@ -7,7 +7,7 @@ import {
 } from "react";
 import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
-import { BarChart3, CalendarDays, Plus, Redo2, Undo2 } from "lucide-react";
+import { BarChart3, CalendarDays, ListTree, Plus, Redo2, Undo2 } from "lucide-react";
 import { Card } from "../components/ui/Card";
 import {
   WorkspaceBody,
@@ -56,6 +56,7 @@ import {
   type BudgetColumnId,
 } from "../features/budget/BudgetWorkspaceGroup";
 import { CategoryGoalInspectorSection } from "../features/goals/CategoryGoalInspectorSection";
+import { OrganiseCategoriesDialog } from "../features/budget/OrganiseCategoriesDialog";
 const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
 const BUDGET_COLLAPSED_GROUPS_STORAGE_KEY_PREFIX =
   "budget-app.budget-collapsed-groups.v1";
@@ -576,6 +577,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const [archivedCategoriesExpanded, setArchivedCategoriesExpanded] = useState(() =>
     readArchivedCategoriesExpanded(budgetId),
   );
+  const [isOrganiserOpen, setIsOrganiserOpen] = useState(false);
 
   const {
     data,
@@ -591,7 +593,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     coverOverspending,
     renameCategory,
     setCategoryArchived,
+    moveCategory,
     moveCategoryToPosition,
+    moveCategoryGroup,
     moveCategoryGroupToPosition,
     updateCategoryNote,
     createCategory,
@@ -965,6 +969,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
               <div className="budget-planning-toolbar">
                 <div className="budget-planning-toolbar-left">
+                  <button className="button button-secondary" type="button" onClick={() => setIsOrganiserOpen(true)}>
+                    <ListTree size={17} aria-hidden="true" />
+                    Organise Categories
+                  </button>
                   <button className="button button-secondary" type="button" disabled title="Auto Assign is not yet available">
                     Auto Assign
                   </button>
@@ -1114,6 +1122,17 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           </Card>
         </aside>
       </WorkspaceLayout>
+
+      {isOrganiserOpen ? (
+        <OrganiseCategoriesDialog
+          groups={data.categoryGroups}
+          onClose={() => setIsOrganiserOpen(false)}
+          onMoveCategory={moveCategory}
+          onPositionCategory={moveCategoryToPosition}
+          onMoveGroup={moveCategoryGroup}
+          onPositionGroup={moveCategoryGroupToPosition}
+        />
+      ) : null}
 
       <CategoryManagementDialog
         category={visibleSelectedCategory}
