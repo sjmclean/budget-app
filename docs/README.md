@@ -12,9 +12,9 @@ This repository keeps a small set of current human-facing architecture documents
 
 ## Detailed architecture
 
-`architecture/` contains lower-level architecture documents, generated persistence
-audits, and subsystem contracts. Some of these documents are validated directly
-by repository scripts and tests.
+`architecture/` contains lower-level current subsystem contracts, generated
+persistence audits, and explicitly labelled historical migration records. Its
+index distinguishes those categories.
 
 The primary architecture entry point is:
 
@@ -41,7 +41,8 @@ documentation.
 ## Documentation policy
 
 Current architecture belongs in the canonical documents listed above or in
-`architecture/`.
+the current-subsystem section of `architecture/README.md`. Migration plans and
+ADRs are historical evidence, not selectable runtime configuration.
 
 Do not create release-by-release prose documentation for implementation
 milestones. Git history, tests, and source control preserve that history.

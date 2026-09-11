@@ -14,4 +14,7 @@ The service provides:
 
 Local editing never waits for the network. Replication failures update status and schedule a retry without changing local database authority.
 
-Automatic replication is enabled only when the selected provider exposes the operation journal and replication-store ports. Legacy browser-local-storage and shared-server-authoritative modes remain available but report synchronisation as disabled.
+Automatic replication starts after the current local-first provider initializes.
+It uses that provider's durable SQLite outbox/cursor state and local-first relay
+transport. The former browser-local and server-authoritative modes are historical
+and are not selectable runtime configurations.

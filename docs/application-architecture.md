@@ -6,6 +6,12 @@ The web application initializes its persistence runtime before loading the main
 React application. Financial and register data are stored locally in SQLite and
 synchronized through the local-first relay architecture.
 
+The normal browser bootstrap constructs one local-database persistence provider;
+there is no environment-selected browser-storage or server-authoritative budget
+provider. A host embedding may inject the same persistence contract before normal
+bootstrap, but this is an integration seam rather than a selectable deployment
+mode.
+
 ## Runtime layers
 
 The application is divided into several conceptual layers:
