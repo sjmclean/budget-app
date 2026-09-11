@@ -15,6 +15,11 @@ function failOnBrowserErrors(page: Page) {
 }
 
 async function openSettingsDestination(page: Page, name: string) {
+  const settingsDialog = page.getByRole("dialog", { name: "Settings" });
+  if (await settingsDialog.isVisible().catch(() => false)) {
+    await settingsDialog.getByRole("button", { name: "Close settings" }).click();
+    await expect(settingsDialog).toBeHidden();
+  }
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("menuitem", { name, exact: true }).click();
 }
