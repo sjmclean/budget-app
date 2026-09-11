@@ -65,12 +65,17 @@
   "runtime": [
     "persistence initializes before application stores consume it",
     "critical workflows do not depend on browser dialog primitives",
-    "financial persistence has no browser-storage fallback"
+    "financial persistence has no browser-storage fallback",
+    "Chromium smoke exercises first-run auth, UI-created budget provisioning, native browser SQLite startup, route navigation, and real reload durability"
   ],
   "deferred-coverage": [
     {
       "risk": "local-first transaction batch rollback is atomic",
       "reason": "writeTransactionBatch is implemented as one SQLite transaction, but the canonical suite does not yet execute the browser SQLite worker behaviourally under an injected mid-batch failure"
+    },
+    {
+      "risk": "browser persistence is comprehensively covered across engines and failure modes",
+      "reason": "the first browser smoke covers Chromium happy-path budget and account durability only; multi-tab sync, offline behaviour, failure injection, Firefox, and WebKit remain deferred"
     }
   ],
   "deferred-architecture": []

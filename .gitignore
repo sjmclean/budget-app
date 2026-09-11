@@ -15,6 +15,10 @@ apps/server/data/
 # Generated test output
 test-results/
 coverage/
+playwright-report/
+blob-report/
+playwright/.auth/
+.playwright-browsers/
 
 # npm lockfile - this repository uses pnpm
 package-lock.json
