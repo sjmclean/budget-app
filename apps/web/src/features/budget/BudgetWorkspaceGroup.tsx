@@ -81,14 +81,8 @@ export function CategoryGoalRowStatus({
 }) {
   if (managed || !category.goal) return null;
   const status = formatCategoryGoalRowStatus(category.goal, currencyCode);
-  return (
-    <span
-      className={`budget-category-goal-status budget-category-goal-status-${status.tone}`}
-      onClick={onSelect ? (event) => {
-        event.stopPropagation();
-        onSelect();
-      } : undefined}
-    >
+  const content = (
+    <>
       <span className="budget-category-goal-status-text">{status.copy}</span>
       <span
         className="budget-category-goal-progress"
@@ -100,6 +94,23 @@ export function CategoryGoalRowStatus({
       >
         <span style={{ width: `${status.percentComplete}%` }} />
       </span>
+    </>
+  );
+
+  return onSelect ? (
+    <button
+      type="button"
+      className={`budget-category-goal-status budget-category-goal-status-${status.tone}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect();
+      }}
+    >
+      {content}
+    </button>
+  ) : (
+    <span className={`budget-category-goal-status budget-category-goal-status-${status.tone}`}>
+      {content}
     </span>
   );
 }
@@ -125,6 +136,7 @@ function EditableAssignedCell({
         autoFocus
         value={category.assigned}
         onFocus={(event) => event.currentTarget.select()}
+        onClick={(event) => event.stopPropagation()}
         onCommit={(value) => {
           onSave(value);
           setIsEditing(false);
@@ -154,7 +166,7 @@ function EditableAssignedCell({
   );
 }
 
-function BudgetCategoryRow({
+export function BudgetCategoryRow({
   category,
   groupId,
   currencyCode,
@@ -196,8 +208,7 @@ function BudgetCategoryRow({
     Boolean(onOpenCoverOverspending);
 
   return (
-    <button
-      type="button"
+    <div
       className={[
         "budget-workspace-row interactive-budget-row",
         isSelected ? "budget-workspace-row-selected" : "",
@@ -231,7 +242,6 @@ function BudgetCategoryRow({
               ? `Archived category${originalGroupName ? ` from ${originalGroupName}` : ""}`
               : "Drag category name to reorder"
         }
-        onClick={(event) => event.stopPropagation()}
       >
         {isCreditCardPaymentCategory ? (
           <span
@@ -256,36 +266,27 @@ function BudgetCategoryRow({
 
         <div className="budget-category-label-stack">
           <span className="budget-category-name-line">
-            <span
-              className="budget-category-name-button"
-              role="button"
-              tabIndex={0}
-              title={
-                isCreditCardPaymentCategory
-                  ? "Managed by credit card payment funding"
-                  : "Edit category name, note, or archive status"
-              }
-              aria-disabled={isCreditCardPaymentCategory}
-              onClick={(event) => {
-                event.stopPropagation();
-
-                if (!isCreditCardPaymentCategory) {
-                  onOpenCategoryEditor();
-                }
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
+            {isCreditCardPaymentCategory ? (
+              <span
+                className="budget-category-name-button"
+                title="Managed by credit card payment funding"
+              >
+                <strong className="budget-category-name"><CategoryLabel categoryName={category.name} /></strong>
+              </span>
+            ) : (
+              <button
+                className="budget-category-name-button"
+                type="button"
+                title="Edit category name, note, or archive status"
+                onClick={(event) => {
                   event.stopPropagation();
-
-                  if (!isCreditCardPaymentCategory) {
-                    onOpenCategoryEditor();
-                  }
-                }
-              }}
-            >
-              <strong className="budget-category-name"><CategoryLabel categoryName={category.name} /></strong>
-            </span>
+                  onSelect();
+                  onOpenCategoryEditor();
+                }}
+              >
+                <strong className="budget-category-name"><CategoryLabel categoryName={category.name} /></strong>
+              </button>
+            )}
             {category.isArchived ? (
               <span className="category-archived-badge">Archived</span>
             ) : null}
@@ -382,7 +383,7 @@ function BudgetCategoryRow({
           )}
         </span>
       ) : null}
-    </button>
+    </div>
   );
 }
 

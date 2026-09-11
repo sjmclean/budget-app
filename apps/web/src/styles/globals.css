@@ -1577,11 +1577,14 @@ strong {
 
 .budget-category-name-button {
   min-width: 0;
+  border: 0;
   border-radius: 0.4rem;
+  background: transparent;
   color: var(--text);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  font: inherit;
   padding: 0.08rem 0.18rem;
   text-align: left;
   text-decoration: none;
@@ -1601,13 +1604,19 @@ strong {
 
 .budget-category-goal-status {
   min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
   display: grid;
   gap: 0.2rem;
-  padding-left: 0.18rem;
+  padding: 0 0 0 0.18rem;
   color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.2;
+  text-align: left;
 }
 
 .budget-category-goal-status-text {
