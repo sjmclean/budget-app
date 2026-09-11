@@ -85,6 +85,10 @@ start("server", [resolve("apps/server/src/server.mjs")], serverEnvironment);
 
 try {
   await waitForServer();
+  const webEnvironment = {
+    ...process.env,
+    BUDGET_APP_E2E_HTTP: "1",
+  };
   start("web", [
     resolve("apps/web/node_modules/vite/bin/vite.js"),
     resolve("apps/web"),
@@ -93,7 +97,7 @@ try {
     "--port",
     "5173",
     "--strictPort",
-  ]);
+  ], webEnvironment);
 } catch (error) {
   console.error(error);
   shutdown(1);
