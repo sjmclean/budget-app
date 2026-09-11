@@ -6,11 +6,13 @@ import type { CategoryGoalProjection } from "../../../packages/types/src/Categor
 import type { BudgetCategoryView } from "../../../apps/web/src/features/budget/budgetViewTypes.js";
 import {
   CategoryGoalRowStatus,
+  BudgetCategoryRow,
   formatCategoryGoalRowStatus,
 } from "../../../apps/web/src/features/budget/BudgetWorkspaceGroup.js";
 
 const requireFromWeb = createRequire(new URL("../../../apps/web/package.json", import.meta.url));
 const { createElement } = requireFromWeb("react") as { createElement: (...args: unknown[]) => unknown };
+(globalThis as typeof globalThis & { React: unknown }).React = requireFromWeb("react");
 const { renderToStaticMarkup } = requireFromWeb("react-dom/server") as {
   renderToStaticMarkup: (element: unknown) => string;
 };
@@ -95,7 +97,7 @@ test("no Goal and managed categories render no row status", () => {
   assert.equal(render(projection(), true), "");
 });
 
-test("subtitle click delegates to existing category selection without becoming an action", () => {
+test("Goal status is a native action that delegates to category selection", () => {
   let selections = 0;
   let propagationStopped = false;
   const element = CategoryGoalRowStatus({
@@ -103,13 +105,61 @@ test("subtitle click delegates to existing category selection without becoming a
     currencyCode: "AUD",
     onSelect: () => { selections += 1; },
   }) as { type: unknown; props: { onClick: (event: { stopPropagation(): void }) => void } };
-  assert.equal(element.type, "span");
+  assert.equal(element.type, "button");
   element.props.onClick({ stopPropagation: () => { propagationStopped = true; } });
   assert.equal(selections, 1);
   assert.equal(propagationStopped, true);
 });
 
-test("row Goal status adds no nested action or Budget column", () => {
+test("Budget category row renders sibling native actions without nested buttons", () => {
+  const html = renderToStaticMarkup(createElement(BudgetCategoryRow, {
+    category: {
+      ...category(projection({
+      progressAmount: 350,
+      remainingAmount: 150,
+      recommendedAssignment: 150,
+      percentComplete: 70,
+      status: "underfunded",
+      })),
+      available: -25,
+      isOverspent: true,
+    },
+    groupId: "group-1",
+    currencyCode: "AUD",
+    isSelected: false,
+    isOverassignedSource: false,
+    onSelect: () => undefined,
+    onOpenCategoryEditor: () => undefined,
+    onOpenCategoryContextMenu: () => undefined,
+    onOpenCoverOverspending: () => undefined,
+    onAssignedChange: () => undefined,
+    onActivityClick: () => undefined,
+    isBudgetColumnVisible: () => true,
+    rowStyle: {},
+    isCreditCardPaymentCategory: false,
+    isArchivedCollection: false,
+  }));
+
+  assert.match(html, /^<div class="budget-workspace-row interactive-budget-row"/);
+  assert.match(html, /<button class="budget-category-name-button"/);
+  assert.match(html, /<button class="assigned-button"/);
+  assert.match(html, /<button class="activity-drilldown-button"/);
+  assert.match(html, /<button type="button" class="budget-category-goal-status/);
+  assert.match(html, /aria-label="Cover overspending for Car Rego"/);
+
+  let buttonDepth = 0;
+  for (const token of html.matchAll(/<\/?button\b[^>]*>/g)) {
+    if (token[0].startsWith("</")) {
+      buttonDepth -= 1;
+    } else {
+      assert.equal(buttonDepth, 0, `nested button found in ${html}`);
+      buttonDepth += 1;
+    }
+  }
+  assert.equal(buttonDepth, 0);
+});
+
+test("row Goal status remains a single native action and adds no Budget column", () => {
   const source = readFileSync(new URL(
     "../../../apps/web/src/features/budget/BudgetWorkspaceGroup.tsx", import.meta.url,
   ), "utf8");
@@ -120,7 +170,8 @@ test("row Goal status adds no nested action or Budget column", () => {
     source.indexOf("export function formatCategoryGoalRowStatus"),
     source.indexOf("function EditableAssignedCell"),
   );
-  assert.doesNotMatch(statusComponent, /<button|role="button"|tabIndex=/);
+  assert.match(statusComponent, /<button/);
+  assert.doesNotMatch(statusComponent, /role="button"|tabIndex=/);
   assert.match(statusComponent, /onSelect\(\)/);
   assert.match(statusComponent, /projection\.progressAmount/);
   assert.match(statusComponent, /projection\.goal\.targetAmount/);
