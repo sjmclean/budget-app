@@ -8,7 +8,9 @@ mutation chains. Full-file copies were replaced because a user's approximately
 The v2 content-addressed format reuses unchanged bytes while each manifest remains
 independently reconstructible. No base snapshot, mutation replay, WAL replay chain,
 or compatibility path for this unmerged branch's earlier storage formats exists.
-Normal downloadable SQLite Backup/Restore is separate and unchanged.
+Normal downloadable SQLite Backup remains a separate file format, but manual
+SQLite restore now shares the authoritative replacement and epoch-transition
+coordinator described below.
 
 The audit covered capture/export, the installed SQLite WASM code, OPFS publication,
 staged replacement, retention, ownership, lifecycle and relay recovery. The installed
@@ -139,7 +141,8 @@ large checkpoints. No storage ceiling or guaranteed real-browser target is added
 - `restorePointCoordinator.ts`: unchanged dirty mutation coalescing.
 - `restorePointLifecycle.ts`: unchanged mutation subscription and reevaluation.
 - `localBudget.worker.ts`: consistent capture and streamed candidate construction.
-- `restorePointReplacement.ts`: unchanged journal/epoch transition and recovery.
+- `restorePointReplacement.ts`: shared manual/internal restore journal, epoch
+  transition, relay publication and recovery.
 
 ```
 budget-app-sqlite-restore-points/
@@ -244,7 +247,8 @@ fails. Only then may the worker commit the staged physical candidate. Missing,
 corrupt or truncated chunks, or a wrong full-image hash, abort staging and never
 promote a candidate. There is no concatenated database-sized main-thread buffer.
 
-The rest of restore is preserved: synchronise, capture a before-restore safety
+Internal restore points and uploaded SQLite backups now converge after their
+source-specific streaming validation. The rest of restore is: synchronise, capture a before-restore safety
 point, construct a new physical generation, validate SQLite/domain counts, start
 a fresh epoch with empty outbox/conflict inbox and cursor zero, stage/hash-check
 relay chunks, persist/flush durable local intent, then owner-authorized relay
@@ -253,6 +257,13 @@ Only confirmed remote commit permits local authoritative pointer publication.
 Certified rejection rolls back; uncertain commit yields `RESTORE_PENDING`,
 quarantines queued work and replays the durable intent on reload. Ordinary editor
 baseline APIs do not bypass this protocol.
+
+The candidate import clears device-owned outbox and unresolved conflict rows.
+Remote progress is represented by the cursor rather than a separate applied-ID
+table; the candidate's cursor and baseline hash are reset before publication.
+The relay atomically replaces its epoch,
+mutation stream and baseline/checkpoint authority. New-device bootstrap therefore
+downloads the restored image; old-epoch pulls and pushes fail stale-epoch checks.
 
 ## Scheduling and lifecycle preserved
 

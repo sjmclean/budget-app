@@ -34,6 +34,19 @@ function harness() {
         working = "candidate.sqlite3";
         return { manifest: manifest(), supersededPhysicalFilename: "original.sqlite3" };
       },
+      beginBaselineReplacement: async () => { events.push("begin-upload"); },
+      appendBaselineReplacement: async (offset, content) => {
+        events.push("append-upload");
+        return { receivedBytes: offset + content.byteLength };
+      },
+      prepareUploadedRestore: async ({ syncEpoch }) => {
+        events.push("prepare-upload");
+        if (failure === "prepare") throw new Error("invalid database");
+        candidateEpoch = syncEpoch;
+        working = "candidate.sqlite3";
+        return { manifest: manifest(), supersededPhysicalFilename: "original.sqlite3" };
+      },
+      abortBaselineReplacement: async () => { events.push("abort-upload"); },
       openPreparedRestorePoint: async (promotion) => { working = "candidate.sqlite3"; events.push("reopen"); return promotion; },
       abortPreparedRestorePoint: async () => { working = "original.sqlite3"; events.push("abort"); },
       commitPreparedRestorePoint: async () => {
@@ -79,6 +92,27 @@ test("internal restore publishes only after durable intent and atomic relay comm
   assert.ok(h.events.indexOf("flush") < h.events.indexOf("commit-relay"));
   assert.ok(h.events.indexOf("commit-relay") < h.events.indexOf("publish"));
   assert.equal(h.events.at(-2), "clear-intent");
+});
+
+test("manual SQLite restore makes the restored image authoritative in a new epoch", async () => {
+  const h = harness();
+  const oldEpoch = h.epoch();
+  const restored = await h.service.restoreDatabase("A", new Blob([new Uint8Array(512)]));
+  assert.notEqual(restored.syncEpoch, oldEpoch);
+  assert.equal(restored.syncEpoch, h.epoch());
+  assert.equal(h.authoritative(), "candidate.sqlite3");
+  assert.ok(h.events.indexOf("append-upload") < h.events.indexOf("commit-relay"));
+  assert.ok(h.events.indexOf("commit-relay") < h.events.indexOf("publish"));
+});
+
+test("invalid manual SQLite input is rejected before either authority changes", async () => {
+  const h = harness();
+  h.fail("prepare");
+  await assert.rejects(h.service.restoreDatabase("A", new Blob([new Uint8Array(512)])), /invalid database/);
+  assert.equal(h.authoritative(), "original.sqlite3");
+  assert.equal(h.epoch(), "old-epoch");
+  assert.equal(h.events.includes("commit-relay"), false);
+  assert.ok(h.events.includes("abort-upload"));
 });
 
 for (const failure of ["prepare", "upload", "rejected"]) {

@@ -22,9 +22,15 @@ function harness() {
   const initial = store.beginBaseline(budgetId, oldEpoch, manifest);
   store.saveBaselineChunk(budgetId, oldEpoch, initial.baselineId, 0, contentHash, content);
   store.commitBaseline(budgetId, oldEpoch, initial.baselineId);
+  store.pushMutations(budgetId, oldEpoch, [{
+    mutationId: "newer-pre-restore-value", deviceId: "old-device", deviceSequence: 1,
+    baseCursor: 0, domain: "categories", entityId: "category-A", operation: "upsert",
+    payload: { id: "category-A", name: "Y" },
+  }]);
   const nextManifest = { ...manifest, syncEpoch: randomUUID(), counts: emptyDomainCounts() };
   function stage() {
-    return store.beginRestore(budgetId, { syncEpoch: oldEpoch, latestCursor: 0, baselineId: initial.baselineId }, nextManifest);
+    const current = store.getBootstrap(budgetId);
+    return store.beginRestore(budgetId, { syncEpoch: oldEpoch, latestCursor: current.latestCursor, baselineId: initial.baselineId }, nextManifest);
   }
   return { store, budgetId, oldEpoch, initial, nextManifest, stage,
     upload: (id: string) => store.saveBaselineChunk(budgetId, nextManifest.syncEpoch, id, 0, contentHash, content),
@@ -52,6 +58,14 @@ test("restore stages without changing authority, atomically starts a new epoch, 
     assert.equal(remote.baseline.manifest.counts.transactions, 0);
     assert.equal(h.store.commitBaseline(h.budgetId, h.nextManifest.syncEpoch, staged.baselineId, true).contentHash, committed.contentHash);
     assert.throws(() => h.store.pullMutations(h.budgetId, h.oldEpoch, 0, 10), { code: "STALE_SYNC_EPOCH" });
+    const postRestore = h.store.pushMutations(h.budgetId, h.nextManifest.syncEpoch, [{
+      mutationId: "post-restore-value", deviceId: "new-device", deviceSequence: 1,
+      baseCursor: 0, domain: "categories", entityId: "category-A", operation: "upsert",
+      payload: { id: "category-A", name: "Z" },
+    }]);
+    assert.equal(postRestore.acceptedCount, 1);
+    const pulled = h.store.pullMutations(h.budgetId, h.nextManifest.syncEpoch, 0, 10);
+    assert.deepEqual(pulled.mutations.map((row: any) => row.mutation.payload.name), ["Z"]);
   } finally { h.close(); }
 });
 

@@ -50,6 +50,20 @@ Operations that deliberately replace authoritative history, such as recovery or
 restore workflows, must establish explicit epoch semantics rather than relying
 on ordinary incremental replication.
 
+Manual SQLite restore and internal restore-point restore share one authoritative
+replacement protocol. The imported image is validated as an unpublished physical
+generation, then rewritten with a new epoch, cursor zero, empty device outbox and
+conflict inbox, and no prior baseline hash. The relay receives that complete image
+as the new epoch's baseline before the local generation pointer is published.
+Consequently mutations from the superseded epoch are rejected, while mutations
+created after restore enter and synchronize through the new epoch normally.
+
+A durable pending-restore journal bridges the local/relay transaction boundary.
+While it exists, normal reads, writes, release, and old-epoch synchronization are
+quarantined. Reload/reconnect resumes confirmation idempotently; a certified relay
+rejection restores the former generation, while an uncertain committed transition
+retains both generations until recovery can prove and publish the new authority.
+
 ## Server relay
 
 The server stores local-first synchronization metadata including:

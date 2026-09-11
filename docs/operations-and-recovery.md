@@ -19,13 +19,22 @@ Restore is not an ordinary stream of incremental mutations. Replacing the
 authoritative present must prevent newer pre-restore history from replaying over
 the restored state.
 
-Restore workflows should:
+Both uploaded SQLite backups and internal restore points:
 
 1. validate the backup;
 2. create a pre-restore safety point where appropriate;
 3. replace authoritative state atomically;
-4. reset incompatible synchronization state;
-5. establish the synchronization history that follows the restored state.
+4. clear the candidate image's device-owned outbox and conflicts, reset its
+   cursor/baseline pointer, and assign a fresh synchronization epoch;
+5. stage the complete restored image at the relay and durably record the pending
+   transition before the owner-authorized relay commit;
+6. publish the local database generation only after the relay makes that restored
+   image the baseline at cursor zero in the new epoch.
+
+If relay publication is interrupted after the durable transition record is
+written, the budget is quarantined instead of synchronizing against its former
+epoch. Startup retries the idempotent relay confirmation and local publication.
+Failure before that record leaves the previous local generation authoritative.
 
 ## Version history
 
