@@ -87,6 +87,11 @@ import {
   writeTransactionImportSession,
 } from "../transactionImportSession";
 import {
+  getConflictingRegisterMatchOwner,
+  getRegisterMatchOwnership,
+  selectOwnedRegisterMatch,
+} from "../transactionImportReviewOwnership";
+import {
   appendTransactionImportTrace,
   serialiseTransactionImportTrace,
 } from "../transactionImportTrace";
@@ -668,6 +673,10 @@ export function TransactionImportDialog({
   const matchedCandidates = uniqueProcessedCandidates
     .filter((entry) => entry.action === "matched")
     .map((entry) => entry.candidate);
+  const registerMatchOwnership = getRegisterMatchOwnership({
+    candidates,
+    processedCandidates: uniqueProcessedCandidates,
+  });
   const selectedCount = importedCandidates.length;
   const processedCount = uniqueProcessedCandidates.length;
   const balancePreview = startingWorkingBalance === null
@@ -1360,6 +1369,25 @@ export function TransactionImportDialog({
     const candidate = candidates.find((entry) => entry.id === candidateId);
     if (!candidate) return;
 
+    if (action === "matched") {
+      const transactionId =
+        candidate.matchedTransaction?.id ?? candidate.matchedTransactionId;
+      if (!transactionId) {
+        setError("Choose an available register transaction before using an existing match.");
+        return;
+      }
+      if (
+        getConflictingRegisterMatchOwner(
+          registerMatchOwnership,
+          candidate.id,
+          transactionId,
+        )
+      ) {
+        setError("That register transaction is already matched to another imported transaction.");
+        return;
+      }
+    }
+
     processingCandidateRef.current = candidateId;
     setProcessingCandidate({ id: candidateId, action });
     setError(null);
@@ -1957,24 +1985,26 @@ export function TransactionImportDialog({
   function selectMatchedRegisterTransaction(
     candidateId: string,
     transactionId: string,
-  ) {
+  ): boolean {
+    const candidate = candidates.find((entry) => entry.id === candidateId);
+    if (!candidate) return false;
+    if (
+      getConflictingRegisterMatchOwner(
+        registerMatchOwnership,
+        candidateId,
+        transactionId,
+      )
+    ) {
+      setError("That register transaction is already matched to another imported transaction.");
+      return false;
+    }
+
     setCandidates((current) =>
-      current.map((candidate) => {
-        if (candidate.id !== candidateId) return candidate;
-        const selected = candidate.matchCandidates?.find(
-          (option) => option.transaction.id === transactionId,
-        );
-        if (!selected) return candidate;
-        return {
-          ...candidate,
-          status: "exact-match" as const,
-          recommendation: "match" as const,
-          matchedTransactionId: selected.transaction.id,
-          matchedTransaction: selected.transaction,
-          evidence: selected.evidence,
-          reason: selected.reason,
-        };
-      }),
+      current.map((entry) =>
+        entry.id === candidateId
+          ? selectOwnedRegisterMatch(entry, transactionId, registerMatchOwnership)
+          : entry,
+      ),
     );
     setMatchedTransactionOrigins((origins) => {
       const next = { ...origins };
@@ -1983,6 +2013,7 @@ export function TransactionImportDialog({
     });
     setProposedTransactionEdit(null);
     setError(null);
+    return true;
   }
 
   function cancelMatchedTransactionChanges(candidateId: string) {
@@ -3192,13 +3223,6 @@ export function TransactionImportDialog({
                   proposedTransactionEditIntent,
                   "category",
                 );
-              const matchedIdsUsedByOtherRows = new Set(
-                candidates
-                  .filter((entry) => entry.id !== candidate.id)
-                  .map((entry) => entry.matchedTransactionId)
-                  .filter((id): id is string => Boolean(id)),
-              );
-
               return (
                 <article
                   className={`transaction-import-review-card transaction-import-review-card-${candidate.status}${
@@ -3387,9 +3411,11 @@ export function TransactionImportDialog({
                                       candidate.matchedTransactionId;
                                     const isUnavailable =
                                       !isSelected &&
-                                      matchedIdsUsedByOtherRows.has(
+                                      Boolean(getConflictingRegisterMatchOwner(
+                                        registerMatchOwnership,
+                                        candidate.id,
                                         option.transaction.id,
-                                      );
+                                      ));
 
                                     return (
                                       <button
@@ -3404,13 +3430,15 @@ export function TransactionImportDialog({
                                         aria-selected={isSelected}
                                         disabled={isUnavailable}
                                         onClick={(event) => {
-                                          selectMatchedRegisterTransaction(
+                                          const selected = selectMatchedRegisterTransaction(
                                             candidate.id,
                                             option.transaction.id,
                                           );
-                                          event.currentTarget
-                                            .closest("details")
-                                            ?.removeAttribute("open");
+                                          if (selected) {
+                                            event.currentTarget
+                                              .closest("details")
+                                              ?.removeAttribute("open");
+                                          }
                                         }}
                                       >
                                         <strong>
@@ -3912,6 +3940,11 @@ export function TransactionImportDialog({
                 {weakMatchReviewCandidate.matchCandidates.map((option) => {
                   const transaction = option.transaction;
                   const signedAmount = transaction.inflow - transaction.outflow;
+                  const isUnavailable = Boolean(getConflictingRegisterMatchOwner(
+                    registerMatchOwnership,
+                    weakMatchReviewCandidate.id,
+                    transaction.id,
+                  ));
                   return (
                     <article
                       className="transaction-import-possible-match-card"
@@ -3930,12 +3963,13 @@ export function TransactionImportDialog({
                         type="button"
                         role="option"
                         aria-selected="false"
+                        disabled={isUnavailable}
                         onClick={() => {
-                          selectMatchedRegisterTransaction(
+                          const selected = selectMatchedRegisterTransaction(
                             weakMatchReviewCandidate.id,
                             transaction.id,
                           );
-                          setWeakMatchReviewCandidateId(null);
+                          if (selected) setWeakMatchReviewCandidateId(null);
                         }}
                       >
                         Choose this transaction
