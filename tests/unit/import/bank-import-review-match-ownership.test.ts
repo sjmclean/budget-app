@@ -4,6 +4,7 @@ import test from "node:test";
 import type { RegisterTransactionView } from "../../../apps/web/src/features/accounts/accountRegisterTypes.js";
 import type { TransactionImportCandidate } from "../../../apps/web/src/features/accounts/transactionImport.js";
 import {
+  getAvailableRegisterMatchCandidates,
   getConflictingRegisterMatchOwner,
   getRegisterMatchOwnership,
   restoreOwnedRegisterMatch,
@@ -177,4 +178,47 @@ test("two Coles rows one day apart cannot accept the same processed register mat
 
   assert.equal(ownership.get("register-coles"), "coles-1");
   assert.equal(attempted.matchedTransactionId, undefined);
+});
+
+test("available match candidates omit a register transaction owned by another active candidate", () => {
+  const owner = matched(candidate("import-a", 1, "2026-09-01", ["register-r1"]), "register-r1");
+  const pending = candidate("import-b", 2, "2026-09-02", ["register-r1", "register-r2"]);
+  const ownership = getRegisterMatchOwnership({ candidates: [owner, pending], processedCandidates: [] });
+
+  const available = getAvailableRegisterMatchCandidates(pending, ownership);
+
+  assert.deepEqual(available.map((option) => option.transaction.id), ["register-r2"]);
+  assert.equal(available.length, 1);
+  assert.equal(pending.matchCandidates?.length, 2);
+});
+
+test("available match candidates retain the candidate's self-owned selected match", () => {
+  const owner = matched(candidate("import-b", 2, "2026-09-02", ["register-r1", "register-r2"]), "register-r1");
+  const ownership = getRegisterMatchOwnership({ candidates: [owner], processedCandidates: [] });
+
+  assert.deepEqual(
+    getAvailableRegisterMatchCandidates(owner, ownership).map((option) => option.transaction.id),
+    ["register-r1", "register-r2"],
+  );
+});
+
+test("available match candidates retain every option when there is no ownership conflict", () => {
+  const pending = candidate("import-b", 2, "2026-09-02", ["register-r1", "register-r2"]);
+  const ownership = getRegisterMatchOwnership({ candidates: [pending], processedCandidates: [] });
+
+  assert.deepEqual(
+    getAvailableRegisterMatchCandidates(pending, ownership).map((option) => option.transaction.id),
+    ["register-r1", "register-r2"],
+  );
+});
+
+test("available match candidates omit a register transaction owned by a processed match", () => {
+  const owner = matched(candidate("import-a", 1, "2026-09-01", ["register-r1"]), "register-r1");
+  const pending = candidate("import-b", 2, "2026-09-02", ["register-r1", "register-r2"]);
+  const ownership = getRegisterMatchOwnership({ candidates: [pending], processedCandidates: [processed(owner)] });
+
+  assert.deepEqual(
+    getAvailableRegisterMatchCandidates(pending, ownership).map((option) => option.transaction.id),
+    ["register-r2"],
+  );
 });

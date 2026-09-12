@@ -49,6 +49,20 @@ export function getConflictingRegisterMatchOwner(
   return owner && owner !== candidateId ? owner : null;
 }
 
+export function getAvailableRegisterMatchCandidates(
+  candidate: TransactionImportCandidate,
+  ownership: RegisterMatchOwnership,
+): NonNullable<TransactionImportCandidate["matchCandidates"]> {
+  return (candidate.matchCandidates ?? []).filter(
+    (option) =>
+      !getConflictingRegisterMatchOwner(
+        ownership,
+        candidate.id,
+        option.transaction.id,
+      ),
+  );
+}
+
 export function selectOwnedRegisterMatch(
   candidate: TransactionImportCandidate,
   transactionId: string,
