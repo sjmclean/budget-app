@@ -33,7 +33,9 @@ export function getRegisterMatchOwnership({
   processedCandidates
     .filter((entry) => entry.action === "matched")
     .forEach((entry) => claim(entry.candidate));
-  candidates.forEach(claim);
+  candidates
+    .filter((candidate) => candidate.status === "exact-match")
+    .forEach(claim);
 
   return ownership;
 }
