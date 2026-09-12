@@ -6,6 +6,7 @@ import type { TransactionImportCandidate } from "../../../apps/web/src/features/
 import {
   getConflictingRegisterMatchOwner,
   getRegisterMatchOwnership,
+  restoreOwnedRegisterMatch,
   selectOwnedRegisterMatch,
 } from "../../../apps/web/src/features/accounts/transactionImportReviewOwnership.js";
 import type { PersistedProcessedImportCandidate } from "../../../apps/web/src/features/accounts/transactionImportSession.js";
@@ -145,19 +146,26 @@ test("another active candidate can claim a match released by import-as-new", () 
 
 test("returning to match options cannot steal R after another candidate claims it", () => {
   const originalMatch = matched(candidate("import-a", 1, "2026-09-01", ["register-r"]), "register-r");
+  const importedAsNew = importMatchAsNew(originalMatch);
   const second = matched(candidate("import-b", 2, "2026-09-02", ["register-r"]), "register-r");
-  const ownership = getRegisterMatchOwnership({ candidates: [originalMatch, second], processedCandidates: [] });
+  const ownership = getRegisterMatchOwnership({ candidates: [importedAsNew, second], processedCandidates: [] });
+  const restored = restoreOwnedRegisterMatch(importedAsNew, originalMatch, ownership);
+  const after = getRegisterMatchOwnership({ candidates: [restored, second], processedCandidates: [] });
 
-  assert.equal(ownership.get("register-r"), "import-a");
-  assert.equal(selectOwnedRegisterMatch(originalMatch, "register-r", new Map([["register-r", "import-b"]])), originalMatch);
+  assert.equal(restored, importedAsNew);
+  assert.equal(restored.status, "new");
+  assert.equal(restored.reviewDecision, "import-as-new");
+  assert.equal(after.get("register-r"), "import-b");
 });
 
 test("returning to match options may reclaim R when it remains unclaimed", () => {
   const originalMatch = matched(candidate("import-a", 1, "2026-09-01", ["register-r"]), "register-r");
-  const selected = selectOwnedRegisterMatch(originalMatch, "register-r", new Map());
-  const ownership = getRegisterMatchOwnership({ candidates: [selected], processedCandidates: [] });
+  const importedAsNew = importMatchAsNew(originalMatch);
+  const released = getRegisterMatchOwnership({ candidates: [importedAsNew], processedCandidates: [] });
+  const restored = restoreOwnedRegisterMatch(importedAsNew, originalMatch, released);
+  const ownership = getRegisterMatchOwnership({ candidates: [restored], processedCandidates: [] });
 
-  assert.notEqual(selected, originalMatch);
+  assert.equal(restored, originalMatch);
   assert.equal(ownership.get("register-r"), "import-a");
 });
 

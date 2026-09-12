@@ -72,3 +72,19 @@ export function selectOwnedRegisterMatch(
     reason: selected.reason,
   };
 }
+
+export function restoreOwnedRegisterMatch(
+  candidate: TransactionImportCandidate,
+  matchOrigin: TransactionImportCandidate,
+  ownership: RegisterMatchOwnership,
+): TransactionImportCandidate {
+  const transactionId = matchedRegisterTransactionId(matchOrigin);
+  if (
+    transactionId &&
+    getConflictingRegisterMatchOwner(ownership, candidate.id, transactionId)
+  ) {
+    return candidate;
+  }
+
+  return matchOrigin;
+}

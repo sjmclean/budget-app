@@ -89,6 +89,7 @@ import {
 import {
   getConflictingRegisterMatchOwner,
   getRegisterMatchOwnership,
+  restoreOwnedRegisterMatch,
   selectOwnedRegisterMatch,
 } from "../transactionImportReviewOwnership";
 import {
@@ -2037,10 +2038,21 @@ export function TransactionImportDialog({
   function returnToMatchOptions(candidateId: string) {
     const origin = matchEditorOrigins[candidateId];
     if (!origin) return;
+    const candidate = candidates.find((entry) => entry.id === candidateId);
+    if (!candidate) return;
+    const restored = restoreOwnedRegisterMatch(
+      candidate,
+      origin,
+      registerMatchOwnership,
+    );
+    if (restored === candidate) {
+      setError("That register transaction is already matched to another imported transaction.");
+      return;
+    }
 
     setCandidates((current) =>
-      current.map((candidate) =>
-        candidate.id === candidateId ? origin : candidate,
+      current.map((entry) =>
+        entry.id === candidateId ? restored : entry,
       ),
     );
     setMatchEditorOrigins((origins) => {
