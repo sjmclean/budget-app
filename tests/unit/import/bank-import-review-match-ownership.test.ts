@@ -70,6 +70,19 @@ function processed(candidate: TransactionImportCandidate): PersistedProcessedImp
   return { candidate, action: "matched", processedAt: 1 };
 }
 
+function importMatchAsNew(
+  source: TransactionImportCandidate,
+): TransactionImportCandidate {
+  return {
+    ...source,
+    status: "new",
+    selected: true,
+    reviewDecision: "import-as-new",
+    reason: "Review the new transaction details before importing it.",
+    errors: [],
+  };
+}
+
 test("accepted processed match remains reserved and direct selection cannot steal it", () => {
   const owner = matched(candidate("import-a", 1, "2026-09-01", ["register-r"]), "register-r");
   const pending = candidate("import-b", 2, "2026-09-02", ["register-r"]);
@@ -104,6 +117,48 @@ test("switching an active candidate transfers ownership from R1 to R2", () => {
 
   assert.equal(after.has("register-r1"), false);
   assert.equal(after.get("register-r2"), "import-a");
+});
+
+test("an active exact match owns R until the review transition imports it as new", () => {
+  const exactMatch = matched(candidate("import-a", 1, "2026-09-01", ["register-r"]), "register-r");
+  const before = getRegisterMatchOwnership({ candidates: [exactMatch], processedCandidates: [] });
+  const importedAsNew = importMatchAsNew(exactMatch);
+  const after = getRegisterMatchOwnership({ candidates: [importedAsNew], processedCandidates: [] });
+
+  assert.equal(before.get("register-r"), "import-a");
+  assert.equal(importedAsNew.matchedTransactionId, "register-r");
+  assert.equal(after.has("register-r"), false);
+});
+
+test("another active candidate can claim a match released by import-as-new", () => {
+  const importedAsNew = importMatchAsNew(
+    matched(candidate("import-a", 1, "2026-09-01", ["register-r"]), "register-r"),
+  );
+  const second = candidate("import-b", 2, "2026-09-02", ["register-r"]);
+  const released = getRegisterMatchOwnership({ candidates: [importedAsNew, second], processedCandidates: [] });
+  const claimed = selectOwnedRegisterMatch(second, "register-r", released);
+  const ownership = getRegisterMatchOwnership({ candidates: [importedAsNew, claimed], processedCandidates: [] });
+
+  assert.equal(claimed.matchedTransactionId, "register-r");
+  assert.equal(ownership.get("register-r"), "import-b");
+});
+
+test("returning to match options cannot steal R after another candidate claims it", () => {
+  const originalMatch = matched(candidate("import-a", 1, "2026-09-01", ["register-r"]), "register-r");
+  const second = matched(candidate("import-b", 2, "2026-09-02", ["register-r"]), "register-r");
+  const ownership = getRegisterMatchOwnership({ candidates: [originalMatch, second], processedCandidates: [] });
+
+  assert.equal(ownership.get("register-r"), "import-a");
+  assert.equal(selectOwnedRegisterMatch(originalMatch, "register-r", new Map([["register-r", "import-b"]])), originalMatch);
+});
+
+test("returning to match options may reclaim R when it remains unclaimed", () => {
+  const originalMatch = matched(candidate("import-a", 1, "2026-09-01", ["register-r"]), "register-r");
+  const selected = selectOwnedRegisterMatch(originalMatch, "register-r", new Map());
+  const ownership = getRegisterMatchOwnership({ candidates: [selected], processedCandidates: [] });
+
+  assert.notEqual(selected, originalMatch);
+  assert.equal(ownership.get("register-r"), "import-a");
 });
 
 test("two Coles rows one day apart cannot accept the same processed register match", () => {
