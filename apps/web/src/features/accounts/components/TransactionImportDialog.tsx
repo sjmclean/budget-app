@@ -87,6 +87,7 @@ import {
   writeTransactionImportSession,
 } from "../transactionImportSession";
 import {
+  getAvailableRegisterMatchCandidates,
   getConflictingRegisterMatchOwner,
   getRegisterMatchOwnership,
   restoreOwnedRegisterMatch,
@@ -2604,6 +2605,12 @@ export function TransactionImportDialog({
         (candidate) => candidate.id === weakMatchReviewCandidateId,
       ) ?? null
     : null;
+  const availableWeakMatchCandidates = weakMatchReviewCandidate
+    ? getAvailableRegisterMatchCandidates(
+        weakMatchReviewCandidate,
+        registerMatchOwnership,
+      )
+    : [];
 
   return (
     <div
@@ -3190,6 +3197,11 @@ export function TransactionImportDialog({
           <div className="transaction-import-review-list">
             {candidates.map((candidate) => {
               const hasMatch = Boolean(candidate.matchedTransaction);
+              const availableRegisterMatchCandidates =
+                getAvailableRegisterMatchCandidates(
+                  candidate,
+                  registerMatchOwnership,
+                );
               const sourcePayee = candidate.lifecycle.source.rawPayee;
               const candidateAliasSuggestion = aliasSuggestions.find(
                 (suggestion) => suggestion.sourcePayee === sourcePayee,
@@ -3401,8 +3413,7 @@ export function TransactionImportDialog({
                                   )
                                 }
                               />
-                            ) : candidate.matchCandidates &&
-                              candidate.matchCandidates.length > 1 ? (
+                            ) : availableRegisterMatchCandidates.length > 1 ? (
                               <details className="transaction-import-register-match-picker">
                                 <summary
                                   className="transaction-import-register-match-summary"
@@ -3417,17 +3428,10 @@ export function TransactionImportDialog({
                                   role="listbox"
                                   aria-label="Eligible register transactions"
                                 >
-                                  {candidate.matchCandidates.map((option) => {
+                                  {availableRegisterMatchCandidates.map((option) => {
                                     const isSelected =
                                       option.transaction.id ===
                                       candidate.matchedTransactionId;
-                                    const isUnavailable =
-                                      !isSelected &&
-                                      Boolean(getConflictingRegisterMatchOwner(
-                                        registerMatchOwnership,
-                                        candidate.id,
-                                        option.transaction.id,
-                                      ));
 
                                     return (
                                       <button
@@ -3440,7 +3444,6 @@ export function TransactionImportDialog({
                                         type="button"
                                         role="option"
                                         aria-selected={isSelected}
-                                        disabled={isUnavailable}
                                         onClick={(event) => {
                                           const selected = selectMatchedRegisterTransaction(
                                             candidate.id,
@@ -3788,7 +3791,7 @@ export function TransactionImportDialog({
                   {candidate.status === "new" ||
                   candidate.status === "invalid" ? (
                     <div className="transaction-import-match-actions">
-                      {candidate.status === "new" && candidate.matchCandidates?.length ? (
+                      {candidate.status === "new" && availableRegisterMatchCandidates.length ? (
                         <button
                           className="button button-secondary"
                           type="button"
@@ -3912,7 +3915,7 @@ export function TransactionImportDialog({
           </div>
         ) : null}
 
-        {weakMatchReviewCandidate?.matchCandidates?.length ? (
+        {weakMatchReviewCandidate && availableWeakMatchCandidates.length ? (
           <div
             className="transaction-import-possible-match-backdrop"
             role="presentation"
@@ -3949,14 +3952,9 @@ export function TransactionImportDialog({
                 role="listbox"
                 aria-label="Possible register transactions"
               >
-                {weakMatchReviewCandidate.matchCandidates.map((option) => {
+                {availableWeakMatchCandidates.map((option) => {
                   const transaction = option.transaction;
                   const signedAmount = transaction.inflow - transaction.outflow;
-                  const isUnavailable = Boolean(getConflictingRegisterMatchOwner(
-                    registerMatchOwnership,
-                    weakMatchReviewCandidate.id,
-                    transaction.id,
-                  ));
                   return (
                     <article
                       className="transaction-import-possible-match-card"
@@ -3975,7 +3973,6 @@ export function TransactionImportDialog({
                         type="button"
                         role="option"
                         aria-selected="false"
-                        disabled={isUnavailable}
                         onClick={() => {
                           const selected = selectMatchedRegisterTransaction(
                             weakMatchReviewCandidate.id,
