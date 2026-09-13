@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T03:47:32.612Z",
+  "generatedAt": "2026-09-13T22:36:03.149Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -2273,25 +2273,25 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/BudgetPage.tsx",
-      "line": 72,
+      "line": 77,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/BudgetPage.tsx",
-      "line": 100,
+      "line": 105,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/BudgetPage.tsx",
-      "line": 108,
+      "line": 113,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/BudgetPage.tsx",
-      "line": 115,
+      "line": 120,
       "classification": "review-required"
     },
     {

@@ -1,20 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import "../../styles/budgetCoverOverspending.css";
-import {
-  FloatingMenu,
-  FloatingMenuHeading,
-  type FloatingPosition,
-} from "../floatingUi";
 import { formatMoney } from "./budgetMoneyDisplay";
 import type { BudgetCategoryView } from "./budgetViewTypes";
 import type { OverspendingCoverOption } from "./budgetWorkspaceSelectors";
 import { MoneyInput } from "../money/MoneyInput";
 import { roundMoney } from "../money/moneyExpression";
 
-interface BudgetCoverOverspendingMenuProps {
-  isOpen: boolean;
-  position: Pick<FloatingPosition, "top" | "left"> | null;
-  overspentCategory: BudgetCategoryView | null;
+interface BudgetCoverOverspendingContentProps {
+  overspentCategory: BudgetCategoryView;
   coverOptions: OverspendingCoverOption[];
   currencyCode: string;
   onClose: () => void;
@@ -66,15 +58,13 @@ function amountValue(value: string): number {
   return Number.isFinite(amount) ? amount : 0;
 }
 
-export function BudgetCoverOverspendingMenu({
-  isOpen,
-  position,
+export function BudgetCoverOverspendingContent({
   overspentCategory,
   coverOptions,
   currencyCode,
   onClose,
   onCoverOverspending,
-}: BudgetCoverOverspendingMenuProps) {
+}: BudgetCoverOverspendingContentProps) {
   const overspentAmount = getOverspentAmount(overspentCategory);
 
   const [amounts, setAmounts] = useState<Record<string, string>>({});
@@ -87,13 +77,12 @@ export function BudgetCoverOverspendingMenu({
     setSelectedCategoryIds([]);
     setIsAddingCategory(false);
     setCategorySearch("");
-  }, [isOpen, overspentCategory?.id]);
+  }, [overspentCategory.id]);
 
   const availableCoverOptions = useMemo(
     () =>
       coverOptions.filter(
         (option) =>
-          overspentCategory !== null &&
           option.id !== overspentCategory.id &&
           option.available > 0,
       ),
@@ -165,7 +154,7 @@ export function BudgetCoverOverspendingMenu({
 
   const groupedAddableOptions = groupCoverOptions(addableOptions);
 
-  if (!overspentCategory || overspentAmount <= 0) {
+  if (overspentAmount <= 0) {
     return null;
   }
 
@@ -202,24 +191,7 @@ export function BudgetCoverOverspendingMenu({
   }
 
   return (
-    <FloatingMenu
-      isOpen={isOpen}
-      label="Cover category overspending"
-      layerClassName="budget-cover-menu-layer floating-menu-layer"
-      panelClassName="budget-cover-menu budget-cover-menu-multi floating-menu-panel"
-      position={position}
-      onClose={onClose}
-      autoFocusFirstItem={false}
-    >
-      <FloatingMenuHeading
-        className="budget-cover-menu-heading floating-menu-heading"
-        title="Category overspent"
-        subtitle={`${overspentCategory.name} is overspent by ${formatMoney(
-          overspentAmount,
-          currencyCode,
-        )}`}
-      />
-
+    <>
       <div className="budget-cover-menu-body">
         <section
           className="budget-cover-section"
@@ -458,6 +430,6 @@ export function BudgetCoverOverspendingMenu({
           Cover {formatMoney(selectedTotal, currencyCode)}
         </button>
       </div>
-    </FloatingMenu>
+    </>
   );
 }

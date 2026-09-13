@@ -31,7 +31,6 @@ import type {
   BudgetActivityDrilldownRow,
   BudgetCategoryGroupView,
   BudgetCategoryView,
-  OverspendingHandling,
 } from "../features/budget/budgetViewTypes";
 import { formatDateForDisplay } from "../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../features/settings/useDateFormatPreference";
@@ -50,7 +49,13 @@ import {
 } from "../features/budget/budgetWorkspaceSelectors";
 import { buildBudgetInspectorState } from "../features/budget/budgetInspectorState";
 import { BudgetCategoryContextMenu } from "../features/budget/BudgetCategoryContextMenu";
-import { BudgetCoverOverspendingMenu } from "../features/budget/BudgetCoverOverspendingMenu";
+import {
+  BudgetCategoryWindow,
+} from "../features/budget/BudgetCategoryWindow";
+import {
+  resolveBudgetCategoryWindowTab,
+  type BudgetCategoryWindowTab,
+} from "../features/budget/budgetCategoryWindowState";
 import { resolveFloatingPositionFromMouseEvent, type FloatingPosition } from "../features/floatingUi";
 import {
   BudgetGroup,
@@ -131,8 +136,6 @@ function CategoryInspector({
   group,
   currencyCode,
   isOverassignedSource,
-  onSetCategoryArchived,
-  onOpenCategorySettings,
   isCreditCardPaymentCategory,
   onAssignGoalRecommendation,
 }: {
@@ -141,8 +144,6 @@ function CategoryInspector({
   group: BudgetCategoryGroupView | null;
   currencyCode: string;
   isOverassignedSource: boolean;
-  onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
-  onOpenCategorySettings: () => void;
   isCreditCardPaymentCategory: boolean;
   onAssignGoalRecommendation: ReturnType<typeof useBudgetWorkspace>["assignGoalRecommendation"];
 }) {
@@ -237,235 +238,11 @@ function CategoryInspector({
             money reserved to pay this card and cannot be renamed or archived.
           </p>
         </div>
-      ) : (
-        <div className="category-details-actions">
-          <button
-            className="button button-secondary category-archive-button"
-            type="button"
-            onClick={() =>
-              onSetCategoryArchived(category.id, !category.isArchived)
-            }
-          >
-            {category.isArchived ? "Restore category" : "Archive category"}
-          </button>
-
-          <button
-            className="button button-primary"
-            type="button"
-            onClick={onOpenCategorySettings}
-          >
-            Category Settings…
-          </button>
-        </div>
-      )}
+      ) : null}
     </Card>
   );
 }
 
-export function CategorySettingsDialog({
-  category,
-  group,
-  isOpen,
-  onClose,
-  onRenameCategory,
-  onSetCategoryArchived,
-  onUpdateCategoryNote,
-  onSetOverspendingHandling,
-}: {
-  category: BudgetCategoryView | null;
-  group: BudgetCategoryGroupView | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onRenameCategory: (categoryId: string, name: string) => void;
-  onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
-  onUpdateCategoryNote: (categoryId: string, note: string) => void;
-  onSetOverspendingHandling: (
-    categoryId: string,
-    overspendingHandling: OverspendingHandling,
-  ) => void;
-}) {
-  const [draftName, setDraftName] = useState(category?.name ?? "");
-  const [draftCategoryNote, setDraftCategoryNote] = useState(category?.note ?? "");
-
-  useEffect(() => {
-    setDraftName(category?.name ?? "");
-    setDraftCategoryNote(category?.note ?? "");
-  }, [category?.id, category?.name, category?.note]);
-
-  function cancelRename() {
-    setDraftName(category?.name ?? "");
-  }
-
-  function saveRename() {
-    if (!category) {
-      return;
-    }
-
-    const trimmedName = draftName.trim();
-
-    if (!trimmedName) {
-      setDraftName(category.name);
-      return;
-    }
-
-    if (trimmedName !== category.name) {
-      onRenameCategory(category.id, trimmedName);
-    }
-  }
-
-  function saveCategoryNote() {
-    if (!category) {
-      return;
-    }
-
-    if (draftCategoryNote !== (category.note ?? "")) {
-      onUpdateCategoryNote(category.id, draftCategoryNote);
-    }
-  }
-
-  if (!isOpen || !category || !group || isCreditCardPaymentCategory(category.id)) {
-    return null;
-  }
-
-  return (
-    <div
-      className="category-management-modal-backdrop"
-      role="presentation"
-      onClick={onClose}
-    >
-      <section
-        className="category-management-modal category-management-modal-compact"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="category-management-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header className="category-management-modal-header">
-          <div>
-            <h2 id="category-management-title">Category Settings</h2>
-            <p className="muted">
-              {category.name} · {group.name}
-            </p>
-          </div>
-
-          <button
-            className="budget-activity-modal-close"
-            type="button"
-            onClick={onClose}
-            aria-label="Close category settings"
-          >
-            ×
-          </button>
-        </header>
-
-        <div className="category-management-sections category-management-sections-compact">
-          <section className="category-management-section">
-            <h3>Category details</h3>
-            <label className="category-management-field">
-              <span>Category name</span>
-              <input
-                className="category-rename-input"
-                autoFocus
-                value={draftName}
-                onChange={(event) => setDraftName(event.target.value)}
-                onBlur={saveRename}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    saveRename();
-                  }
-
-                  if (event.key === "Escape") {
-                    cancelRename();
-                  }
-                }}
-                aria-label="Category name"
-              />
-            </label>
-
-            <label className="category-management-field">
-              <span>Category note</span>
-              <textarea
-                className="category-note-textarea"
-                value={draftCategoryNote}
-                onChange={(event) => setDraftCategoryNote(event.target.value)}
-                onBlur={saveCategoryNote}
-                placeholder="Add reminders, rules, renewal dates, or category-specific instructions…"
-                rows={5}
-              />
-            </label>
-          </section>
-
-          <section className="category-management-section">
-            <h3>Overspending</h3>
-            <fieldset className="category-settings-overspending">
-              <legend>
-                If this category is still overspent when the month ends:
-              </legend>
-
-              <label className="category-settings-overspending-option">
-                <input
-                  type="radio"
-                  name={`overspending-handling-${category.id}`}
-                  value="reduce-next-month"
-                  checked={
-                    (category.overspendingHandling ?? "reduce-next-month") ===
-                    "reduce-next-month"
-                  }
-                  onChange={() =>
-                    onSetOverspendingHandling(category.id, "reduce-next-month")
-                  }
-                />
-                <span>
-                  <strong>Reduce next month&apos;s Ready to Assign</strong>
-                  <small>
-                    The remaining overspent amount will reduce next month&apos;s
-                    Ready to Assign.
-                  </small>
-                </span>
-              </label>
-
-              <label className="category-settings-overspending-option">
-                <input
-                  type="radio"
-                  name={`overspending-handling-${category.id}`}
-                  value="carry-category"
-                  checked={category.overspendingHandling === "carry-category"}
-                  onChange={() =>
-                    onSetOverspendingHandling(category.id, "carry-category")
-                  }
-                />
-                <span>
-                  <strong>Carry the overspending in this category</strong>
-                  <small>
-                    The negative category balance will continue into the next
-                    month.
-                  </small>
-                </span>
-              </label>
-            </fieldset>
-            <p className="category-settings-overspending-help">
-              This setting only controls what happens to remaining overspending
-              at month end. You can cover overspending manually at any time.
-            </p>
-          </section>
-
-          <section className="category-management-section category-management-actions-section">
-            <h3>Actions</h3>
-            <button
-              className="button button-secondary category-archive-button"
-              type="button"
-              onClick={() =>
-                onSetCategoryArchived(category.id, !category.isArchived)
-              }
-            >
-              {category.isArchived ? "Restore category" : "Archive category"}
-            </button>
-          </section>
-        </div>
-      </section>
-    </div>
-  );
-}
 
 
 
@@ -618,14 +395,14 @@ export function BudgetPage() {
 
 function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const navigate = useNavigate();
-  const [isCategorySettingsOpen, setIsCategorySettingsOpen] = useState(false);
+  const [categoryWindow, setCategoryWindow] = useState<{
+    categoryId: string;
+    tab: BudgetCategoryWindowTab;
+    position: Pick<FloatingPosition, "top" | "left">;
+  } | null>(null);
   const [budgetContextMenu, setBudgetContextMenu] = useState<{
     category: BudgetCategoryView;
     group: BudgetCategoryGroupView;
-    position: Pick<FloatingPosition, "top" | "left">;
-  } | null>(null);
-  const [coverOverspendingMenu, setCoverOverspendingMenu] = useState<{
-    category: BudgetCategoryView;
     position: Pick<FloatingPosition, "top" | "left">;
   } | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(() =>
@@ -682,10 +459,15 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   );
 
   useEffect(() => {
-    if (!selectedCategory) {
-      setIsCategorySettingsOpen(false);
+    if (
+      categoryWindow &&
+      (!data?.categoryGroups.some((group) =>
+        group.categories.some((category) => category.id === categoryWindow.categoryId),
+      ) || isCreditCardPaymentCategory(categoryWindow.categoryId))
+    ) {
+      setCategoryWindow(null);
     }
-  }, [selectedCategory?.id]);
+  }, [categoryWindow, data]);
 
   useEffect(() => {
     setCollapsedGroupIds(readCollapsedBudgetGroupIds(budgetId));
@@ -719,6 +501,14 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const visibleCategoryGroups = archivedCategoriesGroup
     ? [...activeCategoryGroups, archivedCategoriesGroup]
     : activeCategoryGroups;
+  const categoryWindowGroup = categoryWindow
+    ? visibleCategoryGroups.find((group) =>
+      group.categories.some((category) => category.id === categoryWindow.categoryId),
+    ) ?? null
+    : null;
+  const categoryWindowCategory = categoryWindowGroup?.categories.find(
+    (category) => category.id === categoryWindow?.categoryId,
+  ) ?? null;
 
   if (isLoading) {
     return (
@@ -784,21 +574,35 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const previousOverspending = authoritativeSummary.previousOverspending;
   const incomeForMonth = authoritativeSummary.incomeForMonth;
 
-  function openCategorySettings(categoryId: string) {
-    if (isCreditCardPaymentCategory(categoryId)) {
+  function openCategoryWindow(
+    categoryId: string,
+    requestedTab?: BudgetCategoryWindowTab,
+  ) {
+    const category = visibleCategoryGroups
+      .flatMap((group) => group.categories)
+      .find((candidate) => candidate.id === categoryId);
+    if (!category || isCreditCardPaymentCategory(categoryId)) {
       selectCategory(categoryId);
       return;
     }
 
     selectCategory(categoryId);
-    setIsCategorySettingsOpen(true);
+    setCategoryWindow({
+      categoryId,
+      tab: resolveBudgetCategoryWindowTab(category, requestedTab),
+      position: resolveCategoryWindowPosition(),
+    });
+  }
+
+  function openCategorySettings(categoryId: string) {
+    openCategoryWindow(categoryId, "settings");
   }
 
   function closeBudgetContextMenu() {
     setBudgetContextMenu(null);
   }
 
-  function resolveCoverOverspendingPosition(): FloatingPosition {
+  function resolveCategoryWindowPosition(): FloatingPosition {
     const viewportPadding = 12;
     const preferredWidth = 544;
     const viewportWidth = window.innerWidth;
@@ -843,8 +647,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     };
   }
 
-  function closeCoverOverspendingMenu() {
-    setCoverOverspendingMenu(null);
+  function closeCategoryWindow() {
+    setCategoryWindow(null);
   }
 
   function openBudgetContextMenu({
@@ -867,16 +671,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   }
 
   function openCoverOverspendingMenu(categoryId: string) {
-    const category = budgetContextMenu?.category;
-
-    if (!category || category.id !== categoryId) {
-      return;
-    }
-
-    setCoverOverspendingMenu({
-      category,
-      position: resolveCoverOverspendingPosition(),
-    });
+    openCategoryWindow(categoryId, "cover-overspending");
   }
 
   function openCoverOverspendingMenuFromRow({
@@ -885,11 +680,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     event: MouseEvent<HTMLElement>;
     category: BudgetCategoryView;
   }) {
-    selectCategory(category.id);
-    setCoverOverspendingMenu({
-      category,
-      position: resolveCoverOverspendingPosition(),
-    });
+    openCategoryWindow(category.id, "cover-overspending");
   }
 
   async function handleCreateCategory() {
@@ -1143,8 +934,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             group={visibleSelectedGroup}
             currencyCode={data.currencyCode}
             isOverassignedSource={selectedCategoryIsOverassignedSource}
-            onSetCategoryArchived={setCategoryArchived}
-            onOpenCategorySettings={() => setIsCategorySettingsOpen(true)}
             isCreditCardPaymentCategory={
               visibleSelectedCategory !== null &&
               isCreditCardPaymentCategory(visibleSelectedCategory.id)
@@ -1193,16 +982,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
         />
       ) : null}
 
-      <CategorySettingsDialog
-        category={visibleSelectedCategory}
-        group={visibleSelectedGroup}
-        isOpen={isCategorySettingsOpen}
-        onClose={() => setIsCategorySettingsOpen(false)}
-        onRenameCategory={renameCategory}
-        onSetCategoryArchived={setCategoryArchived}
-        onUpdateCategoryNote={updateCategoryNote}
-        onSetOverspendingHandling={setCategoryOverspendingHandling}
-      />
       <BudgetCategoryContextMenu
         isOpen={Boolean(budgetContextMenu)}
         position={budgetContextMenu?.position ?? null}
@@ -1215,15 +994,24 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
         onOpenCategorySettings={openCategorySettings}
         onSetCategoryArchived={setCategoryArchived}
       />
-      <BudgetCoverOverspendingMenu
-        isOpen={Boolean(coverOverspendingMenu)}
-        position={coverOverspendingMenu?.position ?? null}
-        overspentCategory={coverOverspendingMenu?.category ?? null}
+      <BudgetCategoryWindow
+        isOpen={Boolean(categoryWindow)}
+        position={categoryWindow?.position ?? null}
+        category={categoryWindowCategory}
+        group={categoryWindowGroup}
+        activeTab={categoryWindow?.tab ?? "settings"}
         coverOptions={coverOptions}
         currencyCode={data.currencyCode}
-        onClose={closeCoverOverspendingMenu}
+        onClose={closeCategoryWindow}
+        onTabChange={(tab) => {
+          setCategoryWindow((current) => current ? { ...current, tab } : null);
+        }}
+        onRenameCategory={renameCategory}
+        onSetCategoryArchived={setCategoryArchived}
+        onUpdateCategoryNote={updateCategoryNote}
+        onSetOverspendingHandling={setCategoryOverspendingHandling}
         onCoverOverspending={(input) => {
-          closeCoverOverspendingMenu();
+          closeCategoryWindow();
           coverOverspending(input);
         }}
       />

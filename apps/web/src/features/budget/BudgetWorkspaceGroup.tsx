@@ -203,6 +203,7 @@ export function BudgetCategoryRow({
   const canCoverOverspending =
     isMoneyNegative(category.available) &&
     !isCreditCardPaymentCategory &&
+    !isArchivedCollection &&
     Boolean(onOpenCoverOverspending);
 
   return (
