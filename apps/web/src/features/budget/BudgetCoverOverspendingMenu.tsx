@@ -409,7 +409,7 @@ export function BudgetCoverOverspendingContent({
 
       <div className="budget-cover-menu-footer">
         <button
-          className="button secondary"
+          className="button button-secondary"
           type="button"
           onClick={onClose}
         >
