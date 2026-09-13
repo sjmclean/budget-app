@@ -4399,6 +4399,62 @@ strong {
   gap: 0.35rem;
 }
 
+.category-settings-overspending {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.category-settings-overspending legend {
+  width: 100%;
+  padding: 0 0 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.category-settings-overspending-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  cursor: pointer;
+}
+
+.category-settings-overspending-option:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+
+.category-settings-overspending-option input {
+  margin-top: 0.18rem;
+}
+
+.category-settings-overspending-option span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.category-settings-overspending-option strong {
+  font-size: 0.83rem;
+}
+
+.category-settings-overspending-option small,
+.category-settings-overspending-help {
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.category-settings-overspending-help {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
 .category-management-field span,
 .category-notes-editor label > span {
   color: var(--text-muted);

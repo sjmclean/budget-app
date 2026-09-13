@@ -129,7 +129,6 @@ test("Budget category row renders sibling native actions without nested buttons"
     isSelected: false,
     isOverassignedSource: false,
     onSelect: () => undefined,
-    onOpenCategoryEditor: () => undefined,
     onOpenCategoryContextMenu: () => undefined,
     onOpenCoverOverspending: () => undefined,
     onAssignedChange: () => undefined,
@@ -157,6 +156,75 @@ test("Budget category row renders sibling native actions without nested buttons"
     }
   }
   assert.equal(buttonDepth, 0);
+});
+
+test("category name selects without opening settings and row actions remain independent", () => {
+  let selections = 0;
+  let activityOpens = 0;
+  let coverOpens = 0;
+  let contextMenus = 0;
+  const stopped = { name: false, activity: false, cover: false };
+  const element = BudgetCategoryRow({
+    category: {
+      ...category(),
+      activity: -10,
+      available: -25,
+      isOverspent: true,
+    },
+    groupId: "group-1",
+    currencyCode: "AUD",
+    isSelected: false,
+    isOverassignedSource: false,
+    onSelect: () => { selections += 1; },
+    onOpenCategoryContextMenu: () => { contextMenus += 1; },
+    onOpenCoverOverspending: () => { coverOpens += 1; },
+    onAssignedChange: () => undefined,
+    onActivityClick: () => { activityOpens += 1; },
+    isBudgetColumnVisible: () => true,
+    rowStyle: {},
+    isCreditCardPaymentCategory: false,
+    isArchivedCollection: false,
+  }) as { props: Record<string, unknown> };
+
+  function findByClassName(node: unknown, className: string): { props: Record<string, unknown> } {
+    if (!node || typeof node !== "object") throw new Error(`Missing ${className}`);
+    const candidate = node as { props?: Record<string, unknown> };
+    if (typeof candidate.props?.className === "string" && candidate.props.className.includes(className)) {
+      return candidate as { props: Record<string, unknown> };
+    }
+    const children = candidate.props?.children;
+    for (const child of Array.isArray(children) ? children : [children]) {
+      try { return findByClassName(child, className); } catch { /* keep searching */ }
+    }
+    throw new Error(`Missing ${className}`);
+  }
+
+  const name = findByClassName(element, "budget-category-name-button");
+  (name.props.onClick as (event: { stopPropagation(): void }) => void)({
+    stopPropagation: () => { stopped.name = true; },
+  });
+  assert.equal(selections, 1);
+  assert.equal(stopped.name, true);
+
+  const activity = findByClassName(element, "activity-drilldown-button");
+  (activity.props.onClick as (event: { stopPropagation(): void }) => void)({
+    stopPropagation: () => { stopped.activity = true; },
+  });
+  assert.equal(activityOpens, 1);
+  assert.equal(selections, 1);
+
+  const cover = findByClassName(element, "budget-available-cover-button");
+  (cover.props.onClick as (event: { stopPropagation(): void }) => void)({
+    stopPropagation: () => { stopped.cover = true; },
+  });
+  assert.equal(coverOpens, 1);
+  assert.equal(selections, 2);
+
+  (element.props.onContextMenu as (event: { preventDefault(): void; stopPropagation(): void }) => void)({
+    preventDefault: () => undefined,
+    stopPropagation: () => undefined,
+  });
+  assert.equal(contextMenus, 1);
 });
 
 test("row Goal status remains a single native action and adds no Budget column", () => {
