@@ -31,6 +31,7 @@ import type {
   BudgetActivityDrilldownRow,
   BudgetCategoryGroupView,
   BudgetCategoryView,
+  OverspendingHandling,
 } from "../features/budget/budgetViewTypes";
 import { formatDateForDisplay } from "../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../features/settings/useDateFormatPreference";
@@ -131,7 +132,7 @@ function CategoryInspector({
   currencyCode,
   isOverassignedSource,
   onSetCategoryArchived,
-  onOpenManageCategory,
+  onOpenCategorySettings,
   isCreditCardPaymentCategory,
   onAssignGoalRecommendation,
 }: {
@@ -141,7 +142,7 @@ function CategoryInspector({
   currencyCode: string;
   isOverassignedSource: boolean;
   onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
-  onOpenManageCategory: () => void;
+  onOpenCategorySettings: () => void;
   isCreditCardPaymentCategory: boolean;
   onAssignGoalRecommendation: ReturnType<typeof useBudgetWorkspace>["assignGoalRecommendation"];
 }) {
@@ -251,9 +252,9 @@ function CategoryInspector({
           <button
             className="button button-primary"
             type="button"
-            onClick={onOpenManageCategory}
+            onClick={onOpenCategorySettings}
           >
-            Manage Category…
+            Category Settings…
           </button>
         </div>
       )}
@@ -261,7 +262,7 @@ function CategoryInspector({
   );
 }
 
-function CategoryManagementDialog({
+export function CategorySettingsDialog({
   category,
   group,
   isOpen,
@@ -269,6 +270,7 @@ function CategoryManagementDialog({
   onRenameCategory,
   onSetCategoryArchived,
   onUpdateCategoryNote,
+  onSetOverspendingHandling,
 }: {
   category: BudgetCategoryView | null;
   group: BudgetCategoryGroupView | null;
@@ -277,6 +279,10 @@ function CategoryManagementDialog({
   onRenameCategory: (categoryId: string, name: string) => void;
   onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   onUpdateCategoryNote: (categoryId: string, note: string) => void;
+  onSetOverspendingHandling: (
+    categoryId: string,
+    overspendingHandling: OverspendingHandling,
+  ) => void;
 }) {
   const [draftName, setDraftName] = useState(category?.name ?? "");
   const [draftCategoryNote, setDraftCategoryNote] = useState(category?.note ?? "");
@@ -336,7 +342,7 @@ function CategoryManagementDialog({
       >
         <header className="category-management-modal-header">
           <div>
-            <h2 id="category-management-title">Edit Category</h2>
+            <h2 id="category-management-title">Category Settings</h2>
             <p className="muted">
               {category.name} · {group.name}
             </p>
@@ -346,7 +352,7 @@ function CategoryManagementDialog({
             className="budget-activity-modal-close"
             type="button"
             onClick={onClose}
-            aria-label="Close category editor"
+            aria-label="Close category settings"
           >
             ×
           </button>
@@ -387,6 +393,60 @@ function CategoryManagementDialog({
                 rows={5}
               />
             </label>
+          </section>
+
+          <section className="category-management-section">
+            <h3>Overspending</h3>
+            <fieldset className="category-settings-overspending">
+              <legend>
+                If this category is still overspent when the month ends:
+              </legend>
+
+              <label className="category-settings-overspending-option">
+                <input
+                  type="radio"
+                  name={`overspending-handling-${category.id}`}
+                  value="reduce-next-month"
+                  checked={
+                    (category.overspendingHandling ?? "reduce-next-month") ===
+                    "reduce-next-month"
+                  }
+                  onChange={() =>
+                    onSetOverspendingHandling(category.id, "reduce-next-month")
+                  }
+                />
+                <span>
+                  <strong>Reduce next month&apos;s Ready to Assign</strong>
+                  <small>
+                    The remaining overspent amount will reduce next month&apos;s
+                    Ready to Assign.
+                  </small>
+                </span>
+              </label>
+
+              <label className="category-settings-overspending-option">
+                <input
+                  type="radio"
+                  name={`overspending-handling-${category.id}`}
+                  value="carry-category"
+                  checked={category.overspendingHandling === "carry-category"}
+                  onChange={() =>
+                    onSetOverspendingHandling(category.id, "carry-category")
+                  }
+                />
+                <span>
+                  <strong>Carry the overspending in this category</strong>
+                  <small>
+                    The negative category balance will continue into the next
+                    month.
+                  </small>
+                </span>
+              </label>
+            </fieldset>
+            <p className="category-settings-overspending-help">
+              This setting only controls what happens to remaining overspending
+              at month end. You can cover overspending manually at any time.
+            </p>
           </section>
 
           <section className="category-management-section category-management-actions-section">
@@ -558,7 +618,7 @@ export function BudgetPage() {
 
 function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const navigate = useNavigate();
-  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+  const [isCategorySettingsOpen, setIsCategorySettingsOpen] = useState(false);
   const [budgetContextMenu, setBudgetContextMenu] = useState<{
     category: BudgetCategoryView;
     group: BudgetCategoryGroupView;
@@ -623,7 +683,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   useEffect(() => {
     if (!selectedCategory) {
-      setIsCategoryManagerOpen(false);
+      setIsCategorySettingsOpen(false);
     }
   }, [selectedCategory?.id]);
 
@@ -724,14 +784,14 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const previousOverspending = authoritativeSummary.previousOverspending;
   const incomeForMonth = authoritativeSummary.incomeForMonth;
 
-  function openCategoryEditor(categoryId: string) {
+  function openCategorySettings(categoryId: string) {
     if (isCreditCardPaymentCategory(categoryId)) {
       selectCategory(categoryId);
       return;
     }
 
     selectCategory(categoryId);
-    setIsCategoryManagerOpen(true);
+    setIsCategorySettingsOpen(true);
   }
 
   function closeBudgetContextMenu() {
@@ -1046,7 +1106,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                     selectedCategoryId={visibleSelectedCategory?.id ?? null}
                     overassignedCategoryIds={overassignedCategoryIds}
                     onSelectCategory={selectCategory}
-                    onOpenCategoryEditor={openCategoryEditor}
                     onOpenCategoryContextMenu={openBudgetContextMenu}
                     onOpenCoverOverspending={openCoverOverspendingMenuFromRow}
                     onAssignedChange={updateAssigned}
@@ -1085,7 +1144,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             currencyCode={data.currencyCode}
             isOverassignedSource={selectedCategoryIsOverassignedSource}
             onSetCategoryArchived={setCategoryArchived}
-            onOpenManageCategory={() => setIsCategoryManagerOpen(true)}
+            onOpenCategorySettings={() => setIsCategorySettingsOpen(true)}
             isCreditCardPaymentCategory={
               visibleSelectedCategory !== null &&
               isCreditCardPaymentCategory(visibleSelectedCategory.id)
@@ -1134,14 +1193,15 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
         />
       ) : null}
 
-      <CategoryManagementDialog
+      <CategorySettingsDialog
         category={visibleSelectedCategory}
         group={visibleSelectedGroup}
-        isOpen={isCategoryManagerOpen}
-        onClose={() => setIsCategoryManagerOpen(false)}
+        isOpen={isCategorySettingsOpen}
+        onClose={() => setIsCategorySettingsOpen(false)}
         onRenameCategory={renameCategory}
         onSetCategoryArchived={setCategoryArchived}
         onUpdateCategoryNote={updateCategoryNote}
+        onSetOverspendingHandling={setCategoryOverspendingHandling}
       />
       <BudgetCategoryContextMenu
         isOpen={Boolean(budgetContextMenu)}
@@ -1152,8 +1212,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
         onClose={closeBudgetContextMenu}
         onOpenActivity={openActivityDrilldown}
         onOpenCoverOverspending={openCoverOverspendingMenu}
-        onOpenManageCategory={openCategoryEditor}
-        onRenameCategory={openCategoryEditor}
+        onOpenCategorySettings={openCategorySettings}
         onSetCategoryArchived={setCategoryArchived}
       />
       <BudgetCoverOverspendingMenu
@@ -1166,17 +1225,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
         onCoverOverspending={(input) => {
           closeCoverOverspendingMenu();
           coverOverspending(input);
-        }}
-        onSetOverspendingHandling={(categoryId, overspendingHandling) => {
-          setCoverOverspendingMenu((current) =>
-            current
-              ? {
-                  ...current,
-                  category: { ...current.category, overspendingHandling },
-                }
-              : current,
-          );
-          setCategoryOverspendingHandling(categoryId, overspendingHandling);
         }}
       />
       <BudgetActivityDrilldownModal

@@ -110,8 +110,7 @@
   border-top: 1px solid var(--border-soft);
 }
 
-.budget-cover-section-heading,
-.budget-overspending-handling legend {
+.budget-cover-section-heading {
   color: var(--text);
   font-size: 0.86rem;
   font-weight: 800;
@@ -121,54 +120,6 @@
   margin: 0.2rem 0 0.55rem;
   color: var(--text-muted);
   font-size: 0.82rem;
-}
-
-.budget-overspending-handling {
-  display: grid;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0.8rem 0.9rem;
-  border: 0;
-  border-top: 1px solid var(--border-soft);
-}
-
-.budget-overspending-handling legend {
-  width: 100%;
-  padding: 0 0 0.55rem;
-}
-
-.budget-overspending-option {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.65rem;
-  align-items: start;
-  padding: 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  cursor: pointer;
-}
-
-.budget-overspending-option:has(input:checked) {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
-}
-
-.budget-overspending-option input {
-  margin-top: 0.18rem;
-}
-
-.budget-overspending-option span {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.budget-overspending-option strong {
-  font-size: 0.83rem;
-}
-
-.budget-overspending-option small {
-  color: var(--text-muted);
-  line-height: 1.35;
 }
 
 .budget-cover-menu-footer {
@@ -276,11 +227,6 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-.budget-cover-menu-multi .budget-overspending-handling {
-  border-top: 0;
-  border-bottom: 1px solid var(--border-soft);
 }
 
 .budget-cover-selected-list {
@@ -529,10 +475,6 @@
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-  }
-
-  .budget-cover-menu-multi .budget-overspending-handling {
-    padding: 1rem;
   }
 
   .budget-cover-menu-multi .budget-cover-section {

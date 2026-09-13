@@ -1,4 +1,4 @@
-import { Archive, ArrowRightLeft, BarChart3, Pencil, RotateCcw, Settings } from "lucide-react";
+import { Archive, ArrowRightLeft, BarChart3, RotateCcw, Settings } from "lucide-react";
 import {
   FloatingMenu,
   FloatingMenuDivider,
@@ -19,8 +19,7 @@ interface BudgetCategoryContextMenuProps {
   onClose: () => void;
   onOpenActivity: (categoryId: string) => void;
   onOpenCoverOverspending: (categoryId: string) => void;
-  onOpenManageCategory: (categoryId: string) => void;
-  onRenameCategory: (categoryId: string) => void;
+  onOpenCategorySettings: (categoryId: string) => void;
   onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
 }
 
@@ -33,8 +32,7 @@ export function BudgetCategoryContextMenu({
   onClose,
   onOpenActivity,
   onOpenCoverOverspending,
-  onOpenManageCategory,
-  onRenameCategory,
+  onOpenCategorySettings,
   onSetCategoryArchived,
 }: BudgetCategoryContextMenuProps) {
   const isManagedCategory = category
@@ -90,27 +88,15 @@ export function BudgetCategoryContextMenu({
       <FloatingMenuDivider />
 
       <FloatingMenuItem
-        icon={Pencil}
-        disabled={isManagedCategory}
-        title={isManagedCategory ? "Managed categories cannot be renamed" : "Rename category"}
-        onClick={() => {
-          onClose();
-          onRenameCategory(category.id);
-        }}
-      >
-        Rename Category
-      </FloatingMenuItem>
-
-      <FloatingMenuItem
         icon={Settings}
         disabled={isManagedCategory}
-        title={isManagedCategory ? "Managed categories cannot be edited" : "Manage category settings"}
+        title={isManagedCategory ? "Managed categories cannot be edited" : "Category settings"}
         onClick={() => {
           onClose();
-          onOpenManageCategory(category.id);
+          onOpenCategorySettings(category.id);
         }}
       >
-        Manage Category…
+        Category Settings…
       </FloatingMenuItem>
 
       <FloatingMenuItem

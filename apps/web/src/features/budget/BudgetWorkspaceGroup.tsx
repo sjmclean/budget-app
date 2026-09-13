@@ -173,7 +173,6 @@ export function BudgetCategoryRow({
   isSelected,
   isOverassignedSource,
   onSelect,
-  onOpenCategoryEditor,
   onOpenCategoryContextMenu,
   onOpenCoverOverspending,
   onAssignedChange,
@@ -190,7 +189,6 @@ export function BudgetCategoryRow({
   isSelected: boolean;
   isOverassignedSource: boolean;
   onSelect: () => void;
-  onOpenCategoryEditor: () => void;
   onOpenCategoryContextMenu?: (event: MouseEvent<HTMLElement>) => void;
   onOpenCoverOverspending?: (event: MouseEvent<HTMLElement>) => void;
   onAssignedChange: (value: number) => void;
@@ -270,11 +268,10 @@ export function BudgetCategoryRow({
               <button
                 className="budget-category-name-button"
                 type="button"
-                title="Edit category name, note, or archive status"
+                title={`View details for ${category.name}`}
                 onClick={(event) => {
                   event.stopPropagation();
                   onSelect();
-                  onOpenCategoryEditor();
                 }}
               >
                 <strong className="budget-category-name"><CategoryLabel categoryName={category.name} /></strong>
@@ -386,7 +383,6 @@ export function BudgetGroup({
   selectedCategoryId,
   overassignedCategoryIds,
   onSelectCategory,
-  onOpenCategoryEditor,
   onOpenCategoryContextMenu,
   onOpenCoverOverspending,
   onAssignedChange,
@@ -404,7 +400,6 @@ export function BudgetGroup({
   selectedCategoryId: string | null;
   overassignedCategoryIds: string[];
   onSelectCategory: (categoryId: string) => void;
-  onOpenCategoryEditor: (categoryId: string) => void;
   onOpenCategoryContextMenu?: (input: {
     event: MouseEvent<HTMLElement>;
     category: BudgetCategoryView;
@@ -552,7 +547,6 @@ export function BudgetGroup({
               isSelected={selectedCategoryId === category.id}
               isOverassignedSource={isOverassignedSource}
               onSelect={() => onSelectCategory(category.id)}
-              onOpenCategoryEditor={() => onOpenCategoryEditor(category.id)}
               onOpenCategoryContextMenu={
                 onOpenCategoryContextMenu
                   ? (event) =>

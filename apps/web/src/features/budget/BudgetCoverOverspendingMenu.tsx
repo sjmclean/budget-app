@@ -6,10 +6,7 @@ import {
   type FloatingPosition,
 } from "../floatingUi";
 import { formatMoney } from "./budgetMoneyDisplay";
-import type {
-  BudgetCategoryView,
-  OverspendingHandling,
-} from "./budgetViewTypes";
+import type { BudgetCategoryView } from "./budgetViewTypes";
 import type { OverspendingCoverOption } from "./budgetWorkspaceSelectors";
 import { MoneyInput } from "../money/MoneyInput";
 import { roundMoney } from "../money/moneyExpression";
@@ -28,10 +25,6 @@ interface BudgetCoverOverspendingMenuProps {
       amount: number;
     }[];
   }) => void;
-  onSetOverspendingHandling: (
-    categoryId: string,
-    overspendingHandling: OverspendingHandling,
-  ) => void;
 }
 
 interface OverspendingCoverOptionGroup {
@@ -81,7 +74,6 @@ export function BudgetCoverOverspendingMenu({
   currencyCode,
   onClose,
   onCoverOverspending,
-  onSetOverspendingHandling,
 }: BudgetCoverOverspendingMenuProps) {
   const overspentAmount = getOverspentAmount(overspentCategory);
 
@@ -177,9 +169,6 @@ export function BudgetCoverOverspendingMenu({
     return null;
   }
 
-  const handling =
-    overspentCategory.overspendingHandling ?? "reduce-next-month";
-
   function addCategory(option: OverspendingCoverOption) {
     const amount = roundMoney(
       Math.min(remaining, option.available),
@@ -232,54 +221,6 @@ export function BudgetCoverOverspendingMenu({
       />
 
       <div className="budget-cover-menu-body">
-        <fieldset className="budget-overspending-handling">
-          <legend>
-            If this category is still overspent when the month ends
-          </legend>
-
-          <label className="budget-overspending-option">
-            <input
-              type="radio"
-              name={`overspending-handling-${overspentCategory.id}`}
-              checked={handling === "reduce-next-month"}
-              onChange={() =>
-                onSetOverspendingHandling(
-                  overspentCategory.id,
-                  "reduce-next-month",
-                )
-              }
-            />
-
-            <span>
-              <strong>Reduce next month&apos;s Ready to Assign</strong>
-              <small>
-                The overspent amount will be deducted next month.
-              </small>
-            </span>
-          </label>
-
-          <label className="budget-overspending-option">
-            <input
-              type="radio"
-              name={`overspending-handling-${overspentCategory.id}`}
-              checked={handling === "carry-category"}
-              onChange={() =>
-                onSetOverspendingHandling(
-                  overspentCategory.id,
-                  "carry-category",
-                )
-              }
-            />
-
-            <span>
-              <strong>Carry the negative balance into this category</strong>
-              <small>
-                The category will remain negative next month.
-              </small>
-            </span>
-          </label>
-        </fieldset>
-
         <section
           className="budget-cover-section"
           aria-labelledby="cover-overspending-heading"
