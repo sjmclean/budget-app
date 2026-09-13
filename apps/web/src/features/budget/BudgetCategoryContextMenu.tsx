@@ -39,7 +39,7 @@ export function BudgetCategoryContextMenu({
     ? isCreditCardPaymentCategory(category.id)
     : false;
   const canCoverOverspending = category
-    ? isMoneyNegative(category.available) && !isManagedCategory
+    ? isMoneyNegative(category.available) && !category.isArchived && !isManagedCategory
     : false;
 
   if (!category || !group) {

@@ -4325,47 +4325,6 @@ strong {
   padding: 0.65rem 0.75rem;
 }
 
-.category-management-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  background: rgba(15, 23, 42, 0.42);
-  backdrop-filter: blur(3px);
-}
-
-.category-management-modal {
-  width: min(980px, calc(100vw - 2rem));
-  max-height: min(820px, calc(100vh - 2rem));
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--border-soft);
-  border-radius: 1rem;
-  background: var(--surface);
-  box-shadow: var(--shadow-md);
-}
-
-.category-management-modal-compact {
-  width: min(640px, calc(100vw - 2rem));
-}
-
-.category-management-modal-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.15rem 0.85rem;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.category-management-modal-header h2 {
-  margin: 0;
-}
-
 .category-management-sections {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -8629,7 +8588,6 @@ strong {
   .app-dialog-backdrop,
   .modal-backdrop,
   .settings-modal-backdrop,
-  .category-management-modal-backdrop,
   .budget-activity-modal-backdrop {
     align-items: end;
     place-items: end center;
@@ -8639,8 +8597,6 @@ strong {
   .app-dialog,
   .modal-card,
   .settings-modal,
-  .category-management-modal,
-  .category-management-modal-compact,
   .budget-activity-modal {
     width: 100%;
     max-width: none;
