@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { BudgetCoverOverspendingContent } from "../../../apps/web/src/features/budget/BudgetCoverOverspendingMenu.js";
 import type { BudgetCategoryView } from "../../../apps/web/src/features/budget/budgetViewTypes.js";
 import {
   canCategoryUseCoverOverspending,
@@ -13,6 +15,9 @@ const row = read("../../../apps/web/src/features/budget/BudgetWorkspaceGroup.tsx
 const menu = read("../../../apps/web/src/features/budget/BudgetCategoryContextMenu.tsx");
 const windowSource = read("../../../apps/web/src/features/budget/BudgetCategoryWindow.tsx");
 const cover = read("../../../apps/web/src/features/budget/BudgetCoverOverspendingMenu.tsx");
+const webRequire = createRequire(new URL("../../../apps/web/package.json", import.meta.url));
+const { createElement, useState } = webRequire("react");
+const { act, create } = webRequire("react-test-renderer");
 
 function category(overrides: Partial<BudgetCategoryView> = {}): BudgetCategoryView {
   return {
@@ -39,17 +44,90 @@ test("category-window tab defaults and eligibility follow current category state
   })), false);
 });
 
-test("the shared category window owns accessible tabs and one active panel", () => {
+test("the shared category window owns accessible tabs and hides inactive panels", () => {
   assert.match(windowSource, /role="tablist"/);
   assert.match(windowSource, /role="tab"/);
   assert.match(windowSource, /aria-selected=/);
   assert.match(windowSource, /aria-controls=/);
   assert.match(windowSource, /role="tabpanel"/);
   assert.match(windowSource, /canCover \? \(/);
-  assert.match(windowSource, /activeTab === "cover-overspending" && canCover \? \(/);
+  assert.match(windowSource, /hidden=\{activeTab !== "cover-overspending"\}/);
+  assert.match(windowSource, /hidden=\{activeTab !== "settings"\}/);
   assert.match(windowSource, /<BudgetCoverOverspendingContent/);
   assert.match(windowSource, /<CategorySettingsContent/);
   assert.doesNotMatch(windowSource, /Category overspent/);
+});
+
+test("cover draft survives switching to settings and back", async () => {
+  const previousAct = Object.getOwnPropertyDescriptor(globalThis, "IS_REACT_ACT_ENVIRONMENT");
+  const previousReact = Object.getOwnPropertyDescriptor(globalThis, "React");
+  Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+    configurable: true,
+    value: true,
+  });
+  Object.defineProperty(globalThis, "React", {
+    configurable: true,
+    value: webRequire("react"),
+  });
+
+  let setTab: ((tab: "cover-overspending" | "settings") => void) | undefined;
+  let root: ReturnType<typeof create> | null = null;
+  const overspent = category({ available: -40, isOverspent: true });
+  const source = { id: "category-2", name: "Dining", groupName: "Everyday", available: 75 };
+
+  function Harness() {
+    const [tab, updateTab] = useState<"cover-overspending" | "settings">("cover-overspending");
+    setTab = updateTab;
+    return createElement(
+      "div",
+      null,
+      createElement(
+        "div",
+        { hidden: tab !== "cover-overspending" },
+        createElement(BudgetCoverOverspendingContent, {
+          overspentCategory: overspent,
+          coverOptions: [source],
+          currencyCode: "AUD",
+          onClose: () => {},
+          onCoverOverspending: () => {},
+        }),
+      ),
+      createElement("div", { hidden: tab !== "settings" }, "Settings"),
+    );
+  }
+
+  try {
+    await act(async () => {
+      root = create(createElement(Harness));
+    });
+    await act(async () => {
+      root!.root.findByProps({ className: "budget-cover-add-category" }).props.onClick();
+    });
+    await act(async () => {
+      root!.root.findByProps({ className: "budget-cover-picker-option" }).props.onClick();
+    });
+
+    assert.match(root!.toJSON() ? JSON.stringify(root!.toJSON()) : "", /Dining/);
+    assert.match(JSON.stringify(root!.toJSON()), /40\.00/);
+
+    await act(async () => setTab!("settings"));
+    await act(async () => setTab!("cover-overspending"));
+
+    assert.match(JSON.stringify(root!.toJSON()), /Dining/);
+    assert.match(JSON.stringify(root!.toJSON()), /40\.00/);
+  } finally {
+    if (root) await act(async () => root.unmount());
+    if (previousAct) {
+      Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", previousAct);
+    } else {
+      delete (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT;
+    }
+    if (previousReact) {
+      Object.defineProperty(globalThis, "React", previousReact);
+    } else {
+      delete (globalThis as Record<string, unknown>).React;
+    }
+  }
 });
 
 test("inspector is read-only while retaining financial and managed details", () => {

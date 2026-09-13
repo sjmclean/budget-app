@@ -208,8 +208,13 @@ export function BudgetCategoryWindow(props: BudgetCategoryWindowProps) {
         </button>
       </div>
 
-      {activeTab === "cover-overspending" && canCover ? (
-        <div id={`${coverTabId}-panel`} role="tabpanel" aria-labelledby={coverTabId}>
+      {canCover ? (
+        <div
+          id={`${coverTabId}-panel`}
+          role="tabpanel"
+          aria-labelledby={coverTabId}
+          hidden={activeTab !== "cover-overspending"}
+        >
           <BudgetCoverOverspendingContent
             overspentCategory={category}
             coverOptions={props.coverOptions}
@@ -218,22 +223,22 @@ export function BudgetCategoryWindow(props: BudgetCategoryWindowProps) {
             onCoverOverspending={props.onCoverOverspending}
           />
         </div>
-      ) : (
-        <div
-          id={`${settingsTabId}-panel`}
-          className="budget-category-settings-panel"
-          role="tabpanel"
-          aria-labelledby={settingsTabId}
-        >
-          <CategorySettingsContent
-            category={category}
-            onRenameCategory={props.onRenameCategory}
-            onSetCategoryArchived={props.onSetCategoryArchived}
-            onUpdateCategoryNote={props.onUpdateCategoryNote}
-            onSetOverspendingHandling={props.onSetOverspendingHandling}
-          />
-        </div>
-      )}
+      ) : null}
+      <div
+        id={`${settingsTabId}-panel`}
+        className="budget-category-settings-panel"
+        role="tabpanel"
+        aria-labelledby={settingsTabId}
+        hidden={activeTab !== "settings"}
+      >
+        <CategorySettingsContent
+          category={category}
+          onRenameCategory={props.onRenameCategory}
+          onSetCategoryArchived={props.onSetCategoryArchived}
+          onUpdateCategoryNote={props.onUpdateCategoryNote}
+          onSetOverspendingHandling={props.onSetOverspendingHandling}
+        />
+      </div>
     </FloatingMenu>
   );
 }
