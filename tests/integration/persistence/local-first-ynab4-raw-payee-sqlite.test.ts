@@ -129,6 +129,8 @@ test("raw YNAB4 reader preserves active provenance through SQLite staged validat
         date: "2026-08-13",
         amount: -12.34,
         importedPayee: "SYNTHETIC ACTIVE BANK DESCRIPTION",
+        cleared: "Uncleared",
+        accepted: true,
       },
       {
         entityId: "deleted-import",
@@ -263,6 +265,8 @@ test("raw YNAB4 reader preserves active provenance through SQLite staged validat
       transactions: sourceRecords,
     });
     assert.deepEqual(registers.checking.transactions.map(row => row.id), ["active-import"]);
+    assert.equal(registers.checking.transactions[0]?.cleared, false);
+    assert.equal(registers.checking.transactions[0]?.reconciled, false);
 
     const client = createLocalFirstYnab4ImportClient({
       database,
@@ -306,6 +310,12 @@ test("raw YNAB4 reader preserves active provenance through SQLite staged validat
         "SELECT COUNT(*) AS count FROM local_transactions WHERE id = ?",
       ).get("deleted-import") as { count: number }).count,
       0,
+    );
+    assert.equal(
+      (sqlite.prepare(
+        "SELECT cleared_status AS clearedStatus FROM local_transactions WHERE id = ?",
+      ).get("active-import") as { clearedStatus: string }).clearedStatus,
+      "uncleared",
     );
   } finally {
     await reader.close();

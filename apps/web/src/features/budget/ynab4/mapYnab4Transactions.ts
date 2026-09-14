@@ -133,6 +133,7 @@ export function mapYnab4Transaction(
   importedFlagTagIdByColour: ReadonlyMap<TransactionTagColour, string>,
   owningAccountType: SidebarAccountType,
 ): RegisterTransactionView {
+  const clearedState = normaliseClearedState(transaction);
   const amount = requireYnab4Amount(
     decodeYnabAmount({
       amount: transaction.amount,
@@ -244,8 +245,8 @@ export function mapYnab4Transaction(
     inflow: amount > 0 ? amount : 0,
     outflow: amount < 0 ? Math.abs(amount) : 0,
     runningBalance: 0,
-    cleared: isCleared(transaction),
-    reconciled: isReconciled(transaction),
+    cleared: clearedState === "cleared" || clearedState === "reconciled",
+    reconciled: clearedState === "reconciled",
     transferId: createImportedTransferId(
       firstString(
         transaction.entityId,
@@ -395,25 +396,16 @@ function normaliseImportedFlagColour(
     : null;
 }
 
-function isCleared(row: RecordMap): boolean {
-  const value = firstString(
-    row.cleared,
-    row.clearedStatus,
-    row.accepted,
-  )?.toLowerCase();
-  return (
-    value === "cleared" ||
-    value === "reconciled" ||
-    value === "accepted" ||
-    row.cleared === true ||
-    row.accepted === true
-  );
-}
+type Ynab4ClearedState = "uncleared" | "cleared" | "reconciled";
 
-function isReconciled(row: RecordMap): boolean {
-  return (
-    firstString(row.cleared, row.clearedStatus)?.toLowerCase() === "reconciled"
-  );
+function normaliseClearedState(row: RecordMap): Ynab4ClearedState {
+  if (row.cleared === true) return "cleared";
+  if (row.cleared === false) return "uncleared";
+
+  const value = firstString(row.cleared, row.clearedStatus)?.toLowerCase();
+  if (value === "reconciled") return "reconciled";
+  if (value === "cleared") return "cleared";
+  return "uncleared";
 }
 
 type Ynab4CategoryKind = "split" | "income" | "ordinary";

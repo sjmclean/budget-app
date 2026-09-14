@@ -89,6 +89,56 @@ test("maps ordinary transactions, balances, categories, payees, and flags", () =
   assert.equal(income?.inflow, 25.05);
 });
 
+test("preserves cleared, reconciled, and uncleared state independently of accepted", () => {
+  const sourceStates = [
+    { id: "cleared", cleared: "Cleared", accepted: true, expectedCleared: true, expectedReconciled: false },
+    { id: "reconciled", cleared: "Reconciled", accepted: true, expectedCleared: true, expectedReconciled: true },
+    { id: "uncleared", cleared: "Uncleared", accepted: true, expectedCleared: false, expectedReconciled: false },
+    { id: "accepted-only", accepted: true, expectedCleared: false, expectedReconciled: false },
+    { id: "boolean-false", cleared: false, accepted: true, expectedCleared: false, expectedReconciled: false },
+    { id: "lowercase", cleared: "cleared", expectedCleared: true, expectedReconciled: false },
+    { id: "uppercase", cleared: "CLEARED", expectedCleared: true, expectedReconciled: false },
+    { id: "uppercase-uncleared", cleared: "UNCLEARED", expectedCleared: false, expectedReconciled: false },
+  ];
+  const registers = mapYnab4Transactions({
+    accounts,
+    maps,
+    currencyCode: "AUD",
+    importedFlagTagIdByColour: new Map(),
+    transactions: sourceStates.map((state, index) => ({
+      entityId: state.id,
+      accountId: "source-checking",
+      date: `2026-01-${String(index + 1).padStart(2, "0")}`,
+      amount: 1,
+      ...state,
+    })),
+  });
+
+  for (const state of sourceStates) {
+    const transaction = registers.checking.transactions.find((row) => row.id === state.id);
+    assert.equal(transaction?.cleared, state.expectedCleared, state.id);
+    assert.equal(transaction?.reconciled, state.expectedReconciled, state.id);
+  }
+});
+
+test("calculates mixed register balances from cleared state", () => {
+  const registers = mapYnab4Transactions({
+    accounts,
+    maps,
+    currencyCode: "AUD",
+    importedFlagTagIdByColour: new Map(),
+    transactions: [
+      { entityId: "cleared-inflow", accountId: "source-checking", date: "2026-01-01", amount: 100, cleared: "Cleared" },
+      { entityId: "accepted-uncleared-outflow", accountId: "source-checking", date: "2026-01-02", amount: -25, cleared: "Uncleared", accepted: true },
+      { entityId: "reconciled-inflow", accountId: "source-checking", date: "2026-01-03", amount: 10, cleared: "Reconciled" },
+    ],
+  });
+
+  assert.equal(registers.checking.clearedBalance, 110);
+  assert.equal(registers.checking.unclearedBalance, -25);
+  assert.equal(registers.checking.workingBalance, 85);
+});
+
 test("maps splits and reciprocal transfer metadata while ignoring tombstones", () => {
   const registers = mapYnab4Transactions({
     accounts,
