@@ -142,6 +142,7 @@ function EditableAssignedCell({
           setIsEditing(false);
         }}
         onCancel={() => setIsEditing(false)}
+        aria-label={`Assigned for ${category.name}`}
         title="Try 150, +50, -25, 100+50, or 200/2"
       />
     );
@@ -155,6 +156,7 @@ function EditableAssignedCell({
           : "assigned-button"
       }
       type="button"
+      aria-label={`Assigned for ${category.name}: ${formatMoney(category.assigned, currencyCode)}`}
       onClick={(event) => {
         event.stopPropagation();
         setIsEditing(true);
@@ -368,6 +370,7 @@ export function BudgetCategoryRow({
                 category.available,
                 isOverassignedSource,
               )}
+              aria-label={`Available for ${category.name}: ${formatMoney(category.available, currencyCode)}`}
             >
               {formatMoney(category.available, currencyCode)}
             </strong>
