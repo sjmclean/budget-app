@@ -48,7 +48,8 @@ const isTransactionImportSession = (
   typeof fields.previouslyImportedCount === "number" &&
   typeof fields.alreadyRepresentedCount === "number" &&
   typeof fields.excludeMemos === "boolean" &&
-  typeof fields.updateMatchedTransactionDates === "boolean";
+  typeof fields.updateMatchedTransactionDates === "boolean" &&
+  (fields.preparedCandidates === undefined || isRecord(fields.preparedCandidates));
 
 function readIds(storage: KeyValueStoragePort): string[] {
   try {

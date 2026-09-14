@@ -76,6 +76,7 @@ test("saved import review preserves exact prepared source identity occurrences",
     alreadyRepresentedCount: 0,
     excludeMemos: false,
     updateMatchedTransactionDates: false,
+    preparedCandidates: {},
   };
 
   writeTransactionImportSessionEntity(
@@ -101,4 +102,23 @@ test("saved import review preserves exact prepared source identity occurrences",
     3,
     "an occurrence greater than one must survive persistence unchanged",
   );
+  assert.deepEqual(restored.preparedCandidates, {});
+});
+
+test("legacy import sessions remain readable without prepared reset snapshots", () => {
+  const storage = createMemoryStorage();
+  const snapshot = {
+    version: 2, accountId: "legacy", savedAt: "2026-08-20T03:00:00.000Z",
+    fileName: "legacy.qif", fileType: "qif", fileHash: null, csvText: null,
+    qifText: "!Type:Bank", ofxText: null, ofxInspection: null, qifDetection: null,
+    qifDateFormat: "day-first", qifAmountFormat: "decimal-dot", analysis: null,
+    mapping: {}, preview: {}, candidates: [], bankCandidateDetails: {}, sourceIdentities: {},
+    processedCandidates: [], matchEditorOrigins: {}, matchedTransactionOrigins: {},
+    previouslyImportedCount: 0, alreadyRepresentedCount: 0, excludeMemos: false,
+    updateMatchedTransactionDates: false,
+  } as TransactionImportSessionSnapshot;
+  writeTransactionImportSessionEntity(storage, snapshot);
+  const restored = readTransactionImportSessionEntity(storage, "legacy");
+  assert.ok(restored);
+  assert.equal(restored.preparedCandidates, undefined);
 });

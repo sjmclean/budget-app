@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T09:25:45.869Z",
+  "generatedAt": "2026-09-14T09:58:14.891Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -358,32 +358,32 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/entities/importSessionEntity.ts",
-      "line": 53
+      "line": 54
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/entities/importSessionEntity.ts",
-      "line": 64
+      "line": 65
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/entities/importSessionEntity.ts",
-      "line": 68
+      "line": 69
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/entities/importSessionEntity.ts",
-      "line": 138
+      "line": 139
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/entities/importSessionEntity.ts",
-      "line": 146
+      "line": 147
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/entities/importSessionEntity.ts",
-      "line": 157
+      "line": 158
     },
     {
       "kind": "persistenceBoundary",
