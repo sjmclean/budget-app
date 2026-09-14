@@ -3,6 +3,13 @@ import type { TransactionImportCandidate } from "./transactionImport";
 interface ProcessedMatchCandidate {
   candidate: TransactionImportCandidate;
   action: "imported" | "matched" | "skipped";
+  processedAt: number;
+}
+
+export interface RepairedTransactionImportReviewOwnership {
+  candidates: TransactionImportCandidate[];
+  processedCandidates: ProcessedMatchCandidate[];
+  repairedConflictCount: number;
 }
 
 export type RegisterMatchOwnership = ReadonlyMap<string, string>;
@@ -11,6 +18,79 @@ function matchedRegisterTransactionId(
   candidate: TransactionImportCandidate,
 ): string | null {
   return candidate.matchedTransaction?.id ?? candidate.matchedTransactionId ?? null;
+}
+
+function releaseConflictingRegisterMatch(
+  candidate: TransactionImportCandidate,
+): TransactionImportCandidate {
+  const {
+    matchedTransactionId: _matchedTransactionId,
+    matchedTransaction: _matchedTransaction,
+    evidence: _evidence,
+    ...released
+  } = candidate;
+  return {
+    ...released,
+    status: "new",
+    selected: true,
+    reviewDecision: undefined,
+    reason: "A conflicting saved match was released. Choose another match or import as new.",
+  };
+}
+
+export function repairRestoredRegisterMatchOwnership({
+  candidates,
+  processedCandidates,
+}: {
+  candidates: TransactionImportCandidate[];
+  processedCandidates: ProcessedMatchCandidate[];
+}): RepairedTransactionImportReviewOwnership {
+  const ownership = new Map<string, string>();
+  const repairedCandidates: TransactionImportCandidate[] = [];
+  const repairedProcessedCandidates: ProcessedMatchCandidate[] = [];
+  let repairedConflictCount = 0;
+
+  for (const entry of processedCandidates) {
+    const transactionId =
+      entry.action === "matched"
+        ? matchedRegisterTransactionId(entry.candidate)
+        : null;
+    if (transactionId && ownership.has(transactionId)) {
+      repairedCandidates.push(releaseConflictingRegisterMatch(entry.candidate));
+      repairedConflictCount += 1;
+      continue;
+    }
+    if (transactionId) ownership.set(transactionId, entry.candidate.id);
+    repairedProcessedCandidates.push(entry);
+  }
+
+  for (const candidate of candidates) {
+    const transactionId =
+      candidate.status === "exact-match"
+        ? matchedRegisterTransactionId(candidate)
+        : null;
+    if (transactionId && ownership.has(transactionId)) {
+      repairedCandidates.push(releaseConflictingRegisterMatch(candidate));
+      repairedConflictCount += 1;
+      continue;
+    }
+    if (transactionId) ownership.set(transactionId, candidate.id);
+    repairedCandidates.push(candidate);
+  }
+
+  if (repairedConflictCount === 0) {
+    return {
+      candidates,
+      processedCandidates,
+      repairedConflictCount,
+    };
+  }
+
+  return {
+    candidates: repairedCandidates,
+    processedCandidates: repairedProcessedCandidates,
+    repairedConflictCount,
+  };
 }
 
 export function getRegisterMatchOwnership({

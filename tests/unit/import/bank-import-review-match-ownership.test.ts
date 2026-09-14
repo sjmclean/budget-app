@@ -7,6 +7,7 @@ import {
   getAvailableRegisterMatchCandidates,
   getConflictingRegisterMatchOwner,
   getRegisterMatchOwnership,
+  repairRestoredRegisterMatchOwnership,
   restoreOwnedRegisterMatch,
   selectOwnedRegisterMatch,
 } from "../../../apps/web/src/features/accounts/transactionImportReviewOwnership.js";
@@ -221,4 +222,71 @@ test("available match candidates omit a register transaction owned by a processe
     getAvailableRegisterMatchCandidates(pending, ownership).map((option) => option.transaction.id),
     ["register-r2"],
   );
+});
+
+test("restored processed ownership releases a conflicting pending exact match", () => {
+  const accepted = matched(candidate("import-a", 1, "2026-09-01", ["register-r"]), "register-r");
+  const pending = matched(candidate("import-b", 2, "2026-09-02", ["register-r"]), "register-r");
+
+  const repaired = repairRestoredRegisterMatchOwnership({
+    candidates: [pending],
+    processedCandidates: [processed(accepted)],
+  });
+
+  assert.equal(repaired.repairedConflictCount, 1);
+  assert.equal(repaired.processedCandidates[0]?.candidate.id, "import-a");
+  assert.equal(repaired.candidates[0]?.id, "import-b");
+  assert.equal(repaired.candidates[0]?.status, "new");
+  assert.equal(repaired.candidates[0]?.matchedTransactionId, undefined);
+  assert.equal(repaired.candidates[0]?.matchedTransaction, undefined);
+  assert.equal(repaired.candidates[0]?.reviewDecision, undefined);
+  assert.equal(repaired.candidates[0]?.selected, true);
+});
+
+test("duplicate restored processed matches keep the first owner and return the later row to review", () => {
+  const first = processed(matched(candidate("import-a", 1, "2026-09-01", ["register-r"]), "register-r"));
+  const later = {
+    ...processed(matched(candidate("import-b", 2, "2026-09-02", ["register-r"]), "register-r")),
+    processedAt: 2,
+  };
+
+  const repaired = repairRestoredRegisterMatchOwnership({
+    candidates: [],
+    processedCandidates: [first, later],
+  });
+
+  assert.equal(repaired.repairedConflictCount, 1);
+  assert.deepEqual(repaired.processedCandidates.map((entry) => entry.candidate.id), ["import-a"]);
+  assert.deepEqual(repaired.candidates.map((entry) => entry.id), ["import-b"]);
+  assert.equal(repaired.candidates[0]?.status, "new");
+  assert.equal(repaired.candidates[0]?.matchedTransactionId, undefined);
+});
+
+test("restored pending matches keep the first valid owner and release later conflicts", () => {
+  const first = matched(candidate("import-a", 1, "2026-09-01", ["register-r"]), "register-r");
+  const later = matched(candidate("import-b", 2, "2026-09-02", ["register-r"]), "register-r");
+
+  const repaired = repairRestoredRegisterMatchOwnership({
+    candidates: [first, later],
+    processedCandidates: [],
+  });
+
+  assert.equal(repaired.repairedConflictCount, 1);
+  assert.equal(repaired.candidates[0], first);
+  assert.equal(repaired.candidates[1]?.id, "import-b");
+  assert.equal(repaired.candidates[1]?.status, "new");
+  assert.equal(repaired.candidates[1]?.matchedTransactionId, undefined);
+});
+
+test("non-conflicting restored ownership is unchanged", () => {
+  const pending = matched(candidate("import-b", 2, "2026-09-02", ["register-r2"]), "register-r2");
+  const accepted = processed(matched(candidate("import-a", 1, "2026-09-01", ["register-r1"]), "register-r1"));
+  const candidates = [pending];
+  const processedCandidates = [accepted];
+
+  const repaired = repairRestoredRegisterMatchOwnership({ candidates, processedCandidates });
+
+  assert.equal(repaired.repairedConflictCount, 0);
+  assert.equal(repaired.candidates, candidates);
+  assert.equal(repaired.processedCandidates, processedCandidates);
 });

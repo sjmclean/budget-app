@@ -90,6 +90,7 @@ import {
   getAvailableRegisterMatchCandidates,
   getConflictingRegisterMatchOwner,
   getRegisterMatchOwnership,
+  repairRestoredRegisterMatchOwnership,
   restoreOwnedRegisterMatch,
   selectOwnedRegisterMatch,
 } from "../transactionImportReviewOwnership";
@@ -494,6 +495,7 @@ export function TransactionImportDialog({
     importSessionRestoreRef.current = selectedAccountId;
     const saved = readTransactionImportSession(selectedAccountId);
     if (!saved) return;
+    const repairedReview = repairRestoredRegisterMatchOwnership(saved);
 
     setFileName(saved.fileName);
     setFileType(saved.fileType);
@@ -508,10 +510,10 @@ export function TransactionImportDialog({
     setAnalysis(saved.analysis);
     setMapping(saved.mapping);
     setPreview(saved.preview);
-    setCandidates(saved.candidates);
+    setCandidates(repairedReview.candidates);
     setBankCandidateDetails(saved.bankCandidateDetails);
     setSourceIdentities(saved.sourceIdentities);
-    setProcessedCandidates(saved.processedCandidates);
+    setProcessedCandidates(repairedReview.processedCandidates);
     setManualCandidateEdits(saved.manualCandidateEdits ?? {});
     setHistoricalRegisterPayeeUpdates(
       saved.historicalRegisterPayeeUpdates ?? [],
@@ -523,9 +525,9 @@ export function TransactionImportDialog({
     setExcludeMemos(saved.excludeMemos);
     setUpdateMatchedTransactionDates(saved.updateMatchedTransactionDates);
     setStep("review");
-    setMessage(
-      `Restored your saved review for ${saved.fileName ?? "this import"}.`,
-    );
+    setMessage(repairedReview.repairedConflictCount > 0
+      ? "Restored the saved review. Conflicting saved matches were returned to review."
+      : `Restored your saved review for ${saved.fileName ?? "this import"}.`);
   }, [selectedAccountId]);
 
   useEffect(() => {

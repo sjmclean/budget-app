@@ -17,7 +17,6 @@ export const TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS = 7;
  */
 export const TRANSACTION_IMPORT_AMOUNT_COMPETITION_WINDOW_DAYS = 14;
 
-const TRANSACTION_IMPORT_REVIEW_MIN_PAYEE_SIMILARITY = 25;
 const TRANSACTION_IMPORT_EXACT_DATE_AUTO_MATCH_SIMILARITY = 85;
 const TRANSACTION_IMPORT_NEAR_DATE_AUTO_MATCH_SIMILARITY = 95;
 const TRANSACTION_IMPORT_NEAR_DATE_AUTO_MATCH_DAYS = 3;
@@ -181,12 +180,6 @@ export function reconcileTransactionImportCandidate({
     );
 
   const candidates = sameAmountDateWindowAnalyses
-    .filter(
-      (analysis) =>
-        analysis.merchantMatches ||
-        analysis.payeeSimilarity >=
-          TRANSACTION_IMPORT_REVIEW_MIN_PAYEE_SIMILARITY,
-    )
     .sort(compareImportMatchCandidates)
     .map(toCandidateAssessment);
 
@@ -204,7 +197,7 @@ export function reconcileTransactionImportCandidate({
       reason: ambiguousAutomaticMatch
         ? "Multiple register transactions are equally plausible matches; review them manually before choosing one."
         : candidates.length > 0
-          ? `Same-amount transactions were found, but none has a compatible merchant; review them manually or import as new.`
+          ? `Same-amount register transactions were found within ${TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS} days; review them manually or import as new.`
           : `No same-amount register transaction was found within ${TRANSACTION_IMPORT_CANDIDATE_WINDOW_DAYS} days.`,
       candidates,
       transfer: unresolvedTransfer,
