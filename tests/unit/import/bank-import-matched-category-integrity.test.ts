@@ -265,6 +265,43 @@ test("matched import never overwrites existing retained bank raw payee", () => {
   );
 });
 
+test("excluding imported memos does not erase an existing matched memo", () => {
+  const transaction = {
+    ...matchedTransaction(),
+    memo: "Existing register memo",
+    categoryId: "dining",
+  };
+  const candidate = matchedCandidate(transaction);
+  candidate.parsed.memo = "Imported QIF memo";
+  candidate.lifecycle.source.memo = "Imported QIF memo";
+
+  const session: ImportCommitSession = {
+    accountId: "checking",
+    accountName: "Checking",
+    importedCandidates: [],
+    matchedCandidates: [candidate],
+    completedSourceCandidates: [candidate],
+    sourceIdentities: buildTransactionImportSourceIdentities("qif", [candidate]),
+    skippedCount: 0,
+    previouslyImportedCount: 0,
+    alreadyRepresentedCount: 0,
+    editedMatchedCandidateIds: new Set([candidate.id]),
+    includeMemos: false,
+    updateMatchedTransactionDates: false,
+    categories: [{ id: "dining", name: "Dining" }],
+    accounts: [{ id: "checking", name: "Checking" }],
+    merchantKnowledge: createEmptyMerchantKnowledgeStore(),
+    file: {
+      fileType: "qif",
+      fileName: "statement.qif",
+      fileHash: "sha256:matched-memo-fixture",
+    },
+  };
+
+  const plan = prepareImportCommit(session);
+  assert.equal(plan.matchedTransactionUpdates[0]?.memo, "Existing register memo");
+});
+
 
 test("account register import adapter preserves matched raw bank payee", () => {
   const source = fs.readFileSync(
