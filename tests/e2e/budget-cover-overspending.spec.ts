@@ -45,7 +45,7 @@ async function createAccount(page: Page, name: string) {
   await page.getByRole("button", { name: "Add account" }).click();
   const dialog = page.getByRole("dialog", { name: "Add account" });
   await dialog.getByLabel("Account name").fill(name);
-  await dialog.getByLabel("Starting balance").fill("100");
+  await dialog.getByLabel("Starting balance").fill("300");
   await dialog.getByLabel("Starting balance").press("Enter");
   await dialog.getByRole("button", { name: "Add account" }).click();
   await expect(page.getByText(name, { exact: true })).toBeVisible();
@@ -105,8 +105,8 @@ async function prepareOverspendingScenario(page: Page, suffix: string) {
   await createCategory(page, names.target);
   await createCategory(page, names.source20);
   await createCategory(page, names.source80);
-  await assign(page, names.source20, "20");
-  await assign(page, names.source80, "80");
+  await assign(page, names.source20, "50");
+  await assign(page, names.source80, "120");
   await addExpense(page, names.account, names.target, "100");
   await expect(page.getByRole("button", { name: `Cover overspending for ${names.target}` })).toContainText("-$100.00");
 
@@ -137,13 +137,13 @@ test("covers $100 of overspending from two categories and persists every balance
 
   await expect(window).toBeHidden();
   await expect(page.getByLabel(`Available for ${names.target}: $0.00`)).toBeVisible();
-  await expect(page.getByLabel(`Available for ${names.source20}: $0.00`)).toBeVisible();
-  await expect(page.getByLabel(`Available for ${names.source80}: $0.00`)).toBeVisible();
+  await expect(page.getByLabel(`Available for ${names.source20}: $30.00`)).toBeVisible();
+  await expect(page.getByLabel(`Available for ${names.source80}: $40.00`)).toBeVisible();
 
   await page.reload();
   await expect(page.getByLabel(`Available for ${names.target}: $0.00`)).toBeVisible();
-  await expect(page.getByLabel(`Available for ${names.source20}: $0.00`)).toBeVisible();
-  await expect(page.getByLabel(`Available for ${names.source80}: $0.00`)).toBeVisible();
+  await expect(page.getByLabel(`Available for ${names.source20}: $30.00`)).toBeVisible();
+  await expect(page.getByLabel(`Available for ${names.source80}: $40.00`)).toBeVisible();
 });
 
 test("keeps an in-progress Cover draft while switching through Category Settings", async ({ page }) => {
