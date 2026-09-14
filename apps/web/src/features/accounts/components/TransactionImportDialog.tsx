@@ -131,6 +131,12 @@ import {
   type ImportReviewPropagationField,
 } from "../transactionImportReviewPropagation";
 import {
+  capturePreparedTransactionImportCandidates,
+  hasTransactionImportCandidateChanges,
+  resetTransactionImportCandidate,
+  type TransactionImportPreparedCandidates,
+} from "../transactionImportReviewReset";
+import {
   summariseTransactionImportOutcomes,
   verifyPersistedImportTransactions,
 } from "../transactionImportVerification";
@@ -431,6 +437,8 @@ export function TransactionImportDialog({
   const [candidates, setCandidates] = useState<TransactionImportCandidate[]>(
     [],
   );
+  const [preparedCandidates, setPreparedCandidates] =
+    useState<TransactionImportPreparedCandidates>({});
   const [bankCandidateDetails, setBankCandidateDetails] = useState<
     Record<string, TransactionImportCandidate["parsed"]>
   >({});
@@ -512,6 +520,10 @@ export function TransactionImportDialog({
     setMapping(saved.mapping);
     setPreview(saved.preview);
     setCandidates(repairedReview.candidates);
+    setPreparedCandidates(
+      saved.preparedCandidates ??
+        capturePreparedTransactionImportCandidates(repairedReview.candidates),
+    );
     setBankCandidateDetails(saved.bankCandidateDetails);
     setSourceIdentities(saved.sourceIdentities);
     setProcessedCandidates(repairedReview.processedCandidates);
@@ -557,6 +569,7 @@ export function TransactionImportDialog({
         mapping,
         preview,
         candidates,
+        preparedCandidates,
         bankCandidateDetails,
         sourceIdentities,
         processedCandidates,
@@ -579,7 +592,7 @@ export function TransactionImportDialog({
   }, [
     step, preview, fileType, selectedAccountId, fileName, fileHash, csvText,
     qifText, ofxText, ofxInspection, qifDetection, qifDateFormat,
-    qifAmountFormat, analysis, mapping, candidates, bankCandidateDetails,
+    qifAmountFormat, analysis, mapping, candidates, preparedCandidates, bankCandidateDetails,
     sourceIdentities, processedCandidates, matchEditorOrigins,
     matchedTransactionOrigins,
     previouslyImportedCount, alreadyRepresentedCount, excludeMemos,
@@ -698,6 +711,7 @@ export function TransactionImportDialog({
     setPerformanceReport(null);
     setPreview(null);
     setCandidates([]);
+    setPreparedCandidates({});
     setBankCandidateDetails({});
     setSourceIdentities({});
     setProcessedCandidates([]);
@@ -796,7 +810,11 @@ export function TransactionImportDialog({
     setBankCandidateDetails(prepared.bankCandidateDetails);
     setSourceIdentities(prepared.sourceIdentities);
     setPreview(prepared.preview);
-    setCandidates(sortImportCandidates(prepared.reviewCandidates));
+    const sortedCandidates = sortImportCandidates(prepared.reviewCandidates);
+    setCandidates(sortedCandidates);
+    setPreparedCandidates(
+      capturePreparedTransactionImportCandidates(sortedCandidates),
+    );
     setPreviouslyImportedCount(prepared.previouslyImportedCount);
     setAlreadyRepresentedCount(prepared.alreadyRepresentedCount);
     setProcessedCandidates([]);
@@ -834,6 +852,7 @@ export function TransactionImportDialog({
     setTransactions(nextTransactions);
     setPreview(null);
     setCandidates([]);
+    setPreparedCandidates({});
     setBankCandidateDetails({});
     setSourceIdentities({});
     setProcessedCandidates([]);
@@ -1348,6 +1367,7 @@ export function TransactionImportDialog({
     });
     setPreview(null);
     setCandidates([]);
+    setPreparedCandidates({});
     setAliasSuggestions([]);
     setMessage(null);
   }
@@ -1360,6 +1380,7 @@ export function TransactionImportDialog({
     setMapping(analysis.suggestedMapping);
     setPreview(null);
     setCandidates([]);
+    setPreparedCandidates({});
     setAliasSuggestions([]);
     setMessage(null);
     setError(null);
@@ -1800,6 +1821,7 @@ export function TransactionImportDialog({
   }
 
   async function offerHistoricalPayeeUpdate(
+    sourceCandidateId: string,
     sourceRawPayee: string,
     targetPayee: string,
   ) {
@@ -1863,7 +1885,13 @@ export function TransactionImportDialog({
               getImportRawPayeeIdentity(source) !== sourceIdentity
             );
           });
-          return [...withoutPrevious, ...matches.eligible];
+          return [
+            ...withoutPrevious,
+            ...matches.eligible.map((entry) => ({
+              ...entry,
+              sourceCandidateId,
+            })),
+          ];
         });
       }
     } finally {
@@ -1902,6 +1930,7 @@ export function TransactionImportDialog({
         },
       });
       void offerHistoricalPayeeUpdate(
+        currentCandidate.id,
         currentCandidate.lifecycle.source.rawPayee,
         built.proposal.payee,
       );
@@ -1926,6 +1955,37 @@ export function TransactionImportDialog({
       });
     }
     setProposedTransactionEdit(null);
+  }
+
+  function resetCandidateChanges(candidateId: string) {
+    const result = resetTransactionImportCandidate({
+      candidates,
+      candidateId,
+      preparedCandidates,
+      manualEdits: manualCandidateEdits,
+      historicalUpdates: historicalRegisterPayeeUpdates,
+      matchEditorOrigins,
+      matchedTransactionOrigins,
+      ownership: registerMatchOwnership,
+    });
+    if (!result) return;
+    if (result.conflict) {
+      setError(
+        "This transaction’s original match is now used by another import row. Resolve that match before resetting changes.",
+      );
+      return;
+    }
+
+    setCandidates(result.candidates);
+    setManualCandidateEdits(result.manualEdits);
+    setHistoricalRegisterPayeeUpdates(result.historicalUpdates);
+    setMatchEditorOrigins(result.matchEditorOrigins);
+    setMatchedTransactionOrigins(result.matchedTransactionOrigins);
+    if (proposedTransactionEdit?.candidateId === candidateId) {
+      setProposedTransactionEdit(null);
+    }
+    if (splitEdit?.candidateId === candidateId) setSplitEdit(null);
+    setError(null);
   }
 
   function commitMatchedPayeeEdit(
@@ -3236,6 +3296,16 @@ export function TransactionImportDialog({
                 candidate.status === "new" &&
                 candidate.reviewDecision === "import-as-new" &&
                 Boolean(matchEditorOrigins[candidate.id]);
+              const canResetChanges = hasTransactionImportCandidateChanges({
+                candidate,
+                preparedCandidate: preparedCandidates[candidate.id],
+                manualEdits: manualCandidateEdits[candidate.id],
+                hasMatchEditorOrigin: Boolean(matchEditorOrigins[candidate.id]),
+                hasMatchedTransactionOrigin: Boolean(
+                  matchedTransactionOrigins[candidate.id],
+                ),
+                historicalUpdates: historicalRegisterPayeeUpdates,
+              });
               const activeProcessingCandidate =
                 processingCandidate?.id === candidate.id
                   ? processingCandidate
@@ -3623,6 +3693,19 @@ export function TransactionImportDialog({
                           Cancel Split
                         </button>
                       </RegisterSplitEditor>
+                    </div>
+                  ) : null}
+
+                  {canResetChanges ? (
+                    <div className="transaction-import-edit-actions">
+                      <button
+                        className="button button-secondary"
+                        type="button"
+                        disabled={Boolean(processingCandidate)}
+                        onClick={() => resetCandidateChanges(candidate.id)}
+                      >
+                        Reset changes
+                      </button>
                     </div>
                   ) : null}
 

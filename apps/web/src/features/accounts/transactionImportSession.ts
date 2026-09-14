@@ -23,6 +23,7 @@ import {
 import type {
   TransactionImportSourceIdentity,
 } from "./transactionImportKnowledge";
+import type { TransactionImportPreparedCandidates } from "./transactionImportReviewReset";
 
 export type PersistedImportFileType = "csv" | "qif" | "ofx" | "qfx";
 export type PersistedImportAction = "imported" | "matched" | "skipped";
@@ -64,6 +65,8 @@ export interface TransactionImportSessionSnapshot {
   manualCandidateEdits?: ImportReviewManualEdits;
   /** Payee-only historical cleanups staged to run after a successful import. */
   historicalRegisterPayeeUpdates?: HistoricalRegisterPayeeUpdate[];
+  /** Optional for snapshots written before per-candidate reset existed. */
+  preparedCandidates?: TransactionImportPreparedCandidates;
 }
 
 function getStorage() {

@@ -17,6 +17,8 @@ export type ImportReviewManualEdits = Record<
 export interface HistoricalRegisterPayeeUpdate {
   transaction: RegisterTransactionView;
   payee: string;
+  /** Candidate whose manual payee edit staged this update. */
+  sourceCandidateId?: string;
 }
 
 export interface HistoricalRegisterPayeeMatchResult {
