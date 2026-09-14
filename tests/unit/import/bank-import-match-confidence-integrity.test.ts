@@ -12,7 +12,64 @@ const mapping = {
   2: "outflow",
 } as const;
 
-test("Montmorency automatically matches while unrelated same-amount Belong rows are hidden", () => {
+test("APPLE.COM/BILL can manually see a same-date iTunes transaction", () => {
+  const preview = previewTransactionCsvImport(
+    ["Date,Payee,Outflow", "2026-08-17,APPLE.COM/BILL,14.99"].join("\n"),
+    [buildRegisterTransaction({
+      id: "itunes",
+      date: "2026-08-17",
+      payee: "itunes",
+      outflow: 14.99,
+    })],
+    mapping,
+  );
+
+  assert.equal(preview.summary.exactMatches, 0);
+  assert.doesNotMatch(preview.candidates[0]?.reason ?? "", /no compatible merchant/i);
+  assert.deepEqual(
+    preview.candidates[0]?.matchCandidates?.map((entry) => entry.transaction.id),
+    ["itunes"],
+  );
+  assert.equal(preview.candidates[0]?.matchCandidates?.[0]?.automaticMatch, false);
+});
+
+test("all low-similarity exact-amount transactions inside seven days remain manual options", () => {
+  const preview = previewTransactionCsvImport(
+    ["Date,Payee,Outflow", "2026-08-17,APPLE.COM/BILL,14.99"].join("\n"),
+    [
+      buildRegisterTransaction({ id: "same-day", date: "2026-08-17", payee: "itunes", outflow: 14.99 }),
+      buildRegisterTransaction({ id: "three-days", date: "2026-08-14", payee: "Streaming", outflow: 14.99 }),
+      buildRegisterTransaction({ id: "seven-days", date: "2026-08-10", payee: "Media Store", outflow: 14.99 }),
+    ],
+    mapping,
+  );
+
+  assert.equal(preview.summary.exactMatches, 0);
+  assert.deepEqual(
+    preview.candidates[0]?.matchCandidates?.map((entry) => entry.transaction.id),
+    ["same-day", "three-days", "seven-days"],
+  );
+  assert.ok(preview.candidates[0]?.matchCandidates?.every((entry) => !entry.automaticMatch));
+});
+
+test("manual candidates still exclude different amounts and dates beyond seven days", () => {
+  const preview = previewTransactionCsvImport(
+    ["Date,Payee,Outflow", "2026-08-17,APPLE.COM/BILL,14.99"].join("\n"),
+    [
+      buildRegisterTransaction({ id: "eligible", date: "2026-08-13", payee: "itunes", outflow: 14.99 }),
+      buildRegisterTransaction({ id: "different-amount", date: "2026-08-17", payee: "itunes", outflow: 15 }),
+      buildRegisterTransaction({ id: "eight-days", date: "2026-08-09", payee: "itunes", outflow: 14.99 }),
+    ],
+    mapping,
+  );
+
+  assert.deepEqual(
+    preview.candidates[0]?.matchCandidates?.map((entry) => entry.transaction.id),
+    ["eligible"],
+  );
+});
+
+test("Montmorency automatically matches while unrelated same-amount rows remain manual options", () => {
   const csv = [
     "Date,Payee,Outflow",
     "2026-08-17,COM*MONTMORENCY SC MONTMORENCY,25.00",
@@ -52,7 +109,7 @@ test("Montmorency automatically matches while unrelated same-amount Belong rows 
 
   assert.deepEqual(
     candidate.matchCandidates?.map((entry) => entry.transaction.id),
-    ["montmorency"],
+    ["montmorency", "belong-13", "belong-11"],
   );
 });
 
@@ -85,7 +142,7 @@ test("one shared merchant token does not auto-match a different display payee wi
   );
 });
 
-test("same amount and exact date alone do not justify an automatic match", () => {
+test("same amount and exact date alone allow manual review without automatic matching", () => {
   const csv = [
     "Date,Payee,Outflow",
     "2026-08-17,MONTMORENCY SECONDARY COLLEGE,25.00",
@@ -106,7 +163,10 @@ test("same amount and exact date alone do not justify an automatic match", () =>
 
   assert.equal(preview.summary.exactMatches, 0);
   assert.equal(preview.summary.newTransactions, 1);
-  assert.deepEqual(preview.candidates[0]?.matchCandidates, []);
+  assert.deepEqual(
+    preview.candidates[0]?.matchCandidates?.map((entry) => entry.transaction.id),
+    ["belong"],
+  );
 });
 
 test("RACV posted-date shift auto-matches when amount is exact and merchant identity remains strong", () => {
@@ -205,7 +265,10 @@ test("date proximity and exact amount still do not override a contradictory merc
 
   assert.equal(preview.summary.exactMatches, 0);
   assert.equal(preview.summary.newTransactions, 1);
-  assert.deepEqual(preview.candidates[0]?.matchCandidates, []);
+  assert.deepEqual(
+    preview.candidates[0]?.matchCandidates?.map((entry) => entry.transaction.id),
+    ["unrelated"],
+  );
 });
 
 test("shared location token does not auto-match distinct merchants on the same date and amount", () => {
@@ -361,7 +424,10 @@ test("local amount uniqueness cannot override contradictory merchant evidence", 
 
   assert.equal(preview.summary.exactMatches, 0);
   assert.equal(preview.summary.newTransactions, 1);
-  assert.deepEqual(preview.candidates[0]?.matchCandidates, []);
+  assert.deepEqual(
+    preview.candidates[0]?.matchCandidates?.map((entry) => entry.transaction.id),
+    ["unrelated-rare-amount"],
+  );
 });
 
 test("a review-only merchant candidate cannot veto a strong automatic match", () => {

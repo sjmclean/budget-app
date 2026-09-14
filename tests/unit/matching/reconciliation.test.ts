@@ -10,7 +10,7 @@ import {
   buildRegisterTransaction,
 } from "../../support/builders/importMatchingBuilders";
 
-test("amount and date without merchant identity do not become a review candidate", () => {
+test("amount and date without merchant identity remain manual-only review candidates", () => {
   const assessment = assessTransactionImportMatch(
     buildParsedImportTransaction({
       date: "2026-06-30",
@@ -31,11 +31,15 @@ test("amount and date without merchant identity do not become a review candidate
   assert.equal(assessment.status, "new");
   assert.equal(assessment.recommendation, "import");
   assert.equal(assessment.selectedCandidate, undefined);
-  assert.deepEqual(assessment.candidates, []);
+  assert.deepEqual(
+    assessment.candidates.map(({ transaction }) => transaction.id),
+    ["existing"],
+  );
+  assert.equal(assessment.candidates[0]?.automaticMatch, false);
   assert.equal("confidence" in assessment, false);
 });
 
-test("resolved merchant identity excludes a closer unrelated candidate", () => {
+test("resolved merchant identity wins automatically while a closer unrelated candidate remains visible", () => {
   const assessment = assessTransactionImportMatch(
     buildParsedImportTransaction({
       date: "2026-06-30",
@@ -60,10 +64,11 @@ test("resolved merchant identity excludes a closer unrelated candidate", () => {
 
   assert.deepEqual(
     assessment.candidates.map(({ transaction }) => transaction.id),
-    ["resolved-merchant"],
+    ["resolved-merchant", "closer-unrelated"],
   );
   assert.equal(assessment.selectedCandidate?.merchantMatches, true);
   assert.equal(assessment.selectedCandidate?.payeeSimilarity, 100);
+  assert.equal(assessment.candidates[1]?.automaticMatch, false);
 });
 
 test("candidate eligibility rejects amount mismatches and dates outside the window", () => {
