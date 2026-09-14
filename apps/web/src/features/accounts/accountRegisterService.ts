@@ -48,6 +48,10 @@ export interface AccountRegisterServiceDependencies {
   findPayeeIdByName(payeeName: string): string | undefined;
   readAccounts(): SidebarAccount[];
   getAccountById(accountId: string): SidebarAccount | undefined;
+  recordBatchCommitTimings?(
+    transactionCount: number,
+    timings: readonly RegisterBatchCommitTimingEntry[],
+  ): void;
 }
 
 /**
@@ -287,7 +291,11 @@ export class BrowserPersistentAccountRegisterService
       () => cloneRegister(registers[input.accountId]),
     );
 
-    logRegisterBatchCommitTimings(input.transactions.length, timings);
+    logRegisterBatchCommitTimings(
+      input.transactions.length,
+      timings,
+      this.dependencies.recordBatchCommitTimings,
+    );
     return result;
   }
 
@@ -297,36 +305,184 @@ export class BrowserPersistentAccountRegisterService
     updates: UpdateRegisterTransactionInput[];
   }) {
     const storageSnapshot = snapshotTransactionStorage(this.dependencies.storage);
-    const beforeRegister = await this.getAccountRegisterView({
-      accountId: input.accountId,
-    });
-    const beforeById = new Map(
-      beforeRegister.transactions.map((transaction) => [transaction.id, transaction]),
-    );
+    const timings = createRegisterBatchCommitTimings();
 
     try {
-      if (input.additions.length > 0) {
-        await this.addTransactions({
-          accountId: input.accountId,
-          transactions: input.additions,
-        });
-      }
-      for (const transaction of input.updates) {
-        await this.updateTransaction({
-          accountId: input.accountId,
-          transaction,
-        });
-      }
-
-      const register = await this.getAccountRegisterView({
-        accountId: input.accountId,
+      const resolveTransferTarget = measureRegisterBatchCommitStage(
+        timings,
+        "Prepare transfer lookup",
+        () => createTransferTargetResolver(this.dependencies, input.accountId),
+      );
+      const payeeNames = measureRegisterBatchCommitStage(
+        timings,
+        "Collect payees",
+        () => Array.from(new Set([
+          ...input.additions
+            .filter((transaction) => !resolveTransferTarget(transaction.payee))
+            .map((transaction) => transaction.payee.trim()),
+          ...input.updates.map((transaction) => transaction.payee.trim()),
+        ].filter(Boolean))),
+      );
+      await measureAsyncRegisterBatchCommitStage(timings, "Record payees", async () => {
+        if (this.dependencies.recordPayees) {
+          await this.dependencies.recordPayees(payeeNames);
+          return;
+        }
+        for (const payeeName of payeeNames) {
+          await this.dependencies.recordPayee(payeeName);
+        }
       });
+
+      const registers = measureRegisterBatchCommitStage(
+        timings,
+        "Read registers",
+        () => readRegisters(this.dependencies.storage),
+      );
+      const beforeRegister = cloneRegister(recalculateRegister(
+        this.dependencies,
+        registers[input.accountId] ?? createEmptyRegister(this.dependencies, input.accountId),
+      ));
+      const beforeById = new Map(
+        beforeRegister.transactions.map((transaction) => [transaction.id, transaction]),
+      );
+      const changedAccountIds = new Set<string>();
+      const payeeIdByName = new Map<string, string | undefined>();
+      const getMutableRegister = (accountId: string) => {
+        if (!changedAccountIds.has(accountId)) {
+          registers[accountId] = cloneRegister(
+            registers[accountId] ?? createEmptyRegister(this.dependencies, accountId),
+          );
+          changedAccountIds.add(accountId);
+        }
+        return registers[accountId];
+      };
+      const sourceRegister = getMutableRegister(input.accountId);
+
+      measureRegisterBatchCommitStage(timings, "Apply additions and updates", () => {
+        for (const addition of input.additions) {
+          if (findScheduledOccurrence(sourceRegister, addition)) continue;
+          const transferTarget = resolveTransferTarget(addition.payee);
+          if (transferTarget) {
+            const targetRegister = getMutableRegister(transferTarget.id);
+            const transferId = createId();
+            const sourceTransactionId = createId();
+            const targetTransactionId = createId();
+            const sourceTransaction: RegisterTransactionView = {
+              ...createTransactionView(this.dependencies, addition),
+              id: sourceTransactionId,
+              payee: `Transfer: ${transferTarget.name}`,
+              category: "Transfer",
+              categoryId: undefined,
+              payeeId: undefined,
+              transferId,
+              transferAccountId: transferTarget.id,
+              transferTransactionId: targetTransactionId,
+            };
+            targetRegister.transactions.unshift({
+              ...createOpposingTransferTransaction(
+                sourceTransaction,
+                input.accountId,
+                sourceRegister.accountName,
+              ),
+              id: targetTransactionId,
+              transferTransactionId: sourceTransactionId,
+            });
+            sourceRegister.transactions.unshift(sourceTransaction);
+            continue;
+          }
+          const payeeId = resolvePayeeIdWithCache(
+            this.dependencies,
+            addition.payee,
+            payeeIdByName,
+          );
+          sourceRegister.transactions.unshift(
+            createTransactionView(this.dependencies, { ...addition, payeeId }),
+          );
+        }
+
+        for (const update of input.updates) {
+          const existing = sourceRegister.transactions.find(
+            (transaction) => transaction.id === update.id,
+          );
+          if (!existing) continue;
+          if (existing.transferAccountId && existing.transferTransactionId) {
+            const targetRegister = getMutableRegister(existing.transferAccountId);
+            const updatedSource: RegisterTransactionView = {
+              ...existing,
+              date: update.date,
+              tagIds: update.tagIds === undefined
+                ? normaliseTagIds(existing.tagIds)
+                : normaliseTagIds(update.tagIds),
+              payee: existing.payee,
+              category: "Transfer",
+              memo: update.memo,
+              checkNumber: normaliseCheckNumber(update.checkNumber),
+              inflow: update.inflow,
+              outflow: update.outflow,
+            };
+            sourceRegister.transactions = sourceRegister.transactions.map(
+              (transaction) => transaction.id === updatedSource.id ? updatedSource : transaction,
+            );
+            targetRegister.transactions = targetRegister.transactions.map(
+              (transaction) => transaction.id === existing.transferTransactionId
+                ? {
+                    ...createOpposingTransferTransaction(
+                      updatedSource,
+                      input.accountId,
+                      sourceRegister.accountName,
+                    ),
+                    id: existing.transferTransactionId,
+                    transferTransactionId: updatedSource.id,
+                  }
+                : transaction,
+            );
+            continue;
+          }
+
+          const payeeId = update.payeeId ?? resolvePayeeIdWithCache(
+            this.dependencies,
+            update.payee,
+            payeeIdByName,
+          );
+          sourceRegister.transactions = sourceRegister.transactions.map(
+            (transaction) => transaction.id === update.id
+              ? {
+                  ...transaction,
+                  date: update.date,
+                  tagIds: update.tagIds === undefined
+                    ? normaliseTagIds(transaction.tagIds)
+                    : normaliseTagIds(update.tagIds),
+                  payee: update.payee,
+                  payeeId,
+                  category: update.category,
+                  categoryId: update.categoryId,
+                  memo: update.memo,
+                  checkNumber: normaliseCheckNumber(update.checkNumber),
+                  splitLines: cloneSplitLines(update.splitLines),
+                  inflow: update.inflow,
+                  outflow: update.outflow,
+                }
+              : transaction,
+          );
+        }
+      });
+
+      measureRegisterBatchCommitStage(timings, "Recalculate changed registers", () => {
+        for (const accountId of changedAccountIds) {
+          registers[accountId] = recalculateRegister(this.dependencies, registers[accountId]);
+        }
+      });
+      measureRegisterBatchCommitStage(timings, "Persist registers", () => {
+        writeRegisters(this.dependencies.storage, registers);
+      });
+
+      const register = cloneRegister(registers[input.accountId]);
       const afterById = new Map(
         register.transactions.map((transaction) => [transaction.id, transaction]),
       );
       const updatedIds = new Set(input.updates.map((transaction) => transaction.id));
 
-      return {
+      const result = {
         register,
         changeSet: {
           accountId: input.accountId,
@@ -342,6 +498,12 @@ export class BrowserPersistentAccountRegisterService
         },
         rollbackMode: "storage-snapshot" as const,
       };
+      logRegisterBatchCommitTimings(
+        input.additions.length + input.updates.length,
+        timings,
+        this.dependencies.recordBatchCommitTimings,
+      );
+      return result;
     } catch (error) {
       let rollbackSucceeded = false;
       try {
@@ -1014,7 +1176,7 @@ function resolvePayeeIdWithCache(
   return payeeId;
 }
 
-interface RegisterBatchCommitTimingEntry {
+export interface RegisterBatchCommitTimingEntry {
   label: string;
   durationMs: number;
 }
@@ -1058,7 +1220,9 @@ async function measureAsyncRegisterBatchCommitStage<T>(
 function logRegisterBatchCommitTimings(
   transactionCount: number,
   timings: RegisterBatchCommitTimingEntry[],
+  observer?: AccountRegisterServiceDependencies["recordBatchCommitTimings"],
 ) {
+  observer?.(transactionCount, timings);
   const totalMs = timings.reduce(
     (total, timing) => total + timing.durationMs,
     0,
