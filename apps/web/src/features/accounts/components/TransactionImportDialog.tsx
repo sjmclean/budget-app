@@ -163,7 +163,7 @@ type TransactionImportFileType =
 
 type ProcessedImportAction = "imported" | "matched" | "skipped";
 
-type ProposedTransactionEditField = "payee" | "category";
+type ProposedTransactionEditField = "payee" | "category" | "memo";
 
 interface ProposedTransactionEdit {
   candidateId: string;
@@ -805,6 +805,7 @@ export function TransactionImportDialog({
           findImportedFileFingerprint(accountId, sourceFileHash),
       ),
       identityScope: sourceFileHash,
+      includeSourceMemos: !excludeMemos,
     });
 
     setBankCandidateDetails(prepared.bankCandidateDetails);
@@ -1934,7 +1935,7 @@ export function TransactionImportDialog({
         currentCandidate.lifecycle.source.rawPayee,
         built.proposal.payee,
       );
-    } else {
+    } else if (field === "category") {
       if (value === "Split") {
         setManualCandidateEdits((current) =>
           markImportReviewFieldEdited(current, candidateId, "category"),
@@ -1953,7 +1954,27 @@ export function TransactionImportDialog({
           splitLines: undefined,
         },
       });
+    } else {
+      updateCandidateProposal(candidateId, {
+        memo: value.trim() || undefined,
+      });
+      setManualCandidateEdits((current) =>
+        markImportReviewFieldEdited(current, candidateId, "memo"),
+      );
     }
+    setProposedTransactionEdit(null);
+  }
+
+  function commitMatchedMemoEdit(
+    candidate: TransactionImportCandidate,
+    value: string,
+  ) {
+    updateMatchedTransactionDetails(candidate.id, {
+      memo: value.trim() || undefined,
+    });
+    setManualCandidateEdits((current) =>
+      markImportReviewFieldEdited(current, candidate.id, "memo"),
+    );
     setProposedTransactionEdit(null);
   }
 
@@ -2093,6 +2114,17 @@ export function TransactionImportDialog({
     );
     setMatchedTransactionOrigins((origins) => {
       const next = { ...origins };
+      delete next[candidateId];
+      return next;
+    });
+    setManualCandidateEdits((current) => {
+      const fields = current[candidateId];
+      if (!fields?.memo) return current;
+      const { memo: _memo, ...remainingFields } = fields;
+      if (Object.keys(remainingFields).length > 0) {
+        return { ...current, [candidateId]: remainingFields };
+      }
+      const next = { ...current };
       delete next[candidateId];
       return next;
     });
@@ -3316,7 +3348,9 @@ export function TransactionImportDialog({
                   : null;
               const proposedTransactionEditIntent: TransactionEditIntent | null =
                 activeProposedTransactionEdit
-                  ? { field: activeProposedTransactionEdit.field }
+                  ? activeProposedTransactionEdit.field === "memo"
+                    ? null
+                    : { field: activeProposedTransactionEdit.field }
                   : null;
               const proposedPayeeEditBehaviour =
                 getTransactionFieldEditBehaviour(
@@ -3620,6 +3654,104 @@ export function TransactionImportDialog({
 
                   </div>
 
+                  {candidate.status !== "invalid" ? (
+                    <div className="transaction-import-inline-editor">
+                      {activeProposedTransactionEdit?.field === "memo" ? (
+                        <label>
+                          <span>Memo</span>
+                          <input
+                            aria-label={`Memo for row ${candidate.parsed.rowNumber}`}
+                            autoFocus
+                            value={activeProposedTransactionEdit.draftValue}
+                            onChange={(event) =>
+                              updateProposedTransactionDraft(event.target.value)
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                if (candidate.status === "exact-match") {
+                                  commitMatchedMemoEdit(
+                                    candidate,
+                                    activeProposedTransactionEdit.draftValue,
+                                  );
+                                } else {
+                                  commitProposedTransactionEdit(
+                                    candidate.id,
+                                    "memo",
+                                    activeProposedTransactionEdit.draftValue,
+                                  );
+                                }
+                              } else if (event.key === "Escape") {
+                                event.preventDefault();
+                                cancelProposedTransactionEdit();
+                              }
+                            }}
+                          />
+                        </label>
+                      ) : (
+                        <span>
+                          <strong>Memo:</strong>{" "}
+                          {candidate.status === "exact-match"
+                            ? candidate.matchedTransaction?.memo || "—"
+                            : candidate.lifecycle.proposal.memo || "—"}
+                        </span>
+                      )}
+                      {activeProposedTransactionEdit?.field === "memo" ? (
+                        <>
+                          <button
+                            className="button button-primary"
+                            type="button"
+                            onClick={() => {
+                              if (candidate.status === "exact-match") {
+                                commitMatchedMemoEdit(
+                                  candidate,
+                                  activeProposedTransactionEdit.draftValue,
+                                );
+                              } else {
+                                commitProposedTransactionEdit(
+                                  candidate.id,
+                                  "memo",
+                                  activeProposedTransactionEdit.draftValue,
+                                );
+                              }
+                            }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="button button-secondary"
+                            type="button"
+                            onClick={cancelProposedTransactionEdit}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          onClick={() =>
+                            beginProposedTransactionEdit(
+                              candidate.id,
+                              "memo",
+                              candidate.status === "exact-match"
+                                ? candidate.matchedTransaction?.memo ?? ""
+                                : candidate.lifecycle.proposal.memo ?? "",
+                            )
+                          }
+                        >
+                          {candidate.status === "exact-match"
+                            ? candidate.matchedTransaction?.memo
+                              ? "Edit Memo"
+                              : "Add Memo"
+                            : candidate.lifecycle.proposal.memo
+                              ? "Edit Memo"
+                              : "Add Memo"}
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
+
                   {candidateAliasSuggestion ? (
                     <div className="transaction-import-inline-alias">
                       <span>
@@ -3806,7 +3938,8 @@ export function TransactionImportDialog({
                         </div>
                       ) : null}
 
-                      {activeProposedTransactionEdit ? (
+                      {activeProposedTransactionEdit &&
+                      activeProposedTransactionEdit.field !== "memo" ? (
                         <div className="transaction-import-inline-editor">
                           {activeProposedTransactionEdit.field === "payee" ? (
                             <PayeeInput

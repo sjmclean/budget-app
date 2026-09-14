@@ -41,7 +41,7 @@ function candidate(id: string, payee: string, categoryName: string): Transaction
         recognitionProvenance: "exact-alias",
         recognitionReason: "Exact learned alias or canonical payee",
       },
-      proposal: { payee, categoryName, transferAccountName: null },
+      proposal: { payee, categoryName, transferAccountName: null, memo: "QIF memo" },
     },
   };
 }
@@ -55,7 +55,7 @@ function reset(
     candidates: current,
     candidateId,
     preparedCandidates: prepared,
-    manualEdits: { a: { payee: true, category: true }, b: { payee: true } },
+    manualEdits: { a: { payee: true, category: true, memo: true }, b: { payee: true } },
     historicalUpdates: [
       { transaction: { id: "history-a" } as never, payee: "Edited A", sourceCandidateId: "a" },
       { transaction: { id: "history-b" } as never, payee: "Edited B", sourceCandidateId: "b" },
@@ -158,6 +158,7 @@ test("reset candidate and prepared baseline survive an unfinished-session round 
         ...original.lifecycle.proposal,
         payee: "Edited Shop",
         categoryName: "Dining",
+        memo: "Edited memo",
       },
     },
   };
@@ -165,7 +166,7 @@ test("reset candidate and prepared baseline survive an unfinished-session round 
     candidates: [edited],
     candidateId: original.id,
     preparedCandidates,
-    manualEdits: { [original.id]: { payee: true, category: true } },
+    manualEdits: { [original.id]: { payee: true, category: true, memo: true } },
     historicalUpdates: [],
     matchEditorOrigins: { [original.id]: original },
     matchedTransactionOrigins: {},
