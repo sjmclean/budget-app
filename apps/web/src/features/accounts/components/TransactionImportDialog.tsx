@@ -473,11 +473,12 @@ export function TransactionImportDialog({
   const [isImporting, setIsImporting] = useState(false);
   const [isAnalysing, setIsAnalysing] = useState(false);
   const [analysisStageIndex, setAnalysisStageIndex] = useState(0);
-  const [excludeMemos, setExcludeMemos] = useState(false);
+  const [initialImportPreferences] = useState(readTransactionImportPreferences);
+  const [excludeMemos, setExcludeMemos] = useState(
+    initialImportPreferences.excludeMemos,
+  );
   const [updateMatchedTransactionDates, setUpdateMatchedTransactionDates] =
-    useState(
-      () => readTransactionImportPreferences().updateMatchedTransactionDates,
-    );
+    useState(initialImportPreferences.updateMatchedTransactionDates);
   const [performanceReport, setPerformanceReport] =
     useState<TransactionImportPerformanceReport | null>(null);
   const [merchantKnowledge, setMerchantKnowledge] = useState<MerchantKnowledgeStore>(() =>
@@ -3006,7 +3007,14 @@ export function TransactionImportDialog({
                   <input
                     type="checkbox"
                     checked={excludeMemos}
-                    onChange={(event) => setExcludeMemos(event.target.checked)}
+                    onChange={(event) => {
+                      const enabled = event.target.checked;
+                      setExcludeMemos(enabled);
+                      writeTransactionImportPreferences({
+                        excludeMemos: enabled,
+                        updateMatchedTransactionDates,
+                      });
+                    }}
                   />
                   Don't import transaction memos
                 </label>
@@ -3018,6 +3026,7 @@ export function TransactionImportDialog({
                       const enabled = event.target.checked;
                       setUpdateMatchedTransactionDates(enabled);
                       writeTransactionImportPreferences({
+                        excludeMemos,
                         updateMatchedTransactionDates: enabled,
                       });
                     }}
