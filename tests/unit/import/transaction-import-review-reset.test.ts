@@ -8,6 +8,21 @@ import {
   resetTransactionImportCandidate,
 } from "../../../apps/web/src/features/accounts/transactionImportReviewReset.js";
 import { getRegisterMatchOwnership } from "../../../apps/web/src/features/accounts/transactionImportReviewOwnership.js";
+import {
+  readTransactionImportSessionEntity,
+  writeTransactionImportSessionEntity,
+} from "../../../apps/web/src/features/accounts/entities/importSessionEntity.js";
+import type { TransactionImportSessionSnapshot } from "../../../apps/web/src/features/accounts/transactionImportSession.js";
+
+function createMemoryStorage() {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+    listKeys: () => [...values.keys()],
+  };
+}
 
 function candidate(id: string, payee: string, categoryName: string): TransactionImportCandidate {
   return {
@@ -129,4 +144,83 @@ test("reset refuses to reclaim an original register match owned by another candi
     ownership: getRegisterMatchOwnership({ candidates: [current, owner], processedCandidates: [] }),
   });
   assert.deepEqual(result, { conflict: true });
+});
+
+test("reset candidate and prepared baseline survive an unfinished-session round trip", () => {
+  const storage = createMemoryStorage();
+  const original = candidate("a", "Canonical Shop", "Groceries");
+  const preparedCandidates = capturePreparedTransactionImportCandidates([original]);
+  const edited = {
+    ...original,
+    lifecycle: {
+      ...original.lifecycle,
+      proposal: {
+        ...original.lifecycle.proposal,
+        payee: "Edited Shop",
+        categoryName: "Dining",
+      },
+    },
+  };
+  const resetResult = resetTransactionImportCandidate({
+    candidates: [edited],
+    candidateId: original.id,
+    preparedCandidates,
+    manualEdits: { [original.id]: { payee: true, category: true } },
+    historicalUpdates: [],
+    matchEditorOrigins: { [original.id]: original },
+    matchedTransactionOrigins: {},
+    ownership: getRegisterMatchOwnership({ candidates: [edited], processedCandidates: [] }),
+  });
+  assert.ok(resetResult && !resetResult.conflict);
+
+  const snapshot: TransactionImportSessionSnapshot = {
+    version: 2,
+    accountId: "checking",
+    savedAt: "2026-09-14T10:00:00.000Z",
+    fileName: "recognised.qif",
+    fileType: "qif",
+    fileHash: null,
+    csvText: null,
+    qifText: "!Type:Bank",
+    ofxText: null,
+    ofxInspection: null,
+    qifDetection: null,
+    qifDateFormat: "day-first",
+    qifAmountFormat: "decimal-dot",
+    analysis: null,
+    mapping: {},
+    preview: {} as TransactionImportSessionSnapshot["preview"],
+    candidates: resetResult.candidates,
+    preparedCandidates,
+    bankCandidateDetails: {},
+    sourceIdentities: {},
+    processedCandidates: [],
+    matchEditorOrigins: resetResult.matchEditorOrigins,
+    matchedTransactionOrigins: resetResult.matchedTransactionOrigins,
+    manualCandidateEdits: resetResult.manualEdits,
+    historicalRegisterPayeeUpdates: resetResult.historicalUpdates,
+    previouslyImportedCount: 0,
+    alreadyRepresentedCount: 0,
+    excludeMemos: false,
+    updateMatchedTransactionDates: false,
+  };
+  writeTransactionImportSessionEntity(storage, snapshot);
+
+  const restored = readTransactionImportSessionEntity(storage, snapshot.accountId);
+  assert.ok(restored);
+  assert.deepEqual(restored.candidates[0], original);
+  assert.deepEqual(restored.preparedCandidates?.[original.id], original);
+  assert.equal(restored.manualCandidateEdits?.[original.id], undefined);
+  assert.equal(restored.matchEditorOrigins[original.id], undefined);
+  assert.equal(restored.matchedTransactionOrigins[original.id], undefined);
+  assert.equal(hasTransactionImportCandidateChanges({
+    candidate: restored.candidates[0]!,
+    preparedCandidate: restored.preparedCandidates?.[original.id],
+    manualEdits: restored.manualCandidateEdits?.[original.id],
+    hasMatchEditorOrigin: Boolean(restored.matchEditorOrigins[original.id]),
+    hasMatchedTransactionOrigin: Boolean(
+      restored.matchedTransactionOrigins[original.id],
+    ),
+    historicalUpdates: restored.historicalRegisterPayeeUpdates ?? [],
+  }), false);
 });
