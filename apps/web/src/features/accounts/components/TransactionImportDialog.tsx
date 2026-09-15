@@ -98,6 +98,7 @@ import {
   selectManualOwnedRegisterMatch,
 } from "../transactionImportReviewOwnership";
 import { getTransactionImportReviewPresentation } from "../transactionImportReviewPresentation";
+import { applySourceMemoPreferenceToCandidate } from "../transactionImportReviewMemo";
 import {
   appendTransactionImportTrace,
   serialiseTransactionImportTrace,
@@ -2004,6 +2005,27 @@ export function TransactionImportDialog({
     setProposedTransactionEdit(null);
   }
 
+  function updateExcludeMemosPreference(enabled: boolean) {
+    const updateCandidate = (candidate: TransactionImportCandidate) =>
+      applySourceMemoPreferenceToCandidate({
+        candidate,
+        excludeMemos: enabled,
+        manualEdits: manualCandidateEdits[candidate.id],
+      });
+    setCandidates((current) => current.map(updateCandidate));
+    setProcessedCandidates((current) =>
+      current.map((entry) => ({
+        ...entry,
+        candidate: updateCandidate(entry.candidate),
+      })),
+    );
+    setExcludeMemos(enabled);
+    writeTransactionImportPreferences({
+      excludeMemos: enabled,
+      updateMatchedTransactionDates,
+    });
+  }
+
   function resetCandidateChanges(candidateId: string) {
     const result = resetTransactionImportCandidate({
       candidates,
@@ -3180,11 +3202,7 @@ export function TransactionImportDialog({
                     checked={excludeMemos}
                     onChange={(event) => {
                       const enabled = event.target.checked;
-                      setExcludeMemos(enabled);
-                      writeTransactionImportPreferences({
-                        excludeMemos: enabled,
-                        updateMatchedTransactionDates,
-                      });
+                      updateExcludeMemosPreference(enabled);
                     }}
                   />
                   Don't import transaction memos

@@ -20,6 +20,7 @@ import {
   resetTransactionImportCandidate,
 } from "../../../apps/web/src/features/accounts/transactionImportReviewReset.js";
 import { getRegisterMatchOwnership } from "../../../apps/web/src/features/accounts/transactionImportReviewOwnership.js";
+import { applySourceMemoPreferenceToCandidate } from "../../../apps/web/src/features/accounts/transactionImportReviewMemo.js";
 
 function candidate(parsed: ParsedImportTransaction): TransactionImportCandidate {
   return {
@@ -88,18 +89,23 @@ test("CSV, QIF, and OFX memos seed the shared review proposal", () => {
     [ofx, "OFX memo"],
   ] as const) {
     assert.equal(prepare(parsed, true).lifecycle.proposal.memo, expected);
-    assert.equal(prepare(parsed, false).lifecycle.proposal.memo, expected);
+    assert.equal(prepare(parsed, false).lifecycle.proposal.memo, undefined);
   }
 });
 
-test("memo review remains available while exclusion is enforced at commit", () => {
+test("excluded source memo can be restored in review and exclusion is enforced at commit", () => {
   const [parsed] = parseTransactionQif(
     "!Type:Bank\nD09/14/2026\nT-12.34\nPShop\nMSource memo\n^",
     { dateFormat: "mdy", amountFormat: "dot-decimal" },
   );
   assert.ok(parsed);
   const excluded = prepare(parsed, false);
-  assert.equal(excluded.lifecycle.proposal.memo, "Source memo");
+  assert.equal(excluded.lifecycle.proposal.memo, undefined);
+  const restored = applySourceMemoPreferenceToCandidate({
+    candidate: excluded,
+    excludeMemos: false,
+  });
+  assert.equal(restored.lifecycle.proposal.memo, "Source memo");
 
   const withManualMemo = {
     ...excluded,
@@ -128,6 +134,71 @@ test("memo review remains available while exclusion is enforced at commit", () =
     includeMemos: true,
     identityScope: "memo-cleared",
   })[0]?.memo, undefined);
+});
+
+test("untouched proposal memo deterministically follows repeated preference toggles", () => {
+  const source = prepare({
+    rowNumber: 1, date: "2026-09-14", payee: "Shop", memo: "Source memo",
+    outflow: 12, inflow: 0, raw: {},
+  }, false);
+  const toggled = [false, true, false].reduce(
+    (current, excludeMemos) => applySourceMemoPreferenceToCandidate({
+      candidate: current,
+      excludeMemos,
+    }),
+    source,
+  );
+  assert.equal(toggled.lifecycle.proposal.memo, "Source memo");
+  assert.equal(buildRegisterTransactionsFromImport([toggled], {
+    includeMemos: true,
+    identityScope: "memo-toggle-restored",
+  })[0]?.memo, "Source memo");
+});
+
+test("manual memo and sibling review state survive preference toggles", () => {
+  const source = prepare({
+    rowNumber: 1, date: "2026-09-14", payee: "Shop", memo: "Source memo",
+    outflow: 12, inflow: 0, raw: {},
+  }, true);
+  const edited = {
+    ...source,
+    lifecycle: {
+      ...source.lifecycle,
+      proposal: {
+        ...source.lifecycle.proposal,
+        payee: "Reviewed Shop",
+        categoryName: "Dining",
+        memo: "Manual memo",
+      },
+    },
+  };
+  const toggled = applySourceMemoPreferenceToCandidate({
+    candidate: edited,
+    excludeMemos: true,
+    manualEdits: { memo: true, payee: true, category: true },
+  });
+  assert.equal(toggled, edited);
+  assert.deepEqual(toggled.lifecycle.proposal, edited.lifecycle.proposal);
+});
+
+test("source memo preference never overwrites a matched register memo", () => {
+  const source = prepare({
+    rowNumber: 1, date: "2026-09-14", payee: "Shop", memo: "Bank memo",
+    outflow: 12, inflow: 0, raw: {},
+  }, true);
+  const matched = {
+    ...source,
+    status: "exact-match" as const,
+    matchedTransactionId: "register-1",
+    matchedTransaction: {
+      id: "register-1", date: "2026-09-14", payee: "Shop", category: "Dining",
+      memo: "Register memo", outflow: 12, inflow: 0, runningBalance: 0,
+      cleared: true, reconciled: false, attachmentCount: 0,
+    },
+  };
+  const toggled = applySourceMemoPreferenceToCandidate({ candidate: matched, excludeMemos: true });
+  assert.equal(toggled, matched);
+  assert.equal(toggled.matchedTransaction?.memo, "Register memo");
 });
 
 test("memo reset restores only the prepared candidate and clears its marker", () => {
