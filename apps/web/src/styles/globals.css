@@ -6071,10 +6071,10 @@ strong {
 }
 
 .new-budget-stepper button {
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--text-secondary);
+  background: var(--surface);
+  color: var(--text-muted);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -6086,14 +6086,14 @@ strong {
 }
 
 .new-budget-stepper button.is-active {
-  background: rgba(37, 99, 235, 0.12);
-  border-color: rgba(37, 99, 235, 0.35);
+  background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
   color: var(--text);
 }
 
 .new-budget-stepper span {
   align-items: center;
-  background: rgba(15, 23, 42, 0.08);
+  background: var(--surface-subtle);
   border-radius: 999px;
   display: inline-flex;
   height: 1.35rem;
@@ -6123,7 +6123,7 @@ strong {
 }
 
 .new-budget-default-summary {
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-size: 0.9rem;
   margin: 0;
 }
@@ -6141,16 +6141,16 @@ strong {
 }
 
 .new-budget-category-intro p {
-  color: var(--text-secondary);
+  color: var(--text-muted);
   line-height: 1.45;
   margin-top: 0.25rem;
 }
 
 .new-budget-category-intro strong {
-  border: 1px solid rgba(37, 99, 235, 0.22);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
   border-radius: 999px;
-  background: rgba(37, 99, 235, 0.08);
-  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface));
+  color: var(--accent-strong);
   flex: 0 0 auto;
   font-size: 0.82rem;
   padding: 0.35rem 0.7rem;
@@ -6162,9 +6162,9 @@ strong {
 }
 
 .new-budget-category-group {
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  border: 1px solid var(--border);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.68);
+  background: var(--surface);
   display: grid;
   gap: 0.75rem;
   padding: 0.9rem;
@@ -6184,7 +6184,7 @@ strong {
 }
 
 .new-budget-category-group-header small {
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-size: 0.8rem;
   margin-top: 0.1rem;
 }
@@ -6198,19 +6198,19 @@ strong {
 
 .new-budget-category-item {
   border-radius: 0.7rem;
-  color: var(--text-primary);
+  color: var(--text);
   font-size: 0.92rem;
   padding: 0.25rem 0.35rem;
 }
 
 .new-budget-category-item:hover {
-  background: rgba(37, 99, 235, 0.06);
+  background: color-mix(in srgb, var(--accent-soft) 48%, var(--surface));
 }
 
 .new-budget-category-item em {
   border-radius: 999px;
-  background: rgba(34, 197, 94, 0.1);
-  color: rgb(22, 101, 52);
+  background: var(--positive-bg);
+  color: var(--positive);
   font-size: 0.68rem;
   font-style: normal;
   font-weight: 800;
@@ -6228,7 +6228,7 @@ strong {
 }
 
 .new-budget-review-list {
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  border: 1px solid var(--border);
   border-radius: 1rem;
   display: grid;
   margin: 0;
@@ -6244,11 +6244,11 @@ strong {
 }
 
 .new-budget-review-list div + div {
-  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  border-top: 1px solid var(--border-soft);
 }
 
 .new-budget-review-list dt {
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-weight: 700;
 }
 
@@ -6272,7 +6272,7 @@ strong {
 
 .form-error-text {
   margin: 0;
-  color: #b91c1c;
+  color: var(--negative);
   font-size: 0.85rem;
   font-weight: 700;
 }
@@ -6281,9 +6281,9 @@ strong {
   display: grid;
   gap: 0.85rem;
   padding: 1rem;
-  border: 1px solid rgba(59, 130, 246, 0.22);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
   border-radius: 16px;
-  background: rgba(59, 130, 246, 0.07);
+  background: color-mix(in srgb, var(--accent-soft) 58%, var(--surface));
 }
 
 .credit-card-behaviour-panel .form-help-text {
@@ -6334,7 +6334,7 @@ strong {
 .credit-card-behaviour-explanation div {
   padding: 0.75rem;
   border-radius: 14px;
-  background: rgba(15, 23, 42, 0.04);
+  background: var(--surface-subtle);
 }
 
 .credit-card-behaviour-explanation p {

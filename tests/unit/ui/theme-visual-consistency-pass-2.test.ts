@@ -64,6 +64,35 @@ test("Budget Manager family uses semantic surfaces, text, borders, accents and s
   }
 });
 
+test("base New Budget wizard rules use canonical theme tokens", () => {
+  const wizard = section(
+    globals,
+    "/* v2.62.9.1 — New Budget wizard layout polish */",
+    ".budget-workspace-group-system .budget-workspace-group-header",
+  );
+  assert.doesNotMatch(wizard, /var\(--(?:text-secondary|text-primary|accent-primary)\)/);
+  assert.doesNotMatch(
+    wizard,
+    /rgba\((?:148, 163, 184|255, 255, 255|37, 99, 235|34, 197, 94|59, 130, 246|15, 23, 42),/,
+  );
+  assert.doesNotMatch(wizard, /rgb\(22, 101, 52\)|#b91c1c/i);
+  for (const token of [
+    "surface",
+    "surface-subtle",
+    "text",
+    "text-muted",
+    "border",
+    "border-soft",
+    "accent",
+    "accent-strong",
+    "accent-soft",
+    "positive",
+    "positive-bg",
+  ]) {
+    assert.match(wizard, new RegExp(`var\\(--${token}\\)`));
+  }
+});
+
 test("payee duplicate reasons use positive semantics", () => {
   assert.match(rule(globals, ".payee-duplicate-reasons > div"), /color\s*:\s*var\(--positive\)/);
   assert.doesNotMatch(rule(globals, ".payee-duplicate-reasons > div"), /#[0-9a-f]{3,8}/i);
