@@ -68,7 +68,7 @@ test("base New Budget wizard rules use canonical theme tokens", () => {
   const wizard = section(
     globals,
     "/* v2.62.9.1 — New Budget wizard layout polish */",
-    ".budget-workspace-group-system .budget-workspace-group-header",
+    "/* v2.62.8 Budget Manager mockup implementation */",
   );
   assert.doesNotMatch(wizard, /var\(--(?:text-secondary|text-primary|accent-primary)\)/);
   assert.doesNotMatch(

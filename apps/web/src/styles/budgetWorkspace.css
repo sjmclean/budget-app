@@ -1,0 +1,201 @@
+.budget-workspace-table-card {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.budget-workspace-table-head {
+  border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--surface-subtle) 78%, var(--surface));
+  color: var(--text-muted);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--border-soft) 55%, transparent);
+}
+
+.budget-sticky-working-header .budget-workspace-table-head {
+  border: 1px solid var(--border-soft);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--border-soft) 55%, transparent);
+}
+
+.budget-workspace-group-header {
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-subtle) 72%, var(--surface)) 0%,
+      color-mix(in srgb, var(--surface-subtle) 84%, var(--surface)) 100%
+    );
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--text-muted) 38%, var(--border)),
+    inset 0 1px 0 color-mix(in srgb, var(--border-soft) 55%, transparent);
+  color: var(--text);
+}
+
+.budget-workspace-group-header > strong:not(.available-pill) {
+  color: var(--text);
+}
+
+.budget-workspace-row,
+.interactive-budget-row {
+  border: 0;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.budget-workspace-row:hover,
+.interactive-budget-row:hover {
+  background: color-mix(in srgb, var(--surface-subtle) 82%, var(--surface));
+}
+
+.budget-workspace-row-selected,
+.budget-workspace-row-selected:hover {
+  background: color-mix(in srgb, var(--surface-subtle) 88%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--text-muted);
+}
+
+.budget-workspace-row,
+.budget-workspace-group-header {
+  transition:
+    background-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+  will-change: transform, box-shadow, background-color, opacity;
+}
+
+.available-pill {
+  border: 1px solid var(--border-soft);
+}
+
+.available-pill-positive {
+  border-color: color-mix(in srgb, var(--positive) 26%, var(--border));
+  background: color-mix(in srgb, var(--positive-bg) 54%, var(--surface-subtle));
+  color: color-mix(in srgb, var(--positive) 88%, var(--text));
+}
+
+.available-pill-zero {
+  border-color: var(--border-soft);
+  background: color-mix(in srgb, var(--surface-subtle) 82%, var(--surface));
+  color: var(--text-muted);
+}
+
+.available-pill-warning {
+  border-color: color-mix(in srgb, var(--warning) 34%, var(--border));
+  background: color-mix(in srgb, var(--warning-bg) 58%, var(--surface-subtle));
+  color: var(--warning-text);
+}
+
+.available-pill-negative {
+  border-color: color-mix(in srgb, var(--negative) 40%, var(--border));
+  background: color-mix(in srgb, var(--negative-bg) 72%, var(--surface-subtle));
+  color: var(--negative);
+}
+
+.activity-drilldown-button {
+  justify-self: start;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 760;
+  padding: 0.18rem 0.35rem;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--text-muted) 72%, transparent);
+  text-underline-offset: 0.16rem;
+}
+
+.activity-drilldown-button:hover:not(:disabled),
+.activity-drilldown-button:focus-visible:not(:disabled) {
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+
+.activity-drilldown-button:focus-visible:not(:disabled) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.activity-drilldown-button:disabled {
+  color: var(--text-muted);
+  cursor: default;
+  text-decoration: none;
+}
+
+.budget-workspace-group-system .budget-workspace-group-header,
+.budget-workspace-group-header-system {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-subtle) 88%, var(--positive-bg)) 0%,
+      color-mix(in srgb, var(--surface-subtle) 95%, var(--border-soft)) 100%
+    );
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--positive) 62%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--border-soft) 55%, transparent);
+}
+
+.budget-ready-summary {
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--surface-subtle) 72%, var(--surface)),
+      color-mix(in srgb, var(--surface-subtle) 42%, var(--surface))
+    );
+  box-shadow: var(--shadow-sm);
+}
+
+.budget-ready-summary-heading {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.budget-ready-summary-heading span {
+  color: var(--text-muted);
+}
+
+.budget-ready-summary-heading strong {
+  color: var(--text);
+}
+
+
+.budget-ready-summary-total {
+  border-top: 1px solid var(--border-soft);
+  color: var(--text);
+}
+
+.budget-ready-summary-negative {
+  border-color: color-mix(in srgb, var(--negative) 35%, var(--border));
+  background: color-mix(in srgb, var(--negative-bg) 64%, var(--surface));
+}
+
+.budget-ready-summary-negative .budget-ready-summary-heading strong,
+.budget-ready-summary-negative .budget-ready-summary-total,
+.budget-ready-summary-negative-value {
+  color: var(--negative) !important;
+}
+
+.budget-ready-summary-positive .budget-ready-summary-heading span,
+.budget-ready-summary-positive .budget-ready-summary-heading strong,
+.budget-ready-summary-positive .budget-ready-summary-total span,
+.budget-ready-summary-positive .budget-ready-summary-total strong {
+  color: var(--positive);
+}
+
+.budget-ready-summary-negative .budget-ready-summary-heading span,
+.budget-ready-summary-negative .budget-ready-summary-heading strong,
+.budget-ready-summary-negative .budget-ready-summary-total span,
+.budget-ready-summary-negative .budget-ready-summary-total strong {
+  color: var(--negative);
+}
+
+.budget-ready-summary-neutral .budget-ready-summary-heading span,
+.budget-ready-summary-neutral .budget-ready-summary-heading strong,
+.budget-ready-summary-neutral .budget-ready-summary-total span,
+.budget-ready-summary-neutral .budget-ready-summary-total strong {
+  color: var(--text);
+}

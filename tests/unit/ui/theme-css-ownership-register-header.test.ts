@@ -13,7 +13,6 @@ const undoToastComponent = readFileSync(
 const toolbar = readFileSync("apps/web/src/styles/registerToolbar.css", "utf8");
 const undoToast = readFileSync("apps/web/src/styles/registerUndoToast.css", "utf8");
 const register = readFileSync("apps/web/src/styles/register.css", "utf8");
-const darkPolish = readFileSync("apps/web/src/styles/darkThemePolish.css", "utf8");
 
 function rule(source: string, selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -76,7 +75,7 @@ test("Register header owners use semantic theme and financial tokens", () => {
 });
 
 test("Register header needs no dark repair selectors", () => {
-  assert.doesNotMatch(darkPolish, /:root\[data-theme=["']dark["']\][^{]*\.register-main-balance/);
+  assert.doesNotMatch(toolbar, /\[data-theme=["']dark["']\]/);
 });
 
 test("Register-integrated Scheduled preview remains Register-owned", () => {
