@@ -1,29 +1,19 @@
 import { useEffect, type ReactNode } from "react";
 import { useUIStore } from "../stores/uiStore";
+import { synchronizeTheme } from "./theme";
 
 interface ThemeBootstrapProps {
   children: ReactNode;
-}
-
-function resolveSystemTheme(): "light" | "dark" {
-  if (typeof window === "undefined") {
-    return "light";
-  }
-
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
 }
 
 export function ThemeBootstrap({ children }: ThemeBootstrapProps) {
   const theme = useUIStore((state) => state.theme);
 
   useEffect(() => {
-    const root = document.documentElement;
-    const resolvedTheme = theme === "system" ? resolveSystemTheme() : theme;
-
-    root.dataset.theme = resolvedTheme;
-    root.classList.toggle("dark", resolvedTheme === "dark");
+    return synchronizeTheme(theme, {
+      root: document.documentElement,
+      matchMedia: window.matchMedia.bind(window),
+    });
   }, [theme]);
 
   return <>{children}</>;

@@ -594,15 +594,15 @@
   width: min(20rem, calc(100vw - 2rem));
   border: 1px solid var(--border);
   border-radius: 0.7rem;
-  background: var(--surface-raised, var(--surface));
-  box-shadow: var(--shadow-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
   padding: 0.55rem;
 }
 
 .transaction-tag-picker-search {
   width: 100%;
   min-width: 0;
-  border: 1px solid var(--border-strong, var(--border));
+  border: 1px solid var(--border);
   border-radius: 0.45rem;
   background: var(--surface);
   color: var(--text);
@@ -675,7 +675,7 @@
 }
 
 .transaction-tag-picker-error {
-  color: var(--danger, #b42318);
+  color: var(--negative);
 }
 
 .transaction-tag-picker-footer {
@@ -694,7 +694,7 @@
   min-width: 0.85rem;
   height: 0.85rem;
   border-radius: 999px;
-  background: var(--surface-raised, var(--surface));
+  background: var(--surface);
   color: var(--text);
   font-size: 0.58rem;
   font-weight: 700;
@@ -1536,7 +1536,7 @@
   border: 1px solid var(--border);
   border-radius: 0.55rem;
   background: var(--surface);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
   padding: 0.25rem;
 }
 
@@ -2185,7 +2185,7 @@
 .register-autocomplete-suggestion-block
   + .register-autocomplete-suggestion-block
   .register-autocomplete-section-heading {
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border-soft);
   margin-top: 0.18rem;
   padding-top: 0.48rem;
 }
@@ -3815,7 +3815,7 @@
 }
 
 .transaction-import-alias-suggestions {
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 0.85rem;
   background: var(--surface-muted);
@@ -4156,7 +4156,7 @@
 
 .register-category-create-error {
   margin: 0;
-  color: var(--danger);
+  color: var(--negative);
   font-size: 0.78rem;
 }
 
@@ -4391,7 +4391,7 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.45rem 0.55rem;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-soft);
   border-radius: 9px;
   background: var(--surface-muted);
   font-size: 0.82rem;
@@ -4455,7 +4455,7 @@
   display: grid;
   gap: 0.75rem;
   padding: 0.75rem;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-soft);
   border-radius: 10px;
   background: var(--surface-muted);
 }
@@ -4800,7 +4800,7 @@
   gap: 0.4rem;
   min-height: 2.5rem;
   padding: 0.36rem 0.4rem;
-  border: 1px solid color-mix(in srgb, var(--accent, #2563eb) 28%, var(--border-subtle));
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border-soft));
   border-radius: 8px;
   background: color-mix(in srgb, var(--accent, #2563eb) 6%, var(--surface, #fff));
   font-size: 0.78rem;
@@ -5389,7 +5389,7 @@
   width: 100%;
   min-width: 0;
   padding: 0.3rem 1.8rem 0.3rem 0.35rem;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-soft);
   border-radius: 6px;
   background: var(--surface, #fff);
   color: inherit;
