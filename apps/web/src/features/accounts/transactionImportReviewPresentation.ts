@@ -2,6 +2,7 @@ import type { TransactionImportCandidate } from "./transactionImport";
 
 export type TransactionImportReviewPresentationKind =
   | "suggested-match"
+  | "selected-match"
   | "possible-match"
   | "no-match"
   | "invalid";
@@ -10,6 +11,21 @@ export interface TransactionImportReviewPresentation {
   kind: TransactionImportReviewPresentationKind;
   title: string;
   subtext: string;
+}
+
+function isManuallySelectedMatch(candidate: TransactionImportCandidate): boolean {
+  if (candidate.status !== "exact-match") return false;
+  const selectedTransactionId =
+    candidate.matchedTransaction?.id ?? candidate.matchedTransactionId;
+  if (!selectedTransactionId) return false;
+
+  return Boolean(
+    candidate.matchCandidates?.some(
+      (option) =>
+        option.transaction.id === selectedTransactionId &&
+        option.manualSelection === true,
+    ),
+  );
 }
 
 export function getTransactionImportReviewPresentation(
@@ -24,6 +40,13 @@ export function getTransactionImportReviewPresentation(
     };
   }
   if (candidate.status === "exact-match") {
+    if (isManuallySelectedMatch(candidate)) {
+      return {
+        kind: "selected-match",
+        title: "Selected match",
+        subtext: "You selected this register transaction.",
+      };
+    }
     return {
       kind: "suggested-match",
       title: "Suggested match",
