@@ -11,10 +11,6 @@ const scheduled = readFileSync(
   "utf8",
 );
 const register = readFileSync("apps/web/src/styles/register.css", "utf8");
-const registerHeaderFixes = readFileSync(
-  "apps/web/src/styles/registerHeaderFixes.css",
-  "utf8",
-);
 
 function rule(selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -23,7 +19,7 @@ function rule(selector: string): string {
 
 test("ScheduledTransactionsPanel directly owns its stylesheet", () => {
   assert.match(component, /import\s+"\.\.\/\.\.\/styles\/scheduledTransactions\.css"/);
-  assert.doesNotMatch(registerHeaderFixes, /scheduledTransactionsTheme/);
+  assert.equal(existsSync("apps/web/src/styles/registerHeaderFixes.css"), false);
   assert.equal(existsSync("apps/web/src/styles/scheduledTransactionsTheme.css"), false);
 });
 

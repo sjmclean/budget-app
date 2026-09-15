@@ -4,7 +4,7 @@ import test from "node:test";
 
 const globals = readFileSync("apps/web/src/styles/globals.css", "utf8");
 const register = readFileSync("apps/web/src/styles/register.css", "utf8");
-const registerHeaderFixes = readFileSync("apps/web/src/styles/registerHeaderFixes.css", "utf8");
+const registerToolbar = readFileSync("apps/web/src/styles/registerToolbar.css", "utf8");
 const floatingMenu = readFileSync("apps/web/src/features/floatingUi/floatingMenu.css", "utf8");
 
 function rule(source: string, selector: string): string {
@@ -22,7 +22,7 @@ function section(source: string, start: string, end: string): string {
 }
 
 test("active styles contain no obsolete background or muted-surface variables", () => {
-  const activeStyles = [globals, register, registerHeaderFixes, floatingMenu].join("\n");
+  const activeStyles = [globals, register, registerToolbar, floatingMenu].join("\n");
   assert.doesNotMatch(activeStyles, /var\(--bg\)/);
   assert.doesNotMatch(activeStyles, /var\(--surface-muted\)/);
 });
@@ -34,7 +34,7 @@ test("shared overlay treatment is defined for every concrete theme and used by m
   for (const selector of [".modal-backdrop", ".settings-modal-backdrop", ".budget-activity-modal-backdrop"]) {
     assert.match(rule(globals, selector), /background\s*:\s*var\(--overlay-backdrop\)/);
   }
-  assert.match(rule(registerHeaderFixes, ".register-customize-overlay"), /var\(--overlay-backdrop\)/);
+  assert.match(rule(registerToolbar, ".register-customize-overlay"), /var\(--overlay-backdrop\)/);
 });
 
 test("register context menu has a themed hover surface and visible keyboard focus", () => {

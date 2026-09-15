@@ -18,8 +18,12 @@ const dropdownMenu = readFileSync(
   "apps/web/src/features/ui/DropdownMenu.tsx",
   "utf8",
 );
-const headerFixes = readFileSync(
-  "apps/web/src/styles/registerHeaderFixes.css",
+const toolbarStyles = readFileSync(
+  "apps/web/src/styles/registerToolbar.css",
+  "utf8",
+);
+const undoToastStyles = readFileSync(
+  "apps/web/src/styles/registerUndoToast.css",
   "utf8",
 );
 
@@ -93,15 +97,15 @@ test("register layout controls live in a dedicated customization dialog", () => 
 });
 
 test("register customization and undo toast have responsive themed presentation", () => {
-  assert.match(headerFixes, /\.register-customize-overlay/);
-  assert.match(headerFixes, /\.register-customize-dialog/);
-  assert.match(headerFixes, /background: var\(--surface\)/);
-  assert.match(headerFixes, /accent-color: var\(--accent\)/);
-  assert.match(headerFixes, /\.register-undo-toast/);
-  assert.match(headerFixes, /\.register-search-shell[\s\S]*max-width: 22rem/);
-  assert.match(headerFixes, /@media \(max-width: 42rem\)[\s\S]*\.register-search-shell[\s\S]*max-width: none/);
-  assert.match(headerFixes, /@media \(max-width: 42rem\)[\s\S]*\.register-undo-toast/);
-  assert.match(headerFixes, /@media \(max-width: 42rem\)[\s\S]*\.register-customize-dialog/);
+  assert.match(toolbarStyles, /\.register-customize-overlay/);
+  assert.match(toolbarStyles, /\.register-customize-dialog/);
+  assert.match(toolbarStyles, /background: var\(--surface\)/);
+  assert.match(toolbarStyles, /accent-color: var\(--accent\)/);
+  assert.match(undoToastStyles, /\.register-undo-toast/);
+  assert.match(toolbarStyles, /\.register-search-shell[\s\S]*max-width: 22rem/);
+  assert.match(toolbarStyles, /@media \(max-width: 42rem\)[\s\S]*\.register-search-shell[\s\S]*max-width: none/);
+  assert.match(undoToastStyles, /@media \(max-width: 42rem\)[\s\S]*\.register-undo-toast/);
+  assert.match(toolbarStyles, /@media \(max-width: 42rem\)[\s\S]*\.register-customize-dialog/);
 });
 
 test("icon-only dropdown triggers can expose an accessible name", () => {
