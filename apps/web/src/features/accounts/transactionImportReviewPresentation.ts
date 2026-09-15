@@ -1,4 +1,5 @@
 import type { TransactionImportCandidate } from "./transactionImport";
+import { MANUAL_IMPORT_MATCH_REASON } from "./transactionImportReviewOwnership";
 
 export type TransactionImportReviewPresentationKind =
   | "suggested-match"
@@ -14,17 +15,9 @@ export interface TransactionImportReviewPresentation {
 }
 
 function isManuallySelectedMatch(candidate: TransactionImportCandidate): boolean {
-  if (candidate.status !== "exact-match") return false;
-  const selectedTransactionId =
-    candidate.matchedTransaction?.id ?? candidate.matchedTransactionId;
-  if (!selectedTransactionId) return false;
-
-  return Boolean(
-    candidate.matchCandidates?.some(
-      (option) =>
-        option.transaction.id === selectedTransactionId &&
-        option.manualSelection === true,
-    ),
+  return (
+    candidate.status === "exact-match" &&
+    candidate.reason === MANUAL_IMPORT_MATCH_REASON
   );
 }
 
