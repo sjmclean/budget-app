@@ -1,10 +1,10 @@
-import { Redo2, Undo2 } from "lucide-react";
 import { useEffect, useState, type KeyboardEvent, type RefObject } from "react";
 import "../../../styles/registerHeaderFixes.css";
 import { WorkspaceActions, WorkspaceHeader } from "../../../components/workspace";
 import { DropdownMenu } from "../../ui/DropdownMenu";
 import type { TableColumnDefinition } from "../../tableLayout/tableLayout";
 import type { RegisterColumnId } from "./TransactionRow";
+import { RegisterUndoToast } from "./RegisterUndoToast";
 import type {
   RegisterSearchCommit,
   RegisterSearchSuggestion,
@@ -203,17 +203,32 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
 
   function renderRegisterOptions(
     closeMenu: (options?: { restoreFocus?: boolean }) => void,
-    includeHistoryActions: boolean,
   ) {
     return (
       <>
-        {includeHistoryActions ? (
-          <>
-            <button type="button" role="menuitem" disabled={!canUndo || isHistoryBusy} onClick={() => { onUndo(); closeMenu({ restoreFocus: true }); }}>Undo</button>
-            <button type="button" role="menuitem" disabled={!canRedo || isHistoryBusy} onClick={() => { onRedo(); closeMenu({ restoreFocus: true }); }}>Redo</button>
-            <div className="register-options-divider" role="separator" />
-          </>
-        ) : null}
+        <button
+          className="register-history-menu-item"
+          type="button"
+          role="menuitem"
+          disabled={!canUndo || isHistoryBusy}
+          title={undoTitle}
+          onClick={() => { onUndo(); closeMenu({ restoreFocus: true }); }}
+        >
+          <span>Undo</span>
+          <span className="register-menu-shortcut" aria-hidden="true">Ctrl/Cmd+Z</span>
+        </button>
+        <button
+          className="register-history-menu-item"
+          type="button"
+          role="menuitem"
+          disabled={!canRedo || isHistoryBusy}
+          title={redoTitle}
+          onClick={() => { onRedo(); closeMenu({ restoreFocus: true }); }}
+        >
+          <span>Redo</span>
+          <span className="register-menu-shortcut" aria-hidden="true">Ctrl/Cmd+Shift+Z</span>
+        </button>
+        <div className="register-options-divider" role="separator" />
         <button type="button" role="menuitem" onClick={() => { onOpenImport(); closeMenu({ restoreFocus: true }); }}>Import transactions</button>
         <button type="button" role="menuitem" onClick={() => { onOpenTagManager(); closeMenu({ restoreFocus: true }); }}>Manage tags</button>
         <button type="button" role="menuitem" disabled>Reconcile</button>
@@ -283,10 +298,8 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
             </div>
 
             <div className="register-toolbar-right register-desktop-actions">
-              <button className="button button-secondary register-history-action" type="button" disabled={!canUndo || isHistoryBusy} onClick={onUndo} title={undoTitle} aria-label={undoTitle}><Undo2 size={16} aria-hidden="true" /><span>Undo</span></button>
-              <button className="button button-secondary register-history-action" type="button" disabled={!canRedo || isHistoryBusy} onClick={onRedo} title={redoTitle} aria-label={redoTitle}><Redo2 size={16} aria-hidden="true" /><span>Redo</span></button>
               <DropdownMenu label="⋯" triggerAriaLabel="Register options" ariaLabel="Register options" className="register-options-menu" buttonClassName="button button-secondary register-options-trigger" panelClassName="register-more-menu-panel">
-                {({ closeMenu }) => renderRegisterOptions(closeMenu, false)}
+                {({ closeMenu }) => renderRegisterOptions(closeMenu)}
               </DropdownMenu>
               <button className="button button-primary" type="button" onClick={onToggleEntryRow}>Add transaction</button>
             </div>
@@ -294,7 +307,7 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
             <div className="register-mobile-actions">
               <button className="button button-primary" type="button" onClick={onToggleEntryRow}>Add transaction</button>
               <DropdownMenu label="⋯" triggerAriaLabel="Register options" ariaLabel="Register options" className="register-mobile-more" buttonClassName="button button-secondary register-options-trigger" panelClassName="register-more-menu-panel">
-                {({ closeMenu }) => renderRegisterOptions(closeMenu, true)}
+                {({ closeMenu }) => renderRegisterOptions(closeMenu)}
               </DropdownMenu>
             </div>
           </WorkspaceActions>
@@ -310,6 +323,12 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
           onClose={() => setIsCustomizeOpen(false)}
         />
       ) : null}
+
+      <RegisterUndoToast
+        canUndo={canUndo}
+        isHistoryBusy={isHistoryBusy}
+        onUndo={onUndo}
+      />
     </>
   );
 }
