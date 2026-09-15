@@ -3,6 +3,7 @@ import { ReactNode, useEffect, useId, useRef, useState } from "react";
 export function DropdownMenu({
   label,
   ariaLabel,
+  triggerAriaLabel,
   buttonClassName = "button button-secondary",
   className = "dropdown-menu",
   panelClassName = "dropdown-menu-panel",
@@ -10,6 +11,7 @@ export function DropdownMenu({
 }: {
   label: ReactNode;
   ariaLabel?: string;
+  triggerAriaLabel?: string;
   buttonClassName?: string;
   className?: string;
   panelClassName?: string;
@@ -60,6 +62,7 @@ export function DropdownMenu({
         ref={triggerRef}
         className={buttonClassName}
         type="button"
+        aria-label={triggerAriaLabel}
         aria-haspopup="menu"
         aria-expanded={isOpen}
         aria-controls={isOpen ? menuId : undefined}

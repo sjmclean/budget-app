@@ -1,11 +1,10 @@
-import { Download, Redo2, Tags, Undo2 } from "lucide-react";
-import type { KeyboardEvent, RefObject } from "react";
+import { useEffect, useState, type KeyboardEvent, type RefObject } from "react";
 import "../../../styles/registerHeaderFixes.css";
 import { WorkspaceActions, WorkspaceHeader } from "../../../components/workspace";
 import { DropdownMenu } from "../../ui/DropdownMenu";
-import { ColumnVisibilityMenu } from "../../tableLayout/ColumnVisibilityMenu";
 import type { TableColumnDefinition } from "../../tableLayout/tableLayout";
 import type { RegisterColumnId } from "./TransactionRow";
+import { RegisterUndoToast } from "./RegisterUndoToast";
 import type {
   RegisterSearchCommit,
   RegisterSearchSuggestion,
@@ -79,6 +78,76 @@ function RegisterSearchDropdown({
   );
 }
 
+interface CustomizeRegisterPanelProps {
+  columns: readonly TableColumnDefinition<RegisterColumnId>[];
+  visibleColumnSet: Set<RegisterColumnId>;
+  onToggleColumn: (columnId: RegisterColumnId) => void;
+  onResetColumns: () => void;
+  onClose: () => void;
+}
+
+function CustomizeRegisterPanel({
+  columns,
+  visibleColumnSet,
+  onToggleColumn,
+  onResetColumns,
+  onClose,
+}: CustomizeRegisterPanelProps) {
+  const hideableColumns = columns.filter((column) => column.canHide === true);
+
+  useEffect(() => {
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="register-customize-overlay" role="presentation" onMouseDown={onClose}>
+      <section
+        className="register-customize-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="register-customize-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header className="register-customize-header">
+          <div>
+            <h2 id="register-customize-title">Customize register</h2>
+            <p>Choose which columns are visible in this register.</p>
+          </div>
+          <button className="register-customize-close" type="button" onClick={onClose} aria-label="Close customize register">×</button>
+        </header>
+
+        <div className="register-customize-body">
+          <h3>Columns</h3>
+          <div className="register-customize-columns">
+            {hideableColumns.map((column) => (
+              <label className="register-customize-column-toggle" key={column.id}>
+                <input
+                  type="checkbox"
+                  checked={visibleColumnSet.has(column.id)}
+                  onChange={() => onToggleColumn(column.id)}
+                />
+                <span>{column.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <footer className="register-customize-footer">
+          <button className="button button-secondary" type="button" onClick={onResetColumns}>Reset layout</button>
+          <button className="button button-primary" type="button" onClick={onClose}>Done</button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
 interface RegisterToolbarProps {
   accountName: string;
   workingBalance: number;
@@ -130,6 +199,53 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
     onOpenTagManager, scheduledDueCount, categoryFilter, categoriesEnabled, onCategoryFilterChange,
     canUndo, canRedo, isHistoryBusy, undoTitle, redoTitle, onUndo, onRedo,
   } = props;
+  const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+
+  function renderRegisterOptions(
+    closeMenu: (options?: { restoreFocus?: boolean }) => void,
+  ) {
+    return (
+      <>
+        <button
+          className="register-history-menu-item"
+          type="button"
+          role="menuitem"
+          disabled={!canUndo || isHistoryBusy}
+          title={undoTitle}
+          onClick={() => { onUndo(); closeMenu({ restoreFocus: true }); }}
+        >
+          <span>Undo</span>
+          <span className="register-menu-shortcut" aria-hidden="true">Ctrl/Cmd+Z</span>
+        </button>
+        <button
+          className="register-history-menu-item"
+          type="button"
+          role="menuitem"
+          disabled={!canRedo || isHistoryBusy}
+          title={redoTitle}
+          onClick={() => { onRedo(); closeMenu({ restoreFocus: true }); }}
+        >
+          <span>Redo</span>
+          <span className="register-menu-shortcut" aria-hidden="true">Ctrl/Cmd+Shift+Z</span>
+        </button>
+        <div className="register-options-divider" role="separator" />
+        <button type="button" role="menuitem" onClick={() => { onOpenImport(); closeMenu({ restoreFocus: true }); }}>Import transactions</button>
+        <button type="button" role="menuitem" onClick={() => { onOpenTagManager(); closeMenu({ restoreFocus: true }); }}>Manage tags</button>
+        <button type="button" role="menuitem" disabled>Reconcile</button>
+        <div className="register-options-divider" role="separator" />
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            closeMenu();
+            setIsCustomizeOpen(true);
+          }}
+        >
+          Customize register…
+        </button>
+      </>
+    );
+  }
 
   return (
     <>
@@ -179,33 +295,40 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
                 <button className={categoryFilter === "all" ? "register-filter-chip active" : "register-filter-chip"} type="button" onClick={() => onCategoryFilterChange("all")}>All</button>
                 <button className={categoryFilter === "uncategorised" ? "register-filter-chip active" : "register-filter-chip"} type="button" onClick={() => onCategoryFilterChange("uncategorised")}>Uncategorised</button>
               </div> : null}
-              <ColumnVisibilityMenu label="Columns ▾" columns={columns} visibleColumnSet={visibleColumnSet} onToggleColumn={onToggleColumn} onReset={onResetColumns} />
             </div>
 
             <div className="register-toolbar-right register-desktop-actions">
-              <button className="button button-secondary register-icon-action register-manage-tags-action" type="button" onClick={onOpenTagManager} title="Manage tags" aria-label="Manage tags"><Tags size={16} aria-hidden="true" /><span>Manage tags</span></button>
-              <button className="button button-secondary" type="button" onClick={onOpenImport}><Download size={16} aria-hidden="true" />Import</button>
-              <button className="button button-secondary" type="button" disabled>Reconcile</button>
-              <button className="button button-secondary register-history-action" type="button" disabled={!canUndo || isHistoryBusy} onClick={onUndo} title={undoTitle} aria-label={undoTitle}><Undo2 size={16} aria-hidden="true" /><span>Undo</span></button>
-              <button className="button button-secondary register-history-action" type="button" disabled={!canRedo || isHistoryBusy} onClick={onRedo} title={redoTitle} aria-label={redoTitle}><Redo2 size={16} aria-hidden="true" /><span>Redo</span></button>
+              <DropdownMenu label="⋯" triggerAriaLabel="Register options" ariaLabel="Register options" className="register-options-menu" buttonClassName="button button-secondary register-options-trigger" panelClassName="register-more-menu-panel">
+                {({ closeMenu }) => renderRegisterOptions(closeMenu)}
+              </DropdownMenu>
               <button className="button button-primary" type="button" onClick={onToggleEntryRow}>Add transaction</button>
             </div>
 
             <div className="register-mobile-actions">
               <button className="button button-primary" type="button" onClick={onToggleEntryRow}>Add transaction</button>
-              <DropdownMenu label="More ▾" ariaLabel="More register actions" className="register-mobile-more" panelClassName="register-more-menu-panel">
-                {({ closeMenu }) => <>
-                  <button type="button" role="menuitem" onClick={() => { onOpenImport(); closeMenu({ restoreFocus: true }); }}>Import transactions</button>
-                  <button type="button" role="menuitem" disabled>Reconcile</button>
-                  <button type="button" role="menuitem" disabled={!canUndo || isHistoryBusy} onClick={() => { onUndo(); closeMenu({ restoreFocus: true }); }}>Undo</button>
-                  <button type="button" role="menuitem" disabled={!canRedo || isHistoryBusy} onClick={() => { onRedo(); closeMenu({ restoreFocus: true }); }}>Redo</button>
-                  <button type="button" role="menuitem" onClick={() => { onOpenTagManager(); closeMenu({ restoreFocus: true }); }}>Manage tags</button>
-                </>}
+              <DropdownMenu label="⋯" triggerAriaLabel="Register options" ariaLabel="Register options" className="register-mobile-more" buttonClassName="button button-secondary register-options-trigger" panelClassName="register-more-menu-panel">
+                {({ closeMenu }) => renderRegisterOptions(closeMenu)}
               </DropdownMenu>
             </div>
           </WorkspaceActions>
         </div>
       ) : null}
+
+      {isCustomizeOpen ? (
+        <CustomizeRegisterPanel
+          columns={columns}
+          visibleColumnSet={visibleColumnSet}
+          onToggleColumn={onToggleColumn}
+          onResetColumns={onResetColumns}
+          onClose={() => setIsCustomizeOpen(false)}
+        />
+      ) : null}
+
+      <RegisterUndoToast
+        canUndo={canUndo}
+        isHistoryBusy={isHistoryBusy}
+        onUndo={onUndo}
+      />
     </>
   );
 }

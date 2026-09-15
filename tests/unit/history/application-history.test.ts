@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ApplicationHistoryService } from "../../../apps/web/src/features/history/applicationHistory.ts";
-import type { UndoableCommand } from "../../../apps/web/src/features/history/undoRedo.ts";
+import type { UndoableCommand, UndoRedoResult } from "../../../apps/web/src/features/history/undoRedo.ts";
 
 interface TestContext {
   budgetId: string;
@@ -59,6 +59,39 @@ test("history survives consumers unsubscribing and resubscribing", async () => {
   const secondUnsubscribe = service.subscribe("budget-a", () => undefined);
   assert.equal(service.getSnapshot("budget-a").undoDepth, 1);
   secondUnsubscribe();
+});
+
+test("notifies action subscribers after successful execute, undo, and redo", async () => {
+  const { service } = createHarness();
+  const results: UndoRedoResult[] = [];
+  const unsubscribe = service.subscribeToActions("budget-a", (result) => results.push(result));
+
+  await service.execute("budget-a", command("a", 1));
+  await service.undo("budget-a");
+  await service.redo("budget-a");
+  unsubscribe();
+
+  assert.deepEqual(
+    results.map((result) => ({ performed: result.performed, action: result.action, label: result.label })),
+    [
+      { performed: true, action: "execute", label: "Change a" },
+      { performed: true, action: "undo", label: "Change a" },
+      { performed: true, action: "redo", label: "Change a" },
+    ],
+  );
+});
+
+test("action subscriptions remain budget scoped and can unsubscribe", async () => {
+  const { service } = createHarness();
+  const actions: string[] = [];
+  const unsubscribe = service.subscribeToActions("budget-a", (result) => actions.push(result.action));
+
+  await service.execute("budget-b", command("b", 2));
+  await service.execute("budget-a", command("a", 1));
+  unsubscribe();
+  await service.undo("budget-a");
+
+  assert.deepEqual(actions, ["execute"]);
 });
 
 test("new execution clears redo and history remains bounded", async () => {
