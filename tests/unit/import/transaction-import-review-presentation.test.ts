@@ -51,7 +51,9 @@ function candidate(id: string, status: TransactionImportCandidate["status"] = "n
 }
 
 test("presentation maps domain status and ownership-filtered alternative count only", () => {
-  assert.equal(getTransactionImportReviewPresentation(candidate("exact", "exact-match"), 0).kind, "suggested-match");
+  const suggested = getTransactionImportReviewPresentation(candidate("exact", "exact-match"), 0);
+  assert.equal(suggested.kind, "suggested-match");
+  assert.equal(suggested.title, "Suggested match");
   assert.equal(getTransactionImportReviewPresentation(candidate("possible"), 2).kind, "possible-match");
   assert.equal(getTransactionImportReviewPresentation(candidate("new"), 0).kind, "no-match");
   assert.equal(getTransactionImportReviewPresentation(candidate("invalid", "invalid"), 3).kind, "invalid");
@@ -73,6 +75,11 @@ test("manual selection accepts same amount outside seven days and preserves prop
   assert.deepEqual(selected.lifecycle.proposal, source.lifecycle.proposal);
   assert.equal(selected.matchCandidates?.at(-1)?.automaticMatch, false);
   assert.equal(selected.matchCandidates?.at(-1)?.reason, MANUAL_IMPORT_MATCH_REASON);
+
+  const presentation = getTransactionImportReviewPresentation(selected, 0);
+  assert.equal(presentation.kind, "selected-match");
+  assert.equal(presentation.title, "Selected match");
+  assert.equal(presentation.subtext, "You selected this register transaction.");
 });
 
 test("manual eligibility is same amount, ownership-safe, and deterministic", () => {
@@ -160,6 +167,9 @@ test("manual match survives unfinished-session persistence and restores ownershi
   const restored = readTransactionImportSessionEntity(storage, "checking");
   assert.ok(restored);
   assert.deepEqual(restored.candidates[0], selected);
+  const restoredPresentation = getTransactionImportReviewPresentation(restored.candidates[0]!, 0);
+  assert.equal(restoredPresentation.kind, "selected-match");
+  assert.equal(restoredPresentation.title, "Selected match");
   const repaired = repairRestoredRegisterMatchOwnership({
     candidates: restored.candidates,
     processedCandidates: restored.processedCandidates,
