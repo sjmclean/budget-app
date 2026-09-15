@@ -26,7 +26,7 @@ The browser-local-storage provider and shared-server runtime have been removed. 
 
 | Signal | Files |
 |---|---:|
-| localStorage | 17 |
+| localStorage | 18 |
 | indexedDB | 2 |
 | replicationApi | 2 |
 | persistenceBoundary | 66 |
@@ -39,6 +39,7 @@ The browser-local-storage provider and shared-server runtime have been removed. 
 
 ### UI preference storage
 
+- `apps/web/src/app/theme.ts`
 - `apps/web/src/features/accounts/registerSorting.ts`
 - `apps/web/src/stores/uiStore.ts`
 

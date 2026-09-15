@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T22:39:07.100Z",
+  "generatedAt": "2026-09-15T06:37:45.010Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -12,7 +12,7 @@
     "reactiveUpdates": "persistence change bus publishes batched remote changes to React consumers"
   },
   "counts": {
-    "localStorage": 17,
+    "localStorage": 18,
     "indexedDB": 2,
     "replicationApi": 2,
     "persistenceBoundary": 66,
@@ -22,6 +22,7 @@
   "localStorage": {
     "migrationOrGlobalStorageFiles": [],
     "uiPreferenceFiles": [
+      "apps/web/src/app/theme.ts",
       "apps/web/src/features/accounts/registerSorting.ts",
       "apps/web/src/stores/uiStore.ts"
     ],
@@ -121,6 +122,12 @@
       "path": "apps/web/src/app/errors/appErrorDiagnostics.ts",
       "line": 25,
       "classification": "review-required"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/app/theme.ts",
+      "line": 48,
+      "classification": "ui-preference"
     },
     {
       "kind": "localStorage",
@@ -2321,13 +2328,13 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/stores/uiStore.ts",
-      "line": 84,
+      "line": 73,
       "classification": "ui-preference"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/stores/uiStore.ts",
-      "line": 94,
+      "line": 83,
       "classification": "ui-preference"
     },
     {

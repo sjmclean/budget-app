@@ -19,6 +19,7 @@ const patterns = {
 
 const uiPreferenceHints = [
   "/stores/uiStore.",
+  "/app/theme.",
   "/tableLayout/",
   "/registerSorting.",
   "/features/settings/",

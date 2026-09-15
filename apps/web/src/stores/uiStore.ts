@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import { SELECTED_BUDGET_STORAGE_KEY } from "../features/budget/budgetDataScope";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
+import { parseTheme, THEME_STORAGE_KEY, type ThemeMode } from "../app/theme";
 
-export type ThemeMode = "light" | "dark" | "blueprint" | "system";
+export type { ThemeMode } from "../app/theme";
 
 interface UIState {
   sidebarCollapsed: boolean;
@@ -20,7 +21,6 @@ interface UIState {
   clearSelectedBudget: () => void;
 }
 
-const themeStorageKey = "budget-app-theme";
 const selectedBudgetStorageKey = SELECTED_BUDGET_STORAGE_KEY;
 const navigationPinnedStorageKey = "budget-app-navigation-pinned";
 
@@ -46,18 +46,7 @@ function getInitialTheme(): ThemeMode {
     return "system";
   }
 
-  const storedTheme = window.localStorage.getItem(themeStorageKey);
-
-  if (
-    storedTheme === "light" ||
-    storedTheme === "dark" ||
-    storedTheme === "blueprint" ||
-    storedTheme === "system"
-  ) {
-    return storedTheme;
-  }
-
-  return "system";
+  return parseTheme(window.localStorage.getItem(THEME_STORAGE_KEY));
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -91,7 +80,7 @@ export const useUIStore = create<UIState>((set) => ({
 
   setTheme: (theme) => {
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(themeStorageKey, theme);
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
     }
 
     set({ theme });
