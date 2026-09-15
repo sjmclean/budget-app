@@ -48,6 +48,7 @@ import {
   applyScheduledSavedPayee,
   applyScheduledTransferAccount,
 } from "../../features/accounts/scheduledPayeeDraft";
+import "../../styles/scheduledTransactions.css";
 
 interface ScheduledTransactionsPanelProps {
   budgetId: string | null;
