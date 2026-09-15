@@ -40,6 +40,7 @@ import {
   type PlannedImportRegisterTransactionInput,
 } from "./transactionImportCommit";
 import { isSplitBalanced } from "./registerSplitDrafts";
+import { MANUAL_IMPORT_MATCH_REASON } from "./transactionImportReviewOwnership";
 import type {
   RegisterTransactionImportPayeeCreation,
   RegisterTransactionImportProvenanceAssignment,
@@ -356,8 +357,14 @@ function learnFromCommittedCandidates(
   }
 
   for (const candidate of session.matchedCandidates) {
+    const manuallySelected = candidate.matchCandidates?.some(
+      (option) =>
+        option.transaction.id === candidate.matchedTransaction?.id &&
+        option.reason === MANUAL_IMPORT_MATCH_REASON,
+    );
     if (
-      !session.editedMatchedCandidateIds.has(candidate.id) ||
+      (!session.editedMatchedCandidateIds.has(candidate.id) &&
+        !manuallySelected) ||
       !candidate.matchedTransaction
     ) {
       continue;

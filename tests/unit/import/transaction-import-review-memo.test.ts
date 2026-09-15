@@ -88,17 +88,18 @@ test("CSV, QIF, and OFX memos seed the shared review proposal", () => {
     [ofx, "OFX memo"],
   ] as const) {
     assert.equal(prepare(parsed, true).lifecycle.proposal.memo, expected);
-    assert.equal(prepare(parsed, false).lifecycle.proposal.memo, undefined);
+    assert.equal(prepare(parsed, false).lifecycle.proposal.memo, expected);
   }
 });
 
-test("an excluded source memo can be manually added, edited, cleared, and committed", () => {
+test("memo review remains available while exclusion is enforced at commit", () => {
   const [parsed] = parseTransactionQif(
     "!Type:Bank\nD09/14/2026\nT-12.34\nPShop\nMSource memo\n^",
     { dateFormat: "mdy", amountFormat: "dot-decimal" },
   );
   assert.ok(parsed);
   const excluded = prepare(parsed, false);
+  assert.equal(excluded.lifecycle.proposal.memo, "Source memo");
 
   const withManualMemo = {
     ...excluded,
@@ -110,6 +111,10 @@ test("an excluded source memo can be manually added, edited, cleared, and commit
   assert.equal(buildRegisterTransactionsFromImport([withManualMemo], {
     includeMemos: false,
     identityScope: "memo-manual",
+  })[0]?.memo, undefined);
+  assert.equal(buildRegisterTransactionsFromImport([withManualMemo], {
+    includeMemos: true,
+    identityScope: "memo-manual-included",
   })[0]?.memo, "Manual memo");
 
   const cleared = {
@@ -212,4 +217,22 @@ test("an untouched matched memo is preserved while an explicit edit or clear cha
     assert.equal(reset.manualEdits[edited.id], undefined);
     assert.equal(reset.matchedTransactionOrigins[edited.id], undefined);
   }
+});
+
+test("reviewed split transactions commit memo and still honour exclusion", () => {
+  const split = {
+    ...candidate({ rowNumber: 1, date: "2026-09-14", payee: "Shop", memo: "Source", outflow: 20, inflow: 0, raw: {} }),
+    lifecycle: {
+      ...candidate({ rowNumber: 1, date: "2026-09-14", payee: "Shop", memo: "Source", outflow: 20, inflow: 0, raw: {} }).lifecycle,
+      proposal: {
+        payee: "Shop", categoryName: "Split", transferAccountName: null, memo: "Reviewed split memo",
+        splitLines: [
+          { id: "one", category: "Groceries", outflow: 10, inflow: 0 },
+          { id: "two", category: "Dining", outflow: 10, inflow: 0 },
+        ],
+      },
+    },
+  };
+  assert.equal(buildRegisterTransactionsFromImport([split], { includeMemos: true, identityScope: "split-memo" })[0]?.memo, "Reviewed split memo");
+  assert.equal(buildRegisterTransactionsFromImport([split], { includeMemos: false, identityScope: "split-no-memo" })[0]?.memo, undefined);
 });

@@ -94,10 +94,10 @@ function toRegisterTransactionInput(
         : resolvedCategory?.id ??
           (isReadyToAssignIncome ? "__ready_to_assign__" : undefined),
     transferAccountId: isTransfer ? resolvedTransferAccount?.id : undefined,
-    memo: "memo" in proposal
-      ? proposal.memo
-      : options.includeMemos === false
-        ? undefined
+    memo: options.includeMemos === false
+      ? undefined
+      : "memo" in proposal
+        ? proposal.memo
         : parsed.memo,
     outflow: parsed.outflow,
     inflow: parsed.inflow,

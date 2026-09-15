@@ -433,9 +433,9 @@ export function prepareTransactionImportPreview(
       ...candidate.lifecycle,
       proposal: {
         ...candidate.lifecycle.proposal,
-        memo: input.includeSourceMemos === false
-          ? undefined
-          : candidate.lifecycle.source.memo,
+        // Review always retains source context. The preference is enforced at
+        // commit, where it cannot erase the user's ability to inspect/edit.
+        memo: candidate.lifecycle.source.memo,
       },
     },
   }));

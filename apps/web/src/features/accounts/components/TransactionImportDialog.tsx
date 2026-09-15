@@ -89,11 +89,15 @@ import {
 import {
   getAvailableRegisterMatchCandidates,
   getConflictingRegisterMatchOwner,
+  getEligibleManualRegisterMatches,
   getRegisterMatchOwnership,
+  MANUAL_IMPORT_MATCH_REASON,
   repairRestoredRegisterMatchOwnership,
   restoreOwnedRegisterMatch,
   selectOwnedRegisterMatch,
+  selectManualOwnedRegisterMatch,
 } from "../transactionImportReviewOwnership";
+import { getTransactionImportReviewPresentation } from "../transactionImportReviewPresentation";
 import {
   appendTransactionImportTrace,
   serialiseTransactionImportTrace,
@@ -464,6 +468,11 @@ export function TransactionImportDialog({
     useState<TransactionImportSplitEdit | null>(null);
   const [weakMatchReviewCandidateId, setWeakMatchReviewCandidateId] =
     useState<string | null>(null);
+  const [manualMatchTransactions, setManualMatchTransactions] = useState<
+    RegisterTransactionView[] | null
+  >(null);
+  const [manualMatchSearch, setManualMatchSearch] = useState("");
+  const [manualMatchLoading, setManualMatchLoading] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [restoredCandidateId, setRestoredCandidateId] = useState<string | null>(null);
   const [processingCandidate, setProcessingCandidate] = useState<{
@@ -1516,6 +1525,23 @@ export function TransactionImportDialog({
     processCandidate(candidateId, "matched");
   }
 
+  async function openRegisterMatchPicker(candidateId: string) {
+    setWeakMatchReviewCandidateId(candidateId);
+    setManualMatchSearch("");
+    setManualMatchTransactions(null);
+    setManualMatchLoading(true);
+    try {
+      setManualMatchTransactions(
+        await loadAccountTransactions(selectedAccountId),
+      );
+    } catch {
+      setError("Register transactions could not be loaded. Try again.");
+      setWeakMatchReviewCandidateId(null);
+    } finally {
+      setManualMatchLoading(false);
+    }
+  }
+
   function importMatchedCandidateAsNew(candidateId: string) {
     setCandidates((current) =>
       current.map((candidate) => {
@@ -1528,7 +1554,7 @@ export function TransactionImportDialog({
 
         setMatchEditorOrigins((origins) => ({
           ...origins,
-          [candidate.id]: candidate,
+          [candidate.id]: origins[candidate.id] ?? candidate,
         }));
 
         return {
@@ -2102,6 +2128,39 @@ export function TransactionImportDialog({
     return true;
   }
 
+  function selectManualRegisterTransaction(
+    candidateId: string,
+    transaction: RegisterTransactionView,
+  ): boolean {
+    const candidate = candidates.find((entry) => entry.id === candidateId);
+    if (!candidate) return false;
+    const selected = selectManualOwnedRegisterMatch({
+      candidate,
+      transaction,
+      ownership: registerMatchOwnership,
+    });
+    if (selected === candidate) {
+      setError(
+        "That register transaction is already matched to another import row or has a different amount.",
+      );
+      return false;
+    }
+    setMatchEditorOrigins((origins) => ({
+      ...origins,
+      [candidate.id]: origins[candidate.id] ?? candidate,
+    }));
+    setCandidates((current) =>
+      current.map((entry) => entry.id === candidateId ? selected : entry),
+    );
+    setMatchedTransactionOrigins((origins) => {
+      const next = { ...origins };
+      delete next[candidateId];
+      return next;
+    });
+    setError(null);
+    return true;
+  }
+
   function cancelMatchedTransactionChanges(candidateId: string) {
     const original = matchedTransactionOrigins[candidateId];
     if (!original) return;
@@ -2357,11 +2416,17 @@ export function TransactionImportDialog({
       ...matchedCandidates.flatMap((candidate) => {
         const origin = matchedTransactionOrigins[candidate.id];
         const targetPayee = candidate.matchedTransaction?.payee ?? "";
+        const manuallySelected = candidate.matchCandidates?.some(
+          (option) =>
+            option.transaction.id === candidate.matchedTransaction?.id &&
+            option.reason === MANUAL_IMPORT_MATCH_REASON,
+        );
         if (
-          !origin ||
           !targetPayee ||
-          getImportRawPayeeIdentity(origin.payee) ===
-            getImportRawPayeeIdentity(targetPayee)
+          (!manuallySelected &&
+            (!origin ||
+              getImportRawPayeeIdentity(origin.payee) ===
+                getImportRawPayeeIdentity(targetPayee)))
         ) {
           return [];
         }
@@ -2700,11 +2765,25 @@ export function TransactionImportDialog({
         (candidate) => candidate.id === weakMatchReviewCandidateId,
       ) ?? null
     : null;
-  const availableWeakMatchCandidates = weakMatchReviewCandidate
-    ? getAvailableRegisterMatchCandidates(
-        weakMatchReviewCandidate,
-        registerMatchOwnership,
-      )
+  const availableManualMatchTransactions = weakMatchReviewCandidate
+    ? getEligibleManualRegisterMatches({
+        candidate: weakMatchReviewCandidate,
+        transactions:
+          manualMatchTransactions ??
+          getAvailableRegisterMatchCandidates(
+            weakMatchReviewCandidate,
+            registerMatchOwnership,
+          ).map((option) => option.transaction),
+        ownership: registerMatchOwnership,
+      }).filter((transaction) => {
+        const query = manualMatchSearch.trim().toLocaleLowerCase();
+        return !query || [
+          transaction.payee,
+          transaction.memo,
+          transaction.date,
+          transaction.category,
+        ].some((value) => value?.toLocaleLowerCase().includes(query));
+      })
     : [];
 
   return (
@@ -3305,6 +3384,11 @@ export function TransactionImportDialog({
                   candidate,
                   registerMatchOwnership,
                 );
+              const reviewPresentation =
+                getTransactionImportReviewPresentation(
+                  candidate,
+                  availableRegisterMatchCandidates.length,
+                );
               const sourcePayee = candidate.lifecycle.source.rawPayee;
               const candidateAliasSuggestion = aliasSuggestions.find(
                 (suggestion) => suggestion.sourcePayee === sourcePayee,
@@ -3395,19 +3479,14 @@ export function TransactionImportDialog({
                     </div>
                   ) : null}
                   <div className="transaction-import-review-kind">
-                    {candidate.status === "exact-match"
-                      ? "Using existing transaction"
-                      : candidate.status === "invalid"
-                        ? "Invalid data"
-                        : candidate.reconciliationKind === "transfer"
-                          ? "New transfer"
-                          : "New transaction"}
+                    <strong>{reviewPresentation.title}</strong>
+                    <span>{reviewPresentation.subtext}</span>
                   </div>
                   <div className="transaction-import-match-stack">
                     <div className="transaction-import-match-row transaction-import-match-row-imported">
                       <span className="transaction-import-match-label">
                         {hasMatch ? <b>A</b> : null}
-                        <span>{hasMatch ? "Bank" : candidate.status === "invalid" ? "Bank" : "Bank file"}</span>
+                        <span>Bank transaction</span>
                       </span>
                       <span className="transaction-import-match-date">
                         {formatImportReviewDate(bankParsed.date)}
@@ -3445,6 +3524,39 @@ export function TransactionImportDialog({
                         {amountLabel}
                       </strong>
                     </div>
+
+                    {!hasMatch && candidate.status !== "invalid" ? (
+                      <>
+                        <div className="transaction-import-match-arrow" aria-hidden="true">↔</div>
+                        <div className="transaction-import-match-row transaction-import-match-row-existing">
+                          <span className="transaction-import-match-label">
+                            <b>B</b>
+                            <span>
+                              {availableRegisterMatchCandidates.length
+                                ? "Possible register match"
+                                : "Proposed transaction"}
+                            </span>
+                          </span>
+                          <span className="transaction-import-match-date">
+                            {formatImportReviewDate(
+                              availableRegisterMatchCandidates[0]?.transaction.date ?? bankParsed.date,
+                            )}
+                          </span>
+                          <strong className="transaction-import-match-payee">
+                            {availableRegisterMatchCandidates[0]?.transaction.payee ??
+                              candidate.lifecycle.proposal.payee ?? "Choose payee"}
+                          </strong>
+                          <span className="transaction-import-match-detail">
+                            {availableRegisterMatchCandidates[0]?.transaction.category ??
+                              candidate.lifecycle.proposal.transferAccountName ??
+                              candidate.lifecycle.proposal.categoryName ?? "Choose category"}
+                          </span>
+                          <strong className={`transaction-import-match-amount ${bankParsed.inflow > 0 && bankParsed.outflow === 0 ? "money-positive" : bankParsed.outflow > 0 ? "money-negative" : ""}`}>
+                            {amountLabel}
+                          </strong>
+                        </div>
+                      </>
+                    ) : null}
 
                     {hasMatch ? (
                       <>
@@ -3642,6 +3754,13 @@ export function TransactionImportDialog({
                                 {candidate.matchedTransaction?.memo
                                   ? ` · ${candidate.matchedTransaction.memo}`
                                   : ""}
+                                {matchedTransactionOrigins[candidate.id] &&
+                                matchedTransactionOrigins[candidate.id]?.memo !==
+                                  candidate.matchedTransaction?.memo ? (
+                                  <small className="transaction-import-payee-alias-note">
+                                    Register memo: {matchedTransactionOrigins[candidate.id]?.memo || "None"} · Final memo: {candidate.matchedTransaction?.memo || "None"}
+                                  </small>
+                                ) : null}
                               </span>
                             )}
                           </div>
@@ -3726,29 +3845,7 @@ export function TransactionImportDialog({
                             Cancel
                           </button>
                         </>
-                      ) : (
-                        <button
-                          className="button button-secondary"
-                          type="button"
-                          onClick={() =>
-                            beginProposedTransactionEdit(
-                              candidate.id,
-                              "memo",
-                              candidate.status === "exact-match"
-                                ? candidate.matchedTransaction?.memo ?? ""
-                                : candidate.lifecycle.proposal.memo ?? "",
-                            )
-                          }
-                        >
-                          {candidate.status === "exact-match"
-                            ? candidate.matchedTransaction?.memo
-                              ? "Edit Memo"
-                              : "Add Memo"
-                            : candidate.lifecycle.proposal.memo
-                              ? "Edit Memo"
-                              : "Add Memo"}
-                        </button>
-                      )}
+                      ) : null}
                     </div>
                   ) : null}
 
@@ -3828,8 +3925,45 @@ export function TransactionImportDialog({
                     </div>
                   ) : null}
 
-                  {canResetChanges ? (
-                    <div className="transaction-import-edit-actions">
+                  {candidate.status !== "invalid" ? (
+                    <details className="transaction-import-more-actions">
+                      <summary>••• More</summary>
+                      <div>
+                      <button
+                        className="button button-secondary"
+                        type="button"
+                        onClick={() =>
+                          beginProposedTransactionEdit(
+                            candidate.id,
+                            "memo",
+                            candidate.status === "exact-match"
+                              ? candidate.matchedTransaction?.memo ?? ""
+                              : candidate.lifecycle.proposal.memo ?? "",
+                          )
+                        }
+                      >
+                        {(candidate.status === "exact-match"
+                          ? candidate.matchedTransaction?.memo
+                          : candidate.lifecycle.proposal.memo)
+                          ? "Edit Memo"
+                          : "Add Memo"}
+                      </button>
+                      <button
+                        className="button button-secondary"
+                        type="button"
+                        onClick={() =>
+                          candidate.status === "exact-match"
+                            ? beginMatchedSplitEdit(candidate)
+                            : beginProposalSplitEdit(candidate)
+                        }
+                      >
+                        {candidate.status === "exact-match" && candidate.matchedTransaction?.splitLines?.length
+                          ? "Edit Split"
+                          : candidate.lifecycle.proposal.splitLines?.length
+                            ? "Edit Split"
+                            : "Split Transaction"}
+                      </button>
+                      {canResetChanges ? (
                       <button
                         className="button button-secondary"
                         type="button"
@@ -3838,7 +3972,9 @@ export function TransactionImportDialog({
                       >
                         Reset changes
                       </button>
-                    </div>
+                      ) : null}
+                      </div>
+                    </details>
                   ) : null}
 
                   {candidate.status === "exact-match" ? (
@@ -3858,15 +3994,13 @@ export function TransactionImportDialog({
                         >
                           Edit Category
                         </button>
-                        {candidate.matchedTransaction?.splitLines?.length ? (
-                          <button
-                            className="button button-secondary"
-                            type="button"
-                            onClick={() => beginMatchedSplitEdit(candidate)}
-                          >
-                            Edit Split
-                          </button>
-                        ) : null}
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          onClick={() => void openRegisterMatchPicker(candidate.id)}
+                        >
+                          Find Another Match
+                        </button>
                       </div>
                       <div className="transaction-import-match-actions">
                       <button
@@ -4023,9 +4157,34 @@ export function TransactionImportDialog({
                           className="button button-secondary"
                           type="button"
                           disabled={Boolean(processingCandidate)}
-                          onClick={() => setWeakMatchReviewCandidateId(candidate.id)}
+                          onClick={() => void openRegisterMatchPicker(candidate.id)}
                         >
-                          Review possible matches
+                          View Other Matches
+                        </button>
+                      ) : null}
+                      {candidate.status === "new" && availableRegisterMatchCandidates.length ? (
+                        <button
+                          className="button button-primary"
+                          type="button"
+                          disabled={Boolean(processingCandidate)}
+                          onClick={() =>
+                            selectManualRegisterTransaction(
+                              candidate.id,
+                              availableRegisterMatchCandidates[0]!.transaction,
+                            )
+                          }
+                        >
+                          Use This Match
+                        </button>
+                      ) : null}
+                      {candidate.status === "new" && !availableRegisterMatchCandidates.length ? (
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          disabled={Boolean(processingCandidate)}
+                          onClick={() => void openRegisterMatchPicker(candidate.id)}
+                        >
+                          Find Existing Transaction
                         </button>
                       ) : null}
                       <button
@@ -4041,7 +4200,7 @@ export function TransactionImportDialog({
                         }
                         onClick={() => importCandidate(candidate.id)}
                       >
-                        {candidate.reconciliationKind === "transfer" ? "Import Transfer" : "Import Transaction"}
+                        {candidate.reconciliationKind === "transfer" ? "Import Transfer" : "Import"}
                       </button>
                       <button
                         className="button button-secondary"
@@ -4142,7 +4301,7 @@ export function TransactionImportDialog({
           </div>
         ) : null}
 
-        {weakMatchReviewCandidate && availableWeakMatchCandidates.length ? (
+        {weakMatchReviewCandidate ? (
           <div
             className="transaction-import-possible-match-backdrop"
             role="presentation"
@@ -4158,11 +4317,11 @@ export function TransactionImportDialog({
               <header>
                 <div>
                   <h3 id="transaction-import-possible-match-title">
-                    Review possible register matches
+                    Find a register transaction
                   </h3>
                   <p>
-                    No transaction is selected. Choose one explicitly, or
-                    cancel to keep this bank transaction as new.
+                    Same-account transactions with the same signed amount are
+                    eligible. Automatic matching rules are not changed.
                   </p>
                 </div>
                 <button
@@ -4174,13 +4333,25 @@ export function TransactionImportDialog({
                   ×
                 </button>
               </header>
+              <label className="transaction-import-match-search">
+                <span>Search matches</span>
+                <input
+                  type="search"
+                  value={manualMatchSearch}
+                  placeholder="Payee, memo, date or category"
+                  onChange={(event) => setManualMatchSearch(event.target.value)}
+                />
+              </label>
               <div
                 className="transaction-import-possible-match-list"
                 role="listbox"
                 aria-label="Possible register transactions"
               >
-                {availableWeakMatchCandidates.map((option) => {
-                  const transaction = option.transaction;
+                {manualMatchLoading ? <p>Loading register transactions…</p> : null}
+                {!manualMatchLoading && availableManualMatchTransactions.length === 0 ? (
+                  <p>No eligible same-amount register transactions found.</p>
+                ) : null}
+                {availableManualMatchTransactions.map((transaction) => {
                   const signedAmount = transaction.inflow - transaction.outflow;
                   return (
                     <article
@@ -4201,9 +4372,9 @@ export function TransactionImportDialog({
                         role="option"
                         aria-selected="false"
                         onClick={() => {
-                          const selected = selectMatchedRegisterTransaction(
+                          const selected = selectManualRegisterTransaction(
                             weakMatchReviewCandidate.id,
-                            transaction.id,
+                            transaction,
                           );
                           if (selected) setWeakMatchReviewCandidateId(null);
                         }}
