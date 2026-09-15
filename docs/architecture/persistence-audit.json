@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T09:58:14.891Z",
+  "generatedAt": "2026-09-14T22:39:07.100Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -142,7 +142,7 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/accounts/accountRegisterService.ts",
-      "line": 57,
+      "line": 61,
       "classification": "review-required"
     },
     {
@@ -173,22 +173,22 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/accountRegisterService.ts",
-      "line": 1275
+      "line": 1439
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/accountRegisterService.ts",
-      "line": 1295
+      "line": 1459
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/accountRegisterService.ts",
-      "line": 1333
+      "line": 1497
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/accountRegisterService.ts",
-      "line": 1338
+      "line": 1502
     },
     {
       "kind": "persistenceBoundary",
