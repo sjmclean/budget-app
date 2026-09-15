@@ -1,4 +1,4 @@
-import { Download, Redo2, Tags, Undo2 } from "lucide-react";
+import { Redo2, Undo2 } from "lucide-react";
 import type { KeyboardEvent, RefObject } from "react";
 import "../../../styles/registerHeaderFixes.css";
 import { WorkspaceActions, WorkspaceHeader } from "../../../components/workspace";
@@ -183,11 +183,14 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
             </div>
 
             <div className="register-toolbar-right register-desktop-actions">
-              <button className="button button-secondary register-icon-action register-manage-tags-action" type="button" onClick={onOpenTagManager} title="Manage tags" aria-label="Manage tags"><Tags size={16} aria-hidden="true" /><span>Manage tags</span></button>
-              <button className="button button-secondary" type="button" onClick={onOpenImport}><Download size={16} aria-hidden="true" />Import</button>
-              <button className="button button-secondary" type="button" disabled>Reconcile</button>
               <button className="button button-secondary register-history-action" type="button" disabled={!canUndo || isHistoryBusy} onClick={onUndo} title={undoTitle} aria-label={undoTitle}><Undo2 size={16} aria-hidden="true" /><span>Undo</span></button>
               <button className="button button-secondary register-history-action" type="button" disabled={!canRedo || isHistoryBusy} onClick={onRedo} title={redoTitle} aria-label={redoTitle}><Redo2 size={16} aria-hidden="true" /><span>Redo</span></button>
+              <DropdownMenu label="More ▾" ariaLabel="More register actions" panelClassName="register-more-menu-panel">
+                {({ closeMenu }) => <>
+                  <button type="button" role="menuitem" onClick={() => { onOpenImport(); closeMenu({ restoreFocus: true }); }}>Import transactions</button>
+                  <button type="button" role="menuitem" onClick={() => { onOpenTagManager(); closeMenu({ restoreFocus: true }); }}>Manage tags</button>
+                </>}
+              </DropdownMenu>
               <button className="button button-primary" type="button" onClick={onToggleEntryRow}>Add transaction</button>
             </div>
 
@@ -195,10 +198,9 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
               <button className="button button-primary" type="button" onClick={onToggleEntryRow}>Add transaction</button>
               <DropdownMenu label="More ▾" ariaLabel="More register actions" className="register-mobile-more" panelClassName="register-more-menu-panel">
                 {({ closeMenu }) => <>
-                  <button type="button" role="menuitem" onClick={() => { onOpenImport(); closeMenu({ restoreFocus: true }); }}>Import transactions</button>
-                  <button type="button" role="menuitem" disabled>Reconcile</button>
                   <button type="button" role="menuitem" disabled={!canUndo || isHistoryBusy} onClick={() => { onUndo(); closeMenu({ restoreFocus: true }); }}>Undo</button>
                   <button type="button" role="menuitem" disabled={!canRedo || isHistoryBusy} onClick={() => { onRedo(); closeMenu({ restoreFocus: true }); }}>Redo</button>
+                  <button type="button" role="menuitem" onClick={() => { onOpenImport(); closeMenu({ restoreFocus: true }); }}>Import transactions</button>
                   <button type="button" role="menuitem" onClick={() => { onOpenTagManager(); closeMenu({ restoreFocus: true }); }}>Manage tags</button>
                 </>}
               </DropdownMenu>
