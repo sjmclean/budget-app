@@ -3,10 +3,12 @@ import { normalisePayeeIdentity } from "./payeeRecognition";
 import type { TransactionImportCandidate } from "./transactionImport";
 
 export type ImportReviewPropagationField = "payee" | "category";
+export type ImportReviewManualField = ImportReviewPropagationField | "memo";
 
 export interface ImportReviewManualFields {
   payee?: true;
   category?: true;
+  memo?: true;
 }
 
 export type ImportReviewManualEdits = Record<
@@ -29,7 +31,7 @@ export interface HistoricalRegisterPayeeMatchResult {
 export function markImportReviewFieldEdited(
   edits: ImportReviewManualEdits,
   candidateId: string,
-  field: ImportReviewPropagationField,
+  field: ImportReviewManualField,
 ): ImportReviewManualEdits {
   return {
     ...edits,

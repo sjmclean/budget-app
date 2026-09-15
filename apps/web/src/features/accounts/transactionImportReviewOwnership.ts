@@ -14,6 +14,113 @@ export interface RepairedTransactionImportReviewOwnership {
 
 export type RegisterMatchOwnership = ReadonlyMap<string, string>;
 
+export const MANUAL_IMPORT_MATCH_REASON =
+  "Manually selected from the register during import review.";
+
+function signedAmount(transaction: { inflow: number; outflow: number }): number {
+  return Math.round((transaction.inflow - transaction.outflow) * 100);
+}
+
+export function isEligibleManualRegisterMatch(
+  candidate: TransactionImportCandidate,
+  transaction: NonNullable<TransactionImportCandidate["matchedTransaction"]>,
+): boolean {
+  return signedAmount(candidate.parsed) === signedAmount(transaction);
+}
+
+export function selectManualOwnedRegisterMatch({
+  candidate,
+  transaction,
+  ownership,
+}: {
+  candidate: TransactionImportCandidate;
+  transaction: NonNullable<TransactionImportCandidate["matchedTransaction"]>;
+  ownership: RegisterMatchOwnership;
+}): TransactionImportCandidate {
+  if (
+    getConflictingRegisterMatchOwner(ownership, candidate.id, transaction.id) ||
+    !isEligibleManualRegisterMatch(candidate, transaction)
+  ) {
+    return candidate;
+  }
+
+  const evidence = [{
+    label: "Manual selection",
+    result: "positive" as const,
+    detail: "You selected this same-amount register transaction.",
+  }];
+  const manualAssessment = {
+    transaction,
+    evidence,
+    daysApart: Math.abs(
+      Math.round(
+        (Date.parse(`${candidate.parsed.date}T00:00:00Z`) -
+          Date.parse(`${transaction.date}T00:00:00Z`)) /
+          86_400_000,
+      ),
+    ),
+    payeeSimilarity: 0,
+    merchantMatches: false,
+    amountCompetitionCount: 1,
+    matchScore: 0,
+    automaticMatch: false,
+    manualSelection: true as const,
+    reason: MANUAL_IMPORT_MATCH_REASON,
+  };
+  const matchCandidates = [
+    ...(candidate.matchCandidates ?? []).filter(
+      (option) => option.transaction.id !== transaction.id,
+    ),
+    manualAssessment,
+  ];
+  const { reviewDecision: _reviewDecision, ...candidateWithoutDecision } = candidate;
+
+  return {
+    ...candidateWithoutDecision,
+    status: "exact-match",
+    selected: false,
+    matchedTransactionId: transaction.id,
+    matchedTransaction: transaction,
+    evidence,
+    reason: MANUAL_IMPORT_MATCH_REASON,
+    matchCandidates,
+  };
+}
+
+export function getEligibleManualRegisterMatches({
+  candidate,
+  transactions,
+  ownership,
+}: {
+  candidate: TransactionImportCandidate;
+  transactions: readonly NonNullable<TransactionImportCandidate["matchedTransaction"]>[];
+  ownership: RegisterMatchOwnership;
+}) {
+  const automaticIds = new Set(
+    (candidate.matchCandidates ?? []).map((option) => option.transaction.id),
+  );
+  const candidateDate = Date.parse(`${candidate.parsed.date}T00:00:00Z`);
+  return transactions
+    .filter(
+      (transaction) =>
+        isEligibleManualRegisterMatch(candidate, transaction) &&
+        !getConflictingRegisterMatchOwner(
+          ownership,
+          candidate.id,
+          transaction.id,
+        ),
+    )
+    .sort((left, right) => {
+      const automaticOrder = Number(automaticIds.has(right.id)) - Number(automaticIds.has(left.id));
+      if (automaticOrder) return automaticOrder;
+      const sameDayOrder = Number(right.date === candidate.parsed.date) - Number(left.date === candidate.parsed.date);
+      if (sameDayOrder) return sameDayOrder;
+      const dateOrder = Math.abs(Date.parse(`${left.date}T00:00:00Z`) - candidateDate) -
+        Math.abs(Date.parse(`${right.date}T00:00:00Z`) - candidateDate);
+      return dateOrder || left.payee.localeCompare(right.payee) || left.id.localeCompare(right.id);
+    });
+}
+
 function matchedRegisterTransactionId(
   candidate: TransactionImportCandidate,
 ): string | null {

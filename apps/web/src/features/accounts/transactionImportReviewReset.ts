@@ -44,7 +44,7 @@ export function hasTransactionImportCandidateChanges({
   if (!preparedCandidate) return false;
   return (
     JSON.stringify(candidate) !== JSON.stringify(preparedCandidate) ||
-    Boolean(manualEdits?.payee || manualEdits?.category) ||
+    Boolean(manualEdits?.payee || manualEdits?.category || manualEdits?.memo) ||
     hasMatchEditorOrigin ||
     hasMatchedTransactionOrigin ||
     historicalUpdates.some((update) => update.sourceCandidateId === candidate.id)

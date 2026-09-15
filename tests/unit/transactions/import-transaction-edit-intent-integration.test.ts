@@ -15,7 +15,7 @@ test("import review derives shared edit intent from existing payee/category edit
 
   assert.match(
     source,
-    /activeProposedTransactionEdit\s*\?\s*\{ field: activeProposedTransactionEdit\.field \}/,
+    /activeProposedTransactionEdit\.field === "memo"\s*\?\s*null\s*:\s*\{ field: activeProposedTransactionEdit\.field \}/,
   );
 
   assert.match(
@@ -45,14 +45,21 @@ test("import category editors consume shared replacement behaviour", () => {
   assert.equal(matches?.length, 2);
 });
 
-test("import edit scope remains payee and category only", () => {
+test("import edit scope adds memo without broadening editable transaction fields", () => {
   assert.match(
     source,
-    /type ProposedTransactionEditField = "payee" \| "category"/,
+    /type ProposedTransactionEditField = "payee" \| "category" \| "memo"/,
   );
 
   assert.doesNotMatch(
     source,
     /type ProposedTransactionEditField = [^;]*(date|outflow|inflow)/,
   );
+
+  assert.match(source, /"Add Memo"/);
+  assert.match(source, /"Edit Memo"/);
+  assert.match(source, />\s*Save\s*</);
+  assert.match(source, />\s*Cancel\s*</);
+  assert.match(source, /event\.key === "Enter"/);
+  assert.match(source, /event\.key === "Escape"/);
 });

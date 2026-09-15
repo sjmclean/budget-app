@@ -147,6 +147,8 @@ export interface TransactionImportProposal {
   payee: string;
   categoryName: string | null;
   transferAccountName: string | null;
+  /** Reviewed memo; distinct from immutable source memo evidence. */
+  memo?: string;
   /**
    * Final reviewed split allocation for the imported transaction.
    * Editor-only string drafts remain outside the import domain model.

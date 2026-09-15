@@ -20,6 +20,7 @@ export interface PrepareTransactionImportPreviewInput {
   existingTransactions: RegisterTransactionView[];
   isExactDuplicateFile: boolean;
   identityScope?: string | null;
+  includeSourceMemos?: boolean;
   previouslyImportedSourceOccurrences?: Record<
     string,
     {
@@ -51,6 +52,7 @@ export function getCandidateProposalTransaction(
     payee: proposal.payee,
     transferAccountName: proposal.transferAccountName ?? undefined,
     importedCategoryName: proposal.categoryName ?? undefined,
+    memo: proposal.memo,
   };
 }
 
@@ -425,7 +427,18 @@ export function prepareTransactionImportPreview(
 ): PreparedTransactionImportPreview {
   const suggestedCandidates = applyMerchantProposals(
     input.partition.activeCandidates,
-  );
+  ).map((candidate) => ({
+    ...candidate,
+    lifecycle: {
+      ...candidate.lifecycle,
+      proposal: {
+        ...candidate.lifecycle.proposal,
+        memo: input.includeSourceMemos === false
+          ? undefined
+          : candidate.lifecycle.source.memo,
+      },
+    },
+  }));
   const overlapRecovery = recoverAlreadyRepresentedBankCandidates({
     candidates: suggestedCandidates,
     existingTransactions: input.existingTransactions,
