@@ -15,6 +15,13 @@
   color: var(--text);
 }
 
+/* Keep the register search useful without letting it dominate the toolbar. */
+.register-search-shell {
+  flex: 0 1 22rem;
+  width: min(22rem, 100%);
+  max-width: 22rem;
+}
+
 .register-options-trigger {
   min-width: 2.6rem;
   padding-inline: 0.75rem;
@@ -30,88 +37,16 @@
 }
 
 .register-history-menu-item {
-  display: flex !important;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-}
-
-.register-menu-shortcut {
-  color: var(--text-muted);
-  font-size: 0.74rem;
-  white-space: nowrap;
-}
-
-.register-history-menu-item:disabled .register-menu-shortcut {
-  opacity: 0.7;
-}
-
-.register-undo-toast {
-  position: fixed;
-  right: max(1rem, env(safe-area-inset-right));
-  bottom: max(1rem, env(safe-area-inset-bottom));
-  z-index: 1250;
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  width: min(26rem, calc(100vw - 2rem));
-  min-height: 3.25rem;
-  padding: 0.72rem 0.8rem 0.72rem 1rem;
-  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
-  border-radius: var(--radius-panel);
-  background: color-mix(in srgb, var(--text) 92%, var(--surface));
-  color: var(--surface);
-  box-shadow: var(--shadow-md);
+  justify-content: space-between;
+  gap: 1rem;
 }
 
-.register-undo-toast-message {
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.88rem;
-  font-weight: 600;
-}
-
-.register-undo-toast-action,
-.register-undo-toast-dismiss {
-  flex: 0 0 auto;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.register-undo-toast-action {
-  padding: 0.4rem 0.45rem;
-  color: color-mix(in srgb, var(--accent) 68%, white);
-  font-weight: 700;
-}
-
-.register-undo-toast-action:hover:not(:disabled) {
-  text-decoration: underline;
-}
-
-.register-undo-toast-action:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.register-undo-toast-dismiss {
-  display: inline-grid;
-  place-items: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border-radius: 8px;
-  font-size: 1.2rem;
-  opacity: 0.7;
-}
-
-.register-undo-toast-dismiss:hover {
-  background: color-mix(in srgb, var(--surface) 12%, transparent);
-  opacity: 1;
+.register-history-menu-item kbd {
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.74rem;
 }
 
 .register-customize-overlay {
@@ -224,6 +159,66 @@
   border-top: 1px solid var(--border-soft);
 }
 
+.register-undo-toast {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1250;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  max-width: min(28rem, calc(100vw - 2rem));
+  padding: 0.75rem 0.8rem 0.75rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+}
+
+.register-undo-toast-message {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.register-undo-toast-action,
+.register-undo-toast-dismiss {
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  cursor: pointer;
+  font: inherit;
+}
+
+.register-undo-toast-action {
+  padding: 0.3rem 0.4rem;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.register-undo-toast-dismiss {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 auto;
+  padding: 0;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.register-undo-toast-action:hover,
+.register-undo-toast-dismiss:hover {
+  background: var(--surface-subtle);
+}
+
 /*
  * The global sync indicator is fixed to the viewport's top-right corner.
  * Reserve that footprint in the sticky register header so the account balance
@@ -238,10 +233,10 @@
     padding-inline-end: max(3.75rem, calc(env(safe-area-inset-right) + 3rem));
   }
 
-  .register-undo-toast {
-    right: 0.75rem;
-    bottom: max(0.75rem, env(safe-area-inset-bottom));
-    width: calc(100vw - 1.5rem);
+  .register-search-shell {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none;
   }
 
   .register-customize-overlay {
@@ -256,5 +251,12 @@
     border-bottom: 0;
     border-left: 0;
     border-radius: var(--radius-card) var(--radius-card) 0 0;
+  }
+
+  .register-undo-toast {
+    right: 0.75rem;
+    bottom: 0.75rem;
+    left: 0.75rem;
+    max-width: none;
   }
 }
