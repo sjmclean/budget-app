@@ -29,6 +29,91 @@
   background: var(--border-soft);
 }
 
+.register-history-menu-item {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.register-menu-shortcut {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.register-history-menu-item:disabled .register-menu-shortcut {
+  opacity: 0.7;
+}
+
+.register-undo-toast {
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 1250;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: min(26rem, calc(100vw - 2rem));
+  min-height: 3.25rem;
+  padding: 0.72rem 0.8rem 0.72rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--text) 92%, var(--surface));
+  color: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.register-undo-toast-message {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.register-undo-toast-action,
+.register-undo-toast-dismiss {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.register-undo-toast-action {
+  padding: 0.4rem 0.45rem;
+  color: color-mix(in srgb, var(--accent) 68%, white);
+  font-weight: 700;
+}
+
+.register-undo-toast-action:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.register-undo-toast-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.register-undo-toast-dismiss {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  opacity: 0.7;
+}
+
+.register-undo-toast-dismiss:hover {
+  background: color-mix(in srgb, var(--surface) 12%, transparent);
+  opacity: 1;
+}
+
 .register-customize-overlay {
   position: fixed;
   inset: 0;
@@ -151,6 +236,12 @@
 @media (max-width: 42rem) {
   .register-sticky-stack .register-clean-header {
     padding-inline-end: max(3.75rem, calc(env(safe-area-inset-right) + 3rem));
+  }
+
+  .register-undo-toast {
+    right: 0.75rem;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    width: calc(100vw - 1.5rem);
   }
 
   .register-customize-overlay {
