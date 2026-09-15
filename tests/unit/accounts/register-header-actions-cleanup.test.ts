@@ -53,7 +53,7 @@ test("register options menu keeps infrequent actions concise", () => {
   assert.match(toolbar, />Import transactions<\/button>/);
   assert.match(toolbar, />Manage tags<\/button>/);
   assert.match(toolbar, /<button type="button" role="menuitem" disabled>Reconcile<\/button>/);
-  assert.match(toolbar, />Customize register…<\/button>/);
+  assert.match(toolbar, />\s*Customize register…\s*<\/button>/);
   assert.doesNotMatch(toolbar, /role="menuitemcheckbox"/);
   assert.doesNotMatch(toolbar, /register-column-option/);
   assert.equal(toolbar.match(/ariaLabel="Register options"/g)?.length, 2);
@@ -65,7 +65,7 @@ test("successful history executions can drive a contextual undo toast", () => {
   assert.match(undoToast, /applicationHistory\.subscribeToActions/);
   assert.match(undoToast, /result\.action === "execute"/);
   assert.match(undoToast, /UNDO_TOAST_DURATION_MS = 6000/);
-  assert.match(undoToast, />Undo<\/button>/);
+  assert.match(undoToast, />\s*Undo\s*<\/button>/);
   assert.match(undoToast, /setToast\(null\);\n          onUndo\(\);/);
   assert.match(toolbar, /<RegisterUndoToast/);
 });
@@ -98,6 +98,8 @@ test("register customization and undo toast have responsive themed presentation"
   assert.match(headerFixes, /background: var\(--surface\)/);
   assert.match(headerFixes, /accent-color: var\(--accent\)/);
   assert.match(headerFixes, /\.register-undo-toast/);
+  assert.match(headerFixes, /\.register-search-shell[\s\S]*max-width: 22rem/);
+  assert.match(headerFixes, /@media \(max-width: 42rem\)[\s\S]*\.register-search-shell[\s\S]*max-width: none/);
   assert.match(headerFixes, /@media \(max-width: 42rem\)[\s\S]*\.register-undo-toast/);
   assert.match(headerFixes, /@media \(max-width: 42rem\)[\s\S]*\.register-customize-dialog/);
 });
