@@ -1,5 +1,5 @@
 import { useEffect, useState, type KeyboardEvent, type RefObject } from "react";
-import "../../../styles/registerHeaderFixes.css";
+import "../../../styles/registerToolbar.css";
 import { WorkspaceActions, WorkspaceHeader } from "../../../components/workspace";
 import { DropdownMenu } from "../../ui/DropdownMenu";
 import type { TableColumnDefinition } from "../../tableLayout/tableLayout";

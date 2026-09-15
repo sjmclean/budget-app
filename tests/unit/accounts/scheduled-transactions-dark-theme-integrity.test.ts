@@ -1,18 +1,14 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
-const registerHeaderFixes = readFileSync(
-  "apps/web/src/styles/registerHeaderFixes.css",
-  "utf8",
-);
 const scheduledStyles = readFileSync(
   "apps/web/src/styles/scheduledTransactions.css",
   "utf8",
 );
 
 test("scheduled transaction styles no longer load through register header fixes", () => {
-  assert.doesNotMatch(registerHeaderFixes, /scheduledTransactionsTheme/);
+  assert.equal(existsSync("apps/web/src/styles/registerHeaderFixes.css"), false);
 });
 
 test("scheduled transaction cards use theme-neutral semantic tokens", () => {
