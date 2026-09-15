@@ -6,19 +6,18 @@ const registerHeaderFixes = readFileSync(
   "apps/web/src/styles/registerHeaderFixes.css",
   "utf8",
 );
-const scheduledTheme = readFileSync(
-  "apps/web/src/styles/scheduledTransactionsTheme.css",
+const scheduledStyles = readFileSync(
+  "apps/web/src/styles/scheduledTransactions.css",
   "utf8",
 );
 
-test("scheduled transaction theme styles are loaded by the register workspace", () => {
-  assert.match(registerHeaderFixes, /@import\s+"\.\/scheduledTransactionsTheme\.css"/);
+test("scheduled transaction styles no longer load through register header fixes", () => {
+  assert.doesNotMatch(registerHeaderFixes, /scheduledTransactionsTheme/);
 });
 
-test("dark scheduled transaction cards use theme surfaces and readable text tokens", () => {
-  assert.match(scheduledTheme, /data-theme="dark"[\s\S]*\.scheduled-item[\s\S]*background:[\s\S]*var\(--surface-subtle\)/);
-  assert.match(scheduledTheme, /scheduled-item-main > strong[\s\S]*color:\s*var\(--text\)/);
-  assert.match(scheduledTheme, /scheduled-item-main > span[\s\S]*color:\s*var\(--text-muted\)/);
-  assert.match(scheduledTheme, /\.scheduled-item \.negative[\s\S]*var\(--negative\)/);
-  assert.match(scheduledTheme, /\.scheduled-item \.positive[\s\S]*var\(--positive\)/);
+test("scheduled transaction cards use theme-neutral semantic tokens", () => {
+  assert.match(scheduledStyles, /\.scheduled-item\s*\{[\s\S]*?background:\s*var\(--surface\)/);
+  assert.match(scheduledStyles, /\.scheduled-item-main span\s*\{[\s\S]*?color:\s*var\(--text-muted\)/);
+  assert.match(scheduledStyles, /\.scheduled-item-amounts \.negative\s*\{[\s\S]*?var\(--negative\)/);
+  assert.match(scheduledStyles, /\.scheduled-item-amounts \.positive\s*\{[\s\S]*?var\(--positive\)/);
 });

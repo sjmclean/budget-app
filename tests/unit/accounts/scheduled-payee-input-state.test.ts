@@ -222,7 +222,7 @@ test("scheduled form applies PayeeInput callbacks as functional updates", () => 
 
 test("scheduled attachment surface uses theme tokens", () => {
   const styles = readFileSync(
-    new URL("../../../apps/web/src/styles/register.css", import.meta.url),
+    new URL("../../../apps/web/src/styles/scheduledTransactions.css", import.meta.url),
     "utf8",
   );
   const section = styles.match(
