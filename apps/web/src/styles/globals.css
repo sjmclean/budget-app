@@ -32,6 +32,8 @@
   --negative: #dc2626;
   --negative-bg: #fee2e2;
 
+  --overlay-backdrop: rgba(15, 23, 42, 0.35);
+
   --radius-card: 14px;
   --radius-panel: 12px;
 
@@ -66,6 +68,8 @@
   --negative: #f87171;
   --negative-bg: rgba(220, 38, 38, 0.24);
 
+  --overlay-backdrop: rgba(0, 0, 0, 0.58);
+
   --shadow-sm: none;
   --shadow-md: none;
 }
@@ -97,6 +101,8 @@
 
   --negative: #dc2626;
   --negative-bg: #fee9e7;
+
+  --overlay-backdrop: rgba(20, 33, 61, 0.38);
 
   --radius-card: 12px;
   --radius-panel: 10px;
@@ -979,7 +985,7 @@ strong {
   border: 1px solid var(--border-soft);
   border-radius: 0.65rem;
   background: var(--surface);
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16);
+  box-shadow: var(--shadow-md);
   padding: 0.35rem;
 }
 
@@ -2426,7 +2432,7 @@ strong {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(15, 23, 42, 0.35);
+  background: var(--overlay-backdrop);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -2604,7 +2610,7 @@ strong {
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  background: rgba(15, 23, 42, 0.42);
+  background: var(--overlay-backdrop);
   backdrop-filter: blur(3px);
 }
 
@@ -2780,7 +2786,7 @@ strong {
   display: grid;
   place-items: center;
   padding: 2rem;
-  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  background: var(--overlay-backdrop);
   backdrop-filter: blur(10px);
 }
 
@@ -3373,23 +3379,23 @@ strong {
 .payee-duplicate-empty { display: grid; gap: 0.4rem; color: var(--text-muted); padding: 1rem; }
 .payee-duplicate-review { display: grid; gap: 1rem; min-width: 0; }
 .payee-duplicate-review-header h2 { display: flex; align-items: center; gap: 0.65rem; }
-.payee-duplicate-review-header h2 small { border-radius: 999px; background: var(--surface-muted); padding: 0.28rem 0.55rem; font-size: 0.72rem; }
+.payee-duplicate-review-header h2 small { border-radius: 999px; background: var(--surface-subtle); padding: 0.28rem 0.55rem; font-size: 0.72rem; }
 .payee-duplicate-review-header p { color: var(--text-muted); }
 .payee-duplicate-members { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr)); gap: 0.8rem; }
 .payee-duplicate-member { display: grid; gap: 0.8rem; border: 1px solid var(--border-soft); border-radius: 0.75rem; padding: 1rem; }
 .payee-duplicate-member label { display: flex; align-items: center; gap: 0.55rem; }
 .payee-duplicate-member label strong { font-size: 1rem; }
-.payee-duplicate-member label em { margin-left: auto; border-radius: 999px; background: #e7f7e9; color: #207238; padding: 0.25rem 0.5rem; font-size: 0.7rem; font-style: normal; }
-.payee-duplicate-candidate-reasons { display: grid; gap: 0.3rem; padding-top: 0.65rem; border-top: 1px solid var(--border-soft); color: #207238; font-size: 0.78rem; }
+.payee-duplicate-member label em { margin-left: auto; border-radius: 999px; background: var(--positive-bg); color: var(--positive); padding: 0.25rem 0.5rem; font-size: 0.7rem; font-style: normal; }
+.payee-duplicate-candidate-reasons { display: grid; gap: 0.3rem; padding-top: 0.65rem; border-top: 1px solid var(--border-soft); color: var(--positive); font-size: 0.78rem; }
 .payee-duplicate-candidate-reasons b { color: var(--text); }
 .payee-duplicate-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; border-bottom: 1px solid var(--border-soft); padding-bottom: 0.75rem; }
 .payee-duplicate-stats span { display: grid; gap: 0.15rem; color: var(--text-muted); font-size: 0.7rem; }
 .payee-duplicate-stats b { color: var(--text); font-size: 0.78rem; }
 .payee-duplicate-aliases { display: flex; flex-wrap: wrap; gap: 0.35rem; font-size: 0.72rem; }
 .payee-duplicate-aliases b { width: 100%; }
-.payee-duplicate-aliases span { border-radius: 0.3rem; background: var(--surface-muted); padding: 0.25rem 0.4rem; }
+.payee-duplicate-aliases span { border-radius: 0.3rem; background: var(--surface-subtle); padding: 0.25rem 0.4rem; }
 .payee-duplicate-reasons { display: grid; gap: 0.7rem; border: 1px solid var(--border-soft); border-radius: 0.75rem; padding: 1rem; }
-.payee-duplicate-reasons > div { display: flex; flex-wrap: wrap; gap: 1rem; color: #207238; }
+.payee-duplicate-reasons > div { display: flex; flex-wrap: wrap; gap: 1rem; color: var(--positive); }
 .payee-duplicate-reasons small { color: var(--text-muted); }
 .payee-duplicate-actions { border-top: 1px solid var(--border-soft); padding-top: 1rem; }
 .payee-duplicate-actions > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
@@ -3397,7 +3403,7 @@ strong {
 .payee-duplicate-actions button:first-child { border-color: var(--accent); }
 .payee-duplicate-actions button span { color: var(--text-muted); font-size: 0.72rem; }
 @media (max-width: 760px) { .payee-duplicate-actions > div { grid-template-columns: 1fr; } .payee-duplicate-stats { grid-template-columns: repeat(2, 1fr); } }
-.payee-merge-recognition-proposal { width: 100%; display: grid; gap: 0.55rem; border: 1px solid var(--border-soft); border-radius: 0.7rem; background: var(--surface-muted); padding: 0.85rem; text-align: left; }
+.payee-merge-recognition-proposal { width: 100%; display: grid; gap: 0.55rem; border: 1px solid var(--border-soft); border-radius: 0.7rem; background: var(--surface-subtle); padding: 0.85rem; text-align: left; }
 .payee-merge-recognition-proposal label { display: flex; align-items: flex-start; gap: 0.55rem; }
 .payee-merge-recognition-proposal label span { display: grid; gap: 0.25rem; }
 .payee-merge-recognition-proposal small, .payee-merge-recognition-proposal p { color: var(--text-muted); }
@@ -5783,7 +5789,7 @@ strong {
   border: 0; border-bottom: 1px solid var(--border-soft); background: transparent;
   color: var(--text); padding: .72rem .85rem; text-align: left; cursor: pointer;
 }
-.payee-actions-popover button:hover { background: var(--surface-muted); }
+.payee-actions-popover button:hover { background: var(--surface-subtle); }
 .payee-actions-popover .is-danger { color: var(--negative); }
 .payee-merge-dialog { width: min(42rem, calc(100vw - 2rem)); max-width: 42rem; }
 .payee-merge-dialog-header { display: flex; justify-content: space-between; gap: 1rem; }
@@ -6082,7 +6088,7 @@ strong {
 .new-budget-stepper button.is-active {
   background: rgba(37, 99, 235, 0.12);
   border-color: rgba(37, 99, 235, 0.35);
-  color: var(--text-primary);
+  color: var(--text);
 }
 
 .new-budget-stepper span {
@@ -6412,18 +6418,18 @@ strong {
   min-height: 100vh;
   padding: clamp(1.25rem, 2vw, 2rem);
   background:
-    radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.08), transparent 28rem),
-    linear-gradient(180deg, #f8fbff 0%, #ffffff 58%, #f8fafc 100%);
-  color: #0f172a;
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 28rem),
+    linear-gradient(180deg, var(--surface-subtle) 0%, var(--page-bg) 58%, var(--surface-subtle) 100%);
+  color: var(--text);
 }
 
 .budget-manager-shell {
   width: min(100%, 88rem);
   margin: 0 auto;
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  border: 1px solid var(--border);
   border-radius: 1.45rem;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.09);
+  background: color-mix(in srgb, var(--surface) 94%, var(--page-bg));
+  box-shadow: var(--shadow-md);
   padding: clamp(1.25rem, 2.5vw, 2.25rem);
 }
 
@@ -6446,10 +6452,10 @@ strong {
   width: 2.2rem;
   height: 2.2rem;
   border-radius: 0.65rem;
-  background: linear-gradient(135deg, #0b3b91, #155eef);
-  color: white;
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  color: var(--accent-contrast);
   font-weight: 900;
-  box-shadow: 0 10px 24px rgba(21, 94, 239, 0.28);
+  box-shadow: var(--shadow-sm);
 }
 
 .budget-manager-brand strong,
@@ -6463,7 +6469,7 @@ strong {
 }
 
 .budget-manager-brand span {
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 0.86rem;
 }
 
@@ -6484,7 +6490,7 @@ strong {
 
 .budget-manager-hero p {
   margin: 0.4rem 0 0;
-  color: #475569;
+  color: var(--text-muted);
   font-size: 0.98rem;
 }
 
@@ -6504,8 +6510,8 @@ strong {
 }
 
 .budget-manager-refresh-button {
-  color: #0f172a;
-  background: white;
+  color: var(--text);
+  background: var(--surface);
 }
 
 .budget-manager-section {
@@ -6516,7 +6522,7 @@ strong {
 
 .budget-manager-section + .budget-manager-section {
   padding-top: 1.55rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  border-top: 1px solid var(--border-soft);
 }
 
 .budget-manager-section h2 {
@@ -6544,10 +6550,10 @@ strong {
 .budget-manager-action-card,
 .budget-manager-empty-card,
 .budget-manager-storage-banner {
-  border: 1px solid rgba(148, 163, 184, 0.26);
+  border: 1px solid var(--border);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.065);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .budget-manager-budget-card {
@@ -6563,13 +6569,13 @@ strong {
 
 .budget-manager-budget-card:hover,
 .budget-manager-budget-card:focus-visible {
-  border-color: rgba(37, 99, 235, 0.42);
-  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.105);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
 
 .budget-manager-budget-card:focus-visible {
-  outline: 3px solid rgba(37, 99, 235, 0.24);
+  outline: 3px solid color-mix(in srgb, var(--accent) 24%, transparent);
   outline-offset: 3px;
 }
 
@@ -6591,13 +6597,13 @@ strong {
 }
 
 .budget-manager-budget-icon-home {
-  background: #dbeafe;
-  color: #0b3b91;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .budget-manager-budget-icon-business {
-  background: #d1fae5;
-  color: #047857;
+  background: var(--positive-bg);
+  color: var(--positive);
 }
 
 .budget-manager-budget-title h3 {
@@ -6608,7 +6614,7 @@ strong {
 
 .budget-manager-budget-title p {
   margin: 0.22rem 0 0;
-  color: #475569;
+  color: var(--text-muted);
   font-size: 0.84rem;
 }
 
@@ -6622,9 +6628,9 @@ strong {
   width: 1.95rem;
   height: 1.95rem;
   list-style: none;
-  border: 1px solid rgba(148, 163, 184, 0.36);
+  border: 1px solid var(--border);
   border-radius: 0.55rem;
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   font-size: 1.25rem;
   font-weight: 900;
@@ -6638,10 +6644,10 @@ strong {
   right: 0;
   min-width: 11rem;
   padding: 0.45rem;
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  border: 1px solid var(--border);
   border-radius: 0.75rem;
-  background: #fff;
-  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.14);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
 }
 
 .budget-manager-more-menu-panel button {
@@ -6650,28 +6656,28 @@ strong {
   border-radius: 0.55rem;
   padding: 0.7rem 0.8rem;
   background: transparent;
-  color: #0f172a;
+  color: var(--text);
   text-align: left;
   font-weight: 800;
   cursor: pointer;
 }
 
 .budget-manager-more-menu-panel button:hover {
-  background: #f8fafc;
+  background: var(--surface-subtle);
 }
 
 .budget-manager-more-menu-panel .budget-manager-more-menu-danger {
-  color: #991b1b;
+  color: var(--negative);
 }
 
 .budget-manager-more-menu-panel .budget-manager-more-menu-danger:hover {
-  background: #fef2f2;
+  background: color-mix(in srgb, var(--negative-bg) 72%, var(--surface));
 }
 
 .budget-manager-more-menu-separator {
   height: 1px;
   margin: 0.35rem 0.2rem;
-  background: rgba(148, 163, 184, 0.24);
+  background: var(--border-soft);
 }
 
 .budget-manager-budget-stats {
@@ -6680,8 +6686,8 @@ strong {
   gap: 0;
   margin: 0;
   padding: 0.65rem 0;
-  border-top: 1px solid rgba(148, 163, 184, 0.22);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .budget-manager-budget-stats div {
@@ -6695,18 +6701,18 @@ strong {
 }
 
 .budget-manager-budget-stats div + div {
-  border-left: 1px solid rgba(148, 163, 184, 0.18);
+  border-left: 1px solid var(--border-soft);
 }
 
 .budget-manager-budget-stats dt {
-  color: #475569;
+  color: var(--text-muted);
   font-size: 0.72rem;
   font-weight: 700;
 }
 
 .budget-manager-budget-stats dd {
   margin: 0;
-  color: #0f172a;
+  color: var(--text);
   font-weight: 850;
 }
 
@@ -6743,14 +6749,14 @@ strong {
 }
 
 .budget-manager-action-card span:not(.budget-manager-action-icon) {
-  color: #475569;
+  color: var(--text-muted);
   font-size: 0.9rem;
   line-height: 1.35;
 }
 
 .budget-manager-action-card em {
   align-self: end;
-  color: #0b3b91;
+  color: var(--accent-strong);
   font-size: 0.9rem;
   font-style: normal;
   font-weight: 850;
@@ -6767,23 +6773,23 @@ strong {
 }
 
 .budget-manager-action-icon-purple {
-  background: #ede9fe;
-  color: #5b21b6;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .budget-manager-action-icon-amber {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--warning-bg);
+  color: var(--warning-text);
 }
 
 .budget-manager-action-icon-blue {
-  background: #dbeafe;
-  color: #0b3b91;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .budget-manager-action-icon-red {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--negative-bg);
+  color: var(--negative);
 }
 
 .budget-manager-storage-banner {
@@ -6793,7 +6799,7 @@ strong {
   align-items: center;
   margin-top: 1rem;
   padding: 0.8rem 1rem;
-  background: #eff6ff;
+  background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface));
 }
 
 .budget-manager-storage-banner > span {
@@ -6802,8 +6808,8 @@ strong {
   width: 2.1rem;
   height: 2.1rem;
   border-radius: 999px;
-  background: #155eef;
-  color: #fff;
+  background: var(--accent);
+  color: var(--accent-contrast);
   font-weight: 900;
 }
 
@@ -6815,15 +6821,15 @@ strong {
 
 .budget-manager-storage-banner p {
   margin-top: 0.2rem;
-  color: #475569;
+  color: var(--text-muted);
 }
 
 .budget-manager-storage-banner button {
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  border: 1px solid var(--border);
   border-radius: 0.65rem;
-  background: #fff;
+  background: var(--surface);
   padding: 0.75rem 1rem;
-  color: #0b3b91;
+  color: var(--accent-strong);
   font-weight: 850;
 }
 
@@ -6840,8 +6846,8 @@ strong {
   width: 3.5rem;
   height: 3.5rem;
   border-radius: 999px;
-  background: #dbeafe;
-  color: #0b3b91;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
   font-weight: 900;
 }
 
@@ -6852,7 +6858,7 @@ strong {
 
 .budget-manager-empty-card p {
   margin-top: 0.25rem;
-  color: #475569;
+  color: var(--text-muted);
 }
 
 @media (max-width: 1100px) {
@@ -6901,7 +6907,7 @@ strong {
 
   .budget-manager-budget-stats div + div {
     border-left: 0;
-    border-top: 1px solid rgba(148, 163, 184, 0.18);
+    border-top: 1px solid var(--border-soft);
   }
 }
 
@@ -6910,10 +6916,10 @@ strong {
 .budget-manager-page .budget-launch-picker,
 .budget-manager-page .new-budget-wizard-card,
 .budget-manager-page .budget-import-compact-card {
-  border: 1px solid rgba(148, 163, 184, 0.26);
-  background: rgba(255, 255, 255, 0.98);
-  color: #0f172a;
-  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.09);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
   backdrop-filter: none;
 }
 
@@ -6922,7 +6928,7 @@ strong {
 .budget-manager-page .budget-launch-choice-header h2,
 .budget-manager-page .new-budget-wizard-header h2,
 .budget-manager-page .new-budget-category-intro h3 {
-  color: #0f172a;
+  color: var(--text);
 }
 
 .budget-manager-page .budget-create-card-glass p,
@@ -6933,16 +6939,16 @@ strong {
 .budget-manager-page .new-budget-category-group-header small,
 .budget-manager-page .new-budget-review-list dt,
 .budget-manager-page .budget-import-drop-zone small {
-  color: #475569;
+  color: var(--text-muted);
 }
 
 .budget-manager-page .budget-launch-nav button {
-  color: #0b3b91;
+  color: var(--accent-strong);
 }
 
 .budget-manager-page .budget-launch-nav button:hover,
 .budget-manager-page .budget-launch-nav button:focus-visible {
-  color: #155eef;
+  color: var(--accent);
 }
 
 .budget-manager-page .budget-launch-option,
@@ -6950,15 +6956,15 @@ strong {
 .budget-manager-page .new-budget-review-list,
 .budget-manager-page .budget-import-drop-zone,
 .budget-manager-page .budget-import-complete-report {
-  border-color: rgba(148, 163, 184, 0.28);
-  background: #ffffff;
-  color: #0f172a;
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
 }
 
 .budget-manager-page .budget-launch-option:hover:not(:disabled),
 .budget-manager-page .budget-import-drop-zone:hover {
-  border-color: rgba(37, 99, 235, 0.35);
-  background: #f8fbff;
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent-soft) 42%, var(--surface));
 }
 
 .budget-manager-page .budget-launch-option strong,
@@ -6966,40 +6972,40 @@ strong {
 .budget-manager-page .new-budget-category-item,
 .budget-manager-page .new-budget-review-list dd,
 .budget-manager-page .budget-import-drop-zone strong {
-  color: #0f172a;
+  color: var(--text);
 }
 
 .budget-manager-page .budget-launch-option small {
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .budget-manager-page .budget-launch-option-icon,
 .budget-manager-page .budget-import-drop-icon {
-  background: #dbeafe;
-  color: #0b3b91;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .budget-manager-page .budget-launch-coming-soon {
-  border-top-color: rgba(148, 163, 184, 0.22);
-  color: #64748b;
+  border-top-color: var(--border-soft);
+  color: var(--text-muted);
 }
 
 .budget-manager-page .budget-launch-coming-soon li {
-  border-color: rgba(148, 163, 184, 0.28);
-  background: #f8fafc;
-  color: #475569;
+  border-color: var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-muted);
 }
 
 .budget-manager-page .new-budget-stepper button {
-  color: #475569;
+  color: var(--text-muted);
 }
 
 .budget-manager-page .new-budget-stepper button.is-active {
-  color: #0f172a;
+  color: var(--text);
 }
 
 .budget-manager-page .new-budget-category-intro strong {
-  color: #0b3b91;
+  color: var(--accent-strong);
 }
 
 /* v2.63.3 budget vs actual report */
@@ -7627,7 +7633,7 @@ strong {
   border: 1px solid var(--border-soft);
   border-radius: 16px;
   background: var(--surface);
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
+  box-shadow: var(--shadow-md);
   padding: 0.55rem;
 }
 
@@ -7676,8 +7682,12 @@ strong {
 
 .register-context-menu-item:hover,
 .register-context-menu-item:focus-visible {
-  background: var(--surface-muted);
-  outline: none;
+  background: var(--surface-subtle);
+}
+
+.register-context-menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .register-context-menu-item-pressed {
@@ -7686,16 +7696,16 @@ strong {
 }
 
 .register-context-menu-item-success {
-  color: var(--success-strong, var(--accent-strong));
+  color: var(--positive);
 }
 
 .register-context-menu-item-danger {
-  color: var(--danger-strong, #b42318);
+  color: var(--negative);
 }
 
 .register-context-menu-item-danger:hover,
 .register-context-menu-item-danger:focus-visible {
-  background: color-mix(in srgb, #fee4e2 70%, var(--surface));
+  background: color-mix(in srgb, var(--negative-bg) 70%, var(--surface));
 }
 
 /* v2.97 application error containment and recovery */

@@ -11,7 +11,7 @@
   border: 1px solid var(--border-soft, #e2e8f0);
   border-radius: 0.85rem;
   background: var(--surface, #ffffff);
-  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16);
+  box-shadow: var(--shadow-md);
   color: var(--text, #0f172a);
   overflow: hidden;
   padding: 0.35rem;
@@ -115,7 +115,7 @@
     padding: 0.55rem max(0.55rem, env(safe-area-inset-right, 0px))
       calc(0.55rem + env(safe-area-inset-bottom, 0px))
       max(0.55rem, env(safe-area-inset-left, 0px));
-    box-shadow: 0 -1rem 3rem rgba(15, 23, 42, 0.22);
+    box-shadow: var(--shadow-md);
   }
 
   .floating-menu-heading {

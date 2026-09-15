@@ -1493,7 +1493,7 @@
 .register-combobox-arrow:hover,
 .register-combobox-arrow:focus-visible,
 .register-combobox-arrow[aria-expanded="true"] {
-  background: var(--surface-muted);
+  background: var(--surface-subtle);
   color: var(--text-primary);
 }
 
@@ -3158,7 +3158,7 @@
   transform: translateY(-50%);
   border: 0;
   border-radius: 0.35rem;
-  background: var(--surface-muted);
+  background: var(--surface-subtle);
   color: var(--text-muted);
   cursor: pointer;
   font: inherit;
@@ -3818,7 +3818,7 @@
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 0.85rem;
-  background: var(--surface-muted);
+  background: var(--surface-subtle);
 }
 
 .transaction-import-alias-suggestions ul {
@@ -4393,7 +4393,7 @@
   padding: 0.45rem 0.55rem;
   border: 1px solid var(--border-soft);
   border-radius: 9px;
-  background: var(--surface-muted);
+  background: var(--surface-subtle);
   font-size: 0.82rem;
 }
 
@@ -4457,7 +4457,7 @@
   padding: 0.75rem;
   border: 1px solid var(--border-soft);
   border-radius: 10px;
-  background: var(--surface-muted);
+  background: var(--surface-subtle);
 }
 
 .transaction-import-new-editor-heading {
