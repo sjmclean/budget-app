@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import vm from "node:vm";
 import {
   bootstrapStoredTheme,
   synchronizeTheme,
@@ -8,7 +9,7 @@ import {
 } from "../../../apps/web/src/app/theme";
 
 const globals = readFileSync("apps/web/src/styles/globals.css", "utf8");
-const main = readFileSync("apps/web/src/main.tsx", "utf8");
+const html = readFileSync("apps/web/index.html", "utf8");
 const canonicalizedStyles = [
   "apps/web/src/styles/globals.css",
   "apps/web/src/styles/register.css",
@@ -54,6 +55,25 @@ function createEnvironment(prefersDark: boolean) {
       listeners.forEach((listener) => listener());
     },
   };
+}
+
+function runPrePaintBootstrap(stored: string | null, prefersDark: boolean, storageThrows = false) {
+  const environment = createEnvironment(prefersDark);
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(script, "inline pre-paint theme script must exist");
+  vm.runInNewContext(script, {
+    document: { documentElement: environment.root },
+    window: {
+      localStorage: {
+        getItem() {
+          if (storageThrows) throw new DOMException("Storage denied", "SecurityError");
+          return stored;
+        },
+      },
+      matchMedia: environment.matchMedia,
+    },
+  });
+  return environment;
 }
 
 test("every concrete theme declares accent contrast and browser color scheme", () => {
@@ -134,5 +154,32 @@ test("pre-render bootstrap resolves stored themes and invalid values", () => {
     assert.equal(environment.classes.has("dark"), expected === "dark");
   }
 
-  assert.match(main, /bootstrapStoredThemeFromWindow\(\)[\s\S]*void bootstrapApp\(\)/);
+});
+
+test("storage read failures fall back to system without blocking bootstrap", () => {
+  const environment = createEnvironment(true);
+  assert.doesNotThrow(() => bootstrapStoredTheme({
+    ...environment,
+    storage: { getItem: () => { throw new DOMException("Storage denied", "SecurityError"); } },
+  }));
+  assert.equal(environment.root.dataset.theme, "dark");
+  assert.equal(environment.classes.has("dark"), true);
+});
+
+test("actual startup HTML applies every stored theme synchronously in head", () => {
+  assert.ok(html.indexOf("budget-app-theme") < html.indexOf("</head>"));
+  assert.ok(html.indexOf("budget-app-theme") < html.indexOf('/src/main.tsx'));
+
+  for (const [stored, prefersDark, expected] of [
+    ["light", true, "light"],
+    ["dark", false, "dark"],
+    ["blueprint", true, "blueprint"],
+    ["system", true, "dark"],
+  ] as const) {
+    assert.equal(runPrePaintBootstrap(stored, prefersDark).root.dataset.theme, expected);
+  }
+
+  const restricted = runPrePaintBootstrap(null, false, true);
+  assert.equal(restricted.root.dataset.theme, "light");
+  assert.equal(restricted.classes.has("dark"), false);
 });

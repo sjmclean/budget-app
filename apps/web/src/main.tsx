@@ -18,10 +18,6 @@ import "./styles/darkThemePolish.css";
 import "./styles/budgetResponsivePolish.css";
 import { startRestorePointLifecycle } from "./features/budget/restorePointLifecycle";
 import { SELECTED_BUDGET_STORAGE_KEY } from "./features/budget/budgetDataScope";
-import { bootstrapStoredThemeFromWindow } from "./app/theme";
-
-bootstrapStoredThemeFromWindow();
-
 function getApplicationRoot(): HTMLElement {
   const root = document.getElementById("root");
 

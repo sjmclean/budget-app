@@ -37,15 +37,12 @@ export function synchronizeTheme(theme: ThemeMode, environment: ThemeEnvironment
 export function bootstrapStoredTheme(
   environment: ThemeEnvironment & { storage: Pick<Storage, "getItem"> },
 ): void {
-  const storedTheme = parseTheme(environment.storage.getItem(THEME_STORAGE_KEY));
+  let storedTheme: ThemeMode = "system";
+  try {
+    storedTheme = parseTheme(environment.storage.getItem(THEME_STORAGE_KEY));
+  } catch {
+    // Restricted storage behaves like an unset preference.
+  }
   const prefersDark = environment.matchMedia("(prefers-color-scheme: dark)").matches;
   applyTheme(environment.root, resolveTheme(storedTheme, prefersDark));
-}
-
-export function bootstrapStoredThemeFromWindow(): void {
-  bootstrapStoredTheme({
-    root: document.documentElement,
-    storage: window.localStorage,
-    matchMedia: window.matchMedia.bind(window),
-  });
 }
