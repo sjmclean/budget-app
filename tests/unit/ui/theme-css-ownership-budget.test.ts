@@ -76,10 +76,10 @@ test("Budget owner contains no fixed Light palette or canonical-token fallbacks"
   );
 });
 
-test("Blueprint and responsive ownership remain intentionally staged", () => {
+test("Blueprint ownership remains intentionally staged", () => {
   assert.match(globals, /:root\[data-theme="blueprint"\] \.budget-workspace-table-card/);
   assert.match(globals, /:root\[data-theme="blueprint"\] \.budget-workspace-group-header/);
-  assert.equal(existsSync("apps/web/src/styles/budgetResponsivePolish.css"), true);
+  assert.equal(existsSync("apps/web/src/styles/budgetResponsivePolish.css"), false);
 });
 
 test("dead Ready-to-Assign pill aliases are not carried into the new owner", () => {
