@@ -1,0 +1,137 @@
+name: P0.3 Atomic Category Merge Fix
+
+on:
+  push:
+    branches:
+      - audit/p0-3-command-engine-current
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out audit branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/p0-3-command-engine-current
+          fetch-depth: 0
+
+      - name: Apply atomic category merge correction
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str):
+              file = Path(path)
+              text = file.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match in {path}, found {count}")
+              file.write_text(text.replace(old, new, 1))
+
+          # 1. Typed worker protocol: ordinary category merge may include the
+          # budget-month mutation that must commit in the same SQLite transaction.
+          replace_once(
+              "apps/web/src/features/persistence/localFirst/contracts.ts",
+              '''      readonly targetCategoryName: string;\n      readonly mutation: LocalBudgetMutation;\n      readonly resolveConflictId?: string;\n    }\n  | {\n      readonly requestId: string;\n      readonly type: "readOutbox";''',
+              '''      readonly targetCategoryName: string;\n      readonly mutation: LocalBudgetMutation;\n      readonly budgetMonthMutation?: LocalBudgetMutation;\n      readonly resolveConflictId?: string;\n    }\n  | {\n      readonly requestId: string;\n      readonly type: "readOutbox";''',
+          )
+
+          # 2. Database client typed request.
+          replace_once(
+              "apps/web/src/features/persistence/localFirst/localBudgetClient.ts",
+              '''    readonly targetCategoryName: string;\n    readonly mutation: LocalBudgetMutation;\n    readonly resolveConflictId?: string;\n  }): Promise<LocalBudgetManifest> {\n    return this.#request({\n      requestId: createRuntimeUuid(),\n      type: "mergeCategories",\n      ...input,\n    });\n  }''',
+              '''    readonly targetCategoryName: string;\n    readonly mutation: LocalBudgetMutation;\n    readonly budgetMonthMutation?: LocalBudgetMutation;\n    readonly resolveConflictId?: string;\n  }): Promise<LocalBudgetManifest> {\n    return this.#request({\n      requestId: createRuntimeUuid(),\n      type: "mergeCategories",\n      ...input,\n    });\n  }''',
+          )
+
+          # 3. Worker: validate and commit both logical mutations inside the
+          # existing merge BEGIN IMMEDIATE/COMMIT. Conflict replay still omits
+          # budgetMonthMutation and retains the one-mutation path.
+          replace_once(
+              "apps/web/src/features/persistence/localFirst/localBudget.worker.ts",
+              '''  targetCategoryName: string,\n  mutation: LocalBudgetMutation,\n  resolveConflictId?: string,\n) {\n  assertMutationScope(mutation);\n  execute("BEGIN IMMEDIATE");''',
+              '''  targetCategoryName: string,\n  mutation: LocalBudgetMutation,\n  budgetMonthMutation?: LocalBudgetMutation,\n  resolveConflictId?: string,\n) {\n  assertMutationScope(mutation);\n  if (\n    mutation.domain !== "categories" ||\n    mutation.entityId !== sourceCategoryId ||\n    mutation.operation !== "delete"\n  ) {\n    throw workerError("INVALID_CATEGORY_MERGE", "Category merge mutation scope is invalid.");\n  }\n  if (budgetMonthMutation) {\n    assertMutationScope(budgetMonthMutation);\n    const budgetMonth = budgetMonthMutation.payload as BudgetMonthView;\n    if (\n      budgetMonthMutation.domain !== "budgetMonths" ||\n      budgetMonthMutation.operation !== "upsert" ||\n      budgetMonth.budgetId !== budgetId\n    ) {\n      throw workerError(\n        "INVALID_CATEGORY_MERGE_BUDGET_MONTH",\n        "Category merge budget-month mutation scope is invalid.",\n      );\n    }\n  }\n  execute("BEGIN IMMEDIATE");''',
+          )
+
+          replace_once(
+              "apps/web/src/features/persistence/localFirst/localBudget.worker.ts",
+              '''    insertOutbox({\n      ...mutation,\n      payload: {\n        ...(mutation.payload as Record<string, unknown>),\n        ...(transferredGoal ? { transferredGoal } : {}),\n      },\n    });\n    writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));\n    resolveLocalConflictInTransaction(resolveConflictId);\n    execute("COMMIT");''',
+              '''    if (budgetMonthMutation) {\n      writeNormalisedDomainEntity(\n        "budgetMonths",\n        budgetMonthMutation.entityId,\n        budgetMonthMutation.payload,\n        budgetMonthMutation.createdAt,\n      );\n    }\n    insertOutbox({\n      ...mutation,\n      payload: {\n        ...(mutation.payload as Record<string, unknown>),\n        ...(transferredGoal ? { transferredGoal } : {}),\n      },\n    });\n    if (budgetMonthMutation) insertOutbox(budgetMonthMutation);\n    writeMetadata(\n      "localRevision",\n      String(\n        Number(readMetadata("localRevision") ?? "0") +\n          (budgetMonthMutation ? 2 : 1),\n      ),\n    );\n    resolveLocalConflictInTransaction(resolveConflictId);\n    execute("COMMIT");''',
+          )
+
+          replace_once(
+              "apps/web/src/features/persistence/localFirst/localBudget.worker.ts",
+              '''        request.targetCategoryName,\n        request.mutation,\n        request.resolveConflictId,\n      );''',
+              '''        request.targetCategoryName,\n        request.mutation,\n        request.budgetMonthMutation,\n        request.resolveConflictId,\n      );''',
+          )
+
+          # 4. Ordinary engine command: allocate both final mutations, submit one
+          # worker request, record one post-commit scope, and return early.
+          replace_once(
+              "apps/web/src/features/persistence/localFirst/engine/budgetCategoryCommands.ts",
+              '''        const payload = { targetCategoryId, targetCategoryName: target.name };\n        await local.mergeCategories({\n          budgetId,\n          sourceCategoryId,\n          targetCategoryId,\n          targetCategoryName: target.name,\n          mutation: dependencies.createMutation(\n            budgetId, "categories", sourceCategoryId, "delete", payload,\n          ),\n        });\n      }\n      await writeBudgetMonth(local, budgetId, input.month, next);\n      return readBudgetMonth(local, budgetId, input.month);''',
+              '''        const payload = { targetCategoryId, targetCategoryName: target.name };\n        const mergeMutation = dependencies.createMutation(\n          budgetId, "categories", sourceCategoryId, "delete", payload,\n        );\n        const budgetMonthMutation = dependencies.createMutation(\n          budgetId, "budgetMonths", input.month, "upsert", next,\n        );\n        await local.mergeCategories({\n          budgetId,\n          sourceCategoryId,\n          targetCategoryId,\n          targetCategoryName: target.name,\n          mutation: mergeMutation,\n          budgetMonthMutation,\n        });\n        dependencies.recordCommittedChange(\n          budgetId,\n          persistenceScopeForMutations(\n            budgetId,\n            [mergeMutation, budgetMonthMutation],\n          ),\n        );\n        return readBudgetMonth(local, budgetId, input.month);\n      }\n      await writeBudgetMonth(local, budgetId, input.month, next);\n      return readBudgetMonth(local, budgetId, input.month);''',
+          )
+
+          # 5. Command integrity harness treats mergeCategories as one atomic
+          # worker boundary and can fail before any fake commit is recorded.
+          replace_once(
+              "tests/unit/persistence/budget-category-command-integrity.test.ts",
+              '''function harness(options: { failMutate?: boolean } = {}) {''',
+              '''function harness(options: { failMutate?: boolean; failMerge?: boolean } = {}) {''',
+          )
+          replace_once(
+              "tests/unit/persistence/budget-category-command-integrity.test.ts",
+              '''    async mergeCategories(input: { mutation: LocalBudgetMutation }) {\n      mergeCalls += 1;\n      committed.push(input.mutation);\n      return {};\n    },''',
+              '''    async mergeCategories(input: {\n      mutation: LocalBudgetMutation;\n      budgetMonthMutation?: LocalBudgetMutation;\n    }) {\n      mergeCalls += 1;\n      if (options.failMerge) throw new Error("atomic merge rollback");\n      committed.push(\n        input.mutation,\n        ...(input.budgetMonthMutation ? [input.budgetMonthMutation] : []),\n      );\n      if (input.budgetMonthMutation) {\n        view = structuredClone(input.budgetMonthMutation.payload as BudgetMonthView);\n      }\n      return {};\n    },''',
+          )
+          replace_once(
+              "tests/unit/persistence/budget-category-command-integrity.test.ts",
+              '''test("worker failure returns no result and publishes nothing", async () => {''',
+              '''test("atomic category merge failure records no partial commit and publishes nothing", async () => {\n  const state = harness({ failMerge: true });\n  let publications = 0;\n  const unsubscribe = subscribePersistenceChanges(() => { publications += 1; });\n  await assert.rejects(() => new LocalBudgetCommandExecutor().execute(\n    "budget:merge-failed",\n    createDomainCommandHandler({\n      budgetId, context: state.context,\n      operation: () => state.commands.mutateCategory(budgetId, {\n        operation: "merge", month, categoryId: "category-a", targetCategoryId: "category-b",\n      }),\n    }),\n  ), /atomic merge rollback/);\n  flushPersistenceChanges();\n  unsubscribe();\n  assert.equal(state.committed.length, 0, "failed atomic worker merge must commit no outbox mutation");\n  assert.equal(publications, 0);\n});\n\ntest("worker failure returns no result and publishes nothing", async () => {''',
+          )
+
+          # 6. Worker source integrity test locks in the single SQLite transaction:
+          # budget-month state and both outbox rows must occur before COMMIT.
+          replace_once(
+              "tests/unit/persistence/local-first-category-merge-integrity.test.ts",
+              '''  assert.match(merge, /BEGIN IMMEDIATE/);\n  assert.match(merge, /COMMIT/);\n  assert.match(merge, /ROLLBACK/);''',
+              '''  assert.match(merge, /BEGIN IMMEDIATE/);\n  assert.match(merge, /COMMIT/);\n  assert.match(merge, /ROLLBACK/);\n  assert.match(\n    merge,\n    /budgetMonthMutation[\\s\\S]*writeNormalisedDomainEntity\\(\\s*"budgetMonths"/,\n    "ordinary merge must apply the budget-month replacement inside the merge transaction",\n  );\n  assert.match(\n    merge,\n    /if \\(budgetMonthMutation\\) insertOutbox\\(budgetMonthMutation\\)/,\n    "the budget-month mutation must be persisted in the same outbox transaction",\n  );\n  assert.match(\n    merge,\n    /budgetMonthMutation \\? 2 : 1/,\n    "local revision must count both ordinary merge mutations",\n  );\n\n  const budgetWriteIndex = merge.indexOf("writeNormalisedDomainEntity(");\n  const mergeOutboxIndex = merge.indexOf("insertOutbox({");\n  const budgetOutboxIndex = merge.indexOf("insertOutbox(budgetMonthMutation)");\n  const commitIndex = merge.indexOf('execute("COMMIT")');\n  assert.ok(\n    budgetWriteIndex > deleteIndex &&\n      mergeOutboxIndex > budgetWriteIndex &&\n      budgetOutboxIndex > mergeOutboxIndex &&\n      commitIndex > budgetOutboxIndex,\n    "merge effects, budget month, and both outbox rows must all precede the one COMMIT",\n  );''',
+          )
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium and system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run canonical verification
+        run: CI=1 pnpm verify
+
+      - name: Confirm only intended source/test files changed
+        run: |
+          git status --short
+          test -z "$(git status --short | grep -v '^?? .github/workflows/p0-3-atomic-category-merge-fix.yml$' | grep -v -E '^( M|M ) (apps/web/src/features/persistence/localFirst/contracts.ts|apps/web/src/features/persistence/localFirst/localBudgetClient.ts|apps/web/src/features/persistence/localFirst/localBudget.worker.ts|apps/web/src/features/persistence/localFirst/engine/budgetCategoryCommands.ts|tests/unit/persistence/budget-category-command-integrity.test.ts|tests/unit/persistence/local-first-category-merge-integrity.test.ts)$' || true)"
+
+      - name: Commit verified correction and remove temporary workflow
+        run: |
+          rm .github/workflows/p0-3-atomic-category-merge-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(web): make category merge command atomic"
+          git push origin HEAD:audit/p0-3-command-engine-current
