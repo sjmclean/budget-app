@@ -6,6 +6,10 @@ const budgetPage = readFileSync("apps/web/src/pages/BudgetPage.tsx", "utf8");
 const main = readFileSync("apps/web/src/main.tsx", "utf8");
 const budget = readFileSync("apps/web/src/styles/budgetWorkspace.css", "utf8");
 const globals = readFileSync("apps/web/src/styles/globals.css", "utf8");
+const workspaceTokens = readFileSync(
+  "apps/web/src/styles/workspaceThemeTokens.css",
+  "utf8",
+);
 
 function rule(source: string, selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -76,9 +80,34 @@ test("Budget owner contains no fixed Light palette or canonical-token fallbacks"
   );
 });
 
-test("Blueprint ownership remains intentionally staged", () => {
-  assert.match(globals, /:root\[data-theme="blueprint"\] \.budget-workspace-table-card/);
-  assert.match(globals, /:root\[data-theme="blueprint"\] \.budget-workspace-group-header/);
+test("Blueprint influences Budget through semantic workspace tokens instead of feature selectors", () => {
+  assert.doesNotMatch(globals, /:root\[data-theme=["']blueprint["']\][^{]*\.budget-/);
+  assert.doesNotMatch(budget, /\[data-theme=["']blueprint["']\]/);
+  assert.match(main, /workspaceThemeTokens\.css/);
+
+  for (const token of [
+    "workspace-table-head-background",
+    "workspace-group-header-background-start",
+    "workspace-group-header-background-end",
+    "workspace-group-header-border",
+    "workspace-side-panel-border",
+    "workspace-side-panel-radius",
+    "workspace-side-panel-background",
+    "workspace-side-panel-shadow",
+    "workspace-side-panel-padding",
+  ]) {
+    assert.match(rule(workspaceTokens, ":root"), new RegExp(`--${token}\\s*:`));
+    assert.match(
+      rule(workspaceTokens, ':root[data-theme="blueprint"]'),
+      new RegExp(`--${token}\\s*:`),
+    );
+  }
+
+  assert.match(rule(budget, ".budget-workspace-table-head"), /var\(--workspace-table-head-background\)/);
+  assert.match(rule(budget, ".budget-workspace-group-header"), /var\(--workspace-group-header-background-start\)/);
+  assert.match(rule(budget, ".budget-workspace-group-header"), /var\(--workspace-group-header-background-end\)/);
+  assert.match(rule(budget, ".budget-workspace-group-header"), /var\(--workspace-group-header-border\)/);
+  assert.match(rule(budget, ".budget-month-panel"), /var\(--workspace-side-panel-background\)/);
   assert.equal(existsSync("apps/web/src/styles/budgetResponsivePolish.css"), false);
 });
 

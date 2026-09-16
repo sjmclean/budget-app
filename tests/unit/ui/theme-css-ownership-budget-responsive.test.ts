@@ -66,7 +66,6 @@ test("Budget responsive ownership no longer depends on specificity overrides", (
   assert.doesNotMatch(globals, /@container budget-workspace-main/);
 });
 
-test("Blueprint selectors remain staged in globals for Pass 3.5", () => {
-  assert.match(globals, /:root\[data-theme="blueprint"\] \.budget-workspace-table-card/);
-  assert.match(globals, /:root\[data-theme="blueprint"\] \.budget-workspace-group-header/);
+test("Blueprint no longer targets Budget responsive feature selectors globally", () => {
+  assert.doesNotMatch(globals, /:root\[data-theme=["']blueprint["']\][^{]*\.budget-/);
 });

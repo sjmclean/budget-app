@@ -1,0 +1,47 @@
+:root {
+  --workspace-table-head-background: color-mix(
+    in srgb,
+    var(--surface-subtle) 78%,
+    var(--surface)
+  );
+  --workspace-group-header-background-start: color-mix(
+    in srgb,
+    var(--surface-subtle) 72%,
+    var(--surface)
+  );
+  --workspace-group-header-background-end: color-mix(
+    in srgb,
+    var(--surface-subtle) 84%,
+    var(--surface)
+  );
+  --workspace-group-header-border: var(--border-soft);
+  --workspace-side-panel-border: 0 solid transparent;
+  --workspace-side-panel-radius: 0;
+  --workspace-side-panel-background: transparent;
+  --workspace-side-panel-shadow: none;
+  --workspace-side-panel-padding: 0;
+}
+
+:root[data-theme="blueprint"] {
+  --workspace-table-head-background: var(--surface);
+  --workspace-group-header-background-start: color-mix(
+    in srgb,
+    var(--accent-soft) 34%,
+    var(--surface)
+  );
+  --workspace-group-header-background-end: color-mix(
+    in srgb,
+    var(--accent-soft) 22%,
+    var(--surface-subtle)
+  );
+  --workspace-group-header-border: color-mix(
+    in srgb,
+    var(--accent) 14%,
+    var(--border)
+  );
+  --workspace-side-panel-border: 1px solid var(--border-soft);
+  --workspace-side-panel-radius: var(--radius-card);
+  --workspace-side-panel-background: var(--surface);
+  --workspace-side-panel-shadow: var(--shadow-sm);
+  --workspace-side-panel-padding: 0.75rem;
+}
