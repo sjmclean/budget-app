@@ -9,6 +9,11 @@ import { CategoryLabel } from "../icons/CategoryIcon";
 import { isMoneyNegative } from "./moneyMath";
 
 export type BudgetColumnId = "category" | "assigned" | "activity" | "available";
+export type BudgetGridStyle = CSSProperties & {
+  "--budget-grid-template-columns"?: CSSProperties["gridTemplateColumns"];
+  "--budget-grid-min-width"?: CSSProperties["minWidth"];
+  "--budget-grid-width"?: CSSProperties["width"];
+};
 type BudgetSortableKind = "category" | "group";
 
 export function getCategorySortableId(categoryId: string) {
@@ -180,7 +185,7 @@ export function BudgetCategoryRow({
   onAssignedChange,
   onActivityClick,
   isBudgetColumnVisible,
-  rowStyle,
+  gridStyle,
   isCreditCardPaymentCategory,
   isArchivedCollection,
   originalGroupName,
@@ -196,7 +201,7 @@ export function BudgetCategoryRow({
   onAssignedChange: (value: number) => void;
   onActivityClick: () => void;
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
-  rowStyle: CSSProperties;
+  gridStyle: BudgetGridStyle;
   isCreditCardPaymentCategory: boolean;
   isArchivedCollection: boolean;
   originalGroupName?: string;
@@ -226,7 +231,7 @@ export function BudgetCategoryRow({
         onSelect();
         onOpenCategoryContextMenu(event);
       }}
-      style={rowStyle}
+      style={gridStyle}
     >
       <div
         className={
@@ -392,7 +397,7 @@ export function BudgetGroup({
   onAssignedChange,
   onActivityClick,
   isBudgetColumnVisible,
-  rowStyle,
+  gridStyle,
   isCreditCardPaymentGroup,
   isArchivedCategoriesGroup,
   originalGroupByCategoryId,
@@ -416,7 +421,7 @@ export function BudgetGroup({
   onAssignedChange: (categoryId: string, value: number) => void;
   onActivityClick: (categoryId: string) => void;
   isBudgetColumnVisible: (columnId: BudgetColumnId) => boolean;
-  rowStyle: CSSProperties;
+  gridStyle: BudgetGridStyle;
   isCreditCardPaymentGroup: boolean;
   isArchivedCategoriesGroup: boolean;
   originalGroupByCategoryId: ReadonlyMap<string, BudgetCategoryGroupView>;
@@ -440,7 +445,7 @@ export function BudgetGroup({
           isCreditCardPaymentGroup ? "budget-workspace-group-header-system" : "",
           isArchivedCategoriesGroup ? "budget-workspace-group-header-archived" : "",
         ].filter(Boolean).join(" ")}
-        style={rowStyle}
+        style={gridStyle}
       >
         <div
           className={
@@ -573,7 +578,7 @@ export function BudgetGroup({
               onAssignedChange={(value) => onAssignedChange(category.id, value)}
               onActivityClick={() => onActivityClick(category.id)}
               isBudgetColumnVisible={isBudgetColumnVisible}
-              rowStyle={rowStyle}
+              gridStyle={gridStyle}
               isCreditCardPaymentCategory={isCreditCardPaymentCategory(category.id)}
               isArchivedCollection={isArchivedCategoriesGroup}
               originalGroupName={originalGroupByCategoryId.get(category.id)?.name}

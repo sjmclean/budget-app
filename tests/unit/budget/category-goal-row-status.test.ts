@@ -134,7 +134,7 @@ test("Budget category row renders sibling native actions without nested buttons"
     onAssignedChange: () => undefined,
     onActivityClick: () => undefined,
     isBudgetColumnVisible: () => true,
-    rowStyle: {},
+    gridStyle: {},
     isCreditCardPaymentCategory: false,
     isArchivedCollection: false,
   }));
@@ -181,7 +181,7 @@ test("category name selects without opening settings and row actions remain inde
     onAssignedChange: () => undefined,
     onActivityClick: () => { activityOpens += 1; },
     isBudgetColumnVisible: () => true,
-    rowStyle: {},
+    gridStyle: {},
     isCreditCardPaymentCategory: false,
     isArchivedCollection: false,
   }) as { props: Record<string, unknown> };

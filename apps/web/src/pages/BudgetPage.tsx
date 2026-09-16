@@ -3,6 +3,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent,
 } from "react";
 import { promptDialog } from "../features/ui/appDialogService";
@@ -61,6 +62,7 @@ import { resolveFloatingPositionFromMouseEvent, type FloatingPosition } from "..
 import {
   BudgetGroup,
   type BudgetColumnId,
+  type BudgetGridStyle,
 } from "../features/budget/BudgetWorkspaceGroup";
 import { CategoryGoalInspectorSection } from "../features/goals/CategoryGoalInspectorSection";
 import { OrganiseCategoriesDialog } from "../features/budget/OrganiseCategoriesDialog";
@@ -453,6 +455,13 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     columns: BUDGET_COLUMN_DEFINITIONS,
     minimumWidthRem: 30,
   });
+  const budgetGridStyle: BudgetGridStyle = {
+    "--budget-grid-template-columns": budgetTableLayout.rowStyle
+      .gridTemplateColumns as CSSProperties["gridTemplateColumns"],
+    "--budget-grid-min-width": budgetTableLayout.rowStyle
+      .minWidth as CSSProperties["minWidth"],
+    "--budget-grid-width": budgetTableLayout.rowStyle.width as CSSProperties["width"],
+  };
 
   const isBudgetColumnVisible = useMemo(
     () => (columnId: BudgetColumnId) => budgetTableLayout.visibleColumnSet.has(columnId),
@@ -854,7 +863,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
             <div
               className="budget-workspace-table-head"
-              style={budgetTableLayout.rowStyle}
+              style={budgetGridStyle}
             >
               {budgetTableLayout.visibleColumns.map((column) => (
                 <span
@@ -903,7 +912,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                     onAssignedChange={updateAssigned}
                     onActivityClick={openActivityDrilldown}
                     isBudgetColumnVisible={isBudgetColumnVisible}
-                    rowStyle={budgetTableLayout.rowStyle}
+                    gridStyle={budgetGridStyle}
                     isCreditCardPaymentGroup={isCreditCardPaymentGroup(group.id)}
                     isArchivedCategoriesGroup={group.id === ARCHIVED_CATEGORIES_GROUP_ID}
                     originalGroupByCategoryId={archivedCategorySourceGroupById}
