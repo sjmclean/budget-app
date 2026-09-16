@@ -9,6 +9,7 @@ import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
 import { BarChart3, CalendarDays, ListTree, Plus, Redo2, Undo2 } from "lucide-react";
 import { Card } from "../components/ui/Card";
+import "../styles/budgetWorkspace.css";
 import {
   WorkspaceBody,
   WorkspaceHeader,
