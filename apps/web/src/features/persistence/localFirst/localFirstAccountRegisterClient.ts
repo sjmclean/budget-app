@@ -53,7 +53,6 @@ import {
   commitCategoryGoalMutation,
   normaliseCategoryGoalForPersistence,
 } from "./categoryGoalPersistence";
-import { isCreditCardPaymentCategory } from "../../budget/creditCardPaymentCategories";
 import { createBudgetDatabaseOwnership } from "./budgetDatabaseOwnership";
 import { resolveOwnedBudgetId } from "./budgetDatabaseOwnershipRouting";
 import { createRestorePointStore } from "../../budget/restorePointStore";
@@ -69,6 +68,7 @@ import { createTagCommands } from "./engine/tagCommands";
 import { createAttachmentCommands } from "./engine/attachmentCommands";
 import { createTransactionCommands } from "./engine/transactionCommands";
 import { createAccountCommands } from "./engine/accountCommands";
+import { createBudgetCategoryCommands } from "./engine/budgetCategoryCommands";
 import {
   buildNewTransactionRecords,
   prepareTransactionBatchWrites,
@@ -557,6 +557,11 @@ export function createLocalBudgetRuntime(
     requireDatabase,
     createMutation: mutation,
     discardFailedMutation: mutationContext.discardFailedMutation.bind(mutationContext),
+    recordCommittedChange: notifyLocalFirstMutationCommitted,
+  });
+  const budgetCategoryCommands = createBudgetCategoryCommands({
+    requireDatabase,
+    createMutation: mutation,
     recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
 
@@ -1536,16 +1541,7 @@ export function createLocalBudgetRuntime(
       return (await requireDatabase(budgetId)).readAccountForHistory(accountId);
     },
     replaceAccountHistoryState: accountCommands.replaceAccountHistoryState,
-    async replaceBudgetMonthHistoryState(input) {
-      const local = await requireDatabase(input.budgetId);
-      await local.replaceBudgetMonthHistoryState({
-        month: input.month,
-        expected: input.expected,
-        replacement: input.replacement,
-        mutation: mutation(input.budgetId, "budgetMonths", input.month, "upsert", input.replacement),
-      });
-      notifyLocalFirstMutationCommitted(input.budgetId, { domains: ["budget", "categories"], months: [input.month] });
-    },
+    replaceBudgetMonthHistoryState: budgetCategoryCommands.replaceBudgetMonthHistoryState,
     updateAccount: accountCommands.updateAccount,
     setAccountClosed: accountCommands.setAccountClosed,
     deleteAccount: accountCommands.deleteAccount,
@@ -1572,36 +1568,7 @@ export function createLocalBudgetRuntime(
     prefetchBudgetMonthView(input) {
       void client.getBudgetMonthView(input).catch(() => undefined);
     },
-    async setCategoryAssignedValues(input) {
-      const local = await requireDatabase(input.budgetId);
-      await local.mutateBatch(input.assignments.map(({ categoryId, assigned }) =>
-        mutation(
-          input.budgetId,
-          "budgetMonths",
-          `assignment:${input.month}:${categoryId}`,
-          "upsert",
-          {
-            kind: "category-assignment",
-            month: input.month,
-            categoryId,
-            assigned,
-          },
-        )));
-      // Assigned/available balances roll forward, so a safe finite month list is
-      // not available here. Keep entity/domain precision but invalidate all months.
-      notifyLocalFirstMutationCommitted(input.budgetId, {
-        domains: ["budget", "categories"],
-        categoryIds: input.assignments.map(({ categoryId }) => categoryId),
-      });
-      const next = await local.readEntity<BudgetMonthView>(
-        "budgetMonths",
-        input.month,
-      );
-      if (!next) {
-        throw new Error(`Budget month ${input.month} is not available locally.`);
-      }
-      return next;
-    },
+    setCategoryAssignedValues: budgetCategoryCommands.setCategoryAssignedValues,
     async getBudgetCategoryOptions(input) {
       const view = await client.getBudgetMonthView(input);
       return [{
@@ -1632,65 +1599,7 @@ export function createLocalBudgetRuntime(
         input.categoryId,
       );
     },
-    async mutateCategory(budgetId, input) {
-      const view = await client.getBudgetMonthView({
-        budgetId,
-        month: input.month,
-      });
-      const next = mutateBudgetCategory(view, input);
-      if (input.operation === "overspending") {
-        const local = await requireDatabase(budgetId);
-        const categoryId = String(input.categoryId);
-        const policy = input.overspendingHandling as
-          | "reduce-next-month"
-          | "carry-category";
-        await local.mutateBatch([mutation(
-          budgetId,
-          "budgetMonths",
-          `policy:${input.month}:${categoryId}`,
-          "upsert",
-          {
-            kind: "category-overspending-policy",
-            startMonth: input.month,
-            categoryId,
-            policy,
-          },
-        )]);
-        // Overspending policy can cascade into later months; omit month scope so
-        // every budget-month projection for this budget is conservatively stale.
-        notifyLocalFirstMutationCommitted(budgetId, { domains: ["budget", "categories"], categoryIds: [categoryId] });
-        return client.getBudgetMonthView({ budgetId, month: input.month });
-      }
-      if (input.operation === "merge") {
-        const targetCategoryId = String(input.targetCategoryId);
-        const sourceCategoryId = String(input.categoryId);
-        if (
-          isCreditCardPaymentCategory(sourceCategoryId) ||
-          isCreditCardPaymentCategory(targetCategoryId)
-        ) {
-          throw new Error("Managed credit-card payment categories cannot be merged.");
-        }
-        const target = view.categoryGroups.flatMap(({ categories }) => categories)
-          .find(({ id }) => id === targetCategoryId);
-        if (!target) throw new Error("The target local category was not found.");
-        const local = await requireDatabase(budgetId);
-        const payload = {
-          targetCategoryId,
-          targetCategoryName: target.name,
-        };
-        await local.mergeCategories({
-          budgetId,
-          sourceCategoryId,
-          targetCategoryId,
-          targetCategoryName: target.name,
-          mutation: mutation(
-            budgetId, "categories", sourceCategoryId, "delete", payload,
-          ),
-        });
-      }
-      await writeEntity(budgetId, "budgetMonths", input.month, next);
-      return client.getBudgetMonthView({ budgetId, month: input.month });
-    },
+    mutateCategory: budgetCategoryCommands.mutateCategory,
     async getCategoryMergePreview(input) {
       const view = await client.getBudgetMonthView(input);
       const located = view.categoryGroups.flatMap((group) =>
@@ -2127,212 +2036,4 @@ function readOrCreateDeviceId(storage: Pick<Storage, "getItem" | "setItem">): st
   const id = createRuntimeUuid();
   storage.setItem(DEVICE_ID_KEY, id);
   return id;
-}
-
-function mutateBudgetCategory(
-  view: BudgetMonthView,
-  input: { readonly operation: string; readonly [key: string]: unknown },
-): BudgetMonthView {
-  let groups = view.categoryGroups.map((group) => ({
-    ...group,
-    categories: group.categories.map((category) => ({ ...category })),
-  }));
-  const categoryId = String(input.categoryId ?? "");
-  const groupId = String(input.groupId ?? "");
-  if (input.operation === "create") {
-    let group = groups.find(({ id }) => id === groupId);
-    if (!group) {
-      group = {
-        id: groupId || createRuntimeUuid(),
-        name: String(input.groupName ?? "New group"),
-        previousAvailable: 0, assigned: 0, activity: 0, available: 0,
-        note: "", categories: [],
-      };
-      groups = [...groups, group];
-    }
-    group.categories.push({
-      id: categoryId || createRuntimeUuid(),
-      name: String(input.name ?? "New category"),
-      previousAvailable: 0, assigned: 0, activity: 0, available: 0,
-      isOverspent: false, isArchived: false, note: "",
-    });
-  }
-  if (["rename", "archive", "overspending", "category-note"].includes(input.operation)) {
-    groups = groups.map((group) => ({
-      ...group,
-      categories: group.categories.map((category) => category.id !== categoryId
-        ? category
-        : {
-            ...category,
-            ...(input.operation === "rename" ? { name: String(input.name) } : {}),
-            ...(input.operation === "archive" ? { isArchived: Boolean(input.isArchived) } : {}),
-            ...(input.operation === "overspending"
-              ? { overspendingHandling: input.overspendingHandling as "reduce-next-month" | "carry-category" }
-              : {}),
-            ...(input.operation === "category-note" ? { note: String(input.note ?? "") } : {}),
-          }),
-    }));
-  }
-  if (input.operation === "group-note") {
-    groups = groups.map((group) => group.id === groupId
-      ? { ...group, note: String(input.note ?? "") }
-      : group);
-  }
-  if (input.operation === "move-category") {
-    groups = groups.map((group) => ({
-      ...group,
-      categories: moveByDirection(group.categories, categoryId, String(input.direction)),
-    }));
-  }
-  if (input.operation === "move-group") {
-    groups = moveByDirection(groups, groupId, String(input.direction));
-  }
-  if (input.operation === "position-category") {
-    groups = moveBudgetCategoryToTarget(
-      groups,
-      categoryId,
-      input.targetCategoryId === undefined ? undefined : String(input.targetCategoryId),
-      String(input.placement),
-      input.targetGroupId === undefined ? undefined : String(input.targetGroupId),
-    );
-  }
-  if (input.operation === "position-group") {
-    groups = moveToTarget(
-      groups, groupId, String(input.targetGroupId), String(input.placement),
-    );
-  }
-  if (input.operation === "merge") {
-    const targetId = String(input.targetCategoryId);
-    const source = groups.flatMap(({ categories }) => categories)
-      .find(({ id }) => id === categoryId);
-    if (source) {
-      groups = groups.map((group) => ({
-        ...group,
-        categories: group.categories
-          .filter(({ id }) => id !== categoryId)
-          .map((category) => category.id === targetId ? {
-            ...category,
-            previousAvailable: category.previousAvailable + source.previousAvailable,
-            assigned: category.assigned + source.assigned,
-            activity: category.activity + source.activity,
-            available: category.available + source.available,
-          } : category),
-      }));
-    }
-  }
-  return { ...view, categoryGroups: groups };
-}
-
-export function moveBudgetCategoryToTarget<
-  TGroup extends {
-    readonly id: string;
-    readonly categories: readonly TCategory[];
-  },
-  TCategory extends { readonly id: string },
->(
-  groups: readonly TGroup[],
-  categoryId: string,
-  targetCategoryId: string | undefined,
-  placement: string,
-  targetGroupId?: string,
-): TGroup[] {
-  if (targetCategoryId && categoryId === targetCategoryId) {
-    return groups.map((group) => ({
-      ...group,
-      categories: [...group.categories],
-    }));
-  }
-
-  let categoryToMove: TCategory | undefined;
-
-  const withoutSource = groups.map((group) => {
-    const source = group.categories.find(
-      (category) => category.id === categoryId,
-    );
-
-    if (!source) {
-      return {
-        ...group,
-        categories: [...group.categories],
-      };
-    }
-
-    categoryToMove = source;
-
-    return {
-      ...group,
-      categories: group.categories.filter(
-        (category) => category.id !== categoryId,
-      ),
-    };
-  });
-
-  if (!categoryToMove) {
-    return withoutSource;
-  }
-
-  let inserted = false;
-
-  const moved = withoutSource.map((group) => {
-    if (!targetCategoryId && group.id === targetGroupId) {
-      inserted = true;
-      return { ...group, categories: [...group.categories, categoryToMove!] };
-    }
-
-    const targetIndex = group.categories.findIndex(
-      (category) => category.id === targetCategoryId,
-    );
-
-    if (targetIndex < 0) {
-      return group;
-    }
-
-    const categories = [...group.categories];
-    categories.splice(
-      targetIndex + (placement === "after" ? 1 : 0),
-      0,
-      categoryToMove!,
-    );
-    inserted = true;
-
-    return {
-      ...group,
-      categories,
-    };
-  });
-
-  if (inserted) {
-    return moved;
-  }
-
-  // Invalid target: preserve the original grouping/order instead of dropping
-  // the source category.
-  return groups.map((group) => ({
-    ...group,
-    categories: [...group.categories],
-  }));
-}
-
-function moveByDirection<T extends { readonly id: string }>(
-  values: readonly T[], id: string, direction: string,
-): T[] {
-  const next = [...values];
-  const index = next.findIndex((value) => value.id === id);
-  const target = direction === "up" ? index - 1 : index + 1;
-  if (index >= 0 && target >= 0 && target < next.length) {
-    [next[index], next[target]] = [next[target], next[index]];
-  }
-  return next;
-}
-
-function moveToTarget<T extends { readonly id: string }>(
-  values: readonly T[], id: string, targetId: string, placement: string,
-): T[] {
-  const item = values.find((value) => value.id === id);
-  if (!item || id === targetId) return [...values];
-  const next = values.filter((value) => value.id !== id);
-  const target = next.findIndex((value) => value.id === targetId);
-  if (target < 0) return [...values];
-  next.splice(target + (placement === "after" ? 1 : 0), 0, item);
-  return next;
 }

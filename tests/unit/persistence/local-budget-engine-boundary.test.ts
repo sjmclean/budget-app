@@ -143,3 +143,32 @@ test("all ordinary account implementations are engine-module owned", () => {
   assert.doesNotMatch(commands, /\bsynchronise\b/);
   assert.match(commands, /discardFailedMutation\(mutation\.mutationId\)/);
 });
+
+test("all ordinary budget and category implementations and helpers are engine-module owned", () => {
+  const runtime = readFileSync(resolve(root, "features/persistence/localFirst/localFirstAccountRegisterClient.ts"), "utf8");
+  const commands = readFileSync(resolve(root, "features/persistence/localFirst/engine/budgetCategoryCommands.ts"), "utf8");
+  const helpers = readFileSync(resolve(root, "features/persistence/localFirst/engine/categoryCommandHelpers.ts"), "utf8");
+  for (const method of [
+    "setCategoryAssignedValues",
+    "mutateCategory",
+    "replaceBudgetMonthHistoryState",
+  ]) {
+    assert.match(runtime, new RegExp(`${method}: budgetCategoryCommands\\.${method}`));
+    assert.doesNotMatch(runtime, new RegExp(`async ${method}\\s*\\(`));
+    assert.match(commands, new RegExp(`async ${method}\\s*\\(`));
+  }
+  for (const helper of [
+    "mutateBudgetCategory",
+    "moveBudgetCategoryToTarget",
+    "moveByDirection",
+    "moveToTarget",
+  ]) {
+    assert.doesNotMatch(runtime, new RegExp(`function ${helper}\\s*\\(`));
+  }
+  assert.match(helpers, /function mutateBudgetCategory\s*\(/);
+  assert.match(helpers, /function moveBudgetCategoryToTarget\s*</);
+  const runtimeClient = runtime.slice(runtime.indexOf("  const client:"));
+  assert.doesNotMatch(runtimeClient, /local\.(?:mergeCategories|replaceBudgetMonthHistoryState)\s*\(/);
+  assert.doesNotMatch(runtimeClient, /local\.mutateBatch\s*\([^)]*budgetMonths/);
+  assert.doesNotMatch(commands, /\bsynchronise\b/);
+});

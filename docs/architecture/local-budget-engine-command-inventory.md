@@ -75,9 +75,10 @@ has moved out of `localFirstAccountRegisterClient.ts`.
 - Accounts: complete in `engine/accountCommands.ts`.
 - Transaction tags: complete in `engine/tagCommands.ts`.
 - Attachments: complete in `engine/attachmentCommands.ts`.
-- Still runtime-owned: budget/category commands, goals, payees, scheduled
-  transactions, remaining history/import commands, and keep-local conflict
-  replay.
+- Budget months and categories: complete in
+  `engine/budgetCategoryCommands.ts` and `engine/categoryCommandHelpers.ts`.
+- Still runtime-owned: goals, payees, scheduled transactions, remaining
+  history/import commands, and keep-local conflict replay.
 
 The runtime-owned families are routed through the engine/executor boundary but
 have not yet been physically extracted into domain command modules.
@@ -117,6 +118,18 @@ continues to be transaction-owned. All ordinary account writes, account record
 construction, and account impact selection are owned by
 `engine/accountCommands.ts`.
 
+### Extracted budget/category handlers
+
+| Command | Final module | Final handler |
+| --- | --- | --- |
+| Category assignment batch | `engine/budgetCategoryCommands.ts` | `setCategoryAssignedValues` |
+| Category create/rename/archive/policy/note/reorder/merge | `engine/budgetCategoryCommands.ts` | `mutateCategory` |
+| Exact budget-month history replacement | `engine/budgetCategoryCommands.ts` | `replaceBudgetMonthHistoryState` |
+
+Category state transformation and category/group positioning live in
+`engine/categoryCommandHelpers.ts`. Category goals remain runtime-owned and are
+not part of this extraction.
+
 Their domain return values are preserved. At this checkpoint, domain operations
 record mutation IDs and change impact in command-scoped contexts;
 `createDomainCommandHandler` converts that recorded state into a
@@ -131,7 +144,7 @@ the P0.3e4 target after the transitional recorder is removed.
 | Import batch and remaining import history | Engine/executor | Runtime-owned |
 | Attachments | Engine/executor | Extracted attachment module; binary read remains query-only |
 | Accounts | Engine/executor | Extracted account module, including exact history replacement |
-| Budget month and category | Engine/executor | Runtime-owned |
+| Budget month and category | Engine/executor | Extracted budget/category modules |
 | Category goals | Engine/executor | Runtime-owned |
 | Payees | Engine/executor | Runtime-owned |
 | Transaction tags | Engine/executor | Extracted tag module |
