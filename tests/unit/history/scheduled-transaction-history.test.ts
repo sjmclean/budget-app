@@ -84,7 +84,7 @@ function harness(initial: ScheduledTransactionView[] = []) {
       return [...schedules.values()];
     },
   };
-  const persistence = { accountRegisterQueries: queries, scheduledTransactions } as unknown as BudgetPersistenceProvider;
+  const persistence = { accountRegisterQueries: queries, localBudgetEngine: { ...queries, ...scheduledTransactions }, scheduledTransactions } as unknown as BudgetPersistenceProvider;
   const service = new ApplicationHistoryService<ApplicationHistoryContext>({ getContext: (id) => ({ budgetId: id, persistence }) });
   return { service, schedules, getGenerated: () => generated, setGenerated: (value: TransactionHistorySnapshot | null) => { generated = value; } };
 }

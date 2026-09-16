@@ -75,3 +75,10 @@ test("keep-local conflict resolution is committed atomically with replay", () =>
     "worker must resolve keep-local conflicts inside the replay transaction",
   );
 });
+
+test("keep-local conflict resolution publishes scoped invalidation after replay commit", () => {
+  assert.match(
+    clientSource,
+    /await synchronise\(budgetId\);\s*notifyLocalFirstMutationCommitted\(\s*budgetId,\s*persistenceScopeForMutations\(budgetId, \[losingMutation\]\)/,
+  );
+});

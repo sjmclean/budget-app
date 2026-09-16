@@ -13,8 +13,8 @@ if (text.lifecycle.includes("window.location.reload()")) failures.push("ordinary
 if (!text.lifecycle.includes('source: "shared-server"')) failures.push("shared-server changes are not published to the reactive bus");
 if (!text.engine.includes('source: "replication"')) failures.push("replication changes are not published to the reactive bus");
 if (!text.bus.includes("useSyncExternalStore")) failures.push("reactive persistence bus does not use React external-store subscriptions");
-if (!text.register.includes("usePersistenceChangeVersion")) failures.push("account register does not subscribe to persistence changes");
-if (!text.budget.includes("usePersistenceChangeVersion")) failures.push("budget view does not subscribe to persistence changes");
+if (!text.register.includes("usePersistenceChange")) failures.push("account register does not subscribe to scoped persistence changes");
+if (!text.budget.includes("usePersistenceChange")) failures.push("budget view does not subscribe to scoped persistence changes");
 if (failures.length) {
   console.error(failures.map((failure) => `- ${failure}`).join("\n"));
   process.exit(1);

@@ -46,7 +46,9 @@ export interface BudgetEngineStatus {
   };
 }
 
-export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
+/** Internal composite implemented by the local-first runtime. Application code
+ * receives the separated query and command views below. */
+export interface LocalBudgetRuntimeClient extends AccountRegisterQueryPort {
   getCategoryGoal(input: { readonly budgetId: string; readonly categoryId: string }): Promise<CategoryGoal | null>;
   listCategoryGoals(input: { readonly budgetId: string }): Promise<readonly CategoryGoal[]>;
   createCategoryGoal(goal: CategoryGoal): Promise<CategoryGoal>;
@@ -474,6 +476,56 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     readonly sourceCategoryId: string;
     readonly targetCategoryId: string;
   }): Promise<CategoryMergePreview>;
+}
+
+export const LOCAL_BUDGET_COMMAND_METHODS = [
+  "createCategoryGoal", "updateCategoryGoal", "deleteCategoryGoal", "replaceCategoryGoalHistoryState",
+  "setAccountClosed", "addTransaction", "commitTransactionBatch", "commitImportBatch",
+  "commitImportBatchWithHistory", "replaceImportHistorySnapshot", "moveTransactions",
+  "updateTransaction", "toggleTransactionCleared", "setTransactionsCleared", "deleteTransaction",
+  "restoreTransactionHistorySnapshot", "deleteTransactionHistorySnapshot", "replaceTransactionHistorySnapshot",
+  "addTransactionAttachment", "removeTransactionAttachment",
+  "createAccount", "replaceAccountHistoryState", "replaceBudgetMonthHistoryState", "updateAccount", "deleteAccount",
+  "setCategoryAssignedValues", "mutateCategory", "keepPayeesSeparate",
+  "replacePayeeDuplicateSuppressionsHistoryState", "createPayee", "replacePayeeHistoryState",
+  "updatePayee", "setPayeeArchived", "deleteUnusedPayee", "mergePayees",
+  "replaceTransactionTags", "replaceTransactionTagsHistoryState", "replaceScheduledTransactionHistoryState",
+  "enterScheduledTransaction", "createScheduledTransaction", "updateScheduledTransaction",
+  "deleteScheduledTransaction", "advanceScheduledTransaction", "renameScheduledPayeeReferences",
+  "reassignScheduledPayeeReferences",
+] as const;
+
+export type LocalBudgetCommandMethod = typeof LOCAL_BUDGET_COMMAND_METHODS[number];
+/*
+  Kept formatted as a reference list for architecture-review readability:
+  | "createCategoryGoal" | "updateCategoryGoal" | "deleteCategoryGoal" | "replaceCategoryGoalHistoryState"
+  | "setAccountClosed" | "addTransaction" | "commitTransactionBatch" | "commitImportBatch"
+  | "commitImportBatchWithHistory" | "replaceImportHistorySnapshot" | "moveTransactions"
+  | "updateTransaction" | "toggleTransactionCleared" | "setTransactionsCleared" | "deleteTransaction"
+  | "restoreTransactionHistorySnapshot" | "deleteTransactionHistorySnapshot" | "replaceTransactionHistorySnapshot"
+  | "addTransactionAttachment" | "removeTransactionAttachment"
+  | "createAccount" | "replaceAccountHistoryState" | "replaceBudgetMonthHistoryState" | "updateAccount" | "deleteAccount"
+  | "setCategoryAssignedValues" | "mutateCategory" | "keepPayeesSeparate"
+  | "replacePayeeDuplicateSuppressionsHistoryState" | "createPayee" | "replacePayeeHistoryState"
+  | "updatePayee" | "setPayeeArchived" | "deleteUnusedPayee" | "mergePayees"
+  | "replaceTransactionTags" | "replaceTransactionTagsHistoryState" | "replaceScheduledTransactionHistoryState"
+  | "enterScheduledTransaction" | "createScheduledTransaction" | "updateScheduledTransaction"
+  | "deleteScheduledTransaction" | "advanceScheduledTransaction" | "renameScheduledPayeeReferences"
+  | "reassignScheduledPayeeReferences";
+*/
+
+/** Read-only application surface. Physical database lifecycle hooks remain here
+ * because they control query admission rather than mutate domain state. */
+export type LocalBudgetQueryClient = Omit<LocalBudgetRuntimeClient, LocalBudgetCommandMethod>;
+
+/** The sole public application boundary for ordinary local domain writes. */
+export type LocalBudgetEngine = Pick<LocalBudgetRuntimeClient, LocalBudgetCommandMethod>;
+
+export interface LocalBudgetCommandResult<T> {
+  readonly commandId: string;
+  readonly result: T;
+  readonly mutationIds: readonly string[];
+  readonly change: import("./persistenceChangeBus").PersistenceChangeScope;
 }
 
 export interface CategoryMutation {

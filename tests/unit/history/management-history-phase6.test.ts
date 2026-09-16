@@ -20,7 +20,7 @@ test("tag definition replacement round-trips and rejects stale state", async () 
       return tags;
     },
   };
-  const persistence = { accountRegisterQueries: queries } as unknown as BudgetPersistenceProvider;
+  const persistence = { accountRegisterQueries: queries, localBudgetEngine: queries } as unknown as BudgetPersistenceProvider;
   const history = new ApplicationHistoryService<ApplicationHistoryContext>({ getContext: () => ({ budgetId, persistence }) });
   await history.execute(budgetId, setTransactionTagsCommand("add-tag:two", "Create tag", [tag("one"), tag("two")]));
   assert.deepEqual(tags.map(({ id }) => id), ["one", "two"]);
@@ -47,7 +47,7 @@ test("payee and tag UI wiring uses application history and preserves explicit ex
   const register = readFileSync(new URL("../../../apps/web/src/pages/AccountRegisterPage.tsx", import.meta.url), "utf8");
   const tags = readFileSync(new URL("../../../apps/web/src/features/tags/TransactionTagManager.tsx", import.meta.url), "utf8");
   assert.match(payees, /usePayeeHistory\(activeBudgetId\)/);
-  assert.match(payees, /accountRegisterQueries!\.mergePayees/);
+  assert.match(payees, /localBudgetEngine!\.mergePayees/);
   assert.match(register, /payeeHistory\.createPayee/);
   assert.match(register, /setTransactionTagsCommand/);
   assert.match(tags, /Remove .* from its transactions before deleting it/);

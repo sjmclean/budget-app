@@ -1,7 +1,7 @@
 import { runAccountRegisterSqliteMutation } from "./accountRegisterMutationRunner";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
-import { usePersistenceChangeVersion } from "../persistence/persistenceChangeBus";
+import { usePersistenceChange } from "../persistence/persistenceChangeBus";
 import { generateDueScheduledTransactionsForBudget } from "./scheduledTransactionMaintenance";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 import { resolveRegisterTransactionCategory } from "./registerCategoryMatching";
@@ -90,7 +90,8 @@ export function useAccountRegister(
   const provider = getBudgetPersistenceProvider();
   const accountRegisters = provider.accountRegisters;
   const accountRegisterQueries = provider.accountRegisterQueries;
-  const persistenceChangeVersion = usePersistenceChangeVersion();
+  const localBudgetEngine = provider.localBudgetEngine;
+  const persistenceChangeVersion = usePersistenceChange({ budgetId: budgetId ?? "legacy", accountId, domains: ["accounts", "transactions", "categories", "attachments"] });
 
   const [data, setData] = useState<AccountRegisterView | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -380,19 +381,19 @@ export function useAccountRegister(
 
 
   const addTransaction = useCallback(async (input: NewRegisterTransactionInput) => {
-    if (storageMode === "sqlite" && budgetId && accountRegisterQueries) {
+    if (storageMode === "sqlite" && budgetId && accountRegisterQueries && localBudgetEngine) {
       const transactionId = input.scheduledTransactionId && input.scheduledOccurrenceDate
         ? ["scheduled", encodeURIComponent(accountId), encodeURIComponent(input.scheduledTransactionId), encodeURIComponent(input.scheduledOccurrenceDate)].join(":")
         : createRuntimeUuid();
       await runSqliteMutation(async () => {
-        await accountRegisterQueries.addTransaction({
+        await localBudgetEngine.addTransaction({
           budgetId,
           accountId,
           id: transactionId,
           ...toTransactionWriteInput(input),
         });
         for (const attachment of input.scheduledAttachments ?? []) {
-          await accountRegisterQueries.addTransactionAttachment({
+          await localBudgetEngine.addTransactionAttachment({
             budgetId,
             accountId,
             transactionId,
@@ -416,6 +417,7 @@ export function useAccountRegister(
   }, [
     accountId,
     accountRegisterQueries,
+    localBudgetEngine,
     accountRegisters,
     budgetId,
     runMutation,
@@ -424,8 +426,8 @@ export function useAccountRegister(
   ]);
 
   const addTransactions = useCallback(async (inputs: NewRegisterTransactionInput[]) => {
-    if (storageMode === "sqlite" && budgetId && accountRegisterQueries) {
-      await runSqliteMutation(() => accountRegisterQueries.commitTransactionBatch({
+    if (storageMode === "sqlite" && budgetId && localBudgetEngine) {
+      await runSqliteMutation(() => localBudgetEngine.commitTransactionBatch({
         budgetId,
         accountId,
         additions: inputs.map((input) => ({
@@ -444,7 +446,7 @@ export function useAccountRegister(
     );
   }, [
     accountId,
-    accountRegisterQueries,
+    localBudgetEngine,
     accountRegisters,
     budgetId,
     runMutation,
@@ -469,8 +471,8 @@ export function useAccountRegister(
       }
     }
 
-    if (storageMode === "sqlite" && budgetId && accountRegisterQueries) {
-      await runSqliteMutation(() => accountRegisterQueries.commitImportBatch({
+    if (storageMode === "sqlite" && budgetId && localBudgetEngine) {
+      await runSqliteMutation(() => localBudgetEngine.commitImportBatch({
         budgetId,
         accountId,
         additions: input.additions.map((transaction) => ({
@@ -524,7 +526,7 @@ export function useAccountRegister(
     );
   }, [
     accountId,
-    accountRegisterQueries,
+    localBudgetEngine,
     accountRegisters,
     budgetId,
     runMutation,
@@ -534,7 +536,7 @@ export function useAccountRegister(
 
   const updateTransaction = useCallback(async (input: UpdateRegisterTransactionInput) => {
     if (storageMode === "sqlite" && budgetId && accountRegisterQueries) {
-      await runSqliteMutation(() => accountRegisterQueries.updateTransaction(
+      await runSqliteMutation(() => localBudgetEngine!.updateTransaction(
         input.id,
         { budgetId, accountId, ...toTransactionWriteInput(input) },
       ));
@@ -555,7 +557,7 @@ export function useAccountRegister(
 
   const toggleCleared = useCallback(async (transactionId: string) => {
     if (storageMode === "sqlite" && budgetId && accountRegisterQueries) {
-      await runSqliteMutation(() => accountRegisterQueries.toggleTransactionCleared(
+      await runSqliteMutation(() => localBudgetEngine!.toggleTransactionCleared(
         transactionId,
         { budgetId, accountId },
       ));
@@ -576,7 +578,7 @@ export function useAccountRegister(
 
   const deleteTransaction = useCallback(async (transactionId: string) => {
     if (storageMode === "sqlite" && budgetId && accountRegisterQueries) {
-      await runSqliteMutation(() => accountRegisterQueries.deleteTransaction(
+      await runSqliteMutation(() => localBudgetEngine!.deleteTransaction(
         transactionId,
         { budgetId, accountId },
       ));
@@ -601,7 +603,7 @@ export function useAccountRegister(
     transactionIds: string[],
   ) => {
     if (storageMode === "sqlite" && budgetId && accountRegisterQueries) {
-      await runSqliteMutation(() => accountRegisterQueries.moveTransactions({
+      await runSqliteMutation(() => localBudgetEngine!.moveTransactions({
         budgetId,
         sourceAccountId: accountId,
         targetAccountId,
@@ -643,7 +645,7 @@ export function useAccountRegister(
     const bytes = new Uint8Array(await file.arrayBuffer());
     const contentHash = await calculateAttachmentContentHash(bytes);
     if (storageMode === "sqlite" && budgetId && accountRegisterQueries) {
-      await runSqliteMutation(() => accountRegisterQueries.addTransactionAttachment({
+      await runSqliteMutation(() => localBudgetEngine!.addTransactionAttachment({
         budgetId,
         accountId,
         transactionId,
@@ -703,7 +705,7 @@ export function useAccountRegister(
       ?.attachments?.find((candidate) => candidate.id === attachmentId);
 
     if (storageMode === "sqlite" && budgetId && accountRegisterQueries) {
-      await runSqliteMutation(() => accountRegisterQueries.removeTransactionAttachment({
+      await runSqliteMutation(() => localBudgetEngine!.removeTransactionAttachment({
         budgetId,
         accountId,
         transactionId,

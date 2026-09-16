@@ -6,12 +6,12 @@ import type {
 import { scheduledTransactionToRegisterInput } from "../accounts/scheduledTransactionToRegisterInput";
 import { getActiveBudgetIdFromStorage } from "../budget/budgetDataScope";
 import { localCalendarDate } from "../dates/localCalendarDate";
-import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";
+import type { LocalBudgetRuntimeClient } from "./accountRegisterQueryContracts";
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
 
 export function createRoutedScheduledTransactionPersistence(options: {
   storage: KeyValueStoragePort;
-  queryClient: AccountRegisterQueryClient;
+  queryClient: LocalBudgetRuntimeClient;
 }): ScheduledTransactionPersistencePort {
   function requireActiveBudgetId(): string {
     const budgetId = getActiveBudgetIdFromStorage(options.storage);

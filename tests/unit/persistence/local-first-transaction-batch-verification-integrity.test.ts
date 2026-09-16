@@ -205,7 +205,7 @@ test("transaction upsert replaces transaction-owned import provenance atomically
 test("dedicated import commits request physical verification through the atomic import worker operation", () => {
   const start = registerClient.indexOf("async commitImportBatch(input)");
   const end = registerClient.indexOf(
-    "\n    async moveTransactions(",
+    "\n    moveTransactions: transactionCommands.moveTransactions,",
     start,
   );
 

@@ -1,4 +1,4 @@
-import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";
+import type { LocalBudgetQueryClient } from "./accountRegisterQueryContracts";
 
 export const SQLITE_BUDGET_FEATURE_UNAVAILABLE_CODE = "SQLITE_BUDGET_FEATURE_UNAVAILABLE";
 
@@ -15,7 +15,7 @@ export class SqliteBudgetFeatureUnavailableError extends Error {
 }
 
 export async function isActiveSqliteBudget(
-  client: AccountRegisterQueryClient | undefined,
+  client: LocalBudgetQueryClient | undefined,
   budgetId: string | null | undefined,
 ): Promise<boolean> {
   if (!client || !budgetId) {
@@ -31,7 +31,7 @@ export async function isActiveSqliteBudget(
 }
 
 export async function assertLegacyBudgetFeatureAvailable(
-  client: AccountRegisterQueryClient | undefined,
+  client: LocalBudgetQueryClient | undefined,
   budgetId: string | null | undefined,
   feature: string,
 ): Promise<void> {
@@ -39,4 +39,3 @@ export async function assertLegacyBudgetFeatureAvailable(
     throw new SqliteBudgetFeatureUnavailableError(feature);
   }
 }
-

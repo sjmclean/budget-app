@@ -4,7 +4,7 @@ import type { CategoryGoal } from "../../../packages/types/src/CategoryGoal.js";
 import { projectCategoryGoalsOntoBudgetView } from "../../../apps/web/src/features/budget/categoryGoalBudgetProjection.js";
 import type { BudgetCategoryView, BudgetMonthView } from "../../../apps/web/src/features/budget/budgetViewTypes.js";
 import { createSqliteBudgetViewService } from "../../../apps/web/src/features/persistence/createSqliteBudgetViewService.js";
-import type { AccountRegisterQueryClient } from "../../../apps/web/src/features/persistence/accountRegisterQueryContracts.js";
+import type { LocalBudgetQueryClient } from "../../../apps/web/src/features/persistence/accountRegisterQueryContracts.js";
 
 function category(id: string, overrides: Partial<BudgetCategoryView> = {}): BudgetCategoryView {
   return {
@@ -168,7 +168,7 @@ test("Budget service performs one budget-level Goal list read and refreshes on t
     async getBudgetStatus() { return { capabilities: { budgetMonths: true } }; },
     async getBudgetMonthView() { monthReads += 1; return view([category("category-1", { assigned: 100 })]); },
     async listCategoryGoals() { goalListReads += 1; return goals; },
-  } as unknown as AccountRegisterQueryClient;
+  } as unknown as LocalBudgetQueryClient;
   const service = createSqliteBudgetViewService(client);
   assert.equal((await service.getBudgetMonthView({ budgetId: "budget-1", month: "2026-08" }))
     .categoryGroups[0]!.categories[0]!.goal, undefined);

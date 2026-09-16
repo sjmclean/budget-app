@@ -32,3 +32,14 @@ Regenerate these only after persistence-source changes with
 - [`../adr/`](../adr/) — architecture decision records, including superseded decisions.
 
 Run `pnpm docs:architecture:check` before committing documentation changes.
+# Command and query paths
+
+- Query: feature → `LocalBudgetQueryClient` → typed worker read → SQLite.
+- Command: feature → `LocalBudgetEngine` → `LocalBudgetCommandExecutor` →
+  domain handler → typed worker commit → `CommittedCommandHandlerResult` →
+  `LocalBudgetCommandResult` → one scoped invalidation.
+- Replication: relay → remote apply → SQLite commit → remote invalidation.
+- Lifecycle: restore/reset/open/close stays outside the ordinary command API.
+
+See `local-budget-engine-command-inventory.md` for the disposition of the 47
+original mutation entry points.

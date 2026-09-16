@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 
-import { createLocalFirstAccountRegisterQueryClient } from "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.js";
+import { createLocalBudgetRuntime } from "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.js";
 import type { LocalBudgetDatabaseClient } from "../../../apps/web/src/features/persistence/localFirst/localBudgetClient.js";
 import type {
   LocalPayeeRecord,
@@ -101,9 +101,9 @@ function createHarness() {
     },
   } as unknown as LocalBudgetDatabaseClient;
 
-  const client = createLocalFirstAccountRegisterQueryClient(
+  const client = createLocalBudgetRuntime(
     {} as Parameters<
-      typeof createLocalFirstAccountRegisterQueryClient
+      typeof createLocalBudgetRuntime
     >[0],
     {
       databaseFactory: () => database,

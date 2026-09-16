@@ -2,6 +2,17 @@
 
 Budget App is a local-first budgeting application.
 
+## Scoped persistence invalidation
+
+Committed SQLite changes carry typed budget/domain/entity/month invalidation
+metadata to interested projections. Budget-month and register readers refresh
+only when their declared dependency scope matches. Whole-budget database
+replacement deliberately uses broad same-budget invalidation. See
+[`architecture/reactive-persistence-updates.md`](./architecture/reactive-persistence-updates.md).
+
+Persistence change events are invalidation metadata only—not financial state, a
+canonical event log, or a replication protocol. SQLite remains authoritative.
+
 The web application initializes its persistence runtime before loading the main
 React application. Financial and register data are stored locally in SQLite and
 synchronized through the local-first relay architecture.
@@ -66,3 +77,15 @@ an independent financial authority.
 
 UI code orchestrates workflows but must not duplicate persistence or financial
 rules.
+# Local command boundary
+
+Ordinary SQLite writes enter through `LocalBudgetEngine`; reads enter through
+`LocalBudgetQueryClient`. The engine-owned `LocalBudgetCommandExecutor` runs the
+typed domain handler, receives its explicit `CommittedCommandHandlerResult`
+after the atomic worker commit, constructs a `LocalBudgetCommandResult`, and
+emits one unioned persistence change. React
+callers receive the legacy domain value unwrapped by the thin typed method.
+
+`LocalBudgetMutation` is an internal persistence and replication format, not
+the application command API. `PersistenceChangeScope` is invalidation metadata,
+not canonical financial state; SQLite remains authoritative.

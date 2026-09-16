@@ -30,7 +30,7 @@ import {
 import type { RegisterSplitLineView } from "../../features/accounts/accountRegisterTypes";
 import { getSplitBalanceStatus } from "../../features/accounts/registerSplitDrafts";
 import { getBudgetPersistenceProvider } from "../../features/persistence";
-import { usePersistenceChangeVersion } from "../../features/persistence/persistenceChangeBus";
+import { usePersistenceChange } from "../../features/persistence/persistenceChangeBus";
 import type { SidebarAccount } from "../../features/accounts/accountService";
 import type { PayeeView } from "../../features/accounts/payeeService";
 import { PayeeInput } from "../../features/accounts/components/PayeeInput";
@@ -119,7 +119,7 @@ export function ScheduledTransactionsPanel({
   const scheduledTransactionsPersistence = getBudgetPersistenceProvider().scheduledTransactions;
   const { createSchedule, editSchedule, deleteSchedule, enterSchedule } =
     useScheduledTransactionHistory(budgetId, accountId);
-  const persistenceChangeVersion = usePersistenceChangeVersion();
+  const persistenceChangeVersion = usePersistenceChange({ budgetId: budgetId ?? "legacy", accountId, domains: ["scheduled-transactions", "transactions", "categories"] });
   const dateFormat = useDateFormatPreference();
   const [scheduledTransactions, setScheduledTransactions] = useState<ScheduledTransactionView[]>([]);
   const [draft, setDraft] = useState<ScheduledFormDraft | null>(null);

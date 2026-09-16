@@ -49,7 +49,7 @@ function harness() {
     async updateCategoryGroupNote(input: any) { budgetView.categoryGroups.find(({ id }) => id === input.groupId)!.note = input.note; return budgetView; },
     async setCategoryOverspendingHandling(input: any) { budgetView.categoryGroups.flatMap(({ categories }) => categories).find(({ id }) => id === input.categoryId)!.overspendingHandling = input.overspendingHandling; return budgetView; },
   };
-  const persistence = { accountRegisterQueries: queries, categories } as unknown as BudgetPersistenceProvider;
+  const persistence = { accountRegisterQueries: queries, localBudgetEngine: queries, categories } as unknown as BudgetPersistenceProvider;
   const service = new ApplicationHistoryService<ApplicationHistoryContext>({ getContext: (id) => ({ budgetId: id, persistence }) });
   return { service, accounts, getView: () => budgetView, setView: (next: BudgetMonthView) => { budgetView = next; } };
 }

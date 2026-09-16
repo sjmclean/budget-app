@@ -31,7 +31,9 @@ export type { LocalDatabasePersistenceProviderOptions } from "./localDatabasePer
 export type {
   AccountNavigation,
   AccountRegisterBootstrap,
-  AccountRegisterQueryClient,
+  LocalBudgetQueryClient,
+  LocalBudgetEngine,
+  LocalBudgetCommandResult,
   BudgetEngineStatus,
   BudgetRestoreResult,
   CategoryMutation,

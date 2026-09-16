@@ -23,7 +23,6 @@ import {
   type GoalRecommendedAssignmentResult,
 } from "./goalRecommendedAssignment";
 import type { UndoRedoResult } from "../history";
-import { getPersistenceChangeVersion } from "../persistence/persistenceChangeBus";
 
 interface UseBudgetWorkspaceState {
   data: BudgetMonthView | null;
@@ -153,7 +152,7 @@ export function useBudgetWorkspace(
   function setEditedData(nextData: BudgetMonthView | null): void {
     setEditedDataState(nextData ? {
       data: nextData,
-      persistenceVersion: getPersistenceChangeVersion(),
+      persistenceVersion: budgetView.dataVersion,
     } : null);
   }
 

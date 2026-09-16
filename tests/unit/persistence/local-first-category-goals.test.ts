@@ -13,7 +13,7 @@ import {
   type LocalCategoryGoalRow,
 } from "../../../apps/web/src/features/persistence/localFirst/categoryGoalPersistence.js";
 import { LOCAL_REGISTER_SCHEMA_SQL } from "../../../apps/web/src/features/persistence/localFirst/registerSchema.js";
-import { getPersistenceChangeVersion } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
+import { flushPersistenceChanges, subscribePersistenceChanges } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
 import { ApplicationHistoryService, type ApplicationHistoryContext } from "../../../apps/web/src/features/history/applicationHistory.js";
 import { createCategoryGoalCommand, updateCategoryGoalCommand } from "../../../apps/web/src/features/history/commands/management/categoryGoalCommands.js";
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.js";
@@ -276,7 +276,8 @@ test("remote Goal application rejects malformed state atomically without local s
   try {
     applyRemoteGoal(db, "upsert", goal());
     const before = readGoal(db, "budget-1", "category-1");
-    const notificationBefore = getPersistenceChangeVersion();
+    let notifications = 0;
+    const unsubscribe = subscribePersistenceChanges(() => { notifications += 1; });
     const invalid: CategoryGoal[] = [
       goal({ type: "unsupported" as CategoryGoal["type"] }),
       goal({ targetAmount: 0 }), goal({ targetAmount: -1 }),
@@ -291,7 +292,9 @@ test("remote Goal application rejects malformed state atomically without local s
     for (const value of invalid) assert.throws(() => applyRemoteGoal(db, "upsert", value));
     assert.deepEqual(readGoal(db, "budget-1", "category-1"), before);
     assert.equal((db.prepare("SELECT COUNT(*) AS count FROM local_category_goals").get() as { count: number }).count, 1);
-    assert.equal(getPersistenceChangeVersion(), notificationBefore);
+    flushPersistenceChanges();
+    assert.equal(notifications, 0);
+    unsubscribe();
   } finally { db.close(); }
 });
 
@@ -353,7 +356,11 @@ test("application history commands round-trip through physical SQLite Goal state
         return replaceExactGoal(db, input.expected, input.replacement);
       },
     };
-    const persistence = { categoryGoals } as unknown as BudgetPersistenceProvider;
+    const persistence = {
+      accountRegisterQueries: categoryGoals,
+      categoryGoals,
+      localBudgetEngine: categoryGoals,
+    } as unknown as BudgetPersistenceProvider;
     const history = new ApplicationHistoryService<ApplicationHistoryContext>({
       getContext: (budgetId) => ({ budgetId, persistence }),
     });
@@ -410,20 +417,20 @@ test("physical Goal and Budget month records compose into BudgetCategoryView.goa
   } finally { db.close(); }
 });
 
-test("Goal mutation notification publishes only after a successful durable action", async () => {
-  const before = getPersistenceChangeVersion();
+test("Goal mutation handler records change metadata only after a successful durable action", async () => {
+  let committedChanges = 0;
   let committed = false;
   await commitCategoryGoalMutation("budget-1", async () => {
     committed = true;
     return "written";
-  });
+  }, undefined, "category-1", () => { committedChanges += 1; });
   assert.equal(committed, true);
-  assert.equal(getPersistenceChangeVersion(), before + 1);
+  assert.equal(committedChanges, 1);
 
   await assert.rejects(() => commitCategoryGoalMutation("budget-1", async () => {
     throw new Error("rollback");
-  }), /rollback/);
-  assert.equal(getPersistenceChangeVersion(), before + 1);
+  }, undefined, "category-1", () => { committedChanges += 1; }), /rollback/);
+  assert.equal(committedChanges, 1);
 });
 
 test("worker routes Category Goals through transactional local-first operations", () => {

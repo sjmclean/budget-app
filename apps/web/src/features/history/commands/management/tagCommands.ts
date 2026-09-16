@@ -15,13 +15,13 @@ export function replaceTransactionTagsCommand(input: {
       if (!queries) throw new Error("Tag history requires authoritative SQLite persistence.");
       before = await queries.listTransactionTags(context.budgetId);
       after = input.mutate(before).map((tag) => ({ ...tag }));
-      await queries.replaceTransactionTagsHistoryState({ budgetId: context.budgetId, expected: before, replacement: after });
+      await context.persistence.localBudgetEngine!.replaceTransactionTagsHistoryState({ budgetId: context.budgetId, expected: before, replacement: after });
     },
     async undo(context) {
-      await context.persistence.accountRegisterQueries!.replaceTransactionTagsHistoryState({ budgetId: context.budgetId, expected: after, replacement: before });
+      await context.persistence.localBudgetEngine!.replaceTransactionTagsHistoryState({ budgetId: context.budgetId, expected: after, replacement: before });
     },
     async redo(context) {
-      await context.persistence.accountRegisterQueries!.replaceTransactionTagsHistoryState({ budgetId: context.budgetId, expected: before, replacement: after });
+      await context.persistence.localBudgetEngine!.replaceTransactionTagsHistoryState({ budgetId: context.budgetId, expected: before, replacement: after });
     },
   };
 }

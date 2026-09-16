@@ -38,7 +38,7 @@ function harness(fileType: "csv" | "qif" | "ofx" | "qfx" = "qif") {
       current = structuredClone(input.replacement);
     },
   };
-  const persistence = { accountRegisterQueries: queries } as unknown as BudgetPersistenceProvider;
+  const persistence = { accountRegisterQueries: queries, localBudgetEngine: queries } as unknown as BudgetPersistenceProvider;
   const history = new ApplicationHistoryService<ApplicationHistoryContext>({ getContext: () => ({ budgetId, persistence }) });
   const command = createImportTransactionsCommand({ budgetId, accountId,
     additions: [{ id: "added", budgetId, accountId, date: "2026-08-23", amount: -1234 }],
@@ -81,7 +81,7 @@ test("additions-only and matched-only batches each produce one correctly counted
       async commitImportBatchWithHistory() { return { before: empty, after: post }; },
       async replaceImportHistorySnapshot() {},
     };
-    const persistence = { accountRegisterQueries: queries } as unknown as BudgetPersistenceProvider;
+    const persistence = { accountRegisterQueries: queries, localBudgetEngine: queries } as unknown as BudgetPersistenceProvider;
     const history = new ApplicationHistoryService<ApplicationHistoryContext>({ getContext: () => ({ budgetId, persistence }) });
     await history.execute(budgetId, createImportTransactionsCommand({ budgetId, accountId,
       additions: kind === "addition" ? [{ id: "added", budgetId, accountId, date: "2026-08-23", amount: -1 }] : [],
@@ -131,7 +131,7 @@ test("duplicate-payee suppression uses exact before/after replacement", async ()
       pairs = structuredClone(input.replacement);
     },
   };
-  const persistence = { accountRegisterQueries: queries } as unknown as BudgetPersistenceProvider;
+  const persistence = { accountRegisterQueries: queries, localBudgetEngine: queries } as unknown as BudgetPersistenceProvider;
   const history = new ApplicationHistoryService<ApplicationHistoryContext>({ getContext: () => ({ budgetId, persistence }) });
   await history.execute(budgetId, keepPayeesSeparateCommand([{ leftPayeeId: "a", rightPayeeId: "c" }]));
   assert.equal(history.getSnapshot(budgetId).undoLabel, "Keep payees separate");
