@@ -103,11 +103,16 @@ without relying on cached results.
 The local runtime serialises ordinary commands through
 `LocalBudgetCommandExecutor`. `LocalBudgetMutationContext` allocates mutation
 IDs, persisted device sequences, base cursors, sync epochs, and group metadata
-while the command is active. `LocalBudgetCommandContext` combines those IDs
-with handler-recorded impact into an explicit `CommittedCommandHandlerResult`
-only after the worker has committed canonical rows and outbox rows atomically.
-The executor consumes that value and publishes its unioned scope once. A thrown
+while the command is active. The current transitional flow is: domain operation
+records command-scoped mutations and change impact; the worker commits canonical
+rows and outbox rows atomically; `createDomainCommandHandler` asks
+`LocalBudgetCommandContext` to produce a `CommittedCommandHandlerResult`; the
+executor consumes that value and publishes its unioned scope once. A thrown
 worker operation produces no committed result and publishes nothing.
+
+The target still to be completed is for domain handlers to return committed
+metadata directly, without a recorder-only completion path. The command-scoped
+recorder remains until P0.3e4.
 
 Remote mutation application and database restore/reset remain separate paths;
 remote apply must not create local outbox mutations.

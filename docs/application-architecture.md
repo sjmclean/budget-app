@@ -81,10 +81,16 @@ rules.
 
 Ordinary SQLite writes enter through `LocalBudgetEngine`; reads enter through
 `LocalBudgetQueryClient`. The engine-owned `LocalBudgetCommandExecutor` runs the
-typed domain handler, receives its explicit `CommittedCommandHandlerResult`
-after the atomic worker commit, constructs a `LocalBudgetCommandResult`, and
-emits one unioned persistence change. React
+typed domain handler. During the current migration, the domain operation records
+mutation and change metadata in command-scoped contexts after its atomic worker
+commit; `createDomainCommandHandler` then produces the
+`CommittedCommandHandlerResult`. The executor constructs a
+`LocalBudgetCommandResult` and emits one unioned persistence change. React
 callers receive the legacy domain value unwrapped by the thin typed method.
+
+The remaining target is for each domain handler to return committed metadata
+directly, with no recorder-only completion path. That recorder removal is not
+yet complete.
 
 `LocalBudgetMutation` is an internal persistence and replication format, not
 the application command API. `PersistenceChangeScope` is invalidation metadata,

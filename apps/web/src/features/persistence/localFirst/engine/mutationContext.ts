@@ -74,6 +74,11 @@ export class LocalBudgetMutationContext {
     return committed;
   }
 
+  discardFailedMutation(mutationId: string): void {
+    if (!this.#activeMutationIds) throw new Error("No local budget command is active.");
+    this.#activeMutationIds = this.#activeMutationIds.filter((id) => id !== mutationId);
+  }
+
   abortCommand(): void {
     this.#activeMutationIds = null;
   }

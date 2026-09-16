@@ -555,8 +555,8 @@ export function createLocalBudgetRuntime(
   });
   const accountCommands = createAccountCommands({
     requireDatabase,
-    synchronise,
     createMutation: mutation,
+    discardFailedMutation: mutationContext.discardFailedMutation.bind(mutationContext),
     recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
 

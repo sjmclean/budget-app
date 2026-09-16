@@ -36,10 +36,14 @@ Run `pnpm docs:architecture:check` before committing documentation changes.
 
 - Query: feature → `LocalBudgetQueryClient` → typed worker read → SQLite.
 - Command: feature → `LocalBudgetEngine` → `LocalBudgetCommandExecutor` →
-  domain handler → typed worker commit → `CommittedCommandHandlerResult` →
+  domain operation → command-scoped mutation/change recording → typed worker
+  commit → `createDomainCommandHandler` → `CommittedCommandHandlerResult` →
   `LocalBudgetCommandResult` → one scoped invalidation.
 - Replication: relay → remote apply → SQLite commit → remote invalidation.
 - Lifecycle: restore/reset/open/close stays outside the ordinary command API.
+
+Direct committed-metadata returns from domain handlers, with no recorder-only
+completion path, remain a later migration step.
 
 See `local-budget-engine-command-inventory.md` for the disposition of the 47
 original mutation entry points.

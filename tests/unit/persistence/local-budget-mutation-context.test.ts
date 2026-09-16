@@ -48,3 +48,15 @@ test("engine mutation context preserves one group identity across ordered member
   assert.equal(second.operationGroupId, "group-a");
   assert.deepEqual([first.deviceSequence, second.deviceSequence], [1, 2]);
 });
+
+test("engine mutation context can exclude an expected rejected worker mutation from a successful domain result", () => {
+  const runtime = new LocalBudgetMutationContext({
+    storage: memoryStorage(), deviceId: "device-a",
+    currentSyncEpoch: () => "epoch-a", currentBaseCursor: () => 0,
+  });
+  runtime.beginCommand();
+  const rejected = runtime.createMutation("budget-a", "accounts", "account-a", "delete", null);
+  runtime.discardFailedMutation(rejected.mutationId);
+  assert.deepEqual(runtime.commitCommand(), []);
+  assert.equal(rejected.deviceSequence, 1, "the failed worker attempt may leave a monotonic sequence gap");
+});

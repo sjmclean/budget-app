@@ -59,7 +59,30 @@ Queries remain a separate path through a read-only local budget query client.
 `LocalBudgetMutation` remains an internal replication/persistence format and is
 not an application command.
 
-## Final dispositions
+## Current checkpoint: routing versus physical extraction
+
+### Public routing
+
+All 47 ordinary entry points in the operation matrix are typed
+`LocalBudgetEngine` methods and execute through `LocalBudgetCommandExecutor`.
+This is a routing statement only: it does not mean that every implementation
+has moved out of `localFirstAccountRegisterClient.ts`.
+
+### Physical domain extraction
+
+- Transactions and transfers: complete in `engine/transactionCommands.ts` and
+  `engine/transactionCommandHelpers.ts`.
+- Accounts: complete in `engine/accountCommands.ts`.
+- Transaction tags: complete in `engine/tagCommands.ts`.
+- Attachments: complete in `engine/attachmentCommands.ts`.
+- Still runtime-owned: budget/category commands, goals, payees, scheduled
+  transactions, remaining history/import commands, and keep-local conflict
+  replay.
+
+The runtime-owned families are routed through the engine/executor boundary but
+have not yet been physically extracted into domain command modules.
+
+## Extracted dispositions
 
 ### Extracted transaction handlers
 
@@ -94,27 +117,26 @@ continues to be transaction-owned. All ordinary account writes, account record
 construction, and account impact selection are owned by
 `engine/accountCommands.ts`.
 
-All 47 ordinary entry points in the operation matrix are typed
-`LocalBudgetEngine` methods and execute through `LocalBudgetCommandExecutor`.
-Their domain return values are preserved, while the executor internally creates
-the public result envelope from an explicit `CommittedCommandHandlerResult` and
-owns the single local publication. `LocalBudgetMutationContext` allocates
-replication metadata; it no longer acts as the executor's completion result.
+Their domain return values are preserved. At this checkpoint, domain operations
+record mutation IDs and change impact in command-scoped contexts;
+`createDomainCommandHandler` converts that recorded state into a
+`CommittedCommandHandlerResult`, and the executor owns the single local
+publication. Direct committed metadata returns from every domain handler remain
+the P0.3e4 target after the transitional recorder is removed.
 
-| Original family | Final disposition |
-| --- | --- |
-| Transaction create/update/delete/move/clear | Engine command; grouped transfer members share one executor completion |
-| Transaction and import batch | Engine batch command; existing bounded atomic worker request retained |
-| Attachments | Engine command for replicated metadata and bytes; binary read remains query-only |
-| Accounts | Engine command, including exact history replacement |
-| Budget month and category | Engine command; carry-forward impact is retained |
-| Category goals | Engine command; persistence helper records committed impact only |
-| Payees | Engine command; merge and suppression retain atomic worker primitives |
-| Transaction tags | Engine command and exact history command |
-| Scheduled transactions | Engine command; materialisation remains one grouped logical command |
-| History operations | Engine command using specialised atomic worker primitives |
-| Conflict keep-local | Engine-executed replay; accept-remote remains replication-owned |
+| Original family | Public routing | Physical implementation owner |
+| --- | --- | --- |
+| Transaction create/update/delete/move/clear | Engine/executor | Extracted transaction modules |
+| Transaction batch | Engine/executor | Extracted transaction modules |
+| Import batch and remaining import history | Engine/executor | Runtime-owned |
+| Attachments | Engine/executor | Extracted attachment module; binary read remains query-only |
+| Accounts | Engine/executor | Extracted account module, including exact history replacement |
+| Budget month and category | Engine/executor | Runtime-owned |
+| Category goals | Engine/executor | Runtime-owned |
+| Payees | Engine/executor | Runtime-owned |
+| Transaction tags | Engine/executor | Extracted tag module |
+| Scheduled transactions | Engine/executor | Runtime-owned |
+| Remaining history operations | Engine/executor | Runtime-owned |
+| Conflict keep-local | Engine/executor | Runtime-owned; accept-remote remains replication-owned |
 | Remote apply | Replication exception; never creates local outbox rows |
 | Restore/reset/open/close/baseline replacement | Lifecycle exception |
-
-There are no unresolved ordinary-write dispositions.

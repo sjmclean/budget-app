@@ -140,4 +140,6 @@ test("all ordinary account implementations are engine-module owned", () => {
     /local\.(?:writeAccount|deleteAccount|replaceAccountHistoryState)\s*\(/,
   );
   assert.doesNotMatch(runtime, /function listLocalAccounts\s*\(/);
+  assert.doesNotMatch(commands, /\bsynchronise\b/);
+  assert.match(commands, /discardFailedMutation\(mutation\.mutationId\)/);
 });

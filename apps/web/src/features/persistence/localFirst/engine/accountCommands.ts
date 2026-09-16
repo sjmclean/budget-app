@@ -25,8 +25,8 @@ type CreateMutation = (
 
 export interface AccountCommandDependencies {
   readonly requireDatabase: (budgetId: string) => Promise<LocalBudgetDatabaseClient>;
-  readonly synchronise: (budgetId: string) => Promise<void>;
   readonly createMutation: CreateMutation;
+  readonly discardFailedMutation: (mutationId: string) => void;
   readonly recordCommittedChange: (
     budgetId: string,
     change: Omit<PersistenceChangeScope, "budgetId">,
@@ -49,7 +49,6 @@ async function listLocalAccounts(local: LocalBudgetDatabaseClient, budgetId: str
 export function createAccountCommands(dependencies: AccountCommandDependencies): AccountCommands {
   return {
     async createAccount(budgetId, input) {
-      await dependencies.synchronise(budgetId);
       const local = await dependencies.requireDatabase(budgetId);
       const navigation = await local.listAccountNavigation(budgetId);
       const currencyCode = navigation[0]?.currencyCode ?? "AUD";
@@ -152,11 +151,12 @@ export function createAccountCommands(dependencies: AccountCommandDependencies):
 
     async deleteAccount(budgetId, accountId) {
       const local = await dependencies.requireDatabase(budgetId);
+      const mutation = dependencies.createMutation(budgetId, "accounts", accountId, "delete", null);
       try {
         await local.deleteAccount(
           budgetId,
           accountId,
-          dependencies.createMutation(budgetId, "accounts", accountId, "delete", null),
+          mutation,
         );
         dependencies.recordCommittedChange(budgetId, {
           domains: ["accounts", "budget"],
@@ -165,7 +165,7 @@ export function createAccountCommands(dependencies: AccountCommandDependencies):
         return { deleted: true, accounts: [...await listLocalAccounts(local, budgetId)] };
       } catch (error) {
         if ((error as { code?: string }).code !== "ACCOUNT_NOT_EMPTY") throw error;
-        await dependencies.synchronise(budgetId);
+        dependencies.discardFailedMutation(mutation.mutationId);
         return {
           deleted: false,
           reason: "This account contains transactions and cannot be deleted.",

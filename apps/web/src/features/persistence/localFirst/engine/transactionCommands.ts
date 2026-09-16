@@ -1,6 +1,6 @@
 import type { LocalBudgetRuntimeClient } from "../../accountRegisterQueryContracts";
 import type { PersistenceChangeScope } from "../../persistenceChangeBus";
-import type { LocalBudgetMutation, LocalBudgetOperationGroup } from "../contracts";
+import type { LocalBudgetOperationGroup } from "../contracts";
 import type { LocalBudgetDatabaseClient } from "../localBudgetClient";
 import type { LocalTransactionRecord } from "../registerSchema";
 import { persistenceScopeForMutations } from "../mutationEvents";
@@ -90,7 +90,7 @@ export function createTransactionCommands(
 
     async moveTransactions(input) {
       const local = await dependencies.requireDatabase(input.budgetId);
-      const writes: { transaction: LocalTransactionRecord; mutation: LocalBudgetMutation }[] = [];
+      const records: LocalTransactionRecord[] = [];
       const previousRecords: LocalTransactionRecord[] = [];
       for (const transactionId of input.transactionIds) {
         const existing = await local.getTransaction(input.budgetId, transactionId);
@@ -108,29 +108,18 @@ export function createTransactionCommands(
         const updatedAt = new Date().toISOString();
         const record: LocalTransactionRecord = { ...existing, accountId: input.targetAccountId, updatedAt };
         if (!counterpart) {
-          writes.push({
-            transaction: record,
-            mutation: dependencies.createMutation(input.budgetId, "transactions", transactionId, "upsert", record),
-          });
+          records.push(record);
           continue;
         }
         const counterpartRecord: LocalTransactionRecord = { ...counterpart, transferAccountId: input.targetAccountId, updatedAt };
-        const operationGroupId = createRuntimeUuid();
-        const operationGroup: LocalBudgetOperationGroup = {
-          members: [record, counterpartRecord].map((transaction) => ({
-            domain: "transactions", entityId: transaction.id, operation: "upsert", payload: transaction,
-          })),
-        };
-        writes.push(
-          { transaction: record, mutation: dependencies.createMutation(input.budgetId, "transactions", record.id, "upsert", record, operationGroupId, operationGroup) },
-          { transaction: counterpartRecord, mutation: dependencies.createMutation(input.budgetId, "transactions", counterpartRecord.id, "upsert", counterpartRecord, operationGroupId, operationGroup) },
-        );
+        records.push(record, counterpartRecord);
       }
+      const writes = transactionWritesAsSingleOperationGroup(dependencies.createMutation, records);
       await local.writeTransactionBatch(
-        transactionWritesAsSingleOperationGroup(dependencies.createMutation, writes.map(({ transaction }) => transaction)),
+        writes,
       );
       if (writes.length > 0) {
-        dependencies.recordTransactionsCommitted(input.budgetId, previousRecords, writes.map(({ transaction }) => transaction));
+        dependencies.recordTransactionsCommitted(input.budgetId, previousRecords, records);
       }
     },
 
