@@ -23,12 +23,13 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          from textwrap import dedent
+          import re
 
           root = Path('.')
           module = root / 'apps/web/src/features/persistence/localFirst/engine/categoryGoalCommands.ts'
-          if module.exists():
-              raise SystemExit('categoryGoalCommands.ts already exists')
-          module.write_text('''import type { LocalBudgetRuntimeClient } from "../../accountRegisterQueryContracts";
+          module.write_text(dedent('''\
+          import type { LocalBudgetRuntimeClient } from "../../accountRegisterQueryContracts";
           import type { PersistenceChangeScope } from "../../persistenceChangeBus";
           import {
             categoryGoalsEqual,
@@ -86,11 +87,7 @@ jobs:
                     "create",
                     canonical,
                     dependencies.createMutation(
-                      goal.budgetId,
-                      "categoryGoals",
-                      goal.categoryId,
-                      "upsert",
-                      canonical,
+                      goal.budgetId, "categoryGoals", goal.categoryId, "upsert", canonical,
                     ),
                   ),
                   undefined,
@@ -108,11 +105,7 @@ jobs:
                     "update",
                     canonical,
                     dependencies.createMutation(
-                      goal.budgetId,
-                      "categoryGoals",
-                      goal.categoryId,
-                      "upsert",
-                      canonical,
+                      goal.budgetId, "categoryGoals", goal.categoryId, "upsert", canonical,
                     ),
                   ),
                   undefined,
@@ -129,11 +122,7 @@ jobs:
                     input.budgetId,
                     input.categoryId,
                     dependencies.createMutation(
-                      input.budgetId,
-                      "categoryGoals",
-                      input.categoryId,
-                      "delete",
-                      null,
+                      input.budgetId, "categoryGoals", input.categoryId, "delete", null,
                     ),
                   ),
                   (result) => result !== null,
@@ -167,55 +156,51 @@ jobs:
               },
             };
           }
-          '''.replace('          ', ''))
+          '''))
 
           runtime_path = root / 'apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts'
           runtime = runtime_path.read_text()
-          old_goal_import = '''import {
-            categoryGoalsEqual,
-            commitCategoryGoalMutation,
-            normaliseCategoryGoalForPersistence,
-          } from "./categoryGoalPersistence";
-          '''.replace('          ', '')
-          if runtime.count(old_goal_import) != 1:
-              raise SystemExit('Expected one runtime Category Goal helper import')
-          runtime = runtime.replace(old_goal_import, '', 1)
-
+          runtime, count = re.subn(
+              r'import \{\n\s*categoryGoalsEqual,\n\s*commitCategoryGoalMutation,\n\s*normaliseCategoryGoalForPersistence,\n\} from "\./categoryGoalPersistence";\n',
+              '', runtime, count=1,
+          )
+          assert count == 1, 'Category Goal helper import was not removed'
           anchor = 'import { createBudgetCategoryCommands } from "./engine/budgetCategoryCommands";\n'
-          replacement = anchor + 'import { createCategoryGoalCommands } from "./engine/categoryGoalCommands";\n'
-          if runtime.count(anchor) != 1:
-              raise SystemExit('Expected budgetCategoryCommands import anchor')
-          runtime = runtime.replace(anchor, replacement, 1)
-
-          constructor_anchor = '''  const budgetCategoryCommands = createBudgetCategoryCommands({
+          assert anchor in runtime, 'budgetCategoryCommands import anchor missing'
+          runtime = runtime.replace(
+              anchor,
+              anchor + 'import { createCategoryGoalCommands } from "./engine/categoryGoalCommands";\n',
+              1,
+          )
+          constructor = '''  const budgetCategoryCommands = createBudgetCategoryCommands({
             requireDatabase,
             createMutation: mutation,
             recordCommittedChange: notifyLocalFirstMutationCommitted,
           });
           '''.replace('          ', '')
-          constructor_replacement = constructor_anchor + '''  const categoryGoalCommands = createCategoryGoalCommands({
-            requireDatabase,
-            createMutation: mutation,
-            recordCommittedChange: notifyLocalFirstMutationCommitted,
-          });
-          '''.replace('          ', '')
-          if runtime.count(constructor_anchor) != 1:
-              raise SystemExit('Expected budget/category constructor anchor')
-          runtime = runtime.replace(constructor_anchor, constructor_replacement, 1)
-
+          assert constructor in runtime, 'budgetCategoryCommands constructor missing'
+          runtime = runtime.replace(
+              constructor,
+              constructor + '''  const categoryGoalCommands = createCategoryGoalCommands({
+                requireDatabase,
+                createMutation: mutation,
+                recordCommittedChange: notifyLocalFirstMutationCommitted,
+              });
+              '''.replace('              ', ''),
+              1,
+          )
           start = runtime.index('    async createCategoryGoal(goal) {')
           end = runtime.index('    createAccount: accountCommands.createAccount,', start)
-          delegates = '''    createCategoryGoal: categoryGoalCommands.createCategoryGoal,
+          runtime = runtime[:start] + '''    createCategoryGoal: categoryGoalCommands.createCategoryGoal,
               updateCategoryGoal: categoryGoalCommands.updateCategoryGoal,
               deleteCategoryGoal: categoryGoalCommands.deleteCategoryGoal,
               replaceCategoryGoalHistoryState: categoryGoalCommands.replaceCategoryGoalHistoryState,
-          '''.replace('          ', '')
-          runtime = runtime[:start] + delegates + runtime[end:]
+          '''.replace('          ', '') + runtime[end:]
           runtime_path.write_text(runtime)
 
           boundary_path = root / 'tests/unit/persistence/local-budget-engine-boundary.test.ts'
           boundary = boundary_path.read_text()
-          boundary += '''
+          boundary += dedent('''\
 
           test("all ordinary Category Goal implementations are engine-module owned", () => {
             const runtime = readFileSync(resolve(root, "features/persistence/localFirst/localFirstAccountRegisterClient.ts"), "utf8");
@@ -236,11 +221,12 @@ jobs:
             assert.match(commands, /local\\.replaceCategoryGoalHistoryState\\s*\\(/);
             assert.doesNotMatch(commands, /\\bsynchronise\\b/);
           });
-          '''.replace('          ', '')
+          '''))
           boundary_path.write_text(boundary)
 
           integrity = root / 'tests/unit/persistence/category-goal-command-integrity.test.ts'
-          integrity.write_text('''import assert from "node:assert/strict";
+          integrity.write_text(dedent('''\
+          import assert from "node:assert/strict";
           import test from "node:test";
           import type { CategoryGoal } from "../../../packages/types/src/CategoryGoal.js";
           import { flushPersistenceChanges, subscribePersistenceChanges } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
@@ -255,12 +241,8 @@ jobs:
           const budgetId = "budget-a";
           const categoryId = "category-a";
           const goal: CategoryGoal = {
-            id: "goal-a",
-            budgetId,
-            categoryId,
-            type: "monthly-funding",
-            targetAmount: 125,
-            targetMonth: null,
+            id: "goal-a", budgetId, categoryId, type: "monthly-funding",
+            targetAmount: 125, targetMonth: null,
             createdAt: "2026-09-01T00:00:00.000Z",
             updatedAt: "2026-09-01T00:00:00.000Z",
           };
@@ -288,12 +270,15 @@ jobs:
                 return structuredClone(input.replacement);
               },
             } as unknown as LocalBudgetDatabaseClient;
-            const commands = createCategoryGoalCommands({
-              requireDatabase: async () => database,
-              createMutation: mutations.createMutation.bind(mutations),
-              recordCommittedChange: context.recordCommittedChange.bind(context),
-            });
-            return { committed, commands, context };
+            return {
+              committed,
+              context,
+              commands: createCategoryGoalCommands({
+                requireDatabase: async () => database,
+                createMutation: mutations.createMutation.bind(mutations),
+                recordCommittedChange: context.recordCommittedChange.bind(context),
+              }),
+            };
           }
 
           async function execute<T>(context: LocalBudgetCommandContext, operation: () => Promise<T>) {
@@ -301,17 +286,14 @@ jobs:
             const unsubscribe = subscribePersistenceChanges(() => { publications += 1; });
             try {
               const result = await new LocalBudgetCommandExecutor().execute(
-                "goal:test",
-                createDomainCommandHandler({ budgetId, context, operation }),
+                "goal:test", createDomainCommandHandler({ budgetId, context, operation }),
               );
               flushPersistenceChanges();
               return { result, publications };
-            } finally {
-              unsubscribe();
-            }
+            } finally { unsubscribe(); }
           }
 
-          test("Category Goal command result contains exactly the committed mutation and scoped impact", async () => {
+          test("Category Goal result contains exactly the committed mutation and scoped impact", async () => {
             const state = harness();
             const executed = await execute(state.context, () => state.commands.createCategoryGoal(goal));
             assert.deepEqual(executed.result.mutationIds, state.committed.map(({ mutationId }) => mutationId));
@@ -321,7 +303,7 @@ jobs:
             assert.equal(executed.publications, 1);
           });
 
-          test("Category Goal worker failure returns no result and publishes nothing", async () => {
+          test("Category Goal worker failure publishes nothing", async () => {
             const state = harness({ failWrite: true });
             let publications = 0;
             const unsubscribe = subscribePersistenceChanges(() => { publications += 1; });
@@ -329,8 +311,7 @@ jobs:
               () => new LocalBudgetCommandExecutor().execute(
                 "goal:failed",
                 createDomainCommandHandler({
-                  budgetId,
-                  context: state.context,
+                  budgetId, context: state.context,
                   operation: () => state.commands.createCategoryGoal(goal),
                 }),
               ),
@@ -341,36 +322,23 @@ jobs:
             assert.equal(state.committed.length, 0);
             assert.equal(publications, 0);
           });
-          '''.replace('          ', ''))
+          '''))
 
           inventory_path = root / 'docs/architecture/local-budget-engine-command-inventory.md'
           inventory = inventory_path.read_text()
+          old = '- Still runtime-owned: goals, payees, scheduled transactions, remaining\n  history/import commands, and keep-local conflict replay.'
+          assert old in inventory, 'inventory runtime-owned line missing'
           inventory = inventory.replace(
-              '- Budget months and categories: complete in\n  `engine/budgetCategoryCommands.ts` and `engine/categoryCommandHelpers.ts`.\n- Still runtime-owned: goals, payees, scheduled transactions, remaining\n  history/import commands, and keep-local conflict replay.',
-              '- Budget months and categories: complete in\n  `engine/budgetCategoryCommands.ts` and `engine/categoryCommandHelpers.ts`.\n- Category goals: complete in `engine/categoryGoalCommands.ts`.\n- Still runtime-owned: payees, scheduled transactions, remaining history/import\n  commands, and keep-local conflict replay.',
+              old,
+              '- Category goals: complete in `engine/categoryGoalCommands.ts`.\n'
+              '- Still runtime-owned: payees, scheduled transactions, remaining history/import\n'
+              '  commands, and keep-local conflict replay.',
+              1,
           )
           inventory = inventory.replace(
               '| Category goals | Engine/executor | Runtime-owned |',
-              '| Category goals | Engine/executor | Extracted Category Goal module |',
+              '| Category goals | Engine/executor | Extracted Category Goal module |', 1,
           )
-          marker = 'Their domain return values are preserved. At this checkpoint, domain operations\n'
-          section = '''### Extracted Category Goal handlers
-
-          | Command | Final module | Final handler |
-          | --- | --- | --- |
-          | Category Goal create | `engine/categoryGoalCommands.ts` | `createCategoryGoal` |
-          | Category Goal update | `engine/categoryGoalCommands.ts` | `updateCategoryGoal` |
-          | Category Goal delete | `engine/categoryGoalCommands.ts` | `deleteCategoryGoal` |
-          | Exact Category Goal history replacement | `engine/categoryGoalCommands.ts` | `replaceCategoryGoalHistoryState` |
-
-          Category Goal queries remain on the read-only query path. Goal normalization,
-          validation and equality remain shared persistence helpers, while ordinary command
-          orchestration and scoped commit recording are engine-owned.
-
-          '''.replace('          ', '')
-          if marker not in inventory:
-              raise SystemExit('Inventory insertion marker missing')
-          inventory = inventory.replace(marker, section + marker, 1)
           inventory_path.write_text(inventory)
 
       - name: Install pnpm
@@ -386,6 +354,11 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install Chromium and system dependencies
         run: pnpm exec playwright install --with-deps chromium
+      - name: Run focused architecture checks
+        run: |
+          pnpm static:check
+          pnpm typecheck
+          pnpm test:required
       - name: Run canonical verification
         env:
           CI: "1"
