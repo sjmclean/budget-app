@@ -48,11 +48,6 @@ import { publishBroadBudgetChange } from "../persistenceChangeBus";
 import { registerLocalSqliteAttachmentReader } from "../../attachments/localSqliteAttachmentReader";
 import { localPayeeRecordToView } from "./localPayeeView";
 import { validatePayeeIconReferenceForWrite } from "../../icons/payeeIconReference";
-import {
-  categoryGoalsEqual,
-  commitCategoryGoalMutation,
-  normaliseCategoryGoalForPersistence,
-} from "./categoryGoalPersistence";
 import { createBudgetDatabaseOwnership } from "./budgetDatabaseOwnership";
 import { resolveOwnedBudgetId } from "./budgetDatabaseOwnershipRouting";
 import { createRestorePointStore } from "../../budget/restorePointStore";
@@ -69,6 +64,7 @@ import { createAttachmentCommands } from "./engine/attachmentCommands";
 import { createTransactionCommands } from "./engine/transactionCommands";
 import { createAccountCommands } from "./engine/accountCommands";
 import { createBudgetCategoryCommands } from "./engine/budgetCategoryCommands";
+import { createCategoryGoalCommands } from "./engine/categoryGoalCommands";
 import {
   buildNewTransactionRecords,
   prepareTransactionBatchWrites,
@@ -560,6 +556,11 @@ export function createLocalBudgetRuntime(
     recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
   const budgetCategoryCommands = createBudgetCategoryCommands({
+    requireDatabase,
+    createMutation: mutation,
+    recordCommittedChange: notifyLocalFirstMutationCommitted,
+  });
+  const categoryGoalCommands = createCategoryGoalCommands({
     requireDatabase,
     createMutation: mutation,
     recordCommittedChange: notifyLocalFirstMutationCommitted,
@@ -1493,48 +1494,10 @@ export function createLocalBudgetRuntime(
       await synchronise(input.budgetId);
       return (await requireDatabase(input.budgetId)).listCategoryGoals(input.budgetId);
     },
-    async createCategoryGoal(goal) {
-      const local = await requireDatabase(goal.budgetId);
-      const canonical = normaliseCategoryGoalForPersistence(goal);
-      return commitCategoryGoalMutation(goal.budgetId, () => local.writeCategoryGoal(
-        "create", canonical, mutation(goal.budgetId, "categoryGoals", goal.categoryId, "upsert", canonical),
-      ), undefined, goal.categoryId, (budgetId, categoryId) => notifyLocalFirstMutationCommitted(budgetId, {
-        domains: ["goals", "budget"], categoryIds: categoryId ? [categoryId] : undefined,
-      }));
-    },
-    async updateCategoryGoal(goal) {
-      const local = await requireDatabase(goal.budgetId);
-      const canonical = normaliseCategoryGoalForPersistence(goal);
-      return commitCategoryGoalMutation(goal.budgetId, () => local.writeCategoryGoal(
-        "update", canonical, mutation(goal.budgetId, "categoryGoals", goal.categoryId, "upsert", canonical),
-      ), undefined, goal.categoryId, (budgetId, categoryId) => notifyLocalFirstMutationCommitted(budgetId, {
-        domains: ["goals", "budget"], categoryIds: categoryId ? [categoryId] : undefined,
-      }));
-    },
-    async deleteCategoryGoal(input) {
-      const local = await requireDatabase(input.budgetId);
-      return commitCategoryGoalMutation(input.budgetId, () => local.deleteCategoryGoal(
-        input.budgetId, input.categoryId,
-        mutation(input.budgetId, "categoryGoals", input.categoryId, "delete", null),
-      ), (result) => result !== null, input.categoryId, (budgetId, categoryId) => notifyLocalFirstMutationCommitted(budgetId, {
-        domains: ["goals", "budget"], categoryIds: categoryId ? [categoryId] : undefined,
-      }));
-    },
-    async replaceCategoryGoalHistoryState(input) {
-      const local = await requireDatabase(input.budgetId);
-      const replacement = input.replacement
-        ? normaliseCategoryGoalForPersistence(input.replacement)
-        : null;
-      return commitCategoryGoalMutation(input.budgetId, () => local.replaceCategoryGoalHistoryState({
-        ...input, replacement,
-        mutation: mutation(
-          input.budgetId, "categoryGoals", input.categoryId,
-          replacement ? "upsert" : "delete", replacement,
-        ),
-      }), () => !categoryGoalsEqual(input.expected, replacement), input.categoryId, (budgetId, categoryId) => notifyLocalFirstMutationCommitted(budgetId, {
-        domains: ["goals", "budget"], categoryIds: categoryId ? [categoryId] : undefined,
-      }));
-    },
+    createCategoryGoal: categoryGoalCommands.createCategoryGoal,
+    updateCategoryGoal: categoryGoalCommands.updateCategoryGoal,
+    deleteCategoryGoal: categoryGoalCommands.deleteCategoryGoal,
+    replaceCategoryGoalHistoryState: categoryGoalCommands.replaceCategoryGoalHistoryState,
     createAccount: accountCommands.createAccount,
     async captureAccount(budgetId, accountId) {
       await synchronise(budgetId);
