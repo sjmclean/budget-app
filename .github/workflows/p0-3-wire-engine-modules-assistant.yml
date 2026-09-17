@@ -70,7 +70,8 @@ jobs:
               '',
           )
 
-          replace_between('  function encodeBase64(bytes: Uint8Array): string {', '  async function writeEntity(', '')
+          # encodeBase64/decodeBase64 are still needed by keep-local conflict replay.
+          # They move with conflict extraction in the next tranche.
           replace_between('  function scheduledRegisterWrite(', '  async function listPersistedPayees(', '')
           replace_between('  async function listPersistedPayees(', '  const tagCommands = createTagCommands({', '')
           replace_between('  function scheduledHistoryMembers(input: {', '  function journalMutation(value: LocalBudgetMutation) {', '')
