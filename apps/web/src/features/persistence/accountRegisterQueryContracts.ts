@@ -32,6 +32,7 @@ import type {
 } from "../accounts/scheduledTransactionTypes";
 import type { ImportHistorySnapshot, TransactionHistorySnapshot } from "./localFirst/registerSchema";
 import type { CategoryGoal } from "../../../../../packages/types/src/CategoryGoal";
+import type { ReplicationConflict } from "./conflictResolution";
 
 export interface BudgetEngineStatus {
   readonly budgetId: string;
@@ -520,6 +521,14 @@ export type LocalBudgetQueryClient = Omit<LocalBudgetRuntimeClient, LocalBudgetC
 
 /** The sole public application boundary for ordinary local domain writes. */
 export type LocalBudgetEngine = Pick<LocalBudgetRuntimeClient, LocalBudgetCommandMethod>;
+
+/** Narrow replication/recovery surface. It is intentionally separate from
+ * both ordinary commands and the read-only application query client. */
+export interface LocalBudgetConflictRecoveryClient {
+  listSyncConflicts(budgetId: string): Promise<readonly ReplicationConflict[]>;
+  resolveSyncConflict(budgetId: string, conflictId: string,
+    resolution: "keep-local" | "accept-remote"): Promise<void>;
+}
 
 export interface LocalBudgetCommandResult<T> {
   readonly commandId: string;

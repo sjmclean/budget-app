@@ -77,8 +77,19 @@ test("keep-local conflict resolution is committed atomically with replay", () =>
 });
 
 test("keep-local conflict resolution publishes scoped invalidation after replay commit", () => {
+  const start = clientSource.indexOf("async resolveSyncConflict(budgetId, conflictId, resolution)");
+  const end = clientSource.indexOf("\n    async ", start + 1);
+  assert.ok(start >= 0 && end > start);
+  const body = clientSource.slice(start, end);
+
+  assert.doesNotMatch(
+    body,
+    /if \(resolution === "keep-local"\)[\s\S]*await synchronise\(budgetId\)/,
+    "local conflict recovery must not require relay synchronisation",
+  );
   assert.match(
-    clientSource,
-    /await synchronise\(budgetId\);\s*notifyLocalFirstMutationCommitted\(\s*budgetId,\s*persistenceScopeForMutations\(budgetId, \[losingMutation\]\)/,
+    body,
+    /await replayConflictMutation\([\s\S]*notifyLocalFirstMutationCommitted\(\s*budgetId,\s*persistenceScopeForMutations\(budgetId, \[losingMutation\]\)/,
+    "publication must follow the successfully awaited atomic replay",
   );
 });

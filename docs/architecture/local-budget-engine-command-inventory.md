@@ -32,7 +32,7 @@ than the historical hosted provider.
 | Payees | Payee management/register/history | create/update/archive/delete/merge/separate/history | payee write/delete/merge/suppression requests | facade `mutation()` | facade payee plus linked-domain scope | merge is atomic; history validates expected state |
 | Transaction tags | Settings/history | replace tags/history | generic mutate batch/history request | facade `mutation()` | facade tag/transaction scope | history expected/replacement request |
 | Scheduled transactions | Scheduled UI/maintenance/history | create/update/delete/advance/enter/reference rewrites/history | generic mutate batch and schedule-history request | facade `mutation()` | facade schedule/transaction scope | materialisation groups schedule and transaction changes |
-| Conflict keep-local | Conflict UI | `resolveSyncConflict` | domain-specific replay plus conflict resolution | replay reuses losing mutation metadata | facade publishes after commit | keep-local writes outbox; accept-remote does not |
+| Conflict keep-local | Replication conflict service | `LocalBudgetConflictRecoveryClient.resolveSyncConflict` | domain-specific replay plus conflict resolution | replay allocates fresh mutation identity while preserving losing domain/entity/operation/payload | conflict recovery publishes after the atomic worker commit | keep-local writes outbox and marks only the addressed conflict `resolved-local`; accept-remote does not create an outbox mutation |
 
 ## Lifecycle and replication exceptions
 
@@ -82,7 +82,10 @@ has moved out of `localFirstAccountRegisterClient.ts`.
 - Scheduled transactions: complete in `engine/scheduledTransactionCommands.ts`.
 - Transaction/import history: complete in
   `engine/transactionHistoryCommands.ts`.
-- Still runtime-owned: keep-local conflict replay/import implementations.
+- Intentionally runtime-owned replication/recovery infrastructure: keep-local
+  conflict replay and whole-database import implementations. Keep-local is
+  exposed only through `LocalBudgetConflictRecoveryClient`, not through the
+  ordinary `LocalBudgetEngine` command surface.
 
 The runtime-owned families are routed through the engine/executor boundary but
 have not yet been physically extracted into domain command modules.
@@ -181,6 +184,40 @@ The transitional command recorder remains in place until P0.3e4.
 | Transaction tags | Engine/executor | Extracted tag module |
 | Scheduled transactions | Engine/executor | Extracted scheduled transaction module |
 | Transaction/import history operations | Engine/executor | Extracted transaction/import history module |
-| Conflict keep-local | Engine/executor | Runtime-owned; accept-remote remains replication-owned |
+| Conflict keep-local | Narrow replication/conflict recovery surface | Runtime-owned replication infrastructure; accept-remote remains replication-owned |
 | Remote apply | Replication exception; never creates local outbox rows |
 | Restore/reset/open/close/baseline replacement | Lifecycle exception |
+
+## P0.3 keep-local and remaining-write classification
+
+- Ordinary engine commands: **46 / 46** are routed through
+  `LocalBudgetCommandExecutor` and physically owned by an `engine/*Commands.ts`
+  module. The last transaction-tag raw-write callback has been removed from the
+  runtime; `engine/tagCommands.ts` now owns its mutation creation, worker call,
+  and recorded change scope.
+- Ordinary command bodies remaining in
+  `localFirstAccountRegisterClient.ts`: **0**.
+- Ordinary publication sites outside the executor: **0**. The executor owns
+  the single ordinary-domain publication site. Domain handlers currently use
+  the transitional command-context recorder, which remains the P0.3e4 target.
+- Replication/recovery publication sites in the local-first runtime: remote
+  mutation application, keep-local conflict replay, restore/recovery broad
+  invalidation, and initial local database readiness. These are not ordinary
+  commands.
+- Public ordinary write bypasses: **0**. `LocalBudgetQueryClient` is read-only,
+  `LocalBudgetEngine` contains exactly the 46 ordinary commands, and
+  `LocalBudgetConflictRecoveryClient` contains only typed conflict listing and
+  the two explicit recovery decisions.
+- Mixed public read/write interfaces: **0** at the provider boundary. Query,
+  ordinary command, and conflict recovery capabilities are separately typed.
+- Unclassified ordinary runtime raw writes: **0**.
+
+Keep-local deliberately does not synchronise before or after its local replay.
+The stored losing mutation supplies the intended domain/entity/operation/payload,
+while `LocalBudgetMutationContext` allocates a fresh mutation ID, device
+sequence, current base cursor, and (for grouped transfers) a fresh operation
+group ID. Worker APIs commit canonical rows, outbox rows, and the addressed
+conflict transition in the same SQLite transaction. A worker failure therefore
+leaves the conflict unresolved, creates no committed phantom mutation, and
+causes no publication. Relay availability is not required for local recovery;
+the resulting outbox mutation is published by normal replication later.

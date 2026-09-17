@@ -1,4 +1,5 @@
 import type {
+  LocalBudgetConflictRecoveryClient,
   LocalBudgetRuntimeClient,
   TransactionWriteInput,
 } from "../accountRegisterQueryContracts";
@@ -12,7 +13,6 @@ import {
   type LocalBudgetOperationGroup,
   type LocalFirstStoredConflict,
 } from "./contracts";
-import type { BudgetDomain } from "./contracts";
 import { LocalBudgetDatabaseClient } from "./localBudgetClient";
 import type {
   LocalTransactionAttachmentMutationPayload,
@@ -90,7 +90,7 @@ export interface LocalFirstRegisterRuntimeOptions {
 export function createLocalBudgetRuntime(
   lifecycle: BudgetLifecycleControlPlaneClient,
   options: LocalFirstRegisterRuntimeOptions = {},
-): LocalBudgetRuntimeClient {
+): LocalBudgetRuntimeClient & LocalBudgetConflictRecoveryClient {
   const relay = createLocalFirstRelayTransport({ apiBaseUrl: options.apiBaseUrl });
   const storage = options.storage ?? globalThis.localStorage;
   const deviceId = readOrCreateDeviceId(storage);
@@ -442,19 +442,6 @@ export function createLocalBudgetRuntime(
     return bytes;
   }
 
-  async function writeEntity(
-    budgetId: string,
-    domain: BudgetDomain,
-    entityId: string,
-    payload: unknown,
-    operation: "upsert" | "delete" = "upsert",
-  ) {
-    const local = await requireDatabase(budgetId);
-    const committedMutation = mutation(budgetId, domain, entityId, operation, payload);
-    await local.mutate(committedMutation);
-    notifyLocalFirstMutationCommitted(budgetId, persistenceScopeForMutations(budgetId, [committedMutation]));
-  }
-
   async function listSchedules(
     budgetId: string,
     accountId: string,
@@ -482,15 +469,9 @@ export function createLocalBudgetRuntime(
 
   const tagCommands = createTagCommands({
     synchronise,
-    async listTags(budgetId) {
-      return (await requireDatabase(budgetId)).listEntities("transactionTags");
-    },
-    async writeTag(budgetId, tag) {
-      await writeEntity(budgetId, "transactionTags", tag.id, tag);
-    },
-    async deleteTag(budgetId, tagId) {
-      await writeEntity(budgetId, "transactionTags", tagId, null, "delete");
-    },
+    requireDatabase,
+    createMutation: mutation,
+    recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
   const attachmentCommands = createAttachmentCommands({
     requireDatabase,
@@ -902,14 +883,8 @@ export function createLocalBudgetRuntime(
     activePulledCursor = 0;
   }
 
-  const client: LocalBudgetRuntimeClient & {
+  const client: LocalBudgetRuntimeClient & LocalBudgetConflictRecoveryClient & {
     publishLocalBaseline(budgetId: string): Promise<boolean>;
-    listSyncConflicts(budgetId: string): Promise<ReplicationConflict[]>;
-    resolveSyncConflict(
-      budgetId: string,
-      conflictId: string,
-      resolution: "keep-local" | "accept-remote",
-    ): Promise<void>;
   } = {
     releaseLocalDatabase: () => releaseLocalDatabase(),
     getBudgetExportUrl: lifecycle.getBudgetExportUrl,
@@ -1018,7 +993,7 @@ export function createLocalBudgetRuntime(
     },
     listSyncConflicts: listLocalFirstConflicts,
     async resolveSyncConflict(budgetId, conflictId, resolution) {
-      await synchronise(budgetId);
+      if (resolution === "accept-remote") await synchronise(budgetId);
       const local = await requireDatabase(budgetId);
       const unresolvedConflicts =
         await local.listSyncConflicts("unresolved", 500);
@@ -1056,7 +1031,6 @@ export function createLocalBudgetRuntime(
           );
         }
 
-        await synchronise(budgetId);
         notifyLocalFirstMutationCommitted(
           budgetId,
           persistenceScopeForMutations(budgetId, [losingMutation]),

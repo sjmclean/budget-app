@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-17T04:25:01.909Z",
+  "generatedAt": "2026-09-17T23:22:14.702Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -1288,7 +1288,7 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
-      "line": 57
+      "line": 59
     },
     {
       "kind": "operationJournal",
@@ -1298,7 +1298,7 @@
     {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
-      "line": 58
+      "line": 60
     },
     {
       "kind": "checkpoints",
@@ -1308,7 +1308,7 @@
     {
       "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
-      "line": 59
+      "line": 61
     },
     {
       "kind": "persistenceBoundary",
@@ -1428,7 +1428,7 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
-      "line": 40
+      "line": 41
     },
     {
       "kind": "operationJournal",
