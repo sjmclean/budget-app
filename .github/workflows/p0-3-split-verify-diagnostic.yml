@@ -1,0 +1,95 @@
+name: P0.3 Split Verify Diagnostic
+
+on:
+  push:
+    branches:
+      - audit/p0-3-command-engine-current
+
+permissions:
+  contents: read
+
+jobs:
+  split-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out audit branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/p0-3-command-engine-current
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium and system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Static check
+        id: static
+        continue-on-error: true
+        run: pnpm static:check
+
+      - name: Typecheck
+        id: typecheck
+        continue-on-error: true
+        run: pnpm typecheck
+
+      - name: Required tests
+        id: required
+        continue-on-error: true
+        run: pnpm test:required
+
+      - name: Web build
+        id: build
+        continue-on-error: true
+        run: pnpm test:web-build
+
+      - name: Architecture docs
+        id: docs
+        continue-on-error: true
+        run: pnpm docs:architecture:check
+
+      - name: Performance analysis
+        id: performance
+        continue-on-error: true
+        run: pnpm performance:analyze
+
+      - name: E2E
+        id: e2e
+        continue-on-error: true
+        env:
+          CI: "1"
+        run: pnpm test:e2e
+
+      - name: Report gate outcomes
+        if: always()
+        env:
+          STATIC: ${{ steps.static.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          REQUIRED: ${{ steps.required.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          DOCS: ${{ steps.docs.outcome }}
+          PERFORMANCE: ${{ steps.performance.outcome }}
+          E2E: ${{ steps.e2e.outcome }}
+        run: |
+          printf 'static:check=%s\n' "$STATIC"
+          printf 'typecheck=%s\n' "$TYPECHECK"
+          printf 'test:required=%s\n' "$REQUIRED"
+          printf 'test:web-build=%s\n' "$BUILD"
+          printf 'docs:architecture:check=%s\n' "$DOCS"
+          printf 'performance:analyze=%s\n' "$PERFORMANCE"
+          printf 'test:e2e=%s\n' "$E2E"
+          if [ "$STATIC" != success ] || [ "$TYPECHECK" != success ] || [ "$REQUIRED" != success ] || [ "$BUILD" != success ] || [ "$DOCS" != success ] || [ "$PERFORMANCE" != success ] || [ "$E2E" != success ]; then
+            exit 1
+          fi
