@@ -136,6 +136,55 @@ jobs:
 
           path.write_text(text)
 
+      - name: Restore scheduled history test and update only ownership assertion
+        shell: bash
+        run: |
+          git show 7aecae8e0b8fdf0ef21b877d95124fd39b1c31f8:tests/unit/history/scheduled-transaction-history.test.ts > tests/unit/history/scheduled-transaction-history.test.ts
+          python <<'PY'
+          from pathlib import Path
+          path = Path("tests/unit/history/scheduled-transaction-history.test.ts")
+          text = path.read_text()
+          old = '''  const client = readFileSync(new URL(
+              "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
+              import.meta.url,
+            ), "utf8");
+            const enterSource = client.slice(
+              client.indexOf("async enterScheduledTransaction(input)"),
+              client.indexOf("async createScheduledTransaction", client.indexOf("async enterScheduledTransaction(input)")),
+            );
+            assert.match(enterSource, /buildNewTransactionRecords/);
+            assert.match(enterSource, /scheduledRegisterWrite/);
+            assert.match(enterSource, /current\.attachments/);
+            assert.match(enterSource, /replaceScheduledTransactionHistoryState/);
+            assert.doesNotMatch(enterSource, /applicationHistory|createAddTransactionCommand/);
+            assert.match(client, /const group: LocalBudgetOperationGroup = \{ members \}/);
+          '''
+          new = '''  const commandSource = readFileSync(new URL(
+              "../../../apps/web/src/features/persistence/localFirst/engine/scheduledTransactionCommands.ts",
+              import.meta.url,
+            ), "utf8");
+            const enterSource = commandSource.slice(
+              commandSource.indexOf("async enterScheduledTransaction(input)"),
+              commandSource.indexOf("async createScheduledTransaction", commandSource.indexOf("async enterScheduledTransaction(input)")),
+            );
+            assert.match(enterSource, /buildNewTransactionRecords/);
+            assert.match(enterSource, /scheduledRegisterWrite/);
+            assert.match(enterSource, /current\.attachments/);
+            assert.match(enterSource, /replaceScheduledTransactionHistoryState/);
+            assert.doesNotMatch(enterSource, /applicationHistory|createAddTransactionCommand/);
+            assert.match(commandSource, /const group: LocalBudgetOperationGroup = \{ members \}/);
+
+            const runtimeSource = readFileSync(new URL(
+              "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
+              import.meta.url,
+            ), "utf8");
+            assert.doesNotMatch(runtimeSource, /async enterScheduledTransaction\(input\)/);
+          '''
+          if old not in text:
+              raise SystemExit("Original scheduled ownership assertion not found")
+          path.write_text(text.replace(old, new, 1))
+          PY
+
       - uses: pnpm/action-setup@v4
         with:
           version: 10.28.2
@@ -152,7 +201,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts
+          git add apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts tests/unit/history/scheduled-transaction-history.test.ts
           git diff --cached --exit-code && exit 0
           git commit -m "refactor(engine): wire remaining domain command modules"
           git push origin HEAD:work/p0-3-completion-assistant
