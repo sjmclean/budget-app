@@ -1,0 +1,157 @@
+name: P0.3 Assistant Wire Engine Modules
+
+on:
+  push:
+    branches:
+      - work/p0-3-completion-assistant
+
+permissions:
+  contents: write
+
+jobs:
+  wire-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/p0-3-completion-assistant
+          fetch-depth: 0
+
+      - name: Wire extracted engine modules
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts")
+          text = path.read_text()
+
+          def must_replace(old: str, new: str):
+              global text
+              if old not in text:
+                  raise SystemExit(f"Missing expected source fragment: {old[:80]!r}")
+              text = text.replace(old, new, 1)
+
+          def replace_between(start_marker: str, end_marker: str, replacement: str):
+              global text
+              start = text.index(start_marker)
+              end = text.index(end_marker, start)
+              text = text[:start] + replacement + text[end:]
+
+          must_replace(
+              'import type {\n  LocalBudgetRuntimeClient,\n  TransactionWriteInput,\n} from "../accountRegisterQueryContracts";\n',
+              'import type { LocalBudgetRuntimeClient } from "../accountRegisterQueryContracts";\n',
+          )
+          must_replace(
+              'import type {\n  LocalTransactionAttachmentMutationPayload,\n  ImportHistorySnapshot,\n  LocalPayeeRecord,\n  LocalTransactionRecord,\n  TransactionHistorySnapshot,\n} from "./registerSchema";\n',
+              'import type {\n  LocalTransactionAttachmentMutationPayload,\n  LocalTransactionRecord,\n} from "./registerSchema";\n',
+          )
+          must_replace(
+              'import type {\n  ScheduledTransactionView,\n  UpsertScheduledTransactionInput,\n} from "../../accounts/scheduledTransactionTypes";\n',
+              'import type { ScheduledTransactionView } from "../../accounts/scheduledTransactionTypes";\n',
+          )
+          must_replace('import {\n  normaliseSpecificDates,\n} from "../../accounts/scheduledTransactionRecurrence";\n', '')
+          must_replace('import {\n  advanceScheduledTransaction,\n  buildScheduledTransaction,\n} from "../../accounts/scheduledTransactionLifecycle";\n', '')
+          must_replace('import { scheduledTransactionToRegisterInput } from "../../accounts/scheduledTransactionToRegisterInput";\n', '')
+          must_replace('import { validatePayeeIconReferenceForWrite } from "../../icons/payeeIconReference";\n', '')
+          must_replace(
+              'import { deriveTransactionChangeScope, mergePersistenceChangeScopes } from "./persistenceChangeImpact";\n',
+              'import { deriveTransactionChangeScope } from "./persistenceChangeImpact";\n',
+          )
+          must_replace(
+              'import { createCategoryGoalCommands } from "./engine/categoryGoalCommands";\n',
+              'import { createCategoryGoalCommands } from "./engine/categoryGoalCommands";\n'
+              'import { createPayeeCommands } from "./engine/payeeCommands";\n'
+              'import { createScheduledTransactionCommands } from "./engine/scheduledTransactionCommands";\n'
+              'import { createHistoryImportCommands } from "./engine/historyImportCommands";\n',
+          )
+          must_replace(
+              'import {\n  buildNewTransactionRecords,\n  prepareTransactionBatchWrites,\n} from "./engine/transactionCommandHelpers";\n',
+              '',
+          )
+
+          replace_between('  function encodeBase64(bytes: Uint8Array): string {', '  async function writeEntity(', '')
+          replace_between('  function scheduledRegisterWrite(', '  async function listPersistedPayees(', '')
+          replace_between('  async function listPersistedPayees(', '  const tagCommands = createTagCommands({', '')
+          replace_between('  function scheduledHistoryMembers(input: {', '  function journalMutation(value: LocalBudgetMutation) {', '')
+
+          construction = '  const categoryGoalCommands = createCategoryGoalCommands({\n    requireDatabase,\n    createMutation: mutation,\n    recordCommittedChange: notifyLocalFirstMutationCommitted,\n  });\n'
+          if construction not in text:
+              raise SystemExit("Category Goal construction not found")
+          text = text.replace(
+              construction,
+              construction +
+              '  const payeeCommands = createPayeeCommands({\n    requireDatabase,\n    createMutation: mutation,\n    recordCommittedChange: notifyLocalFirstMutationCommitted,\n  });\n'
+              '  const scheduledTransactionCommands = createScheduledTransactionCommands({\n    requireDatabase,\n    createMutation: mutation,\n    recordCommittedChange: notifyLocalFirstMutationCommitted,\n  });\n'
+              '  const historyImportCommands = createHistoryImportCommands({\n    requireDatabase,\n    createMutation: mutation,\n    recordCommittedChange: notifyLocalFirstMutationCommitted,\n    recordTransactionsCommitted: notifyTransactionsCommitted,\n  });\n',
+              1,
+          )
+
+          replace_between(
+              '    async restoreTransactionHistorySnapshot(snapshot) {',
+              '    moveTransactions: transactionCommands.moveTransactions,',
+              '    restoreTransactionHistorySnapshot: historyImportCommands.restoreTransactionHistorySnapshot,\n'
+              '    deleteTransactionHistorySnapshot: historyImportCommands.deleteTransactionHistorySnapshot,\n'
+              '    replaceTransactionHistorySnapshot: historyImportCommands.replaceTransactionHistorySnapshot,\n'
+              '    addTransaction: transactionCommands.addTransaction,\n'
+              '    commitTransactionBatch: transactionCommands.commitTransactionBatch,\n'
+              '    commitImportBatch: historyImportCommands.commitImportBatch,\n'
+              '    commitImportBatchWithHistory: historyImportCommands.commitImportBatchWithHistory,\n'
+              '    replaceImportHistorySnapshot: historyImportCommands.replaceImportHistorySnapshot,\n',
+          )
+
+          replace_between(
+              '    async keepPayeesSeparate(budgetId, pairs) {',
+              '    ...tagCommands,',
+              '    keepPayeesSeparate: payeeCommands.keepPayeesSeparate,\n'
+              '    replacePayeeDuplicateSuppressionsHistoryState: payeeCommands.replacePayeeDuplicateSuppressionsHistoryState,\n'
+              '    createPayee: payeeCommands.createPayee,\n'
+              '    async capturePayee(budgetId, payeeId) {\n'
+              '      const all = [\n'
+              '        ...await client.listPayees(budgetId, false),\n'
+              '        ...await client.listPayees(budgetId, true),\n'
+              '      ];\n'
+              '      return all.find(({ id }) => id === payeeId) ?? null;\n'
+              '    },\n'
+              '    replacePayeeHistoryState: payeeCommands.replacePayeeHistoryState,\n'
+              '    updatePayee: payeeCommands.updatePayee,\n'
+              '    setPayeeArchived: payeeCommands.setPayeeArchived,\n'
+              '    deleteUnusedPayee: payeeCommands.deleteUnusedPayee,\n'
+              '    mergePayees: payeeCommands.mergePayees,\n',
+          )
+
+          replace_between(
+              '    async replaceScheduledTransactionHistoryState(input) {',
+              '  };\n  const ownership = createBudgetDatabaseOwnership',
+              '    replaceScheduledTransactionHistoryState: scheduledTransactionCommands.replaceScheduledTransactionHistoryState,\n'
+              '    enterScheduledTransaction: scheduledTransactionCommands.enterScheduledTransaction,\n'
+              '    createScheduledTransaction: scheduledTransactionCommands.createScheduledTransaction,\n'
+              '    updateScheduledTransaction: scheduledTransactionCommands.updateScheduledTransaction,\n'
+              '    deleteScheduledTransaction: scheduledTransactionCommands.deleteScheduledTransaction,\n'
+              '    advanceScheduledTransaction: scheduledTransactionCommands.advanceScheduledTransaction,\n'
+              '    renameScheduledPayeeReferences: scheduledTransactionCommands.renameScheduledPayeeReferences,\n'
+              '    reassignScheduledPayeeReferences: scheduledTransactionCommands.reassignScheduledPayeeReferences,\n',
+          )
+
+          path.write_text(text)
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm static:check
+      - run: pnpm typecheck
+      - run: pnpm test:required
+
+      - name: Commit runtime wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts
+          git diff --cached --exit-code && exit 0
+          git commit -m "refactor(engine): wire remaining domain command modules"
+          git push origin HEAD:work/p0-3-completion-assistant
