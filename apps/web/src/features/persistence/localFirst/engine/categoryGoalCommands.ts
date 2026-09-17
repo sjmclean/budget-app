@@ -2,7 +2,6 @@ import type { LocalBudgetRuntimeClient } from "../../accountRegisterQueryContrac
 import type { PersistenceChangeScope } from "../../persistenceChangeBus";
 import {
   categoryGoalsEqual,
-  commitCategoryGoalMutation,
   normaliseCategoryGoalForPersistence,
 } from "../categoryGoalPersistence";
 import type { LocalBudgetMutation, LocalBudgetOperationGroup } from "../contracts";
@@ -29,6 +28,7 @@ type CreateMutation = (
 export interface CategoryGoalCommandDependencies {
   readonly requireDatabase: (budgetId: string) => Promise<LocalBudgetDatabaseClient>;
   readonly createMutation: CreateMutation;
+  readonly discardFailedMutation: (mutationId: string) => void;
   readonly recordCommittedChange: (
     budgetId: string,
     change: Omit<PersistenceChangeScope, "budgetId">,
@@ -39,10 +39,10 @@ export interface CategoryGoalCommandDependencies {
 export function createCategoryGoalCommands(
   dependencies: CategoryGoalCommandDependencies,
 ): CategoryGoalCommands {
-  const recordGoalChange = (budgetId: string, categoryId?: string) => {
+  const recordGoalChange = (budgetId: string, categoryId: string) => {
     dependencies.recordCommittedChange(budgetId, {
       domains: ["goals", "budget"],
-      categoryIds: categoryId ? [categoryId] : undefined,
+      categoryIds: [categoryId],
     });
   };
 
@@ -50,66 +50,53 @@ export function createCategoryGoalCommands(
     async createCategoryGoal(goal) {
       const local = await dependencies.requireDatabase(goal.budgetId);
       const canonical = normaliseCategoryGoalForPersistence(goal);
-      return commitCategoryGoalMutation(
+      const mutation = dependencies.createMutation(
         goal.budgetId,
-        () => local.writeCategoryGoal(
-          "create",
-          canonical,
-          dependencies.createMutation(
-            goal.budgetId,
-            "categoryGoals",
-            goal.categoryId,
-            "upsert",
-            canonical,
-          ),
-        ),
-        undefined,
+        "categoryGoals",
         goal.categoryId,
-        recordGoalChange,
+        "upsert",
+        canonical,
       );
+      const result = await local.writeCategoryGoal("create", canonical, mutation);
+      recordGoalChange(goal.budgetId, goal.categoryId);
+      return result;
     },
 
     async updateCategoryGoal(goal) {
       const local = await dependencies.requireDatabase(goal.budgetId);
       const canonical = normaliseCategoryGoalForPersistence(goal);
-      return commitCategoryGoalMutation(
+      const mutation = dependencies.createMutation(
         goal.budgetId,
-        () => local.writeCategoryGoal(
-          "update",
-          canonical,
-          dependencies.createMutation(
-            goal.budgetId,
-            "categoryGoals",
-            goal.categoryId,
-            "upsert",
-            canonical,
-          ),
-        ),
-        undefined,
+        "categoryGoals",
         goal.categoryId,
-        recordGoalChange,
+        "upsert",
+        canonical,
       );
+      const result = await local.writeCategoryGoal("update", canonical, mutation);
+      recordGoalChange(goal.budgetId, goal.categoryId);
+      return result;
     },
 
     async deleteCategoryGoal(input) {
       const local = await dependencies.requireDatabase(input.budgetId);
-      return commitCategoryGoalMutation(
+      const mutation = dependencies.createMutation(
         input.budgetId,
-        () => local.deleteCategoryGoal(
-          input.budgetId,
-          input.categoryId,
-          dependencies.createMutation(
-            input.budgetId,
-            "categoryGoals",
-            input.categoryId,
-            "delete",
-            null,
-          ),
-        ),
-        (result) => result !== null,
+        "categoryGoals",
         input.categoryId,
-        recordGoalChange,
+        "delete",
+        null,
       );
+      const result = await local.deleteCategoryGoal(
+        input.budgetId,
+        input.categoryId,
+        mutation,
+      );
+      if (result === null) {
+        dependencies.discardFailedMutation(mutation.mutationId);
+        return result;
+      }
+      recordGoalChange(input.budgetId, input.categoryId);
+      return result;
     },
 
     async replaceCategoryGoalHistoryState(input) {
@@ -117,23 +104,24 @@ export function createCategoryGoalCommands(
       const replacement = input.replacement
         ? normaliseCategoryGoalForPersistence(input.replacement)
         : null;
-      return commitCategoryGoalMutation(
+      const mutation = dependencies.createMutation(
         input.budgetId,
-        () => local.replaceCategoryGoalHistoryState({
-          ...input,
-          replacement,
-          mutation: dependencies.createMutation(
-            input.budgetId,
-            "categoryGoals",
-            input.categoryId,
-            replacement ? "upsert" : "delete",
-            replacement,
-          ),
-        }),
-        () => !categoryGoalsEqual(input.expected, replacement),
+        "categoryGoals",
         input.categoryId,
-        recordGoalChange,
+        replacement ? "upsert" : "delete",
+        replacement,
       );
+      const result = await local.replaceCategoryGoalHistoryState({
+        ...input,
+        replacement,
+        mutation,
+      });
+      if (categoryGoalsEqual(input.expected, replacement)) {
+        dependencies.discardFailedMutation(mutation.mutationId);
+        return result;
+      }
+      recordGoalChange(input.budgetId, input.categoryId);
+      return result;
     },
   };
 }
