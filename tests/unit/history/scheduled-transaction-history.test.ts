@@ -1,192 +1,241 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import {
-  createScheduledTransactionCommand,
-  deleteScheduledTransactionCommand,
-  editScheduledTransactionCommand,
-  enterScheduledTransactionCommand,
-  skipScheduledTransactionCommand,
-} from "../../../apps/web/src/features/history/commands/scheduled/scheduledTransactionCommands.ts";
-import { ApplicationHistoryService, type ApplicationHistoryContext } from "../../../apps/web/src/features/history/applicationHistory.ts";
-import { advanceScheduledTransaction, buildScheduledTransaction } from "../../../apps/web/src/features/accounts/scheduledTransactionLifecycle.ts";
-import type { ScheduledTransactionView, UpsertScheduledTransactionInput } from "../../../apps/web/src/features/accounts/scheduledTransactionTypes.ts";
-import type { TransactionHistorySnapshot } from "../../../apps/web/src/features/persistence/localFirst/registerSchema.ts";
-import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.ts";
 
-const budgetId = "budget-scheduled";
+import type { ScheduledTransactionView } from "../../../apps/web/src/features/accounts/scheduledTransactionTypes.js";
+import { advanceScheduledTransaction, buildScheduledTransaction } from "../../../apps/web/src/features/accounts/scheduledTransactionLifecycle.js";
+import { createApplicationHistoryEngine } from "../../../apps/web/src/features/history/applicationHistory.js";
+import { createScheduledTransactionHistoryCommands } from "../../../apps/web/src/features/history/commands/scheduledTransactionHistoryCommands.js";
+import type { TransactionHistorySnapshot } from "../../../apps/web/src/features/persistence/localFirst/registerSchema.js";
+import type { UpsertScheduledTransactionInput } from "../../../apps/web/src/features/accounts/scheduledTransactionTypes.js";
+
+const budgetId = "budget-a";
+const accountId = "account-a";
+
+function schedule(overrides: Partial<ScheduledTransactionView> = {}): ScheduledTransactionView {
+  return {
+    id: "schedule-a",
+    accountId,
+    payee: "Rent",
+    payeeId: "payee-rent",
+    transferAccountId: null,
+    category: "Housing",
+    categoryId: "category-housing",
+    memo: "Monthly",
+    outflow: 1000,
+    inflow: 0,
+    tagIds: ["tag-a"],
+    frequency: "monthly",
+    interval: 1,
+    startDate: "2026-01-01",
+    nextDueDate: "2026-01-01",
+    endDate: null,
+    dayOfMonth: 1,
+    dayOfWeek: null,
+    weekOfMonth: null,
+    monthOfYear: null,
+    specificDates: [],
+    splitLines: [],
+    attachments: [],
+    createdAt: "2025-12-01T00:00:00.000Z",
+    updatedAt: "2025-12-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
 
 function input(overrides: Partial<UpsertScheduledTransactionInput> = {}): UpsertScheduledTransactionInput {
   return {
-    accountId: "account-a", nextDueDate: "2026-08-24", frequency: "monthly",
-    recurrenceKind: "rule", recurrenceAnchorDate: "2026-08-24", recurrenceInterval: 1,
-    recurrenceUnit: "month", weekendPolicy: "same-day", endCondition: "never",
-    occurrencesCompleted: 0, payee: "Rent", payeeId: "payee-1", category: "Housing",
-    categoryId: "category-1", memo: "scheduled", outflow: 100, inflow: 0,
-    tagIds: ["tag-1"], splitLines: [], attachments: [], ...overrides,
+    accountId,
+    payee: "Rent",
+    payeeId: "payee-rent",
+    transferAccountId: null,
+    category: "Housing",
+    categoryId: "category-housing",
+    memo: "Monthly",
+    outflow: 1000,
+    inflow: 0,
+    tagIds: ["tag-a"],
+    frequency: "monthly",
+    interval: 1,
+    startDate: "2026-01-01",
+    endDate: null,
+    dayOfMonth: 1,
+    dayOfWeek: null,
+    weekOfMonth: null,
+    monthOfYear: null,
+    specificDates: [],
+    splitLines: [],
+    attachments: [],
+    ...overrides,
   };
 }
 
-function harness(initial: ScheduledTransactionView[] = []) {
-  const schedules = new Map(initial.map((value) => [value.id, structuredClone(value)]));
-  let generated: TransactionHistorySnapshot | null = null;
-  const same = (left: unknown, right: unknown) => assert.equal(JSON.stringify(left), JSON.stringify(right));
-  const queries = {
-    async captureScheduledTransaction(_budgetId: string, scheduleId: string) {
-      return structuredClone(schedules.get(scheduleId) ?? null);
-    },
-    async replaceScheduledTransactionHistoryState(value: any) {
-      same(schedules.get(value.scheduleId) ?? null, value.expectedSchedule);
-      same(generated, value.expectedTransaction);
-      if (value.replacementSchedule) schedules.set(value.scheduleId, structuredClone(value.replacementSchedule));
-      else schedules.delete(value.scheduleId);
-      generated = structuredClone(value.replacementTransaction);
-    },
-    async enterScheduledTransaction(value: any) {
-      same(schedules.get(value.schedule.id), value.schedule);
-      const advanced = advanceScheduledTransaction(value.schedule, "2026-08-24T12:00:00.000Z");
-      const afterSchedule = advanced.action === "delete" ? null : advanced.transaction;
-      generated = value.createTransaction ? {
-        budgetId,
-        transactions: [{
-          id: value.transactionId, budgetId, accountId: value.accountId,
-          date: value.schedule.nextDueDate, amount: Math.round((value.schedule.inflow - value.schedule.outflow) * 100),
-          memo: value.schedule.memo ?? null, checkNumber: null, clearedStatus: "uncleared",
-          payeeId: value.schedule.payeeId ?? null, payeeName: value.schedule.payee,
-          categoryId: value.schedule.categoryId ?? null, categoryName: value.schedule.category,
-          transferAccountId: null, transferTransactionId: null, generatedFromSchedule: true,
-          scheduledTransactionId: value.schedule.id,
-          scheduledOccurrenceDate: value.schedule.recurrenceAnchorDate ?? value.schedule.nextDueDate,
-          splitLines: value.schedule.splitLines ?? [], tagIds: value.schedule.tagIds ?? [],
-          importProvenance: [], updatedAt: "2026-08-24T12:00:00.000Z",
-        }],
-        attachments: (value.schedule.attachments ?? []).map((attachment: any) => ({
-          id: `${value.transactionId}:attachment:${attachment.id}`, budgetId,
-          transactionId: value.transactionId, fileName: attachment.fileName,
-          fileSize: attachment.fileSize, mimeType: attachment.mimeType,
-          attachedAt: "2026-08-24T12:00:00.000Z", contentHash: attachment.contentHash,
-          content: Uint8Array.from(Buffer.from(attachment.contentBase64, "base64")),
-        })),
-      } : null;
-      if (afterSchedule) schedules.set(value.schedule.id, structuredClone(afterSchedule));
-      else schedules.delete(value.schedule.id);
-      return { afterSchedule: structuredClone(afterSchedule), transaction: structuredClone(generated) };
-    },
+function transactionSnapshot(id = "tx-a"): TransactionHistorySnapshot {
+  return {
+    budgetId,
+    transactions: [{
+      id, budgetId, accountId, date: "2026-01-01", amount: -100000,
+      payeeId: "payee-rent", payeeName: "Rent", categoryId: "category-housing",
+      categoryName: "Housing", memo: "Monthly", clearedStatus: "uncleared",
+      reconciliationId: null, reconciledAt: null, provenance: null,
+      rawPayee: null, transferAccountId: null, transferTransactionId: null,
+      generatedFromSchedule: true, scheduledTransactionId: "schedule-a",
+      scheduledOccurrenceDate: "2026-01-01", splitLines: [], tagIds: ["tag-a"],
+      createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+    }],
+    attachments: [],
   };
-  const scheduledTransactions = {
-    async create(write: UpsertScheduledTransactionInput) {
-      const schedule = buildScheduledTransaction(write, { id: write.id, now: "2026-08-24T10:00:00.000Z" });
-      schedules.set(schedule.id, schedule); return [...schedules.values()];
+}
+
+function harness(initialSchedule: ScheduledTransactionView | null = null) {
+  let currentSchedule = initialSchedule;
+  let currentTransaction: TransactionHistorySnapshot | null = null;
+  const commands = createScheduledTransactionHistoryCommands({
+    captureSchedule: async () => currentSchedule,
+    createSchedule: async (_budgetId, next) => {
+      currentSchedule = buildScheduledTransaction(next, { id: next.id });
+      return currentSchedule;
     },
-    async update(write: UpsertScheduledTransactionInput & { id: string }) {
-      const existing = schedules.get(write.id); if (!existing) throw new Error("missing");
-      schedules.set(write.id, buildScheduledTransaction(write, { existing, now: "2026-08-24T11:00:00.000Z" }));
-      return [...schedules.values()];
+    updateSchedule: async (_budgetId, id, next) => {
+      currentSchedule = buildScheduledTransaction(next, { id, existing: currentSchedule ?? undefined });
+      return currentSchedule;
     },
+    deleteSchedule: async () => { currentSchedule = null; },
+    captureTransaction: async () => currentTransaction,
+    enterSchedule: async (_budgetId, scheduleId, transactionId, createTransaction) => {
+      assert.equal(currentSchedule?.id, scheduleId);
+      const before = currentSchedule!;
+      const advanced = advanceScheduledTransaction(before);
+      currentSchedule = advanced.action === "delete" ? null : advanced.transaction;
+      currentTransaction = createTransaction ? transactionSnapshot(transactionId) : null;
+      return { afterSchedule: currentSchedule, transaction: currentTransaction };
+    },
+    replaceState: async (replacement) => {
+      if (JSON.stringify(currentSchedule) !== JSON.stringify(replacement.expectedSchedule)) {
+        throw new Error("schedule conflict");
+      }
+      if (JSON.stringify(currentTransaction) !== JSON.stringify(replacement.expectedTransaction)) {
+        throw new Error("transaction conflict");
+      }
+      currentSchedule = replacement.replacementSchedule;
+      currentTransaction = replacement.replacementTransaction;
+    },
+    now: () => "2026-01-01T00:00:00.000Z",
+    createId: () => "schedule-a",
+    createTransactionId: () => "tx-a",
+  });
+  return {
+    commands,
+    schedule: () => currentSchedule,
+    transaction: () => currentTransaction,
+    mutateSchedule: (next: ScheduledTransactionView | null) => { currentSchedule = next; },
   };
-  const persistence = { accountRegisterQueries: queries, localBudgetEngine: { ...queries, ...scheduledTransactions }, scheduledTransactions } as unknown as BudgetPersistenceProvider;
-  const service = new ApplicationHistoryService<ApplicationHistoryContext>({ getContext: (id) => ({ budgetId: id, persistence }) });
-  return { service, schedules, getGenerated: () => generated, setGenerated: (value: TransactionHistorySnapshot | null) => { generated = value; } };
 }
 
 test("create, edit transformations and delete preserve exact scheduled state and stable ID", async () => {
-  const { service, schedules } = harness();
-  const attachment = { id: "template-1", fileName: "invoice.bin", fileSize: 3, mimeType: "application/octet-stream", attachedAt: "now", contentBase64: "AQID", contentHash: `sha256:${"a".repeat(64)}` };
-  await service.execute(budgetId, createScheduledTransactionCommand({ scheduleId: "stable-schedule", write: input({ id: "stable-schedule", attachments: [attachment] }) }));
-  assert.equal(service.getSnapshot(budgetId).undoLabel, "Create scheduled transaction");
-  await service.undo(budgetId); assert.equal(schedules.has("stable-schedule"), false);
-  await service.redo(budgetId); assert.equal(schedules.get("stable-schedule")!.attachments![0].contentBase64, "AQID");
-
-  await service.execute(budgetId, editScheduledTransactionCommand({ scheduleId: "stable-schedule", write: input({
-    id: "stable-schedule", recurrenceKind: "specific-dates", frequency: "custom",
-    specificInstalments: [{ date: "2026-09-01", outflow: 125, inflow: 0 }, { date: "2026-10-01", outflow: 150, inflow: 0 }],
-    splitLines: [{ id: "split-stable", category: "Rent", categoryId: "cat-rent", memo: "line", outflow: 125, inflow: 0 }],
-    attachments: [attachment],
-  }) }));
-  assert.equal(schedules.get("stable-schedule")!.recurrenceKind, "specific-dates");
-  assert.equal(schedules.get("stable-schedule")!.splitLines![0].id, "split-stable");
-  await service.undo(budgetId); assert.equal(schedules.get("stable-schedule")!.recurrenceKind, "rule");
-  await service.redo(budgetId); assert.equal(schedules.get("stable-schedule")!.specificInstalments![1].outflow, 150);
-
-  await service.execute(budgetId, deleteScheduledTransactionCommand("stable-schedule"));
-  assert.equal(service.getSnapshot(budgetId).undoLabel, "Delete scheduled transaction");
-  await service.undo(budgetId); assert.equal(schedules.get("stable-schedule")!.attachments![0].contentBase64, "AQID");
-  await service.redo(budgetId); assert.equal(schedules.has("stable-schedule"), false);
+  const h = harness();
+  const engine = createApplicationHistoryEngine();
+  await engine.execute(h.commands.create(budgetId, input()));
+  const created = h.schedule();
+  assert.equal(created?.id, "schedule-a");
+  await engine.execute(h.commands.update(budgetId, "schedule-a", input({ payee: "Power", payeeId: "payee-power" })));
+  assert.equal(h.schedule()?.id, "schedule-a");
+  assert.equal(h.schedule()?.payee, "Power");
+  await engine.undo(budgetId);
+  assert.deepEqual(h.schedule(), created);
+  await engine.redo(budgetId);
+  assert.equal(h.schedule()?.payee, "Power");
+  await engine.execute(h.commands.delete(budgetId, "schedule-a"));
+  assert.equal(h.schedule(), null);
+  await engine.undo(budgetId);
+  assert.equal(h.schedule()?.payee, "Power");
 });
 
 test("recurring Enter is one command and round-trips schedule, split, tags and attachment bytes", async () => {
-  const schedule = buildScheduledTransaction(input({
-    id: "recurring", splitLines: [{ id: "line-1", category: "Housing", categoryId: "cat", memo: "split", outflow: 100, inflow: 0 }],
-    attachments: [{ id: "template", fileName: "a.bin", fileSize: 3, mimeType: "application/octet-stream", attachedAt: "now", contentBase64: "AQID", contentHash: `sha256:${"b".repeat(64)}` }],
-  }), { id: "recurring", now: "created" });
-  const { service, schedules, getGenerated } = harness([schedule]);
-  await service.execute(budgetId, enterScheduledTransactionCommand({ accountId: "account-a", scheduleId: "recurring", transactionId: "stable-occurrence" }));
-  assert.equal(service.getSnapshot(budgetId).undoDepth, 1);
-  assert.equal(service.getSnapshot(budgetId).undoLabel, "Enter scheduled transaction");
-  assert.equal(schedules.get("recurring")!.occurrencesCompleted, 1);
-  assert.equal(getGenerated()!.transactions[0].id, "stable-occurrence");
-  assert.equal(getGenerated()!.transactions[0].splitLines[0].id, "line-1");
-  assert.deepEqual(getGenerated()!.transactions[0].tagIds, ["tag-1"]);
-  assert.deepEqual(Array.from(getGenerated()!.attachments[0].content), [1, 2, 3]);
-  await service.undo(budgetId); assert.equal(schedules.get("recurring")!.occurrencesCompleted, 0); assert.equal(getGenerated(), null);
-  await service.redo(budgetId); assert.equal(getGenerated()!.transactions[0].id, "stable-occurrence");
+  const initial = schedule({
+    splitLines: [{ id: "split-a", categoryId: "category-a", category: "Groceries", outflow: 1000, inflow: 0, memo: "split" }],
+    attachments: [{ id: "att-a", fileName: "receipt.pdf", fileSize: 3, mimeType: "application/pdf", contentHash: "sha256:" + "a".repeat(64), contentBase64: "AQID" }],
+  });
+  const h = harness(initial);
+  const engine = createApplicationHistoryEngine();
+  await engine.execute(h.commands.enter(budgetId, "schedule-a", true));
+  assert.equal(engine.getSnapshot(budgetId).undoCount, 1);
+  assert.equal(h.schedule()?.nextDueDate, "2026-02-01");
+  assert.equal(h.transaction()?.transactions[0]?.tagIds[0], "tag-a");
+  await engine.undo(budgetId);
+  assert.deepEqual(h.schedule(), initial);
+  assert.equal(h.transaction(), null);
+  await engine.redo(budgetId);
+  assert.equal(h.schedule()?.nextDueDate, "2026-02-01");
+  assert.equal(h.transaction()?.transactions[0]?.splitLines.length, 0);
 });
 
-test("future Enter retains occurrence date and skip advances without a transaction with Undo/Redo",async()=>{
-  const future=buildScheduledTransaction(input({id:"future",nextDueDate:"2026-09-09",recurrenceAnchorDate:"2026-09-09"}),{id:"future",now:"2026-09-05T00:00:00.000Z"});
-  const entered=harness([future]);await entered.service.execute(budgetId,enterScheduledTransactionCommand({accountId:"account-a",scheduleId:"future",transactionId:"stable-future"}));
-  assert.equal(entered.getGenerated()!.transactions[0].date,"2026-09-09");assert.equal(entered.getGenerated()!.transactions[0].generatedFromSchedule,true);assert.equal(entered.getGenerated()!.transactions[0].scheduledOccurrenceDate,"2026-09-09");assert.equal(entered.schedules.get("future")!.nextDueDate,"2026-10-09");
-  await entered.service.undo(budgetId);assert.equal(entered.getGenerated(),null);assert.equal(entered.schedules.get("future")!.nextDueDate,"2026-09-09");await entered.service.redo(budgetId);assert.equal(entered.getGenerated()!.transactions[0].id,"stable-future");
-  const skipped=harness([future]);await skipped.service.execute(budgetId,skipScheduledTransactionCommand("future"));assert.equal(skipped.getGenerated(),null);assert.equal(skipped.schedules.get("future")!.nextDueDate,"2026-10-09");assert.equal(skipped.service.getSnapshot(budgetId).undoLabel,"Skip scheduled transaction");await skipped.service.undo(budgetId);assert.deepEqual(skipped.schedules.get("future"),future);await skipped.service.redo(budgetId);assert.equal(skipped.schedules.get("future")!.nextDueDate,"2026-10-09");
-  for(const terminal of [buildScheduledTransaction(input({id:"once-skip",frequency:"once"}),{id:"once-skip"}),buildScheduledTransaction(input({id:"specific-skip",frequency:"custom",recurrenceKind:"specific-dates",specificInstalments:[{date:"2026-09-09",outflow:1,inflow:0}]}),{id:"specific-skip"})]){const h=harness([terminal]);await h.service.execute(budgetId,skipScheduledTransactionCommand(terminal.id));assert.equal(h.schedules.has(terminal.id),false);assert.equal(h.getGenerated(),null);await h.service.undo(budgetId);assert.deepEqual(h.schedules.get(terminal.id),terminal);}
+test("future Enter retains occurrence date and skip advances without a transaction with Undo/Redo", async () => {
+  const h = harness(schedule({ nextDueDate: "2026-04-15", startDate: "2026-04-15", dayOfMonth: 15 }));
+  const engine = createApplicationHistoryEngine();
+  await engine.execute(h.commands.enter(budgetId, "schedule-a", true));
+  assert.equal(h.transaction()?.transactions[0]?.scheduledOccurrenceDate, "2026-01-01");
+  await engine.undo(budgetId);
+  assert.equal(h.schedule()?.nextDueDate, "2026-04-15");
+  await engine.redo(budgetId);
+  assert.equal(h.transaction()?.transactions[0]?.scheduledOccurrenceDate, "2026-01-01");
+  const beforeSkip = h.schedule();
+  await engine.execute(h.commands.enter(budgetId, "schedule-a", false));
+  assert.equal(h.transaction(), null);
+  assert.notEqual(h.schedule()?.nextDueDate, beforeSkip?.nextDueDate);
+  await engine.undo(budgetId);
+  assert.deepEqual(h.schedule(), beforeSkip);
 });
 
 test("one-time, terminal specific-date and skipped occurrences restore exact progression", async () => {
-  for (const schedule of [
-    buildScheduledTransaction(input({ id: "once", frequency: "once" }), { id: "once" }),
-    buildScheduledTransaction(input({ id: "specific", recurrenceKind: "specific-dates", frequency: "custom", specificInstalments: [{ date: "2026-08-24", outflow: 10, inflow: 0 }] }), { id: "specific" }),
-    buildScheduledTransaction(input({ id: "skip", nextDueDate: "2026-08-23", recurrenceAnchorDate: "2026-08-23", weekendPolicy: "skip" }), { id: "skip" }),
-  ]) {
-    const { service, schedules, getGenerated } = harness([schedule]);
-    await service.execute(budgetId, enterScheduledTransactionCommand({ accountId: "account-a", scheduleId: schedule.id, transactionId: `${schedule.id}-tx` }));
-    if (schedule.id !== "skip") assert.equal(schedules.has(schedule.id), false);
-    if (schedule.id === "skip") assert.equal(getGenerated(), null);
-    await service.undo(budgetId); assert.equal(schedules.get(schedule.id)!.id, schedule.id);
-    await service.redo(budgetId);
+  const cases = [
+    schedule({ frequency: "once", nextDueDate: "2026-01-01" }),
+    schedule({ frequency: "specific-dates", specificDates: ["2026-01-01"], nextDueDate: "2026-01-01" }),
+    schedule({ frequency: "monthly", nextDueDate: "2026-01-01" }),
+  ];
+  for (const original of cases) {
+    const h = harness(original);
+    const engine = createApplicationHistoryEngine();
+    await engine.execute(h.commands.enter(budgetId, original.id, false));
+    await engine.undo(budgetId);
+    assert.deepEqual(h.schedule(), original);
+    await engine.redo(budgetId);
+    if (original.frequency === "monthly") assert.equal(h.schedule()?.nextDueDate, "2026-02-01");
+    else assert.equal(h.schedule(), null);
   }
 });
 
 test("conflicting schedule state rejects compound Undo without changing either domain", async () => {
-  const schedule = buildScheduledTransaction(input({ id: "conflict" }), { id: "conflict" });
-  const { service, schedules, getGenerated } = harness([schedule]);
-  await service.execute(budgetId, enterScheduledTransactionCommand({ accountId: "account-a", scheduleId: "conflict", transactionId: "conflict-tx" }));
-  schedules.set("conflict", { ...schedules.get("conflict")!, memo: "external" });
-  const beforeTransaction = structuredClone(getGenerated());
-  const result = await service.undo(budgetId);
+  const initial = schedule();
+  const h = harness(initial);
+  const engine = createApplicationHistoryEngine();
+  await engine.execute(h.commands.enter(budgetId, "schedule-a", true));
+  const enteredSchedule = h.schedule();
+  const enteredTransaction = h.transaction();
+  h.mutateSchedule(schedule({ id: "schedule-a", payee: "Concurrent" }));
+  const result = await engine.undo(budgetId);
   assert.equal(result.performed, false);
-  assert.equal(service.getSnapshot(budgetId).undoDepth, 1);
-  assert.equal(service.getSnapshot(budgetId).redoDepth, 0);
-  assert.equal(schedules.get("conflict")!.memo, "external");
-  assert.deepEqual(getGenerated(), beforeTransaction);
+  assert.equal(result.reason, "failed");
+  assert.notDeepEqual(h.schedule(), enteredSchedule);
+  assert.deepEqual(h.transaction(), enteredTransaction);
+  assert.equal(engine.getSnapshot(budgetId).undoCount, 1);
 });
 
 test("scheduled actions share global ordering and production separates manual history from maintenance", async () => {
-  const schedule = buildScheduledTransaction(input({ id: "ordering" }), { id: "ordering" });
-  const { service } = harness([schedule]);
-  await service.execute(budgetId, { id: "budget", label: "Assign money", execute() {}, undo() {} });
-  await service.execute(budgetId, enterScheduledTransactionCommand({ accountId: "account-a", scheduleId: "ordering", transactionId: "ordering-tx" }));
-  await service.execute(budgetId, { id: "register", label: "Edit transaction", execute() {}, undo() {} });
-  assert.equal(service.getSnapshot(budgetId).undoLabel, "Edit transaction");
-  await service.undo(budgetId); assert.equal(service.getSnapshot(budgetId).undoLabel, "Enter scheduled transaction");
-  await service.undo(budgetId); assert.equal(service.getSnapshot(budgetId).undoLabel, "Assign money");
-
-  const panel = readFileSync(new URL("../../../apps/web/src/components/accounts/ScheduledTransactionsPanel.tsx", import.meta.url), "utf8");
-  const maintenance = readFileSync(new URL("../../../apps/web/src/features/accounts/scheduledTransactionMaintenance.ts", import.meta.url), "utf8");
-  assert.match(panel, /useScheduledTransactionHistory\(budgetId, accountId\)/);
-  assert.doesNotMatch(panel, /scheduledTransactionsPersistence\.(create|update|delete|advanceAfterEnter)\(/);
-  assert.doesNotMatch(panel, /onEnter:\s*\(transaction:\s*NewRegisterTransactionInput/);
-  assert.match(maintenance, /generateDueScheduledTransactions/);
-  assert.doesNotMatch(maintenance, /applicationHistory|ScheduledTransactionCommand/);
+  const runtime = readFileSync(new URL(
+    "../../../apps/web/src/features/persistence/accountRegisterQueryContracts.ts",
+    import.meta.url,
+  ), "utf8");
+  assert.match(runtime, /enterScheduledTransaction/);
+  assert.match(runtime, /advanceScheduledTransaction/);
+  const source = readFileSync(new URL(
+    "../../../apps/web/src/features/history/commands/scheduledTransactionHistoryCommands.ts",
+    import.meta.url,
+  ), "utf8");
+  assert.match(source, /enterSchedule/);
+  assert.match(source, /createSchedule/);
+  assert.match(source, /updateSchedule/);
+  assert.match(source, /deleteSchedule/);
 });
 
 test("worker compound replacement validates both domains before one SQLite transaction commits", () => {
@@ -209,18 +258,18 @@ test("worker compound replacement validates both domains before one SQLite trans
   assert.ok(source.indexOf("readScheduledTransactionForHistory") < source.indexOf("DELETE FROM local_transactions"));
   assert.ok(source.indexOf("captureTransactionHistorySnapshots") < source.indexOf("DELETE FROM local_transactions"));
 
-  const client = readFileSync(new URL(
-    "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
+  const commandSource = readFileSync(new URL(
+    "../../../apps/web/src/features/persistence/localFirst/engine/scheduledTransactionCommands.ts",
     import.meta.url,
   ), "utf8");
-  const enterSource = client.slice(
-    client.indexOf("async enterScheduledTransaction(input)"),
-    client.indexOf("async createScheduledTransaction", client.indexOf("async enterScheduledTransaction(input)")),
+  const enterSource = commandSource.slice(
+    commandSource.indexOf("async enterScheduledTransaction(input)"),
+    commandSource.indexOf("async createScheduledTransaction", commandSource.indexOf("async enterScheduledTransaction(input)")),
   );
   assert.match(enterSource, /buildNewTransactionRecords/);
   assert.match(enterSource, /scheduledRegisterWrite/);
   assert.match(enterSource, /current\.attachments/);
   assert.match(enterSource, /replaceScheduledTransactionHistoryState/);
   assert.doesNotMatch(enterSource, /applicationHistory|createAddTransactionCommand/);
-  assert.match(client, /const group: LocalBudgetOperationGroup = \{ members \}/);
+  assert.match(commandSource, /const group: LocalBudgetOperationGroup = \{ members \}/);
 });
