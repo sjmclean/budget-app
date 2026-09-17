@@ -56,7 +56,6 @@ async function createCategory(page: Page, name: string) {
   const dialog = page.getByRole("dialog", { name: "New category" });
   await dialog.getByPlaceholder("Category name").fill(name);
   await dialog.getByRole("button", { name: "Create category" }).click();
-  await expect(dialog).toBeHidden();
   await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
 }
 

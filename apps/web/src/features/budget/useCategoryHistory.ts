@@ -1,16 +1,17 @@
 import { useCallback } from "react";
-import { applicationHistory, archiveCategoryCommand, createCategoryCommand, moveCategoryCommand, moveCategoryGroupCommand, positionCategoryCommand, positionCategoryGroupCommand, renameCategoryCommand, setCategoryOverspendingHandlingCommand, updateCategoryGroupNoteCommand, updateCategoryNoteCommand, type UndoRedoResult } from "../history";
+import { applicationHistory, archiveCategoryCommand, createCategoryCommand, moveCategoryCommand, moveCategoryGroupCommand, positionCategoryCommand, positionCategoryGroupCommand, renameCategoryCommand, setCategoryOverspendingHandlingCommand, updateCategoryGroupNoteCommand, updateCategoryNoteCommand, type CategoryHistoryCommand, type UndoRedoResult } from "../history";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
-import { getBudgetPersistenceProvider } from "../persistence";
 import type { CategoryPersistencePort } from "./categoryPersistencePort";
 
 function requirePerformed(result: UndoRedoResult) { if (!result.performed) throw new Error(result.error ?? "Category history action failed."); }
 
 export function useCategoryHistory(budgetId: string, month: string) {
-  const execute = useCallback(async (command: Parameters<typeof applicationHistory.execute>[1]) => {
+  const execute = useCallback(async (command: CategoryHistoryCommand) => {
     requirePerformed(await applicationHistory.execute(budgetId, command));
-    return getBudgetPersistenceProvider().categories.getBudgetMonthView({ budgetId, month });
-  }, [budgetId, month]);
+    const committed = command.committedView();
+    if (!committed) throw new Error("Category command completed without an authoritative view.");
+    return committed;
+  }, [budgetId]);
   return {
     createCategory: useCallback((input: Omit<Parameters<CategoryPersistencePort["createCategory"]>[0], "budgetId" | "month">) => execute(createCategoryCommand({ budgetId, month, categoryId: createRuntimeUuid(), ...input })), [budgetId, execute, month]),
     renameCategory: useCallback((input: Omit<Parameters<CategoryPersistencePort["renameCategory"]>[0], "budgetId" | "month">) => execute(renameCategoryCommand({ budgetId, month, ...input })), [budgetId, execute, month]),

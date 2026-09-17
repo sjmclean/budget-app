@@ -41,6 +41,7 @@ function harness(options: { failMutate?: boolean; failMerge?: boolean } = {}) {
   const context = new LocalBudgetCommandContext(mutations);
   const database = {
     async readEntity<T>() { return structuredClone(view) as T; },
+    async listCategoryGoals() { return []; },
     async mutate(mutation: LocalBudgetMutation) {
       if (options.failMutate) throw new Error("worker rollback");
       committed.push(mutation);
@@ -114,6 +115,39 @@ test("assignment batch result contains exactly the worker-committed mutation IDs
   assert.equal(result.change.months, undefined, "assignment invalidation must cover roll-forward months");
   assert.deepEqual(result.change.categoryIds, ["category-a", "category-b"]);
   assert.equal(publications, 1);
+});
+
+test("category creation resolves with committed SQLite state after publication", async () => {
+  const state = harness();
+  let publications = 0;
+  const unsubscribe = subscribePersistenceChanges(() => { publications += 1; });
+  try {
+    const execution = await new LocalBudgetCommandExecutor().execute(
+      "budget:create-category",
+      createDomainCommandHandler({
+        budgetId,
+        context: state.context,
+        operation: () => state.commands.mutateCategory(budgetId, {
+          operation: "create",
+          month,
+          categoryId: "category-created",
+          groupId: "group-a",
+          groupName: "Bills",
+          name: "Created",
+        }),
+      }),
+    );
+    flushPersistenceChanges();
+    assert.equal(state.committed.length, 1, "the canonical entity and outbox mutation committed");
+    assert.equal(publications, 1, "the committed category change was published");
+    assert.equal(
+      execution.result.categoryGroups[0]?.categories.some(({ id }) => id === "category-created"),
+      true,
+      "the command result is the authoritative post-commit view",
+    );
+  } finally {
+    unsubscribe();
+  }
 });
 
 test("metadata, overspending, merge, and history commands retain their worker and scope semantics", async () => {

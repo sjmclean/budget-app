@@ -1,6 +1,7 @@
 import type { CategoryMutation, LocalBudgetRuntimeClient } from "../../accountRegisterQueryContracts";
 import type { PersistenceChangeScope } from "../../persistenceChangeBus";
 import { isCreditCardPaymentCategory } from "../../../budget/creditCardPaymentCategories";
+import { projectCategoryGoalsOntoBudgetView } from "../../../budget/categoryGoalBudgetProjection";
 import type { BudgetMonthView } from "../../../budget/budgetViewTypes";
 import { createRuntimeUuid } from "../../../ids/createRuntimeUuid";
 import type { LocalBudgetMutation, LocalBudgetOperationGroup } from "../contracts";
@@ -40,6 +41,18 @@ async function readBudgetMonth(
   const view = await local.readEntity<BudgetMonthView>("budgetMonths", month);
   if (!view) throw new Error(`Budget month ${month} is not available locally.`);
   return view;
+}
+
+async function readCreatedBudgetMonth(
+  local: LocalBudgetDatabaseClient,
+  budgetId: string,
+  month: string,
+): Promise<BudgetMonthView> {
+  const [view, goals] = await Promise.all([
+    readBudgetMonth(local, budgetId, month),
+    local.listCategoryGoals(budgetId),
+  ]);
+  return projectCategoryGoalsOntoBudgetView(view, month, goals);
 }
 
 /** Final implementation owner for ordinary budget-month and category commands. */
@@ -185,7 +198,9 @@ export function createBudgetCategoryCommands(
         return readBudgetMonth(local, budgetId, input.month);
       }
       await writeBudgetMonth(local, budgetId, input.month, next);
-      return readBudgetMonth(local, budgetId, input.month);
+      return input.operation === "create"
+        ? readCreatedBudgetMonth(local, budgetId, input.month)
+        : readBudgetMonth(local, budgetId, input.month);
     },
   };
 }

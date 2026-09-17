@@ -82,11 +82,11 @@ export function createSqliteBudgetViewService(
       }));
     },
     async createCategory(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
-      return withCategoryGoals(client, input, commands().mutateCategory(input.budgetId, {
+      await requireBudgetMonths(hosted, input.budgetId);
+      return commands().mutateCategory(input.budgetId, {
         operation: "create",
         ...input,
-      }));
+      });
     },
     async renameCategory(input) {
       const client = await requireBudgetMonths(hosted, input.budgetId);

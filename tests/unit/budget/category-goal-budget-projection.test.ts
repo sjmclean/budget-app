@@ -4,7 +4,7 @@ import type { CategoryGoal } from "../../../packages/types/src/CategoryGoal.js";
 import { projectCategoryGoalsOntoBudgetView } from "../../../apps/web/src/features/budget/categoryGoalBudgetProjection.js";
 import type { BudgetCategoryView, BudgetMonthView } from "../../../apps/web/src/features/budget/budgetViewTypes.js";
 import { createSqliteBudgetViewService } from "../../../apps/web/src/features/persistence/createSqliteBudgetViewService.js";
-import type { LocalBudgetQueryClient } from "../../../apps/web/src/features/persistence/accountRegisterQueryContracts.js";
+import type { LocalBudgetEngine, LocalBudgetQueryClient } from "../../../apps/web/src/features/persistence/accountRegisterQueryContracts.js";
 
 function category(id: string, overrides: Partial<BudgetCategoryView> = {}): BudgetCategoryView {
   return {
@@ -177,4 +177,31 @@ test("Budget service performs one budget-level Goal list read and refreshes on t
     .categoryGroups[0]!.categories[0]!.goal?.remainingAmount, 400);
   assert.equal(monthReads, 2);
   assert.equal(goalListReads, 2);
+});
+
+test("category creation returns the engine's authoritative view without a post-commit synced Goal read", async () => {
+  const created = view([category("category-created")]);
+  let goalListReads = 0;
+  let commandCalls = 0;
+  const client = {
+    async getBudgetStatus() { return { capabilities: { budgetMonths: true } }; },
+    async listCategoryGoals() {
+      goalListReads += 1;
+      throw new Error("relay-backed Goal read must not gate command completion");
+    },
+  } as unknown as LocalBudgetQueryClient;
+  const engine = {
+    async mutateCategory() {
+      commandCalls += 1;
+      return created;
+    },
+  } as unknown as LocalBudgetEngine;
+  const service = createSqliteBudgetViewService(client, engine);
+  const result = await service.createCategory({
+    budgetId: "budget-1", month: "2026-08", categoryId: "category-created",
+    groupId: "group-1", groupName: "Living", name: "Created",
+  });
+  assert.equal(commandCalls, 1);
+  assert.equal(goalListReads, 0);
+  assert.equal(result.categoryGroups[0]?.categories[0]?.id, "category-created");
 });
