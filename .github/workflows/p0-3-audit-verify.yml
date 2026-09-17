@@ -1,0 +1,46 @@
+name: P0.3 Audit Verify
+
+on:
+  push:
+    branches:
+      - audit/p0-3-command-engine-current
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-clean:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out audit branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/p0-3-command-engine-current
+          fetch-depth: 0
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium and system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run canonical verification
+        env:
+          CI: "1"
+        run: pnpm verify
+      - name: Confirm verification did not mutate tracked files
+        run: git diff --exit-code
+      - name: Remove temporary verifier
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/p0-3-audit-verify.yml
+          git commit -m "chore(ci): remove temporary P0.3 audit verifier"
+          git push origin HEAD:audit/p0-3-command-engine-current
