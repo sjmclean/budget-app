@@ -2,6 +2,7 @@ import type { CategoryMutation, LocalBudgetRuntimeClient } from "../../accountRe
 import type { PersistenceChangeScope } from "../../persistenceChangeBus";
 import { isCreditCardPaymentCategory } from "../../../budget/creditCardPaymentCategories";
 import type { BudgetMonthView } from "../../../budget/budgetViewTypes";
+import { createRuntimeUuid } from "../../../ids/createRuntimeUuid";
 import type { LocalBudgetMutation, LocalBudgetOperationGroup } from "../contracts";
 import type { LocalBudgetDatabaseClient } from "../localBudgetClient";
 import { persistenceScopeForMutations } from "../mutationEvents";
@@ -131,11 +132,39 @@ export function createBudgetCategoryCommands(
           .find(({ id }) => id === targetCategoryId);
         if (!target) throw new Error("The target local category was not found.");
         const payload = { targetCategoryId, targetCategoryName: target.name };
+        const members: LocalBudgetOperationGroup["members"] = [
+          {
+            domain: "categories",
+            entityId: sourceCategoryId,
+            operation: "delete",
+            payload,
+          },
+          {
+            domain: "budgetMonths",
+            entityId: input.month,
+            operation: "upsert",
+            payload: next,
+          },
+        ];
+        const operationGroupId = createRuntimeUuid();
+        const operationGroup: LocalBudgetOperationGroup = { members };
         const mergeMutation = dependencies.createMutation(
-          budgetId, "categories", sourceCategoryId, "delete", payload,
+          budgetId,
+          "categories",
+          sourceCategoryId,
+          "delete",
+          payload,
+          operationGroupId,
+          operationGroup,
         );
         const budgetMonthMutation = dependencies.createMutation(
-          budgetId, "budgetMonths", input.month, "upsert", next,
+          budgetId,
+          "budgetMonths",
+          input.month,
+          "upsert",
+          next,
+          operationGroupId,
+          operationGroup,
         );
         await local.mergeCategories({
           budgetId,
