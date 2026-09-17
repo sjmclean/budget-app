@@ -215,3 +215,24 @@ test("all ordinary payee implementations are engine-module owned", () => {
   assert.doesNotMatch(commands, /\bsynchronise\b|notifyLocalFirstMutationCommitted|publishPersistenceChange/);
   assert.match(commands, /validatePayeeIconReferenceForWrite/);
 });
+
+test("all ordinary scheduled transaction implementations are engine-module owned", () => {
+  const runtime = readFileSync(resolve(root, "features/persistence/localFirst/localFirstAccountRegisterClient.ts"), "utf8");
+  const commands = readFileSync(resolve(root, "features/persistence/localFirst/engine/scheduledTransactionCommands.ts"), "utf8");
+  for (const method of [
+    "replaceScheduledTransactionHistoryState", "enterScheduledTransaction", "createScheduledTransaction",
+    "updateScheduledTransaction", "deleteScheduledTransaction", "advanceScheduledTransaction",
+    "renameScheduledPayeeReferences", "reassignScheduledPayeeReferences",
+  ]) {
+    assert.match(runtime, new RegExp(`${method}: scheduledTransactionCommands\\.${method}`));
+    assert.doesNotMatch(runtime, new RegExp(`async ${method}\\s*\\(`));
+    assert.match(commands, new RegExp(`async ${method}\\s*\\(|${method}: replaceHistory`));
+  }
+  const runtimeClient = runtime.slice(runtime.indexOf("  const client:"));
+  assert.doesNotMatch(runtimeClient, /local\.(?:replaceScheduledTransactionHistoryState|mutateBatch)\s*\(/);
+  assert.doesNotMatch(commands, /\bsynchronise\b|notifyLocalFirstMutationCommitted|publishPersistenceChange/);
+  assert.match(commands, /local\.replaceScheduledTransactionHistoryState\s*\(/);
+  assert.match(commands, /local\.mutateBatch\s*\(/);
+  assert.match(runtime, /listScheduledTransactions\(budgetId, accountId\)/);
+  assert.match(runtime, /captureScheduledTransaction\(budgetId, scheduleId\)/);
+});

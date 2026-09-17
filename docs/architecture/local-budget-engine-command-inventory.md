@@ -79,9 +79,9 @@ has moved out of `localFirstAccountRegisterClient.ts`.
   `engine/budgetCategoryCommands.ts` and `engine/categoryCommandHelpers.ts`.
 - Category goals: complete in `engine/categoryGoalCommands.ts`.
 - Payees: complete in `engine/payeeCommands.ts`.
-- Still runtime-owned: scheduled transactions, transaction/import history
-  commands still present in the runtime, and keep-local conflict replay/import
-  implementations.
+- Scheduled transactions: complete in `engine/scheduledTransactionCommands.ts`.
+- Still runtime-owned: transaction/import history commands still present in the
+  runtime, and keep-local conflict replay/import implementations.
 
 The runtime-owned families are routed through the engine/executor boundary but
 have not yet been physically extracted into domain command modules.
@@ -178,7 +178,7 @@ The transitional command recorder remains in place until P0.3e4.
 | Category goals | Engine/executor | Extracted Category Goal module |
 | Payees | Engine/executor | Extracted payee module |
 | Transaction tags | Engine/executor | Extracted tag module |
-| Scheduled transactions | Engine/executor | Runtime-owned |
+| Scheduled transactions | Engine/executor | Extracted scheduled transaction module |
 | Remaining history operations | Engine/executor | Runtime-owned |
 | Conflict keep-local | Engine/executor | Runtime-owned; accept-remote remains replication-owned |
 | Remote apply | Replication exception; never creates local outbox rows |

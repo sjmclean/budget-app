@@ -65,6 +65,7 @@ import { createAccountCommands } from "./engine/accountCommands";
 import { createBudgetCategoryCommands } from "./engine/budgetCategoryCommands";
 import { createCategoryGoalCommands } from "./engine/categoryGoalCommands";
 import { createPayeeCommands } from "./engine/payeeCommands";
+import { createScheduledTransactionCommands } from "./engine/scheduledTransactionCommands";
 import {
   buildNewTransactionRecords,
   prepareTransactionBatchWrites,
@@ -482,39 +483,6 @@ export function createLocalBudgetRuntime(
     return schedules.find(({ id }) => id === scheduleId) ?? null;
   }
 
-  function scheduledRegisterWrite(
-    budgetId: string,
-    accountId: string,
-    schedule: ScheduledTransactionView,
-  ): TransactionWriteInput {
-    const input = scheduledTransactionToRegisterInput(schedule);
-    return {
-      budgetId,
-      accountId,
-      date: input.date,
-      amount: Math.round((input.inflow - input.outflow) * 100),
-      payeeId: input.payeeId,
-      payeeName: input.payee,
-      transferAccountId: input.transferAccountId,
-      categoryId: input.categoryId,
-      categoryName: input.category,
-      memo: input.memo,
-      tagIds: input.tagIds,
-      generatedFromSchedule: true,
-      scheduledTransactionId: schedule.id,
-      scheduledOccurrenceDate: input.scheduledOccurrenceDate,
-      splitLines: (input.splitLines ?? []).map((line) => ({
-        id: line.id,
-        categoryId: line.categoryId,
-        categoryName: line.category,
-        transferAccountId: line.transferAccountId,
-        transferTransactionId: line.transferTransactionId,
-        memo: line.memo,
-        amount: Math.round((line.inflow - line.outflow) * 100),
-      })),
-    };
-  }
-
   const tagCommands = createTagCommands({
     synchronise,
     async listTags(budgetId) {
@@ -566,61 +534,13 @@ export function createLocalBudgetRuntime(
     createMutation: mutation,
     recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
-
-  function scheduledHistoryMembers(input: {
-    readonly scheduleId: string;
-    readonly expectedSchedule: ScheduledTransactionView | null;
-    readonly replacementSchedule: ScheduledTransactionView | null;
-    readonly expectedTransaction: TransactionHistorySnapshot | null;
-    readonly replacementTransaction: TransactionHistorySnapshot | null;
-  }): LocalBudgetOperationGroup["members"] {
-    const nextTransactionIds = new Set(
-      input.replacementTransaction?.transactions.map(({ id }) => id) ?? [],
-    );
-    const nextAttachmentIds = new Set(
-      input.replacementTransaction?.attachments.map(({ id }) => id) ?? [],
-    );
-    return [
-      {
-        domain: "scheduledTransactions" as const,
-        entityId: input.scheduleId,
-        operation: input.replacementSchedule ? "upsert" as const : "delete" as const,
-        payload: input.replacementSchedule,
-      },
-      ...(input.expectedTransaction?.transactions ?? [])
-        .filter(({ id }) => !nextTransactionIds.has(id))
-        .map((transaction) => ({
-          domain: "transactions" as const,
-          entityId: transaction.id,
-          operation: "delete" as const,
-          payload: { accountId: transaction.accountId, amount: transaction.amount,
-            transferAccountId: transaction.transferAccountId, transferTransactionId: transaction.transferTransactionId },
-        })),
-      ...(input.expectedTransaction?.attachments ?? [])
-        .filter(({ id }) => !nextAttachmentIds.has(id))
-        .map((attachment) => ({
-          domain: "transactions" as const,
-          entityId: `attachment:${attachment.id}`,
-          operation: "delete" as const,
-          payload: { kind: "transaction-attachment-delete" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment) },
-        })),
-      ...(input.replacementTransaction?.transactions ?? []).map((transaction) => ({
-        domain: "transactions" as const,
-        entityId: transaction.id,
-        operation: "upsert" as const,
-        payload: transaction,
-      })),
-      ...(input.replacementTransaction?.attachments ?? []).map((attachment) => ({
-        domain: "transactions" as const,
-        entityId: `attachment:${attachment.id}`,
-        operation: "upsert" as const,
-        payload: { kind: "transaction-attachment-upsert" as const,
-          attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
-          contentBase64: encodeBase64(attachment.content) },
-      })),
-    ];
-  }
+  const scheduledTransactionCommands = createScheduledTransactionCommands({
+    requireDatabase,
+    createMutation: mutation,
+    encodeBase64,
+    decodeBase64,
+    recordCommittedChange: notifyLocalFirstMutationCommitted,
+  });
 
   function journalMutation(value: LocalBudgetMutation) {
     const key = `local-first/${value.domain}/${value.entityId}`;
@@ -1626,182 +1546,14 @@ export function createLocalBudgetRuntime(
     captureScheduledTransaction(budgetId, scheduleId) {
       return captureSchedule(budgetId, scheduleId);
     },
-    async replaceScheduledTransactionHistoryState(input) {
-      const local = await requireDatabase(input.budgetId);
-      const members = scheduledHistoryMembers(input);
-      const operationGroupId = createRuntimeUuid();
-      const group: LocalBudgetOperationGroup = { members };
-      const committedMutations = members.map((member) => mutation(
-        input.budgetId,
-        member.domain,
-        member.entityId,
-        member.operation,
-        member.payload,
-        operationGroupId,
-        group,
-      ));
-      await local.replaceScheduledTransactionHistoryState({
-        scheduleId: input.scheduleId,
-        expectedSchedule: input.expectedSchedule,
-        replacementSchedule: input.replacementSchedule,
-        expectedTransaction: input.expectedTransaction,
-        replacementTransaction: input.replacementTransaction,
-        mutations: committedMutations,
-      });
-      notifyLocalFirstMutationCommitted(
-        input.budgetId,
-        input.expectedTransaction || input.replacementTransaction
-          ? mergePersistenceChangeScopes(
-              input.budgetId,
-              persistenceScopeForMutations(input.budgetId, committedMutations),
-              deriveTransactionChangeScope({
-                budgetId: input.budgetId,
-                before: input.expectedTransaction?.transactions,
-                after: input.replacementTransaction?.transactions,
-              }),
-            )
-          : persistenceScopeForMutations(input.budgetId, committedMutations),
-      );
-    },
-    async enterScheduledTransaction(input) {
-      const local = await requireDatabase(input.budgetId);
-      const current = await captureSchedule(input.budgetId, input.schedule.id);
-      if (!current || JSON.stringify(current) !== JSON.stringify(input.schedule)) {
-        throw new Error("The scheduled transaction no longer matches its expected state.");
-      }
-      const advanced = advanceScheduledTransaction(current);
-      const afterSchedule = advanced.action === "delete" ? null : advanced.transaction;
-      let transaction: TransactionHistorySnapshot | null = null;
-      if (input.createTransaction) {
-        const records = await buildNewTransactionRecords(
-          local,
-          input.transactionId,
-          scheduledRegisterWrite(input.budgetId, input.accountId, current),
-        );
-        const attachedAt = new Date().toISOString();
-        transaction = {
-          budgetId: input.budgetId,
-          transactions: records,
-          attachments: (current.attachments ?? []).map((attachment) => ({
-            id: `${input.transactionId}:attachment:${attachment.id}`,
-            budgetId: input.budgetId,
-            transactionId: input.transactionId,
-            fileName: attachment.fileName,
-            fileSize: attachment.fileSize,
-            mimeType: attachment.mimeType,
-            attachedAt,
-            contentHash: attachment.contentHash,
-            content: decodeBase64(attachment.contentBase64),
-          })),
-        };
-      }
-      await client.replaceScheduledTransactionHistoryState({
-        budgetId: input.budgetId,
-        scheduleId: current.id,
-        expectedSchedule: current,
-        replacementSchedule: afterSchedule,
-        expectedTransaction: null,
-        replacementTransaction: transaction,
-      });
-      return { afterSchedule, transaction };
-    },
-    async createScheduledTransaction(budgetId, input) {
-      const schedule = buildScheduledTransaction(input);
-      await writeEntity(budgetId, "scheduledTransactions", schedule.id, schedule);
-      return listSchedules(budgetId, input.accountId, false);
-    },
-    async updateScheduledTransaction(budgetId, scheduleId, input) {
-      const existing = (await listSchedules(budgetId, input.accountId))
-        .find(({ id }) => id === scheduleId);
-      if (!existing) throw new Error("The local scheduled transaction was not found.");
-      const schedule = buildScheduledTransaction(
-        input,
-        { existing },
-      );
-      await writeEntity(budgetId, "scheduledTransactions", schedule.id, schedule);
-      return listSchedules(budgetId, input.accountId, false);
-    },
-    async deleteScheduledTransaction(budgetId, accountId, scheduleId) {
-      await writeEntity(budgetId, "scheduledTransactions", scheduleId, null, "delete");
-      return listSchedules(budgetId, accountId, false);
-    },
-    async advanceScheduledTransaction(budgetId, accountId, scheduleId) {
-      const existing = (
-        await listSchedules(
-          budgetId,
-          accountId,
-        )
-      ).find(({ id }) => id === scheduleId);
-
-      if (!existing) {
-        return listSchedules(
-          budgetId,
-          accountId,
-        );
-      }
-
-      const result =
-        advanceScheduledTransaction(
-          existing,
-        );
-
-      if (result.action === "delete") {
-        await writeEntity(
-          budgetId,
-          "scheduledTransactions",
-          scheduleId,
-          null,
-          "delete",
-        );
-      } else {
-        await writeEntity(
-          budgetId,
-          "scheduledTransactions",
-          scheduleId,
-          result.transaction,
-        );
-      }
-
-      return listSchedules(
-        budgetId,
-        accountId,
-        false,
-      );
-    },
-
-    async renameScheduledPayeeReferences(budgetId, input) {
-      const schedules = await (await syncThenDatabase(budgetId))
-        .listEntities<ScheduledTransactionView>("scheduledTransactions");
-      for (const schedule of schedules) {
-        if (
-          schedule.payeeId === input.payeeId ||
-          schedule.payee === input.previousName
-        ) {
-          await writeEntity(budgetId, "scheduledTransactions", schedule.id, {
-            ...schedule,
-            payee: input.nextName,
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      }
-    },
-    async reassignScheduledPayeeReferences(budgetId, input) {
-      const schedules = await (await syncThenDatabase(budgetId))
-        .listEntities<ScheduledTransactionView>("scheduledTransactions");
-      for (const schedule of schedules) {
-        if (
-          schedule.payeeId === input.sourcePayeeId ||
-          schedule.payee === input.sourceName
-        ) {
-          await writeEntity(budgetId, "scheduledTransactions", schedule.id, {
-            ...schedule,
-            payeeId: input.targetPayeeId,
-            payee: input.targetName,
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      }
-    },
+    replaceScheduledTransactionHistoryState: scheduledTransactionCommands.replaceScheduledTransactionHistoryState,
+    enterScheduledTransaction: scheduledTransactionCommands.enterScheduledTransaction,
+    createScheduledTransaction: scheduledTransactionCommands.createScheduledTransaction,
+    updateScheduledTransaction: scheduledTransactionCommands.updateScheduledTransaction,
+    deleteScheduledTransaction: scheduledTransactionCommands.deleteScheduledTransaction,
+    advanceScheduledTransaction: scheduledTransactionCommands.advanceScheduledTransaction,
+    renameScheduledPayeeReferences: scheduledTransactionCommands.renameScheduledPayeeReferences,
+    reassignScheduledPayeeReferences: scheduledTransactionCommands.reassignScheduledPayeeReferences,
   };
   const ownership = createBudgetDatabaseOwnership(() => client.releaseLocalDatabase!());
   // The raw client is deliberately retained for nested calls. Wrapping those
