@@ -47,19 +47,19 @@ jobs:
           )
 
           construction_anchor = '''  const budgetCategoryCommands = createBudgetCategoryCommands({
-            requireDatabase,
-            createMutation: mutation,
-            recordCommittedChange: notifyLocalFirstMutationCommitted,
-          });
+              requireDatabase,
+              createMutation: mutation,
+              recordCommittedChange: notifyLocalFirstMutationCommitted,
+            });
           '''
           if source.count(construction_anchor) != 1:
               raise SystemExit("Budget/category construction anchor mismatch")
           goal_construction = '''  const categoryGoalCommands = createCategoryGoalCommands({
-            requireDatabase,
-            createMutation: mutation,
-            discardFailedMutation: mutationContext.discardFailedMutation.bind(mutationContext),
-            recordCommittedChange: notifyLocalFirstMutationCommitted,
-          });
+              requireDatabase,
+              createMutation: mutation,
+              discardFailedMutation: mutationContext.discardFailedMutation.bind(mutationContext),
+              recordCommittedChange: notifyLocalFirstMutationCommitted,
+            });
           '''
           source = source.replace(
               construction_anchor,
@@ -74,10 +74,10 @@ jobs:
           if not match:
               raise SystemExit("Runtime-owned Category Goal command block not found")
           delegates = '''    createCategoryGoal: categoryGoalCommands.createCategoryGoal,
-            updateCategoryGoal: categoryGoalCommands.updateCategoryGoal,
-            deleteCategoryGoal: categoryGoalCommands.deleteCategoryGoal,
-            replaceCategoryGoalHistoryState: categoryGoalCommands.replaceCategoryGoalHistoryState,
-            createAccount: accountCommands.createAccount,'''
+              updateCategoryGoal: categoryGoalCommands.updateCategoryGoal,
+              deleteCategoryGoal: categoryGoalCommands.deleteCategoryGoal,
+              replaceCategoryGoalHistoryState: categoryGoalCommands.replaceCategoryGoalHistoryState,
+              createAccount: accountCommands.createAccount,'''
           source = source[:match.start()] + delegates + source[match.end():]
 
           path.write_text(source)
