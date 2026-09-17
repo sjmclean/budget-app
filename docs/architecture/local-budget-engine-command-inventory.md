@@ -78,8 +78,10 @@ has moved out of `localFirstAccountRegisterClient.ts`.
 - Budget months and categories: complete in
   `engine/budgetCategoryCommands.ts` and `engine/categoryCommandHelpers.ts`.
 - Category goals: complete in `engine/categoryGoalCommands.ts`.
-- Still runtime-owned: payees, scheduled transactions, remaining history/import
-  commands, and keep-local conflict replay.
+- Payees: complete in `engine/payeeCommands.ts`.
+- Still runtime-owned: scheduled transactions, transaction/import history
+  commands still present in the runtime, and keep-local conflict replay/import
+  implementations.
 
 The runtime-owned families are routed through the engine/executor boundary but
 have not yet been physically extracted into domain command modules.
@@ -151,6 +153,20 @@ record mutation IDs and change impact in command-scoped contexts;
 publication. Direct committed metadata returns from every domain handler remain
 the P0.3e4 target after the transitional recorder is removed.
 
+### Extracted payee handlers
+
+| Command | Final module |
+| --- | --- |
+| Keep duplicates separate and replace suppression history | `engine/payeeCommands.ts` |
+| Create and exact history replacement | `engine/payeeCommands.ts` |
+| Update and archive/restore | `engine/payeeCommands.ts` |
+| Delete unused and atomic merge | `engine/payeeCommands.ts` |
+
+Payee listing, duplicate-suppression listing, and payee capture remain queries.
+The command module owns record construction, persisted lookup, history conflict
+checks, icon validation, mutation payloads, and precise affected-domain scopes.
+The transitional command recorder remains in place until P0.3e4.
+
 | Original family | Public routing | Physical implementation owner |
 | --- | --- | --- |
 | Transaction create/update/delete/move/clear | Engine/executor | Extracted transaction modules |
@@ -160,7 +176,7 @@ the P0.3e4 target after the transitional recorder is removed.
 | Accounts | Engine/executor | Extracted account module, including exact history replacement |
 | Budget month and category | Engine/executor | Extracted budget/category modules |
 | Category goals | Engine/executor | Extracted Category Goal module |
-| Payees | Engine/executor | Runtime-owned |
+| Payees | Engine/executor | Extracted payee module |
 | Transaction tags | Engine/executor | Extracted tag module |
 | Scheduled transactions | Engine/executor | Runtime-owned |
 | Remaining history operations | Engine/executor | Runtime-owned |

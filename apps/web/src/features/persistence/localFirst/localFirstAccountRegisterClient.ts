@@ -47,7 +47,6 @@ import { notifyRemoteMutationsApplied, persistenceScopeForMutations } from "./mu
 import { publishBroadBudgetChange } from "../persistenceChangeBus";
 import { registerLocalSqliteAttachmentReader } from "../../attachments/localSqliteAttachmentReader";
 import { localPayeeRecordToView } from "./localPayeeView";
-import { validatePayeeIconReferenceForWrite } from "../../icons/payeeIconReference";
 import { createBudgetDatabaseOwnership } from "./budgetDatabaseOwnership";
 import { resolveOwnedBudgetId } from "./budgetDatabaseOwnershipRouting";
 import { createRestorePointStore } from "../../budget/restorePointStore";
@@ -65,6 +64,7 @@ import { createTransactionCommands } from "./engine/transactionCommands";
 import { createAccountCommands } from "./engine/accountCommands";
 import { createBudgetCategoryCommands } from "./engine/budgetCategoryCommands";
 import { createCategoryGoalCommands } from "./engine/categoryGoalCommands";
+import { createPayeeCommands } from "./engine/payeeCommands";
 import {
   buildNewTransactionRecords,
   prepareTransactionBatchWrites,
@@ -515,11 +515,6 @@ export function createLocalBudgetRuntime(
     };
   }
 
-  async function listPersistedPayees(budgetId: string, archived: boolean) {
-    const rows = await (await requireDatabase(budgetId)).listPayees(budgetId, archived);
-    return rows.map(localPayeeRecordToView);
-  }
-
   const tagCommands = createTagCommands({
     synchronise,
     async listTags(budgetId) {
@@ -564,6 +559,11 @@ export function createLocalBudgetRuntime(
     requireDatabase,
     createMutation: mutation,
     discardFailedMutation: mutationContext.discardFailedMutation.bind(mutationContext),
+    recordCommittedChange: notifyLocalFirstMutationCommitted,
+  });
+  const payeeCommands = createPayeeCommands({
+    requireDatabase,
+    createMutation: mutation,
     recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
 
@@ -1604,25 +1604,9 @@ export function createLocalBudgetRuntime(
     async listPayeeDuplicateSuppressions(budgetId) {
       return (await syncThenDatabase(budgetId)).listPayeeDuplicateSuppressions(budgetId);
     },
-    async keepPayeesSeparate(budgetId, pairs) {
-      await (await requireDatabase(budgetId)).keepPayeesSeparate(budgetId, pairs);
-      notifyLocalFirstMutationCommitted(budgetId, { domains: ["payees"] });
-    },
-    async replacePayeeDuplicateSuppressionsHistoryState(input) {
-      await (await requireDatabase(input.budgetId)).replacePayeeDuplicateSuppressionsHistoryState(input);
-      notifyLocalFirstMutationCommitted(input.budgetId, { domains: ["payees"] });
-    },
-    async createPayee(budgetId, name, payeeId) {
-      const now = new Date().toISOString();
-      const payee = {
-        id: payeeId ?? createRuntimeUuid(), budgetId, name: name.trim(),
-        note: "", archived: false,
-      };
-      const local = await requireDatabase(budgetId);
-      await local.writePayee(payee, mutation(budgetId, "payees", payee.id, "upsert", payee));
-      notifyLocalFirstMutationCommitted(budgetId, { domains: ["payees"] });
-      return listPersistedPayees(budgetId, false);
-    },
+    keepPayeesSeparate: payeeCommands.keepPayeesSeparate,
+    replacePayeeDuplicateSuppressionsHistoryState: payeeCommands.replacePayeeDuplicateSuppressionsHistoryState,
+    createPayee: payeeCommands.createPayee,
     async capturePayee(budgetId, payeeId) {
       const all = [
         ...await client.listPayees(budgetId, false),
@@ -1630,114 +1614,11 @@ export function createLocalBudgetRuntime(
       ];
       return all.find(({ id }) => id === payeeId) ?? null;
     },
-    async replacePayeeHistoryState(input) {
-      const current = await client.capturePayee(input.budgetId, input.payeeId);
-      if (JSON.stringify(current) !== JSON.stringify(input.expected)) {
-        throw new Error("PAYEE_HISTORY_CONFLICT");
-      }
-      const local = await requireDatabase(input.budgetId);
-      if (input.replacement) {
-        const { isArchived, ...replacement } = input.replacement;
-        const payee = {
-          ...replacement,
-          budgetId: input.budgetId,
-          note: replacement.note ?? "",
-          archived: isArchived === true,
-        };
-        await local.writePayee(payee, mutation(input.budgetId, "payees", input.payeeId, "upsert", payee));
-      } else {
-        await local.deleteUnusedPayee(
-          input.budgetId,
-          input.payeeId,
-          mutation(input.budgetId, "payees", input.payeeId, "delete", { kind: "history" }),
-        );
-      }
-      notifyLocalFirstMutationCommitted(input.budgetId, { domains: ["payees"] });
-    },
-    async updatePayee(budgetId, input) {
-      const local = await requireDatabase(budgetId);
-      const all = [...await local.listPayees(budgetId, false), ...await local.listPayees(budgetId, true)];
-      const current = all.find((row) => row.id === input.id);
-      if (!current) throw new Error("The local payee was not found.");
-      const payee = {
-        id: current.id, budgetId,
-        name: input.name ?? current.name,
-        note: input.note ?? current.note,
-        archived: current.archived,
-        defaultCategoryId: input.defaultCategoryId ?? current.defaultCategoryId,
-        defaultCategoryName: input.defaultCategoryName ?? current.defaultCategoryName,
-        aliases: input.aliases ?? current.aliases,
-        importRules: input.importRules ?? current.importRules,
-        iconRef: input.iconUpdate
-          ? input.iconUpdate.kind === "automatic"
-            ? ""
-            : validatePayeeIconReferenceForWrite(input.iconUpdate.iconRef)
-          : current.iconRef,
-        createdAt: current.createdAt,
-        updatedAt: new Date().toISOString(),
-      };
-      await local.writePayee(payee, mutation(budgetId, "payees", payee.id, "upsert", payee));
-      notifyLocalFirstMutationCommitted(budgetId, { domains: ["payees"] });
-      return listPersistedPayees(budgetId, false);
-    },
-    async setPayeeArchived(budgetId, payeeId, archived) {
-      const local = await requireDatabase(budgetId);
-      const all = [...await local.listPayees(budgetId, false), ...await local.listPayees(budgetId, true)];
-      const current = all.find((row) => row.id === payeeId);
-      if (!current) throw new Error("The local payee was not found.");
-      const payee = { ...current, budgetId, archived };
-      await local.writePayee(payee, mutation(budgetId, "payees", payee.id, "upsert", payee));
-      notifyLocalFirstMutationCommitted(budgetId, { domains: ["payees"] });
-      return listPersistedPayees(budgetId, archived);
-    },
-    async deleteUnusedPayee(budgetId, payeeId) {
-      const local = await requireDatabase(budgetId);
-      await local.deleteUnusedPayee(
-        budgetId,
-        payeeId,
-        mutation(budgetId, "payees", payeeId, "delete", { kind: "unused-payee-delete" }),
-      );
-      notifyLocalFirstMutationCommitted(budgetId, { domains: ["payees"] });
-      return listPersistedPayees(budgetId, false);
-    },
-    async mergePayees(budgetId, input) {
-      const local = await requireDatabase(budgetId);
-      const target = [
-        ...await local.listPayees(budgetId, false),
-        ...await local.listPayees(budgetId, true),
-      ].find(({ id }) => id === input.targetPayeeId);
-      if (!target) throw new Error("The target local payee was not found.");
-      const payload = {
-        targetPayeeId: target.id,
-        targetPayeeName: target.name,
-      };
-      await local.mergePayees({
-        budgetId,
-        sourcePayeeId: input.sourcePayeeId,
-        sourcePayeeIds: input.sourcePayeeIds,
-        targetPayeeId: target.id,
-        targetPayeeName: target.name,
-        updateLinkedTransactions: input.updateLinkedTransactions,
-        updateScheduledTransactions: input.updateScheduledTransactions,
-        addMergedAliases: input.addMergedAliases,
-        redirectRecognitionRules: input.redirectRecognitionRules,
-        mutation: mutation(
-          budgetId, "payees", input.sourcePayeeId, "delete", {
-            ...payload,
-            sourcePayeeIds: input.sourcePayeeIds,
-            updateLinkedTransactions: input.updateLinkedTransactions,
-            updateScheduledTransactions: input.updateScheduledTransactions,
-            addMergedAliases: input.addMergedAliases,
-            redirectRecognitionRules: input.redirectRecognitionRules,
-          },
-        ),
-      });
-      notifyLocalFirstMutationCommitted(budgetId, {
-        domains: ["payees", ...(input.updateLinkedTransactions ? ["transactions" as const] : []),
-          ...(input.updateScheduledTransactions ? ["scheduled-transactions" as const] : [])],
-      });
-      return listPersistedPayees(budgetId, false);
-    },
+    replacePayeeHistoryState: payeeCommands.replacePayeeHistoryState,
+    updatePayee: payeeCommands.updatePayee,
+    setPayeeArchived: payeeCommands.setPayeeArchived,
+    deleteUnusedPayee: payeeCommands.deleteUnusedPayee,
+    mergePayees: payeeCommands.mergePayees,
     ...tagCommands,
     listScheduledTransactions(budgetId, accountId) {
       return listSchedules(budgetId, accountId);

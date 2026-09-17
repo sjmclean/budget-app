@@ -198,3 +198,20 @@ test("all ordinary Category Goal implementations are engine-module owned", () =>
   assert.doesNotMatch(commands, /\bsynchronise\b/);
   assert.match(commands, /discardFailedMutation\(mutation\.mutationId\)/);
 });
+
+test("all ordinary payee implementations are engine-module owned", () => {
+  const runtime = readFileSync(resolve(root, "features/persistence/localFirst/localFirstAccountRegisterClient.ts"), "utf8");
+  const commands = readFileSync(resolve(root, "features/persistence/localFirst/engine/payeeCommands.ts"), "utf8");
+  for (const method of [
+    "keepPayeesSeparate", "replacePayeeDuplicateSuppressionsHistoryState", "createPayee",
+    "replacePayeeHistoryState", "updatePayee", "setPayeeArchived", "deleteUnusedPayee", "mergePayees",
+  ]) {
+    assert.match(runtime, new RegExp(`${method}: payeeCommands\\.${method}`));
+    assert.doesNotMatch(runtime, new RegExp(`async ${method}\\s*\\(`));
+    assert.match(commands, new RegExp(`async ${method}\\s*\\(`));
+  }
+  const runtimeClient = runtime.slice(runtime.indexOf("  const client:"));
+  assert.doesNotMatch(runtimeClient, /local\.(?:writePayee|deleteUnusedPayee|mergePayees|keepPayeesSeparate|replacePayeeDuplicateSuppressionsHistoryState)\s*\(/);
+  assert.doesNotMatch(commands, /\bsynchronise\b|notifyLocalFirstMutationCommitted|publishPersistenceChange/);
+  assert.match(commands, /validatePayeeIconReferenceForWrite/);
+});
