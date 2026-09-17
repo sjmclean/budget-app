@@ -1,0 +1,121 @@
+name: P0.3 Finalize Budget Category Fixes
+
+on:
+  push:
+    branches:
+      - audit/p0-3-command-engine-current
+
+permissions:
+  contents: write
+
+jobs:
+  fix-verify-and-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out audit branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/p0-3-command-engine-current
+          fetch-depth: 0
+
+      - name: Apply atomic category merge correction
+        shell: python
+        run: |
+          import subprocess
+
+          historical = subprocess.check_output([
+              "git",
+              "show",
+              "817430a6011bccc5c94ea6cb504fe8fc81b2f337:.github/workflows/p0-3-atomic-category-merge-fix.yml",
+          ], text=True)
+          step = historical.split("      - name: Apply atomic category merge correction\n", 1)[1]
+          step = step.split("\n      - name: Install pnpm", 1)[0]
+          script = step.split("        run: |\n", 1)[1]
+          script = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in script.splitlines()
+          )
+          exec(compile(script, "historical-atomic-merge-fix.py", "exec"), {})
+
+          # The historical repair had one overly-broad source-order selector in
+          # its regression test. Point it at the budget-month write specifically.
+          from pathlib import Path
+          path = Path("tests/unit/persistence/local-first-category-merge-integrity.test.ts")
+          text = path.read_text()
+          old = '  const budgetWriteIndex = merge.indexOf("writeNormalisedDomainEntity(");'
+          new = '''  const budgetWriteIndex = merge.indexOf(\n    `writeNormalisedDomainEntity(\n        "budgetMonths"`,\n  );'''
+          if old not in text:
+              raise SystemExit("Expected historical budget-write selector was not found")
+          path.write_text(text.replace(old, new, 1))
+
+      - name: Fix workspace post-command persistence version race
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("apps/web/src/features/budget/useBudgetWorkspace.ts")
+          text = path.read_text()
+
+          old = 'import { getBudgetPersistenceProvider } from "../persistence";\n'
+          new = '''import { getBudgetPersistenceProvider } from "../persistence";\nimport { subscribeToPersistenceInterest } from "../persistence/persistenceChangeBus";\n'''
+          if text.count(old) != 1:
+              raise SystemExit("Expected one persistence import")
+          text = text.replace(old, new, 1)
+
+          old = '''  const mutationVersionRef = useRef(0);\n  const goalRecommendationBusyRef = useRef(false);\n\n  workspaceIdentityRef.current = `${budgetId}:${month}`;\n\n  function setEditedData(nextData: BudgetMonthView | null): void {\n    setEditedDataState(nextData ? {\n      data: nextData,\n      persistenceVersion: budgetView.dataVersion,\n    } : null);\n  }\n'''
+          new = '''  const mutationVersionRef = useRef(0);\n  const goalRecommendationBusyRef = useRef(false);\n  const persistenceVersionRef = useRef({\n    identity: `${budgetId}:${month}`,\n    revision: 0,\n  });\n\n  const workspaceIdentity = `${budgetId}:${month}`;\n  workspaceIdentityRef.current = workspaceIdentity;\n  if (persistenceVersionRef.current.identity !== workspaceIdentity) {\n    // usePersistenceChange revisions are scoped to one budget/month interest and\n    // start at zero when that interest changes. Keep this imperative clock on\n    // the same basis instead of carrying the previous workspace's revision.\n    persistenceVersionRef.current = { identity: workspaceIdentity, revision: 0 };\n  } else {\n    persistenceVersionRef.current.revision = Math.max(\n      persistenceVersionRef.current.revision,\n      budgetView.dataVersion,\n    );\n  }\n\n  function setEditedData(nextData: BudgetMonthView | null): void {\n    setEditedDataState(nextData ? {\n      data: nextData,\n      // A command publishes its scoped persistence change before its awaited\n      // continuation installs the authoritative readback. The render that\n      // started that command can therefore hold an older budgetView.dataVersion.\n      // Stamp the readback with the synchronously observed persistence clock so\n      // an older in-flight budget query cannot replace newly committed state.\n      persistenceVersion: Math.max(\n        budgetView.dataVersion,\n        persistenceVersionRef.current.revision,\n      ),\n    } : null);\n  }\n'''
+          if text.count(old) != 1:
+              raise SystemExit("Expected one workspace ref/setEditedData block")
+          text = text.replace(old, new, 1)
+
+          old = '''  useEffect(() => {\n    mountedRef.current = true;\n'''
+          new = '''  useEffect(() => {\n    const identity = `${budgetId}:${month}`;\n    return subscribeToPersistenceInterest(\n      {\n        budgetId,\n        month,\n        domains: ["budget", "categories", "transactions", "goals"],\n      },\n      () => {\n        if (persistenceVersionRef.current.identity === identity) {\n          persistenceVersionRef.current.revision += 1;\n        }\n      },\n    );\n  }, [budgetId, month]);\n\n  useEffect(() => {\n    mountedRef.current = true;\n'''
+          if text.count(old) != 1:
+              raise SystemExit("Expected one mounted effect")
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+
+          test_path = Path("tests/unit/budget/budget-workspace-persistence-version.test.ts")
+          if test_path.exists():
+              raise SystemExit("Workspace persistence-version regression already exists unexpectedly")
+          test_path.write_text('''import assert from "node:assert/strict";\nimport test from "node:test";\nimport { readFileSync } from "node:fs";\nimport { fileURLToPath } from "node:url";\nimport {\n  flushPersistenceChanges,\n  publishPersistenceChange,\n  subscribeToPersistenceInterest,\n} from "../../../apps/web/src/features/persistence/persistenceChangeBus";\nimport { resolveBudgetWorkspaceData } from "../../../apps/web/src/features/budget/useBudgetWorkspace";\nimport type { BudgetMonthView } from "../../../apps/web/src/features/budget/budgetViewTypes";\n\ntest("post-command budget readback can carry the persistence event that precedes its async continuation", () => {\n  let observedRevision = 0;\n  const unsubscribe = subscribeToPersistenceInterest(\n    {\n      budgetId: "budget-1",\n      month: "2026-09",\n      domains: ["budget", "categories", "transactions", "goals"],\n    },\n    () => { observedRevision += 1; },\n  );\n\n  publishPersistenceChange({\n    source: "local",\n    scope: {\n      budgetId: "budget-1",\n      domains: ["categories", "budget"],\n      months: ["2026-09"],\n    },\n  });\n  flushPersistenceChanges();\n  unsubscribe();\n\n  assert.equal(observedRevision, 1);\n  const staleAuthoritative = { marker: "before" } as unknown as BudgetMonthView;\n  const committedReadback = { marker: "after" } as unknown as BudgetMonthView;\n  assert.equal(\n    resolveBudgetWorkspaceData(\n      { data: committedReadback, persistenceVersion: observedRevision },\n      staleAuthoritative,\n      1,\n    ),\n    committedReadback,\n    "a readback stamped by the just-published event must not lose to the stale query it invalidated",\n  );\n});\n\ntest("workspace wires the synchronous scoped persistence clock into edited readbacks", () => {\n  const source = readFileSync(\n    fileURLToPath(new URL("../../../apps/web/src/features/budget/useBudgetWorkspace.ts", import.meta.url)),\n    "utf8",\n  );\n  assert.match(source, /subscribeToPersistenceInterest/);\n  assert.match(source, /persistenceVersionRef\.current\.revision \+= 1/);\n  assert.match(\n    source,\n    /persistenceVersion:\s*Math\.max\([\s\S]*budgetView\.dataVersion[\s\S]*persistenceVersionRef\.current\.revision/,\n  );\n});\n''')
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium and system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run static checks and required tests
+        run: |
+          pnpm static:check
+          pnpm typecheck
+          pnpm test:required
+
+      - name: Stress the Cover overspending E2E
+        run: CI=1 pnpm exec playwright test tests/e2e/budget-cover-overspending.spec.ts --repeat-each=10
+
+      - name: Run canonical verification
+        run: CI=1 pnpm verify
+
+      - name: Commit verified source correction
+        run: |
+          rm .github/workflows/p0-3-finalize-budget-category-fixes.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git status --short
+          git commit -m "fix(web): make budget category mutations race safe"
+          git push origin HEAD:audit/p0-3-command-engine-current
