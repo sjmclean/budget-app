@@ -28,7 +28,7 @@ function budgetView(): BudgetMonthView {
   };
 }
 
-function harness(options: { failMutate?: boolean } = {}) {
+function harness(options: { failMutate?: boolean; failMerge?: boolean } = {}) {
   let view = budgetView();
   const committed: LocalBudgetMutation[] = [];
   let mergeCalls = 0;
@@ -51,9 +51,19 @@ function harness(options: { failMutate?: boolean } = {}) {
       committed.push(...batch);
       return {};
     },
-    async mergeCategories(input: { mutation: LocalBudgetMutation }) {
+    async mergeCategories(input: {
+      mutation: LocalBudgetMutation;
+      budgetMonthMutation?: LocalBudgetMutation;
+    }) {
       mergeCalls += 1;
-      committed.push(input.mutation);
+      if (options.failMerge) throw new Error("atomic merge rollback");
+      committed.push(
+        input.mutation,
+        ...(input.budgetMonthMutation ? [input.budgetMonthMutation] : []),
+      );
+      if (input.budgetMonthMutation) {
+        view = structuredClone(input.budgetMonthMutation.payload as BudgetMonthView);
+      }
       return {};
     },
     async replaceBudgetMonthHistoryState(input: { replacement: BudgetMonthView; mutation: LocalBudgetMutation }) {
@@ -136,6 +146,25 @@ test("metadata, overspending, merge, and history commands retain their worker an
   }));
   assert.equal(history.historyCalls(), 1);
   assert.deepEqual(replaced.result.change.months, [month]);
+});
+
+test("atomic category merge failure records no partial commit and publishes nothing", async () => {
+  const state = harness({ failMerge: true });
+  let publications = 0;
+  const unsubscribe = subscribePersistenceChanges(() => { publications += 1; });
+  await assert.rejects(() => new LocalBudgetCommandExecutor().execute(
+    "budget:merge-failed",
+    createDomainCommandHandler({
+      budgetId, context: state.context,
+      operation: () => state.commands.mutateCategory(budgetId, {
+        operation: "merge", month, categoryId: "category-a", targetCategoryId: "category-b",
+      }),
+    }),
+  ), /atomic merge rollback/);
+  flushPersistenceChanges();
+  unsubscribe();
+  assert.equal(state.committed.length, 0, "failed atomic worker merge must commit no outbox mutation");
+  assert.equal(publications, 0);
 });
 
 test("worker failure returns no result and publishes nothing", async () => {

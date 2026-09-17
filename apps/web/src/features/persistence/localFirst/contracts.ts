@@ -536,6 +536,7 @@ export type LocalBudgetWorkerRequest =
       readonly targetCategoryId: string;
       readonly targetCategoryName: string;
       readonly mutation: LocalBudgetMutation;
+      readonly budgetMonthMutation?: LocalBudgetMutation;
       readonly resolveConflictId?: string;
     }
   | {

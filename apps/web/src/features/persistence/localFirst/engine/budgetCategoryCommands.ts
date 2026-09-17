@@ -131,15 +131,28 @@ export function createBudgetCategoryCommands(
           .find(({ id }) => id === targetCategoryId);
         if (!target) throw new Error("The target local category was not found.");
         const payload = { targetCategoryId, targetCategoryName: target.name };
+        const mergeMutation = dependencies.createMutation(
+          budgetId, "categories", sourceCategoryId, "delete", payload,
+        );
+        const budgetMonthMutation = dependencies.createMutation(
+          budgetId, "budgetMonths", input.month, "upsert", next,
+        );
         await local.mergeCategories({
           budgetId,
           sourceCategoryId,
           targetCategoryId,
           targetCategoryName: target.name,
-          mutation: dependencies.createMutation(
-            budgetId, "categories", sourceCategoryId, "delete", payload,
-          ),
+          mutation: mergeMutation,
+          budgetMonthMutation,
         });
+        dependencies.recordCommittedChange(
+          budgetId,
+          persistenceScopeForMutations(
+            budgetId,
+            [mergeMutation, budgetMonthMutation],
+          ),
+        );
+        return readBudgetMonth(local, budgetId, input.month);
       }
       await writeBudgetMonth(local, budgetId, input.month, next);
       return readBudgetMonth(local, budgetId, input.month);
