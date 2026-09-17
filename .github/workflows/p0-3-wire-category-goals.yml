@@ -1,0 +1,94 @@
+name: P0.3 Wire Category Goals
+
+on:
+  push:
+    branches:
+      - audit/p0-3-command-engine-current
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/p0-3-command-engine-current
+          fetch-depth: 0
+      - name: Patch runtime
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts")
+          source = path.read_text()
+
+          old_import = '''import {
+            categoryGoalsEqual,
+            commitCategoryGoalMutation,
+            normaliseCategoryGoalForPersistence,
+          } from "./categoryGoalPersistence";
+          '''
+          if old_import not in source:
+              raise SystemExit("Category Goal persistence import block not found")
+          source = source.replace(old_import, "", 1)
+
+          import_anchor = 'import { createBudgetCategoryCommands } from "./engine/budgetCategoryCommands";\n'
+          if source.count(import_anchor) != 1:
+              raise SystemExit("Budget/category import anchor mismatch")
+          source = source.replace(
+              import_anchor,
+              import_anchor + 'import { createCategoryGoalCommands } from "./engine/categoryGoalCommands";\n',
+              1,
+          )
+
+          construction_anchor = '''  const budgetCategoryCommands = createBudgetCategoryCommands({
+            requireDatabase,
+            createMutation: mutation,
+            recordCommittedChange: notifyLocalFirstMutationCommitted,
+          });
+          '''
+          if source.count(construction_anchor) != 1:
+              raise SystemExit("Budget/category construction anchor mismatch")
+          goal_construction = '''  const categoryGoalCommands = createCategoryGoalCommands({
+            requireDatabase,
+            createMutation: mutation,
+            discardFailedMutation: mutationContext.discardFailedMutation.bind(mutationContext),
+            recordCommittedChange: notifyLocalFirstMutationCommitted,
+          });
+          '''
+          source = source.replace(
+              construction_anchor,
+              construction_anchor + goal_construction,
+              1,
+          )
+
+          pattern = re.compile(
+              r'    async createCategoryGoal\(goal\) \{[\s\S]*?\n    createAccount: accountCommands\.createAccount,',
+          )
+          match = pattern.search(source)
+          if not match:
+              raise SystemExit("Runtime-owned Category Goal command block not found")
+          delegates = '''    createCategoryGoal: categoryGoalCommands.createCategoryGoal,
+            updateCategoryGoal: categoryGoalCommands.updateCategoryGoal,
+            deleteCategoryGoal: categoryGoalCommands.deleteCategoryGoal,
+            replaceCategoryGoalHistoryState: categoryGoalCommands.replaceCategoryGoalHistoryState,
+            createAccount: accountCommands.createAccount,'''
+          source = source[:match.start()] + delegates + source[match.end():]
+
+          path.write_text(source)
+          PY
+      - name: Commit runtime wiring
+        shell: bash
+        run: |
+          rm .github/workflows/p0-3-wire-category-goals.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "refactor(web): wire Category Goal engine commands"
+          git push origin HEAD:audit/p0-3-command-engine-current
