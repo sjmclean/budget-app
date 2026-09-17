@@ -1,0 +1,423 @@
+name: P0.3 Extract Payee Commands
+
+on:
+  push:
+    branches:
+      - audit/p0-3-command-engine-current
+
+permissions:
+  contents: write
+
+jobs:
+  extract-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/p0-3-command-engine-current
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Extract payee command ownership
+        shell: python
+        run: |
+          from pathlib import Path
+
+          engine = Path('apps/web/src/features/persistence/localFirst/engine/payeeCommands.ts')
+          engine.write_text(r'''import type { LocalBudgetRuntimeClient } from "../../accountRegisterQueryContracts";
+import type { PersistenceChangeScope } from "../../persistenceChangeBus";
+import { validatePayeeIconReferenceForWrite } from "../../../icons/payeeIconReference";
+import type { LocalBudgetMutation } from "../contracts";
+import type { LocalBudgetDatabaseClient } from "../localBudgetClient";
+import { localPayeeRecordToView } from "../localPayeeView";
+
+type PayeeCommands = Pick<
+  LocalBudgetRuntimeClient,
+  | "keepPayeesSeparate"
+  | "replacePayeeDuplicateSuppressionsHistoryState"
+  | "createPayee"
+  | "replacePayeeHistoryState"
+  | "updatePayee"
+  | "setPayeeArchived"
+  | "deleteUnusedPayee"
+  | "mergePayees"
+>;
+
+type CreateMutation = (
+  budgetId: string,
+  domain: LocalBudgetMutation["domain"],
+  entityId: string,
+  operation: LocalBudgetMutation["operation"],
+  payload: unknown,
+) => LocalBudgetMutation;
+
+export interface PayeeCommandDependencies {
+  readonly requireDatabase: (budgetId: string) => Promise<LocalBudgetDatabaseClient>;
+  readonly createMutation: CreateMutation;
+  readonly createId: () => string;
+  readonly recordCommittedChange: (
+    budgetId: string,
+    change: Omit<PersistenceChangeScope, "budgetId">,
+  ) => void;
+}
+
+async function listPersistedPayees(
+  local: LocalBudgetDatabaseClient,
+  budgetId: string,
+  archived: boolean,
+) {
+  const rows = await local.listPayees(budgetId, archived);
+  return rows.map(localPayeeRecordToView);
+}
+
+async function findPersistedPayee(
+  local: LocalBudgetDatabaseClient,
+  budgetId: string,
+  payeeId: string,
+) {
+  const all = [
+    ...await local.listPayees(budgetId, false),
+    ...await local.listPayees(budgetId, true),
+  ];
+  return all.find(({ id }) => id === payeeId) ?? null;
+}
+
+/** Final implementation owner for ordinary payee commands. */
+export function createPayeeCommands(
+  dependencies: PayeeCommandDependencies,
+): PayeeCommands {
+  const notifyPayees = (budgetId: string) =>
+    dependencies.recordCommittedChange(budgetId, { domains: ["payees"] });
+
+  return {
+    async keepPayeesSeparate(budgetId, pairs) {
+      const local = await dependencies.requireDatabase(budgetId);
+      await local.keepPayeesSeparate(budgetId, pairs);
+      notifyPayees(budgetId);
+    },
+
+    async replacePayeeDuplicateSuppressionsHistoryState(input) {
+      const local = await dependencies.requireDatabase(input.budgetId);
+      await local.replacePayeeDuplicateSuppressionsHistoryState(input);
+      notifyPayees(input.budgetId);
+    },
+
+    async createPayee(budgetId, name, payeeId) {
+      const payee = {
+        id: payeeId ?? dependencies.createId(),
+        budgetId,
+        name: name.trim(),
+        note: "",
+        archived: false,
+      };
+      const local = await dependencies.requireDatabase(budgetId);
+      await local.writePayee(
+        payee,
+        dependencies.createMutation(budgetId, "payees", payee.id, "upsert", payee),
+      );
+      notifyPayees(budgetId);
+      return listPersistedPayees(local, budgetId, false);
+    },
+
+    async replacePayeeHistoryState(input) {
+      const local = await dependencies.requireDatabase(input.budgetId);
+      const currentRecord = await findPersistedPayee(local, input.budgetId, input.payeeId);
+      const current = currentRecord ? localPayeeRecordToView(currentRecord) : null;
+      if (JSON.stringify(current) !== JSON.stringify(input.expected)) {
+        throw new Error("PAYEE_HISTORY_CONFLICT");
+      }
+      if (input.replacement) {
+        const { isArchived, ...replacement } = input.replacement;
+        const payee = {
+          ...replacement,
+          budgetId: input.budgetId,
+          note: replacement.note ?? "",
+          archived: isArchived === true,
+        };
+        await local.writePayee(
+          payee,
+          dependencies.createMutation(
+            input.budgetId, "payees", input.payeeId, "upsert", payee,
+          ),
+        );
+      } else {
+        await local.deleteUnusedPayee(
+          input.budgetId,
+          input.payeeId,
+          dependencies.createMutation(
+            input.budgetId, "payees", input.payeeId, "delete", { kind: "history" },
+          ),
+        );
+      }
+      notifyPayees(input.budgetId);
+    },
+
+    async updatePayee(budgetId, input) {
+      const local = await dependencies.requireDatabase(budgetId);
+      const current = await findPersistedPayee(local, budgetId, input.id);
+      if (!current) throw new Error("The local payee was not found.");
+      const payee = {
+        id: current.id,
+        budgetId,
+        name: input.name ?? current.name,
+        note: input.note ?? current.note,
+        archived: current.archived,
+        defaultCategoryId: input.defaultCategoryId ?? current.defaultCategoryId,
+        defaultCategoryName: input.defaultCategoryName ?? current.defaultCategoryName,
+        aliases: input.aliases ?? current.aliases,
+        importRules: input.importRules ?? current.importRules,
+        iconRef: input.iconUpdate
+          ? input.iconUpdate.kind === "automatic"
+            ? ""
+            : validatePayeeIconReferenceForWrite(input.iconUpdate.iconRef)
+          : current.iconRef,
+        createdAt: current.createdAt,
+        updatedAt: new Date().toISOString(),
+      };
+      await local.writePayee(
+        payee,
+        dependencies.createMutation(budgetId, "payees", payee.id, "upsert", payee),
+      );
+      notifyPayees(budgetId);
+      return listPersistedPayees(local, budgetId, false);
+    },
+
+    async setPayeeArchived(budgetId, payeeId, archived) {
+      const local = await dependencies.requireDatabase(budgetId);
+      const current = await findPersistedPayee(local, budgetId, payeeId);
+      if (!current) throw new Error("The local payee was not found.");
+      const payee = { ...current, budgetId, archived };
+      await local.writePayee(
+        payee,
+        dependencies.createMutation(budgetId, "payees", payee.id, "upsert", payee),
+      );
+      notifyPayees(budgetId);
+      return listPersistedPayees(local, budgetId, archived);
+    },
+
+    async deleteUnusedPayee(budgetId, payeeId) {
+      const local = await dependencies.requireDatabase(budgetId);
+      await local.deleteUnusedPayee(
+        budgetId,
+        payeeId,
+        dependencies.createMutation(
+          budgetId, "payees", payeeId, "delete", { kind: "unused-payee-delete" },
+        ),
+      );
+      notifyPayees(budgetId);
+      return listPersistedPayees(local, budgetId, false);
+    },
+
+    async mergePayees(budgetId, input) {
+      const local = await dependencies.requireDatabase(budgetId);
+      const target = await findPersistedPayee(local, budgetId, input.targetPayeeId);
+      if (!target) throw new Error("The target local payee was not found.");
+      const payload = {
+        targetPayeeId: target.id,
+        targetPayeeName: target.name,
+      };
+      await local.mergePayees({
+        budgetId,
+        sourcePayeeId: input.sourcePayeeId,
+        sourcePayeeIds: input.sourcePayeeIds,
+        targetPayeeId: target.id,
+        targetPayeeName: target.name,
+        updateLinkedTransactions: input.updateLinkedTransactions,
+        updateScheduledTransactions: input.updateScheduledTransactions,
+        addMergedAliases: input.addMergedAliases,
+        redirectRecognitionRules: input.redirectRecognitionRules,
+        mutation: dependencies.createMutation(
+          budgetId,
+          "payees",
+          input.sourcePayeeId,
+          "delete",
+          {
+            ...payload,
+            sourcePayeeIds: input.sourcePayeeIds,
+            updateLinkedTransactions: input.updateLinkedTransactions,
+            updateScheduledTransactions: input.updateScheduledTransactions,
+            addMergedAliases: input.addMergedAliases,
+            redirectRecognitionRules: input.redirectRecognitionRules,
+          },
+        ),
+      });
+      dependencies.recordCommittedChange(budgetId, {
+        domains: [
+          "payees",
+          ...(input.updateLinkedTransactions ? ["transactions" as const] : []),
+          ...(input.updateScheduledTransactions ? ["scheduled-transactions" as const] : []),
+        ],
+      });
+      return listPersistedPayees(local, budgetId, false);
+    },
+  };
+}
+''')
+
+          runtime = Path('apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts')
+          text = runtime.read_text()
+          text = text.replace('import { validatePayeeIconReferenceForWrite } from "../../icons/payeeIconReference";\n', '')
+          needle = 'import { createCategoryGoalCommands } from "./engine/categoryGoalCommands";\n'
+          if needle not in text:
+            raise SystemExit('category goal engine import anchor missing')
+          text = text.replace(needle, needle + 'import { createPayeeCommands } from "./engine/payeeCommands";\n', 1)
+
+          helper = '''  async function listPersistedPayees(budgetId: string, archived: boolean) {\n    const rows = await (await requireDatabase(budgetId)).listPayees(budgetId, archived);\n    return rows.map(localPayeeRecordToView);\n  }\n\n'''
+          if helper not in text:
+            raise SystemExit('listPersistedPayees helper anchor missing')
+          text = text.replace(helper, '', 1)
+
+          tag_anchor = '  const tagCommands = createTagCommands({\n'
+          if tag_anchor not in text:
+            raise SystemExit('tag command wiring anchor missing')
+          payee_wiring = '''  const payeeCommands = createPayeeCommands({\n    requireDatabase,\n    createMutation: mutation,\n    createId: createRuntimeUuid,\n    recordCommittedChange: notifyLocalFirstMutationCommitted,\n  });\n\n'''
+          text = text.replace(tag_anchor, payee_wiring + tag_anchor, 1)
+
+          start = text.index('    async keepPayeesSeparate(budgetId, pairs) {')
+          end_marker = '    ...tagCommands,'
+          end = text.index(end_marker, start)
+          old = text[start:end]
+          capture_start = old.index('    async capturePayee(budgetId, payeeId) {')
+          capture_end = old.index('    async replacePayeeHistoryState(input) {', capture_start)
+          capture = old[capture_start:capture_end]
+          replacement = '''    keepPayeesSeparate: payeeCommands.keepPayeesSeparate,\n    replacePayeeDuplicateSuppressionsHistoryState:\n      payeeCommands.replacePayeeDuplicateSuppressionsHistoryState,\n    createPayee: payeeCommands.createPayee,\n''' + capture + '''    replacePayeeHistoryState: payeeCommands.replacePayeeHistoryState,\n    updatePayee: payeeCommands.updatePayee,\n    setPayeeArchived: payeeCommands.setPayeeArchived,\n    deleteUnusedPayee: payeeCommands.deleteUnusedPayee,\n    mergePayees: payeeCommands.mergePayees,\n'''
+          text = text[:start] + replacement + text[end:]
+          runtime.write_text(text)
+
+          test = Path('tests/unit/persistence/payee-command-integrity.test.ts')
+          test.write_text(r'''import assert from "node:assert/strict";
+import test from "node:test";
+import type { LocalBudgetMutation } from "../../../apps/web/src/features/persistence/localFirst/contracts.js";
+import { createPayeeCommands } from "../../../apps/web/src/features/persistence/localFirst/engine/payeeCommands.js";
+import type { LocalBudgetDatabaseClient } from "../../../apps/web/src/features/persistence/localFirst/localBudgetClient.js";
+
+function mutation(entityId: string, operation: "upsert" | "delete", payload: unknown): LocalBudgetMutation {
+  return {
+    mutationId: `m-${entityId}-${operation}`,
+    budgetId: "budget-a",
+    syncEpoch: "epoch-a",
+    deviceId: "device-a",
+    deviceSequence: 1,
+    baseCursor: 0,
+    domain: "payees",
+    entityId,
+    operation,
+    payload,
+    createdAt: new Date(0).toISOString(),
+  };
+}
+
+function payee(id: string, name: string, archived = false) {
+  return { id, budgetId: "budget-a", name, note: "", archived };
+}
+
+test("payee commands own canonical writes and precise scopes", async () => {
+  let rows = [payee("source", "Source"), payee("target", "Target")];
+  const committed: LocalBudgetMutation[] = [];
+  const changes: unknown[] = [];
+  const database = {
+    async listPayees(_budgetId: string, archived: boolean) {
+      return rows.filter((row) => row.archived === archived);
+    },
+    async writePayee(next: ReturnType<typeof payee>, nextMutation: LocalBudgetMutation) {
+      committed.push(nextMutation);
+      rows = [...rows.filter(({ id }) => id !== next.id), next];
+      return {};
+    },
+    async deleteUnusedPayee(_budgetId: string, id: string, nextMutation: LocalBudgetMutation) {
+      committed.push(nextMutation);
+      rows = rows.filter((row) => row.id !== id);
+      return {};
+    },
+    async mergePayees(input: { sourcePayeeId: string; mutation: LocalBudgetMutation }) {
+      committed.push(input.mutation);
+      rows = rows.filter(({ id }) => id !== input.sourcePayeeId);
+      return {};
+    },
+    async keepPayeesSeparate() {},
+    async replacePayeeDuplicateSuppressionsHistoryState() {},
+  } as unknown as LocalBudgetDatabaseClient;
+  const commands = createPayeeCommands({
+    requireDatabase: async () => database,
+    createMutation: (budgetId, domain, entityId, operation, payload) => ({
+      ...mutation(entityId, operation, payload), budgetId, domain,
+    }),
+    createId: () => "created",
+    recordCommittedChange: (_budgetId, change) => { changes.push(change); },
+  });
+
+  await commands.createPayee("budget-a", " Created ");
+  assert.equal(committed.at(-1)?.entityId, "created");
+  assert.equal(committed.at(-1)?.operation, "upsert");
+  assert.deepEqual(changes.at(-1), { domains: ["payees"] });
+
+  await commands.mergePayees("budget-a", {
+    sourcePayeeId: "source",
+    targetPayeeId: "target",
+    updateLinkedTransactions: true,
+    updateScheduledTransactions: true,
+  });
+  assert.equal(committed.at(-1)?.operation, "delete");
+  assert.deepEqual(changes.at(-1), {
+    domains: ["payees", "transactions", "scheduled-transactions"],
+  });
+});
+
+test("payee worker failure publishes no committed scope", async () => {
+  let publications = 0;
+  const database = {
+    async listPayees() { return []; },
+    async writePayee() { throw new Error("worker failed"); },
+  } as unknown as LocalBudgetDatabaseClient;
+  const commands = createPayeeCommands({
+    requireDatabase: async () => database,
+    createMutation: (budgetId, domain, entityId, operation, payload) => ({
+      ...mutation(entityId, operation, payload), budgetId, domain,
+    }),
+    createId: () => "created",
+    recordCommittedChange: () => { publications += 1; },
+  });
+  await assert.rejects(() => commands.createPayee("budget-a", "Created"), /worker failed/);
+  assert.equal(publications, 0);
+});
+''')
+
+          inventory = Path('docs/architecture/local-budget-engine-command-inventory.md')
+          doc = inventory.read_text()
+          old = '- payees,\n- scheduled transactions,\n'
+          if old not in doc:
+            raise SystemExit('inventory remaining-domain anchor missing')
+          doc = doc.replace(old, '- scheduled transactions,\n', 1)
+          marker = '- Category Goals: `engine/categoryGoalCommands.ts`\n'
+          if marker not in doc:
+            raise SystemExit('inventory extraction marker missing')
+          doc = doc.replace(marker, marker + '- payees: `engine/payeeCommands.ts`\n', 1)
+          inventory.write_text(doc)
+
+      - name: Focused static and tests
+        run: |
+          pnpm static:check
+          pnpm typecheck
+          node --import tsx --test tests/unit/persistence/payee-command-integrity.test.ts tests/unit/persistence/local-budget-engine-boundary.test.ts
+          pnpm test:required
+      - name: Full verification
+        env:
+          CI: "1"
+        run: pnpm verify
+      - name: Commit verified extraction
+        run: |
+          rm .github/workflows/p0-3-extract-payee-commands.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "refactor(web): extract local payee commands"
+          git push origin HEAD:audit/p0-3-command-engine-current
