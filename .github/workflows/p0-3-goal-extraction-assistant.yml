@@ -1,0 +1,91 @@
+name: P0.3 Assistant Goal Extraction
+
+on:
+  push:
+    branches:
+      - work/p0-3-completion-assistant
+
+permissions:
+  contents: write
+
+jobs:
+  extract-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/p0-3-completion-assistant
+          fetch-depth: 0
+
+      - name: Wire Category Goal command module
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts")
+          text = path.read_text()
+
+          old = '''import {
+            categoryGoalsEqual,
+            commitCategoryGoalMutation,
+            normaliseCategoryGoalForPersistence,
+          } from "./categoryGoalPersistence";
+'''
+          if old not in text:
+              raise SystemExit("Category Goal persistence import block not found")
+          text = text.replace(old, "", 1)
+
+          old = 'import { createBudgetCategoryCommands } from "./engine/budgetCategoryCommands";\n'
+          new = old + 'import { createCategoryGoalCommands } from "./engine/categoryGoalCommands";\n'
+          if old not in text:
+              raise SystemExit("Budget category command import not found")
+          text = text.replace(old, new, 1)
+
+          old = '''  const budgetCategoryCommands = createBudgetCategoryCommands({
+            requireDatabase,
+            createMutation: mutation,
+            recordCommittedChange: notifyLocalFirstMutationCommitted,
+          });
+'''
+          new = old + '''  const categoryGoalCommands = createCategoryGoalCommands({
+            requireDatabase,
+            createMutation: mutation,
+            recordCommittedChange: notifyLocalFirstMutationCommitted,
+          });
+'''
+          if old not in text:
+              raise SystemExit("Budget category command construction not found")
+          text = text.replace(old, new, 1)
+
+          start = text.index('    async createCategoryGoal(goal) {')
+          end_marker = '    createAccount: accountCommands.createAccount,'
+          end = text.index(end_marker, start)
+          replacement = '''    createCategoryGoal: categoryGoalCommands.createCategoryGoal,
+            updateCategoryGoal: categoryGoalCommands.updateCategoryGoal,
+            deleteCategoryGoal: categoryGoalCommands.deleteCategoryGoal,
+            replaceCategoryGoalHistoryState: categoryGoalCommands.replaceCategoryGoalHistoryState,
+'''
+          text = text[:start] + replacement + text[end:]
+          path.write_text(text)
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm static:check
+      - run: pnpm typecheck
+      - run: pnpm test:required
+
+      - name: Commit extraction
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts
+          git diff --cached --exit-code && exit 0
+          git commit -m "refactor(engine): wire category goal command ownership"
+          git push origin HEAD:work/p0-3-completion-assistant
