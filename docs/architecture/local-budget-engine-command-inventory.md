@@ -28,7 +28,7 @@ than the historical hosted provider.
 | Attachments | Register attachment UI | add/remove attachment | attachment write/delete | facade `mutation()` | facade attachment/transaction scope | content read remains a query/specialised binary path |
 | Accounts | Sidebar/account history | create/update/close/delete and account history replacement | account write/delete/history replacement | facade `mutation()` | facade account/budget scope | history request validates expected state |
 | Budget month/category | Budget workspace and category history | assignments, category mutation, month history replacement | generic mutation batch, category merge, month replacement | facade `mutation()` | facade category/month scope | month replacement is atomic |
-| Category goals | Goal UI/history | goal create/update/delete/history replacement | goal-specific worker requests | facade `mutation()` | `commitCategoryGoalMutation` publishes | history expected/replacement request |
+| Category goals | Goal UI/history | goal create/update/delete/history replacement | goal-specific worker requests | facade `mutation()` | scoped goal/budget publication | history expected/replacement request |
 | Payees | Payee management/register/history | create/update/archive/delete/merge/separate/history | payee write/delete/merge/suppression requests | facade `mutation()` | facade payee plus linked-domain scope | merge is atomic; history validates expected state |
 | Transaction tags | Settings/history | replace tags/history | generic mutate batch/history request | facade `mutation()` | facade tag/transaction scope | history expected/replacement request |
 | Scheduled transactions | Scheduled UI/maintenance/history | create/update/delete/advance/enter/reference rewrites/history | generic mutate batch and schedule-history request | facade `mutation()` | facade schedule/transaction scope | materialisation groups schedule and transaction changes |
@@ -77,8 +77,9 @@ has moved out of `localFirstAccountRegisterClient.ts`.
 - Attachments: complete in `engine/attachmentCommands.ts`.
 - Budget months and categories: complete in
   `engine/budgetCategoryCommands.ts` and `engine/categoryCommandHelpers.ts`.
-- Still runtime-owned: goals, payees, scheduled transactions, remaining
-  history/import commands, and keep-local conflict replay.
+- Category goals: complete in `engine/categoryGoalCommands.ts`.
+- Still runtime-owned: payees, scheduled transactions, remaining history/import
+  commands, and keep-local conflict replay.
 
 The runtime-owned families are routed through the engine/executor boundary but
 have not yet been physically extracted into domain command modules.
@@ -127,8 +128,21 @@ construction, and account impact selection are owned by
 | Exact budget-month history replacement | `engine/budgetCategoryCommands.ts` | `replaceBudgetMonthHistoryState` |
 
 Category state transformation and category/group positioning live in
-`engine/categoryCommandHelpers.ts`. Category goals remain runtime-owned and are
-not part of this extraction.
+`engine/categoryCommandHelpers.ts`.
+
+### Extracted Category Goal handlers
+
+| Command | Final module | Final handler |
+| --- | --- | --- |
+| Goal create | `engine/categoryGoalCommands.ts` | `createCategoryGoal` |
+| Goal update | `engine/categoryGoalCommands.ts` | `updateCategoryGoal` |
+| Goal delete | `engine/categoryGoalCommands.ts` | `deleteCategoryGoal` |
+| Exact Goal history replacement | `engine/categoryGoalCommands.ts` | `replaceCategoryGoalHistoryState` |
+
+Goal normalization and worker validation remain shared persistence policy in
+`categoryGoalPersistence.ts`; ordinary command orchestration, mutation
+allocation, no-op mutation accounting, and scoped change recording are
+engine-module owned.
 
 Their domain return values are preserved. At this checkpoint, domain operations
 record mutation IDs and change impact in command-scoped contexts;
@@ -145,7 +159,7 @@ the P0.3e4 target after the transitional recorder is removed.
 | Attachments | Engine/executor | Extracted attachment module; binary read remains query-only |
 | Accounts | Engine/executor | Extracted account module, including exact history replacement |
 | Budget month and category | Engine/executor | Extracted budget/category modules |
-| Category goals | Engine/executor | Runtime-owned |
+| Category goals | Engine/executor | Extracted Category Goal module |
 | Payees | Engine/executor | Runtime-owned |
 | Transaction tags | Engine/executor | Extracted tag module |
 | Scheduled transactions | Engine/executor | Runtime-owned |
