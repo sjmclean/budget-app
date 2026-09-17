@@ -26,46 +26,32 @@ jobs:
           path = Path("apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts")
           text = path.read_text()
 
-          old = '''import {
-            categoryGoalsEqual,
-            commitCategoryGoalMutation,
-            normaliseCategoryGoalForPersistence,
-          } from "./categoryGoalPersistence";
-'''
+          old = "import {\n  categoryGoalsEqual,\n  commitCategoryGoalMutation,\n  normaliseCategoryGoalForPersistence,\n} from \"./categoryGoalPersistence\";\n"
           if old not in text:
               raise SystemExit("Category Goal persistence import block not found")
           text = text.replace(old, "", 1)
 
-          old = 'import { createBudgetCategoryCommands } from "./engine/budgetCategoryCommands";\n'
-          new = old + 'import { createCategoryGoalCommands } from "./engine/categoryGoalCommands";\n'
+          old = "import { createBudgetCategoryCommands } from \"./engine/budgetCategoryCommands\";\n"
+          new = old + "import { createCategoryGoalCommands } from \"./engine/categoryGoalCommands\";\n"
           if old not in text:
               raise SystemExit("Budget category command import not found")
           text = text.replace(old, new, 1)
 
-          old = '''  const budgetCategoryCommands = createBudgetCategoryCommands({
-            requireDatabase,
-            createMutation: mutation,
-            recordCommittedChange: notifyLocalFirstMutationCommitted,
-          });
-'''
-          new = old + '''  const categoryGoalCommands = createCategoryGoalCommands({
-            requireDatabase,
-            createMutation: mutation,
-            recordCommittedChange: notifyLocalFirstMutationCommitted,
-          });
-'''
+          old = "  const budgetCategoryCommands = createBudgetCategoryCommands({\n    requireDatabase,\n    createMutation: mutation,\n    recordCommittedChange: notifyLocalFirstMutationCommitted,\n  });\n"
+          new = old + "  const categoryGoalCommands = createCategoryGoalCommands({\n    requireDatabase,\n    createMutation: mutation,\n    recordCommittedChange: notifyLocalFirstMutationCommitted,\n  });\n"
           if old not in text:
               raise SystemExit("Budget category command construction not found")
           text = text.replace(old, new, 1)
 
-          start = text.index('    async createCategoryGoal(goal) {')
-          end_marker = '    createAccount: accountCommands.createAccount,'
+          start = text.index("    async createCategoryGoal(goal) {")
+          end_marker = "    createAccount: accountCommands.createAccount,"
           end = text.index(end_marker, start)
-          replacement = '''    createCategoryGoal: categoryGoalCommands.createCategoryGoal,
-            updateCategoryGoal: categoryGoalCommands.updateCategoryGoal,
-            deleteCategoryGoal: categoryGoalCommands.deleteCategoryGoal,
-            replaceCategoryGoalHistoryState: categoryGoalCommands.replaceCategoryGoalHistoryState,
-'''
+          replacement = (
+              "    createCategoryGoal: categoryGoalCommands.createCategoryGoal,\n"
+              "    updateCategoryGoal: categoryGoalCommands.updateCategoryGoal,\n"
+              "    deleteCategoryGoal: categoryGoalCommands.deleteCategoryGoal,\n"
+              "    replaceCategoryGoalHistoryState: categoryGoalCommands.replaceCategoryGoalHistoryState,\n"
+          )
           text = text[:start] + replacement + text[end:]
           path.write_text(text)
 
