@@ -160,21 +160,34 @@ export function createScheduledTransactionCommands(dependencies: ScheduledTransa
     },
     async renameScheduledPayeeReferences(budgetId, input) {
       const local = await dependencies.requireDatabase(budgetId);
-      const mutations = (await local.listEntities<ScheduledTransactionView>("scheduledTransactions"))
+      const rewritten = (await local.listEntities<ScheduledTransactionView>("scheduledTransactions"))
         .filter((schedule) => schedule.payeeId === input.payeeId || schedule.payee === input.previousName)
-        .map((schedule) => dependencies.createMutation(budgetId, "scheduledTransactions", schedule.id, "upsert",
-          { ...schedule, payee: input.nextName, updatedAt: new Date().toISOString() }));
-      if (mutations.length === 0) return;
+        .map((schedule) => ({ ...schedule, payee: input.nextName, updatedAt: new Date().toISOString() }));
+      if (rewritten.length === 0) return;
+      const members: LocalBudgetOperationGroup["members"] = rewritten.map((schedule) => ({
+        domain: "scheduledTransactions", entityId: schedule.id, operation: "upsert", payload: schedule,
+      }));
+      const operationGroupId = createRuntimeUuid();
+      const operationGroup: LocalBudgetOperationGroup = { members };
+      const mutations = members.map((member) => dependencies.createMutation(budgetId, member.domain,
+        member.entityId, member.operation, member.payload, operationGroupId, operationGroup));
       await local.mutateBatch(mutations);
       recordScope(dependencies, persistenceScopeForMutations(budgetId, mutations));
     },
     async reassignScheduledPayeeReferences(budgetId, input) {
       const local = await dependencies.requireDatabase(budgetId);
-      const mutations = (await local.listEntities<ScheduledTransactionView>("scheduledTransactions"))
+      const rewritten = (await local.listEntities<ScheduledTransactionView>("scheduledTransactions"))
         .filter((schedule) => schedule.payeeId === input.sourcePayeeId || schedule.payee === input.sourceName)
-        .map((schedule) => dependencies.createMutation(budgetId, "scheduledTransactions", schedule.id, "upsert",
-          { ...schedule, payeeId: input.targetPayeeId, payee: input.targetName, updatedAt: new Date().toISOString() }));
-      if (mutations.length === 0) return;
+        .map((schedule) => ({ ...schedule, payeeId: input.targetPayeeId, payee: input.targetName,
+          updatedAt: new Date().toISOString() }));
+      if (rewritten.length === 0) return;
+      const members: LocalBudgetOperationGroup["members"] = rewritten.map((schedule) => ({
+        domain: "scheduledTransactions", entityId: schedule.id, operation: "upsert", payload: schedule,
+      }));
+      const operationGroupId = createRuntimeUuid();
+      const operationGroup: LocalBudgetOperationGroup = { members };
+      const mutations = members.map((member) => dependencies.createMutation(budgetId, member.domain,
+        member.entityId, member.operation, member.payload, operationGroupId, operationGroup));
       await local.mutateBatch(mutations);
       recordScope(dependencies, persistenceScopeForMutations(budgetId, mutations));
     },

@@ -18,18 +18,19 @@ const input = (overrides: Partial<UpsertScheduledTransactionInput> = {}): Upsert
 function harness(initial: ScheduledTransactionView[] = []) {
   let rows = initial.map((row) => structuredClone(row)); let sequence = 0; let fail = false;
   const allocated: LocalBudgetMutation[] = []; const committed: LocalBudgetMutation[] = []; const changes: string[][] = [];
+  const batches: LocalBudgetMutation[][] = [];
   let historyRequest: { mutations: readonly LocalBudgetMutation[]; replacementSchedule: ScheduledTransactionView | null; replacementTransaction: unknown } | null = null;
   const database = {
     async listEntities<T>() { return rows.map((row) => structuredClone(row)) as T[]; },
     async mutate(mutation: LocalBudgetMutation) { if (fail) throw new Error("worker failed"); committed.push(mutation); rows = mutation.operation === "delete" ? rows.filter(({ id }) => id !== mutation.entityId) : [...rows.filter(({ id }) => id !== mutation.entityId), structuredClone(mutation.payload as ScheduledTransactionView)]; return {}; },
-    async mutateBatch(mutations: readonly LocalBudgetMutation[]) { if (fail) throw new Error("worker failed"); committed.push(...mutations); for (const mutation of mutations) rows = [...rows.filter(({ id }) => id !== mutation.entityId), structuredClone(mutation.payload as ScheduledTransactionView)]; return {}; },
+    async mutateBatch(mutations: readonly LocalBudgetMutation[]) { if (fail) throw new Error("worker failed"); batches.push([...mutations]); committed.push(...mutations); for (const mutation of mutations) rows = [...rows.filter(({ id }) => id !== mutation.entityId), structuredClone(mutation.payload as ScheduledTransactionView)]; return {}; },
     async replaceScheduledTransactionHistoryState(request: typeof historyRequest & { mutations: readonly LocalBudgetMutation[] }) { if (fail) throw new Error("worker failed"); historyRequest = request; committed.push(...request.mutations); return {}; },
   } as unknown as LocalBudgetDatabaseClient;
   const commands = createScheduledTransactionCommands({ requireDatabase: async () => database,
     createMutation(id, domain, entityId, operation, payload, operationGroupId, operationGroup) { sequence += 1; const mutation = { mutationId: `m-${sequence}`, budgetId: id, syncEpoch: "epoch", deviceId: "device", deviceSequence: sequence, baseCursor: 0, domain, entityId, operation, payload, createdAt: "now", ...(operationGroupId ? { operationGroupId } : {}), ...(operationGroup ? { operationGroup } : {}) }; allocated.push(mutation); return mutation; },
     encodeBase64: (bytes) => Buffer.from(bytes).toString("base64"), decodeBase64: (value) => Uint8Array.from(Buffer.from(value, "base64")),
     recordCommittedChange: (_id, change) => changes.push([...change.domains]) });
-  return { commands, allocated, committed, changes, rows: () => rows, history: () => historyRequest, fail: () => { fail = true; } };
+  return { commands, allocated, committed, changes, batches, rows: () => rows, history: () => historyRequest, fail: () => { fail = true; } };
 }
 
 test("create, update, delete and advance commit exactly one scheduled mutation", async () => {
@@ -59,13 +60,39 @@ test("history and Enter share one exact operation group and preserve generated a
   assert.equal(attachment?.contentHash, `sha256:${"a".repeat(64)}`); assert.deepEqual([...attachment!.content], [1, 2, 3]); assert.ok(attachment?.attachedAt);
 });
 
-test("rename and reassign select matches, preserve fields, and commit one atomic batch", async () => {
+function assertExactGroup(batch: readonly LocalBudgetMutation[]) {
+  assert.equal(batch.length, 2); assert.equal(new Set(batch.map(({ mutationId }) => mutationId)).size, 2);
+  const groupIds = new Set(batch.map(({ operationGroupId }) => operationGroupId)); assert.equal(groupIds.size, 1);
+  assert.ok(batch[0]?.operationGroupId);
+  const descriptors = batch.map(({ domain, entityId, operation, payload }) => ({ domain, entityId, operation, payload }));
+  for (const mutation of batch) assert.deepEqual(mutation.operationGroup?.members, descriptors);
+}
+
+test("rename selects matches and commits one exact replication group", async () => {
   const base = buildScheduledTransaction(input(), { id: "id-match", now: "created" });
   const nameMatch = { ...base, id: "name-match", payeeId: "other", payee: "Rent" };
   const unrelated = { ...base, id: "other", payeeId: "other", payee: "Other", memo: "keep" };
   const h = harness([base, nameMatch, unrelated]); await h.commands.renameScheduledPayeeReferences(budgetId, { payeeId: "payee", previousName: "Rent", nextName: "Renamed" });
-  assert.equal(h.committed.length, 2); assert.equal(h.rows().find(({ id }) => id === "other")?.memo, "keep");
-  await h.commands.reassignScheduledPayeeReferences(budgetId, { sourcePayeeId: "payee", sourceName: "Renamed", targetPayeeId: "target", targetName: "Target" });
+  assert.equal(h.batches.length, 1); assertExactGroup(h.batches[0]!);
   assert.deepEqual(h.allocated.map(({ mutationId }) => mutationId), h.committed.map(({ mutationId }) => mutationId));
-  assert.deepEqual(h.changes, [["scheduled-transactions"], ["scheduled-transactions"]]);
+  assert.equal(h.rows().find(({ id }) => id === "other")?.memo, "keep"); assert.deepEqual(h.changes, [["scheduled-transactions"]]);
+});
+
+test("reassign selects matches and commits one exact replication group", async () => {
+  const base = buildScheduledTransaction(input(), { id: "id-match", now: "created" });
+  const nameMatch = { ...base, id: "name-match", payeeId: "other", payee: "Rent" };
+  const unrelated = { ...base, id: "other", payeeId: "other", payee: "Other", memo: "keep" };
+  const h = harness([base, nameMatch, unrelated]);
+  await h.commands.reassignScheduledPayeeReferences(budgetId, { sourcePayeeId: "payee", sourceName: "Rent", targetPayeeId: "target", targetName: "Target" });
+  assert.equal(h.batches.length, 1); assertExactGroup(h.batches[0]!);
+  assert.deepEqual(h.allocated.map(({ mutationId }) => mutationId), h.committed.map(({ mutationId }) => mutationId));
+  assert.equal(h.rows().find(({ id }) => id === "other")?.memo, "keep"); assert.deepEqual(h.changes, [["scheduled-transactions"]]);
+});
+
+test("payee reference no-match allocates no group, mutation, batch, or scope", async () => {
+  const schedule = buildScheduledTransaction(input({ payeeId: "other", payee: "Other" }), { id: "other", now: "created" });
+  const h = harness([schedule]);
+  await h.commands.renameScheduledPayeeReferences(budgetId, { payeeId: "missing", previousName: "Missing", nextName: "Nope" });
+  await h.commands.reassignScheduledPayeeReferences(budgetId, { sourcePayeeId: "missing", sourceName: "Missing", targetPayeeId: "target", targetName: "Target" });
+  assert.equal(h.allocated.length, 0); assert.equal(h.committed.length, 0); assert.equal(h.batches.length, 0); assert.equal(h.changes.length, 0);
 });
