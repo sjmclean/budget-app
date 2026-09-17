@@ -16,10 +16,7 @@ import type { BudgetDomain } from "./contracts";
 import { LocalBudgetDatabaseClient } from "./localBudgetClient";
 import type {
   LocalTransactionAttachmentMutationPayload,
-  ImportHistorySnapshot,
-  LocalPayeeRecord,
   LocalTransactionRecord,
-  TransactionHistorySnapshot,
 } from "./registerSchema";
 import { createLocalFirstRelayTransport } from "./relayTransport";
 import { bootstrapLocalBudget } from "./baselineCoordinator";
@@ -66,9 +63,9 @@ import { createBudgetCategoryCommands } from "./engine/budgetCategoryCommands";
 import { createCategoryGoalCommands } from "./engine/categoryGoalCommands";
 import { createPayeeCommands } from "./engine/payeeCommands";
 import { createScheduledTransactionCommands } from "./engine/scheduledTransactionCommands";
+import { createTransactionHistoryCommands } from "./engine/transactionHistoryCommands";
 import {
   buildNewTransactionRecords,
-  prepareTransactionBatchWrites,
 } from "./engine/transactionCommandHelpers";
 
 const DEVICE_ID_KEY = "budget-app.local-first.device-id";
@@ -539,6 +536,12 @@ export function createLocalBudgetRuntime(
     createMutation: mutation,
     encodeBase64,
     decodeBase64,
+    recordCommittedChange: notifyLocalFirstMutationCommitted,
+  });
+  const transactionHistoryCommands = createTransactionHistoryCommands({
+    requireDatabase,
+    createMutation: mutation,
+    encodeBase64,
     recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
 
@@ -1139,246 +1142,15 @@ export function createLocalBudgetRuntime(
         input.transactionIds,
       );
     },
-    async restoreTransactionHistorySnapshot(snapshot) {
-      const local = await requireDatabase(snapshot.budgetId);
-      const operationGroupId = createRuntimeUuid();
-      const members: LocalBudgetOperationGroup["members"] = [
-        ...snapshot.transactions.map((transaction) => ({
-          domain: "transactions" as const,
-          entityId: transaction.id,
-          operation: "upsert" as const,
-          payload: transaction,
-        })),
-        ...snapshot.attachments.map((attachment) => ({
-          domain: "transactions" as const,
-          entityId: `attachment:${attachment.id}`,
-          operation: "upsert" as const,
-          payload: {
-            kind: "transaction-attachment-upsert" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
-            contentBase64: encodeBase64(attachment.content),
-          },
-        })),
-      ];
-      const group: LocalBudgetOperationGroup = { members };
-      await local.restoreTransactionHistorySnapshot(
-        snapshot,
-        members.map((member) => mutation(
-          snapshot.budgetId, member.domain, member.entityId,
-          member.operation, member.payload, operationGroupId, group,
-        )),
-      );
-      notifyTransactionsCommitted(snapshot.budgetId, [], snapshot.transactions);
-    },
-    async deleteTransactionHistorySnapshot(snapshot) {
-      const local = await requireDatabase(snapshot.budgetId);
-      const operationGroupId = createRuntimeUuid();
-      const members: LocalBudgetOperationGroup["members"] = [
-        ...snapshot.transactions.map((transaction) => ({
-          domain: "transactions" as const,
-          entityId: transaction.id,
-          operation: "delete" as const,
-          payload: {
-            accountId: transaction.accountId,
-            amount: transaction.amount,
-            transferAccountId: transaction.transferAccountId,
-            transferTransactionId: transaction.transferTransactionId,
-          },
-        })),
-        ...snapshot.attachments.map((attachment) => ({
-          domain: "transactions" as const,
-          entityId: `attachment:${attachment.id}`,
-          operation: "delete" as const,
-          payload: {
-            kind: "transaction-attachment-delete" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
-          },
-        })),
-      ];
-      const group: LocalBudgetOperationGroup = { members };
-      await local.deleteTransactionHistorySnapshot(
-        snapshot,
-        members.map((member) => mutation(
-          snapshot.budgetId, member.domain, member.entityId,
-          member.operation, member.payload, operationGroupId, group,
-        )),
-      );
-      notifyTransactionsCommitted(snapshot.budgetId, snapshot.transactions);
-    },
-    async replaceTransactionHistorySnapshot({ expected, replacement }) {
-      if (expected.budgetId !== replacement.budgetId) {
-        throw new Error("Transaction history replacement cannot cross budgets.");
-      }
-      const local = await requireDatabase(expected.budgetId);
-      const nextTransactionIds = new Set(replacement.transactions.map(({ id }) => id));
-      const nextAttachmentIds = new Set(replacement.attachments.map(({ id }) => id));
-      const members: LocalBudgetOperationGroup["members"] = [
-        ...expected.transactions.filter(({ id }) => !nextTransactionIds.has(id)).map((transaction) => ({
-          domain: "transactions" as const, entityId: transaction.id, operation: "delete" as const,
-          payload: { accountId: transaction.accountId, amount: transaction.amount,
-            transferAccountId: transaction.transferAccountId, transferTransactionId: transaction.transferTransactionId },
-        })),
-        ...expected.attachments.filter(({ id }) => !nextAttachmentIds.has(id)).map((attachment) => ({
-          domain: "transactions" as const, entityId: `attachment:${attachment.id}`, operation: "delete" as const,
-          payload: { kind: "transaction-attachment-delete" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment) },
-        })),
-        ...replacement.transactions.map((transaction) => ({
-          domain: "transactions" as const, entityId: transaction.id, operation: "upsert" as const,
-          payload: transaction,
-        })),
-        ...replacement.attachments.map((attachment) => ({
-          domain: "transactions" as const, entityId: `attachment:${attachment.id}`, operation: "upsert" as const,
-          payload: { kind: "transaction-attachment-upsert" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
-            contentBase64: encodeBase64(attachment.content) },
-        })),
-      ];
-      const operationGroupId = createRuntimeUuid();
-      const group: LocalBudgetOperationGroup = { members };
-      await local.replaceTransactionHistorySnapshot(
-        expected,
-        replacement,
-        members.map((member) => mutation(
-          expected.budgetId, member.domain, member.entityId,
-          member.operation, member.payload, operationGroupId, group,
-        )),
-      );
-      notifyTransactionsCommitted(expected.budgetId, expected.transactions, replacement.transactions);
-    },
+    restoreTransactionHistorySnapshot: transactionHistoryCommands.restoreTransactionHistorySnapshot,
+    deleteTransactionHistorySnapshot: transactionHistoryCommands.deleteTransactionHistorySnapshot,
+    replaceTransactionHistorySnapshot: transactionHistoryCommands.replaceTransactionHistorySnapshot,
     addTransaction: transactionCommands.addTransaction,
     commitTransactionBatch: transactionCommands.commitTransactionBatch,
 
-    async commitImportBatch(input) {
-      const local = await requireDatabase(input.budgetId);
-
-      const {
-        writes,
-        requireAbsentTransactionIds,
-      } = await prepareTransactionBatchWrites(mutation, local, input);
-
-      const payeeWrites = input.payeeCreations.map((creation) => {
-        const now = new Date().toISOString();
-        const name = creation.name.replace(/\s+/g, " ").trim();
-
-        if (!creation.id.trim() || !name) {
-          throw new Error(
-            "A staged import payee requires both an ID and a name.",
-          );
-        }
-
-        const payee: LocalPayeeRecord = {
-          id: creation.id,
-          budgetId: input.budgetId,
-          name,
-          note: "",
-          archived: false,
-          createdAt: now,
-          updatedAt: now,
-        };
-
-        return {
-          payee,
-          mutation: mutation(
-            input.budgetId,
-            "payees",
-            payee.id,
-            "upsert",
-            payee,
-          ),
-        };
-      });
-
-      await local.writeImportBatch(
-        payeeWrites,
-        writes,
-        {
-          requireAbsentTransactionIds,
-          verifyWrittenTransactions: true,
-        },
-      );
-
-      if (payeeWrites.length > 0 || writes.length > 0) {
-        notifyLocalFirstMutationCommitted(input.budgetId, persistenceScopeForMutations(input.budgetId, [...writes.map(({ mutation: value }) => value), ...payeeWrites.map(({ mutation: value }) => value)]));
-      }
-    },
-    async commitImportBatchWithHistory(input) {
-      const local = await requireDatabase(input.budgetId);
-      const { writes, requireAbsentTransactionIds } = await prepareTransactionBatchWrites(mutation, local, input);
-      const payeeWrites = input.payeeCreations.map((creation) => {
-        const now = new Date().toISOString();
-        const name = creation.name.replace(/\s+/g, " ").trim();
-        if (!creation.id.trim() || !name) throw new Error("A staged import payee requires both an ID and a name.");
-        const payee: LocalPayeeRecord = {
-          id: creation.id, budgetId: input.budgetId, name, note: "", archived: false,
-          createdAt: now, updatedAt: now,
-        };
-        return { payee, mutation: mutation(input.budgetId, "payees", payee.id, "upsert", payee) };
-      });
-      const transactionIds = [...new Set([
-        ...input.additions.map(({ id }) => id),
-        ...input.updates.map(({ id }) => id),
-        ...input.provenanceAssignments.map(({ transactionId }) => transactionId),
-      ])].sort();
-      const payeeIds = [...new Set(input.payeeCreations.map(({ id }) => id))].sort();
-      if (transactionIds.length === 0 && payeeIds.length === 0) {
-        throw new Error("An import history command requires at least one persisted object.");
-      }
-      const snapshots = await local.writeImportBatchWithHistory(payeeWrites, writes, {
-        requireAbsentTransactionIds,
-        verifyWrittenTransactions: true,
-        historyTransactionIds: transactionIds,
-        historyPayeeIds: payeeIds,
-      });
-      notifyLocalFirstMutationCommitted(input.budgetId, persistenceScopeForMutations(
-        input.budgetId,
-        [...writes.map(({ mutation: value }) => value), ...payeeWrites.map(({ mutation: value }) => value)],
-      ));
-      return snapshots;
-    },
-    async replaceImportHistorySnapshot({ expected, replacement }) {
-      if (expected.budgetId !== replacement.budgetId) {
-        throw new Error("Import history replacement cannot cross budgets.");
-      }
-      const local = await requireDatabase(expected.budgetId);
-      const nextTransactionIds = new Set(replacement.transactions.transactions.map(({ id }) => id));
-      const nextAttachmentIds = new Set(replacement.transactions.attachments.map(({ id }) => id));
-      const nextPayeeIds = new Set(replacement.payees.map(({ id }) => id));
-      const members: LocalBudgetOperationGroup["members"] = [
-        ...expected.transactions.transactions.filter(({ id }) => !nextTransactionIds.has(id)).map((transaction) => ({
-          domain: "transactions" as const, entityId: transaction.id, operation: "delete" as const,
-          payload: { accountId: transaction.accountId, amount: transaction.amount,
-            transferAccountId: transaction.transferAccountId, transferTransactionId: transaction.transferTransactionId },
-        })),
-        ...expected.transactions.attachments.filter(({ id }) => !nextAttachmentIds.has(id)).map((attachment) => ({
-          domain: "transactions" as const, entityId: `attachment:${attachment.id}`, operation: "delete" as const,
-          payload: { kind: "transaction-attachment-delete" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment) },
-        })),
-        ...replacement.transactions.transactions.map((transaction) => ({
-          domain: "transactions" as const, entityId: transaction.id, operation: "upsert" as const, payload: transaction,
-        })),
-        ...replacement.transactions.attachments.map((attachment) => ({
-          domain: "transactions" as const, entityId: `attachment:${attachment.id}`, operation: "upsert" as const,
-          payload: { kind: "transaction-attachment-upsert" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
-            contentBase64: encodeBase64(attachment.content) },
-        })),
-        ...expected.payees.filter(({ id }) => !nextPayeeIds.has(id)).map((payee) => ({
-          domain: "payees" as const, entityId: payee.id, operation: "delete" as const, payload: payee,
-        })),
-        ...replacement.payees.map((payee) => ({
-          domain: "payees" as const, entityId: payee.id, operation: "upsert" as const, payload: payee,
-        })),
-      ];
-      const operationGroupId = createRuntimeUuid();
-      const group: LocalBudgetOperationGroup = { members };
-      await local.replaceImportHistorySnapshot(expected, replacement, members.map((member) => mutation(
-        expected.budgetId, member.domain, member.entityId, member.operation,
-        member.payload, operationGroupId, group,
-      )));
-      notifyTransactionsCommitted(expected.budgetId, expected.transactions.transactions, replacement.transactions.transactions);
-    },
+    commitImportBatch: transactionHistoryCommands.commitImportBatch,
+    commitImportBatchWithHistory: transactionHistoryCommands.commitImportBatchWithHistory,
+    replaceImportHistorySnapshot: transactionHistoryCommands.replaceImportHistorySnapshot,
 
     moveTransactions: transactionCommands.moveTransactions,
     updateTransaction: transactionCommands.updateTransaction,

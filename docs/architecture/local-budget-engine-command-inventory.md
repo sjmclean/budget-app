@@ -80,8 +80,9 @@ has moved out of `localFirstAccountRegisterClient.ts`.
 - Category goals: complete in `engine/categoryGoalCommands.ts`.
 - Payees: complete in `engine/payeeCommands.ts`.
 - Scheduled transactions: complete in `engine/scheduledTransactionCommands.ts`.
-- Still runtime-owned: transaction/import history commands still present in the
-  runtime, and keep-local conflict replay/import implementations.
+- Transaction/import history: complete in
+  `engine/transactionHistoryCommands.ts`.
+- Still runtime-owned: keep-local conflict replay/import implementations.
 
 The runtime-owned families are routed through the engine/executor boundary but
 have not yet been physically extracted into domain command modules.
@@ -171,7 +172,7 @@ The transitional command recorder remains in place until P0.3e4.
 | --- | --- | --- |
 | Transaction create/update/delete/move/clear | Engine/executor | Extracted transaction modules |
 | Transaction batch | Engine/executor | Extracted transaction modules |
-| Import batch and remaining import history | Engine/executor | Runtime-owned |
+| Import batch and remaining import history | Engine/executor | Extracted transaction/import history module |
 | Attachments | Engine/executor | Extracted attachment module; binary read remains query-only |
 | Accounts | Engine/executor | Extracted account module, including exact history replacement |
 | Budget month and category | Engine/executor | Extracted budget/category modules |
@@ -179,7 +180,7 @@ The transitional command recorder remains in place until P0.3e4.
 | Payees | Engine/executor | Extracted payee module |
 | Transaction tags | Engine/executor | Extracted tag module |
 | Scheduled transactions | Engine/executor | Extracted scheduled transaction module |
-| Remaining history operations | Engine/executor | Runtime-owned |
+| Transaction/import history operations | Engine/executor | Extracted transaction/import history module |
 | Conflict keep-local | Engine/executor | Runtime-owned; accept-remote remains replication-owned |
 | Remote apply | Replication exception; never creates local outbox rows |
 | Restore/reset/open/close/baseline replacement | Lifecycle exception |

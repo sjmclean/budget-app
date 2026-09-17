@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-17T03:41:32.226Z",
+  "generatedAt": "2026-09-17T04:25:01.909Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -1800,7 +1800,7 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
-      "line": 98,
+      "line": 95,
       "classification": "review-required"
     },
     {

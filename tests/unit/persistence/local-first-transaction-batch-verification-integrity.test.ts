@@ -203,20 +203,21 @@ test("transaction upsert replaces transaction-owned import provenance atomically
 });
 
 test("dedicated import commits request physical verification through the atomic import worker operation", () => {
-  const start = registerClient.indexOf("async commitImportBatch(input)");
-  const end = registerClient.indexOf(
-    "\n    moveTransactions: transactionCommands.moveTransactions,",
-    start,
-  );
+  const historyCommands = readFileSync(new URL(
+    "../../../apps/web/src/features/persistence/localFirst/engine/transactionHistoryCommands.ts",
+    import.meta.url,
+  ), "utf8");
+  const start = historyCommands.indexOf("async commitImportBatch(input)");
+  const end = historyCommands.indexOf("async commitImportBatchWithHistory(input)", start);
 
   assert.ok(start >= 0, "commitImportBatch must exist");
   assert.ok(end > start, "commitImportBatch boundary must be discoverable");
 
-  const commit = registerClient.slice(start, end);
+  const commit = historyCommands.slice(start, end);
 
   assert.match(
     commit,
-    /writeImportBatch\(\s*payeeWrites,\s*writes,\s*\{[\s\S]*?requireAbsentTransactionIds,[\s\S]*?verifyWrittenTransactions:\s*true,/,
+    /writeImportBatch\(prepared\.payeeWrites,\s*prepared\.writes,\s*\{[\s\S]*?requireAbsentTransactionIds:\s*prepared\.requireAbsentTransactionIds,[\s\S]*?verifyWrittenTransactions:\s*true/,
     "import commits must enable physical verification before the atomic worker commit",
   );
 });

@@ -236,3 +236,21 @@ test("all ordinary scheduled transaction implementations are engine-module owned
   assert.match(runtime, /listScheduledTransactions\(budgetId, accountId\)/);
   assert.match(runtime, /captureScheduledTransaction\(budgetId, scheduleId\)/);
 });
+
+test("all ordinary transaction and import history implementations are engine-module owned", () => {
+  const runtime = readFileSync(resolve(root, "features/persistence/localFirst/localFirstAccountRegisterClient.ts"), "utf8");
+  const commands = readFileSync(resolve(root, "features/persistence/localFirst/engine/transactionHistoryCommands.ts"), "utf8");
+  for (const method of ["restoreTransactionHistorySnapshot", "deleteTransactionHistorySnapshot",
+    "replaceTransactionHistorySnapshot", "commitImportBatch", "commitImportBatchWithHistory",
+    "replaceImportHistorySnapshot"]) {
+    assert.match(runtime, new RegExp(`${method}: transactionHistoryCommands\\.${method}`));
+    assert.doesNotMatch(runtime, new RegExp(`async ${method}\\s*\\(`));
+    assert.match(commands, new RegExp(`async ${method}\\s*\\(`));
+  }
+  assert.match(runtime, /async captureTransactionHistorySnapshots\s*\(/);
+  assert.doesNotMatch(commands, /\bsynchronise\b|notifyLocalFirstMutationCommitted|publishPersistenceChange/);
+  assert.match(commands, /local\.restoreTransactionHistorySnapshot\s*\(/);
+  assert.match(commands, /local\.writeImportBatchWithHistory\s*\(/);
+  const runtimeClient = runtime.slice(runtime.indexOf("  const client:"));
+  assert.doesNotMatch(runtimeClient, /local\.(?:restoreTransactionHistorySnapshot|deleteTransactionHistorySnapshot|replaceTransactionHistorySnapshot|writeImportBatch|writeImportBatchWithHistory|replaceImportHistorySnapshot)\s*\(/);
+});
