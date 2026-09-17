@@ -31,6 +31,16 @@ jobs:
           code = '\n'.join(line[10:] if line.startswith('          ') else line for line in workflow[run_index + 1:end])
           exec(compile(code, '<atomic-category-merge-patch>', 'exec'))
 
+          # The original diagnostic index matched the earlier Category Goal write.
+          # Target the budget-month write in the same worker transaction explicitly.
+          test_path = Path('tests/unit/persistence/local-first-category-merge-integrity.test.ts')
+          test_text = test_path.read_text()
+          old = 'const budgetWriteIndex = merge.indexOf("writeNormalisedDomainEntity(");'
+          new = 'const budgetWriteIndex = merge.indexOf(\'"budgetMonths"\', deleteIndex);'
+          if test_text.count(old) != 1:
+              raise SystemExit(f'Expected one fragile budgetWriteIndex assertion, found {test_text.count(old)}')
+          test_path.write_text(test_text.replace(old, new, 1))
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
