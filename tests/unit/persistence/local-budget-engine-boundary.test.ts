@@ -172,3 +172,29 @@ test("all ordinary budget and category implementations and helpers are engine-mo
   assert.doesNotMatch(runtimeClient, /local\.mutateBatch\s*\([^)]*budgetMonths/);
   assert.doesNotMatch(commands, /\bsynchronise\b/);
 });
+
+test("all ordinary Category Goal implementations are engine-module owned", () => {
+  const runtime = readFileSync(resolve(root, "features/persistence/localFirst/localFirstAccountRegisterClient.ts"), "utf8");
+  const commands = readFileSync(resolve(root, "features/persistence/localFirst/engine/categoryGoalCommands.ts"), "utf8");
+  for (const method of [
+    "createCategoryGoal",
+    "updateCategoryGoal",
+    "deleteCategoryGoal",
+    "replaceCategoryGoalHistoryState",
+  ]) {
+    assert.match(runtime, new RegExp(`${method}: categoryGoalCommands\\.${method}`));
+    assert.doesNotMatch(runtime, new RegExp(`async ${method}\\s*\\(`));
+    assert.match(commands, new RegExp(`async ${method}\\s*\\(`));
+  }
+  const runtimeClient = runtime.slice(runtime.indexOf("  const client:"));
+  assert.doesNotMatch(
+    runtimeClient,
+    /local\.(?:writeCategoryGoal|deleteCategoryGoal|replaceCategoryGoalHistoryState)\s*\(/,
+  );
+  assert.doesNotMatch(
+    runtime,
+    /commitCategoryGoalMutation|normaliseCategoryGoalForPersistence|categoryGoalsEqual/,
+  );
+  assert.doesNotMatch(commands, /\bsynchronise\b/);
+  assert.match(commands, /discardFailedMutation\(mutation\.mutationId\)/);
+});
