@@ -138,6 +138,29 @@ test("metadata, overspending, merge, and history commands retain their worker an
   assert.equal(merge.mergeCalls(), 1, "category relinking uses the atomic worker merge primitive");
   assert.deepEqual(new Set(merged.result.mutationIds), new Set(merge.committed.map(({ mutationId }) => mutationId)));
   assert.equal(merge.committed.length, 2);
+  const [mergeMutation, budgetMonthMutation] = merge.committed;
+  assert.ok(mergeMutation?.operationGroupId, "merge replication must have an operation group id");
+  assert.equal(
+    budgetMonthMutation?.operationGroupId,
+    mergeMutation.operationGroupId,
+    "both merge mutations must share one replication operation group",
+  );
+  assert.deepEqual(
+    budgetMonthMutation?.operationGroup,
+    mergeMutation.operationGroup,
+    "both merge mutations must carry the same operation description",
+  );
+  assert.deepEqual(
+    mergeMutation.operationGroup?.members.map(({ domain, entityId, operation }) => ({
+      domain,
+      entityId,
+      operation,
+    })),
+    [
+      { domain: "categories", entityId: "category-a", operation: "delete" },
+      { domain: "budgetMonths", entityId: month, operation: "upsert" },
+    ],
+  );
 
   const history = harness();
   const replacement = { ...budgetView(), readyToAssign: 123 };
