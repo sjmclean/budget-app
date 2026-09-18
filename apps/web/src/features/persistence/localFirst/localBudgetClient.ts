@@ -815,7 +815,7 @@ export class LocalBudgetDatabaseClient {
   writeImportBatchWithHistory(
     payeeWrites: readonly { readonly payee: LocalPayeeRecord; readonly mutation: LocalBudgetMutation }[],
     writes: readonly { readonly transaction: LocalTransactionRecord; readonly mutation: LocalBudgetMutation; readonly resolveConflictId?: string }[],
-    attachmentWrites: readonly { readonly attachment: LocalTransactionAttachmentRecord; readonly content: Uint8Array; readonly mutation: LocalBudgetMutation }[] = [],
+    attachmentWrites: readonly { readonly attachment: LocalTransactionAttachmentRecord; readonly content: Uint8Array; readonly mutation: LocalBudgetMutation }[],
     options: {
       readonly requireAbsentTransactionIds?: readonly string[];
       readonly verifyWrittenTransactions?: boolean;
