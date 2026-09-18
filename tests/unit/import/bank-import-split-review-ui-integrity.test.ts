@@ -34,18 +34,18 @@ test("bank import review uses the shared register split editor", () => {
   );
 });
 
-test("saving Split opens the split editor instead of persisting an empty split", () => {
+test("choosing Split reveals the shared split editor inside Edit Transaction", () => {
   assert.match(
     dialogSource,
-    /if \(categoryName === "Split"\) \{[\s\S]*?beginMatchedSplitEdit\(candidate\);/,
+    /function updateTransactionEditCategory[\s\S]*?value === "Split"[\s\S]*?\[createSplitLineDraft\(\), createSplitLineDraft\(\)\]/,
   );
   assert.match(
     dialogSource,
-    /if \(categoryName === "Split"\) \{[\s\S]*?beginProposalSplitEdit\(candidate\);/,
+    /transactionEditDraft\.category === "Split"[\s\S]*?<RegisterSplitEditor/,
   );
   assert.match(
     dialogSource,
-    /categoryName === "Split"[\s\S]*?candidate\.lifecycle\.proposal\.splitLines[\s\S]*?: undefined/,
+    /splitLines=\{transactionEditDraft\.splitLines\}/,
   );
 });
 
@@ -68,7 +68,7 @@ test("Split is only entered through the category editor, not the More menu", () 
   );
 });
 
-test("split review starts with at least two lines and must be balanced before apply", () => {
+test("split review starts with at least two lines and must be balanced before save", () => {
   const twoLineSeeds = dialogSource.match(
     /\[createSplitLineDraft\(\), createSplitLineDraft\(\)\]/g,
   );
@@ -90,7 +90,7 @@ test("split review starts with at least two lines and must be balanced before ap
 
   assert.match(
     dialogSource,
-    /disabled=\{[\s\S]*?splitEdit\.splitLines\.length < 2[\s\S]*?hasIncompleteSplitDrafts[\s\S]*?!isSplitDraftBalanced/,
+    /draft\.splitLines\.length < 2[\s\S]*?hasIncompleteSplitDrafts\(draft\.splitLines\)[\s\S]*?!isSplitDraftBalanced/,
   );
 });
 
@@ -111,14 +111,18 @@ test("applying a reviewed split writes final split lines and clears transfer sta
   );
 });
 
-test("switching away from Split clears stale proposal and matched split lines", () => {
+test("switching away from Split clears stale draft and persisted split lines", () => {
   assert.match(
     dialogSource,
-    /splitLines:\s*categoryName === "Split"[\s\S]*?: undefined/,
+    /return \{[\s\S]*?category: value,[\s\S]*?splitLines: \[\]/,
   );
   assert.match(
     dialogSource,
-    /transferAccountId:\s*categoryName === "Split"[\s\S]*?: undefined,[\s\S]*?transferTransactionId:[\s\S]*?: undefined,[\s\S]*?splitLines:[\s\S]*?: undefined/,
+    /splitLines: categoryName === "Split" \? reviewedSplitLines : undefined/,
+  );
+  assert.match(
+    dialogSource,
+    /transferAccountId: undefined,[\s\S]*?transferTransactionId: undefined/,
   );
 });
 
