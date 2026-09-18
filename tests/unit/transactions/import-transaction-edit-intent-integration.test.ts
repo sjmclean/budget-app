@@ -7,59 +7,48 @@ const source = readFileSync(
   "utf8",
 );
 
-test("import review derives shared edit intent from existing payee/category edit state", () => {
-  assert.match(
-    source,
-    /type TransactionEditIntent/,
-  );
-
-  assert.match(
-    source,
-    /activeProposedTransactionEdit\.field === "memo"\s*\?\s*null\s*:\s*\{ field: activeProposedTransactionEdit\.field \}/,
-  );
-
-  assert.match(
-    source,
-    /getTransactionFieldEditBehaviour\(\s*proposedTransactionEditIntent,\s*"payee",?\s*\)/,
-  );
-
-  assert.match(
-    source,
-    /getTransactionFieldEditBehaviour\(\s*proposedTransactionEditIntent,\s*"category",?\s*\)/,
-  );
+test("import review uses one unified transaction editor instead of per-field edit intent", () => {
+  assert.match(source, /interface TransactionImportEditDraft/);
+  assert.match(source, /function beginTransactionEdit\(/);
+  assert.match(source, /function saveTransactionEdit\(/);
+  assert.doesNotMatch(source, /type TransactionEditIntent/);
+  assert.doesNotMatch(source, /getTransactionFieldEditBehaviour/);
+  assert.doesNotMatch(source, /ProposedTransactionEditField/);
 });
 
-test("import payee editors consume shared replacement behaviour", () => {
-  const matches = source.match(
-    /selectOnInitialFocus=\{\s*proposedPayeeEditBehaviour\.selectOnInitialFocus\s*\}/g,
-  );
-
-  assert.equal(matches?.length, 2);
+test("unified import editor reuses shared payee and category controls", () => {
+  assert.match(source, /<PayeeInput[\s\S]*?value=\{transactionEditDraft\.payee\}/);
+  assert.match(source, /<RegisterCategoryInput[\s\S]*?value=\{transactionEditDraft\.category\}/);
+  assert.match(source, /includeSplitOption/);
 });
 
-test("import category editors consume shared replacement behaviour", () => {
-  const matches = source.match(
-    /selectOnInitialFocus=\{\s*proposedCategoryEditBehaviour\.selectOnInitialFocus\s*\}/g,
-  );
-
-  assert.equal(matches?.length, 2);
-});
-
-test("import edit scope adds memo without broadening editable transaction fields", () => {
+test("import edit scope excludes date and amount mutations", () => {
   assert.match(
     source,
-    /type ProposedTransactionEditField = "payee" \| "category" \| "memo"/,
+    /Date and amount come from the bank file and cannot be changed here\./,
   );
+  assert.match(source, /<strong>Date<\/strong>/);
+  assert.match(source, /<strong>Amount<\/strong>/);
 
-  assert.doesNotMatch(
-    source,
-    /type ProposedTransactionEditField = [^;]*(date|outflow|inflow)/,
-  );
+  const draftBlock = source.match(
+    /interface TransactionImportEditDraft \{[\s\S]*?\n\}/,
+  )?.[0] ?? "";
+  assert.doesNotMatch(draftBlock, /\bdate\s*:/);
+  assert.doesNotMatch(draftBlock, /\b(?:outflow|inflow|amount)\s*:/);
+});
 
-  assert.match(source, /"Add Memo"/);
-  assert.match(source, /"Edit Memo"/);
-  assert.match(source, />\s*Save\s*</);
+test("unified import editor edits payee, category, memo, tags, and attachments", () => {
+  const draftBlock = source.match(
+    /interface TransactionImportEditDraft \{[\s\S]*?\n\}/,
+  )?.[0] ?? "";
+
+  assert.match(draftBlock, /payee: string/);
+  assert.match(draftBlock, /category: string/);
+  assert.match(draftBlock, /memo: string/);
+  assert.match(draftBlock, /tagIds: string\[\]/);
+  assert.match(draftBlock, /attachments: ScheduledAttachmentTemplate\[\]/);
+
+  assert.match(source, />\s*Save transaction\s*</);
   assert.match(source, />\s*Cancel\s*</);
-  assert.match(source, /event\.key === "Enter"/);
-  assert.match(source, /event\.key === "Escape"/);
+  assert.match(source, /memoReviewed: true/);
 });
