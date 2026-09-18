@@ -2103,6 +2103,7 @@ export function AccountRegisterPage() {
             categoryOptions={categoryOptions}
             transactionTags={transactionTags}
             transferAccounts={transferAccounts}
+            onCreateTransactionTag={handleCreateTransactionTag}
             onCreateCategory={createInlineCategory}
             onLearnPayeeAliases={learnPayeeAliases}
             onClose={() => {
