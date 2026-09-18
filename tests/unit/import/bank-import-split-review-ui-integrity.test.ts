@@ -10,16 +10,11 @@ const dialogSource = fs.readFileSync(
   "utf8",
 );
 
-test("bank import review exposes Split for new and matched transactions", () => {
-  const splitOptions = dialogSource.match(
-    /includeSplitOption(?:\s|\/?>)/g,
+test("bank import review exposes Split through the shared transaction editor", () => {
+  assert.match(
+    dialogSource,
+    /<RegisterCategoryInput[\s\S]*?includeSplitOption/,
   );
-
-  assert.ok(
-    (splitOptions?.length ?? 0) >= 2,
-    "both new and matched category editors must expose Split",
-  );
-
   assert.doesNotMatch(
     dialogSource,
     /includeSplitOption=\{false\}/,
@@ -39,15 +34,18 @@ test("bank import review uses the shared register split editor", () => {
   );
 });
 
-test("selecting Split opens an editor instead of immediately persisting an empty split", () => {
+test("saving Split opens the split editor instead of persisting an empty split", () => {
   assert.match(
     dialogSource,
-    /if\s*\(value === "Split"\)\s*\{[\s\S]*?markImportReviewFieldEdited\(current, candidateId, "category"\)[\s\S]*?beginProposalSplitEdit\(currentCandidate\);\s*return;/,
+    /if \(categoryName === "Split"\) \{[\s\S]*?beginMatchedSplitEdit\(candidate\);/,
   );
-
   assert.match(
     dialogSource,
-    /if\s*\(value === "Split"\)\s*\{\s*beginMatchedSplitEdit\(candidate\);\s*return;/,
+    /if \(categoryName === "Split"\) \{[\s\S]*?beginProposalSplitEdit\(candidate\);/,
+  );
+  assert.match(
+    dialogSource,
+    /categoryName === "Split"[\s\S]*?candidate\.lifecycle\.proposal\.splitLines[\s\S]*?: undefined/,
   );
 });
 
@@ -65,8 +63,8 @@ test("Split is only entered through the category editor, not the More menu", () 
 
   assert.match(
     dialogSource,
-    /<summary>••• More<\/summary>[\s\S]*?(?:Edit Memo|Add Memo)[\s\S]*?Reset changes/,
-    "the More menu should retain non-category secondary actions",
+    /aria-label="More transaction actions"[\s\S]*?Edit Transaction[\s\S]*?Find Existing Transaction/,
+    "the More menu should retain secondary transaction actions",
   );
 });
 
@@ -116,12 +114,11 @@ test("applying a reviewed split writes final split lines and clears transfer sta
 test("switching away from Split clears stale proposal and matched split lines", () => {
   assert.match(
     dialogSource,
-    /function clearProposalSplit[\s\S]*?splitLines: undefined/,
+    /splitLines:\s*categoryName === "Split"[\s\S]*?: undefined/,
   );
-
   assert.match(
     dialogSource,
-    /updateMatchedTransactionDetails\(candidate\.id,\s*\{[\s\S]*?category: value,[\s\S]*?transferAccountId: undefined,[\s\S]*?transferTransactionId: undefined,[\s\S]*?splitLines: undefined/,
+    /transferAccountId:\s*categoryName === "Split"[\s\S]*?: undefined,[\s\S]*?transferTransactionId:[\s\S]*?: undefined,[\s\S]*?splitLines:[\s\S]*?: undefined/,
   );
 });
 
