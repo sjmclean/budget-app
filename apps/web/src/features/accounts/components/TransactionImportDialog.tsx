@@ -1871,10 +1871,13 @@ export function TransactionImportDialog({
       updateMatchedTransactionDetails(candidate.id, {
         payee,
         payeeId: payeeOption?.id,
-        category: categoryName || candidate.matchedTransaction.category,
+        category:
+          categoryName === "Split"
+            ? candidate.matchedTransaction.category
+            : categoryName || candidate.matchedTransaction.category,
         categoryId:
           categoryName === "Split"
-            ? undefined
+            ? candidate.matchedTransaction.categoryId
             : categoryOption?.id ?? candidate.matchedTransaction.categoryId,
         memo,
         tagIds: [...draft.tagIds],
@@ -1913,7 +1916,12 @@ export function TransactionImportDialog({
     updateCandidateProposal(candidate.id, {
       payee: built.proposal.payee,
       transferAccountName,
-      categoryName: transferAccountName ? built.proposal.categoryName : categoryName || null,
+      categoryName:
+        categoryName === "Split"
+          ? candidate.lifecycle.proposal.categoryName
+          : transferAccountName
+            ? built.proposal.categoryName
+            : categoryName || null,
       memo,
       memoReviewed: true,
       tagIds: [...draft.tagIds],
