@@ -9,6 +9,13 @@ const dialogSource = fs.readFileSync(
   ),
   "utf8",
 );
+const styleSource = fs.readFileSync(
+  new URL(
+    "../../../apps/web/src/styles/register.css",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 test("bank review row always renders immutable source values", () => {
   assert.match(
@@ -95,5 +102,17 @@ test("reviewed memo explicitly overrides the global source-memo exclusion", () =
     dialogSource.includes(
       "A memo saved here is kept even when “Don’t import transaction memos” is enabled.",
     ),
+  );
+});
+
+
+test("open transaction overflow menu escapes its card and stacks above later review rows", () => {
+  assert.match(
+    styleSource,
+    /\.transaction-import-review-card:has\(\.transaction-import-more-actions\[open\]\)[\s\S]*?z-index:\s*30;[\s\S]*?overflow:\s*visible;/,
+  );
+  assert.match(
+    styleSource,
+    /\.transaction-import-more-actions\[open\][\s\S]*?z-index:\s*31;/,
   );
 });
