@@ -6,7 +6,9 @@ than the historical hosted provider.
 
 ## Counts before migration
 
-- Ordinary local facade write/history/conflict entry points: **47**.
+- Pre-migration local facade write/history/conflict entry points: **47**. This
+  historical aggregate included two conflict-recovery operations and is not the
+  authoritative ordinary-command count.
 - Write-like `LocalBudgetWorkerRequest` variants: **41** (including lifecycle,
   replication, and staging operations that are not ordinary commands).
 - Feature-visible mixed read/write interface: **1**
@@ -63,10 +65,18 @@ not an application command.
 
 ### Public routing
 
-All 47 ordinary entry points in the operation matrix are typed
+All 45 ordinary entry points in the operation matrix are typed
 `LocalBudgetEngine` methods and execute through `LocalBudgetCommandExecutor`.
 This is a routing statement only: it does not mean that every implementation
 has moved out of `localFirstAccountRegisterClient.ts`.
+
+P0.3e4a separates public methods from internal dispatch. The authoritative
+`LOCAL_BUDGET_COMMAND_METHODS` list contains 45 ordinary commands, and an
+exhaustive typed registry supplies one distinct internal handler object for
+each. Queries remain in `LocalBudgetQueryClient`; conflict listing plus
+keep-local/accept-remote recovery remain in `LocalBudgetConflictRecoveryClient`
+and are deliberately excluded from the ordinary-command count. Lifecycle,
+restore, and replication control-plane operations remain explicit exceptions.
 
 ### Physical domain extraction
 
@@ -87,8 +97,9 @@ has moved out of `localFirstAccountRegisterClient.ts`.
   exposed only through `LocalBudgetConflictRecoveryClient`, not through the
   ordinary `LocalBudgetEngine` command surface.
 
-The runtime-owned families are routed through the engine/executor boundary but
-have not yet been physically extracted into domain command modules.
+The ordinary command families are routed through the engine/executor boundary.
+Runtime-owned conflict recovery remains on its separate recovery boundary and
+has not been absorbed into ordinary command dispatch.
 
 ## Extracted dispositions
 
@@ -190,7 +201,7 @@ The transitional command recorder remains in place until P0.3e4.
 
 ## P0.3 keep-local and remaining-write classification
 
-- Ordinary engine commands: **46 / 46** are routed through
+- Ordinary engine commands: **45 / 45** are routed through
   `LocalBudgetCommandExecutor` and physically owned by an `engine/*Commands.ts`
   module. The last transaction-tag raw-write callback has been removed from the
   runtime; `engine/tagCommands.ts` now owns its mutation creation, worker call,
@@ -205,7 +216,7 @@ The transitional command recorder remains in place until P0.3e4.
   invalidation, and initial local database readiness. These are not ordinary
   commands.
 - Public ordinary write bypasses: **0**. `LocalBudgetQueryClient` is read-only,
-  `LocalBudgetEngine` contains exactly the 46 ordinary commands, and
+  `LocalBudgetEngine` contains exactly the 45 ordinary commands, and
   `LocalBudgetConflictRecoveryClient` contains only typed conflict listing and
   the two explicit recovery decisions.
 - Mixed public read/write interfaces: **0** at the provider boundary. Query,

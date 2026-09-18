@@ -114,5 +114,10 @@ The target still to be completed is for domain handlers to return committed
 metadata directly, without a recorder-only completion path. The command-scoped
 recorder remains until P0.3e4.
 
+P0.3e4a places an exhaustive typed internal handler registry between the
+public runtime facade and the executor. Its 45 handler objects are distinct
+from the public method functions. This preserves public domain-result return
+types while allowing P0.3e4b to change only internal handler completion.
+
 Remote mutation application and database restore/reset remain separate paths;
 remote apply must not create local outbox mutations.

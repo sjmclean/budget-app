@@ -3,7 +3,6 @@ import type {
   LocalBudgetRuntimeClient,
   TransactionWriteInput,
 } from "../accountRegisterQueryContracts";
-import { LOCAL_BUDGET_COMMAND_METHODS } from "../accountRegisterQueryContracts";
 import type { BudgetLifecycleControlPlaneClient } from "./budgetLifecycleControlPlaneClient";
 import type { AccountTransactionQuery } from "../../../../../../packages/application/src/accountRegister/AccountRegisterQueryPort";
 import {
@@ -55,6 +54,10 @@ import { LocalBudgetMutationContext } from "./engine/mutationContext";
 import { LocalBudgetCommandExecutor } from "./engine/localBudgetCommandExecutor";
 import { LocalBudgetCommandContext } from "./engine/commandContext";
 import { createDomainCommandHandler } from "./engine/domainCommandHandlers";
+import {
+  createOrdinaryCommandHandlerRegistry,
+  isOrdinaryCommandMethod,
+} from "./engine/ordinaryCommandRegistry";
 import { createTagCommands } from "./engine/tagCommands";
 import { createAttachmentCommands } from "./engine/attachmentCommands";
 import { createTransactionCommands } from "./engine/transactionCommands";
@@ -1301,6 +1304,7 @@ export function createLocalBudgetRuntime(
     renameScheduledPayeeReferences: scheduledTransactionCommands.renameScheduledPayeeReferences,
     reassignScheduledPayeeReferences: scheduledTransactionCommands.reassignScheduledPayeeReferences,
   };
+  const ordinaryCommandHandlers = createOrdinaryCommandHandlerRegistry(client);
   const ownership = createBudgetDatabaseOwnership(() => client.releaseLocalDatabase!());
   // The raw client is deliberately retained for nested calls. Wrapping those
   // calls again would deadlock the operation already holding the lease.
@@ -1337,18 +1341,31 @@ export function createLocalBudgetRuntime(
           finally { await releaseLocalDatabase(args[0] as string); }
         }, () => releaseLocalDatabase(args[0] as string));
         const budgetId = resolveOwnedBudgetId(key, args);
-        const invoke = () => ownership.run(budgetId, () => value.apply(target, args));
-        const isCommand = typeof key === "string" && (
-          (LOCAL_BUDGET_COMMAND_METHODS as readonly string[]).includes(key) ||
-          (key === "resolveSyncConflict" && args[2] === "keep-local")
-        );
-        if (isCommand) {
+        if (isOrdinaryCommandMethod(key)) {
+          const handler = ordinaryCommandHandlers[key];
+          const invokeHandler = () => ownership.run(
+            budgetId,
+            () => Reflect.apply(handler.execute, handler, args),
+          );
           return commandExecutor.execute(`${key}:${createRuntimeUuid()}`, createDomainCommandHandler({
-            budgetId, context: commandContext, operation: invoke,
+            budgetId, context: commandContext, operation: invokeHandler,
           }))
             .then(({ result }) => result);
         }
-        return invoke();
+        // Keep-local recovery is not an ordinary command, but its replay still
+        // needs the command-scoped mutation/change recorders. Keep this path
+        // explicit instead of admitting recovery into the ordinary registry.
+        if (key === "resolveSyncConflict" && args[2] === "keep-local") {
+          const invokeRecovery = () => ownership.run(
+            budgetId,
+            () => value.apply(target, args),
+          );
+          return commandExecutor.execute(`${key}:${createRuntimeUuid()}`, createDomainCommandHandler({
+            budgetId, context: commandContext, operation: invokeRecovery,
+          }))
+            .then(({ result }) => result);
+        }
+        return ownership.run(budgetId, () => value.apply(target, args));
       };
       methods.set(key, method);
       return method;
