@@ -25,6 +25,7 @@ import {
 import type {
   NewRegisterTransactionInput,
   RegisterTransactionView,
+  ScheduledAttachmentTemplate,
 } from "../accountRegisterTypes";
 import type {
   RegisterTransactionImportPayeeCreation,
@@ -145,6 +146,8 @@ import {
   summariseTransactionImportOutcomes,
   verifyPersistedImportTransactions,
 } from "../transactionImportVerification";
+import { calculateAttachmentContentHash } from "../../attachments/attachmentContentStore";
+import type { TransactionTagDefinition } from "../../tags/transactionTagTypes";
 import {
   buildSplitLines,
   createSplitLineDraft,
@@ -176,11 +179,28 @@ interface ProposedTransactionEdit {
   draftValue: string;
 }
 
+interface TransactionImportEditDraft {
+  candidateId: string;
+  payee: string;
+  category: string;
+  memo: string;
+  tagIds: string[];
+  attachments: ScheduledAttachmentTemplate[];
+}
+
 interface TransactionImportSplitEdit {
   candidateId: string;
   target: "proposal" | "matched";
   splitLines: SplitLineDraft[];
 }
+
+const IMPORT_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
+const IMPORT_ATTACHMENT_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 const IMPORT_SPLIT_VISIBLE_COLUMN_IDS = [
   "category",
@@ -354,6 +374,7 @@ export function TransactionImportDialog({
   onImportCommitComplete,
   payeeOptions,
   categoryOptions,
+  transactionTags,
   transferAccounts,
   onCreateCategory,
   onLearnPayeeAliases,
@@ -389,6 +410,7 @@ export function TransactionImportDialog({
   }) => void;
   payeeOptions: PayeeView[];
   categoryOptions: BudgetCategoryOption[];
+  transactionTags: TransactionTagDefinition[];
   transferAccounts: SidebarAccount[];
   onCreateCategory?: (
     input: RegisterInlineCategoryCreateInput,
@@ -467,6 +489,12 @@ export function TransactionImportDialog({
   >({});
   const [proposedTransactionEdit, setProposedTransactionEdit] =
     useState<ProposedTransactionEdit | null>(null);
+  const [transactionEditDraft, setTransactionEditDraft] =
+    useState<TransactionImportEditDraft | null>(null);
+  const [transactionEditAttachmentBusy, setTransactionEditAttachmentBusy] =
+    useState(false);
+  const [transactionEditError, setTransactionEditError] =
+    useState<string | null>(null);
   const [splitEdit, setSplitEdit] =
     useState<TransactionImportSplitEdit | null>(null);
   const [weakMatchReviewCandidateId, setWeakMatchReviewCandidateId] =
