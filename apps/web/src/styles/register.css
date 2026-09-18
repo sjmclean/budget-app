@@ -6138,6 +6138,16 @@
   box-shadow: 0 12px 28px rgb(15 23 42 / 0.16);
 }
 
+/* Let an open overflow menu escape its card and paint above later review rows. */
+.transaction-import-review-card:has(.transaction-import-more-actions[open]) {
+  z-index: 30;
+  overflow: visible;
+}
+
+.transaction-import-more-actions[open] {
+  z-index: 31;
+}
+
 .transaction-import-more-actions > div .button {
   justify-content: flex-start;
   width: 100%;
