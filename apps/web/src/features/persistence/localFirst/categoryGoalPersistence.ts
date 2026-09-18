@@ -4,7 +4,6 @@ import {
   isCreditCardPaymentGroup,
 } from "../../budget/creditCardPaymentCategories";
 import { toMinorUnits } from "./sqliteBudgetProjectionAdapter";
-import { notifyLocalFirstMutationCommitted } from "./mutationEvents";
 
 export interface LocalCategoryGoalRow {
   id: string;
@@ -108,8 +107,10 @@ export async function commitCategoryGoalMutation<T>(
   budgetId: string,
   mutation: () => Promise<T>,
   shouldNotify: (result: T) => boolean = () => true,
+  categoryId?: string,
+  onCommitted?: (budgetId: string, categoryId?: string) => void,
 ): Promise<T> {
   const result = await mutation();
-  if (shouldNotify(result)) notifyLocalFirstMutationCommitted(budgetId);
+  if (shouldNotify(result)) onCommitted?.(budgetId, categoryId);
   return result;
 }

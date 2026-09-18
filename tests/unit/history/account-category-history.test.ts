@@ -49,7 +49,7 @@ function harness() {
     async updateCategoryGroupNote(input: any) { budgetView.categoryGroups.find(({ id }) => id === input.groupId)!.note = input.note; return budgetView; },
     async setCategoryOverspendingHandling(input: any) { budgetView.categoryGroups.flatMap(({ categories }) => categories).find(({ id }) => id === input.categoryId)!.overspendingHandling = input.overspendingHandling; return budgetView; },
   };
-  const persistence = { accountRegisterQueries: queries, categories } as unknown as BudgetPersistenceProvider;
+  const persistence = { accountRegisterQueries: queries, localBudgetEngine: queries, categories } as unknown as BudgetPersistenceProvider;
   const service = new ApplicationHistoryService<ApplicationHistoryContext>({ getContext: (id) => ({ budgetId: id, persistence }) });
   return { service, accounts, getView: () => budgetView, setView: (next: BudgetMonthView) => { budgetView = next; } };
 }
@@ -96,6 +96,49 @@ test("category create/rename/archive/move/notes and group order round-trip exact
   await service.execute(budgetId, updateCategoryGroupNoteCommand({ budgetId, month, groupId: "group-a", note: "new group note" }));
   await service.execute(budgetId, moveCategoryGroupCommand({ budgetId, month, groupId: "group-a", direction: "down" }));
   await service.undo(budgetId); assert.equal(getView().categoryGroups[0].id, "group-a");
+});
+
+test("category creation exposes the mutation result without a post-commit query", async () => {
+  let reads = 0;
+  let budgetView = view();
+  const categories = {
+    async createCategory(input: any) {
+      const group = budgetView.categoryGroups.find(({ id }) => id === input.groupId)!;
+      budgetView = structuredClone(budgetView);
+      budgetView.categoryGroups.find(({ id }) => id === input.groupId)!.categories.push({
+        id: input.categoryId, name: input.name, previousAvailable: 0, assigned: 0,
+        activity: 0, available: 0, isOverspent: false, isArchived: false, note: "",
+      });
+      return structuredClone(budgetView);
+    },
+  };
+  const queries = {
+    async getBudgetMonthView() {
+      reads += 1;
+      if (reads > 1) throw new Error("post-commit synchronized read must not occur");
+      return structuredClone(budgetView);
+    },
+    async replaceBudgetMonthHistoryState() {},
+  };
+  const persistence = {
+    accountRegisterQueries: queries,
+    localBudgetEngine: queries,
+    categories,
+  } as unknown as BudgetPersistenceProvider;
+  const service = new ApplicationHistoryService<ApplicationHistoryContext>({
+    getContext: (id) => ({ budgetId: id, persistence }),
+  });
+  const command = createCategoryCommand({
+    budgetId, month, categoryId: "observable-category", groupId: "group-a",
+    groupName: "Bills", name: "Observable",
+  });
+  const result = await service.execute(budgetId, command);
+  assert.equal(result.performed, true);
+  assert.equal(reads, 1, "only the pre-command history snapshot is queried");
+  assert.equal(
+    command.committedView()?.categoryGroups[0]?.categories.some(({ id }) => id === "observable-category"),
+    true,
+  );
 });
 
 test("category conflict and production wiring preserve safe boundaries", async () => {

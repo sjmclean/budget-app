@@ -100,4 +100,34 @@ test("category merge redirects all persisted category references before deleting
   assert.match(merge, /BEGIN IMMEDIATE/);
   assert.match(merge, /COMMIT/);
   assert.match(merge, /ROLLBACK/);
+  assert.match(
+    merge,
+    /budgetMonthMutation[\s\S]*writeNormalisedDomainEntity\(\s*"budgetMonths"/,
+    "ordinary merge must apply the budget-month replacement inside the merge transaction",
+  );
+  assert.match(
+    merge,
+    /if \(budgetMonthMutation\) insertOutbox\(budgetMonthMutation\)/,
+    "the budget-month mutation must be persisted in the same outbox transaction",
+  );
+  assert.match(
+    merge,
+    /budgetMonthMutation \? 2 : 1/,
+    "local revision must count both ordinary merge mutations",
+  );
+
+  const budgetWriteIndex = merge.indexOf(
+    `writeNormalisedDomainEntity(
+        "budgetMonths"`,
+  );
+  const mergeOutboxIndex = merge.indexOf("insertOutbox({");
+  const budgetOutboxIndex = merge.indexOf("insertOutbox(budgetMonthMutation)");
+  const commitIndex = merge.indexOf('execute("COMMIT")');
+  assert.ok(
+    budgetWriteIndex > deleteIndex &&
+      mergeOutboxIndex > budgetWriteIndex &&
+      budgetOutboxIndex > mergeOutboxIndex &&
+      commitIndex > budgetOutboxIndex,
+    "merge effects, budget month, and both outbox rows must all precede the one COMMIT",
+  );
 });

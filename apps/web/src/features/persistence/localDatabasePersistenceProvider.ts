@@ -4,11 +4,11 @@ import {
   type LocalDatabaseKeyValueStorage,
 } from "./localDatabaseKeyValueStorage";
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
-import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";
+import type { LocalBudgetConflictRecoveryClient, LocalBudgetRuntimeClient } from "./accountRegisterQueryContracts";
 
 export interface LocalDatabasePersistenceProviderOptions {
   readonly storage?: LocalDatabaseKeyValueStorage;
-  readonly accountRegisterQueries: AccountRegisterQueryClient;
+  readonly runtime: LocalBudgetRuntimeClient & LocalBudgetConflictRecoveryClient;
 }
 
 /**
@@ -42,6 +42,7 @@ export function createLocalDatabasePersistenceProvider(
     checkpoints: storage,
     replicationStore: storage,
     conflicts: storage,
-    accountRegisterQueries: options.accountRegisterQueries,
+    runtime: options.runtime,
+    conflictRecovery: options.runtime,
   });
 }

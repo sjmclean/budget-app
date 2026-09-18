@@ -1,19 +1,39 @@
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { childSpawnOptions, terminateProcessTree } from "./e2e-process-lifecycle.mjs";
 
 const repositoryRoot = process.cwd();
 const stateDirectory = mkdtempSync(join(tmpdir(), "budget-app-e2e-"));
 const children = [];
-let shuttingDown = false;
+let shutdownPromise;
+
+const controlServer = createServer(async (request, response) => {
+  if (request.url === "/health" && request.method === "GET") {
+    response.writeHead(204).end();
+    return;
+  }
+  if (request.url === "/shutdown" && request.method === "POST") {
+    const exitCode = await shutdown(0, false);
+    response.writeHead(exitCode === 0 ? 200 : 500, {
+      "Content-Type": "application/json; charset=utf-8",
+    }).end(JSON.stringify({ exitCode }));
+    setImmediate(() => {
+      void closeControlServer().catch((error) => {
+        console.error("Unable to close the E2E supervisor control server.", error);
+        process.exitCode = 1;
+      });
+    });
+    return;
+  }
+  response.writeHead(404).end();
+});
 
 function start(label, args, env = process.env) {
   const child = spawn(process.execPath, args, {
-    cwd: repositoryRoot,
-    env,
-    stdio: ["ignore", "pipe", "pipe"],
-    shell: false,
+    ...childSpawnOptions(repositoryRoot, env),
   });
   const prefix = `[e2e:${label}] `;
 
@@ -24,12 +44,12 @@ function start(label, args, env = process.env) {
     void shutdown(1);
   });
   child.on("exit", (code, signal) => {
-    if (shuttingDown) return;
+    if (shutdownPromise) return;
     const detail = signal ? `signal ${signal}` : `exit code ${code ?? 0}`;
     console.error(`${prefix}Process stopped (${detail}).`);
     void shutdown(code ?? 1);
   });
-  children.push(child);
+  children.push({ child, label });
   return child;
 }
 
@@ -51,22 +71,47 @@ async function waitForServer() {
   throw new Error("Budget API did not become ready in 20 seconds.", { cause: lastError });
 }
 
-function shutdown(exitCode = 0) {
-  if (shuttingDown) return;
-  shuttingDown = true;
+function closeControlServer() {
+  return new Promise((resolveClose, rejectClose) => {
+    controlServer.close((error) => error ? rejectClose(error) : resolveClose());
+    controlServer.closeIdleConnections?.();
+  });
+}
 
-  for (const child of children) {
-    if (child.exitCode === null) child.kill("SIGKILL");
-  }
+function shutdown(exitCode = 0, closeControl = true) {
+  if (shutdownPromise) return shutdownPromise;
 
-  try {
-    rmSync(stateDirectory, { recursive: true, force: true });
-  } catch (error) {
-    console.error(`Unable to remove isolated E2E state ${stateDirectory}.`, error);
-    exitCode = 1;
-  }
+  shutdownPromise = (async () => {
+    const results = await Promise.allSettled(
+      children.map(({ child, label }) => terminateProcessTree(child, label)),
+    );
+    for (const result of results) {
+      if (result.status === "rejected") {
+        console.error("Unable to terminate an E2E process tree.", result.reason);
+        exitCode = 1;
+      }
+    }
 
-  process.exit(exitCode);
+    try {
+      rmSync(stateDirectory, { recursive: true, force: true });
+    } catch (error) {
+      console.error(`Unable to remove isolated E2E state ${stateDirectory}.`, error);
+      exitCode = 1;
+    }
+
+    if (closeControl) {
+      try {
+        await closeControlServer();
+      } catch (error) {
+        console.error("Unable to close the E2E supervisor control server.", error);
+        exitCode = 1;
+      }
+    }
+
+    process.exitCode = exitCode;
+    return exitCode;
+  })();
+  return shutdownPromise;
 }
 
 process.on("SIGINT", () => shutdown(0));
@@ -74,16 +119,34 @@ process.on("SIGTERM", () => shutdown(0));
 
 console.log(`Isolated server state: ${stateDirectory}`);
 
-const serverEnvironment = {
+try {
+  await new Promise((resolveListen, rejectListen) => {
+    controlServer.once("error", rejectListen);
+    controlServer.listen(3001, "127.0.0.1", resolveListen);
+  });
+} catch (error) {
+  console.error("Unable to start the E2E supervisor control server.", error);
+  try {
+    rmSync(stateDirectory, { recursive: true, force: true });
+  } catch (cleanupError) {
+    console.error(`Unable to remove isolated E2E state ${stateDirectory}.`, cleanupError);
+  }
+  process.exitCode = 1;
+}
+
+const serverEnvironment = process.exitCode ? null : {
   ...process.env,
   HOST: "127.0.0.1",
   PORT: "3000",
   BUDGET_APP_DATA_DIR: stateDirectory,
 };
 
-start("server", [resolve("apps/server/src/server.mjs")], serverEnvironment);
+if (serverEnvironment) {
+  start("server", [resolve("apps/server/src/server.mjs")], serverEnvironment);
+}
 
 try {
+  if (!serverEnvironment) throw new Error("E2E supervisor startup failed.");
   await waitForServer();
   const webEnvironment = {
     ...process.env,
@@ -100,5 +163,5 @@ try {
   ], webEnvironment);
 } catch (error) {
   console.error(error);
-  shutdown(1);
+  await shutdown(1);
 }

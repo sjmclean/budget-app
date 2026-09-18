@@ -53,7 +53,11 @@ function harness() {
       return structuredClone(input.replacement);
     },
   };
-  const persistence = { categoryGoals } as unknown as BudgetPersistenceProvider;
+  const persistence = {
+    accountRegisterQueries: categoryGoals,
+    categoryGoals,
+    localBudgetEngine: categoryGoals,
+  } as unknown as BudgetPersistenceProvider;
   const history = new ApplicationHistoryService<ApplicationHistoryContext>({
     getContext: (budgetId) => ({ budgetId, persistence }),
   });

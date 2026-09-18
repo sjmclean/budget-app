@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
-import { usePersistenceChangeVersion } from "../persistence/persistenceChangeBus";
+import { usePersistenceChange } from "../persistence/persistenceChangeBus";
 import type { BudgetMonthView } from "./budgetViewTypes";
 
 interface UseBudgetViewState {
@@ -17,7 +17,7 @@ export function useBudgetView(
 ): UseBudgetViewState {
   const enabled = options.enabled ?? true;
   const categoriesPersistence = getBudgetPersistenceProvider().categories;
-  const persistenceChangeVersion = usePersistenceChangeVersion();
+  const persistenceChangeVersion = usePersistenceChange({ budgetId, month, domains: ["budget", "categories", "transactions", "goals"] });
   const [state, setState] = useState<UseBudgetViewState>({
     data: null,
     dataVersion: persistenceChangeVersion,

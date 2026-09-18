@@ -1,6 +1,6 @@
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
 import { createPersistenceCheckpoint } from "./checkpoint";
-import { publishPersistenceChange } from "./persistenceChangeBus";
+import { publishBroadBudgetChange, publishConservativeBudgetChange } from "./persistenceChangeBus";
 import {
   getAttachmentContentStore,
   calculateAttachmentContentHash,
@@ -293,7 +293,12 @@ export async function replicatePersistenceProvider(
   }
 
   if (pulledOperationCount > 0 || integrityRepairPerformed) {
-    publishPersistenceChange({ source: "replication" });
+    if (options.budgetId) {
+      if (integrityRepairPerformed) publishBroadBudgetChange({ source: "restore", budgetId: options.budgetId });
+      // The legacy key-value journal has storage keys but no reliable Budget App
+      // domain/entity impact. Narrowing here could leave projections stale.
+      else publishConservativeBudgetChange({ source: "replication", budgetId: options.budgetId });
+    }
   }
 
   let checkpointUploaded = false;

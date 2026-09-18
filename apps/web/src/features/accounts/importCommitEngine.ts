@@ -264,12 +264,13 @@ function proposalFor(candidate: TransactionImportCandidate) {
   return candidate.lifecycle.proposal;
 }
 
-function canonicaliseImportRegisterUpdate(
+function canonicalizeImportRegisterUpdate(
   transaction: RegisterTransactionView,
 ): RegisterTransactionView {
   if (
     transaction.splitLines?.length &&
-    isSplitCategoryValue(transaction.category)
+    isSplitCategoryValue(transaction.category) &&
+    transaction.category !== "Split"
   ) {
     return {
       ...transaction,
@@ -298,7 +299,7 @@ function buildMatchedTransactionUpdates(
     if (!wasEdited && !shouldUpdateDate && !shouldRetainRawPayee) return [];
 
     return [
-      canonicaliseImportRegisterUpdate({
+      canonicalizeImportRegisterUpdate({
         ...candidate.matchedTransaction,
         date: shouldUpdateDate
           ? candidate.parsed.date
@@ -1081,6 +1082,12 @@ export function verifyImportCommitPlan(
   }
 
   for (const transaction of plan.historicalPayeeUpdates ?? []) {
+    verifyMoney(transaction, `Historical payee update ${transaction.id}`);
+    verifySplitTransaction(
+      transaction,
+      `Historical payee update ${transaction.id}`,
+    );
+
     if (updateIds.has(transaction.id)) {
       addIssue({
         code: "duplicate-register-update",
@@ -1089,11 +1096,6 @@ export function verifyImportCommitPlan(
       });
     }
     updateIds.add(transaction.id);
-
-    verifySplitTransaction(
-      transaction,
-      `Historical payee update ${transaction.id}`,
-    );
 
     const hasTransferSemantics =
       transaction.category === "Transfer" ||
@@ -1240,7 +1242,7 @@ export function prepareImportCommit(
     additions,
     matchedTransactionUpdates,
     historicalPayeeUpdates: (session.historicalPayeeUpdates ?? []).map(
-      canonicaliseImportRegisterUpdate,
+      canonicalizeImportRegisterUpdate,
     ),
     provenanceAssignments,
     payeeCreations: [] as RegisterTransactionImportPayeeCreation[],

@@ -84,7 +84,7 @@ function harness(initial: ScheduledTransactionView[] = []) {
       return [...schedules.values()];
     },
   };
-  const persistence = { accountRegisterQueries: queries, scheduledTransactions } as unknown as BudgetPersistenceProvider;
+  const persistence = { accountRegisterQueries: queries, localBudgetEngine: { ...queries, ...scheduledTransactions }, scheduledTransactions } as unknown as BudgetPersistenceProvider;
   const service = new ApplicationHistoryService<ApplicationHistoryContext>({ getContext: (id) => ({ budgetId: id, persistence }) });
   return { service, schedules, getGenerated: () => generated, setGenerated: (value: TransactionHistorySnapshot | null) => { generated = value; } };
 }
@@ -209,18 +209,18 @@ test("worker compound replacement validates both domains before one SQLite trans
   assert.ok(source.indexOf("readScheduledTransactionForHistory") < source.indexOf("DELETE FROM local_transactions"));
   assert.ok(source.indexOf("captureTransactionHistorySnapshots") < source.indexOf("DELETE FROM local_transactions"));
 
-  const client = readFileSync(new URL(
-    "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
+  const scheduledCommands = readFileSync(new URL(
+    "../../../apps/web/src/features/persistence/localFirst/engine/scheduledTransactionCommands.ts",
     import.meta.url,
   ), "utf8");
-  const enterSource = client.slice(
-    client.indexOf("async enterScheduledTransaction(input)"),
-    client.indexOf("async createScheduledTransaction", client.indexOf("async enterScheduledTransaction(input)")),
+  const enterSource = scheduledCommands.slice(
+    scheduledCommands.indexOf("async enterScheduledTransaction(input)"),
+    scheduledCommands.indexOf("async createScheduledTransaction", scheduledCommands.indexOf("async enterScheduledTransaction(input)")),
   );
   assert.match(enterSource, /buildNewTransactionRecords/);
   assert.match(enterSource, /scheduledRegisterWrite/);
   assert.match(enterSource, /current\.attachments/);
-  assert.match(enterSource, /replaceScheduledTransactionHistoryState/);
+  assert.match(enterSource, /await replaceHistory/);
   assert.doesNotMatch(enterSource, /applicationHistory|createAddTransactionCommand/);
-  assert.match(client, /const group: LocalBudgetOperationGroup = \{ members \}/);
+  assert.match(scheduledCommands, /const group: LocalBudgetOperationGroup = \{ members \}/);
 });

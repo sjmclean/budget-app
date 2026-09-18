@@ -17,6 +17,14 @@ const client = read(
   "apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
 );
 
+const transactionHelpers = read(
+  "apps/web/src/features/persistence/localFirst/engine/transactionCommandHelpers.ts",
+);
+
+const mutationContext = read(
+  "apps/web/src/features/persistence/localFirst/engine/mutationContext.ts",
+);
+
 const localBudgetClient = read(
   "apps/web/src/features/persistence/localFirst/localBudgetClient.ts",
 );
@@ -84,17 +92,14 @@ test("outbox upload restores the operation group onto relay mutations", () => {
 });
 
 test("transaction mutation creation accepts an operation group", () => {
-  const start = client.indexOf(
-    "function mutation(",
+  const start = mutationContext.indexOf(
+    "  createMutation(",
   );
-  const end = client.indexOf(
-    "\n  function ",
-    start + 1,
-  );
+  const end = mutationContext.indexOf("\n}", start + 1);
 
   assert.ok(start >= 0 && end > start);
 
-  const body = client.slice(start, end);
+  const body = mutationContext.slice(start, end);
 
   assert.match(
     body,
@@ -111,20 +116,20 @@ test("transaction mutation creation accepts an operation group", () => {
 
 test("paired transaction writes share one logical operation group", () => {
   assert.match(
-    client,
+    transactionHelpers,
     /function transactionWrites\(/,
     "paired transaction records need a grouping-aware write helper",
   );
 
   assert.match(
-    client,
+    transactionHelpers,
     /const operationGroupId = createRuntimeUuid\(\)/,
     "each paired transfer operation should receive one fresh group ID",
   );
 
   assert.match(
-    client,
-    /transactionWrite\(record,\s*operationGroupId,\s*operationGroup\)/,
+    transactionHelpers,
+    /transactionWrite\(createMutation,\s*record,\s*operationGroupId,\s*operationGroup\)/,
     "both transfer legs must receive the same complete operation group",
   );
 });

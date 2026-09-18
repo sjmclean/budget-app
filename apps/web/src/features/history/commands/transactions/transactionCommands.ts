@@ -8,6 +8,11 @@ function queries(context: ApplicationHistoryContext) {
   if (!value) throw new Error("Transaction history requires authoritative SQLite persistence.");
   return value;
 }
+function engine(context: ApplicationHistoryContext) {
+  const value = context.persistence.localBudgetEngine;
+  if (!value) throw new Error("Transaction history requires the Local Budget Engine.");
+  return value;
+}
 
 function label(action: string, count: number): string {
   return count === 1 ? `${action} transaction` : `${action} ${count} transactions`;
@@ -23,15 +28,15 @@ export function createDeleteTransactionsCommand(
     label: label("Delete", ids.length),
     async execute(context) {
       snapshot = await queries(context).captureTransactionHistorySnapshots({ budgetId: context.budgetId, transactionIds: ids });
-      await queries(context).deleteTransactionHistorySnapshot(snapshot);
+      await engine(context).deleteTransactionHistorySnapshot(snapshot);
     },
     async undo(context) {
       if (!snapshot) throw new Error("Delete command has not captured its transaction graph.");
-      await queries(context).restoreTransactionHistorySnapshot(snapshot);
+      await engine(context).restoreTransactionHistorySnapshot(snapshot);
     },
     async redo(context) {
       if (!snapshot) throw new Error("Delete command has not captured its transaction graph.");
-      await queries(context).deleteTransactionHistorySnapshot(snapshot);
+      await engine(context).deleteTransactionHistorySnapshot(snapshot);
     },
   };
 }
@@ -45,16 +50,16 @@ export function createAddTransactionCommand(input: {
     id: `add-transaction:${input.transactionId}`,
     label: "Add transaction",
     async execute(context) {
-      await queries(context).addTransaction({ ...input.write, id: input.transactionId, budgetId: context.budgetId });
+      await engine(context).addTransaction({ ...input.write, id: input.transactionId, budgetId: context.budgetId });
       after = await queries(context).captureTransactionHistorySnapshots({ budgetId: context.budgetId, transactionIds: [input.transactionId] });
     },
     async undo(context) {
       if (!after) throw new Error("Add command has not captured its transaction graph.");
-      await queries(context).deleteTransactionHistorySnapshot(after);
+      await engine(context).deleteTransactionHistorySnapshot(after);
     },
     async redo(context) {
       if (!after) throw new Error("Add command has not captured its transaction graph.");
-      await queries(context).restoreTransactionHistorySnapshot(after);
+      await engine(context).restoreTransactionHistorySnapshot(after);
     },
   };
 }
@@ -77,11 +82,11 @@ export function createTransactionGraphChangeCommand(input: {
     },
     async undo(context) {
       if (!before || !after) throw new Error("Transaction command has not captured before and after state.");
-      await queries(context).replaceTransactionHistorySnapshot({ expected: after, replacement: before });
+      await engine(context).replaceTransactionHistorySnapshot({ expected: after, replacement: before });
     },
     async redo(context) {
       if (!before || !after) throw new Error("Transaction command has not captured before and after state.");
-      await queries(context).replaceTransactionHistorySnapshot({ expected: before, replacement: after });
+      await engine(context).replaceTransactionHistorySnapshot({ expected: before, replacement: after });
     },
   };
 }
@@ -94,7 +99,7 @@ export function createEditTransactionCommand(input: {
     id: `edit-transaction:${input.transactionId}:${Date.now()}`,
     label: "Edit transaction",
     transactionIds: [input.transactionId],
-    mutate: async (context) => queries(context).updateTransaction(input.transactionId, { ...input.write, budgetId: context.budgetId }),
+    mutate: async (context) => engine(context).updateTransaction(input.transactionId, { ...input.write, budgetId: context.budgetId }),
   });
 }
 
@@ -107,7 +112,7 @@ export function createSetTransactionsClearedCommand(input: {
     id: `set-transactions-cleared:${ids.join("|")}:${Date.now()}`,
     label: label(input.cleared ? "Clear" : "Unclear", ids.length),
     transactionIds: ids,
-    mutate: async (context) => queries(context).setTransactionsCleared({ budgetId: context.budgetId, transactionIds: ids, cleared: input.cleared }),
+    mutate: async (context) => engine(context).setTransactionsCleared({ budgetId: context.budgetId, transactionIds: ids, cleared: input.cleared }),
   });
 }
 
@@ -125,16 +130,16 @@ export function createToggleTransactionClearedCommand(
       const transaction = before.transactions.find(({ id }) => id === transactionId);
       if (!transaction) throw new Error("Transaction was not found in its captured graph.");
       cleared = transaction.clearedStatus !== "cleared";
-      await queries(context).setTransactionsCleared({ budgetId: context.budgetId, transactionIds: [transactionId], cleared });
+      await engine(context).setTransactionsCleared({ budgetId: context.budgetId, transactionIds: [transactionId], cleared });
       after = await queries(context).captureTransactionHistorySnapshots({ budgetId: context.budgetId, transactionIds: [transactionId] });
     },
     async undo(context) {
       if (!before || !after) throw new Error("Clear command has not captured before and after state.");
-      await queries(context).replaceTransactionHistorySnapshot({ expected: after, replacement: before });
+      await engine(context).replaceTransactionHistorySnapshot({ expected: after, replacement: before });
     },
     async redo(context) {
       if (!before || !after) throw new Error("Clear command has not captured before and after state.");
-      await queries(context).replaceTransactionHistorySnapshot({ expected: before, replacement: after });
+      await engine(context).replaceTransactionHistorySnapshot({ expected: before, replacement: after });
     },
   };
 }
@@ -149,7 +154,7 @@ export function createMoveTransactionsCommand(input: {
     id: `move-transactions:${ids.join("|")}:${Date.now()}`,
     label: label("Move", ids.length),
     transactionIds: ids,
-    mutate: async (context) => queries(context).moveTransactions({
+    mutate: async (context) => engine(context).moveTransactions({
       budgetId: context.budgetId,
       sourceAccountId: input.sourceAccountId,
       targetAccountId: input.targetAccountId,

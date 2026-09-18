@@ -11,6 +11,7 @@ export default defineConfig({
     timeout: 10_000,
   },
   outputDir: "test-results/playwright",
+  globalTeardown: "./tests/e2e/global-teardown.mjs",
   reporter: process.env.CI
     ? [["line"], ["html", { outputFolder: "playwright-report", open: "never" }]]
     : "list",

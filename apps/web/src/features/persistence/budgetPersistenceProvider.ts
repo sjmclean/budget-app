@@ -10,7 +10,7 @@ import type { ConflictResolutionPort } from "./conflictResolution";
 import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { OperationJournalPort } from "./operationJournal";
 import type { ReplicationLocalStorePort } from "./replication";
-import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";
+import type { LocalBudgetConflictRecoveryClient, LocalBudgetEngine, LocalBudgetQueryClient } from "./accountRegisterQueryContracts";
 import type { CategoryGoalPersistencePort } from "../goals/categoryGoalPersistencePort";
 
 export type PersistenceBackendKind = "local-database";
@@ -46,7 +46,11 @@ export interface BudgetPersistenceProvider {
   readonly accounts: AccountPersistencePort;
   readonly accountRegisters: AccountRegisterPersistencePort;
   /** Bounded SQLite read path. Present only when a host transport is configured. */
-  readonly accountRegisterQueries?: AccountRegisterQueryClient;
+  readonly accountRegisterQueries?: LocalBudgetQueryClient;
+  /** Sole ordinary local domain-write boundary. */
+  readonly localBudgetEngine?: LocalBudgetEngine;
+  /** Replication-owned conflict inspection/recovery; never a feature write API. */
+  readonly localBudgetConflictRecovery?: LocalBudgetConflictRecoveryClient;
   readonly budgetView: BudgetViewService;
   readonly categories: CategoryPersistencePort;
   readonly categoryGoals: CategoryGoalPersistencePort;

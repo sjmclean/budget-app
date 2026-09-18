@@ -682,7 +682,7 @@ export function PayeeManagementPage() {
     });
     if (!confirmed) return;
     const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
-    const nextPayees = hosted && persistenceGateway.accountRegisterQueries!.deleteUnusedPayee
+    const nextPayees = hosted && persistenceGateway.localBudgetEngine!.deleteUnusedPayee
       ? await payeeHistory.deleteUnusedPayee(selectedPayee.id)
       : await payeesPersistence.deletePayee(selectedPayee.id);
     setPayees(nextPayees);
@@ -813,7 +813,7 @@ export function PayeeManagementPage() {
     const next = [...duplicateSuppressions, ...additions.filter(({ leftPayeeId, rightPayeeId }) =>
       !existing.has([leftPayeeId, rightPayeeId].sort().join(":")))];
     const hosted = Boolean(activeBudgetId && persistenceGateway.accountRegisterQueries);
-    if (hosted && persistenceGateway.accountRegisterQueries!.keepPayeesSeparate) {
+    if (hosted && persistenceGateway.localBudgetEngine!.keepPayeesSeparate) {
       await payeeHistory.keepPayeesSeparate(additions);
     } else {
       writeDuplicateSuppressions(activeBudgetId, next);
@@ -849,7 +849,7 @@ export function PayeeManagementPage() {
 
     if (
       hosted &&
-      persistenceGateway.accountRegisterQueries!.keepPayeesSeparate
+      persistenceGateway.localBudgetEngine!.keepPayeesSeparate
     ) {
       await payeeHistory.keepPayeesSeparate(additions);
     } else {
@@ -934,7 +934,7 @@ export function PayeeManagementPage() {
       redirectRecognitionRules: true,
     };
     nextPayees = hosted
-      ? [...await persistenceGateway.accountRegisterQueries!.mergePayees(activeBudgetId!, mergeInput)]
+      ? [...await persistenceGateway.localBudgetEngine!.mergePayees(activeBudgetId!, mergeInput)]
       : await payeesPersistence.mergePayees(mergeInput);
 
     const nextArchivedPayees = hosted

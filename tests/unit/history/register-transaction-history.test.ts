@@ -110,7 +110,7 @@ function harness(initial: LocalTransactionRecord[] = []) {
       for (const id of input.transactionIds) records.set(id, { ...records.get(id)!, accountId: input.targetAccountId, updatedAt: "after" });
     },
   };
-  const persistence = { accountRegisterQueries: queries } as unknown as BudgetPersistenceProvider;
+  const persistence = { accountRegisterQueries: queries, localBudgetEngine: queries } as unknown as BudgetPersistenceProvider;
   const service = new ApplicationHistoryService<ApplicationHistoryContext>({ getContext: (id) => ({ budgetId: id, persistence }) });
   return { service, records, attachments, queries };
 }

@@ -8,9 +8,14 @@ function queries(context: ApplicationHistoryContext) {
   if (!value) throw new Error("Account history requires authoritative SQLite persistence.");
   return value;
 }
+function engine(context: ApplicationHistoryContext) {
+  const value = context.persistence.localBudgetEngine;
+  if (!value) throw new Error("Account history requires the Local Budget Engine.");
+  return value;
+}
 
 async function replace(context: ApplicationHistoryContext, accountId: string, expected: LocalAccountRecord | null, replacement: LocalAccountRecord | null) {
-  await queries(context).replaceAccountHistoryState({ budgetId: context.budgetId, accountId, expected, replacement });
+  await engine(context).replaceAccountHistoryState({ budgetId: context.budgetId, accountId, expected, replacement });
 }
 
 function accountChangeCommand(input: {
@@ -39,7 +44,7 @@ export function createAccountCommand(accountId: string, write: CreateAccountInpu
     id: `create-account:${accountId}`, label: "Create account",
     async execute(context) {
       if (await queries(context).captureAccount(context.budgetId, accountId)) throw new Error("Account already exists.");
-      await queries(context).createAccount(context.budgetId, { ...write, id: accountId });
+      await engine(context).createAccount(context.budgetId, { ...write, id: accountId });
       after = await queries(context).captureAccount(context.budgetId, accountId);
       if (!after) throw new Error("Created account could not be recaptured.");
     },
@@ -51,14 +56,14 @@ export function createAccountCommand(accountId: string, write: CreateAccountInpu
 export function updateAccountCommand(write: UpdateAccountInput): UndoableCommand<ApplicationHistoryContext> {
   return accountChangeCommand({
     id: `update-account:${write.id}:${Date.now()}`, label: "Update account", accountId: write.id,
-    mutate: async (context) => { await queries(context).updateAccount(context.budgetId, write); },
+    mutate: async (context) => { await engine(context).updateAccount(context.budgetId, write); },
   });
 }
 
 export function setAccountClosedCommand(accountId: string, closed: boolean): UndoableCommand<ApplicationHistoryContext> {
   return accountChangeCommand({
     id: `set-account-closed:${accountId}:${Date.now()}`, label: closed ? "Close account" : "Reopen account", accountId,
-    mutate: async (context) => queries(context).setAccountClosed({ budgetId: context.budgetId, accountId, closed }),
+    mutate: async (context) => engine(context).setAccountClosed({ budgetId: context.budgetId, accountId, closed }),
   });
 }
 
@@ -69,7 +74,7 @@ export function deleteEmptyAccountCommand(accountId: string): UndoableCommand<Ap
     async execute(context) {
       before = await queries(context).captureAccount(context.budgetId, accountId);
       if (!before) throw new Error("Account was not found.");
-      const result = await queries(context).deleteAccount(context.budgetId, accountId);
+      const result = await engine(context).deleteAccount(context.budgetId, accountId);
       if (!result.deleted) throw new Error(result.reason ?? "Account could not be deleted.");
     },
     async undo(context) { if (!before) throw new Error("Delete account command has no state."); await replace(context, accountId, null, before); },

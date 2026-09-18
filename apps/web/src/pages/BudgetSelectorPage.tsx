@@ -9,7 +9,6 @@ import { useBudgetRegistryStore, type BudgetSummary } from "../stores/budgetRegi
 import { useUIStore } from "../stores/uiStore";
 import type { NewBudgetSetup } from "../features/budget/newBudget/budgetTemplates";
 import { readBudgetLauncherStats } from "../features/budget/budgetLauncherStats.js";
-import { usePersistenceChangeVersion } from "../features/persistence/persistenceChangeBus";
 import {
   completeBudgetDeletion,
   shouldRestoreBudgetSelectionAfterDeletionFailure,
@@ -69,7 +68,6 @@ function readBudgetStats(budget: BudgetSummary) {
 
 export function BudgetSelectorPage() {
   const navigate = useNavigate();
-  const persistenceChangeVersion = usePersistenceChangeVersion();
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const createBudgetWithSetup = useBudgetRegistryStore((state) => state.createBudgetWithSetup);
   const importYnab4Budget = useBudgetRegistryStore(
@@ -121,7 +119,7 @@ export function BudgetSelectorPage() {
         stats: readBudgetStats(budget),
         tone: index % 2 === 0 ? "home" : "business",
       })),
-    [sortedBudgets, persistenceChangeVersion],
+    [sortedBudgets],
   );
 
   const budgetPendingDelete = useMemo(

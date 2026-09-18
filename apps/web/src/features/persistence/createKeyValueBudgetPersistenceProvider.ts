@@ -13,7 +13,7 @@ import type { KeyValueStoragePort } from "./keyValueStoragePort";
 import type { OperationJournalPort } from "./operationJournal";
 import type { ReplicationLocalStorePort } from "./replication";
 import { exportBudgetPersistenceSnapshot } from "./persistenceSnapshot";
-import type { AccountRegisterQueryClient } from "./accountRegisterQueryContracts";
+import type { LocalBudgetConflictRecoveryClient, LocalBudgetRuntimeClient } from "./accountRegisterQueryContracts";
 import { createRoutedScheduledTransactionPersistence } from "./routedScheduledTransactionPersistence";
 import { createSqliteBudgetViewService } from "./createSqliteBudgetViewService";
 
@@ -27,7 +27,8 @@ export interface CreateKeyValueBudgetPersistenceProviderOptions {
   readonly checkpoints?: CheckpointPort;
   readonly replicationStore?: ReplicationLocalStorePort;
   readonly conflicts?: ConflictResolutionPort;
-  readonly accountRegisterQueries: AccountRegisterQueryClient;
+  readonly runtime: LocalBudgetRuntimeClient;
+  readonly conflictRecovery?: LocalBudgetConflictRecoveryClient;
 }
 
 /**
@@ -55,19 +56,21 @@ export function createKeyValueBudgetPersistenceProvider(
   });
   const scheduledTransactions = createRoutedScheduledTransactionPersistence({
     storage: options.storage,
-    queryClient: options.accountRegisterQueries,
+    queryClient: options.runtime,
   });
-  const sqliteBudgetView = createSqliteBudgetViewService(options.accountRegisterQueries);
+  const sqliteBudgetView = createSqliteBudgetViewService(options.runtime, options.runtime);
 
   return {
     metadata: options.metadata,
     capabilities: options.capabilities,
     accounts: accountService,
     accountRegisters: accountRegisterService,
-    accountRegisterQueries: options.accountRegisterQueries,
+    accountRegisterQueries: options.runtime,
+    localBudgetEngine: options.runtime,
+    localBudgetConflictRecovery: options.conflictRecovery,
     budgetView: sqliteBudgetView,
     categories: sqliteBudgetView,
-    categoryGoals: options.accountRegisterQueries,
+    categoryGoals: options.runtime,
     payees: payeeService,
     scheduledTransactions,
     keyValueStorage: options.storage,

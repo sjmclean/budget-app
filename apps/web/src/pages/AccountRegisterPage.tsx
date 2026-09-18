@@ -498,13 +498,14 @@ export function AccountRegisterPage() {
         sourcePayeeId: string;
         targetPayeeId: string;
       }) {
-        return [...await queries.mergePayees(activeBudgetId, input)];
+        return [...await persistenceGateway.localBudgetEngine!.mergePayees(activeBudgetId, input)];
       },
     };
   }, [
     activeBudgetId,
     legacyPayeesPersistence,
     persistenceGateway.accountRegisterQueries,
+    persistenceGateway.localBudgetEngine,
     payeeHistory,
     storageMode,
   ]);

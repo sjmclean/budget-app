@@ -5402,9 +5402,31 @@ function mergeCategories(
   targetCategoryId: string,
   targetCategoryName: string,
   mutation: LocalBudgetMutation,
+  budgetMonthMutation?: LocalBudgetMutation,
   resolveConflictId?: string,
 ) {
   assertMutationScope(mutation);
+  if (
+    mutation.domain !== "categories" ||
+    mutation.entityId !== sourceCategoryId ||
+    mutation.operation !== "delete"
+  ) {
+    throw workerError("INVALID_CATEGORY_MERGE", "Category merge mutation scope is invalid.");
+  }
+  if (budgetMonthMutation) {
+    assertMutationScope(budgetMonthMutation);
+    const budgetMonth = budgetMonthMutation.payload as BudgetMonthView;
+    if (
+      budgetMonthMutation.domain !== "budgetMonths" ||
+      budgetMonthMutation.operation !== "upsert" ||
+      budgetMonth.budgetId !== budgetId
+    ) {
+      throw workerError(
+        "INVALID_CATEGORY_MERGE_BUDGET_MONTH",
+        "Category merge budget-month mutation scope is invalid.",
+      );
+    }
+  }
   execute("BEGIN IMMEDIATE");
   try {
     const categories = resultRows<{ id: string; groupId: string }>(
@@ -5466,6 +5488,14 @@ function mergeCategories(
     execute("DELETE FROM local_categories WHERE budget_id = ? AND id = ?", [
       budgetId, sourceCategoryId,
     ]);
+    if (budgetMonthMutation) {
+      writeNormalisedDomainEntity(
+        "budgetMonths",
+        budgetMonthMutation.entityId,
+        budgetMonthMutation.payload,
+        budgetMonthMutation.createdAt,
+      );
+    }
     insertOutbox({
       ...mutation,
       payload: {
@@ -5473,7 +5503,14 @@ function mergeCategories(
         ...(transferredGoal ? { transferredGoal } : {}),
       },
     });
-    writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + 1));
+    if (budgetMonthMutation) insertOutbox(budgetMonthMutation);
+    writeMetadata(
+      "localRevision",
+      String(
+        Number(readMetadata("localRevision") ?? "0") +
+          (budgetMonthMutation ? 2 : 1),
+      ),
+    );
     resolveLocalConflictInTransaction(resolveConflictId);
     execute("COMMIT");
   } catch (error) {
@@ -6293,6 +6330,7 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
         request.targetCategoryId,
         request.targetCategoryName,
         request.mutation,
+        request.budgetMonthMutation,
         request.resolveConflictId,
       );
     case "readOutbox":

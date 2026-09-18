@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import { createLocalFirstAccountRegisterQueryClient } from "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient";
+import { createLocalBudgetRuntime } from "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient";
 import type { LocalBudgetDatabaseClient } from "../../../apps/web/src/features/persistence/localFirst/localBudgetClient";
 
 function deferred() {
@@ -23,7 +23,7 @@ function harness(hooks: {
   const values = new Map([ ["budget-app.local-first.device-id", "test-device"], ...["A", "B"].map((id) => [`budget-app.local-first.sync-epoch.${id}`, "epoch"])]);
   const events: string[] = [];
   let owner: string | null = null;
-  const client = createLocalFirstAccountRegisterQueryClient({
+  const client = createLocalBudgetRuntime({
     async deleteBudget(id: string) { events.push(`delete-relay:${id}`); await hooks.deleteRelay?.(); },
   } as never, {
     storage: { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value); } },

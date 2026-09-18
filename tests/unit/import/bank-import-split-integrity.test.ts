@@ -153,6 +153,16 @@ function matchedSplitTransaction(): RegisterTransactionView {
   };
 }
 
+function matchedCandidateWithTransaction(
+  transaction: RegisterTransactionView,
+): TransactionImportCandidate {
+  const candidate = matchedSplitCandidate();
+  candidate.id = `candidate-${transaction.id}`;
+  candidate.matchedTransactionId = transaction.id;
+  candidate.matchedTransaction = transaction;
+  return candidate;
+}
+
 function matchedSplitCandidate(): TransactionImportCandidate {
   const transaction = matchedSplitTransaction();
 
@@ -465,6 +475,126 @@ test("edited matched splits also produce no merchant category evidence", () => {
     merchant.categoryUsage,
     [],
     "matched split edits must not teach Split or child categories",
+  );
+});
+
+test("matched read-model split aliases are canonicalized for scheduled and imported identities", () => {
+  for (const id of [
+    "scheduled:nab-offset:FFB8D438-0DCA-F068-67DF-9FC7EA8AAC7E:2026-09-16",
+    "Transaction/YNAB:-94.20:2026-09-13:1",
+  ]) {
+    const splitLines: RegisterSplitLineView[] = [
+      {
+        id: `${id}-transfer-line`,
+        category: "Transfer: Savings",
+        memo: "Offset transfer",
+        outflow: 100,
+        inflow: 0,
+        transferId: "transfer-pair-1",
+        transferAccountId: "savings",
+        transferAccountParticipation: "on-budget",
+        transferTransactionId: "paired-register-row",
+      },
+      {
+        id: `${id}-category-line`,
+        category: "Household",
+        categoryId: "household",
+        memo: "Remainder",
+        outflow: 50,
+        inflow: 0,
+      },
+    ];
+    const transaction: RegisterTransactionView = {
+      ...matchedSplitTransaction(),
+      id,
+      category: "Split...",
+      splitLines,
+    };
+    const original = structuredClone(transaction);
+    const candidate = matchedCandidateWithTransaction(transaction);
+
+    const plan = prepareImportCommit(matchedSession(candidate));
+
+    assert.equal(plan.matchedTransactionUpdates[0]?.category, "Split");
+    assert.deepEqual(plan.matchedTransactionUpdates[0]?.splitLines, splitLines);
+    assert.deepEqual(transaction, original, "the matched read model must not be mutated");
+  }
+});
+
+test("historical read-model split aliases are canonicalized without changing split lines", () => {
+  const candidate = matchedSplitCandidate();
+  const historical: RegisterTransactionView = {
+    ...matchedSplitTransaction(),
+    id: "historical-split-1",
+    payee: "Old merchant name",
+    rawPayee: "OLD MERCHANT RAW",
+    category: "Split...",
+  };
+  const original = structuredClone(historical);
+  const session = matchedSession(candidate);
+  session.historicalPayeeUpdates = [historical];
+
+  const plan = prepareImportCommit(session);
+
+  assert.equal(plan.historicalPayeeUpdates[0]?.category, "Split");
+  assert.deepEqual(
+    plan.historicalPayeeUpdates[0]?.splitLines,
+    original.splitLines,
+  );
+  assert.deepEqual(historical, original, "the historical read model must not be mutated");
+});
+
+test("split alias normalization does not repair malformed split parents", () => {
+  const assertMatchedRejected = (
+    overrides: Partial<RegisterTransactionView>,
+    expectedText: string,
+  ) => {
+    const transaction = { ...matchedSplitTransaction(), ...overrides };
+    const candidate = matchedCandidateWithTransaction(transaction);
+    assert.throws(
+      () => prepareImportCommit(matchedSession(candidate)),
+      (error) =>
+        error instanceof ImportCommitValidationError &&
+        error.message.includes(expectedText),
+    );
+  };
+
+  assertMatchedRejected({ category: "Groceries" }, "category Split exactly");
+  assertMatchedRejected({ category: "Split", splitLines: [] }, "category Split exactly");
+  assertMatchedRejected({ category: "Split...", categoryId: "groceries" }, "parent category ID");
+});
+
+test("ordinary non-split matched transactions are unchanged", () => {
+  const transaction: RegisterTransactionView = {
+    ...matchedSplitTransaction(),
+    id: "ordinary-match",
+    category: "Groceries",
+    categoryId: "groceries",
+    splitLines: undefined,
+  };
+  const candidate = matchedCandidateWithTransaction(transaction);
+
+  const plan = prepareImportCommit(matchedSession(candidate));
+
+  assert.deepEqual(plan.matchedTransactionUpdates[0], transaction);
+});
+
+test("malformed historical splits remain rejected before commit", () => {
+  const session = matchedSession(matchedSplitCandidate());
+  session.historicalPayeeUpdates = [
+    {
+      ...matchedSplitTransaction(),
+      id: "historical-malformed-split",
+      rawPayee: "HISTORICAL RAW PAYEE",
+      category: "Groceries",
+    },
+  ];
+
+  assert.throws(
+    () => prepareImportCommit(session),
+    (error) =>
+      error instanceof ImportCommitValidationError &&
+      error.message.includes("category Split exactly"),
   );
 });
 
