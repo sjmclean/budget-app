@@ -8,7 +8,8 @@ export interface LocalBudgetMutationContextOptions {
   readonly currentBaseCursor: () => number;
 }
 
-/** Owns replication metadata for locally initiated engine commands. */
+/** Allocates the replication identity and grouping metadata used to construct
+ * locally initiated mutations. It does not track command completion. */
 export class LocalBudgetMutationContext {
   readonly #storage: Pick<Storage, "getItem" | "setItem">;
   readonly #deviceId: string;

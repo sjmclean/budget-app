@@ -51,3 +51,20 @@ test("executor reports no success and publishes nothing when the worker operatio
   unsubscribe();
   assert.equal(publications, 0);
 });
+
+test("executor publishes nothing for a successful empty change", async () => {
+  const executor = new LocalBudgetCommandExecutor();
+  let publications = 0;
+  const unsubscribe = subscribePersistenceChanges(() => { publications += 1; });
+  const result = await executor.execute("transaction.no-op", {
+    execute: async () => committedCommandResult("unchanged", [], {
+      budgetId: "budget-a",
+      domains: [],
+    }),
+  });
+  flushPersistenceChanges();
+  unsubscribe();
+  assert.equal(result.result, "unchanged");
+  assert.deepEqual(result.mutationIds, []);
+  assert.equal(publications, 0);
+});

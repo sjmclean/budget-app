@@ -497,23 +497,6 @@ export const LOCAL_BUDGET_COMMAND_METHODS = [
 ] as const;
 
 export type LocalBudgetCommandMethod = typeof LOCAL_BUDGET_COMMAND_METHODS[number];
-/*
-  Kept formatted as a reference list for architecture-review readability:
-  | "createCategoryGoal" | "updateCategoryGoal" | "deleteCategoryGoal" | "replaceCategoryGoalHistoryState"
-  | "setAccountClosed" | "addTransaction" | "commitTransactionBatch" | "commitImportBatch"
-  | "commitImportBatchWithHistory" | "replaceImportHistorySnapshot" | "moveTransactions"
-  | "updateTransaction" | "toggleTransactionCleared" | "setTransactionsCleared" | "deleteTransaction"
-  | "restoreTransactionHistorySnapshot" | "deleteTransactionHistorySnapshot" | "replaceTransactionHistorySnapshot"
-  | "addTransactionAttachment" | "removeTransactionAttachment"
-  | "createAccount" | "replaceAccountHistoryState" | "replaceBudgetMonthHistoryState" | "updateAccount" | "deleteAccount"
-  | "setCategoryAssignedValues" | "mutateCategory" | "keepPayeesSeparate"
-  | "replacePayeeDuplicateSuppressionsHistoryState" | "createPayee" | "replacePayeeHistoryState"
-  | "updatePayee" | "setPayeeArchived" | "deleteUnusedPayee" | "mergePayees"
-  | "replaceTransactionTags" | "replaceTransactionTagsHistoryState" | "replaceScheduledTransactionHistoryState"
-  | "enterScheduledTransaction" | "createScheduledTransaction" | "updateScheduledTransaction"
-  | "deleteScheduledTransaction" | "advanceScheduledTransaction" | "renameScheduledPayeeReferences"
-  | "reassignScheduledPayeeReferences";
-*/
 
 /** Read-only application surface. Physical database lifecycle hooks remain here
  * because they control query admission rather than mutate domain state. */
