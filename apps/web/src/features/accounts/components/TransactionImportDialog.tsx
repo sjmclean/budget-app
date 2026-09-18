@@ -2779,6 +2779,9 @@ export function TransactionImportDialog({
     }
   }
 
+  const transactionEditCandidate = transactionEditDraft
+    ? candidates.find((candidate) => candidate.id === transactionEditDraft.candidateId) ?? null
+    : null;
   const weakMatchReviewCandidate = weakMatchReviewCandidateId
     ? candidates.find(
         (candidate) => candidate.id === weakMatchReviewCandidateId,
@@ -3960,6 +3963,205 @@ export function TransactionImportDialog({
                 </div>
               ))}
             </div>
+          </div>
+        ) : null}
+
+        {transactionEditDraft && transactionEditCandidate ? (
+          <div
+            className="transaction-import-transaction-editor-backdrop"
+            role="presentation"
+            onClick={closeTransactionEdit}
+          >
+            <section
+              className="transaction-import-transaction-editor"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="transaction-import-edit-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <header>
+                <div>
+                  <h3 id="transaction-import-edit-title">Edit transaction</h3>
+                  <p>
+                    Date and amount come from the bank file and cannot be changed here.
+                  </p>
+                </div>
+                <button
+                  className="transaction-import-close-button"
+                  type="button"
+                  aria-label="Close transaction editor"
+                  onClick={closeTransactionEdit}
+                >
+                  ×
+                </button>
+              </header>
+
+              <div className="transaction-import-transaction-editor-source">
+                <span><strong>Date</strong>{formatImportReviewDate(transactionEditCandidate.parsed.date)}</span>
+                <span><strong>Amount</strong>{formatMoney(
+                  transactionEditCandidate.parsed.inflow - transactionEditCandidate.parsed.outflow,
+                  currencyCode,
+                )}</span>
+              </div>
+
+              <label>
+                <span>Payee</span>
+                <PayeeInput
+                  value={transactionEditDraft.payee}
+                  transferAccounts={transferAccounts.filter(
+                    (account) => account.id !== selectedAccountId,
+                  )}
+                  payeeOptions={payeeOptions}
+                  onChange={(value) =>
+                    setTransactionEditDraft((current) =>
+                      current ? { ...current, payee: value } : current,
+                    )
+                  }
+                  onSelection={(value) =>
+                    setTransactionEditDraft((current) =>
+                      current ? { ...current, payee: value } : current,
+                    )
+                  }
+                />
+              </label>
+
+              <label>
+                <span>Category</span>
+                <RegisterCategoryInput
+                  value={transactionEditDraft.category}
+                  categoryOptions={categoryOptions}
+                  includeSplitOption
+                  onCreateCategory={onCreateCategory}
+                  onChange={(value) =>
+                    setTransactionEditDraft((current) =>
+                      current ? { ...current, category: value } : current,
+                    )
+                  }
+                  onSelection={(value) =>
+                    setTransactionEditDraft((current) =>
+                      current ? { ...current, category: value } : current,
+                    )
+                  }
+                />
+              </label>
+
+              <label>
+                <span>Memo</span>
+                <input
+                  value={transactionEditDraft.memo}
+                  onChange={(event) =>
+                    setTransactionEditDraft((current) =>
+                      current ? { ...current, memo: event.target.value } : current,
+                    )
+                  }
+                />
+                <small>
+                  A memo saved here is kept even when “Don’t import transaction memos” is enabled.
+                </small>
+              </label>
+
+              <fieldset className="transaction-import-transaction-editor-tags">
+                <legend>Tags</legend>
+                {transactionTags.length === 0 ? (
+                  <span className="muted">No tags have been created yet.</span>
+                ) : (
+                  transactionTags.map((tag) => (
+                    <label key={tag.id}>
+                      <input
+                        type="checkbox"
+                        checked={transactionEditDraft.tagIds.includes(tag.id)}
+                        onChange={(event) =>
+                          setTransactionEditDraft((current) =>
+                            current
+                              ? {
+                                  ...current,
+                                  tagIds: event.target.checked
+                                    ? [...new Set([...current.tagIds, tag.id])]
+                                    : current.tagIds.filter((tagId) => tagId !== tag.id),
+                                }
+                              : current,
+                          )
+                        }
+                      />
+                      <span>{tag.name}</span>
+                    </label>
+                  ))
+                )}
+              </fieldset>
+
+              <div className="transaction-import-transaction-editor-attachments">
+                <div>
+                  <strong>Attachments</strong>
+                  {transactionEditCandidate.matchedTransaction?.attachmentCount ? (
+                    <small>
+                      {transactionEditCandidate.matchedTransaction.attachmentCount} existing attachment
+                      {transactionEditCandidate.matchedTransaction.attachmentCount === 1 ? "" : "s"} will remain.
+                    </small>
+                  ) : null}
+                </div>
+                <input
+                  type="file"
+                  multiple
+                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                  disabled={transactionEditAttachmentBusy}
+                  onChange={(event) => {
+                    void addTransactionEditAttachments(event.target.files);
+                    event.target.value = "";
+                  }}
+                />
+                {transactionEditDraft.attachments.length > 0 ? (
+                  <ul>
+                    {transactionEditDraft.attachments.map((attachment) => (
+                      <li key={attachment.id}>
+                        <span>{attachment.fileName}</span>
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          disabled={transactionEditAttachmentBusy}
+                          onClick={() =>
+                            setTransactionEditDraft((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    attachments: current.attachments.filter(
+                                      (entry) => entry.id !== attachment.id,
+                                    ),
+                                  }
+                                : current,
+                            )
+                          }
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+
+              {transactionEditError ? (
+                <p className="transaction-import-error">{transactionEditError}</p>
+              ) : null}
+
+              <footer>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  disabled={transactionEditAttachmentBusy}
+                  onClick={closeTransactionEdit}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="button button-primary"
+                  type="button"
+                  disabled={transactionEditAttachmentBusy}
+                  onClick={() => saveTransactionEdit(transactionEditCandidate)}
+                >
+                  Save transaction
+                </button>
+              </footer>
+            </section>
           </div>
         ) : null}
 
