@@ -3374,6 +3374,12 @@ type ImportPayeeWrite = {
   readonly mutation: LocalBudgetMutation;
 };
 
+type ImportAttachmentWrite = {
+  readonly attachment: LocalTransactionAttachmentRecord;
+  readonly content: Uint8Array;
+  readonly mutation: LocalBudgetMutation;
+};
+
 function applyTransactionBatchInCurrentTransaction(
   writes: readonly TransactionBatchWrite[],
   requireAbsentTransactionIds: readonly string[] = [],
@@ -3557,14 +3563,20 @@ function writeTransactionBatch(
 function writeImportBatch(
   payeeWrites: readonly ImportPayeeWrite[],
   writes: readonly TransactionBatchWrite[],
+  attachmentWrites: readonly ImportAttachmentWrite[],
   requireAbsentTransactionIds: readonly string[] = [],
   verifyWrittenTransactions = false,
   history?: { readonly transactionIds: readonly string[]; readonly payeeIds: readonly string[] },
 ): LocalBudgetManifest | { readonly before: ImportHistorySnapshot; readonly after: ImportHistorySnapshot } {
   for (const { mutation } of payeeWrites) assertMutationScope(mutation);
   for (const { mutation } of writes) assertMutationScope(mutation);
+  for (const { mutation } of attachmentWrites) assertMutationScope(mutation);
 
-  if (payeeWrites.length === 0 && writes.length === 0) {
+  if (
+    payeeWrites.length === 0 &&
+    writes.length === 0 &&
+    attachmentWrites.length === 0
+  ) {
     if (history) {
       throw workerError(
         "INVALID_IMPORT_HISTORY",
@@ -3623,6 +3635,31 @@ function writeImportBatch(
 
     payeeIds.add(payeeId);
     payeeNames.add(normalisedPayeeName);
+  }
+
+  const attachmentIds = new Set<string>();
+  for (const { attachment, content, mutation } of attachmentWrites) {
+    if (
+      attachment.budgetId !== activeBudgetId ||
+      !attachment.id ||
+      !attachment.transactionId ||
+      attachment.fileSize !== content.byteLength ||
+      mutation.domain !== "transactions" ||
+      mutation.entityId !== `attachment:${attachment.id}` ||
+      mutation.operation !== "upsert"
+    ) {
+      throw workerError(
+        "INVALID_IMPORT_ATTACHMENT",
+        "Import attachment metadata is invalid.",
+      );
+    }
+    if (attachmentIds.has(attachment.id)) {
+      throw workerError(
+        "INVALID_IMPORT_ATTACHMENT",
+        `Import attachment ${attachment.id} appears more than once.`,
+      );
+    }
+    attachmentIds.add(attachment.id);
   }
 
   execute("BEGIN IMMEDIATE");
@@ -3710,6 +3747,22 @@ function writeImportBatch(
       verifyWrittenTransactions,
     );
 
+    for (const { attachment, content, mutation } of attachmentWrites) {
+      const transactionExists = resultRows<{ found: number }>(
+        `SELECT 1 AS found FROM local_transactions
+         WHERE budget_id = ? AND id = ? LIMIT 1`,
+        [activeBudgetId, attachment.transactionId],
+      ).length > 0;
+      if (!transactionExists) {
+        throw workerError(
+          "TRANSACTION_NOT_FOUND",
+          `Import attachment transaction ${attachment.transactionId} was not found.`,
+        );
+      }
+      upsertTransactionAttachment(attachment, content);
+      insertOutbox(mutation);
+    }
+
     for (const { payee } of payeeWrites) {
       const actual = resultRows<{
         id: string;
@@ -3750,7 +3803,8 @@ function writeImportBatch(
       String(
         Number(readMetadata("localRevision") ?? "0") +
           payeeWrites.length +
-          writes.length
+          writes.length +
+          attachmentWrites.length
       ),
     );
 
@@ -6142,6 +6196,7 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return writeImportBatch(
         request.payeeWrites,
         request.writes,
+        request.attachmentWrites ?? [],
         request.requireAbsentTransactionIds,
         request.verifyWrittenTransactions,
       );
@@ -6149,6 +6204,7 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return writeImportBatch(
         request.payeeWrites,
         request.writes,
+        request.attachmentWrites ?? [],
         request.requireAbsentTransactionIds,
         request.verifyWrittenTransactions,
         { transactionIds: request.historyTransactionIds, payeeIds: request.historyPayeeIds },

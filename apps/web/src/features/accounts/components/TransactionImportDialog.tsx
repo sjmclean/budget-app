@@ -10,10 +10,6 @@ import {
   type RegisterInlineCategoryCreateInput,
 } from "./RegisterCategoryInput";
 import { RegisterSplitEditor } from "./RegisterSplitEditor";
-import {
-  getTransactionFieldEditBehaviour,
-  type TransactionEditIntent,
-} from "../../transactions/transactionEditIntent";
 import type { PayeeView } from "../payeeService";
 import { createRuntimeUuid } from "../../ids/createRuntimeUuid";
 import type { SidebarAccount } from "../accountService";
@@ -25,6 +21,7 @@ import {
 import type {
   NewRegisterTransactionInput,
   RegisterTransactionView,
+  ScheduledAttachmentTemplate,
 } from "../accountRegisterTypes";
 import type {
   RegisterTransactionImportPayeeCreation,
@@ -145,6 +142,8 @@ import {
   summariseTransactionImportOutcomes,
   verifyPersistedImportTransactions,
 } from "../transactionImportVerification";
+import { calculateAttachmentContentHash } from "../../attachments/attachmentContentStore";
+import type { TransactionTagDefinition } from "../../tags/transactionTagTypes";
 import {
   buildSplitLines,
   createSplitLineDraft,
@@ -162,18 +161,28 @@ function formatMoney(value: number, currencyCode: string) {
   }).format(value);
 }
 
+function encodeImportAttachment(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
 type TransactionImportStep = "upload" | "mapping" | "review" | "complete";
 type TransactionImportFileType =
   "csv" | "qif" | "ofx" | "qfx" | "json" | "unknown";
 
 type ProcessedImportAction = "imported" | "matched" | "skipped";
 
-type ProposedTransactionEditField = "payee" | "category" | "memo";
-
-interface ProposedTransactionEdit {
+interface TransactionImportEditDraft {
   candidateId: string;
-  field: ProposedTransactionEditField;
-  draftValue: string;
+  payee: string;
+  category: string;
+  memo: string;
+  tagIds: string[];
+  attachments: ScheduledAttachmentTemplate[];
 }
 
 interface TransactionImportSplitEdit {
@@ -181,6 +190,14 @@ interface TransactionImportSplitEdit {
   target: "proposal" | "matched";
   splitLines: SplitLineDraft[];
 }
+
+const IMPORT_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
+const IMPORT_ATTACHMENT_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 const IMPORT_SPLIT_VISIBLE_COLUMN_IDS = [
   "category",
@@ -354,6 +371,7 @@ export function TransactionImportDialog({
   onImportCommitComplete,
   payeeOptions,
   categoryOptions,
+  transactionTags,
   transferAccounts,
   onCreateCategory,
   onLearnPayeeAliases,
@@ -389,6 +407,7 @@ export function TransactionImportDialog({
   }) => void;
   payeeOptions: PayeeView[];
   categoryOptions: BudgetCategoryOption[];
+  transactionTags: TransactionTagDefinition[];
   transferAccounts: SidebarAccount[];
   onCreateCategory?: (
     input: RegisterInlineCategoryCreateInput,
@@ -465,8 +484,12 @@ export function TransactionImportDialog({
   const [matchedTransactionOrigins, setMatchedTransactionOrigins] = useState<
     Record<string, RegisterTransactionView>
   >({});
-  const [proposedTransactionEdit, setProposedTransactionEdit] =
-    useState<ProposedTransactionEdit | null>(null);
+  const [transactionEditDraft, setTransactionEditDraft] =
+    useState<TransactionImportEditDraft | null>(null);
+  const [transactionEditAttachmentBusy, setTransactionEditAttachmentBusy] =
+    useState(false);
+  const [transactionEditError, setTransactionEditError] =
+    useState<string | null>(null);
   const [splitEdit, setSplitEdit] =
     useState<TransactionImportSplitEdit | null>(null);
   const [weakMatchReviewCandidateId, setWeakMatchReviewCandidateId] =
@@ -1631,7 +1654,6 @@ export function TransactionImportDialog({
   function beginProposalSplitEdit(candidate: TransactionImportCandidate) {
     const existing = candidate.lifecycle.proposal.splitLines;
 
-    setProposedTransactionEdit(null);
     setSplitEdit({
       candidateId: candidate.id,
       target: "proposal",
@@ -1656,8 +1678,6 @@ export function TransactionImportDialog({
     if (!candidate.matchedTransaction) {
       return;
     }
-
-    setProposedTransactionEdit(null);
     setSplitEdit({
       candidateId: candidate.id,
       target: "matched",
@@ -1757,86 +1777,200 @@ export function TransactionImportDialog({
     });
   }
 
-  function beginProposedTransactionEdit(
-    candidateId: string,
-    field: ProposedTransactionEditField,
-    value: string,
-  ) {
-    setProposedTransactionEdit({ candidateId, field, draftValue: value });
-  }
-
-  function updateProposedTransactionDraft(value: string) {
-    setProposedTransactionEdit((current) =>
-      current ? { ...current, draftValue: value } : current,
-    );
-  }
-
-  function cancelProposedTransactionEdit() {
-    setProposedTransactionEdit(null);
-  }
-
-  function applySameFileReviewCorrection({
-    sourceCandidate,
-    field,
-    value,
-    sourceProposalUpdates,
-  }: {
-    sourceCandidate: TransactionImportCandidate;
-    field: ImportReviewPropagationField;
-    value: string;
-    sourceProposalUpdates: Partial<
-      TransactionImportCandidate["lifecycle"]["proposal"]
-    >;
-  }) {
-    const nextManualEdits = markImportReviewFieldEdited(
-      manualCandidateEdits,
-      sourceCandidate.id,
-      field,
-    );
-    setManualCandidateEdits(nextManualEdits);
-
-    const sourceWithEdit: TransactionImportCandidate = {
-      ...sourceCandidate,
-      lifecycle: {
-        ...sourceCandidate.lifecycle,
-        proposal: {
-          ...sourceCandidate.lifecycle.proposal,
-          ...sourceProposalUpdates,
-        },
-      },
-    };
-    const combined = [
-      ...candidates.map((candidate) =>
-        candidate.id === sourceCandidate.id ? sourceWithEdit : candidate,
-      ),
-      ...processedCandidates.map((entry) => entry.candidate),
-    ];
-    const propagated = propagateImportReviewField({
-      candidates: combined,
-      sourceCandidateId: sourceCandidate.id,
-      field,
-      value,
-      manualEdits: nextManualEdits,
+  function beginTransactionEdit(candidate: TransactionImportCandidate) {
+    const matched =
+      candidate.status === "exact-match" ? candidate.matchedTransaction : null;
+    const proposal = candidate.lifecycle.proposal;
+    setTransactionEditDraft({
+      candidateId: candidate.id,
+      payee: matched?.payee ?? proposal.payee,
+      category:
+        matched?.category ??
+        proposal.transferAccountName ??
+        proposal.categoryName ??
+        "",
+      memo: matched?.memo ?? proposal.memo ?? "",
+      tagIds: [...(matched?.tagIds ?? proposal.tagIds ?? [])],
+      attachments: [
+        ...(matched?.scheduledAttachments ?? proposal.attachments ?? []),
+      ].map((attachment) => ({ ...attachment })),
     });
-    const propagatedById = new Map(
-      propagated.map((candidate) => [candidate.id, candidate] as const),
-    );
+    setTransactionEditError(null);
+  }
 
-    setCandidates((current) =>
-      current.map((candidate) => propagatedById.get(candidate.id) ?? candidate),
-    );
-    setProcessedCandidates((current) =>
-      current.map((entry) =>
-        entry.action === "imported"
-          ? {
-              ...entry,
-              candidate:
-                propagatedById.get(entry.candidate.id) ?? entry.candidate,
-            }
-          : entry,
-      ),
-    );
-    setError(null);
+  function closeTransactionEdit() {
+    if (transactionEditAttachmentBusy) return;
+    setTransactionEditDraft(null);
+    setTransactionEditError(null);
+  }
+
+  async function addTransactionEditAttachments(files: FileList | null) {
+    if (!files || files.length === 0 || !transactionEditDraft) return;
+    setTransactionEditAttachmentBusy(true);
+    setTransactionEditError(null);
+    try {
+      const additions: ScheduledAttachmentTemplate[] = [];
+      for (const file of Array.from(files)) {
+        if (!IMPORT_ATTACHMENT_MIME_TYPES.has(file.type)) {
+          throw new Error(
+            `${file.name} is not a supported attachment. Use PDF, JPEG, PNG, or WebP.`,
+          );
+        }
+        if (file.size > IMPORT_ATTACHMENT_MAX_BYTES) {
+          throw new Error(`${file.name} is larger than the 5 MB attachment limit.`);
+        }
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const contentHash = await calculateAttachmentContentHash(bytes);
+        additions.push({
+          id: createRuntimeUuid(),
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+          attachedAt: new Date().toISOString(),
+          contentHash,
+          contentBase64: encodeImportAttachment(bytes),
+        });
+      }
+      setTransactionEditDraft((current) =>
+        current
+          ? { ...current, attachments: [...current.attachments, ...additions] }
+          : current,
+      );
+    } catch (error) {
+      setTransactionEditError(
+        error instanceof Error ? error.message : "The attachment could not be added.",
+      );
+    } finally {
+      setTransactionEditAttachmentBusy(false);
+    }
+  }
+
+  function saveTransactionEdit(candidate: TransactionImportCandidate) {
+    const draft = transactionEditDraft;
+    if (!draft || draft.candidateId !== candidate.id) return;
+
+    const payee = draft.payee.trim();
+    if (!payee) {
+      setTransactionEditError("Choose a payee before saving.");
+      return;
+    }
+
+    const memo = draft.memo.trim() || undefined;
+    const categoryName = draft.category.trim();
+
+    if (candidate.status === "exact-match" && candidate.matchedTransaction) {
+      const payeeOption = payeeOptions.find(
+        (option) =>
+          option.name.trim().toLocaleLowerCase() === payee.toLocaleLowerCase(),
+      );
+      const categoryOption = categoryOptions.find(
+        (option) =>
+          option.name.trim().toLocaleLowerCase() ===
+          categoryName.toLocaleLowerCase(),
+      );
+      updateMatchedTransactionDetails(candidate.id, {
+        payee,
+        payeeId: payeeOption?.id,
+        category:
+          categoryName === "Split"
+            ? candidate.matchedTransaction.category
+            : categoryName || candidate.matchedTransaction.category,
+        categoryId:
+          categoryName === "Split"
+            ? candidate.matchedTransaction.categoryId
+            : categoryOption?.id ?? candidate.matchedTransaction.categoryId,
+        transferAccountId:
+          categoryName === "Split"
+            ? candidate.matchedTransaction.transferAccountId
+            : undefined,
+        transferTransactionId:
+          categoryName === "Split"
+            ? candidate.matchedTransaction.transferTransactionId
+            : undefined,
+        splitLines:
+          categoryName === "Split"
+            ? candidate.matchedTransaction.splitLines
+            : undefined,
+        memo,
+        tagIds: [...draft.tagIds],
+        scheduledAttachments: draft.attachments.map((attachment) => ({
+          ...attachment,
+        })),
+      });
+      setManualCandidateEdits((current) => {
+        let next = current;
+        if (payee !== candidate.matchedTransaction?.payee) {
+          next = markImportReviewFieldEdited(next, candidate.id, "payee");
+        }
+        if (categoryName !== candidate.matchedTransaction?.category) {
+          next = markImportReviewFieldEdited(next, candidate.id, "category");
+        }
+        if (memo !== candidate.matchedTransaction?.memo) {
+          next = markImportReviewFieldEdited(next, candidate.id, "memo");
+        }
+        return next;
+      });
+      setTransactionEditDraft(null);
+      setTransactionEditError(null);
+      if (categoryName === "Split") {
+        beginMatchedSplitEdit(candidate);
+      }
+      return;
+    }
+
+    const built = buildTransactionImportMerchantProposal({
+      store: merchantKnowledgeRef.current,
+      rawPayee: payee,
+      transaction: candidate.parsed,
+      currentProposal: candidate.lifecycle.proposal,
+    });
+    const transferAccountName = built.proposal.transferAccountName ?? null;
+    updateCandidateProposal(candidate.id, {
+      payee: built.proposal.payee,
+      transferAccountName,
+      categoryName:
+        categoryName === "Split"
+          ? candidate.lifecycle.proposal.categoryName
+          : transferAccountName
+            ? built.proposal.categoryName
+            : categoryName || null,
+      memo,
+      memoReviewed: true,
+      tagIds: [...draft.tagIds],
+      attachments: draft.attachments.map((attachment) => ({ ...attachment })),
+      splitLines:
+        categoryName === "Split"
+          ? candidate.lifecycle.proposal.splitLines
+          : undefined,
+      ...(categoryName === "Split"
+        ? { categoryName: "Split", transferAccountName: null }
+        : {}),
+    });
+    setManualCandidateEdits((current) => {
+      let next = current;
+      if (built.proposal.payee !== candidate.lifecycle.proposal.payee) {
+        next = markImportReviewFieldEdited(next, candidate.id, "payee");
+      }
+      if (categoryName !== (candidate.lifecycle.proposal.categoryName ?? "")) {
+        next = markImportReviewFieldEdited(next, candidate.id, "category");
+      }
+      if (memo !== candidate.lifecycle.proposal.memo) {
+        next = markImportReviewFieldEdited(next, candidate.id, "memo");
+      }
+      return next;
+    });
+    if (built.proposal.payee !== candidate.lifecycle.proposal.payee) {
+      void offerHistoricalPayeeUpdate(
+        candidate.id,
+        candidate.lifecycle.source.rawPayee,
+        built.proposal.payee,
+      );
+    }
+    setTransactionEditDraft(null);
+    setTransactionEditError(null);
+    if (categoryName === "Split") {
+      beginProposalSplitEdit(candidate);
+    }
   }
 
   function removeHistoricalPayeeMapping(sourceRawPayee: string) {
@@ -1932,84 +2066,6 @@ export function TransactionImportDialog({
     }
   }
 
-  function commitProposedTransactionEdit(
-    candidateId: string,
-    field: ProposedTransactionEditField,
-    value: string,
-  ) {
-    const currentCandidate = candidates.find(
-      (candidate) => candidate.id === candidateId,
-    );
-    if (!currentCandidate) {
-      setProposedTransactionEdit(null);
-      return;
-    }
-
-    if (field === "payee") {
-      const built = buildTransactionImportMerchantProposal({
-        store: merchantKnowledgeRef.current,
-        rawPayee: value,
-        transaction: currentCandidate.parsed,
-        currentProposal: currentCandidate.lifecycle.proposal,
-      });
-      applySameFileReviewCorrection({
-        sourceCandidate: currentCandidate,
-        field: "payee",
-        value: built.proposal.payee,
-        sourceProposalUpdates: {
-          payee: built.proposal.payee,
-          transferAccountName: built.proposal.transferAccountName ?? null,
-          categoryName: built.proposal.categoryName ?? null,
-        },
-      });
-      void offerHistoricalPayeeUpdate(
-        currentCandidate.id,
-        currentCandidate.lifecycle.source.rawPayee,
-        built.proposal.payee,
-      );
-    } else if (field === "category") {
-      if (value === "Split") {
-        setManualCandidateEdits((current) =>
-          markImportReviewFieldEdited(current, candidateId, "category"),
-        );
-        beginProposalSplitEdit(currentCandidate);
-        return;
-      }
-
-      applySameFileReviewCorrection({
-        sourceCandidate: currentCandidate,
-        field: "category",
-        value,
-        sourceProposalUpdates: {
-          categoryName: value || null,
-          transferAccountName: null,
-          splitLines: undefined,
-        },
-      });
-    } else {
-      updateCandidateProposal(candidateId, {
-        memo: value.trim() || undefined,
-      });
-      setManualCandidateEdits((current) =>
-        markImportReviewFieldEdited(current, candidateId, "memo"),
-      );
-    }
-    setProposedTransactionEdit(null);
-  }
-
-  function commitMatchedMemoEdit(
-    candidate: TransactionImportCandidate,
-    value: string,
-  ) {
-    updateMatchedTransactionDetails(candidate.id, {
-      memo: value.trim() || undefined,
-    });
-    setManualCandidateEdits((current) =>
-      markImportReviewFieldEdited(current, candidate.id, "memo"),
-    );
-    setProposedTransactionEdit(null);
-  }
-
   function updateExcludeMemosPreference(enabled: boolean) {
     const updateCandidate = (candidate: TransactionImportCandidate) =>
       applySourceMemoPreferenceToCandidate({
@@ -2055,47 +2111,8 @@ export function TransactionImportDialog({
     setHistoricalRegisterPayeeUpdates(result.historicalUpdates);
     setMatchEditorOrigins(result.matchEditorOrigins);
     setMatchedTransactionOrigins(result.matchedTransactionOrigins);
-    if (proposedTransactionEdit?.candidateId === candidateId) {
-      setProposedTransactionEdit(null);
-    }
     if (splitEdit?.candidateId === candidateId) setSplitEdit(null);
     setError(null);
-  }
-
-  function commitMatchedPayeeEdit(
-    candidate: TransactionImportCandidate,
-    value: string,
-  ) {
-    const built = buildTransactionImportMerchantProposal({
-      store: merchantKnowledgeRef.current,
-      rawPayee: value,
-      transaction: candidate.parsed,
-      fallbackCategoryName: candidate.matchedTransaction?.category,
-    });
-    const transferAccount = transferAccounts.find(
-      (account) =>
-        account.name.toLocaleLowerCase() ===
-        built.proposal.transferAccountName?.toLocaleLowerCase(),
-    );
-    const suggestedCategory = categoryOptions.find(
-      (category) =>
-        category.name.toLocaleLowerCase() ===
-        built.proposal.categoryName?.toLocaleLowerCase(),
-    );
-
-    updateMatchedTransactionDetails(candidate.id, {
-      payee: built.proposal.payee,
-      payeeId: undefined,
-      transferAccountId: transferAccount?.id,
-      category: built.proposal.categoryName ?? "",
-      categoryId: built.proposal.transferAccountName
-        ? undefined
-        : suggestedCategory?.id ?? candidate.matchedTransaction?.categoryId,
-      splitLines: built.proposal.transferAccountName
-        ? undefined
-        : candidate.matchedTransaction?.splitLines,
-    });
-    setProposedTransactionEdit(null);
   }
 
   function updateMatchedTransactionDetails(
@@ -2150,7 +2167,6 @@ export function TransactionImportDialog({
       delete next[candidateId];
       return next;
     });
-    setProposedTransactionEdit(null);
     setError(null);
     return true;
   }
@@ -2208,7 +2224,6 @@ export function TransactionImportDialog({
       delete next[candidateId];
       return next;
     });
-    setProposedTransactionEdit(null);
   }
 
   function returnToMatchOptions(candidateId: string) {
@@ -2780,6 +2795,9 @@ export function TransactionImportDialog({
     }
   }
 
+  const transactionEditCandidate = transactionEditDraft
+    ? candidates.find((candidate) => candidate.id === transactionEditDraft.candidateId) ?? null
+    : null;
   const weakMatchReviewCandidate = weakMatchReviewCandidateId
     ? candidates.find(
         (candidate) => candidate.id === weakMatchReviewCandidateId,
@@ -3443,7 +3461,9 @@ export function TransactionImportDialog({
               const hasManualProposalEdits = Boolean(
                 manualEditsForCandidate?.payee ||
                   manualEditsForCandidate?.category ||
-                  manualEditsForCandidate?.memo,
+                  manualEditsForCandidate?.memo ||
+                  candidate.lifecycle.proposal.tagIds?.length ||
+                  candidate.lifecycle.proposal.attachments?.length,
               );
               const showUnmatchedComparison =
                 !hasMatch &&
@@ -3454,26 +3474,6 @@ export function TransactionImportDialog({
                 processingCandidate?.id === candidate.id
                   ? processingCandidate
                   : null;
-              const activeProposedTransactionEdit =
-                proposedTransactionEdit?.candidateId === candidate.id
-                  ? proposedTransactionEdit
-                  : null;
-              const proposedTransactionEditIntent: TransactionEditIntent | null =
-                activeProposedTransactionEdit
-                  ? activeProposedTransactionEdit.field === "memo"
-                    ? null
-                    : { field: activeProposedTransactionEdit.field }
-                  : null;
-              const proposedPayeeEditBehaviour =
-                getTransactionFieldEditBehaviour(
-                  proposedTransactionEditIntent,
-                  "payee",
-                );
-              const proposedCategoryEditBehaviour =
-                getTransactionFieldEditBehaviour(
-                  proposedTransactionEditIntent,
-                  "category",
-                );
               return (
                 <article
                   className={`transaction-import-review-card transaction-import-review-card-${candidate.status}${
@@ -3511,358 +3511,146 @@ export function TransactionImportDialog({
                     <span>{reviewPresentation.subtext}</span>
                   </div>
                   <div className="transaction-import-match-stack">
-                    <div className="transaction-import-match-row transaction-import-match-row-imported">
-                      <span className="transaction-import-match-label">
+                    <div className="transaction-import-match-entry">
+                      <span className="transaction-import-match-caption">
                         {hasMatch ? <b>A</b> : null}
-                        <span>Bank transaction</span>
+                        Bank transaction
                       </span>
-                      <span className="transaction-import-match-date">
-                        {formatImportReviewDate(bankParsed.date)}
-                      </span>
-                      <strong className="transaction-import-match-payee">
-                        {sourcePayee || "Missing payee"}
-                        {!hasManualProposalEdits &&
-                        candidate.lifecycle.proposal.payee !== sourcePayee ? (
-                          <small className="transaction-import-payee-alias-note">
-                            Imports as {candidate.lifecycle.proposal.payee}
-                          </small>
-                        ) : null}
-                      </strong>
-                      <span className="transaction-import-match-detail">
-                        {candidate.lifecycle.source.transferAccountName
-                          ? `${accountName} → ${candidate.lifecycle.source.transferAccountName}`
-                          : candidate.lifecycle.source.importedCategoryName ??
-                            candidate.lifecycle.source.memo ??
-                            "—"}
-                      </span>
-                      <strong className={`transaction-import-match-amount ${bankParsed.inflow > 0 && bankParsed.outflow === 0 ? "money-positive" : bankParsed.outflow > 0 ? "money-negative" : ""}`}>
-                        {amountLabel}
-                      </strong>
+                      <div className="transaction-import-match-row transaction-import-match-row-imported">
+                        <span className="transaction-import-match-date">
+                          {formatImportReviewDate(bankParsed.date)}
+                        </span>
+                        <strong className="transaction-import-match-payee">
+                          {sourcePayee || "Missing payee"}
+                          {!hasManualProposalEdits &&
+                          candidate.lifecycle.proposal.payee !== sourcePayee ? (
+                            <small className="transaction-import-payee-alias-note">
+                              Imports as {candidate.lifecycle.proposal.payee}
+                            </small>
+                          ) : null}
+                        </strong>
+                        <span className="transaction-import-match-category">
+                          {candidate.lifecycle.source.transferAccountName
+                            ? `${accountName} → ${candidate.lifecycle.source.transferAccountName}`
+                            : candidate.lifecycle.source.importedCategoryName ?? "—"}
+                        </span>
+                        <span className="transaction-import-match-memo">
+                          {candidate.lifecycle.source.memo || "—"}
+                        </span>
+                        <strong className={`transaction-import-match-amount ${bankParsed.inflow > 0 && bankParsed.outflow === 0 ? "money-positive" : bankParsed.outflow > 0 ? "money-negative" : ""}`}>
+                          {amountLabel}
+                        </strong>
+                      </div>
                     </div>
 
                     {showUnmatchedComparison ? (
                       <>
                         <div className="transaction-import-match-arrow" aria-hidden="true">↔</div>
-                        <div className="transaction-import-match-row transaction-import-match-row-existing">
-                          <span className="transaction-import-match-label">
+                        <div className="transaction-import-match-entry">
+                          <span className="transaction-import-match-caption">
                             <b>B</b>
-                            <span>
-                              {availableRegisterMatchCandidates.length
-                                ? "Possible register match"
-                                : "Proposed transaction"}
+                            {availableRegisterMatchCandidates.length
+                              ? "Possible register match"
+                              : "Proposed transaction"}
+                          </span>
+                          <div className="transaction-import-match-row transaction-import-match-row-existing">
+                            <span className="transaction-import-match-date">
+                              {formatImportReviewDate(
+                                availableRegisterMatchCandidates[0]?.transaction.date ??
+                                  bankParsed.date,
+                              )}
                             </span>
-                          </span>
-                          <span className="transaction-import-match-date">
-                            {formatImportReviewDate(
-                              availableRegisterMatchCandidates[0]?.transaction.date ?? bankParsed.date,
-                            )}
-                          </span>
-                          <strong className="transaction-import-match-payee">
-                            {availableRegisterMatchCandidates[0]?.transaction.payee ??
-                              candidate.lifecycle.proposal.payee ?? "Choose payee"}
-                          </strong>
-                          <span className="transaction-import-match-detail">
-                            {availableRegisterMatchCandidates[0]?.transaction.category ??
-                              candidate.lifecycle.proposal.transferAccountName ??
-                              candidate.lifecycle.proposal.categoryName ?? "Choose category"}
-                          </span>
-                          <strong className={`transaction-import-match-amount ${bankParsed.inflow > 0 && bankParsed.outflow === 0 ? "money-positive" : bankParsed.outflow > 0 ? "money-negative" : ""}`}>
-                            {amountLabel}
-                          </strong>
+                            <strong className="transaction-import-match-payee">
+                              {availableRegisterMatchCandidates[0]?.transaction.payee ??
+                                candidate.lifecycle.proposal.payee ??
+                                "Choose payee"}
+                            </strong>
+                            <span className="transaction-import-match-category">
+                              {availableRegisterMatchCandidates[0]?.transaction.category ??
+                                candidate.lifecycle.proposal.transferAccountName ??
+                                candidate.lifecycle.proposal.categoryName ??
+                                "Choose category"}
+                            </span>
+                            <span className="transaction-import-match-memo">
+                              {availableRegisterMatchCandidates[0]?.transaction.memo ??
+                                candidate.lifecycle.proposal.memo ??
+                                "—"}
+                              {(availableRegisterMatchCandidates[0]?.transaction.tagIds?.length ??
+                                candidate.lifecycle.proposal.tagIds?.length ??
+                                0) > 0 ? (
+                                <small>
+                                  Tags: {(availableRegisterMatchCandidates[0]?.transaction.tagIds ??
+                                    candidate.lifecycle.proposal.tagIds ??
+                                    []).map((tagId) =>
+                                      transactionTags.find((tag) => tag.id === tagId)?.name ?? tagId
+                                    ).join(", ")}
+                                </small>
+                              ) : null}
+                              {(availableRegisterMatchCandidates[0]?.transaction.attachmentCount ??
+                                candidate.lifecycle.proposal.attachments?.length ??
+                                0) > 0 ? (
+                                <small>
+                                  📎 {availableRegisterMatchCandidates[0]?.transaction.attachmentCount ??
+                                    candidate.lifecycle.proposal.attachments?.length ??
+                                    0}
+                                </small>
+                              ) : null}
+                            </span>
+                            <strong className={`transaction-import-match-amount ${bankParsed.inflow > 0 && bankParsed.outflow === 0 ? "money-positive" : bankParsed.outflow > 0 ? "money-negative" : ""}`}>
+                              {amountLabel}
+                            </strong>
+                          </div>
                         </div>
                       </>
                     ) : null}
 
                     {hasMatch ? (
                       <>
-                        <div
-                          className="transaction-import-match-arrow"
-                          aria-hidden="true"
-                        >
-                          ↓
-                        </div>
-                        <div className="transaction-import-match-row transaction-import-match-row-existing">
-                          <span className="transaction-import-match-label">
+                        <div className="transaction-import-match-arrow" aria-hidden="true">↓</div>
+                        <div className="transaction-import-match-entry">
+                          <span className="transaction-import-match-caption">
                             <b>B</b>
-                            <span>Register</span>
+                            Register
                           </span>
-                          <span className="transaction-import-match-date">
-                            {formatImportReviewDate(
-                              candidate.matchedTransaction?.date,
-                            )}
-                          </span>
-                          <div
-                            className="transaction-import-proposed-field transaction-import-proposed-payee"
-                          >
-                            {activeProposedTransactionEdit &&
-                            activeProposedTransactionEdit.field === "payee" ? (
-                              <PayeeInput
-                                value={activeProposedTransactionEdit.draftValue}
-                                transferAccounts={transferAccounts.filter(
-                                  (account) => account.id !== selectedAccountId,
-                                )}
-                                payeeOptions={payeeOptions}
-                                autoFocus={
-                                  proposedPayeeEditBehaviour.autoFocus
-                                }
-                                selectOnInitialFocus={
-                                  proposedPayeeEditBehaviour.selectOnInitialFocus
-                                }
-                                openOnFocus={
-                                  proposedPayeeEditBehaviour.openOnFocus
-                                }
-                                onChange={updateProposedTransactionDraft}
-                                onSelection={(value) => {
-                                  const built =
-                                    buildTransactionImportMerchantProposal({
-                                      store: merchantKnowledgeRef.current,
-                                      rawPayee: value,
-                                      transaction: candidate.parsed,
-                                      fallbackCategoryName:
-                                        candidate.matchedTransaction?.category,
-                                    });
-                                  const transferAccount = transferAccounts.find(
-                                    (account) =>
-                                      account.name.toLocaleLowerCase() ===
-                                      built.proposal.transferAccountName?.toLocaleLowerCase(),
-                                  );
-                                  const suggestedCategory = categoryOptions.find(
-                                    (category) =>
-                                      category.name.toLocaleLowerCase() ===
-                                      built.proposal.categoryName?.toLocaleLowerCase(),
-                                  );
-                                  updateMatchedTransactionDetails(candidate.id, {
-                                    payee: built.proposal.payee,
-                                    payeeId: undefined,
-                                    transferAccountId: transferAccount?.id,
-                                    category:
-                                      built.proposal.categoryName ?? "",
-                                    categoryId: built.proposal.transferAccountName
-                                      ? undefined
-                                      : suggestedCategory?.id ??
-                                        candidate.matchedTransaction?.categoryId,
-                                    splitLines: built.proposal.transferAccountName
-                                      ? undefined
-                                      : candidate.matchedTransaction?.splitLines,
-                                  });
-                                  setProposedTransactionEdit(null);
-                                }}
-                                onCancel={cancelProposedTransactionEdit}
-                                onBlurOutside={() =>
-                                  commitMatchedPayeeEdit(
-                                    candidate,
-                                    activeProposedTransactionEdit.draftValue,
-                                  )
-                                }
-                              />
-                            ) : availableRegisterMatchCandidates.length > 1 ? (
-                              <details className="transaction-import-register-match-picker">
-                                <summary
-                                  className="transaction-import-register-match-summary"
-                                  aria-label="Choose matched register transaction"
-                                >
-                                  <strong>
-                                    {candidate.matchedTransaction?.payee || "—"}
-                                  </strong>
-                                </summary>
-                                <div
-                                  className="transaction-import-register-match-options"
-                                  role="listbox"
-                                  aria-label="Eligible register transactions"
-                                >
-                                  {availableRegisterMatchCandidates.map((option) => {
-                                    const isSelected =
-                                      option.transaction.id ===
-                                      candidate.matchedTransactionId;
-
-                                    return (
-                                      <button
-                                        className={`transaction-import-register-match-option${
-                                          isSelected
-                                            ? " transaction-import-register-match-option-selected"
-                                            : ""
-                                        }`}
-                                        key={option.transaction.id}
-                                        type="button"
-                                        role="option"
-                                        aria-selected={isSelected}
-                                        onClick={(event) => {
-                                          const selected = selectMatchedRegisterTransaction(
-                                            candidate.id,
-                                            option.transaction.id,
-                                          );
-                                          if (selected) {
-                                            event.currentTarget
-                                              .closest("details")
-                                              ?.removeAttribute("open");
-                                          }
-                                        }}
-                                      >
-                                        <strong>
-                                          {option.transaction.payee || "—"}
-                                        </strong>
-                                        <span>
-                                          {formatImportReviewDate(
-                                            option.transaction.date,
-                                          )}
-                                          {" · "}
-                                          {option.transaction.category || "—"}
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </details>
-                            ) : (
-                              <strong>
-                                {candidate.matchedTransaction?.payee || "—"}
-                              </strong>
-                            )}
+                          <div className="transaction-import-match-row transaction-import-match-row-existing">
+                            <span className="transaction-import-match-date">
+                              {formatImportReviewDate(candidate.matchedTransaction?.date)}
+                            </span>
+                            <strong className="transaction-import-match-payee">
+                              {candidate.matchedTransaction?.payee || "—"}
+                            </strong>
+                            <span className="transaction-import-match-category">
+                              {candidate.matchedTransaction?.splitLines?.length
+                                ? `Split · ${candidate.matchedTransaction.splitLines.length} categories`
+                                : candidate.matchedTransaction?.category || "—"}
+                            </span>
+                            <span className="transaction-import-match-memo">
+                              {candidate.matchedTransaction?.memo || "—"}
+                              {(candidate.matchedTransaction?.tagIds?.length ?? 0) > 0 ? (
+                                <small>
+                                  Tags: {(candidate.matchedTransaction?.tagIds ?? []).map((tagId) =>
+                                    transactionTags.find((tag) => tag.id === tagId)?.name ?? tagId
+                                  ).join(", ")}
+                                </small>
+                              ) : null}
+                              {(candidate.matchedTransaction?.attachmentCount ??
+                                candidate.matchedTransaction?.scheduledAttachments?.length ??
+                                0) > 0 ? (
+                                <small>
+                                  📎 {candidate.matchedTransaction?.attachmentCount ??
+                                    candidate.matchedTransaction?.scheduledAttachments?.length ??
+                                    0}
+                                </small>
+                              ) : null}
+                            </span>
+                            <strong className={`transaction-import-match-amount ${candidate.matchedTransaction && candidate.matchedTransaction.inflow > 0 && candidate.matchedTransaction.outflow === 0 ? "money-positive" : candidate.matchedTransaction && candidate.matchedTransaction.outflow > 0 ? "money-negative" : ""}`}>
+                              {matchAmountLabel}
+                            </strong>
                           </div>
-                          <div
-                            className="transaction-import-proposed-field transaction-import-proposed-category"
-                          >
-                            {activeProposedTransactionEdit &&
-                            activeProposedTransactionEdit.field === "category" ? (
-                              <RegisterCategoryInput
-                                value={activeProposedTransactionEdit.draftValue}
-                                categoryOptions={categoryOptions}
-                                includeSplitOption
-                                autoFocus={
-                                  proposedCategoryEditBehaviour.autoFocus
-                                }
-                                selectOnInitialFocus={
-                                  proposedCategoryEditBehaviour.selectOnInitialFocus
-                                }
-                                openOnFocus={
-                                  proposedCategoryEditBehaviour.openOnFocus
-                                }
-                                onCreateCategory={onCreateCategory}
-                                onChange={updateProposedTransactionDraft}
-                                onSelection={(value) => {
-                                  if (value === "Split") {
-                                    beginMatchedSplitEdit(candidate);
-                                    return;
-                                  }
-
-                                  const selectedCategory = categoryOptions.find(
-                                    (category) => category.name === value,
-                                  );
-
-                                  updateMatchedTransactionDetails(candidate.id, {
-                                    category: value,
-                                    categoryId: selectedCategory?.id,
-                                    transferAccountId: undefined,
-                                    transferTransactionId: undefined,
-                                    splitLines: undefined,
-                                  });
-                                  setProposedTransactionEdit(null);
-                                }}
-                                onCancel={cancelProposedTransactionEdit}
-                                onBlurOutside={cancelProposedTransactionEdit}
-                              />
-                            ) : (
-                              <span >
-                                {candidate.matchedTransaction?.splitLines?.length
-                                  ? `Split · ${candidate.matchedTransaction.splitLines.length} categories`
-                                  : candidate.matchedTransaction?.category || "—"}
-                                {candidate.matchedTransaction?.memo
-                                  ? ` · ${candidate.matchedTransaction.memo}`
-                                  : ""}
-                                {matchedTransactionOrigins[candidate.id] &&
-                                matchedTransactionOrigins[candidate.id]?.memo !==
-                                  candidate.matchedTransaction?.memo ? (
-                                  <small className="transaction-import-payee-alias-note">
-                                    Register memo: {matchedTransactionOrigins[candidate.id]?.memo || "None"} · Final memo: {candidate.matchedTransaction?.memo || "None"}
-                                  </small>
-                                ) : null}
-                              </span>
-                            )}
-                          </div>
-                          <strong className={`transaction-import-match-amount ${candidate.matchedTransaction && candidate.matchedTransaction.inflow > 0 && candidate.matchedTransaction.outflow === 0 ? "money-positive" : candidate.matchedTransaction && candidate.matchedTransaction.outflow > 0 ? "money-negative" : ""}`}>
-                            {matchAmountLabel}
-                          </strong>
                         </div>
                       </>
                     ) : null}
-
                   </div>
-
-                  {candidate.status !== "invalid" ? (
-                    <div className="transaction-import-inline-editor">
-                      {activeProposedTransactionEdit?.field === "memo" ? (
-                        <label>
-                          <span>Memo</span>
-                          <input
-                            aria-label={`Memo for row ${candidate.parsed.rowNumber}`}
-                            autoFocus
-                            value={activeProposedTransactionEdit.draftValue}
-                            onChange={(event) =>
-                              updateProposedTransactionDraft(event.target.value)
-                            }
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                if (candidate.status === "exact-match") {
-                                  commitMatchedMemoEdit(
-                                    candidate,
-                                    activeProposedTransactionEdit.draftValue,
-                                  );
-                                } else {
-                                  commitProposedTransactionEdit(
-                                    candidate.id,
-                                    "memo",
-                                    activeProposedTransactionEdit.draftValue,
-                                  );
-                                }
-                              } else if (event.key === "Escape") {
-                                event.preventDefault();
-                                cancelProposedTransactionEdit();
-                              }
-                            }}
-                          />
-                        </label>
-                      ) : (
-                        <span>
-                          <strong>Memo:</strong>{" "}
-                          {candidate.status === "exact-match"
-                            ? candidate.matchedTransaction?.memo || "—"
-                            : candidate.lifecycle.proposal.memo || "—"}
-                        </span>
-                      )}
-                      {activeProposedTransactionEdit?.field === "memo" ? (
-                        <>
-                          <button
-                            className="button button-primary"
-                            type="button"
-                            onClick={() => {
-                              if (candidate.status === "exact-match") {
-                                commitMatchedMemoEdit(
-                                  candidate,
-                                  activeProposedTransactionEdit.draftValue,
-                                );
-                              } else {
-                                commitProposedTransactionEdit(
-                                  candidate.id,
-                                  "memo",
-                                  activeProposedTransactionEdit.draftValue,
-                                );
-                              }
-                            }}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="button button-secondary"
-                            type="button"
-                            onClick={cancelProposedTransactionEdit}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : null}
-                    </div>
-                  ) : null}
 
                   {candidateAliasSuggestion ? (
                     <div className="transaction-import-inline-alias">
@@ -3942,66 +3730,48 @@ export function TransactionImportDialog({
 
                   {candidate.status !== "invalid" ? (
                     <details className="transaction-import-more-actions">
-                      <summary>••• More</summary>
+                      <summary aria-label="More transaction actions">•••</summary>
                       <div>
-                      <button
-                        className="button button-secondary"
-                        type="button"
-                        onClick={() =>
-                          beginProposedTransactionEdit(
-                            candidate.id,
-                            "memo",
-                            candidate.status === "exact-match"
-                              ? candidate.matchedTransaction?.memo ?? ""
-                              : candidate.lifecycle.proposal.memo ?? "",
-                          )
-                        }
-                      >
-                        {(candidate.status === "exact-match"
-                          ? candidate.matchedTransaction?.memo
-                          : candidate.lifecycle.proposal.memo)
-                          ? "Edit Memo"
-                          : "Add Memo"}
-                      </button>
-                      {canResetChanges ? (
-                      <button
-                        className="button button-secondary"
-                        type="button"
-                        disabled={Boolean(processingCandidate)}
-                        onClick={() => resetCandidateChanges(candidate.id)}
-                      >
-                        Reset changes
-                      </button>
-                      ) : null}
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          onClick={(event) => {
+                            beginTransactionEdit(candidate);
+                            event.currentTarget.closest("details")?.removeAttribute("open");
+                          }}
+                        >
+                          Edit Transaction
+                        </button>
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          disabled={Boolean(processingCandidate)}
+                          onClick={(event) => {
+                            void openRegisterMatchPicker(candidate.id);
+                            event.currentTarget.closest("details")?.removeAttribute("open");
+                          }}
+                        >
+                          Find Existing Transaction
+                        </button>
+                        {canResetChanges ? (
+                          <button
+                            className="button button-secondary"
+                            type="button"
+                            disabled={Boolean(processingCandidate)}
+                            onClick={(event) => {
+                              resetCandidateChanges(candidate.id);
+                              event.currentTarget.closest("details")?.removeAttribute("open");
+                            }}
+                          >
+                            Reset changes
+                          </button>
+                        ) : null}
                       </div>
                     </details>
                   ) : null}
 
                   {candidate.status === "exact-match" ? (
                     <>
-                      <div className="transaction-import-edit-actions">
-                        <button
-                          className="button button-secondary"
-                          type="button"
-                          onClick={() => beginProposedTransactionEdit(candidate.id, "payee", candidate.matchedTransaction?.payee ?? "")}
-                        >
-                          Edit Payee
-                        </button>
-                        <button
-                          className="button button-secondary"
-                          type="button"
-                          onClick={() => beginProposedTransactionEdit(candidate.id, "category", candidate.matchedTransaction?.category ?? "")}
-                        >
-                          Edit Category
-                        </button>
-                        <button
-                          className="button button-secondary"
-                          type="button"
-                          onClick={() => void openRegisterMatchPicker(candidate.id)}
-                        >
-                          Find Another Match
-                        </button>
-                      </div>
                       <div className="transaction-import-match-actions">
                       <button
                         className="button button-primary"
@@ -4051,87 +3821,12 @@ export function TransactionImportDialog({
                   {candidate.status === "new" ||
                   candidate.status === "invalid" ? (
                     <div className="transaction-import-new-review">
-                      {candidate.status !== "invalid" ? (
-                        <div className="transaction-import-edit-actions">
-                          <button
-                            className="button button-secondary"
-                            type="button"
-                            onClick={() => beginProposedTransactionEdit(candidate.id, "payee", candidate.lifecycle.proposal.payee)}
-                          >
-                            Edit Payee
-                          </button>
-                          {!candidate.lifecycle.proposal.transferAccountName ? (
-                            <button
-                              className="button button-secondary"
-                              type="button"
-                              onClick={() => beginProposedTransactionEdit(candidate.id, "category", candidate.lifecycle.proposal.categoryName ?? "")}
-                            >
-                              Edit Category
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
-
-                      {activeProposedTransactionEdit &&
-                      activeProposedTransactionEdit.field !== "memo" ? (
-                        <div className="transaction-import-inline-editor">
-                          {activeProposedTransactionEdit.field === "payee" ? (
-                            <PayeeInput
-                              value={activeProposedTransactionEdit.draftValue}
-                              transferAccounts={transferAccounts.filter((account) => account.id !== selectedAccountId)}
-                              payeeOptions={payeeOptions}
-                              autoFocus={
-                                proposedPayeeEditBehaviour.autoFocus
-                              }
-                              selectOnInitialFocus={
-                                proposedPayeeEditBehaviour.selectOnInitialFocus
-                              }
-                              openOnFocus={
-                                proposedPayeeEditBehaviour.openOnFocus
-                              }
-                              onChange={updateProposedTransactionDraft}
-                              onSelection={(value) =>
-                                commitProposedTransactionEdit(
-                                  candidate.id,
-                                  "payee",
-                                  value,
-                                )
-                              }
-                              onCancel={cancelProposedTransactionEdit}
-                              onBlurOutside={() =>
-                                commitProposedTransactionEdit(
-                                  candidate.id,
-                                  "payee",
-                                  activeProposedTransactionEdit.draftValue,
-                                )
-                              }
-                            />
-                          ) : (
-                            <RegisterCategoryInput
-                              value={activeProposedTransactionEdit.draftValue}
-                              categoryOptions={categoryOptions}
-                              includeSplitOption
-                              autoFocus={
-                                proposedCategoryEditBehaviour.autoFocus
-                              }
-                              selectOnInitialFocus={
-                                proposedCategoryEditBehaviour.selectOnInitialFocus
-                              }
-                              openOnFocus={
-                                proposedCategoryEditBehaviour.openOnFocus
-                              }
-                              onCreateCategory={onCreateCategory}
-                              onChange={updateProposedTransactionDraft}
-                              onSelection={(value) => commitProposedTransactionEdit(candidate.id, "category", value)}
-                              onCancel={cancelProposedTransactionEdit}
-                              onBlurOutside={cancelProposedTransactionEdit}
-                            />
-                          )}
-                        </div>
-                      ) : null}
-
                       {isMatchConvertedToNew ? (
-                        <button className="button button-secondary" type="button" onClick={() => returnToMatchOptions(candidate.id)}>
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          onClick={() => returnToMatchOptions(candidate.id)}
+                        >
                           Back to Match
                         </button>
                       ) : null}
@@ -4139,9 +3834,15 @@ export function TransactionImportDialog({
                       {candidate.status === "invalid" ? (
                         <div className="transaction-import-invalid-detail">
                           <p className="transaction-import-error">
-                            {candidate.reason || candidate.errors[0] || "This transaction contains invalid source data."}
+                            {candidate.reason ||
+                              candidate.errors[0] ||
+                              "This transaction contains invalid source data."}
                           </p>
-                          <button className="button button-secondary" type="button" onClick={() => setStep("mapping")}>
+                          <button
+                            className="button button-secondary"
+                            type="button"
+                            onClick={() => setStep("mapping")}
+                          >
                             Review File Settings
                           </button>
                         </div>
@@ -4152,16 +3853,6 @@ export function TransactionImportDialog({
                   {candidate.status === "new" ||
                   candidate.status === "invalid" ? (
                     <div className="transaction-import-match-actions">
-                      {candidate.status === "new" && availableRegisterMatchCandidates.length ? (
-                        <button
-                          className="button button-secondary"
-                          type="button"
-                          disabled={Boolean(processingCandidate)}
-                          onClick={() => void openRegisterMatchPicker(candidate.id)}
-                        >
-                          View Other Matches
-                        </button>
-                      ) : null}
                       {candidate.status === "new" && availableRegisterMatchCandidates.length ? (
                         <button
                           className="button button-primary"
@@ -4175,16 +3866,6 @@ export function TransactionImportDialog({
                           }
                         >
                           Use This Match
-                        </button>
-                      ) : null}
-                      {candidate.status === "new" && !availableRegisterMatchCandidates.length ? (
-                        <button
-                          className="button button-secondary"
-                          type="button"
-                          disabled={Boolean(processingCandidate)}
-                          onClick={() => void openRegisterMatchPicker(candidate.id)}
-                        >
-                          Find Existing Transaction
                         </button>
                       ) : null}
                       <button
@@ -4298,6 +3979,205 @@ export function TransactionImportDialog({
                 </div>
               ))}
             </div>
+          </div>
+        ) : null}
+
+        {transactionEditDraft && transactionEditCandidate ? (
+          <div
+            className="transaction-import-transaction-editor-backdrop"
+            role="presentation"
+            onClick={closeTransactionEdit}
+          >
+            <section
+              className="transaction-import-transaction-editor"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="transaction-import-edit-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <header>
+                <div>
+                  <h3 id="transaction-import-edit-title">Edit transaction</h3>
+                  <p>
+                    Date and amount come from the bank file and cannot be changed here.
+                  </p>
+                </div>
+                <button
+                  className="transaction-import-close-button"
+                  type="button"
+                  aria-label="Close transaction editor"
+                  onClick={closeTransactionEdit}
+                >
+                  ×
+                </button>
+              </header>
+
+              <div className="transaction-import-transaction-editor-source">
+                <span><strong>Date</strong>{formatImportReviewDate(transactionEditCandidate.parsed.date)}</span>
+                <span><strong>Amount</strong>{formatMoney(
+                  transactionEditCandidate.parsed.inflow - transactionEditCandidate.parsed.outflow,
+                  currencyCode,
+                )}</span>
+              </div>
+
+              <label>
+                <span>Payee</span>
+                <PayeeInput
+                  value={transactionEditDraft.payee}
+                  transferAccounts={transferAccounts.filter(
+                    (account) => account.id !== selectedAccountId,
+                  )}
+                  payeeOptions={payeeOptions}
+                  onChange={(value) =>
+                    setTransactionEditDraft((current) =>
+                      current ? { ...current, payee: value } : current,
+                    )
+                  }
+                  onSelection={(value) =>
+                    setTransactionEditDraft((current) =>
+                      current ? { ...current, payee: value } : current,
+                    )
+                  }
+                />
+              </label>
+
+              <label>
+                <span>Category</span>
+                <RegisterCategoryInput
+                  value={transactionEditDraft.category}
+                  categoryOptions={categoryOptions}
+                  includeSplitOption
+                  onCreateCategory={onCreateCategory}
+                  onChange={(value) =>
+                    setTransactionEditDraft((current) =>
+                      current ? { ...current, category: value } : current,
+                    )
+                  }
+                  onSelection={(value) =>
+                    setTransactionEditDraft((current) =>
+                      current ? { ...current, category: value } : current,
+                    )
+                  }
+                />
+              </label>
+
+              <label>
+                <span>Memo</span>
+                <input
+                  value={transactionEditDraft.memo}
+                  onChange={(event) =>
+                    setTransactionEditDraft((current) =>
+                      current ? { ...current, memo: event.target.value } : current,
+                    )
+                  }
+                />
+                <small>
+                  A memo saved here is kept even when “Don’t import transaction memos” is enabled.
+                </small>
+              </label>
+
+              <fieldset className="transaction-import-transaction-editor-tags">
+                <legend>Tags</legend>
+                {transactionTags.length === 0 ? (
+                  <span className="muted">No tags have been created yet.</span>
+                ) : (
+                  transactionTags.map((tag) => (
+                    <label key={tag.id}>
+                      <input
+                        type="checkbox"
+                        checked={transactionEditDraft.tagIds.includes(tag.id)}
+                        onChange={(event) =>
+                          setTransactionEditDraft((current) =>
+                            current
+                              ? {
+                                  ...current,
+                                  tagIds: event.target.checked
+                                    ? [...new Set([...current.tagIds, tag.id])]
+                                    : current.tagIds.filter((tagId) => tagId !== tag.id),
+                                }
+                              : current,
+                          )
+                        }
+                      />
+                      <span>{tag.name}</span>
+                    </label>
+                  ))
+                )}
+              </fieldset>
+
+              <div className="transaction-import-transaction-editor-attachments">
+                <div>
+                  <strong>Attachments</strong>
+                  {transactionEditCandidate.matchedTransaction?.attachmentCount ? (
+                    <small>
+                      {transactionEditCandidate.matchedTransaction.attachmentCount} existing attachment
+                      {transactionEditCandidate.matchedTransaction.attachmentCount === 1 ? "" : "s"} will remain.
+                    </small>
+                  ) : null}
+                </div>
+                <input
+                  type="file"
+                  multiple
+                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                  disabled={transactionEditAttachmentBusy}
+                  onChange={(event) => {
+                    void addTransactionEditAttachments(event.target.files);
+                    event.target.value = "";
+                  }}
+                />
+                {transactionEditDraft.attachments.length > 0 ? (
+                  <ul>
+                    {transactionEditDraft.attachments.map((attachment) => (
+                      <li key={attachment.id}>
+                        <span>{attachment.fileName}</span>
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          disabled={transactionEditAttachmentBusy}
+                          onClick={() =>
+                            setTransactionEditDraft((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    attachments: current.attachments.filter(
+                                      (entry) => entry.id !== attachment.id,
+                                    ),
+                                  }
+                                : current,
+                            )
+                          }
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+
+              {transactionEditError ? (
+                <p className="transaction-import-error">{transactionEditError}</p>
+              ) : null}
+
+              <footer>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  disabled={transactionEditAttachmentBusy}
+                  onClick={closeTransactionEdit}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="button button-primary"
+                  type="button"
+                  disabled={transactionEditAttachmentBusy}
+                  onClick={() => saveTransactionEdit(transactionEditCandidate)}
+                >
+                  Save transaction
+                </button>
+              </footer>
+            </section>
           </div>
         ) : null}
 

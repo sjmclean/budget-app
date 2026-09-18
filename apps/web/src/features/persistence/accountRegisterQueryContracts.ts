@@ -167,6 +167,7 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     )[];
     readonly provenanceAssignments: readonly RegisterTransactionImportProvenanceAssignment[];
     readonly payeeCreations: readonly RegisterTransactionImportPayeeCreation[];
+    readonly attachmentCreations?: readonly RegisterTransactionImportAttachmentCreation[];
   }): Promise<void>;
 
   commitImportBatchWithHistory(input: {
@@ -176,6 +177,7 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     readonly updates: readonly (TransactionWriteInput & { readonly id: string })[];
     readonly provenanceAssignments: readonly RegisterTransactionImportProvenanceAssignment[];
     readonly payeeCreations: readonly RegisterTransactionImportPayeeCreation[];
+    readonly attachmentCreations?: readonly RegisterTransactionImportAttachmentCreation[];
   }): Promise<{ readonly before: ImportHistorySnapshot; readonly after: ImportHistorySnapshot }>;
 
   replaceImportHistorySnapshot(input: {
@@ -558,6 +560,19 @@ export interface RegisterTransactionImportProvenanceAssignment {
   readonly identity: string;
   readonly occurrence: number;
   readonly importedAt: string;
+}
+
+export interface RegisterTransactionImportAttachmentCreation {
+  readonly transactionId: string;
+  readonly attachment: {
+    readonly id: string;
+    readonly fileName: string;
+    readonly fileSize: number;
+    readonly mimeType: string;
+    readonly attachedAt: string;
+    readonly contentHash: string;
+  };
+  readonly content: Uint8Array;
 }
 
 export interface ImportedTransactionSourceOccurrence {

@@ -788,12 +788,18 @@ export class LocalBudgetDatabaseClient {
       readonly requireAbsentTransactionIds?: readonly string[];
       readonly verifyWrittenTransactions?: boolean;
     } = {},
+    attachmentWrites: readonly {
+      readonly attachment: LocalTransactionAttachmentRecord;
+      readonly content: Uint8Array;
+      readonly mutation: LocalBudgetMutation;
+    }[] = [],
   ): Promise<LocalBudgetManifest> {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "writeImportBatch",
       payeeWrites,
       writes,
+      attachmentWrites,
       ...(options.requireAbsentTransactionIds?.length
         ? {
             requireAbsentTransactionIds:
@@ -815,9 +821,10 @@ export class LocalBudgetDatabaseClient {
       readonly historyTransactionIds: readonly string[];
       readonly historyPayeeIds: readonly string[];
     },
+    attachmentWrites: readonly { readonly attachment: LocalTransactionAttachmentRecord; readonly content: Uint8Array; readonly mutation: LocalBudgetMutation }[] = [],
   ): Promise<{ readonly before: ImportHistorySnapshot; readonly after: ImportHistorySnapshot }> {
     return this.#request({
-      requestId: createRuntimeUuid(), type: "writeImportBatchWithHistory", payeeWrites, writes,
+      requestId: createRuntimeUuid(), type: "writeImportBatchWithHistory", payeeWrites, writes, attachmentWrites,
       requireAbsentTransactionIds: options.requireAbsentTransactionIds,
       verifyWrittenTransactions: options.verifyWrittenTransactions,
       historyTransactionIds: options.historyTransactionIds,

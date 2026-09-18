@@ -94,11 +94,17 @@ function toRegisterTransactionInput(
         : resolvedCategory?.id ??
           (isReadyToAssignIncome ? "__ready_to_assign__" : undefined),
     transferAccountId: isTransfer ? resolvedTransferAccount?.id : undefined,
-    memo: options.includeMemos === false
-      ? undefined
-      : "memo" in proposal
-        ? proposal.memo
-        : parsed.memo,
+    memo: proposal.memoReviewed
+      ? proposal.memo
+      : options.includeMemos === false
+        ? undefined
+        : "memo" in proposal
+          ? proposal.memo
+          : parsed.memo,
+    tagIds: proposal.tagIds ? [...proposal.tagIds] : undefined,
+    scheduledAttachments: proposal.attachments
+      ? proposal.attachments.map((attachment) => ({ ...attachment }))
+      : undefined,
     outflow: parsed.outflow,
     inflow: parsed.inflow,
     splitLines: reviewedSplitLines,
