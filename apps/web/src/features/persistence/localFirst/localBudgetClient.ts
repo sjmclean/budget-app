@@ -242,6 +242,14 @@ export class LocalBudgetDatabaseClient {
     return this.#publishDatabasePromotion(promotion);
   }
 
+  async commitBaselineClone(): Promise<LocalBudgetManifest> {
+    const promotion = await this.#request<LocalDatabasePromotionResult>({
+      requestId: createRuntimeUuid(),
+      type: "commitBaselineClone",
+    });
+    return this.#publishDatabasePromotion(promotion);
+  }
+
   prepareRestorePoint(input: { budgetId: string; pointId: string; syncEpoch: string; deviceId: string }): Promise<LocalDatabasePromotionResult> {
     return this.#request({ requestId: createRuntimeUuid(), type: "prepareRestorePoint", ...input });
   }
