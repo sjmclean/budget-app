@@ -146,7 +146,11 @@ export async function createBudgetFromSqliteBackup(
       } else {
         storage.setItem(BUDGET_REGISTRY_STORAGE_KEY, registryBeforeImport);
       }
-      await storage.flush?.().catch(() => undefined);
+      try {
+        await storage.flush?.();
+      } catch {
+        // Best-effort registry rollback; the original import error remains primary.
+      }
     }
     if (database) {
       if (replacementStarted) {
