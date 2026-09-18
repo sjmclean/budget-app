@@ -299,6 +299,15 @@ function formatMoney(value: number, currencyCode: string) {
   }).format(value);
 }
 
+function decodeImportAttachment(contentBase64: string): Uint8Array {
+  const binary = atob(contentBase64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
 function formatPayeeLastUsed(
   value: string | undefined,
   dateFormat: ReturnType<typeof useDateFormatPreference>,
@@ -2092,6 +2101,7 @@ export function AccountRegisterPage() {
             currencyCode={data.currencyCode}
             payeeOptions={payeeOptions}
             categoryOptions={categoryOptions}
+            transactionTags={transactionTags}
             transferAccounts={transferAccounts}
             onCreateCategory={createInlineCategory}
             onLearnPayeeAliases={learnPayeeAliases}
@@ -2246,7 +2256,25 @@ export function AccountRegisterPage() {
                 inflow: transaction.inflow,
                 outflow: transaction.outflow,
                 splitLines: transaction.splitLines,
+                scheduledAttachments: transaction.scheduledAttachments,
               }));
+              const attachmentCreations = [
+                ...additions,
+                ...updates,
+              ].flatMap((transaction) =>
+                (transaction.scheduledAttachments ?? []).map((attachment) => ({
+                  transactionId: transaction.id!,
+                  attachment: {
+                    id: `${transaction.id}:attachment:${attachment.id}`,
+                    fileName: attachment.fileName,
+                    fileSize: attachment.fileSize,
+                    mimeType: attachment.mimeType,
+                    attachedAt: attachment.attachedAt,
+                    contentHash: attachment.contentHash,
+                  },
+                  content: decodeImportAttachment(attachment.contentBase64),
+                })),
+              );
 
               const queries = persistenceGateway.accountRegisterQueries;
               if (storageMode === "sqlite" && activeBudgetId && queries) {
@@ -2276,6 +2304,7 @@ export function AccountRegisterPage() {
                   })),
                   provenanceAssignments,
                   payeeCreations,
+                  attachmentCreations,
                 }));
                 if (!result.performed) {
                   throw new Error(result.error ?? "Import history command failed.");
@@ -2290,7 +2319,8 @@ export function AccountRegisterPage() {
 
               if (
                 provenanceAssignments.length > 0 ||
-                payeeCreations.length > 0
+                payeeCreations.length > 0 ||
+                attachmentCreations.length > 0
               ) {
                 throw new Error(
                   "Import provenance or staged payee creation requires SQLite transaction persistence.",
