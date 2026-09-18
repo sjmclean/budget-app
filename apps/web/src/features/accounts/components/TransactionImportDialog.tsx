@@ -1400,10 +1400,13 @@ export function TransactionImportDialog({
   function processCandidate(
     candidateId: string,
     action: ProcessedImportAction,
+    resolvedCandidate?: TransactionImportCandidate,
   ) {
     if (processingCandidateRef.current) return;
 
-    const candidate = candidates.find((entry) => entry.id === candidateId);
+    const candidate =
+      resolvedCandidate ??
+      candidates.find((entry) => entry.id === candidateId);
     if (!candidate) return;
 
     if (action === "matched") {
@@ -2167,19 +2170,13 @@ export function TransactionImportDialog({
       );
       return false;
     }
-    setMatchEditorOrigins((origins) => ({
-      ...origins,
-      [candidate.id]: origins[candidate.id] ?? candidate,
-    }));
-    setCandidates((current) =>
-      current.map((entry) => entry.id === candidateId ? selected : entry),
-    );
     setMatchedTransactionOrigins((origins) => {
       const next = { ...origins };
       delete next[candidateId];
       return next;
     });
     setError(null);
+    processCandidate(candidateId, "matched", selected);
     return true;
   }
 
@@ -3440,6 +3437,18 @@ export function TransactionImportDialog({
                 ),
                 historicalUpdates: historicalRegisterPayeeUpdates,
               });
+              const manualEditsForCandidate =
+                manualCandidateEdits[candidate.id];
+              const hasManualProposalEdits = Boolean(
+                manualEditsForCandidate?.payee ||
+                  manualEditsForCandidate?.category ||
+                  manualEditsForCandidate?.memo,
+              );
+              const showUnmatchedComparison =
+                !hasMatch &&
+                candidate.status !== "invalid" &&
+                (availableRegisterMatchCandidates.length > 0 ||
+                  hasManualProposalEdits);
               const activeProcessingCandidate =
                 processingCandidate?.id === candidate.id
                   ? processingCandidate
@@ -3510,40 +3519,27 @@ export function TransactionImportDialog({
                         {formatImportReviewDate(bankParsed.date)}
                       </span>
                       <strong className="transaction-import-match-payee">
-                        {hasMatch
-                          ? bankParsed.payee || "Missing payee"
-                          : candidate.lifecycle.proposal.payee || bankParsed.payee || "Choose payee"}
-                        {!hasMatch && candidate.lifecycle.proposal.payee !== bankParsed.payee ? (
-                          <small className="transaction-import-payee-alias-note">
-                            Bank: {bankParsed.payee || "Missing payee"}
-                          </small>
-                        ) : candidate.lifecycle.merchant.aliasSourcePayee ? (
+                        {sourcePayee || "Missing payee"}
+                        {!hasManualProposalEdits &&
+                        candidate.lifecycle.proposal.payee !== sourcePayee ? (
                           <small className="transaction-import-payee-alias-note">
                             Imports as {candidate.lifecycle.proposal.payee}
                           </small>
                         ) : null}
-                        {candidate.lifecycle.merchant.canonicalPayee !== sourcePayee ? (
-                          <small className="transaction-import-payee-alias-note">
-                            Source: {sourcePayee} · Recognised as {candidate.lifecycle.merchant.canonicalPayee}
-                            {candidate.lifecycle.merchant.recognitionReason
-                              ? ` · ${candidate.lifecycle.merchant.recognitionReason}`
-                              : ""}
-                          </small>
-                        ) : null}
                       </strong>
                       <span className="transaction-import-match-detail">
-                        {hasMatch
-                          ? bankParsed.memo || "—"
-                          : candidate.lifecycle.proposal.transferAccountName
-                            ? `${accountName} → ${candidate.lifecycle.proposal.transferAccountName}`
-                            : candidate.lifecycle.proposal.categoryName || "Choose category"}
+                        {candidate.lifecycle.source.transferAccountName
+                          ? `${accountName} → ${candidate.lifecycle.source.transferAccountName}`
+                          : candidate.lifecycle.source.importedCategoryName ??
+                            candidate.lifecycle.source.memo ??
+                            "—"}
                       </span>
                       <strong className={`transaction-import-match-amount ${bankParsed.inflow > 0 && bankParsed.outflow === 0 ? "money-positive" : bankParsed.outflow > 0 ? "money-negative" : ""}`}>
                         {amountLabel}
                       </strong>
                     </div>
 
-                    {!hasMatch && candidate.status !== "invalid" ? (
+                    {showUnmatchedComparison ? (
                       <>
                         <div className="transaction-import-match-arrow" aria-hidden="true">↔</div>
                         <div className="transaction-import-match-row transaction-import-match-row-existing">
@@ -4382,7 +4378,7 @@ export function TransactionImportDialog({
                           if (selected) setWeakMatchReviewCandidateId(null);
                         }}
                       >
-                        Choose this transaction
+                        Use this transaction
                       </button>
                     </article>
                   );
