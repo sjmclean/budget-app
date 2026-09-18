@@ -3,6 +3,7 @@ import type { PersistenceChangeScope } from "../../persistenceChangeBus";
 import { createRuntimeUuid } from "../../../ids/createRuntimeUuid";
 import type { LocalBudgetMutation, LocalBudgetOperationGroup } from "../contracts";
 import type { LocalBudgetDatabaseClient } from "../localBudgetClient";
+import { committedCommandResult, emptyCommandChange, type CommittedCommandMethods } from "./commandContext";
 
 type AccountCommands = Pick<
   LocalBudgetRuntimeClient,
@@ -26,11 +27,6 @@ type CreateMutation = (
 export interface AccountCommandDependencies {
   readonly requireDatabase: (budgetId: string) => Promise<LocalBudgetDatabaseClient>;
   readonly createMutation: CreateMutation;
-  readonly discardFailedMutation: (mutationId: string) => void;
-  readonly recordCommittedChange: (
-    budgetId: string,
-    change: Omit<PersistenceChangeScope, "budgetId">,
-  ) => void;
 }
 
 async function listLocalAccounts(local: LocalBudgetDatabaseClient, budgetId: string) {
@@ -46,7 +42,7 @@ async function listLocalAccounts(local: LocalBudgetDatabaseClient, budgetId: str
 }
 
 /** Final implementation owner for ordinary account commands and account history replacement. */
-export function createAccountCommands(dependencies: AccountCommandDependencies): AccountCommands {
+export function createAccountCommands(dependencies: AccountCommandDependencies): CommittedCommandMethods<AccountCommands> {
   return {
     async createAccount(budgetId, input) {
       const local = await dependencies.requireDatabase(budgetId);
@@ -64,35 +60,30 @@ export function createAccountCommands(dependencies: AccountCommandDependencies):
         createdAt: now,
         closedAt: null,
       };
-      await local.writeAccount(
-        account,
-        dependencies.createMutation(budgetId, "accounts", account.id, "upsert", account),
-      );
-      dependencies.recordCommittedChange(budgetId, {
+      const mutation = dependencies.createMutation(budgetId, "accounts", account.id, "upsert", account);
+      await local.writeAccount(account, mutation);
+      const result = await listLocalAccounts(local, budgetId);
+      return committedCommandResult(result, [mutation], { budgetId,
         domains: ["accounts", "budget"],
         accountIds: [account.id],
       });
-      return listLocalAccounts(local, budgetId);
     },
 
     async replaceAccountHistoryState(input) {
       const local = await dependencies.requireDatabase(input.budgetId);
+      const mutation = dependencies.createMutation(
+        input.budgetId, "accounts", input.accountId, input.replacement ? "upsert" : "delete", input.replacement,
+      );
       await local.replaceAccountHistoryState({
         accountId: input.accountId,
         expected: input.expected,
         replacement: input.replacement,
-        mutation: dependencies.createMutation(
-          input.budgetId,
-          "accounts",
-          input.accountId,
-          input.replacement ? "upsert" : "delete",
-          input.replacement,
-        ),
+        mutation,
       });
       const affectsBudget =
         input.expected?.participation !== input.replacement?.participation ||
         input.expected?.openingBalance !== input.replacement?.openingBalance;
-      dependencies.recordCommittedChange(input.budgetId, {
+      return committedCommandResult(undefined, [mutation], { budgetId: input.budgetId,
         domains: affectsBudget ? ["accounts", "budget"] : ["accounts"],
         accountIds: [input.accountId],
       });
@@ -113,15 +104,13 @@ export function createAccountCommands(dependencies: AccountCommandDependencies):
         createdAt: new Date(0).toISOString(),
         closedAt: current.closedAt,
       };
-      await local.writeAccount(
-        account,
-        dependencies.createMutation(budgetId, "accounts", account.id, "upsert", account),
-      );
-      dependencies.recordCommittedChange(budgetId, {
+      const mutation = dependencies.createMutation(budgetId, "accounts", account.id, "upsert", account);
+      await local.writeAccount(account, mutation);
+      const result = await listLocalAccounts(local, budgetId);
+      return committedCommandResult(result, [mutation], { budgetId,
         domains: current.participation === account.participation ? ["accounts"] : ["accounts", "budget"],
         accountIds: [account.id],
       });
-      return listLocalAccounts(local, budgetId);
     },
 
     async setAccountClosed(input) {
@@ -139,11 +128,9 @@ export function createAccountCommands(dependencies: AccountCommandDependencies):
         createdAt: new Date(0).toISOString(),
         closedAt: input.closed ? new Date().toISOString() : null,
       };
-      await local.writeAccount(
-        account,
-        dependencies.createMutation(input.budgetId, "accounts", account.id, "upsert", account),
-      );
-      dependencies.recordCommittedChange(input.budgetId, {
+      const mutation = dependencies.createMutation(input.budgetId, "accounts", account.id, "upsert", account);
+      await local.writeAccount(account, mutation);
+      return committedCommandResult(undefined, [mutation], { budgetId: input.budgetId,
         domains: ["accounts"],
         accountIds: [input.accountId],
       });
@@ -158,19 +145,19 @@ export function createAccountCommands(dependencies: AccountCommandDependencies):
           accountId,
           mutation,
         );
-        dependencies.recordCommittedChange(budgetId, {
+        const result = { deleted: true as const, accounts: [...await listLocalAccounts(local, budgetId)] };
+        return committedCommandResult(result, [mutation], { budgetId,
           domains: ["accounts", "budget"],
           accountIds: [accountId],
         });
-        return { deleted: true, accounts: [...await listLocalAccounts(local, budgetId)] };
       } catch (error) {
         if ((error as { code?: string }).code !== "ACCOUNT_NOT_EMPTY") throw error;
-        dependencies.discardFailedMutation(mutation.mutationId);
-        return {
-          deleted: false,
+        const result = {
+          deleted: false as const,
           reason: "This account contains transactions and cannot be deleted.",
           accounts: [...await listLocalAccounts(local, budgetId)],
         };
+        return committedCommandResult(result, [], emptyCommandChange(budgetId));
       }
     },
   };

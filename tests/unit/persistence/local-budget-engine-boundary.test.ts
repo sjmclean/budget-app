@@ -92,7 +92,7 @@ test("all ordinary transaction implementations are engine-module owned", () => {
     "setTransactionsCleared",
     "deleteTransaction",
   ]) {
-    assert.match(runtime, new RegExp(`${method}: transactionCommands\\.${method}`));
+    assert.match(runtime, new RegExp(`${method}: publicOrdinaryCommands\\.${method}`));
     assert.doesNotMatch(runtime, new RegExp(`async ${method}\\s*\\(`));
     assert.match(commands, new RegExp(`async ${method}\\s*\\(`));
   }
@@ -130,7 +130,7 @@ test("all ordinary account implementations are engine-module owned", () => {
     "setAccountClosed",
     "deleteAccount",
   ]) {
-    assert.match(runtime, new RegExp(`${method}: accountCommands\\.${method}`));
+    assert.match(runtime, new RegExp(`${method}: publicOrdinaryCommands\\.${method}`));
     assert.doesNotMatch(runtime, new RegExp(`async ${method}\\s*\\(`));
     assert.match(commands, new RegExp(`async ${method}\\s*\\(`));
   }
@@ -141,7 +141,7 @@ test("all ordinary account implementations are engine-module owned", () => {
   );
   assert.doesNotMatch(runtime, /function listLocalAccounts\s*\(/);
   assert.doesNotMatch(commands, /\bsynchronise\b/);
-  assert.match(commands, /discardFailedMutation\(mutation\.mutationId\)/);
+  assert.doesNotMatch(commands, /discardFailedMutation|recordCommittedChange/);
 });
 
 test("all ordinary budget and category implementations and helpers are engine-module owned", () => {
@@ -153,7 +153,7 @@ test("all ordinary budget and category implementations and helpers are engine-mo
     "mutateCategory",
     "replaceBudgetMonthHistoryState",
   ]) {
-    assert.match(runtime, new RegExp(`${method}: budgetCategoryCommands\\.${method}`));
+    assert.match(runtime, new RegExp(`${method}: publicOrdinaryCommands\\.${method}`));
     assert.doesNotMatch(runtime, new RegExp(`async ${method}\\s*\\(`));
     assert.match(commands, new RegExp(`async ${method}\\s*\\(`));
   }
@@ -182,7 +182,7 @@ test("all ordinary Category Goal implementations are engine-module owned", () =>
     "deleteCategoryGoal",
     "replaceCategoryGoalHistoryState",
   ]) {
-    assert.match(runtime, new RegExp(`${method}: categoryGoalCommands\\.${method}`));
+    assert.match(runtime, new RegExp(`${method}: publicOrdinaryCommands\\.${method}`));
     assert.doesNotMatch(runtime, new RegExp(`async ${method}\\s*\\(`));
     assert.match(commands, new RegExp(`async ${method}\\s*\\(`));
   }
@@ -196,7 +196,7 @@ test("all ordinary Category Goal implementations are engine-module owned", () =>
     /commitCategoryGoalMutation|normaliseCategoryGoalForPersistence|categoryGoalsEqual/,
   );
   assert.doesNotMatch(commands, /\bsynchronise\b/);
-  assert.match(commands, /discardFailedMutation\(mutation\.mutationId\)/);
+  assert.doesNotMatch(commands, /discardFailedMutation|recordCommittedChange/);
 });
 
 test("all ordinary payee implementations are engine-module owned", () => {
@@ -206,7 +206,7 @@ test("all ordinary payee implementations are engine-module owned", () => {
     "keepPayeesSeparate", "replacePayeeDuplicateSuppressionsHistoryState", "createPayee",
     "replacePayeeHistoryState", "updatePayee", "setPayeeArchived", "deleteUnusedPayee", "mergePayees",
   ]) {
-    assert.match(runtime, new RegExp(`${method}: payeeCommands\\.${method}`));
+    assert.match(runtime, new RegExp(`${method}: publicOrdinaryCommands\\.${method}`));
     assert.doesNotMatch(runtime, new RegExp(`async ${method}\\s*\\(`));
     assert.match(commands, new RegExp(`async ${method}\\s*\\(`));
   }
@@ -224,7 +224,7 @@ test("all ordinary scheduled transaction implementations are engine-module owned
     "updateScheduledTransaction", "deleteScheduledTransaction", "advanceScheduledTransaction",
     "renameScheduledPayeeReferences", "reassignScheduledPayeeReferences",
   ]) {
-    assert.match(runtime, new RegExp(`${method}: scheduledTransactionCommands\\.${method}`));
+    assert.match(runtime, new RegExp(`${method}: publicOrdinaryCommands\\.${method}`));
     assert.doesNotMatch(runtime, new RegExp(`async ${method}\\s*\\(`));
     assert.match(commands, new RegExp(`async ${method}\\s*\\(|${method}: replaceHistory`));
   }
@@ -243,7 +243,7 @@ test("all ordinary transaction and import history implementations are engine-mod
   for (const method of ["restoreTransactionHistorySnapshot", "deleteTransactionHistorySnapshot",
     "replaceTransactionHistorySnapshot", "commitImportBatch", "commitImportBatchWithHistory",
     "replaceImportHistorySnapshot"]) {
-    assert.match(runtime, new RegExp(`${method}: transactionHistoryCommands\\.${method}`));
+    assert.match(runtime, new RegExp(`${method}: publicOrdinaryCommands\\.${method}`));
     assert.doesNotMatch(runtime, new RegExp(`async ${method}\\s*\\(`));
     assert.match(commands, new RegExp(`async ${method}\\s*\\(`));
   }

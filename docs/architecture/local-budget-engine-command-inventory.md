@@ -70,13 +70,16 @@ All 45 ordinary entry points in the operation matrix are typed
 This is a routing statement only: it does not mean that every implementation
 has moved out of `localFirstAccountRegisterClient.ts`.
 
-P0.3e4a separates public methods from internal dispatch. The authoritative
+P0.3e4 separates public methods from internal dispatch and removes the
+completion recorder. The authoritative
 `LOCAL_BUDGET_COMMAND_METHODS` list contains 45 ordinary commands, and an
 exhaustive typed registry supplies one distinct internal handler object for
 each. Queries remain in `LocalBudgetQueryClient`; conflict listing plus
 keep-local/accept-remote recovery remain in `LocalBudgetConflictRecoveryClient`
 and are deliberately excluded from the ordinary-command count. Lifecycle,
 restore, and replication control-plane operations remain explicit exceptions.
+Every ordinary handler now returns `{ result, mutationIds, change }` directly;
+the public facade discards the metadata and exposes only the existing result.
 
 ### Physical domain extraction
 
@@ -161,12 +164,10 @@ Goal normalization and worker validation remain shared persistence policy in
 allocation, no-op mutation accounting, and scoped change recording are
 engine-module owned.
 
-Their domain return values are preserved. At this checkpoint, domain operations
-record mutation IDs and change impact in command-scoped contexts;
-`createDomainCommandHandler` converts that recorded state into a
-`CommittedCommandHandlerResult`, and the executor owns the single local
-publication. Direct committed metadata returns from every domain handler remain
-the P0.3e4 target after the transitional recorder is removed.
+Their domain return values are preserved. Domain operations derive mutation IDs
+from the mutations passed to the successful worker operation and return their
+precise change impact in `CommittedCommandHandlerResult`; the executor owns the
+single local publication. No ordinary completion recorder remains.
 
 ### Extracted payee handlers
 
@@ -180,7 +181,8 @@ the P0.3e4 target after the transitional recorder is removed.
 Payee listing, duplicate-suppression listing, and payee capture remain queries.
 The command module owns record construction, persisted lookup, history conflict
 checks, icon validation, mutation payloads, and precise affected-domain scopes.
-The transitional command recorder remains in place until P0.3e4.
+Payee handlers return committed metadata directly without a recorder side
+channel, including zero-mutation duplicate-suppression operations.
 
 | Original family | Public routing | Physical implementation owner |
 | --- | --- | --- |
@@ -205,12 +207,12 @@ The transitional command recorder remains in place until P0.3e4.
   `LocalBudgetCommandExecutor` and physically owned by an `engine/*Commands.ts`
   module. The last transaction-tag raw-write callback has been removed from the
   runtime; `engine/tagCommands.ts` now owns its mutation creation, worker call,
-  and recorded change scope.
+  and returned change scope.
 - Ordinary command bodies remaining in
   `localFirstAccountRegisterClient.ts`: **0**.
 - Ordinary publication sites outside the executor: **0**. The executor owns
-  the single ordinary-domain publication site. Domain handlers currently use
-  the transitional command-context recorder, which remains the P0.3e4 target.
+  the single ordinary-domain publication site. Domain handlers return committed
+  results directly; no ordinary command-context recorder remains.
 - Replication/recovery publication sites in the local-first runtime: remote
   mutation application, keep-local conflict replay, restore/recovery broad
   invalidation, and initial local database readiness. These are not ordinary

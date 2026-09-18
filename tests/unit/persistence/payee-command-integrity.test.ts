@@ -9,7 +9,6 @@ import type { LocalPayeeRecord } from "../../../apps/web/src/features/persistenc
 function harness(initial: LocalPayeeRecord[] = []) {
   const rows = new Map(initial.map((row) => [row.id, structuredClone(row)]));
   const committed: LocalBudgetMutation[] = [];
-  const changes: string[][] = [];
   let sequence = 0;
   let failDelete = false;
   const database = {
@@ -32,9 +31,8 @@ function harness(initial: LocalPayeeRecord[] = []) {
       return { mutationId: `m-${sequence}`, budgetId, syncEpoch: "epoch", deviceId: "device", deviceSequence: sequence,
         baseCursor: 0, domain, entityId, operation, payload, createdAt: "2026-01-01T00:00:00.000Z" };
     },
-    recordCommittedChange(_budgetId, change) { changes.push([...change.domains]); },
   });
-  return { commands, rows, committed, changes, setFailDelete(value: boolean) { failDelete = value; } };
+  return { commands, rows, committed, setFailDelete(value: boolean) { failDelete = value; } };
 }
 
 const payee = (id: string, archived = false): LocalPayeeRecord => ({
@@ -44,10 +42,10 @@ const payee = (id: string, archived = false): LocalPayeeRecord => ({
 
 test("payee create/update/archive/delete preserve mutation and scope integrity", async () => {
   const h = harness();
-  await h.commands.createPayee("budget", " New payee ", "new");
+  const created = await h.commands.createPayee("budget", " New payee ", "new");
   assert.equal(h.rows.get("new")?.name, "New payee");
   assert.equal(h.committed[0]?.mutationId, "m-1");
-  assert.deepEqual(h.changes[0], ["payees"]);
+  assert.deepEqual(created.change.domains, ["payees"]);
 
   await h.commands.updatePayee("budget", { id: "new", name: "Renamed" });
   assert.equal(h.rows.get("new")?.note, "");
@@ -71,11 +69,9 @@ test("history conflict and worker failure record no committed change", async () 
     budgetId: "budget", payeeId: "a", expected: null, replacement: null,
   }), /PAYEE_HISTORY_CONFLICT/);
   assert.equal(h.committed.length, 0);
-  assert.equal(h.changes.length, 0);
   h.setFailDelete(true);
   await assert.rejects(() => h.commands.deleteUnusedPayee?.("budget", "a"), /worker failed/);
   assert.equal(h.committed.length, 0);
-  assert.equal(h.changes.length, 0);
 });
 
 test("payee merge scopes only requested linked domains and commits one mutation", async () => {
@@ -86,22 +82,23 @@ test("payee merge scopes only requested linked domains and commits one mutation"
     [true, true, ["payees", "transactions", "scheduled-transactions"]],
   ] as const) {
     const h = harness([payee("source"), payee("target")]);
-    await h.commands.mergePayees("budget", {
+    const result = await h.commands.mergePayees("budget", {
       sourcePayeeId: "source", targetPayeeId: "target",
       updateLinkedTransactions: linked, updateScheduledTransactions: scheduled,
     });
     assert.equal(h.committed.length, 1);
     assert.equal(h.committed[0]?.mutationId, "m-1");
-    assert.deepEqual(h.changes, [expected]);
+    assert.deepEqual(result.change.domains, expected);
   }
 });
 
 test("duplicate suppression commands commit payee scope without fabricating mutations", async () => {
   const h = harness();
-  await h.commands.keepPayeesSeparate?.("budget", [{ leftPayeeId: "a", rightPayeeId: "b" }]);
-  await h.commands.replacePayeeDuplicateSuppressionsHistoryState?.({
+  const separate = await h.commands.keepPayeesSeparate("budget", [{ leftPayeeId: "a", rightPayeeId: "b" }]);
+  const replaced = await h.commands.replacePayeeDuplicateSuppressionsHistoryState({
     budgetId: "budget", expected: [], replacement: [{ leftPayeeId: "a", rightPayeeId: "b" }],
   });
   assert.equal(h.committed.length, 0);
-  assert.deepEqual(h.changes, [["payees"], ["payees"]]);
+  assert.deepEqual(separate.change.domains, ["payees"]);
+  assert.deepEqual(replaced.change.domains, ["payees"]);
 });

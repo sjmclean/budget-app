@@ -2,12 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { flushPersistenceChanges, subscribePersistenceChanges } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
-import { LocalBudgetCommandContext } from "../../../apps/web/src/features/persistence/localFirst/engine/commandContext.js";
-import { createDomainCommandHandler } from "../../../apps/web/src/features/persistence/localFirst/engine/domainCommandHandlers.js";
 import { LocalBudgetCommandExecutor } from "../../../apps/web/src/features/persistence/localFirst/engine/localBudgetCommandExecutor.js";
 import { LocalBudgetMutationContext } from "../../../apps/web/src/features/persistence/localFirst/engine/mutationContext.js";
 import { createTransactionCommands } from "../../../apps/web/src/features/persistence/localFirst/engine/transactionCommands.js";
-import { deriveTransactionChangeScope } from "../../../apps/web/src/features/persistence/localFirst/persistenceChangeImpact.js";
 import type { LocalBudgetMutation } from "../../../apps/web/src/features/persistence/localFirst/contracts.js";
 import type { LocalBudgetDatabaseClient } from "../../../apps/web/src/features/persistence/localFirst/localBudgetClient.js";
 import type { LocalTransactionRecord } from "../../../apps/web/src/features/persistence/localFirst/registerSchema.js";
@@ -39,7 +36,6 @@ async function executeMove(records: readonly LocalTransactionRecord[]) {
     currentSyncEpoch: () => "epoch-a",
     currentBaseCursor: () => 4,
   });
-  const context = new LocalBudgetCommandContext(mutations);
   const database = {
     async getTransaction(_budgetId: string, transactionId: string) {
       return stored.get(transactionId) ?? null;
@@ -53,22 +49,14 @@ async function executeMove(records: readonly LocalTransactionRecord[]) {
   const commands = createTransactionCommands({
     requireDatabase: async () => database,
     createMutation: mutations.createMutation.bind(mutations),
-    recordCommittedChange: context.recordCommittedChange.bind(context),
-    recordTransactionsCommitted: (id, before, after = [], transactionIds) => {
-      const change = deriveTransactionChangeScope({ budgetId: id, before, after, transactionIds });
-      context.recordCommittedChange(id, change);
-    },
   });
   let publications = 0;
   const unsubscribe = subscribePersistenceChanges(() => { publications += 1; });
-  const result = await new LocalBudgetCommandExecutor().execute("move:test", createDomainCommandHandler({
-    budgetId,
-    context,
-    operation: () => commands.moveTransactions({
+  const result = await new LocalBudgetCommandExecutor().execute("move:test", { execute: () => commands.moveTransactions({
       budgetId, sourceAccountId: "checking", targetAccountId: "joint",
       transactionIds: [records[0]!.id],
     }),
-  }));
+  });
   flushPersistenceChanges();
   unsubscribe();
   return { committed, result, publications, sequence: Number(values.get(sequenceKey)) };

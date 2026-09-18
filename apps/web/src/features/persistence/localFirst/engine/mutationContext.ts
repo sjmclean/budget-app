@@ -16,7 +16,6 @@ export class LocalBudgetMutationContext {
   readonly #currentSyncEpoch: () => string | null;
   readonly #currentBaseCursor: () => number;
   #deviceSequence: number;
-  #activeMutationIds: string[] | null = null;
 
   constructor(options: LocalBudgetMutationContextOptions) {
     this.#storage = options.storage;
@@ -44,7 +43,6 @@ export class LocalBudgetMutationContext {
     this.#deviceSequence += 1;
     this.#storage.setItem(this.#sequenceKey, String(this.#deviceSequence));
     const mutationId = createRuntimeUuid();
-    this.#activeMutationIds?.push(mutationId);
     return {
       mutationId,
       ...(operationGroupId ? { operationGroupId } : {}),
@@ -62,24 +60,4 @@ export class LocalBudgetMutationContext {
     };
   }
 
-  beginCommand(): void {
-    if (this.#activeMutationIds) throw new Error("A local budget command is already active.");
-    this.#activeMutationIds = [];
-  }
-
-  commitCommand(): readonly string[] {
-    if (!this.#activeMutationIds) throw new Error("No local budget command is active.");
-    const committed = this.#activeMutationIds;
-    this.#activeMutationIds = null;
-    return committed;
-  }
-
-  discardFailedMutation(mutationId: string): void {
-    if (!this.#activeMutationIds) throw new Error("No local budget command is active.");
-    this.#activeMutationIds = this.#activeMutationIds.filter((id) => id !== mutationId);
-  }
-
-  abortCommand(): void {
-    this.#activeMutationIds = null;
-  }
 }

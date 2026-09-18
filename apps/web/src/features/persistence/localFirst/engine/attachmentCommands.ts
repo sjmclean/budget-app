@@ -5,11 +5,13 @@ import type {
   LocalTransactionAttachmentRecord,
 } from "../registerSchema";
 import type { LocalBudgetDatabaseClient } from "../localBudgetClient";
+import { committedCommandResult, type CommittedCommandMethods } from "./commandContext";
 
 type AttachmentCommands = Pick<
   LocalBudgetRuntimeClient,
   "addTransactionAttachment" | "removeTransactionAttachment" | "readTransactionAttachment"
 >;
+type AttachmentWriteCommands = Pick<AttachmentCommands, "addTransactionAttachment" | "removeTransactionAttachment">;
 
 export interface AttachmentCommandDependencies {
   readonly requireDatabase: (budgetId: string) => Promise<LocalBudgetDatabaseClient>;
@@ -21,16 +23,12 @@ export interface AttachmentCommandDependencies {
     payload: LocalTransactionAttachmentMutationPayload,
   ) => LocalBudgetMutation;
   readonly encodeBase64: (bytes: Uint8Array) => string;
-  readonly recordCommittedAttachmentChange: (
-    budgetId: string,
-    transactionId: string,
-  ) => void;
 }
 
 /** Owns replicated transaction-attachment writes and the paired binary read. */
 export function createAttachmentCommands(
   dependencies: AttachmentCommandDependencies,
-): AttachmentCommands {
+): CommittedCommandMethods<AttachmentWriteCommands> & Pick<AttachmentCommands, "readTransactionAttachment"> {
   return {
     async addTransactionAttachment(input) {
       const local = await dependencies.requireDatabase(input.budgetId);
@@ -49,18 +47,16 @@ export function createAttachmentCommands(
         attachment,
         contentBase64: dependencies.encodeBase64(input.content),
       };
+      const mutation = dependencies.createMutation(
+        input.budgetId, "transactions", `attachment:${attachment.id}`, "upsert", payload,
+      );
       await local.writeTransactionAttachment(
         attachment,
         input.content,
-        dependencies.createMutation(
-          input.budgetId,
-          "transactions",
-          `attachment:${attachment.id}`,
-          "upsert",
-          payload,
-        ),
+        mutation,
       );
-      dependencies.recordCommittedAttachmentChange(input.budgetId, input.transactionId);
+      return committedCommandResult(undefined, [mutation], { budgetId: input.budgetId,
+        domains: ["attachments", "transactions"], transactionIds: [input.transactionId] });
     },
 
     async removeTransactionAttachment(input) {
@@ -79,17 +75,15 @@ export function createAttachmentCommands(
         kind: "transaction-attachment-delete",
         attachment,
       };
+      const mutation = dependencies.createMutation(
+        input.budgetId, "transactions", `attachment:${input.attachmentId}`, "delete", payload,
+      );
       await local.deleteTransactionAttachment(
         input.attachmentId,
-        dependencies.createMutation(
-          input.budgetId,
-          "transactions",
-          `attachment:${input.attachmentId}`,
-          "delete",
-          payload,
-        ),
+        mutation,
       );
-      dependencies.recordCommittedAttachmentChange(input.budgetId, input.transactionId);
+      return committedCommandResult(undefined, [mutation], { budgetId: input.budgetId,
+        domains: ["attachments", "transactions"], transactionIds: [input.transactionId] });
     },
 
     async readTransactionAttachment(input) {

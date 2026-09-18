@@ -10,6 +10,7 @@ import type { LocalBudgetMutation, LocalBudgetOperationGroup } from "../contract
 import type { LocalBudgetDatabaseClient } from "../localBudgetClient";
 import type { TransactionHistorySnapshot } from "../registerSchema";
 import { buildNewTransactionRecords } from "./transactionCommandHelpers";
+import { committedCommandResult, emptyCommandChange, type CommittedCommandMethods } from "./commandContext";
 
 type ScheduledCommands = Pick<LocalBudgetRuntimeClient,
   | "replaceScheduledTransactionHistoryState" | "enterScheduledTransaction"
@@ -27,12 +28,6 @@ export interface ScheduledTransactionCommandDependencies {
   readonly createMutation: CreateMutation;
   readonly encodeBase64: (bytes: Uint8Array) => string;
   readonly decodeBase64: (value: string) => Uint8Array;
-  readonly recordCommittedChange: (budgetId: string, change: Omit<PersistenceChangeScope, "budgetId">) => void;
-}
-
-function recordScope(dependencies: ScheduledTransactionCommandDependencies, scope: PersistenceChangeScope) {
-  const { budgetId, ...change } = scope;
-  dependencies.recordCommittedChange(budgetId, change);
 }
 
 async function listSchedules(local: LocalBudgetDatabaseClient, accountId: string) {
@@ -81,7 +76,7 @@ function historyMembers(input: Parameters<NonNullable<ScheduledCommands["replace
       contentBase64: encodeBase64(attachment.content) } }))];
 }
 
-export function createScheduledTransactionCommands(dependencies: ScheduledTransactionCommandDependencies): ScheduledCommands {
+export function createScheduledTransactionCommands(dependencies: ScheduledTransactionCommandDependencies): CommittedCommandMethods<ScheduledCommands> {
   async function replaceHistory(input: Parameters<ScheduledCommands["replaceScheduledTransactionHistoryState"]>[0]) {
     const local = await dependencies.requireDatabase(input.budgetId);
     const members = historyMembers(input, dependencies.encodeBase64);
@@ -91,11 +86,12 @@ export function createScheduledTransactionCommands(dependencies: ScheduledTransa
       member.entityId, member.operation, member.payload, operationGroupId, group));
     await local.replaceScheduledTransactionHistoryState({ ...input, mutations });
     const mutationScope = persistenceScopeForMutations(input.budgetId, mutations);
-    recordScope(dependencies, input.expectedTransaction || input.replacementTransaction
+    const change = input.expectedTransaction || input.replacementTransaction
       ? mergePersistenceChangeScopes(input.budgetId, mutationScope, deriveTransactionChangeScope({
           budgetId: input.budgetId, before: input.expectedTransaction?.transactions,
           after: input.replacementTransaction?.transactions }))
-      : mutationScope);
+      : mutationScope;
+    return committedCommandResult(undefined, mutations, change);
   }
 
   async function writeSchedule(local: LocalBudgetDatabaseClient, budgetId: string, scheduleId: string,
@@ -103,7 +99,7 @@ export function createScheduledTransactionCommands(dependencies: ScheduledTransa
     const mutation = dependencies.createMutation(budgetId, "scheduledTransactions", scheduleId,
       payload ? "upsert" : "delete", payload);
     await local.mutate(mutation);
-    recordScope(dependencies, persistenceScopeForMutations(budgetId, [mutation]));
+    return committedCommandResult(undefined, [mutation], persistenceScopeForMutations(budgetId, [mutation]));
   }
 
   return {
@@ -127,43 +123,43 @@ export function createScheduledTransactionCommands(dependencies: ScheduledTransa
             mimeType: attachment.mimeType, attachedAt, contentHash: attachment.contentHash,
             content: dependencies.decodeBase64(attachment.contentBase64) })) };
       }
-      await replaceHistory({ budgetId: input.budgetId, scheduleId: current.id, expectedSchedule: current,
+      const committed = await replaceHistory({ budgetId: input.budgetId, scheduleId: current.id, expectedSchedule: current,
         replacementSchedule: afterSchedule, expectedTransaction: null, replacementTransaction: transaction });
-      return { afterSchedule, transaction };
+      return { ...committed, result: { afterSchedule, transaction } };
     },
     async createScheduledTransaction(budgetId, input) {
       const local = await dependencies.requireDatabase(budgetId);
       const schedule = buildScheduledTransaction(input);
-      await writeSchedule(local, budgetId, schedule.id, schedule);
-      return listSchedules(local, input.accountId);
+      const committed = await writeSchedule(local, budgetId, schedule.id, schedule);
+      return { ...committed, result: await listSchedules(local, input.accountId) };
     },
     async updateScheduledTransaction(budgetId, scheduleId, input) {
       const local = await dependencies.requireDatabase(budgetId);
       const existing = (await listSchedules(local, input.accountId)).find(({ id }) => id === scheduleId);
       if (!existing) throw new Error("The local scheduled transaction was not found.");
       const schedule = buildScheduledTransaction(input, { existing });
-      await writeSchedule(local, budgetId, schedule.id, schedule);
-      return listSchedules(local, input.accountId);
+      const committed = await writeSchedule(local, budgetId, schedule.id, schedule);
+      return { ...committed, result: await listSchedules(local, input.accountId) };
     },
     async deleteScheduledTransaction(budgetId, accountId, scheduleId) {
       const local = await dependencies.requireDatabase(budgetId);
-      await writeSchedule(local, budgetId, scheduleId, null);
-      return listSchedules(local, accountId);
+      const committed = await writeSchedule(local, budgetId, scheduleId, null);
+      return { ...committed, result: await listSchedules(local, accountId) };
     },
     async advanceScheduledTransaction(budgetId, accountId, scheduleId) {
       const local = await dependencies.requireDatabase(budgetId);
       const existing = (await listSchedules(local, accountId)).find(({ id }) => id === scheduleId);
-      if (!existing) return listSchedules(local, accountId);
+      if (!existing) return committedCommandResult(await listSchedules(local, accountId), [], emptyCommandChange(budgetId));
       const result = advanceScheduledTransaction(existing);
-      await writeSchedule(local, budgetId, scheduleId, result.action === "delete" ? null : result.transaction);
-      return listSchedules(local, accountId);
+      const committed = await writeSchedule(local, budgetId, scheduleId, result.action === "delete" ? null : result.transaction);
+      return { ...committed, result: await listSchedules(local, accountId) };
     },
     async renameScheduledPayeeReferences(budgetId, input) {
       const local = await dependencies.requireDatabase(budgetId);
       const rewritten = (await local.listEntities<ScheduledTransactionView>("scheduledTransactions"))
         .filter((schedule) => schedule.payeeId === input.payeeId || schedule.payee === input.previousName)
         .map((schedule) => ({ ...schedule, payee: input.nextName, updatedAt: new Date().toISOString() }));
-      if (rewritten.length === 0) return;
+      if (rewritten.length === 0) return committedCommandResult(undefined, [], emptyCommandChange(budgetId));
       const members: LocalBudgetOperationGroup["members"] = rewritten.map((schedule) => ({
         domain: "scheduledTransactions", entityId: schedule.id, operation: "upsert", payload: schedule,
       }));
@@ -172,7 +168,7 @@ export function createScheduledTransactionCommands(dependencies: ScheduledTransa
       const mutations = members.map((member) => dependencies.createMutation(budgetId, member.domain,
         member.entityId, member.operation, member.payload, operationGroupId, operationGroup));
       await local.mutateBatch(mutations);
-      recordScope(dependencies, persistenceScopeForMutations(budgetId, mutations));
+      return committedCommandResult(undefined, mutations, persistenceScopeForMutations(budgetId, mutations));
     },
     async reassignScheduledPayeeReferences(budgetId, input) {
       const local = await dependencies.requireDatabase(budgetId);
@@ -180,7 +176,7 @@ export function createScheduledTransactionCommands(dependencies: ScheduledTransa
         .filter((schedule) => schedule.payeeId === input.sourcePayeeId || schedule.payee === input.sourceName)
         .map((schedule) => ({ ...schedule, payeeId: input.targetPayeeId, payee: input.targetName,
           updatedAt: new Date().toISOString() }));
-      if (rewritten.length === 0) return;
+      if (rewritten.length === 0) return committedCommandResult(undefined, [], emptyCommandChange(budgetId));
       const members: LocalBudgetOperationGroup["members"] = rewritten.map((schedule) => ({
         domain: "scheduledTransactions", entityId: schedule.id, operation: "upsert", payload: schedule,
       }));
@@ -189,7 +185,7 @@ export function createScheduledTransactionCommands(dependencies: ScheduledTransa
       const mutations = members.map((member) => dependencies.createMutation(budgetId, member.domain,
         member.entityId, member.operation, member.payload, operationGroupId, operationGroup));
       await local.mutateBatch(mutations);
-      recordScope(dependencies, persistenceScopeForMutations(budgetId, mutations));
+      return committedCommandResult(undefined, mutations, persistenceScopeForMutations(budgetId, mutations));
     },
   };
 }

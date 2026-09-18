@@ -7,8 +7,7 @@ import {
 } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
 import type { LocalBudgetMutation } from "../../../apps/web/src/features/persistence/localFirst/contracts.js";
 import { createCategoryGoalCommands } from "../../../apps/web/src/features/persistence/localFirst/engine/categoryGoalCommands.js";
-import { LocalBudgetCommandContext } from "../../../apps/web/src/features/persistence/localFirst/engine/commandContext.js";
-import { createDomainCommandHandler } from "../../../apps/web/src/features/persistence/localFirst/engine/domainCommandHandlers.js";
+import type { CommittedCommandHandlerResult } from "../../../apps/web/src/features/persistence/localFirst/engine/commandContext.js";
 import { LocalBudgetCommandExecutor } from "../../../apps/web/src/features/persistence/localFirst/engine/localBudgetCommandExecutor.js";
 import { LocalBudgetMutationContext } from "../../../apps/web/src/features/persistence/localFirst/engine/mutationContext.js";
 import type { LocalBudgetDatabaseClient } from "../../../apps/web/src/features/persistence/localFirst/localBudgetClient.js";
@@ -40,7 +39,6 @@ function harness(options: { missingDelete?: boolean; noOpHistory?: boolean } = {
     currentSyncEpoch: () => "epoch-a",
     currentBaseCursor: () => 3,
   });
-  const context = new LocalBudgetCommandContext(mutations);
   const database = {
     async writeCategoryGoal(
       _mode: "create" | "update",
@@ -71,15 +69,12 @@ function harness(options: { missingDelete?: boolean; noOpHistory?: boolean } = {
   const commands = createCategoryGoalCommands({
     requireDatabase: async () => database,
     createMutation: mutations.createMutation.bind(mutations),
-    discardFailedMutation: mutations.discardFailedMutation.bind(mutations),
-    recordCommittedChange: context.recordCommittedChange.bind(context),
   });
-  return { committed, commands, context };
+  return { committed, commands };
 }
 
 async function execute<T>(
-  context: LocalBudgetCommandContext,
-  operation: () => Promise<T>,
+  operation: () => Promise<CommittedCommandHandlerResult<T>>,
 ) {
   let publications = 0;
   const unsubscribe = subscribePersistenceChanges(() => {
@@ -88,7 +83,7 @@ async function execute<T>(
   try {
     const result = await new LocalBudgetCommandExecutor().execute(
       "goal:test",
-      createDomainCommandHandler({ budgetId, context, operation }),
+      { execute: operation },
     );
     flushPersistenceChanges();
     return { result, publications };
@@ -100,7 +95,6 @@ async function execute<T>(
 test("Category Goal create result contains exactly the committed worker mutation", async () => {
   const state = harness();
   const { result, publications } = await execute(
-    state.context,
     () => state.commands.createCategoryGoal(goal),
   );
 
@@ -117,7 +111,6 @@ test("Category Goal create result contains exactly the committed worker mutation
 test("missing Goal delete excludes its uncommitted mutation from a successful result", async () => {
   const state = harness({ missingDelete: true });
   const { result, publications } = await execute(
-    state.context,
     () => state.commands.deleteCategoryGoal({ budgetId, categoryId }),
   );
 
@@ -130,7 +123,6 @@ test("missing Goal delete excludes its uncommitted mutation from a successful re
 test("no-op Goal history replacement verifies state without reporting a phantom mutation", async () => {
   const state = harness({ noOpHistory: true });
   const { result, publications } = await execute(
-    state.context,
     () => state.commands.replaceCategoryGoalHistoryState({
       budgetId,
       categoryId,

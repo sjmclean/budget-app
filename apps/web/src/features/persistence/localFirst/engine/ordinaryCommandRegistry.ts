@@ -3,12 +3,23 @@ import {
   type LocalBudgetCommandMethod,
   type LocalBudgetEngine,
 } from "../../accountRegisterQueryContracts";
+import type { CommittedCommandHandlerResult } from "./commandContext";
 
-type InternalCommandHandler<Method> = Method extends (
+export type InternalCommandImplementation<Method> = Method extends (
   ...args: infer Arguments
-) => infer Result
-  ? { execute: (...args: Arguments) => Result }
+) => Promise<infer Result>
+  ? (...args: Arguments) => Promise<CommittedCommandHandlerResult<Result>>
   : never;
+
+type InternalCommandHandler<Method> = {
+  execute: InternalCommandImplementation<Method>;
+};
+
+export type OrdinaryCommandImplementations = {
+  readonly [Key in LocalBudgetCommandMethod]: InternalCommandImplementation<
+    NonNullable<LocalBudgetEngine[Key]>
+  >;
+};
 
 /** Internal command-dispatch contract, deliberately distinct from the public
  * LocalBudgetEngine method functions. */
@@ -29,7 +40,7 @@ export function isOrdinaryCommandMethod(
 /** Explicit registration is the compile-time exhaustiveness check for all
  * ordinary commands. Queries and conflict recovery cannot be members. */
 export function createOrdinaryCommandHandlerRegistry(
-  implementations: LocalBudgetEngine,
+  implementations: OrdinaryCommandImplementations,
 ): OrdinaryCommandHandlerRegistry {
   return {
     createCategoryGoal: { execute: (goal) => implementations.createCategoryGoal(goal) },
@@ -78,4 +89,14 @@ export function createOrdinaryCommandHandlerRegistry(
     renameScheduledPayeeReferences: { execute: (budgetId, input) => implementations.renameScheduledPayeeReferences(budgetId, input) },
     reassignScheduledPayeeReferences: { execute: (budgetId, input) => implementations.reassignScheduledPayeeReferences(budgetId, input) },
   };
+}
+
+/** Public facade adapters deliberately discard internal completion metadata. */
+export function createPublicOrdinaryCommandFacade(
+  handlers: OrdinaryCommandHandlerRegistry,
+): LocalBudgetEngine {
+  return Object.fromEntries(LOCAL_BUDGET_COMMAND_METHODS.map((method) => [
+    method,
+    (...args: never[]) => handlers[method].execute(...args).then(({ result }) => result),
+  ])) as LocalBudgetEngine;
 }

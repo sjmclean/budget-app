@@ -95,10 +95,7 @@ test("transaction mutation creation accepts an operation group", () => {
   const start = mutationContext.indexOf(
     "  createMutation(",
   );
-  const end = mutationContext.indexOf(
-    "\n  beginCommand(",
-    start + 1,
-  );
+  const end = mutationContext.indexOf("\n}", start + 1);
 
   assert.ok(start >= 0 && end > start);
 

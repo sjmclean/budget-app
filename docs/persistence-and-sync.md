@@ -103,21 +103,19 @@ without relying on cached results.
 The local runtime serialises ordinary commands through
 `LocalBudgetCommandExecutor`. `LocalBudgetMutationContext` allocates mutation
 IDs, persisted device sequences, base cursors, sync epochs, and group metadata
-while the command is active. The current transitional flow is: domain operation
-records command-scoped mutations and change impact; the worker commits canonical
-rows and outbox rows atomically; `createDomainCommandHandler` asks
-`LocalBudgetCommandContext` to produce a `CommittedCommandHandlerResult`; the
-executor consumes that value and publishes its unioned scope once. A thrown
-worker operation produces no committed result and publishes nothing.
-
-The target still to be completed is for domain handlers to return committed
-metadata directly, without a recorder-only completion path. The command-scoped
-recorder remains until P0.3e4.
+for mutation construction only. Each domain handler passes those mutations to
+the worker, awaits its atomic canonical-row plus outbox commit, and directly
+returns `CommittedCommandHandlerResult` containing its public result, the exact
+committed mutation IDs, and its precise change scope. The executor publishes
+that returned scope once. A thrown worker operation produces no committed
+result and publishes nothing.
 
 P0.3e4a places an exhaustive typed internal handler registry between the
 public runtime facade and the executor. Its 45 handler objects are distinct
 from the public method functions. This preserves public domain-result return
-types while allowing P0.3e4b to change only internal handler completion.
+types. P0.3e4b completed the transition to direct committed-result returns and
+removed the ordinary command recorder. Keep-local remains outside the ordinary
+registry and uses a narrow direct recovery result with the same executor.
 
 Remote mutation application and database restore/reset remain separate paths;
 remote apply must not create local outbox mutations.

@@ -6,6 +6,7 @@ import {
 } from "../categoryGoalPersistence";
 import type { LocalBudgetMutation, LocalBudgetOperationGroup } from "../contracts";
 import type { LocalBudgetDatabaseClient } from "../localBudgetClient";
+import { committedCommandResult, emptyCommandChange, type CommittedCommandMethods } from "./commandContext";
 
 type CategoryGoalCommands = Pick<
   LocalBudgetRuntimeClient,
@@ -28,23 +29,17 @@ type CreateMutation = (
 export interface CategoryGoalCommandDependencies {
   readonly requireDatabase: (budgetId: string) => Promise<LocalBudgetDatabaseClient>;
   readonly createMutation: CreateMutation;
-  readonly discardFailedMutation: (mutationId: string) => void;
-  readonly recordCommittedChange: (
-    budgetId: string,
-    change: Omit<PersistenceChangeScope, "budgetId">,
-  ) => void;
 }
 
 /** Final implementation owner for ordinary Category Goal commands. */
 export function createCategoryGoalCommands(
   dependencies: CategoryGoalCommandDependencies,
-): CategoryGoalCommands {
-  const recordGoalChange = (budgetId: string, categoryId: string) => {
-    dependencies.recordCommittedChange(budgetId, {
-      domains: ["goals", "budget"],
+): CommittedCommandMethods<CategoryGoalCommands> {
+  const goalChange = (budgetId: string, categoryId: string): PersistenceChangeScope => ({
+      budgetId,
+      domains: ["budget", "goals"],
       categoryIds: [categoryId],
     });
-  };
 
   return {
     async createCategoryGoal(goal) {
@@ -58,8 +53,7 @@ export function createCategoryGoalCommands(
         canonical,
       );
       const result = await local.writeCategoryGoal("create", canonical, mutation);
-      recordGoalChange(goal.budgetId, goal.categoryId);
-      return result;
+      return committedCommandResult(result, [mutation], goalChange(goal.budgetId, goal.categoryId));
     },
 
     async updateCategoryGoal(goal) {
@@ -73,8 +67,7 @@ export function createCategoryGoalCommands(
         canonical,
       );
       const result = await local.writeCategoryGoal("update", canonical, mutation);
-      recordGoalChange(goal.budgetId, goal.categoryId);
-      return result;
+      return committedCommandResult(result, [mutation], goalChange(goal.budgetId, goal.categoryId));
     },
 
     async deleteCategoryGoal(input) {
@@ -92,11 +85,9 @@ export function createCategoryGoalCommands(
         mutation,
       );
       if (result === null) {
-        dependencies.discardFailedMutation(mutation.mutationId);
-        return result;
+        return committedCommandResult(result, [], emptyCommandChange(input.budgetId));
       }
-      recordGoalChange(input.budgetId, input.categoryId);
-      return result;
+      return committedCommandResult(result, [mutation], goalChange(input.budgetId, input.categoryId));
     },
 
     async replaceCategoryGoalHistoryState(input) {
@@ -117,11 +108,9 @@ export function createCategoryGoalCommands(
         mutation,
       });
       if (categoryGoalsEqual(input.expected, replacement)) {
-        dependencies.discardFailedMutation(mutation.mutationId);
-        return result;
+        return committedCommandResult(result, [], emptyCommandChange(input.budgetId));
       }
-      recordGoalChange(input.budgetId, input.categoryId);
-      return result;
+      return committedCommandResult(result, [mutation], goalChange(input.budgetId, input.categoryId));
     },
   };
 }

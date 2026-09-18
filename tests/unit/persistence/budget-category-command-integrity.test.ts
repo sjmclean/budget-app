@@ -5,8 +5,7 @@ import type { BudgetMonthView } from "../../../apps/web/src/features/budget/budg
 import { flushPersistenceChanges, subscribePersistenceChanges } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
 import type { LocalBudgetMutation } from "../../../apps/web/src/features/persistence/localFirst/contracts.js";
 import { createBudgetCategoryCommands } from "../../../apps/web/src/features/persistence/localFirst/engine/budgetCategoryCommands.js";
-import { LocalBudgetCommandContext } from "../../../apps/web/src/features/persistence/localFirst/engine/commandContext.js";
-import { createDomainCommandHandler } from "../../../apps/web/src/features/persistence/localFirst/engine/domainCommandHandlers.js";
+import type { CommittedCommandHandlerResult } from "../../../apps/web/src/features/persistence/localFirst/engine/commandContext.js";
 import { LocalBudgetCommandExecutor } from "../../../apps/web/src/features/persistence/localFirst/engine/localBudgetCommandExecutor.js";
 import { LocalBudgetMutationContext } from "../../../apps/web/src/features/persistence/localFirst/engine/mutationContext.js";
 import type { LocalBudgetDatabaseClient } from "../../../apps/web/src/features/persistence/localFirst/localBudgetClient.js";
@@ -38,7 +37,6 @@ function harness(options: { failMutate?: boolean; failMerge?: boolean } = {}) {
     storage: { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => { storage.set(key, value); } },
     deviceId: "device-a", currentSyncEpoch: () => "epoch-a", currentBaseCursor: () => 3,
   });
-  const context = new LocalBudgetCommandContext(mutations);
   const database = {
     async readEntity<T>() { return structuredClone(view) as T; },
     async listCategoryGoals() { return []; },
@@ -77,24 +75,20 @@ function harness(options: { failMutate?: boolean; failMerge?: boolean } = {}) {
   const commands = createBudgetCategoryCommands({
     requireDatabase: async () => database,
     createMutation: mutations.createMutation.bind(mutations),
-    recordCommittedChange: context.recordCommittedChange.bind(context),
   });
   return {
-    committed, commands, context,
+    committed, commands,
     mergeCalls: () => mergeCalls, historyCalls: () => historyCalls,
   };
 }
 
 async function execute<T>(
-  context: LocalBudgetCommandContext,
-  operation: () => Promise<T>,
+  operation: () => Promise<CommittedCommandHandlerResult<T>>,
 ) {
   let publications = 0;
   const unsubscribe = subscribePersistenceChanges(() => { publications += 1; });
   try {
-    const result = await new LocalBudgetCommandExecutor().execute("budget:test", createDomainCommandHandler({
-      budgetId, context, operation,
-    }));
+    const result = await new LocalBudgetCommandExecutor().execute("budget:test", { execute: operation });
     flushPersistenceChanges();
     return { result, publications };
   } finally {
@@ -104,7 +98,7 @@ async function execute<T>(
 
 test("assignment batch result contains exactly the worker-committed mutation IDs and preserves roll-forward scope", async () => {
   const state = harness();
-  const { result, publications } = await execute(state.context, () => state.commands.setCategoryAssignedValues({
+  const { result, publications } = await execute(() => state.commands.setCategoryAssignedValues({
     budgetId, month, assignments: [
       { categoryId: "category-a", assigned: 100 },
       { categoryId: "category-b", assigned: 200 },
@@ -124,18 +118,14 @@ test("category creation resolves with committed SQLite state after publication",
   try {
     const execution = await new LocalBudgetCommandExecutor().execute(
       "budget:create-category",
-      createDomainCommandHandler({
-        budgetId,
-        context: state.context,
-        operation: () => state.commands.mutateCategory(budgetId, {
+      { execute: () => state.commands.mutateCategory(budgetId, {
           operation: "create",
           month,
           categoryId: "category-created",
           groupId: "group-a",
           groupName: "Bills",
           name: "Created",
-        }),
-      }),
+        }) },
     );
     flushPersistenceChanges();
     assert.equal(state.committed.length, 1, "the canonical entity and outbox mutation committed");
@@ -152,21 +142,21 @@ test("category creation resolves with committed SQLite state after publication",
 
 test("metadata, overspending, merge, and history commands retain their worker and scope semantics", async () => {
   const metadata = harness();
-  const renamed = await execute(metadata.context, () => metadata.commands.mutateCategory(budgetId, {
+  const renamed = await execute(() => metadata.commands.mutateCategory(budgetId, {
     operation: "rename", month, categoryId: "category-a", name: "Housing",
   }));
   assert.deepEqual(renamed.result.mutationIds, metadata.committed.map(({ mutationId }) => mutationId));
   assert.equal(renamed.publications, 1);
 
   const policy = harness();
-  const overspending = await execute(policy.context, () => policy.commands.mutateCategory(budgetId, {
+  const overspending = await execute(() => policy.commands.mutateCategory(budgetId, {
     operation: "overspending", month, categoryId: "category-a", overspendingHandling: "carry-category",
   }));
   assert.equal(overspending.result.change.months, undefined);
   assert.deepEqual(overspending.result.change.categoryIds, ["category-a"]);
 
   const merge = harness();
-  const merged = await execute(merge.context, () => merge.commands.mutateCategory(budgetId, {
+  const merged = await execute(() => merge.commands.mutateCategory(budgetId, {
     operation: "merge", month, categoryId: "category-a", targetCategoryId: "category-b",
   }));
   assert.equal(merge.mergeCalls(), 1, "category relinking uses the atomic worker merge primitive");
@@ -198,7 +188,7 @@ test("metadata, overspending, merge, and history commands retain their worker an
 
   const history = harness();
   const replacement = { ...budgetView(), readyToAssign: 123 };
-  const replaced = await execute(history.context, () => history.commands.replaceBudgetMonthHistoryState({
+  const replaced = await execute(() => history.commands.replaceBudgetMonthHistoryState({
     budgetId, month, expected: budgetView(), replacement,
   }));
   assert.equal(history.historyCalls(), 1);
@@ -211,12 +201,9 @@ test("atomic category merge failure records no partial commit and publishes noth
   const unsubscribe = subscribePersistenceChanges(() => { publications += 1; });
   await assert.rejects(() => new LocalBudgetCommandExecutor().execute(
     "budget:merge-failed",
-    createDomainCommandHandler({
-      budgetId, context: state.context,
-      operation: () => state.commands.mutateCategory(budgetId, {
+    { execute: () => state.commands.mutateCategory(budgetId, {
         operation: "merge", month, categoryId: "category-a", targetCategoryId: "category-b",
-      }),
-    }),
+      }) },
   ), /atomic merge rollback/);
   flushPersistenceChanges();
   unsubscribe();
@@ -230,12 +217,9 @@ test("worker failure returns no result and publishes nothing", async () => {
   const unsubscribe = subscribePersistenceChanges(() => { publications += 1; });
   await assert.rejects(() => new LocalBudgetCommandExecutor().execute(
     "budget:failed",
-    createDomainCommandHandler({
-      budgetId, context: state.context,
-      operation: () => state.commands.mutateCategory(budgetId, {
+    { execute: () => state.commands.mutateCategory(budgetId, {
         operation: "rename", month, categoryId: "category-a", name: "Housing",
-      }),
-    }),
+      }) },
   ), /worker rollback/);
   flushPersistenceChanges();
   unsubscribe();

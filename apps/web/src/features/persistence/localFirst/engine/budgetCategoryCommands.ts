@@ -8,6 +8,7 @@ import type { LocalBudgetMutation, LocalBudgetOperationGroup } from "../contract
 import type { LocalBudgetDatabaseClient } from "../localBudgetClient";
 import { persistenceScopeForMutations } from "../mutationEvents";
 import { mutateBudgetCategory } from "./categoryCommandHelpers";
+import { committedCommandResult, type CommittedCommandMethods } from "./commandContext";
 
 type BudgetCategoryCommands = Pick<
   LocalBudgetRuntimeClient,
@@ -27,10 +28,6 @@ type CreateMutation = (
 export interface BudgetCategoryCommandDependencies {
   readonly requireDatabase: (budgetId: string) => Promise<LocalBudgetDatabaseClient>;
   readonly createMutation: CreateMutation;
-  readonly recordCommittedChange: (
-    budgetId: string,
-    change: Omit<PersistenceChangeScope, "budgetId">,
-  ) => void;
 }
 
 async function readBudgetMonth(
@@ -58,35 +55,33 @@ async function readCreatedBudgetMonth(
 /** Final implementation owner for ordinary budget-month and category commands. */
 export function createBudgetCategoryCommands(
   dependencies: BudgetCategoryCommandDependencies,
-): BudgetCategoryCommands {
+): CommittedCommandMethods<BudgetCategoryCommands> {
   async function writeBudgetMonth(
     local: LocalBudgetDatabaseClient,
     budgetId: string,
     month: string,
     view: BudgetMonthView,
-  ): Promise<void> {
+  ) {
     const committedMutation = dependencies.createMutation(
       budgetId, "budgetMonths", month, "upsert", view,
     );
     await local.mutate(committedMutation);
-    dependencies.recordCommittedChange(
-      budgetId,
-      persistenceScopeForMutations(budgetId, [committedMutation]),
-    );
+    return { mutation: committedMutation, change: persistenceScopeForMutations(budgetId, [committedMutation]) };
   }
 
   return {
     async replaceBudgetMonthHistoryState(input) {
       const local = await dependencies.requireDatabase(input.budgetId);
+      const mutation = dependencies.createMutation(
+        input.budgetId, "budgetMonths", input.month, "upsert", input.replacement,
+      );
       await local.replaceBudgetMonthHistoryState({
         month: input.month,
         expected: input.expected,
         replacement: input.replacement,
-        mutation: dependencies.createMutation(
-          input.budgetId, "budgetMonths", input.month, "upsert", input.replacement,
-        ),
+        mutation,
       });
-      dependencies.recordCommittedChange(input.budgetId, {
+      return committedCommandResult(undefined, [mutation], { budgetId: input.budgetId,
         domains: ["budget", "categories"], months: [input.month],
       });
     },
@@ -104,11 +99,11 @@ export function createBudgetCategoryCommands(
       await local.mutateBatch(mutations);
       // Assigned and available balances roll forward. Preserve entity precision
       // while intentionally omitting month scope so every later projection is stale.
-      dependencies.recordCommittedChange(input.budgetId, {
+      const result = await readBudgetMonth(local, input.budgetId, input.month);
+      return committedCommandResult(result, mutations, { budgetId: input.budgetId,
         domains: ["budget", "categories"],
         categoryIds: input.assignments.map(({ categoryId }) => categoryId),
       });
-      return readBudgetMonth(local, input.budgetId, input.month);
     },
 
     async mutateCategory(budgetId, input: CategoryMutation) {
@@ -127,10 +122,10 @@ export function createBudgetCategoryCommands(
         );
         await local.mutateBatch([committedMutation]);
         // Policy changes can cascade into later months, so month scope remains omitted.
-        dependencies.recordCommittedChange(budgetId, {
+        const result = await readBudgetMonth(local, budgetId, input.month);
+        return committedCommandResult(result, [committedMutation], { budgetId,
           domains: ["budget", "categories"], categoryIds: [categoryId],
         });
-        return readBudgetMonth(local, budgetId, input.month);
       }
       if (input.operation === "merge") {
         const targetCategoryId = String(input.targetCategoryId);
@@ -188,19 +183,19 @@ export function createBudgetCategoryCommands(
           mutation: mergeMutation,
           budgetMonthMutation,
         });
-        dependencies.recordCommittedChange(
-          budgetId,
+        const result = await readBudgetMonth(local, budgetId, input.month);
+        return committedCommandResult(result, [mergeMutation, budgetMonthMutation],
           persistenceScopeForMutations(
             budgetId,
             [mergeMutation, budgetMonthMutation],
           ),
         );
-        return readBudgetMonth(local, budgetId, input.month);
       }
-      await writeBudgetMonth(local, budgetId, input.month, next);
-      return input.operation === "create"
+      const committed = await writeBudgetMonth(local, budgetId, input.month, next);
+      const result = input.operation === "create"
         ? readCreatedBudgetMonth(local, budgetId, input.month)
         : readBudgetMonth(local, budgetId, input.month);
+      return committedCommandResult(await result, [committed.mutation], committed.change);
     },
   };
 }

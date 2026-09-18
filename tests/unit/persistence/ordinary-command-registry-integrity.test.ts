@@ -50,8 +50,9 @@ test("public facade dispatches through distinct internal handler objects", () =>
   assert.match(registrySource, /execute: \([^)]*\) => implementations\./);
   assert.match(
     runtimeSource,
-    /const ordinaryCommandHandlers = createOrdinaryCommandHandlerRegistry\(client\)/,
+    /const ordinaryCommandHandlers = createOrdinaryCommandHandlerRegistry\(\{/,
   );
+  assert.match(runtimeSource, /const publicOrdinaryCommands = createPublicOrdinaryCommandFacade\(ordinaryCommandHandlers\)/);
   assert.match(runtimeSource, /const handler = ordinaryCommandHandlers\[key\]/);
   assert.match(runtimeSource, /Reflect\.apply\(handler\.execute, handler, args\)/);
   assert.doesNotMatch(runtimeSource, /LOCAL_BUDGET_COMMAND_METHODS/);
@@ -61,6 +62,8 @@ test("public facade dispatches through distinct internal handler objects", () =>
   );
   assert.match(runtimeSource, /const invokeRecovery = \(\) => ownership\.run/);
   assert.doesNotMatch(registrySource, /resolveSyncConflict: \{ execute:/);
+  assert.doesNotMatch(runtimeSource, /LocalBudgetCommandContext|createDomainCommandHandler|recordCommittedChange/);
+  assert.match(runtimeSource, /\{ execute: invokeHandler \}/);
 });
 
 test("representative public methods retain domain-result return types", () => {

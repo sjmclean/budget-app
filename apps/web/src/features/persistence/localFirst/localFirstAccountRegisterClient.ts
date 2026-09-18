@@ -52,10 +52,10 @@ import { createRestorePointReplacement } from "./restorePointReplacement";
 import { deriveTransactionChangeScope, mergePersistenceChangeScopes } from "./persistenceChangeImpact";
 import { LocalBudgetMutationContext } from "./engine/mutationContext";
 import { LocalBudgetCommandExecutor } from "./engine/localBudgetCommandExecutor";
-import { LocalBudgetCommandContext } from "./engine/commandContext";
-import { createDomainCommandHandler } from "./engine/domainCommandHandlers";
+import { committedCommandResult, type CommittedCommandHandlerResult } from "./engine/commandContext";
 import {
   createOrdinaryCommandHandlerRegistry,
+  createPublicOrdinaryCommandFacade,
   isOrdinaryCommandMethod,
 } from "./engine/ordinaryCommandRegistry";
 import { createTagCommands } from "./engine/tagCommands";
@@ -111,24 +111,11 @@ export function createLocalBudgetRuntime(
     currentSyncEpoch: () => activeSyncEpoch,
     currentBaseCursor: () => activePulledCursor,
   });
-  const commandContext = new LocalBudgetCommandContext(mutationContext);
   const commandExecutor = new LocalBudgetCommandExecutor();
-  const notifyLocalFirstMutationCommitted = commandContext.recordCommittedChange.bind(commandContext);
   let synchronising: {
     readonly budgetId: string;
     readonly promise: Promise<void>;
   } | null = null;
-
-  function notifyTransactionsCommitted(
-    budgetId: string,
-    before: readonly LocalTransactionRecord[],
-    after: readonly LocalTransactionRecord[] = [],
-    transactionIds: readonly string[] = [...before, ...after].map(({ id }) => id),
-  ): void {
-    notifyLocalFirstMutationCommitted(budgetId, deriveTransactionChangeScope({
-      budgetId, before, after, transactionIds,
-    }));
-  }
 
   async function captureOwnedRestorePoint(budgetId: string, reason: RestorePointReason) {
     const local = database;
@@ -474,60 +461,57 @@ export function createLocalBudgetRuntime(
     synchronise,
     requireDatabase,
     createMutation: mutation,
-    recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
   const attachmentCommands = createAttachmentCommands({
     requireDatabase,
     createMutation: mutation,
     encodeBase64,
-    recordCommittedAttachmentChange(budgetId, transactionId) {
-      notifyLocalFirstMutationCommitted(budgetId, {
-        domains: ["attachments", "transactions"],
-        transactionIds: [transactionId],
-      });
-    },
   });
   const transactionCommands = createTransactionCommands({
     requireDatabase,
     createMutation: mutation,
-    recordCommittedChange: notifyLocalFirstMutationCommitted,
-    recordTransactionsCommitted: notifyTransactionsCommitted,
   });
   const accountCommands = createAccountCommands({
     requireDatabase,
     createMutation: mutation,
-    discardFailedMutation: mutationContext.discardFailedMutation.bind(mutationContext),
-    recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
   const budgetCategoryCommands = createBudgetCategoryCommands({
     requireDatabase,
     createMutation: mutation,
-    recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
   const categoryGoalCommands = createCategoryGoalCommands({
     requireDatabase,
     createMutation: mutation,
-    discardFailedMutation: mutationContext.discardFailedMutation.bind(mutationContext),
-    recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
   const payeeCommands = createPayeeCommands({
     requireDatabase,
     createMutation: mutation,
-    recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
   const scheduledTransactionCommands = createScheduledTransactionCommands({
     requireDatabase,
     createMutation: mutation,
     encodeBase64,
     decodeBase64,
-    recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
   const transactionHistoryCommands = createTransactionHistoryCommands({
     requireDatabase,
     createMutation: mutation,
     encodeBase64,
-    recordCommittedChange: notifyLocalFirstMutationCommitted,
   });
+  const ordinaryCommandHandlers = createOrdinaryCommandHandlerRegistry({
+    ...categoryGoalCommands,
+    ...accountCommands,
+    ...transactionCommands,
+    ...transactionHistoryCommands,
+    addTransactionAttachment: attachmentCommands.addTransactionAttachment,
+    removeTransactionAttachment: attachmentCommands.removeTransactionAttachment,
+    ...budgetCategoryCommands,
+    ...payeeCommands,
+    replaceTransactionTags: tagCommands.replaceTransactionTags,
+    replaceTransactionTagsHistoryState: tagCommands.replaceTransactionTagsHistoryState,
+    ...scheduledTransactionCommands,
+  });
+  const publicOrdinaryCommands = createPublicOrdinaryCommandFacade(ordinaryCommandHandlers);
 
   function journalMutation(value: LocalBudgetMutation) {
     const key = `local-first/${value.domain}/${value.entityId}`;
@@ -544,7 +528,7 @@ export function createLocalBudgetRuntime(
     local: LocalBudgetDatabaseClient,
     selectedConflict: LocalFirstStoredConflict,
     unresolvedConflicts: readonly LocalFirstStoredConflict[],
-  ): Promise<void> {
+  ): Promise<readonly LocalBudgetMutation[]> {
     const selected = selectedConflict.losingMutation;
     const operationGroupId = selected.operationGroupId;
     const operationGroup = selected.operationGroup;
@@ -645,8 +629,7 @@ export function createLocalBudgetRuntime(
         );
       }
 
-      await local.writeTransactionBatch(
-        operationGroup.members.map((member) => {
+      const writes = operationGroup.members.map((member) => {
           const conflict = conflictByEntityId.get(member.entityId);
           return {
             transaction: member.payload as LocalTransactionRecord,
@@ -661,9 +644,9 @@ export function createLocalBudgetRuntime(
             ),
             resolveConflictId: conflict?.conflictId,
           };
-        }),
-      );
-      return;
+        });
+      await local.writeTransactionBatch(writes);
+      return writes.map(({ mutation: replay }) => replay);
     }
 
     const firstDelete = first.payload as {
@@ -699,8 +682,7 @@ export function createLocalBudgetRuntime(
       );
     }
 
-    await local.deleteTransactionBatch(
-      operationGroup.members.map((member) => {
+    const deletes = operationGroup.members.map((member) => {
         const conflict = conflictByEntityId.get(member.entityId);
         return {
           transactionId: member.entityId,
@@ -715,15 +697,16 @@ export function createLocalBudgetRuntime(
           ),
           resolveConflictId: conflict?.conflictId,
         };
-      }),
-    );
+      });
+    await local.deleteTransactionBatch(deletes);
+    return deletes.map(({ mutation: replay }) => replay);
   }
 
   async function replayConflictMutation(
     local: LocalBudgetDatabaseClient,
     original: LocalBudgetMutation,
     conflictId: string,
-  ) {
+  ): Promise<LocalBudgetMutation> {
     const replay = mutation(
       original.budgetId,
       original.domain,
@@ -747,7 +730,7 @@ export function createLocalBudgetRuntime(
           conflictId,
         );
       }
-      return;
+      return replay;
     }
     if (original.domain === "transactions") {
       if (original.operation === "delete") {
@@ -780,7 +763,7 @@ export function createLocalBudgetRuntime(
 
         await local.writeTransaction(transaction, replay, conflictId);
       }
-      return;
+      return replay;
     }
     if (original.domain === "accounts") {
       if (original.operation === "delete") {
@@ -797,7 +780,7 @@ export function createLocalBudgetRuntime(
           conflictId,
         );
       }
-      return;
+      return replay;
     }
     if (original.domain === "payees" && original.operation === "upsert") {
       await local.writePayee(
@@ -805,7 +788,7 @@ export function createLocalBudgetRuntime(
         replay,
         conflictId,
       );
-      return;
+      return replay;
     }
     if (original.domain === "payees" && original.operation === "delete") {
       const target = original.payload as {
@@ -823,7 +806,7 @@ export function createLocalBudgetRuntime(
           mutation: replay,
           resolveConflictId: conflictId,
         });
-        return;
+        return replay;
       }
     }
     if (original.domain === "categories" && original.operation === "delete") {
@@ -840,10 +823,11 @@ export function createLocalBudgetRuntime(
           mutation: replay,
           resolveConflictId: conflictId,
         });
-        return;
+        return replay;
       }
     }
     await local.mutate(replay, conflictId);
+    return replay;
   }
 
   async function listLocalFirstConflicts(
@@ -869,6 +853,28 @@ export function createLocalBudgetRuntime(
       status: conflict.status,
       resolvedAt: conflict.resolvedAt,
     }));
+  }
+
+  async function keepLocalRecovery(
+    budgetId: string,
+    conflictId: string,
+  ): Promise<CommittedCommandHandlerResult<void>> {
+    const local = await requireDatabase(budgetId);
+    const unresolvedConflicts = await local.listSyncConflicts("unresolved", 500);
+    const conflict = unresolvedConflicts.find((value) => value.conflictId === conflictId);
+    if (!conflict) throw new Error("The synchronization conflict was not found.");
+    const losingMutation = conflict.losingMutation;
+    const transferPayload = losingMutation.domain === "transactions" &&
+      !losingMutation.entityId.startsWith("attachment:")
+      ? losingMutation.payload as { transferAccountId?: string | null; transferTransactionId?: string | null } | null
+      : null;
+    const isLinkedTransfer = Boolean(transferPayload?.transferAccountId) ||
+      Boolean(transferPayload?.transferTransactionId);
+    const replays = isLinkedTransfer && losingMutation.operationGroupId
+      ? await replayGroupedTransferConflicts(local, conflict, unresolvedConflicts)
+      : [await replayConflictMutation(local, losingMutation, conflictId)];
+    return committedCommandResult(undefined, replays,
+      persistenceScopeForMutations(budgetId, [losingMutation]));
   }
 
   async function releaseLocalDatabase(deletingBudgetId?: string) {
@@ -996,51 +1002,16 @@ export function createLocalBudgetRuntime(
     },
     listSyncConflicts: listLocalFirstConflicts,
     async resolveSyncConflict(budgetId, conflictId, resolution) {
-      if (resolution === "accept-remote") await synchronise(budgetId);
-      const local = await requireDatabase(budgetId);
-      const unresolvedConflicts =
-        await local.listSyncConflicts("unresolved", 500);
-      const conflict = unresolvedConflicts
-        .find((value) => value.conflictId === conflictId);
-      if (!conflict) {
-        throw new Error("The synchronization conflict was not found.");
-      }
+      if (resolution !== "keep-local") await synchronise(budgetId);
       if (resolution === "keep-local") {
-        const losingMutation = conflict.losingMutation;
-        const transferPayload =
-          losingMutation.domain === "transactions" &&
-          !losingMutation.entityId.startsWith("attachment:")
-            ? losingMutation.payload as {
-                transferAccountId?: string | null;
-                transferTransactionId?: string | null;
-              } | null
-            : null;
-
-        const isLinkedTransfer =
-          Boolean(transferPayload?.transferAccountId) ||
-          Boolean(transferPayload?.transferTransactionId);
-
-        if (isLinkedTransfer && losingMutation.operationGroupId) {
-          await replayGroupedTransferConflicts(
-            local,
-            conflict,
-            unresolvedConflicts,
-          );
-        } else {
-          await replayConflictMutation(
-            local,
-            losingMutation,
-            conflictId,
-          );
-        }
-
-        notifyLocalFirstMutationCommitted(
-          budgetId,
-          persistenceScopeForMutations(budgetId, [losingMutation]),
-        );
-      } else {
-        await local.resolveSyncConflict(conflictId, resolution);
+        await keepLocalRecovery(budgetId, conflictId);
+        return;
       }
+      const local = await requireDatabase(budgetId);
+      const conflict = (await local.listSyncConflicts("unresolved", 500))
+        .find((value) => value.conflictId === conflictId);
+      if (!conflict) throw new Error("The synchronization conflict was not found.");
+      await local.resolveSyncConflict(conflictId, resolution);
     },
     async getBudgetStatus(budgetId) {
       const remote = await relay.getBootstrap(budgetId).catch(() => null);
@@ -1119,22 +1090,24 @@ export function createLocalBudgetRuntime(
         input.transactionIds,
       );
     },
-    restoreTransactionHistorySnapshot: transactionHistoryCommands.restoreTransactionHistorySnapshot,
-    deleteTransactionHistorySnapshot: transactionHistoryCommands.deleteTransactionHistorySnapshot,
-    replaceTransactionHistorySnapshot: transactionHistoryCommands.replaceTransactionHistorySnapshot,
-    addTransaction: transactionCommands.addTransaction,
-    commitTransactionBatch: transactionCommands.commitTransactionBatch,
+    restoreTransactionHistorySnapshot: publicOrdinaryCommands.restoreTransactionHistorySnapshot,
+    deleteTransactionHistorySnapshot: publicOrdinaryCommands.deleteTransactionHistorySnapshot,
+    replaceTransactionHistorySnapshot: publicOrdinaryCommands.replaceTransactionHistorySnapshot,
+    addTransaction: publicOrdinaryCommands.addTransaction,
+    commitTransactionBatch: publicOrdinaryCommands.commitTransactionBatch,
 
-    commitImportBatch: transactionHistoryCommands.commitImportBatch,
-    commitImportBatchWithHistory: transactionHistoryCommands.commitImportBatchWithHistory,
-    replaceImportHistorySnapshot: transactionHistoryCommands.replaceImportHistorySnapshot,
+    commitImportBatch: publicOrdinaryCommands.commitImportBatch,
+    commitImportBatchWithHistory: publicOrdinaryCommands.commitImportBatchWithHistory,
+    replaceImportHistorySnapshot: publicOrdinaryCommands.replaceImportHistorySnapshot,
 
-    moveTransactions: transactionCommands.moveTransactions,
-    updateTransaction: transactionCommands.updateTransaction,
-    toggleTransactionCleared: transactionCommands.toggleTransactionCleared,
-    setTransactionsCleared: transactionCommands.setTransactionsCleared,
-    deleteTransaction: transactionCommands.deleteTransaction,
-    ...attachmentCommands,
+    moveTransactions: publicOrdinaryCommands.moveTransactions,
+    updateTransaction: publicOrdinaryCommands.updateTransaction,
+    toggleTransactionCleared: publicOrdinaryCommands.toggleTransactionCleared,
+    setTransactionsCleared: publicOrdinaryCommands.setTransactionsCleared,
+    deleteTransaction: publicOrdinaryCommands.deleteTransaction,
+    addTransactionAttachment: publicOrdinaryCommands.addTransactionAttachment,
+    removeTransactionAttachment: publicOrdinaryCommands.removeTransactionAttachment,
+    readTransactionAttachment: attachmentCommands.readTransactionAttachment,
     async listAccounts(budgetId) {
       return (await client.listAccountNavigation(budgetId)).map(({ account }) => account);
     },
@@ -1164,20 +1137,20 @@ export function createLocalBudgetRuntime(
       await synchronise(input.budgetId);
       return (await requireDatabase(input.budgetId)).listCategoryGoals(input.budgetId);
     },
-    createCategoryGoal: categoryGoalCommands.createCategoryGoal,
-    updateCategoryGoal: categoryGoalCommands.updateCategoryGoal,
-    deleteCategoryGoal: categoryGoalCommands.deleteCategoryGoal,
-    replaceCategoryGoalHistoryState: categoryGoalCommands.replaceCategoryGoalHistoryState,
-    createAccount: accountCommands.createAccount,
+    createCategoryGoal: publicOrdinaryCommands.createCategoryGoal,
+    updateCategoryGoal: publicOrdinaryCommands.updateCategoryGoal,
+    deleteCategoryGoal: publicOrdinaryCommands.deleteCategoryGoal,
+    replaceCategoryGoalHistoryState: publicOrdinaryCommands.replaceCategoryGoalHistoryState,
+    createAccount: publicOrdinaryCommands.createAccount,
     async captureAccount(budgetId, accountId) {
       await synchronise(budgetId);
       return (await requireDatabase(budgetId)).readAccountForHistory(accountId);
     },
-    replaceAccountHistoryState: accountCommands.replaceAccountHistoryState,
-    replaceBudgetMonthHistoryState: budgetCategoryCommands.replaceBudgetMonthHistoryState,
-    updateAccount: accountCommands.updateAccount,
-    setAccountClosed: accountCommands.setAccountClosed,
-    deleteAccount: accountCommands.deleteAccount,
+    replaceAccountHistoryState: publicOrdinaryCommands.replaceAccountHistoryState,
+    replaceBudgetMonthHistoryState: publicOrdinaryCommands.replaceBudgetMonthHistoryState,
+    updateAccount: publicOrdinaryCommands.updateAccount,
+    setAccountClosed: publicOrdinaryCommands.setAccountClosed,
+    deleteAccount: publicOrdinaryCommands.deleteAccount,
     async getBudgetMonthView(input) {
       await synchronise(input.budgetId);
       const local = await requireDatabase(input.budgetId);
@@ -1201,7 +1174,7 @@ export function createLocalBudgetRuntime(
     prefetchBudgetMonthView(input) {
       void client.getBudgetMonthView(input).catch(() => undefined);
     },
-    setCategoryAssignedValues: budgetCategoryCommands.setCategoryAssignedValues,
+    setCategoryAssignedValues: publicOrdinaryCommands.setCategoryAssignedValues,
     async getBudgetCategoryOptions(input) {
       const view = await client.getBudgetMonthView(input);
       return [{
@@ -1232,7 +1205,7 @@ export function createLocalBudgetRuntime(
         input.categoryId,
       );
     },
-    mutateCategory: budgetCategoryCommands.mutateCategory,
+    mutateCategory: publicOrdinaryCommands.mutateCategory,
     async getCategoryMergePreview(input) {
       const view = await client.getBudgetMonthView(input);
       const located = view.categoryGroups.flatMap((group) =>
@@ -1273,9 +1246,9 @@ export function createLocalBudgetRuntime(
     async listPayeeDuplicateSuppressions(budgetId) {
       return (await syncThenDatabase(budgetId)).listPayeeDuplicateSuppressions(budgetId);
     },
-    keepPayeesSeparate: payeeCommands.keepPayeesSeparate,
-    replacePayeeDuplicateSuppressionsHistoryState: payeeCommands.replacePayeeDuplicateSuppressionsHistoryState,
-    createPayee: payeeCommands.createPayee,
+    keepPayeesSeparate: publicOrdinaryCommands.keepPayeesSeparate,
+    replacePayeeDuplicateSuppressionsHistoryState: publicOrdinaryCommands.replacePayeeDuplicateSuppressionsHistoryState,
+    createPayee: publicOrdinaryCommands.createPayee,
     async capturePayee(budgetId, payeeId) {
       const all = [
         ...await client.listPayees(budgetId, false),
@@ -1283,28 +1256,29 @@ export function createLocalBudgetRuntime(
       ];
       return all.find(({ id }) => id === payeeId) ?? null;
     },
-    replacePayeeHistoryState: payeeCommands.replacePayeeHistoryState,
-    updatePayee: payeeCommands.updatePayee,
-    setPayeeArchived: payeeCommands.setPayeeArchived,
-    deleteUnusedPayee: payeeCommands.deleteUnusedPayee,
-    mergePayees: payeeCommands.mergePayees,
-    ...tagCommands,
+    replacePayeeHistoryState: publicOrdinaryCommands.replacePayeeHistoryState,
+    updatePayee: publicOrdinaryCommands.updatePayee,
+    setPayeeArchived: publicOrdinaryCommands.setPayeeArchived,
+    deleteUnusedPayee: publicOrdinaryCommands.deleteUnusedPayee,
+    mergePayees: publicOrdinaryCommands.mergePayees,
+    listTransactionTags: tagCommands.listTransactionTags,
+    replaceTransactionTags: publicOrdinaryCommands.replaceTransactionTags,
+    replaceTransactionTagsHistoryState: publicOrdinaryCommands.replaceTransactionTagsHistoryState,
     listScheduledTransactions(budgetId, accountId) {
       return listSchedules(budgetId, accountId);
     },
     captureScheduledTransaction(budgetId, scheduleId) {
       return captureSchedule(budgetId, scheduleId);
     },
-    replaceScheduledTransactionHistoryState: scheduledTransactionCommands.replaceScheduledTransactionHistoryState,
-    enterScheduledTransaction: scheduledTransactionCommands.enterScheduledTransaction,
-    createScheduledTransaction: scheduledTransactionCommands.createScheduledTransaction,
-    updateScheduledTransaction: scheduledTransactionCommands.updateScheduledTransaction,
-    deleteScheduledTransaction: scheduledTransactionCommands.deleteScheduledTransaction,
-    advanceScheduledTransaction: scheduledTransactionCommands.advanceScheduledTransaction,
-    renameScheduledPayeeReferences: scheduledTransactionCommands.renameScheduledPayeeReferences,
-    reassignScheduledPayeeReferences: scheduledTransactionCommands.reassignScheduledPayeeReferences,
+    replaceScheduledTransactionHistoryState: publicOrdinaryCommands.replaceScheduledTransactionHistoryState,
+    enterScheduledTransaction: publicOrdinaryCommands.enterScheduledTransaction,
+    createScheduledTransaction: publicOrdinaryCommands.createScheduledTransaction,
+    updateScheduledTransaction: publicOrdinaryCommands.updateScheduledTransaction,
+    deleteScheduledTransaction: publicOrdinaryCommands.deleteScheduledTransaction,
+    advanceScheduledTransaction: publicOrdinaryCommands.advanceScheduledTransaction,
+    renameScheduledPayeeReferences: publicOrdinaryCommands.renameScheduledPayeeReferences,
+    reassignScheduledPayeeReferences: publicOrdinaryCommands.reassignScheduledPayeeReferences,
   };
-  const ordinaryCommandHandlers = createOrdinaryCommandHandlerRegistry(client);
   const ownership = createBudgetDatabaseOwnership(() => client.releaseLocalDatabase!());
   // The raw client is deliberately retained for nested calls. Wrapping those
   // calls again would deadlock the operation already holding the lease.
@@ -1346,23 +1320,18 @@ export function createLocalBudgetRuntime(
           const invokeHandler = () => ownership.run(
             budgetId,
             () => Reflect.apply(handler.execute, handler, args),
-          );
-          return commandExecutor.execute(`${key}:${createRuntimeUuid()}`, createDomainCommandHandler({
-            budgetId, context: commandContext, operation: invokeHandler,
-          }))
+          ) as Promise<CommittedCommandHandlerResult<unknown>>;
+          return commandExecutor.execute(`${key}:${createRuntimeUuid()}`, { execute: invokeHandler })
             .then(({ result }) => result);
         }
-        // Keep-local recovery is not an ordinary command, but its replay still
-        // needs the command-scoped mutation/change recorders. Keep this path
-        // explicit instead of admitting recovery into the ordinary registry.
+        // Keep-local recovery has its own direct committed-result path and is
+        // deliberately not admitted into the ordinary command registry.
         if (key === "resolveSyncConflict" && args[2] === "keep-local") {
           const invokeRecovery = () => ownership.run(
             budgetId,
-            () => value.apply(target, args),
+            () => keepLocalRecovery(budgetId, args[1] as string),
           );
-          return commandExecutor.execute(`${key}:${createRuntimeUuid()}`, createDomainCommandHandler({
-            budgetId, context: commandContext, operation: invokeRecovery,
-          }))
+          return commandExecutor.execute(`${key}:${createRuntimeUuid()}`, { execute: invokeRecovery })
             .then(({ result }) => result);
         }
         return ownership.run(budgetId, () => value.apply(target, args));

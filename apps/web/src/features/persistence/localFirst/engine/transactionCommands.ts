@@ -16,6 +16,8 @@ import {
   transactionWritesAsSingleOperationGroup,
   type CreateTransactionMutation,
 } from "./transactionCommandHelpers";
+import { committedCommandResult, emptyCommandChange, type CommittedCommandMethods } from "./commandContext";
+import { deriveTransactionChangeScope } from "../persistenceChangeImpact";
 
 type ExtractedTransactionCommands = Pick<
   LocalBudgetRuntimeClient,
@@ -31,22 +33,12 @@ type ExtractedTransactionCommands = Pick<
 export interface TransactionCommandDependencies {
   readonly requireDatabase: (budgetId: string) => Promise<LocalBudgetDatabaseClient>;
   readonly createMutation: CreateTransactionMutation;
-  readonly recordCommittedChange: (
-    budgetId: string,
-    change: Omit<PersistenceChangeScope, "budgetId">,
-  ) => void;
-  readonly recordTransactionsCommitted: (
-    budgetId: string,
-    before: readonly LocalTransactionRecord[],
-    after?: readonly LocalTransactionRecord[],
-    transactionIds?: readonly string[],
-  ) => void;
 }
 
 /** Final implementation owner for transaction create, update, and delete. */
 export function createTransactionCommands(
   dependencies: TransactionCommandDependencies,
-): ExtractedTransactionCommands {
+): CommittedCommandMethods<ExtractedTransactionCommands> {
   return {
     async addTransaction(input) {
       const local = await dependencies.requireDatabase(input.budgetId);
@@ -60,8 +52,7 @@ export function createTransactionCommands(
       await local.writeTransactionBatch(writes, {
         requireAbsentTransactionIds: records.map((record) => record.id),
       });
-      dependencies.recordCommittedChange(
-        input.budgetId,
+      return committedCommandResult(undefined, writes.map(({ mutation }) => mutation),
         persistenceScopeForMutations(
           input.budgetId,
           writes.map(({ mutation }) => mutation),
@@ -80,12 +71,10 @@ export function createTransactionCommands(
         requireAbsentTransactionIds,
         verifyWrittenTransactions: input.provenanceAssignments.length > 0,
       });
-      if (writes.length > 0) {
-        dependencies.recordCommittedChange(
-          input.budgetId,
-          persistenceScopeForMutations(input.budgetId, writes.map(({ mutation }) => mutation)),
-        );
-      }
+      const mutations = writes.map(({ mutation }) => mutation);
+      return committedCommandResult(undefined, mutations, mutations.length > 0
+        ? persistenceScopeForMutations(input.budgetId, mutations)
+        : emptyCommandChange(input.budgetId));
     },
 
     async moveTransactions(input) {
@@ -118,9 +107,11 @@ export function createTransactionCommands(
       await local.writeTransactionBatch(
         writes,
       );
-      if (writes.length > 0) {
-        dependencies.recordTransactionsCommitted(input.budgetId, previousRecords, records);
-      }
+      const mutations = writes.map(({ mutation }) => mutation);
+      return committedCommandResult(undefined, mutations, writes.length > 0
+        ? deriveTransactionChangeScope({ budgetId: input.budgetId, before: previousRecords, after: records,
+            transactionIds: [...previousRecords, ...records].map(({ id }) => id) })
+        : emptyCommandChange(input.budgetId));
     },
 
     async updateTransaction(transactionId, input) {
@@ -134,8 +125,12 @@ export function createTransactionCommands(
         input,
         existing,
       );
-      await local.writeTransactionBatch(transactionWrites(dependencies.createMutation, records));
-      dependencies.recordTransactionsCommitted(input.budgetId, [existing], records);
+      const writes = transactionWrites(dependencies.createMutation, records);
+      await local.writeTransactionBatch(writes);
+      return committedCommandResult(undefined, writes.map(({ mutation }) => mutation), deriveTransactionChangeScope({
+        budgetId: input.budgetId, before: [existing], after: records,
+        transactionIds: [existing, ...records].map(({ id }) => id),
+      }));
     },
 
     async toggleTransactionCleared(transactionId, input) {
@@ -148,11 +143,11 @@ export function createTransactionCommands(
         clearedStatus: existing.clearedStatus === "uncleared" ? "cleared" : "uncleared",
         updatedAt: new Date().toISOString(),
       };
-      await local.writeTransaction(
-        record,
-        dependencies.createMutation(input.budgetId, "transactions", transactionId, "upsert", record),
-      );
-      dependencies.recordTransactionsCommitted(input.budgetId, [existing], [record]);
+      const mutation = dependencies.createMutation(input.budgetId, "transactions", transactionId, "upsert", record);
+      await local.writeTransaction(record, mutation);
+      return committedCommandResult(undefined, [mutation], deriveTransactionChangeScope({
+        budgetId: input.budgetId, before: [existing], after: [record], transactionIds: [transactionId],
+      }));
     },
 
     async setTransactionsCleared(input) {
@@ -170,13 +165,15 @@ export function createTransactionCommands(
           updatedAt: new Date().toISOString(),
         });
       }
+      const writes = transactionWritesAsSingleOperationGroup(dependencies.createMutation, records);
       await local.writeTransactionBatch(
-        transactionWritesAsSingleOperationGroup(dependencies.createMutation, records),
+        writes,
         { verifyWrittenTransactions: true },
       );
-      if (records.length > 0) {
-        dependencies.recordTransactionsCommitted(input.budgetId, previousRecords, records);
-      }
+      return committedCommandResult(undefined, writes.map(({ mutation }) => mutation), records.length > 0
+        ? deriveTransactionChangeScope({ budgetId: input.budgetId, before: previousRecords, after: records,
+            transactionIds: [...previousRecords, ...records].map(({ id }) => id) })
+        : emptyCommandChange(input.budgetId));
     },
 
     async deleteTransaction(transactionId, input) {
@@ -184,21 +181,17 @@ export function createTransactionCommands(
       const existing = await local.getTransaction(input.budgetId, transactionId);
 
       if (!existing) {
+        const mutation = dependencies.createMutation(
+          input.budgetId, "transactions", transactionId, "delete", null,
+        );
         await local.deleteTransaction(
           transactionId,
-          dependencies.createMutation(
-            input.budgetId,
-            "transactions",
-            transactionId,
-            "delete",
-            null,
-          ),
+          mutation,
         );
-        dependencies.recordCommittedChange(input.budgetId, {
+        return committedCommandResult(undefined, [mutation], { budgetId: input.budgetId,
           domains: ["transactions", "budget"],
           transactionIds: [transactionId],
         });
-        return;
       }
 
       requireMutableTransaction(existing);
@@ -206,23 +199,19 @@ export function createTransactionCommands(
       if (counterpart) requireMutableTransaction(counterpart);
 
       if (!counterpart) {
+        const mutation = dependencies.createMutation(
+          input.budgetId, "transactions", transactionId, "delete", {
+            accountId: existing.accountId, amount: existing.amount,
+            transferAccountId: existing.transferAccountId, transferTransactionId: existing.transferTransactionId,
+          },
+        );
         await local.deleteTransaction(
           transactionId,
-          dependencies.createMutation(
-            input.budgetId,
-            "transactions",
-            transactionId,
-            "delete",
-            {
-              accountId: existing.accountId,
-              amount: existing.amount,
-              transferAccountId: existing.transferAccountId,
-              transferTransactionId: existing.transferTransactionId,
-            },
-          ),
+          mutation,
         );
-        dependencies.recordTransactionsCommitted(input.budgetId, [existing], [], [transactionId]);
-        return;
+        return committedCommandResult(undefined, [mutation], deriveTransactionChangeScope({
+          budgetId: input.budgetId, before: [existing], after: [], transactionIds: [transactionId],
+        }));
       }
 
       const operationGroupId = createRuntimeUuid();
@@ -239,8 +228,7 @@ export function createTransactionCommands(
           },
         })),
       };
-      await local.deleteTransactionBatch(
-        operationGroup.members.map((member) => ({
+      const deletes = operationGroup.members.map((member) => ({
           transactionId: member.entityId,
           mutation: dependencies.createMutation(
             input.budgetId,
@@ -251,14 +239,12 @@ export function createTransactionCommands(
             operationGroupId,
             operationGroup,
           ),
-        })),
-      );
-      dependencies.recordTransactionsCommitted(
-        input.budgetId,
-        [existing, counterpart],
-        [],
-        [existing.id, counterpart.id],
-      );
+        }));
+      await local.deleteTransactionBatch(deletes);
+      return committedCommandResult(undefined, deletes.map(({ mutation }) => mutation), deriveTransactionChangeScope({
+        budgetId: input.budgetId, before: [existing, counterpart], after: [],
+        transactionIds: [existing.id, counterpart.id],
+      }));
     },
   };
 }

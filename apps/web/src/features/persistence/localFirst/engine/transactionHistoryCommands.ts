@@ -7,6 +7,7 @@ import { persistenceScopeForMutations } from "../mutationEvents";
 import { deriveTransactionChangeScope, mergePersistenceChangeScopes } from "../persistenceChangeImpact";
 import type { LocalPayeeRecord, LocalTransactionRecord } from "../registerSchema";
 import { prepareTransactionBatchWrites, type CreateTransactionMutation } from "./transactionCommandHelpers";
+import { committedCommandResult, emptyCommandChange, type CommittedCommandMethods } from "./commandContext";
 
 type HistoryCommands = Pick<LocalBudgetRuntimeClient,
   | "restoreTransactionHistorySnapshot" | "deleteTransactionHistorySnapshot"
@@ -18,12 +19,6 @@ export interface TransactionHistoryCommandDependencies {
   readonly requireDatabase: (budgetId: string) => Promise<LocalBudgetDatabaseClient>;
   readonly createMutation: CreateTransactionMutation;
   readonly encodeBase64: (bytes: Uint8Array) => string;
-  readonly recordCommittedChange: (budgetId: string, change: Omit<PersistenceChangeScope, "budgetId">) => void;
-}
-
-function recordScope(dependencies: TransactionHistoryCommandDependencies, scope: PersistenceChangeScope) {
-  const { budgetId, ...change } = scope;
-  dependencies.recordCommittedChange(budgetId, change);
 }
 
 function transactionScope(budgetId: string, before: readonly LocalTransactionRecord[], after: readonly LocalTransactionRecord[] = []) {
@@ -93,19 +88,21 @@ async function prepareImport(dependencies: TransactionHistoryCommandDependencies
     mutations: grouped, requireAbsentTransactionIds: prepared.requireAbsentTransactionIds };
 }
 
-export function createTransactionHistoryCommands(dependencies: TransactionHistoryCommandDependencies): HistoryCommands {
+export function createTransactionHistoryCommands(dependencies: TransactionHistoryCommandDependencies): CommittedCommandMethods<HistoryCommands> {
   return {
     async restoreTransactionHistorySnapshot(snapshot) {
       const local = await dependencies.requireDatabase(snapshot.budgetId);
       const members = historyMembers(snapshot, "upsert", dependencies.encodeBase64);
-      await local.restoreTransactionHistorySnapshot(snapshot, groupedMutations(dependencies, snapshot.budgetId, members));
-      recordScope(dependencies, transactionScope(snapshot.budgetId, [], snapshot.transactions));
+      const mutations = groupedMutations(dependencies, snapshot.budgetId, members);
+      await local.restoreTransactionHistorySnapshot(snapshot, mutations);
+      return committedCommandResult(undefined, mutations, transactionScope(snapshot.budgetId, [], snapshot.transactions));
     },
     async deleteTransactionHistorySnapshot(snapshot) {
       const local = await dependencies.requireDatabase(snapshot.budgetId);
       const members = historyMembers(snapshot, "delete", dependencies.encodeBase64);
-      await local.deleteTransactionHistorySnapshot(snapshot, groupedMutations(dependencies, snapshot.budgetId, members));
-      recordScope(dependencies, transactionScope(snapshot.budgetId, snapshot.transactions));
+      const mutations = groupedMutations(dependencies, snapshot.budgetId, members);
+      await local.deleteTransactionHistorySnapshot(snapshot, mutations);
+      return committedCommandResult(undefined, mutations, transactionScope(snapshot.budgetId, snapshot.transactions));
     },
     async replaceTransactionHistorySnapshot({ expected, replacement }) {
       if (expected.budgetId !== replacement.budgetId) throw new Error("Transaction history replacement cannot cross budgets.");
@@ -116,15 +113,19 @@ export function createTransactionHistoryCommands(dependencies: TransactionHistor
         attachments: expected.attachments.filter(({ id }) => !nextAttachmentIds.has(id)) };
       const members = [...historyMembers(deleted, "delete", dependencies.encodeBase64),
         ...historyMembers(replacement, "upsert", dependencies.encodeBase64)];
-      await local.replaceTransactionHistorySnapshot(expected, replacement, groupedMutations(dependencies, expected.budgetId, members));
-      recordScope(dependencies, transactionScope(expected.budgetId, expected.transactions, replacement.transactions));
+      const mutations = groupedMutations(dependencies, expected.budgetId, members);
+      await local.replaceTransactionHistorySnapshot(expected, replacement, mutations);
+      return committedCommandResult(undefined, mutations,
+        transactionScope(expected.budgetId, expected.transactions, replacement.transactions));
     },
     async commitImportBatch(input) {
       const local = await dependencies.requireDatabase(input.budgetId);
       const prepared = await prepareImport(dependencies, local, input);
       await local.writeImportBatch(prepared.payeeWrites, prepared.writes,
         { requireAbsentTransactionIds: prepared.requireAbsentTransactionIds, verifyWrittenTransactions: true });
-      if (prepared.mutations.length > 0) recordScope(dependencies, persistenceScopeForMutations(input.budgetId, prepared.mutations));
+      return committedCommandResult(undefined, prepared.mutations, prepared.mutations.length > 0
+        ? persistenceScopeForMutations(input.budgetId, prepared.mutations)
+        : emptyCommandChange(input.budgetId));
     },
     async commitImportBatchWithHistory(input) {
       const local = await dependencies.requireDatabase(input.budgetId);
@@ -136,8 +137,8 @@ export function createTransactionHistoryCommands(dependencies: TransactionHistor
       const snapshots = await local.writeImportBatchWithHistory(prepared.payeeWrites, prepared.writes,
         { requireAbsentTransactionIds: prepared.requireAbsentTransactionIds, verifyWrittenTransactions: true,
           historyTransactionIds: transactionIds, historyPayeeIds: payeeIds });
-      recordScope(dependencies, persistenceScopeForMutations(input.budgetId, prepared.mutations));
-      return snapshots;
+      return committedCommandResult(snapshots, prepared.mutations,
+        persistenceScopeForMutations(input.budgetId, prepared.mutations));
     },
     async replaceImportHistorySnapshot({ expected, replacement }) {
       if (expected.budgetId !== replacement.budgetId) throw new Error("Import history replacement cannot cross budgets.");
@@ -158,7 +159,7 @@ export function createTransactionHistoryCommands(dependencies: TransactionHistor
       ];
       const mutations = groupedMutations(dependencies, expected.budgetId, members);
       await local.replaceImportHistorySnapshot(expected, replacement, mutations);
-      recordScope(dependencies, mergePersistenceChangeScopes(expected.budgetId,
+      return committedCommandResult(undefined, mutations, mergePersistenceChangeScopes(expected.budgetId,
         transactionScope(expected.budgetId, expected.transactions.transactions, replacement.transactions.transactions),
         persistenceScopeForMutations(expected.budgetId, mutations)));
     },

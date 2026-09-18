@@ -21,7 +21,7 @@ const snapshot = (transactions = [transaction("left", "right"), transaction("rig
 
 function harness() {
   let sequence = 0; let fail = false; const allocated: LocalBudgetMutation[] = []; const committed: LocalBudgetMutation[] = [];
-  const changes: string[][] = []; const requests: { kind: string; mutations: readonly LocalBudgetMutation[] }[] = [];
+  const requests: { kind: string; mutations: readonly LocalBudgetMutation[] }[] = [];
   let importHistoryOptions: { historyTransactionIds: readonly string[]; historyPayeeIds: readonly string[] } | null = null;
   const commit = (kind: string, mutations: readonly LocalBudgetMutation[]) => { if (fail) throw new Error("worker failed"); requests.push({ kind, mutations }); committed.push(...mutations); };
   const database = {
@@ -43,9 +43,8 @@ function harness() {
       const value: LocalBudgetMutation = { mutationId: `m-${sequence}`, budgetId: id, syncEpoch: "epoch", deviceId: "device",
         deviceSequence: sequence, baseCursor: 0, domain, entityId, operation, payload, createdAt: "now",
         ...(operationGroupId ? { operationGroupId } : {}), ...(operationGroup ? { operationGroup } : {}) };
-      allocated.push(value); return value; }, encodeBase64: (bytes) => Buffer.from(bytes).toString("base64"),
-    recordCommittedChange: (_id, change) => changes.push([...change.domains]) });
-  return { commands, allocated, committed, changes, requests, historyOptions: () => importHistoryOptions, fail: () => { fail = true; } };
+      allocated.push(value); return value; }, encodeBase64: (bytes) => Buffer.from(bytes).toString("base64") });
+  return { commands, allocated, committed, requests, historyOptions: () => importHistoryOptions, fail: () => { fail = true; } };
 }
 
 function assertExactGroup(mutations: readonly LocalBudgetMutation[]) {
@@ -87,7 +86,7 @@ test("multi-domain import replacement has exact group membership and failure pub
   await h.commands.replaceImportHistorySnapshot({ expected, replacement });
   assertExactGroup(h.requests[0]!.mutations); assert.equal(h.requests[0]!.mutations.some(({ domain, operation }) => domain === "payees" && operation === "delete"), true);
   const failed = harness(); failed.fail(); await assert.rejects(() => failed.commands.replaceImportHistorySnapshot({ expected, replacement }), /worker failed/);
-  assert.equal(failed.committed.length, 0); assert.equal(failed.changes.length, 0);
+  assert.equal(failed.committed.length, 0);
 });
 
 const importInput = { budgetId, accountId: "account-a", additions: [{ id: "imported", budgetId,
@@ -108,8 +107,8 @@ test("import with history deduplicates roots, returns worker snapshots, and reje
     payeeCreations: [{ id: "new-payee", name: "New Payee" }, { id: "new-payee", name: "New Payee" }] });
   assert.equal(h.requests[0]!.kind, "import-history"); assertExactGroup(h.requests[0]!.mutations);
   assert.deepEqual(h.historyOptions()?.historyTransactionIds, ["imported"]); assert.deepEqual(h.historyOptions()?.historyPayeeIds, ["new-payee"]);
-  assert.deepEqual(result.before.transactionIds, ["imported"]);
+  assert.deepEqual(result.result.before.transactionIds, ["imported"]);
   const empty = harness(); await assert.rejects(() => empty.commands.commitImportBatchWithHistory({ budgetId, accountId: "account-a",
     additions: [], updates: [], provenanceAssignments: [], payeeCreations: [] }), /requires at least one persisted object/);
-  assert.equal(empty.requests.length, 0); assert.equal(empty.changes.length, 0);
+  assert.equal(empty.requests.length, 0);
 });

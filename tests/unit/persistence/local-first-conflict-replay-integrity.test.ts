@@ -87,9 +87,11 @@ test("keep-local conflict resolution publishes scoped invalidation after replay 
     /if \(resolution === "keep-local"\)[\s\S]*await synchronise\(budgetId\)/,
     "local conflict recovery must not require relay synchronisation",
   );
-  assert.match(
-    body,
-    /await replayConflictMutation\([\s\S]*notifyLocalFirstMutationCommitted\(\s*budgetId,\s*persistenceScopeForMutations\(budgetId, \[losingMutation\]\)/,
-    "publication must follow the successfully awaited atomic replay",
-  );
+  const recoveryStart = clientSource.indexOf("async function keepLocalRecovery(");
+  const recoveryEnd = clientSource.indexOf("\n  async function ", recoveryStart + 1);
+  const recovery = clientSource.slice(recoveryStart, recoveryEnd);
+  assert.match(recovery, /await replayConflictMutation\([\s\S]*return committedCommandResult\(/,
+    "recovery must return committed metadata only after the atomic replay");
+  assert.match(clientSource, /commandExecutor\.execute\(`\$\{key\}:\$\{createRuntimeUuid\(\)\}`, \{ execute: invokeRecovery \}\)/,
+    "the executor must own post-commit recovery publication");
 });
