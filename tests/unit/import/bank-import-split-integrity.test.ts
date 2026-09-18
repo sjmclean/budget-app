@@ -143,7 +143,7 @@ function matchedSplitTransaction(): RegisterTransactionView {
     attachmentCount: 0,
     payee: "Woolworths",
     rawPayee: "WOOLWORTHS 1234",
-    category: "Split",
+    category: "Split...",
     inflow: 0,
     outflow: 150,
     runningBalance: -150,
@@ -355,6 +355,93 @@ test("new imported splits learn merchant identity and account but no category ev
     merchant.categoryUsage,
     [],
     "a split must not teach Split or any child category",
+  );
+});
+
+test("matched SQLite split presentation is canonicalized before commit", () => {
+  const candidate = matchedSplitCandidate();
+  candidate.matchedTransaction = {
+    ...candidate.matchedTransaction!,
+    id: "scheduled:nab-offset:fixture:2026-09-16",
+    category: "Split...",
+  };
+  candidate.matchedTransactionId = candidate.matchedTransaction.id;
+
+  const plan = prepareImportCommit(matchedSession(candidate));
+  const update = plan.matchedTransactionUpdates[0];
+
+  assert.ok(update);
+  assert.equal(update.category, "Split");
+  assert.equal(update.id, "scheduled:nab-offset:fixture:2026-09-16");
+  assert.deepEqual(update.splitLines, balancedSplitLines());
+});
+
+test("legacy imported split identity is canonicalized before commit", () => {
+  const candidate = matchedSplitCandidate();
+  candidate.matchedTransaction = {
+    ...candidate.matchedTransaction!,
+    id: "Transaction/YNAB:-94.20:2026-09-13:1",
+    category: "Split...",
+  };
+  candidate.matchedTransactionId = candidate.matchedTransaction.id;
+
+  const plan = prepareImportCommit(matchedSession(candidate));
+
+  assert.equal(plan.matchedTransactionUpdates[0]?.category, "Split");
+  assert.equal(
+    plan.matchedTransactionUpdates[0]?.id,
+    "Transaction/YNAB:-94.20:2026-09-13:1",
+  );
+});
+
+test("historical split presentation is canonicalized before the atomic update", () => {
+  const candidate = matchedSplitCandidate();
+  const historical: RegisterTransactionView = {
+    ...matchedSplitTransaction(),
+    id: "historical-split-1",
+    payee: "Old Woolworths",
+    rawPayee: "WOOLWORTHS 1234",
+    category: "Split...",
+  };
+  const session = matchedSession(candidate);
+  session.historicalPayeeUpdates = [historical];
+
+  const plan = prepareImportCommit(session);
+
+  assert.equal(plan.historicalPayeeUpdates[0]?.category, "Split");
+  assert.deepEqual(plan.historicalPayeeUpdates[0]?.splitLines, balancedSplitLines());
+  assert.equal(historical.category, "Split...", "session read model must not be mutated");
+});
+
+test("ordinary category with split lines is not silently canonicalized", () => {
+  const candidate = matchedSplitCandidate();
+  candidate.matchedTransaction = {
+    ...candidate.matchedTransaction!,
+    category: "Groceries",
+    categoryId: "groceries",
+  };
+
+  assert.throws(
+    () => prepareImportCommit(matchedSession(candidate)),
+    (error) =>
+      error instanceof ImportCommitValidationError &&
+      error.message.includes("must use category Split exactly"),
+  );
+});
+
+test("split presentation with a parent category ID remains invalid", () => {
+  const candidate = matchedSplitCandidate();
+  candidate.matchedTransaction = {
+    ...candidate.matchedTransaction!,
+    category: "Split...",
+    categoryId: "groceries",
+  };
+
+  assert.throws(
+    () => prepareImportCommit(matchedSession(candidate)),
+    (error) =>
+      error instanceof ImportCommitValidationError &&
+      error.message.includes("cannot carry a parent category ID"),
   );
 });
 

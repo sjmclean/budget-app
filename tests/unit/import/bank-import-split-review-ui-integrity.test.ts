@@ -51,6 +51,25 @@ test("selecting Split opens an editor instead of immediately persisting an empty
   );
 });
 
+test("Split is only entered through the category editor, not the More menu", () => {
+  assert.doesNotMatch(
+    dialogSource,
+    />\s*Split Transaction\s*</,
+    "the importer must not expose a standalone Split Transaction action",
+  );
+  assert.doesNotMatch(
+    dialogSource,
+    />\s*Edit Split\s*</,
+    "existing splits must be edited by choosing Split from Category",
+  );
+
+  assert.match(
+    dialogSource,
+    /<summary>••• More<\/summary>[\s\S]*?(?:Edit Memo|Add Memo)[\s\S]*?Reset changes/,
+    "the More menu should retain non-category secondary actions",
+  );
+});
+
 test("split review starts with at least two lines and must be balanced before apply", () => {
   const twoLineSeeds = dialogSource.match(
     /\[createSplitLineDraft\(\), createSplitLineDraft\(\)\]/g,

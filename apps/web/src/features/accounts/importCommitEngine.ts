@@ -40,6 +40,7 @@ import {
   type PlannedImportRegisterTransactionInput,
 } from "./transactionImportCommit";
 import { isSplitBalanced } from "./registerSplitDrafts";
+import { isSplitCategoryValue } from "./registerCategoryMatching";
 import { MANUAL_IMPORT_MATCH_REASON } from "./transactionImportReviewOwnership";
 import type {
   RegisterTransactionImportPayeeCreation,
@@ -263,6 +264,22 @@ function proposalFor(candidate: TransactionImportCandidate) {
   return candidate.lifecycle.proposal;
 }
 
+function canonicaliseImportRegisterUpdate(
+  transaction: RegisterTransactionView,
+): RegisterTransactionView {
+  if (
+    transaction.splitLines?.length &&
+    isSplitCategoryValue(transaction.category)
+  ) {
+    return {
+      ...transaction,
+      category: "Split",
+    };
+  }
+
+  return transaction;
+}
+
 function buildMatchedTransactionUpdates(
   session: ImportCommitSession,
 ): RegisterTransactionView[] {
@@ -281,7 +298,7 @@ function buildMatchedTransactionUpdates(
     if (!wasEdited && !shouldUpdateDate && !shouldRetainRawPayee) return [];
 
     return [
-      {
+      canonicaliseImportRegisterUpdate({
         ...candidate.matchedTransaction,
         date: shouldUpdateDate
           ? candidate.parsed.date
@@ -289,7 +306,7 @@ function buildMatchedTransactionUpdates(
         rawPayee: shouldRetainRawPayee
           ? sourceRawPayee
           : candidate.matchedTransaction.rawPayee,
-      },
+      }),
     ];
   });
 }
@@ -1073,6 +1090,11 @@ export function verifyImportCommitPlan(
     }
     updateIds.add(transaction.id);
 
+    verifySplitTransaction(
+      transaction,
+      `Historical payee update ${transaction.id}`,
+    );
+
     const hasTransferSemantics =
       transaction.category === "Transfer" ||
       transaction.payee.startsWith("Transfer: ") ||
@@ -1217,9 +1239,9 @@ export function prepareImportCommit(
   const plan = {
     additions,
     matchedTransactionUpdates,
-    historicalPayeeUpdates: [
-      ...(session.historicalPayeeUpdates ?? []),
-    ],
+    historicalPayeeUpdates: (session.historicalPayeeUpdates ?? []).map(
+      canonicaliseImportRegisterUpdate,
+    ),
     provenanceAssignments,
     payeeCreations: [] as RegisterTransactionImportPayeeCreation[],
     merchantKnowledge,
