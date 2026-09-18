@@ -1933,6 +1933,7 @@ export function TransactionImportDialog({
       transferAccountName,
       categoryName: transferAccountName ? built.proposal.categoryName : categoryName || null,
       memo,
+      memoReviewed: true,
       tagIds: [...draft.tagIds],
       attachments: draft.attachments.map((attachment) => ({ ...attachment })),
       ...(categoryName === "Split"
@@ -2198,6 +2199,7 @@ export function TransactionImportDialog({
     } else {
       updateCandidateProposal(candidateId, {
         memo: value.trim() || undefined,
+        memoReviewed: true,
       });
       setManualCandidateEdits((current) =>
         markImportReviewFieldEdited(current, candidateId, "memo"),
