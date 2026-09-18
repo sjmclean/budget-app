@@ -3921,66 +3921,48 @@ export function TransactionImportDialog({
 
                   {candidate.status !== "invalid" ? (
                     <details className="transaction-import-more-actions">
-                      <summary>••• More</summary>
+                      <summary aria-label="More transaction actions">•••</summary>
                       <div>
-                      <button
-                        className="button button-secondary"
-                        type="button"
-                        onClick={() =>
-                          beginProposedTransactionEdit(
-                            candidate.id,
-                            "memo",
-                            candidate.status === "exact-match"
-                              ? candidate.matchedTransaction?.memo ?? ""
-                              : candidate.lifecycle.proposal.memo ?? "",
-                          )
-                        }
-                      >
-                        {(candidate.status === "exact-match"
-                          ? candidate.matchedTransaction?.memo
-                          : candidate.lifecycle.proposal.memo)
-                          ? "Edit Memo"
-                          : "Add Memo"}
-                      </button>
-                      {canResetChanges ? (
-                      <button
-                        className="button button-secondary"
-                        type="button"
-                        disabled={Boolean(processingCandidate)}
-                        onClick={() => resetCandidateChanges(candidate.id)}
-                      >
-                        Reset changes
-                      </button>
-                      ) : null}
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          onClick={(event) => {
+                            beginTransactionEdit(candidate);
+                            event.currentTarget.closest("details")?.removeAttribute("open");
+                          }}
+                        >
+                          Edit Transaction
+                        </button>
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          disabled={Boolean(processingCandidate)}
+                          onClick={(event) => {
+                            void openRegisterMatchPicker(candidate.id);
+                            event.currentTarget.closest("details")?.removeAttribute("open");
+                          }}
+                        >
+                          Find Existing Transaction
+                        </button>
+                        {canResetChanges ? (
+                          <button
+                            className="button button-secondary"
+                            type="button"
+                            disabled={Boolean(processingCandidate)}
+                            onClick={(event) => {
+                              resetCandidateChanges(candidate.id);
+                              event.currentTarget.closest("details")?.removeAttribute("open");
+                            }}
+                          >
+                            Reset changes
+                          </button>
+                        ) : null}
                       </div>
                     </details>
                   ) : null}
 
                   {candidate.status === "exact-match" ? (
                     <>
-                      <div className="transaction-import-edit-actions">
-                        <button
-                          className="button button-secondary"
-                          type="button"
-                          onClick={() => beginProposedTransactionEdit(candidate.id, "payee", candidate.matchedTransaction?.payee ?? "")}
-                        >
-                          Edit Payee
-                        </button>
-                        <button
-                          className="button button-secondary"
-                          type="button"
-                          onClick={() => beginProposedTransactionEdit(candidate.id, "category", candidate.matchedTransaction?.category ?? "")}
-                        >
-                          Edit Category
-                        </button>
-                        <button
-                          className="button button-secondary"
-                          type="button"
-                          onClick={() => void openRegisterMatchPicker(candidate.id)}
-                        >
-                          Find Another Match
-                        </button>
-                      </div>
                       <div className="transaction-import-match-actions">
                       <button
                         className="button button-primary"
@@ -4030,87 +4012,12 @@ export function TransactionImportDialog({
                   {candidate.status === "new" ||
                   candidate.status === "invalid" ? (
                     <div className="transaction-import-new-review">
-                      {candidate.status !== "invalid" ? (
-                        <div className="transaction-import-edit-actions">
-                          <button
-                            className="button button-secondary"
-                            type="button"
-                            onClick={() => beginProposedTransactionEdit(candidate.id, "payee", candidate.lifecycle.proposal.payee)}
-                          >
-                            Edit Payee
-                          </button>
-                          {!candidate.lifecycle.proposal.transferAccountName ? (
-                            <button
-                              className="button button-secondary"
-                              type="button"
-                              onClick={() => beginProposedTransactionEdit(candidate.id, "category", candidate.lifecycle.proposal.categoryName ?? "")}
-                            >
-                              Edit Category
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
-
-                      {activeProposedTransactionEdit &&
-                      activeProposedTransactionEdit.field !== "memo" ? (
-                        <div className="transaction-import-inline-editor">
-                          {activeProposedTransactionEdit.field === "payee" ? (
-                            <PayeeInput
-                              value={activeProposedTransactionEdit.draftValue}
-                              transferAccounts={transferAccounts.filter((account) => account.id !== selectedAccountId)}
-                              payeeOptions={payeeOptions}
-                              autoFocus={
-                                proposedPayeeEditBehaviour.autoFocus
-                              }
-                              selectOnInitialFocus={
-                                proposedPayeeEditBehaviour.selectOnInitialFocus
-                              }
-                              openOnFocus={
-                                proposedPayeeEditBehaviour.openOnFocus
-                              }
-                              onChange={updateProposedTransactionDraft}
-                              onSelection={(value) =>
-                                commitProposedTransactionEdit(
-                                  candidate.id,
-                                  "payee",
-                                  value,
-                                )
-                              }
-                              onCancel={cancelProposedTransactionEdit}
-                              onBlurOutside={() =>
-                                commitProposedTransactionEdit(
-                                  candidate.id,
-                                  "payee",
-                                  activeProposedTransactionEdit.draftValue,
-                                )
-                              }
-                            />
-                          ) : (
-                            <RegisterCategoryInput
-                              value={activeProposedTransactionEdit.draftValue}
-                              categoryOptions={categoryOptions}
-                              includeSplitOption
-                              autoFocus={
-                                proposedCategoryEditBehaviour.autoFocus
-                              }
-                              selectOnInitialFocus={
-                                proposedCategoryEditBehaviour.selectOnInitialFocus
-                              }
-                              openOnFocus={
-                                proposedCategoryEditBehaviour.openOnFocus
-                              }
-                              onCreateCategory={onCreateCategory}
-                              onChange={updateProposedTransactionDraft}
-                              onSelection={(value) => commitProposedTransactionEdit(candidate.id, "category", value)}
-                              onCancel={cancelProposedTransactionEdit}
-                              onBlurOutside={cancelProposedTransactionEdit}
-                            />
-                          )}
-                        </div>
-                      ) : null}
-
                       {isMatchConvertedToNew ? (
-                        <button className="button button-secondary" type="button" onClick={() => returnToMatchOptions(candidate.id)}>
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          onClick={() => returnToMatchOptions(candidate.id)}
+                        >
                           Back to Match
                         </button>
                       ) : null}
@@ -4118,9 +4025,15 @@ export function TransactionImportDialog({
                       {candidate.status === "invalid" ? (
                         <div className="transaction-import-invalid-detail">
                           <p className="transaction-import-error">
-                            {candidate.reason || candidate.errors[0] || "This transaction contains invalid source data."}
+                            {candidate.reason ||
+                              candidate.errors[0] ||
+                              "This transaction contains invalid source data."}
                           </p>
-                          <button className="button button-secondary" type="button" onClick={() => setStep("mapping")}>
+                          <button
+                            className="button button-secondary"
+                            type="button"
+                            onClick={() => setStep("mapping")}
+                          >
                             Review File Settings
                           </button>
                         </div>
@@ -4131,16 +4044,6 @@ export function TransactionImportDialog({
                   {candidate.status === "new" ||
                   candidate.status === "invalid" ? (
                     <div className="transaction-import-match-actions">
-                      {candidate.status === "new" && availableRegisterMatchCandidates.length ? (
-                        <button
-                          className="button button-secondary"
-                          type="button"
-                          disabled={Boolean(processingCandidate)}
-                          onClick={() => void openRegisterMatchPicker(candidate.id)}
-                        >
-                          View Other Matches
-                        </button>
-                      ) : null}
                       {candidate.status === "new" && availableRegisterMatchCandidates.length ? (
                         <button
                           className="button button-primary"
@@ -4154,16 +4057,6 @@ export function TransactionImportDialog({
                           }
                         >
                           Use This Match
-                        </button>
-                      ) : null}
-                      {candidate.status === "new" && !availableRegisterMatchCandidates.length ? (
-                        <button
-                          className="button button-secondary"
-                          type="button"
-                          disabled={Boolean(processingCandidate)}
-                          onClick={() => void openRegisterMatchPicker(candidate.id)}
-                        >
-                          Find Existing Transaction
                         </button>
                       ) : null}
                       <button
