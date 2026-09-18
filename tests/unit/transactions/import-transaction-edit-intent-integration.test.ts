@@ -66,10 +66,22 @@ test("unified import editor uses register tag and split controls", () => {
   );
   assert.match(
     source,
-    /transactionEditDraft\.category === "Split"[\s\S]*?<RegisterSplitEditor/,
+    /isSplitCategoryValue\(transactionEditDraft\.category\)[\s\S]*?<RegisterSplitEditor/,
   );
   assert.match(
     source,
     /!isSplitDraftBalanced\([\s\S]*?draft\.splitLines/,
+  );
+});
+
+
+test("unified import editor recognises the register Split label", () => {
+  assert.match(
+    source,
+    /isSplitCategoryValue\(value\)[\s\S]*?category: SPLIT_CATEGORY_LABEL/,
+  );
+  assert.match(
+    source,
+    /const isSplitCategory = isSplitCategoryValue\(categoryName\)/,
   );
 });
