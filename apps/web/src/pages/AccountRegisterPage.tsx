@@ -943,6 +943,7 @@ export function AccountRegisterPage() {
     allManagedPayees,
     createInlinePayee,
     learnPayeeAlias,
+    learnPayeeAliases,
     isPayeeManagerOpen,
     setIsPayeeManagerOpen,
     selectedPayeeId,
@@ -2093,7 +2094,7 @@ export function AccountRegisterPage() {
             categoryOptions={categoryOptions}
             transferAccounts={transferAccounts}
             onCreateCategory={createInlineCategory}
-            onLearnPayeeAlias={learnPayeeAlias}
+            onLearnPayeeAliases={learnPayeeAliases}
             onClose={() => {
               setIsTransactionImportOpen(false);
             }}
