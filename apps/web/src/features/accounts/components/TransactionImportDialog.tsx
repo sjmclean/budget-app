@@ -3652,7 +3652,9 @@ export function TransactionImportDialog({
               const hasManualProposalEdits = Boolean(
                 manualEditsForCandidate?.payee ||
                   manualEditsForCandidate?.category ||
-                  manualEditsForCandidate?.memo,
+                  manualEditsForCandidate?.memo ||
+                  candidate.lifecycle.proposal.tagIds?.length ||
+                  candidate.lifecycle.proposal.attachments?.length,
               );
               const showUnmatchedComparison =
                 !hasMatch &&
@@ -3663,26 +3665,6 @@ export function TransactionImportDialog({
                 processingCandidate?.id === candidate.id
                   ? processingCandidate
                   : null;
-              const activeProposedTransactionEdit =
-                proposedTransactionEdit?.candidateId === candidate.id
-                  ? proposedTransactionEdit
-                  : null;
-              const proposedTransactionEditIntent: TransactionEditIntent | null =
-                activeProposedTransactionEdit
-                  ? activeProposedTransactionEdit.field === "memo"
-                    ? null
-                    : { field: activeProposedTransactionEdit.field }
-                  : null;
-              const proposedPayeeEditBehaviour =
-                getTransactionFieldEditBehaviour(
-                  proposedTransactionEditIntent,
-                  "payee",
-                );
-              const proposedCategoryEditBehaviour =
-                getTransactionFieldEditBehaviour(
-                  proposedTransactionEditIntent,
-                  "category",
-                );
               return (
                 <article
                   className={`transaction-import-review-card transaction-import-review-card-${candidate.status}${
@@ -3720,358 +3702,146 @@ export function TransactionImportDialog({
                     <span>{reviewPresentation.subtext}</span>
                   </div>
                   <div className="transaction-import-match-stack">
-                    <div className="transaction-import-match-row transaction-import-match-row-imported">
-                      <span className="transaction-import-match-label">
+                    <div className="transaction-import-match-entry">
+                      <span className="transaction-import-match-caption">
                         {hasMatch ? <b>A</b> : null}
-                        <span>Bank transaction</span>
+                        Bank transaction
                       </span>
-                      <span className="transaction-import-match-date">
-                        {formatImportReviewDate(bankParsed.date)}
-                      </span>
-                      <strong className="transaction-import-match-payee">
-                        {sourcePayee || "Missing payee"}
-                        {!hasManualProposalEdits &&
-                        candidate.lifecycle.proposal.payee !== sourcePayee ? (
-                          <small className="transaction-import-payee-alias-note">
-                            Imports as {candidate.lifecycle.proposal.payee}
-                          </small>
-                        ) : null}
-                      </strong>
-                      <span className="transaction-import-match-detail">
-                        {candidate.lifecycle.source.transferAccountName
-                          ? `${accountName} → ${candidate.lifecycle.source.transferAccountName}`
-                          : candidate.lifecycle.source.importedCategoryName ??
-                            candidate.lifecycle.source.memo ??
-                            "—"}
-                      </span>
-                      <strong className={`transaction-import-match-amount ${bankParsed.inflow > 0 && bankParsed.outflow === 0 ? "money-positive" : bankParsed.outflow > 0 ? "money-negative" : ""}`}>
-                        {amountLabel}
-                      </strong>
+                      <div className="transaction-import-match-row transaction-import-match-row-imported">
+                        <span className="transaction-import-match-date">
+                          {formatImportReviewDate(bankParsed.date)}
+                        </span>
+                        <strong className="transaction-import-match-payee">
+                          {sourcePayee || "Missing payee"}
+                          {!hasManualProposalEdits &&
+                          candidate.lifecycle.proposal.payee !== sourcePayee ? (
+                            <small className="transaction-import-payee-alias-note">
+                              Imports as {candidate.lifecycle.proposal.payee}
+                            </small>
+                          ) : null}
+                        </strong>
+                        <span className="transaction-import-match-category">
+                          {candidate.lifecycle.source.transferAccountName
+                            ? `${accountName} → ${candidate.lifecycle.source.transferAccountName}`
+                            : candidate.lifecycle.source.importedCategoryName ?? "—"}
+                        </span>
+                        <span className="transaction-import-match-memo">
+                          {candidate.lifecycle.source.memo || "—"}
+                        </span>
+                        <strong className={`transaction-import-match-amount ${bankParsed.inflow > 0 && bankParsed.outflow === 0 ? "money-positive" : bankParsed.outflow > 0 ? "money-negative" : ""}`}>
+                          {amountLabel}
+                        </strong>
+                      </div>
                     </div>
 
                     {showUnmatchedComparison ? (
                       <>
                         <div className="transaction-import-match-arrow" aria-hidden="true">↔</div>
-                        <div className="transaction-import-match-row transaction-import-match-row-existing">
-                          <span className="transaction-import-match-label">
+                        <div className="transaction-import-match-entry">
+                          <span className="transaction-import-match-caption">
                             <b>B</b>
-                            <span>
-                              {availableRegisterMatchCandidates.length
-                                ? "Possible register match"
-                                : "Proposed transaction"}
+                            {availableRegisterMatchCandidates.length
+                              ? "Possible register match"
+                              : "Proposed transaction"}
+                          </span>
+                          <div className="transaction-import-match-row transaction-import-match-row-existing">
+                            <span className="transaction-import-match-date">
+                              {formatImportReviewDate(
+                                availableRegisterMatchCandidates[0]?.transaction.date ??
+                                  bankParsed.date,
+                              )}
                             </span>
-                          </span>
-                          <span className="transaction-import-match-date">
-                            {formatImportReviewDate(
-                              availableRegisterMatchCandidates[0]?.transaction.date ?? bankParsed.date,
-                            )}
-                          </span>
-                          <strong className="transaction-import-match-payee">
-                            {availableRegisterMatchCandidates[0]?.transaction.payee ??
-                              candidate.lifecycle.proposal.payee ?? "Choose payee"}
-                          </strong>
-                          <span className="transaction-import-match-detail">
-                            {availableRegisterMatchCandidates[0]?.transaction.category ??
-                              candidate.lifecycle.proposal.transferAccountName ??
-                              candidate.lifecycle.proposal.categoryName ?? "Choose category"}
-                          </span>
-                          <strong className={`transaction-import-match-amount ${bankParsed.inflow > 0 && bankParsed.outflow === 0 ? "money-positive" : bankParsed.outflow > 0 ? "money-negative" : ""}`}>
-                            {amountLabel}
-                          </strong>
+                            <strong className="transaction-import-match-payee">
+                              {availableRegisterMatchCandidates[0]?.transaction.payee ??
+                                candidate.lifecycle.proposal.payee ??
+                                "Choose payee"}
+                            </strong>
+                            <span className="transaction-import-match-category">
+                              {availableRegisterMatchCandidates[0]?.transaction.category ??
+                                candidate.lifecycle.proposal.transferAccountName ??
+                                candidate.lifecycle.proposal.categoryName ??
+                                "Choose category"}
+                            </span>
+                            <span className="transaction-import-match-memo">
+                              {availableRegisterMatchCandidates[0]?.transaction.memo ??
+                                candidate.lifecycle.proposal.memo ??
+                                "—"}
+                              {(availableRegisterMatchCandidates[0]?.transaction.tagIds?.length ??
+                                candidate.lifecycle.proposal.tagIds?.length ??
+                                0) > 0 ? (
+                                <small>
+                                  Tags: {(availableRegisterMatchCandidates[0]?.transaction.tagIds ??
+                                    candidate.lifecycle.proposal.tagIds ??
+                                    []).map((tagId) =>
+                                      transactionTags.find((tag) => tag.id === tagId)?.name ?? tagId
+                                    ).join(", ")}
+                                </small>
+                              ) : null}
+                              {(availableRegisterMatchCandidates[0]?.transaction.attachmentCount ??
+                                candidate.lifecycle.proposal.attachments?.length ??
+                                0) > 0 ? (
+                                <small>
+                                  📎 {availableRegisterMatchCandidates[0]?.transaction.attachmentCount ??
+                                    candidate.lifecycle.proposal.attachments?.length ??
+                                    0}
+                                </small>
+                              ) : null}
+                            </span>
+                            <strong className={`transaction-import-match-amount ${bankParsed.inflow > 0 && bankParsed.outflow === 0 ? "money-positive" : bankParsed.outflow > 0 ? "money-negative" : ""}`}>
+                              {amountLabel}
+                            </strong>
+                          </div>
                         </div>
                       </>
                     ) : null}
 
                     {hasMatch ? (
                       <>
-                        <div
-                          className="transaction-import-match-arrow"
-                          aria-hidden="true"
-                        >
-                          ↓
-                        </div>
-                        <div className="transaction-import-match-row transaction-import-match-row-existing">
-                          <span className="transaction-import-match-label">
+                        <div className="transaction-import-match-arrow" aria-hidden="true">↓</div>
+                        <div className="transaction-import-match-entry">
+                          <span className="transaction-import-match-caption">
                             <b>B</b>
-                            <span>Register</span>
+                            Register
                           </span>
-                          <span className="transaction-import-match-date">
-                            {formatImportReviewDate(
-                              candidate.matchedTransaction?.date,
-                            )}
-                          </span>
-                          <div
-                            className="transaction-import-proposed-field transaction-import-proposed-payee"
-                          >
-                            {activeProposedTransactionEdit &&
-                            activeProposedTransactionEdit.field === "payee" ? (
-                              <PayeeInput
-                                value={activeProposedTransactionEdit.draftValue}
-                                transferAccounts={transferAccounts.filter(
-                                  (account) => account.id !== selectedAccountId,
-                                )}
-                                payeeOptions={payeeOptions}
-                                autoFocus={
-                                  proposedPayeeEditBehaviour.autoFocus
-                                }
-                                selectOnInitialFocus={
-                                  proposedPayeeEditBehaviour.selectOnInitialFocus
-                                }
-                                openOnFocus={
-                                  proposedPayeeEditBehaviour.openOnFocus
-                                }
-                                onChange={updateProposedTransactionDraft}
-                                onSelection={(value) => {
-                                  const built =
-                                    buildTransactionImportMerchantProposal({
-                                      store: merchantKnowledgeRef.current,
-                                      rawPayee: value,
-                                      transaction: candidate.parsed,
-                                      fallbackCategoryName:
-                                        candidate.matchedTransaction?.category,
-                                    });
-                                  const transferAccount = transferAccounts.find(
-                                    (account) =>
-                                      account.name.toLocaleLowerCase() ===
-                                      built.proposal.transferAccountName?.toLocaleLowerCase(),
-                                  );
-                                  const suggestedCategory = categoryOptions.find(
-                                    (category) =>
-                                      category.name.toLocaleLowerCase() ===
-                                      built.proposal.categoryName?.toLocaleLowerCase(),
-                                  );
-                                  updateMatchedTransactionDetails(candidate.id, {
-                                    payee: built.proposal.payee,
-                                    payeeId: undefined,
-                                    transferAccountId: transferAccount?.id,
-                                    category:
-                                      built.proposal.categoryName ?? "",
-                                    categoryId: built.proposal.transferAccountName
-                                      ? undefined
-                                      : suggestedCategory?.id ??
-                                        candidate.matchedTransaction?.categoryId,
-                                    splitLines: built.proposal.transferAccountName
-                                      ? undefined
-                                      : candidate.matchedTransaction?.splitLines,
-                                  });
-                                  setProposedTransactionEdit(null);
-                                }}
-                                onCancel={cancelProposedTransactionEdit}
-                                onBlurOutside={() =>
-                                  commitMatchedPayeeEdit(
-                                    candidate,
-                                    activeProposedTransactionEdit.draftValue,
-                                  )
-                                }
-                              />
-                            ) : availableRegisterMatchCandidates.length > 1 ? (
-                              <details className="transaction-import-register-match-picker">
-                                <summary
-                                  className="transaction-import-register-match-summary"
-                                  aria-label="Choose matched register transaction"
-                                >
-                                  <strong>
-                                    {candidate.matchedTransaction?.payee || "—"}
-                                  </strong>
-                                </summary>
-                                <div
-                                  className="transaction-import-register-match-options"
-                                  role="listbox"
-                                  aria-label="Eligible register transactions"
-                                >
-                                  {availableRegisterMatchCandidates.map((option) => {
-                                    const isSelected =
-                                      option.transaction.id ===
-                                      candidate.matchedTransactionId;
-
-                                    return (
-                                      <button
-                                        className={`transaction-import-register-match-option${
-                                          isSelected
-                                            ? " transaction-import-register-match-option-selected"
-                                            : ""
-                                        }`}
-                                        key={option.transaction.id}
-                                        type="button"
-                                        role="option"
-                                        aria-selected={isSelected}
-                                        onClick={(event) => {
-                                          const selected = selectMatchedRegisterTransaction(
-                                            candidate.id,
-                                            option.transaction.id,
-                                          );
-                                          if (selected) {
-                                            event.currentTarget
-                                              .closest("details")
-                                              ?.removeAttribute("open");
-                                          }
-                                        }}
-                                      >
-                                        <strong>
-                                          {option.transaction.payee || "—"}
-                                        </strong>
-                                        <span>
-                                          {formatImportReviewDate(
-                                            option.transaction.date,
-                                          )}
-                                          {" · "}
-                                          {option.transaction.category || "—"}
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </details>
-                            ) : (
-                              <strong>
-                                {candidate.matchedTransaction?.payee || "—"}
-                              </strong>
-                            )}
+                          <div className="transaction-import-match-row transaction-import-match-row-existing">
+                            <span className="transaction-import-match-date">
+                              {formatImportReviewDate(candidate.matchedTransaction?.date)}
+                            </span>
+                            <strong className="transaction-import-match-payee">
+                              {candidate.matchedTransaction?.payee || "—"}
+                            </strong>
+                            <span className="transaction-import-match-category">
+                              {candidate.matchedTransaction?.splitLines?.length
+                                ? `Split · ${candidate.matchedTransaction.splitLines.length} categories`
+                                : candidate.matchedTransaction?.category || "—"}
+                            </span>
+                            <span className="transaction-import-match-memo">
+                              {candidate.matchedTransaction?.memo || "—"}
+                              {(candidate.matchedTransaction?.tagIds?.length ?? 0) > 0 ? (
+                                <small>
+                                  Tags: {(candidate.matchedTransaction?.tagIds ?? []).map((tagId) =>
+                                    transactionTags.find((tag) => tag.id === tagId)?.name ?? tagId
+                                  ).join(", ")}
+                                </small>
+                              ) : null}
+                              {(candidate.matchedTransaction?.attachmentCount ??
+                                candidate.matchedTransaction?.scheduledAttachments?.length ??
+                                0) > 0 ? (
+                                <small>
+                                  📎 {candidate.matchedTransaction?.attachmentCount ??
+                                    candidate.matchedTransaction?.scheduledAttachments?.length ??
+                                    0}
+                                </small>
+                              ) : null}
+                            </span>
+                            <strong className={`transaction-import-match-amount ${candidate.matchedTransaction && candidate.matchedTransaction.inflow > 0 && candidate.matchedTransaction.outflow === 0 ? "money-positive" : candidate.matchedTransaction && candidate.matchedTransaction.outflow > 0 ? "money-negative" : ""}`}>
+                              {matchAmountLabel}
+                            </strong>
                           </div>
-                          <div
-                            className="transaction-import-proposed-field transaction-import-proposed-category"
-                          >
-                            {activeProposedTransactionEdit &&
-                            activeProposedTransactionEdit.field === "category" ? (
-                              <RegisterCategoryInput
-                                value={activeProposedTransactionEdit.draftValue}
-                                categoryOptions={categoryOptions}
-                                includeSplitOption
-                                autoFocus={
-                                  proposedCategoryEditBehaviour.autoFocus
-                                }
-                                selectOnInitialFocus={
-                                  proposedCategoryEditBehaviour.selectOnInitialFocus
-                                }
-                                openOnFocus={
-                                  proposedCategoryEditBehaviour.openOnFocus
-                                }
-                                onCreateCategory={onCreateCategory}
-                                onChange={updateProposedTransactionDraft}
-                                onSelection={(value) => {
-                                  if (value === "Split") {
-                                    beginMatchedSplitEdit(candidate);
-                                    return;
-                                  }
-
-                                  const selectedCategory = categoryOptions.find(
-                                    (category) => category.name === value,
-                                  );
-
-                                  updateMatchedTransactionDetails(candidate.id, {
-                                    category: value,
-                                    categoryId: selectedCategory?.id,
-                                    transferAccountId: undefined,
-                                    transferTransactionId: undefined,
-                                    splitLines: undefined,
-                                  });
-                                  setProposedTransactionEdit(null);
-                                }}
-                                onCancel={cancelProposedTransactionEdit}
-                                onBlurOutside={cancelProposedTransactionEdit}
-                              />
-                            ) : (
-                              <span >
-                                {candidate.matchedTransaction?.splitLines?.length
-                                  ? `Split · ${candidate.matchedTransaction.splitLines.length} categories`
-                                  : candidate.matchedTransaction?.category || "—"}
-                                {candidate.matchedTransaction?.memo
-                                  ? ` · ${candidate.matchedTransaction.memo}`
-                                  : ""}
-                                {matchedTransactionOrigins[candidate.id] &&
-                                matchedTransactionOrigins[candidate.id]?.memo !==
-                                  candidate.matchedTransaction?.memo ? (
-                                  <small className="transaction-import-payee-alias-note">
-                                    Register memo: {matchedTransactionOrigins[candidate.id]?.memo || "None"} · Final memo: {candidate.matchedTransaction?.memo || "None"}
-                                  </small>
-                                ) : null}
-                              </span>
-                            )}
-                          </div>
-                          <strong className={`transaction-import-match-amount ${candidate.matchedTransaction && candidate.matchedTransaction.inflow > 0 && candidate.matchedTransaction.outflow === 0 ? "money-positive" : candidate.matchedTransaction && candidate.matchedTransaction.outflow > 0 ? "money-negative" : ""}`}>
-                            {matchAmountLabel}
-                          </strong>
                         </div>
                       </>
                     ) : null}
-
                   </div>
-
-                  {candidate.status !== "invalid" ? (
-                    <div className="transaction-import-inline-editor">
-                      {activeProposedTransactionEdit?.field === "memo" ? (
-                        <label>
-                          <span>Memo</span>
-                          <input
-                            aria-label={`Memo for row ${candidate.parsed.rowNumber}`}
-                            autoFocus
-                            value={activeProposedTransactionEdit.draftValue}
-                            onChange={(event) =>
-                              updateProposedTransactionDraft(event.target.value)
-                            }
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                if (candidate.status === "exact-match") {
-                                  commitMatchedMemoEdit(
-                                    candidate,
-                                    activeProposedTransactionEdit.draftValue,
-                                  );
-                                } else {
-                                  commitProposedTransactionEdit(
-                                    candidate.id,
-                                    "memo",
-                                    activeProposedTransactionEdit.draftValue,
-                                  );
-                                }
-                              } else if (event.key === "Escape") {
-                                event.preventDefault();
-                                cancelProposedTransactionEdit();
-                              }
-                            }}
-                          />
-                        </label>
-                      ) : (
-                        <span>
-                          <strong>Memo:</strong>{" "}
-                          {candidate.status === "exact-match"
-                            ? candidate.matchedTransaction?.memo || "—"
-                            : candidate.lifecycle.proposal.memo || "—"}
-                        </span>
-                      )}
-                      {activeProposedTransactionEdit?.field === "memo" ? (
-                        <>
-                          <button
-                            className="button button-primary"
-                            type="button"
-                            onClick={() => {
-                              if (candidate.status === "exact-match") {
-                                commitMatchedMemoEdit(
-                                  candidate,
-                                  activeProposedTransactionEdit.draftValue,
-                                );
-                              } else {
-                                commitProposedTransactionEdit(
-                                  candidate.id,
-                                  "memo",
-                                  activeProposedTransactionEdit.draftValue,
-                                );
-                              }
-                            }}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="button button-secondary"
-                            type="button"
-                            onClick={cancelProposedTransactionEdit}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : null}
-                    </div>
-                  ) : null}
 
                   {candidateAliasSuggestion ? (
                     <div className="transaction-import-inline-alias">
