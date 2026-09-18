@@ -60,6 +60,7 @@ export async function createBudgetFromSqliteBackup(
     throw new Error("Choose a non-empty Budget App SQLite backup.");
   }
 
+  const registryBeforeImport = storage.getItem(BUDGET_REGISTRY_STORAGE_KEY);
   const pending = createPendingRegistryEntry(storage, file, now);
   let budget = pending.budget;
   let provisioned:
@@ -68,6 +69,7 @@ export async function createBudgetFromSqliteBackup(
   let database: LocalBudgetDatabaseClient | null = null;
   let replacementStarted = false;
   let clonePublished = false;
+  let registryPublished = false;
 
   try {
     provisioned = await provisionFreshLocalFirstBudget(budget.id);
@@ -120,15 +122,16 @@ export async function createBudgetFromSqliteBackup(
       mutationCount: 0,
     });
 
-    await database.close();
-    database = null;
-
     const serialized = pending.values.get(BUDGET_REGISTRY_STORAGE_KEY);
     if (!serialized) {
       throw new Error("The restored budget registry entry could not be published.");
     }
     storage.setItem(BUDGET_REGISTRY_STORAGE_KEY, serialized);
+    registryPublished = true;
     await storage.flush?.();
+
+    await database.close();
+    database = null;
 
     const published =
       readBudgetRegistry(storage).find(({ id }) => id === budget.id) ?? budget;
@@ -137,6 +140,14 @@ export async function createBudgetFromSqliteBackup(
       budgets: readBudgetRegistry(storage),
     };
   } catch (error) {
+    if (registryPublished) {
+      if (registryBeforeImport === null) {
+        storage.removeItem(BUDGET_REGISTRY_STORAGE_KEY);
+      } else {
+        storage.setItem(BUDGET_REGISTRY_STORAGE_KEY, registryBeforeImport);
+      }
+      await storage.flush?.().catch(() => undefined);
+    }
     if (database) {
       if (replacementStarted) {
         await database.abortBaselineReplacement().catch(() => undefined);
