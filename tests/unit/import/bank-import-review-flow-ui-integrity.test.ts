@@ -92,7 +92,7 @@ test("transaction editor keeps bank date and amount read-only while editing revi
   assert.match(dialogSource, /<span>Payee<\/span>[\s\S]*?<PayeeInput/);
   assert.match(dialogSource, /<span>Category<\/span>[\s\S]*?<RegisterCategoryInput/);
   assert.match(dialogSource, /<span>Memo<\/span>[\s\S]*?<input/);
-  assert.match(dialogSource, /<legend>Tags<\/legend>/);
+  assert.match(dialogSource, /<TransactionTagPicker[\s\S]*?selectedTagIds=\{transactionEditDraft\.tagIds\}/);
   assert.match(dialogSource, /<strong>Attachments<\/strong>/);
 });
 
@@ -114,5 +114,25 @@ test("open transaction overflow menu escapes its card and stacks above later rev
   assert.match(
     styleSource,
     /\.transaction-import-more-actions\[open\][\s\S]*?z-index:\s*31;/,
+  );
+});
+
+
+test("transaction editor backdrop closes only on a true backdrop click", () => {
+  assert.match(
+    dialogSource,
+    /onClick=\{\(event\) => \{[\s\S]*?event\.target === event\.currentTarget[\s\S]*?closeTransactionEdit\(\)/,
+  );
+});
+
+test("transaction editor uses the register tag picker instead of raw tag checkboxes", () => {
+  assert.match(
+    dialogSource,
+    /import \{ TransactionTagPicker \} from "\.\/TransactionRow"/,
+  );
+  assert.match(dialogSource, /<TransactionTagPicker/);
+  assert.doesNotMatch(
+    dialogSource,
+    /transactionTags\.map\(\(tag\) => \([\s\S]*?type="checkbox"/,
   );
 });

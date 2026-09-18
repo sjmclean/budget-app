@@ -5,6 +5,7 @@ import { useDateFormatPreference } from "../../settings/useDateFormatPreference"
 import { useDeveloperPerformanceMode } from "../../settings/useDeveloperPerformanceMode";
 import type { BudgetCategoryOption } from "../../budget/budgetViewTypes";
 import { PayeeInput } from "./PayeeInput";
+import { TransactionTagPicker } from "./TransactionRow";
 import {
   RegisterCategoryInput,
   type RegisterInlineCategoryCreateInput,
@@ -183,6 +184,7 @@ interface TransactionImportEditDraft {
   memo: string;
   tagIds: string[];
   attachments: ScheduledAttachmentTemplate[];
+  splitLines: SplitLineDraft[];
 }
 
 interface TransactionImportSplitEdit {
@@ -374,6 +376,7 @@ export function TransactionImportDialog({
   transactionTags,
   transferAccounts,
   onCreateCategory,
+  onCreateTransactionTag,
   onLearnPayeeAliases,
 }: {
   initialAccountId: string;
@@ -409,6 +412,7 @@ export function TransactionImportDialog({
   categoryOptions: BudgetCategoryOption[];
   transactionTags: TransactionTagDefinition[];
   transferAccounts: SidebarAccount[];
+  onCreateTransactionTag: (name: string) => TransactionTagDefinition;
   onCreateCategory?: (
     input: RegisterInlineCategoryCreateInput,
   ) => Promise<BudgetCategoryOption>;
@@ -1781,6 +1785,10 @@ export function TransactionImportDialog({
     const matched =
       candidate.status === "exact-match" ? candidate.matchedTransaction : null;
     const proposal = candidate.lifecycle.proposal;
+    const existingSplitLines =
+      matched?.splitLines ??
+      proposal.splitLines ??
+      [];
     setTransactionEditDraft({
       candidateId: candidate.id,
       payee: matched?.payee ?? proposal.payee,
@@ -1794,6 +1802,17 @@ export function TransactionImportDialog({
       attachments: [
         ...(matched?.scheduledAttachments ?? proposal.attachments ?? []),
       ].map((attachment) => ({ ...attachment })),
+      splitLines: existingSplitLines.map((line) => ({
+        id: line.id,
+        category: line.category,
+        categoryId: line.categoryId,
+        transferAccountId: line.transferAccountId,
+        transferAccountParticipation: line.transferAccountParticipation,
+        transferTransactionId: line.transferTransactionId,
+        memo: line.memo ?? "",
+        outflow: line.outflow ? line.outflow.toFixed(2) : "",
+        inflow: line.inflow ? line.inflow.toFixed(2) : "",
+      })),
     });
     setTransactionEditError(null);
   }
@@ -1845,6 +1864,28 @@ export function TransactionImportDialog({
     }
   }
 
+  function updateTransactionEditCategory(value: string) {
+    setTransactionEditDraft((current) => {
+      if (!current) return current;
+      if (value === "Split") {
+        return {
+          ...current,
+          category: "Split",
+          splitLines:
+            current.splitLines.length > 0
+              ? current.splitLines
+              : [createSplitLineDraft(), createSplitLineDraft()],
+        };
+      }
+      return {
+        ...current,
+        category: value,
+        splitLines: [],
+      };
+    });
+    setTransactionEditError(null);
+  }
+
   function saveTransactionEdit(candidate: TransactionImportCandidate) {
     const draft = transactionEditDraft;
     if (!draft || draft.candidateId !== candidate.id) return;
@@ -1857,6 +1898,29 @@ export function TransactionImportDialog({
 
     const memo = draft.memo.trim() || undefined;
     const categoryName = draft.category.trim();
+    const reviewedSplitLines =
+      categoryName === "Split"
+        ? buildSplitLines(draft.splitLines, categoryOptions)
+        : undefined;
+
+    if (
+      categoryName === "Split" &&
+      (
+        draft.splitLines.length < 2 ||
+        hasIncompleteSplitDrafts(draft.splitLines) ||
+        !isSplitDraftBalanced(
+          candidate.parsed.outflow,
+          candidate.parsed.inflow,
+          draft.splitLines,
+        ) ||
+        (reviewedSplitLines?.length ?? 0) < 2
+      )
+    ) {
+      setTransactionEditError(
+        "Complete at least two split categories and assign the full transaction amount before saving.",
+      );
+      return;
+    }
 
     if (candidate.status === "exact-match" && candidate.matchedTransaction) {
       const payeeOption = payeeOptions.find(
@@ -1873,24 +1937,15 @@ export function TransactionImportDialog({
         payeeId: payeeOption?.id,
         category:
           categoryName === "Split"
-            ? candidate.matchedTransaction.category
+            ? "Split"
             : categoryName || candidate.matchedTransaction.category,
         categoryId:
           categoryName === "Split"
-            ? candidate.matchedTransaction.categoryId
+            ? undefined
             : categoryOption?.id ?? candidate.matchedTransaction.categoryId,
-        transferAccountId:
-          categoryName === "Split"
-            ? candidate.matchedTransaction.transferAccountId
-            : undefined,
-        transferTransactionId:
-          categoryName === "Split"
-            ? candidate.matchedTransaction.transferTransactionId
-            : undefined,
-        splitLines:
-          categoryName === "Split"
-            ? candidate.matchedTransaction.splitLines
-            : undefined,
+        transferAccountId: undefined,
+        transferTransactionId: undefined,
+        splitLines: categoryName === "Split" ? reviewedSplitLines : undefined,
         memo,
         tagIds: [...draft.tagIds],
         scheduledAttachments: draft.attachments.map((attachment) => ({
@@ -1912,9 +1967,6 @@ export function TransactionImportDialog({
       });
       setTransactionEditDraft(null);
       setTransactionEditError(null);
-      if (categoryName === "Split") {
-        beginMatchedSplitEdit(candidate);
-      }
       return;
     }
 
@@ -1938,10 +1990,7 @@ export function TransactionImportDialog({
       memoReviewed: true,
       tagIds: [...draft.tagIds],
       attachments: draft.attachments.map((attachment) => ({ ...attachment })),
-      splitLines:
-        categoryName === "Split"
-          ? candidate.lifecycle.proposal.splitLines
-          : undefined,
+      splitLines: categoryName === "Split" ? reviewedSplitLines : undefined,
       ...(categoryName === "Split"
         ? { categoryName: "Split", transferAccountName: null }
         : {}),
@@ -1968,9 +2017,6 @@ export function TransactionImportDialog({
     }
     setTransactionEditDraft(null);
     setTransactionEditError(null);
-    if (categoryName === "Split") {
-      beginProposalSplitEdit(candidate);
-    }
   }
 
   function removeHistoricalPayeeMapping(sourceRawPayee: string) {
@@ -3986,7 +4032,11 @@ export function TransactionImportDialog({
           <div
             className="transaction-import-transaction-editor-backdrop"
             role="presentation"
-            onClick={closeTransactionEdit}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) {
+                closeTransactionEdit();
+              }
+            }}
           >
             <section
               className="transaction-import-transaction-editor"
@@ -4048,18 +4098,33 @@ export function TransactionImportDialog({
                   categoryOptions={categoryOptions}
                   includeSplitOption
                   onCreateCategory={onCreateCategory}
-                  onChange={(value) =>
-                    setTransactionEditDraft((current) =>
-                      current ? { ...current, category: value } : current,
-                    )
-                  }
-                  onSelection={(value) =>
-                    setTransactionEditDraft((current) =>
-                      current ? { ...current, category: value } : current,
-                    )
-                  }
+                  onChange={updateTransactionEditCategory}
+                  onSelection={updateTransactionEditCategory}
                 />
               </label>
+
+              {transactionEditDraft.category === "Split" ? (
+                <div className="transaction-import-transaction-editor-split">
+                  <RegisterSplitEditor
+                    splitLines={transactionEditDraft.splitLines}
+                    setSplitLines={(updater) =>
+                      setTransactionEditDraft((current) =>
+                        current
+                          ? { ...current, splitLines: updater(current.splitLines) }
+                          : current,
+                      )
+                    }
+                    categoryOptions={categoryOptions}
+                    parentOutflow={transactionEditCandidate.parsed.outflow}
+                    parentInflow={transactionEditCandidate.parsed.inflow}
+                    currencyCode={currencyCode}
+                    visibleColumnIds={IMPORT_SPLIT_VISIBLE_COLUMN_IDS}
+                    rowStyle={{}}
+                    layoutMode="compact"
+                    onCreateCategory={onCreateCategory}
+                  />
+                </div>
+              ) : null}
 
               <label>
                 <span>Memo</span>
@@ -4076,34 +4141,20 @@ export function TransactionImportDialog({
                 </small>
               </label>
 
-              <fieldset className="transaction-import-transaction-editor-tags">
-                <legend>Tags</legend>
-                {transactionTags.length === 0 ? (
-                  <span className="muted">No tags have been created yet.</span>
-                ) : (
-                  transactionTags.map((tag) => (
-                    <label key={tag.id}>
-                      <input
-                        type="checkbox"
-                        checked={transactionEditDraft.tagIds.includes(tag.id)}
-                        onChange={(event) =>
-                          setTransactionEditDraft((current) =>
-                            current
-                              ? {
-                                  ...current,
-                                  tagIds: event.target.checked
-                                    ? [...new Set([...current.tagIds, tag.id])]
-                                    : current.tagIds.filter((tagId) => tagId !== tag.id),
-                                }
-                              : current,
-                          )
-                        }
-                      />
-                      <span>{tag.name}</span>
-                    </label>
-                  ))
-                )}
-              </fieldset>
+              <div className="transaction-import-transaction-editor-tags">
+                <span>Tags</span>
+                <TransactionTagPicker
+                  selectedTagIds={transactionEditDraft.tagIds}
+                  identity={transactionEditDraft.candidateId}
+                  tags={transactionTags}
+                  onChange={(tagIds) =>
+                    setTransactionEditDraft((current) =>
+                      current ? { ...current, tagIds } : current,
+                    )
+                  }
+                  onCreateTag={onCreateTransactionTag}
+                />
+              </div>
 
               <div className="transaction-import-transaction-editor-attachments">
                 <div>
