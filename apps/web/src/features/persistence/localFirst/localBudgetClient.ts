@@ -784,6 +784,11 @@ export class LocalBudgetDatabaseClient {
       readonly mutation: LocalBudgetMutation;
       readonly resolveConflictId?: string;
     }[],
+    attachmentWrites: readonly {
+      readonly attachment: LocalTransactionAttachmentRecord;
+      readonly content: Uint8Array;
+      readonly mutation: LocalBudgetMutation;
+    }[] = [],
     options: {
       readonly requireAbsentTransactionIds?: readonly string[];
       readonly verifyWrittenTransactions?: boolean;
@@ -794,6 +799,7 @@ export class LocalBudgetDatabaseClient {
       type: "writeImportBatch",
       payeeWrites,
       writes,
+      attachmentWrites,
       ...(options.requireAbsentTransactionIds?.length
         ? {
             requireAbsentTransactionIds:
@@ -809,6 +815,7 @@ export class LocalBudgetDatabaseClient {
   writeImportBatchWithHistory(
     payeeWrites: readonly { readonly payee: LocalPayeeRecord; readonly mutation: LocalBudgetMutation }[],
     writes: readonly { readonly transaction: LocalTransactionRecord; readonly mutation: LocalBudgetMutation; readonly resolveConflictId?: string }[],
+    attachmentWrites: readonly { readonly attachment: LocalTransactionAttachmentRecord; readonly content: Uint8Array; readonly mutation: LocalBudgetMutation }[] = [],
     options: {
       readonly requireAbsentTransactionIds?: readonly string[];
       readonly verifyWrittenTransactions?: boolean;
@@ -817,7 +824,7 @@ export class LocalBudgetDatabaseClient {
     },
   ): Promise<{ readonly before: ImportHistorySnapshot; readonly after: ImportHistorySnapshot }> {
     return this.#request({
-      requestId: createRuntimeUuid(), type: "writeImportBatchWithHistory", payeeWrites, writes,
+      requestId: createRuntimeUuid(), type: "writeImportBatchWithHistory", payeeWrites, writes, attachmentWrites,
       requireAbsentTransactionIds: options.requireAbsentTransactionIds,
       verifyWrittenTransactions: options.verifyWrittenTransactions,
       historyTransactionIds: options.historyTransactionIds,
