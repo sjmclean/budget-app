@@ -47,8 +47,29 @@ test("unified import editor edits payee, category, memo, tags, and attachments",
   assert.match(draftBlock, /memo: string/);
   assert.match(draftBlock, /tagIds: string\[\]/);
   assert.match(draftBlock, /attachments: ScheduledAttachmentTemplate\[\]/);
+  assert.match(draftBlock, /splitLines: SplitLineDraft\[\]/);
 
   assert.match(source, />\s*Save transaction\s*</);
   assert.match(source, />\s*Cancel\s*</);
   assert.match(source, /memoReviewed: true/);
+});
+
+
+test("unified import editor uses register tag and split controls", () => {
+  assert.match(
+    source,
+    /import \{ TransactionTagPicker \} from "\.\/TransactionRow"/,
+  );
+  assert.match(
+    source,
+    /<TransactionTagPicker[\s\S]*?onCreateTag=\{onCreateTransactionTag\}/,
+  );
+  assert.match(
+    source,
+    /transactionEditDraft\.category === "Split"[\s\S]*?<RegisterSplitEditor/,
+  );
+  assert.match(
+    source,
+    /!isSplitDraftBalanced\([\s\S]*?draft\.splitLines/,
+  );
 });
