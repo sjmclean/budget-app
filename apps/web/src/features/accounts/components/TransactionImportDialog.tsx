@@ -10,10 +10,6 @@ import {
   type RegisterInlineCategoryCreateInput,
 } from "./RegisterCategoryInput";
 import { RegisterSplitEditor } from "./RegisterSplitEditor";
-import {
-  getTransactionFieldEditBehaviour,
-  type TransactionEditIntent,
-} from "../../transactions/transactionEditIntent";
 import type { PayeeView } from "../payeeService";
 import { createRuntimeUuid } from "../../ids/createRuntimeUuid";
 import type { SidebarAccount } from "../accountService";
@@ -179,14 +175,6 @@ type TransactionImportFileType =
   "csv" | "qif" | "ofx" | "qfx" | "json" | "unknown";
 
 type ProcessedImportAction = "imported" | "matched" | "skipped";
-
-type ProposedTransactionEditField = "payee" | "category" | "memo";
-
-interface ProposedTransactionEdit {
-  candidateId: string;
-  field: ProposedTransactionEditField;
-  draftValue: string;
-}
 
 interface TransactionImportEditDraft {
   candidateId: string;
@@ -496,8 +484,6 @@ export function TransactionImportDialog({
   const [matchedTransactionOrigins, setMatchedTransactionOrigins] = useState<
     Record<string, RegisterTransactionView>
   >({});
-  const [proposedTransactionEdit, setProposedTransactionEdit] =
-    useState<ProposedTransactionEdit | null>(null);
   const [transactionEditDraft, setTransactionEditDraft] =
     useState<TransactionImportEditDraft | null>(null);
   const [transactionEditAttachmentBusy, setTransactionEditAttachmentBusy] =
@@ -1668,7 +1654,6 @@ export function TransactionImportDialog({
   function beginProposalSplitEdit(candidate: TransactionImportCandidate) {
     const existing = candidate.lifecycle.proposal.splitLines;
 
-    setProposedTransactionEdit(null);
     setSplitEdit({
       candidateId: candidate.id,
       target: "proposal",
@@ -1967,88 +1952,6 @@ export function TransactionImportDialog({
     }
   }
 
-  function beginProposedTransactionEdit(
-    candidateId: string,
-    field: ProposedTransactionEditField,
-    value: string,
-  ) {
-    setProposedTransactionEdit({ candidateId, field, draftValue: value });
-  }
-
-  function updateProposedTransactionDraft(value: string) {
-    setProposedTransactionEdit((current) =>
-      current ? { ...current, draftValue: value } : current,
-    );
-  }
-
-  function cancelProposedTransactionEdit() {
-    setProposedTransactionEdit(null);
-  }
-
-  function applySameFileReviewCorrection({
-    sourceCandidate,
-    field,
-    value,
-    sourceProposalUpdates,
-  }: {
-    sourceCandidate: TransactionImportCandidate;
-    field: ImportReviewPropagationField;
-    value: string;
-    sourceProposalUpdates: Partial<
-      TransactionImportCandidate["lifecycle"]["proposal"]
-    >;
-  }) {
-    const nextManualEdits = markImportReviewFieldEdited(
-      manualCandidateEdits,
-      sourceCandidate.id,
-      field,
-    );
-    setManualCandidateEdits(nextManualEdits);
-
-    const sourceWithEdit: TransactionImportCandidate = {
-      ...sourceCandidate,
-      lifecycle: {
-        ...sourceCandidate.lifecycle,
-        proposal: {
-          ...sourceCandidate.lifecycle.proposal,
-          ...sourceProposalUpdates,
-        },
-      },
-    };
-    const combined = [
-      ...candidates.map((candidate) =>
-        candidate.id === sourceCandidate.id ? sourceWithEdit : candidate,
-      ),
-      ...processedCandidates.map((entry) => entry.candidate),
-    ];
-    const propagated = propagateImportReviewField({
-      candidates: combined,
-      sourceCandidateId: sourceCandidate.id,
-      field,
-      value,
-      manualEdits: nextManualEdits,
-    });
-    const propagatedById = new Map(
-      propagated.map((candidate) => [candidate.id, candidate] as const),
-    );
-
-    setCandidates((current) =>
-      current.map((candidate) => propagatedById.get(candidate.id) ?? candidate),
-    );
-    setProcessedCandidates((current) =>
-      current.map((entry) =>
-        entry.action === "imported"
-          ? {
-              ...entry,
-              candidate:
-                propagatedById.get(entry.candidate.id) ?? entry.candidate,
-            }
-          : entry,
-      ),
-    );
-    setError(null);
-  }
-
   function removeHistoricalPayeeMapping(sourceRawPayee: string) {
     const sourceIdentity = getImportRawPayeeIdentity(sourceRawPayee);
     if (!sourceIdentity) return;
@@ -2142,85 +2045,6 @@ export function TransactionImportDialog({
     }
   }
 
-  function commitProposedTransactionEdit(
-    candidateId: string,
-    field: ProposedTransactionEditField,
-    value: string,
-  ) {
-    const currentCandidate = candidates.find(
-      (candidate) => candidate.id === candidateId,
-    );
-    if (!currentCandidate) {
-      setProposedTransactionEdit(null);
-      return;
-    }
-
-    if (field === "payee") {
-      const built = buildTransactionImportMerchantProposal({
-        store: merchantKnowledgeRef.current,
-        rawPayee: value,
-        transaction: currentCandidate.parsed,
-        currentProposal: currentCandidate.lifecycle.proposal,
-      });
-      applySameFileReviewCorrection({
-        sourceCandidate: currentCandidate,
-        field: "payee",
-        value: built.proposal.payee,
-        sourceProposalUpdates: {
-          payee: built.proposal.payee,
-          transferAccountName: built.proposal.transferAccountName ?? null,
-          categoryName: built.proposal.categoryName ?? null,
-        },
-      });
-      void offerHistoricalPayeeUpdate(
-        currentCandidate.id,
-        currentCandidate.lifecycle.source.rawPayee,
-        built.proposal.payee,
-      );
-    } else if (field === "category") {
-      if (value === "Split") {
-        setManualCandidateEdits((current) =>
-          markImportReviewFieldEdited(current, candidateId, "category"),
-        );
-        beginProposalSplitEdit(currentCandidate);
-        return;
-      }
-
-      applySameFileReviewCorrection({
-        sourceCandidate: currentCandidate,
-        field: "category",
-        value,
-        sourceProposalUpdates: {
-          categoryName: value || null,
-          transferAccountName: null,
-          splitLines: undefined,
-        },
-      });
-    } else {
-      updateCandidateProposal(candidateId, {
-        memo: value.trim() || undefined,
-        memoReviewed: true,
-      });
-      setManualCandidateEdits((current) =>
-        markImportReviewFieldEdited(current, candidateId, "memo"),
-      );
-    }
-    setProposedTransactionEdit(null);
-  }
-
-  function commitMatchedMemoEdit(
-    candidate: TransactionImportCandidate,
-    value: string,
-  ) {
-    updateMatchedTransactionDetails(candidate.id, {
-      memo: value.trim() || undefined,
-    });
-    setManualCandidateEdits((current) =>
-      markImportReviewFieldEdited(current, candidate.id, "memo"),
-    );
-    setProposedTransactionEdit(null);
-  }
-
   function updateExcludeMemosPreference(enabled: boolean) {
     const updateCandidate = (candidate: TransactionImportCandidate) =>
       applySourceMemoPreferenceToCandidate({
@@ -2266,47 +2090,8 @@ export function TransactionImportDialog({
     setHistoricalRegisterPayeeUpdates(result.historicalUpdates);
     setMatchEditorOrigins(result.matchEditorOrigins);
     setMatchedTransactionOrigins(result.matchedTransactionOrigins);
-    if (proposedTransactionEdit?.candidateId === candidateId) {
-      setProposedTransactionEdit(null);
-    }
     if (splitEdit?.candidateId === candidateId) setSplitEdit(null);
     setError(null);
-  }
-
-  function commitMatchedPayeeEdit(
-    candidate: TransactionImportCandidate,
-    value: string,
-  ) {
-    const built = buildTransactionImportMerchantProposal({
-      store: merchantKnowledgeRef.current,
-      rawPayee: value,
-      transaction: candidate.parsed,
-      fallbackCategoryName: candidate.matchedTransaction?.category,
-    });
-    const transferAccount = transferAccounts.find(
-      (account) =>
-        account.name.toLocaleLowerCase() ===
-        built.proposal.transferAccountName?.toLocaleLowerCase(),
-    );
-    const suggestedCategory = categoryOptions.find(
-      (category) =>
-        category.name.toLocaleLowerCase() ===
-        built.proposal.categoryName?.toLocaleLowerCase(),
-    );
-
-    updateMatchedTransactionDetails(candidate.id, {
-      payee: built.proposal.payee,
-      payeeId: undefined,
-      transferAccountId: transferAccount?.id,
-      category: built.proposal.categoryName ?? "",
-      categoryId: built.proposal.transferAccountName
-        ? undefined
-        : suggestedCategory?.id ?? candidate.matchedTransaction?.categoryId,
-      splitLines: built.proposal.transferAccountName
-        ? undefined
-        : candidate.matchedTransaction?.splitLines,
-    });
-    setProposedTransactionEdit(null);
   }
 
   function updateMatchedTransactionDetails(
