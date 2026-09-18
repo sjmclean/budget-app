@@ -148,8 +148,13 @@ export interface TransactionImportProposal {
   payee: string;
   categoryName: string | null;
   transferAccountName: string | null;
-  /** Reviewed memo; distinct from immutable source memo evidence. */
+  /** Proposed memo; may still be source-derived until explicitly reviewed. */
   memo?: string;
+  /**
+   * True once the user deliberately saves the memo in review. A reviewed memo
+   * is persisted even when source memo importing is disabled globally.
+   */
+  memoReviewed?: boolean;
   /** Reviewed tags to persist with a newly imported transaction. */
   tagIds?: string[];
   /** Reviewed attachments to persist atomically with a newly imported transaction. */
