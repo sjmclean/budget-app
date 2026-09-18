@@ -222,31 +222,63 @@ export function usePayeeManagerWorkflow({
     return created;
   }
 
+  async function learnPayeeAliases(
+    learnings: readonly { payeeId: string; rawPayee: string }[],
+  ): Promise<number> {
+    if (learnings.length === 0) return 0;
+
+    let currentPayees = await payeesPersistence.listPayees();
+    const rawPayeesByPayeeId = new Map<string, string[]>();
+
+    for (const learning of learnings) {
+      const rawPayees = rawPayeesByPayeeId.get(learning.payeeId) ?? [];
+      rawPayees.push(learning.rawPayee);
+      rawPayeesByPayeeId.set(learning.payeeId, rawPayees);
+    }
+
+    let learnedCount = 0;
+
+    for (const [payeeId, rawPayees] of rawPayeesByPayeeId) {
+      const payee = currentPayees.find((entry) => entry.id === payeeId);
+      if (!payee) continue;
+
+      let nextPayee = payee;
+      let changed = false;
+
+      for (const rawPayee of rawPayees) {
+        const aliases = appendCanonicalPayeeAlias({
+          payee: nextPayee,
+          rawPayee,
+          aliasId: createRuntimeUuid(),
+        });
+        if (!aliases) continue;
+        nextPayee = { ...nextPayee, aliases };
+        learnedCount += 1;
+        changed = true;
+      }
+
+      if (!changed) continue;
+
+      currentPayees = await payeesPersistence.updatePayee({
+        id: nextPayee.id,
+        name: nextPayee.name,
+        note: nextPayee.note ?? "",
+        defaultCategoryId: nextPayee.defaultCategoryId,
+        defaultCategoryName: nextPayee.defaultCategoryName,
+        importRules: nextPayee.importRules,
+        aliases: nextPayee.aliases,
+      });
+    }
+
+    setPayeeOptions(currentPayees);
+    return learnedCount;
+  }
+
   async function learnPayeeAlias(
     payeeId: string,
     rawPayee: string,
   ): Promise<boolean> {
-    const payee = payeeOptions.find((entry) => entry.id === payeeId);
-    if (!payee) return false;
-
-    const aliases = appendCanonicalPayeeAlias({
-      payee,
-      rawPayee,
-      aliasId: createRuntimeUuid(),
-    });
-    if (!aliases) return false;
-
-    const nextPayees = await payeesPersistence.updatePayee({
-      id: payee.id,
-      name: payee.name,
-      note: payee.note ?? "",
-      defaultCategoryId: payee.defaultCategoryId,
-      defaultCategoryName: payee.defaultCategoryName,
-      importRules: payee.importRules,
-      aliases,
-    });
-    setPayeeOptions(nextPayees);
-    return true;
+    return (await learnPayeeAliases([{ payeeId, rawPayee }])) > 0;
   }
 
   async function handleRenamePayee() {
@@ -399,6 +431,7 @@ export function usePayeeManagerWorkflow({
   refreshPayees,
   createInlinePayee,
   learnPayeeAlias,
+  learnPayeeAliases,
 
   isPayeeManagerOpen,
   setIsPayeeManagerOpen,
