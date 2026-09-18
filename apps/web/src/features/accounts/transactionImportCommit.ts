@@ -99,6 +99,10 @@ function toRegisterTransactionInput(
       : "memo" in proposal
         ? proposal.memo
         : parsed.memo,
+    tagIds: proposal.tagIds ? [...proposal.tagIds] : undefined,
+    scheduledAttachments: proposal.attachments
+      ? proposal.attachments.map((attachment) => ({ ...attachment }))
+      : undefined,
     outflow: parsed.outflow,
     inflow: parsed.inflow,
     splitLines: reviewedSplitLines,
