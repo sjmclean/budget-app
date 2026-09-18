@@ -1924,17 +1924,45 @@ export function createLocalFirstAccountRegisterQueryClient(
           ),
         };
       });
+      const attachmentWrites = (input.attachmentCreations ?? []).map((creation) => {
+        const attachment: LocalTransactionAttachmentRecord = {
+          ...creation.attachment,
+          budgetId: input.budgetId,
+          transactionId: creation.transactionId,
+        };
+        const payload: LocalTransactionAttachmentMutationPayload = {
+          kind: "transaction-attachment-upsert",
+          attachment,
+          contentBase64: encodeBase64(creation.content),
+        };
+        return {
+          attachment,
+          content: Uint8Array.from(creation.content),
+          mutation: mutation(
+            input.budgetId,
+            "transactions",
+            `attachment:${attachment.id}`,
+            "upsert",
+            payload,
+          ),
+        };
+      });
 
       await local.writeImportBatch(
         payeeWrites,
         writes,
+        attachmentWrites,
         {
           requireAbsentTransactionIds,
           verifyWrittenTransactions: true,
         },
       );
 
-      if (payeeWrites.length > 0 || writes.length > 0) {
+      if (
+        payeeWrites.length > 0 ||
+        writes.length > 0 ||
+        attachmentWrites.length > 0
+      ) {
         notifyLocalFirstMutationCommitted(input.budgetId);
       }
     },
@@ -1951,21 +1979,54 @@ export function createLocalFirstAccountRegisterQueryClient(
         };
         return { payee, mutation: mutation(input.budgetId, "payees", payee.id, "upsert", payee) };
       });
+      const attachmentWrites = (input.attachmentCreations ?? []).map((creation) => {
+        const attachment: LocalTransactionAttachmentRecord = {
+          ...creation.attachment,
+          budgetId: input.budgetId,
+          transactionId: creation.transactionId,
+        };
+        const payload: LocalTransactionAttachmentMutationPayload = {
+          kind: "transaction-attachment-upsert",
+          attachment,
+          contentBase64: encodeBase64(creation.content),
+        };
+        return {
+          attachment,
+          content: Uint8Array.from(creation.content),
+          mutation: mutation(
+            input.budgetId,
+            "transactions",
+            `attachment:${attachment.id}`,
+            "upsert",
+            payload,
+          ),
+        };
+      });
       const transactionIds = [...new Set([
         ...input.additions.map(({ id }) => id),
         ...input.updates.map(({ id }) => id),
         ...input.provenanceAssignments.map(({ transactionId }) => transactionId),
+        ...attachmentWrites.map(({ attachment }) => attachment.transactionId),
       ])].sort();
       const payeeIds = [...new Set(input.payeeCreations.map(({ id }) => id))].sort();
-      if (transactionIds.length === 0 && payeeIds.length === 0) {
+      if (
+        transactionIds.length === 0 &&
+        payeeIds.length === 0 &&
+        attachmentWrites.length === 0
+      ) {
         throw new Error("An import history command requires at least one persisted object.");
       }
-      const snapshots = await local.writeImportBatchWithHistory(payeeWrites, writes, {
-        requireAbsentTransactionIds,
-        verifyWrittenTransactions: true,
-        historyTransactionIds: transactionIds,
-        historyPayeeIds: payeeIds,
-      });
+      const snapshots = await local.writeImportBatchWithHistory(
+        payeeWrites,
+        writes,
+        attachmentWrites,
+        {
+          requireAbsentTransactionIds,
+          verifyWrittenTransactions: true,
+          historyTransactionIds: transactionIds,
+          historyPayeeIds: payeeIds,
+        },
+      );
       notifyLocalFirstMutationCommitted(input.budgetId);
       return snapshots;
     },
