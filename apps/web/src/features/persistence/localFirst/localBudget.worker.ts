@@ -5714,7 +5714,149 @@ async function appendBaselineReplacement(offset: number, content: Uint8Array) {
   return { receivedBytes: replacement.receivedBytes };
 }
 
-async function commitBaselineReplacement() {
+function replaceBudgetIdInJsonValue(
+  value: unknown,
+  sourceBudgetId: string,
+  targetBudgetId: string,
+): unknown {
+  if (typeof value === "string") {
+    return value === sourceBudgetId ? targetBudgetId : value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) =>
+      replaceBudgetIdInJsonValue(entry, sourceBudgetId, targetBudgetId),
+    );
+  }
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, nested]) => [
+      key,
+      replaceBudgetIdInJsonValue(nested, sourceBudgetId, targetBudgetId),
+    ]),
+  );
+}
+
+function rewriteBudgetIdJsonColumn(
+  table: string,
+  column: string,
+  sourceBudgetId: string,
+  targetBudgetId: string,
+): void {
+  const rows = resultRows<{ rowid: number; json: string }>(
+    `SELECT rowid, ${column} AS json FROM ${table}`,
+  );
+  for (const row of rows) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(row.json);
+    } catch {
+      continue;
+    }
+    const rewritten = replaceBudgetIdInJsonValue(
+      parsed,
+      sourceBudgetId,
+      targetBudgetId,
+    );
+    const serialised = JSON.stringify(rewritten);
+    if (serialised !== row.json) {
+      execute(
+        `UPDATE ${table} SET ${column} = ? WHERE rowid = ?`,
+        [serialised, row.rowid],
+      );
+    }
+  }
+}
+
+function rehomeImportedBudget(
+  sourceBudgetId: string,
+  targetBudgetId: string,
+  syncEpoch: string,
+  deviceId: string,
+): void {
+  const scopedTables = [
+    "local_budget_months",
+    "local_budget_assignments",
+    "local_budget_category_policies",
+    "local_scheduled_transactions",
+    "local_transaction_tag_definitions",
+    "local_accounts",
+    "local_payees",
+    "local_payee_aliases",
+    "local_payee_recognition_rules",
+    "local_payee_history",
+    "local_payee_duplicate_suppressions",
+    "local_categories",
+    "local_category_goals",
+    "local_transactions",
+    "local_transaction_attachments",
+  ] as const;
+
+  execute("BEGIN IMMEDIATE");
+  try {
+    for (const table of scopedTables) {
+      execute(
+        `UPDATE ${table} SET budget_id = ? WHERE budget_id = ?`,
+        [targetBudgetId, sourceBudgetId],
+      );
+    }
+
+    rewriteBudgetIdJsonColumn(
+      "local_budget_months",
+      "view_json",
+      sourceBudgetId,
+      targetBudgetId,
+    );
+    rewriteBudgetIdJsonColumn(
+      "local_scheduled_transactions",
+      "payload_json",
+      sourceBudgetId,
+      targetBudgetId,
+    );
+    rewriteBudgetIdJsonColumn(
+      "local_transaction_tag_definitions",
+      "payload_json",
+      sourceBudgetId,
+      targetBudgetId,
+    );
+    rewriteBudgetIdJsonColumn(
+      "local_budget_entities",
+      "payload_json",
+      sourceBudgetId,
+      targetBudgetId,
+    );
+    rewriteBudgetIdJsonColumn(
+      "local_payee_history",
+      "detail_json",
+      sourceBudgetId,
+      targetBudgetId,
+    );
+
+    // Device/synchronisation state belongs to the source budget and must never
+    // leak into a newly restored copy.
+    execute("DELETE FROM local_budget_outbox");
+    execute("DELETE FROM local_budget_sync_conflicts");
+    execute("DELETE FROM local_budget_projection_cache");
+    execute("DELETE FROM local_budget_projection_dirty");
+
+    writeMetadata("budgetId", targetBudgetId);
+    writeMetadata("syncEpoch", syncEpoch);
+    writeMetadata("deviceId", deviceId);
+    writeMetadata("pulledCursor", "0");
+    writeMetadata("baselineHash", "");
+    writeMetadata("localRevision", "0");
+
+    activeBudgetId = targetBudgetId;
+    activeSyncEpoch = syncEpoch;
+    markAllBudgetProjectionsDirty();
+
+    execute("COMMIT");
+  } catch (error) {
+    execute("ROLLBACK");
+    throw error;
+  }
+}
+
+async function commitBaselineReplacement(rehomeAsNewBudget = false) {
   const current = replacement;
   if (!current) {
     throw workerError(
@@ -5755,46 +5897,75 @@ async function commitBaselineReplacement() {
       return chunk;
     });
 
-    // Only switch the worker to the candidate after the entire physical file
-    // has been imported. The old physical generation has not been modified.
     database?.close();
     database = null;
 
     activeFilename = targetFilename;
-    activeBudgetId = current.budgetId;
-    activeSyncEpoch = current.syncEpoch;
     database = openPersistentDatabase(activeFilename);
     durable = true;
+
+    // Legacy-normalisation must run under the source identity before a clone is
+    // re-homed, because older JSON payloads can still carry that budgetId.
+    const sourceBudgetId = readMetadata("budgetId");
+    const sourceSyncEpoch = readMetadata("syncEpoch");
+    if (!sourceBudgetId || !sourceSyncEpoch) {
+      throw workerError(
+        "BASELINE_METADATA_MISSING",
+        "The SQLite backup is missing Budget App identity metadata.",
+      );
+    }
+    activeBudgetId = sourceBudgetId;
+    activeSyncEpoch = sourceSyncEpoch;
     initialiseSchema();
 
-    const storedBudgetId = readMetadata("budgetId");
-    const storedSyncEpoch = readMetadata("syncEpoch");
-    if (
-      storedBudgetId !== current.budgetId ||
-      storedSyncEpoch !== current.syncEpoch
-    ) {
+    if (rehomeAsNewBudget) {
+      rehomeImportedBudget(
+        sourceBudgetId,
+        current.budgetId,
+        current.syncEpoch,
+        current.deviceId,
+      );
+    } else {
+      activeBudgetId = current.budgetId;
+      activeSyncEpoch = current.syncEpoch;
+      if (
+        sourceBudgetId !== current.budgetId ||
+        sourceSyncEpoch !== current.syncEpoch
+      ) {
+        throw workerError(
+          "BASELINE_SCOPE_MISMATCH",
+          "Downloaded SQLite baseline does not match the selected budget and sync epoch.",
+        );
+      }
+
+      execute("BEGIN IMMEDIATE");
+      try {
+        execute("DELETE FROM local_budget_outbox");
+        execute("DELETE FROM local_budget_sync_conflicts");
+        writeMetadata("deviceId", current.deviceId);
+        execute("COMMIT");
+      } catch (error) {
+        execute("ROLLBACK");
+        throw error;
+      }
+    }
+
+    const quickCheck = resultRows<Record<string, unknown>>("PRAGMA quick_check");
+    if (quickCheck.length !== 1 || Object.values(quickCheck[0])[0] !== "ok") {
       throw workerError(
-        "BASELINE_SCOPE_MISMATCH",
-        "Downloaded SQLite baseline does not match the selected budget and sync epoch.",
+        "BASELINE_DATABASE_CORRUPT",
+        "The uploaded SQLite database failed integrity validation.",
+      );
+    }
+    const foreignKeyErrors = resultRows("PRAGMA foreign_key_check");
+    if (foreignKeyErrors.length > 0) {
+      throw workerError(
+        "BASELINE_RELATIONAL_INVALID",
+        "The uploaded SQLite database failed relational validation.",
       );
     }
 
-    execute("BEGIN IMMEDIATE");
-    try {
-      // These tables describe the publishing device, not canonical budget data.
-      // A device rebuilt from its baseline must start with its own empty outbox
-      // and conflict inbox.
-      execute("DELETE FROM local_budget_outbox");
-      execute("DELETE FROM local_budget_sync_conflicts");
-      writeMetadata("deviceId", current.deviceId);
-      execute("COMMIT");
-    } catch (error) {
-      execute("ROLLBACK");
-      throw error;
-    }
-
     const promotedManifest = currentManifest();
-
     const supersededPhysicalFilename = previousFilename || null;
     replacement = null;
     await root.removeEntry(current.temporaryName).catch(() => undefined);
@@ -5880,6 +6051,8 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return appendBaselineReplacement(request.offset, request.content);
     case "commitBaselineReplacement":
       return commitBaselineReplacement();
+    case "commitBaselineClone":
+      return commitBaselineReplacement(true);
     case "abortBaselineReplacement":
       return abortBaselineReplacement();
     case "importRegisterBatch":
