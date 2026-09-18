@@ -119,11 +119,23 @@ test("open transaction overflow menu escapes its card and stacks above later rev
 
 
 test("transaction editor requires explicit dismissal and protects the parent import dialog", () => {
-  const editorBackdropOpeningTag =
-    dialogSource.match(
-      /<div\s+[\s\S]*?className="transaction-import-transaction-editor-backdrop"[\s\S]*?>/,
-    )?.[0] ?? "";
-  assert.ok(editorBackdropOpeningTag);
+  const editorBackdropClass =
+    'className="transaction-import-transaction-editor-backdrop"';
+  const editorBackdropClassIndex = dialogSource.indexOf(editorBackdropClass);
+  assert.ok(editorBackdropClassIndex >= 0);
+  const editorBackdropTagStart = dialogSource.lastIndexOf(
+    "<div",
+    editorBackdropClassIndex,
+  );
+  const editorBackdropTagEnd = dialogSource.indexOf(
+    ">",
+    editorBackdropClassIndex,
+  );
+  assert.ok(editorBackdropTagStart >= 0 && editorBackdropTagEnd > editorBackdropTagStart);
+  const editorBackdropOpeningTag = dialogSource.slice(
+    editorBackdropTagStart,
+    editorBackdropTagEnd + 1,
+  );
   assert.doesNotMatch(editorBackdropOpeningTag, /onClick=/);
   assert.match(
     dialogSource,
