@@ -1951,11 +1951,11 @@ export function createLocalFirstAccountRegisterQueryClient(
       await local.writeImportBatch(
         payeeWrites,
         writes,
-        attachmentWrites,
         {
           requireAbsentTransactionIds,
           verifyWrittenTransactions: true,
         },
+        attachmentWrites,
       );
 
       if (
@@ -2019,13 +2019,13 @@ export function createLocalFirstAccountRegisterQueryClient(
       const snapshots = await local.writeImportBatchWithHistory(
         payeeWrites,
         writes,
-        attachmentWrites,
         {
           requireAbsentTransactionIds,
           verifyWrittenTransactions: true,
           historyTransactionIds: transactionIds,
           historyPayeeIds: payeeIds,
         },
+        attachmentWrites,
       );
       notifyLocalFirstMutationCommitted(input.budgetId);
       return snapshots;
