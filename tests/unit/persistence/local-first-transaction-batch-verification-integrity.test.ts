@@ -98,6 +98,34 @@ test("atomic import batch covers payee creation and verified transaction persist
   );
 });
 
+test("import attachments validate and persist with their outbox rows inside the same rollback boundary", () => {
+  const start = worker.indexOf("function writeImportBatch(");
+  const end = worker.indexOf("\nfunction deleteTransaction(", start);
+  assert.ok(start >= 0 && end > start, "writeImportBatch boundary must be discoverable");
+  const batch = worker.slice(start, end);
+
+  assert.match(batch, /attachment\.budgetId !== activeBudgetId/);
+  assert.match(batch, /attachment\.fileSize !== content\.byteLength/);
+  assert.match(batch, /mutation\.domain !== "transactions"/);
+  assert.match(batch, /mutation\.entityId !== `attachment:\$\{attachment\.id\}`/);
+  assert.match(batch, /attachmentIds\.has\(attachment\.id\)/);
+
+  const begin = batch.indexOf('execute("BEGIN IMMEDIATE")');
+  const transactionApply = batch.indexOf("applyTransactionBatchInCurrentTransaction(");
+  const attachmentLookup = batch.indexOf("Import attachment transaction");
+  const attachmentWrite = batch.indexOf("upsertTransactionAttachment(attachment, content)");
+  const attachmentOutbox = batch.indexOf("insertOutbox(mutation)", attachmentWrite);
+  const commit = batch.indexOf('execute("COMMIT")');
+  const rollback = batch.indexOf('execute("ROLLBACK")');
+
+  assert.ok(transactionApply > begin);
+  assert.ok(attachmentLookup > transactionApply);
+  assert.ok(attachmentWrite > attachmentLookup);
+  assert.ok(attachmentOutbox > attachmentWrite);
+  assert.ok(commit > attachmentOutbox);
+  assert.ok(rollback > commit);
+});
+
 test("transaction batch verification reads physical SQLite values without reference hydration", () => {
   const helperStart = worker.indexOf(
     "function getPersistedTransactionForVerification(",

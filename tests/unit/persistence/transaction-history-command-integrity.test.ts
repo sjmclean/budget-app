@@ -29,11 +29,15 @@ function harness() {
     async deleteTransactionHistorySnapshot(_snapshot: TransactionHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("delete", mutations); },
     async replaceTransactionHistorySnapshot(_expected: TransactionHistorySnapshot, _replacement: TransactionHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("replace", mutations); },
     async replaceImportHistorySnapshot(_expected: ImportHistorySnapshot, _replacement: ImportHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("import-replace", mutations); },
-    async writeImportBatch(payees: readonly { mutation: LocalBudgetMutation }[], transactions: readonly { mutation: LocalBudgetMutation }[]) {
-      commit("import", [...transactions.map(({ mutation }) => mutation), ...payees.map(({ mutation }) => mutation)]); return {};
+    async writeImportBatch(payees: readonly { mutation: LocalBudgetMutation }[], transactions: readonly { mutation: LocalBudgetMutation }[], _options: unknown,
+      attachments: readonly { mutation: LocalBudgetMutation }[]) {
+      commit("import", [...transactions.map(({ mutation }) => mutation), ...payees.map(({ mutation }) => mutation),
+        ...attachments.map(({ mutation }) => mutation)]); return {};
     },
-    async writeImportBatchWithHistory(payees: readonly { mutation: LocalBudgetMutation }[], transactions: readonly { mutation: LocalBudgetMutation }[], options: { historyTransactionIds: readonly string[]; historyPayeeIds: readonly string[] }) {
-      commit("import-history", [...transactions.map(({ mutation }) => mutation), ...payees.map(({ mutation }) => mutation)]); importHistoryOptions = options;
+    async writeImportBatchWithHistory(payees: readonly { mutation: LocalBudgetMutation }[], transactions: readonly { mutation: LocalBudgetMutation }[], options: { historyTransactionIds: readonly string[]; historyPayeeIds: readonly string[] },
+      attachments: readonly { mutation: LocalBudgetMutation }[]) {
+      commit("import-history", [...transactions.map(({ mutation }) => mutation), ...payees.map(({ mutation }) => mutation),
+        ...attachments.map(({ mutation }) => mutation)]); importHistoryOptions = options;
       return { before: { budgetId, transactions: { budgetId, transactions: [], attachments: [] }, payees: [], transactionIds: options.historyTransactionIds, payeeIds: options.historyPayeeIds },
         after: { budgetId, transactions: { budgetId, transactions: [], attachments: [] }, payees: [], transactionIds: options.historyTransactionIds, payeeIds: options.historyPayeeIds } };
     },
@@ -111,4 +115,60 @@ test("import with history deduplicates roots, returns worker snapshots, and reje
   const empty = harness(); await assert.rejects(() => empty.commands.commitImportBatchWithHistory({ budgetId, accountId: "account-a",
     additions: [], updates: [], provenanceAssignments: [], payeeCreations: [] }), /requires at least one persisted object/);
   assert.equal(empty.requests.length, 0);
+});
+
+const attachmentCreation = {
+  transactionId: "imported",
+  attachment: {
+    id: "imported-attachment",
+    fileName: "receipt.bin",
+    fileSize: 3,
+    mimeType: "application/octet-stream",
+    attachedAt: "now",
+    contentHash: "sha256:attachment",
+  },
+  content: Uint8Array.from([1, 2, 3]),
+};
+
+test("ordinary import groups attachment persistence with transaction and payee mutations", async () => {
+  const h = harness();
+  const result = await h.commands.commitImportBatch({
+    ...importInput,
+    attachmentCreations: [attachmentCreation],
+  });
+  const mutations = h.requests[0]!.mutations;
+  assert.equal(mutations.length, 3);
+  assertExactGroup(mutations);
+  const attachment = mutations.find(({ entityId }) => entityId === "attachment:imported-attachment")!;
+  assert.equal((attachment.payload as { contentBase64: string }).contentBase64, "AQID");
+  assert.deepEqual(result.mutationIds, mutations.map(({ mutationId }) => mutationId));
+  assert.deepEqual(result.change.domains, ["attachments", "budget", "payees", "transactions"]);
+  assert.deepEqual(result.change.transactionIds, ["imported"]);
+});
+
+test("attachment-only history import captures its transaction root and is not treated as empty", async () => {
+  const h = harness();
+  const result = await h.commands.commitImportBatchWithHistory({
+    budgetId,
+    accountId: "account-a",
+    additions: [],
+    updates: [],
+    provenanceAssignments: [],
+    payeeCreations: [],
+    attachmentCreations: [attachmentCreation],
+  });
+  assert.deepEqual(h.historyOptions()?.historyTransactionIds, ["imported"]);
+  assert.deepEqual(h.historyOptions()?.historyPayeeIds, []);
+  assert.equal(h.requests[0]!.mutations.length, 1);
+  assert.equal(result.mutationIds.length, 1);
+  assert.deepEqual(result.result.before.transactionIds, ["imported"]);
+});
+
+test("attachment persistence failure returns no committed result", async () => {
+  const h = harness(); h.fail();
+  await assert.rejects(() => h.commands.commitImportBatch({
+    ...importInput,
+    attachmentCreations: [attachmentCreation],
+  }), /worker failed/);
+  assert.equal(h.committed.length, 0);
 });

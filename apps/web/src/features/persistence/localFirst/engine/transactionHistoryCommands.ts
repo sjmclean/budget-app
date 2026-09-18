@@ -5,7 +5,12 @@ import type { LocalBudgetMutation, LocalBudgetOperationGroup } from "../contract
 import type { LocalBudgetDatabaseClient } from "../localBudgetClient";
 import { persistenceScopeForMutations } from "../mutationEvents";
 import { deriveTransactionChangeScope, mergePersistenceChangeScopes } from "../persistenceChangeImpact";
-import type { LocalPayeeRecord, LocalTransactionRecord } from "../registerSchema";
+import type {
+  LocalPayeeRecord,
+  LocalTransactionAttachmentMutationPayload,
+  LocalTransactionAttachmentRecord,
+  LocalTransactionRecord,
+} from "../registerSchema";
 import { prepareTransactionBatchWrites, type CreateTransactionMutation } from "./transactionCommandHelpers";
 import { committedCommandResult, emptyCommandChange, type CommittedCommandMethods } from "./commandContext";
 
@@ -74,18 +79,64 @@ async function prepareImport(dependencies: TransactionHistoryCommandDependencies
   const prepared = await prepareTransactionBatchWrites(dependencies.createMutation, local, input);
   const payees = payeeRecords(input.budgetId, input.payeeCreations);
   const payeeMutations = payees.map((payee) => dependencies.createMutation(input.budgetId, "payees", payee.id, "upsert", payee));
+  const attachmentWrites = (input.attachmentCreations ?? []).map((creation) => {
+    const attachment: LocalTransactionAttachmentRecord = {
+      ...creation.attachment,
+      budgetId: input.budgetId,
+      transactionId: creation.transactionId,
+    };
+    const payload: LocalTransactionAttachmentMutationPayload = {
+      kind: "transaction-attachment-upsert",
+      attachment,
+      contentBase64: dependencies.encodeBase64(creation.content),
+    };
+    return {
+      attachment,
+      content: Uint8Array.from(creation.content),
+      mutation: dependencies.createMutation(
+        input.budgetId,
+        "transactions",
+        `attachment:${attachment.id}`,
+        "upsert",
+        payload,
+      ),
+    };
+  });
   const members: LocalBudgetOperationGroup["members"] = [
     ...prepared.writes.map(({ mutation }) => ({ domain: mutation.domain, entityId: mutation.entityId,
       operation: mutation.operation, payload: mutation.payload })),
     ...payeeMutations.map((mutation) => ({ domain: mutation.domain, entityId: mutation.entityId,
       operation: mutation.operation, payload: mutation.payload })),
+    ...attachmentWrites.map(({ mutation }) => ({ domain: mutation.domain, entityId: mutation.entityId,
+      operation: mutation.operation, payload: mutation.payload })),
   ];
-  const grouped = applyGroup([...prepared.writes.map(({ mutation }) => mutation), ...payeeMutations], members);
+  const grouped = applyGroup([
+    ...prepared.writes.map(({ mutation }) => mutation),
+    ...payeeMutations,
+    ...attachmentWrites.map(({ mutation }) => mutation),
+  ], members);
   const transactionMutations = grouped.slice(0, prepared.writes.length);
   const groupedWrites = prepared.writes.map((write, index) => ({ ...write, mutation: transactionMutations[index]! }));
-  const groupedPayeeMutations = grouped.slice(prepared.writes.length);
+  const groupedPayeeMutations = grouped.slice(prepared.writes.length, prepared.writes.length + payees.length);
+  const groupedAttachmentMutations = grouped.slice(prepared.writes.length + payees.length);
   return { writes: groupedWrites, payeeWrites: payees.map((payee, index) => ({ payee, mutation: groupedPayeeMutations[index]! })),
+    attachmentWrites: attachmentWrites.map((write, index) => ({
+      ...write,
+      mutation: groupedAttachmentMutations[index]!,
+    })),
     mutations: grouped, requireAbsentTransactionIds: prepared.requireAbsentTransactionIds };
+}
+
+function importChangeScope(budgetId: string, mutations: readonly LocalBudgetMutation[],
+  attachmentWrites: readonly { readonly attachment: LocalTransactionAttachmentRecord }[]): PersistenceChangeScope {
+  if (mutations.length === 0) return emptyCommandChange(budgetId);
+  const committed = persistenceScopeForMutations(budgetId, mutations);
+  if (attachmentWrites.length === 0) return committed;
+  return mergePersistenceChangeScopes(budgetId, committed, {
+    budgetId,
+    domains: ["transactions", "attachments"],
+    transactionIds: attachmentWrites.map(({ attachment }) => attachment.transactionId),
+  });
 }
 
 export function createTransactionHistoryCommands(dependencies: TransactionHistoryCommandDependencies): CommittedCommandMethods<HistoryCommands> {
@@ -122,23 +173,26 @@ export function createTransactionHistoryCommands(dependencies: TransactionHistor
       const local = await dependencies.requireDatabase(input.budgetId);
       const prepared = await prepareImport(dependencies, local, input);
       await local.writeImportBatch(prepared.payeeWrites, prepared.writes,
-        { requireAbsentTransactionIds: prepared.requireAbsentTransactionIds, verifyWrittenTransactions: true });
-      return committedCommandResult(undefined, prepared.mutations, prepared.mutations.length > 0
-        ? persistenceScopeForMutations(input.budgetId, prepared.mutations)
-        : emptyCommandChange(input.budgetId));
+        { requireAbsentTransactionIds: prepared.requireAbsentTransactionIds, verifyWrittenTransactions: true },
+        prepared.attachmentWrites);
+      return committedCommandResult(undefined, prepared.mutations,
+        importChangeScope(input.budgetId, prepared.mutations, prepared.attachmentWrites));
     },
     async commitImportBatchWithHistory(input) {
       const local = await dependencies.requireDatabase(input.budgetId);
       const prepared = await prepareImport(dependencies, local, input);
       const transactionIds = [...new Set([...input.additions.map(({ id }) => id), ...input.updates.map(({ id }) => id),
-        ...input.provenanceAssignments.map(({ transactionId }) => transactionId)])].sort();
+        ...input.provenanceAssignments.map(({ transactionId }) => transactionId),
+        ...prepared.attachmentWrites.map(({ attachment }) => attachment.transactionId)])].sort();
       const payeeIds = [...new Set(input.payeeCreations.map(({ id }) => id))].sort();
-      if (transactionIds.length === 0 && payeeIds.length === 0) throw new Error("An import history command requires at least one persisted object.");
+      if (transactionIds.length === 0 && payeeIds.length === 0 && prepared.attachmentWrites.length === 0) {
+        throw new Error("An import history command requires at least one persisted object.");
+      }
       const snapshots = await local.writeImportBatchWithHistory(prepared.payeeWrites, prepared.writes,
         { requireAbsentTransactionIds: prepared.requireAbsentTransactionIds, verifyWrittenTransactions: true,
-          historyTransactionIds: transactionIds, historyPayeeIds: payeeIds });
+          historyTransactionIds: transactionIds, historyPayeeIds: payeeIds }, prepared.attachmentWrites);
       return committedCommandResult(snapshots, prepared.mutations,
-        persistenceScopeForMutations(input.budgetId, prepared.mutations));
+        importChangeScope(input.budgetId, prepared.mutations, prepared.attachmentWrites));
     },
     async replaceImportHistorySnapshot({ expected, replacement }) {
       if (expected.budgetId !== replacement.budgetId) throw new Error("Import history replacement cannot cross budgets.");
