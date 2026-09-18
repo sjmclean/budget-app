@@ -11,6 +11,10 @@ import {
   type RegisterInlineCategoryCreateInput,
 } from "./RegisterCategoryInput";
 import { RegisterSplitEditor } from "./RegisterSplitEditor";
+import {
+  isSplitCategoryValue,
+  SPLIT_CATEGORY_LABEL,
+} from "../registerCategoryMatching";
 import type { PayeeView } from "../payeeService";
 import { createRuntimeUuid } from "../../ids/createRuntimeUuid";
 import type { SidebarAccount } from "../accountService";
@@ -1867,10 +1871,10 @@ export function TransactionImportDialog({
   function updateTransactionEditCategory(value: string) {
     setTransactionEditDraft((current) => {
       if (!current) return current;
-      if (value === "Split") {
+      if (isSplitCategoryValue(value)) {
         return {
           ...current,
-          category: "Split",
+          category: SPLIT_CATEGORY_LABEL,
           splitLines:
             current.splitLines.length > 0
               ? current.splitLines
@@ -1898,13 +1902,14 @@ export function TransactionImportDialog({
 
     const memo = draft.memo.trim() || undefined;
     const categoryName = draft.category.trim();
+    const isSplitCategory = isSplitCategoryValue(categoryName);
     const reviewedSplitLines =
-      categoryName === "Split"
+      isSplitCategory
         ? buildSplitLines(draft.splitLines, categoryOptions)
         : undefined;
 
     if (
-      categoryName === "Split" &&
+      isSplitCategory &&
       (
         draft.splitLines.length < 2 ||
         hasIncompleteSplitDrafts(draft.splitLines) ||
@@ -1936,16 +1941,16 @@ export function TransactionImportDialog({
         payee,
         payeeId: payeeOption?.id,
         category:
-          categoryName === "Split"
+          isSplitCategory
             ? "Split"
             : categoryName || candidate.matchedTransaction.category,
         categoryId:
-          categoryName === "Split"
+          isSplitCategory
             ? undefined
             : categoryOption?.id ?? candidate.matchedTransaction.categoryId,
         transferAccountId: undefined,
         transferTransactionId: undefined,
-        splitLines: categoryName === "Split" ? reviewedSplitLines : undefined,
+        splitLines: isSplitCategory ? reviewedSplitLines : undefined,
         memo,
         tagIds: [...draft.tagIds],
         scheduledAttachments: draft.attachments.map((attachment) => ({
@@ -1981,7 +1986,7 @@ export function TransactionImportDialog({
       payee: built.proposal.payee,
       transferAccountName,
       categoryName:
-        categoryName === "Split"
+        isSplitCategory
           ? candidate.lifecycle.proposal.categoryName
           : transferAccountName
             ? built.proposal.categoryName
@@ -1990,8 +1995,8 @@ export function TransactionImportDialog({
       memoReviewed: true,
       tagIds: [...draft.tagIds],
       attachments: draft.attachments.map((attachment) => ({ ...attachment })),
-      splitLines: categoryName === "Split" ? reviewedSplitLines : undefined,
-      ...(categoryName === "Split"
+      splitLines: isSplitCategory ? reviewedSplitLines : undefined,
+      ...(isSplitCategory
         ? { categoryName: "Split", transferAccountName: null }
         : {}),
     });
@@ -4098,7 +4103,7 @@ export function TransactionImportDialog({
                 />
               </label>
 
-              {transactionEditDraft.category === "Split" ? (
+              {isSplitCategoryValue(transactionEditDraft.category) ? (
                 <div className="transaction-import-transaction-editor-split">
                   <RegisterSplitEditor
                     splitLines={transactionEditDraft.splitLines}
