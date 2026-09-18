@@ -179,6 +179,10 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "commitBaselineClone";
+    }
+  | {
+      readonly requestId: string;
       readonly type: "abortBaselineReplacement";
     }
   | {

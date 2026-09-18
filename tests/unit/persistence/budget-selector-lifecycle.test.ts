@@ -59,10 +59,15 @@ test("rendering and refreshing selector cards never invokes SQLite-backed querie
     const store = useBudgetRegistryStore.getState();
     // Exercise each real store entrypoint. Refusing its common boundary must
     // prevent all parsing/provisioning, even with deliberately invalid input.
-    for (const begin of [store.createBudgetWithSetup, store.importYnab4Budget, store.importActualBudget]) {
+    for (const begin of [
+      store.createBudgetWithSetup,
+      store.importYnab4Budget,
+      store.importActualBudget,
+      store.importSqliteBackup,
+    ]) {
       await assert.rejects(begin(undefined as never), refusal);
     }
-    assert.equal(exclusiveCalls, 3);
+    assert.equal(exclusiveCalls, 4);
     assert.equal(store.budgets.length, 2);
   } finally {
     if (rendered) await act(async () => { rendered!.unmount(); });
@@ -73,7 +78,7 @@ test("rendering and refreshing selector cards never invokes SQLite-backed querie
 });
 
 
-test("budget manager exposes SQLite restore and open-file actions through the safe restore boundary", async () => {
+test("budget manager restores SQLite files as new budgets instead of replacing existing ones", async () => {
   const { readFile } = await import("node:fs/promises");
   const source = await readFile(
     "apps/web/src/pages/BudgetSelectorPage.tsx",
@@ -82,21 +87,17 @@ test("budget manager exposes SQLite restore and open-file actions through the sa
 
   assert.match(source, /<strong>Restore Budget<\/strong>/);
   assert.match(source, /<strong>Open Budget File<\/strong>/);
-  assert.match(
+  assert.match(source, /await importSqliteBackup\(restoreFile\)/);
+  assert.match(source, /Restore as New Budget/);
+  assert.match(source, /fresh identity; existing budgets are not replaced/);
+  assert.doesNotMatch(source, /restoreTargetBudgetId/);
+  assert.doesNotMatch(
     source,
     /queries\.restoreBudget\(targetBudget\.id, restoreFile\)/,
   );
   assert.match(
     source,
-    /A before-restore safety point is created automatically/,
-  );
-  assert.match(
-    source,
     /accept="\.budget-sqlite,\.sqlite,\.sqlite3,application\/vnd\.sqlite3,application\/octet-stream"/,
-  );
-  assert.match(
-    source,
-    /Choose the existing budget this SQLite file belongs to/,
   );
 
   const restoreCard = source.slice(

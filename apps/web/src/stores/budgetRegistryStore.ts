@@ -28,6 +28,7 @@ interface BudgetRegistryState {
   createBudgetWithSetup: (setup: NewBudgetSetup) => Promise<BudgetSummary>;
   importYnab4Budget: (input: CreateYnab4LauncherBudgetImportInput) => Promise<Ynab4LauncherImportResult>;
   importActualBudget: (input: CreateActualBudgetLauncherImportInput) => Promise<ActualBudgetLauncherImportResult>;
+  importSqliteBackup: (file: File) => Promise<BudgetSummary>;
   updateBudget: (budgetId: string, input: UpdateBudgetRegistryInput) => BudgetSummary | null;
   markBudgetOpened: (budgetId: string) => BudgetSummary | null;
   deleteBudget: (budgetId: string) => BudgetLifecycleResult;
@@ -70,6 +71,18 @@ export const useBudgetRegistryStore = create<BudgetRegistryState>((set) => ({
     const result = await createActualBudgetLauncherImportWithBackend(getActiveKeyValueStorage(), input);
     set({ budgets: result.budgets });
     return result;
+  }),
+
+  importSqliteBackup: async (file) => runWithExclusiveBudgetDatabase(async () => {
+    const { createBudgetFromSqliteBackup } = await import(
+      "../features/budget/sqliteBackupLauncherImport"
+    );
+    const result = await createBudgetFromSqliteBackup(
+      getActiveKeyValueStorage(),
+      file,
+    );
+    set({ budgets: result.budgets });
+    return result.budget;
   }),
 
   updateBudget: (budgetId, input) => {
