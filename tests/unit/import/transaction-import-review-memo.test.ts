@@ -111,13 +111,17 @@ test("excluded source memo can be restored in review and exclusion is enforced a
     ...excluded,
     lifecycle: {
       ...excluded.lifecycle,
-      proposal: { ...excluded.lifecycle.proposal, memo: "Manual memo" },
+      proposal: {
+        ...excluded.lifecycle.proposal,
+        memo: "Manual memo",
+        memoReviewed: true,
+      },
     },
   };
   assert.equal(buildRegisterTransactionsFromImport([withManualMemo], {
     includeMemos: false,
     identityScope: "memo-manual",
-  })[0]?.memo, undefined);
+  })[0]?.memo, "Manual memo");
   assert.equal(buildRegisterTransactionsFromImport([withManualMemo], {
     includeMemos: true,
     identityScope: "memo-manual-included",
@@ -169,6 +173,7 @@ test("manual memo and sibling review state survive preference toggles", () => {
         payee: "Reviewed Shop",
         categoryName: "Dining",
         memo: "Manual memo",
+        memoReviewed: true,
       },
     },
   };
@@ -296,7 +301,8 @@ test("reviewed split transactions commit memo and still honour exclusion", () =>
     lifecycle: {
       ...candidate({ rowNumber: 1, date: "2026-09-14", payee: "Shop", memo: "Source", outflow: 20, inflow: 0, raw: {} }).lifecycle,
       proposal: {
-        payee: "Shop", categoryName: "Split", transferAccountName: null, memo: "Reviewed split memo",
+        payee: "Shop", categoryName: "Split", transferAccountName: null,
+        memo: "Reviewed split memo", memoReviewed: true,
         splitLines: [
           { id: "one", category: "Groceries", outflow: 10, inflow: 0 },
           { id: "two", category: "Dining", outflow: 10, inflow: 0 },
@@ -305,5 +311,5 @@ test("reviewed split transactions commit memo and still honour exclusion", () =>
     },
   };
   assert.equal(buildRegisterTransactionsFromImport([split], { includeMemos: true, identityScope: "split-memo" })[0]?.memo, "Reviewed split memo");
-  assert.equal(buildRegisterTransactionsFromImport([split], { includeMemos: false, identityScope: "split-no-memo" })[0]?.memo, undefined);
+  assert.equal(buildRegisterTransactionsFromImport([split], { includeMemos: false, identityScope: "split-no-memo" })[0]?.memo, "Reviewed split memo");
 });
