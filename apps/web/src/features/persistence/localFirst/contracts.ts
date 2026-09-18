@@ -372,6 +372,11 @@ export type LocalBudgetWorkerRequest =
         readonly mutation: LocalBudgetMutation;
         readonly resolveConflictId?: string;
       }[];
+      readonly attachmentWrites?: readonly {
+        readonly attachment: LocalTransactionAttachmentRecord;
+        readonly content: Uint8Array;
+        readonly mutation: LocalBudgetMutation;
+      }[];
       readonly requireAbsentTransactionIds?: readonly string[];
       readonly verifyWrittenTransactions?: boolean;
     }
