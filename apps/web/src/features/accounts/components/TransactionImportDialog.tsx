@@ -165,6 +165,15 @@ function formatMoney(value: number, currencyCode: string) {
   }).format(value);
 }
 
+function encodeImportAttachment(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
 type TransactionImportStep = "upload" | "mapping" | "review" | "complete";
 type TransactionImportFileType =
   "csv" | "qif" | "ofx" | "qfx" | "json" | "unknown";
@@ -1783,6 +1792,178 @@ export function TransactionImportDialog({
       transferAccountName: null,
       splitLines: undefined,
     });
+  }
+
+  function beginTransactionEdit(candidate: TransactionImportCandidate) {
+    const matched =
+      candidate.status === "exact-match" ? candidate.matchedTransaction : null;
+    const proposal = candidate.lifecycle.proposal;
+    setTransactionEditDraft({
+      candidateId: candidate.id,
+      payee: matched?.payee ?? proposal.payee,
+      category:
+        matched?.category ??
+        proposal.transferAccountName ??
+        proposal.categoryName ??
+        "",
+      memo: matched?.memo ?? proposal.memo ?? "",
+      tagIds: [...(matched?.tagIds ?? proposal.tagIds ?? [])],
+      attachments: [
+        ...(matched?.scheduledAttachments ?? proposal.attachments ?? []),
+      ].map((attachment) => ({ ...attachment })),
+    });
+    setTransactionEditError(null);
+    setProposedTransactionEdit(null);
+  }
+
+  function closeTransactionEdit() {
+    if (transactionEditAttachmentBusy) return;
+    setTransactionEditDraft(null);
+    setTransactionEditError(null);
+  }
+
+  async function addTransactionEditAttachments(files: FileList | null) {
+    if (!files || files.length === 0 || !transactionEditDraft) return;
+    setTransactionEditAttachmentBusy(true);
+    setTransactionEditError(null);
+    try {
+      const additions: ScheduledAttachmentTemplate[] = [];
+      for (const file of Array.from(files)) {
+        if (!IMPORT_ATTACHMENT_MIME_TYPES.has(file.type)) {
+          throw new Error(
+            `${file.name} is not a supported attachment. Use PDF, JPEG, PNG, or WebP.`,
+          );
+        }
+        if (file.size > IMPORT_ATTACHMENT_MAX_BYTES) {
+          throw new Error(`${file.name} is larger than the 5 MB attachment limit.`);
+        }
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const contentHash = await calculateAttachmentContentHash(bytes);
+        additions.push({
+          id: createRuntimeUuid(),
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+          attachedAt: new Date().toISOString(),
+          contentHash,
+          contentBase64: encodeImportAttachment(bytes),
+        });
+      }
+      setTransactionEditDraft((current) =>
+        current
+          ? { ...current, attachments: [...current.attachments, ...additions] }
+          : current,
+      );
+    } catch (error) {
+      setTransactionEditError(
+        error instanceof Error ? error.message : "The attachment could not be added.",
+      );
+    } finally {
+      setTransactionEditAttachmentBusy(false);
+    }
+  }
+
+  function saveTransactionEdit(candidate: TransactionImportCandidate) {
+    const draft = transactionEditDraft;
+    if (!draft || draft.candidateId !== candidate.id) return;
+
+    const payee = draft.payee.trim();
+    if (!payee) {
+      setTransactionEditError("Choose a payee before saving.");
+      return;
+    }
+
+    const memo = draft.memo.trim() || undefined;
+    const categoryName = draft.category.trim();
+
+    if (candidate.status === "exact-match" && candidate.matchedTransaction) {
+      const payeeOption = payeeOptions.find(
+        (option) =>
+          option.name.trim().toLocaleLowerCase() === payee.toLocaleLowerCase(),
+      );
+      const categoryOption = categoryOptions.find(
+        (option) =>
+          option.name.trim().toLocaleLowerCase() ===
+          categoryName.toLocaleLowerCase(),
+      );
+      updateMatchedTransactionDetails(candidate.id, {
+        payee,
+        payeeId: payeeOption?.id,
+        category: categoryName || candidate.matchedTransaction.category,
+        categoryId:
+          categoryName === "Split"
+            ? undefined
+            : categoryOption?.id ?? candidate.matchedTransaction.categoryId,
+        memo,
+        tagIds: [...draft.tagIds],
+        scheduledAttachments: draft.attachments.map((attachment) => ({
+          ...attachment,
+        })),
+      });
+      setManualCandidateEdits((current) => {
+        let next = current;
+        if (payee !== candidate.matchedTransaction?.payee) {
+          next = markImportReviewFieldEdited(next, candidate.id, "payee");
+        }
+        if (categoryName !== candidate.matchedTransaction?.category) {
+          next = markImportReviewFieldEdited(next, candidate.id, "category");
+        }
+        if (memo !== candidate.matchedTransaction?.memo) {
+          next = markImportReviewFieldEdited(next, candidate.id, "memo");
+        }
+        return next;
+      });
+      setTransactionEditDraft(null);
+      setTransactionEditError(null);
+      if (categoryName === "Split") {
+        beginMatchedSplitEdit(candidate);
+      }
+      return;
+    }
+
+    const built = buildTransactionImportMerchantProposal({
+      store: merchantKnowledgeRef.current,
+      rawPayee: payee,
+      transaction: candidate.parsed,
+      currentProposal: candidate.lifecycle.proposal,
+    });
+    const transferAccountName = built.proposal.transferAccountName ?? null;
+    updateCandidateProposal(candidate.id, {
+      payee: built.proposal.payee,
+      transferAccountName,
+      categoryName: transferAccountName ? built.proposal.categoryName : categoryName || null,
+      memo,
+      tagIds: [...draft.tagIds],
+      attachments: draft.attachments.map((attachment) => ({ ...attachment })),
+      ...(categoryName === "Split"
+        ? { categoryName: "Split", transferAccountName: null }
+        : {}),
+    });
+    setManualCandidateEdits((current) => {
+      let next = current;
+      if (built.proposal.payee !== candidate.lifecycle.proposal.payee) {
+        next = markImportReviewFieldEdited(next, candidate.id, "payee");
+      }
+      if (categoryName !== (candidate.lifecycle.proposal.categoryName ?? "")) {
+        next = markImportReviewFieldEdited(next, candidate.id, "category");
+      }
+      if (memo !== candidate.lifecycle.proposal.memo) {
+        next = markImportReviewFieldEdited(next, candidate.id, "memo");
+      }
+      return next;
+    });
+    if (built.proposal.payee !== candidate.lifecycle.proposal.payee) {
+      void offerHistoricalPayeeUpdate(
+        candidate.id,
+        candidate.lifecycle.source.rawPayee,
+        built.proposal.payee,
+      );
+    }
+    setTransactionEditDraft(null);
+    setTransactionEditError(null);
+    if (categoryName === "Split") {
+      beginProposalSplitEdit(candidate);
+    }
   }
 
   function beginProposedTransactionEdit(
