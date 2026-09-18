@@ -1879,6 +1879,18 @@ export function TransactionImportDialog({
           categoryName === "Split"
             ? candidate.matchedTransaction.categoryId
             : categoryOption?.id ?? candidate.matchedTransaction.categoryId,
+        transferAccountId:
+          categoryName === "Split"
+            ? candidate.matchedTransaction.transferAccountId
+            : undefined,
+        transferTransactionId:
+          categoryName === "Split"
+            ? candidate.matchedTransaction.transferTransactionId
+            : undefined,
+        splitLines:
+          categoryName === "Split"
+            ? candidate.matchedTransaction.splitLines
+            : undefined,
         memo,
         tagIds: [...draft.tagIds],
         scheduledAttachments: draft.attachments.map((attachment) => ({
@@ -1926,6 +1938,10 @@ export function TransactionImportDialog({
       memoReviewed: true,
       tagIds: [...draft.tagIds],
       attachments: draft.attachments.map((attachment) => ({ ...attachment })),
+      splitLines:
+        categoryName === "Split"
+          ? candidate.lifecycle.proposal.splitLines
+          : undefined,
       ...(categoryName === "Split"
         ? { categoryName: "Split", transferAccountName: null }
         : {}),
