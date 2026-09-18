@@ -3966,21 +3966,6 @@ export function TransactionImportDialog({
                           ? "Edit Memo"
                           : "Add Memo"}
                       </button>
-                      <button
-                        className="button button-secondary"
-                        type="button"
-                        onClick={() =>
-                          candidate.status === "exact-match"
-                            ? beginMatchedSplitEdit(candidate)
-                            : beginProposalSplitEdit(candidate)
-                        }
-                      >
-                        {candidate.status === "exact-match" && candidate.matchedTransaction?.splitLines?.length
-                          ? "Edit Split"
-                          : candidate.lifecycle.proposal.splitLines?.length
-                            ? "Edit Split"
-                            : "Split Transaction"}
-                      </button>
                       {canResetChanges ? (
                       <button
                         className="button button-secondary"
