@@ -59,3 +59,40 @@ test("manual match picker communicates that selection is the final use decision"
   assert.match(dialogSource, />\s*Use this transaction\s*</);
   assert.doesNotMatch(dialogSource, />\s*Choose this transaction\s*</);
 });
+
+
+test("review rows present date, payee, category, memo, and amount as one compact transaction row", () => {
+  assert.match(
+    dialogSource,
+    /transaction-import-match-date[sS]*?transaction-import-match-payee[sS]*?transaction-import-match-category[sS]*?transaction-import-match-memo[sS]*?transaction-import-match-amount/,
+  );
+});
+
+test("transaction editing is consolidated under the overflow menu", () => {
+  assert.match(dialogSource, /aria-label="More transaction actions"/);
+  assert.match(dialogSource, />s*Edit Transactions*</);
+  assert.match(dialogSource, />s*Find Existing Transactions*</);
+  assert.doesNotMatch(dialogSource, />s*Edit Payees*</);
+  assert.doesNotMatch(dialogSource, />s*Edit Categorys*</);
+  assert.doesNotMatch(dialogSource, />s*(?:Add|Edit) Memos*</);
+});
+
+test("transaction editor keeps bank date and amount read-only while editing review metadata", () => {
+  assert.match(
+    dialogSource,
+    /Date and amount come from the bank file and cannot be changed here./,
+  );
+  assert.match(dialogSource, /<span>Payee</span>[sS]*?<PayeeInput/);
+  assert.match(dialogSource, /<span>Category</span>[sS]*?<RegisterCategoryInput/);
+  assert.match(dialogSource, /<span>Memo</span>[sS]*?<input/);
+  assert.match(dialogSource, /<legend>Tags</legend>/);
+  assert.match(dialogSource, /<strong>Attachments</strong>/);
+});
+
+test("reviewed memo explicitly overrides the global source-memo exclusion", () => {
+  assert.match(dialogSource, /memoReviewed: true/);
+  assert.match(
+    dialogSource,
+    /A memo saved here is kept even when “Don’t import transaction memos” is enabled./,
+  );
+});
