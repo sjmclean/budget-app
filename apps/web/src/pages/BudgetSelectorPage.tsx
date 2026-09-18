@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -14,9 +14,11 @@ import {
   completeBudgetDeletion,
   shouldRestoreBudgetSelectionAfterDeletionFailure,
 } from "../features/budget/completeBudgetDeletion";
+import { confirmDialog } from "../features/ui/appDialogService";
 
 
 type LaunchMode = "list" | "empty" | "budgetImport";
+type BudgetFileAction = "restore" | "open";
 
 
 const LazyBudgetImportDialog = lazy(() =>
@@ -94,6 +96,12 @@ export function BudgetSelectorPage() {
   const [activeBudgetMenuId, setActiveBudgetMenuId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
+  const [budgetFileAction, setBudgetFileAction] = useState<BudgetFileAction | null>(null);
+  const [restoreTargetBudgetId, setRestoreTargetBudgetId] = useState("");
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [restoreInProgress, setRestoreInProgress] = useState(false);
+  const restoreFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const sortedBudgets = useMemo(
     () =>
@@ -156,6 +164,88 @@ export function BudgetSelectorPage() {
 
   function handleReturnToBudgets() {
     setLaunchMode("list");
+  }
+
+  function openBudgetFileWorkflow(action: BudgetFileAction) {
+    const preferredBudgetId =
+      selectedBudgetId && budgets.some((budget) => budget.id === selectedBudgetId)
+        ? selectedBudgetId
+        : sortedBudgets[0]?.id ?? "";
+    setBudgetFileAction(action);
+    setRestoreTargetBudgetId(preferredBudgetId);
+    setRestoreFile(null);
+    setRestoreError(
+      sortedBudgets.length === 0
+        ? "Create a budget entry before restoring a SQLite budget file."
+        : null,
+    );
+  }
+
+  function closeBudgetFileWorkflow() {
+    if (restoreInProgress) return;
+    setBudgetFileAction(null);
+    setRestoreTargetBudgetId("");
+    setRestoreFile(null);
+    setRestoreError(null);
+    if (restoreFileInputRef.current) restoreFileInputRef.current.value = "";
+  }
+
+  async function restoreBudgetFile() {
+    const targetBudget = budgets.find(
+      (budget) => budget.id === restoreTargetBudgetId,
+    );
+    const queries = getBudgetPersistenceProvider().accountRegisterQueries;
+
+    if (!targetBudget) {
+      setRestoreError("Choose the budget this SQLite backup belongs to.");
+      return;
+    }
+    if (!restoreFile) {
+      setRestoreError("Choose a Budget App SQLite backup file.");
+      return;
+    }
+    if (!queries?.restoreBudget) {
+      setRestoreError("SQLite budget restore is unavailable in this build.");
+      return;
+    }
+
+    const confirmed = await confirmDialog({
+      title: "Restore “" + targetBudget.name + "”?",
+      message:
+        "This will replace the current SQLite data for " + targetBudget.name +
+        " with " + restoreFile.name + ". The file must belong to this budget. " +
+        "A before-restore safety point is created automatically.",
+      confirmLabel: "Restore budget",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+
+    setRestoreInProgress(true);
+    setRestoreError(null);
+    try {
+      const result = await queries.restoreBudget(targetBudget.id, restoreFile);
+      refreshBudgets();
+      selectBudget(targetBudget.id);
+      setBudgetFileAction(null);
+      setRestoreFile(null);
+      if (restoreFileInputRef.current) restoreFileInputRef.current.value = "";
+      await confirmDialog({
+        title: "Budget restored",
+        message:
+          targetBudget.name + " was restored successfully: " +
+          result.counts.accounts + " accounts and " +
+          result.counts.transactions + " transactions are available.",
+        confirmLabel: "OK",
+      });
+    } catch (error) {
+      setRestoreError(
+        error instanceof Error
+          ? error.message
+          : "The SQLite budget file could not be restored.",
+      );
+    } finally {
+      setRestoreInProgress(false);
+    }
   }
 
   function handleRequestRenameBudget(budget: BudgetSummary) {
@@ -437,17 +527,25 @@ export function BudgetSelectorPage() {
                   <em>Start Migration →</em>
                 </button>
 
-                <button type="button" className="budget-manager-action-card" disabled>
+                <button
+                  type="button"
+                  className="budget-manager-action-card"
+                  onClick={() => openBudgetFileWorkflow("restore")}
+                >
                   <span className="budget-manager-action-icon budget-manager-action-icon-amber" aria-hidden="true">▢</span>
-                  <strong>Restore Backup</strong>
-                  <span>Restore a budget from a previous backup.</span>
+                  <strong>Restore Budget</strong>
+                  <span>Restore an existing budget from a Budget App SQLite backup.</span>
                   <em>Restore Now →</em>
                 </button>
 
-                <button type="button" className="budget-manager-action-card" disabled>
+                <button
+                  type="button"
+                  className="budget-manager-action-card"
+                  onClick={() => openBudgetFileWorkflow("open")}
+                >
                   <span className="budget-manager-action-icon budget-manager-action-icon-blue" aria-hidden="true">□</span>
                   <strong>Open Budget File</strong>
-                  <span>Open a portable budget package from your computer.</span>
+                  <span>Select a Budget App SQLite file and open it into its existing budget entry.</span>
                   <em>Browse Files →</em>
                 </button>
               </div>
@@ -484,6 +582,84 @@ export function BudgetSelectorPage() {
               onOpenBudget={handleOpenBudget}
             />
           </Suspense>
+        ) : null}
+
+        {budgetFileAction ? (
+          <div className="app-dialog-backdrop" role="presentation">
+            <section
+              className="app-dialog budget-restore-file-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="budget-restore-file-title"
+            >
+              <h2 id="budget-restore-file-title" className="app-dialog-title">
+                {budgetFileAction === "restore" ? "Restore Budget" : "Open Budget File"}
+              </h2>
+              <p className="app-dialog-message">
+                Choose the existing budget this SQLite file belongs to. The file is
+                staged and validated before it replaces the current local database.
+              </p>
+
+              <label className="form-field">
+                <span className="field-label">Budget</span>
+                <select
+                  className="text-input"
+                  value={restoreTargetBudgetId}
+                  disabled={restoreInProgress || sortedBudgets.length === 0}
+                  onChange={(event) => {
+                    setRestoreTargetBudgetId(event.target.value);
+                    setRestoreError(null);
+                  }}
+                >
+                  {sortedBudgets.map((budget) => (
+                    <option key={budget.id} value={budget.id}>
+                      {budget.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="form-field">
+                <span className="field-label">SQLite budget file</span>
+                <input
+                  ref={restoreFileInputRef}
+                  className="text-input"
+                  type="file"
+                  accept=".budget-sqlite,.sqlite,.sqlite3,application/vnd.sqlite3,application/octet-stream"
+                  disabled={restoreInProgress || sortedBudgets.length === 0}
+                  onChange={(event) => {
+                    setRestoreFile(event.target.files?.[0] ?? null);
+                    setRestoreError(null);
+                  }}
+                />
+              </label>
+
+              {restoreFile ? (
+                <p className="muted">
+                  Selected: {restoreFile.name} · {Math.max(1, Math.round(restoreFile.size / 1024))} KiB
+                </p>
+              ) : null}
+              {restoreError ? <p className="form-error" role="alert">{restoreError}</p> : null}
+
+              <div className="app-dialog-actions">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={restoreInProgress}
+                  onClick={closeBudgetFileWorkflow}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  disabled={restoreInProgress || !restoreTargetBudgetId || !restoreFile}
+                  onClick={() => void restoreBudgetFile()}
+                >
+                  {restoreInProgress ? "Restoring…" : "Restore Budget"}
+                </Button>
+              </div>
+            </section>
+          </div>
         ) : null}
 
         {budgetPendingRename ? (
