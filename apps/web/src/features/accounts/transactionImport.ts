@@ -9,6 +9,7 @@ import {
 import type {
   RegisterSplitLineView,
   RegisterTransactionView,
+  ScheduledAttachmentTemplate,
 } from "./accountRegisterTypes";
 import { buildRegisterTransactionsFromImport } from "./transactionImportCommit";
 import { parseTransactionOfx } from "./transactionImportParser";
@@ -149,6 +150,10 @@ export interface TransactionImportProposal {
   transferAccountName: string | null;
   /** Reviewed memo; distinct from immutable source memo evidence. */
   memo?: string;
+  /** Reviewed tags to persist with a newly imported transaction. */
+  tagIds?: string[];
+  /** Reviewed attachments to persist atomically with a newly imported transaction. */
+  attachments?: ScheduledAttachmentTemplate[];
   /**
    * Final reviewed split allocation for the imported transaction.
    * Editor-only string drafts remain outside the import domain model.
