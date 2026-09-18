@@ -71,3 +71,42 @@ test("rendering and refreshing selector cards never invokes SQLite-backed querie
     resetBudgetPersistenceProvider();
   }
 });
+
+
+test("budget manager exposes SQLite restore and open-file actions through the safe restore boundary", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(
+    "apps/web/src/pages/BudgetSelectorPage.tsx",
+    "utf8",
+  );
+
+  assert.match(source, /<strong>Restore Budget<\/strong>/);
+  assert.match(source, /<strong>Open Budget File<\/strong>/);
+  assert.match(
+    source,
+    /queries\.restoreBudget\(targetBudget\.id, restoreFile\)/,
+  );
+  assert.match(
+    source,
+    /A before-restore safety point is created automatically/,
+  );
+  assert.match(
+    source,
+    /accept="\.budget-sqlite,\.sqlite,\.sqlite3,application\/vnd\.sqlite3,application\/octet-stream"/,
+  );
+  assert.match(
+    source,
+    /Choose the existing budget this SQLite file belongs to/,
+  );
+
+  const restoreCard = source.slice(
+    source.indexOf("<strong>Restore Budget</strong>") - 300,
+    source.indexOf("<strong>Restore Budget</strong>") + 300,
+  );
+  const openCard = source.slice(
+    source.indexOf("<strong>Open Budget File</strong>") - 300,
+    source.indexOf("<strong>Open Budget File</strong>") + 300,
+  );
+  assert.doesNotMatch(restoreCard, /disabled/);
+  assert.doesNotMatch(openCard, /disabled/);
+});
