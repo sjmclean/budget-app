@@ -15,7 +15,7 @@
     "localStorage": 17,
     "indexedDB": 2,
     "replicationApi": 2,
-    "persistenceBoundary": 66,
+    "persistenceBoundary": 67,
     "operationJournal": 11,
     "checkpoints": 7
   },
@@ -79,6 +79,7 @@
     "apps/web/src/features/budget/entities/budgetMonthEntity.ts",
     "apps/web/src/features/budget/newBudget/createLocalFirstBudgetFromSetup.ts",
     "apps/web/src/features/budget/portableBudgetPackage.ts",
+    "apps/web/src/features/budget/sqliteBackupLauncherImport.ts",
     "apps/web/src/features/budget/ynab4/finaliseYnab4Import.ts",
     "apps/web/src/features/budget/ynab4/rollbackYnab4Import.ts",
     "apps/web/src/features/budget/ynab4LauncherImport.ts",
@@ -1056,6 +1057,31 @@
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/portableBudgetPackage.ts",
       "line": 173
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/sqliteBackupLauncherImport.ts",
+      "line": 1
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/sqliteBackupLauncherImport.ts",
+      "line": 28
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/sqliteBackupLauncherImport.ts",
+      "line": 38
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/sqliteBackupLauncherImport.ts",
+      "line": 55
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/sqliteBackupLauncherImport.ts",
+      "line": 99
     },
     {
       "kind": "persistenceBoundary",
