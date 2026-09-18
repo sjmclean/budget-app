@@ -1678,8 +1678,6 @@ export function TransactionImportDialog({
     if (!candidate.matchedTransaction) {
       return;
     }
-
-    setProposedTransactionEdit(null);
     setSplitEdit({
       candidateId: candidate.id,
       target: "matched",
@@ -1798,7 +1796,6 @@ export function TransactionImportDialog({
       ].map((attachment) => ({ ...attachment })),
     });
     setTransactionEditError(null);
-    setProposedTransactionEdit(null);
   }
 
   function closeTransactionEdit() {
@@ -2146,7 +2143,6 @@ export function TransactionImportDialog({
       delete next[candidateId];
       return next;
     });
-    setProposedTransactionEdit(null);
     setError(null);
     return true;
   }
@@ -2204,7 +2200,6 @@ export function TransactionImportDialog({
       delete next[candidateId];
       return next;
     });
-    setProposedTransactionEdit(null);
   }
 
   function returnToMatchOptions(candidateId: string) {
