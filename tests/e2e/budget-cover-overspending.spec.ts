@@ -57,7 +57,12 @@ async function createCategory(page: Page, name: string) {
   await dialog.getByPlaceholder("Category name").fill(name);
   await dialog.getByRole("button", { name: "Create category" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
+  // The prompt closes before the asynchronous category command and budget
+  // projection refresh necessarily finish. Wait for the actual category row,
+  // which is the observable completion condition this helper needs.
+  await expect(page.getByRole("button", { name, exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
 }
 
 async function assign(page: Page, category: string, amount: string) {
