@@ -1517,7 +1517,7 @@ export function TransactionImportDialog({
   }
 
   function requestClose() {
-    if (isImporting) return;
+    if (isImporting || transactionEditDraft) return;
     onClose();
   }
 
@@ -4032,11 +4032,6 @@ export function TransactionImportDialog({
           <div
             className="transaction-import-transaction-editor-backdrop"
             role="presentation"
-            onClick={(event) => {
-              if (event.target === event.currentTarget) {
-                closeTransactionEdit();
-              }
-            }}
           >
             <section
               className="transaction-import-transaction-editor"

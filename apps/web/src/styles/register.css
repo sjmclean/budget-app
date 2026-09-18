@@ -6164,6 +6164,8 @@
 }
 
 .transaction-import-transaction-editor {
+  position: relative;
+  z-index: 1;
   display: grid;
   gap: 0.9rem;
   width: min(38rem, 100%);
@@ -6303,4 +6305,10 @@
   .transaction-import-transaction-editor-source {
     grid-template-columns: 1fr;
   }
+}
+
+
+/* Keep register autocomplete popups interactive above the nested import editor. */
+.transaction-import-transaction-editor .register-autocomplete-popup {
+  z-index: 1200;
 }
