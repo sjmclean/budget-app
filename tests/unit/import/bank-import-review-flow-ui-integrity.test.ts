@@ -118,11 +118,17 @@ test("open transaction overflow menu escapes its card and stacks above later rev
 });
 
 
-test("transaction editor backdrop closes only on a true backdrop click", () => {
+test("transaction editor requires explicit dismissal and protects the parent import dialog", () => {
+  assert.doesNotMatch(
+    dialogSource,
+    /transaction-import-transaction-editor-backdrop[\s\S]*?onClick=\{/,
+  );
   assert.match(
     dialogSource,
-    /onClick=\{\(event\) => \{[\s\S]*?event\.target === event\.currentTarget[\s\S]*?closeTransactionEdit\(\)/,
+    /function requestClose\(\) \{[\s\S]*?isImporting \|\| transactionEditDraft[\s\S]*?return;/,
   );
+  assert.match(dialogSource, /aria-label="Close transaction editor"[\s\S]*?onClick=\{closeTransactionEdit\}/);
+  assert.match(dialogSource, />\s*Cancel\s*</);
 });
 
 test("transaction editor uses the register tag picker instead of raw tag checkboxes", () => {
@@ -134,5 +140,13 @@ test("transaction editor uses the register tag picker instead of raw tag checkbo
   assert.doesNotMatch(
     dialogSource,
     /transactionTags\.map\(\(tag\) => \([\s\S]*?type="checkbox"/,
+  );
+});
+
+
+test("transaction editor autocomplete menus stack above the nested modal", () => {
+  assert.match(
+    styleSource,
+    /\.transaction-import-transaction-editor \.register-autocomplete-popup \{[\s\S]*?z-index:\s*1200;/,
   );
 });
