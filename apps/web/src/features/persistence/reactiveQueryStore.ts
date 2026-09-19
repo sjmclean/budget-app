@@ -323,12 +323,25 @@ export function seedReactiveQuery<Input, Result>(
 }
 
 export function resetReactiveQueryStore(): void {
-  const current = [...entries.values()];
-  entries.clear();
-  for (const entry of current) {
+  for (const [cacheKey, entry] of [...entries.entries()]) {
     entry.generation += 1;
-    entry.unsubscribePersistence?.();
-    entry.unsubscribePersistence = null;
+    entry.inFlight = null;
+    entry.attemptedRevision = -1;
+
+    if (entry.listeners.size === 0) {
+      entry.unsubscribePersistence?.();
+      entry.unsubscribePersistence = null;
+      entries.delete(cacheKey);
+      continue;
+    }
+
+    entry.snapshot = {
+      data: undefined,
+      status: "idle",
+      error: null,
+      dataRevision: 0,
+    };
+    touch(entry);
     notify(entry);
   }
 }
