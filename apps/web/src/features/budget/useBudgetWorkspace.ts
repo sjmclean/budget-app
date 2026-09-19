@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
+import { seedBudgetMonthQuery } from "../persistence/reactiveQueries";
 import { useBudgetView } from "./useBudgetView";
 import type {
   BudgetActivityDrilldown,
@@ -151,10 +152,17 @@ export function useBudgetWorkspace(
   workspaceIdentityRef.current = workspaceIdentity;
 
   function setEditedData(nextData: BudgetMonthView | null, fallbackVersion = 0): void {
+    if (nextData?.publicationRevision !== undefined) {
+      seedBudgetMonthQuery(
+        { budgetId, month },
+        nextData,
+        nextData.publicationRevision,
+      );
+    }
     setEditedDataState(nextData ? {
       data: nextData,
       // Only a committed result may claim its own executor-assigned publication.
-      // Previews and query-derived views conservatively retain the rendered version.
+      // Previews remain local workspace state until SQLite commits them.
       persistenceVersion: nextData.publicationRevision ?? fallbackVersion,
     } : null);
   }
