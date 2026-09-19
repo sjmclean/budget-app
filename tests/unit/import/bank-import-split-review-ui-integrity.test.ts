@@ -34,14 +34,18 @@ test("bank import review uses the shared register split editor", () => {
   );
 });
 
-test("choosing Split reveals the shared split editor inside Edit Transaction", () => {
+test("choosing the shared Split category value reveals the split editor inside Edit Transaction", () => {
   assert.match(
     dialogSource,
-    /function updateTransactionEditCategory[\s\S]*?value === "Split"[\s\S]*?\[createSplitLineDraft\(\), createSplitLineDraft\(\)\]/,
+    /import \{[\s\S]*?isSplitCategoryValue,[\s\S]*?SPLIT_CATEGORY_LABEL,[\s\S]*?\} from "\.\.\/registerCategoryMatching"/,
   );
   assert.match(
     dialogSource,
-    /transactionEditDraft\.category === "Split"[\s\S]*?<RegisterSplitEditor/,
+    /function updateTransactionEditCategory[\s\S]*?isSplitCategoryValue\(value\)[\s\S]*?category: SPLIT_CATEGORY_LABEL[\s\S]*?\[createSplitLineDraft\(\), createSplitLineDraft\(\)\]/,
+  );
+  assert.match(
+    dialogSource,
+    /isSplitCategoryValue\(transactionEditDraft\.category\)[\s\S]*?<RegisterSplitEditor/,
   );
   assert.match(
     dialogSource,
@@ -118,7 +122,7 @@ test("switching away from Split clears stale draft and persisted split lines", (
   );
   assert.match(
     dialogSource,
-    /splitLines: categoryName === "Split" \? reviewedSplitLines : undefined/,
+    /splitLines: isSplitCategory \? reviewedSplitLines : undefined/,
   );
   assert.match(
     dialogSource,
