@@ -92,3 +92,56 @@ test("an affected account without its committed summary refreshes rather than re
   const incomplete = { ...patch([], []), summaries: [] };
   assert.equal(reconcileRegisterDelta({ accountId, query, page, delta: incomplete }).mode, "refresh-required");
 });
+
+
+test("multiple shrinking deltas remain patchable until one final boundary refill", () => {
+  const rows = Array.from({ length: 150 }, (_, index) =>
+    row(`id-${String(150 - index).padStart(3, "0")}`, "2026-09-01"),
+  );
+  const firstDeleted = rows[4]!;
+  const first = reconcileRegisterDelta({
+    accountId,
+    query,
+    page: { summary, rows, totalCount: 152 },
+    delta: patch([firstDeleted], [], { ...summary, transactionCount: 151 }),
+  });
+  assert.equal(first.mode, "patch");
+  if (first.mode !== "patch") return;
+  assert.equal(first.page.rows.length, 149);
+  assert.equal(first.refillLimit, 1);
+
+  const secondDeleted = first.page.rows[9]!;
+  const second = reconcileRegisterDelta({
+    accountId,
+    query,
+    page: first.page,
+    delta: patch([secondDeleted], [], { ...summary, transactionCount: 150 }),
+  });
+  assert.equal(second.mode, "patch");
+  if (second.mode !== "patch") return;
+  assert.equal(second.page.rows.length, 148);
+  assert.equal(second.page.totalCount, 150);
+  assert.equal(second.refillLimit, 2);
+  assert.equal(second.refillOffset, 148);
+});
+
+test("an insertion beyond a temporarily incomplete boundary is left to authoritative refill", () => {
+  const rows = Array.from({ length: 149 }, (_, index) =>
+    row(`id-${String(149 - index).padStart(3, "0")}`, "2026-09-02"),
+  );
+  const page = { summary, rows, totalCount: 150 };
+  const older = row("older", "2026-08-01");
+
+  const result = reconcileRegisterDelta({
+    accountId,
+    query,
+    page,
+    delta: patch([], [older], { ...summary, transactionCount: 151 }),
+  });
+
+  assert.equal(result.mode, "patch");
+  if (result.mode !== "patch") return;
+  assert.equal(result.page.rows.some(({ id }) => id === "older"), false);
+  assert.equal(result.refillLimit, 1);
+  assert.equal(result.refillOffset, 149);
+});
