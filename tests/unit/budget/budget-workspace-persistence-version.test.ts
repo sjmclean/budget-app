@@ -12,6 +12,7 @@ import {
 import { resolveBudgetWorkspaceData } from "../../../apps/web/src/features/budget/useBudgetWorkspace";
 import type { BudgetMonthView } from "../../../apps/web/src/features/budget/budgetViewTypes";
 import { useBudgetView } from "../../../apps/web/src/features/budget/useBudgetView";
+import { previewCategoryAssignment } from "../../../apps/web/src/features/budget/budgetAssignmentPreview";
 import { configureBudgetPersistenceProvider, resetBudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProviderFactory";
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider";
 
@@ -157,4 +158,46 @@ test("older in-flight budget query cannot replace the newer revision's result", 
     if (root) await act(async () => root!.unmount());
     resetBudgetPersistenceProvider();
   }
+});
+
+
+test("optimistic assignment previews never retain an authoritative publication revision", () => {
+  const authoritative: BudgetMonthView = {
+    publicationRevision: 42,
+    budgetId: "budget-preview",
+    budgetName: "Preview Budget",
+    monthLabel: "September 2026",
+    currencyCode: "AUD",
+    readyToAssign: 100,
+    totalAssigned: 0,
+    totalActivity: 0,
+    totalAvailable: 100,
+    categoryGroups: [{
+      id: "group-a",
+      name: "Group A",
+      previousAvailable: 0,
+      assigned: 0,
+      activity: 0,
+      available: 100,
+      note: "",
+      categories: [{
+        id: "category-a",
+        name: "Category A",
+        previousAvailable: 0,
+        assigned: 0,
+        activity: 0,
+        available: 100,
+        isOverspent: false,
+        isArchived: false,
+        note: "",
+      }],
+    }],
+  };
+
+  const preview = previewCategoryAssignment(authoritative, "category-a", 25);
+
+  assert.equal(authoritative.publicationRevision, 42);
+  assert.equal(preview.publicationRevision, undefined);
+  assert.equal(preview.categoryGroups[0]?.categories[0]?.assigned, 25);
+  assert.equal(preview.readyToAssign, 75);
 });
