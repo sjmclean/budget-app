@@ -4,6 +4,7 @@ import { createElement } from "react";
 import { act, create } from "react-test-renderer";
 
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.js";
+import { configureBudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProviderFactory.js";
 import {
   MAX_REACTIVE_QUERY_CACHE_ENTRIES,
   createReactiveQueryDefinition,
@@ -214,4 +215,69 @@ test("inactive reactive query cache is hard bounded", async () => {
     getReactiveQueryStoreDiagnosticsForTests().entryCount,
     MAX_REACTIVE_QUERY_CACHE_ENTRIES,
   );
+});
+
+
+test("refresh errors retain the last authoritative data", async () => {
+  resetReactiveQueryStore();
+  let loads = 0;
+  const query = createReactiveQueryDefinition<{ budgetId: string }, string>({
+    id: "refresh-error",
+    key: ({ budgetId }) => budgetId,
+    interest: ({ budgetId }) => ({ budgetId, domains: ["transactions"] }),
+    load: async () => {
+      loads += 1;
+      if (loads === 1) return "stable";
+      throw new Error("refresh failed");
+    },
+  });
+  let latest: ReactiveQuerySnapshot<string> | undefined;
+
+  function Consumer() {
+    latest = useReactiveQuery(query, provider, { budgetId: "budget-refresh-error" });
+    return null;
+  }
+
+  let root: ReturnType<typeof create> | undefined;
+  await act(async () => {
+    root = create(createElement(Consumer));
+  });
+  assert.equal(latest?.data, "stable");
+
+  await act(async () => {
+    publishPersistenceChange({
+      source: "local",
+      scope: { budgetId: "budget-refresh-error", domains: ["transactions"] },
+    });
+    flushPersistenceChanges();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  assert.equal(latest?.data, "stable");
+  assert.equal(latest?.status, "error");
+  assert.equal(latest?.error, "refresh failed");
+  await act(async () => root?.unmount());
+});
+
+test("configuring a new persistence provider clears cached query data", async () => {
+  resetReactiveQueryStore();
+  const query = createReactiveQueryDefinition<{ budgetId: string }, string>({
+    id: "provider-reset",
+    key: ({ budgetId }) => budgetId,
+    interest: ({ budgetId }) => ({ budgetId, domains: ["budget"] }),
+    load: async () => "cached",
+  });
+  await prefetchReactiveQuery(query, provider, { budgetId: "budget-provider-reset" });
+  assert.equal(getReactiveQueryStoreDiagnosticsForTests().entryCount, 1);
+
+  configureBudgetPersistenceProvider({
+    metadata: {
+      kind: "local-database",
+      label: "test",
+      description: "test",
+      isProductionPersistence: false,
+    },
+  } as BudgetPersistenceProvider);
+
+  assert.equal(getReactiveQueryStoreDiagnosticsForTests().entryCount, 0);
 });
