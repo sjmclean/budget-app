@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createElement } from "react";
-import { act, create } from "react-test-renderer";
+import { createRequire } from "node:module";
+
+const webRequire = createRequire(new URL("../../../apps/web/package.json", import.meta.url));
+const { createElement } = webRequire("react");
+const { act, create } = webRequire("react-test-renderer");
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.js";
 import { configureBudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProviderFactory.js";
