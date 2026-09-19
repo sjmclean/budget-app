@@ -1,5 +1,5 @@
 import type { AccountNavigation, FinancialOverview } from "./accountRegisterQueryContracts";
-import type { SpendingCategoryRow } from "../../../pages/reports/services/spendingByCategoryReport";
+import type { SpendingCategoryRow } from "../../pages/reports/services/spendingByCategoryReport";
 import type { RegisterTransactionView } from "../accounts/accountRegisterTypes";
 import type { BudgetActivityDrilldown, BudgetMonthView } from "../budget/budgetViewTypes";
 import {
@@ -99,7 +99,7 @@ export const accountNavigationQuery = createReactiveQueryDefinition<
     budgetId,
     domains: ["accounts", "transactions", "categories"],
   }),
-  load: async (_provider, { budgetId }) => requireQueries().listAccountNavigation(budgetId),
+  load: async (provider, { budgetId }) => requireQueries(provider).listAccountNavigation(budgetId),
 });
 
 export const categoryActivityDrilldownQuery = createReactiveQueryDefinition<
