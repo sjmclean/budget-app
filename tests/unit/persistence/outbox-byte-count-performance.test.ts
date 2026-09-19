@@ -1,72 +1,40 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import test from "node:test";
+import { selectOutboxPushBatch } from "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.js";
 
-const source = fs.readFileSync(
-  new URL(
-    "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
-    import.meta.url,
-  ),
-  "utf8",
-);
-
-function drainLocalOutboxBody(): string {
-  const start = source.indexOf(
-    "async function drainLocalOutbox(",
-  );
-
-  assert.notEqual(
-    start,
-    -1,
-    "drainLocalOutbox should exist",
-  );
-
-  const end = source.indexOf(
-    "\n  async function readyDatabase(",
-    start,
-  );
-
-  assert.notEqual(
-    end,
-    -1,
-    "readyDatabase should follow drainLocalOutbox",
-  );
-
-  return source.slice(start, end);
+function row(sequence: number, payloadBytes: number, operationGroupJson?: string) {
+  return {
+    sequence, mutationId: `mutation-${sequence}`, operationGroupId: operationGroupJson ? `group-${sequence}` : null,
+    operationGroupJson: operationGroupJson ?? null, deviceId: "device", deviceSequence: sequence,
+    baseCursor: 0, domain: "attachments" as const, entityId: `attachment-${sequence}`,
+    operation: "upsert" as const, payloadJson: JSON.stringify({ contentBase64: "x".repeat(payloadBytes) }),
+    createdAt: "2026-09-19T00:00:00.000Z",
+  };
 }
 
-test("outbox batching does not allocate a Blob for every payload byte count", () => {
-  const body = drainLocalOutboxBody();
-
-  assert.doesNotMatch(
-    body,
-    /new Blob\(\[row\.payloadJson\]\)\.size/,
-    "outbox batching should avoid Blob allocation for UTF-8 byte counting",
-  );
+test("outbox batching counts the complete serialized relay request, including operation groups", () => {
+  const groupJson = JSON.stringify({ kind: "atomic", members: [{ payload: "g".repeat(2048) }] });
+  const selected = selectOutboxPushBatch([row(1, 1024, groupJson)], "budget", "epoch");
+  const actualRequestBytes = new TextEncoder().encode(JSON.stringify({ budgetId: "budget", syncEpoch: "epoch", mutations: selected.mutations })).byteLength;
+  assert.ok(selected.encodedBytes >= actualRequestBytes);
+  assert.equal((selected.mutations[0]!.operationGroup!.members[0] as { payload: string }).payload, "g".repeat(2048));
 });
 
-test("outbox batching uses TextEncoder for exact UTF-8 byte counts", () => {
-  const body = drainLocalOutboxBody();
-
-  assert.match(
-    body,
-    /TextEncoder/,
-    "outbox batching should use TextEncoder",
-  );
-
-  assert.match(
-    body,
-    /\.encode\(row\.payloadJson\)\.byteLength/,
-    "outbox batching should measure the encoded UTF-8 payload length",
-  );
+test("multiple large mutations split before the 32 MiB target", () => {
+  const selected = selectOutboxPushBatch([row(1, 17 * 1024 * 1024), row(2, 17 * 1024 * 1024)], "budget", "epoch");
+  assert.equal(selected.rows.length, 1);
+  assert.ok(selected.encodedBytes <= 32 * 1024 * 1024);
 });
 
-test("outbox batching preserves the 32 MiB encoded payload cap", () => {
-  const body = drainLocalOutboxBody();
+test("one legal oversized row remains sendable and below the server limit", () => {
+  const selected = selectOutboxPushBatch([row(1, 33 * 1024 * 1024)], "budget", "epoch");
+  assert.equal(selected.rows.length, 1);
+  assert.ok(selected.encodedBytes > 32 * 1024 * 1024);
+  assert.ok(selected.encodedBytes < 50 * 1024 * 1024);
+});
 
-  assert.match(
-    body,
-    /32 \* 1024 \* 1024/,
-    "outbox batching must retain the existing 32 MiB limit",
-  );
+test("a near-maximum attachment payload is selected without duplicating group metadata", () => {
+  const selected = selectOutboxPushBatch([row(1, 5 * 1024 * 1024)], "budget", "epoch");
+  assert.equal(selected.rows.length, 1);
+  assert.equal(selected.mutations[0]!.operationGroup, undefined);
 });

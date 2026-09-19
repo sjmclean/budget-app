@@ -58,13 +58,6 @@ function groupedMutations(dependencies: TransactionHistoryCommandDependencies, b
     member.operation, member.payload, operationGroupId, operationGroup));
 }
 
-function applyGroup(mutations: readonly LocalBudgetMutation[], members: LocalBudgetOperationGroup["members"]): LocalBudgetMutation[] {
-  if (mutations.length === 0) return [];
-  const operationGroupId = createRuntimeUuid();
-  const operationGroup: LocalBudgetOperationGroup = { members };
-  return mutations.map((mutation) => ({ ...mutation, operationGroupId, operationGroup }));
-}
-
 function payeeRecords(budgetId: string, creations: Parameters<HistoryCommands["commitImportBatch"]>[0]["payeeCreations"]): LocalPayeeRecord[] {
   return creations.map((creation) => {
     const now = new Date().toISOString();
@@ -102,29 +95,13 @@ async function prepareImport(dependencies: TransactionHistoryCommandDependencies
       ),
     };
   });
-  const members: LocalBudgetOperationGroup["members"] = [
-    ...prepared.writes.map(({ mutation }) => ({ domain: mutation.domain, entityId: mutation.entityId,
-      operation: mutation.operation, payload: mutation.payload })),
-    ...payeeMutations.map((mutation) => ({ domain: mutation.domain, entityId: mutation.entityId,
-      operation: mutation.operation, payload: mutation.payload })),
-    ...attachmentWrites.map(({ mutation }) => ({ domain: mutation.domain, entityId: mutation.entityId,
-      operation: mutation.operation, payload: mutation.payload })),
-  ];
-  const grouped = applyGroup([
+  const mutations = [
     ...prepared.writes.map(({ mutation }) => mutation),
     ...payeeMutations,
     ...attachmentWrites.map(({ mutation }) => mutation),
-  ], members);
-  const transactionMutations = grouped.slice(0, prepared.writes.length);
-  const groupedWrites = prepared.writes.map((write, index) => ({ ...write, mutation: transactionMutations[index]! }));
-  const groupedPayeeMutations = grouped.slice(prepared.writes.length, prepared.writes.length + payees.length);
-  const groupedAttachmentMutations = grouped.slice(prepared.writes.length + payees.length);
-  return { writes: groupedWrites, payeeWrites: payees.map((payee, index) => ({ payee, mutation: groupedPayeeMutations[index]! })),
-    attachmentWrites: attachmentWrites.map((write, index) => ({
-      ...write,
-      mutation: groupedAttachmentMutations[index]!,
-    })),
-    mutations: grouped, requireAbsentTransactionIds: prepared.requireAbsentTransactionIds };
+  ];
+  return { writes: prepared.writes, payeeWrites: payees.map((payee, index) => ({ payee, mutation: payeeMutations[index]! })),
+    attachmentWrites, mutations, requireAbsentTransactionIds: prepared.requireAbsentTransactionIds };
 }
 
 function importChangeScope(budgetId: string, mutations: readonly LocalBudgetMutation[],

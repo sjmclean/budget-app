@@ -25,6 +25,7 @@ function harness() {
   let importHistoryOptions: { historyTransactionIds: readonly string[]; historyPayeeIds: readonly string[] } | null = null;
   const commit = (kind: string, mutations: readonly LocalBudgetMutation[]) => { if (fail) throw new Error("worker failed"); requests.push({ kind, mutations }); committed.push(...mutations); };
   const database = {
+    async listAccountNavigation() { return ["account-a", "account-b", "account-c"].map((id) => ({ id, participation: "on-budget" })); },
     async restoreTransactionHistorySnapshot(_snapshot: TransactionHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("restore", mutations); },
     async deleteTransactionHistorySnapshot(_snapshot: TransactionHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("delete", mutations); },
     async replaceTransactionHistorySnapshot(_expected: TransactionHistorySnapshot, _replacement: TransactionHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("replace", mutations); },
@@ -97,9 +98,10 @@ const importInput = { budgetId, accountId: "account-a", additions: [{ id: "impor
   accountId: "account-a", date: "2026-09-17", amount: -250, payeeId: "new-payee", payeeName: "New Payee" }],
   updates: [], provenanceAssignments: [], payeeCreations: [{ id: "new-payee", name: "  New   Payee  " }] };
 
-test("import transaction and normalized payee commit atomically as one exact group", async () => {
+test("import transaction and normalized payee commit atomically without fabricating a cross-domain group", async () => {
   const h = harness(); await h.commands.commitImportBatch(importInput);
-  const mutations = h.requests[0]!.mutations; assert.equal(h.requests[0]!.kind, "import"); assert.equal(mutations.length, 2); assertExactGroup(mutations);
+  const mutations = h.requests[0]!.mutations; assert.equal(h.requests[0]!.kind, "import"); assert.equal(mutations.length, 2);
+  assert.ok(mutations.every(({ operationGroupId, operationGroup }) => operationGroupId === undefined && operationGroup === undefined));
   assert.equal((mutations.find(({ domain }) => domain === "payees")!.payload as { name: string }).name, "New Payee");
   assert.deepEqual(h.allocated.map(({ mutationId }) => mutationId), h.committed.map(({ mutationId }) => mutationId));
   assert.equal(new Set(h.committed.map(({ mutationId }) => mutationId)).size, h.committed.length);
@@ -109,7 +111,8 @@ test("import with history deduplicates roots, returns worker snapshots, and reje
   const h = harness(); const result = await h.commands.commitImportBatchWithHistory({ ...importInput,
     provenanceAssignments: [{ transactionId: "imported", fileType: "csv" as const, identity: "row", occurrence: 1, importedAt: "now" }],
     payeeCreations: [{ id: "new-payee", name: "New Payee" }, { id: "new-payee", name: "New Payee" }] });
-  assert.equal(h.requests[0]!.kind, "import-history"); assertExactGroup(h.requests[0]!.mutations);
+  assert.equal(h.requests[0]!.kind, "import-history");
+  assert.ok(h.requests[0]!.mutations.every(({ operationGroupId }) => operationGroupId === undefined));
   assert.deepEqual(h.historyOptions()?.historyTransactionIds, ["imported"]); assert.deepEqual(h.historyOptions()?.historyPayeeIds, ["new-payee"]);
   assert.deepEqual(result.result.before.transactionIds, ["imported"]);
   const empty = harness(); await assert.rejects(() => empty.commands.commitImportBatchWithHistory({ budgetId, accountId: "account-a",
@@ -130,7 +133,7 @@ const attachmentCreation = {
   content: Uint8Array.from([1, 2, 3]),
 };
 
-test("ordinary import groups attachment persistence with transaction and payee mutations", async () => {
+test("ordinary import commits attachment persistence atomically without duplicating it into group metadata", async () => {
   const h = harness();
   const result = await h.commands.commitImportBatch({
     ...importInput,
@@ -138,12 +141,37 @@ test("ordinary import groups attachment persistence with transaction and payee m
   });
   const mutations = h.requests[0]!.mutations;
   assert.equal(mutations.length, 3);
-  assertExactGroup(mutations);
+  assert.ok(mutations.every(({ operationGroupId, operationGroup }) => operationGroupId === undefined && operationGroup === undefined));
   const attachment = mutations.find(({ entityId }) => entityId === "attachment:imported-attachment")!;
   assert.equal((attachment.payload as { contentBase64: string }).contentBase64, "AQID");
   assert.deepEqual(result.mutationIds, mutations.map(({ mutationId }) => mutationId));
   assert.deepEqual(result.change.domains, ["attachments", "budget", "payees", "transactions"]);
   assert.deepEqual(result.change.transactionIds, ["imported"]);
+});
+
+test("complex import preserves each transfer pair group and leaves unrelated domains outside it", async () => {
+  const h = harness();
+  await h.commands.commitImportBatch({
+    ...importInput,
+    additions: [
+      { ...importInput.additions[0]!, id: "transfer-one", transferAccountId: "account-b" },
+      { ...importInput.additions[0]!, id: "ordinary" },
+      { ...importInput.additions[0]!, id: "transfer-two", transferAccountId: "account-c" },
+    ],
+    attachmentCreations: [{ ...attachmentCreation, transactionId: "ordinary" }],
+  });
+  const mutations = h.requests[0]!.mutations;
+  const grouped = mutations.filter(({ operationGroupId }) => operationGroupId !== undefined);
+  assert.equal(grouped.length, 4);
+  const groups = new Map<string, LocalBudgetMutation[]>();
+  for (const mutation of grouped) groups.set(mutation.operationGroupId!, [...(groups.get(mutation.operationGroupId!) ?? []), mutation]);
+  assert.equal(groups.size, 2);
+  for (const pair of groups.values()) { assert.equal(pair.length, 2); assertExactGroup(pair); }
+  const ungrouped = mutations.filter(({ operationGroupId }) => operationGroupId === undefined);
+  assert.deepEqual(ungrouped.map(({ domain, entityId }) => [domain, entityId]), [
+    ["transactions", "ordinary"], ["payees", "new-payee"], ["transactions", "attachment:imported-attachment"],
+  ]);
+  assert.equal(mutations.find(({ entityId }) => entityId === "attachment:imported-attachment")!.operationGroup, undefined);
 });
 
 test("attachment-only history import captures its transaction root and is not treated as empty", async () => {

@@ -13,48 +13,41 @@ type TagCommands = Pick<
 type TagWriteCommands = Pick<TagCommands, "replaceTransactionTags" | "replaceTransactionTagsHistoryState">;
 
 export interface TagCommandDependencies {
-  readonly synchronise: (budgetId: string) => Promise<void>;
   readonly requireDatabase: (budgetId: string) => Promise<LocalBudgetDatabaseClient>;
   readonly createMutation: (budgetId: string, domain: LocalBudgetMutation["domain"], entityId: string,
     operation: LocalBudgetMutation["operation"], payload: unknown) => LocalBudgetMutation;
 }
 
-/** Owns tag queries needed by tag history and every ordinary tag write body. */
+/** Owns ordinary tag writes. Current state is read directly from local SQLite. */
 export function createTagCommands(dependencies: TagCommandDependencies):
-  CommittedCommandMethods<TagWriteCommands> & Pick<TagCommands, "listTransactionTags"> {
-  const listTransactionTags = async (budgetId: string) => {
-    await dependencies.synchronise(budgetId);
-    return (await dependencies.requireDatabase(budgetId)).listEntities<TransactionTagDefinition>("transactionTags");
-  };
-  const commands: CommittedCommandMethods<TagWriteCommands> & Pick<TagCommands, "listTransactionTags"> = {
-    async listTransactionTags(budgetId) {
-      return listTransactionTags(budgetId);
-    },
-
+  CommittedCommandMethods<TagWriteCommands> {
+  const listLocalTags = (local: LocalBudgetDatabaseClient) =>
+    local.listEntities<TransactionTagDefinition>("transactionTags");
+  const commands: CommittedCommandMethods<TagWriteCommands> = {
     async replaceTransactionTags(budgetId, tags) {
-      const existing = await listTransactionTags(budgetId);
       const local = await dependencies.requireDatabase(budgetId);
+      const existing = await listLocalTags(local);
       const nextIds = new Set(tags.map(({ id }) => id));
       const mutations: LocalBudgetMutation[] = [];
       for (const tag of existing) {
         if (!nextIds.has(tag.id)) {
           const mutation = dependencies.createMutation(budgetId, "transactionTags", tag.id, "delete", null);
-          await local.mutate(mutation);
           mutations.push(mutation);
         }
       }
       for (const tag of tags) {
         const mutation = dependencies.createMutation(budgetId, "transactionTags", tag.id, "upsert", tag);
-        await local.mutate(mutation);
         mutations.push(mutation);
       }
+      if (mutations.length > 0) await local.mutateBatch(mutations);
       return committedCommandResult(tags, mutations, mutations.length > 0
         ? persistenceScopeForMutations(budgetId, mutations)
         : emptyCommandChange(budgetId));
     },
 
     async replaceTransactionTagsHistoryState(input) {
-      const current = await listTransactionTags(input.budgetId);
+      const local = await dependencies.requireDatabase(input.budgetId);
+      const current = await listLocalTags(local);
       if (JSON.stringify(current) !== JSON.stringify(input.expected)) {
         throw new Error("TRANSACTION_TAG_HISTORY_CONFLICT");
       }

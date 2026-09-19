@@ -33,7 +33,8 @@ export function doesPersistenceChangeAffect(change: PersistenceChangeEvent, inte
   if (!overlaps(change.scope.months, interest.month ? [interest.month] : undefined)) return false;
   return true;
 }
-const union = (a?: readonly string[], b?: readonly string[]) => uniqueSorted([...(a ?? []), ...(b ?? [])]);
+const union = (a?: readonly string[], b?: readonly string[]) =>
+  a === undefined || b === undefined ? undefined : uniqueSorted([...a, ...b]);
 export function mergePersistenceChanges(left: PersistenceChangeEvent, right: PersistenceChangeEvent): PersistenceChangeEvent | null {
   if (left.source !== right.source || left.scope.budgetId !== right.scope.budgetId) return null;
   return normalisePersistenceChange({ source: left.source, occurredAt: left.occurredAt < right.occurredAt ? right.occurredAt : left.occurredAt, scope: { budgetId: left.scope.budgetId, domains: union(left.scope.domains, right.scope.domains) as PersistenceChangeDomain[], accountIds: union(left.scope.accountIds, right.scope.accountIds), transactionIds: union(left.scope.transactionIds, right.scope.transactionIds), categoryIds: union(left.scope.categoryIds, right.scope.categoryIds), months: union(left.scope.months, right.scope.months), broad: left.scope.broad || right.scope.broad } });

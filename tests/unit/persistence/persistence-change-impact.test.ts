@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { deriveTransactionChangeScope } from "../../../apps/web/src/features/persistence/localFirst/persistenceChangeImpact.js";
+import { deriveTransactionChangeScope, mergePersistenceChangeScopes } from "../../../apps/web/src/features/persistence/localFirst/persistenceChangeImpact.js";
 import type { LocalTransactionRecord } from "../../../apps/web/src/features/persistence/localFirst/registerSchema.js";
 
 function transaction(overrides: Partial<LocalTransactionRecord> = {}): LocalTransactionRecord {
@@ -44,4 +44,17 @@ test("non-financial transaction edits do not invalidate budget projections", () 
     after: [{ ...before, memo: "updated", clearedStatus: "cleared", payeeName: "Renamed" }],
   });
   assert.deepEqual(scope.domains, ["transactions"]);
+});
+
+test("scope composition preserves wildcard semantics for every optional dimension", () => {
+  const dimensions = ["accountIds", "transactionIds", "categoryIds", "months"] as const;
+  for (const dimension of dimensions) {
+    const wildcard = { budgetId: "budget-a", domains: ["transactions"] as const };
+    const one = { ...wildcard, [dimension]: ["one"] };
+    const two = { ...wildcard, [dimension]: ["two"] };
+    assert.equal(mergePersistenceChangeScopes("budget-a", wildcard, one)[dimension], undefined);
+    assert.equal(mergePersistenceChangeScopes("budget-a", one, wildcard)[dimension], undefined);
+    assert.equal(mergePersistenceChangeScopes("budget-a", wildcard, wildcard)[dimension], undefined);
+    assert.deepEqual(mergePersistenceChangeScopes("budget-a", one, two)[dimension], ["one", "two"]);
+  }
 });

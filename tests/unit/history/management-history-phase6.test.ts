@@ -47,7 +47,7 @@ test("payee and tag UI wiring uses application history and preserves explicit ex
   const register = readFileSync(new URL("../../../apps/web/src/pages/AccountRegisterPage.tsx", import.meta.url), "utf8");
   const tags = readFileSync(new URL("../../../apps/web/src/features/tags/TransactionTagManager.tsx", import.meta.url), "utf8");
   assert.match(payees, /usePayeeHistory\(activeBudgetId\)/);
-  assert.match(payees, /localBudgetEngine!\.mergePayees/);
+  assert.match(payees, /requireLocalBudgetEngine\(persistenceGateway\.localBudgetEngine\)\.mergePayees/);
   assert.match(register, /payeeHistory\.createPayee/);
   assert.match(register, /setTransactionTagsCommand/);
   assert.match(tags, /Remove .* from its transactions before deleting it/);

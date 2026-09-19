@@ -70,6 +70,7 @@ import { createTransactionHistoryCommands } from "./engine/transactionHistoryCom
 import {
   buildNewTransactionRecords,
 } from "./engine/transactionCommandHelpers";
+import type { TransactionTagDefinition } from "../../tags/transactionTagTypes";
 
 const DEVICE_ID_KEY = "budget-app.local-first.device-id";
 const SYNC_EPOCH_KEY_PREFIX = "budget-app.local-first.sync-epoch.";
@@ -83,6 +84,43 @@ export interface LocalFirstRegisterRuntimeOptions {
   readonly tabSyncCoordinator?: LocalFirstTabSyncCoordinator;
   readonly restorePointStore?: Pick<ReturnType<typeof createRestorePointStore>, "list" | "deleteBudget">;
   readonly restorePointBudgetName?: (budgetId: string) => string | undefined;
+}
+
+const OUTBOX_PUSH_TARGET_BYTES = 32 * 1024 * 1024;
+type LocalOutboxRow = Awaited<ReturnType<LocalBudgetDatabaseClient["readOutbox"]>>[number];
+
+function relayMutationFromOutboxRow(row: LocalOutboxRow, budgetId: string, syncEpoch: string): LocalBudgetMutation {
+  return {
+    mutationId: row.mutationId,
+    operationGroupId: row.operationGroupId ?? undefined,
+    operationGroup: row.operationGroupJson ? JSON.parse(row.operationGroupJson) : undefined,
+    budgetId,
+    syncEpoch,
+    deviceId: row.deviceId,
+    deviceSequence: row.deviceSequence,
+    baseCursor: row.baseCursor,
+    domain: row.domain,
+    entityId: row.entityId,
+    operation: row.operation,
+    payload: JSON.parse(row.payloadJson),
+    createdAt: row.createdAt,
+  };
+}
+
+export function selectOutboxPushBatch(pending: readonly LocalOutboxRow[], budgetId: string, syncEpoch: string) {
+  const utf8Encoder = new TextEncoder();
+  const rows: LocalOutboxRow[] = [];
+  const mutations: LocalBudgetMutation[] = [];
+  let encodedBytes = utf8Encoder.encode(JSON.stringify({ budgetId, syncEpoch, mutations: [] })).byteLength;
+  for (const row of pending) {
+    const mutation = relayMutationFromOutboxRow(row, budgetId, syncEpoch);
+    const mutationBytes = utf8Encoder.encode(JSON.stringify(mutation)).byteLength + 1;
+    if (rows.length > 0 && encodedBytes + mutationBytes > OUTBOX_PUSH_TARGET_BYTES) break;
+    rows.push(row);
+    mutations.push(mutation);
+    encodedBytes += mutationBytes;
+  }
+  return { rows, mutations, encodedBytes };
 }
 
 /**
@@ -147,42 +185,16 @@ export function createLocalBudgetRuntime(
     budgetId: string,
     syncEpoch: string,
   ): Promise<void> {
-    const utf8Encoder = new TextEncoder();
-
     while (true) {
       const pending = await local.readOutbox(0, 500);
-      const outbox: (typeof pending)[number][] = [];
-      let encodedBytes = 0;
-      for (const row of pending) {
-        const rowBytes =
-          utf8Encoder.encode(row.payloadJson).byteLength + 2_048;
-        if (outbox.length > 0 && encodedBytes + rowBytes > 32 * 1024 * 1024) break;
-        outbox.push(row);
-        encodedBytes += rowBytes;
-      }
-      if (outbox.length === 0) break;
+      const outbox = selectOutboxPushBatch(pending, budgetId, syncEpoch);
+      if (outbox.rows.length === 0) break;
       await relay.pushMutations({
         budgetId,
         syncEpoch,
-        mutations: outbox.map((row) => ({
-          mutationId: row.mutationId,
-          operationGroupId: row.operationGroupId ?? undefined,
-          operationGroup: row.operationGroupJson
-            ? JSON.parse(row.operationGroupJson)
-            : undefined,
-          budgetId,
-          syncEpoch,
-          deviceId: row.deviceId,
-          deviceSequence: row.deviceSequence,
-          baseCursor: row.baseCursor,
-          domain: row.domain,
-          entityId: row.entityId,
-          operation: row.operation,
-          payload: JSON.parse(row.payloadJson),
-          createdAt: row.createdAt,
-        })),
+        mutations: outbox.mutations,
       });
-      await local.acknowledgeOutbox(outbox.at(-1)!.sequence);
+      await local.acknowledgeOutbox(outbox.rows.at(-1)!.sequence);
     }
   }
 
@@ -458,7 +470,6 @@ export function createLocalBudgetRuntime(
   }
 
   const tagCommands = createTagCommands({
-    synchronise,
     requireDatabase,
     createMutation: mutation,
   });
@@ -1261,7 +1272,10 @@ export function createLocalBudgetRuntime(
     setPayeeArchived: publicOrdinaryCommands.setPayeeArchived,
     deleteUnusedPayee: publicOrdinaryCommands.deleteUnusedPayee,
     mergePayees: publicOrdinaryCommands.mergePayees,
-    listTransactionTags: tagCommands.listTransactionTags,
+    async listTransactionTags(budgetId) {
+      await synchronise(budgetId);
+      return (await requireDatabase(budgetId)).listEntities<TransactionTagDefinition>("transactionTags");
+    },
     replaceTransactionTags: publicOrdinaryCommands.replaceTransactionTags,
     replaceTransactionTagsHistoryState: publicOrdinaryCommands.replaceTransactionTagsHistoryState,
     listScheduledTransactions(budgetId, accountId) {

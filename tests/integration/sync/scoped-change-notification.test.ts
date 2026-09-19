@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { flushPersistenceChanges, subscribeToPersistenceInterest } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
+import { flushPersistenceChanges, publishPersistenceChange, subscribeToPersistenceInterest } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
 import { notifyRemoteMutationsApplied } from "../../../apps/web/src/features/persistence/localFirst/mutationEvents.js";
 import type { LocalBudgetMutation } from "../../../apps/web/src/features/persistence/localFirst/contracts.js";
 
@@ -79,5 +79,15 @@ test("conflict winner application preserves scoped invalidation", async () => {
   await applyRemoteBatch(sqlite, [winner]);
   assert.deepEqual(sqlite.get("tx-1"), winner.payload);
   assert.equal(refreshes, 1);
+  stop();
+});
+
+test("coalescing a wildcard and specific change still refreshes observers outside the specific id", () => {
+  let outside = 0;
+  const stop = subscribeToPersistenceInterest({ budgetId: "budget-x", accountId: "account-outside", domains: ["transactions"] }, () => { outside += 1; });
+  publishPersistenceChange({ source: "local", scope: { budgetId: "budget-x", domains: ["transactions"] } });
+  publishPersistenceChange({ source: "local", scope: { budgetId: "budget-x", domains: ["transactions"], accountIds: ["account-a"] } });
+  flushPersistenceChanges();
+  assert.equal(outside, 1);
   stop();
 });

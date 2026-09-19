@@ -70,5 +70,18 @@ test("compatible changes coalesce without losing scope", () => {
   const broad = normalisePersistenceChange({ source: "local", scope: { budgetId: "budget-a", domains: [], broad: true } });
   const broadMerged = mergePersistenceChanges(change, broad)!;
   assert.equal(broadMerged.scope.broad, true);
-  assert.deepEqual(broadMerged.scope.accountIds, ["account-b"]);
+  assert.equal(broadMerged.scope.accountIds, undefined);
+});
+
+test("coalescing preserves wildcard semantics for every optional scope dimension", () => {
+  const dimensions = ["accountIds", "transactionIds", "categoryIds", "months"] as const;
+  for (const dimension of dimensions) {
+    const specific = normalisePersistenceChange({ source: "local", scope: { budgetId: "budget-a", domains: ["transactions"], [dimension]: ["one"] } });
+    const wildcard = normalisePersistenceChange({ source: "local", scope: { budgetId: "budget-a", domains: ["transactions"] } });
+    assert.equal(mergePersistenceChanges(wildcard, specific)!.scope[dimension], undefined);
+    assert.equal(mergePersistenceChanges(specific, wildcard)!.scope[dimension], undefined);
+    assert.equal(mergePersistenceChanges(wildcard, wildcard)!.scope[dimension], undefined);
+    const other = normalisePersistenceChange({ source: "local", scope: { budgetId: "budget-a", domains: ["transactions"], [dimension]: ["two"] } });
+    assert.deepEqual(mergePersistenceChanges(specific, other)!.scope[dimension], ["one", "two"]);
+  }
 });

@@ -65,3 +65,12 @@ export interface BudgetPersistenceProvider {
   flush?(): Promise<void>;
   exportSnapshot?(): BudgetPersistenceSnapshot | Promise<BudgetPersistenceSnapshot>;
 }
+
+export function requireLocalBudgetEngine(
+  engine: LocalBudgetEngine | undefined,
+): LocalBudgetEngine {
+  if (!engine) {
+    throw new Error("This write requires the Local Budget Engine capability.");
+  }
+  return engine;
+}

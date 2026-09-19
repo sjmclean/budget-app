@@ -52,10 +52,16 @@ export function mergePersistenceChangeScopes(
   return {
     budgetId,
     domains: unique(scopes.flatMap(({ domains }) => domains)) as PersistenceChangeScope["domains"],
-    accountIds: unique(scopes.flatMap(({ accountIds }) => accountIds ?? [])),
-    transactionIds: unique(scopes.flatMap(({ transactionIds }) => transactionIds ?? [])),
-    categoryIds: unique(scopes.flatMap(({ categoryIds }) => categoryIds ?? [])),
-    months: unique(scopes.flatMap(({ months }) => months ?? [])),
+    accountIds: mergeOptionalDimension(scopes.map(({ accountIds }) => accountIds)),
+    transactionIds: mergeOptionalDimension(scopes.map(({ transactionIds }) => transactionIds)),
+    categoryIds: mergeOptionalDimension(scopes.map(({ categoryIds }) => categoryIds)),
+    months: mergeOptionalDimension(scopes.map(({ months }) => months)),
     broad: scopes.some(({ broad }) => broad) || undefined,
   };
+}
+
+function mergeOptionalDimension(values: readonly (readonly string[] | undefined)[]): string[] | undefined {
+  return values.some((value) => value === undefined)
+    ? undefined
+    : unique(values.flatMap((value) => value ?? []));
 }
