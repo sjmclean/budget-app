@@ -256,6 +256,7 @@ test("refresh errors retain the last authoritative data", async () => {
   assert.equal(latest?.data, "stable");
   assert.equal(latest?.status, "error");
   assert.equal(latest?.error, "refresh failed");
+  assert.equal(loads, 2, "the failed revision is not retried in a loop");
   await act(async () => root?.unmount());
 });
 
