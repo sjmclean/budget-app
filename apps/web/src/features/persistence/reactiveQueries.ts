@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { AccountNavigation, FinancialOverview, SpendingCategoryRow } from "./accountRegisterQueryContracts";
 import type { RegisterTransactionView } from "../accounts/accountRegisterTypes";
 import type { BudgetActivityDrilldown, BudgetMonthView } from "../budget/budgetViewTypes";
@@ -123,7 +124,11 @@ export function useBudgetMonthQuery(
   enabled = true,
 ) {
   const provider = getBudgetPersistenceProvider();
-  return useReactiveQuery(budgetMonthQuery, provider, input, { enabled });
+  const stableInput = useMemo(
+    () => input,
+    [input.budgetId, input.month],
+  );
+  return useReactiveQuery(budgetMonthQuery, provider, stableInput, { enabled });
 }
 
 export function useFinancialOverviewQuery(
@@ -131,7 +136,11 @@ export function useFinancialOverviewQuery(
   enabled = true,
 ) {
   const provider = getBudgetPersistenceProvider();
-  return useReactiveQuery(financialOverviewQuery, provider, input, { enabled });
+  const stableInput = useMemo(
+    () => input,
+    [input.budgetId, input.month],
+  );
+  return useReactiveQuery(financialOverviewQuery, provider, stableInput, { enabled });
 }
 
 export function useMonthlySpendingQuery(
@@ -139,7 +148,11 @@ export function useMonthlySpendingQuery(
   enabled = true,
 ) {
   const provider = getBudgetPersistenceProvider();
-  return useReactiveQuery(monthlySpendingQuery, provider, input, { enabled });
+  const stableInput = useMemo(
+    () => input,
+    [input.budgetId, input.month],
+  );
+  return useReactiveQuery(monthlySpendingQuery, provider, stableInput, { enabled });
 }
 
 export function useMonthlyCategoryTransactionsQuery(
@@ -147,7 +160,11 @@ export function useMonthlyCategoryTransactionsQuery(
   enabled = true,
 ) {
   const provider = getBudgetPersistenceProvider();
-  return useReactiveQuery(monthlyCategoryTransactionsQuery, provider, input, { enabled });
+  const stableInput = useMemo(
+    () => input,
+    [input.budgetId, input.month, input.categoryId],
+  );
+  return useReactiveQuery(monthlyCategoryTransactionsQuery, provider, stableInput, { enabled });
 }
 
 export function useAccountNavigationQuery(
@@ -155,7 +172,11 @@ export function useAccountNavigationQuery(
   enabled = true,
 ) {
   const provider = getBudgetPersistenceProvider();
-  return useReactiveQuery(accountNavigationQuery, provider, input, { enabled });
+  const stableInput = useMemo(
+    () => input,
+    [input.budgetId],
+  );
+  return useReactiveQuery(accountNavigationQuery, provider, stableInput, { enabled });
 }
 
 export function useCategoryActivityDrilldownQuery(
@@ -163,7 +184,11 @@ export function useCategoryActivityDrilldownQuery(
   enabled = true,
 ) {
   const provider = getBudgetPersistenceProvider();
-  return useReactiveQuery(categoryActivityDrilldownQuery, provider, input, { enabled });
+  const stableInput = useMemo(
+    () => input,
+    [input.budgetId, input.month, input.categoryId],
+  );
+  return useReactiveQuery(categoryActivityDrilldownQuery, provider, stableInput, { enabled });
 }
 
 export function prefetchBudgetMonthQuery(input: {
