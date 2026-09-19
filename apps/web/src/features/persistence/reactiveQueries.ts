@@ -1,5 +1,4 @@
-import type { AccountNavigation, FinancialOverview } from "./accountRegisterQueryContracts";
-import type { SpendingCategoryRow } from "../../pages/reports/services/spendingByCategoryReport";
+import type { AccountNavigation, FinancialOverview, SpendingCategoryRow } from "./accountRegisterQueryContracts";
 import type { RegisterTransactionView } from "../accounts/accountRegisterTypes";
 import type { BudgetActivityDrilldown, BudgetMonthView } from "../budget/budgetViewTypes";
 import {
