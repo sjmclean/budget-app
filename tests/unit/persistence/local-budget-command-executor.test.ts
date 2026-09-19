@@ -4,7 +4,7 @@ import { LocalBudgetCommandExecutor } from "../../../apps/web/src/features/persi
 import { LocalBudgetMutationContext } from "../../../apps/web/src/features/persistence/localFirst/engine/mutationContext.js";
 import { committedCommandResult } from "../../../apps/web/src/features/persistence/localFirst/engine/commandContext.js";
 import { mergePersistenceChangeScopes } from "../../../apps/web/src/features/persistence/localFirst/persistenceChangeImpact.js";
-import { flushPersistenceChanges, getPersistenceChangeRevision, subscribePersistenceChanges } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
+import { flushPersistenceChanges, getPersistenceChangeRevision, getPersistenceChangesSince, subscribePersistenceChanges } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
 
 function context() {
   const values = new Map<string, string>();
@@ -49,6 +49,23 @@ test("executor assigns exact increasing revisions before command continuations r
   assert.equal(first.publicationRevision, before + 1);
   assert.equal(second.publicationRevision, before + 2);
   assert.equal(getPersistenceChangeRevision(), second.publicationRevision);
+  flushPersistenceChanges();
+});
+
+test("executor publishes internal register delta with the exact command revision", async () => {
+  const executor = new LocalBudgetCommandExecutor();
+  const before = getPersistenceChangeRevision();
+  const registerDelta = { mode: "refresh-required" as const, budgetId: "delta-executor-budget", affectedAccountIds: ["account-a"], reason: "unsupported-register-change" as const };
+  const committed = await executor.execute("transaction.delta", {
+    execute: async () => committedCommandResult("domain-result", [], { budgetId: registerDelta.budgetId, domains: ["transactions"] }, registerDelta),
+  });
+  const history = getPersistenceChangesSince({ budgetId: registerDelta.budgetId, domains: ["transactions"] }, before);
+  assert.equal(history.complete, true);
+  if (!history.complete) throw new Error("The command publication was unexpectedly pruned.");
+  assert.equal(history.changes.length, 1);
+  assert.equal(history.changes[0]?.revision, committed.publicationRevision);
+  assert.deepEqual(history.changes[0]?.event.registerDelta, registerDelta);
+  assert.equal(committed.result, "domain-result");
   flushPersistenceChanges();
 });
 

@@ -393,6 +393,8 @@ export interface LocalTransactionQuery {
   readonly budgetId: string;
   readonly accountId: string;
   readonly limit: number;
+  /** Worker-internal point materialisation through the canonical query projection. */
+  readonly transactionIds?: readonly string[];
   readonly offset?: number;
   readonly before?: { readonly date: string; readonly id: string };
   readonly dateRange?: {

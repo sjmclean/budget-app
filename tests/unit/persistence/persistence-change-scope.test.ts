@@ -5,8 +5,10 @@ import {
   doesPersistenceChangeAffect,
   flushPersistenceChanges,
   getPersistenceChangeStoreDiagnosticsForTests,
+  getPersistenceChangesSince,
   getPersistenceRevisionForInterest,
   MAX_EXACT_PERSISTENCE_SCOPES_PER_BUDGET,
+  MAX_RECENT_PERSISTENCE_PUBLICATIONS_PER_BUDGET,
   mergePersistenceChanges,
   normalisePersistenceChange,
   publishPersistenceChange,
@@ -221,5 +223,27 @@ test("republication of an exact normalized scope replaces its revision without g
   assert.equal(second, first + 1);
   assert.equal(getPersistenceChangeStoreDiagnosticsForTests(budgetId).exactScopeCount, 1);
   assert.equal(getPersistenceRevisionForInterest({ budgetId, domains: ["transactions"], transactionId: "same" }), second);
+  flushPersistenceChanges();
+});
+
+test("recent original publications remain ordered and report journal overflow", () => {
+  const budgetId = "bounded-journal-budget";
+  const interest = { budgetId, domains: ["transactions"] as const, accountId: "a" };
+  const first = publishPersistenceChange({ source: "local", scope: { budgetId, domains: ["transactions"], accountIds: ["a"] } });
+  const second = publishPersistenceChange({ source: "replication", scope: { budgetId, domains: ["budget"] } });
+  const third = publishPersistenceChange({ source: "local", scope: { budgetId, domains: ["transactions"], accountIds: ["a"] } });
+  const retained = getPersistenceChangesSince(interest, first - 1);
+  assert.equal(retained.complete, true);
+  if (!retained.complete) throw new Error("The recent journal was unexpectedly incomplete.");
+  assert.equal(retained.latestRevision, third);
+  assert.deepEqual(retained.changes.map(({ revision }) => revision), [first, third]);
+  assert.deepEqual(retained.changes.map(({ event }) => event.source), ["local", "local"]);
+  assert.equal(second, first + 1);
+  for (let index = 0; index < MAX_RECENT_PERSISTENCE_PUBLICATIONS_PER_BUDGET + 50; index += 1) {
+    publishPersistenceChange({ source: "local", scope: { budgetId, domains: ["budget"], transactionIds: [`journal-${index}`] } });
+    assert.ok(getPersistenceChangeStoreDiagnosticsForTests(budgetId).recentPublicationCount <= MAX_RECENT_PERSISTENCE_PUBLICATIONS_PER_BUDGET);
+  }
+  assert.equal(getPersistenceChangesSince(interest, first).complete, false);
+  assert.equal(getPersistenceChangesSince({ budgetId: "other-journal-budget" }, 0).complete, true);
   flushPersistenceChanges();
 });

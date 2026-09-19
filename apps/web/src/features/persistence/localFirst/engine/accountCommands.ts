@@ -84,8 +84,10 @@ export function createAccountCommands(dependencies: AccountCommandDependencies):
         input.expected?.participation !== input.replacement?.participation ||
         input.expected?.openingBalance !== input.replacement?.openingBalance;
       return committedCommandResult(undefined, [mutation], { budgetId: input.budgetId,
+        // Account metadata is denormalised into transfer rows in other accounts.
+        // Keep this publication budget-wide so those registers conservatively
+        // refresh after account history undo/redo.
         domains: affectsBudget ? ["accounts", "budget"] : ["accounts"],
-        accountIds: [input.accountId],
       });
     },
 
@@ -108,8 +110,11 @@ export function createAccountCommands(dependencies: AccountCommandDependencies):
       await local.writeAccount(account, mutation);
       const result = await listLocalAccounts(local, budgetId);
       return committedCommandResult(result, [mutation], { budgetId,
+        // Name/type/participation are projected into transfer rows belonging to
+        // other accounts, so a scoped account-only event can leave those rows
+        // stale. Account edits are rare; publish this account-domain change
+        // budget-wide and let interested registers refresh conservatively.
         domains: current.participation === account.participation ? ["accounts"] : ["accounts", "budget"],
-        accountIds: [account.id],
       });
     },
 

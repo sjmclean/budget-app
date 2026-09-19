@@ -8,6 +8,10 @@ writes for another account, month, or budget.
 and a serialisable scope: budget, affected domains, and known account,
 transaction, category, and month identifiers. A deliberately `broad` scope is
 reserved for whole-budget restore, database generation replacement, or rebuild.
+An ordinary local transaction publication can additionally carry a bounded
+register delta materialised by the SQLite worker after its canonical-state and
+outbox transaction commits. The executor publishes this internal metadata; the
+public command facade still returns only the domain result.
 Pure matching rejects different budgets and known non-matching accounts or
 months, while missing entity detail is conservative. Same-source changes for one
 budget are microtask-batched by unioning scope; mixed sources and budgets remain
@@ -34,8 +38,10 @@ Intentional conservative classes are limited to:
   this fallback.
 
 ```text
-UI command -> local SQLite mutation -> commit -> scoped event
-           -> matching subscribers -> re-query affected projection
+ordinary register command -> local SQLite mutation + outbox commit
+                          -> bounded authoritative worker delta
+                          -> executor scoped publication
+                          -> register incremental reconciliation
 
 relay event -> sync -> pull mutation -> apply to local SQLite -> commit
             -> scoped replication event -> matching subscribers
@@ -47,7 +53,19 @@ invalidation after the authoritative switch; a failed promotion publishes none.
 
 The budget-month hook subscribes by budget, month, and budget/category/
 transaction/goal domains. The register subscribes by budget, account, and its
-row/summary domains.
+row/summary domains. It consumes ordered original publications from a separate
+per-budget journal capped at 256 entries, rather than relying on a coalesced
+latest event. A transaction delta patches at most 250 affected roots. Larger
+operations return `refresh-required` without transporting an oversized row set.
+For a short loaded window, the register reads only the missing boundary rows
+from the already-open SQLite database, with no relay synchronization.
+
+Remote replication, incomplete journal history, unsupported query modes, and
+cross-domain changes without a safe transaction delta cause one authoritative
+register refresh. This is a correctness fallback, not a second ordinary-write
+path. Search, category filtering, and non-date sorts currently use this
+conservative fallback rather than approximate worker SQL semantics. P0.5's
+reactive query cache is not implemented here.
 
 > SQLite is authoritative; persistence change events are invalidation metadata,
 > not financial state.
@@ -55,10 +73,8 @@ row/summary domains.
 They are not a canonical event log or replication protocol.
 
 This changes neither mutation ordering nor sync epochs, cursors, conflicts,
-offline writes, or convergence. It is a foundation for future Local Budget
-Engine commands, authoritative mutation deltas, a reactive query cache, worker
-subscriptions, and incremental/materialised projections; those are not yet
-implemented.
+offline writes, or convergence. Worker subscriptions and a reactive query cache
+remain future work.
 
 The explicit **Rebuild from server** recovery action may still reload after replacing the complete local database. That is intentionally separate from normal background replication.
 
@@ -71,5 +87,8 @@ do not publish directly. The executor unions all command impacts and publishes
 exactly once after success. Microtask coalescing remains useful for independent
 events, but it is not used to disguise multiple publications from one command.
 
-The published `PersistenceChangeScope` only tells consumers which authoritative
-SQLite projections may be stale; it is not a financial-state delta.
+The published `PersistenceChangeScope` tells consumers which authoritative
+SQLite projections may be stale. When present, the register delta supplies the
+worker's committed before/after rows and post-commit summaries for incremental
+reconciliation; it is not a replacement for SQLite authority or a replication
+protocol.

@@ -118,6 +118,7 @@ function createHarness(participation: Record<string, "on-budget" | "off-budget">
 
     async writeTransaction(transaction: LocalTransactionRecord) {
       transactions.set(transaction.id, transaction);
+      return { result: {} };
     },
 
     async writeTransactionBatch(
@@ -155,10 +156,12 @@ function createHarness(participation: Record<string, "on-budget" | "off-budget">
       for (const write of writes) {
         transactions.set(write.transaction.id, write.transaction);
       }
+      return { result: {} };
     },
 
     async deleteTransaction(transactionId: string) {
       transactions.delete(transactionId);
+      return { result: {} };
     },
 
     async deleteTransactionBatch(
@@ -167,6 +170,7 @@ function createHarness(participation: Record<string, "on-budget" | "off-budget">
       for (const entry of deletes) {
         transactions.delete(entry.transactionId);
       }
+      return { result: {} };
     },
   } as unknown as LocalBudgetDatabaseClient;
 

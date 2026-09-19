@@ -51,6 +51,7 @@ const FIRST_ARGUMENT_OBJECT_BUDGET_METHODS = new Set([
   "getAccountRegisterBootstrap",
   "getAccountSummary",
   "queryTransactions",
+  "queryLocalTransactions",
   "getTransactionsByIds",
   "setAccountClosed",
   "getBudgetMonthView",

@@ -646,6 +646,7 @@ export type LocalBudgetWorkerResponse =
       readonly requestId: string;
       readonly ok: true;
       readonly result: unknown;
+      readonly registerDelta?: import("../accountRegisterMutationDelta").AccountRegisterMutationDelta;
     }
   | {
       readonly requestId: string;

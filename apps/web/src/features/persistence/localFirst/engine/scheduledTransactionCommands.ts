@@ -84,14 +84,14 @@ export function createScheduledTransactionCommands(dependencies: ScheduledTransa
     const group: LocalBudgetOperationGroup = { members };
     const mutations = members.map((member) => dependencies.createMutation(input.budgetId, member.domain,
       member.entityId, member.operation, member.payload, operationGroupId, group));
-    await local.replaceScheduledTransactionHistoryState({ ...input, mutations });
+    const { registerDelta } = await local.replaceScheduledTransactionHistoryState({ ...input, mutations });
     const mutationScope = persistenceScopeForMutations(input.budgetId, mutations);
     const change = input.expectedTransaction || input.replacementTransaction
       ? mergePersistenceChangeScopes(input.budgetId, mutationScope, deriveTransactionChangeScope({
           budgetId: input.budgetId, before: input.expectedTransaction?.transactions,
           after: input.replacementTransaction?.transactions }))
       : mutationScope;
-    return committedCommandResult(undefined, mutations, change);
+    return committedCommandResult(undefined, mutations, change, registerDelta);
   }
 
   async function writeSchedule(local: LocalBudgetDatabaseClient, budgetId: string, scheduleId: string,
