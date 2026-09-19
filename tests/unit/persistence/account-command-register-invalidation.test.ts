@@ -58,7 +58,11 @@ test("account metadata edits invalidate registers in other accounts that project
 
   assert.equal(committed.change.accountIds, undefined);
   assert.deepEqual(committed.change.domains, ["accounts"]);
-  assert.equal(doesPersistenceChangeAffect(committed.change, {
+  assert.equal(doesPersistenceChangeAffect({
+    source: "local",
+    occurredAt: "2026-09-20T00:00:00.000Z",
+    scope: committed.change,
+  }, {
     budgetId,
     accountId: "checking",
     domains: ["accounts", "transactions"],
@@ -96,7 +100,11 @@ test("account history replacement also invalidates transfer metadata in other re
   });
 
   assert.equal(committed.change.accountIds, undefined);
-  assert.equal(doesPersistenceChangeAffect(committed.change, {
+  assert.equal(doesPersistenceChangeAffect({
+    source: "local",
+    occurredAt: "2026-09-20T00:00:00.000Z",
+    scope: committed.change,
+  }, {
     budgetId,
     accountId: "checking",
     domains: ["accounts"],
