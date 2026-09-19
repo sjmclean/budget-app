@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "../components/ui/Card";
 import { resolveActiveBudget } from "../features/budget/activeBudget";
 import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
-import { getBudgetPersistenceProvider } from "../features/persistence/budgetPersistenceProviderFactory";
+import { useAccountNavigationQuery, useFinancialOverviewQuery } from "../features/persistence/reactiveQueries";
 import type {
   FinancialOverview as FinancialOverviewSummary,
 } from "../features/persistence/accountRegisterQueryContracts";
@@ -19,64 +19,28 @@ export function DashboardPage() {
   const activeBudget = resolveActiveBudget(budgets, selectedBudgetId);
   const currencyCode = activeBudget?.currency ?? "AUD";
   const overviewMonth = useCurrentBudgetMonth();
-  const [summary, setSummary] = useState<FinancialOverviewSummary | null>(null);
-  const [registerAccountId, setRegisterAccountId] = useState<string | null>(null);
-  const [uncategorisedAccountId, setUncategorisedAccountId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadOverview() {
-      if (!activeBudget) {
-        setSummary(null);
-        return;
-      }
-
-      setIsLoading(true);
-      setError(null);
-      try {
-        const gateway = getBudgetPersistenceProvider();
-        const queries = gateway.accountRegisterQueries;
-        if (!queries) {
-          throw new Error("Dashboard analytics require the local-first SQLite runtime.");
-        }
-        const status = await queries.getBudgetStatus(activeBudget.id);
-        if (!status.capabilities.analytics) {
-          throw new Error("Dashboard analytics are unavailable for this SQLite budget.");
-        }
-        const [nextSummary, accountNavigation] = await Promise.all([
-          queries.getFinancialOverview(activeBudget.id, overviewMonth),
-          queries.listAccountNavigation(activeBudget.id),
-        ]);
-
-        if (!cancelled) {
-          setSummary(nextSummary);
-          setRegisterAccountId(accountNavigation.find((entry) => !entry.account.closedAt)?.account.id ?? null);
-          setUncategorisedAccountId(
-            nextSummary.attention.uncategorisedAccountId ?? null,
-          );
-        }
-      } catch (loadError) {
-        if (!cancelled) {
-          setSummary(null);
-          setError(loadError instanceof Error ? loadError.message : "Unable to load the financial overview.");
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    void loadOverview();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeBudget, overviewMonth]);
-
+  const queryBudgetId = activeBudget?.id ?? "__inactive__";
+  const summaryQuery = useFinancialOverviewQuery(
+    { budgetId: queryBudgetId, month: overviewMonth },
+    Boolean(activeBudget),
+  );
+  const navigationQuery = useAccountNavigationQuery(
+    { budgetId: queryBudgetId },
+    Boolean(activeBudget),
+  );
+  const summary = summaryQuery.data ?? null;
+  const accountNavigation = navigationQuery.data ?? [];
+  const registerAccountId =
+    accountNavigation.find((entry) => !entry.account.closedAt)?.account.id ?? null;
+  const uncategorisedAccountId =
+    summary?.attention.uncategorisedAccountId ?? null;
+  const isLoading = Boolean(activeBudget) && (
+    (summaryQuery.data === undefined &&
+      (summaryQuery.status === "idle" || summaryQuery.status === "loading")) ||
+    (navigationQuery.data === undefined &&
+      (navigationQuery.status === "idle" || navigationQuery.status === "loading"))
+  );
+  const error = summaryQuery.error ?? navigationQuery.error;
 
   const formatMoney = useMemo(() => {
     return (amount: number) => formatCurrency(amount, currencyCode);
