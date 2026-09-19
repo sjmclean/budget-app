@@ -1,4 +1,5 @@
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
+import { resetReactiveQueryStore } from "./reactiveQueryStore";
 import {
   resetConfiguredPersistenceMetadata,
   setConfiguredPersistenceMetadata,
@@ -11,11 +12,13 @@ export function configureBudgetPersistenceProvider(
   provider: BudgetPersistenceProvider,
 ): void {
   configuredProvider = provider;
+  resetReactiveQueryStore();
   setConfiguredPersistenceMetadata(provider.metadata);
 }
 
 export function resetBudgetPersistenceProvider(): void {
   configuredProvider = null;
+  resetReactiveQueryStore();
   resetConfiguredPersistenceMetadata();
 }
 
