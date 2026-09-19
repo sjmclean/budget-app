@@ -255,19 +255,19 @@ export function useReactiveQuery<Input, Result>(
 ): ReactiveQuerySnapshot<Result> {
   const enabled = options.enabled ?? true;
   const key = definition.key(input);
-  const inputRef = useRef(input);
-  inputRef.current = input;
-  const interest = definition.interest(input);
-  const interestKey = JSON.stringify(interest);
+  const stableInputRef = useRef<{ key: string; input: Input }>({ key, input });
+  if (stableInputRef.current.key !== key) {
+    stableInputRef.current = { key, input };
+  }
+  const stableInput = stableInputRef.current.input;
   const handle = useMemo<QueryHandle<Result> | null>(() => {
     if (!enabled) return null;
-    const stableInterest = JSON.parse(interestKey) as PersistenceChangeInterest;
     return {
       cacheKey: `${definition.id}:${key}`,
-      interest: stableInterest,
-      load: () => definition.load(provider, inputRef.current),
+      interest: definition.interest(stableInput),
+      load: () => definition.load(provider, stableInput),
     };
-  }, [definition, enabled, interestKey, key, provider]);
+  }, [definition, enabled, key, provider, stableInput]);
   const subscribe = useCallback(
     (listener: () => void) =>
       handle ? subscribeHandle(handle, listener) : () => undefined,
