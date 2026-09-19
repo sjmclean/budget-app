@@ -8,7 +8,11 @@ const { act, create } = webRequire("react-test-renderer");
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.js";
-import { configureBudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProviderFactory.js";
+import {
+  configureBudgetPersistenceProvider,
+  getBudgetPersistenceProvider,
+  resetBudgetPersistenceProvider,
+} from "../../../apps/web/src/features/persistence/budgetPersistenceProviderFactory.js";
 import {
   MAX_REACTIVE_QUERY_CACHE_ENTRIES,
   createReactiveQueryDefinition,
@@ -429,4 +433,56 @@ test("an inactive failed query retries when a consumer mounts again", async () =
   assert.equal(latest?.data, "recovered");
   assert.equal(latest?.status, "ready");
   await act(async () => secondRoot?.unmount());
+});
+
+
+test("active subscribers discard old-provider data and reload from the newly configured provider", async () => {
+  resetReactiveQueryStore();
+  const query = createReactiveQueryDefinition<{ budgetId: string }, string>({
+    id: "active-provider-reset",
+    key: ({ budgetId }) => budgetId,
+    interest: ({ budgetId }) => ({ budgetId, domains: ["budget"] }),
+    load: async (currentProvider) => currentProvider.metadata.label,
+  });
+  const makeProvider = (label: string) => ({
+    metadata: {
+      kind: "local-database",
+      label,
+      description: label,
+      isProductionPersistence: false,
+    },
+  }) as BudgetPersistenceProvider;
+
+  configureBudgetPersistenceProvider(makeProvider("old-provider"));
+  let latest: ReactiveQuerySnapshot<string> | undefined;
+
+  function Consumer() {
+    latest = useReactiveQuery(
+      query,
+      getBudgetPersistenceProvider(),
+      { budgetId: "budget-active-provider-reset" },
+    );
+    return null;
+  }
+
+  let root: ReturnType<typeof create> | undefined;
+  try {
+    await act(async () => {
+      root = create(createElement(Consumer));
+      await Promise.resolve();
+    });
+    assert.equal(latest?.data, "old-provider");
+
+    await act(async () => {
+      configureBudgetPersistenceProvider(makeProvider("new-provider"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    assert.equal(latest?.data, "new-provider");
+    assert.equal(latest?.status, "ready");
+  } finally {
+    if (root) await act(async () => root?.unmount());
+    resetBudgetPersistenceProvider();
+  }
 });
