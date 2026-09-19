@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
-import { seedBudgetMonthQuery } from "../persistence/reactiveQueries";
+import { seedBudgetMonthQuery, useCategoryActivityDrilldownQuery } from "../persistence/reactiveQueries";
 import { useBudgetView } from "./useBudgetView";
 import type {
   BudgetActivityDrilldown,
@@ -134,16 +134,25 @@ export function useBudgetWorkspace(
     useState<CategoryMergePreview | null>(null);
   const [isCategoryMergePreviewLoading, setIsCategoryMergePreviewLoading] =
     useState(false);
-  const [activityDrilldown, setActivityDrilldown] =
-    useState<BudgetActivityDrilldown | null>(null);
-  const [isActivityDrilldownLoading, setIsActivityDrilldownLoading] =
-    useState(false);
+  const [activityCategoryId, setActivityCategoryId] = useState<string | null>(null);
+  const activityQuery = useCategoryActivityDrilldownQuery(
+    {
+      budgetId,
+      month,
+      categoryId: activityCategoryId ?? "__inactive__",
+    },
+    activityCategoryId !== null,
+  );
+  const activityDrilldown = activityQuery.data ?? null;
+  const isActivityDrilldownLoading =
+    activityCategoryId !== null &&
+    activityQuery.data === undefined &&
+    (activityQuery.status === "idle" || activityQuery.status === "loading");
   const assignmentEditSessionRef = useRef(createBudgetAssignmentEditSession());
   const assignmentEditTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dataRef = useRef<BudgetMonthView | null>(null);
   const mountedRef = useRef(true);
   const workspaceIdentityRef = useRef(`${budgetId}:${month}`);
-  const activityRequestVersionRef = useRef(0);
   const mergePreviewRequestVersionRef = useRef(0);
   const mutationVersionRef = useRef(0);
   const goalRecommendationBusyRef = useRef(false);
@@ -176,7 +185,6 @@ export function useBudgetWorkspace(
 
     return () => {
       mountedRef.current = false;
-      activityRequestVersionRef.current += 1;
       mergePreviewRequestVersionRef.current += 1;
       mutationVersionRef.current += 1;
 
@@ -216,8 +224,7 @@ export function useBudgetWorkspace(
     setLastEditedCategoryId(null);
     setCategoryMergePreview(null);
     setIsCategoryMergePreviewLoading(false);
-    setActivityDrilldown(null);
-    setIsActivityDrilldownLoading(false);
+    setActivityCategoryId(null);
   }, [budgetId, month]);
 
   const data = resolveBudgetWorkspaceData(editedData, budgetView.data, budgetView.dataVersion);
@@ -276,54 +283,12 @@ export function useBudgetWorkspace(
 
 
   function openActivityDrilldown(categoryId: string) {
-    const workspaceIdentity = workspaceIdentityRef.current;
-    const requestVersion = ++activityRequestVersionRef.current;
     setSaveError(null);
-    setIsActivityDrilldownLoading(true);
-
-    void categoriesPersistence
-      .getCategoryActivityDrilldown({
-        budgetId,
-        month,
-        categoryId,
-      })
-      .then((drilldown) => {
-        if (
-          isWorkspaceCurrent(workspaceIdentity) &&
-          activityRequestVersionRef.current === requestVersion
-        ) {
-          setActivityDrilldown(drilldown);
-        }
-      })
-      .catch((error) => {
-        if (
-          !isWorkspaceCurrent(workspaceIdentity) ||
-          activityRequestVersionRef.current !== requestVersion
-        ) {
-          return;
-        }
-
-        setSaveError(
-          error instanceof Error
-            ? error.message
-            : "Failed to load category activity.",
-        );
-        setActivityDrilldown(null);
-      })
-      .finally(() => {
-        if (
-          isWorkspaceCurrent(workspaceIdentity) &&
-          activityRequestVersionRef.current === requestVersion
-        ) {
-          setIsActivityDrilldownLoading(false);
-        }
-      });
+    setActivityCategoryId(categoryId);
   }
 
   function closeActivityDrilldown() {
-    activityRequestVersionRef.current += 1;
-    setActivityDrilldown(null);
-    setIsActivityDrilldownLoading(false);
+    setActivityCategoryId(null);
   }
 
   function selectCategory(categoryId: string) {
@@ -728,7 +693,7 @@ export function useBudgetWorkspace(
   return {
     data,
     isLoading: budgetView.isLoading,
-    error: saveError ?? budgetView.error,
+    error: saveError ?? activityQuery.error ?? budgetView.error,
     selectedCategory: selected.selectedCategory,
     selectedGroup: selected.selectedGroup,
     overassignedCategoryIds,
