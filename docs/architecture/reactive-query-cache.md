@@ -47,13 +47,16 @@ they are served as current.
 
 ## Bounded retention
 
-The cache retains at most 256 entries:
+The warm inactive cache targets a hard retention cap of 256 entries:
 
 `MAX_REACTIVE_QUERY_CACHE_ENTRIES = 256`
 
-Unsubscribed least-recently-used entries are evicted first. In-flight work for an
-evicted entry is invalidated by generation and cannot publish into a later cache
-entry.
+Unsubscribed least-recently-used entries are evicted first. Active subscribed
+entries are never evicted out from under mounted consumers, so active entries
+can temporarily sit above that retention target; growth is therefore bounded by
+the live component tree rather than lifetime query history. In-flight work for
+an evicted inactive entry is invalidated by generation and cannot publish into a
+later cache entry.
 
 Changing or resetting the configured persistence provider clears the whole
 reactive-query cache so data from one provider/database generation cannot be
