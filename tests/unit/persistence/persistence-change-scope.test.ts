@@ -4,7 +4,9 @@ import { createRequire } from "node:module";
 import {
   doesPersistenceChangeAffect,
   flushPersistenceChanges,
+  getPersistenceChangeStoreDiagnosticsForTests,
   getPersistenceRevisionForInterest,
+  MAX_EXACT_PERSISTENCE_SCOPES_PER_BUDGET,
   mergePersistenceChanges,
   normalisePersistenceChange,
   publishPersistenceChange,
@@ -159,5 +161,65 @@ test("coalesced notification does not assign an unrelated publication revision",
   assert.equal(getPersistenceRevisionForInterest(interest), relevant);
   const newer = publishPersistenceChange({ source: "local", scope: { budgetId: interest.budgetId, domains: ["budget"], months: [interest.month] } });
   assert.equal(getPersistenceRevisionForInterest({ ...interest, domains: ["categories", "budget"] }), newer);
+  flushPersistenceChanges();
+});
+
+function fillExactScopes(budgetId: string, count: number): number {
+  let latest = 0;
+  for (let index = 0; index < count; index += 1) {
+    latest = publishPersistenceChange({ source: index % 2 ? "replication" : "local", scope: {
+      budgetId, domains: ["budget"], transactionIds: [`filler-${index}`],
+    } });
+    assert.ok(getPersistenceChangeStoreDiagnosticsForTests(budgetId).exactScopeCount <= MAX_EXACT_PERSISTENCE_SCOPES_PER_BUDGET);
+  }
+  flushPersistenceChanges();
+  return latest;
+}
+
+test("exact scopes have a hard cap and evicted relevant revisions remain observable", () => {
+  const budgetId = "bounded-snapshot-budget";
+  const accountA = { budgetId, domains: ["transactions"] as const, accountId: "a" };
+  const accountB = { budgetId, domains: ["transactions"] as const, accountId: "b" };
+  const original = publishPersistenceChange({ source: "local", scope: { budgetId, domains: ["transactions"], accountIds: ["a"], transactionIds: ["original"] } });
+  assert.equal(getPersistenceRevisionForInterest(accountA), original);
+  assert.equal(getPersistenceRevisionForInterest(accountB), 0);
+  fillExactScopes(budgetId, MAX_EXACT_PERSISTENCE_SCOPES_PER_BUDGET + 50);
+  assert.equal(getPersistenceChangeStoreDiagnosticsForTests(budgetId).exactScopeCount, MAX_EXACT_PERSISTENCE_SCOPES_PER_BUDGET);
+  assert.ok(getPersistenceRevisionForInterest(accountA) >= original);
+  assert.ok(getPersistenceRevisionForInterest(accountB) >= original, "eviction conservatively loses account specificity");
+  assert.equal(getPersistenceRevisionForInterest({ budgetId, domains: ["payees"] }), 0);
+  assert.equal(getPersistenceRevisionForInterest({ budgetId: "other-bounded-snapshot-budget", domains: ["transactions"] }), 0);
+  const newer = publishPersistenceChange({ source: "restore", scope: { budgetId, domains: ["transactions"], accountIds: ["a"], transactionIds: ["newer"] } });
+  assert.equal(getPersistenceRevisionForInterest(accountA), newer, "new exact revision wins over compacted history");
+  flushPersistenceChanges();
+});
+
+test("evicted multi-domain scopes compact into each domain, not unrelated domains", () => {
+  const budgetId = "multi-domain-compaction-budget";
+  const original = publishPersistenceChange({ source: "local", scope: { budgetId, domains: ["transactions", "categories"], accountIds: ["a"] } });
+  fillExactScopes(budgetId, MAX_EXACT_PERSISTENCE_SCOPES_PER_BUDGET);
+  assert.equal(getPersistenceRevisionForInterest({ budgetId, domains: ["transactions"], accountId: "b" }), original);
+  assert.equal(getPersistenceRevisionForInterest({ budgetId, domains: ["categories"], accountId: "b" }), original);
+  assert.equal(getPersistenceRevisionForInterest({ budgetId, domains: ["payees"] }), 0);
+  assert.ok(getPersistenceRevisionForInterest({ budgetId, accountId: "b" }) >= original, "missing interest domains means any domain");
+});
+
+test("evicted broad scopes still affect every interest in their budget", () => {
+  const budgetId = "broad-compaction-budget";
+  const broad = publishPersistenceChange({ source: "restore", scope: { budgetId, domains: [], broad: true } });
+  fillExactScopes(budgetId, MAX_EXACT_PERSISTENCE_SCOPES_PER_BUDGET);
+  assert.equal(getPersistenceChangeStoreDiagnosticsForTests(budgetId).compactedBroadRevision, broad);
+  assert.equal(getPersistenceRevisionForInterest({ budgetId, domains: ["payees"], month: "2030-12", accountId: "unknown" }), broad);
+  assert.equal(getPersistenceRevisionForInterest({ budgetId: "other-broad-compaction-budget" }), 0);
+});
+
+test("republication of an exact normalized scope replaces its revision without growing the cache", () => {
+  const budgetId = "scope-replacement-budget";
+  const scope = { budgetId, domains: ["transactions"] as const, transactionIds: ["same"] };
+  const first = publishPersistenceChange({ source: "local", scope });
+  const second = publishPersistenceChange({ source: "replication", scope });
+  assert.equal(second, first + 1);
+  assert.equal(getPersistenceChangeStoreDiagnosticsForTests(budgetId).exactScopeCount, 1);
+  assert.equal(getPersistenceRevisionForInterest({ budgetId, domains: ["transactions"], transactionId: "same" }), second);
   flushPersistenceChanges();
 });

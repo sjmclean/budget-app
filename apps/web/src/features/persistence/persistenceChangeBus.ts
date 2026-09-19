@@ -17,10 +17,15 @@ let pending: PersistenceChangeEvent[] = [];
 let pendingOriginals: { event: PersistenceChangeEvent; revision: number }[] = [];
 let flushScheduled = false;
 let persistenceChangeRevision = 0;
-// One latest revision per distinct publication scope, not one retained event per
-// publication. Repeated writes to a scope replace its entry. Keeping the
-// original scope lets snapshot reads use the same matcher as notifications.
-const revisionsByBudgetAndScope = new Map<string, Map<string, { event: PersistenceChangeEvent; revision: number }>>();
+// Bounds snapshot reads to 256 exact scopes plus the finite domain summaries.
+// Evicted detail becomes conservative invalidation rather than disappearing.
+export const MAX_EXACT_PERSISTENCE_SCOPES_PER_BUDGET = 256;
+interface BudgetRevisionState {
+  exactScopes: Map<string, { event: PersistenceChangeEvent; revision: number }>;
+  compactedDomainRevisions: Map<PersistenceChangeDomain, number>;
+  compactedBroadRevision: number;
+}
+const revisionsByBudget = new Map<string, BudgetRevisionState>();
 const uniqueSorted = (values: readonly string[] | undefined) => values?.length ? [...new Set(values)].sort() : undefined;
 
 function scopeKey(scope: PersistenceChangeScope): string {
@@ -28,11 +33,47 @@ function scopeKey(scope: PersistenceChangeScope): string {
 }
 
 export function getPersistenceRevisionForInterest(interest: PersistenceChangeInterest): number {
-  let latest = 0;
-  for (const { event, revision } of revisionsByBudgetAndScope.get(interest.budgetId)?.values() ?? []) {
+  const state = revisionsByBudget.get(interest.budgetId);
+  if (!state) return 0;
+  let latest = state.compactedBroadRevision;
+  for (const [domain, revision] of state.compactedDomainRevisions) {
+    if ((!interest.domains || interest.domains.includes(domain)) && revision > latest) latest = revision;
+  }
+  for (const { event, revision } of state.exactScopes.values()) {
     if (revision > latest && doesPersistenceChangeAffect(event, interest)) latest = revision;
   }
   return latest;
+}
+
+/** Narrow diagnostic for the bounded-store tests; not part of the public engine. */
+export function getPersistenceChangeStoreDiagnosticsForTests(budgetId: string): { exactScopeCount: number; compactedBroadRevision: number; compactedDomainCount: number } {
+  const state = revisionsByBudget.get(budgetId);
+  return { exactScopeCount: state?.exactScopes.size ?? 0, compactedBroadRevision: state?.compactedBroadRevision ?? 0, compactedDomainCount: state?.compactedDomainRevisions.size ?? 0 };
+}
+
+function recordPersistenceRevision(event: PersistenceChangeEvent, revision: number): void {
+  let state = revisionsByBudget.get(event.scope.budgetId);
+  if (!state) {
+    state = { exactScopes: new Map(), compactedDomainRevisions: new Map(), compactedBroadRevision: 0 };
+    revisionsByBudget.set(event.scope.budgetId, state);
+  }
+  const key = scopeKey(event.scope);
+  // Map insertion order is revision order, including when an existing scope is replaced.
+  state.exactScopes.delete(key);
+  state.exactScopes.set(key, { event, revision });
+  while (state.exactScopes.size > MAX_EXACT_PERSISTENCE_SCOPES_PER_BUDGET) {
+    const oldest = state.exactScopes.entries().next().value;
+    if (!oldest) break;
+    const [oldestKey, { event: evicted, revision: evictedRevision }] = oldest;
+    state.exactScopes.delete(oldestKey);
+    if (evicted.scope.broad) {
+      state.compactedBroadRevision = Math.max(state.compactedBroadRevision, evictedRevision);
+    } else {
+      for (const domain of evicted.scope.domains) {
+        state.compactedDomainRevisions.set(domain, Math.max(state.compactedDomainRevisions.get(domain) ?? 0, evictedRevision));
+      }
+    }
+  }
 }
 
 export function normalisePersistenceChange(input: Omit<PersistenceChangeEvent, "occurredAt"> & { readonly occurredAt?: string }): PersistenceChangeEvent {
@@ -65,12 +106,7 @@ export function publishPersistenceChange(
   const event = normalisePersistenceChange(input);
   persistenceChangeRevision += 1;
   const revision = persistenceChangeRevision;
-  let scopes = revisionsByBudgetAndScope.get(event.scope.budgetId);
-  if (!scopes) {
-    scopes = new Map();
-    revisionsByBudgetAndScope.set(event.scope.budgetId, scopes);
-  }
-  scopes.set(scopeKey(event.scope), { event, revision });
+  recordPersistenceRevision(event, revision);
   pendingOriginals.push({ event, revision });
   const index = pending.findIndex((candidate) => candidate.source === event.source && candidate.scope.budgetId === event.scope.budgetId);
   if (index < 0) pending.push(event); else pending[index] = mergePersistenceChanges(pending[index]!, event)!;
