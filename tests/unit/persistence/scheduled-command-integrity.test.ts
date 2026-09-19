@@ -24,7 +24,7 @@ function harness(initial: ScheduledTransactionView[] = []) {
     async listEntities<T>() { return rows.map((row) => structuredClone(row)) as T[]; },
     async mutate(mutation: LocalBudgetMutation) { if (fail) throw new Error("worker failed"); committed.push(mutation); rows = mutation.operation === "delete" ? rows.filter(({ id }) => id !== mutation.entityId) : [...rows.filter(({ id }) => id !== mutation.entityId), structuredClone(mutation.payload as ScheduledTransactionView)]; return {}; },
     async mutateBatch(mutations: readonly LocalBudgetMutation[]) { if (fail) throw new Error("worker failed"); batches.push([...mutations]); committed.push(...mutations); for (const mutation of mutations) rows = [...rows.filter(({ id }) => id !== mutation.entityId), structuredClone(mutation.payload as ScheduledTransactionView)]; return {}; },
-    async replaceScheduledTransactionHistoryState(request: typeof historyRequest & { mutations: readonly LocalBudgetMutation[] }) { if (fail) throw new Error("worker failed"); historyRequest = request; committed.push(...request.mutations); return {}; },
+    async replaceScheduledTransactionHistoryState(request: typeof historyRequest & { mutations: readonly LocalBudgetMutation[] }) { if (fail) throw new Error("worker failed"); historyRequest = request; committed.push(...request.mutations); return { registerDelta: { mode: "refresh-required", budgetId, affectedAccountIds: ["account"], reason: "delta-too-large" } }; },
   } as unknown as LocalBudgetDatabaseClient;
   const commands = createScheduledTransactionCommands({ requireDatabase: async () => database,
     createMutation(id, domain, entityId, operation, payload, operationGroupId, operationGroup) { sequence += 1; const mutation = { mutationId: `m-${sequence}`, budgetId: id, syncEpoch: "epoch", deviceId: "device", deviceSequence: sequence, baseCursor: 0, domain, entityId, operation, payload, createdAt: "now", ...(operationGroupId ? { operationGroupId } : {}), ...(operationGroup ? { operationGroup } : {}) }; allocated.push(mutation); return mutation; },
@@ -53,6 +53,7 @@ test("history and Enter share one exact operation group and preserve generated a
   assert.equal(groupIds.size, 1); assert.deepEqual(request.mutations[0]?.operationGroup?.members, request.mutations.map(({ domain, entityId, operation, payload }) => ({ domain, entityId, operation, payload })));
   assert.deepEqual(h.allocated.map(({ mutationId }) => mutationId), h.committed.map(({ mutationId }) => mutationId));
   assert.equal(result.result.transaction?.transactions[0]?.id, "transaction-id");
+  assert.deepEqual(result.registerDelta, { mode: "refresh-required", budgetId, affectedAccountIds: ["account"], reason: "delta-too-large" });
   const attachment = result.result.transaction?.attachments[0]; assert.equal(attachment?.id, "transaction-id:attachment:template");
   assert.equal(attachment?.budgetId, budgetId); assert.equal(attachment?.transactionId, "transaction-id");
   assert.equal(attachment?.fileName, "a.bin"); assert.equal(attachment?.fileSize, 3); assert.equal(attachment?.mimeType, "application/octet-stream");

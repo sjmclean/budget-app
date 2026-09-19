@@ -77,8 +77,14 @@ test("date edit moves a loaded row and an account move removes it", () => {
 test("filtered and non-date queries request authoritative refresh", () => {
   const page = { summary, rows: [row("a", "2026-09-01")], totalCount: 1 };
   assert.equal(reconcileRegisterDelta({ accountId, query: { ...query, categoryFilter: "uncategorised" }, page, delta: patch([], []) }).mode, "refresh-required");
-  assert.equal(reconcileRegisterDelta({ accountId, query: { ...query, sort: { column: "payee", direction: "ascending" } }, page, delta: patch([], []) }).mode, "refresh-required");
-  assert.equal(reconcileRegisterDelta({ accountId, query: { ...query, search: { query: "abc", scope: "all" } }, page, delta: patch([], []) }).mode, "refresh-required");
+  for (const column of ["payee", "category", "memo", "outflow", "inflow"] as const) {
+    for (const direction of ["ascending", "descending"] as const) {
+      assert.equal(reconcileRegisterDelta({ accountId, query: { ...query, sort: { column, direction } }, page, delta: patch([], []) }).mode, "refresh-required");
+    }
+  }
+  for (const scope of ["all", "payee", "category", "memo", "amount"] as const) {
+    assert.equal(reconcileRegisterDelta({ accountId, query: { ...query, search: { query: "abc", scope } }, page, delta: patch([], []) }).mode, "refresh-required");
+  }
 });
 
 test("an affected account without its committed summary refreshes rather than retaining stale rows", () => {
