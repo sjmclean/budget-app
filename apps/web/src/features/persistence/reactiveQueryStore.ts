@@ -207,7 +207,7 @@ function subscribeHandle<T>(
             error: null,
           });
         }
-        void ensureFresh(entry);
+        queueMicrotask(() => void ensureFresh(entry));
       },
     );
   }
@@ -249,7 +249,7 @@ export function useReactiveQuery<Input, Result>(
       interest: definition.interest(input),
       load: () => definition.load(provider, input),
     };
-  }, [definition, enabled, key, provider]);
+  }, [definition, enabled, input, key, provider]);
 
   return useSyncExternalStore(
     (listener) => handle ? subscribeHandle(handle, listener) : () => undefined,
