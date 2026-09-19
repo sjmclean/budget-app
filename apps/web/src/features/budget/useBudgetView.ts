@@ -1,6 +1,4 @@
-import { useEffect, useState } from "react";
-import { getBudgetPersistenceProvider } from "../persistence";
-import { usePersistenceChange } from "../persistence/persistenceChangeBus";
+import { useBudgetMonthQuery } from "../persistence/reactiveQueries";
 import type { BudgetMonthView } from "./budgetViewTypes";
 
 interface UseBudgetViewState {
@@ -16,72 +14,13 @@ export function useBudgetView(
   options: { readonly enabled?: boolean } = {},
 ): UseBudgetViewState {
   const enabled = options.enabled ?? true;
-  const categoriesPersistence = getBudgetPersistenceProvider().categories;
-  const persistenceChangeVersion = usePersistenceChange({ budgetId, month, domains: ["budget", "categories", "transactions", "goals"] });
-  const [state, setState] = useState<UseBudgetViewState>({
-    data: null,
-    dataVersion: persistenceChangeVersion,
-    isLoading: true,
-    error: null,
-  });
+  const query = useBudgetMonthQuery({ budgetId, month }, enabled);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    if (!enabled) {
-      setState({ data: null, dataVersion: persistenceChangeVersion, isLoading: false, error: null });
-      return () => {
-        isMounted = false;
-      };
-    }
-
-    async function loadBudgetView() {
-      setState((current) => ({
-        data: current.data,
-        dataVersion: current.dataVersion,
-        isLoading: current.data === null,
-        error: null,
-      }));
-
-      try {
-        const data = await categoriesPersistence.getBudgetMonthView({
-          budgetId,
-          month,
-        });
-
-        if (!isMounted) {
-          return;
-        }
-
-        setState({
-          data,
-          dataVersion: persistenceChangeVersion,
-          isLoading: false,
-          error: null,
-        });
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
-        setState({
-          data: null,
-          dataVersion: persistenceChangeVersion,
-          isLoading: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to load budget view.",
-        });
-      }
-    }
-
-    void loadBudgetView();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [budgetId, categoriesPersistence, enabled, month, persistenceChangeVersion]);
-
-  return state;
+  return {
+    data: query.data ?? null,
+    dataVersion: query.dataRevision,
+    isLoading: enabled && query.data === undefined &&
+      (query.status === "idle" || query.status === "loading"),
+    error: query.error,
+  };
 }
