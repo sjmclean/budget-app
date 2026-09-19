@@ -124,9 +124,10 @@ export function useBudgetMonthQuery(
   enabled = true,
 ) {
   const provider = getBudgetPersistenceProvider();
+  const { budgetId, month } = input;
   const stableInput = useMemo(
-    () => input,
-    [input.budgetId, input.month],
+    () => ({ budgetId, month }),
+    [budgetId, month],
   );
   return useReactiveQuery(budgetMonthQuery, provider, stableInput, { enabled });
 }
@@ -136,9 +137,10 @@ export function useFinancialOverviewQuery(
   enabled = true,
 ) {
   const provider = getBudgetPersistenceProvider();
+  const { budgetId, month } = input;
   const stableInput = useMemo(
-    () => input,
-    [input.budgetId, input.month],
+    () => ({ budgetId, month }),
+    [budgetId, month],
   );
   return useReactiveQuery(financialOverviewQuery, provider, stableInput, { enabled });
 }
@@ -148,9 +150,10 @@ export function useMonthlySpendingQuery(
   enabled = true,
 ) {
   const provider = getBudgetPersistenceProvider();
+  const { budgetId, month } = input;
   const stableInput = useMemo(
-    () => input,
-    [input.budgetId, input.month],
+    () => ({ budgetId, month }),
+    [budgetId, month],
   );
   return useReactiveQuery(monthlySpendingQuery, provider, stableInput, { enabled });
 }
@@ -160,9 +163,10 @@ export function useMonthlyCategoryTransactionsQuery(
   enabled = true,
 ) {
   const provider = getBudgetPersistenceProvider();
+  const { budgetId, month, categoryId } = input;
   const stableInput = useMemo(
-    () => input,
-    [input.budgetId, input.month, input.categoryId],
+    () => ({ budgetId, month, categoryId }),
+    [budgetId, month, categoryId],
   );
   return useReactiveQuery(monthlyCategoryTransactionsQuery, provider, stableInput, { enabled });
 }
@@ -172,9 +176,10 @@ export function useAccountNavigationQuery(
   enabled = true,
 ) {
   const provider = getBudgetPersistenceProvider();
+  const { budgetId } = input;
   const stableInput = useMemo(
-    () => input,
-    [input.budgetId],
+    () => ({ budgetId }),
+    [budgetId],
   );
   return useReactiveQuery(accountNavigationQuery, provider, stableInput, { enabled });
 }
@@ -184,9 +189,10 @@ export function useCategoryActivityDrilldownQuery(
   enabled = true,
 ) {
   const provider = getBudgetPersistenceProvider();
+  const { budgetId, month, categoryId } = input;
   const stableInput = useMemo(
-    () => input,
-    [input.budgetId, input.month, input.categoryId],
+    () => ({ budgetId, month, categoryId }),
+    [budgetId, month, categoryId],
   );
   return useReactiveQuery(categoryActivityDrilldownQuery, provider, stableInput, { enabled });
 }
