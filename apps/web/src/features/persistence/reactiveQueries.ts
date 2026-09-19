@@ -45,9 +45,8 @@ export const financialOverviewQuery = createReactiveQueryDefinition<
 >({
   id: "financial-overview",
   key: ({ budgetId, month }) => `${budgetId}:${month}`,
-  interest: ({ budgetId, month }) => ({
+  interest: ({ budgetId }) => ({
     budgetId,
-    month,
     domains: ["accounts", "transactions", "budget", "categories"],
   }),
   load: async (_provider, { budgetId, month }) =>
