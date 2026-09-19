@@ -1,10 +1,12 @@
 import type { PersistenceChangeScope } from "../../persistenceChangeBus";
+import type { AccountRegisterMutationDelta } from "../../accountRegisterMutationDelta";
 import type { LocalBudgetMutation } from "../contracts";
 
 export interface CommittedCommandHandlerResult<T> {
   readonly result: T;
   readonly mutationIds: readonly string[];
   readonly change: PersistenceChangeScope;
+  readonly registerDelta?: AccountRegisterMutationDelta;
 }
 
 export type CommittedCommandMethods<Commands> = {
@@ -14,8 +16,8 @@ export type CommittedCommandMethods<Commands> = {
 };
 
 export function committedCommandResult<T>(result: T, mutations: readonly LocalBudgetMutation[],
-  change: PersistenceChangeScope): CommittedCommandHandlerResult<T> {
-  return { result, mutationIds: mutations.map(({ mutationId }) => mutationId), change };
+  change: PersistenceChangeScope, registerDelta?: AccountRegisterMutationDelta): CommittedCommandHandlerResult<T> {
+  return { result, mutationIds: mutations.map(({ mutationId }) => mutationId), change, registerDelta };
 }
 
 export function emptyCommandChange(budgetId: string): PersistenceChangeScope {

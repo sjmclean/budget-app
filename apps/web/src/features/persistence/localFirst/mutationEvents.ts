@@ -2,6 +2,7 @@ import {
   publishPersistenceChange,
   type PersistenceChangeScope,
 } from "../persistenceChangeBus";
+import type { AccountRegisterMutationDelta } from "../accountRegisterMutationDelta";
 import type { BudgetDomain, LocalBudgetMutation } from "./contracts";
 
 export const LOCAL_FIRST_MUTATION_COMMITTED_EVENT =
@@ -49,10 +50,10 @@ export function persistenceScopeForMutations(budgetId: string, mutations: readon
   return { budgetId, domains: [...domains], accountIds: accountIds.size ? [...accountIds] : undefined, transactionIds: transactionIds.size ? [...transactionIds] : undefined, categoryIds: categoryIds.size ? [...categoryIds] : undefined, months: months.size ? [...months] : undefined };
 }
 
-export function notifyLocalFirstMutationCommitted(budgetId: string, scope: Omit<PersistenceChangeScope, "budgetId">): number | null {
+export function notifyLocalFirstMutationCommitted(budgetId: string, scope: Omit<PersistenceChangeScope, "budgetId">, registerDelta?: AccountRegisterMutationDelta): number | null {
   if (!budgetId) return null;
   const resolvedScope: PersistenceChangeScope = { budgetId, ...scope };
-  const revision = publishPersistenceChange({ source: "local", scope: resolvedScope });
+  const revision = publishPersistenceChange({ source: "local", scope: resolvedScope, registerDelta });
 
   if (typeof globalThis.CustomEvent === "function") {
     globalThis.dispatchEvent?.(

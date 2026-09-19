@@ -26,9 +26,15 @@ import type {
   AccountTransactionPage,
 } from "../../../../../../packages/application/src/accountRegister/AccountRegisterQueryPort";
 import { createRuntimeUuid } from "../../ids/createRuntimeUuid";
+import type { AccountRegisterMutationDelta } from "../accountRegisterMutationDelta";
+
+export interface LocalRegisterWorkerResult<T> {
+  readonly result: T;
+  readonly registerDelta?: AccountRegisterMutationDelta;
+}
 
 interface PendingRequest {
-  readonly resolve: (result: unknown) => void;
+  readonly resolve: (result: unknown, registerDelta?: AccountRegisterMutationDelta) => void;
   readonly reject: (error: Error) => void;
 }
 
@@ -125,7 +131,7 @@ export class LocalBudgetDatabaseClient {
       if (!pending) return;
       this.#pending.delete(response.requestId);
       if (response.ok) {
-        pending.resolve(response.result);
+        pending.resolve(response.result, response.registerDelta);
       } else {
         pending.reject(Object.assign(new Error(response.error.message), {
           code: response.error.code,
@@ -592,8 +598,8 @@ export class LocalBudgetDatabaseClient {
   restoreTransactionHistorySnapshot(
     snapshot: TransactionHistorySnapshot,
     mutations: readonly LocalBudgetMutation[],
-  ): Promise<LocalBudgetManifest> {
-    return this.#request({
+  ): Promise<LocalRegisterWorkerResult<LocalBudgetManifest>> {
+    return this.#requestWithRegisterDelta({
       requestId: createRuntimeUuid(),
       type: "restoreTransactionHistorySnapshot",
       snapshot,
@@ -604,8 +610,8 @@ export class LocalBudgetDatabaseClient {
   deleteTransactionHistorySnapshot(
     snapshot: TransactionHistorySnapshot,
     mutations: readonly LocalBudgetMutation[],
-  ): Promise<LocalBudgetManifest> {
-    return this.#request({
+  ): Promise<LocalRegisterWorkerResult<LocalBudgetManifest>> {
+    return this.#requestWithRegisterDelta({
       requestId: createRuntimeUuid(),
       type: "deleteTransactionHistorySnapshot",
       snapshot,
@@ -617,8 +623,8 @@ export class LocalBudgetDatabaseClient {
     expected: TransactionHistorySnapshot,
     replacement: TransactionHistorySnapshot,
     mutations: readonly LocalBudgetMutation[],
-  ): Promise<LocalBudgetManifest> {
-    return this.#request({
+  ): Promise<LocalRegisterWorkerResult<LocalBudgetManifest>> {
+    return this.#requestWithRegisterDelta({
       requestId: createRuntimeUuid(),
       type: "replaceTransactionHistorySnapshot",
       expected,
@@ -645,8 +651,8 @@ export class LocalBudgetDatabaseClient {
     expected: ImportHistorySnapshot,
     replacement: ImportHistorySnapshot,
     mutations: readonly LocalBudgetMutation[],
-  ): Promise<LocalBudgetManifest> {
-    return this.#request({
+  ): Promise<LocalRegisterWorkerResult<LocalBudgetManifest>> {
+    return this.#requestWithRegisterDelta({
       requestId: createRuntimeUuid(),
       type: "replaceImportHistorySnapshot",
       expected,
@@ -670,8 +676,8 @@ export class LocalBudgetDatabaseClient {
     readonly expectedTransaction: TransactionHistorySnapshot | null;
     readonly replacementTransaction: TransactionHistorySnapshot | null;
     readonly mutations: readonly LocalBudgetMutation[];
-  }): Promise<LocalBudgetManifest> {
-    return this.#request({
+  }): Promise<LocalRegisterWorkerResult<LocalBudgetManifest>> {
+    return this.#requestWithRegisterDelta({
       requestId: createRuntimeUuid(),
       type: "replaceScheduledTransactionHistoryState",
       ...input,
@@ -737,8 +743,8 @@ export class LocalBudgetDatabaseClient {
     transaction: LocalTransactionRecord,
     mutation: LocalBudgetMutation,
     resolveConflictId?: string,
-  ): Promise<LocalBudgetManifest> {
-    return this.#request({
+  ): Promise<LocalRegisterWorkerResult<LocalBudgetManifest>> {
+    return this.#requestWithRegisterDelta({
       requestId: createRuntimeUuid(),
       type: "writeTransaction",
       transaction,
@@ -757,8 +763,8 @@ export class LocalBudgetDatabaseClient {
       readonly requireAbsentTransactionIds?: readonly string[];
       readonly verifyWrittenTransactions?: boolean;
     } = {},
-  ): Promise<LocalBudgetManifest> {
-    return this.#request({
+  ): Promise<LocalRegisterWorkerResult<LocalBudgetManifest>> {
+    return this.#requestWithRegisterDelta({
       requestId: createRuntimeUuid(),
       type: "writeTransactionBatch",
       writes,
@@ -793,8 +799,8 @@ export class LocalBudgetDatabaseClient {
       readonly content: Uint8Array;
       readonly mutation: LocalBudgetMutation;
     }[] = [],
-  ): Promise<LocalBudgetManifest> {
-    return this.#request({
+  ): Promise<LocalRegisterWorkerResult<LocalBudgetManifest>> {
+    return this.#requestWithRegisterDelta({
       requestId: createRuntimeUuid(),
       type: "writeImportBatch",
       payeeWrites,
@@ -822,8 +828,8 @@ export class LocalBudgetDatabaseClient {
       readonly historyPayeeIds: readonly string[];
     },
     attachmentWrites: readonly { readonly attachment: LocalTransactionAttachmentRecord; readonly content: Uint8Array; readonly mutation: LocalBudgetMutation }[] = [],
-  ): Promise<{ readonly before: ImportHistorySnapshot; readonly after: ImportHistorySnapshot }> {
-    return this.#request({
+  ): Promise<LocalRegisterWorkerResult<{ readonly before: ImportHistorySnapshot; readonly after: ImportHistorySnapshot }>> {
+    return this.#requestWithRegisterDelta({
       requestId: createRuntimeUuid(), type: "writeImportBatchWithHistory", payeeWrites, writes, attachmentWrites,
       requireAbsentTransactionIds: options.requireAbsentTransactionIds,
       verifyWrittenTransactions: options.verifyWrittenTransactions,
@@ -836,8 +842,8 @@ export class LocalBudgetDatabaseClient {
     transactionId: string,
     mutation: LocalBudgetMutation,
     resolveConflictId?: string,
-  ): Promise<LocalBudgetManifest> {
-    return this.#request({
+  ): Promise<LocalRegisterWorkerResult<LocalBudgetManifest>> {
+    return this.#requestWithRegisterDelta({
       requestId: createRuntimeUuid(),
       type: "deleteTransaction",
       transactionId,
@@ -852,8 +858,8 @@ export class LocalBudgetDatabaseClient {
       readonly mutation: LocalBudgetMutation;
       readonly resolveConflictId?: string;
     }[],
-  ): Promise<LocalBudgetManifest> {
-    return this.#request({
+  ): Promise<LocalRegisterWorkerResult<LocalBudgetManifest>> {
+    return this.#requestWithRegisterDelta({
       requestId: createRuntimeUuid(),
       type: "deleteTransactionBatch",
       deletes,
@@ -865,7 +871,7 @@ export class LocalBudgetDatabaseClient {
     content: Uint8Array,
     mutation: LocalBudgetMutation,
     resolveConflictId?: string,
-  ): Promise<LocalBudgetManifest> {
+  ): Promise<LocalRegisterWorkerResult<LocalBudgetManifest>> {
     const request: Extract<LocalBudgetWorkerRequest, { type: "writeTransactionAttachment" }> = {
       requestId: createRuntimeUuid(),
       type: "writeTransactionAttachment",
@@ -874,15 +880,15 @@ export class LocalBudgetDatabaseClient {
       mutation,
       ...(resolveConflictId ? { resolveConflictId } : {}),
     };
-    return this.#request(request, [request.content.buffer as ArrayBuffer]);
+    return this.#requestWithRegisterDelta(request, [request.content.buffer as ArrayBuffer]);
   }
 
   deleteTransactionAttachment(
     attachmentId: string,
     mutation: LocalBudgetMutation,
     resolveConflictId?: string,
-  ): Promise<LocalBudgetManifest> {
-    return this.#request({
+  ): Promise<LocalRegisterWorkerResult<LocalBudgetManifest>> {
+    return this.#requestWithRegisterDelta({
       requestId: createRuntimeUuid(),
       type: "deleteTransactionAttachment",
       attachmentId,
@@ -1231,13 +1237,21 @@ export class LocalBudgetDatabaseClient {
     request: LocalBudgetWorkerRequest,
     transfer: Transferable[] = [],
   ): Promise<T> {
+    return this.#sendRequest(request, transfer, (result) => result as T);
+  }
+
+  #requestWithRegisterDelta<T>(request: LocalBudgetWorkerRequest, transfer: Transferable[] = []): Promise<LocalRegisterWorkerResult<T>> {
+    return this.#sendRequest(request, transfer, (result, registerDelta) => ({ result: result as T, registerDelta }));
+  }
+
+  #sendRequest<T>(request: LocalBudgetWorkerRequest, transfer: Transferable[], mapResult: (result: unknown, registerDelta?: AccountRegisterMutationDelta) => T): Promise<T> {
     if (this.#workerError) return Promise.reject(this.#workerError);
     if (this.#closed || (this.#closing && request.type !== "close")) {
       return Promise.reject(new Error("The local budget database client is closing or closed."));
     }
     return new Promise<T>((resolve, reject) => {
       this.#pending.set(request.requestId, {
-        resolve: (result) => resolve(result as T),
+        resolve: (result, registerDelta) => resolve(mapResult(result, registerDelta)),
         reject,
       });
       this.#worker.postMessage(request, transfer);

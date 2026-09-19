@@ -81,6 +81,9 @@ export interface LocalBudgetRuntimeClient extends AccountRegisterQueryPort {
     input: AccountTransactionQuery,
   ): Promise<AccountRegisterBootstrap>;
 
+  /** Bounded already-open SQLite read; never synchronises with the relay. */
+  queryLocalTransactions(input: AccountTransactionQuery): Promise<AccountTransactionPage>;
+
   prefetchAccountRegister(input: AccountTransactionQuery): void;
 
   listAccounts(

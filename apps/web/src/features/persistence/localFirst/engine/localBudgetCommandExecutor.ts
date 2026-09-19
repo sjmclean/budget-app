@@ -11,9 +11,9 @@ export class LocalBudgetCommandExecutor {
     this.#tail = new Promise<void>((resolve) => { release = resolve; });
     await previous;
     try {
-      const { result, mutationIds, change } = await handler.execute();
+      const { result, mutationIds, change, registerDelta } = await handler.execute();
       const publicationRevision = change.domains.length > 0
-        ? notifyLocalFirstMutationCommitted(change.budgetId, change)
+        ? notifyLocalFirstMutationCommitted(change.budgetId, change, registerDelta)
         : null;
       return { commandId, result, mutationIds, change, publicationRevision };
     } finally {

@@ -2,6 +2,8 @@
 
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 import { createRuntimeUuid } from "../../ids/createRuntimeUuid";
+import { MAX_REGISTER_DELTA_TRANSACTION_ROOTS, type AccountRegisterDeltaRow, type AccountRegisterMutationDelta } from "../accountRegisterMutationDelta";
+import type { AccountTransactionRow } from "../../../../../../packages/application/src/accountRegister/AccountRegisterQueryPort";
 import {
   LOCAL_BUDGET_SCHEMA_VERSION,
   REQUIRED_BUDGET_DOMAINS,
@@ -2940,6 +2942,11 @@ function queryTransactions(query: LocalTransactionQuery) {
   const offset = Math.max(0, Math.trunc(query.offset ?? 0));
   const where = ["transaction_row.budget_id = ?", "transaction_row.account_id = ?"];
   const bind: unknown[] = [query.budgetId, query.accountId];
+  if (query.transactionIds) {
+    if (query.transactionIds.length === 0) return { rows: [], nextCursor: null, hasMore: false, totalCount: 0 };
+    where.push(`transaction_row.id IN (${query.transactionIds.map(() => "?").join(", ")})`);
+    bind.push(...query.transactionIds);
+  }
   if (query.before) {
     where.push("(transaction_row.date, transaction_row.id) < (?, ?)");
     bind.push(query.before.date, query.before.id);
@@ -6414,17 +6421,135 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
   }
 }
 
+type RegisterDeltaPlan = { budgetId: string; rootIds: readonly string[]; knownAccountIds: readonly string[] };
+
+function registerDeltaPlan(request: LocalBudgetWorkerRequest): RegisterDeltaPlan | null {
+  switch (request.type) {
+    case "writeTransaction":
+      return { budgetId: request.transaction.budgetId, rootIds: [request.transaction.id], knownAccountIds: [request.transaction.accountId] };
+    case "writeTransactionBatch":
+    case "writeImportBatch":
+    case "writeImportBatchWithHistory":
+      return { budgetId: request.writes[0]?.transaction.budgetId ?? ("payeeWrites" in request ? request.payeeWrites[0]?.payee.budgetId : undefined) ?? activeBudgetId,
+        rootIds: [...request.writes.map(({ transaction }) => transaction.id), ...("attachmentWrites" in request ? (request.attachmentWrites ?? []).map(({ attachment }) => attachment.transactionId) : []),
+          ...(request.type === "writeImportBatchWithHistory" ? request.historyTransactionIds : [])],
+        knownAccountIds: request.writes.map(({ transaction }) => transaction.accountId) };
+    case "deleteTransaction":
+      return { budgetId: request.mutation.budgetId, rootIds: [request.transactionId], knownAccountIds: [] };
+    case "deleteTransactionBatch":
+      return { budgetId: request.deletes[0]?.mutation.budgetId ?? activeBudgetId, rootIds: request.deletes.map(({ transactionId }) => transactionId), knownAccountIds: [] };
+    case "writeTransactionAttachment":
+      return { budgetId: request.attachment.budgetId, rootIds: [request.attachment.transactionId], knownAccountIds: [] };
+    case "deleteTransactionAttachment": {
+      const attachment = resultRows<{ transactionId: string }>("SELECT transaction_id AS transactionId FROM local_transaction_attachments WHERE id = ?", [request.attachmentId])[0];
+      return { budgetId: request.mutation.budgetId, rootIds: attachment ? [attachment.transactionId] : [], knownAccountIds: [] };
+    }
+    case "restoreTransactionHistorySnapshot":
+    case "deleteTransactionHistorySnapshot":
+      return { budgetId: request.snapshot.budgetId, rootIds: request.snapshot.transactions.map(({ id }) => id), knownAccountIds: request.snapshot.transactions.map(({ accountId }) => accountId) };
+    case "replaceTransactionHistorySnapshot":
+      return { budgetId: request.replacement.budgetId, rootIds: [...request.expected.transactions, ...request.replacement.transactions].map(({ id }) => id), knownAccountIds: [...request.expected.transactions, ...request.replacement.transactions].map(({ accountId }) => accountId) };
+    case "replaceImportHistorySnapshot":
+      return { budgetId: request.replacement.budgetId, rootIds: [...request.expected.transactionIds, ...request.replacement.transactionIds], knownAccountIds: [...request.expected.transactions.transactions, ...request.replacement.transactions.transactions].map(({ accountId }) => accountId) };
+    case "replaceScheduledTransactionHistoryState": {
+      const transactions = [...(request.expectedTransaction?.transactions ?? []), ...(request.replacementTransaction?.transactions ?? [])];
+      return transactions.length ? { budgetId: transactions[0]!.budgetId, rootIds: transactions.map(({ id }) => id), knownAccountIds: transactions.map(({ accountId }) => accountId) } : null;
+    }
+    default:
+      return null;
+  }
+}
+
+function expandRegisterRoots(budgetId: string, roots: readonly string[]): string[] {
+  const ids = new Set(roots);
+  for (const id of roots) {
+    const counterpartId = getTransaction(budgetId, id)?.transferTransactionId;
+    if (counterpartId) ids.add(counterpartId);
+  }
+  return [...ids];
+}
+
+function registerAccountIdsForRoots(budgetId: string, roots: readonly string[]): string[] {
+  const accountIds = new Set<string>();
+  for (let offset = 0; offset < roots.length; offset += MAX_REGISTER_DELTA_TRANSACTION_ROOTS) {
+    const batch = roots.slice(offset, offset + MAX_REGISTER_DELTA_TRANSACTION_ROOTS);
+    const rows = resultRows<{ accountId: string; counterpartAccountId: string | null }>(
+      `SELECT transaction_row.account_id AS accountId,
+              counterpart.account_id AS counterpartAccountId
+         FROM local_transactions AS transaction_row
+         LEFT JOIN local_transactions AS counterpart
+           ON counterpart.budget_id = transaction_row.budget_id
+          AND counterpart.id = transaction_row.transfer_transaction_id
+        WHERE transaction_row.budget_id = ?
+          AND transaction_row.id IN (${batch.map(() => "?").join(", ")})`,
+      [budgetId, ...batch],
+    );
+    for (const row of rows) {
+      accountIds.add(row.accountId);
+      if (row.counterpartAccountId) accountIds.add(row.counterpartAccountId);
+    }
+  }
+  return [...accountIds];
+}
+
+function materialiseRegisterRows(budgetId: string, roots: readonly string[]): AccountRegisterDeltaRow[] {
+  const byAccount = new Map<string, string[]>();
+  for (const id of roots) {
+    const accountId = getTransaction(budgetId, id)?.accountId;
+    if (!accountId) continue;
+    const ids = byAccount.get(accountId) ?? [];
+    ids.push(id);
+    byAccount.set(accountId, ids);
+  }
+  return [...byAccount].flatMap(([accountId, transactionIds]) =>
+    queryTransactions({ budgetId, accountId, transactionIds, limit: MAX_REGISTER_DELTA_TRANSACTION_ROOTS, includeTotalCount: false }).rows
+      .map((row) => ({ accountId, row: row as AccountTransactionRow })));
+}
+
+async function handleWithRegisterDelta(request: LocalBudgetWorkerRequest): Promise<{ result: unknown; registerDelta?: AccountRegisterMutationDelta }> {
+  const plan = registerDeltaPlan(request);
+  if (!plan || plan.rootIds.length === 0) return { result: await handle(request) };
+  const roots = [...new Set(plan.rootIds)];
+  const tooLarge = roots.length > MAX_REGISTER_DELTA_TRANSACTION_ROOTS;
+  const beforeRoots = tooLarge ? [] : expandRegisterRoots(plan.budgetId, roots);
+  const largeBeforeAccountIds = tooLarge
+    ? registerAccountIdsForRoots(plan.budgetId, roots)
+    : beforeRoots.length > MAX_REGISTER_DELTA_TRANSACTION_ROOTS
+      ? registerAccountIdsForRoots(plan.budgetId, beforeRoots)
+      : [];
+  const beforeRows = tooLarge || beforeRoots.length > MAX_REGISTER_DELTA_TRANSACTION_ROOTS ? [] : materialiseRegisterRows(plan.budgetId, beforeRoots);
+  const result = await handle(request);
+  const accountIds = new Set(plan.knownAccountIds);
+  for (const accountId of largeBeforeAccountIds) accountIds.add(accountId);
+  for (const { accountId } of beforeRows) accountIds.add(accountId);
+  if (tooLarge || beforeRoots.length > MAX_REGISTER_DELTA_TRANSACTION_ROOTS) {
+    for (const accountId of registerAccountIdsForRoots(plan.budgetId, roots)) accountIds.add(accountId);
+    return { result, registerDelta: { mode: "refresh-required", budgetId: plan.budgetId, affectedAccountIds: [...accountIds], reason: "delta-too-large" } };
+  }
+  const afterRoots = expandRegisterRoots(plan.budgetId, [...new Set([...beforeRoots, ...roots])]);
+  if (afterRoots.length > MAX_REGISTER_DELTA_TRANSACTION_ROOTS) {
+    for (const accountId of registerAccountIdsForRoots(plan.budgetId, afterRoots)) accountIds.add(accountId);
+    return { result, registerDelta: { mode: "refresh-required", budgetId: plan.budgetId, affectedAccountIds: [...accountIds], reason: "delta-too-large" } };
+  }
+  const afterRows = materialiseRegisterRows(plan.budgetId, afterRoots);
+  for (const { accountId } of afterRows) accountIds.add(accountId);
+  if (JSON.stringify(beforeRows) === JSON.stringify(afterRows)) return { result };
+  return { result, registerDelta: { mode: "patch", budgetId: plan.budgetId, affectedAccountIds: [...accountIds], beforeRows, afterRows,
+    summaries: [...accountIds].map((accountId) => getAccountSummary(plan.budgetId, accountId)) } };
+}
+
 let requestTail: Promise<unknown> = Promise.resolve();
 self.onmessage = (event: MessageEvent<LocalBudgetWorkerRequest>) => {
   const request = event.data;
-  const operation = requestTail.then(() => handle(request));
+  const operation = requestTail.then(() => handleWithRegisterDelta(request));
   requestTail = operation.catch(() => undefined);
   void operation.then(
-    (result) => {
+    ({ result, registerDelta }) => {
       const response: LocalBudgetWorkerResponse = {
         requestId: request.requestId,
         ok: true,
         result,
+        registerDelta,
       };
       if (result instanceof Uint8Array && result.buffer instanceof ArrayBuffer) {
         self.postMessage(response, { transfer: [result.buffer] });

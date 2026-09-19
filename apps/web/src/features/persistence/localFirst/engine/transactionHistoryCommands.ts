@@ -122,15 +122,15 @@ export function createTransactionHistoryCommands(dependencies: TransactionHistor
       const local = await dependencies.requireDatabase(snapshot.budgetId);
       const members = historyMembers(snapshot, "upsert", dependencies.encodeBase64);
       const mutations = groupedMutations(dependencies, snapshot.budgetId, members);
-      await local.restoreTransactionHistorySnapshot(snapshot, mutations);
-      return committedCommandResult(undefined, mutations, transactionScope(snapshot.budgetId, [], snapshot.transactions));
+      const { registerDelta } = await local.restoreTransactionHistorySnapshot(snapshot, mutations);
+      return committedCommandResult(undefined, mutations, transactionScope(snapshot.budgetId, [], snapshot.transactions), registerDelta);
     },
     async deleteTransactionHistorySnapshot(snapshot) {
       const local = await dependencies.requireDatabase(snapshot.budgetId);
       const members = historyMembers(snapshot, "delete", dependencies.encodeBase64);
       const mutations = groupedMutations(dependencies, snapshot.budgetId, members);
-      await local.deleteTransactionHistorySnapshot(snapshot, mutations);
-      return committedCommandResult(undefined, mutations, transactionScope(snapshot.budgetId, snapshot.transactions));
+      const { registerDelta } = await local.deleteTransactionHistorySnapshot(snapshot, mutations);
+      return committedCommandResult(undefined, mutations, transactionScope(snapshot.budgetId, snapshot.transactions), registerDelta);
     },
     async replaceTransactionHistorySnapshot({ expected, replacement }) {
       if (expected.budgetId !== replacement.budgetId) throw new Error("Transaction history replacement cannot cross budgets.");
@@ -142,18 +142,18 @@ export function createTransactionHistoryCommands(dependencies: TransactionHistor
       const members = [...historyMembers(deleted, "delete", dependencies.encodeBase64),
         ...historyMembers(replacement, "upsert", dependencies.encodeBase64)];
       const mutations = groupedMutations(dependencies, expected.budgetId, members);
-      await local.replaceTransactionHistorySnapshot(expected, replacement, mutations);
+      const { registerDelta } = await local.replaceTransactionHistorySnapshot(expected, replacement, mutations);
       return committedCommandResult(undefined, mutations,
-        transactionScope(expected.budgetId, expected.transactions, replacement.transactions));
+        transactionScope(expected.budgetId, expected.transactions, replacement.transactions), registerDelta);
     },
     async commitImportBatch(input) {
       const local = await dependencies.requireDatabase(input.budgetId);
       const prepared = await prepareImport(dependencies, local, input);
-      await local.writeImportBatch(prepared.payeeWrites, prepared.writes,
+      const { registerDelta } = await local.writeImportBatch(prepared.payeeWrites, prepared.writes,
         { requireAbsentTransactionIds: prepared.requireAbsentTransactionIds, verifyWrittenTransactions: true },
         prepared.attachmentWrites);
       return committedCommandResult(undefined, prepared.mutations,
-        importChangeScope(input.budgetId, prepared.mutations, prepared.attachmentWrites));
+        importChangeScope(input.budgetId, prepared.mutations, prepared.attachmentWrites), registerDelta);
     },
     async commitImportBatchWithHistory(input) {
       const local = await dependencies.requireDatabase(input.budgetId);
@@ -165,11 +165,11 @@ export function createTransactionHistoryCommands(dependencies: TransactionHistor
       if (transactionIds.length === 0 && payeeIds.length === 0 && prepared.attachmentWrites.length === 0) {
         throw new Error("An import history command requires at least one persisted object.");
       }
-      const snapshots = await local.writeImportBatchWithHistory(prepared.payeeWrites, prepared.writes,
+      const { result: snapshots, registerDelta } = await local.writeImportBatchWithHistory(prepared.payeeWrites, prepared.writes,
         { requireAbsentTransactionIds: prepared.requireAbsentTransactionIds, verifyWrittenTransactions: true,
           historyTransactionIds: transactionIds, historyPayeeIds: payeeIds }, prepared.attachmentWrites);
       return committedCommandResult(snapshots, prepared.mutations,
-        importChangeScope(input.budgetId, prepared.mutations, prepared.attachmentWrites));
+        importChangeScope(input.budgetId, prepared.mutations, prepared.attachmentWrites), registerDelta);
     },
     async replaceImportHistorySnapshot({ expected, replacement }) {
       if (expected.budgetId !== replacement.budgetId) throw new Error("Import history replacement cannot cross budgets.");
@@ -189,10 +189,10 @@ export function createTransactionHistoryCommands(dependencies: TransactionHistor
           operation: "upsert" as const, payload: payee })),
       ];
       const mutations = groupedMutations(dependencies, expected.budgetId, members);
-      await local.replaceImportHistorySnapshot(expected, replacement, mutations);
+      const { registerDelta } = await local.replaceImportHistorySnapshot(expected, replacement, mutations);
       return committedCommandResult(undefined, mutations, mergePersistenceChangeScopes(expected.budgetId,
         transactionScope(expected.budgetId, expected.transactions.transactions, replacement.transactions.transactions),
-        persistenceScopeForMutations(expected.budgetId, mutations)));
+        persistenceScopeForMutations(expected.budgetId, mutations)), registerDelta);
     },
   };
 }

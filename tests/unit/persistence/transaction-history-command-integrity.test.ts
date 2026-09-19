@@ -26,21 +26,21 @@ function harness() {
   const commit = (kind: string, mutations: readonly LocalBudgetMutation[]) => { if (fail) throw new Error("worker failed"); requests.push({ kind, mutations }); committed.push(...mutations); };
   const database = {
     async listAccountNavigation() { return ["account-a", "account-b", "account-c"].map((id) => ({ id, participation: "on-budget" })); },
-    async restoreTransactionHistorySnapshot(_snapshot: TransactionHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("restore", mutations); },
-    async deleteTransactionHistorySnapshot(_snapshot: TransactionHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("delete", mutations); },
-    async replaceTransactionHistorySnapshot(_expected: TransactionHistorySnapshot, _replacement: TransactionHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("replace", mutations); },
-    async replaceImportHistorySnapshot(_expected: ImportHistorySnapshot, _replacement: ImportHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("import-replace", mutations); },
+    async restoreTransactionHistorySnapshot(_snapshot: TransactionHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("restore", mutations); return { result: {} }; },
+    async deleteTransactionHistorySnapshot(_snapshot: TransactionHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("delete", mutations); return { result: {} }; },
+    async replaceTransactionHistorySnapshot(_expected: TransactionHistorySnapshot, _replacement: TransactionHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("replace", mutations); return { result: {} }; },
+    async replaceImportHistorySnapshot(_expected: ImportHistorySnapshot, _replacement: ImportHistorySnapshot, mutations: readonly LocalBudgetMutation[]) { commit("import-replace", mutations); return { result: {} }; },
     async writeImportBatch(payees: readonly { mutation: LocalBudgetMutation }[], transactions: readonly { mutation: LocalBudgetMutation }[], _options: unknown,
       attachments: readonly { mutation: LocalBudgetMutation }[]) {
       commit("import", [...transactions.map(({ mutation }) => mutation), ...payees.map(({ mutation }) => mutation),
-        ...attachments.map(({ mutation }) => mutation)]); return {};
+        ...attachments.map(({ mutation }) => mutation)]); return { result: {} };
     },
     async writeImportBatchWithHistory(payees: readonly { mutation: LocalBudgetMutation }[], transactions: readonly { mutation: LocalBudgetMutation }[], options: { historyTransactionIds: readonly string[]; historyPayeeIds: readonly string[] },
       attachments: readonly { mutation: LocalBudgetMutation }[]) {
       commit("import-history", [...transactions.map(({ mutation }) => mutation), ...payees.map(({ mutation }) => mutation),
         ...attachments.map(({ mutation }) => mutation)]); importHistoryOptions = options;
-      return { before: { budgetId, transactions: { budgetId, transactions: [], attachments: [] }, payees: [], transactionIds: options.historyTransactionIds, payeeIds: options.historyPayeeIds },
-        after: { budgetId, transactions: { budgetId, transactions: [], attachments: [] }, payees: [], transactionIds: options.historyTransactionIds, payeeIds: options.historyPayeeIds } };
+      return { result: { before: { budgetId, transactions: { budgetId, transactions: [], attachments: [] }, payees: [], transactionIds: options.historyTransactionIds, payeeIds: options.historyPayeeIds },
+        after: { budgetId, transactions: { budgetId, transactions: [], attachments: [] }, payees: [], transactionIds: options.historyTransactionIds, payeeIds: options.historyPayeeIds } } };
     },
   } as unknown as LocalBudgetDatabaseClient;
   const commands = createTransactionHistoryCommands({ requireDatabase: async () => database,

@@ -1079,6 +1079,12 @@ export function createLocalBudgetRuntime(
         includeTotalCount: false,
       });
     },
+    async queryLocalTransactions(input) {
+      return (await requireDatabase(input.budgetId)).queryTransactions({
+        ...toLocalQuery(input),
+        includeTotalCount: false,
+      });
+    },
     async getTransactionsByIds(input) {
       return (await syncThenDatabase(input.budgetId)).getTransactionsByIds(
         input.budgetId,

@@ -49,14 +49,14 @@ export function createTransactionCommands(
 
       const records = await buildNewTransactionRecords(local, input.id, input);
       const writes = transactionWrites(dependencies.createMutation, records);
-      await local.writeTransactionBatch(writes, {
+      const { registerDelta } = await local.writeTransactionBatch(writes, {
         requireAbsentTransactionIds: records.map((record) => record.id),
       });
       return committedCommandResult(undefined, writes.map(({ mutation }) => mutation),
         persistenceScopeForMutations(
           input.budgetId,
           writes.map(({ mutation }) => mutation),
-        ),
+        ), registerDelta,
       );
     },
 
@@ -67,14 +67,14 @@ export function createTransactionCommands(
         local,
         input,
       );
-      await local.writeTransactionBatch(writes, {
+      const { registerDelta } = await local.writeTransactionBatch(writes, {
         requireAbsentTransactionIds,
         verifyWrittenTransactions: input.provenanceAssignments.length > 0,
       });
       const mutations = writes.map(({ mutation }) => mutation);
       return committedCommandResult(undefined, mutations, mutations.length > 0
         ? persistenceScopeForMutations(input.budgetId, mutations)
-        : emptyCommandChange(input.budgetId));
+        : emptyCommandChange(input.budgetId), registerDelta);
     },
 
     async moveTransactions(input) {
@@ -104,14 +104,14 @@ export function createTransactionCommands(
         records.push(record, counterpartRecord);
       }
       const writes = transactionWritesAsSingleOperationGroup(dependencies.createMutation, records);
-      await local.writeTransactionBatch(
+      const { registerDelta } = await local.writeTransactionBatch(
         writes,
       );
       const mutations = writes.map(({ mutation }) => mutation);
       return committedCommandResult(undefined, mutations, writes.length > 0
         ? deriveTransactionChangeScope({ budgetId: input.budgetId, before: previousRecords, after: records,
             transactionIds: [...previousRecords, ...records].map(({ id }) => id) })
-        : emptyCommandChange(input.budgetId));
+        : emptyCommandChange(input.budgetId), registerDelta);
     },
 
     async updateTransaction(transactionId, input) {
@@ -126,11 +126,11 @@ export function createTransactionCommands(
         existing,
       );
       const writes = transactionWrites(dependencies.createMutation, records);
-      await local.writeTransactionBatch(writes);
+      const { registerDelta } = await local.writeTransactionBatch(writes);
       return committedCommandResult(undefined, writes.map(({ mutation }) => mutation), deriveTransactionChangeScope({
         budgetId: input.budgetId, before: [existing], after: records,
         transactionIds: [existing, ...records].map(({ id }) => id),
-      }));
+      }), registerDelta);
     },
 
     async toggleTransactionCleared(transactionId, input) {
@@ -144,10 +144,10 @@ export function createTransactionCommands(
         updatedAt: new Date().toISOString(),
       };
       const mutation = dependencies.createMutation(input.budgetId, "transactions", transactionId, "upsert", record);
-      await local.writeTransaction(record, mutation);
+      const { registerDelta } = await local.writeTransaction(record, mutation);
       return committedCommandResult(undefined, [mutation], deriveTransactionChangeScope({
         budgetId: input.budgetId, before: [existing], after: [record], transactionIds: [transactionId],
-      }));
+      }), registerDelta);
     },
 
     async setTransactionsCleared(input) {
@@ -166,14 +166,14 @@ export function createTransactionCommands(
         });
       }
       const writes = transactionWritesAsSingleOperationGroup(dependencies.createMutation, records);
-      await local.writeTransactionBatch(
+      const { registerDelta } = await local.writeTransactionBatch(
         writes,
         { verifyWrittenTransactions: true },
       );
       return committedCommandResult(undefined, writes.map(({ mutation }) => mutation), records.length > 0
         ? deriveTransactionChangeScope({ budgetId: input.budgetId, before: previousRecords, after: records,
             transactionIds: [...previousRecords, ...records].map(({ id }) => id) })
-        : emptyCommandChange(input.budgetId));
+        : emptyCommandChange(input.budgetId), registerDelta);
     },
 
     async deleteTransaction(transactionId, input) {
@@ -184,14 +184,14 @@ export function createTransactionCommands(
         const mutation = dependencies.createMutation(
           input.budgetId, "transactions", transactionId, "delete", null,
         );
-        await local.deleteTransaction(
+        const { registerDelta } = await local.deleteTransaction(
           transactionId,
           mutation,
         );
         return committedCommandResult(undefined, [mutation], { budgetId: input.budgetId,
           domains: ["transactions", "budget"],
           transactionIds: [transactionId],
-        });
+        }, registerDelta);
       }
 
       requireMutableTransaction(existing);
@@ -205,13 +205,13 @@ export function createTransactionCommands(
             transferAccountId: existing.transferAccountId, transferTransactionId: existing.transferTransactionId,
           },
         );
-        await local.deleteTransaction(
+        const { registerDelta } = await local.deleteTransaction(
           transactionId,
           mutation,
         );
         return committedCommandResult(undefined, [mutation], deriveTransactionChangeScope({
           budgetId: input.budgetId, before: [existing], after: [], transactionIds: [transactionId],
-        }));
+        }), registerDelta);
       }
 
       const operationGroupId = createRuntimeUuid();
@@ -240,11 +240,11 @@ export function createTransactionCommands(
             operationGroup,
           ),
         }));
-      await local.deleteTransactionBatch(deletes);
+      const { registerDelta } = await local.deleteTransactionBatch(deletes);
       return committedCommandResult(undefined, deletes.map(({ mutation }) => mutation), deriveTransactionChangeScope({
         budgetId: input.budgetId, before: [existing, counterpart], after: [],
         transactionIds: [existing.id, counterpart.id],
-      }));
+      }), registerDelta);
     },
   };
 }

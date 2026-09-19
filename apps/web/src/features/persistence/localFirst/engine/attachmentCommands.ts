@@ -50,13 +50,13 @@ export function createAttachmentCommands(
       const mutation = dependencies.createMutation(
         input.budgetId, "transactions", `attachment:${attachment.id}`, "upsert", payload,
       );
-      await local.writeTransactionAttachment(
+      const { registerDelta } = await local.writeTransactionAttachment(
         attachment,
         input.content,
         mutation,
       );
       return committedCommandResult(undefined, [mutation], { budgetId: input.budgetId,
-        domains: ["attachments", "transactions"], transactionIds: [input.transactionId] });
+        domains: ["attachments", "transactions"], transactionIds: [input.transactionId] }, registerDelta);
     },
 
     async removeTransactionAttachment(input) {
@@ -78,12 +78,12 @@ export function createAttachmentCommands(
       const mutation = dependencies.createMutation(
         input.budgetId, "transactions", `attachment:${input.attachmentId}`, "delete", payload,
       );
-      await local.deleteTransactionAttachment(
+      const { registerDelta } = await local.deleteTransactionAttachment(
         input.attachmentId,
         mutation,
       );
       return committedCommandResult(undefined, [mutation], { budgetId: input.budgetId,
-        domains: ["attachments", "transactions"], transactionIds: [input.transactionId] });
+        domains: ["attachments", "transactions"], transactionIds: [input.transactionId] }, registerDelta);
     },
 
     async readTransactionAttachment(input) {
