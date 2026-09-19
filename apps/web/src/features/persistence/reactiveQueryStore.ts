@@ -35,6 +35,7 @@ interface ReactiveQueryEntry<T> {
   load: () => Promise<T>;
   snapshot: ReactiveQuerySnapshot<T>;
   inFlight: Promise<void> | null;
+  attemptedRevision: number;
   generation: number;
   listeners: Set<() => void>;
   unsubscribePersistence: (() => void) | null;
@@ -101,6 +102,7 @@ function getOrCreateEntry<T>(handle: QueryHandle<T>): ReactiveQueryEntry<T> {
       dataRevision: 0,
     },
     inFlight: null,
+    attemptedRevision: -1,
     generation: 0,
     listeners: new Set(),
     unsubscribePersistence: null,
@@ -129,6 +131,12 @@ function ensureFresh<T>(entry: ReactiveQueryEntry<T>): Promise<void> {
   ) {
     return Promise.resolve();
   }
+  if (
+    entry.snapshot.status === "error" &&
+    entry.attemptedRevision >= currentRevision
+  ) {
+    return Promise.resolve();
+  }
   if (entry.inFlight) return entry.inFlight;
 
   const generation = entry.generation;
@@ -142,6 +150,7 @@ function ensureFresh<T>(entry: ReactiveQueryEntry<T>): Promise<void> {
 
   const request = (async () => {
     const beforeRevision = getPersistenceRevisionForInterest(entry.interest);
+    entry.attemptedRevision = beforeRevision;
     try {
       const data = await entry.load();
       if (entry.generation !== generation) return;
@@ -299,6 +308,7 @@ export function seedReactiveQuery<Input, Result>(
   if (revision < entry.snapshot.dataRevision) return;
   entry.generation += 1;
   entry.inFlight = null;
+  entry.attemptedRevision = revision;
   setSnapshot(entry, {
     data,
     status: "ready",
