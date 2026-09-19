@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
 import {
   getPersistenceRevisionForInterest,
@@ -255,19 +255,14 @@ export function useReactiveQuery<Input, Result>(
 ): ReactiveQuerySnapshot<Result> {
   const enabled = options.enabled ?? true;
   const key = definition.key(input);
-  const stableInputRef = useRef({ key, input });
-  if (stableInputRef.current.key !== key) {
-    stableInputRef.current = { key, input };
-  }
   const handle = useMemo<QueryHandle<Result> | null>(() => {
     if (!enabled) return null;
-    const stableInput = stableInputRef.current.input;
     return {
       cacheKey: `${definition.id}:${key}`,
-      interest: definition.interest(stableInput),
-      load: () => definition.load(provider, stableInput),
+      interest: definition.interest(input),
+      load: () => definition.load(provider, input),
     };
-  }, [definition, enabled, key, provider]);
+  }, [definition, enabled, input, key, provider]);
   const subscribe = useCallback(
     (listener: () => void) =>
       handle ? subscribeHandle(handle, listener) : () => undefined,
