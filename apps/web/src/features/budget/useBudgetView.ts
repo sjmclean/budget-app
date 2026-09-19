@@ -21,6 +21,6 @@ export function useBudgetView(
     dataVersion: query.dataRevision,
     isLoading: enabled && query.data === undefined &&
       (query.status === "idle" || query.status === "loading"),
-    error: query.error,
+    error: query.data === undefined ? query.error : null,
   };
 }
