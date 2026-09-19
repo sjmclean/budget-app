@@ -102,6 +102,12 @@ export interface LocalBudgetRuntimeClient extends AccountRegisterQueryPort {
     readonly month: string;
   }): Promise<BudgetMonthView>;
 
+  /** Local-only authoritative snapshot for command history and local write prerequisites. */
+  getLocalBudgetMonthView(input: {
+    readonly budgetId: string;
+    readonly month: string;
+  }): Promise<BudgetMonthView>;
+
   prefetchBudgetMonthView(input: {
     readonly budgetId: string;
     readonly month: string;

@@ -28,7 +28,7 @@ export function categoryHistoryCommand(input: {
   return {
     id: input.id, label: input.label,
     async execute(context) {
-      before = await queries(context).getBudgetMonthView({ budgetId: context.budgetId, month: input.month });
+      before = await queries(context).getLocalBudgetMonthView({ budgetId: context.budgetId, month: input.month });
       after = await input.mutate(context.persistence.categories);
     },
     async undo(context) {

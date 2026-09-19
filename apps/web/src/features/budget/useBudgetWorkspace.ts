@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
-import { subscribeToPersistenceInterest } from "../persistence/persistenceChangeBus";
+import { getPersistenceChangeRevision } from "../persistence/persistenceChangeBus";
 import { useBudgetView } from "./useBudgetView";
 import type {
   BudgetActivityDrilldown,
@@ -147,24 +147,9 @@ export function useBudgetWorkspace(
   const mergePreviewRequestVersionRef = useRef(0);
   const mutationVersionRef = useRef(0);
   const goalRecommendationBusyRef = useRef(false);
-  const persistenceVersionRef = useRef({
-    identity: `${budgetId}:${month}`,
-    revision: 0,
-  });
 
   const workspaceIdentity = `${budgetId}:${month}`;
   workspaceIdentityRef.current = workspaceIdentity;
-  if (persistenceVersionRef.current.identity !== workspaceIdentity) {
-    // usePersistenceChange revisions are scoped to one budget/month interest and
-    // start at zero when that interest changes. Keep this imperative clock on
-    // the same basis instead of carrying the previous workspace's revision.
-    persistenceVersionRef.current = { identity: workspaceIdentity, revision: 0 };
-  } else {
-    persistenceVersionRef.current.revision = Math.max(
-      persistenceVersionRef.current.revision,
-      budgetView.dataVersion,
-    );
-  }
 
   function setEditedData(nextData: BudgetMonthView | null): void {
     setEditedDataState(nextData ? {
@@ -176,7 +161,7 @@ export function useBudgetWorkspace(
       // an older in-flight budget query cannot replace newly committed state.
       persistenceVersion: Math.max(
         budgetView.dataVersion,
-        persistenceVersionRef.current.revision,
+        getPersistenceChangeRevision(),
       ),
     } : null);
   }
@@ -184,22 +169,6 @@ export function useBudgetWorkspace(
   function isWorkspaceCurrent(identity: string): boolean {
     return mountedRef.current && workspaceIdentityRef.current === identity;
   }
-
-  useEffect(() => {
-    const identity = `${budgetId}:${month}`;
-    return subscribeToPersistenceInterest(
-      {
-        budgetId,
-        month,
-        domains: ["budget", "categories", "transactions", "goals"],
-      },
-      () => {
-        if (persistenceVersionRef.current.identity === identity) {
-          persistenceVersionRef.current.revision += 1;
-        }
-      },
-    );
-  }, [budgetId, month]);
 
   useEffect(() => {
     mountedRef.current = true;

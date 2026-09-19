@@ -36,7 +36,7 @@ function harness() {
     async setAccountClosed(input: any) { accounts.set(input.accountId, { ...accounts.get(input.accountId)!, closedAt: input.closed ? "closed" : null }); },
     async deleteAccount(_budgetId: string, id: string) { accounts.delete(id); return { deleted: true, accounts: [] }; },
     async replaceAccountHistoryState(input: any) { same(accounts.get(input.accountId) ?? null, input.expected); if (input.replacement) accounts.set(input.accountId, structuredClone(input.replacement)); else accounts.delete(input.accountId); },
-    async getBudgetMonthView() { return structuredClone(budgetView); },
+    async getLocalBudgetMonthView() { return structuredClone(budgetView); },
     async replaceBudgetMonthHistoryState(input: any) { same(budgetView, input.expected); budgetView = structuredClone(input.replacement); },
   };
   const categories: any = {
@@ -99,7 +99,7 @@ test("category create/rename/archive/move/notes and group order round-trip exact
 });
 
 test("category creation exposes the mutation result without a post-commit query", async () => {
-  let reads = 0;
+  let localReads = 0;
   let budgetView = view();
   const categories = {
     async createCategory(input: any) {
@@ -113,11 +113,12 @@ test("category creation exposes the mutation result without a post-commit query"
     },
   };
   const queries = {
-    async getBudgetMonthView() {
-      reads += 1;
-      if (reads > 1) throw new Error("post-commit synchronized read must not occur");
+    async getLocalBudgetMonthView() {
+      localReads += 1;
+      if (localReads > 1) throw new Error("post-commit local read must not occur");
       return structuredClone(budgetView);
     },
+    async getBudgetMonthView() { throw new Error("relay synchronization must not gate a local command"); },
     async replaceBudgetMonthHistoryState() {},
   };
   const persistence = {
@@ -134,7 +135,7 @@ test("category creation exposes the mutation result without a post-commit query"
   });
   const result = await service.execute(budgetId, command);
   assert.equal(result.performed, true);
-  assert.equal(reads, 1, "only the pre-command history snapshot is queried");
+  assert.equal(localReads, 1, "only the local pre-command history snapshot is queried");
   assert.equal(
     command.committedView()?.categoryGroups[0]?.categories.some(({ id }) => id === "observable-category"),
     true,

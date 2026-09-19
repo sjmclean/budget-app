@@ -1164,6 +1164,9 @@ export function createLocalBudgetRuntime(
     deleteAccount: publicOrdinaryCommands.deleteAccount,
     async getBudgetMonthView(input) {
       await synchronise(input.budgetId);
+      return client.getLocalBudgetMonthView(input);
+    },
+    async getLocalBudgetMonthView(input) {
       const local = await requireDatabase(input.budgetId);
       const view = await local.readEntity<BudgetMonthView>(
         "budgetMonths",

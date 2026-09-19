@@ -14,6 +14,7 @@ type Listener = (event: PersistenceChangeEvent) => void;
 const listeners = new Set<Listener>();
 let pending: PersistenceChangeEvent[] = [];
 let flushScheduled = false;
+let persistenceChangeRevision = 0;
 const uniqueSorted = (values: readonly string[] | undefined) => values?.length ? [...new Set(values)].sort() : undefined;
 
 export function normalisePersistenceChange(input: Omit<PersistenceChangeEvent, "occurredAt"> & { readonly occurredAt?: string }): PersistenceChangeEvent {
@@ -44,10 +45,14 @@ export function publishPersistenceChange(
   input: Omit<PersistenceChangeEvent, "occurredAt"> & { readonly occurredAt?: string },
 ): void {
   const event = normalisePersistenceChange(input);
+  persistenceChangeRevision += 1;
   const index = pending.findIndex((candidate) => candidate.source === event.source && candidate.scope.budgetId === event.scope.budgetId);
   if (index < 0) pending.push(event); else pending[index] = mergePersistenceChanges(pending[index]!, event)!;
   if (!flushScheduled) { flushScheduled = true; queueMicrotask(flushPersistenceChanges); }
 }
+
+/** One monotonic clock shared by imperative command readbacks and React subscribers. */
+export function getPersistenceChangeRevision(): number { return persistenceChangeRevision; }
 
 export function flushPersistenceChanges(): void { flushScheduled = false; const events = pending; pending = []; for (const event of events) for (const listener of listeners) listener(event); }
 export function publishBroadBudgetChange(input: { readonly budgetId: string; readonly source: PersistenceChangeSource }): void { publishPersistenceChange({ source: input.source, scope: { budgetId: input.budgetId, domains: [], broad: true } }); }
@@ -63,6 +68,6 @@ export function subscribeToPersistenceInterest(interest: PersistenceChangeIntere
 export function usePersistenceChange(interest: PersistenceChangeInterest): number {
   const domainKey = interest.domains?.join("|");
   const stable = useMemo(() => ({ ...interest, domains: interest.domains ? [...interest.domains].sort() : undefined }), [interest.accountId, interest.budgetId, interest.categoryId, interest.month, interest.transactionId, domainKey]);
-  const state = useMemo(() => ({ revision: 0 }), [stable]);
-  return useSyncExternalStore((notify) => subscribeToPersistenceInterest(stable, () => { state.revision += 1; notify(); }), () => state.revision, () => state.revision);
+  const state = useMemo(() => ({ revision: persistenceChangeRevision }), [stable]);
+  return useSyncExternalStore((notify) => subscribeToPersistenceInterest(stable, () => { state.revision = persistenceChangeRevision; notify(); }), () => state.revision, () => state.revision);
 }

@@ -181,10 +181,14 @@ test("Budget service performs one budget-level Goal list read and refreshes on t
 
 test("category creation returns the engine's authoritative view without a post-commit synced Goal read", async () => {
   const created = view([category("category-created")]);
+  let statusReads = 0;
   let goalListReads = 0;
   let commandCalls = 0;
   const client = {
-    async getBudgetStatus() { return { capabilities: { budgetMonths: true } }; },
+    async getBudgetStatus() {
+      statusReads += 1;
+      throw new Error("relay bootstrap must not gate a local command");
+    },
     async listCategoryGoals() {
       goalListReads += 1;
       throw new Error("relay-backed Goal read must not gate command completion");
@@ -202,6 +206,7 @@ test("category creation returns the engine's authoritative view without a post-c
     groupId: "group-1", groupName: "Living", name: "Created",
   });
   assert.equal(commandCalls, 1);
+  assert.equal(statusReads, 0);
   assert.equal(goalListReads, 0);
   assert.equal(result.categoryGroups[0]?.categories[0]?.id, "category-created");
 });

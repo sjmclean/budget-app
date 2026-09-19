@@ -82,7 +82,6 @@ export function createSqliteBudgetViewService(
       }));
     },
     async createCategory(input) {
-      await requireBudgetMonths(hosted, input.budgetId);
       return commands().mutateCategory(input.budgetId, {
         operation: "create",
         ...input,
