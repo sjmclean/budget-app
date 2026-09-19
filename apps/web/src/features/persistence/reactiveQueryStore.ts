@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
 import {
   getPersistenceRevisionForInterest,
@@ -242,20 +242,32 @@ export function useReactiveQuery<Input, Result>(
 ): ReactiveQuerySnapshot<Result> {
   const enabled = options.enabled ?? true;
   const key = definition.key(input);
+  const stableInputRef = useRef({ key, input });
+  if (stableInputRef.current.key !== key) {
+    stableInputRef.current = { key, input };
+  }
   const handle = useMemo<QueryHandle<Result> | null>(() => {
     if (!enabled) return null;
+    const stableInput = stableInputRef.current.input;
     return {
       cacheKey: `${definition.id}:${key}`,
-      interest: definition.interest(input),
-      load: () => definition.load(provider, input),
+      interest: definition.interest(stableInput),
+      load: () => definition.load(provider, stableInput),
     };
-  }, [definition, enabled, input, key, provider]);
-
-  return useSyncExternalStore(
-    (listener) => handle ? subscribeHandle(handle, listener) : () => undefined,
-    () => handle ? getHandleSnapshot(handle) : DISABLED_SNAPSHOT as ReactiveQuerySnapshot<Result>,
-    () => handle ? getHandleSnapshot(handle) : DISABLED_SNAPSHOT as ReactiveQuerySnapshot<Result>,
+  }, [definition, enabled, key, provider]);
+  const subscribe = useCallback(
+    (listener: () => void) =>
+      handle ? subscribeHandle(handle, listener) : () => undefined,
+    [handle],
   );
+  const getSnapshot = useCallback(
+    () => handle
+      ? getHandleSnapshot(handle)
+      : DISABLED_SNAPSHOT as ReactiveQuerySnapshot<Result>,
+    [handle],
+  );
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 export function prefetchReactiveQuery<Input, Result>(
