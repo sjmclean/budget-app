@@ -17,7 +17,23 @@ let pending: PersistenceChangeEvent[] = [];
 let pendingOriginals: { event: PersistenceChangeEvent; revision: number }[] = [];
 let flushScheduled = false;
 let persistenceChangeRevision = 0;
+// One latest revision per distinct publication scope, not one retained event per
+// publication. Repeated writes to a scope replace its entry. Keeping the
+// original scope lets snapshot reads use the same matcher as notifications.
+const revisionsByBudgetAndScope = new Map<string, Map<string, { event: PersistenceChangeEvent; revision: number }>>();
 const uniqueSorted = (values: readonly string[] | undefined) => values?.length ? [...new Set(values)].sort() : undefined;
+
+function scopeKey(scope: PersistenceChangeScope): string {
+  return JSON.stringify([scope.domains, scope.accountIds, scope.transactionIds, scope.categoryIds, scope.months, scope.broad]);
+}
+
+export function getPersistenceRevisionForInterest(interest: PersistenceChangeInterest): number {
+  let latest = 0;
+  for (const { event, revision } of revisionsByBudgetAndScope.get(interest.budgetId)?.values() ?? []) {
+    if (revision > latest && doesPersistenceChangeAffect(event, interest)) latest = revision;
+  }
+  return latest;
+}
 
 export function normalisePersistenceChange(input: Omit<PersistenceChangeEvent, "occurredAt"> & { readonly occurredAt?: string }): PersistenceChangeEvent {
   if (!input.scope.budgetId) throw new Error("A persistence change requires a budgetId.");
@@ -49,6 +65,12 @@ export function publishPersistenceChange(
   const event = normalisePersistenceChange(input);
   persistenceChangeRevision += 1;
   const revision = persistenceChangeRevision;
+  let scopes = revisionsByBudgetAndScope.get(event.scope.budgetId);
+  if (!scopes) {
+    scopes = new Map();
+    revisionsByBudgetAndScope.set(event.scope.budgetId, scopes);
+  }
+  scopes.set(scopeKey(event.scope), { event, revision });
   pendingOriginals.push({ event, revision });
   const index = pending.findIndex((candidate) => candidate.source === event.source && candidate.scope.budgetId === event.scope.budgetId);
   if (index < 0) pending.push(event); else pending[index] = mergePersistenceChanges(pending[index]!, event)!;
@@ -90,8 +112,9 @@ export function subscribeToPersistenceInterest(interest: PersistenceChangeIntere
 export function usePersistenceChange(interest: PersistenceChangeInterest): number {
   const domainKey = interest.domains?.join("|");
   const stable = useMemo(() => ({ ...interest, domains: interest.domains ? [...interest.domains].sort() : undefined }), [interest.accountId, interest.budgetId, interest.categoryId, interest.month, interest.transactionId, domainKey]);
-  // A new interest has not observed any scoped publication, even if unrelated
-  // budgets have advanced the global allocator before this subscription mounts.
-  const state = useMemo(() => ({ revision: 0 }), [stable]);
-  return useSyncExternalStore((notify) => subscribeToPersistenceInterest(stable, (_event, revision) => { state.revision = revision; notify(); }), () => state.revision, () => state.revision);
+  return useSyncExternalStore(
+    (notify) => subscribeToPersistenceInterest(stable, notify),
+    () => getPersistenceRevisionForInterest(stable),
+    () => getPersistenceRevisionForInterest(stable),
+  );
 }

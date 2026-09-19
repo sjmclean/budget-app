@@ -1,13 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createRequire } from "node:module";
 import {
   doesPersistenceChangeAffect,
   flushPersistenceChanges,
+  getPersistenceRevisionForInterest,
   mergePersistenceChanges,
   normalisePersistenceChange,
   publishPersistenceChange,
   subscribeToPersistenceInterest,
+  usePersistenceChange,
 } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
+
+const webRequire = createRequire(new URL("../../../apps/web/package.json", import.meta.url));
+const { createElement, useLayoutEffect } = webRequire("react");
+const { act, create } = webRequire("react-test-renderer");
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const change = normalisePersistenceChange({
   source: "local",
@@ -84,4 +92,72 @@ test("coalescing preserves wildcard semantics for every optional scope dimension
     const other = normalisePersistenceChange({ source: "local", scope: { budgetId: "budget-a", domains: ["transactions"], [dimension]: ["two"] } });
     assert.deepEqual(mergePersistenceChanges(specific, other)!.scope[dimension], ["one", "two"]);
   }
+});
+
+test("authoritative snapshots recover a publication between render and subscribe", () => {
+  const interest = { budgetId: "mount-race-budget", domains: ["categories"] as const, month: "2026-09" };
+  assert.equal(getPersistenceRevisionForInterest(interest), 0); // render snapshot
+  const relevant = publishPersistenceChange({ source: "local", scope: { budgetId: interest.budgetId, domains: ["categories"], months: [interest.month] } });
+  const stop = subscribeToPersistenceInterest(interest, () => {}); // commit subscription
+  assert.equal(getPersistenceRevisionForInterest(interest), relevant); // React's post-subscribe check
+  publishPersistenceChange({ source: "local", scope: { budgetId: "other-mount-race-budget", domains: ["categories"] } });
+  assert.equal(getPersistenceRevisionForInterest(interest), relevant);
+  publishPersistenceChange({ source: "local", scope: { budgetId: interest.budgetId, domains: ["payees"], months: ["2026-10"] } });
+  assert.equal(getPersistenceRevisionForInterest(interest), relevant);
+  stop();
+  flushPersistenceChanges();
+});
+
+test("React observes a relevant publication in the render-to-subscribe window", async () => {
+  const interest = { budgetId: "react-mount-race-budget", domains: ["categories"] as const, month: "2026-09" };
+  const observed: number[] = [];
+  let published = 0;
+  function PublishDuringCommit() {
+    useLayoutEffect(() => {
+      published = publishPersistenceChange({ source: "local", scope: { budgetId: interest.budgetId, domains: ["categories"], months: [interest.month] } });
+      flushPersistenceChanges();
+    }, []);
+    return null;
+  }
+  function Observe() {
+    observed.push(usePersistenceChange(interest));
+    return null;
+  }
+  let root: { unmount(): void } | undefined;
+  await act(async () => {
+    root = create(createElement("section", null, createElement(PublishDuringCommit), createElement(Observe)));
+  });
+  assert.equal(observed[0], 0, "render captures the pre-publication snapshot");
+  assert.equal(observed.at(-1), published, "post-subscribe snapshot recovers the publication");
+  await act(async () => { root?.unmount(); });
+  flushPersistenceChanges();
+});
+
+test("authoritative snapshots preserve broad, wildcard, and specific scope matching", () => {
+  const budgetId = "snapshot-scope-budget";
+  const accountA = { budgetId, domains: ["transactions"] as const, accountId: "a" };
+  const accountB = { budgetId, domains: ["transactions"] as const, accountId: "b" };
+  assert.equal(getPersistenceRevisionForInterest(accountA), 0);
+  const specific = publishPersistenceChange({ source: "local", scope: { budgetId, domains: ["transactions"], accountIds: ["a"] } });
+  assert.equal(getPersistenceRevisionForInterest(accountA), specific);
+  assert.equal(getPersistenceRevisionForInterest(accountB), 0);
+  const wildcard = publishPersistenceChange({ source: "local", scope: { budgetId, domains: ["transactions"] } });
+  assert.equal(getPersistenceRevisionForInterest(accountA), wildcard);
+  assert.equal(getPersistenceRevisionForInterest(accountB), wildcard);
+  const broad = publishPersistenceChange({ source: "restore", scope: { budgetId, domains: [], broad: true } });
+  assert.equal(getPersistenceRevisionForInterest({ budgetId, domains: ["settings"], month: "2030-01" }), broad);
+  assert.equal(getPersistenceRevisionForInterest({ budgetId: "unrelated-snapshot-budget" }), 0);
+  flushPersistenceChanges();
+});
+
+test("coalesced notification does not assign an unrelated publication revision", () => {
+  const interest = { budgetId: "snapshot-coalescing-budget", domains: ["categories"] as const, month: "2026-09" };
+  const relevant = publishPersistenceChange({ source: "local", scope: { budgetId: interest.budgetId, domains: ["categories"], months: [interest.month] } });
+  publishPersistenceChange({ source: "local", scope: { budgetId: interest.budgetId, domains: ["payees"], months: ["2026-10"] } });
+  assert.equal(getPersistenceRevisionForInterest(interest), relevant);
+  flushPersistenceChanges();
+  assert.equal(getPersistenceRevisionForInterest(interest), relevant);
+  const newer = publishPersistenceChange({ source: "local", scope: { budgetId: interest.budgetId, domains: ["budget"], months: [interest.month] } });
+  assert.equal(getPersistenceRevisionForInterest({ ...interest, domains: ["categories", "budget"] }), newer);
+  flushPersistenceChanges();
 });
