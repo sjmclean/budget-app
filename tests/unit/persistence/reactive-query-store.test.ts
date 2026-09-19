@@ -332,3 +332,52 @@ test("an exact committed seed wins the queued invalidation refresh", async () =>
   assert.equal(latest?.status, "ready");
   await act(async () => root?.unmount());
 });
+
+
+test("a late committed seed cannot overwrite a newer relevant revision", async () => {
+  resetReactiveQueryStore();
+  let loads = 0;
+  const query = createReactiveQueryDefinition<{ budgetId: string }, string>({
+    id: "late-seed",
+    key: ({ budgetId }) => budgetId,
+    interest: ({ budgetId }) => ({ budgetId, domains: ["budget"] }),
+    load: async () => {
+      loads += 1;
+      return "fresh";
+    },
+  });
+
+  const olderRevision = publishPersistenceChange({
+    source: "local",
+    scope: { budgetId: "budget-late-seed", domains: ["budget"] },
+  });
+  const newerRevision = publishPersistenceChange({
+    source: "local",
+    scope: { budgetId: "budget-late-seed", domains: ["budget"] },
+  });
+  flushPersistenceChanges();
+  assert.ok(newerRevision > olderRevision);
+
+  seedReactiveQuery(
+    query,
+    provider,
+    { budgetId: "budget-late-seed" },
+    "stale-seed",
+    olderRevision,
+  );
+
+  let latest: ReactiveQuerySnapshot<string> | undefined;
+  function Consumer() {
+    latest = useReactiveQuery(query, provider, { budgetId: "budget-late-seed" });
+    return null;
+  }
+
+  let root: ReturnType<typeof create> | undefined;
+  await act(async () => {
+    root = create(createElement(Consumer));
+  });
+  assert.equal(loads, 1);
+  assert.equal(latest?.data, "fresh");
+  assert.equal(latest?.dataRevision, newerRevision);
+  await act(async () => root?.unmount());
+});
