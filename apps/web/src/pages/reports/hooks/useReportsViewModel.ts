@@ -88,7 +88,12 @@ export function useReportsViewModel() {
     isInitial(budgetQuery.status, budgetQuery.data) ||
     isInitial(spendingQuery.status, spendingQuery.data)
   );
-  const error = budgetQuery.error ?? spendingQuery.error ?? selectedTransactionsQuery.error;
+  const error =
+    (budgetQuery.data === undefined ? budgetQuery.error : null) ??
+    (spendingQuery.data === undefined ? spendingQuery.error : null) ??
+    (selectedTransactionsQuery.data === undefined
+      ? selectedTransactionsQuery.error
+      : null);
 
   return {
     activeBudget,
