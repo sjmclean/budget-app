@@ -140,12 +140,17 @@ test("older in-flight budget query cannot replace the newer revision's result", 
       budgetId: "budget-query", domains: ["budget"], months: ["2026-09"],
     } });
     await act(async () => { flushPersistenceChanges(); });
-    assert.equal(requests.length, 2);
+    assert.equal(requests.length, 1, "the newer invalidation joins the in-flight read instead of duplicating it");
+
+    await act(async () => {
+      requests[0]!.resolve({ marker: "stale" } as unknown as BudgetMonthView);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    assert.equal(requests.length, 2, "the stale in-flight result is discarded and retried at the newer revision");
+
     const newer = { marker: "newer" } as unknown as BudgetMonthView;
     await act(async () => { requests[1]!.resolve(newer); });
-    assert.equal(latest?.data, newer);
-    assert.equal(latest?.dataVersion, revision);
-    await act(async () => { requests[0]!.resolve({ marker: "stale" } as unknown as BudgetMonthView); });
     assert.equal(latest?.data, newer);
     assert.equal(latest?.dataVersion, revision);
   } finally {
