@@ -305,7 +305,13 @@ export function seedReactiveQuery<Input, Result>(
     load: () => definition.load(provider, input),
   };
   const entry = getOrCreateEntry(handle);
-  if (revision < entry.snapshot.dataRevision) return;
+  const currentRevision = getPersistenceRevisionForInterest(entry.interest);
+  if (
+    revision !== currentRevision ||
+    revision < entry.snapshot.dataRevision
+  ) {
+    return;
+  }
   entry.generation += 1;
   entry.inFlight = null;
   entry.attemptedRevision = revision;
