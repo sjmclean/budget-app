@@ -40,13 +40,17 @@ export function reconcileRegisterDelta(input: {
   const after = delta.afterRows.filter((entry) => entry.accountId === accountId);
   const changedIds = new Set([...before, ...after].map(({ row }) => row.id));
   const oldTail = page.rows.at(-1);
-  const oldDesired = Math.min(page.totalCount, Math.max(150, page.rows.length));
-  if (page.rows.length < oldDesired) return { mode: "refresh-required" };
+  const fullyLoadedBefore = page.rows.length >= page.totalCount;
   const totalCount = Math.max(0, page.totalCount - before.length + after.length);
   const desired = Math.min(totalCount, Math.max(150, page.rows.length));
   const retained = page.rows.filter(({ id }) => !changedIds.has(id));
   for (const { row } of after) {
-    if (!oldTail || page.rows.length < oldDesired || compareRegisterDateRows(row, oldTail, query.sort.direction) <= 0 || page.rows.length < 150) {
+    // A temporarily short window can occur while several committed
+    // publications are being reconciled before one final boundary refill.
+    // Rows known to sort within the currently materialised boundary can be
+    // applied immediately. Rows beyond an incomplete boundary are left for the
+    // authoritative local refill to decide.
+    if (fullyLoadedBefore || !oldTail || compareRegisterDateRows(row, oldTail, query.sort.direction) <= 0) {
       retained.push(row);
     }
   }
