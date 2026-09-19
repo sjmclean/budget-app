@@ -1189,6 +1189,9 @@ export function createLocalBudgetRuntime(
       void client.getBudgetMonthView(input).catch(() => undefined);
     },
     setCategoryAssignedValues: publicOrdinaryCommands.setCategoryAssignedValues,
+    async executeAssignmentsWithPublication() {
+      throw new Error("The publication completion requires the ownership proxy.");
+    },
     async getBudgetCategoryOptions(input) {
       const view = await client.getBudgetMonthView(input);
       return [{
@@ -1220,6 +1223,9 @@ export function createLocalBudgetRuntime(
       );
     },
     mutateCategory: publicOrdinaryCommands.mutateCategory,
+    async executeCategoryWithPublication() {
+      throw new Error("The publication completion requires the ownership proxy.");
+    },
     async getCategoryMergePreview(input) {
       const view = await client.getBudgetMonthView(input);
       const located = view.categoryGroups.flatMap((group) =>
@@ -1332,6 +1338,17 @@ export function createLocalBudgetRuntime(
           finally { await releaseLocalDatabase(args[0] as string); }
         }, () => releaseLocalDatabase(args[0] as string));
         const budgetId = resolveOwnedBudgetId(key, args);
+        if (key === "executeCategoryWithPublication" || key === "executeAssignmentsWithPublication") {
+          const handler = key === "executeCategoryWithPublication"
+            ? ordinaryCommandHandlers.mutateCategory
+            : ordinaryCommandHandlers.setCategoryAssignedValues;
+          const handlerArgs = key === "executeCategoryWithPublication" ? args : [args[0]];
+          const invokeHandler = () => ownership.run(
+            budgetId,
+            () => Reflect.apply(handler.execute, handler, handlerArgs),
+          ) as Promise<CommittedCommandHandlerResult<unknown>>;
+          return commandExecutor.execute(`${String(key)}:${createRuntimeUuid()}`, { execute: invokeHandler });
+        }
         if (isOrdinaryCommandMethod(key)) {
           const handler = ordinaryCommandHandlers[key];
           const invokeHandler = () => ownership.run(

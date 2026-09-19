@@ -48,8 +48,9 @@ test("feature and UI modules do not own mutation envelopes or persistence public
 
 test("query contract excludes every command method", () => {
   const source = readFileSync(resolve(root, "features/persistence/accountRegisterQueryContracts.ts"), "utf8");
-  assert.match(source, /LocalBudgetQueryClient = Omit<LocalBudgetRuntimeClient, LocalBudgetCommandMethod>/);
+  assert.match(source, /LocalBudgetQueryClient = Omit<LocalBudgetRuntimeClient, LocalBudgetCommandMethod \| "executeCategoryWithPublication" \| "executeAssignmentsWithPublication">/);
   assert.match(source, /LocalBudgetEngine = Pick<LocalBudgetRuntimeClient, LocalBudgetCommandMethod>/);
+  assert.doesNotMatch(source.match(/export const LOCAL_BUDGET_COMMAND_METHODS = \[[\s\S]*?\] as const/)?.[0] ?? "", /execute(Category|Assignments)WithPublication/);
 });
 
 test("ordinary domain modules cannot import local persistence publication", () => {

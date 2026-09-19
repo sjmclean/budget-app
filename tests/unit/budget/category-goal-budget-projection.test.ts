@@ -210,3 +210,29 @@ test("category creation returns the engine's authoritative view without a post-c
   assert.equal(goalListReads, 0);
   assert.equal(result.categoryGroups[0]?.categories[0]?.id, "category-created");
 });
+
+test("category service preserves the command publication despite a newer global publication", async () => {
+  const created = view([category("category-created")]);
+  const { publishPersistenceChange } = await import("../../../apps/web/src/features/persistence/persistenceChangeBus.ts");
+  let exactRevision = 0;
+  const engine = {
+    async executeCategoryWithPublication() {
+      exactRevision = publishPersistenceChange({ source: "local", scope: {
+        budgetId: "budget-1", domains: ["categories", "budget"], months: ["2026-08"],
+      } });
+      publishPersistenceChange({ source: "replication", scope: {
+        budgetId: "budget-1", domains: ["categories", "budget"], months: ["2026-08"],
+      } });
+      return { commandId: "create", result: created, mutationIds: ["mutation-1"], change: {
+        budgetId: "budget-1", domains: ["categories", "budget"] as const,
+      }, publicationRevision: exactRevision };
+    },
+  } as unknown as LocalBudgetEngine;
+  const result = await createSqliteBudgetViewService(undefined, engine).createCategory({
+    budgetId: "budget-1", month: "2026-08", categoryId: "category-created",
+    groupId: "group-1", groupName: "Living", name: "Created",
+  });
+  assert.equal(result.publicationRevision, exactRevision);
+  assert.equal(result.categoryGroups[0]?.categories[0]?.id, "category-created");
+  assert.equal(Object.keys(result).includes("publicationRevision"), false, "completion metadata is not persisted in the domain view");
+});

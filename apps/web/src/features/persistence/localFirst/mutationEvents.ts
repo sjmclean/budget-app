@@ -49,18 +49,20 @@ export function persistenceScopeForMutations(budgetId: string, mutations: readon
   return { budgetId, domains: [...domains], accountIds: accountIds.size ? [...accountIds] : undefined, transactionIds: transactionIds.size ? [...transactionIds] : undefined, categoryIds: categoryIds.size ? [...categoryIds] : undefined, months: months.size ? [...months] : undefined };
 }
 
-export function notifyLocalFirstMutationCommitted(budgetId: string, scope: Omit<PersistenceChangeScope, "budgetId">): void {
-  if (!budgetId) return;
+export function notifyLocalFirstMutationCommitted(budgetId: string, scope: Omit<PersistenceChangeScope, "budgetId">): number | null {
+  if (!budgetId) return null;
   const resolvedScope: PersistenceChangeScope = { budgetId, ...scope };
-  publishPersistenceChange({ source: "local", scope: resolvedScope });
+  const revision = publishPersistenceChange({ source: "local", scope: resolvedScope });
 
-  if (typeof globalThis.CustomEvent !== "function") return;
-  globalThis.dispatchEvent?.(
-    new CustomEvent<LocalFirstMutationCommittedDetail>(
-      LOCAL_FIRST_MUTATION_COMMITTED_EVENT,
-      { detail: { budgetId, scope: resolvedScope } },
-    ),
-  );
+  if (typeof globalThis.CustomEvent === "function") {
+    globalThis.dispatchEvent?.(
+      new CustomEvent<LocalFirstMutationCommittedDetail>(
+        LOCAL_FIRST_MUTATION_COMMITTED_EVENT,
+        { detail: { budgetId, scope: resolvedScope } },
+      ),
+    );
+  }
+  return revision;
 }
 
 /** Called only after a pulled mutation batch has committed to local SQLite. */

@@ -4,7 +4,7 @@ import { LocalBudgetCommandExecutor } from "../../../apps/web/src/features/persi
 import { LocalBudgetMutationContext } from "../../../apps/web/src/features/persistence/localFirst/engine/mutationContext.js";
 import { committedCommandResult } from "../../../apps/web/src/features/persistence/localFirst/engine/commandContext.js";
 import { mergePersistenceChangeScopes } from "../../../apps/web/src/features/persistence/localFirst/persistenceChangeImpact.js";
-import { flushPersistenceChanges, subscribePersistenceChanges } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
+import { flushPersistenceChanges, getPersistenceChangeRevision, subscribePersistenceChanges } from "../../../apps/web/src/features/persistence/persistenceChangeBus.js";
 
 function context() {
   const values = new Map<string, string>();
@@ -17,6 +17,7 @@ function context() {
 }
 
 test("executor returns committed mutation ids and publishes one unioned change", async () => {
+  const beforeRevision = getPersistenceChangeRevision();
   const mutations = context();
   const executor = new LocalBudgetCommandExecutor();
   const changes: unknown[] = [];
@@ -36,9 +37,23 @@ test("executor returns committed mutation ids and publishes one unioned change",
   assert.equal(result.mutationIds.length, 2);
   assert.deepEqual(result.change.domains, ["budget", "transactions"]);
   assert.equal(changes.length, 1);
+  assert.equal(result.publicationRevision, beforeRevision + 1);
+});
+
+test("executor assigns exact increasing revisions before command continuations resume", async () => {
+  const executor = new LocalBudgetCommandExecutor();
+  const before = getPersistenceChangeRevision();
+  const handler = { execute: async () => committedCommandResult("view", [], { budgetId: "budget-a", domains: ["budget"] }) };
+  const first = await executor.execute("first", handler);
+  const second = await executor.execute("second", handler);
+  assert.equal(first.publicationRevision, before + 1);
+  assert.equal(second.publicationRevision, before + 2);
+  assert.equal(getPersistenceChangeRevision(), second.publicationRevision);
+  flushPersistenceChanges();
 });
 
 test("executor reports no success and publishes nothing when the worker operation fails", async () => {
+  const beforeRevision = getPersistenceChangeRevision();
   const mutations = context();
   const executor = new LocalBudgetCommandExecutor();
   let publications = 0;
@@ -50,9 +65,11 @@ test("executor reports no success and publishes nothing when the worker operatio
   flushPersistenceChanges();
   unsubscribe();
   assert.equal(publications, 0);
+  assert.equal(getPersistenceChangeRevision(), beforeRevision);
 });
 
 test("executor publishes nothing for a successful empty change", async () => {
+  const beforeRevision = getPersistenceChangeRevision();
   const executor = new LocalBudgetCommandExecutor();
   let publications = 0;
   const unsubscribe = subscribePersistenceChanges(() => { publications += 1; });
@@ -67,4 +84,6 @@ test("executor publishes nothing for a successful empty change", async () => {
   assert.equal(result.result, "unchanged");
   assert.deepEqual(result.mutationIds, []);
   assert.equal(publications, 0);
+  assert.equal(result.publicationRevision, null);
+  assert.equal(getPersistenceChangeRevision(), beforeRevision);
 });

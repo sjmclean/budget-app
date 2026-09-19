@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
-import { getPersistenceChangeRevision } from "../persistence/persistenceChangeBus";
 import { useBudgetView } from "./useBudgetView";
 import type {
   BudgetActivityDrilldown,
@@ -151,18 +150,12 @@ export function useBudgetWorkspace(
   const workspaceIdentity = `${budgetId}:${month}`;
   workspaceIdentityRef.current = workspaceIdentity;
 
-  function setEditedData(nextData: BudgetMonthView | null): void {
+  function setEditedData(nextData: BudgetMonthView | null, fallbackVersion = 0): void {
     setEditedDataState(nextData ? {
       data: nextData,
-      // A command publishes its scoped persistence change before its awaited
-      // continuation installs the authoritative readback. The render that
-      // started that command can therefore hold an older budgetView.dataVersion.
-      // Stamp the readback with the synchronously observed persistence clock so
-      // an older in-flight budget query cannot replace newly committed state.
-      persistenceVersion: Math.max(
-        budgetView.dataVersion,
-        getPersistenceChangeRevision(),
-      ),
+      // Only a committed result may claim its own executor-assigned publication.
+      // Previews and query-derived views conservatively retain the rendered version.
+      persistenceVersion: nextData.publicationRevision ?? fallbackVersion,
     } : null);
   }
 
@@ -358,7 +351,7 @@ export function useBudgetWorkspace(
     // Apply the same bounded assignment projection used by the budget command
     // layer so direct consequences render immediately. SQLite still commits,
     // validates and replaces this optimistic view with the authoritative one.
-    setEditedData(previewCategoryAssignment(currentData, categoryId, assigned));
+    setEditedData(previewCategoryAssignment(currentData, categoryId, assigned), budgetView.dataVersion);
 
     if (assignmentEditTimerRef.current) {
       clearTimeout(assignmentEditTimerRef.current);
@@ -376,6 +369,7 @@ export function useBudgetWorkspace(
 
     goalRecommendationBusyRef.current = true;
     const workspaceIdentity = workspaceIdentityRef.current;
+    const startingDataVersion = budgetView.dataVersion;
     try {
       const result = await applyGoalRecommendedAssignment(
         { categoryId, month },
@@ -386,7 +380,7 @@ export function useBudgetWorkspace(
         },
       );
       if (result.performed && isWorkspaceCurrent(workspaceIdentity)) {
-        setEditedData(result.view);
+        setEditedData(result.view, startingDataVersion);
         setLastEditedCategoryId(categoryId);
       }
       return result;

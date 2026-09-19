@@ -12,10 +12,10 @@ export class LocalBudgetCommandExecutor {
     await previous;
     try {
       const { result, mutationIds, change } = await handler.execute();
-      if (change.domains.length > 0) {
-        notifyLocalFirstMutationCommitted(change.budgetId, change);
-      }
-      return { commandId, result, mutationIds, change };
+      const publicationRevision = change.domains.length > 0
+        ? notifyLocalFirstMutationCommitted(change.budgetId, change)
+        : null;
+      return { commandId, result, mutationIds, change, publicationRevision };
     } finally {
       release();
     }

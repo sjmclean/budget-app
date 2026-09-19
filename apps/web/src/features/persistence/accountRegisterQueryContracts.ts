@@ -108,6 +108,10 @@ export interface LocalBudgetRuntimeClient extends AccountRegisterQueryPort {
     readonly month: string;
   }): Promise<BudgetMonthView>;
 
+  /** Infrastructure-only completion adapters; both dispatch existing registered commands. */
+  executeCategoryWithPublication(budgetId: string, input: CategoryMutation): Promise<LocalBudgetCommandResult<BudgetMonthView>>;
+  executeAssignmentsWithPublication(input: Parameters<LocalBudgetEngine["setCategoryAssignedValues"]>[0]): Promise<LocalBudgetCommandResult<BudgetMonthView>>;
+
   prefetchBudgetMonthView(input: {
     readonly budgetId: string;
     readonly month: string;
@@ -508,7 +512,7 @@ export type LocalBudgetCommandMethod = typeof LOCAL_BUDGET_COMMAND_METHODS[numbe
 
 /** Read-only application surface. Physical database lifecycle hooks remain here
  * because they control query admission rather than mutate domain state. */
-export type LocalBudgetQueryClient = Omit<LocalBudgetRuntimeClient, LocalBudgetCommandMethod>;
+export type LocalBudgetQueryClient = Omit<LocalBudgetRuntimeClient, LocalBudgetCommandMethod | "executeCategoryWithPublication" | "executeAssignmentsWithPublication">;
 
 /** The sole public application boundary for ordinary local domain writes. */
 export type LocalBudgetEngine = Pick<LocalBudgetRuntimeClient, LocalBudgetCommandMethod>;
@@ -526,6 +530,8 @@ export interface LocalBudgetCommandResult<T> {
   readonly result: T;
   readonly mutationIds: readonly string[];
   readonly change: import("./persistenceChangeBus").PersistenceChangeScope;
+  /** Assigned by the executor's publication, never by a domain handler. */
+  readonly publicationRevision: number | null;
 }
 
 export interface CategoryMutation {

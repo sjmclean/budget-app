@@ -12,7 +12,9 @@ export interface PersistenceChangeEvent { readonly source: PersistenceChangeSour
 export interface PersistenceChangeInterest { readonly budgetId: string; readonly domains?: readonly PersistenceChangeDomain[]; readonly accountId?: string; readonly transactionId?: string; readonly categoryId?: string; readonly month?: string; }
 type Listener = (event: PersistenceChangeEvent) => void;
 const listeners = new Set<Listener>();
+const interestListeners = new Set<{ interest: PersistenceChangeInterest; listener: (event: PersistenceChangeEvent, revision: number) => void }>();
 let pending: PersistenceChangeEvent[] = [];
+let pendingOriginals: { event: PersistenceChangeEvent; revision: number }[] = [];
 let flushScheduled = false;
 let persistenceChangeRevision = 0;
 const uniqueSorted = (values: readonly string[] | undefined) => values?.length ? [...new Set(values)].sort() : undefined;
@@ -43,18 +45,34 @@ export function mergePersistenceChanges(left: PersistenceChangeEvent, right: Per
 
 export function publishPersistenceChange(
   input: Omit<PersistenceChangeEvent, "occurredAt"> & { readonly occurredAt?: string },
-): void {
+): number {
   const event = normalisePersistenceChange(input);
   persistenceChangeRevision += 1;
+  const revision = persistenceChangeRevision;
+  pendingOriginals.push({ event, revision });
   const index = pending.findIndex((candidate) => candidate.source === event.source && candidate.scope.budgetId === event.scope.budgetId);
   if (index < 0) pending.push(event); else pending[index] = mergePersistenceChanges(pending[index]!, event)!;
   if (!flushScheduled) { flushScheduled = true; queueMicrotask(flushPersistenceChanges); }
+  return revision;
 }
 
-/** One monotonic clock shared by imperative command readbacks and React subscribers. */
+/** Counts publication calls, including calls later coalesced into one flush. */
 export function getPersistenceChangeRevision(): number { return persistenceChangeRevision; }
 
-export function flushPersistenceChanges(): void { flushScheduled = false; const events = pending; pending = []; for (const event of events) for (const listener of listeners) listener(event); }
+export function flushPersistenceChanges(): void {
+  flushScheduled = false;
+  const events = pending;
+  const originals = pendingOriginals;
+  pending = [];
+  pendingOriginals = [];
+  for (const event of events) for (const listener of listeners) listener(event);
+  for (const subscription of interestListeners) {
+    const relevant = originals.filter(({ event }) => doesPersistenceChangeAffect(event, subscription.interest));
+    if (relevant.length === 0) continue;
+    const merged = relevant.reduce<PersistenceChangeEvent>((current, { event }) => mergePersistenceChanges(current, event) ?? event, relevant[0]!.event);
+    subscription.listener(merged, relevant.at(-1)!.revision);
+  }
+}
 export function publishBroadBudgetChange(input: { readonly budgetId: string; readonly source: PersistenceChangeSource }): void { publishPersistenceChange({ source: input.source, scope: { budgetId: input.budgetId, domains: [], broad: true } }); }
 /**
  * Explicit correctness fallback for committed changes whose legacy mutation
@@ -64,10 +82,16 @@ export function publishConservativeBudgetChange(input: { readonly budgetId: stri
   publishPersistenceChange({ source: input.source, scope: { budgetId: input.budgetId, domains: PERSISTENCE_CHANGE_DOMAINS } });
 }
 export function subscribePersistenceChanges(listener: Listener): () => void { listeners.add(listener); return () => listeners.delete(listener); }
-export function subscribeToPersistenceInterest(interest: PersistenceChangeInterest, listener: Listener): () => void { return subscribePersistenceChanges((event) => { if (doesPersistenceChangeAffect(event, interest)) listener(event); }); }
+export function subscribeToPersistenceInterest(interest: PersistenceChangeInterest, listener: (event: PersistenceChangeEvent, revision: number) => void): () => void {
+  const subscription = { interest, listener };
+  interestListeners.add(subscription);
+  return () => { interestListeners.delete(subscription); };
+}
 export function usePersistenceChange(interest: PersistenceChangeInterest): number {
   const domainKey = interest.domains?.join("|");
   const stable = useMemo(() => ({ ...interest, domains: interest.domains ? [...interest.domains].sort() : undefined }), [interest.accountId, interest.budgetId, interest.categoryId, interest.month, interest.transactionId, domainKey]);
-  const state = useMemo(() => ({ revision: persistenceChangeRevision }), [stable]);
-  return useSyncExternalStore((notify) => subscribeToPersistenceInterest(stable, () => { state.revision = persistenceChangeRevision; notify(); }), () => state.revision, () => state.revision);
+  // A new interest has not observed any scoped publication, even if unrelated
+  // budgets have advanced the global allocator before this subscription mounts.
+  const state = useMemo(() => ({ revision: 0 }), [stable]);
+  return useSyncExternalStore((notify) => subscribeToPersistenceInterest(stable, (_event, revision) => { state.revision = revision; notify(); }), () => state.revision, () => state.revision);
 }
