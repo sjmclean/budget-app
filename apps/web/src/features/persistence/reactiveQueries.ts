@@ -9,14 +9,17 @@ import {
 } from "./reactiveQueryStore";
 import { getBudgetPersistenceProvider } from "./budgetPersistenceProviderFactory";
 
-function requireQueries() {
-  const queries = getBudgetPersistenceProvider().accountRegisterQueries;
+function requireQueries(provider: ReturnType<typeof getBudgetPersistenceProvider>) {
+  const queries = provider.accountRegisterQueries;
   if (!queries) throw new Error("This query requires the local-first SQLite runtime.");
   return queries;
 }
 
-async function requireAnalytics(budgetId: string) {
-  const queries = requireQueries();
+async function requireAnalytics(
+  provider: ReturnType<typeof getBudgetPersistenceProvider>,
+  budgetId: string,
+) {
+  const queries = requireQueries(provider);
   const status = await queries.getBudgetStatus(budgetId);
   if (!status.capabilities.analytics) {
     throw new Error("Analytics are unavailable for this SQLite budget.");
@@ -48,8 +51,8 @@ export const financialOverviewQuery = createReactiveQueryDefinition<
     budgetId,
     domains: ["accounts", "transactions", "budget", "categories"],
   }),
-  load: async (_provider, { budgetId, month }) =>
-    (await requireAnalytics(budgetId)).getFinancialOverview(budgetId, month),
+  load: async (provider, { budgetId, month }) =>
+    (await requireAnalytics(provider, budgetId)).getFinancialOverview(budgetId, month),
 });
 
 export const monthlySpendingQuery = createReactiveQueryDefinition<
@@ -63,8 +66,8 @@ export const monthlySpendingQuery = createReactiveQueryDefinition<
     month,
     domains: ["accounts", "transactions", "categories"],
   }),
-  load: async (_provider, { budgetId, month }) =>
-    (await requireAnalytics(budgetId)).getMonthlySpending(budgetId, month),
+  load: async (provider, { budgetId, month }) =>
+    (await requireAnalytics(provider, budgetId)).getMonthlySpending(budgetId, month),
 });
 
 export const monthlyCategoryTransactionsQuery = createReactiveQueryDefinition<
@@ -79,8 +82,8 @@ export const monthlyCategoryTransactionsQuery = createReactiveQueryDefinition<
     categoryId,
     domains: ["accounts", "transactions", "categories"],
   }),
-  load: async (_provider, { budgetId, month, categoryId }) =>
-    (await requireAnalytics(budgetId)).getMonthlyCategoryTransactions(
+  load: async (provider, { budgetId, month, categoryId }) =>
+    (await requireAnalytics(provider, budgetId)).getMonthlyCategoryTransactions(
       budgetId,
       month,
       categoryId,
