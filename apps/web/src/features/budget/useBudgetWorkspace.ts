@@ -693,7 +693,7 @@ export function useBudgetWorkspace(
   return {
     data,
     isLoading: budgetView.isLoading,
-    error: saveError ?? activityQuery.error ?? budgetView.error,
+    error: saveError ?? (activityQuery.data === undefined ? activityQuery.error : null) ?? budgetView.error,
     selectedCategory: selected.selectedCategory,
     selectedGroup: selected.selectedGroup,
     overassignedCategoryIds,
