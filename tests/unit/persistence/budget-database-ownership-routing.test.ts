@@ -44,6 +44,7 @@ test("object-first methods use their declared budgetId property", () => {
     "addTransaction",
     "setTransactionsCleared",
     "getBudgetMonthView",
+    "getLocalBudgetMonthView",
     "replaceScheduledTransactionHistoryState",
   ]) {
     assert.equal(

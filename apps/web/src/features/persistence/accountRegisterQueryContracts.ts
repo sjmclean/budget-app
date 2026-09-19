@@ -32,6 +32,7 @@ import type {
 } from "../accounts/scheduledTransactionTypes";
 import type { ImportHistorySnapshot, TransactionHistorySnapshot } from "./localFirst/registerSchema";
 import type { CategoryGoal } from "../../../../../packages/types/src/CategoryGoal";
+import type { ReplicationConflict } from "./conflictResolution";
 
 export interface BudgetEngineStatus {
   readonly budgetId: string;
@@ -46,7 +47,9 @@ export interface BudgetEngineStatus {
   };
 }
 
-export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
+/** Internal composite implemented by the local-first runtime. Application code
+ * receives the separated query and command views below. */
+export interface LocalBudgetRuntimeClient extends AccountRegisterQueryPort {
   getCategoryGoal(input: { readonly budgetId: string; readonly categoryId: string }): Promise<CategoryGoal | null>;
   listCategoryGoals(input: { readonly budgetId: string }): Promise<readonly CategoryGoal[]>;
   createCategoryGoal(goal: CategoryGoal): Promise<CategoryGoal>;
@@ -98,6 +101,16 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     readonly budgetId: string;
     readonly month: string;
   }): Promise<BudgetMonthView>;
+
+  /** Local-only authoritative snapshot for command history and local write prerequisites. */
+  getLocalBudgetMonthView(input: {
+    readonly budgetId: string;
+    readonly month: string;
+  }): Promise<BudgetMonthView>;
+
+  /** Infrastructure-only completion adapters; both dispatch existing registered commands. */
+  executeCategoryWithPublication(budgetId: string, input: CategoryMutation): Promise<LocalBudgetCommandResult<BudgetMonthView>>;
+  executeAssignmentsWithPublication(input: Parameters<LocalBudgetEngine["setCategoryAssignedValues"]>[0]): Promise<LocalBudgetCommandResult<BudgetMonthView>>;
 
   prefetchBudgetMonthView(input: {
     readonly budgetId: string;
@@ -476,6 +489,49 @@ export interface AccountRegisterQueryClient extends AccountRegisterQueryPort {
     readonly sourceCategoryId: string;
     readonly targetCategoryId: string;
   }): Promise<CategoryMergePreview>;
+}
+
+export const LOCAL_BUDGET_COMMAND_METHODS = [
+  "createCategoryGoal", "updateCategoryGoal", "deleteCategoryGoal", "replaceCategoryGoalHistoryState",
+  "setAccountClosed", "addTransaction", "commitTransactionBatch", "commitImportBatch",
+  "commitImportBatchWithHistory", "replaceImportHistorySnapshot", "moveTransactions",
+  "updateTransaction", "toggleTransactionCleared", "setTransactionsCleared", "deleteTransaction",
+  "restoreTransactionHistorySnapshot", "deleteTransactionHistorySnapshot", "replaceTransactionHistorySnapshot",
+  "addTransactionAttachment", "removeTransactionAttachment",
+  "createAccount", "replaceAccountHistoryState", "replaceBudgetMonthHistoryState", "updateAccount", "deleteAccount",
+  "setCategoryAssignedValues", "mutateCategory", "keepPayeesSeparate",
+  "replacePayeeDuplicateSuppressionsHistoryState", "createPayee", "replacePayeeHistoryState",
+  "updatePayee", "setPayeeArchived", "deleteUnusedPayee", "mergePayees",
+  "replaceTransactionTags", "replaceTransactionTagsHistoryState", "replaceScheduledTransactionHistoryState",
+  "enterScheduledTransaction", "createScheduledTransaction", "updateScheduledTransaction",
+  "deleteScheduledTransaction", "advanceScheduledTransaction", "renameScheduledPayeeReferences",
+  "reassignScheduledPayeeReferences",
+] as const;
+
+export type LocalBudgetCommandMethod = typeof LOCAL_BUDGET_COMMAND_METHODS[number];
+
+/** Read-only application surface. Physical database lifecycle hooks remain here
+ * because they control query admission rather than mutate domain state. */
+export type LocalBudgetQueryClient = Omit<LocalBudgetRuntimeClient, LocalBudgetCommandMethod | "executeCategoryWithPublication" | "executeAssignmentsWithPublication">;
+
+/** The sole public application boundary for ordinary local domain writes. */
+export type LocalBudgetEngine = Pick<LocalBudgetRuntimeClient, LocalBudgetCommandMethod>;
+
+/** Narrow replication/recovery surface. It is intentionally separate from
+ * both ordinary commands and the read-only application query client. */
+export interface LocalBudgetConflictRecoveryClient {
+  listSyncConflicts(budgetId: string): Promise<readonly ReplicationConflict[]>;
+  resolveSyncConflict(budgetId: string, conflictId: string,
+    resolution: "keep-local" | "accept-remote"): Promise<void>;
+}
+
+export interface LocalBudgetCommandResult<T> {
+  readonly commandId: string;
+  readonly result: T;
+  readonly mutationIds: readonly string[];
+  readonly change: import("./persistenceChangeBus").PersistenceChangeScope;
+  /** Assigned by the executor's publication, never by a domain handler. */
+  readonly publicationRevision: number | null;
 }
 
 export interface CategoryMutation {

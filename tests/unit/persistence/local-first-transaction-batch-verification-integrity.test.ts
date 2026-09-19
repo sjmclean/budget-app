@@ -98,6 +98,34 @@ test("atomic import batch covers payee creation and verified transaction persist
   );
 });
 
+test("import attachments validate and persist with their outbox rows inside the same rollback boundary", () => {
+  const start = worker.indexOf("function writeImportBatch(");
+  const end = worker.indexOf("\nfunction deleteTransaction(", start);
+  assert.ok(start >= 0 && end > start, "writeImportBatch boundary must be discoverable");
+  const batch = worker.slice(start, end);
+
+  assert.match(batch, /attachment\.budgetId !== activeBudgetId/);
+  assert.match(batch, /attachment\.fileSize !== content\.byteLength/);
+  assert.match(batch, /mutation\.domain !== "transactions"/);
+  assert.match(batch, /mutation\.entityId !== `attachment:\$\{attachment\.id\}`/);
+  assert.match(batch, /attachmentIds\.has\(attachment\.id\)/);
+
+  const begin = batch.indexOf('execute("BEGIN IMMEDIATE")');
+  const transactionApply = batch.indexOf("applyTransactionBatchInCurrentTransaction(");
+  const attachmentLookup = batch.indexOf("Import attachment transaction");
+  const attachmentWrite = batch.indexOf("upsertTransactionAttachment(attachment, content)");
+  const attachmentOutbox = batch.indexOf("insertOutbox(mutation)", attachmentWrite);
+  const commit = batch.indexOf('execute("COMMIT")');
+  const rollback = batch.indexOf('execute("ROLLBACK")');
+
+  assert.ok(transactionApply > begin);
+  assert.ok(attachmentLookup > transactionApply);
+  assert.ok(attachmentWrite > attachmentLookup);
+  assert.ok(attachmentOutbox > attachmentWrite);
+  assert.ok(commit > attachmentOutbox);
+  assert.ok(rollback > commit);
+});
+
 test("transaction batch verification reads physical SQLite values without reference hydration", () => {
   const helperStart = worker.indexOf(
     "function getPersistedTransactionForVerification(",
@@ -203,20 +231,21 @@ test("transaction upsert replaces transaction-owned import provenance atomically
 });
 
 test("dedicated import commits request physical verification through the atomic import worker operation", () => {
-  const start = registerClient.indexOf("async commitImportBatch(input)");
-  const end = registerClient.indexOf(
-    "\n    async moveTransactions(",
-    start,
-  );
+  const historyCommands = readFileSync(new URL(
+    "../../../apps/web/src/features/persistence/localFirst/engine/transactionHistoryCommands.ts",
+    import.meta.url,
+  ), "utf8");
+  const start = historyCommands.indexOf("async commitImportBatch(input)");
+  const end = historyCommands.indexOf("async commitImportBatchWithHistory(input)", start);
 
   assert.ok(start >= 0, "commitImportBatch must exist");
   assert.ok(end > start, "commitImportBatch boundary must be discoverable");
 
-  const commit = registerClient.slice(start, end);
+  const commit = historyCommands.slice(start, end);
 
   assert.match(
     commit,
-    /writeImportBatch\(\s*payeeWrites,\s*writes,\s*\{[\s\S]*?requireAbsentTransactionIds,[\s\S]*?verifyWrittenTransactions:\s*true,/,
+    /writeImportBatch\(prepared\.payeeWrites,\s*prepared\.writes,\s*\{[\s\S]*?requireAbsentTransactionIds:\s*prepared\.requireAbsentTransactionIds,[\s\S]*?verifyWrittenTransactions:\s*true/,
     "import commits must enable physical verification before the atomic worker commit",
   );
 });

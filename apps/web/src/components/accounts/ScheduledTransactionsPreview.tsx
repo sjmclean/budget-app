@@ -15,7 +15,7 @@ import { createFixedBudgetScopedStorage } from "../../features/budget/budgetData
 import { localCalendarDate } from "../../features/dates/localCalendarDate";
 import { getBudgetPersistenceProvider } from "../../features/persistence";
 import { getActiveKeyValueStorage } from "../../features/persistence/activeKeyValueStorage";
-import { usePersistenceChangeVersion } from "../../features/persistence/persistenceChangeBus";
+import { usePersistenceChange } from "../../features/persistence/persistenceChangeBus";
 import { formatDateForDisplay } from "../../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../../features/settings/useDateFormatPreference";
 import { confirmDialog } from "../../features/ui/appDialogService";
@@ -45,7 +45,7 @@ export function ScheduledTransactionsPreview({
   layoutMode,
 }: ScheduledTransactionsPreviewProps) {
   const persistence = getBudgetPersistenceProvider().scheduledTransactions;
-  const version = usePersistenceChangeVersion();
+  const version = usePersistenceChange({ budgetId: budgetId ?? "legacy", accountId, domains: ["scheduled-transactions", "transactions"] });
   const dateFormat = useDateFormatPreference();
   const storage = useMemo(
     () =>

@@ -2,6 +2,22 @@
 
 Budget App uses a local-first SQLite architecture.
 
+## UI invalidation after commit
+
+Local and replicated mutations publish equivalent scoped persistence change sets
+only after SQLite commits. Relay arrival merely triggers sync. Known budget,
+domain, account, transaction, category, and month identifiers select affected
+readers; restore and generation replacement use broad same-budget invalidation.
+Notifications are not financial state and do not change cursor, epoch, conflict,
+offline, or convergence semantics.
+
+Routine writes use precise scope when their committed inputs expose it. Unknown
+entity specificity remains conservative inside known domains. Database/epoch
+replacement is the deliberate broad exception. The older key-value replication
+engine also uses an explicit all-domain same-budget fallback because its storage
+keys cannot safely identify Budget App domain dependencies; mutation-based
+local-first SQLite replication derives scope from applied mutations instead.
+
 The local database is the authoritative runtime store for budget data. The
 server acts as a synchronization relay and hosted coordination service rather
 than the primary interactive database.
@@ -82,3 +98,24 @@ Derived projection caches are disposable.
 
 Canonical persisted facts must be sufficient to rebuild financial projections
 without relying on cached results.
+# Local command execution
+
+The local runtime serialises ordinary commands through
+`LocalBudgetCommandExecutor`. `LocalBudgetMutationContext` allocates mutation
+IDs, persisted device sequences, base cursors, sync epochs, and group metadata
+for mutation construction only. Each domain handler passes those mutations to
+the worker, awaits its atomic canonical-row plus outbox commit, and directly
+returns `CommittedCommandHandlerResult` containing its public result, the exact
+committed mutation IDs, and its precise change scope. The executor publishes
+that returned scope once. A thrown worker operation produces no committed
+result and publishes nothing.
+
+P0.3e4a places an exhaustive typed internal handler registry between the
+public runtime facade and the executor. Its 45 handler objects are distinct
+from the public method functions. This preserves public domain-result return
+types. P0.3e4b completed the transition to direct committed-result returns and
+removed the ordinary command recorder. Keep-local remains outside the ordinary
+registry and uses a narrow direct recovery result with the same executor.
+
+Remote mutation application and database restore/reset remain separate paths;
+remote apply must not create local outbox mutations.

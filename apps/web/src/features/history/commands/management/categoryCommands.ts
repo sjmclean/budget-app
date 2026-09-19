@@ -5,31 +5,42 @@ import type { UndoableCommand } from "../../undoRedo";
 
 type CategoryMutation = (port: CategoryPersistencePort) => Promise<BudgetMonthView>;
 
+export interface CategoryHistoryCommand extends UndoableCommand<ApplicationHistoryContext> {
+  committedView(): BudgetMonthView | null;
+}
+
 function queries(context: ApplicationHistoryContext) {
   const value = context.persistence.accountRegisterQueries;
   if (!value) throw new Error("Category history requires authoritative SQLite persistence.");
   return value;
 }
+function engine(context: ApplicationHistoryContext) {
+  const value = context.persistence.localBudgetEngine;
+  if (!value) throw new Error("Category history requires the Local Budget Engine.");
+  return value;
+}
 
 export function categoryHistoryCommand(input: {
   readonly id: string; readonly label: string; readonly month: string; readonly mutate: CategoryMutation;
-}): UndoableCommand<ApplicationHistoryContext> {
+}): CategoryHistoryCommand {
   let before: BudgetMonthView | null = null;
   let after: BudgetMonthView | null = null;
   return {
     id: input.id, label: input.label,
     async execute(context) {
-      before = await queries(context).getBudgetMonthView({ budgetId: context.budgetId, month: input.month });
-      await input.mutate(context.persistence.categories);
-      after = await queries(context).getBudgetMonthView({ budgetId: context.budgetId, month: input.month });
+      before = await queries(context).getLocalBudgetMonthView({ budgetId: context.budgetId, month: input.month });
+      after = await input.mutate(context.persistence.categories);
     },
     async undo(context) {
       if (!before || !after) throw new Error("Category command has incomplete state.");
-      await queries(context).replaceBudgetMonthHistoryState({ budgetId: context.budgetId, month: input.month, expected: after, replacement: before });
+      await engine(context).replaceBudgetMonthHistoryState({ budgetId: context.budgetId, month: input.month, expected: after, replacement: before });
     },
     async redo(context) {
       if (!before || !after) throw new Error("Category command has incomplete state.");
-      await queries(context).replaceBudgetMonthHistoryState({ budgetId: context.budgetId, month: input.month, expected: before, replacement: after });
+      await engine(context).replaceBudgetMonthHistoryState({ budgetId: context.budgetId, month: input.month, expected: before, replacement: after });
+    },
+    committedView() {
+      return after;
     },
   };
 }

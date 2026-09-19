@@ -13,6 +13,11 @@ function queries(context: ApplicationHistoryContext) {
   if (!value) throw new Error("Scheduled history requires authoritative SQLite persistence.");
   return value;
 }
+function engine(context: ApplicationHistoryContext) {
+  const value = context.persistence.localBudgetEngine;
+  if (!value) throw new Error("Scheduled history requires the Local Budget Engine.");
+  return value;
+}
 
 async function replaceSchedule(
   context: ApplicationHistoryContext,
@@ -22,7 +27,7 @@ async function replaceSchedule(
   expectedTransaction: TransactionHistorySnapshot | null = null,
   replacementTransaction: TransactionHistorySnapshot | null = null,
 ) {
-  await queries(context).replaceScheduledTransactionHistoryState({
+  await engine(context).replaceScheduledTransactionHistoryState({
     budgetId: context.budgetId,
     scheduleId,
     expectedSchedule,
@@ -122,7 +127,7 @@ export function enterScheduledTransactionCommand(input: {
       beforeSchedule = await queries(context).captureScheduledTransaction(context.budgetId, input.scheduleId);
       if (!beforeSchedule) throw new Error("Scheduled transaction was not found.");
       const anchor = beforeSchedule.recurrenceAnchorDate ?? beforeSchedule.nextDueDate;
-      const result = await queries(context).enterScheduledTransaction({
+      const result = await engine(context).enterScheduledTransaction({
         budgetId: context.budgetId,
         accountId: input.accountId,
         schedule: beforeSchedule,

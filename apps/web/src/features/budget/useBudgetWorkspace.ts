@@ -23,7 +23,6 @@ import {
   type GoalRecommendedAssignmentResult,
 } from "./goalRecommendedAssignment";
 import type { UndoRedoResult } from "../history";
-import { getPersistenceChangeVersion } from "../persistence/persistenceChangeBus";
 
 interface UseBudgetWorkspaceState {
   data: BudgetMonthView | null;
@@ -148,12 +147,15 @@ export function useBudgetWorkspace(
   const mutationVersionRef = useRef(0);
   const goalRecommendationBusyRef = useRef(false);
 
-  workspaceIdentityRef.current = `${budgetId}:${month}`;
+  const workspaceIdentity = `${budgetId}:${month}`;
+  workspaceIdentityRef.current = workspaceIdentity;
 
-  function setEditedData(nextData: BudgetMonthView | null): void {
+  function setEditedData(nextData: BudgetMonthView | null, fallbackVersion = 0): void {
     setEditedDataState(nextData ? {
       data: nextData,
-      persistenceVersion: getPersistenceChangeVersion(),
+      // Only a committed result may claim its own executor-assigned publication.
+      // Previews and query-derived views conservatively retain the rendered version.
+      persistenceVersion: nextData.publicationRevision ?? fallbackVersion,
     } : null);
   }
 
@@ -349,7 +351,7 @@ export function useBudgetWorkspace(
     // Apply the same bounded assignment projection used by the budget command
     // layer so direct consequences render immediately. SQLite still commits,
     // validates and replaces this optimistic view with the authoritative one.
-    setEditedData(previewCategoryAssignment(currentData, categoryId, assigned));
+    setEditedData(previewCategoryAssignment(currentData, categoryId, assigned), budgetView.dataVersion);
 
     if (assignmentEditTimerRef.current) {
       clearTimeout(assignmentEditTimerRef.current);
@@ -367,6 +369,7 @@ export function useBudgetWorkspace(
 
     goalRecommendationBusyRef.current = true;
     const workspaceIdentity = workspaceIdentityRef.current;
+    const startingDataVersion = budgetView.dataVersion;
     try {
       const result = await applyGoalRecommendedAssignment(
         { categoryId, month },
@@ -377,7 +380,7 @@ export function useBudgetWorkspace(
         },
       );
       if (result.performed && isWorkspaceCurrent(workspaceIdentity)) {
-        setEditedData(result.view);
+        setEditedData(result.view, startingDataVersion);
         setLastEditedCategoryId(categoryId);
       }
       return result;

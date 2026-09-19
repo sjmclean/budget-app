@@ -1,5 +1,6 @@
 import type {
-  AccountRegisterQueryClient,
+  LocalBudgetConflictRecoveryClient,
+  LocalBudgetRuntimeClient,
   TransactionWriteInput,
 } from "../accountRegisterQueryContracts";
 import type { BudgetLifecycleControlPlaneClient } from "./budgetLifecycleControlPlaneClient";
@@ -11,15 +12,10 @@ import {
   type LocalBudgetOperationGroup,
   type LocalFirstStoredConflict,
 } from "./contracts";
-import type { BudgetDomain } from "./contracts";
 import { LocalBudgetDatabaseClient } from "./localBudgetClient";
 import type {
   LocalTransactionAttachmentMutationPayload,
-  ImportHistorySnapshot,
-  LocalTransactionAttachmentRecord,
-  LocalPayeeRecord,
   LocalTransactionRecord,
-  TransactionHistorySnapshot,
 } from "./registerSchema";
 import { createLocalFirstRelayTransport } from "./relayTransport";
 import { bootstrapLocalBudget } from "./baselineCoordinator";
@@ -37,29 +33,44 @@ import {
   buildScheduledTransaction,
 } from "../../accounts/scheduledTransactionLifecycle";
 import { scheduledTransactionToRegisterInput } from "../../accounts/scheduledTransactionToRegisterInput";
-import type { TransactionTagDefinition } from "../../tags/transactionTagTypes";
 import { createRuntimeUuid } from "../../ids/createRuntimeUuid";
 import type { ReplicationConflict } from "../conflictResolution";
 import {
   createLocalFirstTabSyncCoordinator,
   type LocalFirstTabSyncCoordinator,
 } from "./tabSyncCoordinator";
-import { notifyLocalFirstMutationCommitted } from "./mutationEvents";
+import { notifyRemoteMutationsApplied, persistenceScopeForMutations } from "./mutationEvents";
+import { publishBroadBudgetChange } from "../persistenceChangeBus";
 import { registerLocalSqliteAttachmentReader } from "../../attachments/localSqliteAttachmentReader";
 import { localPayeeRecordToView } from "./localPayeeView";
-import { validatePayeeIconReferenceForWrite } from "../../icons/payeeIconReference";
-import {
-  categoryGoalsEqual,
-  commitCategoryGoalMutation,
-  normaliseCategoryGoalForPersistence,
-} from "./categoryGoalPersistence";
-import { isCreditCardPaymentCategory } from "../../budget/creditCardPaymentCategories";
 import { createBudgetDatabaseOwnership } from "./budgetDatabaseOwnership";
 import { resolveOwnedBudgetId } from "./budgetDatabaseOwnershipRouting";
 import { createRestorePointStore } from "../../budget/restorePointStore";
 import { restorePointCoordinator } from "../../budget/restorePointCoordinator";
 import type { RestorePointReason } from "../../budget/restorePointTypes";
 import { createRestorePointReplacement } from "./restorePointReplacement";
+import { deriveTransactionChangeScope, mergePersistenceChangeScopes } from "./persistenceChangeImpact";
+import { LocalBudgetMutationContext } from "./engine/mutationContext";
+import { LocalBudgetCommandExecutor } from "./engine/localBudgetCommandExecutor";
+import { committedCommandResult, type CommittedCommandHandlerResult } from "./engine/commandContext";
+import {
+  createOrdinaryCommandHandlerRegistry,
+  createPublicOrdinaryCommandFacade,
+  isOrdinaryCommandMethod,
+} from "./engine/ordinaryCommandRegistry";
+import { createTagCommands } from "./engine/tagCommands";
+import { createAttachmentCommands } from "./engine/attachmentCommands";
+import { createTransactionCommands } from "./engine/transactionCommands";
+import { createAccountCommands } from "./engine/accountCommands";
+import { createBudgetCategoryCommands } from "./engine/budgetCategoryCommands";
+import { createCategoryGoalCommands } from "./engine/categoryGoalCommands";
+import { createPayeeCommands } from "./engine/payeeCommands";
+import { createScheduledTransactionCommands } from "./engine/scheduledTransactionCommands";
+import { createTransactionHistoryCommands } from "./engine/transactionHistoryCommands";
+import {
+  buildNewTransactionRecords,
+} from "./engine/transactionCommandHelpers";
+import type { TransactionTagDefinition } from "../../tags/transactionTagTypes";
 
 const DEVICE_ID_KEY = "budget-app.local-first.device-id";
 const SYNC_EPOCH_KEY_PREFIX = "budget-app.local-first.sync-epoch.";
@@ -75,29 +86,70 @@ export interface LocalFirstRegisterRuntimeOptions {
   readonly restorePointBudgetName?: (budgetId: string) => string | undefined;
 }
 
+const OUTBOX_PUSH_TARGET_BYTES = 32 * 1024 * 1024;
+type LocalOutboxRow = Awaited<ReturnType<LocalBudgetDatabaseClient["readOutbox"]>>[number];
+
+function relayMutationFromOutboxRow(row: LocalOutboxRow, budgetId: string, syncEpoch: string): LocalBudgetMutation {
+  return {
+    mutationId: row.mutationId,
+    operationGroupId: row.operationGroupId ?? undefined,
+    operationGroup: row.operationGroupJson ? JSON.parse(row.operationGroupJson) : undefined,
+    budgetId,
+    syncEpoch,
+    deviceId: row.deviceId,
+    deviceSequence: row.deviceSequence,
+    baseCursor: row.baseCursor,
+    domain: row.domain,
+    entityId: row.entityId,
+    operation: row.operation,
+    payload: JSON.parse(row.payloadJson),
+    createdAt: row.createdAt,
+  };
+}
+
+export function selectOutboxPushBatch(pending: readonly LocalOutboxRow[], budgetId: string, syncEpoch: string) {
+  const utf8Encoder = new TextEncoder();
+  const rows: LocalOutboxRow[] = [];
+  const mutations: LocalBudgetMutation[] = [];
+  let encodedBytes = utf8Encoder.encode(JSON.stringify({ budgetId, syncEpoch, mutations: [] })).byteLength;
+  for (const row of pending) {
+    const mutation = relayMutationFromOutboxRow(row, budgetId, syncEpoch);
+    const mutationBytes = utf8Encoder.encode(JSON.stringify(mutation)).byteLength + 1;
+    if (rows.length > 0 && encodedBytes + mutationBytes > OUTBOX_PUSH_TARGET_BYTES) break;
+    rows.push(row);
+    mutations.push(mutation);
+    encodedBytes += mutationBytes;
+  }
+  return { rows, mutations, encodedBytes };
+}
+
 /**
  * Complete browser-local budget engine. All domain reads and writes use the
  * OPFS SQLite worker. Only explicit catalogue/backup lifecycle operations are
  * delegated to the narrow control-plane client.
  */
-export function createLocalFirstAccountRegisterQueryClient(
+export function createLocalBudgetRuntime(
   lifecycle: BudgetLifecycleControlPlaneClient,
   options: LocalFirstRegisterRuntimeOptions = {},
-): AccountRegisterQueryClient {
+): LocalBudgetRuntimeClient & LocalBudgetConflictRecoveryClient {
   const relay = createLocalFirstRelayTransport({ apiBaseUrl: options.apiBaseUrl });
   const storage = options.storage ?? globalThis.localStorage;
   const deviceId = readOrCreateDeviceId(storage);
   const restorePoints = options.restorePointStore ?? createRestorePointStore();
   const tabSyncCoordinator =
     options.tabSyncCoordinator ?? createLocalFirstTabSyncCoordinator();
-  const sequenceKey = `budget-app.local-first.device-sequence.${deviceId}`;
   let database: LocalBudgetDatabaseClient | null = null;
   let activeBudgetId: string | null = null;
   let activeSyncEpoch: string | null = null;
   let activePulledCursor = 0;
   let opening: Promise<LocalBudgetDatabaseClient | null> | null = null;
-  let deviceSequence = Number(storage.getItem(sequenceKey) ?? "0");
-  if (!Number.isSafeInteger(deviceSequence) || deviceSequence < 0) deviceSequence = 0;
+  const mutationContext = new LocalBudgetMutationContext({
+    storage,
+    deviceId,
+    currentSyncEpoch: () => activeSyncEpoch,
+    currentBaseCursor: () => activePulledCursor,
+  });
+  const commandExecutor = new LocalBudgetCommandExecutor();
   let synchronising: {
     readonly budgetId: string;
     readonly promise: Promise<void>;
@@ -133,42 +185,16 @@ export function createLocalFirstAccountRegisterQueryClient(
     budgetId: string,
     syncEpoch: string,
   ): Promise<void> {
-    const utf8Encoder = new TextEncoder();
-
     while (true) {
       const pending = await local.readOutbox(0, 500);
-      const outbox: (typeof pending)[number][] = [];
-      let encodedBytes = 0;
-      for (const row of pending) {
-        const rowBytes =
-          utf8Encoder.encode(row.payloadJson).byteLength + 2_048;
-        if (outbox.length > 0 && encodedBytes + rowBytes > 32 * 1024 * 1024) break;
-        outbox.push(row);
-        encodedBytes += rowBytes;
-      }
-      if (outbox.length === 0) break;
+      const outbox = selectOutboxPushBatch(pending, budgetId, syncEpoch);
+      if (outbox.rows.length === 0) break;
       await relay.pushMutations({
         budgetId,
         syncEpoch,
-        mutations: outbox.map((row) => ({
-          mutationId: row.mutationId,
-          operationGroupId: row.operationGroupId ?? undefined,
-          operationGroup: row.operationGroupJson
-            ? JSON.parse(row.operationGroupJson)
-            : undefined,
-          budgetId,
-          syncEpoch,
-          deviceId: row.deviceId,
-          deviceSequence: row.deviceSequence,
-          baseCursor: row.baseCursor,
-          domain: row.domain,
-          entityId: row.entityId,
-          operation: row.operation,
-          payload: JSON.parse(row.payloadJson),
-          createdAt: row.createdAt,
-        })),
+        mutations: outbox.mutations,
       });
-      await local.acknowledgeOutbox(outbox.at(-1)!.sequence);
+      await local.acknowledgeOutbox(outbox.rows.at(-1)!.sequence);
     }
   }
 
@@ -377,6 +403,10 @@ export function createLocalFirstAccountRegisterQueryClient(
             })),
             throughCursor,
           );
+          notifyRemoteMutationsApplied(
+            budgetId,
+            pulled.mutations.map(({ mutation: value }) => value),
+          );
           cursor = throughCursor;
           activePulledCursor = throughCursor;
         }
@@ -394,33 +424,7 @@ export function createLocalFirstAccountRegisterQueryClient(
     return requireDatabase(budgetId);
   }
 
-  function mutation(
-    budgetId: string,
-    domain: BudgetDomain,
-    entityId: string,
-    operation: "upsert" | "delete",
-    payload: unknown,
-    operationGroupId?: string,
-    operationGroup?: LocalBudgetOperationGroup,
-  ): LocalBudgetMutation {
-    deviceSequence += 1;
-    storage.setItem(sequenceKey, String(deviceSequence));
-    return {
-      mutationId: createRuntimeUuid(),
-      ...(operationGroupId ? { operationGroupId } : {}),
-      ...(operationGroup ? { operationGroup } : {}),
-      budgetId,
-      syncEpoch: activeSyncEpoch!,
-      deviceId,
-      deviceSequence,
-      baseCursor: activePulledCursor,
-      domain,
-      entityId,
-      operation,
-      payload,
-      createdAt: new Date().toISOString(),
-    };
-  }
+  const mutation = mutationContext.createMutation.bind(mutationContext);
 
   function encodeBase64(bytes: Uint8Array): string {
     let binary = "";
@@ -438,18 +442,6 @@ export function createLocalFirstAccountRegisterQueryClient(
       bytes[index] = binary.charCodeAt(index);
     }
     return bytes;
-  }
-
-  async function writeEntity(
-    budgetId: string,
-    domain: BudgetDomain,
-    entityId: string,
-    payload: unknown,
-    operation: "upsert" | "delete" = "upsert",
-  ) {
-    const local = await requireDatabase(budgetId);
-    await local.mutate(mutation(budgetId, domain, entityId, operation, payload));
-    notifyLocalFirstMutationCommitted(budgetId);
   }
 
   async function listSchedules(
@@ -477,676 +469,60 @@ export function createLocalFirstAccountRegisterQueryClient(
     return schedules.find(({ id }) => id === scheduleId) ?? null;
   }
 
-  function scheduledRegisterWrite(
-    budgetId: string,
-    accountId: string,
-    schedule: ScheduledTransactionView,
-  ): TransactionWriteInput {
-    const input = scheduledTransactionToRegisterInput(schedule);
-    return {
-      budgetId,
-      accountId,
-      date: input.date,
-      amount: Math.round((input.inflow - input.outflow) * 100),
-      payeeId: input.payeeId,
-      payeeName: input.payee,
-      transferAccountId: input.transferAccountId,
-      categoryId: input.categoryId,
-      categoryName: input.category,
-      memo: input.memo,
-      tagIds: input.tagIds,
-      generatedFromSchedule: true,
-      scheduledTransactionId: schedule.id,
-      scheduledOccurrenceDate: input.scheduledOccurrenceDate,
-      splitLines: (input.splitLines ?? []).map((line) => ({
-        id: line.id,
-        categoryId: line.categoryId,
-        categoryName: line.category,
-        transferAccountId: line.transferAccountId,
-        transferTransactionId: line.transferTransactionId,
-        memo: line.memo,
-        amount: Math.round((line.inflow - line.outflow) * 100),
-      })),
-    };
-  }
-
-  async function listLocalAccounts(budgetId: string) {
-    return (await requireDatabase(budgetId)).listAccountNavigation(budgetId)
-      .then((rows) => rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        type: row.type as never,
-        startingBalance: row.openingBalance / 100,
-        isClosed: row.closedAt !== null,
-        createdAt: row.closedAt ?? new Date(0).toISOString(),
-        closedAt: row.closedAt ?? undefined,
-      })));
-  }
-
-  async function listPersistedPayees(budgetId: string, archived: boolean) {
-    const rows = await (await requireDatabase(budgetId)).listPayees(budgetId, archived);
-    return rows.map(localPayeeRecordToView);
-  }
-
-  async function transactionRecord(
-    id: string,
-    input: TransactionWriteInput,
-    existing?: LocalTransactionRecord | null,
-  ): Promise<LocalTransactionRecord> {
-    return {
-      id,
-      budgetId: input.budgetId,
-      accountId: input.accountId,
-      date: input.date,
-      amount: input.amount,
-      memo: input.memo ?? null,
-      checkNumber: input.checkNumber ?? null,
-      clearedStatus: existing?.clearedStatus ?? "uncleared",
-      payeeId: input.payeeId ?? null,
-      payeeName: input.payeeName ?? null,
-      rawPayeeName: input.rawPayee ?? existing?.rawPayeeName ?? null,
-      categoryId: input.categoryId ?? null,
-      categoryName:
-        input.categoryName?.trim() ||
-        (existing?.categoryId === input.categoryId ? existing?.categoryName : null) ||
-        (input.transferAccountId ? "Transfer" : null),
-      transferAccountId:
-        input.transferAccountId ?? existing?.transferAccountId ?? null,
-      transferTransactionId: existing?.transferTransactionId ?? null,
-      generatedFromSchedule: input.generatedFromSchedule ?? existing?.generatedFromSchedule ?? false,
-      scheduledTransactionId: input.scheduledTransactionId ?? existing?.scheduledTransactionId ?? null,
-      scheduledOccurrenceDate: input.scheduledOccurrenceDate ?? existing?.scheduledOccurrenceDate ?? null,
-      splitLines: (input.splitLines ?? []).map((split) => ({
-        id: split.id,
-        categoryId: split.categoryId ?? null,
-        categoryName: split.transferAccountId
-          ? "Transfer"
-          : split.categoryName?.trim() || null,
-        transferAccountId: split.transferAccountId ?? null,
-        transferTransactionId: split.transferTransactionId ?? null,
-        memo: split.memo ?? null,
-        amount: split.amount,
-      })),
-      tagIds: input.tagIds ?? [],
-      importProvenance: existing?.importProvenance ?? [],
-      updatedAt: new Date().toISOString(),
-    };
-  }
-
-  function requireMutableTransaction(
-    transaction: LocalTransactionRecord,
-  ): void {
-    if (transaction.clearedStatus === "reconciled") {
-      throw new Error(
-        "Reconciled transactions are locked and cannot be changed.",
-      );
-    }
-  }
-
-  async function requireTransferCounterpart(
-    local: LocalBudgetDatabaseClient,
-    transaction: LocalTransactionRecord,
-  ): Promise<LocalTransactionRecord | null> {
-    const hasTransferAccount = Boolean(transaction.transferAccountId);
-    const hasTransferTransaction = Boolean(transaction.transferTransactionId);
-
-    if (!hasTransferAccount && !hasTransferTransaction) {
-      return null;
-    }
-
-    if (!transaction.transferAccountId || !transaction.transferTransactionId) {
-      throw new Error(
-        "The transfer linkage is incomplete. Repair the transfer before changing it.",
-      );
-    }
-
-    const counterpart = await local.getTransaction(
-      transaction.budgetId,
-      transaction.transferTransactionId,
-    );
-
-    if (
-      !counterpart ||
-      counterpart.accountId !== transaction.transferAccountId ||
-      counterpart.transferAccountId !== transaction.accountId ||
-      counterpart.transferTransactionId !== transaction.id
-    ) {
-      throw new Error(
-        "The other side of this transfer is missing or does not link back correctly.",
-      );
-    }
-
-    return counterpart;
-  }
-
-  async function findReciprocalTransferCounterpartForDelete(
-    local: LocalBudgetDatabaseClient,
-    transaction: LocalTransactionRecord,
-  ): Promise<LocalTransactionRecord | null> {
-    if (
-      !transaction.transferAccountId ||
-      !transaction.transferTransactionId
-    ) {
-      return null;
-    }
-
-    const counterpart = await local.getTransaction(
-      transaction.budgetId,
-      transaction.transferTransactionId,
-    );
-
-    if (
-      !counterpart ||
-      counterpart.accountId !== transaction.transferAccountId ||
-      counterpart.transferAccountId !== transaction.accountId ||
-      counterpart.transferTransactionId !== transaction.id
-    ) {
-      return null;
-    }
-
-    return counterpart;
-  }
-
-  async function accountParticipation(
-    local: LocalBudgetDatabaseClient,
-    budgetId: string,
-    accountId: string,
-  ): Promise<"on-budget" | "off-budget"> {
-    const account = (await local.listAccountNavigation(budgetId))
-      .find((candidate) => candidate.id === accountId);
-    if (!account) throw new Error(`Transfer account ${accountId} was not found.`);
-    return account.participation === "on-budget" ? "on-budget" : "off-budget";
-  }
-
-  async function applyTransferCategorySemantics(
-    local: LocalBudgetDatabaseClient,
-    source: LocalTransactionRecord,
-    counterpart: LocalTransactionRecord,
-  ): Promise<readonly [LocalTransactionRecord, LocalTransactionRecord]> {
-    const [sourceParticipation, counterpartParticipation] = await Promise.all([
-      accountParticipation(local, source.budgetId, source.accountId),
-      accountParticipation(local, counterpart.budgetId, counterpart.accountId),
-    ]);
-    const internal =
-      sourceParticipation === "on-budget" &&
-      counterpartParticipation === "on-budget";
-
-    return [
-      {
-        ...source,
-        categoryId:
-          internal || sourceParticipation === "off-budget" ? null : source.categoryId,
-        categoryName:
-          internal || sourceParticipation === "off-budget"
-            ? "Transfer"
-            : source.categoryName,
-      },
-      {
-        ...counterpart,
-        categoryId:
-          internal || counterpartParticipation === "off-budget"
-            ? null
-            : counterpart.categoryId,
-        categoryName:
-          internal || counterpartParticipation === "off-budget"
-            ? "Transfer"
-            : counterpart.categoryName,
-      },
-    ];
-  }
-
-  async function buildTransferPair(
-    local: LocalBudgetDatabaseClient,
-    source: LocalTransactionRecord,
-    targetAccountId: string,
-    counterpartId = createRuntimeUuid(),
-  ): Promise<readonly [LocalTransactionRecord, LocalTransactionRecord]> {
-    if (targetAccountId === source.accountId) {
-      throw new Error("A transfer cannot use the same account on both sides.");
-    }
-
-    const sourceRecord: LocalTransactionRecord = {
-      ...source,
-      transferAccountId: targetAccountId,
-      transferTransactionId: counterpartId,
-    };
-
-    const counterpartRecord: LocalTransactionRecord = {
-      ...sourceRecord,
-      id: counterpartId,
-      accountId: targetAccountId,
-      amount: -sourceRecord.amount,
-      clearedStatus: "uncleared",
-      categoryId: sourceRecord.categoryId,
-      categoryName: sourceRecord.categoryName,
-      transferAccountId: sourceRecord.accountId,
-      transferTransactionId: sourceRecord.id,
-      importProvenance: [],
-    };
-
-    return applyTransferCategorySemantics(local, sourceRecord, counterpartRecord);
-  }
-
-  async function buildNewTransactionRecords(
-    local: LocalBudgetDatabaseClient,
-    id: string,
-    input: TransactionWriteInput,
-  ): Promise<readonly LocalTransactionRecord[]> {
-    const record = await transactionRecord(id, input);
-
-    if (!input.transferAccountId) {
-      return [record];
-    }
-
-    return buildTransferPair(local, record, input.transferAccountId);
-  }
-
-  async function buildUpdatedTransactionRecords(
-    local: LocalBudgetDatabaseClient,
-    transactionId: string,
-    input: TransactionWriteInput,
-    existing: LocalTransactionRecord,
-  ): Promise<readonly LocalTransactionRecord[]> {
-    requireMutableTransaction(existing);
-
-    const counterpart = await requireTransferCounterpart(local, existing);
-    if (counterpart) requireMutableTransaction(counterpart);
-
-    if (!counterpart) {
-      const record = await transactionRecord(transactionId, input, existing);
-      if (!input.transferAccountId) return [record];
-      return buildTransferPair(local, record, input.transferAccountId);
-    }
-
-    if (input.accountId !== existing.accountId) {
-      throw new Error(
-        "This transfer cannot be moved by editing it. Move the transaction between accounts instead.",
-      );
-    }
-    if (
-      input.transferAccountId !== undefined &&
-      input.transferAccountId !== existing.transferAccountId
-    ) {
-      throw new Error(
-        "This transfer cannot be retargeted by editing it. Move the transaction between accounts instead.",
-      );
-    }
-
-    const record: LocalTransactionRecord = {
-      ...(await transactionRecord(transactionId, input, existing)),
-      transferAccountId: existing.transferAccountId,
-      transferTransactionId: existing.transferTransactionId,
-    };
-    const counterpartRecord: LocalTransactionRecord = {
-      ...counterpart,
-      date: record.date,
-      amount: -record.amount,
-      memo: record.memo,
-      checkNumber: record.checkNumber,
-      transferAccountId: record.accountId,
-      transferTransactionId: record.id,
-      updatedAt: record.updatedAt,
-    };
-    return applyTransferCategorySemantics(local, record, counterpartRecord);
-  }
-
-  function transactionWrite(
-    record: LocalTransactionRecord,
-    operationGroupId?: string,
-    operationGroup?: LocalBudgetOperationGroup,
-  ): {
-    readonly transaction: LocalTransactionRecord;
-    readonly mutation: LocalBudgetMutation;
-  } {
-    return {
-      transaction: record,
-      mutation: mutation(
-        record.budgetId,
-        "transactions",
-        record.id,
-        "upsert",
-        record,
-        operationGroupId,
-        operationGroup,
-      ),
-    };
-  }
-
-  function transactionWrites(
-    records: readonly LocalTransactionRecord[],
-  ): readonly {
-    readonly transaction: LocalTransactionRecord;
-    readonly mutation: LocalBudgetMutation;
-  }[] {
-    if (
-      records.length === 2 &&
-      records[0].transferTransactionId === records[1].id &&
-      records[1].transferTransactionId === records[0].id
-    ) {
-      const operationGroupId = createRuntimeUuid();
-      const operationGroup: LocalBudgetOperationGroup = {
-        members: records.map((record) => ({
-          domain: "transactions",
-          entityId: record.id,
-          operation: "upsert",
-          payload: record,
-        })),
-      };
-      return records.map((record) =>
-        transactionWrite(record, operationGroupId, operationGroup));
-    }
-
-    return records.map((record) => transactionWrite(record));
-  }
-
-  function transactionWritesAsSingleOperationGroup(
-    records: readonly LocalTransactionRecord[],
-  ): readonly {
-    readonly transaction: LocalTransactionRecord;
-    readonly mutation: LocalBudgetMutation;
-  }[] {
-    if (records.length === 0) return [];
-    const operationGroupId = createRuntimeUuid();
-    const operationGroup: LocalBudgetOperationGroup = {
-      members: records.map((record) => ({
-        domain: "transactions",
-        entityId: record.id,
-        operation: "upsert",
-        payload: record,
-      })),
-    };
-    return records.map((record) =>
-      transactionWrite(record, operationGroupId, operationGroup));
-  }
-
-  function scheduledHistoryMembers(input: {
-    readonly scheduleId: string;
-    readonly expectedSchedule: ScheduledTransactionView | null;
-    readonly replacementSchedule: ScheduledTransactionView | null;
-    readonly expectedTransaction: TransactionHistorySnapshot | null;
-    readonly replacementTransaction: TransactionHistorySnapshot | null;
-  }): LocalBudgetOperationGroup["members"] {
-    const nextTransactionIds = new Set(
-      input.replacementTransaction?.transactions.map(({ id }) => id) ?? [],
-    );
-    const nextAttachmentIds = new Set(
-      input.replacementTransaction?.attachments.map(({ id }) => id) ?? [],
-    );
-    return [
-      {
-        domain: "scheduledTransactions" as const,
-        entityId: input.scheduleId,
-        operation: input.replacementSchedule ? "upsert" as const : "delete" as const,
-        payload: input.replacementSchedule,
-      },
-      ...(input.expectedTransaction?.transactions ?? [])
-        .filter(({ id }) => !nextTransactionIds.has(id))
-        .map((transaction) => ({
-          domain: "transactions" as const,
-          entityId: transaction.id,
-          operation: "delete" as const,
-          payload: { accountId: transaction.accountId, amount: transaction.amount,
-            transferAccountId: transaction.transferAccountId, transferTransactionId: transaction.transferTransactionId },
-        })),
-      ...(input.expectedTransaction?.attachments ?? [])
-        .filter(({ id }) => !nextAttachmentIds.has(id))
-        .map((attachment) => ({
-          domain: "transactions" as const,
-          entityId: `attachment:${attachment.id}`,
-          operation: "delete" as const,
-          payload: { kind: "transaction-attachment-delete" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment) },
-        })),
-      ...(input.replacementTransaction?.transactions ?? []).map((transaction) => ({
-        domain: "transactions" as const,
-        entityId: transaction.id,
-        operation: "upsert" as const,
-        payload: transaction,
-      })),
-      ...(input.replacementTransaction?.attachments ?? []).map((attachment) => ({
-        domain: "transactions" as const,
-        entityId: `attachment:${attachment.id}`,
-        operation: "upsert" as const,
-        payload: { kind: "transaction-attachment-upsert" as const,
-          attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
-          contentBase64: encodeBase64(attachment.content) },
-      })),
-    ];
-  }
-
-  type TransactionBatchPreparationInput = Pick<
-    Parameters<AccountRegisterQueryClient["commitImportBatch"]>[0],
-    | "budgetId"
-    | "accountId"
-    | "additions"
-    | "updates"
-    | "provenanceAssignments"
-  >;
-
-  async function prepareTransactionBatchWrites(
-    local: LocalBudgetDatabaseClient,
-    input: TransactionBatchPreparationInput,
-  ): Promise<{
-    readonly writes: {
-      readonly transaction: LocalTransactionRecord;
-      readonly mutation: LocalBudgetMutation;
-    }[];
-    readonly requireAbsentTransactionIds: string[];
-  }> {
-    const writes: {
-      transaction: LocalTransactionRecord;
-      mutation: LocalBudgetMutation;
-    }[] = [];
-    const requireAbsentTransactionIds: string[] = [];
-    const additionIds = new Set<string>();
-
-    const provenanceByTransactionId = new Map<
-      string,
-      LocalTransactionRecord["importProvenance"][number][]
-    >();
-
-    for (const assignment of input.provenanceAssignments) {
-      if (!assignment.transactionId.trim()) {
-        throw new Error("Import provenance requires a transaction id.");
-      }
-
-      if (!assignment.identity.trim()) {
-        throw new Error(
-          `Import provenance for transaction ${assignment.transactionId} requires an identity.`,
-        );
-      }
-
-      if (
-        !Number.isInteger(assignment.occurrence) ||
-        assignment.occurrence < 1
-      ) {
-        throw new Error(
-          `Import provenance for transaction ${assignment.transactionId} has an invalid occurrence.`,
-        );
-      }
-
-      const existingAssignments =
-        provenanceByTransactionId.get(assignment.transactionId) ?? [];
-
-      existingAssignments.push({
-        fileType: assignment.fileType,
-        identity: assignment.identity,
-        occurrence: assignment.occurrence,
-        importedAt: assignment.importedAt,
-      });
-
-      provenanceByTransactionId.set(
-        assignment.transactionId,
-        existingAssignments,
-      );
-    }
-
-    const appendImportProvenance = (
-      record: LocalTransactionRecord,
-    ): LocalTransactionRecord => {
-      const additions = provenanceByTransactionId.get(record.id);
-      if (!additions || additions.length === 0) {
-        return record;
-      }
-
-      const seen = new Set(
-        record.importProvenance.map(
-          (entry) =>
-            `${entry.fileType}\u0000${entry.identity}\u0000${entry.occurrence}`,
-        ),
-      );
-
-      const importProvenance = [...record.importProvenance];
-
-      for (const entry of additions) {
-        const key =
-          `${entry.fileType}\u0000${entry.identity}\u0000${entry.occurrence}`;
-
-        if (seen.has(key)) {
-          continue;
-        }
-
-        seen.add(key);
-        importProvenance.push(entry);
-      }
-
-      return {
-        ...record,
-        importProvenance,
-      };
-    };
-
-    const provenanceAppliedTransactionIds = new Set<string>();
-
-    for (const addition of input.additions) {
-      if (additionIds.has(addition.id)) {
-        throw new Error(
-          `Transaction ${addition.id} appears more than once in the additions batch.`,
-        );
-      }
-
-      additionIds.add(addition.id);
-
-      const records = (
-        await buildNewTransactionRecords(
-          local,
-          addition.id,
-          addition,
-        )
-      ).map((record) => {
-        const next = appendImportProvenance(record);
-
-        if (next !== record) {
-          provenanceAppliedTransactionIds.add(record.id);
-        }
-
-        return next;
-      });
-
-      requireAbsentTransactionIds.push(
-        ...records.map((record) => record.id),
-      );
-
-      writes.push(...transactionWrites(records));
-    }
-
-    for (const update of input.updates) {
-      const existing = await local.getTransaction(
-        input.budgetId,
-        update.id,
-      );
-
-      if (!existing) {
-        throw new Error("The local transaction was not found.");
-      }
-
-      const records = (
-        await buildUpdatedTransactionRecords(
-          local,
-          update.id,
-          update,
-          existing,
-        )
-      ).map((record) => {
-        const next = appendImportProvenance(record);
-
-        if (next !== record) {
-          provenanceAppliedTransactionIds.add(record.id);
-        }
-
-        return next;
-      });
-
-      writes.push(...transactionWrites(records));
-    }
-
-    for (const [
-      transactionId,
-      assignments,
-    ] of provenanceByTransactionId.entries()) {
-      if (provenanceAppliedTransactionIds.has(transactionId)) {
-        continue;
-      }
-
-      if (additionIds.has(transactionId)) {
-        throw new Error(
-          `Import provenance for new transaction ${transactionId} was not attached to its addition record.`,
-        );
-      }
-
-      const existing = await local.getTransaction(
-        input.budgetId,
-        transactionId,
-      );
-
-      if (!existing) {
-        throw new Error(
-          `Import provenance targets missing transaction ${transactionId}.`,
-        );
-      }
-
-      if (existing.accountId !== input.accountId) {
-        throw new Error(
-          `Import provenance targets transaction ${transactionId} outside the destination account.`,
-        );
-      }
-
-      requireMutableTransaction(existing);
-
-      const updated: LocalTransactionRecord =
-        appendImportProvenance({
-          ...existing,
-          updatedAt: new Date().toISOString(),
-        });
-
-      if (
-        updated.importProvenance.length ===
-          existing.importProvenance.length &&
-        assignments.length > 0
-      ) {
-        // Every requested provenance row was already represented. No write is
-        // required, but the assignment is still valid and satisfied.
-        provenanceAppliedTransactionIds.add(transactionId);
-        continue;
-      }
-
-      provenanceAppliedTransactionIds.add(transactionId);
-      writes.push(...transactionWrites([updated]));
-    }
-
-    for (const transactionId of provenanceByTransactionId.keys()) {
-      if (!provenanceAppliedTransactionIds.has(transactionId)) {
-        throw new Error(
-          `Import provenance for transaction ${transactionId} was not applied.`,
-        );
-      }
-    }
-
-    return {
-      writes,
-      requireAbsentTransactionIds,
-    };
-  }
+  const tagCommands = createTagCommands({
+    requireDatabase,
+    createMutation: mutation,
+  });
+  const attachmentCommands = createAttachmentCommands({
+    requireDatabase,
+    createMutation: mutation,
+    encodeBase64,
+  });
+  const transactionCommands = createTransactionCommands({
+    requireDatabase,
+    createMutation: mutation,
+  });
+  const accountCommands = createAccountCommands({
+    requireDatabase,
+    createMutation: mutation,
+  });
+  const budgetCategoryCommands = createBudgetCategoryCommands({
+    requireDatabase,
+    createMutation: mutation,
+  });
+  const categoryGoalCommands = createCategoryGoalCommands({
+    requireDatabase,
+    createMutation: mutation,
+  });
+  const payeeCommands = createPayeeCommands({
+    requireDatabase,
+    createMutation: mutation,
+  });
+  const scheduledTransactionCommands = createScheduledTransactionCommands({
+    requireDatabase,
+    createMutation: mutation,
+    encodeBase64,
+    decodeBase64,
+  });
+  const transactionHistoryCommands = createTransactionHistoryCommands({
+    requireDatabase,
+    createMutation: mutation,
+    encodeBase64,
+  });
+  const ordinaryCommandHandlers = createOrdinaryCommandHandlerRegistry({
+    ...categoryGoalCommands,
+    ...accountCommands,
+    ...transactionCommands,
+    ...transactionHistoryCommands,
+    addTransactionAttachment: attachmentCommands.addTransactionAttachment,
+    removeTransactionAttachment: attachmentCommands.removeTransactionAttachment,
+    ...budgetCategoryCommands,
+    ...payeeCommands,
+    replaceTransactionTags: tagCommands.replaceTransactionTags,
+    replaceTransactionTagsHistoryState: tagCommands.replaceTransactionTagsHistoryState,
+    ...scheduledTransactionCommands,
+  });
+  const publicOrdinaryCommands = createPublicOrdinaryCommandFacade(ordinaryCommandHandlers);
 
   function journalMutation(value: LocalBudgetMutation) {
     const key = `local-first/${value.domain}/${value.entityId}`;
@@ -1163,7 +539,7 @@ export function createLocalFirstAccountRegisterQueryClient(
     local: LocalBudgetDatabaseClient,
     selectedConflict: LocalFirstStoredConflict,
     unresolvedConflicts: readonly LocalFirstStoredConflict[],
-  ): Promise<void> {
+  ): Promise<readonly LocalBudgetMutation[]> {
     const selected = selectedConflict.losingMutation;
     const operationGroupId = selected.operationGroupId;
     const operationGroup = selected.operationGroup;
@@ -1264,8 +640,7 @@ export function createLocalFirstAccountRegisterQueryClient(
         );
       }
 
-      await local.writeTransactionBatch(
-        operationGroup.members.map((member) => {
+      const writes = operationGroup.members.map((member) => {
           const conflict = conflictByEntityId.get(member.entityId);
           return {
             transaction: member.payload as LocalTransactionRecord,
@@ -1280,9 +655,9 @@ export function createLocalFirstAccountRegisterQueryClient(
             ),
             resolveConflictId: conflict?.conflictId,
           };
-        }),
-      );
-      return;
+        });
+      await local.writeTransactionBatch(writes);
+      return writes.map(({ mutation: replay }) => replay);
     }
 
     const firstDelete = first.payload as {
@@ -1318,8 +693,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       );
     }
 
-    await local.deleteTransactionBatch(
-      operationGroup.members.map((member) => {
+    const deletes = operationGroup.members.map((member) => {
         const conflict = conflictByEntityId.get(member.entityId);
         return {
           transactionId: member.entityId,
@@ -1334,15 +708,16 @@ export function createLocalFirstAccountRegisterQueryClient(
           ),
           resolveConflictId: conflict?.conflictId,
         };
-      }),
-    );
+      });
+    await local.deleteTransactionBatch(deletes);
+    return deletes.map(({ mutation: replay }) => replay);
   }
 
   async function replayConflictMutation(
     local: LocalBudgetDatabaseClient,
     original: LocalBudgetMutation,
     conflictId: string,
-  ) {
+  ): Promise<LocalBudgetMutation> {
     const replay = mutation(
       original.budgetId,
       original.domain,
@@ -1366,7 +741,7 @@ export function createLocalFirstAccountRegisterQueryClient(
           conflictId,
         );
       }
-      return;
+      return replay;
     }
     if (original.domain === "transactions") {
       if (original.operation === "delete") {
@@ -1399,7 +774,7 @@ export function createLocalFirstAccountRegisterQueryClient(
 
         await local.writeTransaction(transaction, replay, conflictId);
       }
-      return;
+      return replay;
     }
     if (original.domain === "accounts") {
       if (original.operation === "delete") {
@@ -1416,7 +791,7 @@ export function createLocalFirstAccountRegisterQueryClient(
           conflictId,
         );
       }
-      return;
+      return replay;
     }
     if (original.domain === "payees" && original.operation === "upsert") {
       await local.writePayee(
@@ -1424,7 +799,7 @@ export function createLocalFirstAccountRegisterQueryClient(
         replay,
         conflictId,
       );
-      return;
+      return replay;
     }
     if (original.domain === "payees" && original.operation === "delete") {
       const target = original.payload as {
@@ -1442,7 +817,7 @@ export function createLocalFirstAccountRegisterQueryClient(
           mutation: replay,
           resolveConflictId: conflictId,
         });
-        return;
+        return replay;
       }
     }
     if (original.domain === "categories" && original.operation === "delete") {
@@ -1459,10 +834,11 @@ export function createLocalFirstAccountRegisterQueryClient(
           mutation: replay,
           resolveConflictId: conflictId,
         });
-        return;
+        return replay;
       }
     }
     await local.mutate(replay, conflictId);
+    return replay;
   }
 
   async function listLocalFirstConflicts(
@@ -1490,6 +866,28 @@ export function createLocalFirstAccountRegisterQueryClient(
     }));
   }
 
+  async function keepLocalRecovery(
+    budgetId: string,
+    conflictId: string,
+  ): Promise<CommittedCommandHandlerResult<void>> {
+    const local = await requireDatabase(budgetId);
+    const unresolvedConflicts = await local.listSyncConflicts("unresolved", 500);
+    const conflict = unresolvedConflicts.find((value) => value.conflictId === conflictId);
+    if (!conflict) throw new Error("The synchronization conflict was not found.");
+    const losingMutation = conflict.losingMutation;
+    const transferPayload = losingMutation.domain === "transactions" &&
+      !losingMutation.entityId.startsWith("attachment:")
+      ? losingMutation.payload as { transferAccountId?: string | null; transferTransactionId?: string | null } | null
+      : null;
+    const isLinkedTransfer = Boolean(transferPayload?.transferAccountId) ||
+      Boolean(transferPayload?.transferTransactionId);
+    const replays = isLinkedTransfer && losingMutation.operationGroupId
+      ? await replayGroupedTransferConflicts(local, conflict, unresolvedConflicts)
+      : [await replayConflictMutation(local, losingMutation, conflictId)];
+    return committedCommandResult(undefined, replays,
+      persistenceScopeForMutations(budgetId, [losingMutation]));
+  }
+
   async function releaseLocalDatabase(deletingBudgetId?: string) {
     await opening?.catch(() => null);
     await synchronising?.promise.catch(() => undefined);
@@ -1505,14 +903,8 @@ export function createLocalFirstAccountRegisterQueryClient(
     activePulledCursor = 0;
   }
 
-  const client: AccountRegisterQueryClient & {
+  const client: LocalBudgetRuntimeClient & LocalBudgetConflictRecoveryClient & {
     publishLocalBaseline(budgetId: string): Promise<boolean>;
-    listSyncConflicts(budgetId: string): Promise<ReplicationConflict[]>;
-    resolveSyncConflict(
-      budgetId: string,
-      conflictId: string,
-      resolution: "keep-local" | "accept-remote",
-    ): Promise<void>;
   } = {
     releaseLocalDatabase: () => releaseLocalDatabase(),
     getBudgetExportUrl: lifecycle.getBudgetExportUrl,
@@ -1525,7 +917,7 @@ export function createLocalFirstAccountRegisterQueryClient(
       const manifest = await createRestorePointReplacement({ database: local, relay, storage, deviceId }).restore(budgetId, pointId);
       activeSyncEpoch = manifest.syncEpoch;
       activePulledCursor = 0;
-      notifyLocalFirstMutationCommitted(budgetId);
+      publishBroadBudgetChange({ budgetId, source: "restore" });
       return { restored: true, counts: { ...manifest.counts, transactionTagAssignments: 0 } };
     },
     async exportBudget(budgetId) {
@@ -1554,7 +946,7 @@ export function createLocalFirstAccountRegisterQueryClient(
         .restoreDatabase(budgetId, file);
       activeSyncEpoch = manifest.syncEpoch;
       activePulledCursor = 0;
-      notifyLocalFirstMutationCommitted(budgetId);
+      publishBroadBudgetChange({ budgetId, source: "restore" });
       return { restored: true, counts: { ...manifest.counts, transactionTagAssignments: 0 } };
     },
     async resetBudget(budgetId) {
@@ -1579,7 +971,7 @@ export function createLocalFirstAccountRegisterQueryClient(
         database: local,
         relay,
       });
-      notifyLocalFirstMutationCommitted(budgetId);
+      publishBroadBudgetChange({ budgetId, source: "restore" });
     },
     async deleteBudget(budgetId) {
       const local = await readyDatabase(budgetId);
@@ -1621,48 +1013,16 @@ export function createLocalFirstAccountRegisterQueryClient(
     },
     listSyncConflicts: listLocalFirstConflicts,
     async resolveSyncConflict(budgetId, conflictId, resolution) {
-      await synchronise(budgetId);
-      const local = await requireDatabase(budgetId);
-      const unresolvedConflicts =
-        await local.listSyncConflicts("unresolved", 500);
-      const conflict = unresolvedConflicts
-        .find((value) => value.conflictId === conflictId);
-      if (!conflict) {
-        throw new Error("The synchronization conflict was not found.");
-      }
+      if (resolution !== "keep-local") await synchronise(budgetId);
       if (resolution === "keep-local") {
-        const losingMutation = conflict.losingMutation;
-        const transferPayload =
-          losingMutation.domain === "transactions" &&
-          !losingMutation.entityId.startsWith("attachment:")
-            ? losingMutation.payload as {
-                transferAccountId?: string | null;
-                transferTransactionId?: string | null;
-              } | null
-            : null;
-
-        const isLinkedTransfer =
-          Boolean(transferPayload?.transferAccountId) ||
-          Boolean(transferPayload?.transferTransactionId);
-
-        if (isLinkedTransfer && losingMutation.operationGroupId) {
-          await replayGroupedTransferConflicts(
-            local,
-            conflict,
-            unresolvedConflicts,
-          );
-        } else {
-          await replayConflictMutation(
-            local,
-            losingMutation,
-            conflictId,
-          );
-        }
-
-        await synchronise(budgetId);
-      } else {
-        await local.resolveSyncConflict(conflictId, resolution);
+        await keepLocalRecovery(budgetId, conflictId);
+        return;
       }
+      const local = await requireDatabase(budgetId);
+      const conflict = (await local.listSyncConflicts("unresolved", 500))
+        .find((value) => value.conflictId === conflictId);
+      if (!conflict) throw new Error("The synchronization conflict was not found.");
+      await local.resolveSyncConflict(conflictId, resolution);
     },
     async getBudgetStatus(budgetId) {
       const remote = await relay.getBootstrap(budgetId).catch(() => null);
@@ -1741,654 +1101,24 @@ export function createLocalFirstAccountRegisterQueryClient(
         input.transactionIds,
       );
     },
-    async restoreTransactionHistorySnapshot(snapshot) {
-      const local = await requireDatabase(snapshot.budgetId);
-      const operationGroupId = createRuntimeUuid();
-      const members: LocalBudgetOperationGroup["members"] = [
-        ...snapshot.transactions.map((transaction) => ({
-          domain: "transactions" as const,
-          entityId: transaction.id,
-          operation: "upsert" as const,
-          payload: transaction,
-        })),
-        ...snapshot.attachments.map((attachment) => ({
-          domain: "transactions" as const,
-          entityId: `attachment:${attachment.id}`,
-          operation: "upsert" as const,
-          payload: {
-            kind: "transaction-attachment-upsert" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
-            contentBase64: encodeBase64(attachment.content),
-          },
-        })),
-      ];
-      const group: LocalBudgetOperationGroup = { members };
-      await local.restoreTransactionHistorySnapshot(
-        snapshot,
-        members.map((member) => mutation(
-          snapshot.budgetId, member.domain, member.entityId,
-          member.operation, member.payload, operationGroupId, group,
-        )),
-      );
-      notifyLocalFirstMutationCommitted(snapshot.budgetId);
-    },
-    async deleteTransactionHistorySnapshot(snapshot) {
-      const local = await requireDatabase(snapshot.budgetId);
-      const operationGroupId = createRuntimeUuid();
-      const members: LocalBudgetOperationGroup["members"] = [
-        ...snapshot.transactions.map((transaction) => ({
-          domain: "transactions" as const,
-          entityId: transaction.id,
-          operation: "delete" as const,
-          payload: {
-            accountId: transaction.accountId,
-            amount: transaction.amount,
-            transferAccountId: transaction.transferAccountId,
-            transferTransactionId: transaction.transferTransactionId,
-          },
-        })),
-        ...snapshot.attachments.map((attachment) => ({
-          domain: "transactions" as const,
-          entityId: `attachment:${attachment.id}`,
-          operation: "delete" as const,
-          payload: {
-            kind: "transaction-attachment-delete" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
-          },
-        })),
-      ];
-      const group: LocalBudgetOperationGroup = { members };
-      await local.deleteTransactionHistorySnapshot(
-        snapshot,
-        members.map((member) => mutation(
-          snapshot.budgetId, member.domain, member.entityId,
-          member.operation, member.payload, operationGroupId, group,
-        )),
-      );
-      notifyLocalFirstMutationCommitted(snapshot.budgetId);
-    },
-    async replaceTransactionHistorySnapshot({ expected, replacement }) {
-      if (expected.budgetId !== replacement.budgetId) {
-        throw new Error("Transaction history replacement cannot cross budgets.");
-      }
-      const local = await requireDatabase(expected.budgetId);
-      const nextTransactionIds = new Set(replacement.transactions.map(({ id }) => id));
-      const nextAttachmentIds = new Set(replacement.attachments.map(({ id }) => id));
-      const members: LocalBudgetOperationGroup["members"] = [
-        ...expected.transactions.filter(({ id }) => !nextTransactionIds.has(id)).map((transaction) => ({
-          domain: "transactions" as const, entityId: transaction.id, operation: "delete" as const,
-          payload: { accountId: transaction.accountId, amount: transaction.amount,
-            transferAccountId: transaction.transferAccountId, transferTransactionId: transaction.transferTransactionId },
-        })),
-        ...expected.attachments.filter(({ id }) => !nextAttachmentIds.has(id)).map((attachment) => ({
-          domain: "transactions" as const, entityId: `attachment:${attachment.id}`, operation: "delete" as const,
-          payload: { kind: "transaction-attachment-delete" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment) },
-        })),
-        ...replacement.transactions.map((transaction) => ({
-          domain: "transactions" as const, entityId: transaction.id, operation: "upsert" as const,
-          payload: transaction,
-        })),
-        ...replacement.attachments.map((attachment) => ({
-          domain: "transactions" as const, entityId: `attachment:${attachment.id}`, operation: "upsert" as const,
-          payload: { kind: "transaction-attachment-upsert" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
-            contentBase64: encodeBase64(attachment.content) },
-        })),
-      ];
-      const operationGroupId = createRuntimeUuid();
-      const group: LocalBudgetOperationGroup = { members };
-      await local.replaceTransactionHistorySnapshot(
-        expected,
-        replacement,
-        members.map((member) => mutation(
-          expected.budgetId, member.domain, member.entityId,
-          member.operation, member.payload, operationGroupId, group,
-        )),
-      );
-      notifyLocalFirstMutationCommitted(expected.budgetId);
-    },
-    async addTransaction(input) {
-      const local = await requireDatabase(input.budgetId);
-      const existing = await local.getTransaction(input.budgetId, input.id);
-      if (existing) {
-        throw new Error(
-          `Transaction ${input.id} already exists and cannot be added again.`,
-        );
-      }
+    restoreTransactionHistorySnapshot: publicOrdinaryCommands.restoreTransactionHistorySnapshot,
+    deleteTransactionHistorySnapshot: publicOrdinaryCommands.deleteTransactionHistorySnapshot,
+    replaceTransactionHistorySnapshot: publicOrdinaryCommands.replaceTransactionHistorySnapshot,
+    addTransaction: publicOrdinaryCommands.addTransaction,
+    commitTransactionBatch: publicOrdinaryCommands.commitTransactionBatch,
 
-      const records = await buildNewTransactionRecords(local, input.id, input);
-      await local.writeTransactionBatch(
-        transactionWrites(records),
-        {
-          requireAbsentTransactionIds: records.map((record) => record.id),
-        },
-      );
-      notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async commitTransactionBatch(input) {
-      const local = await requireDatabase(input.budgetId);
+    commitImportBatch: publicOrdinaryCommands.commitImportBatch,
+    commitImportBatchWithHistory: publicOrdinaryCommands.commitImportBatchWithHistory,
+    replaceImportHistorySnapshot: publicOrdinaryCommands.replaceImportHistorySnapshot,
 
-      const {
-        writes,
-        requireAbsentTransactionIds,
-      } = await prepareTransactionBatchWrites(local, input);
-
-      await local.writeTransactionBatch(writes, {
-        requireAbsentTransactionIds,
-        verifyWrittenTransactions:
-          input.provenanceAssignments.length > 0,
-      });
-
-      if (writes.length > 0) {
-        notifyLocalFirstMutationCommitted(input.budgetId);
-      }
-    },
-
-    async commitImportBatch(input) {
-      const local = await requireDatabase(input.budgetId);
-
-      const {
-        writes,
-        requireAbsentTransactionIds,
-      } = await prepareTransactionBatchWrites(local, input);
-
-      const payeeWrites = input.payeeCreations.map((creation) => {
-        const now = new Date().toISOString();
-        const name = creation.name.replace(/\s+/g, " ").trim();
-
-        if (!creation.id.trim() || !name) {
-          throw new Error(
-            "A staged import payee requires both an ID and a name.",
-          );
-        }
-
-        const payee: LocalPayeeRecord = {
-          id: creation.id,
-          budgetId: input.budgetId,
-          name,
-          note: "",
-          archived: false,
-          createdAt: now,
-          updatedAt: now,
-        };
-
-        return {
-          payee,
-          mutation: mutation(
-            input.budgetId,
-            "payees",
-            payee.id,
-            "upsert",
-            payee,
-          ),
-        };
-      });
-      const attachmentWrites = (input.attachmentCreations ?? []).map((creation) => {
-        const attachment: LocalTransactionAttachmentRecord = {
-          ...creation.attachment,
-          budgetId: input.budgetId,
-          transactionId: creation.transactionId,
-        };
-        const payload: LocalTransactionAttachmentMutationPayload = {
-          kind: "transaction-attachment-upsert",
-          attachment,
-          contentBase64: encodeBase64(creation.content),
-        };
-        return {
-          attachment,
-          content: Uint8Array.from(creation.content),
-          mutation: mutation(
-            input.budgetId,
-            "transactions",
-            `attachment:${attachment.id}`,
-            "upsert",
-            payload,
-          ),
-        };
-      });
-
-      await local.writeImportBatch(
-        payeeWrites,
-        writes,
-        {
-          requireAbsentTransactionIds,
-          verifyWrittenTransactions: true,
-        },
-        attachmentWrites,
-      );
-
-      if (
-        payeeWrites.length > 0 ||
-        writes.length > 0 ||
-        attachmentWrites.length > 0
-      ) {
-        notifyLocalFirstMutationCommitted(input.budgetId);
-      }
-    },
-    async commitImportBatchWithHistory(input) {
-      const local = await requireDatabase(input.budgetId);
-      const { writes, requireAbsentTransactionIds } = await prepareTransactionBatchWrites(local, input);
-      const payeeWrites = input.payeeCreations.map((creation) => {
-        const now = new Date().toISOString();
-        const name = creation.name.replace(/\s+/g, " ").trim();
-        if (!creation.id.trim() || !name) throw new Error("A staged import payee requires both an ID and a name.");
-        const payee: LocalPayeeRecord = {
-          id: creation.id, budgetId: input.budgetId, name, note: "", archived: false,
-          createdAt: now, updatedAt: now,
-        };
-        return { payee, mutation: mutation(input.budgetId, "payees", payee.id, "upsert", payee) };
-      });
-      const attachmentWrites = (input.attachmentCreations ?? []).map((creation) => {
-        const attachment: LocalTransactionAttachmentRecord = {
-          ...creation.attachment,
-          budgetId: input.budgetId,
-          transactionId: creation.transactionId,
-        };
-        const payload: LocalTransactionAttachmentMutationPayload = {
-          kind: "transaction-attachment-upsert",
-          attachment,
-          contentBase64: encodeBase64(creation.content),
-        };
-        return {
-          attachment,
-          content: Uint8Array.from(creation.content),
-          mutation: mutation(
-            input.budgetId,
-            "transactions",
-            `attachment:${attachment.id}`,
-            "upsert",
-            payload,
-          ),
-        };
-      });
-      const transactionIds = [...new Set([
-        ...input.additions.map(({ id }) => id),
-        ...input.updates.map(({ id }) => id),
-        ...input.provenanceAssignments.map(({ transactionId }) => transactionId),
-        ...attachmentWrites.map(({ attachment }) => attachment.transactionId),
-      ])].sort();
-      const payeeIds = [...new Set(input.payeeCreations.map(({ id }) => id))].sort();
-      if (
-        transactionIds.length === 0 &&
-        payeeIds.length === 0 &&
-        attachmentWrites.length === 0
-      ) {
-        throw new Error("An import history command requires at least one persisted object.");
-      }
-      const snapshots = await local.writeImportBatchWithHistory(
-        payeeWrites,
-        writes,
-        {
-          requireAbsentTransactionIds,
-          verifyWrittenTransactions: true,
-          historyTransactionIds: transactionIds,
-          historyPayeeIds: payeeIds,
-        },
-        attachmentWrites,
-      );
-      notifyLocalFirstMutationCommitted(input.budgetId);
-      return snapshots;
-    },
-    async replaceImportHistorySnapshot({ expected, replacement }) {
-      if (expected.budgetId !== replacement.budgetId) {
-        throw new Error("Import history replacement cannot cross budgets.");
-      }
-      const local = await requireDatabase(expected.budgetId);
-      const nextTransactionIds = new Set(replacement.transactions.transactions.map(({ id }) => id));
-      const nextAttachmentIds = new Set(replacement.transactions.attachments.map(({ id }) => id));
-      const nextPayeeIds = new Set(replacement.payees.map(({ id }) => id));
-      const members: LocalBudgetOperationGroup["members"] = [
-        ...expected.transactions.transactions.filter(({ id }) => !nextTransactionIds.has(id)).map((transaction) => ({
-          domain: "transactions" as const, entityId: transaction.id, operation: "delete" as const,
-          payload: { accountId: transaction.accountId, amount: transaction.amount,
-            transferAccountId: transaction.transferAccountId, transferTransactionId: transaction.transferTransactionId },
-        })),
-        ...expected.transactions.attachments.filter(({ id }) => !nextAttachmentIds.has(id)).map((attachment) => ({
-          domain: "transactions" as const, entityId: `attachment:${attachment.id}`, operation: "delete" as const,
-          payload: { kind: "transaction-attachment-delete" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment) },
-        })),
-        ...replacement.transactions.transactions.map((transaction) => ({
-          domain: "transactions" as const, entityId: transaction.id, operation: "upsert" as const, payload: transaction,
-        })),
-        ...replacement.transactions.attachments.map((attachment) => ({
-          domain: "transactions" as const, entityId: `attachment:${attachment.id}`, operation: "upsert" as const,
-          payload: { kind: "transaction-attachment-upsert" as const,
-            attachment: (({ content: _content, ...metadata }) => metadata)(attachment),
-            contentBase64: encodeBase64(attachment.content) },
-        })),
-        ...expected.payees.filter(({ id }) => !nextPayeeIds.has(id)).map((payee) => ({
-          domain: "payees" as const, entityId: payee.id, operation: "delete" as const, payload: payee,
-        })),
-        ...replacement.payees.map((payee) => ({
-          domain: "payees" as const, entityId: payee.id, operation: "upsert" as const, payload: payee,
-        })),
-      ];
-      const operationGroupId = createRuntimeUuid();
-      const group: LocalBudgetOperationGroup = { members };
-      await local.replaceImportHistorySnapshot(expected, replacement, members.map((member) => mutation(
-        expected.budgetId, member.domain, member.entityId, member.operation,
-        member.payload, operationGroupId, group,
-      )));
-      notifyLocalFirstMutationCommitted(expected.budgetId);
-    },
-
-    async moveTransactions(input) {
-      const local = await requireDatabase(input.budgetId);
-      const writes: {
-        transaction: LocalTransactionRecord;
-        mutation: LocalBudgetMutation;
-      }[] = [];
-
-      for (const transactionId of input.transactionIds) {
-        const existing = await local.getTransaction(input.budgetId, transactionId);
-        if (!existing || existing.accountId !== input.sourceAccountId) continue;
-
-        requireMutableTransaction(existing);
-
-        const counterpart = await requireTransferCounterpart(local, existing);
-        if (counterpart) {
-          requireMutableTransaction(counterpart);
-        }
-
-        if (
-          counterpart &&
-          input.targetAccountId === existing.transferAccountId
-        ) {
-          throw new Error(
-            "This transfer cannot be moved to the account containing its other side.",
-          );
-        }
-
-        const updatedAt = new Date().toISOString();
-        const record: LocalTransactionRecord = {
-          ...existing,
-          accountId: input.targetAccountId,
-          updatedAt,
-        };
-
-        if (!counterpart) {
-          writes.push({
-            transaction: record,
-            mutation: mutation(
-              input.budgetId,
-              "transactions",
-              transactionId,
-              "upsert",
-              record,
-            ),
-          });
-          continue;
-        }
-
-        const counterpartRecord: LocalTransactionRecord = {
-          ...counterpart,
-          transferAccountId: input.targetAccountId,
-          updatedAt,
-        };
-        const operationGroupId = createRuntimeUuid();
-        const operationGroup: LocalBudgetOperationGroup = {
-          members: [record, counterpartRecord].map((transaction) => ({
-            domain: "transactions",
-            entityId: transaction.id,
-            operation: "upsert",
-            payload: transaction,
-          })),
-        };
-
-        writes.push(
-          {
-            transaction: record,
-            mutation: mutation(
-              input.budgetId,
-              "transactions",
-              record.id,
-              "upsert",
-              record,
-              operationGroupId,
-              operationGroup,
-            ),
-          },
-          {
-            transaction: counterpartRecord,
-            mutation: mutation(
-              input.budgetId,
-              "transactions",
-              counterpartRecord.id,
-              "upsert",
-              counterpartRecord,
-              operationGroupId,
-              operationGroup,
-            ),
-          },
-        );
-      }
-
-      await local.writeTransactionBatch(
-        transactionWritesAsSingleOperationGroup(
-          writes.map(({ transaction }) => transaction),
-        ),
-      );
-      if (writes.length > 0) notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async updateTransaction(transactionId, input) {
-      const local = await requireDatabase(input.budgetId);
-      const existing = await local.getTransaction(
-        input.budgetId,
-        transactionId,
-      );
-
-      if (!existing) {
-        throw new Error("The local transaction was not found.");
-      }
-
-      const records = await buildUpdatedTransactionRecords(
-        local,
-        transactionId,
-        input,
-        existing,
-      );
-
-      await local.writeTransactionBatch(transactionWrites(records));
-      notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async toggleTransactionCleared(transactionId, input) {
-      const local = await requireDatabase(input.budgetId);
-      const existing = await local.getTransaction(input.budgetId, transactionId);
-      if (!existing) throw new Error("The local transaction was not found.");
-
-      requireMutableTransaction(existing);
-
-      const record = {
-        ...existing,
-        clearedStatus: existing.clearedStatus === "uncleared" ? "cleared" : "uncleared",
-        updatedAt: new Date().toISOString(),
-      };
-      await local.writeTransaction(
-        record,
-        mutation(input.budgetId, "transactions", transactionId, "upsert", record),
-      );
-      notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async setTransactionsCleared(input) {
-      const local = await requireDatabase(input.budgetId);
-      const records: LocalTransactionRecord[] = [];
-      for (const transactionId of [...new Set(input.transactionIds)]) {
-        const existing = await local.getTransaction(input.budgetId, transactionId);
-        if (!existing) throw new Error(`Transaction ${transactionId} was not found.`);
-        requireMutableTransaction(existing);
-        records.push({
-          ...existing,
-          clearedStatus: input.cleared ? "cleared" : "uncleared",
-          updatedAt: new Date().toISOString(),
-        });
-      }
-      await local.writeTransactionBatch(transactionWritesAsSingleOperationGroup(records), {
-        verifyWrittenTransactions: true,
-      });
-      if (records.length > 0) notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async deleteTransaction(transactionId, input) {
-      const local = await requireDatabase(input.budgetId);
-      const existing = await local.getTransaction(input.budgetId, transactionId);
-
-      if (!existing) {
-        await local.deleteTransaction(
-          transactionId,
-          mutation(
-            input.budgetId,
-            "transactions",
-            transactionId,
-            "delete",
-            null,
-          ),
-        );
-        notifyLocalFirstMutationCommitted(input.budgetId);
-        return;
-      }
-
-      requireMutableTransaction(existing);
-
-      const counterpart =
-        await findReciprocalTransferCounterpartForDelete(local, existing);
-      if (counterpart) {
-        requireMutableTransaction(counterpart);
-      }
-
-      if (!counterpart) {
-        await local.deleteTransaction(
-          transactionId,
-          mutation(
-            input.budgetId,
-            "transactions",
-            transactionId,
-            "delete",
-            {
-              accountId: existing.accountId,
-              amount: existing.amount,
-              transferAccountId: existing.transferAccountId,
-              transferTransactionId: existing.transferTransactionId,
-            },
-          ),
-        );
-        notifyLocalFirstMutationCommitted(input.budgetId);
-        return;
-      }
-
-      const operationGroupId = createRuntimeUuid();
-      const operationGroup: LocalBudgetOperationGroup = {
-        members: [
-          {
-            domain: "transactions",
-            entityId: existing.id,
-            operation: "delete",
-            payload: {
-              accountId: existing.accountId,
-              amount: existing.amount,
-              transferAccountId: existing.transferAccountId,
-              transferTransactionId: existing.transferTransactionId,
-            },
-          },
-          {
-            domain: "transactions",
-            entityId: counterpart.id,
-            operation: "delete",
-            payload: {
-              accountId: counterpart.accountId,
-              amount: counterpart.amount,
-              transferAccountId: counterpart.transferAccountId,
-              transferTransactionId: counterpart.transferTransactionId,
-            },
-          },
-        ],
-      };
-
-      await local.deleteTransactionBatch(
-        operationGroup.members.map((member) => ({
-          transactionId: member.entityId,
-          mutation: mutation(
-            input.budgetId,
-            member.domain,
-            member.entityId,
-            member.operation,
-            member.payload,
-            operationGroupId,
-            operationGroup,
-          ),
-        })),
-      );
-
-      notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async addTransactionAttachment(input) {
-      const local = await requireDatabase(input.budgetId);
-      const attachment: LocalTransactionAttachmentRecord = {
-        id: input.attachment.id,
-        budgetId: input.budgetId,
-        transactionId: input.transactionId,
-        fileName: input.attachment.fileName,
-        fileSize: input.attachment.fileSize,
-        mimeType: input.attachment.mimeType,
-        attachedAt: input.attachment.attachedAt,
-        contentHash: input.attachment.contentHash ?? "",
-      };
-      const payload: LocalTransactionAttachmentMutationPayload = {
-        kind: "transaction-attachment-upsert",
-        attachment,
-        contentBase64: encodeBase64(input.content),
-      };
-      await local.writeTransactionAttachment(
-        attachment,
-        input.content,
-        mutation(
-          input.budgetId,
-          "transactions",
-          `attachment:${attachment.id}`,
-          "upsert",
-          payload,
-        ),
-      );
-      notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async removeTransactionAttachment(input) {
-      const local = await requireDatabase(input.budgetId);
-      const attachment: LocalTransactionAttachmentRecord = {
-        id: input.attachmentId,
-        budgetId: input.budgetId,
-        transactionId: input.transactionId,
-        fileName: "deleted",
-        fileSize: 0,
-        mimeType: "application/octet-stream",
-        attachedAt: new Date().toISOString(),
-        contentHash: `sha256:${"0".repeat(64)}`,
-      };
-      const payload: LocalTransactionAttachmentMutationPayload = {
-        kind: "transaction-attachment-delete",
-        attachment,
-      };
-      await local.deleteTransactionAttachment(
-        input.attachmentId,
-        mutation(
-          input.budgetId,
-          "transactions",
-          `attachment:${input.attachmentId}`,
-          "delete",
-          payload,
-        ),
-      );
-      notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async readTransactionAttachment(input) {
-      const local = await requireDatabase(input.budgetId);
-      const stored = await local.readTransactionAttachmentContent(
-        input.budgetId,
-        input.attachmentId,
-      );
-      return stored
-        ? new Blob([stored.content.buffer as ArrayBuffer], { type: stored.mimeType })
-        : null;
-    },
+    moveTransactions: publicOrdinaryCommands.moveTransactions,
+    updateTransaction: publicOrdinaryCommands.updateTransaction,
+    toggleTransactionCleared: publicOrdinaryCommands.toggleTransactionCleared,
+    setTransactionsCleared: publicOrdinaryCommands.setTransactionsCleared,
+    deleteTransaction: publicOrdinaryCommands.deleteTransaction,
+    addTransactionAttachment: publicOrdinaryCommands.addTransactionAttachment,
+    removeTransactionAttachment: publicOrdinaryCommands.removeTransactionAttachment,
+    readTransactionAttachment: attachmentCommands.readTransactionAttachment,
     async listAccounts(budgetId) {
       return (await client.listAccountNavigation(budgetId)).map(({ account }) => account);
     },
@@ -2418,159 +1148,25 @@ export function createLocalFirstAccountRegisterQueryClient(
       await synchronise(input.budgetId);
       return (await requireDatabase(input.budgetId)).listCategoryGoals(input.budgetId);
     },
-    async createCategoryGoal(goal) {
-      const local = await requireDatabase(goal.budgetId);
-      const canonical = normaliseCategoryGoalForPersistence(goal);
-      return commitCategoryGoalMutation(goal.budgetId, () => local.writeCategoryGoal(
-        "create", canonical, mutation(goal.budgetId, "categoryGoals", goal.categoryId, "upsert", canonical),
-      ));
-    },
-    async updateCategoryGoal(goal) {
-      const local = await requireDatabase(goal.budgetId);
-      const canonical = normaliseCategoryGoalForPersistence(goal);
-      return commitCategoryGoalMutation(goal.budgetId, () => local.writeCategoryGoal(
-        "update", canonical, mutation(goal.budgetId, "categoryGoals", goal.categoryId, "upsert", canonical),
-      ));
-    },
-    async deleteCategoryGoal(input) {
-      const local = await requireDatabase(input.budgetId);
-      return commitCategoryGoalMutation(input.budgetId, () => local.deleteCategoryGoal(
-        input.budgetId, input.categoryId,
-        mutation(input.budgetId, "categoryGoals", input.categoryId, "delete", null),
-      ), (result) => result !== null);
-    },
-    async replaceCategoryGoalHistoryState(input) {
-      const local = await requireDatabase(input.budgetId);
-      const replacement = input.replacement
-        ? normaliseCategoryGoalForPersistence(input.replacement)
-        : null;
-      return commitCategoryGoalMutation(input.budgetId, () => local.replaceCategoryGoalHistoryState({
-        ...input, replacement,
-        mutation: mutation(
-          input.budgetId, "categoryGoals", input.categoryId,
-          replacement ? "upsert" : "delete", replacement,
-        ),
-      }), () => !categoryGoalsEqual(input.expected, replacement));
-    },
-    async createAccount(budgetId, input) {
-      const navigation = await client.listAccountNavigation(budgetId);
-      const currencyCode = navigation[0]?.currencyCode ?? "AUD";
-      const now = new Date().toISOString();
-      const account = {
-        id: input.id ?? createRuntimeUuid(),
-        budgetId,
-        name: input.name,
-        type: input.type,
-        participation: input.type === "tracking" ? "off-budget" : "on-budget",
-        openingBalance: Math.round(input.startingBalance * 100),
-        currencyCode,
-        createdAt: now,
-        closedAt: null,
-      };
-      const local = await requireDatabase(budgetId);
-      await local.writeAccount(
-        account,
-        mutation(budgetId, "accounts", account.id, "upsert", account),
-      );
-      notifyLocalFirstMutationCommitted(budgetId);
-      return listLocalAccounts(budgetId);
-    },
+    createCategoryGoal: publicOrdinaryCommands.createCategoryGoal,
+    updateCategoryGoal: publicOrdinaryCommands.updateCategoryGoal,
+    deleteCategoryGoal: publicOrdinaryCommands.deleteCategoryGoal,
+    replaceCategoryGoalHistoryState: publicOrdinaryCommands.replaceCategoryGoalHistoryState,
+    createAccount: publicOrdinaryCommands.createAccount,
     async captureAccount(budgetId, accountId) {
       await synchronise(budgetId);
       return (await requireDatabase(budgetId)).readAccountForHistory(accountId);
     },
-    async replaceAccountHistoryState(input) {
-      const local = await requireDatabase(input.budgetId);
-      await local.replaceAccountHistoryState({
-        accountId: input.accountId,
-        expected: input.expected,
-        replacement: input.replacement,
-        mutation: mutation(
-          input.budgetId,
-          "accounts",
-          input.accountId,
-          input.replacement ? "upsert" : "delete",
-          input.replacement,
-        ),
-      });
-      notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async replaceBudgetMonthHistoryState(input) {
-      const local = await requireDatabase(input.budgetId);
-      await local.replaceBudgetMonthHistoryState({
-        month: input.month,
-        expected: input.expected,
-        replacement: input.replacement,
-        mutation: mutation(input.budgetId, "budgetMonths", input.month, "upsert", input.replacement),
-      });
-      notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async updateAccount(budgetId, input) {
-      const local = await requireDatabase(budgetId);
-      const current = (await local.listAccountNavigation(budgetId))
-        .find(({ id }) => id === input.id);
-      if (!current) throw new Error("The local account was not found.");
-      const account = {
-        id: current.id,
-        budgetId,
-        name: input.name,
-        type: input.type,
-        participation: input.type === "tracking" ? "off-budget" : "on-budget",
-        openingBalance: current.openingBalance,
-        currencyCode: current.currencyCode,
-        createdAt: new Date(0).toISOString(),
-        closedAt: current.closedAt,
-      };
-      await local.writeAccount(
-        account,
-        mutation(budgetId, "accounts", account.id, "upsert", account),
-      );
-      notifyLocalFirstMutationCommitted(budgetId);
-      return listLocalAccounts(budgetId);
-    },
-    async setAccountClosed(input) {
-      const local = await requireDatabase(input.budgetId);
-      const current = (await local.listAccountNavigation(input.budgetId))
-        .find(({ id }) => id === input.accountId);
-      if (!current) throw new Error("The local account was not found.");
-      const account = {
-        id: current.id,
-        budgetId: input.budgetId,
-        name: current.name,
-        type: current.type,
-        participation: current.participation,
-        openingBalance: current.openingBalance,
-        currencyCode: current.currencyCode,
-        createdAt: new Date(0).toISOString(),
-        closedAt: input.closed ? new Date().toISOString() : null,
-      };
-      await local.writeAccount(
-        account,
-        mutation(input.budgetId, "accounts", account.id, "upsert", account),
-      );
-      notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async deleteAccount(budgetId, accountId) {
-      const local = await requireDatabase(budgetId);
-      try {
-        await local.deleteAccount(
-          budgetId,
-          accountId,
-          mutation(budgetId, "accounts", accountId, "delete", null),
-        );
-        notifyLocalFirstMutationCommitted(budgetId);
-        return { deleted: true, accounts: [...await listLocalAccounts(budgetId)] };
-      } catch (error) {
-        if ((error as { code?: string }).code !== "ACCOUNT_NOT_EMPTY") throw error;
-        return {
-          deleted: false,
-          reason: "This account contains transactions and cannot be deleted.",
-          accounts: [...await client.listAccounts(budgetId)],
-        };
-      }
-    },
+    replaceAccountHistoryState: publicOrdinaryCommands.replaceAccountHistoryState,
+    replaceBudgetMonthHistoryState: publicOrdinaryCommands.replaceBudgetMonthHistoryState,
+    updateAccount: publicOrdinaryCommands.updateAccount,
+    setAccountClosed: publicOrdinaryCommands.setAccountClosed,
+    deleteAccount: publicOrdinaryCommands.deleteAccount,
     async getBudgetMonthView(input) {
       await synchronise(input.budgetId);
+      return client.getLocalBudgetMonthView(input);
+    },
+    async getLocalBudgetMonthView(input) {
       const local = await requireDatabase(input.budgetId);
       const view = await local.readEntity<BudgetMonthView>(
         "budgetMonths",
@@ -2592,30 +1188,9 @@ export function createLocalFirstAccountRegisterQueryClient(
     prefetchBudgetMonthView(input) {
       void client.getBudgetMonthView(input).catch(() => undefined);
     },
-    async setCategoryAssignedValues(input) {
-      const local = await requireDatabase(input.budgetId);
-      await local.mutateBatch(input.assignments.map(({ categoryId, assigned }) =>
-        mutation(
-          input.budgetId,
-          "budgetMonths",
-          `assignment:${input.month}:${categoryId}`,
-          "upsert",
-          {
-            kind: "category-assignment",
-            month: input.month,
-            categoryId,
-            assigned,
-          },
-        )));
-      notifyLocalFirstMutationCommitted(input.budgetId);
-      const next = await local.readEntity<BudgetMonthView>(
-        "budgetMonths",
-        input.month,
-      );
-      if (!next) {
-        throw new Error(`Budget month ${input.month} is not available locally.`);
-      }
-      return next;
+    setCategoryAssignedValues: publicOrdinaryCommands.setCategoryAssignedValues,
+    async executeAssignmentsWithPublication() {
+      throw new Error("The publication completion requires the ownership proxy.");
     },
     async getBudgetCategoryOptions(input) {
       const view = await client.getBudgetMonthView(input);
@@ -2647,62 +1222,9 @@ export function createLocalFirstAccountRegisterQueryClient(
         input.categoryId,
       );
     },
-    async mutateCategory(budgetId, input) {
-      const view = await client.getBudgetMonthView({
-        budgetId,
-        month: input.month,
-      });
-      const next = mutateBudgetCategory(view, input);
-      if (input.operation === "overspending") {
-        const local = await requireDatabase(budgetId);
-        const categoryId = String(input.categoryId);
-        const policy = input.overspendingHandling as
-          | "reduce-next-month"
-          | "carry-category";
-        await local.mutateBatch([mutation(
-          budgetId,
-          "budgetMonths",
-          `policy:${input.month}:${categoryId}`,
-          "upsert",
-          {
-            kind: "category-overspending-policy",
-            startMonth: input.month,
-            categoryId,
-            policy,
-          },
-        )]);
-        notifyLocalFirstMutationCommitted(budgetId);
-        return client.getBudgetMonthView({ budgetId, month: input.month });
-      }
-      if (input.operation === "merge") {
-        const targetCategoryId = String(input.targetCategoryId);
-        const sourceCategoryId = String(input.categoryId);
-        if (
-          isCreditCardPaymentCategory(sourceCategoryId) ||
-          isCreditCardPaymentCategory(targetCategoryId)
-        ) {
-          throw new Error("Managed credit-card payment categories cannot be merged.");
-        }
-        const target = view.categoryGroups.flatMap(({ categories }) => categories)
-          .find(({ id }) => id === targetCategoryId);
-        if (!target) throw new Error("The target local category was not found.");
-        const local = await requireDatabase(budgetId);
-        const payload = {
-          targetCategoryId,
-          targetCategoryName: target.name,
-        };
-        await local.mergeCategories({
-          budgetId,
-          sourceCategoryId,
-          targetCategoryId,
-          targetCategoryName: target.name,
-          mutation: mutation(
-            budgetId, "categories", sourceCategoryId, "delete", payload,
-          ),
-        });
-      }
-      await writeEntity(budgetId, "budgetMonths", input.month, next);
-      return client.getBudgetMonthView({ budgetId, month: input.month });
+    mutateCategory: publicOrdinaryCommands.mutateCategory,
+    async executeCategoryWithPublication() {
+      throw new Error("The publication completion requires the ownership proxy.");
     },
     async getCategoryMergePreview(input) {
       const view = await client.getBudgetMonthView(input);
@@ -2744,24 +1266,9 @@ export function createLocalFirstAccountRegisterQueryClient(
     async listPayeeDuplicateSuppressions(budgetId) {
       return (await syncThenDatabase(budgetId)).listPayeeDuplicateSuppressions(budgetId);
     },
-    async keepPayeesSeparate(budgetId, pairs) {
-      await (await requireDatabase(budgetId)).keepPayeesSeparate(budgetId, pairs);
-    },
-    async replacePayeeDuplicateSuppressionsHistoryState(input) {
-      await (await requireDatabase(input.budgetId)).replacePayeeDuplicateSuppressionsHistoryState(input);
-      notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async createPayee(budgetId, name, payeeId) {
-      const now = new Date().toISOString();
-      const payee = {
-        id: payeeId ?? createRuntimeUuid(), budgetId, name: name.trim(),
-        note: "", archived: false,
-      };
-      const local = await requireDatabase(budgetId);
-      await local.writePayee(payee, mutation(budgetId, "payees", payee.id, "upsert", payee));
-      notifyLocalFirstMutationCommitted(budgetId);
-      return listPersistedPayees(budgetId, false);
-    },
+    keepPayeesSeparate: publicOrdinaryCommands.keepPayeesSeparate,
+    replacePayeeDuplicateSuppressionsHistoryState: publicOrdinaryCommands.replacePayeeDuplicateSuppressionsHistoryState,
+    createPayee: publicOrdinaryCommands.createPayee,
     async capturePayee(budgetId, payeeId) {
       const all = [
         ...await client.listPayees(budgetId, false),
@@ -2769,299 +1276,31 @@ export function createLocalFirstAccountRegisterQueryClient(
       ];
       return all.find(({ id }) => id === payeeId) ?? null;
     },
-    async replacePayeeHistoryState(input) {
-      const current = await client.capturePayee(input.budgetId, input.payeeId);
-      if (JSON.stringify(current) !== JSON.stringify(input.expected)) {
-        throw new Error("PAYEE_HISTORY_CONFLICT");
-      }
-      const local = await requireDatabase(input.budgetId);
-      if (input.replacement) {
-        const { isArchived, ...replacement } = input.replacement;
-        const payee = {
-          ...replacement,
-          budgetId: input.budgetId,
-          note: replacement.note ?? "",
-          archived: isArchived === true,
-        };
-        await local.writePayee(payee, mutation(input.budgetId, "payees", input.payeeId, "upsert", payee));
-      } else {
-        await local.deleteUnusedPayee(
-          input.budgetId,
-          input.payeeId,
-          mutation(input.budgetId, "payees", input.payeeId, "delete", { kind: "history" }),
-        );
-      }
-      notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async updatePayee(budgetId, input) {
-      const local = await requireDatabase(budgetId);
-      const all = [...await local.listPayees(budgetId, false), ...await local.listPayees(budgetId, true)];
-      const current = all.find((row) => row.id === input.id);
-      if (!current) throw new Error("The local payee was not found.");
-      const payee = {
-        id: current.id, budgetId,
-        name: input.name ?? current.name,
-        note: input.note ?? current.note,
-        archived: current.archived,
-        defaultCategoryId: input.defaultCategoryId ?? current.defaultCategoryId,
-        defaultCategoryName: input.defaultCategoryName ?? current.defaultCategoryName,
-        aliases: input.aliases ?? current.aliases,
-        importRules: input.importRules ?? current.importRules,
-        iconRef: input.iconUpdate
-          ? input.iconUpdate.kind === "automatic"
-            ? ""
-            : validatePayeeIconReferenceForWrite(input.iconUpdate.iconRef)
-          : current.iconRef,
-        createdAt: current.createdAt,
-        updatedAt: new Date().toISOString(),
-      };
-      await local.writePayee(payee, mutation(budgetId, "payees", payee.id, "upsert", payee));
-      notifyLocalFirstMutationCommitted(budgetId);
-      return listPersistedPayees(budgetId, false);
-    },
-    async setPayeeArchived(budgetId, payeeId, archived) {
-      const local = await requireDatabase(budgetId);
-      const all = [...await local.listPayees(budgetId, false), ...await local.listPayees(budgetId, true)];
-      const current = all.find((row) => row.id === payeeId);
-      if (!current) throw new Error("The local payee was not found.");
-      const payee = { ...current, budgetId, archived };
-      await local.writePayee(payee, mutation(budgetId, "payees", payee.id, "upsert", payee));
-      notifyLocalFirstMutationCommitted(budgetId);
-      return listPersistedPayees(budgetId, archived);
-    },
-    async deleteUnusedPayee(budgetId, payeeId) {
-      const local = await requireDatabase(budgetId);
-      await local.deleteUnusedPayee(
-        budgetId,
-        payeeId,
-        mutation(budgetId, "payees", payeeId, "delete", { kind: "unused-payee-delete" }),
-      );
-      notifyLocalFirstMutationCommitted(budgetId);
-      return listPersistedPayees(budgetId, false);
-    },
-    async mergePayees(budgetId, input) {
-      const local = await requireDatabase(budgetId);
-      const target = [
-        ...await local.listPayees(budgetId, false),
-        ...await local.listPayees(budgetId, true),
-      ].find(({ id }) => id === input.targetPayeeId);
-      if (!target) throw new Error("The target local payee was not found.");
-      const payload = {
-        targetPayeeId: target.id,
-        targetPayeeName: target.name,
-      };
-      await local.mergePayees({
-        budgetId,
-        sourcePayeeId: input.sourcePayeeId,
-        sourcePayeeIds: input.sourcePayeeIds,
-        targetPayeeId: target.id,
-        targetPayeeName: target.name,
-        updateLinkedTransactions: input.updateLinkedTransactions,
-        updateScheduledTransactions: input.updateScheduledTransactions,
-        addMergedAliases: input.addMergedAliases,
-        redirectRecognitionRules: input.redirectRecognitionRules,
-        mutation: mutation(
-          budgetId, "payees", input.sourcePayeeId, "delete", {
-            ...payload,
-            sourcePayeeIds: input.sourcePayeeIds,
-            updateLinkedTransactions: input.updateLinkedTransactions,
-            updateScheduledTransactions: input.updateScheduledTransactions,
-            addMergedAliases: input.addMergedAliases,
-            redirectRecognitionRules: input.redirectRecognitionRules,
-          },
-        ),
-      });
-      notifyLocalFirstMutationCommitted(budgetId);
-      return listPersistedPayees(budgetId, false);
-    },
+    replacePayeeHistoryState: publicOrdinaryCommands.replacePayeeHistoryState,
+    updatePayee: publicOrdinaryCommands.updatePayee,
+    setPayeeArchived: publicOrdinaryCommands.setPayeeArchived,
+    deleteUnusedPayee: publicOrdinaryCommands.deleteUnusedPayee,
+    mergePayees: publicOrdinaryCommands.mergePayees,
     async listTransactionTags(budgetId) {
       await synchronise(budgetId);
       return (await requireDatabase(budgetId)).listEntities<TransactionTagDefinition>("transactionTags");
     },
-    async replaceTransactionTags(budgetId, tags) {
-      const existing = await client.listTransactionTags(budgetId);
-      const nextIds = new Set(tags.map(({ id }) => id));
-      for (const tag of existing) {
-        if (!nextIds.has(tag.id)) await writeEntity(budgetId, "transactionTags", tag.id, null, "delete");
-      }
-      for (const tag of tags) await writeEntity(budgetId, "transactionTags", tag.id, tag);
-      return tags;
-    },
-    async replaceTransactionTagsHistoryState(input) {
-      const current = await client.listTransactionTags(input.budgetId);
-      if (JSON.stringify(current) !== JSON.stringify(input.expected)) {
-        throw new Error("TRANSACTION_TAG_HISTORY_CONFLICT");
-      }
-      return client.replaceTransactionTags(input.budgetId, input.replacement);
-    },
+    replaceTransactionTags: publicOrdinaryCommands.replaceTransactionTags,
+    replaceTransactionTagsHistoryState: publicOrdinaryCommands.replaceTransactionTagsHistoryState,
     listScheduledTransactions(budgetId, accountId) {
       return listSchedules(budgetId, accountId);
     },
     captureScheduledTransaction(budgetId, scheduleId) {
       return captureSchedule(budgetId, scheduleId);
     },
-    async replaceScheduledTransactionHistoryState(input) {
-      const local = await requireDatabase(input.budgetId);
-      const members = scheduledHistoryMembers(input);
-      const operationGroupId = createRuntimeUuid();
-      const group: LocalBudgetOperationGroup = { members };
-      await local.replaceScheduledTransactionHistoryState({
-        scheduleId: input.scheduleId,
-        expectedSchedule: input.expectedSchedule,
-        replacementSchedule: input.replacementSchedule,
-        expectedTransaction: input.expectedTransaction,
-        replacementTransaction: input.replacementTransaction,
-        mutations: members.map((member) => mutation(
-          input.budgetId,
-          member.domain,
-          member.entityId,
-          member.operation,
-          member.payload,
-          operationGroupId,
-          group,
-        )),
-      });
-      notifyLocalFirstMutationCommitted(input.budgetId);
-    },
-    async enterScheduledTransaction(input) {
-      const local = await requireDatabase(input.budgetId);
-      const current = await captureSchedule(input.budgetId, input.schedule.id);
-      if (!current || JSON.stringify(current) !== JSON.stringify(input.schedule)) {
-        throw new Error("The scheduled transaction no longer matches its expected state.");
-      }
-      const advanced = advanceScheduledTransaction(current);
-      const afterSchedule = advanced.action === "delete" ? null : advanced.transaction;
-      let transaction: TransactionHistorySnapshot | null = null;
-      if (input.createTransaction) {
-        const records = await buildNewTransactionRecords(
-          local,
-          input.transactionId,
-          scheduledRegisterWrite(input.budgetId, input.accountId, current),
-        );
-        const attachedAt = new Date().toISOString();
-        transaction = {
-          budgetId: input.budgetId,
-          transactions: records,
-          attachments: (current.attachments ?? []).map((attachment) => ({
-            id: `${input.transactionId}:attachment:${attachment.id}`,
-            budgetId: input.budgetId,
-            transactionId: input.transactionId,
-            fileName: attachment.fileName,
-            fileSize: attachment.fileSize,
-            mimeType: attachment.mimeType,
-            attachedAt,
-            contentHash: attachment.contentHash,
-            content: decodeBase64(attachment.contentBase64),
-          })),
-        };
-      }
-      await client.replaceScheduledTransactionHistoryState({
-        budgetId: input.budgetId,
-        scheduleId: current.id,
-        expectedSchedule: current,
-        replacementSchedule: afterSchedule,
-        expectedTransaction: null,
-        replacementTransaction: transaction,
-      });
-      return { afterSchedule, transaction };
-    },
-    async createScheduledTransaction(budgetId, input) {
-      const schedule = buildScheduledTransaction(input);
-      await writeEntity(budgetId, "scheduledTransactions", schedule.id, schedule);
-      return listSchedules(budgetId, input.accountId, false);
-    },
-    async updateScheduledTransaction(budgetId, scheduleId, input) {
-      const existing = (await listSchedules(budgetId, input.accountId))
-        .find(({ id }) => id === scheduleId);
-      if (!existing) throw new Error("The local scheduled transaction was not found.");
-      const schedule = buildScheduledTransaction(
-        input,
-        { existing },
-      );
-      await writeEntity(budgetId, "scheduledTransactions", schedule.id, schedule);
-      return listSchedules(budgetId, input.accountId, false);
-    },
-    async deleteScheduledTransaction(budgetId, accountId, scheduleId) {
-      await writeEntity(budgetId, "scheduledTransactions", scheduleId, null, "delete");
-      return listSchedules(budgetId, accountId, false);
-    },
-    async advanceScheduledTransaction(budgetId, accountId, scheduleId) {
-      const existing = (
-        await listSchedules(
-          budgetId,
-          accountId,
-        )
-      ).find(({ id }) => id === scheduleId);
-
-      if (!existing) {
-        return listSchedules(
-          budgetId,
-          accountId,
-        );
-      }
-
-      const result =
-        advanceScheduledTransaction(
-          existing,
-        );
-
-      if (result.action === "delete") {
-        await writeEntity(
-          budgetId,
-          "scheduledTransactions",
-          scheduleId,
-          null,
-          "delete",
-        );
-      } else {
-        await writeEntity(
-          budgetId,
-          "scheduledTransactions",
-          scheduleId,
-          result.transaction,
-        );
-      }
-
-      return listSchedules(
-        budgetId,
-        accountId,
-        false,
-      );
-    },
-
-    async renameScheduledPayeeReferences(budgetId, input) {
-      const schedules = await (await syncThenDatabase(budgetId))
-        .listEntities<ScheduledTransactionView>("scheduledTransactions");
-      for (const schedule of schedules) {
-        if (
-          schedule.payeeId === input.payeeId ||
-          schedule.payee === input.previousName
-        ) {
-          await writeEntity(budgetId, "scheduledTransactions", schedule.id, {
-            ...schedule,
-            payee: input.nextName,
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      }
-    },
-    async reassignScheduledPayeeReferences(budgetId, input) {
-      const schedules = await (await syncThenDatabase(budgetId))
-        .listEntities<ScheduledTransactionView>("scheduledTransactions");
-      for (const schedule of schedules) {
-        if (
-          schedule.payeeId === input.sourcePayeeId ||
-          schedule.payee === input.sourceName
-        ) {
-          await writeEntity(budgetId, "scheduledTransactions", schedule.id, {
-            ...schedule,
-            payeeId: input.targetPayeeId,
-            payee: input.targetName,
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      }
-    },
+    replaceScheduledTransactionHistoryState: publicOrdinaryCommands.replaceScheduledTransactionHistoryState,
+    enterScheduledTransaction: publicOrdinaryCommands.enterScheduledTransaction,
+    createScheduledTransaction: publicOrdinaryCommands.createScheduledTransaction,
+    updateScheduledTransaction: publicOrdinaryCommands.updateScheduledTransaction,
+    deleteScheduledTransaction: publicOrdinaryCommands.deleteScheduledTransaction,
+    advanceScheduledTransaction: publicOrdinaryCommands.advanceScheduledTransaction,
+    renameScheduledPayeeReferences: publicOrdinaryCommands.renameScheduledPayeeReferences,
+    reassignScheduledPayeeReferences: publicOrdinaryCommands.reassignScheduledPayeeReferences,
   };
   const ownership = createBudgetDatabaseOwnership(() => client.releaseLocalDatabase!());
   // The raw client is deliberately retained for nested calls. Wrapping those
@@ -3099,6 +1338,36 @@ export function createLocalFirstAccountRegisterQueryClient(
           finally { await releaseLocalDatabase(args[0] as string); }
         }, () => releaseLocalDatabase(args[0] as string));
         const budgetId = resolveOwnedBudgetId(key, args);
+        if (key === "executeCategoryWithPublication" || key === "executeAssignmentsWithPublication") {
+          const handler = key === "executeCategoryWithPublication"
+            ? ordinaryCommandHandlers.mutateCategory
+            : ordinaryCommandHandlers.setCategoryAssignedValues;
+          const handlerArgs = key === "executeCategoryWithPublication" ? args : [args[0]];
+          const invokeHandler = () => ownership.run(
+            budgetId,
+            () => Reflect.apply(handler.execute, handler, handlerArgs),
+          ) as Promise<CommittedCommandHandlerResult<unknown>>;
+          return commandExecutor.execute(`${String(key)}:${createRuntimeUuid()}`, { execute: invokeHandler });
+        }
+        if (isOrdinaryCommandMethod(key)) {
+          const handler = ordinaryCommandHandlers[key];
+          const invokeHandler = () => ownership.run(
+            budgetId,
+            () => Reflect.apply(handler.execute, handler, args),
+          ) as Promise<CommittedCommandHandlerResult<unknown>>;
+          return commandExecutor.execute(`${key}:${createRuntimeUuid()}`, { execute: invokeHandler })
+            .then(({ result }) => result);
+        }
+        // Keep-local recovery has its own direct committed-result path and is
+        // deliberately not admitted into the ordinary command registry.
+        if (key === "resolveSyncConflict" && args[2] === "keep-local") {
+          const invokeRecovery = () => ownership.run(
+            budgetId,
+            () => keepLocalRecovery(budgetId, args[1] as string),
+          );
+          return commandExecutor.execute(`${key}:${createRuntimeUuid()}`, { execute: invokeRecovery })
+            .then(({ result }) => result);
+        }
         return ownership.run(budgetId, () => value.apply(target, args));
       };
       methods.set(key, method);
@@ -3130,212 +1399,4 @@ function readOrCreateDeviceId(storage: Pick<Storage, "getItem" | "setItem">): st
   const id = createRuntimeUuid();
   storage.setItem(DEVICE_ID_KEY, id);
   return id;
-}
-
-function mutateBudgetCategory(
-  view: BudgetMonthView,
-  input: { readonly operation: string; readonly [key: string]: unknown },
-): BudgetMonthView {
-  let groups = view.categoryGroups.map((group) => ({
-    ...group,
-    categories: group.categories.map((category) => ({ ...category })),
-  }));
-  const categoryId = String(input.categoryId ?? "");
-  const groupId = String(input.groupId ?? "");
-  if (input.operation === "create") {
-    let group = groups.find(({ id }) => id === groupId);
-    if (!group) {
-      group = {
-        id: groupId || createRuntimeUuid(),
-        name: String(input.groupName ?? "New group"),
-        previousAvailable: 0, assigned: 0, activity: 0, available: 0,
-        note: "", categories: [],
-      };
-      groups = [...groups, group];
-    }
-    group.categories.push({
-      id: categoryId || createRuntimeUuid(),
-      name: String(input.name ?? "New category"),
-      previousAvailable: 0, assigned: 0, activity: 0, available: 0,
-      isOverspent: false, isArchived: false, note: "",
-    });
-  }
-  if (["rename", "archive", "overspending", "category-note"].includes(input.operation)) {
-    groups = groups.map((group) => ({
-      ...group,
-      categories: group.categories.map((category) => category.id !== categoryId
-        ? category
-        : {
-            ...category,
-            ...(input.operation === "rename" ? { name: String(input.name) } : {}),
-            ...(input.operation === "archive" ? { isArchived: Boolean(input.isArchived) } : {}),
-            ...(input.operation === "overspending"
-              ? { overspendingHandling: input.overspendingHandling as "reduce-next-month" | "carry-category" }
-              : {}),
-            ...(input.operation === "category-note" ? { note: String(input.note ?? "") } : {}),
-          }),
-    }));
-  }
-  if (input.operation === "group-note") {
-    groups = groups.map((group) => group.id === groupId
-      ? { ...group, note: String(input.note ?? "") }
-      : group);
-  }
-  if (input.operation === "move-category") {
-    groups = groups.map((group) => ({
-      ...group,
-      categories: moveByDirection(group.categories, categoryId, String(input.direction)),
-    }));
-  }
-  if (input.operation === "move-group") {
-    groups = moveByDirection(groups, groupId, String(input.direction));
-  }
-  if (input.operation === "position-category") {
-    groups = moveBudgetCategoryToTarget(
-      groups,
-      categoryId,
-      input.targetCategoryId === undefined ? undefined : String(input.targetCategoryId),
-      String(input.placement),
-      input.targetGroupId === undefined ? undefined : String(input.targetGroupId),
-    );
-  }
-  if (input.operation === "position-group") {
-    groups = moveToTarget(
-      groups, groupId, String(input.targetGroupId), String(input.placement),
-    );
-  }
-  if (input.operation === "merge") {
-    const targetId = String(input.targetCategoryId);
-    const source = groups.flatMap(({ categories }) => categories)
-      .find(({ id }) => id === categoryId);
-    if (source) {
-      groups = groups.map((group) => ({
-        ...group,
-        categories: group.categories
-          .filter(({ id }) => id !== categoryId)
-          .map((category) => category.id === targetId ? {
-            ...category,
-            previousAvailable: category.previousAvailable + source.previousAvailable,
-            assigned: category.assigned + source.assigned,
-            activity: category.activity + source.activity,
-            available: category.available + source.available,
-          } : category),
-      }));
-    }
-  }
-  return { ...view, categoryGroups: groups };
-}
-
-export function moveBudgetCategoryToTarget<
-  TGroup extends {
-    readonly id: string;
-    readonly categories: readonly TCategory[];
-  },
-  TCategory extends { readonly id: string },
->(
-  groups: readonly TGroup[],
-  categoryId: string,
-  targetCategoryId: string | undefined,
-  placement: string,
-  targetGroupId?: string,
-): TGroup[] {
-  if (targetCategoryId && categoryId === targetCategoryId) {
-    return groups.map((group) => ({
-      ...group,
-      categories: [...group.categories],
-    }));
-  }
-
-  let categoryToMove: TCategory | undefined;
-
-  const withoutSource = groups.map((group) => {
-    const source = group.categories.find(
-      (category) => category.id === categoryId,
-    );
-
-    if (!source) {
-      return {
-        ...group,
-        categories: [...group.categories],
-      };
-    }
-
-    categoryToMove = source;
-
-    return {
-      ...group,
-      categories: group.categories.filter(
-        (category) => category.id !== categoryId,
-      ),
-    };
-  });
-
-  if (!categoryToMove) {
-    return withoutSource;
-  }
-
-  let inserted = false;
-
-  const moved = withoutSource.map((group) => {
-    if (!targetCategoryId && group.id === targetGroupId) {
-      inserted = true;
-      return { ...group, categories: [...group.categories, categoryToMove!] };
-    }
-
-    const targetIndex = group.categories.findIndex(
-      (category) => category.id === targetCategoryId,
-    );
-
-    if (targetIndex < 0) {
-      return group;
-    }
-
-    const categories = [...group.categories];
-    categories.splice(
-      targetIndex + (placement === "after" ? 1 : 0),
-      0,
-      categoryToMove!,
-    );
-    inserted = true;
-
-    return {
-      ...group,
-      categories,
-    };
-  });
-
-  if (inserted) {
-    return moved;
-  }
-
-  // Invalid target: preserve the original grouping/order instead of dropping
-  // the source category.
-  return groups.map((group) => ({
-    ...group,
-    categories: [...group.categories],
-  }));
-}
-
-function moveByDirection<T extends { readonly id: string }>(
-  values: readonly T[], id: string, direction: string,
-): T[] {
-  const next = [...values];
-  const index = next.findIndex((value) => value.id === id);
-  const target = direction === "up" ? index - 1 : index + 1;
-  if (index >= 0 && target >= 0 && target < next.length) {
-    [next[index], next[target]] = [next[target], next[index]];
-  }
-  return next;
-}
-
-function moveToTarget<T extends { readonly id: string }>(
-  values: readonly T[], id: string, targetId: string, placement: string,
-): T[] {
-  const item = values.find((value) => value.id === id);
-  if (!item || id === targetId) return [...values];
-  const next = values.filter((value) => value.id !== id);
-  const target = next.findIndex((value) => value.id === targetId);
-  if (target < 0) return [...values];
-  next.splice(target + (placement === "after" ? 1 : 0), 0, item);
-  return next;
 }

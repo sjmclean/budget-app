@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-16T00:37:48.088Z",
+  "generatedAt": "2026-09-19T00:15:09.189Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -578,7 +578,7 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionMaintenance.ts",
-      "line": 96
+      "line": 97
     },
     {
       "kind": "localStorage",
@@ -1314,7 +1314,7 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
-      "line": 55
+      "line": 59
     },
     {
       "kind": "operationJournal",
@@ -1324,7 +1324,7 @@
     {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
-      "line": 56
+      "line": 60
     },
     {
       "kind": "checkpoints",
@@ -1334,7 +1334,7 @@
     {
       "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
-      "line": 57
+      "line": 61
     },
     {
       "kind": "persistenceBoundary",
@@ -1434,7 +1434,7 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/configuredPersistenceProvider.ts",
-      "line": 41
+      "line": 42
     },
     {
       "kind": "persistenceBoundary",
@@ -1454,7 +1454,7 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
-      "line": 40
+      "line": 41
     },
     {
       "kind": "operationJournal",
@@ -1504,12 +1504,7 @@
     {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/index.ts",
-      "line": 66
-    },
-    {
-      "kind": "operationJournal",
-      "path": "apps/web/src/features/persistence/index.ts",
-      "line": 67
+      "line": 68
     },
     {
       "kind": "operationJournal",
@@ -1517,14 +1512,19 @@
       "line": 69
     },
     {
-      "kind": "checkpoints",
+      "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/index.ts",
-      "line": 74
+      "line": 71
     },
     {
       "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/index.ts",
       "line": 76
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/index.ts",
+      "line": 78
     },
     {
       "kind": "persistenceBoundary",
@@ -1826,7 +1826,7 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
-      "line": 88,
+      "line": 136,
       "classification": "review-required"
     },
     {
@@ -1962,22 +1962,22 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 378
+      "line": 383
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 404
+      "line": 409
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 442
+      "line": 447
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 472
+      "line": 477
     },
     {
       "kind": "operationJournal",
@@ -1992,27 +1992,27 @@
     {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 366
+      "line": 371
     },
     {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 382
+      "line": 387
     },
     {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 383
+      "line": 388
     },
     {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 408
+      "line": 413
     },
     {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 410
+      "line": 415
     },
     {
       "kind": "operationJournal",
@@ -2323,13 +2323,13 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/PayeeManagementPage.tsx",
-      "line": 81,
+      "line": 82,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/PayeeManagementPage.tsx",
-      "line": 90,
+      "line": 91,
       "classification": "review-required"
     },
     {

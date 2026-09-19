@@ -39,7 +39,6 @@ test("rendering and refreshing selector cards never invokes SQLite-backed querie
   const { BudgetSelectorPage } = await import("../../../apps/web/src/pages/BudgetSelectorPage");
   const { useBudgetRegistryStore } = await import("../../../apps/web/src/stores/budgetRegistryStore");
   const { useUIStore } = await import("../../../apps/web/src/stores/uiStore");
-  const { publishPersistenceChange } = await import("../../../apps/web/src/features/persistence/persistenceChangeBus");
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   // The repository's root tsx runner uses classic JSX; Vite uses automatic JSX.
   const previousReact = (globalThis as { React?: unknown }).React;
@@ -53,7 +52,7 @@ test("rendering and refreshing selector cards never invokes SQLite-backed querie
     await act(async () => { rendered = create(React.createElement(MemoryRouter, null, React.createElement(BudgetSelectorPage))); });
     assert.match(JSON.stringify(rendered!.toJSON()), /Budget A/);
     assert.match(JSON.stringify(rendered!.toJSON()), /Budget B/);
-    await act(async () => { publishPersistenceChange({ source: "local" } as never); useBudgetRegistryStore.getState().refreshBudgets(); });
+    await act(async () => { useBudgetRegistryStore.getState().refreshBudgets(); });
     assert.deepEqual(calls, [], "neither initial effects nor refresh may scan SQLite");
     assert.equal(lifecycle.isReleased(), true);
     const store = useBudgetRegistryStore.getState();

@@ -3,7 +3,9 @@ import type { ApplicationHistoryContext } from "../../applicationHistory";
 import type { UndoableCommand } from "../../undoRedo";
 
 function goals(context: ApplicationHistoryContext) {
-  return context.persistence.categoryGoals;
+  const value = context.persistence.localBudgetEngine;
+  if (!value) throw new Error("Category Goal history requires the Local Budget Engine.");
+  return value;
 }
 
 function requireScope(
@@ -67,7 +69,7 @@ export function updateCategoryGoalCommand(
     label: "Update goal",
     async execute(context) {
       requireScope(context, requested, requested.categoryId);
-      before = await goals(context).getCategoryGoal({
+      before = await context.persistence.accountRegisterQueries!.getCategoryGoal({
         budgetId: context.budgetId,
         categoryId: requested.categoryId,
       });
@@ -105,7 +107,7 @@ export function deleteCategoryGoalCommand(input: {
       if (context.budgetId !== scope.budgetId) {
         throw new Error("Category Goal history scope does not match the active budget.");
       }
-      before = await goals(context).getCategoryGoal(scope);
+      before = await context.persistence.accountRegisterQueries!.getCategoryGoal(scope);
       if (!before) throw new Error("Category Goal was not found.");
       requireScope(context, before, scope.categoryId);
       await replace(context, scope.categoryId, before, null);

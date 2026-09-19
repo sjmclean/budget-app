@@ -1,13 +1,18 @@
-import type { AccountRegisterQueryClient } from "../../../persistence/accountRegisterQueryContracts";
+import type { LocalBudgetEngine } from "../../../persistence/accountRegisterQueryContracts";
 import type { ImportHistorySnapshot } from "../../../persistence/localFirst/registerSchema";
 import type { ApplicationHistoryContext } from "../../applicationHistory";
 import type { UndoableCommand } from "../../undoRedo";
 
-type ImportBatchInput = Parameters<AccountRegisterQueryClient["commitImportBatchWithHistory"]>[0];
+type ImportBatchInput = Parameters<LocalBudgetEngine["commitImportBatchWithHistory"]>[0];
 
 function queries(context: ApplicationHistoryContext) {
   const value = context.persistence.accountRegisterQueries;
   if (!value) throw new Error("Import history requires authoritative SQLite persistence.");
+  return value;
+}
+function engine(context: ApplicationHistoryContext) {
+  const value = context.persistence.localBudgetEngine;
+  if (!value) throw new Error("Import history requires the Local Budget Engine.");
   return value;
 }
 
@@ -26,15 +31,15 @@ export function createImportTransactionsCommand(
     label: `Import ${count} transaction${count === 1 ? "" : "s"}`,
     async execute(context) {
       if (context.budgetId !== input.budgetId) throw new Error("Import command belongs to another budget.");
-      ({ before, after } = await queries(context).commitImportBatchWithHistory(input));
+      ({ before, after } = await engine(context).commitImportBatchWithHistory(input));
     },
     async undo(context) {
       if (!before || !after) throw new Error("Import command has not captured its committed state.");
-      await queries(context).replaceImportHistorySnapshot({ expected: after, replacement: before });
+      await engine(context).replaceImportHistorySnapshot({ expected: after, replacement: before });
     },
     async redo(context) {
       if (!before || !after) throw new Error("Import command has not captured its committed state.");
-      await queries(context).replaceImportHistorySnapshot({ expected: before, replacement: after });
+      await engine(context).replaceImportHistorySnapshot({ expected: before, replacement: after });
     },
   };
 }

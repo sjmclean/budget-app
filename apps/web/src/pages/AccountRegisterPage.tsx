@@ -60,6 +60,7 @@ import { usePayeeHistory } from "../features/accounts/usePayeeHistory";
 import { useRegisterAttachmentWorkflow } from "../features/accounts/useRegisterAttachmentWorkflow";
 import { useRegisterViewModel } from "../features/accounts/useRegisterViewModel";
 import { getRegisterTransactions } from "../features/accounts/registerTransactionData";
+import { requireLocalBudgetEngine } from "../features/persistence/budgetPersistenceProvider";
 import { useRegisterTransactionHistory } from "../features/accounts/useRegisterTransactionHistory";
 import {
   nextRegisterSort,
@@ -498,13 +499,14 @@ export function AccountRegisterPage() {
         sourcePayeeId: string;
         targetPayeeId: string;
       }) {
-        return [...await queries.mergePayees(activeBudgetId, input)];
+        return [...await requireLocalBudgetEngine(persistenceGateway.localBudgetEngine).mergePayees(activeBudgetId, input)];
       },
     };
   }, [
     activeBudgetId,
     legacyPayeesPersistence,
     persistenceGateway.accountRegisterQueries,
+    persistenceGateway.localBudgetEngine,
     payeeHistory,
     storageMode,
   ]);

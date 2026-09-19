@@ -16,10 +16,7 @@ import {
   type ApplicationHistoryContext,
 } from "../../../apps/web/src/features/history/applicationHistory.ts";
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.ts";
-import {
-  getPersistenceChangeVersion,
-  subscribePersistenceChanges,
-} from "../../../apps/web/src/features/persistence/persistenceChangeBus.ts";
+import { subscribePersistenceChanges } from "../../../apps/web/src/features/persistence/persistenceChangeBus.ts";
 import { notifyLocalFirstMutationCommitted } from "../../../apps/web/src/features/persistence/localFirst/mutationEvents.ts";
 import { resolveBudgetWorkspaceData } from "../../../apps/web/src/features/budget/useBudgetWorkspace.ts";
 
@@ -83,14 +80,14 @@ test("assignment execute, undo, and redo each notify the Budget-view refresh sub
   const observedAssignments: number[] = [];
   const versions: number[] = [];
   const unsubscribe = subscribePersistenceChanges(() => {
-    versions.push(getPersistenceChangeVersion());
+    versions.push(versions.length + 1);
     observedAssignments.push(current.categoryGroups[0]!.categories[0]!.assigned);
   });
   const budgetView = {
     getBudgetMonthView: async () => current,
     setCategoryAssignedValues: async (input: { assignments: { categoryId: string; assigned: number }[] }) => {
       current = applyCategoryAssignedValues(current, input.assignments);
-      notifyLocalFirstMutationCommitted("budget-a");
+      notifyLocalFirstMutationCommitted("budget-a", { domains: ["budget", "categories"], months: ["2026-08"] });
       return current;
     },
   };

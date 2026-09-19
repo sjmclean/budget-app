@@ -5,7 +5,7 @@ import { createLocalDatabaseKeyValueStorage } from "./localDatabaseKeyValueStora
 import { readBudgetRegistryIncludingDeleting } from "../budget/budgetRegistry";
 import {
   createBudgetLifecycleControlPlaneClient,
-  createLocalFirstAccountRegisterQueryClient,
+  createLocalBudgetRuntime,
 } from "./localFirst";
 
 /**
@@ -23,12 +23,13 @@ export function createConfiguredBudgetPersistenceProvider(
   const metadataStorage = createLocalDatabaseKeyValueStorage(
     userNamespace ? { namespace: userNamespace } : {},
   );
+  const runtime = createLocalBudgetRuntime(lifecycle, {
+    apiBaseUrl,
+    restorePointBudgetName: (budgetId) => readBudgetRegistryIncludingDeleting(metadataStorage).find(({ id }) => id === budgetId)?.name,
+  });
   const provider = createLocalDatabasePersistenceProvider({
     storage: metadataStorage,
-    accountRegisterQueries: createLocalFirstAccountRegisterQueryClient(lifecycle, {
-      apiBaseUrl,
-      restorePointBudgetName: (budgetId) => readBudgetRegistryIncludingDeleting(metadataStorage).find(({ id }) => id === budgetId)?.name,
-    }),
+    runtime,
   });
   return {
     ...provider,

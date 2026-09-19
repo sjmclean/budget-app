@@ -104,6 +104,8 @@ export interface CategoryMergePreview {
 }
 
 export interface BudgetMonthView {
+  /** Non-persisted publication identity on a committed command readback. */
+  readonly publicationRevision?: number;
   budgetId: string;
   budgetName: string;
   monthLabel: string;

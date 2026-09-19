@@ -25,7 +25,8 @@ export async function generateDueScheduledTransactionsForBudget(
   budgetId: string,
 ) {
   const queries = provider.accountRegisterQueries;
-  if (!queries) return generateDueScheduledTransactions(provider, { scope: budgetId });
+  const engine = provider.localBudgetEngine;
+  if (!queries || !engine) return generateDueScheduledTransactions(provider, { scope: budgetId });
   const status = await queries.getBudgetStatus(budgetId).catch(() => null);
   if (!status?.capabilities.accountRegisters) {
     return generateDueScheduledTransactions(provider, { scope: budgetId });
@@ -44,7 +45,7 @@ export async function generateDueScheduledTransactionsForBudget(
         const id = scheduleId && occurrenceDate
           ? scheduledOccurrenceTransactionId(accountId, scheduleId, occurrenceDate)
           : createRuntimeUuid();
-        await queries.addTransaction({
+        await engine.addTransaction({
           budgetId,
           accountId,
           id,
@@ -71,7 +72,7 @@ export async function generateDueScheduledTransactionsForBudget(
           })),
         });
         await persistScheduledAttachments(
-          queries,
+          engine,
           budgetId,
           accountId,
           id,
@@ -81,7 +82,7 @@ export async function generateDueScheduledTransactionsForBudget(
 
       async repairExisting(accountId, existingTransaction, transaction) {
         await persistScheduledAttachments(
-          queries,
+          engine,
           budgetId,
           accountId,
           existingTransaction.id,
@@ -93,14 +94,14 @@ export async function generateDueScheduledTransactionsForBudget(
 }
 
 async function persistScheduledAttachments(
-  queries: NonNullable<BudgetPersistenceProvider["accountRegisterQueries"]>,
+  engine: NonNullable<BudgetPersistenceProvider["localBudgetEngine"]>,
   budgetId: string,
   accountId: string,
   transactionId: string,
   transaction: NewRegisterTransactionInput,
 ): Promise<void> {
   for (const attachment of transaction.scheduledAttachments ?? []) {
-    await queries.addTransactionAttachment({
+    await engine.addTransactionAttachment({
       budgetId,
       accountId,
       transactionId,

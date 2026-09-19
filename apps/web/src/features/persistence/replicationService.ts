@@ -123,16 +123,7 @@ export function startReplicationBackgroundService(
     let eventDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     let mutationDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     const mutationDebounceMs = options.debounceMs ?? 250;
-    const localConflictClient = () => provider.accountRegisterQueries as
-      | (typeof provider.accountRegisterQueries & {
-          listSyncConflicts?(budgetId: string): Promise<ReplicationConflict[]>;
-          resolveSyncConflict?(
-            budgetId: string,
-            conflictId: string,
-            resolution: "keep-local" | "accept-remote",
-          ): Promise<void>;
-        })
-      | undefined;
+    const localConflictClient = () => provider.localBudgetConflictRecovery;
 
     const connectEvents = () => {
       const budgetId = activeBudgetId();
@@ -284,7 +275,7 @@ export function startReplicationBackgroundService(
     globalThis.document?.addEventListener?.("visibilitychange", visible);
     intervalTimer = setInterval(() => { void syncNow(); }, intervalMs);
     subscriptionScopeTimer = setInterval(connectEvents, 2_000);
-    service = {
+    const localFirstService: ReplicationBackgroundService = {
       syncNow,
       getDiagnostics: async () => null,
       recoverFromServer: async () => false,
@@ -322,7 +313,7 @@ export function startReplicationBackgroundService(
       listConflicts: async () => {
         const budgetId = activeBudgetId();
         if (!budgetId) return [];
-        return localConflictClient()?.listSyncConflicts?.(budgetId) ?? [];
+        return [...await (localConflictClient()?.listSyncConflicts(budgetId) ?? [])];
       },
       resolveConflict: async (conflictId, resolution) => {
         const budgetId = activeBudgetId();
@@ -354,7 +345,8 @@ export function startReplicationBackgroundService(
       },
     };
     void syncNow();
-    return service;
+    service = localFirstService;
+    return localFirstService;
   }
   if (!provider.operationJournal || !provider.replicationStore) {
     update({ ...INITIAL, status: "disabled", supported: false });

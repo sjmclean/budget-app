@@ -38,7 +38,7 @@ test("bootstrap owns one mutation subscription, a modest heartbeat and disposabl
     assert.equal(subscriptions, 1);
     assert.equal(timers.size, 1);
     const initialCount = restorePointCoordinator.count(budgetId);
-    notifyLocalFirstMutationCommitted(budgetId);
+    notifyLocalFirstMutationCommitted(budgetId, { domains: ["transactions"] });
     assert.equal(restorePointCoordinator.count(budgetId), initialCount + 1);
     windowEvents.dispatchEvent(new Event("focus"));
     documentEvents.dispatchEvent(new Event("visibilitychange"));

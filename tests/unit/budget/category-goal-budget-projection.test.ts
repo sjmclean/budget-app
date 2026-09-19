@@ -4,7 +4,7 @@ import type { CategoryGoal } from "../../../packages/types/src/CategoryGoal.js";
 import { projectCategoryGoalsOntoBudgetView } from "../../../apps/web/src/features/budget/categoryGoalBudgetProjection.js";
 import type { BudgetCategoryView, BudgetMonthView } from "../../../apps/web/src/features/budget/budgetViewTypes.js";
 import { createSqliteBudgetViewService } from "../../../apps/web/src/features/persistence/createSqliteBudgetViewService.js";
-import type { AccountRegisterQueryClient } from "../../../apps/web/src/features/persistence/accountRegisterQueryContracts.js";
+import type { LocalBudgetEngine, LocalBudgetQueryClient } from "../../../apps/web/src/features/persistence/accountRegisterQueryContracts.js";
 
 function category(id: string, overrides: Partial<BudgetCategoryView> = {}): BudgetCategoryView {
   return {
@@ -168,7 +168,7 @@ test("Budget service performs one budget-level Goal list read and refreshes on t
     async getBudgetStatus() { return { capabilities: { budgetMonths: true } }; },
     async getBudgetMonthView() { monthReads += 1; return view([category("category-1", { assigned: 100 })]); },
     async listCategoryGoals() { goalListReads += 1; return goals; },
-  } as unknown as AccountRegisterQueryClient;
+  } as unknown as LocalBudgetQueryClient;
   const service = createSqliteBudgetViewService(client);
   assert.equal((await service.getBudgetMonthView({ budgetId: "budget-1", month: "2026-08" }))
     .categoryGroups[0]!.categories[0]!.goal, undefined);
@@ -177,4 +177,62 @@ test("Budget service performs one budget-level Goal list read and refreshes on t
     .categoryGroups[0]!.categories[0]!.goal?.remainingAmount, 400);
   assert.equal(monthReads, 2);
   assert.equal(goalListReads, 2);
+});
+
+test("category creation returns the engine's authoritative view without a post-commit synced Goal read", async () => {
+  const created = view([category("category-created")]);
+  let statusReads = 0;
+  let goalListReads = 0;
+  let commandCalls = 0;
+  const client = {
+    async getBudgetStatus() {
+      statusReads += 1;
+      throw new Error("relay bootstrap must not gate a local command");
+    },
+    async listCategoryGoals() {
+      goalListReads += 1;
+      throw new Error("relay-backed Goal read must not gate command completion");
+    },
+  } as unknown as LocalBudgetQueryClient;
+  const engine = {
+    async mutateCategory() {
+      commandCalls += 1;
+      return created;
+    },
+  } as unknown as LocalBudgetEngine;
+  const service = createSqliteBudgetViewService(client, engine);
+  const result = await service.createCategory({
+    budgetId: "budget-1", month: "2026-08", categoryId: "category-created",
+    groupId: "group-1", groupName: "Living", name: "Created",
+  });
+  assert.equal(commandCalls, 1);
+  assert.equal(statusReads, 0);
+  assert.equal(goalListReads, 0);
+  assert.equal(result.categoryGroups[0]?.categories[0]?.id, "category-created");
+});
+
+test("category service preserves the command publication despite a newer global publication", async () => {
+  const created = view([category("category-created")]);
+  const { publishPersistenceChange } = await import("../../../apps/web/src/features/persistence/persistenceChangeBus.ts");
+  let exactRevision = 0;
+  const engine = {
+    async executeCategoryWithPublication() {
+      exactRevision = publishPersistenceChange({ source: "local", scope: {
+        budgetId: "budget-1", domains: ["categories", "budget"], months: ["2026-08"],
+      } });
+      publishPersistenceChange({ source: "replication", scope: {
+        budgetId: "budget-1", domains: ["categories", "budget"], months: ["2026-08"],
+      } });
+      return { commandId: "create", result: created, mutationIds: ["mutation-1"], change: {
+        budgetId: "budget-1", domains: ["categories", "budget"] as const,
+      }, publicationRevision: exactRevision };
+    },
+  } as unknown as LocalBudgetEngine;
+  const result = await createSqliteBudgetViewService(undefined, engine).createCategory({
+    budgetId: "budget-1", month: "2026-08", categoryId: "category-created",
+    groupId: "group-1", groupName: "Living", name: "Created",
+  });
+  assert.equal(result.publicationRevision, exactRevision);
+  assert.equal(result.categoryGroups[0]?.categories[0]?.id, "category-created");
+  assert.equal(Object.keys(result).includes("publicationRevision"), false, "completion metadata is not persisted in the domain view");
 });

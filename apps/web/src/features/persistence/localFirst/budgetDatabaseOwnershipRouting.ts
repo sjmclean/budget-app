@@ -37,6 +37,7 @@ const FIRST_ARGUMENT_BUDGET_METHODS = new Set([
   "renameScheduledPayeeReferences",
   "reassignScheduledPayeeReferences",
   "mutateCategory",
+  "executeCategoryWithPublication",
 ]);
 
 const FIRST_ARGUMENT_OBJECT_BUDGET_METHODS = new Set([
@@ -53,7 +54,9 @@ const FIRST_ARGUMENT_OBJECT_BUDGET_METHODS = new Set([
   "getTransactionsByIds",
   "setAccountClosed",
   "getBudgetMonthView",
+  "getLocalBudgetMonthView",
   "setCategoryAssignedValues",
+  "executeAssignmentsWithPublication",
   "getBudgetCategoryOptions",
   "getCategoryActivityDrilldown",
   "addTransaction",

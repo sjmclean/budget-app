@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 
-import { createLocalFirstAccountRegisterQueryClient } from "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.js";
+import { createLocalBudgetRuntime } from "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.js";
 import { getPayeeSelection } from "../../../apps/web/src/features/accounts/registerPayeeAutocomplete.js";
 import { buildUpdateRegisterTransactionInput } from "../../../apps/web/src/features/accounts/registerTransactionDrafts.js";
 import { toTransactionWriteInput } from "../../../apps/web/src/features/accounts/useAccountRegister.js";
@@ -170,8 +170,8 @@ function createHarness(participation: Record<string, "on-budget" | "off-budget">
     },
   } as unknown as LocalBudgetDatabaseClient;
 
-  const client = createLocalFirstAccountRegisterQueryClient(
-    {} as Parameters<typeof createLocalFirstAccountRegisterQueryClient>[0],
+  const client = createLocalBudgetRuntime(
+    {} as Parameters<typeof createLocalBudgetRuntime>[0],
     {
       databaseFactory: () => database,
       storage: createStorage(),
@@ -1017,9 +1017,9 @@ function createConflictReplayHarness(
   };
 
   try {
-    const client = createLocalFirstAccountRegisterQueryClient(
+    const client = createLocalBudgetRuntime(
       {} as Parameters<
-        typeof createLocalFirstAccountRegisterQueryClient
+        typeof createLocalBudgetRuntime
       >[0],
       {
         databaseFactory: () => database,

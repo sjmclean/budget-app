@@ -2,6 +2,17 @@
 
 Budget App is a local-first budgeting application.
 
+## Scoped persistence invalidation
+
+Committed SQLite changes carry typed budget/domain/entity/month invalidation
+metadata to interested projections. Budget-month and register readers refresh
+only when their declared dependency scope matches. Whole-budget database
+replacement deliberately uses broad same-budget invalidation. See
+[`architecture/reactive-persistence-updates.md`](./architecture/reactive-persistence-updates.md).
+
+Persistence change events are invalidation metadata only—not financial state, a
+canonical event log, or a replication protocol. SQLite remains authoritative.
+
 The web application initializes its persistence runtime before loading the main
 React application. Financial and register data are stored locally in SQLite and
 synchronized through the local-first relay architecture.
@@ -66,3 +77,22 @@ an independent financial authority.
 
 UI code orchestrates workflows but must not duplicate persistence or financial
 rules.
+# Local command boundary
+
+Ordinary SQLite writes enter through `LocalBudgetEngine`; reads enter through
+`LocalBudgetQueryClient`. The engine-owned `LocalBudgetCommandExecutor` runs the
+typed internal domain handler. All 45 ordinary handlers use the one local SQLite
+worker to atomically commit canonical state and required outbox rows, then return
+`CommittedCommandHandlerResult` directly. The executor serialises commands and
+publishes the returned non-empty change scope once after successful completion.
+The public facade unwraps the domain result, so application callers never receive
+mutation IDs or invalidation metadata. There is no ordinary completion recorder.
+
+Queries, conflict recovery, replication, and lifecycle/control-plane operations
+remain separate from ordinary command dispatch. Keep-local recovery reuses the
+committed-result value shape for post-commit publication but is not an ordinary
+command.
+
+`LocalBudgetMutation` is an internal persistence and replication format, not
+the application command API. `PersistenceChangeScope` is invalidation metadata,
+not canonical financial state; SQLite remains authoritative.
