@@ -281,3 +281,53 @@ test("configuring a new persistence provider clears cached query data", async ()
 
   assert.equal(getReactiveQueryStoreDiagnosticsForTests().entryCount, 0);
 });
+
+
+test("an exact committed seed wins the queued invalidation refresh", async () => {
+  resetReactiveQueryStore();
+  let loads = 0;
+  const query = createReactiveQueryDefinition<{ budgetId: string }, string>({
+    id: "seed-race",
+    key: ({ budgetId }) => budgetId,
+    interest: ({ budgetId }) => ({ budgetId, domains: ["budget"] }),
+    load: async () => {
+      loads += 1;
+      return "initial";
+    },
+  });
+  let latest: ReactiveQuerySnapshot<string> | undefined;
+
+  function Consumer() {
+    latest = useReactiveQuery(query, provider, { budgetId: "budget-seed-race" });
+    return null;
+  }
+
+  let root: ReturnType<typeof create> | undefined;
+  await act(async () => {
+    root = create(createElement(Consumer));
+  });
+  assert.equal(loads, 1);
+  assert.equal(latest?.data, "initial");
+
+  await act(async () => {
+    const revision = publishPersistenceChange({
+      source: "local",
+      scope: { budgetId: "budget-seed-race", domains: ["budget"] },
+    });
+    flushPersistenceChanges();
+    seedReactiveQuery(
+      query,
+      provider,
+      { budgetId: "budget-seed-race" },
+      "committed",
+      revision,
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  assert.equal(loads, 1, "the invalidation did not start a duplicate read");
+  assert.equal(latest?.data, "committed");
+  assert.equal(latest?.status, "ready");
+  await act(async () => root?.unmount());
+});
