@@ -381,3 +381,48 @@ test("a late committed seed cannot overwrite a newer relevant revision", async (
   assert.equal(latest?.dataRevision, newerRevision);
   await act(async () => root?.unmount());
 });
+
+
+test("an inactive failed query retries when a consumer mounts again", async () => {
+  resetReactiveQueryStore();
+  let loads = 0;
+  const query = createReactiveQueryDefinition<{ budgetId: string }, string>({
+    id: "remount-retry",
+    key: ({ budgetId }) => budgetId,
+    interest: ({ budgetId }) => ({ budgetId, domains: ["budget"] }),
+    load: async () => {
+      loads += 1;
+      if (loads === 1) throw new Error("temporary");
+      return "recovered";
+    },
+  });
+
+  function Consumer() {
+    useReactiveQuery(query, provider, { budgetId: "budget-remount-retry" });
+    return null;
+  }
+
+  let firstRoot: ReturnType<typeof create> | undefined;
+  await act(async () => {
+    firstRoot = create(createElement(Consumer));
+    await Promise.resolve();
+  });
+  assert.equal(loads, 1);
+  await act(async () => firstRoot?.unmount());
+
+  let latest: ReactiveQuerySnapshot<string> | undefined;
+  function RecoveredConsumer() {
+    latest = useReactiveQuery(query, provider, { budgetId: "budget-remount-retry" });
+    return null;
+  }
+
+  let secondRoot: ReturnType<typeof create> | undefined;
+  await act(async () => {
+    secondRoot = create(createElement(RecoveredConsumer));
+    await Promise.resolve();
+  });
+  assert.equal(loads, 2);
+  assert.equal(latest?.data, "recovered");
+  assert.equal(latest?.status, "ready");
+  await act(async () => secondRoot?.unmount());
+});
