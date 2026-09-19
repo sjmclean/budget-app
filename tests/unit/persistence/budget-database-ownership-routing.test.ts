@@ -41,6 +41,7 @@ test("object-first methods use their declared budgetId property", () => {
   for (const method of [
     "getAccountRegisterBootstrap",
     "queryTransactions",
+    "queryLocalTransactions",
     "addTransaction",
     "setTransactionsCleared",
     "getBudgetMonthView",
