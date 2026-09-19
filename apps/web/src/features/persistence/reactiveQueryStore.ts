@@ -202,7 +202,11 @@ function subscribeHandle<T>(
   listener: () => void,
 ): () => void {
   const entry = getOrCreateEntry(handle);
+  const wasInactive = entry.listeners.size === 0;
   entry.listeners.add(listener);
+  if (wasInactive && entry.snapshot.status === "error") {
+    entry.attemptedRevision = -1;
+  }
 
   if (!entry.unsubscribePersistence) {
     entry.unsubscribePersistence = subscribeToPersistenceInterest(
