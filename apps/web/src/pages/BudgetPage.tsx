@@ -25,6 +25,7 @@ import {
 } from "../features/budget/budgetMonthNavigation";
 import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
 import { useApplicationHistory } from "../features/history";
+import { prefetchBudgetMonthQuery } from "../features/persistence/reactiveQueries";
 import { readAuthoritativeBudgetSummary } from "../features/budget/authoritativeBudgetSummary";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
@@ -447,6 +448,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   const applicationHistory = useApplicationHistory();
 
+  function prefetchMonth(month: string) {
+    void prefetchBudgetMonthQuery({ budgetId, month }).catch(() => undefined);
+  }
+
   const budgetWorkspaceMainRef = useRef<HTMLElement | null>(null);
 
   const budgetTableLayout = useTableLayout({
@@ -740,6 +745,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 <button
                   className="button button-secondary budget-month-step"
                   type="button"
+                  onMouseEnter={() => prefetchMonth(getPreviousBudgetMonth(selectedMonth))}
+                  onFocus={() => prefetchMonth(getPreviousBudgetMonth(selectedMonth))}
                   onClick={() =>
                     setSelectedMonth((currentMonth) =>
                       getPreviousBudgetMonth(currentMonth),
@@ -753,6 +760,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 <button
                   className="button button-secondary budget-month-current"
                   type="button"
+                  onMouseEnter={() => prefetchMonth(getCurrentBudgetMonth())}
+                  onFocus={() => prefetchMonth(getCurrentBudgetMonth())}
                   onClick={() => setSelectedMonth(getCurrentBudgetMonth())}
                   title="Return to the current month"
                 >
@@ -762,6 +771,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 <button
                   className="button button-secondary budget-month-step"
                   type="button"
+                  onMouseEnter={() => prefetchMonth(getNextBudgetMonth(selectedMonth))}
+                  onFocus={() => prefetchMonth(getNextBudgetMonth(selectedMonth))}
                   onClick={() =>
                     setSelectedMonth((currentMonth) =>
                       getNextBudgetMonth(currentMonth),
