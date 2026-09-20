@@ -2,7 +2,11 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "../layouts/AppShell";
 import { BudgetSelectorPage } from "../pages/BudgetSelectorPage";
 import { RouteErrorScreen } from "./errors/RouteErrorScreen";
-import { activateBudgetPersistence, releaseActiveBudgetPersistence } from "../features/persistence/budgetDatabaseLifecycle";
+import {
+  activateBudgetPersistence,
+  nudgeActiveBudgetReplication,
+  releaseActiveBudgetPersistence,
+} from "../features/persistence/budgetDatabaseLifecycle";
 import { useUIStore } from "../stores/uiStore";
 import { getBudgetPersistenceProvider } from "../features/persistence";
 import { prefetchAccountIdentityQuery } from "../features/persistence/reactiveQueries";
@@ -24,13 +28,18 @@ export const router = createBrowserRouter([
     async loader() {
       const budgetId = useUIStore.getState().selectedBudgetId;
       if (budgetId) {
-        await activateBudgetPersistence(budgetId);
+        await activateBudgetPersistence(budgetId, {
+          deferBackgroundSync: true,
+        });
         const provider = getBudgetPersistenceProvider();
         if (
           provider.syncArchitecture === "local-first-relay" &&
           provider.accountRegisterQueries
         ) {
           await prefetchAccountIdentityQuery({ budgetId });
+          nudgeActiveBudgetReplication();
+        } else {
+          nudgeActiveBudgetReplication();
         }
       }
       return null;
