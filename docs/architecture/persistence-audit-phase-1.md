@@ -18,7 +18,7 @@ Local database (authoritative)
 Replication engine
        ↓
 Replication server
-```
+````
 
 The browser-local-storage provider and shared-server runtime have been removed. Legacy browser budget data is available only through a one-way canonical snapshot reader during first-run migration.
 
@@ -29,7 +29,7 @@ The browser-local-storage provider and shared-server runtime have been removed. 
 | localStorage | 17 |
 | indexedDB | 2 |
 | replicationApi | 2 |
-| persistenceBoundary | 67 |
+| persistenceBoundary | 68 |
 | operationJournal | 11 |
 | checkpoints | 7 |
 
