@@ -14,9 +14,12 @@ This tranche closes the measurement and edge-latency gaps left after P0.4–P0.8
 - Optional Account Register tools (transaction import, attachment manager, tag
   manager) are lazy chunks rather than part of the primary register route.
 - Workspace startup prefetches the cheap authoritative SQLite account identity
-  list immediately after budget activation. The sidebar renders those identities
-  first, then shares P0.5's account-navigation query with other consumers for
-  balances and uncategorised indicators instead of issuing a duplicate read.
+  list immediately after budget activation and before background convergence is
+  nudged. The sidebar renders those identities first, then shares P0.5's
+  account-navigation query with other consumers for balances and uncategorised
+  indicators instead of issuing a duplicate read. Until enrichment arrives,
+  financial values remain visibly pending rather than showing opening balances
+  as provisional current balances.
 - Scheduled-transaction maintenance uses the cheap account identity read and
   does not run a redundant local-first capability/status probe during startup.
 
