@@ -11,7 +11,41 @@ const React = requireWeb("react");
 const { MemoryRouter } = await import("react-router-dom");
 const { act, create } = await import("react-test-renderer");
 
+class BrowserLockHub {
+  private tails = new Map<string, Promise<void>>();
+
+  request<T>(
+    name: string,
+    _options: { mode: "exclusive" },
+    callback: () => Promise<T>,
+  ): Promise<T> {
+    const previous = this.tails.get(name) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((done) => { release = done; });
+    this.tails.set(name, previous.then(() => current));
+    return previous.then(callback).finally(() => release());
+  }
+}
+
+class TestBroadcastChannel {
+  onmessage: ((event: MessageEvent<unknown>) => void) | null = null;
+  constructor(readonly name: string) {}
+  postMessage(_message: unknown) {}
+  close() { this.onmessage = null; }
+  addEventListener() {}
+  removeEventListener() {}
+  dispatchEvent() { return true; }
+}
+
 test("rendering and refreshing selector cards never invokes SQLite-backed queries", async () => {
+  const originalBroadcastChannel = globalThis.BroadcastChannel;
+  const navigatorLocksDescriptor = Object.getOwnPropertyDescriptor(globalThis.navigator, "locks");
+  Object.defineProperty(globalThis.navigator, "locks", {
+    configurable: true,
+    value: new BrowserLockHub(),
+  });
+  globalThis.BroadcastChannel = TestBroadcastChannel as unknown as typeof BroadcastChannel;
+
   const values = new Map<string, string>();
   const storage = {
     get length() { return values.size; },
@@ -72,6 +106,12 @@ test("rendering and refreshing selector cards never invokes SQLite-backed querie
     if (rendered) await act(async () => { rendered!.unmount(); });
     delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT;
     (globalThis as { React?: unknown }).React = previousReact;
+    globalThis.BroadcastChannel = originalBroadcastChannel;
+    if (navigatorLocksDescriptor) {
+      Object.defineProperty(globalThis.navigator, "locks", navigatorLocksDescriptor);
+    } else {
+      delete (globalThis.navigator as Navigator & { locks?: unknown }).locks;
+    }
     resetBudgetPersistenceProvider();
   }
 });
