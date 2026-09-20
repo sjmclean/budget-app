@@ -1025,3 +1025,15 @@
   width: 100%;
   pointer-events: none;
 }
+
+
+.budget-virtual-category-list,
+.budget-virtual-category-slot {
+  min-width: 0;
+  width: 100%;
+}
+
+.budget-virtual-category-placeholder {
+  width: 100%;
+  pointer-events: none;
+}

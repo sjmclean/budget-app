@@ -68,3 +68,20 @@ test("collapsed groups estimate only their header footprint", () => {
   assert.equal(estimateBudgetGroupHeight(item, true), 48);
   assert.ok(estimateBudgetGroupHeight(item, false) > 48);
 });
+
+import {
+  BUDGET_CATEGORY_VIRTUALIZATION_ROW_THRESHOLD,
+  buildBudgetVirtualCategoryLayout,
+  getVisibleBudgetCategoryIndexes,
+} from "../../../apps/web/src/features/budget/BudgetVirtualizedCategoryList.js";
+
+test("one giant category group also keeps the mounted row window bounded", () => {
+  const categories = group(0, 2_000).categories;
+  assert.ok(categories.length > BUDGET_CATEGORY_VIRTUALIZATION_ROW_THRESHOLD);
+
+  const layout = buildBudgetVirtualCategoryLayout(categories, new Map());
+  const visible = getVisibleBudgetCategoryIndexes(layout, 25_000, 25_900, 700);
+
+  assert.ok(visible.size < 50, `expected bounded category rows, got ${visible.size}`);
+  assert.ok(visible.size > 0);
+});
