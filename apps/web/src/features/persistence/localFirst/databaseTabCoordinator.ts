@@ -22,6 +22,7 @@ export interface LocalFirstDatabaseTabCoordinator {
   acquire(budgetId: string, releaseDatabase: () => Promise<void>): Promise<void>;
   release(): Promise<void>;
   owns(budgetId: string): boolean;
+  budgetId(): string | null;
   close(): Promise<void>;
 }
 
@@ -172,6 +173,10 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
       return held?.budgetId === budgetId;
     },
 
+    budgetId(): string | null {
+      return held?.budgetId ?? null;
+    },
+
     async close(): Promise<void> {
       if (closed) return;
       closed = true;
@@ -197,4 +202,9 @@ export function releaseLocalFirstDatabaseTabOwnership(): Promise<void> {
 
 export function hasLocalFirstDatabaseTabOwnership(budgetId: string): boolean {
   return sharedDatabaseTabCoordinator.owns(budgetId);
+}
+
+
+export function getLocalFirstDatabaseTabOwnershipBudgetId(): string | null {
+  return sharedDatabaseTabCoordinator.budgetId();
 }

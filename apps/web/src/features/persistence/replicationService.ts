@@ -14,7 +14,10 @@ import {
   type LocalFirstRelayEventSubscription,
 } from "./localFirst/relayEvents";
 import { subscribeToLocalFirstMutationCommits } from "./localFirst/mutationEvents";
-import { hasLocalFirstDatabaseTabOwnership } from "./localFirst/databaseTabCoordinator";
+import {
+  getLocalFirstDatabaseTabOwnershipBudgetId,
+  hasLocalFirstDatabaseTabOwnership,
+} from "./localFirst/databaseTabCoordinator";
 
 export type ReplicationStatus =
   | "disabled"
@@ -111,9 +114,7 @@ export function startReplicationBackgroundService(
     const localFirstRelay = createLocalFirstRelayTransport({
       apiBaseUrl: options.apiBaseUrl,
     });
-    const activeBudgetId = () => provider.keyValueStorage
-      ? getActiveBudgetIdFromStorage(provider.keyValueStorage)
-      : null;
+    const activeBudgetId = () => getLocalFirstDatabaseTabOwnershipBudgetId();
     const intervalMs = options.intervalMs ?? 60_000;
     let stopped = false;
     let running: Promise<ReplicationRunResult | null> | null = null;

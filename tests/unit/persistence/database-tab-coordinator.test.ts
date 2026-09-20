@@ -112,8 +112,10 @@ test("same-tab same-budget activation reuses one physical lease", async () => {
   await coordinator.acquire("budget-a", async () => { releases += 1; });
   await coordinator.acquire("budget-a", async () => { releases += 10; });
   assert.equal(coordinator.owns("budget-a"), true);
+  assert.equal(coordinator.budgetId(), "budget-a");
   assert.equal(releases, 0);
   await coordinator.release();
+  assert.equal(coordinator.budgetId(), null);
   assert.equal(releases, 10);
   await coordinator.close();
 });
