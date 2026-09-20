@@ -71,6 +71,7 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
   let held: HeldDatabaseLease | null = null;
   let acquiringBudgetId: string | null = null;
   let acquiring: Promise<void> | null = null;
+  let releasing: Promise<void> | null = null;
   let acquisitionGeneration = 0;
   let closed = false;
 
@@ -87,14 +88,23 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
   }
 
   async function releaseHeld(closeDatabase: boolean): Promise<void> {
+    if (releasing) return releasing;
     const current = held;
     if (!current) return;
-    if (closeDatabase) {
-      await current.releaseDatabase();
+    const operation = (async () => {
+      if (closeDatabase) {
+        await current.releaseDatabase();
+      }
+      if (held !== current) return;
+      held = null;
+      current.releaseLock();
+    })();
+    releasing = operation;
+    try {
+      await operation;
+    } finally {
+      if (releasing === operation) releasing = null;
     }
-    if (held !== current) return;
-    held = null;
-    current.releaseLock();
   }
 
   async function acquireWithLock(
@@ -164,7 +174,7 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
         );
       }
 
-      if (held?.budgetId === budgetId) {
+      if (!releasing && held?.budgetId === budgetId) {
         held.releaseDatabase = releaseDatabase;
         return;
       }
@@ -172,7 +182,10 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
 
       const generation = ++acquisitionGeneration;
       const operation = (async () => {
+        if (releasing) await releasing;
+        if (closed || generation !== acquisitionGeneration) return;
         if (held) await releaseHeld(true);
+        if (closed || generation !== acquisitionGeneration) return;
         sharedChannel()?.postMessage({
           type: "request-release",
           budgetId,
@@ -198,11 +211,11 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
     },
 
     owns(budgetId: string): boolean {
-      return held?.budgetId === budgetId;
+      return !releasing && held?.budgetId === budgetId;
     },
 
     budgetId(): string | null {
-      return held?.budgetId ?? null;
+      return releasing ? null : held?.budgetId ?? null;
     },
 
     async close(): Promise<void> {

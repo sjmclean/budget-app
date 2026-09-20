@@ -117,6 +117,48 @@ test("second tab acquires only after the first tab drains and releases SQLite", 
   await second.close();
 });
 
+test("releasing ownership is not usable and same-budget reacquisition waits for a fresh lease", async () => {
+  const locks = new LockHub();
+  const channels = new ChannelHub();
+  const coordinator = createLocalFirstDatabaseTabCoordinator({
+    lockManager: locks,
+    channelFactory: channels.create,
+  });
+  const releaseStarted = deferred();
+  const allowRelease = deferred();
+  let releases = 0;
+
+  await coordinator.acquire("budget-a", async () => {
+    releases += 1;
+    releaseStarted.resolve();
+    await allowRelease.promise;
+  });
+
+  const releasing = coordinator.release();
+  await releaseStarted.promise;
+  assert.equal(coordinator.owns("budget-a"), false);
+  assert.equal(coordinator.budgetId(), null);
+
+  let reacquired = false;
+  const reacquire = coordinator.acquire("budget-a", async () => {
+    releases += 10;
+  }).then(() => { reacquired = true; });
+
+  await Promise.resolve();
+  assert.equal(reacquired, false);
+
+  allowRelease.resolve();
+  await releasing;
+  await reacquire;
+  assert.equal(coordinator.owns("budget-a"), true);
+  assert.equal(coordinator.budgetId(), "budget-a");
+  assert.equal(releases, 1);
+
+  await coordinator.release();
+  assert.equal(releases, 11);
+  await coordinator.close();
+});
+
 test("same-tab same-budget activation reuses one physical lease", async () => {
   const locks = new LockHub();
   const channels = new ChannelHub();
