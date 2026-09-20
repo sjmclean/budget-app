@@ -141,10 +141,19 @@ test("suspension preserves active-budget intent so visible register reads can re
     register,
     /await ensureActiveBudgetPersistenceReady\(budgetId\)/,
   );
-  assert.doesNotMatch(
-    register.slice(register.indexOf('provider.syncArchitecture === "local-first-relay"')),
-    /getBudgetStatus\(budgetId\)[\s\S]*reloadSqliteRegister\(\)/,
+  const localFirstLoadStart = register.indexOf(
+    'provider.syncArchitecture === "local-first-relay"',
   );
+  const legacyCapabilityFallback = register.indexOf(
+    "if (budgetId && accountRegisterQueries)",
+    localFirstLoadStart,
+  );
+  const localFirstLoad = register.slice(
+    localFirstLoadStart,
+    legacyCapabilityFallback,
+  );
+  assert.match(localFirstLoad, /await ensureSqliteReady\(\)/);
+  assert.doesNotMatch(localFirstLoad, /getBudgetStatus\(/);
 });
 
 test("explicit workspace release still clears active-budget intent", () => {
