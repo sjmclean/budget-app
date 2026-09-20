@@ -83,3 +83,35 @@ test("completed register prefetch is single-use, bounded, and revision guarded",
     /while \(warmAccountRegisterBootstraps\.size > MAX_WARM_ACCOUNT_REGISTER_BOOTSTRAPS\)/,
   );
 });
+
+
+test("register navigation can synchronously consume a revision-valid warm bootstrap before paint", () => {
+  const hookSource = readFileSync(
+    new URL(
+      "../../../apps/web/src/features/accounts/useAccountRegister.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(
+    clientSource,
+    /consumePrefetchedAccountRegister\(input\) \{\s*return consumeWarmAccountRegisterBootstrap\(input\);\s*\}/s,
+  );
+  assert.match(
+    hookSource,
+    /useLayoutEffect\(\(\) => \{/,
+  );
+  assert.match(
+    hookSource,
+    /consumePrefetchedAccountRegister\(\{/,
+  );
+  assert.match(
+    hookSource,
+    /appliedRevisionRef\.current = warm\.revision;/,
+  );
+  assert.match(
+    hookSource,
+    /hasLoadedDataRef\.current = true;\s*setIsLoading\(false\);/s,
+  );
+});
