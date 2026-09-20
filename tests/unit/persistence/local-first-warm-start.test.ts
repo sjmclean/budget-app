@@ -107,7 +107,7 @@ test("initial route startup can defer convergence without changing normal reacti
   );
   assert.match(
     lifecycle,
-    /if \(!options\.deferBackgroundSync\)\s*\{\s*nudgeActiveBudgetReplication\(\);\s*\}/,
+    /if \(!options\.deferBackgroundSync && intendedActiveBudgetId === budgetId\)\s*\{\s*nudgeActiveBudgetReplication\(\);\s*\}/,
   );
   assert.match(
     router,
