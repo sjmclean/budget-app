@@ -176,19 +176,19 @@ export function startReplicationBackgroundService(
       }
       runningBudgetId = selectedBudgetId;
       running = (async () => {
-        connectEvents();
-        if (typeof navigator !== "undefined" && !navigator.onLine) {
-          update({ ...snapshot, supported: true, status: "offline" });
-          return null;
-        }
-        update({
-          ...snapshot,
-          supported: true,
-          status: snapshot.lastSuccessfulSyncAt ? "synchronising" : "connecting",
-          lastAttemptAt: new Date().toISOString(),
-          lastError: null,
-        });
         try {
+          connectEvents();
+          if (typeof navigator !== "undefined" && !navigator.onLine) {
+            update({ ...snapshot, supported: true, status: "offline" });
+            return null;
+          }
+          update({
+            ...snapshot,
+            supported: true,
+            status: snapshot.lastSuccessfulSyncAt ? "synchronising" : "connecting",
+            lastAttemptAt: new Date().toISOString(),
+            lastError: null,
+          });
           await checkHealth();
           const budgetId = activeBudgetId();
           if (
