@@ -43,7 +43,10 @@ import {
   type LocalFirstTabSyncCoordinator,
 } from "./tabSyncCoordinator";
 import { notifyRemoteMutationsApplied, persistenceScopeForMutations } from "./mutationEvents";
-import { publishBroadBudgetChange } from "../persistenceChangeBus";
+import {
+  getPersistenceRevisionForInterest,
+  publishBroadBudgetChange,
+} from "../persistenceChangeBus";
 import { registerLocalSqliteAttachmentReader } from "../../attachments/localSqliteAttachmentReader";
 import { localPayeeRecordToView } from "./localPayeeView";
 import { createBudgetDatabaseOwnership } from "./budgetDatabaseOwnership";
@@ -276,10 +279,37 @@ export function createLocalBudgetRuntime(
     readonly promise: Promise<import("../accountRegisterQueryContracts").LocalBudgetSynchronisationResult>;
   } | null = null;
 
-  const accountRegisterBootstrapInFlight = new Map<
-    string,
-    Promise<Awaited<ReturnType<LocalBudgetRuntimeClient["getAccountRegisterBootstrap"]>>>
-  >();
+  type AccountRegisterBootstrapResult = Awaited<
+    ReturnType<LocalBudgetRuntimeClient["getAccountRegisterBootstrap"]>
+  >;
+  interface AccountRegisterBootstrapRequest {
+    readonly promise: Promise<AccountRegisterBootstrapResult>;
+    readonly startedRevision: number;
+  }
+  interface WarmAccountRegisterBootstrap {
+    readonly result: AccountRegisterBootstrapResult;
+    readonly revision: number;
+  }
+
+  const MAX_WARM_ACCOUNT_REGISTER_BOOTSTRAPS = 16;
+  const accountRegisterBootstrapInFlight =
+    new Map<string, AccountRegisterBootstrapRequest>();
+  const warmAccountRegisterBootstraps =
+    new Map<string, WarmAccountRegisterBootstrap>();
+
+  function accountRegisterInterest(input: AccountTransactionQuery) {
+    return {
+      budgetId: input.budgetId,
+      accountId: input.accountId,
+      domains: [
+        "accounts",
+        "transactions",
+        "categories",
+        "attachments",
+        "payees",
+      ] as const,
+    };
+  }
 
   function accountRegisterBootstrapKey(input: AccountTransactionQuery): string {
     return JSON.stringify({
@@ -295,12 +325,43 @@ export function createLocalBudgetRuntime(
     });
   }
 
-  function loadAccountRegisterBootstrap(input: AccountTransactionQuery) {
+  function consumeWarmAccountRegisterBootstrap(
+    input: AccountTransactionQuery,
+  ): AccountRegisterBootstrapResult | null {
+    const key = accountRegisterBootstrapKey(input);
+    const warm = warmAccountRegisterBootstraps.get(key);
+    if (!warm) return null;
+    warmAccountRegisterBootstraps.delete(key);
+    return warm.revision ===
+      getPersistenceRevisionForInterest(accountRegisterInterest(input))
+      ? warm.result
+      : null;
+  }
+
+  function retainWarmAccountRegisterBootstrap(
+    key: string,
+    result: AccountRegisterBootstrapResult,
+    revision: number,
+  ): void {
+    warmAccountRegisterBootstraps.delete(key);
+    warmAccountRegisterBootstraps.set(key, { result, revision });
+    while (warmAccountRegisterBootstraps.size > MAX_WARM_ACCOUNT_REGISTER_BOOTSTRAPS) {
+      const oldestKey = warmAccountRegisterBootstraps.keys().next().value;
+      if (oldestKey === undefined) break;
+      warmAccountRegisterBootstraps.delete(oldestKey);
+    }
+  }
+
+  function getOrStartAccountRegisterBootstrap(
+    input: AccountTransactionQuery,
+  ): AccountRegisterBootstrapRequest {
     const key = accountRegisterBootstrapKey(input);
     const existing = accountRegisterBootstrapInFlight.get(key);
     if (existing) return existing;
 
-    const request = (async () => {
+    const startedRevision =
+      getPersistenceRevisionForInterest(accountRegisterInterest(input));
+    const promise = (async () => {
       const local = await syncThenDatabase(input.budgetId);
       const needsFilteredCount =
         Boolean(input.search?.query.trim()) ||
@@ -314,13 +375,31 @@ export function createLocalBudgetRuntime(
       ]);
       return { summary, page };
     })().finally(() => {
-      if (accountRegisterBootstrapInFlight.get(key) === request) {
+      if (accountRegisterBootstrapInFlight.get(key)?.promise === promise) {
         accountRegisterBootstrapInFlight.delete(key);
       }
     });
 
+    const request = { promise, startedRevision };
     accountRegisterBootstrapInFlight.set(key, request);
     return request;
+  }
+
+  function loadAccountRegisterBootstrap(input: AccountTransactionQuery) {
+    const warm = consumeWarmAccountRegisterBootstrap(input);
+    if (warm) return Promise.resolve(warm);
+    return getOrStartAccountRegisterBootstrap(input).promise;
+  }
+
+  function prefetchAccountRegisterBootstrap(input: AccountTransactionQuery): void {
+    const key = accountRegisterBootstrapKey(input);
+    const request = getOrStartAccountRegisterBootstrap(input);
+    void request.promise.then((result) => {
+      const currentRevision =
+        getPersistenceRevisionForInterest(accountRegisterInterest(input));
+      if (request.startedRevision !== currentRevision) return;
+      retainWarmAccountRegisterBootstrap(key, result, currentRevision);
+    }).catch(() => undefined);
   }
 
   async function captureOwnedRestorePoint(budgetId: string, reason: RestorePointReason) {
@@ -1334,7 +1413,7 @@ export function createLocalBudgetRuntime(
       return loadAccountRegisterBootstrap(input);
     },
     prefetchAccountRegister(input) {
-      void client.getAccountRegisterBootstrap(input).catch(() => undefined);
+      prefetchAccountRegisterBootstrap(input);
     },
     async getAccountSummary(input) {
       return (await syncThenDatabase(input.budgetId)).getAccountSummary(input);
