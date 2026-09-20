@@ -40,6 +40,7 @@ interface ReactiveQueryEntry<T> {
   listeners: Set<() => void>;
   unsubscribePersistence: (() => void) | null;
   lastAccess: number;
+  retired: boolean;
 }
 
 interface QueryHandle<T> {
@@ -50,6 +51,11 @@ interface QueryHandle<T> {
 
 const entries = new Map<string, ReactiveQueryEntry<unknown>>();
 let accessSequence = 0;
+let storeGeneration = 0;
+
+function cacheKey(definitionId: string, key: string): string {
+  return `${storeGeneration}:${definitionId}:${key}`;
+}
 
 const DISABLED_SNAPSHOT: ReactiveQuerySnapshot<never> = {
   data: undefined,
@@ -107,6 +113,7 @@ function getOrCreateEntry<T>(handle: QueryHandle<T>): ReactiveQueryEntry<T> {
     listeners: new Set(),
     unsubscribePersistence: null,
     lastAccess: 0,
+    retired: false,
   };
   touch(entry as ReactiveQueryEntry<unknown>);
   entries.set(handle.cacheKey, entry as ReactiveQueryEntry<unknown>);
@@ -124,6 +131,7 @@ function setSnapshot<T>(
 }
 
 function ensureFresh<T>(entry: ReactiveQueryEntry<T>): Promise<void> {
+  if (entry.retired) return Promise.resolve();
   const currentRevision = getPersistenceRevisionForInterest(entry.interest);
   if (
     entry.snapshot.data !== undefined &&
@@ -233,7 +241,11 @@ function subscribeHandle<T>(
       entry.unsubscribePersistence?.();
       entry.unsubscribePersistence = null;
       touch(entry as ReactiveQueryEntry<unknown>);
-      evictInactiveEntries();
+      if (entry.retired) {
+        entries.delete(entry.cacheKey);
+      } else {
+        evictInactiveEntries();
+      }
     }
   };
 }
@@ -255,6 +267,7 @@ export function useReactiveQuery<Input, Result>(
 ): ReactiveQuerySnapshot<Result> {
   const enabled = options.enabled ?? true;
   const key = definition.key(input);
+  const generation = storeGeneration;
   const stableInputRef = useRef<{ key: string; input: Input }>({ key, input });
   if (stableInputRef.current.key !== key) {
     stableInputRef.current = { key, input };
@@ -263,11 +276,11 @@ export function useReactiveQuery<Input, Result>(
   const handle = useMemo<QueryHandle<Result> | null>(() => {
     if (!enabled) return null;
     return {
-      cacheKey: `${definition.id}:${key}`,
+      cacheKey: `${generation}:${definition.id}:${key}`,
       interest: definition.interest(stableInput),
       load: () => definition.load(provider, stableInput),
     };
-  }, [definition, enabled, key, provider, stableInput]);
+  }, [definition, enabled, generation, key, provider, stableInput]);
   const subscribe = useCallback(
     (listener: () => void) =>
       handle ? subscribeHandle(handle, listener) : () => undefined,
@@ -289,7 +302,7 @@ export function prefetchReactiveQuery<Input, Result>(
   input: Input,
 ): Promise<void> {
   const handle: QueryHandle<Result> = {
-    cacheKey: `${definition.id}:${definition.key(input)}`,
+    cacheKey: cacheKey(definition.id, definition.key(input)),
     interest: definition.interest(input),
     load: () => definition.load(provider, input),
   };
@@ -304,7 +317,7 @@ export function seedReactiveQuery<Input, Result>(
   revision: number,
 ): void {
   const handle: QueryHandle<Result> = {
-    cacheKey: `${definition.id}:${definition.key(input)}`,
+    cacheKey: cacheKey(definition.id, definition.key(input)),
     interest: definition.interest(input),
     load: () => definition.load(provider, input),
   };
@@ -328,7 +341,8 @@ export function seedReactiveQuery<Input, Result>(
 }
 
 export function resetReactiveQueryStore(): void {
-  for (const [cacheKey, entry] of [...entries.entries()]) {
+  storeGeneration += 1;
+  for (const [entryKey, entry] of [...entries.entries()]) {
     entry.generation += 1;
     entry.inFlight = null;
     entry.attemptedRevision = -1;
@@ -336,10 +350,11 @@ export function resetReactiveQueryStore(): void {
     if (entry.listeners.size === 0) {
       entry.unsubscribePersistence?.();
       entry.unsubscribePersistence = null;
-      entries.delete(cacheKey);
+      entries.delete(entryKey);
       continue;
     }
 
+    entry.retired = true;
     entry.snapshot = {
       data: undefined,
       status: "idle",
