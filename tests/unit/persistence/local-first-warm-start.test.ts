@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { hasPublishedLocalBudgetDatabase } from "../../../apps/web/src/features/persistence/localFirst/localBudgetClient.js";
@@ -22,4 +23,36 @@ test("pending restore journals block ordinary warm-open bypass", () => {
   assert.equal(hasPendingRestoreJournal(storage({
     "budget-app.sqlite-restore.pending.budget-a": "",
   }), "budget-a"), false);
+});
+
+
+const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
+
+test("ordinary local-first reads do not launch relay convergence", () => {
+  const source = read("../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts");
+  const start = source.indexOf("async function syncThenDatabase");
+  const end = source.indexOf("const mutation =", start);
+  const helper = source.slice(start, end);
+  assert.match(helper, /return requireDatabase\(budgetId\)/);
+  assert.doesNotMatch(helper, /synchronise\(budgetId\)/);
+});
+
+test("hidden tabs release physical database ownership before suspension", () => {
+  const source = read("../../../apps/web/src/features/persistence/persistenceProviderLifecycle.ts");
+  const hiddenBranch = source.slice(
+    source.indexOf('document.visibilityState === "hidden"'),
+    source.indexOf("reactivateVisibleBudget();"),
+  );
+  assert.match(hiddenBranch, /flushPendingWrites\(\)/);
+  assert.match(hiddenBranch, /releaseActiveBudgetPersistence\(\)/);
+});
+
+test("local-first replication scopes to the held tab lease instead of shared selection storage", () => {
+  const source = read("../../../apps/web/src/features/persistence/replicationService.ts");
+  const localFirstBranch = source.slice(
+    source.indexOf('provider.syncArchitecture === "local-first-relay"'),
+    source.indexOf("if (!provider.operationJournal"),
+  );
+  assert.match(localFirstBranch, /getLocalFirstDatabaseTabOwnershipBudgetId\(\)/);
+  assert.doesNotMatch(localFirstBranch, /getActiveBudgetIdFromStorage\(provider\.keyValueStorage\)/);
 });
