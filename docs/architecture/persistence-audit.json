@@ -1828,7 +1828,7 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
-      "line": 142,
+      "line": 257,
       "classification": "review-required"
     },
     {
