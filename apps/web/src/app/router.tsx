@@ -38,8 +38,6 @@ export const router = createBrowserRouter([
         ) {
           await prefetchAccountIdentityQuery({ budgetId });
           nudgeActiveBudgetReplication();
-        } else {
-          nudgeActiveBudgetReplication();
         }
       }
       return null;
