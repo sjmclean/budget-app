@@ -20,6 +20,7 @@ import type {
   RegisterTransactionView,
   UpdateRegisterTransactionInput,
 } from "./accountRegisterTypes";
+import type { ScheduledTransactionView } from "./scheduledTransactionTypes";
 
 const MAX_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
@@ -31,6 +32,7 @@ const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
 
 interface UseAccountRegisterState {
   data: AccountRegisterView | null;
+  scheduledTransactions: readonly ScheduledTransactionView[] | null;
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
@@ -95,7 +97,7 @@ export function useAccountRegister(
   const accountRegisters = provider.accountRegisters;
   const accountRegisterQueries = provider.accountRegisterQueries;
   const localBudgetEngine = provider.localBudgetEngine;
-  const persistenceInterest = useMemo(() => ({ budgetId: budgetId ?? "legacy", accountId, domains: ["accounts", "transactions", "categories", "attachments", "payees"] as const }), [budgetId, accountId]);
+  const persistenceInterest = useMemo(() => ({ budgetId: budgetId ?? "legacy", accountId, domains: ["accounts", "transactions", "categories", "attachments", "payees", "scheduled-transactions"] as const }), [budgetId, accountId]);
   const persistenceChangeVersion = usePersistenceChange(persistenceInterest);
   const ensureSqliteReady = useCallback(async () => {
     if (
@@ -109,6 +111,8 @@ export function useAccountRegister(
 
   const [legacyData, setLegacyData] = useState<AccountRegisterView | null>(null);
   const [sqlitePage, setSqlitePage] = useState<LoadedRegisterPage | null>(null);
+  const [scheduledTransactions, setScheduledTransactions] =
+    useState<readonly ScheduledTransactionView[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -163,6 +167,7 @@ export function useAccountRegister(
     loadedTransactionCountRef.current = 0;
     setLegacyData(null);
     setSqlitePage(null);
+    setScheduledTransactions(null);
     sqlitePageRef.current = null;
     appliedRevisionRef.current = 0;
     loadGenerationRef.current += 1;
@@ -202,7 +207,7 @@ export function useAccountRegister(
       return;
     }
 
-    const { summary, page } = warm.bootstrap;
+    const { summary, page, scheduledTransactions: warmScheduledTransactions } = warm.bootstrap;
     const next = {
       summary,
       rows: page.rows,
@@ -210,6 +215,7 @@ export function useAccountRegister(
     };
     sqlitePageRef.current = next;
     setSqlitePage(next);
+    setScheduledTransactions(warmScheduledTransactions);
     appliedRevisionRef.current = warm.revision;
     registerCursorRef.current = page.nextCursor;
     loadedTransactionCountRef.current = page.rows.length;
@@ -228,7 +234,8 @@ export function useAccountRegister(
     const generation = ++loadGenerationRef.current;
     for (;;) {
       const beforeRevision = getPersistenceRevisionForInterest(persistenceInterest);
-      const { summary, page } = await accountRegisterQueries.getAccountRegisterBootstrap({
+      const { summary, page, scheduledTransactions: nextScheduledTransactions } =
+        await accountRegisterQueries.getAccountRegisterBootstrap({
         budgetId,
         accountId,
         limit: 150,
@@ -243,6 +250,7 @@ export function useAccountRegister(
       const next = { summary, rows: page.rows, totalCount: page.totalCount ?? summary.transactionCount };
       sqlitePageRef.current = next;
       setSqlitePage(next);
+      setScheduledTransactions(nextScheduledTransactions);
       appliedRevisionRef.current = afterRevision;
       registerCursorRef.current = page.nextCursor;
       setHasMoreTransactions(page.hasMore);
@@ -904,6 +912,7 @@ export function useAccountRegister(
 
   return {
     data,
+    scheduledTransactions,
     isLoading,
     isSaving,
     error,
