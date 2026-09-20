@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
 import type { AccountNavigation, FinancialOverview, SpendingCategoryRow } from "./accountRegisterQueryContracts";
+import type { SidebarAccount } from "../accounts/accountService";
 import type { RegisterTransactionView } from "../accounts/accountRegisterTypes";
 import type { BudgetActivityDrilldown, BudgetMonthView } from "../budget/budgetViewTypes";
 import {
@@ -92,6 +93,19 @@ export const monthlyCategoryTransactionsQuery = createReactiveQueryDefinition<
     ),
 });
 
+export const accountIdentityQuery = createReactiveQueryDefinition<
+  { readonly budgetId: string },
+  readonly SidebarAccount[]
+>({
+  id: "account-identities",
+  key: ({ budgetId }) => budgetId,
+  interest: ({ budgetId }) => ({
+    budgetId,
+    domains: ["accounts"],
+  }),
+  load: async (provider, { budgetId }) => requireQueries(provider).listAccounts(budgetId),
+});
+
 export const accountNavigationQuery = createReactiveQueryDefinition<
   { readonly budgetId: string },
   readonly AccountNavigation[]
@@ -172,6 +186,19 @@ export function useMonthlyCategoryTransactionsQuery(
   return useReactiveQuery(monthlyCategoryTransactionsQuery, provider, stableInput, { enabled });
 }
 
+export function useAccountIdentityQuery(
+  input: { readonly budgetId: string },
+  enabled = true,
+) {
+  const provider = getBudgetPersistenceProvider();
+  const { budgetId } = input;
+  const stableInput = useMemo(
+    () => ({ budgetId }),
+    [budgetId],
+  );
+  return useReactiveQuery(accountIdentityQuery, provider, stableInput, { enabled });
+}
+
 export function useAccountNavigationQuery(
   input: { readonly budgetId: string },
   enabled = true,
@@ -196,6 +223,13 @@ export function useCategoryActivityDrilldownQuery(
     [budgetId, month, categoryId],
   );
   return useReactiveQuery(categoryActivityDrilldownQuery, provider, stableInput, { enabled });
+}
+
+export function prefetchAccountIdentityQuery(input: {
+  readonly budgetId: string;
+}): Promise<void> {
+  const provider = getBudgetPersistenceProvider();
+  return prefetchReactiveQuery(accountIdentityQuery, provider, input);
 }
 
 export function prefetchBudgetMonthQuery(input: {
