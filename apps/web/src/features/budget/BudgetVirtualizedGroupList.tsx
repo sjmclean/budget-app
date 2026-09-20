@@ -40,10 +40,13 @@ export function buildBudgetVirtualGroupLayout(
 ): readonly BudgetVirtualGroupLayoutEntry[] {
   let offsetTop = 0;
   return groups.map((group, index) => {
+    const collapsed = isGroupCollapsed(group);
     const measured = measuredHeights.get(group.id);
-    const height = measured && measured > 0
-      ? measured
-      : estimateBudgetGroupHeight(group, isGroupCollapsed(group));
+    const height = collapsed
+      ? estimateBudgetGroupHeight(group, true)
+      : measured && measured > 0
+        ? measured
+        : estimateBudgetGroupHeight(group, false);
     const entry = {
       id: group.id,
       index,
@@ -61,7 +64,7 @@ export function getVisibleBudgetGroupIndexes(
   viewportStart: number,
   viewportEnd: number,
   overscanPx = BUDGET_GROUP_VIRTUALIZATION_OVERSCAN_PX,
-): ReadonlySet<number> {
+): Set<number> {
   const start = viewportStart - overscanPx;
   const end = viewportEnd + overscanPx;
   return new Set(
