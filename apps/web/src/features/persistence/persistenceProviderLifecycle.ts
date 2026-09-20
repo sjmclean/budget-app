@@ -17,7 +17,13 @@ export function installPersistenceProviderLifecycle(
     });
   };
 
-  const handlePageHide = () => flushPendingWrites();
+  const releaseForSuspension = () => {
+    flushPendingWrites();
+    void releaseActiveBudgetPersistence().catch((error: unknown) => {
+      console.error("Unable to release the suspended tab's budget database.", error);
+    });
+  };
+  const handlePageHide = () => releaseForSuspension();
   const reactivateVisibleBudget = () => {
     if (document.visibilityState !== "visible") return;
     void import("../../stores/uiStore").then(({ useUIStore }) => {
@@ -31,10 +37,7 @@ export function installPersistenceProviderLifecycle(
 
   const handleVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
-      flushPendingWrites();
-      void releaseActiveBudgetPersistence().catch((error: unknown) => {
-        console.error("Unable to release the hidden tab's budget database.", error);
-      });
+      releaseForSuspension();
       return;
     }
     reactivateVisibleBudget();

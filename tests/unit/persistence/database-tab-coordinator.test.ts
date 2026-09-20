@@ -1,8 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  budgetIdFromLocalFirstDatabaseLeaseScope,
   createLocalFirstDatabaseTabCoordinator,
+  LOCAL_FIRST_EXCLUSIVE_DATABASE_LEASE_SCOPE,
 } from "../../../apps/web/src/features/persistence/localFirst/databaseTabCoordinator";
+
+test("exclusive physical leases are never exposed as active budget identity", () => {
+  assert.equal(
+    budgetIdFromLocalFirstDatabaseLeaseScope(
+      LOCAL_FIRST_EXCLUSIVE_DATABASE_LEASE_SCOPE,
+    ),
+    null,
+  );
+  assert.equal(
+    budgetIdFromLocalFirstDatabaseLeaseScope("budget-a"),
+    "budget-a",
+  );
+  assert.equal(budgetIdFromLocalFirstDatabaseLeaseScope(null), null);
+});
 
 function deferred() {
   let resolve!: () => void;

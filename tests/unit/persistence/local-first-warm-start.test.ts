@@ -44,7 +44,22 @@ test("hidden tabs release physical database ownership before suspension", () => 
     source.indexOf("reactivateVisibleBudget();"),
   );
   assert.match(hiddenBranch, /flushPendingWrites\(\)/);
-  assert.match(hiddenBranch, /releaseActiveBudgetPersistence\(\)/);
+  assert.match(hiddenBranch, /releaseForSuspension\(\)/);
+});
+
+test("pagehide releases physical database ownership before browser suspension", () => {
+  const source = read("../../../apps/web/src/features/persistence/persistenceProviderLifecycle.ts");
+  const start = source.indexOf("const handlePageHide");
+  const end = source.indexOf("const reactivateVisibleBudget", start);
+  const handler = source.slice(start, end);
+  assert.match(handler, /releaseForSuspension\(\)/);
+});
+
+test("exclusive physical lease scope is not a replication budget", () => {
+  const source = read("../../../apps/web/src/features/persistence/localFirst/databaseTabCoordinator.ts");
+  const start = source.indexOf("export function getLocalFirstDatabaseTabOwnershipBudgetId");
+  const getter = source.slice(start, source.indexOf("\n}", start) + 2);
+  assert.match(getter, /budgetIdFromLocalFirstDatabaseLeaseScope/);
 });
 
 test("local-first replication scopes to the held tab lease instead of shared selection storage", () => {
@@ -54,6 +69,7 @@ test("local-first replication scopes to the held tab lease instead of shared sel
     source.indexOf("if (!provider.operationJournal"),
   );
   assert.match(localFirstBranch, /getLocalFirstDatabaseTabOwnershipBudgetId\(\)/);
+  assert.match(localFirstBranch, /hasLocalFirstDatabaseTabOwnership\(budgetId\)/);
   assert.doesNotMatch(localFirstBranch, /getActiveBudgetIdFromStorage\(provider\.keyValueStorage\)/);
 });
 

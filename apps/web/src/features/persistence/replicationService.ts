@@ -185,8 +185,12 @@ export function startReplicationBackgroundService(
         try {
           await checkHealth();
           const budgetId = activeBudgetId();
-          if (!budgetId || !provider.accountRegisterQueries) {
-            update({ ...snapshot, supported: true, status: "up-to-date", lastError: null });
+          if (
+            !budgetId ||
+            !provider.accountRegisterQueries ||
+            !hasLocalFirstDatabaseTabOwnership(budgetId) ||
+            provider.accountRegisterQueries.isLocalDatabaseReleased?.()
+          ) {
             return null;
           }
           const budget = provider.keyValueStorage

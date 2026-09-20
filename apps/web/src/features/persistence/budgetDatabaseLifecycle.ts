@@ -1,6 +1,7 @@
 import {
   acquireLocalFirstDatabaseTabOwnership,
   hasLocalFirstDatabaseTabOwnership,
+  LOCAL_FIRST_EXCLUSIVE_DATABASE_LEASE_SCOPE,
   releaseLocalFirstDatabaseTabOwnership,
 } from "./localFirst/databaseTabCoordinator";
 import { publishBroadBudgetChange } from "./persistenceChangeBus";
@@ -52,7 +53,7 @@ export async function runWithExclusiveBudgetDatabase<T>(operation: () => Promise
   const provider = getBudgetPersistenceProvider();
   const queries = provider.accountRegisterQueries;
   const budgetId = provider.keyValueStorage?.getItem(SELECTED_BUDGET_STORAGE_KEY);
-  const leaseScope = budgetId ?? "__exclusive-local-database-operation__";
+  const leaseScope = budgetId ?? LOCAL_FIRST_EXCLUSIVE_DATABASE_LEASE_SCOPE;
 
   await acquireLocalFirstDatabaseTabOwnership(
     leaseScope,

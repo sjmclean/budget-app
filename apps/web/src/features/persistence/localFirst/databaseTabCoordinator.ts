@@ -1,3 +1,14 @@
+export const LOCAL_FIRST_EXCLUSIVE_DATABASE_LEASE_SCOPE =
+  "__exclusive-local-database-operation__";
+
+export function budgetIdFromLocalFirstDatabaseLeaseScope(
+  scope: string | null,
+): string | null {
+  return scope && scope !== LOCAL_FIRST_EXCLUSIVE_DATABASE_LEASE_SCOPE
+    ? scope
+    : null;
+}
+
 interface LockManagerPort {
   request<T>(
     name: string,
@@ -224,5 +235,7 @@ export function hasLocalFirstDatabaseTabOwnership(budgetId: string): boolean {
 
 
 export function getLocalFirstDatabaseTabOwnershipBudgetId(): string | null {
-  return sharedDatabaseTabCoordinator.budgetId();
+  return budgetIdFromLocalFirstDatabaseLeaseScope(
+    sharedDatabaseTabCoordinator.budgetId(),
+  );
 }
