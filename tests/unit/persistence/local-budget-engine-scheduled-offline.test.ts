@@ -19,7 +19,7 @@ test("public engine creates a scheduled transaction locally while relay is unava
       sqlite.prepare("INSERT INTO outbox VALUES (?, ?)").run(mutation.mutationId, JSON.stringify(mutation));
     })(); return {}; },
   } as unknown as LocalBudgetDatabaseClient;
-  const values = new Map([["budget-app.local-first.device-id", "device"], [`budget-app.local-first.sync-epoch.${budgetId}`, syncEpoch]]);
+  const values = new Map([["budget-app.local-first.device-id", "device"], [`budget-app.local-first.sync-epoch.${budgetId}`, syncEpoch], [`budget-app.local-first.database-file.${budgetId}`, `/budget-physical-${budgetId}-fixture.sqlite3`]]);
   const originalFetch = globalThis.fetch; globalThis.fetch = async () => { throw new Error("relay unavailable"); };
   const events: string[][] = []; const unsubscribe = subscribePersistenceChanges((event) => events.push([...event.scope.domains]));
   try {

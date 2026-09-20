@@ -66,6 +66,8 @@ export interface LocalBudgetRuntimeClient extends AccountRegisterQueryPort {
   releaseLocalDatabase?(): Promise<void>;
   /** Explicitly admit requests for a selected budget after leaving the launcher. */
   activateLocalBudget?(budgetId: string): Promise<void>;
+  /** Infrastructure-only background convergence. Ordinary reads never await it. */
+  synchroniseLocalBudget(budgetId: string): Promise<void>;
   isLocalDatabaseReleased?(): boolean;
   runWithExclusiveLocalDatabase?<T>(operation: () => Promise<T>): Promise<T>;
 

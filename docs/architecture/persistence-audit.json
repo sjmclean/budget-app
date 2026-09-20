@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T01:12:57.914Z",
+  "generatedAt": "2026-09-20T04:53:44.014Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -1816,19 +1816,19 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localBudgetClient.ts",
-      "line": 56,
+      "line": 63,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localBudgetClient.ts",
-      "line": 57,
+      "line": 64,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
-      "line": 136,
+      "line": 142,
       "classification": "review-required"
     },
     {
@@ -1904,7 +1904,7 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/persistenceProviderLifecycle.ts",
-      "line": 4
+      "line": 8
     },
     {
       "kind": "persistenceBoundary",
@@ -2089,7 +2089,7 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/replicationService.ts",
-      "line": 105
+      "line": 109
     },
     {
       "kind": "replicationApi",

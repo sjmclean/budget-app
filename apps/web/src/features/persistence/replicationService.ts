@@ -14,6 +14,10 @@ import {
   type LocalFirstRelayEventSubscription,
 } from "./localFirst/relayEvents";
 import { subscribeToLocalFirstMutationCommits } from "./localFirst/mutationEvents";
+import {
+  getLocalFirstDatabaseTabOwnershipBudgetId,
+  hasLocalFirstDatabaseTabOwnership,
+} from "./localFirst/databaseTabCoordinator";
 
 export type ReplicationStatus =
   | "disabled"
@@ -110,12 +114,11 @@ export function startReplicationBackgroundService(
     const localFirstRelay = createLocalFirstRelayTransport({
       apiBaseUrl: options.apiBaseUrl,
     });
-    const activeBudgetId = () => provider.keyValueStorage
-      ? getActiveBudgetIdFromStorage(provider.keyValueStorage)
-      : null;
+    const activeBudgetId = () => getLocalFirstDatabaseTabOwnershipBudgetId();
     const intervalMs = options.intervalMs ?? 60_000;
     let stopped = false;
     let running: Promise<ReplicationRunResult | null> | null = null;
+    let runningBudgetId: string | null = null;
     let intervalTimer: ReturnType<typeof setInterval> | null = null;
     let subscriptionScopeTimer: ReturnType<typeof setInterval> | null = null;
     let eventSubscription: LocalFirstRelayEventSubscription | null = null;
@@ -159,25 +162,42 @@ export function startReplicationBackgroundService(
 
     const syncNow = async (): Promise<ReplicationRunResult | null> => {
       if (stopped || provider.accountRegisterQueries?.isLocalDatabaseReleased?.()) return null;
-      if (running) return running;
+      const selectedBudgetId = activeBudgetId();
+      if (
+        !selectedBudgetId ||
+        !hasLocalFirstDatabaseTabOwnership(selectedBudgetId)
+      ) {
+        return null;
+      }
+      if (running) {
+        if (runningBudgetId === selectedBudgetId) return running;
+        await running;
+        return syncNow();
+      }
+      runningBudgetId = selectedBudgetId;
       running = (async () => {
-        connectEvents();
-        if (typeof navigator !== "undefined" && !navigator.onLine) {
-          update({ ...snapshot, supported: true, status: "offline" });
-          return null;
-        }
-        update({
-          ...snapshot,
-          supported: true,
-          status: snapshot.lastSuccessfulSyncAt ? "synchronising" : "connecting",
-          lastAttemptAt: new Date().toISOString(),
-          lastError: null,
-        });
         try {
+          connectEvents();
+          if (typeof navigator !== "undefined" && !navigator.onLine) {
+            update({ ...snapshot, supported: true, status: "offline" });
+            return null;
+          }
+          update({
+            ...snapshot,
+            supported: true,
+            status: snapshot.lastSuccessfulSyncAt ? "synchronising" : "connecting",
+            lastAttemptAt: new Date().toISOString(),
+            lastError: null,
+          });
           await checkHealth();
           const budgetId = activeBudgetId();
-          if (!budgetId || !provider.accountRegisterQueries) {
-            update({ ...snapshot, supported: true, status: "up-to-date", lastError: null });
+          if (
+            !budgetId ||
+            budgetId !== selectedBudgetId ||
+            !provider.accountRegisterQueries ||
+            !hasLocalFirstDatabaseTabOwnership(selectedBudgetId) ||
+            provider.accountRegisterQueries.isLocalDatabaseReleased?.()
+          ) {
             return null;
           }
           const budget = provider.keyValueStorage
@@ -192,9 +212,7 @@ export function startReplicationBackgroundService(
           }
           const status = await provider.accountRegisterQueries.getBudgetStatus(budgetId);
           if (provider.accountRegisterQueries.isLocalDatabaseReleased?.()) return null;
-          // Local-first query clients synchronise the transactional outbox and
-          // pull remote mutations before returning navigation data.
-          await provider.accountRegisterQueries.listAccountNavigation(budgetId);
+          await provider.accountRegisterQueries.synchroniseLocalBudget(budgetId);
           if (provider.accountRegisterQueries.isLocalDatabaseReleased?.()) return null;
           const conflicts = await localConflictClient()
             ?.listSyncConflicts?.(budgetId) ?? [];
@@ -233,6 +251,7 @@ export function startReplicationBackgroundService(
           return null;
         } finally {
           running = null;
+          runningBudgetId = null;
         }
       })();
       return running;

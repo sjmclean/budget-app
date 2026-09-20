@@ -6,6 +6,7 @@ const FIRST_ARGUMENT_BUDGET_METHODS = new Set([
   "restoreBudget",
   "resetBudget",
   "publishLocalBaseline",
+  "synchroniseLocalBudget",
   "listSyncConflicts",
   "resolveSyncConflict",
   "listAccounts",

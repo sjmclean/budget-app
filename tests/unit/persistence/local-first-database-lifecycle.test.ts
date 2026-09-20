@@ -19,8 +19,17 @@ function harness(hooks: {
   open?: () => Promise<void>; sync?: () => Promise<void>; close?: () => Promise<void>;
   capture?: () => Promise<void>; deleteRelay?: () => Promise<void>; deleteFile?: () => Promise<void>;
   deleteRestorePoints?: () => Promise<void>;
-} = {}) {
-  const values = new Map([ ["budget-app.local-first.device-id", "test-device"], ...["A", "B"].map((id) => [`budget-app.local-first.sync-epoch.${id}`, "epoch"])]);
+} = {}, options: { publishedPointers?: boolean } = {}) {
+  const values = new Map([
+    ["budget-app.local-first.device-id", "test-device"],
+    ...["A", "B"].flatMap((id) => [
+      [`budget-app.local-first.sync-epoch.${id}`, "epoch"],
+      ...(options.publishedPointers === false ? [] : [[
+        `budget-app.local-first.database-file.${id}`,
+        `/budget-physical-${id}-fixture.sqlite3`,
+      ]]),
+    ]),
+  ]);
   const events: string[] = [];
   let owner: string | null = null;
   const client = createLocalBudgetRuntime({
@@ -59,6 +68,24 @@ function harness(hooks: {
   return { client, events, owner: () => owner };
 }
 
+
+test("published local SQLite serves a warm read while relay bootstrap is offline", async () => {
+  const { client, events } = harness();
+  await client.listAccountNavigation("A");
+  assert.deepEqual(events.slice(0, 2), ["open:A", "read:A"]);
+  await client.releaseLocalDatabase!();
+});
+
+test("cached epoch without a published physical pointer never offline-opens SQLite", async () => {
+  const { client, events } = harness({}, { publishedPointers: false });
+  await assert.rejects(
+    client.listAccountNavigation("A"),
+    /complete local SQLite budget is not ready/,
+  );
+  assert.equal(events.some((event) => event.startsWith("open:")), false);
+  assert.equal(events.some((event) => event.startsWith("read:")), false);
+});
+
 test("restore-point cleanup follows authoritative deletion; failure is diagnostic, not deletion failure", async () => {
   const order: string[] = [];
   const warnings: unknown[][] = [];
@@ -95,7 +122,7 @@ test("simultaneous requests for different budgets do not share the global openin
   assert.deepEqual(events, ["open:A", "read:A", "close:A", "open:B", "read:B", "close:B"]);
 });
 
-for (const phase of ["open", "sync"] as const) {
+for (const phase of ["open"] as const) {
   test(`release during ${phase} drains the actual query before closing and rejects stale requests`, async () => {
     const started = deferred();
     const finish = deferred();
@@ -118,10 +145,10 @@ for (const phase of ["open", "sync"] as const) {
   });
 }
 
-test("fire-and-forget prefetch is tracked through sync; released prefetch cannot reopen", async () => {
+test("fire-and-forget prefetch is tracked through local open; released prefetch cannot reopen", async () => {
   const started = deferred();
   const finish = deferred();
-  const { client, events, owner } = harness({ sync: async () => { started.resolve(); await finish.promise; } });
+  const { client, events, owner } = harness({ open: async () => { started.resolve(); await finish.promise; } });
   client.prefetchAccountRegister({ budgetId: "A", accountId: "account", limit: 10, offset: 0 } as never);
   await started.promise;
   const released = client.releaseLocalDatabase!();
@@ -241,10 +268,10 @@ for (const openBudget of [null, "A", "B"]) {
 test("deletion drains admitted work and refuses new queries before cleaning up without a snapshot", async () => {
   const started = deferred();
   const finish = deferred();
-  let firstSync = true;
+  let firstOpen = true;
   const { client, events, owner } = harness({
     capture: async () => { assert.fail("deletion must not capture"); },
-    sync: async () => { if (firstSync) { firstSync = false; started.resolve(); await finish.promise; } },
+    open: async () => { if (firstOpen) { firstOpen = false; started.resolve(); await finish.promise; } },
   });
   const reading = client.listAccountNavigation("A");
   await started.promise;

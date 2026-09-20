@@ -70,6 +70,7 @@ test("LocalBudgetEngine commits an assignment and outbox row while the relay is 
   const storage = new Map<string, string>([
     ["budget-app.local-first.device-id", "offline-device"],
     [`budget-app.local-first.sync-epoch.${budgetId}`, syncEpoch],
+    [`budget-app.local-first.database-file.${budgetId}`, `/budget-physical-${budgetId}-fixture.sqlite3`],
   ]);
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => { throw new Error("relay unavailable"); };

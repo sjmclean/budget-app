@@ -25,6 +25,13 @@ interface RestoreJournal {
 }
 const journalKey = (budgetId: string) => `budget-app.sqlite-restore.pending.${budgetId}`;
 
+export function hasPendingRestoreJournal(
+  storage: Pick<Storage, "getItem">,
+  budgetId: string,
+): boolean {
+  return Boolean(storage.getItem(journalKey(budgetId)));
+}
+
 export function restorePendingError(cause: unknown) {
   return Object.assign(new Error(
     "Restore publication is pending recovery. This budget is paused to protect both generations. " +
