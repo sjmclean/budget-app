@@ -184,10 +184,14 @@ test("failed database release retains the Web Lock and blocks takeover", async (
   const locks = new LockHub();
   const channels = new ChannelHub();
   const errors: unknown[] = [];
+  const releaseError = deferred();
   const first = createLocalFirstDatabaseTabCoordinator({
     lockManager: locks,
     channelFactory: channels.create,
-    onReleaseError: (error) => errors.push(error),
+    onReleaseError: (error) => {
+      errors.push(error);
+      releaseError.resolve();
+    },
   });
   const second = createLocalFirstDatabaseTabCoordinator({
     lockManager: locks,
@@ -200,11 +204,11 @@ test("failed database release retains the Web Lock and blocks takeover", async (
 
   let acquired = false;
   void second.acquire("budget-a", async () => {}).then(() => { acquired = true; });
-  await Promise.resolve();
-  await Promise.resolve();
+  await releaseError.promise;
 
   assert.equal(acquired, false);
   assert.equal(first.owns("budget-a"), true);
+  assert.equal(first.hasPhysicalLease(), true);
   assert.equal(errors.length, 1);
 });
 
