@@ -61,8 +61,8 @@ test("local-first replication scopes to the held tab lease instead of shared sel
 test("local-first timed restore points use the held tab lease as active budget", () => {
   const source = read("../../../apps/web/src/main.tsx");
   const restoreLifecycle = source.slice(
-    source.indexOf("startRestorePointLifecycle"),
-    source.indexOf("startReplicationBackgroundService"),
+    source.indexOf("startRestorePointLifecycle({"),
+    source.indexOf("startReplicationBackgroundService(persistenceProvider"),
   );
   assert.match(restoreLifecycle, /getLocalFirstDatabaseTabOwnershipBudgetId\(\)/);
   assert.match(restoreLifecycle, /syncArchitecture === "local-first-relay"/);
