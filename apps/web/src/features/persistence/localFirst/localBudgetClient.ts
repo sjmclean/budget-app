@@ -959,6 +959,24 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
+  listAccounts(budgetId: string): Promise<readonly {
+    readonly id: string;
+    readonly budgetId: string;
+    readonly name: string;
+    readonly type: string;
+    readonly participation: string;
+    readonly openingBalance: number;
+    readonly currencyCode: string;
+    readonly createdAt: string;
+    readonly closedAt: string | null;
+  }[]> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "listAccounts",
+      budgetId,
+    });
+  }
+
   listAccountNavigation(budgetId: string): Promise<readonly {
     readonly id: string;
     readonly name: string;
