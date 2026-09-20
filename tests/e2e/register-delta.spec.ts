@@ -64,8 +64,10 @@ test("register commands and history emit bounded committed worker deltas", async
   const redoTraffic = await page.evaluate(() => (window as typeof window & { __registerDeltaTraffic: { requests: { type: string }[]; deltas: { mode: string; afterRows?: { row: { payeeName: string } }[] }[] } }).__registerDeltaTraffic);
   expect(redoTraffic.requests.some(({ type }) => type === "restoreTransactionHistorySnapshot")).toBe(true);
   expect(redoTraffic.deltas.some((delta) => delta.mode === "patch" && delta.afterRows?.some(({ row }) => row.payeeName === "Delta Merchant"))).toBe(true);
-  await page.getByRole("button", { name: "Mark cleared", exact: true }).click();
-  await expect(page.getByTitle("Cleared", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Mark transaction cleared", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Mark transaction uncleared", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
   const clearTraffic = await page.evaluate(() => (window as typeof window & { __registerDeltaTraffic: { deltas: { mode: string; beforeRows?: { row: { clearedStatus: string; payeeName: string } }[]; afterRows?: { row: { clearedStatus: string; payeeName: string } }[] }[] } }).__registerDeltaTraffic);
   expect(clearTraffic.deltas.some((delta) => delta.mode === "patch" && delta.beforeRows?.some(({ row }) => row.payeeName === "Delta Merchant" && row.clearedStatus === "uncleared") && delta.afterRows?.some(({ row }) => row.payeeName === "Delta Merchant" && row.clearedStatus === "cleared"))).toBe(true);
   const transactionId = await page.evaluate(() => {
