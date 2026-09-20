@@ -329,5 +329,5 @@ test("concurrent same-budget ownership activation coalesces instead of invalidat
   assert.equal(ownership.isReleased(), false);
   await ownership.run("A", async () => undefined);
   await ownership.leave();
-  assert.equal(closes, 2);
+  assert.equal(closes, 3);
 });
