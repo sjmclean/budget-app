@@ -40,9 +40,13 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
   readonly channelFactory?: ((name: string) => BroadcastChannelPort) | null;
   readonly onReleaseError?: ((error: unknown) => void) | null;
 } = {}): LocalFirstDatabaseTabCoordinator {
-  const lockManager = options.lockManager === undefined
-    ? (globalThis.navigator?.locks as LockManagerPort | undefined) ?? null
-    : options.lockManager;
+  const configuredLockManager = options.lockManager;
+
+  function currentLockManager(): LockManagerPort | null {
+    return configuredLockManager === undefined
+      ? (globalThis.navigator?.locks as LockManagerPort | undefined) ?? null
+      : configuredLockManager;
+  }
   const channelFactory = options.channelFactory === undefined
     ? (globalThis.BroadcastChannel
         ? (name: string) => new BroadcastChannel(name)
@@ -87,6 +91,7 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
     releaseDatabase: () => Promise<void>,
     generation: number,
   ): Promise<void> {
+    const lockManager = currentLockManager();
     if (!lockManager) {
       throw Object.assign(
         new Error(
@@ -139,6 +144,14 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
     ): Promise<void> {
       if (!budgetId) throw new Error("A budget ID is required for database ownership.");
       if (closed) throw new Error("The database tab coordinator is closed.");
+      if (!currentLockManager()) {
+        throw Object.assign(
+          new Error(
+            "Cross-tab SQLite ownership requires the Web Locks API in this browser.",
+          ),
+          { code: "WEB_LOCKS_UNAVAILABLE" },
+        );
+      }
 
       if (held?.budgetId === budgetId) {
         held.releaseDatabase = releaseDatabase;

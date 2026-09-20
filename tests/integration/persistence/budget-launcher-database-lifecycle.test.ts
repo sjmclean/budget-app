@@ -6,12 +6,33 @@ import { releaseActiveBudgetPersistence } from "../../../apps/web/src/features/p
 import { emptyDomainCounts } from "../../../apps/web/src/features/persistence/localFirst/contracts";
 import { defaultNewBudgetSetup } from "../../../apps/web/src/features/budget/newBudget/budgetTemplates";
 
+class BrowserLockHub {
+  private tails = new Map<string, Promise<void>>();
+
+  request<T>(
+    name: string,
+    _options: { mode: "exclusive" },
+    callback: () => Promise<T>,
+  ): Promise<T> {
+    const previous = this.tails.get(name) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((done) => { release = done; });
+    this.tails.set(name, previous.then(() => current));
+    return previous.then(callback).finally(() => release());
+  }
+}
+
 // Exercise the real store, staged importers, worker client and baseline publisher.
 // Only the worker transport and HTTP relay are fakes; no real OPFS/browser is
 // claimed. The fake pool rejects any overlapping owner deterministically.
 test("switch followed immediately by real blank, YNAB4 and Actual workflows; rollback and cancellation recover", async () => {
   const originalWorker = globalThis.Worker;
   const originalFetch = globalThis.fetch;
+  const navigatorLocksDescriptor = Object.getOwnPropertyDescriptor(globalThis.navigator, "locks");
+  Object.defineProperty(globalThis.navigator, "locks", {
+    configurable: true,
+    value: new BrowserLockHub(),
+  });
   let owner: object | string | null = null;
   let failImport = false;
   let cancelImport: (() => void) | undefined;
@@ -158,6 +179,11 @@ test("switch followed immediately by real blank, YNAB4 and Actual workflows; rol
   } finally {
     globalThis.Worker = originalWorker;
     globalThis.fetch = originalFetch;
+    if (navigatorLocksDescriptor) {
+      Object.defineProperty(globalThis.navigator, "locks", navigatorLocksDescriptor);
+    } else {
+      delete (globalThis.navigator as Navigator & { locks?: unknown }).locks;
+    }
     resetBudgetPersistenceProvider();
   }
 });
