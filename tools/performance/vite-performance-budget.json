@@ -1,7 +1,8 @@
 {
-  "initialJavaScriptBytes": 786432,
-  "initialCssBytes": 262144,
-  "largestAsyncJavaScriptBytes": 655360,
-  "totalJavaScriptBytes": 3145728,
-  "totalCssBytes": 524288
+  "initialJavaScriptBytes": 614400,
+  "initialCssBytes": 180224,
+  "largestAsyncJavaScriptBytes": 262144,
+  "totalJavaScriptBytes": 2097152,
+  "totalCssBytes": 393216,
+  "accountRegisterJavaScriptBytes": 440320
 }

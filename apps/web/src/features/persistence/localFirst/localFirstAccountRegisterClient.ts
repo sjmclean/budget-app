@@ -129,6 +129,121 @@ export function selectOutboxPushBatch(pending: readonly LocalOutboxRow[], budget
   return { rows, mutations, encodedBytes };
 }
 
+type LocalFirstRelayClient = ReturnType<typeof createLocalFirstRelayTransport>;
+
+export interface LocalFirstConvergenceDatabase {
+  readOutbox(
+    afterSequence: number,
+    limit: number,
+  ): ReturnType<LocalBudgetDatabaseClient["readOutbox"]>;
+  acknowledgeOutbox(throughSequence: number): Promise<unknown>;
+  applyRemoteMutations(
+    mutations: Parameters<LocalBudgetDatabaseClient["applyRemoteMutations"]>[0],
+    throughCursor: number,
+  ): Promise<unknown>;
+}
+
+export interface LocalFirstConvergenceRelay {
+  pushMutations(
+    input: Parameters<LocalFirstRelayClient["pushMutations"]>[0],
+  ): Promise<unknown>;
+  pullMutations(
+    input: Parameters<LocalFirstRelayClient["pullMutations"]>[0],
+  ): ReturnType<LocalFirstRelayClient["pullMutations"]>;
+}
+
+export async function pushLocalFirstOutbox(input: {
+  readonly local: LocalFirstConvergenceDatabase;
+  readonly relay: LocalFirstConvergenceRelay;
+  readonly budgetId: string;
+  readonly syncEpoch: string;
+  readonly batchSize?: number;
+}): Promise<number> {
+  const batchSize = input.batchSize ?? 500;
+  let pushedMutationCount = 0;
+  while (true) {
+    const pending = await input.local.readOutbox(0, batchSize);
+    const outbox = selectOutboxPushBatch(
+      pending,
+      input.budgetId,
+      input.syncEpoch,
+    );
+    if (outbox.rows.length === 0) break;
+    await input.relay.pushMutations({
+      budgetId: input.budgetId,
+      syncEpoch: input.syncEpoch,
+      mutations: outbox.mutations,
+    });
+    await input.local.acknowledgeOutbox(outbox.rows.at(-1)!.sequence);
+    pushedMutationCount += outbox.mutations.length;
+  }
+  return pushedMutationCount;
+}
+
+export async function convergeLocalFirstMutations(input: {
+  readonly local: LocalFirstConvergenceDatabase;
+  readonly relay: LocalFirstConvergenceRelay;
+  readonly budgetId: string;
+  readonly syncEpoch: string;
+  readonly pulledCursor: number;
+  readonly batchSize?: number;
+  readonly onRemoteMutationsApplied?: (
+    mutations: readonly LocalBudgetMutation[],
+  ) => void;
+}): Promise<{
+  readonly pushedMutationCount: number;
+  readonly pulledMutationCount: number;
+  readonly pulledCursor: number;
+}> {
+  const batchSize = input.batchSize ?? 500;
+  const pushedMutationCount = await pushLocalFirstOutbox({
+    local: input.local,
+    relay: input.relay,
+    budgetId: input.budgetId,
+    syncEpoch: input.syncEpoch,
+    batchSize,
+  });
+
+  let pulledCursor = input.pulledCursor;
+  let pulledMutationCount = 0;
+  while (true) {
+    const pulled = await input.relay.pullMutations({
+      budgetId: input.budgetId,
+      syncEpoch: input.syncEpoch,
+      afterCursor: pulledCursor,
+      limit: batchSize,
+    });
+    if (pulled.mutations.length === 0 && pulled.hasMore) {
+      throw new Error("The relay reported additional mutations without advancing the cursor.");
+    }
+    if (pulled.mutations.length > 0) {
+      const throughCursor = pulled.mutations.at(-1)!.cursor;
+      const mutations = pulled.mutations.map(({
+        cursor,
+        mutation,
+        conflict,
+      }) => ({
+        cursor,
+        mutation,
+        ...(conflict ? { conflict } : {}),
+      }));
+      await input.local.applyRemoteMutations(mutations, throughCursor);
+      input.onRemoteMutationsApplied?.(
+        pulled.mutations.map(({ mutation }) => mutation),
+      );
+      pulledCursor = throughCursor;
+      pulledMutationCount += pulled.mutations.length;
+    }
+    if (!pulled.hasMore) break;
+  }
+
+  return {
+    pushedMutationCount,
+    pulledMutationCount,
+    pulledCursor,
+  };
+}
+
 /**
  * Complete browser-local budget engine. All domain reads and writes use the
  * OPFS SQLite worker. Only explicit catalogue/backup lifecycle operations are
@@ -158,7 +273,7 @@ export function createLocalBudgetRuntime(
   const commandExecutor = new LocalBudgetCommandExecutor();
   let synchronising: {
     readonly budgetId: string;
-    readonly promise: Promise<void>;
+    readonly promise: Promise<import("../accountRegisterQueryContracts").LocalBudgetSynchronisationResult>;
   } | null = null;
 
   async function captureOwnedRestorePoint(budgetId: string, reason: RestorePointReason) {
@@ -191,17 +306,12 @@ export function createLocalBudgetRuntime(
     budgetId: string,
     syncEpoch: string,
   ): Promise<void> {
-    while (true) {
-      const pending = await local.readOutbox(0, 500);
-      const outbox = selectOutboxPushBatch(pending, budgetId, syncEpoch);
-      if (outbox.rows.length === 0) break;
-      await relay.pushMutations({
-        budgetId,
-        syncEpoch,
-        mutations: outbox.mutations,
-      });
-      await local.acknowledgeOutbox(outbox.rows.at(-1)!.sequence);
-    }
+    await pushLocalFirstOutbox({
+      local,
+      relay,
+      budgetId,
+      syncEpoch,
+    });
   }
 
   async function readyDatabase(budgetId: string): Promise<LocalBudgetDatabaseClient | null> {
@@ -408,7 +518,9 @@ export function createLocalBudgetRuntime(
     return ready;
   }
 
-  async function synchronise(budgetId: string): Promise<void> {
+  async function synchronise(
+    budgetId: string,
+  ): Promise<import("../accountRegisterQueryContracts").LocalBudgetSynchronisationResult> {
     if (synchronising) {
       if (synchronising.budgetId === budgetId) return synchronising.promise;
       await synchronising.promise;
@@ -485,17 +597,22 @@ export function createLocalBudgetRuntime(
         });
       }
 
-      await drainLocalOutbox(local, budgetId, activeSyncEpoch!);
       let cursor = syncState.pulledCursor;
       while (true) {
-        let pulled;
         try {
-          pulled = await relay.pullMutations({
+          const convergence = await convergeLocalFirstMutations({
+            local,
+            relay,
             budgetId,
             syncEpoch: activeSyncEpoch!,
-            afterCursor: cursor,
-            limit: 500,
+            pulledCursor: cursor,
+            onRemoteMutationsApplied: (mutations) => {
+              notifyRemoteMutationsApplied(budgetId, mutations);
+            },
           });
+          cursor = convergence.pulledCursor;
+          activePulledCursor = convergence.pulledCursor;
+          break;
         } catch (error) {
           if ((error as { code?: string }).code !== "CURSOR_COMPACTED") {
             throw error;
@@ -529,31 +646,12 @@ export function createLocalBudgetRuntime(
             budgetId,
             source: "replication",
           });
-          continue;
         }
-        if (pulled.mutations.length > 0) {
-          const throughCursor = pulled.mutations.at(-1)!.cursor;
-          await local.applyRemoteMutations(
-            pulled.mutations.map(({
-              cursor: mutationCursor,
-              mutation: value,
-              conflict,
-            }) => ({
-              cursor: mutationCursor,
-              mutation: value,
-              ...(conflict ? { conflict } : {}),
-            })),
-            throughCursor,
-          );
-          notifyRemoteMutationsApplied(
-            budgetId,
-            pulled.mutations.map(({ mutation: value }) => value),
-          );
-          cursor = throughCursor;
-          activePulledCursor = throughCursor;
-        }
-        if (!pulled.hasMore) break;
       }
+      return {
+        generationId: activeSyncEpoch!,
+        pulledCursor: activePulledCursor,
+      };
     }).finally(() => {
       if (synchronising?.promise === operation) synchronising = null;
     });
@@ -1170,26 +1268,13 @@ export function createLocalBudgetRuntime(
       await local.resolveSyncConflict(conflictId, resolution);
     },
     async getBudgetStatus(budgetId) {
-      const remote = await relay.getBootstrap(budgetId).catch(() => null);
-      if (!remote?.baseline) {
-        return {
-          budgetId,
-          generationId: null,
-          state: "legacy",
-          activatedAt: null,
-          capabilities: {
-            accountRegisters: false,
-            budgetMonths: false,
-            analytics: false,
-            scheduledTransactions: false,
-          },
-        };
-      }
+      const local = await requireDatabase(budgetId);
+      const syncState = await local.getSyncState();
       return {
         budgetId,
-        generationId: remote.syncEpoch,
+        generationId: syncState.syncEpoch,
         state: "active",
-        activatedAt: Date.parse(remote.baseline.committedAt),
+        activatedAt: null,
         capabilities: {
           accountRegisters: true,
           budgetMonths: true,

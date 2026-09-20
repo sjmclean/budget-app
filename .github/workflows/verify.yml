@@ -35,6 +35,10 @@ jobs:
         run: pnpm benchmark:p0-6:projection
       - name: Run P0.6 large projection benchmark
         run: pnpm benchmark:p0-6:projection:large
+      - name: Run local-first sync benchmark
+        run: pnpm benchmark:local-first-sync
+      - name: Run local-first large sync benchmark
+        run: pnpm benchmark:local-first-sync:large
       - name: Upload P0.6 projection benchmark
         uses: actions/upload-artifact@v4
         with:
@@ -44,6 +48,16 @@ jobs:
           retention-days: 7
       - name: Run canonical verification
         run: pnpm verify
+      - name: Upload performance evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-evidence
+          path: |
+            test-results/local-first-sync-performance*.json
+            test-results/browser-local-sqlite-performance.json
+            apps/web/dist/performance-report.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Confirm verification did not mutate tracked files
         run: git diff --exit-code
       - name: Upload Playwright failure artifacts

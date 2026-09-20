@@ -19,6 +19,7 @@ interface PerformanceBudgets {
   largestAsyncJavaScriptBytes: number;
   totalJavaScriptBytes: number;
   totalCssBytes: number;
+  accountRegisterJavaScriptBytes: number;
 }
 
 interface AssetMeasurement {
@@ -141,6 +142,22 @@ const asyncChunks = Object.entries(manifest)
   }))
   .sort((left, right) => right.bytes - left.bytes);
 
+const accountRegisterChunk = Object.entries(manifest).find(([key, chunk]) =>
+  (chunk.src ?? key).endsWith("src/pages/AccountRegisterPage.tsx"),
+);
+if (!accountRegisterChunk) {
+  fail("The Vite manifest does not contain the Account Register route chunk.");
+}
+const accountRegisterStaticChunkKeys = collectStaticGraph(
+  manifest,
+  accountRegisterChunk[0],
+);
+const accountRegisterJavaScript = unique(
+  Array.from(accountRegisterStaticChunkKeys)
+    .filter((key) => !initialChunkKeys.has(key))
+    .map((key) => manifest[key].file),
+).map(measureAsset);
+
 const sumBytes = (assets: AssetMeasurement[]) =>
   assets.reduce((total, asset) => total + asset.bytes, 0);
 const sumGzipBytes = (assets: AssetMeasurement[]) =>
@@ -156,6 +173,8 @@ const measurements = {
   totalJavaScriptGzipBytes: sumGzipBytes(allJavaScript),
   totalCssBytes: sumBytes(allCss),
   totalCssGzipBytes: sumGzipBytes(allCss),
+  accountRegisterJavaScriptBytes: sumBytes(accountRegisterJavaScript),
+  accountRegisterJavaScriptGzipBytes: sumGzipBytes(accountRegisterJavaScript),
 };
 
 const checks = [
@@ -183,6 +202,11 @@ const checks = [
     name: "Total CSS",
     actual: measurements.totalCssBytes,
     budget: budgets.totalCssBytes,
+  },
+  {
+    name: "Account Register route JavaScript",
+    actual: measurements.accountRegisterJavaScriptBytes,
+    budget: budgets.accountRegisterJavaScriptBytes,
   },
 ];
 

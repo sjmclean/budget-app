@@ -34,6 +34,11 @@ import type { ImportHistorySnapshot, TransactionHistorySnapshot } from "./localF
 import type { CategoryGoal } from "../../../../../packages/types/src/CategoryGoal";
 import type { ReplicationConflict } from "./conflictResolution";
 
+export interface LocalBudgetSynchronisationResult {
+  readonly generationId: string;
+  readonly pulledCursor: number;
+}
+
 export interface BudgetEngineStatus {
   readonly budgetId: string;
   readonly generationId: string | null;
@@ -67,7 +72,7 @@ export interface LocalBudgetRuntimeClient extends AccountRegisterQueryPort {
   /** Explicitly admit requests for a selected budget after leaving the launcher. */
   activateLocalBudget?(budgetId: string): Promise<void>;
   /** Infrastructure-only background convergence. Ordinary reads never await it. */
-  synchroniseLocalBudget(budgetId: string): Promise<void>;
+  synchroniseLocalBudget(budgetId: string): Promise<LocalBudgetSynchronisationResult>;
   isLocalDatabaseReleased?(): boolean;
   runWithExclusiveLocalDatabase?<T>(operation: () => Promise<T>): Promise<T>;
 

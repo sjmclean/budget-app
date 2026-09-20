@@ -1,26 +1,26 @@
 import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-
-interface AuthStatus {
-  needsSetup: boolean;
-  authenticated: boolean;
-  user: { id: string; email: string; isAdmin: boolean } | null;
-}
+import {
+  getCachedAuthStatus,
+  loadAuthStatus,
+  type AuthStatus,
+} from "./authStatusClient";
 
 const apiBaseUrl = (
   import.meta as ImportMeta & { env?: { VITE_BUDGET_API_URL?: string } }
 ).env?.VITE_BUDGET_API_URL?.replace(/\/+$/, "") ?? "";
 
 export function AuthGate({ children }: { readonly children: ReactNode }) {
-  const [status, setStatus] = useState<AuthStatus | null>(null);
+  const [status, setStatus] = useState<AuthStatus | null>(() => getCachedAuthStatus());
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void request<AuthStatus>("/api/auth/status").then(setStatus).catch((cause) => {
+    if (status) return;
+    void loadAuthStatus().then(setStatus).catch((cause) => {
       setError(cause instanceof Error ? cause.message : "Unable to contact the budget server.");
     });
-  }, []);
+  }, [status]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -125,6 +125,7 @@ export function startReplicationBackgroundService(
     let subscribedBudgetId: string | null = null;
     let eventDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     let mutationDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const publishedMetadata = new Map<string, string>();
     const mutationDebounceMs = options.debounceMs ?? 250;
     const localConflictClient = () => provider.localBudgetConflictRecovery;
 
@@ -189,7 +190,6 @@ export function startReplicationBackgroundService(
             lastAttemptAt: new Date().toISOString(),
             lastError: null,
           });
-          await checkHealth();
           const budgetId = activeBudgetId();
           if (
             !budgetId ||
@@ -204,20 +204,23 @@ export function startReplicationBackgroundService(
             ? readBudgetRegistry(provider.keyValueStorage).find((entry) => entry.id === budgetId)
             : null;
           if (budget) {
-            await localFirstRelay.updateBudgetMetadata({
-              budgetId,
-              budgetName: budget.name,
-              currency: budget.currency,
-            });
+            const metadataSignature = JSON.stringify([budget.name, budget.currency]);
+            if (publishedMetadata.get(budgetId) !== metadataSignature) {
+              await localFirstRelay.updateBudgetMetadata({
+                budgetId,
+                budgetName: budget.name,
+                currency: budget.currency,
+              });
+              publishedMetadata.set(budgetId, metadataSignature);
+            }
           }
-          const status = await provider.accountRegisterQueries.getBudgetStatus(budgetId);
-          if (provider.accountRegisterQueries.isLocalDatabaseReleased?.()) return null;
-          await provider.accountRegisterQueries.synchroniseLocalBudget(budgetId);
+          const synchronisation =
+            await provider.accountRegisterQueries.synchroniseLocalBudget(budgetId);
           if (provider.accountRegisterQueries.isLocalDatabaseReleased?.()) return null;
           const conflicts = await localConflictClient()
             ?.listSyncConflicts?.(budgetId) ?? [];
           const result: ReplicationRunResult = {
-            generationId: status.generationId ?? "",
+            generationId: synchronisation.generationId,
             pushedOperationCount: 0,
             pulledOperationCount: 0,
             finalLocalSequence: 0,
@@ -234,11 +237,12 @@ export function startReplicationBackgroundService(
             ...snapshot,
             supported: true,
             status: conflicts.length > 0 ? "conflict" : "up-to-date",
-            generationId: status.generationId,
+            generationId: synchronisation.generationId,
             lastSuccessfulSyncAt: new Date().toISOString(),
             lastError: null,
             retryAttempt: 0,
             unresolvedConflictCount: conflicts.length,
+            serverStatus: "ready",
           });
           return result;
         } catch (error) {

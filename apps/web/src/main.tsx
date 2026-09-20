@@ -18,6 +18,7 @@ import "./styles/workspaceThemeTokens.css";
 import { startRestorePointLifecycle } from "./features/budget/restorePointLifecycle";
 import { SELECTED_BUDGET_STORAGE_KEY } from "./features/budget/budgetDataScope";
 import { getLocalFirstDatabaseTabOwnershipBudgetId } from "./features/persistence/localFirst/databaseTabCoordinator";
+import { loadAuthStatus } from "./features/auth/authStatusClient";
 function getApplicationRoot(): HTMLElement {
   const root = document.getElementById("root");
 
@@ -38,19 +39,7 @@ export async function bootstrapApp() {
     let hostedCatalogueAuthoritative = false;
     const hostProvider = bootstrapHostBudgetPersistenceProvider();
     if (!hostProvider) {
-      const apiBaseUrl = (
-        import.meta as ImportMeta & { env?: { VITE_BUDGET_API_URL?: string } }
-      ).env?.VITE_BUDGET_API_URL?.replace(/\/+$/, "") ?? "";
-      const session = await fetch(`${apiBaseUrl}/api/auth/status`, {
-        credentials: "include",
-        headers: { Accept: "application/json" },
-      }).then((response) => response.ok ? response.json() : null).catch(() => null) as
-        | {
-            authenticated?: boolean;
-            user?: { id?: string; isAdmin?: boolean };
-            budgets?: HostedBudgetCatalogueEntry[];
-          }
-        | null;
+      const session = await loadAuthStatus();
       hostedBudgets = session?.budgets ?? [];
       hostedCatalogueAuthoritative = session?.authenticated === true;
       // Preserve the original IndexedDB for the first administrator so an
