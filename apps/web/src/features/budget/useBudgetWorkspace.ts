@@ -163,6 +163,7 @@ export function useBudgetWorkspace(
   function setEditedData(nextData: BudgetMonthView | null, fallbackVersion = 0): void {
     if (nextData?.publicationRevision !== undefined) {
       seedBudgetMonthQuery(
+        persistenceGateway,
         { budgetId, month },
         nextData,
         nextData.publicationRevision,
