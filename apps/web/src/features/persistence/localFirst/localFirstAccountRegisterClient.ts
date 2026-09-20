@@ -280,7 +280,12 @@ export function createLocalBudgetRuntime(
           return null;
         }
         if (!remote) {
-          if (!cachedSyncEpoch) return null;
+          if (
+            !cachedSyncEpoch ||
+            !hasPublishedLocalBudgetDatabase(storage, budgetId)
+          ) {
+            return null;
+          }
           await next.open({
             budgetId,
             syncEpoch: cachedSyncEpoch,
