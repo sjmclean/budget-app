@@ -327,14 +327,14 @@ export function createLocalBudgetRuntime(
 
   function consumeWarmAccountRegisterBootstrap(
     input: AccountTransactionQuery,
-  ): AccountRegisterBootstrapResult | null {
+  ): { readonly bootstrap: AccountRegisterBootstrapResult; readonly revision: number } | null {
     const key = accountRegisterBootstrapKey(input);
     const warm = warmAccountRegisterBootstraps.get(key);
     if (!warm) return null;
     warmAccountRegisterBootstraps.delete(key);
     return warm.revision ===
       getPersistenceRevisionForInterest(accountRegisterInterest(input))
-      ? warm.result
+      ? { bootstrap: warm.result, revision: warm.revision }
       : null;
   }
 
@@ -388,7 +388,7 @@ export function createLocalBudgetRuntime(
 
   function loadAccountRegisterBootstrap(input: AccountTransactionQuery) {
     const warm = consumeWarmAccountRegisterBootstrap(input);
-    if (warm) return Promise.resolve(warm);
+    if (warm) return Promise.resolve(warm.bootstrap);
     return getOrStartAccountRegisterBootstrap(input).promise;
   }
 
@@ -1415,6 +1415,9 @@ export function createLocalBudgetRuntime(
     },
     prefetchAccountRegister(input) {
       prefetchAccountRegisterBootstrap(input);
+    },
+    consumePrefetchedAccountRegister(input) {
+      return consumeWarmAccountRegisterBootstrap(input);
     },
     async getAccountSummary(input) {
       return (await syncThenDatabase(input.budgetId)).getAccountSummary(input);
