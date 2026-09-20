@@ -158,7 +158,7 @@ export function createLocalBudgetRuntime(
   const commandExecutor = new LocalBudgetCommandExecutor();
   let synchronising: {
     readonly budgetId: string;
-    readonly promise: Promise<void>;
+    readonly promise: Promise<import("../accountRegisterQueryContracts").LocalBudgetSynchronisationResult>;
   } | null = null;
 
   async function captureOwnedRestorePoint(budgetId: string, reason: RestorePointReason) {
@@ -408,7 +408,9 @@ export function createLocalBudgetRuntime(
     return ready;
   }
 
-  async function synchronise(budgetId: string): Promise<void> {
+  async function synchronise(
+    budgetId: string,
+  ): Promise<import("../accountRegisterQueryContracts").LocalBudgetSynchronisationResult> {
     if (synchronising) {
       if (synchronising.budgetId === budgetId) return synchronising.promise;
       await synchronising.promise;
@@ -554,6 +556,10 @@ export function createLocalBudgetRuntime(
         }
         if (!pulled.hasMore) break;
       }
+      return {
+        generationId: activeSyncEpoch!,
+        pulledCursor: activePulledCursor,
+      };
     }).finally(() => {
       if (synchronising?.promise === operation) synchronising = null;
     });
@@ -1170,26 +1176,13 @@ export function createLocalBudgetRuntime(
       await local.resolveSyncConflict(conflictId, resolution);
     },
     async getBudgetStatus(budgetId) {
-      const remote = await relay.getBootstrap(budgetId).catch(() => null);
-      if (!remote?.baseline) {
-        return {
-          budgetId,
-          generationId: null,
-          state: "legacy",
-          activatedAt: null,
-          capabilities: {
-            accountRegisters: false,
-            budgetMonths: false,
-            analytics: false,
-            scheduledTransactions: false,
-          },
-        };
-      }
+      const local = await requireDatabase(budgetId);
+      const syncState = await local.getSyncState();
       return {
         budgetId,
-        generationId: remote.syncEpoch,
+        generationId: syncState.syncEpoch,
         state: "active",
-        activatedAt: Date.parse(remote.baseline.committedAt),
+        activatedAt: null,
         capabilities: {
           accountRegisters: true,
           budgetMonths: true,
