@@ -27,7 +27,10 @@ export async function releaseActiveBudgetPersistence(): Promise<void> {
   }
 }
 
-export async function activateBudgetPersistence(budgetId: string): Promise<void> {
+export async function activateBudgetPersistence(
+  budgetId: string,
+  options: { readonly deferBackgroundSync?: boolean } = {},
+): Promise<void> {
   const provider = getBudgetPersistenceProvider();
   const queries = provider.accountRegisterQueries;
   if (!queries?.activateLocalBudget) return;
@@ -68,6 +71,12 @@ export async function activateBudgetPersistence(budgetId: string): Promise<void>
     });
   }
 
+  if (!options.deferBackgroundSync) {
+    nudgeActiveBudgetReplication();
+  }
+}
+
+export function nudgeActiveBudgetReplication(): void {
   void getReplicationBackgroundService()?.syncNow().catch((error: unknown) => {
     console.error("Unable to synchronise the active budget after local activation.", error);
   });
