@@ -132,7 +132,7 @@ test("synchronous warm-cache reads bypass database ownership routing", () => {
 test("owned sidebar prefetch retains the completed warm bootstrap", () => {
   assert.match(
     clientSource,
-    /key === "prefetchAccountRegister"[\s\S]*?prefetchAccountRegisterBootstrap\(input as AccountTransactionQuery\)/,
+    /key === "prefetchAccountRegister"[\s\S]*?prefetchAccountRegisterBootstrap\(input as [^)]*AccountTransactionQuery\)/,
   );
   assert.match(
     clientSource,
