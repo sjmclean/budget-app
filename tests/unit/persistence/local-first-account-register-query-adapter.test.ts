@@ -40,3 +40,102 @@ test("local-first account register query adapter preserves query scope", () => {
     );
   }
 });
+
+
+test("register prefetch and navigation share one in-flight authoritative bootstrap", () => {
+  assert.match(
+    clientSource,
+    /accountRegisterBootstrapInFlight\s*=\s*new Map/,
+  );
+  assert.match(
+    clientSource,
+    /const existing = accountRegisterBootstrapInFlight\.get\(key\);\s*if \(existing\) return existing;/s,
+  );
+  assert.match(
+    clientSource,
+    /getAccountRegisterBootstrap\(input\) \{\s*return loadAccountRegisterBootstrap\(input\);\s*\}/s,
+  );
+  assert.match(
+    clientSource,
+    /prefetchAccountRegister\(input\) \{\s*void prefetchAccountRegisterBootstrap\(input\);\s*\}/s,
+  );
+  assert.match(
+    clientSource,
+    /accountRegisterBootstrapInFlight\.get\(key\)\?\.promise === promise/,
+  );
+});
+
+test("completed register prefetch is single-use, bounded, and revision guarded", () => {
+  assert.match(
+    clientSource,
+    /MAX_WARM_ACCOUNT_REGISTER_BOOTSTRAPS = 16/,
+  );
+  assert.match(
+    clientSource,
+    /warmAccountRegisterBootstraps\.delete\(key\);\s*return warm\.revision ===\s*getPersistenceRevisionForInterest/s,
+  );
+  assert.match(
+    clientSource,
+    /request\.startedRevision !== currentRevision\) return;/,
+  );
+  assert.match(
+    clientSource,
+    /while \(warmAccountRegisterBootstraps\.size > MAX_WARM_ACCOUNT_REGISTER_BOOTSTRAPS\)/,
+  );
+});
+
+
+test("register navigation can synchronously consume a revision-valid warm bootstrap before paint", () => {
+  const hookSource = readFileSync(
+    new URL(
+      "../../../apps/web/src/features/accounts/useAccountRegister.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(
+    clientSource,
+    /consumePrefetchedAccountRegister\(input\) \{\s*return consumeWarmAccountRegisterBootstrap\(input\);\s*\}/s,
+  );
+  assert.match(
+    hookSource,
+    /useLayoutEffect\(\(\) => \{/,
+  );
+  assert.match(
+    hookSource,
+    /consumePrefetchedAccountRegister\(\{/,
+  );
+  assert.match(
+    hookSource,
+    /appliedRevisionRef\.current = warm\.revision;/,
+  );
+  assert.match(
+    hookSource,
+    /hasLoadedDataRef\.current = true;\s*setIsLoading\(false\);/s,
+  );
+});
+
+
+test("synchronous warm-cache reads bypass database ownership routing", () => {
+  assert.match(
+    clientSource,
+    /key === "consumePrefetchedAccountRegister"[\s\S]*?const method = value\.bind\(target\);/,
+  );
+  const directBindingIndex = clientSource.indexOf('key === "consumePrefetchedAccountRegister"');
+  const genericRoutingIndex = clientSource.indexOf("const budgetId = resolveOwnedBudgetId(key, args);");
+  assert.ok(directBindingIndex >= 0);
+  assert.ok(genericRoutingIndex > directBindingIndex);
+});
+
+
+test("owned sidebar prefetch retains the completed warm bootstrap", () => {
+  assert.match(
+    clientSource,
+    /key === "prefetchAccountRegister"[\s\S]*?prefetchAccountRegisterBootstrap\(input as [^)]*AccountTransactionQuery\)/,
+  );
+  assert.match(
+    clientSource,
+    /async function prefetchAccountRegisterBootstrap[\s\S]*?retainWarmAccountRegisterBootstrap\(key, result, currentRevision\);/,
+  );
+});

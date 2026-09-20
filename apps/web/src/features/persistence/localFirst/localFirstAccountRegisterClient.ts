@@ -43,7 +43,10 @@ import {
   type LocalFirstTabSyncCoordinator,
 } from "./tabSyncCoordinator";
 import { notifyRemoteMutationsApplied, persistenceScopeForMutations } from "./mutationEvents";
-import { publishBroadBudgetChange } from "../persistenceChangeBus";
+import {
+  getPersistenceRevisionForInterest,
+  publishBroadBudgetChange,
+} from "../persistenceChangeBus";
 import { registerLocalSqliteAttachmentReader } from "../../attachments/localSqliteAttachmentReader";
 import { localPayeeRecordToView } from "./localPayeeView";
 import { createBudgetDatabaseOwnership } from "./budgetDatabaseOwnership";
@@ -275,6 +278,135 @@ export function createLocalBudgetRuntime(
     readonly budgetId: string;
     readonly promise: Promise<import("../accountRegisterQueryContracts").LocalBudgetSynchronisationResult>;
   } | null = null;
+
+  type AccountRegisterBootstrapResult = Awaited<
+    ReturnType<LocalBudgetRuntimeClient["getAccountRegisterBootstrap"]>
+  >;
+  interface AccountRegisterBootstrapRequest {
+    readonly promise: Promise<AccountRegisterBootstrapResult>;
+    readonly startedRevision: number;
+  }
+  interface WarmAccountRegisterBootstrap {
+    readonly result: AccountRegisterBootstrapResult;
+    readonly revision: number;
+  }
+
+  const MAX_WARM_ACCOUNT_REGISTER_BOOTSTRAPS = 16;
+  const accountRegisterBootstrapInFlight =
+    new Map<string, AccountRegisterBootstrapRequest>();
+  const warmAccountRegisterBootstraps =
+    new Map<string, WarmAccountRegisterBootstrap>();
+
+  function accountRegisterInterest(input: AccountTransactionQuery) {
+    return {
+      budgetId: input.budgetId,
+      accountId: input.accountId,
+      domains: [
+        "accounts",
+        "transactions",
+        "categories",
+        "attachments",
+        "payees",
+      ] as const,
+    };
+  }
+
+  function accountRegisterBootstrapKey(input: AccountTransactionQuery): string {
+    return JSON.stringify({
+      budgetId: input.budgetId,
+      accountId: input.accountId,
+      limit: input.limit,
+      before: input.before ?? null,
+      offset: input.offset ?? null,
+      dateRange: input.dateRange ?? null,
+      search: input.search ?? null,
+      categoryFilter: input.categoryFilter ?? null,
+      sort: input.sort ?? null,
+    });
+  }
+
+  function consumeWarmAccountRegisterBootstrap(
+    input: AccountTransactionQuery,
+  ): { readonly bootstrap: AccountRegisterBootstrapResult; readonly revision: number } | null {
+    const key = accountRegisterBootstrapKey(input);
+    const warm = warmAccountRegisterBootstraps.get(key);
+    if (!warm) return null;
+    warmAccountRegisterBootstraps.delete(key);
+    return warm.revision ===
+      getPersistenceRevisionForInterest(accountRegisterInterest(input))
+      ? { bootstrap: warm.result, revision: warm.revision }
+      : null;
+  }
+
+  function retainWarmAccountRegisterBootstrap(
+    key: string,
+    result: AccountRegisterBootstrapResult,
+    revision: number,
+  ): void {
+    warmAccountRegisterBootstraps.delete(key);
+    warmAccountRegisterBootstraps.set(key, { result, revision });
+    while (warmAccountRegisterBootstraps.size > MAX_WARM_ACCOUNT_REGISTER_BOOTSTRAPS) {
+      const oldestKey = warmAccountRegisterBootstraps.keys().next().value;
+      if (oldestKey === undefined) break;
+      warmAccountRegisterBootstraps.delete(oldestKey);
+    }
+  }
+
+  function getOrStartAccountRegisterBootstrap(
+    input: AccountTransactionQuery,
+  ): AccountRegisterBootstrapRequest {
+    const key = accountRegisterBootstrapKey(input);
+    const existing = accountRegisterBootstrapInFlight.get(key);
+    if (existing) return existing;
+
+    const startedRevision =
+      getPersistenceRevisionForInterest(accountRegisterInterest(input));
+    let promise!: Promise<AccountRegisterBootstrapResult>;
+    promise = (async () => {
+      const local = await syncThenDatabase(input.budgetId);
+      const needsFilteredCount =
+        Boolean(input.search?.query.trim()) ||
+        input.categoryFilter === "uncategorised";
+      const [summary, page] = await Promise.all([
+        local.getAccountSummary(input),
+        local.queryTransactions({
+          ...toLocalQuery(input),
+          includeTotalCount: needsFilteredCount,
+        }),
+      ]);
+      return { summary, page };
+    })().finally(() => {
+      if (accountRegisterBootstrapInFlight.get(key)?.promise === promise) {
+        accountRegisterBootstrapInFlight.delete(key);
+      }
+    });
+
+    const request = { promise, startedRevision };
+    accountRegisterBootstrapInFlight.set(key, request);
+    return request;
+  }
+
+  function loadAccountRegisterBootstrap(input: AccountTransactionQuery) {
+    const warm = consumeWarmAccountRegisterBootstrap(input);
+    if (warm) return Promise.resolve(warm.bootstrap);
+    return getOrStartAccountRegisterBootstrap(input).promise;
+  }
+
+  async function prefetchAccountRegisterBootstrap(
+    input: AccountTransactionQuery,
+  ): Promise<void> {
+    const key = accountRegisterBootstrapKey(input);
+    const request = getOrStartAccountRegisterBootstrap(input);
+    try {
+      const result = await request.promise;
+      const currentRevision =
+        getPersistenceRevisionForInterest(accountRegisterInterest(input));
+      if (request.startedRevision !== currentRevision) return;
+      retainWarmAccountRegisterBootstrap(key, result, currentRevision);
+    } catch {
+      // Prefetch is opportunistic; navigation will perform the authoritative read.
+    }
+  }
 
   async function captureOwnedRestorePoint(budgetId: string, reason: RestorePointReason) {
     const local = database;
@@ -1283,22 +1415,14 @@ export function createLocalBudgetRuntime(
         },
       };
     },
-    async getAccountRegisterBootstrap(input) {
-      const local = await syncThenDatabase(input.budgetId);
-      const needsFilteredCount =
-        Boolean(input.search?.query.trim()) ||
-        input.categoryFilter === "uncategorised";
-      const [summary, page] = await Promise.all([
-        local.getAccountSummary(input),
-        local.queryTransactions({
-          ...toLocalQuery(input),
-          includeTotalCount: needsFilteredCount,
-        }),
-      ]);
-      return { summary, page };
+    getAccountRegisterBootstrap(input) {
+      return loadAccountRegisterBootstrap(input);
     },
     prefetchAccountRegister(input) {
-      void client.getAccountRegisterBootstrap(input).catch(() => undefined);
+      void prefetchAccountRegisterBootstrap(input);
+    },
+    consumePrefetchedAccountRegister(input) {
+      return consumeWarmAccountRegisterBootstrap(input);
     },
     async getAccountSummary(input) {
       return (await syncThenDatabase(input.budgetId)).getAccountSummary(input);
@@ -1555,7 +1679,11 @@ export function createLocalBudgetRuntime(
       if (methods.has(key)) return methods.get(key);
       const value = Reflect.get(target, key);
       if (typeof value !== "function") return value;
-      if (key === "getBudgetStatus" || key === "getBudgetExportUrl") {
+      if (
+        key === "getBudgetStatus" ||
+        key === "getBudgetExportUrl" ||
+        key === "consumePrefetchedAccountRegister"
+      ) {
         const method = value.bind(target);
         methods.set(key, method);
         return method;
@@ -1563,9 +1691,12 @@ export function createLocalBudgetRuntime(
       if (key === "prefetchAccountRegister" || key === "prefetchBudgetMonthView") {
         const method = (input: { budgetId: string } & Record<string, unknown>) => {
           if (ownership.isReleased()) return;
-          void ownership.run<unknown>(input.budgetId, () => key === "prefetchAccountRegister"
-            ? target.getAccountRegisterBootstrap(input as never)
-            : target.getBudgetMonthView(input as never)).catch(() => undefined);
+          void ownership.run<unknown>(
+            input.budgetId,
+            () => key === "prefetchAccountRegister"
+              ? prefetchAccountRegisterBootstrap(input as unknown as AccountTransactionQuery)
+              : target.getBudgetMonthView(input as never),
+          ).catch(() => undefined);
         };
         methods.set(key, method);
         return method;
