@@ -1,6 +1,8 @@
 import { ArrowDown, ArrowUp, Paperclip, Tag } from "lucide-react";
 import "../styles/register.css";
 import {
+  Suspense,
+  lazy,
   useCallback,
   useEffect,
   useMemo,
@@ -21,8 +23,6 @@ import {
 import { SelectionBar } from "../components/ui/SelectionBar";
 import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
 import { ScheduledTransactionsPreview } from "../components/accounts/ScheduledTransactionsPreview";
-import { AttachmentManager } from "../features/accounts/components/AttachmentManager";
-import { TransactionImportDialog } from "../features/accounts/components/TransactionImportDialog";
 import { RegisterToolbar } from "../features/accounts/components/RegisterToolbar";
 import {
   TransactionEditRow,
@@ -100,10 +100,7 @@ import type {
 } from "../features/transactions/transactionEditIntent";
 import { createImportTransactionsCommand } from "../features/history/commands/imports/importCommands";
 import { createBudgetScopedStorage } from "../features/budget/budgetDataScope";
-import {
-  TransactionTagManager,
-  createTransactionTagService,
-} from "../features/tags";
+import { createTransactionTagService } from "../features/tags/transactionTagService";
 import { ColumnResizeHandle } from "../features/tableLayout/ColumnResizeHandle";
 import {
   buildTableRowStyle,
@@ -124,6 +121,22 @@ import {
   getPerformanceNow,
   type RegisterPerformanceTimings,
 } from "../features/performance/registerPerformanceInstrumentation";
+
+const AttachmentManager = lazy(() =>
+  import("../features/accounts/components/AttachmentManager").then((module) => ({
+    default: module.AttachmentManager,
+  })),
+);
+const TransactionImportDialog = lazy(() =>
+  import("../features/accounts/components/TransactionImportDialog").then((module) => ({
+    default: module.TransactionImportDialog,
+  })),
+);
+const TransactionTagManager = lazy(() =>
+  import("../features/tags/TransactionTagManager").then((module) => ({
+    default: module.TransactionTagManager,
+  })),
+);
 
 interface RecentImportActivity {
   readonly version: 1;
@@ -1809,10 +1822,12 @@ export function AccountRegisterPage() {
                   Close
                 </button>
               </div>
-              <TransactionTagManager
-                service={transactionTagService}
-                onPersist={syncTransactionTagsToPersistence}
-              />
+              <Suspense fallback={null}>
+                <TransactionTagManager
+                  service={transactionTagService}
+                  onPersist={syncTransactionTagsToPersistence}
+                />
+              </Suspense>
             </Card>
           </div>
         ) : null}
@@ -2090,6 +2105,7 @@ export function AccountRegisterPage() {
         ) : null}
 
         {isTransactionImportOpen && (
+          <Suspense fallback={null}>
           <TransactionImportDialog
             initialAccountId={accountId}
             accounts={[
@@ -2354,6 +2370,7 @@ export function AccountRegisterPage() {
               }
             }}
           />
+          </Suspense>
         )}
 
         {moveAccountMenuPosition ? (
@@ -2759,12 +2776,14 @@ export function AccountRegisterPage() {
       </Card>
 
       {registerAttachmentWorkflow.attachmentTransaction && (
-        <AttachmentManager
-          transaction={registerAttachmentWorkflow.attachmentTransaction}
-          onClose={registerAttachmentWorkflow.closeAttachmentManager}
-          onAddAttachment={registerAttachmentWorkflow.handleAddAttachment}
-          onRemoveAttachment={registerAttachmentWorkflow.handleRemoveAttachment}
-        />
+        <Suspense fallback={null}>
+          <AttachmentManager
+            transaction={registerAttachmentWorkflow.attachmentTransaction}
+            onClose={registerAttachmentWorkflow.closeAttachmentManager}
+            onAddAttachment={registerAttachmentWorkflow.handleAddAttachment}
+            onRemoveAttachment={registerAttachmentWorkflow.handleRemoveAttachment}
+          />
+        </Suspense>
       )}
       </WorkspaceBody>
     </WorkspaceLayout>
