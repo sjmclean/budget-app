@@ -3,7 +3,6 @@ import {
   activateBudgetPersistence,
   releaseActiveBudgetPersistence,
 } from "./budgetDatabaseLifecycle";
-import { useUIStore } from "../../stores/uiStore";
 
 export function installPersistenceProviderLifecycle(
   provider: BudgetPersistenceProvider,
@@ -21,9 +20,11 @@ export function installPersistenceProviderLifecycle(
   const handlePageHide = () => flushPendingWrites();
   const reactivateVisibleBudget = () => {
     if (document.visibilityState !== "visible") return;
-    const budgetId = useUIStore.getState().selectedBudgetId;
-    if (!budgetId) return;
-    void activateBudgetPersistence(budgetId).catch((error: unknown) => {
+    void import("../../stores/uiStore").then(({ useUIStore }) => {
+      const budgetId = useUIStore.getState().selectedBudgetId;
+      if (!budgetId || document.visibilityState !== "visible") return;
+      return activateBudgetPersistence(budgetId);
+    }).catch((error: unknown) => {
       console.error("Unable to reacquire the active budget database.", error);
     });
   };
