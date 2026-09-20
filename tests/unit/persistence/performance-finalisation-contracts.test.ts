@@ -51,3 +51,11 @@ test("local-first benchmark uses the production convergence loop with persisted 
   assert.match(benchmark, /CREATE TABLE local_budget_outbox/);
   assert.match(benchmark, /CREATE TABLE remote_applied/);
 });
+
+
+test("Account Register bundle budget measures the route static graph rather than one emitted file", () => {
+  const analyzer = read("../../../tools/performance/analyze-vite-build.ts");
+  assert.match(analyzer, /accountRegisterStaticChunkKeys = collectStaticGraph/);
+  assert.match(analyzer, /filter\(\(key\) => !initialChunkKeys\.has\(key\)\)/);
+  assert.match(analyzer, /accountRegisterJavaScriptBytes: sumBytes\(accountRegisterJavaScript\)/);
+});

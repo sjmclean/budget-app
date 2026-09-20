@@ -148,7 +148,15 @@ const accountRegisterChunk = Object.entries(manifest).find(([key, chunk]) =>
 if (!accountRegisterChunk) {
   fail("The Vite manifest does not contain the Account Register route chunk.");
 }
-const accountRegisterJavaScript = measureAsset(accountRegisterChunk[1].file);
+const accountRegisterStaticChunkKeys = collectStaticGraph(
+  manifest,
+  accountRegisterChunk[0],
+);
+const accountRegisterJavaScript = unique(
+  Array.from(accountRegisterStaticChunkKeys)
+    .filter((key) => !initialChunkKeys.has(key))
+    .map((key) => manifest[key].file),
+).map(measureAsset);
 
 const sumBytes = (assets: AssetMeasurement[]) =>
   assets.reduce((total, asset) => total + asset.bytes, 0);
@@ -165,8 +173,8 @@ const measurements = {
   totalJavaScriptGzipBytes: sumGzipBytes(allJavaScript),
   totalCssBytes: sumBytes(allCss),
   totalCssGzipBytes: sumGzipBytes(allCss),
-  accountRegisterJavaScriptBytes: accountRegisterJavaScript.bytes,
-  accountRegisterJavaScriptGzipBytes: accountRegisterJavaScript.gzipBytes,
+  accountRegisterJavaScriptBytes: sumBytes(accountRegisterJavaScript),
+  accountRegisterJavaScriptGzipBytes: sumGzipBytes(accountRegisterJavaScript),
 };
 
 const checks = [
