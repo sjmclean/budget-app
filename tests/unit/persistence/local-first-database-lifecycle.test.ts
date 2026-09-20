@@ -311,3 +311,22 @@ test("deleting A still blocks on failed safety capture for a different open budg
   assert.equal(owner(), "B");
   assert.deepEqual(events, ["open:B", "read:B", "capture:B"]);
 });
+
+
+test("concurrent same-budget ownership activation coalesces instead of invalidating itself", async () => {
+  let closes = 0;
+  const ownership = createBudgetDatabaseOwnership(async () => { closes += 1; });
+  await ownership.leave();
+  assert.equal(ownership.isReleased(), true);
+
+  await Promise.all([
+    ownership.enter("A"),
+    ownership.enter("A"),
+    ownership.enter("A"),
+  ]);
+
+  assert.equal(ownership.isReleased(), false);
+  await ownership.run("A", async () => undefined);
+  await ownership.leave();
+  assert.equal(closes, 2);
+});
