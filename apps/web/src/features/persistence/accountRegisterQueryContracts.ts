@@ -93,6 +93,11 @@ export interface LocalBudgetRuntimeClient extends AccountRegisterQueryPort {
 
   prefetchAccountRegister(input: AccountTransactionQuery): void;
 
+  /** Single-use, revision-validated warm bootstrap for first-paint navigation. */
+  consumePrefetchedAccountRegister?(
+    input: AccountTransactionQuery,
+  ): { readonly bootstrap: AccountRegisterBootstrap; readonly revision: number } | null;
+
   listAccounts(
     budgetId: string,
   ): Promise<readonly SidebarAccount[]>;
