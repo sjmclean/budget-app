@@ -158,3 +158,27 @@ test("authoritative register reload reseeds the next navigation first paint", ()
     /const result = \{ summary, page \};[\s\S]*?retainWarmAccountRegisterBootstrap\(key, result, currentRevision\);[\s\S]*?return result;/,
   );
 });
+
+
+test("register warm first paint survives strict mode layout-effect replay", () => {
+  const hookSource = readFileSync(
+    new URL(
+      "../../../apps/web/src/features/accounts/useAccountRegister.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(
+    hookSource,
+    /const claimedWarmBootstrapRef = useRef</,
+  );
+  assert.match(
+    hookSource,
+    /const claimedWarm = claimedWarmBootstrapRef\.current;[\s\S]*?claimedWarm\?\.key === warmKey\s*\? claimedWarm\.value/s,
+  );
+  assert.match(
+    hookSource,
+    /if \(warm && claimedWarm\?\.key !== warmKey\) \{\s*claimedWarmBootstrapRef\.current = \{ key: warmKey, value: warm \};\s*\}/s,
+  );
+});
