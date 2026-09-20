@@ -392,15 +392,20 @@ export function createLocalBudgetRuntime(
     return getOrStartAccountRegisterBootstrap(input).promise;
   }
 
-  function prefetchAccountRegisterBootstrap(input: AccountTransactionQuery): void {
+  async function prefetchAccountRegisterBootstrap(
+    input: AccountTransactionQuery,
+  ): Promise<void> {
     const key = accountRegisterBootstrapKey(input);
     const request = getOrStartAccountRegisterBootstrap(input);
-    void request.promise.then((result) => {
+    try {
+      const result = await request.promise;
       const currentRevision =
         getPersistenceRevisionForInterest(accountRegisterInterest(input));
       if (request.startedRevision !== currentRevision) return;
       retainWarmAccountRegisterBootstrap(key, result, currentRevision);
-    }).catch(() => undefined);
+    } catch {
+      // Prefetch is opportunistic; navigation will perform the authoritative read.
+    }
   }
 
   async function captureOwnedRestorePoint(budgetId: string, reason: RestorePointReason) {
@@ -1414,7 +1419,7 @@ export function createLocalBudgetRuntime(
       return loadAccountRegisterBootstrap(input);
     },
     prefetchAccountRegister(input) {
-      prefetchAccountRegisterBootstrap(input);
+      void prefetchAccountRegisterBootstrap(input);
     },
     consumePrefetchedAccountRegister(input) {
       return consumeWarmAccountRegisterBootstrap(input);
@@ -1686,9 +1691,12 @@ export function createLocalBudgetRuntime(
       if (key === "prefetchAccountRegister" || key === "prefetchBudgetMonthView") {
         const method = (input: { budgetId: string } & Record<string, unknown>) => {
           if (ownership.isReleased()) return;
-          void ownership.run<unknown>(input.budgetId, () => key === "prefetchAccountRegister"
-            ? target.getAccountRegisterBootstrap(input as never)
-            : target.getBudgetMonthView(input as never)).catch(() => undefined);
+          void ownership.run<unknown>(
+            input.budgetId,
+            () => key === "prefetchAccountRegister"
+              ? prefetchAccountRegisterBootstrap(input as AccountTransactionQuery)
+              : target.getBudgetMonthView(input as never),
+          ).catch(() => undefined);
         };
         methods.set(key, method);
         return method;
