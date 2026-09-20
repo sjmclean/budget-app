@@ -361,7 +361,8 @@ export function createLocalBudgetRuntime(
 
     const startedRevision =
       getPersistenceRevisionForInterest(accountRegisterInterest(input));
-    const promise = (async () => {
+    let promise!: Promise<AccountRegisterBootstrapResult>;
+    promise = (async () => {
       const local = await syncThenDatabase(input.budgetId);
       const needsFilteredCount =
         Boolean(input.search?.query.trim()) ||
