@@ -228,7 +228,8 @@ function initialiseDatabase(database: Database.Database): void {
     CREATE TABLE local_categories (
       id TEXT PRIMARY KEY,
       budget_id TEXT NOT NULL,
-      group_id TEXT NOT NULL
+      group_id TEXT NOT NULL,
+      overspending_policy TEXT NOT NULL
     );
     CREATE TABLE local_budget_assignments (
       budget_id TEXT NOT NULL,
@@ -276,7 +277,7 @@ function seedDatabase(database: Database.Database, fixture: BenchmarkFixture): v
     "INSERT INTO local_accounts(id,budget_id,type,participation,opening_balance) VALUES(?,?,?,?,?)",
   );
   const insertCategory = database.prepare(
-    "INSERT INTO local_categories(id,budget_id,group_id) VALUES(?,?,?)",
+    "INSERT INTO local_categories(id,budget_id,group_id,overspending_policy) VALUES(?,?,?,?)",
   );
   const insertAssignment = database.prepare(
     "INSERT INTO local_budget_assignments(budget_id,month,category_id,assigned) VALUES(?,?,?,?)",
@@ -299,7 +300,12 @@ function seedDatabase(database: Database.Database, fixture: BenchmarkFixture): v
       );
     }
     for (const category of fixture.categories) {
-      insertCategory.run(category.id, fixture.budgetId, category.groupId);
+      insertCategory.run(
+        category.id,
+        fixture.budgetId,
+        category.groupId,
+        category.overspendingPolicy,
+      );
     }
     for (const assignment of fixture.assignments) {
       insertAssignment.run(
@@ -361,8 +367,12 @@ function extractFacts(
 
   started = performance.now();
   const categories = database.prepare(
-    "SELECT id, group_id AS groupId FROM local_categories WHERE budget_id = ? ORDER BY group_id, id",
-  ).all(budgetId) as Array<{ id: string; groupId: string }>;
+    "SELECT id, group_id AS groupId, overspending_policy AS overspendingPolicy FROM local_categories WHERE budget_id = ? ORDER BY group_id, id",
+  ).all(budgetId) as Array<{
+    id: string;
+    groupId: string;
+    overspendingPolicy: "reduce-next-month" | "carry-category";
+  }>;
   const categoriesMs = elapsed(started);
 
   started = performance.now();
@@ -447,12 +457,7 @@ function extractFacts(
         : "off-budget" as const,
       openingBalance: account.openingBalance,
     })),
-    categories: categories.map((category, index) => ({
-      ...category,
-      overspendingPolicy: index % 11 === 0
-        ? "carry-category" as const
-        : "reduce-next-month" as const,
-    })),
+    categories,
     assignments: assignments.map((assignment) => ({
       month: assignment.month,
       categoryId: assignment.categoryId,
