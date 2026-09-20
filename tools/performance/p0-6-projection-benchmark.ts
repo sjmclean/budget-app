@@ -142,11 +142,18 @@ function createFixture(options: ProjectionBenchmarkOptions): BenchmarkFixture {
     type: index === options.accountCount - 1 ? "credit-card" as const : "cash" as const,
     openingBalance: index === options.accountCount - 1 ? -75_000 : 25_000,
   }));
+  const creditCardAccount = accounts.at(-1)!;
+  const paymentCategoryId = `credit-card-payment-${creditCardAccount.id}`;
   const categories = Array.from({ length: options.categoryCount }, (_, index) => ({
-    id: `category-${index.toString().padStart(3, "0")}`,
-    groupId: `group-${Math.floor(index / 10).toString().padStart(2, "0")}`,
+    id: index === options.categoryCount - 1
+      ? paymentCategoryId
+      : `category-${index.toString().padStart(3, "0")}`,
+    groupId: index === options.categoryCount - 1
+      ? "__credit_card_payments__"
+      : `group-${Math.floor(index / 10).toString().padStart(2, "0")}`,
     overspendingPolicy: index % 11 === 0 ? "carry-category" as const : "reduce-next-month" as const,
   }));
+  const spendingCategories = categories.filter(({ id }) => id !== paymentCategoryId);
   const assignments = months.flatMap((month, monthIndex) =>
     categories.map((category, categoryIndex) => ({
       month,
@@ -174,10 +181,10 @@ function createFixture(options: ProjectionBenchmarkOptions): BenchmarkFixture {
       continue;
     }
 
-    const category = categories[index % categories.length]!;
+    const category = spendingCategories[index % spendingCategories.length]!;
     const outflow = -(900 + (index % 37) * 25);
     if (index % 10 === 0 && categories.length >= 2) {
-      const second = categories[(index + 1) % categories.length]!;
+      const second = spendingCategories[(index + 1) % spendingCategories.length]!;
       const firstAmount = Math.trunc(outflow / 2);
       const secondAmount = outflow - firstAmount;
       transactions.push({
@@ -462,6 +469,20 @@ function extractFacts(
   };
 }
 
+function paymentCategoryMap(
+  accounts: readonly BudgetProjectionAccountFact[],
+  categories: readonly BudgetProjectionCategoryFact[],
+): Readonly<Record<string, string>> {
+  const categoryIds = new Set(categories.map(({ id }) => id));
+  return Object.fromEntries(
+    accounts.flatMap((account) => {
+      if (account.type !== "credit-card") return [];
+      const categoryId = `credit-card-payment-${account.id}`;
+      return categoryIds.has(categoryId) ? [[account.id, categoryId]] : [];
+    }),
+  );
+}
+
 function openingForReplay(
   fullMonths: readonly BudgetMonthProjection[],
   firstMonthIndex: number,
@@ -562,6 +583,7 @@ export async function runProjectionBenchmark(
   seedDatabase(database, fixture);
   const fixtureBuildMs = elapsed(fixtureStarted);
 
+  const fullPaymentCategories = paymentCategoryMap(fixture.accounts, fixture.categories);
   const fullInput: BudgetProjectionInput = {
     budgetId: fixture.budgetId,
     fromMonth: fixture.months[0]!,
@@ -570,7 +592,10 @@ export async function runProjectionBenchmark(
     openingReadyToAssign: 0,
     openingPreviousOverspending: 0,
     openingAvailableByCategoryId: {},
-    creditCardPolicy: "manual",
+    creditCardPolicy: Object.keys(fullPaymentCategories).length > 0
+      ? "payment-funding"
+      : "manual",
+    paymentCategoryIdByAccountId: fullPaymentCategories,
     accounts: fixture.accounts,
     categories: fixture.categories,
     assignments: fixture.assignments,
@@ -616,13 +641,17 @@ export async function runProjectionBenchmark(
       lastFacts = facts;
 
       const opening = openingForReplay(fullProjection.months, firstMonthIndex);
+      const replayPaymentCategories = paymentCategoryMap(facts.accounts, facts.categories);
       started = performance.now();
       const replay = projectBudget({
         budgetId: fixture.budgetId,
         fromMonth: firstMonth,
         throughMonth: targetMonth,
         readyToAssignCategoryId: "__ready_to_assign__",
-        creditCardPolicy: "manual",
+        creditCardPolicy: Object.keys(replayPaymentCategories).length > 0
+          ? "payment-funding"
+          : "manual",
+        paymentCategoryIdByAccountId: replayPaymentCategories,
         ...opening,
         accounts: facts.accounts,
         categories: facts.categories,
