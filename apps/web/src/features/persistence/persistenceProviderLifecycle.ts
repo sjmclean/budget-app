@@ -19,7 +19,7 @@ export function installPersistenceProviderLifecycle(
 
   const releaseForSuspension = () => {
     flushPendingWrites();
-    void releaseActiveBudgetPersistence().catch((error: unknown) => {
+    void releaseActiveBudgetPersistence({ preserveActiveIntent: true }).catch((error: unknown) => {
       console.error("Unable to release the suspended tab's budget database.", error);
     });
   };
