@@ -12,6 +12,7 @@ import {
 import { resolveBudgetWorkspaceData } from "../../../apps/web/src/features/budget/useBudgetWorkspace";
 import type { BudgetMonthView } from "../../../apps/web/src/features/budget/budgetViewTypes";
 import { useBudgetView } from "../../../apps/web/src/features/budget/useBudgetView";
+import { seedBudgetMonthQuery } from "../../../apps/web/src/features/persistence/reactiveQueries";
 import { previewCategoryAssignment } from "../../../apps/web/src/features/budget/budgetAssignmentPreview";
 import { configureBudgetPersistenceProvider, resetBudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProviderFactory";
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider";
@@ -200,4 +201,71 @@ test("optimistic assignment previews never retain an authoritative publication r
   assert.equal(preview.publicationRevision, undefined);
   assert.equal(preview.categoryGroups[0]?.categories[0]?.assigned, 25);
   assert.equal(preview.readyToAssign, 75);
+});
+
+
+test("a late committed result from a retired provider cannot seed the new provider cache", async () => {
+  const budgetId = "budget-provider-seed";
+  const month = "2026-09";
+  let newProviderLoads = 0;
+  const oldProvider = {
+    metadata: {
+      kind: "local-database",
+      label: "old",
+      description: "old",
+      isProductionPersistence: false,
+    },
+    categories: {
+      getBudgetMonthView: async () => ({ marker: "old-loader" } as unknown as BudgetMonthView),
+    },
+  } as unknown as BudgetPersistenceProvider;
+  const newProvider = {
+    metadata: {
+      kind: "local-database",
+      label: "new",
+      description: "new",
+      isProductionPersistence: false,
+    },
+    categories: {
+      getBudgetMonthView: async () => {
+        newProviderLoads += 1;
+        return { marker: "new-loader" } as unknown as BudgetMonthView;
+      },
+    },
+  } as unknown as BudgetPersistenceProvider;
+
+  configureBudgetPersistenceProvider(oldProvider);
+  const revision = publishPersistenceChange({
+    source: "local",
+    scope: { budgetId, domains: ["budget"], months: [month] },
+  });
+  flushPersistenceChanges();
+  configureBudgetPersistenceProvider(newProvider);
+
+  seedBudgetMonthQuery(
+    oldProvider,
+    { budgetId, month },
+    { marker: "stale-old-provider", publicationRevision: revision } as unknown as BudgetMonthView,
+    revision,
+  );
+
+  let latest: ReturnType<typeof useBudgetView> | null = null;
+  function Consumer() {
+    latest = useBudgetView(budgetId, month);
+    return null;
+  }
+
+  let root: { unmount(): void } | null = null;
+  try {
+    await act(async () => {
+      root = create(createElement(Consumer));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    assert.equal(newProviderLoads, 1);
+    assert.equal((latest?.data as unknown as { marker?: string } | null)?.marker, "new-loader");
+  } finally {
+    if (root) await act(async () => root!.unmount());
+    resetBudgetPersistenceProvider();
+  }
 });
