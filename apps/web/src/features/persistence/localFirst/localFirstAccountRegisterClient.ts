@@ -276,6 +276,53 @@ export function createLocalBudgetRuntime(
     readonly promise: Promise<import("../accountRegisterQueryContracts").LocalBudgetSynchronisationResult>;
   } | null = null;
 
+  const accountRegisterBootstrapInFlight = new Map<
+    string,
+    Promise<Awaited<ReturnType<LocalBudgetRuntimeClient["getAccountRegisterBootstrap"]>>>
+  >();
+
+  function accountRegisterBootstrapKey(input: AccountTransactionQuery): string {
+    return JSON.stringify({
+      budgetId: input.budgetId,
+      accountId: input.accountId,
+      limit: input.limit,
+      before: input.before ?? null,
+      offset: input.offset ?? null,
+      dateRange: input.dateRange ?? null,
+      search: input.search ?? null,
+      categoryFilter: input.categoryFilter ?? null,
+      sort: input.sort ?? null,
+    });
+  }
+
+  function loadAccountRegisterBootstrap(input: AccountTransactionQuery) {
+    const key = accountRegisterBootstrapKey(input);
+    const existing = accountRegisterBootstrapInFlight.get(key);
+    if (existing) return existing;
+
+    const request = (async () => {
+      const local = await syncThenDatabase(input.budgetId);
+      const needsFilteredCount =
+        Boolean(input.search?.query.trim()) ||
+        input.categoryFilter === "uncategorised";
+      const [summary, page] = await Promise.all([
+        local.getAccountSummary(input),
+        local.queryTransactions({
+          ...toLocalQuery(input),
+          includeTotalCount: needsFilteredCount,
+        }),
+      ]);
+      return { summary, page };
+    })().finally(() => {
+      if (accountRegisterBootstrapInFlight.get(key) === request) {
+        accountRegisterBootstrapInFlight.delete(key);
+      }
+    });
+
+    accountRegisterBootstrapInFlight.set(key, request);
+    return request;
+  }
+
   async function captureOwnedRestorePoint(budgetId: string, reason: RestorePointReason) {
     const local = database;
     if (!local || activeBudgetId !== budgetId) {
@@ -1283,19 +1330,8 @@ export function createLocalBudgetRuntime(
         },
       };
     },
-    async getAccountRegisterBootstrap(input) {
-      const local = await syncThenDatabase(input.budgetId);
-      const needsFilteredCount =
-        Boolean(input.search?.query.trim()) ||
-        input.categoryFilter === "uncategorised";
-      const [summary, page] = await Promise.all([
-        local.getAccountSummary(input),
-        local.queryTransactions({
-          ...toLocalQuery(input),
-          includeTotalCount: needsFilteredCount,
-        }),
-      ]);
-      return { summary, page };
+    getAccountRegisterBootstrap(input) {
+      return loadAccountRegisterBootstrap(input);
     },
     prefetchAccountRegister(input) {
       void client.getAccountRegisterBootstrap(input).catch(() => undefined);
