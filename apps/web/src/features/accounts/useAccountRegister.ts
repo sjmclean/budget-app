@@ -128,7 +128,11 @@ export function useAccountRegister(
   const claimedWarmBootstrapRef = useRef<{
     readonly key: string;
     readonly value: NonNullable<
-      ReturnType<NonNullable<typeof accountRegisterQueries>["consumePrefetchedAccountRegister"]>
+      ReturnType<
+        NonNullable<
+          NonNullable<typeof accountRegisterQueries>["consumePrefetchedAccountRegister"]
+        >
+      >
     >;
   } | null>(null);
 
