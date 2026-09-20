@@ -62,6 +62,15 @@ test("exclusive physical lease scope is not a replication budget", () => {
   assert.match(getter, /budgetIdFromLocalFirstDatabaseLeaseScope/);
 });
 
+test("active release does not close the local database twice after dropping its physical lease", () => {
+  const source = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
+  const start = source.indexOf("export async function releaseActiveBudgetPersistence");
+  const end = source.indexOf("export async function activateBudgetPersistence", start);
+  const release = source.slice(start, end);
+  assert.match(release, /hasAnyLocalFirstDatabaseTabOwnership\(\)/);
+  assert.match(release, /if \(!hadPhysicalLease\)/);
+});
+
 test("local-first replication scopes to the held tab lease instead of shared selection storage", () => {
   const source = read("../../../apps/web/src/features/persistence/replicationService.ts");
   const localFirstBranch = source.slice(

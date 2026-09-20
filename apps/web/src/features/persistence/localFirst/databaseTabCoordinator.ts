@@ -233,6 +233,9 @@ export function hasLocalFirstDatabaseTabOwnership(budgetId: string): boolean {
   return sharedDatabaseTabCoordinator.owns(budgetId);
 }
 
+export function hasAnyLocalFirstDatabaseTabOwnership(): boolean {
+  return sharedDatabaseTabCoordinator.budgetId() !== null;
+}
 
 export function getLocalFirstDatabaseTabOwnershipBudgetId(): string | null {
   return budgetIdFromLocalFirstDatabaseLeaseScope(

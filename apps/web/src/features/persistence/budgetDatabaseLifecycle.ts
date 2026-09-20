@@ -1,5 +1,6 @@
 import {
   acquireLocalFirstDatabaseTabOwnership,
+  hasAnyLocalFirstDatabaseTabOwnership,
   hasLocalFirstDatabaseTabOwnership,
   LOCAL_FIRST_EXCLUSIVE_DATABASE_LEASE_SCOPE,
   releaseLocalFirstDatabaseTabOwnership,
@@ -12,8 +13,11 @@ import { SELECTED_BUDGET_STORAGE_KEY } from "../budget/budgetDataScope";
 /** Route loaders and Switch Budget await this before making the launcher ready. */
 export async function releaseActiveBudgetPersistence(): Promise<void> {
   const queries = getBudgetPersistenceProvider().accountRegisterQueries;
+  const hadPhysicalLease = hasAnyLocalFirstDatabaseTabOwnership();
   await releaseLocalFirstDatabaseTabOwnership();
-  await queries?.releaseLocalDatabase?.();
+  if (!hadPhysicalLease) {
+    await queries?.releaseLocalDatabase?.();
+  }
 }
 
 export async function activateBudgetPersistence(budgetId: string): Promise<void> {
