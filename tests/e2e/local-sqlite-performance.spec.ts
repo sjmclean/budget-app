@@ -79,7 +79,7 @@ test("warm OPFS SQLite opens and serves a bounded 10k register locally", async (
       scheduledTransactions: 0,
       transactionTags: 0,
     });
-    await seed.setSyncState("sha256:performance-baseline", 0);
+    await seed.setSyncState(`sha256:${"0".repeat(64)}`, 0);
     await seed.close();
 
     const warm = new LocalBudgetDatabaseClient();
