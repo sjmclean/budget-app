@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  accountIdentityQuery,
   categoryActivityDrilldownQuery,
   financialOverviewQuery,
   monthlyCategoryTransactionsQuery,
@@ -41,5 +42,30 @@ test("payee changes invalidate cached query results that display denormalized pa
       financialOverviewQuery.interest({ budgetId, month }),
     ),
     true,
+  );
+});
+
+
+test("account identities invalidate only when account metadata changes", () => {
+  const interest = accountIdentityQuery.interest({ budgetId });
+  assert.equal(
+    doesPersistenceChangeAffect(
+      normalisePersistenceChange({
+        source: "local",
+        scope: { budgetId, domains: ["accounts"] },
+      }),
+      interest,
+    ),
+    true,
+  );
+  assert.equal(
+    doesPersistenceChangeAffect(
+      normalisePersistenceChange({
+        source: "local",
+        scope: { budgetId, domains: ["transactions"] },
+      }),
+      interest,
+    ),
+    false,
   );
 });
