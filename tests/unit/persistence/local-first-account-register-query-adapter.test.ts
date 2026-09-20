@@ -40,3 +40,27 @@ test("local-first account register query adapter preserves query scope", () => {
     );
   }
 });
+
+
+test("register prefetch and navigation share one in-flight authoritative bootstrap", () => {
+  assert.match(
+    clientSource,
+    /accountRegisterBootstrapInFlight = new Map/,
+  );
+  assert.match(
+    clientSource,
+    /const existing = accountRegisterBootstrapInFlight\.get\(key\);\s*if \(existing\) return existing;/s,
+  );
+  assert.match(
+    clientSource,
+    /getAccountRegisterBootstrap\(input\) \{\s*return loadAccountRegisterBootstrap\(input\);\s*\}/s,
+  );
+  assert.match(
+    clientSource,
+    /prefetchAccountRegister\(input\) \{\s*void client\.getAccountRegisterBootstrap\(input\)\.catch\(\(\) => undefined\);\s*\}/s,
+  );
+  assert.match(
+    clientSource,
+    /\.finally\(\(\) => \{\s*if \(accountRegisterBootstrapInFlight\.get\(key\) === request\) \{\s*accountRegisterBootstrapInFlight\.delete\(key\);/s,
+  );
+});
