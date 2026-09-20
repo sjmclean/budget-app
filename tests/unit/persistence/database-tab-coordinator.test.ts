@@ -138,6 +138,7 @@ test("releasing ownership is not usable and same-budget reacquisition waits for 
   await releaseStarted.promise;
   assert.equal(coordinator.owns("budget-a"), false);
   assert.equal(coordinator.budgetId(), null);
+  assert.equal(coordinator.hasPhysicalLease(), true);
 
   let reacquired = false;
   const reacquire = coordinator.acquire("budget-a", async () => {
@@ -149,6 +150,7 @@ test("releasing ownership is not usable and same-budget reacquisition waits for 
 
   allowRelease.resolve();
   await releasing;
+  assert.equal(coordinator.hasPhysicalLease(), false);
   await reacquire;
   assert.equal(coordinator.owns("budget-a"), true);
   assert.equal(coordinator.budgetId(), "budget-a");
