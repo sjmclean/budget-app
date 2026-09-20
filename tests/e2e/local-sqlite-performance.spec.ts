@@ -11,7 +11,8 @@ test("warm OPFS SQLite opens and serves a bounded 10k register locally", async (
     );
 
     const budgetId = `perf-${Date.now()}`;
-    const accountId = "perf-account";
+    const accountCount = 20;
+    const accountId = "perf-account-0";
     const syncEpoch = "perf-epoch";
     const deviceId = "perf-device";
     const transactionCount = 10_000;
@@ -20,17 +21,17 @@ test("warm OPFS SQLite opens and serves a bounded 10k register locally", async (
     const seed = new LocalBudgetDatabaseClient();
     await seed.beginStagedImport({ budgetId, syncEpoch, deviceId });
     await seed.importRegisterBatch({
-      accounts: [{
-        id: accountId,
+      accounts: Array.from({ length: accountCount }, (_, index) => ({
+        id: `perf-account-${index}`,
         budgetId,
-        name: "Performance Account",
+        name: `Performance Account ${index}`,
         type: "checking",
         participation: "on-budget",
         openingBalance: 0,
         currencyCode: "AUD",
         createdAt: now,
         closedAt: null,
-      }],
+      })),
     });
 
     for (let offset = 0; offset < transactionCount; offset += 1_000) {
@@ -43,7 +44,7 @@ test("warm OPFS SQLite opens and serves a bounded 10k register locally", async (
           return {
             id: `transaction-${index}`,
             budgetId,
-            accountId,
+            accountId: `perf-account-${index % accountCount}`,
             date: `2026-${month}-${day}`,
             amount: index % 2 === 0 ? -1234 : 2500,
             memo: `Performance transaction ${index}`,
@@ -70,7 +71,7 @@ test("warm OPFS SQLite opens and serves a bounded 10k register locally", async (
     }
 
     await seed.commitStagedImport({
-      accounts: 1,
+      accounts: accountCount,
       transactions: transactionCount,
       payees: 0,
       categories: 0,
@@ -86,6 +87,14 @@ test("warm OPFS SQLite opens and serves a bounded 10k register locally", async (
     const openStarted = performance.now();
     await warm.open({ budgetId, syncEpoch, deviceId });
     const warmOpenMs = performance.now() - openStarted;
+
+    const identityStarted = performance.now();
+    const accountIdentities = await warm.listAccounts(budgetId);
+    const accountIdentityMs = performance.now() - identityStarted;
+
+    const navigationStarted = performance.now();
+    const accountNavigation = await warm.listAccountNavigation(budgetId);
+    const accountNavigationMs = performance.now() - navigationStarted;
 
     const queryStarted = performance.now();
     const [summary, pageResult] = await Promise.all([
@@ -104,7 +113,16 @@ test("warm OPFS SQLite opens and serves a bounded 10k register locally", async (
 
     const result = {
       transactionCount,
+      accountCount,
       warmOpenMs,
+      accountIdentityMs,
+      accountNavigationMs,
+      accountIdentityCount: accountIdentities.length,
+      accountNavigationCount: accountNavigation.length,
+      navigationTransactionCount: accountNavigation.reduce(
+        (total, entry) => total + entry.transactionCount,
+        0,
+      ),
       registerBootstrapMs,
       returnedRows: pageResult.rows.length,
       summaryTransactionCount: summary.transactionCount,
@@ -122,7 +140,14 @@ test("warm OPFS SQLite opens and serves a bounded 10k register locally", async (
   );
 
   expect(report.returnedRows).toBe(150);
-  expect(report.summaryTransactionCount).toBe(report.transactionCount);
+  expect(report.accountIdentityCount).toBe(report.accountCount);
+  expect(report.accountNavigationCount).toBe(report.accountCount);
+  expect(report.navigationTransactionCount).toBe(report.transactionCount);
+  expect(report.summaryTransactionCount).toBe(
+    report.transactionCount / report.accountCount,
+  );
   expect(report.warmOpenMs).toBeLessThan(2_000);
+  expect(report.accountIdentityMs).toBeLessThan(500);
+  expect(report.accountNavigationMs).toBeLessThan(1_500);
   expect(report.registerBootstrapMs).toBeLessThan(1_000);
 });
