@@ -45,7 +45,7 @@ test("local-first account register query adapter preserves query scope", () => {
 test("register prefetch and navigation share one in-flight authoritative bootstrap", () => {
   assert.match(
     clientSource,
-    /accountRegisterBootstrapInFlight = new Map/,
+    /accountRegisterBootstrapInFlight\s*=\s*new Map/,
   );
   assert.match(
     clientSource,
@@ -57,10 +57,29 @@ test("register prefetch and navigation share one in-flight authoritative bootstr
   );
   assert.match(
     clientSource,
-    /prefetchAccountRegister\(input\) \{\s*void client\.getAccountRegisterBootstrap\(input\)\.catch\(\(\) => undefined\);\s*\}/s,
+    /prefetchAccountRegister\(input\) \{\s*prefetchAccountRegisterBootstrap\(input\);\s*\}/s,
   );
   assert.match(
     clientSource,
-    /\.finally\(\(\) => \{\s*if \(accountRegisterBootstrapInFlight\.get\(key\) === request\) \{\s*accountRegisterBootstrapInFlight\.delete\(key\);/s,
+    /accountRegisterBootstrapInFlight\.get\(key\)\?\.promise === promise/,
+  );
+});
+
+test("completed register prefetch is single-use, bounded, and revision guarded", () => {
+  assert.match(
+    clientSource,
+    /MAX_WARM_ACCOUNT_REGISTER_BOOTSTRAPS = 16/,
+  );
+  assert.match(
+    clientSource,
+    /warmAccountRegisterBootstraps\.delete\(key\);\s*return warm\.revision ===\s*getPersistenceRevisionForInterest/s,
+  );
+  assert.match(
+    clientSource,
+    /request\.startedRevision !== currentRevision\) return;/,
+  );
+  assert.match(
+    clientSource,
+    /while \(warmAccountRegisterBootstraps\.size > MAX_WARM_ACCOUNT_REGISTER_BOOTSTRAPS\)/,
   );
 });
