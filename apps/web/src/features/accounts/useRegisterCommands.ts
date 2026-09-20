@@ -34,7 +34,7 @@ interface UseRegisterCommandsResult {
   ) => void;
   toggleTransactionSelection: (transactionId: string) => void;
   editTransaction: (transactionId: string) => void;
-  toggleClearedTransaction: (transactionId: string) => void;
+  toggleClearedTransaction: (transactionId: string) => Promise<void>;
   manageTransactionAttachments: (transactionId: string) => void;
 }
 
@@ -72,9 +72,7 @@ export function useRegisterCommands({
   );
 
   const toggleClearedTransaction = useCallback(
-    (transactionId: string) => {
-      void toggleCleared(transactionId);
-    },
+    (transactionId: string) => toggleCleared(transactionId),
     [toggleCleared],
   );
 
