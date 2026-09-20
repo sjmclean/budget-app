@@ -28,7 +28,7 @@ test("same-epoch baseline replacement drains pending local mutations first", () 
   const ready = functionBody("readyDatabase");
 
   const mismatch = ready.match(
-    /if\s*\(\s*syncState\.baselineHash !== remote\.baseline\.manifest\.contentHash[\s\S]*?bootstrapLocalBudget\(\{/,
+    /if\s*\([\s\S]*?syncState\.baselineHash !== remoteBaseline\.manifest\.contentHash[\s\S]*?bootstrapLocalBudget\(\{/,
   )?.[0];
 
   assert.ok(mismatch, "same-epoch baseline mismatch branch must exist");
