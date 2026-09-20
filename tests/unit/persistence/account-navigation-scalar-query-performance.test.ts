@@ -120,10 +120,15 @@ test("sidebar shares the reactive account navigation read instead of issuing its
 
 
 test("startup prefetches cheap account identities before the workspace renders", () => {
-  assert.match(routerSource, /await activateBudgetPersistence\(budgetId\)/);
-  assert.match(routerSource, /await prefetchAccountIdentityQuery\(\{ budgetId \}\)/);
+  const activation = routerSource.indexOf("await activateBudgetPersistence(budgetId,");
+  const identityPrefetch = routerSource.indexOf("await prefetchAccountIdentityQuery({ budgetId })");
+  const replicationNudge = routerSource.indexOf("nudgeActiveBudgetReplication()");
+  assert.ok(activation >= 0, "route startup should activate the budget");
+  assert.ok(identityPrefetch > activation, "account identities should load after local activation");
+  assert.ok(replicationNudge > identityPrefetch, "background convergence should start after critical identity loading");
   assert.match(sidebarSource, /useAccountIdentityQuery/);
   assert.match(sidebarSource, /setAccounts\(\[\.\.\.accountIdentityQuery\.data\]\)/);
+  assert.match(sidebarSource, /isNavigationSummaryPending \? "…" : formattedBalance/);
 });
 
 test("local-first scheduled maintenance skips capability probes and uses the cheap account list", () => {
