@@ -40,6 +40,14 @@ export async function activateBudgetPersistence(budgetId: string): Promise<void>
     throw error;
   }
 
+  if (!hasLocalFirstDatabaseTabOwnership(budgetId)) {
+    await queries.releaseLocalDatabase?.().catch(() => undefined);
+    throw Object.assign(
+      new Error("The active budget lost physical SQLite ownership during activation."),
+      { code: "BUDGET_DATABASE_RELEASED" },
+    );
+  }
+
   if (wasReleased) {
     publishBroadBudgetChange({
       budgetId,
