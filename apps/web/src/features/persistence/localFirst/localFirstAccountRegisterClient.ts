@@ -1694,7 +1694,7 @@ export function createLocalBudgetRuntime(
           void ownership.run<unknown>(
             input.budgetId,
             () => key === "prefetchAccountRegister"
-              ? prefetchAccountRegisterBootstrap(input as AccountTransactionQuery)
+              ? prefetchAccountRegisterBootstrap(input as unknown as AccountTransactionQuery)
               : target.getBudgetMonthView(input as never),
           ).catch(() => undefined);
         };
