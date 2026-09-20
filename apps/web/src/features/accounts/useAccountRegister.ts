@@ -1,5 +1,5 @@
 import { runAccountRegisterSqliteMutation } from "./accountRegisterMutationRunner";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
 import { ensureActiveBudgetPersistenceReady } from "../persistence/budgetDatabaseLifecycle";
 import { requireLocalBudgetEngine } from "../persistence/budgetPersistenceProvider";
@@ -147,7 +147,7 @@ export function useAccountRegister(
     setLegacyData(view);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     hasLoadedDataRef.current = false;
     registerCursorRef.current = null;
     loadedTransactionCountRef.current = 0;
@@ -156,11 +156,44 @@ export function useAccountRegister(
     sqlitePageRef.current = null;
     appliedRevisionRef.current = 0;
     loadGenerationRef.current += 1;
-    setIsLoading(true);
     setIsSaving(false);
     setError(null);
     setTotalTransactionCount(0);
     setHasMoreTransactions(false);
+
+    const warm = budgetId && accountRegisterQueries?.consumePrefetchedAccountRegister
+      ? accountRegisterQueries.consumePrefetchedAccountRegister({
+          budgetId,
+          accountId,
+          limit: 150,
+          offset: 0,
+          search: registerViewQuery.search ?? undefined,
+          categoryFilter: registerViewQuery.categoryFilter,
+          sort: registerViewQuery.sort,
+        })
+      : null;
+
+    if (!warm) {
+      setIsLoading(true);
+      return;
+    }
+
+    const { summary, page } = warm.bootstrap;
+    const next = {
+      summary,
+      rows: page.rows,
+      totalCount: page.totalCount ?? summary.transactionCount,
+    };
+    sqlitePageRef.current = next;
+    setSqlitePage(next);
+    appliedRevisionRef.current = warm.revision;
+    registerCursorRef.current = page.nextCursor;
+    loadedTransactionCountRef.current = page.rows.length;
+    setTotalTransactionCount(next.totalCount);
+    setHasMoreTransactions(page.hasMore);
+    setStorageMode("sqlite");
+    hasLoadedDataRef.current = true;
+    setIsLoading(false);
   }, [accountId]);
 
   const reloadSqliteRegister = useCallback(async () => {
