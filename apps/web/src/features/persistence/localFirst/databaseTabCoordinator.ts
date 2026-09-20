@@ -49,31 +49,21 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
     ? (error: unknown) => console.error("Unable to hand off the local budget database.", error)
     : options.onReleaseError;
 
-  const channels = new Map<string, BroadcastChannelPort>();
+  let channel: BroadcastChannelPort | null = null;
   let held: HeldDatabaseLease | null = null;
   let acquiringBudgetId: string | null = null;
   let acquiring: Promise<void> | null = null;
   let closed = false;
 
-  function channelFor(budgetId: string): BroadcastChannelPort | null {
+  function sharedChannel(): BroadcastChannelPort | null {
     if (!channelFactory) return null;
-    let channel = channels.get(budgetId);
     if (channel) return channel;
-    channel = channelFactory(
-      `budget-app.local-first.database.${encodeURIComponent(budgetId)}`,
-    );
+    channel = channelFactory("budget-app.local-first.database");
     channel.onmessage = (event) => {
-      const message = event.data as { type?: string; budgetId?: string };
-      if (
-        message.type !== "request-release" ||
-        message.budgetId !== budgetId ||
-        held?.budgetId !== budgetId
-      ) {
-        return;
-      }
+      const message = event.data as { type?: string };
+      if (message.type !== "request-release" || !held) return;
       void releaseHeld(true).catch((error) => onReleaseError?.(error));
     };
-    channels.set(budgetId, channel);
     return channel;
   }
 
@@ -93,9 +83,12 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
     releaseDatabase: () => Promise<void>,
   ): Promise<void> {
     if (!lockManager) {
-      let releaseLock = () => undefined;
-      held = { budgetId, releaseDatabase, releaseLock };
-      return;
+      throw Object.assign(
+        new Error(
+          "Cross-tab SQLite ownership requires the Web Locks API in this browser.",
+        ),
+        { code: "WEB_LOCKS_UNAVAILABLE" },
+      );
     }
 
     let resolveAcquired!: () => void;
@@ -110,7 +103,7 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
     });
 
     const lockRun = lockManager.request(
-      `budget-app.local-first.database.${budgetId}`,
+      "budget-app.local-first.database",
       { mode: "exclusive" },
       async () => {
         if (closed) {
@@ -150,7 +143,7 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
 
       const operation = (async () => {
         if (held) await releaseHeld(true);
-        channelFor(budgetId)?.postMessage({
+        sharedChannel()?.postMessage({
           type: "request-release",
           budgetId,
           requestedAt: new Date().toISOString(),
@@ -181,8 +174,8 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
       if (closed) return;
       closed = true;
       await releaseHeld(true);
-      for (const channel of channels.values()) channel.close();
-      channels.clear();
+      channel?.close();
+      channel = null;
     },
   };
 }

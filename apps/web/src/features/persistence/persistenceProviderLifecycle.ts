@@ -1,6 +1,6 @@
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
-import { getActiveBudgetIdFromStorage } from "../budget/budgetDataScope";
 import { activateBudgetPersistence } from "./budgetDatabaseLifecycle";
+import { useUIStore } from "../../stores/uiStore";
 
 export function installPersistenceProviderLifecycle(
   provider: BudgetPersistenceProvider,
@@ -17,8 +17,8 @@ export function installPersistenceProviderLifecycle(
 
   const handlePageHide = () => flushPendingWrites();
   const reactivateVisibleBudget = () => {
-    if (document.visibilityState !== "visible" || !provider.keyValueStorage) return;
-    const budgetId = getActiveBudgetIdFromStorage(provider.keyValueStorage);
+    if (document.visibilityState !== "visible") return;
+    const budgetId = useUIStore.getState().selectedBudgetId;
     if (!budgetId) return;
     void activateBudgetPersistence(budgetId).catch((error: unknown) => {
       console.error("Unable to reacquire the active budget database.", error);
@@ -37,11 +37,13 @@ export function installPersistenceProviderLifecycle(
 
   window.addEventListener("pagehide", handlePageHide);
   window.addEventListener("pageshow", handlePageShow);
+  window.addEventListener("focus", reactivateVisibleBudget);
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
   return () => {
     window.removeEventListener("pagehide", handlePageHide);
     window.removeEventListener("pageshow", handlePageShow);
+    window.removeEventListener("focus", reactivateVisibleBudget);
     document.removeEventListener("visibilitychange", handleVisibilityChange);
   };
 }

@@ -10,12 +10,7 @@ import { SELECTED_BUDGET_STORAGE_KEY } from "../budget/budgetDataScope";
 /** Route loaders and Switch Budget await this before making the launcher ready. */
 export async function releaseActiveBudgetPersistence(): Promise<void> {
   const queries = getBudgetPersistenceProvider().accountRegisterQueries;
-  if (hasLocalFirstDatabaseTabOwnership(
-    getBudgetPersistenceProvider().keyValueStorage?.getItem(SELECTED_BUDGET_STORAGE_KEY) ?? "",
-  )) {
-    await releaseLocalFirstDatabaseTabOwnership();
-    return;
-  }
+  await releaseLocalFirstDatabaseTabOwnership();
   await queries?.releaseLocalDatabase?.();
 }
 

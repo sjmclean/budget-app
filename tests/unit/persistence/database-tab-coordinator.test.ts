@@ -145,3 +145,32 @@ test("failed database release retains the Web Lock and blocks takeover", async (
   assert.equal(first.owns("budget-a"), true);
   assert.equal(errors.length, 1);
 });
+
+
+test("different budgets still share one physical SQLite lease", async () => {
+  const locks = new LockHub();
+  const channels = new ChannelHub();
+  const first = createLocalFirstDatabaseTabCoordinator({
+    lockManager: locks,
+    channelFactory: channels.create,
+  });
+  const second = createLocalFirstDatabaseTabCoordinator({
+    lockManager: locks,
+    channelFactory: channels.create,
+  });
+  const events: string[] = [];
+
+  await first.acquire("budget-a", async () => {
+    events.push("release-a");
+  });
+  await second.acquire("budget-b", async () => {
+    events.push("release-b");
+  });
+
+  assert.deepEqual(events, ["release-a"]);
+  assert.equal(first.owns("budget-a"), false);
+  assert.equal(second.owns("budget-b"), true);
+  await second.release();
+  await first.close();
+  await second.close();
+});
