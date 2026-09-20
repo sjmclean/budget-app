@@ -46,6 +46,7 @@ import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import { navigationModel, type NavigationIcon } from "./navigationModel";
 import { useAccountHistory } from "../features/accounts/useAccountHistory";
+import { useAccountNavigationQuery } from "../features/persistence/reactiveQueries";
 import type { AdaptiveNavigationMode } from "./useAdaptiveNavigation";
 
 interface AccountNavigationSummary {
@@ -107,6 +108,10 @@ export function Sidebar({
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
   const activeBudget = budgets.find((budget) => budget.id === activeBudgetId);
   const accountHistory = useAccountHistory(activeBudgetId);
+  const accountNavigationQuery = useAccountNavigationQuery(
+    { budgetId: activeBudgetId ?? "__inactive__" },
+    Boolean(activeBudgetId && accountRegisterQueries),
+  );
   const [accountsOpen, setAccountsOpen] = useState(true);
   const [budgetAccountsOpen, setBudgetAccountsOpen] = useState(true);
   const [creditCardsOpen, setCreditCardsOpen] = useState(true);
@@ -190,33 +195,32 @@ export function Sidebar({
   }, []);
 
   useEffect(() => {
+    const sqliteNavigation = accountNavigationQuery.data;
+    if (!sqliteNavigation) return;
+    setAccounts(sqliteNavigation.map((entry) => entry.account));
+    setAccountSummaries(Object.fromEntries(
+      sqliteNavigation.map((entry) => [
+        entry.account.id,
+        {
+          currencyCode: entry.currencyCode,
+          workingBalance: entry.workingBalance,
+          hasUncategorisedTransactions: entry.hasUncategorizedTransactions,
+        },
+      ]),
+    ));
+  }, [accountNavigationQuery.data]);
+
+  useEffect(() => {
+    if (accountRegisterQueries) return;
     let active = true;
 
-    async function loadAccountNavigation() {
-      const sqliteStatus = activeBudgetId && accountRegisterQueries
-        ? await accountRegisterQueries.getBudgetStatus(activeBudgetId).catch(() => null)
-        : null;
-      let sqliteNavigation = sqliteStatus?.capabilities.accountRegisters && activeBudgetId
-        ? [...await accountRegisterQueries!.listAccountNavigation(activeBudgetId)]
-        : null;
-      const loadedAccounts = sqliteNavigation
-        ? sqliteNavigation.map((entry) => entry.account)
-        : await accountsPersistence.listAccounts();
+    async function loadLegacyAccountNavigation() {
+      const loadedAccounts = await accountsPersistence.listAccounts();
       const deferTransactionSummaries = isLargeStreamingYnab4Budget(
         getActiveKeyValueStorage(),
         activeBudgetId,
       );
-      const summaryEntries = sqliteNavigation
-        ? sqliteNavigation.map((entry) => [
-            entry.account.id,
-            {
-              currencyCode: entry.currencyCode,
-              workingBalance: entry.workingBalance,
-              hasUncategorisedTransactions:
-                entry.hasUncategorizedTransactions,
-            },
-          ] as const)
-        : deferTransactionSummaries
+      const summaryEntries = deferTransactionSummaries
         ? loadedAccounts.map((account) => [
             account.id,
             {
@@ -227,21 +231,21 @@ export function Sidebar({
           ] as const)
         : await Promise.all(
           loadedAccounts.map(async (account) => {
-          try {
-            const register = await getBudgetPersistenceProvider().accountRegisters.getAccountRegisterView({
-              accountId: account.id,
-            });
-            return [account.id, buildAccountNavigationSummary(register)] as const;
-          } catch {
-            return [
-              account.id,
-              {
-                currencyCode: "AUD",
-                workingBalance: account.startingBalance,
-                hasUncategorisedTransactions: false,
-              },
-            ] as const;
-          }
+            try {
+              const register = await getBudgetPersistenceProvider().accountRegisters.getAccountRegisterView({
+                accountId: account.id,
+              });
+              return [account.id, buildAccountNavigationSummary(register)] as const;
+            } catch {
+              return [
+                account.id,
+                {
+                  currencyCode: "AUD",
+                  workingBalance: account.startingBalance,
+                  hasUncategorisedTransactions: false,
+                },
+              ] as const;
+            }
           }),
         );
 
@@ -251,7 +255,7 @@ export function Sidebar({
       }
     }
 
-    void loadAccountNavigation().catch((error) => {
+    void loadLegacyAccountNavigation().catch((error) => {
       if (!active || isDatabaseReleasedError(error)) return;
       console.error("Account navigation could not load.", error);
     });
