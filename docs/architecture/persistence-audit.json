@@ -580,7 +580,7 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionMaintenance.ts",
-      "line": 97
+      "line": 99
     },
     {
       "kind": "localStorage",
@@ -1924,7 +1924,7 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/reactiveQueries.ts",
-      "line": 210
+      "line": 244
     },
     {
       "kind": "persistenceBoundary",
