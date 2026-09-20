@@ -97,7 +97,7 @@ export function useAccountRegister(
   const accountRegisters = provider.accountRegisters;
   const accountRegisterQueries = provider.accountRegisterQueries;
   const localBudgetEngine = provider.localBudgetEngine;
-  const persistenceInterest = useMemo(() => ({ budgetId: budgetId ?? "legacy", accountId, domains: ["accounts", "transactions", "categories", "attachments", "payees", "scheduled-transactions"] as const }), [budgetId, accountId]);
+  const persistenceInterest = useMemo(() => ({ budgetId: budgetId ?? "legacy", accountId, domains: ["accounts", "transactions", "categories", "attachments", "payees"] as const }), [budgetId, accountId]);
   const persistenceChangeVersion = usePersistenceChange(persistenceInterest);
   const ensureSqliteReady = useCallback(async () => {
     if (
