@@ -1674,7 +1674,11 @@ export function createLocalBudgetRuntime(
       if (methods.has(key)) return methods.get(key);
       const value = Reflect.get(target, key);
       if (typeof value !== "function") return value;
-      if (key === "getBudgetStatus" || key === "getBudgetExportUrl") {
+      if (
+        key === "getBudgetStatus" ||
+        key === "getBudgetExportUrl" ||
+        key === "consumePrefetchedAccountRegister"
+      ) {
         const method = value.bind(target);
         methods.set(key, method);
         return method;
