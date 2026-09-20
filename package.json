@@ -31,7 +31,9 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:quality-gates": "pnpm verify",
-    "verify": "pnpm static:check && pnpm typecheck && pnpm test:required && pnpm test:web-build && pnpm docs:architecture:check && pnpm performance:analyze && pnpm test:e2e"
+    "verify": "pnpm static:check && pnpm typecheck && pnpm test:required && pnpm test:web-build && pnpm docs:architecture:check && pnpm performance:analyze && pnpm test:e2e",
+    "benchmark:p0-6:projection": "tsx tools/performance/p0-6-projection-benchmark.ts",
+    "benchmark:p0-6:projection:large": "P0_6_BENCHMARK_TRANSACTIONS=250000 P0_6_BENCHMARK_ITERATIONS=3 P0_6_BENCHMARK_OUTPUT=test-results/p0-6-projection-benchmark-large.json tsx tools/performance/p0-6-projection-benchmark.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
