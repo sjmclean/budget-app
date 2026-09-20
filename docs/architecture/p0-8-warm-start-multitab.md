@@ -19,8 +19,9 @@ SQLite immediately. They do not await relay bootstrap, health checks, mutation
 pushes, or mutation pulls.
 
 If there is no published local generation, startup uses the relay/bootstrap
-path as before. Pending restore publication always takes precedence over the
-warm path.
+path. If the relay is unavailable, a cached epoch alone is not sufficient:
+offline opening still requires the published physical database pointer.
+Pending restore publication always takes precedence over the warm path.
 
 Remote convergence is owned by the replication background service through the
 explicit infrastructure-only `synchroniseLocalBudget` method. Ordinary reads
@@ -41,8 +42,10 @@ of budget ID.
 - The next tab proceeds only after the Web Lock is actually released.
 - Different budgets still compete for the same physical lease.
 - Failed database close/release retains the Web Lock and blocks takeover.
-- Hidden tabs proactively release their lease before browser suspension can
-  prevent a later handoff request from being processed.
+- Hidden tabs and pagehide proactively release their lease before browser
+  suspension can prevent a later handoff request from being processed.
+- A lease being released is not usable ownership: it is hidden from background
+  budget scope and same-budget reacquisition waits for a fresh Web Lock.
 - Pending acquisition requests are generation-scoped: hiding, releasing, or a
   newer budget activation invalidates an older queued Web Lock request before
   it can publish ownership.
@@ -50,10 +53,11 @@ of budget ID.
 - Activation nudges the existing replication background service after lease
   acquisition; the route itself does not wait for relay convergence.
 
-The tab's held database lease, not the shared selected-budget browser-storage
+The tab's usable budget lease, not the shared selected-budget browser-storage
 preference, is the source of truth for local-first replication and timed
-restore-point scope. This
-allows different tabs to retain different in-memory navigation selections
+restore-point scope. Synthetic exclusive-operation scopes are physical-lock
+details only and are never exposed as budget identity. This allows different
+tabs to retain different in-memory navigation selections
 without causing one tab's background service to synchronize the other tab's
 selection.
 
