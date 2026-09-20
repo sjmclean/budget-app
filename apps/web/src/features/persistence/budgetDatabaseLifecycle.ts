@@ -3,6 +3,7 @@ import {
   releaseLocalFirstDatabaseTabOwnership,
 } from "./localFirst/databaseTabCoordinator";
 import { publishBroadBudgetChange } from "./persistenceChangeBus";
+import { getReplicationBackgroundService } from "./replicationService";
 import { getBudgetPersistenceProvider } from "./budgetPersistenceProviderFactory";
 import { SELECTED_BUDGET_STORAGE_KEY } from "../budget/budgetDataScope";
 
@@ -37,6 +38,10 @@ export async function activateBudgetPersistence(budgetId: string): Promise<void>
       source: "replication",
     });
   }
+
+  void getReplicationBackgroundService()?.syncNow().catch((error: unknown) => {
+    console.error("Unable to synchronise the active budget after local activation.", error);
+  });
 }
 
 /** Shared boundary for independent staged-import clients (blank, YNAB4, Actual). */

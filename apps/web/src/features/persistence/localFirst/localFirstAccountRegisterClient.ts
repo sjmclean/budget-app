@@ -557,9 +557,7 @@ export function createLocalBudgetRuntime(
   }
 
   async function syncThenDatabase(budgetId: string) {
-    const local = await requireDatabase(budgetId);
-    void synchronise(budgetId).catch(() => undefined);
-    return local;
+    return requireDatabase(budgetId);
   }
 
 

@@ -1,5 +1,8 @@
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
-import { activateBudgetPersistence } from "./budgetDatabaseLifecycle";
+import {
+  activateBudgetPersistence,
+  releaseActiveBudgetPersistence,
+} from "./budgetDatabaseLifecycle";
 import { useUIStore } from "../../stores/uiStore";
 
 export function installPersistenceProviderLifecycle(
@@ -28,6 +31,9 @@ export function installPersistenceProviderLifecycle(
   const handleVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
       flushPendingWrites();
+      void releaseActiveBudgetPersistence().catch((error: unknown) => {
+        console.error("Unable to release the hidden tab's budget database.", error);
+      });
       return;
     }
     reactivateVisibleBudget();
