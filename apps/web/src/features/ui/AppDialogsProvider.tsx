@@ -37,29 +37,38 @@ export function AppDialogsProvider() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const confirmQueue = useRef<ActiveConfirmDialog[]>([]);
   const promptQueue = useRef<ActivePromptDialog[]>([]);
+  const activeConfirmRef = useRef<ActiveConfirmDialog | null>(null);
+  const activePromptRef = useRef<ActivePromptDialog | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const showNextConfirm = useCallback(() => {
-    setActiveConfirm((current) => {
-      if (current) {
-        return current;
-      }
+    if (activeConfirmRef.current) {
+      return;
+    }
 
-      return confirmQueue.current.shift() ?? null;
-    });
+    const next = confirmQueue.current.shift() ?? null;
+    if (!next) {
+      return;
+    }
+
+    activeConfirmRef.current = next;
+    setActiveConfirm(next);
   }, []);
 
   const showNextPrompt = useCallback(() => {
-    setActivePrompt((current) => {
-      if (current) {
-        return current;
-      }
+    if (activePromptRef.current) {
+      return;
+    }
 
-      const next = promptQueue.current.shift() ?? null;
-      setPromptValue(next?.request.initialValue ?? "");
-      return next;
-    });
+    const next = promptQueue.current.shift() ?? null;
+    if (!next) {
+      return;
+    }
+
+    activePromptRef.current = next;
+    setPromptValue(next.request.initialValue ?? "");
+    setActivePrompt(next);
   }, []);
 
   const dismissToast = useCallback((toastId: string) => {
@@ -179,22 +188,26 @@ export function AppDialogsProvider() {
   }, [activeConfirm, activePrompt]);
 
   function resolvePrompt(value: string | null) {
-    if (!activePrompt) {
+    const current = activePromptRef.current;
+    if (!current) {
       return;
     }
 
-    activePrompt.resolve(value);
+    activePromptRef.current = null;
+    current.resolve(value);
     setActivePrompt(null);
     setPromptValue("");
     window.setTimeout(showNextPrompt, 0);
   }
 
   function resolveConfirm(confirmed: boolean) {
-    if (!activeConfirm) {
+    const current = activeConfirmRef.current;
+    if (!current) {
       return;
     }
 
-    activeConfirm.resolve(confirmed);
+    activeConfirmRef.current = null;
+    current.resolve(confirmed);
     setActiveConfirm(null);
     window.setTimeout(showNextConfirm, 0);
   }
