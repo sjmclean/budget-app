@@ -10,33 +10,33 @@ const source = fs.readFileSync(
   "utf8",
 );
 
-function synchroniseBody(): string {
+function convergenceBody(): string {
   const start = source.indexOf(
-    "async function synchronise(",
+    "export async function convergeLocalFirstMutations(",
   );
 
   assert.notEqual(
     start,
     -1,
-    "synchronise should exist",
+    "convergeLocalFirstMutations should exist",
   );
 
   const end = source.indexOf(
-    "\n  async function syncThenDatabase(",
+    "\n/**\n * Complete browser-local budget engine.",
     start,
   );
 
   assert.notEqual(
     end,
     -1,
-    "syncThenDatabase should follow synchronise",
+    "the local runtime should follow the convergence helper",
   );
 
   return source.slice(start, end);
 }
 
 test("remote mutation pulls use a scalable page size", () => {
-  const body = synchroniseBody();
+  const body = convergenceBody();
 
   assert.doesNotMatch(
     body,
@@ -46,13 +46,13 @@ test("remote mutation pulls use a scalable page size", () => {
 
   assert.match(
     body,
-    /limit:\s*500\b/,
-    "remote sync should pull up to 500 mutations per request",
+    /limit:\s*batchSize\b/,
+    "remote sync should use the shared bounded batch size",
   );
 });
 
 test("remote mutations are still applied using the returned page cursor", () => {
-  const body = synchroniseBody();
+  const body = convergenceBody();
 
   assert.match(
     body,
