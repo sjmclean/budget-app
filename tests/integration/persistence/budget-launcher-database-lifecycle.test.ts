@@ -22,17 +22,35 @@ class BrowserLockHub {
   }
 }
 
+class TestBroadcastChannel {
+  onmessage: ((event: MessageEvent<unknown>) => void) | null = null;
+
+  constructor(readonly name: string) {}
+
+  postMessage(_message: unknown) {}
+
+  close() {
+    this.onmessage = null;
+  }
+
+  addEventListener() {}
+  removeEventListener() {}
+  dispatchEvent() { return true; }
+}
+
 // Exercise the real store, staged importers, worker client and baseline publisher.
 // Only the worker transport and HTTP relay are fakes; no real OPFS/browser is
 // claimed. The fake pool rejects any overlapping owner deterministically.
 test("switch followed immediately by real blank, YNAB4 and Actual workflows; rollback and cancellation recover", async () => {
   const originalWorker = globalThis.Worker;
   const originalFetch = globalThis.fetch;
+  const originalBroadcastChannel = globalThis.BroadcastChannel;
   const navigatorLocksDescriptor = Object.getOwnPropertyDescriptor(globalThis.navigator, "locks");
   Object.defineProperty(globalThis.navigator, "locks", {
     configurable: true,
     value: new BrowserLockHub(),
   });
+  globalThis.BroadcastChannel = TestBroadcastChannel as unknown as typeof BroadcastChannel;
   let owner: object | string | null = null;
   let failImport = false;
   let cancelImport: (() => void) | undefined;
@@ -179,6 +197,7 @@ test("switch followed immediately by real blank, YNAB4 and Actual workflows; rol
   } finally {
     globalThis.Worker = originalWorker;
     globalThis.fetch = originalFetch;
+    globalThis.BroadcastChannel = originalBroadcastChannel;
     if (navigatorLocksDescriptor) {
       Object.defineProperty(globalThis.navigator, "locks", navigatorLocksDescriptor);
     } else {
