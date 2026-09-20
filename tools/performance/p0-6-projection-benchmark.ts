@@ -46,6 +46,13 @@ interface ReplayWindowReport {
   readonly splitFacts: number;
   readonly timingsMs: {
     readonly extractFacts: TimingSummary;
+    readonly extractionBreakdown: {
+      readonly accounts: TimingSummary;
+      readonly categories: TimingSummary;
+      readonly assignments: TimingSummary;
+      readonly transactionQuery: TimingSummary;
+      readonly transactionHydration: TimingSummary;
+    };
     readonly project: TimingSummary;
     readonly cacheWrite: TimingSummary;
     readonly cachedRead: TimingSummary;
@@ -78,11 +85,20 @@ export interface ProjectionBenchmarkReport {
   };
 }
 
+interface ExtractionTiming {
+  readonly accounts: number;
+  readonly categories: number;
+  readonly assignments: number;
+  readonly transactionQuery: number;
+  readonly transactionHydration: number;
+}
+
 interface ExtractedFacts {
   readonly accounts: readonly BudgetProjectionAccountFact[];
   readonly categories: readonly BudgetProjectionCategoryFact[];
   readonly assignments: readonly BudgetProjectionAssignmentFact[];
   readonly transactions: readonly BudgetProjectionTransactionFact[];
+  readonly timingsMs: ExtractionTiming;
 }
 
 const round = (value: number) => Math.round(value * 100) / 100;
@@ -223,6 +239,8 @@ function initialiseDatabase(database: Database.Database): void {
       transfer_account_id TEXT,
       amount INTEGER NOT NULL
     );
+    CREATE INDEX local_transactions_register
+      ON local_transactions(budget_id, account_id, date DESC, id DESC);
     CREATE INDEX local_transactions_budget_date
       ON local_transactions(budget_id, date, id);
     CREATE TABLE local_transaction_splits (
@@ -313,6 +331,7 @@ function extractFacts(
   firstMonth: string,
   targetMonth: string,
 ): ExtractedFacts {
+  let started = performance.now();
   const accounts = database.prepare(
     `SELECT account.id, account.type, account.participation,
        account.opening_balance + COALESCE((
@@ -331,11 +350,15 @@ function extractFacts(
     participation: string;
     openingBalance: number;
   }>;
+  const accountsMs = elapsed(started);
 
+  started = performance.now();
   const categories = database.prepare(
     "SELECT id, group_id AS groupId FROM local_categories WHERE budget_id = ? ORDER BY group_id, id",
   ).all(budgetId) as Array<{ id: string; groupId: string }>;
+  const categoriesMs = elapsed(started);
 
+  started = performance.now();
   const assignments = database.prepare(
     `SELECT month, category_id AS categoryId, assigned
      FROM local_budget_assignments
@@ -346,7 +369,9 @@ function extractFacts(
     categoryId: string;
     assigned: number;
   }>;
+  const assignmentsMs = elapsed(started);
 
+  started = performance.now();
   const transactionRows = database.prepare(
     `SELECT transaction_row.id,
        transaction_row.account_id AS accountId,
@@ -387,6 +412,24 @@ function extractFacts(
     amount: number;
     splitsJson: string;
   }>;
+  const transactionQueryMs = elapsed(started);
+
+  started = performance.now();
+  const transactions = transactionRows.map((transaction) => ({
+    id: transaction.id,
+    accountId: transaction.accountId,
+    date: transaction.date,
+    categoryId: transaction.categoryId,
+    transferAccountId: transaction.transferAccountId,
+    amount: transaction.amount,
+    splits: JSON.parse(transaction.splitsJson) as Array<{
+      id: string;
+      categoryId: string | null;
+      transferAccountId: string | null;
+      amount: number;
+    }>,
+  }));
+  const transactionHydrationMs = elapsed(started);
 
   return {
     accounts: accounts.map((account) => ({
@@ -408,20 +451,14 @@ function extractFacts(
       categoryId: assignment.categoryId,
       amount: assignment.assigned,
     })),
-    transactions: transactionRows.map((transaction) => ({
-      id: transaction.id,
-      accountId: transaction.accountId,
-      date: transaction.date,
-      categoryId: transaction.categoryId,
-      transferAccountId: transaction.transferAccountId,
-      amount: transaction.amount,
-      splits: JSON.parse(transaction.splitsJson) as Array<{
-        id: string;
-        categoryId: string | null;
-        transferAccountId: string | null;
-        amount: number;
-      }>,
-    })),
+    transactions,
+    timingsMs: {
+      accounts: accountsMs,
+      categories: categoriesMs,
+      assignments: assignmentsMs,
+      transactionQuery: transactionQueryMs,
+      transactionHydration: transactionHydrationMs,
+    },
   };
 }
 
@@ -552,6 +589,13 @@ export async function runProjectionBenchmark(
     const firstMonthIndex = options.monthCount - replayMonths;
     const firstMonth = fixture.months[firstMonthIndex]!;
     const extractSamples: number[] = [];
+    const extractionBreakdownSamples = {
+      accounts: [] as number[],
+      categories: [] as number[],
+      assignments: [] as number[],
+      transactionQuery: [] as number[],
+      transactionHydration: [] as number[],
+    };
     const projectSamples: number[] = [];
     const cacheWriteSamples: number[] = [];
     const cachedReadSamples: number[] = [];
@@ -564,6 +608,11 @@ export async function runProjectionBenchmark(
       let started = performance.now();
       const facts = extractFacts(database, fixture.budgetId, firstMonth, targetMonth);
       extractSamples.push(elapsed(started));
+      extractionBreakdownSamples.accounts.push(facts.timingsMs.accounts);
+      extractionBreakdownSamples.categories.push(facts.timingsMs.categories);
+      extractionBreakdownSamples.assignments.push(facts.timingsMs.assignments);
+      extractionBreakdownSamples.transactionQuery.push(facts.timingsMs.transactionQuery);
+      extractionBreakdownSamples.transactionHydration.push(facts.timingsMs.transactionHydration);
       lastFacts = facts;
 
       const opening = openingForReplay(fullProjection.months, firstMonthIndex);
@@ -621,6 +670,13 @@ export async function runProjectionBenchmark(
       ) ?? 0,
       timingsMs: {
         extractFacts: timingSummary(extractSamples),
+        extractionBreakdown: {
+          accounts: timingSummary(extractionBreakdownSamples.accounts),
+          categories: timingSummary(extractionBreakdownSamples.categories),
+          assignments: timingSummary(extractionBreakdownSamples.assignments),
+          transactionQuery: timingSummary(extractionBreakdownSamples.transactionQuery),
+          transactionHydration: timingSummary(extractionBreakdownSamples.transactionHydration),
+        },
         project: timingSummary(projectSamples),
         cacheWrite: timingSummary(cacheWriteSamples),
         cachedRead: timingSummary(cachedReadSamples),

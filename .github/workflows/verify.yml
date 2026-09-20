@@ -32,11 +32,13 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: Run P0.6 projection benchmark
         run: pnpm benchmark:p0-6:projection
+      - name: Run P0.6 large projection benchmark
+        run: pnpm benchmark:p0-6:projection:large
       - name: Upload P0.6 projection benchmark
         uses: actions/upload-artifact@v4
         with:
           name: p0-6-projection-benchmark
-          path: test-results/p0-6-projection-benchmark.json
+          path: test-results/p0-6-projection-benchmark*.json
           if-no-files-found: error
           retention-days: 7
       - name: Run canonical verification
