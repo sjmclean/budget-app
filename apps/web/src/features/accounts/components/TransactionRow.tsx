@@ -630,46 +630,53 @@ function TransactionStatus({
   onToggleCleared,
 }: {
   transaction: RegisterTransactionView;
-  onToggleCleared: () => void;
+  onToggleCleared: () => Promise<void>;
 }) {
+  const [isToggling, setIsToggling] = useState(false);
+
   if (transaction.reconciled) {
     return (
-      <button
+      <span
         className="register-status register-status-reconciled"
-        type="button"
         title="Reconciled"
+        aria-label="Transaction reconciled"
       >
         R
-      </button>
+      </span>
     );
   }
 
-  if (transaction.cleared) {
-    return (
-      <button
-        className="register-status register-status-cleared"
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onToggleCleared();
-        }}
-        title="Cleared"
-      >
-        C
-      </button>
-    );
-  }
+  const isCleared = transaction.cleared;
+  const actionLabel = isCleared
+    ? "Mark transaction uncleared"
+    : "Mark transaction cleared";
 
   return (
     <button
-      className="register-status register-status-empty"
+      className={
+        isCleared
+          ? "register-status register-status-cleared"
+          : "register-status register-status-empty"
+      }
       type="button"
+      aria-label={isToggling ? "Updating cleared status" : actionLabel}
+      aria-pressed={isCleared}
+      aria-busy={isToggling || undefined}
+      disabled={isToggling}
+      title={isToggling ? "Updating cleared status" : actionLabel}
       onClick={(event) => {
         event.stopPropagation();
-        onToggleCleared();
+        if (isToggling) return;
+        setIsToggling(true);
+        void onToggleCleared()
+          .catch(() => {
+            // The register mutation runner reports the error in the page state.
+          })
+          .finally(() => setIsToggling(false));
       }}
-      title="Mark cleared"
-    />
+    >
+      C
+    </button>
   );
 }
 
@@ -686,7 +693,7 @@ interface TransactionRowRendererProps {
     transactionId: string,
     field: TransactionEditableField,
   ) => void;
-  onToggleClearedTransaction: (transactionId: string) => void;
+  onToggleClearedTransaction: (transactionId: string) => Promise<void>;
   onManageTransactionAttachments: (transactionId: string) => void;
   tags: readonly TransactionTagDefinition[];
   onUpdateTransactionTags: (
