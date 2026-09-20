@@ -256,7 +256,6 @@ export function createLocalBudgetRuntime(
               activeSyncEpoch = cachedSyncEpoch;
               return next;
             }
-            await next.close();
           } catch (error) {
             const code = (error as { code?: string }).code;
             if (code === "SQLITE_DATABASE_BUSY") throw error;
@@ -581,9 +580,10 @@ export function createLocalBudgetRuntime(
     accountId: string,
     syncBeforeRead = true,
   ) {
-    if (syncBeforeRead) await synchronise(budgetId);
-    return (await requireDatabase(budgetId))
-      .listEntities<ScheduledTransactionView>("scheduledTransactions")
+    const local = syncBeforeRead
+      ? await syncThenDatabase(budgetId)
+      : await requireDatabase(budgetId);
+    return local.listEntities<ScheduledTransactionView>("scheduledTransactions")
       .then((rows) => rows
         .filter((row) => row.accountId === accountId)
         .sort((left, right) =>
@@ -595,9 +595,10 @@ export function createLocalBudgetRuntime(
     scheduleId: string,
     syncBeforeRead = true,
   ): Promise<ScheduledTransactionView | null> {
-    if (syncBeforeRead) await synchronise(budgetId);
-    const schedules = await (await requireDatabase(budgetId))
-      .listEntities<ScheduledTransactionView>("scheduledTransactions");
+    const local = syncBeforeRead
+      ? await syncThenDatabase(budgetId)
+      : await requireDatabase(budgetId);
+    const schedules = await local.listEntities<ScheduledTransactionView>("scheduledTransactions");
     return schedules.find(({ id }) => id === scheduleId) ?? null;
   }
 

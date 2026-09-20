@@ -20,7 +20,13 @@ function harness(hooks: {
   capture?: () => Promise<void>; deleteRelay?: () => Promise<void>; deleteFile?: () => Promise<void>;
   deleteRestorePoints?: () => Promise<void>;
 } = {}) {
-  const values = new Map([ ["budget-app.local-first.device-id", "test-device"], ...["A", "B"].map((id) => [`budget-app.local-first.sync-epoch.${id}`, "epoch"])]);
+  const values = new Map([
+    ["budget-app.local-first.device-id", "test-device"],
+    ...["A", "B"].flatMap((id) => [
+      [`budget-app.local-first.sync-epoch.${id}`, "epoch"],
+      [`budget-app.local-first.database-file.${id}`, `/budget-physical-${id}-fixture.sqlite3`],
+    ]),
+  ]);
   const events: string[] = [];
   let owner: string | null = null;
   const client = createLocalBudgetRuntime({
@@ -58,6 +64,14 @@ function harness(hooks: {
   });
   return { client, events, owner: () => owner };
 }
+
+
+test("published local SQLite serves a warm read while relay bootstrap is offline", async () => {
+  const { client, events } = harness();
+  await client.listAccountNavigation("A");
+  assert.deepEqual(events.slice(0, 2), ["open:A", "read:A"]);
+  await client.releaseLocalDatabase!();
+});
 
 test("restore-point cleanup follows authoritative deletion; failure is diagnostic, not deletion failure", async () => {
   const order: string[] = [];
