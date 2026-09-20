@@ -33,6 +33,7 @@ function createStorage() {
   const values = new Map<string, string>([
     ["budget-app.local-first.device-id", "test-device"],
     [`budget-app.local-first.sync-epoch.${BUDGET_ID}`, SYNC_EPOCH],
+    [`budget-app.local-first.database-file.${BUDGET_ID}`, `/budget-physical-${BUDGET_ID}-fixture.sqlite3`],
   ]);
 
   return {
