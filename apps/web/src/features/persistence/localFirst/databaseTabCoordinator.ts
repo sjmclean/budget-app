@@ -26,10 +26,12 @@ export interface LocalFirstDatabaseTabCoordinator {
 }
 
 /**
- * Cross-tab ownership for the physical OPFS SQLite generation.
+ * Cross-tab ownership for the single physical OPFS/SAH-pool SQLite runtime.
  *
- * BroadcastChannel only asks the current owner to drain and release. The
- * long-lived Web Lock is the proof that the previous owner has actually
+ * The lease is intentionally global rather than per budget: the SAH-pool
+ * fallback owns shared access handles even when two tabs target different
+ * budget files. BroadcastChannel only asks the current owner to drain and
+ * release. The long-lived Web Lock is the proof that the previous owner has actually
  * relinquished the database before another tab proceeds.
  */
 export function createLocalFirstDatabaseTabCoordinator(options: {

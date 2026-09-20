@@ -1,6 +1,5 @@
 import {
   acquireLocalFirstDatabaseTabOwnership,
-  hasLocalFirstDatabaseTabOwnership,
   releaseLocalFirstDatabaseTabOwnership,
 } from "./localFirst/databaseTabCoordinator";
 import { publishBroadBudgetChange } from "./persistenceChangeBus";
@@ -45,10 +44,25 @@ export async function runWithExclusiveBudgetDatabase<T>(operation: () => Promise
   const provider = getBudgetPersistenceProvider();
   const queries = provider.accountRegisterQueries;
   const budgetId = provider.keyValueStorage?.getItem(SELECTED_BUDGET_STORAGE_KEY);
-  if (budgetId && !queries?.isLocalDatabaseReleased?.()) {
-    await queries?.createRestorePoint?.(budgetId, "before-import");
+  const leaseScope = budgetId ?? "__exclusive-local-database-operation__";
+
+  await acquireLocalFirstDatabaseTabOwnership(
+    leaseScope,
+    async () => {
+      await queries?.releaseLocalDatabase?.();
+    },
+  );
+
+  try {
+    if (budgetId && !queries?.isLocalDatabaseReleased?.()) {
+      await queries?.createRestorePoint?.(budgetId, "before-import");
+    }
+    if (queries?.runWithExclusiveLocalDatabase) {
+      return await queries.runWithExclusiveLocalDatabase(operation);
+    }
+    await queries?.releaseLocalDatabase?.();
+    return await operation();
+  } finally {
+    await releaseLocalFirstDatabaseTabOwnership();
   }
-  if (queries?.runWithExclusiveLocalDatabase) return queries.runWithExclusiveLocalDatabase(operation);
-  await queries?.releaseLocalDatabase?.();
-  return operation();
 }
