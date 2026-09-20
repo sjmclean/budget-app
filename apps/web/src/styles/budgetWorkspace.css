@@ -1007,3 +1007,21 @@
     display: none;
   }
 }
+
+
+/* Large budgets virtualize whole group subtrees while preserving scroll geometry. */
+.budget-virtual-group-list,
+.budget-virtual-group-slot {
+  min-width: 0;
+  width: 100%;
+}
+
+.budget-virtual-group-slot + .budget-virtual-group-slot .budget-workspace-group-header,
+.budget-virtual-group-placeholder + .budget-virtual-group-slot .budget-workspace-group-header {
+  margin-top: 0.22rem;
+}
+
+.budget-virtual-group-placeholder {
+  width: 100%;
+  pointer-events: none;
+}
