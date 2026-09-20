@@ -32,7 +32,8 @@ Above that threshold:
 - off-screen groups use height-preserving placeholders;
 - mounted groups are measured with `ResizeObserver`;
 - collapsed groups use header-only geometry;
-- the selected group and the group owning an open category window are pinned.
+- the selected group and the group owning an open category window are pinned;
+- any group containing keyboard focus is pinned so an active editor/control cannot be evicted.
 
 Below the threshold, the existing group tree renders directly.
 
@@ -46,6 +47,7 @@ Above that threshold:
 - viewport rows plus 700 px overscan are mounted;
 - off-screen rows preserve measured or estimated geometry;
 - the selected category remains pinned;
+- a category row containing keyboard focus is pinned so inline edit draft state survives scrolling;
 - every mounted row is still the canonical `BudgetCategoryRow`.
 
 This prevents a single 2,000-category group from bypassing the group-level
