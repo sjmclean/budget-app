@@ -118,6 +118,7 @@ export function startReplicationBackgroundService(
     const intervalMs = options.intervalMs ?? 60_000;
     let stopped = false;
     let running: Promise<ReplicationRunResult | null> | null = null;
+    let runningBudgetId: string | null = null;
     let intervalTimer: ReturnType<typeof setInterval> | null = null;
     let subscriptionScopeTimer: ReturnType<typeof setInterval> | null = null;
     let eventSubscription: LocalFirstRelayEventSubscription | null = null;
@@ -168,7 +169,12 @@ export function startReplicationBackgroundService(
       ) {
         return null;
       }
-      if (running) return running;
+      if (running) {
+        if (runningBudgetId === selectedBudgetId) return running;
+        await running;
+        return syncNow();
+      }
+      runningBudgetId = selectedBudgetId;
       running = (async () => {
         connectEvents();
         if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -187,8 +193,9 @@ export function startReplicationBackgroundService(
           const budgetId = activeBudgetId();
           if (
             !budgetId ||
+            budgetId !== selectedBudgetId ||
             !provider.accountRegisterQueries ||
-            !hasLocalFirstDatabaseTabOwnership(budgetId) ||
+            !hasLocalFirstDatabaseTabOwnership(selectedBudgetId) ||
             provider.accountRegisterQueries.isLocalDatabaseReleased?.()
           ) {
             return null;
@@ -244,6 +251,7 @@ export function startReplicationBackgroundService(
           return null;
         } finally {
           running = null;
+          runningBudgetId = null;
         }
       })();
       return running;
