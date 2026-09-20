@@ -20,6 +20,17 @@ const sidebarSource = fs.readFileSync(
   new URL("../../../apps/web/src/layouts/Sidebar.tsx", import.meta.url),
   "utf8",
 );
+const routerSource = fs.readFileSync(
+  new URL("../../../apps/web/src/app/router.tsx", import.meta.url),
+  "utf8",
+);
+const scheduledMaintenanceSource = fs.readFileSync(
+  new URL(
+    "../../../apps/web/src/features/accounts/scheduledTransactionMaintenance.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 test("account navigation avoids joining and grouping every transaction", () => {
   const match = workerSource.match(
@@ -105,4 +116,21 @@ test("sidebar shares the reactive account navigation read instead of issuing its
   assert.match(sidebarSource, /useAccountNavigationQuery/);
   assert.doesNotMatch(sidebarSource, /accountRegisterQueries\.getBudgetStatus\(/);
   assert.doesNotMatch(sidebarSource, /accountRegisterQueries!?\.listAccountNavigation\(/);
+});
+
+
+test("startup prefetches cheap account identities before the workspace renders", () => {
+  assert.match(routerSource, /await activateBudgetPersistence\(budgetId\)/);
+  assert.match(routerSource, /await prefetchAccountIdentityQuery\(\{ budgetId \}\)/);
+  assert.match(sidebarSource, /useAccountIdentityQuery/);
+  assert.match(sidebarSource, /setAccounts\(\[\.\.\.accountIdentityQuery\.data\]\)/);
+});
+
+test("local-first scheduled maintenance skips capability probes and uses the cheap account list", () => {
+  assert.match(
+    scheduledMaintenanceSource,
+    /provider\.syncArchitecture !== "local-first-relay"/,
+  );
+  assert.doesNotMatch(scheduledMaintenanceSource, /getBudgetStatus\(/);
+  assert.match(scheduledMaintenanceSource, /listAccounts: \(\) => queries\.listAccounts\(budgetId\)/);
 });
