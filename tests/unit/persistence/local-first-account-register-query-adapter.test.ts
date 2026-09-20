@@ -155,7 +155,7 @@ test("authoritative register reload reseeds the next navigation first paint", ()
   );
   assert.match(
     clientSource,
-    /const result = \{ summary, page \};[\s\S]*?retainWarmAccountRegisterBootstrap\(key, result, currentRevision\);[\s\S]*?return result;/,
+    /const result = \{ summary, page, scheduledTransactions \};[\s\S]*?retainWarmAccountRegisterBootstrap\(key, result, currentRevision\);[\s\S]*?return result;/,
   );
 });
 
