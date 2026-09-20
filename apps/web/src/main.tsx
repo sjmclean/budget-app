@@ -39,7 +39,7 @@ export async function bootstrapApp() {
     let hostedCatalogueAuthoritative = false;
     const hostProvider = bootstrapHostBudgetPersistenceProvider();
     if (!hostProvider) {
-      const session = await loadAuthStatus().catch(() => null);
+      const session = await loadAuthStatus();
       hostedBudgets = session?.budgets ?? [];
       hostedCatalogueAuthoritative = session?.authenticated === true;
       // Preserve the original IndexedDB for the first administrator so an

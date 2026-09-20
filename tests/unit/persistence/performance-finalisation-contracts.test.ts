@@ -16,6 +16,8 @@ test("startup shares one cached authentication status request", () => {
   assert.equal((main.match(/\/api\/auth\/status/g) ?? []).length, 0);
   assert.equal((gate.match(/\/api\/auth\/status/g) ?? []).length, 0);
   assert.equal((client.match(/\/api\/auth\/status/g) ?? []).length, 1);
+  assert.match(main, /const session = await loadAuthStatus\(\);/);
+  assert.doesNotMatch(main, /loadAuthStatus\(\)\.catch/);
 });
 
 test("ordinary budget status is local and background sync owns relay bootstrap", () => {

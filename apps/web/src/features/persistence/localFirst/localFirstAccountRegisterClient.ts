@@ -213,6 +213,9 @@ export async function convergeLocalFirstMutations(input: {
       afterCursor: pulledCursor,
       limit: batchSize,
     });
+    if (pulled.mutations.length === 0 && pulled.hasMore) {
+      throw new Error("The relay reported additional mutations without advancing the cursor.");
+    }
     if (pulled.mutations.length > 0) {
       const throughCursor = pulled.mutations.at(-1)!.cursor;
       const mutations = pulled.mutations.map(({
