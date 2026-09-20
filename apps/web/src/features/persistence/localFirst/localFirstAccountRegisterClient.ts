@@ -421,6 +421,11 @@ export function createLocalBudgetRuntime(
         throw new Error("The relay does not contain a complete compatible budget baseline.");
       }
 
+      const remoteBaseline = remote.baseline;
+      if (!remoteBaseline) {
+        throw new Error("The relay does not contain a complete compatible budget baseline.");
+      }
+
       const needsRebuild =
         remote.syncEpoch !== activeSyncEpoch ||
         syncState.baselineHash !== remoteBaseline.manifest.contentHash ||
