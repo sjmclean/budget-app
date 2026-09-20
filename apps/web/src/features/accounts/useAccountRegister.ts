@@ -161,7 +161,7 @@ export function useAccountRegister(
     setError(null);
     setTotalTransactionCount(0);
     setHasMoreTransactions(false);
-  }, [accountId, ensureSqliteReady]);
+  }, [accountId]);
 
   const reloadSqliteRegister = useCallback(async () => {
     if (!budgetId || !accountRegisterQueries) {
@@ -457,7 +457,7 @@ export function useAccountRegister(
         setIsSaving(false);
       }
     }
-  }, [accountId]);
+  }, [accountId, ensureSqliteReady]);
 
 
   const addTransaction = useCallback(async (input: NewRegisterTransactionInput) => {
