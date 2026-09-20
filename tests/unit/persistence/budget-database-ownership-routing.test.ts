@@ -27,6 +27,7 @@ test("ordinary budget-first methods use their explicit first budget argument", (
     "listPayees",
     "listScheduledTransactions",
     "publishLocalBaseline",
+    "synchroniseLocalBudget",
     "listSyncConflicts",
     "resolveSyncConflict",
   ]) {

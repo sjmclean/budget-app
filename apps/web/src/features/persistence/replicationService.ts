@@ -14,6 +14,7 @@ import {
   type LocalFirstRelayEventSubscription,
 } from "./localFirst/relayEvents";
 import { subscribeToLocalFirstMutationCommits } from "./localFirst/mutationEvents";
+import { hasLocalFirstDatabaseTabOwnership } from "./localFirst/databaseTabCoordinator";
 
 export type ReplicationStatus =
   | "disabled"
@@ -159,6 +160,13 @@ export function startReplicationBackgroundService(
 
     const syncNow = async (): Promise<ReplicationRunResult | null> => {
       if (stopped || provider.accountRegisterQueries?.isLocalDatabaseReleased?.()) return null;
+      const selectedBudgetId = activeBudgetId();
+      if (
+        !selectedBudgetId ||
+        !hasLocalFirstDatabaseTabOwnership(selectedBudgetId)
+      ) {
+        return null;
+      }
       if (running) return running;
       running = (async () => {
         connectEvents();
