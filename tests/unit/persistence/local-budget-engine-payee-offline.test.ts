@@ -35,6 +35,7 @@ test("LocalBudgetEngine creates a payee locally while the relay is unavailable",
   const values = new Map<string, string>([
     ["budget-app.local-first.device-id", "offline-payee-device"],
     [`budget-app.local-first.sync-epoch.${budgetId}`, syncEpoch],
+    [`budget-app.local-first.database-file.${budgetId}`, `/budget-physical-${budgetId}-fixture.sqlite3`],
   ]);
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => { throw new Error("relay unavailable"); };

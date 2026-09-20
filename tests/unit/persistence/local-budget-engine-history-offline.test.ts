@@ -16,7 +16,7 @@ test("public engine restores transaction history locally while relay is unavaila
       sqlite.transaction(() => { for (const transaction of snapshot.transactions) sqlite.prepare("INSERT INTO transactions VALUES (?, ?)").run(transaction.id, JSON.stringify(transaction));
         for (const mutation of mutations) sqlite.prepare("INSERT INTO outbox VALUES (?, ?)").run(mutation.mutationId, JSON.stringify(mutation)); })(); return {};
     } } as unknown as LocalBudgetDatabaseClient;
-  const values = new Map([["budget-app.local-first.device-id", "device"], [`budget-app.local-first.sync-epoch.${budgetId}`, syncEpoch]]);
+  const values = new Map([["budget-app.local-first.device-id", "device"], [`budget-app.local-first.sync-epoch.${budgetId}`, syncEpoch], [`budget-app.local-first.database-file.${budgetId}`, `/budget-physical-${budgetId}-fixture.sqlite3`]]);
   const originalFetch = globalThis.fetch; globalThis.fetch = async () => { throw new Error("relay unavailable"); };
   const events: string[][] = []; const unsubscribe = subscribePersistenceChanges((event) => events.push([...event.scope.domains]));
   try {

@@ -46,6 +46,7 @@ function storage() {
   const values = new Map<string, string>([
     ["budget-app.local-first.device-id", deviceId],
     [`budget-app.local-first.sync-epoch.${budgetId}`, syncEpoch],
+    [`budget-app.local-first.database-file.${budgetId}`, `/budget-physical-${budgetId}-fixture.sqlite3`],
     [`budget-app.local-first.device-sequence.${deviceId}`, "12"],
   ]);
   return {
