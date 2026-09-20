@@ -43,13 +43,21 @@ of budget ID.
 - Different budgets still compete for the same physical lease.
 - Failed database close/release retains the Web Lock and blocks takeover.
 - Hidden tabs and pagehide proactively release their lease before browser
-  suspension can prevent a later handoff request from being processed.
+  suspension can prevent a later handoff request from being processed, while
+  preserving the mounted workspace's active-budget intent.
 - A lease being released is not usable ownership: it is hidden from background
   budget scope and same-budget reacquisition waits for a fresh Web Lock.
 - Pending acquisition requests are generation-scoped: hiding, releasing, or a
   newer budget activation invalidates an older queued Web Lock request before
   it can publish ownership.
-- A visible/focused tab reacquires its selected budget lease.
+- Concurrent same-budget activation requests coalesce instead of invalidating
+  one another.
+- A visible/focused tab reacquires its selected budget lease. If the user
+  interacts with an SQLite-backed register before the lifecycle event finishes,
+  that foreground operation awaits the same legitimate reacquisition barrier
+  rather than failing against a released in-tab ownership gate.
+- Explicit launcher/switch-budget release clears active-budget intent, so a
+  released workspace is never silently reopened outside its lifecycle.
 - Activation nudges the existing replication background service after lease
   acquisition; the route itself does not wait for relay convergence.
 
@@ -77,8 +85,11 @@ so relay application/rebuild cannot overlap an admitted ordinary command.
 
 - Route activation acquires the cross-tab lease and admits the budget.
 - Switching to the launcher releases/drains local ownership.
-- Hidden tabs flush pending provider writes and release the database lease.
-- Visible/focused tabs reacquire the selected budget.
+- Hidden tabs flush pending provider writes and release the database lease
+  without discarding the still-mounted workspace's active-budget intent.
+- Visible/focused tabs reacquire the selected budget; register reads and
+  mutations share that readiness barrier so immediate foreground interaction
+  cannot race the asynchronous lifecycle event.
 - Exclusive import/restore workflows capture any required safety restore point
   while the active budget lease is still valid, then switch to a synthetic
   exclusive physical lease that is never exposed as background budget identity,

@@ -1,6 +1,7 @@
 import { runAccountRegisterSqliteMutation } from "./accountRegisterMutationRunner";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
+import { ensureActiveBudgetPersistenceReady } from "../persistence/budgetDatabaseLifecycle";
 import { requireLocalBudgetEngine } from "../persistence/budgetPersistenceProvider";
 import { getPersistenceChangesSince, getPersistenceRevisionForInterest, usePersistenceChange } from "../persistence/persistenceChangeBus";
 import { reconcileRegisterDelta, type LoadedRegisterPage } from "./registerDeltaReconciliation";
@@ -96,6 +97,15 @@ export function useAccountRegister(
   const localBudgetEngine = provider.localBudgetEngine;
   const persistenceInterest = useMemo(() => ({ budgetId: budgetId ?? "legacy", accountId, domains: ["accounts", "transactions", "categories", "attachments", "payees"] as const }), [budgetId, accountId]);
   const persistenceChangeVersion = usePersistenceChange(persistenceInterest);
+  const ensureSqliteReady = useCallback(async () => {
+    if (
+      budgetId &&
+      accountRegisterQueries &&
+      provider.syncArchitecture === "local-first-relay"
+    ) {
+      await ensureActiveBudgetPersistenceReady(budgetId);
+    }
+  }, [accountRegisterQueries, budgetId, provider.syncArchitecture]);
 
   const [legacyData, setLegacyData] = useState<AccountRegisterView | null>(null);
   const [sqlitePage, setSqlitePage] = useState<LoadedRegisterPage | null>(null);
@@ -157,6 +167,7 @@ export function useAccountRegister(
     if (!budgetId || !accountRegisterQueries) {
       throw new Error("The hosted SQLite budget engine is not configured.");
     }
+    await ensureSqliteReady();
     const generation = ++loadGenerationRef.current;
     for (;;) {
       const beforeRevision = getPersistenceRevisionForInterest(persistenceInterest);
@@ -188,6 +199,7 @@ export function useAccountRegister(
     accountId,
     accountRegisterQueries,
     budgetId,
+    ensureSqliteReady,
     persistenceInterest,
     registerViewQuery,
   ]);
@@ -212,6 +224,18 @@ export function useAccountRegister(
       setError(null);
 
       try {
+        if (
+          budgetId &&
+          accountRegisterQueries &&
+          provider.syncArchitecture === "local-first-relay"
+        ) {
+          await ensureSqliteReady();
+          void generateDueScheduledTransactionsForBudget(provider, budgetId).catch(() => undefined);
+          await reloadSqliteRegister();
+          if (!isMounted) return;
+          setIsLoading(false);
+          return;
+        }
         if (budgetId && accountRegisterQueries) {
           const status = await accountRegisterQueries
             .getBudgetStatus(budgetId)
@@ -263,6 +287,7 @@ export function useAccountRegister(
     accountRegisterQueries,
     applyRegisterView,
     budgetId,
+    ensureSqliteReady,
     provider,
     reloadSqliteRegister,
   ]);
@@ -288,6 +313,7 @@ export function useAccountRegister(
       const desired = Math.min(next.totalCount, Math.max(150, initialWindowSize));
       const missing = Math.max(0, desired - next.rows.length);
       if (missing > 0) {
+        await ensureSqliteReady();
         const refill = await accountRegisterQueries.queryLocalTransactions({
           budgetId, accountId, limit: missing, offset: next.rows.length,
           search: registerViewQuery.search ?? undefined,
@@ -310,7 +336,7 @@ export function useAccountRegister(
       if (!cancelled) setError(cause instanceof Error ? cause.message : "Failed to refresh account register.");
     });
     return () => { cancelled = true; };
-  }, [accountId, accountRegisterQueries, budgetId, persistenceChangeVersion, persistenceInterest, registerViewQuery, reloadSqliteRegister, sqlitePage, storageMode]);
+  }, [accountId, accountRegisterQueries, budgetId, ensureSqliteReady, persistenceChangeVersion, persistenceInterest, registerViewQuery, reloadSqliteRegister, sqlitePage, storageMode]);
 
   const loadMoreTransactions = useCallback(async () => {
     if (
@@ -329,6 +355,7 @@ export function useAccountRegister(
     const generation = loadGenerationRef.current;
     const revision = getPersistenceRevisionForInterest(persistenceInterest);
 
+    await ensureSqliteReady();
     const page = await accountRegisterQueries.queryTransactions({
       budgetId,
       accountId,
@@ -351,6 +378,7 @@ export function useAccountRegister(
     accountId,
     accountRegisterQueries,
     budgetId,
+    ensureSqliteReady,
     hasMoreTransactions,
     persistenceInterest,
     registerViewQuery,
@@ -410,6 +438,7 @@ export function useAccountRegister(
     setIsSaving(true);
     setError(null);
     try {
+      await ensureSqliteReady();
       await runAccountRegisterSqliteMutation(action, (message) => {
         if (
           mountedRef.current &&
@@ -428,7 +457,7 @@ export function useAccountRegister(
         setIsSaving(false);
       }
     }
-  }, [accountId]);
+  }, [accountId, ensureSqliteReady]);
 
 
   const addTransaction = useCallback(async (input: NewRegisterTransactionInput) => {

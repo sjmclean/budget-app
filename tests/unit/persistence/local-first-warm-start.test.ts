@@ -47,7 +47,7 @@ test("hidden tabs release physical database ownership before suspension", () => 
     source.indexOf("reactivateVisibleBudget();"),
   );
   assert.match(releaseHelper, /flushPendingWrites\(\)/);
-  assert.match(releaseHelper, /releaseActiveBudgetPersistence\(\)/);
+  assert.match(releaseHelper, /releaseActiveBudgetPersistence\(\{ preserveActiveIntent: true \}\)/);
   assert.match(hiddenBranch, /releaseForSuspension\(\)/);
 });
 
@@ -107,7 +107,7 @@ test("initial route startup can defer convergence without changing normal reacti
   );
   assert.match(
     lifecycle,
-    /if \(!options\.deferBackgroundSync\)\s*\{\s*nudgeActiveBudgetReplication\(\);\s*\}/,
+    /if \(!options\.deferBackgroundSync && intendedActiveBudgetId === budgetId\)\s*\{\s*nudgeActiveBudgetReplication\(\);\s*\}/,
   );
   assert.match(
     router,
@@ -116,5 +116,50 @@ test("initial route startup can defer convergence without changing normal reacti
   assert.match(
     router,
     /prefetchAccountIdentityQuery\(\{ budgetId \}\)[\s\S]*nudgeActiveBudgetReplication\(\)/,
+  );
+});
+
+
+test("suspension preserves active-budget intent so visible register reads can reacquire ownership", () => {
+  const lifecycle = read("../../../apps/web/src/features/persistence/persistenceProviderLifecycle.ts");
+  const databaseLifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
+  const register = read("../../../apps/web/src/features/accounts/useAccountRegister.ts");
+
+  assert.match(
+    lifecycle,
+    /releaseActiveBudgetPersistence\(\{ preserveActiveIntent: true \}\)/,
+  );
+  assert.match(
+    databaseLifecycle,
+    /export async function ensureActiveBudgetPersistenceReady/,
+  );
+  assert.match(
+    databaseLifecycle,
+    /intendedActiveBudgetId !== budgetId/,
+  );
+  assert.match(
+    register,
+    /await ensureActiveBudgetPersistenceReady\(budgetId\)/,
+  );
+  const localFirstLoadStart = register.indexOf(
+    'provider.syncArchitecture === "local-first-relay"',
+  );
+  const legacyCapabilityFallback = register.indexOf(
+    "if (budgetId && accountRegisterQueries)",
+    localFirstLoadStart,
+  );
+  const localFirstLoad = register.slice(
+    localFirstLoadStart,
+    legacyCapabilityFallback,
+  );
+  assert.match(localFirstLoad, /await ensureSqliteReady\(\)/);
+  assert.doesNotMatch(localFirstLoad, /getBudgetStatus\(/);
+});
+
+test("explicit workspace release still clears active-budget intent", () => {
+  const databaseLifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
+  assert.match(
+    databaseLifecycle,
+    /if \(!options\.preserveActiveIntent\) intendedActiveBudgetId = null/,
   );
 });
