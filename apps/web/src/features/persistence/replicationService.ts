@@ -125,6 +125,7 @@ export function startReplicationBackgroundService(
     let subscribedBudgetId: string | null = null;
     let eventDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     let mutationDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const publishedMetadata = new Map<string, string>();
     const mutationDebounceMs = options.debounceMs ?? 250;
     const localConflictClient = () => provider.localBudgetConflictRecovery;
 
@@ -203,11 +204,15 @@ export function startReplicationBackgroundService(
             ? readBudgetRegistry(provider.keyValueStorage).find((entry) => entry.id === budgetId)
             : null;
           if (budget) {
-            await localFirstRelay.updateBudgetMetadata({
-              budgetId,
-              budgetName: budget.name,
-              currency: budget.currency,
-            });
+            const metadataSignature = JSON.stringify([budget.name, budget.currency]);
+            if (publishedMetadata.get(budgetId) !== metadataSignature) {
+              await localFirstRelay.updateBudgetMetadata({
+                budgetId,
+                budgetName: budget.name,
+                currency: budget.currency,
+              });
+              publishedMetadata.set(budgetId, metadataSignature);
+            }
           }
           const synchronisation =
             await provider.accountRegisterQueries.synchroniseLocalBudget(budgetId);

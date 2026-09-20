@@ -8,8 +8,9 @@ This tranche closes the measurement and edge-latency gaps left after P0.4–P0.8
 - Ordinary local-first budget capability/status reads come from the already-open
   SQLite generation and never query the relay.
 - Normal background convergence no longer runs a health probe or a separate
-  remote budget-status bootstrap before synchronization. Explicit health checks
-  remain available for diagnostics.
+  remote budget-status bootstrap before synchronization. Budget metadata is
+  published only when name/currency changes. Explicit health checks remain
+  available for diagnostics.
 - Optional Account Register tools (transaction import, attachment manager, tag
   manager) are lazy chunks rather than part of the primary register route.
 

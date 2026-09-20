@@ -34,4 +34,6 @@ test("ordinary budget status is local and background sync owns relay bootstrap",
   assert.doesNotMatch(branch, /await checkHealth\(\);[\s\S]*synchroniseLocalBudget/);
   assert.doesNotMatch(branch, /getBudgetStatus\(budgetId\)/);
   assert.match(branch, /synchroniseLocalBudget\(budgetId\)/);
+  assert.match(branch, /publishedMetadata\.get\(budgetId\) !== metadataSignature/);
+  assert.match(branch, /publishedMetadata\.set\(budgetId, metadataSignature\)/);
 });
