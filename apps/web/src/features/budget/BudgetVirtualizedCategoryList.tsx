@@ -65,10 +65,12 @@ export function getVisibleBudgetCategoryIndexes(
 function MeasuredBudgetCategory({
   categoryId,
   onHeight,
+  onFocusChange,
   children,
 }: {
   categoryId: string;
   onHeight: (categoryId: string, height: number) => void;
+  onFocusChange: (categoryId: string | null) => void;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -91,7 +93,16 @@ function MeasuredBudgetCategory({
   }, [categoryId, onHeight]);
 
   return (
-    <div ref={ref} className="budget-virtual-category-slot">
+    <div
+      ref={ref}
+      className="budget-virtual-category-slot"
+      onFocusCapture={() => onFocusChange(categoryId)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          onFocusChange(null);
+        }
+      }}
+    >
       {children}
     </div>
   );
@@ -110,6 +121,7 @@ export function BudgetVirtualizedCategoryList({
   const measuredHeightsRef = useRef(new Map<string, number>());
   const [measurementRevision, setMeasurementRevision] = useState(0);
   const [viewport, setViewport] = useState({ start: 0, end: 0 });
+  const [focusedCategoryId, setFocusedCategoryId] = useState<string | null>(null);
   const shouldVirtualize =
     categories.length > BUDGET_CATEGORY_VIRTUALIZATION_ROW_THRESHOLD;
 
@@ -169,6 +181,10 @@ export function BudgetVirtualizedCategoryList({
     const index = categories.findIndex((category) => category.id === pinnedCategoryId);
     if (index >= 0) visibleIndexes.add(index);
   }
+  if (focusedCategoryId) {
+    const index = categories.findIndex((category) => category.id === focusedCategoryId);
+    if (index >= 0) visibleIndexes.add(index);
+  }
 
   return (
     <div
@@ -195,6 +211,7 @@ export function BudgetVirtualizedCategoryList({
             key={category.id}
             categoryId={category.id}
             onHeight={onHeight}
+            onFocusChange={setFocusedCategoryId}
           >
             {renderCategory(category)}
           </MeasuredBudgetCategory>

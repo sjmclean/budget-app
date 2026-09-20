@@ -77,10 +77,12 @@ export function getVisibleBudgetGroupIndexes(
 function MeasuredBudgetGroup({
   groupId,
   onHeight,
+  onFocusChange,
   children,
 }: {
   groupId: string;
   onHeight: (groupId: string, height: number) => void;
+  onFocusChange: (groupId: string | null) => void;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -103,7 +105,16 @@ function MeasuredBudgetGroup({
   }, [groupId, onHeight]);
 
   return (
-    <div ref={ref} className="budget-virtual-group-slot">
+    <div
+      ref={ref}
+      className="budget-virtual-group-slot"
+      onFocusCapture={() => onFocusChange(groupId)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          onFocusChange(null);
+        }
+      }}
+    >
       {children}
     </div>
   );
@@ -124,6 +135,7 @@ export function BudgetVirtualizedGroupList({
   const measuredHeightsRef = useRef(new Map<string, number>());
   const [measurementRevision, setMeasurementRevision] = useState(0);
   const [viewport, setViewport] = useState({ start: 0, end: 0 });
+  const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
 
   const expandedCategoryCount = useMemo(
     () => groups.reduce(
@@ -190,6 +202,10 @@ export function BudgetVirtualizedGroupList({
     const index = groups.findIndex((group) => group.id === groupId);
     if (index >= 0) visibleIndexes.add(index);
   }
+  if (focusedGroupId) {
+    const index = groups.findIndex((group) => group.id === focusedGroupId);
+    if (index >= 0) visibleIndexes.add(index);
+  }
 
   return (
     <div
@@ -216,6 +232,7 @@ export function BudgetVirtualizedGroupList({
             key={group.id}
             groupId={group.id}
             onHeight={onHeight}
+            onFocusChange={setFocusedGroupId}
           >
             {renderGroup(group)}
           </MeasuredBudgetGroup>
