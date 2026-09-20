@@ -118,3 +118,39 @@ test("initial route startup can defer convergence without changing normal reacti
     /prefetchAccountIdentityQuery\(\{ budgetId \}\)[\s\S]*nudgeActiveBudgetReplication\(\)/,
   );
 });
+
+
+test("suspension preserves active-budget intent so visible register reads can reacquire ownership", () => {
+  const lifecycle = read("../../../apps/web/src/features/persistence/persistenceProviderLifecycle.ts");
+  const databaseLifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
+  const register = read("../../../apps/web/src/features/accounts/useAccountRegister.ts");
+
+  assert.match(
+    lifecycle,
+    /releaseActiveBudgetPersistence\(\{ preserveActiveIntent: true \}\)/,
+  );
+  assert.match(
+    databaseLifecycle,
+    /export async function ensureActiveBudgetPersistenceReady/,
+  );
+  assert.match(
+    databaseLifecycle,
+    /intendedActiveBudgetId !== budgetId/,
+  );
+  assert.match(
+    register,
+    /await ensureActiveBudgetPersistenceReady\(budgetId\)/,
+  );
+  assert.doesNotMatch(
+    register.slice(register.indexOf('provider.syncArchitecture === "local-first-relay"')),
+    /getBudgetStatus\(budgetId\)[\s\S]*reloadSqliteRegister\(\)/,
+  );
+});
+
+test("explicit workspace release still clears active-budget intent", () => {
+  const databaseLifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
+  assert.match(
+    databaseLifecycle,
+    /if \(!options\.preserveActiveIntent\) intendedActiveBudgetId = null/,
+  );
+});
