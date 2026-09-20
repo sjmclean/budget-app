@@ -17,6 +17,7 @@ import "./styles/globals.css";
 import "./styles/workspaceThemeTokens.css";
 import { startRestorePointLifecycle } from "./features/budget/restorePointLifecycle";
 import { SELECTED_BUDGET_STORAGE_KEY } from "./features/budget/budgetDataScope";
+import { getLocalFirstDatabaseTabOwnershipBudgetId } from "./features/persistence/localFirst/databaseTabCoordinator";
 function getApplicationRoot(): HTMLElement {
   const root = document.getElementById("root");
 
@@ -78,8 +79,13 @@ export async function bootstrapApp() {
     if (persistenceProvider.accountRegisterQueries?.createRestorePoint) {
       const queries = persistenceProvider.accountRegisterQueries;
       startRestorePointLifecycle({
-        activeBudgetId: () => queries.isLocalDatabaseReleased?.() ? null :
-          persistenceProvider.keyValueStorage?.getItem(SELECTED_BUDGET_STORAGE_KEY) ?? null,
+        activeBudgetId: () => {
+          if (queries.isLocalDatabaseReleased?.()) return null;
+          if (persistenceProvider.syncArchitecture === "local-first-relay") {
+            return getLocalFirstDatabaseTabOwnershipBudgetId();
+          }
+          return persistenceProvider.keyValueStorage?.getItem(SELECTED_BUDGET_STORAGE_KEY) ?? null;
+        },
         capture: (budgetId) => queries.createRestorePoint!(budgetId, "timed"),
         onError: (error) => console.error("Automatic restore point could not be completed.", error),
       });
