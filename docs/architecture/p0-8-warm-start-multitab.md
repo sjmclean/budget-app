@@ -43,6 +43,9 @@ of budget ID.
 - Failed database close/release retains the Web Lock and blocks takeover.
 - Hidden tabs proactively release their lease before browser suspension can
   prevent a later handoff request from being processed.
+- Pending acquisition requests are generation-scoped: hiding, releasing, or a
+  newer budget activation invalidates an older queued Web Lock request before
+  it can publish ownership.
 - A visible/focused tab reacquires its selected budget lease.
 - Activation nudges the existing replication background service after lease
   acquisition; the route itself does not wait for relay convergence.
