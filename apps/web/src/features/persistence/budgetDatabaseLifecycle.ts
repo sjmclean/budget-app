@@ -1,5 +1,6 @@
 import {
   acquireLocalFirstDatabaseTabOwnership,
+  hasLocalFirstDatabaseTabOwnership,
   releaseLocalFirstDatabaseTabOwnership,
 } from "./localFirst/databaseTabCoordinator";
 import { publishBroadBudgetChange } from "./persistenceChangeBus";
@@ -25,6 +26,8 @@ export async function activateBudgetPersistence(budgetId: string): Promise<void>
       await queries.releaseLocalDatabase?.();
     },
   );
+  if (!hasLocalFirstDatabaseTabOwnership(budgetId)) return;
+
   try {
     await queries.activateLocalBudget(budgetId);
   } catch (error) {
@@ -57,6 +60,10 @@ export async function runWithExclusiveBudgetDatabase<T>(operation: () => Promise
       await queries?.releaseLocalDatabase?.();
     },
   );
+
+  if (!hasLocalFirstDatabaseTabOwnership(leaseScope)) {
+    throw new Error("The exclusive local database lease was cancelled before acquisition.");
+  }
 
   try {
     if (budgetId && !queries?.isLocalDatabaseReleased?.()) {

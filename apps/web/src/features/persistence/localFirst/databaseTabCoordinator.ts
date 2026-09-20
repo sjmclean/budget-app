@@ -56,6 +56,7 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
   let held: HeldDatabaseLease | null = null;
   let acquiringBudgetId: string | null = null;
   let acquiring: Promise<void> | null = null;
+  let acquisitionGeneration = 0;
   let closed = false;
 
   function sharedChannel(): BroadcastChannelPort | null {
@@ -84,6 +85,7 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
   async function acquireWithLock(
     budgetId: string,
     releaseDatabase: () => Promise<void>,
+    generation: number,
   ): Promise<void> {
     if (!lockManager) {
       throw Object.assign(
@@ -109,7 +111,7 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
       "budget-app.local-first.database",
       { mode: "exclusive" },
       async () => {
-        if (closed) {
+        if (closed || generation !== acquisitionGeneration) {
           resolveAcquired();
           return;
         }
@@ -144,6 +146,7 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
       }
       if (acquiring && acquiringBudgetId === budgetId) return acquiring;
 
+      const generation = ++acquisitionGeneration;
       const operation = (async () => {
         if (held) await releaseHeld(true);
         sharedChannel()?.postMessage({
@@ -151,7 +154,7 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
           budgetId,
           requestedAt: new Date().toISOString(),
         });
-        await acquireWithLock(budgetId, releaseDatabase);
+        await acquireWithLock(budgetId, releaseDatabase, generation);
       })();
       acquiring = operation;
       acquiringBudgetId = budgetId;
@@ -166,6 +169,7 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
     },
 
     release(): Promise<void> {
+      acquisitionGeneration += 1;
       return releaseHeld(true);
     },
 
@@ -180,6 +184,7 @@ export function createLocalFirstDatabaseTabCoordinator(options: {
     async close(): Promise<void> {
       if (closed) return;
       closed = true;
+      acquisitionGeneration += 1;
       await releaseHeld(true);
       channel?.close();
       channel = null;

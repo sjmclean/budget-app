@@ -176,3 +176,55 @@ test("different budgets still share one physical SQLite lease", async () => {
   await first.close();
   await second.close();
 });
+
+
+test("release cancels a queued acquisition before it can publish ownership", async () => {
+  const locks = new LockHub();
+  const channels = new ChannelHub();
+  const first = createLocalFirstDatabaseTabCoordinator({
+    lockManager: locks,
+    channelFactory: channels.create,
+  });
+  const second = createLocalFirstDatabaseTabCoordinator({
+    lockManager: locks,
+    channelFactory: channels.create,
+  });
+
+  await first.acquire("budget-a", async () => {});
+  const queued = second.acquire("budget-b", async () => {});
+  await Promise.resolve();
+  await second.release();
+  await first.release();
+  await queued;
+
+  assert.equal(second.budgetId(), null);
+  assert.equal(second.owns("budget-b"), false);
+  await first.close();
+  await second.close();
+});
+
+test("a newer budget acquisition supersedes an older queued request", async () => {
+  const locks = new LockHub();
+  const channels = new ChannelHub();
+  const first = createLocalFirstDatabaseTabCoordinator({
+    lockManager: locks,
+    channelFactory: channels.create,
+  });
+  const second = createLocalFirstDatabaseTabCoordinator({
+    lockManager: locks,
+    channelFactory: channels.create,
+  });
+
+  await first.acquire("budget-held", async () => {});
+  const acquireA = second.acquire("budget-a", async () => {});
+  await Promise.resolve();
+  const acquireB = second.acquire("budget-b", async () => {});
+  await first.release();
+  await Promise.all([acquireA, acquireB]);
+
+  assert.equal(second.budgetId(), "budget-b");
+  assert.equal(second.owns("budget-a"), false);
+  assert.equal(second.owns("budget-b"), true);
+  await first.close();
+  await second.close();
+});
