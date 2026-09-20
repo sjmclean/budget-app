@@ -687,9 +687,34 @@ export async function runProjectionBenchmark(
     }
 
     if (!matchesFullProjection) {
+      const facts = lastFacts;
+      const opening = openingForReplay(fullProjection.months, firstMonthIndex);
+      const replayPaymentCategories = facts
+        ? paymentCategoryMap(facts.accounts, facts.categories)
+        : {};
+      const diagnosticReplay = facts
+        ? projectBudget({
+            budgetId: fixture.budgetId,
+            fromMonth: firstMonth,
+            throughMonth: targetMonth,
+            readyToAssignCategoryId: "__ready_to_assign__",
+            creditCardPolicy: Object.keys(replayPaymentCategories).length > 0
+              ? "payment-funding"
+              : "manual",
+            paymentCategoryIdByAccountId: replayPaymentCategories,
+            ...opening,
+            accounts: facts.accounts,
+            categories: facts.categories,
+            assignments: facts.assignments,
+            transactions: facts.transactions,
+          }).months.at(-1)
+        : undefined;
       database.close();
       throw new Error(
-        `Replay beginning at ${firstMonth} did not reproduce the full-history target projection.`,
+        `Replay beginning at ${firstMonth} did not reproduce the full-history target projection.\n` +
+        `Expected: ${JSON.stringify(expectedTarget)}\n` +
+        `Actual: ${JSON.stringify(diagnosticReplay)}\n` +
+        `Opening: ${JSON.stringify(opening)}`,
       );
     }
 
