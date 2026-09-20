@@ -4,6 +4,8 @@ import { BudgetSelectorPage } from "../pages/BudgetSelectorPage";
 import { RouteErrorScreen } from "./errors/RouteErrorScreen";
 import { activateBudgetPersistence, releaseActiveBudgetPersistence } from "../features/persistence/budgetDatabaseLifecycle";
 import { useUIStore } from "../stores/uiStore";
+import { getBudgetPersistenceProvider } from "../features/persistence";
+import { prefetchAccountIdentityQuery } from "../features/persistence/reactiveQueries";
 
 export const router = createBrowserRouter([
   {
@@ -21,7 +23,16 @@ export const router = createBrowserRouter([
     element: <AppShell />,
     async loader() {
       const budgetId = useUIStore.getState().selectedBudgetId;
-      if (budgetId) await activateBudgetPersistence(budgetId);
+      if (budgetId) {
+        await activateBudgetPersistence(budgetId);
+        const provider = getBudgetPersistenceProvider();
+        if (
+          provider.syncArchitecture === "local-first-relay" &&
+          provider.accountRegisterQueries
+        ) {
+          await prefetchAccountIdentityQuery({ budgetId });
+        }
+      }
       return null;
     },
     hydrateFallbackElement: <p role="status">Opening budget…</p>,
