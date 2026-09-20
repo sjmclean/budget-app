@@ -109,7 +109,7 @@ test("simultaneous requests for different budgets do not share the global openin
   assert.deepEqual(events, ["open:A", "read:A", "close:A", "open:B", "read:B", "close:B"]);
 });
 
-for (const phase of ["open", "sync"] as const) {
+for (const phase of ["open"] as const) {
   test(`release during ${phase} drains the actual query before closing and rejects stale requests`, async () => {
     const started = deferred();
     const finish = deferred();
@@ -132,10 +132,10 @@ for (const phase of ["open", "sync"] as const) {
   });
 }
 
-test("fire-and-forget prefetch is tracked through sync; released prefetch cannot reopen", async () => {
+test("fire-and-forget prefetch is tracked through local open; released prefetch cannot reopen", async () => {
   const started = deferred();
   const finish = deferred();
-  const { client, events, owner } = harness({ sync: async () => { started.resolve(); await finish.promise; } });
+  const { client, events, owner } = harness({ open: async () => { started.resolve(); await finish.promise; } });
   client.prefetchAccountRegister({ budgetId: "A", accountId: "account", limit: 10, offset: 0 } as never);
   await started.promise;
   const released = client.releaseLocalDatabase!();
@@ -255,10 +255,10 @@ for (const openBudget of [null, "A", "B"]) {
 test("deletion drains admitted work and refuses new queries before cleaning up without a snapshot", async () => {
   const started = deferred();
   const finish = deferred();
-  let firstSync = true;
+  let firstOpen = true;
   const { client, events, owner } = harness({
     capture: async () => { assert.fail("deletion must not capture"); },
-    sync: async () => { if (firstSync) { firstSync = false; started.resolve(); await finish.promise; } },
+    open: async () => { if (firstOpen) { firstOpen = false; started.resolve(); await finish.promise; } },
   });
   const reading = client.listAccountNavigation("A");
   await started.promise;

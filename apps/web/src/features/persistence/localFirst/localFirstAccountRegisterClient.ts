@@ -293,6 +293,9 @@ export function createLocalBudgetRuntime(
           return next;
         }
 
+        const remoteBaseline = remote.baseline;
+        if (!remoteBaseline) return null;
+
         if (cachedSyncEpoch && cachedSyncEpoch !== remote.syncEpoch) {
           await next.open({
             budgetId,
@@ -322,10 +325,10 @@ export function createLocalBudgetRuntime(
           const syncState = await next.getSyncState();
           activePulledCursor = syncState.pulledCursor;
           if (
-            syncState.baselineHash !== remote.baseline.manifest.contentHash ||
-            syncState.pulledCursor < remote.baseline.manifest.baseCursor ||
-            local.counts.accounts !== remote.baseline.manifest.counts.accounts ||
-            local.counts.transactions !== remote.baseline.manifest.counts.transactions
+            syncState.baselineHash !== remoteBaseline.manifest.contentHash ||
+            syncState.pulledCursor < remoteBaseline.manifest.baseCursor ||
+            local.counts.accounts !== remoteBaseline.manifest.counts.accounts ||
+            local.counts.transactions !== remoteBaseline.manifest.counts.transactions
           ) {
             await drainLocalOutbox(next, budgetId, remote.syncEpoch);
             await bootstrapLocalBudget({
@@ -420,8 +423,8 @@ export function createLocalBudgetRuntime(
 
       const needsRebuild =
         remote.syncEpoch !== activeSyncEpoch ||
-        syncState.baselineHash !== remote.baseline.manifest.contentHash ||
-        syncState.pulledCursor < remote.baseline.manifest.baseCursor;
+        syncState.baselineHash !== remoteBaseline.manifest.contentHash ||
+        syncState.pulledCursor < remoteBaseline.manifest.baseCursor;
 
       if (needsRebuild) {
         const pending = await local.readOutbox(0, 1);
