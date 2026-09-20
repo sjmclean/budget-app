@@ -39,11 +39,15 @@ test("ordinary local-first reads do not launch relay convergence", () => {
 
 test("hidden tabs release physical database ownership before suspension", () => {
   const source = read("../../../apps/web/src/features/persistence/persistenceProviderLifecycle.ts");
+  const releaseStart = source.indexOf("const releaseForSuspension");
+  const releaseEnd = source.indexOf("const handlePageHide", releaseStart);
+  const releaseHelper = source.slice(releaseStart, releaseEnd);
   const hiddenBranch = source.slice(
     source.indexOf('document.visibilityState === "hidden"'),
     source.indexOf("reactivateVisibleBudget();"),
   );
-  assert.match(hiddenBranch, /flushPendingWrites\(\)/);
+  assert.match(releaseHelper, /flushPendingWrites\(\)/);
+  assert.match(releaseHelper, /releaseActiveBudgetPersistence\(\)/);
   assert.match(hiddenBranch, /releaseForSuspension\(\)/);
 });
 
@@ -78,7 +82,7 @@ test("local-first replication scopes to the held tab lease instead of shared sel
     source.indexOf("if (!provider.operationJournal"),
   );
   assert.match(localFirstBranch, /getLocalFirstDatabaseTabOwnershipBudgetId\(\)/);
-  assert.match(localFirstBranch, /hasLocalFirstDatabaseTabOwnership\(budgetId\)/);
+  assert.match(localFirstBranch, /hasLocalFirstDatabaseTabOwnership\((?:selectedBudgetId|budgetId)\)/);
   assert.doesNotMatch(localFirstBranch, /getActiveBudgetIdFromStorage\(provider\.keyValueStorage\)/);
 });
 
