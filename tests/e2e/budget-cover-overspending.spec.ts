@@ -54,7 +54,9 @@ async function createAccount(page: Page, name: string) {
 async function createCategory(page: Page, name: string) {
   await page.getByRole("button", { name: "Add category" }).click();
   const dialog = page.getByRole("dialog", { name: "New category" });
-  await dialog.getByPlaceholder("Category name").fill(name);
+  const nameInput = dialog.getByPlaceholder("Category name");
+  await nameInput.fill(name);
+  await expect(nameInput).toHaveValue(name);
   await dialog.getByRole("button", { name: "Create category" }).click();
   await expect(dialog).toBeHidden();
   // The prompt closes before the asynchronous category command and budget
