@@ -385,6 +385,7 @@ export function Sidebar({
   function renderAccount(account: SidebarAccount) {
     const isMenuOpen = openMenuAccountId === account.id;
     const summary = accountSummaries[account.id];
+    const isNavigationSummaryPending = Boolean(accountRegisterQueries && !summary);
     const balance = summary?.workingBalance ?? account.startingBalance;
     const formattedBalance = formatAccountBalance(
       balance,
@@ -448,8 +449,10 @@ export function Sidebar({
               className={["account-balance", balance < 0 ? "account-balance-negative" : ""]
                 .filter(Boolean)
                 .join(" ")}
+              aria-busy={isNavigationSummaryPending || undefined}
+              aria-label={isNavigationSummaryPending ? "Loading account balance" : undefined}
             >
-              {formattedBalance}
+              {isNavigationSummaryPending ? "…" : formattedBalance}
             </span>
           </span>
         </NavLink>
