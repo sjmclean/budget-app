@@ -30,6 +30,7 @@ export function createBudgetDatabaseOwnership(close: () => Promise<void>) {
   let accepting = true;
   let selectedBudget: string | undefined;
   let release: Promise<void> | null = null;
+  let entering: { budgetId: string; promise: Promise<void> } | null = null;
   let unsafeCleanup: unknown = null;
   let generation = 0;
 
@@ -82,15 +83,21 @@ export function createBudgetDatabaseOwnership(close: () => Promise<void>) {
     leave: () => leave(),
     enter(budgetId: string): Promise<void> {
       if (accepting && selectedBudget === budgetId) return Promise.resolve();
+      if (entering?.budgetId === budgetId) return entering.promise;
       const released = leave();
       const activationGeneration = generation;
-      return enqueue(async () => {
+      const result = enqueue(async () => {
         await released;
         if (activationGeneration !== generation) throw databaseReleasedError();
         if (unsafeCleanup) throw unsafeCleanup;
         selectedBudget = budgetId;
         accepting = true;
       });
+      entering = { budgetId, promise: result };
+      void result.finally(() => {
+        if (entering?.promise === result) entering = null;
+      }).catch(() => undefined);
+      return result;
     },
     exclusive<T>(operation: () => Promise<T>, closeOperation?: () => Promise<void>): Promise<T> {
       // Reserve the exclusive slot immediately, before another enter/operation.
