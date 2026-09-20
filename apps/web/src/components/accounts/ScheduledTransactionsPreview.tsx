@@ -32,6 +32,7 @@ type ScheduledTransactionsPreviewProps = {
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
+  initialSchedules?: readonly ScheduledTransactionView[] | null;
 };
 
 export function ScheduledTransactionsPreview({
@@ -43,6 +44,7 @@ export function ScheduledTransactionsPreview({
   visibleColumnIds,
   rowStyle,
   layoutMode,
+  initialSchedules,
 }: ScheduledTransactionsPreviewProps) {
   const persistence = getBudgetPersistenceProvider().scheduledTransactions;
   const version = usePersistenceChange({ budgetId: budgetId ?? "legacy", accountId, domains: ["scheduled-transactions", "transactions"] });
@@ -57,7 +59,9 @@ export function ScheduledTransactionsPreview({
   const [days, setDays] = useState<ScheduledPreviewDays>(() =>
     storage ? readScheduledPreviewDays(storage) : 7,
   );
-  const [schedules, setSchedules] = useState<ScheduledTransactionView[]>([]);
+  const [schedules, setSchedules] = useState<ScheduledTransactionView[]>(() =>
+    [...(initialSchedules ?? [])],
+  );
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { enterSchedule, skipSchedule } = useScheduledTransactionHistory(
