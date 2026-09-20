@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-19T21:39:42.544Z",
+  "generatedAt": "2026-09-20T00:20:49.396Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -15,7 +15,7 @@
     "localStorage": 17,
     "indexedDB": 2,
     "replicationApi": 2,
-    "persistenceBoundary": 67,
+    "persistenceBoundary": 69,
     "operationJournal": 11,
     "checkpoints": 7
   },
@@ -101,6 +101,8 @@
     "apps/web/src/features/persistence/localFirst/localFirstDeviceId.ts",
     "apps/web/src/features/persistence/persistenceProviderLifecycle.ts",
     "apps/web/src/features/persistence/persistenceSnapshot.ts",
+    "apps/web/src/features/persistence/reactiveQueries.ts",
+    "apps/web/src/features/persistence/reactiveQueryStore.ts",
     "apps/web/src/features/persistence/replicationEngine.ts",
     "apps/web/src/features/persistence/replicationService.ts",
     "apps/web/src/features/persistence/routedScheduledTransactionPersistence.ts",
@@ -1344,17 +1346,17 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/budgetPersistenceProviderFactory.ts",
-      "line": 7
+      "line": 8
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/budgetPersistenceProviderFactory.ts",
-      "line": 11
+      "line": 12
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/budgetPersistenceProviderFactory.ts",
-      "line": 29
+      "line": 32
     },
     {
       "kind": "operationJournal",
@@ -1915,6 +1917,41 @@
       "line": 17
     },
     {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/reactiveQueries.ts",
+      "line": 2
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/reactiveQueries.ts",
+      "line": 210
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/reactiveQueryStore.ts",
+      "line": 2
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/reactiveQueryStore.ts",
+      "line": 29
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/reactiveQueryStore.ts",
+      "line": 264
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/reactiveQueryStore.ts",
+      "line": 301
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/reactiveQueryStore.ts",
+      "line": 314
+    },
+    {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/replication.ts",
       "line": 2
@@ -2299,25 +2336,25 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/BudgetPage.tsx",
-      "line": 80,
+      "line": 81,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/BudgetPage.tsx",
-      "line": 108,
+      "line": 109,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/BudgetPage.tsx",
-      "line": 116,
+      "line": 117,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/BudgetPage.tsx",
-      "line": 123,
+      "line": 124,
       "classification": "review-required"
     },
     {

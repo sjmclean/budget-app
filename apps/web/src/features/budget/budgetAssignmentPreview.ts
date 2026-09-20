@@ -8,12 +8,16 @@ import type { BudgetMonthView } from "./budgetViewTypes";
  * The SQLite budget engine remains authoritative and replaces this view after
  * the write completes.
  */
+function asOptimisticPreview(view: BudgetMonthView): BudgetMonthView {
+  return { ...view, publicationRevision: undefined };
+}
+
 export function previewCategoryAssignment(
   view: BudgetMonthView,
   categoryId: string,
   assigned: number,
 ): BudgetMonthView {
-  if (!Number.isFinite(assigned)) return view;
+  if (!Number.isFinite(assigned)) return asOptimisticPreview(view);
 
   let delta = 0;
   let matched = false;
@@ -43,10 +47,13 @@ export function previewCategoryAssignment(
         };
   });
 
-  if (!matched) return view;
+  if (!matched) return asOptimisticPreview(view);
 
   return {
     ...view,
+    // A preview is not committed state even when it was derived from an
+    // authoritative readback carrying an executor publication revision.
+    publicationRevision: undefined,
     readyToAssign: normaliseMoney(view.readyToAssign - delta),
     totalAssigned: normaliseMoney(view.totalAssigned + delta),
     totalAvailable: normaliseMoney(view.totalAvailable + delta),

@@ -64,8 +64,9 @@ Remote replication, incomplete journal history, unsupported query modes, and
 cross-domain changes without a safe transaction delta cause one authoritative
 register refresh. This is a correctness fallback, not a second ordinary-write
 path. Search, category filtering, and non-date sorts currently use this
-conservative fallback rather than approximate worker SQL semantics. P0.5's
-reactive query cache is not implemented here.
+conservative fallback rather than approximate worker SQL semantics. P0.5 adds
+a separate bounded shared cache for reusable non-register read models; the
+specialized register delta/pagination path remains intentionally independent.
 
 > SQLite is authoritative; persistence change events are invalidation metadata,
 > not financial state.
@@ -73,8 +74,7 @@ reactive query cache is not implemented here.
 They are not a canonical event log or replication protocol.
 
 This changes neither mutation ordering nor sync epochs, cursors, conflicts,
-offline writes, or convergence. Worker subscriptions and a reactive query cache
-remain future work.
+offline writes, or convergence. Worker query subscriptions remain future work. The P0.5 reactive query cache is now the shared reactivity layer for reusable non-register reads.
 
 The explicit **Rebuild from server** recovery action may still reload after replacing the complete local database. That is intentionally separate from normal background replication.
 

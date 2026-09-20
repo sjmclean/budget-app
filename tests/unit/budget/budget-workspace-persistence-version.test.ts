@@ -12,6 +12,8 @@ import {
 import { resolveBudgetWorkspaceData } from "../../../apps/web/src/features/budget/useBudgetWorkspace";
 import type { BudgetMonthView } from "../../../apps/web/src/features/budget/budgetViewTypes";
 import { useBudgetView } from "../../../apps/web/src/features/budget/useBudgetView";
+import { seedBudgetMonthQuery } from "../../../apps/web/src/features/persistence/reactiveQueries";
+import { previewCategoryAssignment } from "../../../apps/web/src/features/budget/budgetAssignmentPreview";
 import { configureBudgetPersistenceProvider, resetBudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProviderFactory";
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider";
 
@@ -140,14 +142,128 @@ test("older in-flight budget query cannot replace the newer revision's result", 
       budgetId: "budget-query", domains: ["budget"], months: ["2026-09"],
     } });
     await act(async () => { flushPersistenceChanges(); });
-    assert.equal(requests.length, 2);
+    assert.equal(requests.length, 1, "the newer invalidation joins the in-flight read instead of duplicating it");
+
+    await act(async () => {
+      requests[0]!.resolve({ marker: "stale" } as unknown as BudgetMonthView);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    assert.equal(requests.length, 2, "the stale in-flight result is discarded and retried at the newer revision");
+
     const newer = { marker: "newer" } as unknown as BudgetMonthView;
     await act(async () => { requests[1]!.resolve(newer); });
     assert.equal(latest?.data, newer);
     assert.equal(latest?.dataVersion, revision);
-    await act(async () => { requests[0]!.resolve({ marker: "stale" } as unknown as BudgetMonthView); });
-    assert.equal(latest?.data, newer);
-    assert.equal(latest?.dataVersion, revision);
+  } finally {
+    if (root) await act(async () => root!.unmount());
+    resetBudgetPersistenceProvider();
+  }
+});
+
+
+test("optimistic assignment previews never retain an authoritative publication revision", () => {
+  const authoritative: BudgetMonthView = {
+    publicationRevision: 42,
+    budgetId: "budget-preview",
+    budgetName: "Preview Budget",
+    monthLabel: "September 2026",
+    currencyCode: "AUD",
+    readyToAssign: 100,
+    totalAssigned: 0,
+    totalActivity: 0,
+    totalAvailable: 100,
+    categoryGroups: [{
+      id: "group-a",
+      name: "Group A",
+      previousAvailable: 0,
+      assigned: 0,
+      activity: 0,
+      available: 100,
+      note: "",
+      categories: [{
+        id: "category-a",
+        name: "Category A",
+        previousAvailable: 0,
+        assigned: 0,
+        activity: 0,
+        available: 100,
+        isOverspent: false,
+        isArchived: false,
+        note: "",
+      }],
+    }],
+  };
+
+  const preview = previewCategoryAssignment(authoritative, "category-a", 25);
+
+  assert.equal(authoritative.publicationRevision, 42);
+  assert.equal(preview.publicationRevision, undefined);
+  assert.equal(preview.categoryGroups[0]?.categories[0]?.assigned, 25);
+  assert.equal(preview.readyToAssign, 75);
+});
+
+
+test("a late committed result from a retired provider cannot seed the new provider cache", async () => {
+  const budgetId = "budget-provider-seed";
+  const month = "2026-09";
+  let newProviderLoads = 0;
+  const oldProvider = {
+    metadata: {
+      kind: "local-database",
+      label: "old",
+      description: "old",
+      isProductionPersistence: false,
+    },
+    categories: {
+      getBudgetMonthView: async () => ({ marker: "old-loader" } as unknown as BudgetMonthView),
+    },
+  } as unknown as BudgetPersistenceProvider;
+  const newProvider = {
+    metadata: {
+      kind: "local-database",
+      label: "new",
+      description: "new",
+      isProductionPersistence: false,
+    },
+    categories: {
+      getBudgetMonthView: async () => {
+        newProviderLoads += 1;
+        return { marker: "new-loader" } as unknown as BudgetMonthView;
+      },
+    },
+  } as unknown as BudgetPersistenceProvider;
+
+  configureBudgetPersistenceProvider(oldProvider);
+  const revision = publishPersistenceChange({
+    source: "local",
+    scope: { budgetId, domains: ["budget"], months: [month] },
+  });
+  flushPersistenceChanges();
+  configureBudgetPersistenceProvider(newProvider);
+
+  seedBudgetMonthQuery(
+    oldProvider,
+    { budgetId, month },
+    { marker: "stale-old-provider", publicationRevision: revision } as unknown as BudgetMonthView,
+    revision,
+  );
+
+  let latest: ReturnType<typeof useBudgetView> | null = null;
+  function Consumer() {
+    latest = useBudgetView(budgetId, month);
+    return null;
+  }
+
+  let root: { unmount(): void } | null = null;
+  try {
+    await act(async () => {
+      root = create(createElement(Consumer));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    assert.equal(newProviderLoads, 1);
+    assert.equal((latest?.data as unknown as { marker?: string } | null)?.marker, "new-loader");
   } finally {
     if (root) await act(async () => root!.unmount());
     resetBudgetPersistenceProvider();
