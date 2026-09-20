@@ -31,8 +31,17 @@ correctness signal.
 ## Bundle budgets
 
 The global bundle ceilings are tightened from the pre-finalisation guardrails,
-and the Account Register route receives its own raw JavaScript budget. The
-register-specific ceiling is deliberately close enough to the post-split route
-to catch meaningful re-bundling of optional tools. Optional
-register tools should be split instead of allowing the primary route chunk to
-grow without bound.
+and the Account Register route receives its own raw JavaScript budget. This
+register-specific measurement is the full static route graph that is not
+already part of the application entry graph, rather than only the emitted
+`AccountRegisterPage` file.
+
+On Verify #196 the post-split Register graph measured 380.5 KiB raw while the
+route chunk itself measured 158.1 KiB. The initial 320 KiB graph ceiling was
+therefore below the measured post-split baseline rather than evidence of a
+bundle regression. The calibrated ceiling is 430 KiB, leaving about 13% raw
+headroom while still catching meaningful re-bundling of optional tools.
+
+Optional register workflows should remain lazy feature-boundary chunks instead
+of being pulled back into the Register static graph. The core rows/editor and
+their statically required dependencies can remain immediately available.
