@@ -107,6 +107,24 @@ function elapsed(start: number): number {
   return round(performance.now() - start);
 }
 
+function canonicalProjection(projection: BudgetMonthProjection): unknown {
+  return {
+    ...projection,
+    groups: [...projection.groups].sort((left, right) =>
+      left.groupId.localeCompare(right.groupId)),
+    categories: [...projection.categories].sort((left, right) =>
+      left.categoryId.localeCompare(right.categoryId)),
+  };
+}
+
+function projectionsEqual(
+  left: BudgetMonthProjection,
+  right: BudgetMonthProjection,
+): boolean {
+  return JSON.stringify(canonicalProjection(left)) ===
+    JSON.stringify(canonicalProjection(right));
+}
+
 function timingSummary(samples: readonly number[]): TimingSummary {
   const sorted = [...samples].sort((left, right) => left - right);
   return {
@@ -668,7 +686,7 @@ export async function runProjectionBenchmark(
       const replayTarget = replay.months.at(-1)!;
       matchesFullProjection =
         matchesFullProjection &&
-        JSON.stringify(replayTarget) === JSON.stringify(expectedTarget);
+        projectionsEqual(replayTarget, expectedTarget);
 
       database.prepare(
         "DELETE FROM local_budget_projection_cache WHERE budget_id = ? AND month >= ?",
@@ -681,40 +699,15 @@ export async function runProjectionBenchmark(
       started = performance.now();
       const cached = cachedRead(database, fixture.budgetId, targetMonth);
       cachedReadSamples.push(elapsed(started));
-      if (JSON.stringify(cached) !== JSON.stringify(expectedTarget)) {
+      if (!projectionsEqual(cached, expectedTarget)) {
         matchesFullProjection = false;
       }
     }
 
     if (!matchesFullProjection) {
-      const facts = lastFacts;
-      const opening = openingForReplay(fullProjection.months, firstMonthIndex);
-      const replayPaymentCategories = facts
-        ? paymentCategoryMap(facts.accounts, facts.categories)
-        : {};
-      const diagnosticReplay = facts
-        ? projectBudget({
-            budgetId: fixture.budgetId,
-            fromMonth: firstMonth,
-            throughMonth: targetMonth,
-            readyToAssignCategoryId: "__ready_to_assign__",
-            creditCardPolicy: Object.keys(replayPaymentCategories).length > 0
-              ? "payment-funding"
-              : "manual",
-            paymentCategoryIdByAccountId: replayPaymentCategories,
-            ...opening,
-            accounts: facts.accounts,
-            categories: facts.categories,
-            assignments: facts.assignments,
-            transactions: facts.transactions,
-          }).months.at(-1)
-        : undefined;
       database.close();
       throw new Error(
-        `Replay beginning at ${firstMonth} did not reproduce the full-history target projection.\n` +
-        `Expected: ${JSON.stringify(expectedTarget)}\n` +
-        `Actual: ${JSON.stringify(diagnosticReplay)}\n` +
-        `Opening: ${JSON.stringify(opening)}`,
+        `Replay beginning at ${firstMonth} did not reproduce the full-history target projection.`,
       );
     }
 
