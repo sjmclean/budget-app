@@ -19,12 +19,15 @@ function harness(hooks: {
   open?: () => Promise<void>; sync?: () => Promise<void>; close?: () => Promise<void>;
   capture?: () => Promise<void>; deleteRelay?: () => Promise<void>; deleteFile?: () => Promise<void>;
   deleteRestorePoints?: () => Promise<void>;
-} = {}) {
+} = {}, options: { publishedPointers?: boolean } = {}) {
   const values = new Map([
     ["budget-app.local-first.device-id", "test-device"],
     ...["A", "B"].flatMap((id) => [
       [`budget-app.local-first.sync-epoch.${id}`, "epoch"],
-      [`budget-app.local-first.database-file.${id}`, `/budget-physical-${id}-fixture.sqlite3`],
+      ...(options.publishedPointers === false ? [] : [[
+        `budget-app.local-first.database-file.${id}`,
+        `/budget-physical-${id}-fixture.sqlite3`,
+      ]]),
     ]),
   ]);
   const events: string[] = [];
@@ -71,6 +74,16 @@ test("published local SQLite serves a warm read while relay bootstrap is offline
   await client.listAccountNavigation("A");
   assert.deepEqual(events.slice(0, 2), ["open:A", "read:A"]);
   await client.releaseLocalDatabase!();
+});
+
+test("cached epoch without a published physical pointer never offline-opens SQLite", async () => {
+  const { client, events } = harness({}, { publishedPointers: false });
+  await assert.rejects(
+    client.listAccountNavigation("A"),
+    /complete local SQLite budget is not ready/,
+  );
+  assert.equal(events.some((event) => event.startsWith("open:")), false);
+  assert.equal(events.some((event) => event.startsWith("read:")), false);
 });
 
 test("restore-point cleanup follows authoritative deletion; failure is diagnostic, not deletion failure", async () => {

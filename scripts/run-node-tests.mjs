@@ -46,6 +46,7 @@ for (const test of tests) {
     {
       stdio: "inherit",
       shell: false,
+      timeout: 60_000,
     },
   );
 
