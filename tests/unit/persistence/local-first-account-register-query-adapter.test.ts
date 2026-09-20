@@ -57,7 +57,7 @@ test("register prefetch and navigation share one in-flight authoritative bootstr
   );
   assert.match(
     clientSource,
-    /prefetchAccountRegister\(input\) \{\s*prefetchAccountRegisterBootstrap\(input\);\s*\}/s,
+    /prefetchAccountRegister\(input\) \{\s*void prefetchAccountRegisterBootstrap\(input\);\s*\}/s,
   );
   assert.match(
     clientSource,
