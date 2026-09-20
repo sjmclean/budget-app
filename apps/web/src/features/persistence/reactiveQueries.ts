@@ -81,7 +81,7 @@ export const monthlyCategoryTransactionsQuery = createReactiveQueryDefinition<
     budgetId,
     month,
     categoryId,
-    domains: ["accounts", "transactions", "categories"],
+    domains: ["accounts", "transactions", "categories", "payees"],
   }),
   load: async (provider, { budgetId, month, categoryId }) =>
     (await requireAnalytics(provider, budgetId)).getMonthlyCategoryTransactions(
@@ -114,7 +114,7 @@ export const categoryActivityDrilldownQuery = createReactiveQueryDefinition<
     budgetId,
     month,
     categoryId,
-    domains: ["accounts", "transactions", "categories"],
+    domains: ["accounts", "transactions", "categories", "payees"],
   }),
   load: (provider, input) => provider.categories.getCategoryActivityDrilldown(input),
 });
