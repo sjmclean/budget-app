@@ -47,7 +47,7 @@ test("hidden tabs release physical database ownership before suspension", () => 
     source.indexOf("reactivateVisibleBudget();"),
   );
   assert.match(releaseHelper, /flushPendingWrites\(\)/);
-  assert.match(releaseHelper, /releaseActiveBudgetPersistence\(\)/);
+  assert.match(releaseHelper, /releaseActiveBudgetPersistence\(\{ preserveActiveIntent: true \}\)/);
   assert.match(hiddenBranch, /releaseForSuspension\(\)/);
 });
 
