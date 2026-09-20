@@ -39,9 +39,6 @@ export async function bootstrapApp() {
     let hostedCatalogueAuthoritative = false;
     const hostProvider = bootstrapHostBudgetPersistenceProvider();
     if (!hostProvider) {
-      const apiBaseUrl = (
-        import.meta as ImportMeta & { env?: { VITE_BUDGET_API_URL?: string } }
-      ).env?.VITE_BUDGET_API_URL?.replace(/\/+$/, "") ?? "";
       const session = await loadAuthStatus().catch(() => null);
       hostedBudgets = session?.budgets ?? [];
       hostedCatalogueAuthoritative = session?.authenticated === true;

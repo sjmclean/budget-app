@@ -37,3 +37,15 @@ test("ordinary budget status is local and background sync owns relay bootstrap",
   assert.match(branch, /publishedMetadata\.get\(budgetId\) !== metadataSignature/);
   assert.match(branch, /publishedMetadata\.set\(budgetId, metadataSignature\)/);
 });
+
+
+test("local-first benchmark uses the production convergence loop with persisted SQLite state", () => {
+  const client = read("../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts");
+  const benchmark = read("../../../tools/performance/local-first-sync-benchmark.ts");
+  assert.match(client, /export async function convergeLocalFirstMutations/);
+  assert.match(client, /await convergeLocalFirstMutations\(\{/);
+  assert.match(benchmark, /from "better-sqlite3"/);
+  assert.match(benchmark, /convergeLocalFirstMutations\(\{/);
+  assert.match(benchmark, /CREATE TABLE local_budget_outbox/);
+  assert.match(benchmark, /CREATE TABLE remote_applied/);
+});

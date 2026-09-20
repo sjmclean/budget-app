@@ -19,7 +19,7 @@ This tranche closes the measurement and edge-latency gaps left after P0.4–P0.8
 CI retains three complementary forms of performance evidence:
 
 1. P0.6 native-SQLite projection replay at 50k and 250k transactions.
-2. Local-first outbox/relay batching at 20k and 100k mutations.
+2. The production local-first convergence loop over a persisted SQLite outbox and cursor store, covering push/ack and deterministic remote pull/apply at 20k and 100k local mutations.
 3. A Chromium/OPFS smoke that creates a real 10k-transaction SQLite generation,
    reopens it through the production worker, and measures a bounded 150-row
    register bootstrap.
@@ -31,6 +31,8 @@ correctness signal.
 ## Bundle budgets
 
 The global bundle ceilings are tightened from the pre-finalisation guardrails,
-and the Account Register route receives its own raw JavaScript budget. Optional
+and the Account Register route receives its own raw JavaScript budget. The
+register-specific ceiling is deliberately close enough to the post-split route
+to catch meaningful re-bundling of optional tools. Optional
 register tools should be split instead of allowing the primary route chunk to
 grow without bound.
