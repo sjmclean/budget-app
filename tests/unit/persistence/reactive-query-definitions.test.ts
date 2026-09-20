@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   categoryActivityDrilldownQuery,
+  financialOverviewQuery,
   monthlyCategoryTransactionsQuery,
 } from "../../../apps/web/src/features/persistence/reactiveQueries.js";
 import {
@@ -31,6 +32,13 @@ test("payee changes invalidate cached query results that display denormalized pa
     doesPersistenceChangeAffect(
       payeeChange,
       categoryActivityDrilldownQuery.interest({ budgetId, month, categoryId }),
+    ),
+    true,
+  );
+  assert.equal(
+    doesPersistenceChangeAffect(
+      payeeChange,
+      financialOverviewQuery.interest({ budgetId, month }),
     ),
     true,
   );

@@ -74,8 +74,7 @@ specialized register delta/pagination path remains intentionally independent.
 They are not a canonical event log or replication protocol.
 
 This changes neither mutation ordering nor sync epochs, cursors, conflicts,
-offline writes, or convergence. Worker subscriptions and a reactive query cache
-remain future work.
+offline writes, or convergence. Worker query subscriptions remain future work. The P0.5 reactive query cache is now the shared reactivity layer for reusable non-register reads.
 
 The explicit **Rebuild from server** recovery action may still reload after replacing the complete local database. That is intentionally separate from normal background replication.
 
