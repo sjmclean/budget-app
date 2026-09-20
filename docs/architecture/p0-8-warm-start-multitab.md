@@ -79,8 +79,12 @@ so relay application/rebuild cannot overlap an admitted ordinary command.
 - Switching to the launcher releases/drains local ownership.
 - Hidden tabs flush pending provider writes and release the database lease.
 - Visible/focused tabs reacquire the selected budget.
-- Exclusive import/restore workflows acquire the same global physical lease and
-  release it afterward.
+- Exclusive import/restore workflows capture any required safety restore point
+  while the active budget lease is still valid, then switch to a synthetic
+  exclusive physical lease that is never exposed as background budget identity,
+  and release it afterward.
+- Browser Web Lock ownership applies only to the local-first relay runtime;
+  host-provided persistence keeps its own lifecycle contract.
 
 ## Preserved architecture
 

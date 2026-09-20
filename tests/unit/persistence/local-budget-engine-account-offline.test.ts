@@ -52,6 +52,7 @@ test("LocalBudgetEngine creates and updates an account locally while the relay i
   const values = new Map<string, string>([
     ["budget-app.local-first.device-id", "offline-device"],
     [`budget-app.local-first.sync-epoch.${budgetId}`, syncEpoch],
+    [`budget-app.local-first.database-file.${budgetId}`, "/budget-physical-offline-budget-fixture.sqlite3"],
   ]);
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => { throw new Error("relay unavailable"); };
