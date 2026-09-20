@@ -51,7 +51,8 @@ of budget ID.
   acquisition; the route itself does not wait for relay convergence.
 
 The tab's held database lease, not the shared selected-budget browser-storage
-preference, is the source of truth for local-first replication scope. This
+preference, is the source of truth for local-first replication and timed
+restore-point scope. This
 allows different tabs to retain different in-memory navigation selections
 without causing one tab's background service to synchronize the other tab's
 selection.
