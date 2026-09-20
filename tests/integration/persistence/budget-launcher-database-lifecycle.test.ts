@@ -141,6 +141,7 @@ test("switch followed immediately by real blank, YNAB4 and Actual workflows; rol
   };
   const lifecycle = createBudgetDatabaseOwnership(async () => { if (owner === "A") { events.push("release:A"); owner = null; } });
   configureBudgetPersistenceProvider({
+    syncArchitecture: "local-first-relay",
     metadata: { kind: "local-database", label: "test", description: "test", isProductionPersistence: false },
     keyValueStorage: storage,
     accountRegisterQueries: { releaseLocalDatabase: lifecycle.leave, runWithExclusiveLocalDatabase: lifecycle.exclusive },
