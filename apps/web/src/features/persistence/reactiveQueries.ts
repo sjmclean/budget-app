@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
 import type { AccountNavigation, FinancialOverview, SpendingCategoryRow } from "./accountRegisterQueryContracts";
 import type { RegisterTransactionView } from "../accounts/accountRegisterTypes";
 import type { BudgetActivityDrilldown, BudgetMonthView } from "../budget/budgetViewTypes";
@@ -206,10 +207,11 @@ export function prefetchBudgetMonthQuery(input: {
 }
 
 export function seedBudgetMonthQuery(
+  sourceProvider: BudgetPersistenceProvider,
   input: { readonly budgetId: string; readonly month: string },
   data: BudgetMonthView,
   revision: number,
 ): void {
-  const provider = getBudgetPersistenceProvider();
-  seedReactiveQuery(budgetMonthQuery, provider, input, data, revision);
+  if (sourceProvider !== getBudgetPersistenceProvider()) return;
+  seedReactiveQuery(budgetMonthQuery, sourceProvider, input, data, revision);
 }
