@@ -1904,7 +1904,7 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/persistenceProviderLifecycle.ts",
-      "line": 9
+      "line": 8
     },
     {
       "kind": "persistenceBoundary",
