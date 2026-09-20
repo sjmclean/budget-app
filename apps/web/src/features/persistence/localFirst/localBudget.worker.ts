@@ -4474,6 +4474,28 @@ function readTransactionAttachmentContent(
   return row ? { ...row, content: Uint8Array.from(row.content) } : null;
 }
 
+function listAccounts(budgetId: string) {
+  return resultRows<{
+    id: string;
+    budgetId: string;
+    name: string;
+    type: string;
+    participation: string;
+    openingBalance: number;
+    currencyCode: string;
+    createdAt: string;
+    closedAt: string | null;
+  }>(
+    `SELECT id, budget_id AS budgetId, name, type, participation,
+       opening_balance AS openingBalance, currency_code AS currencyCode,
+       created_at AS createdAt, closed_at AS closedAt
+     FROM local_accounts
+     WHERE budget_id = ?
+     ORDER BY closed_at IS NOT NULL, name`,
+    [budgetId],
+  );
+}
+
 function listAccountNavigation(budgetId: string) {
   return resultRows(
     `SELECT account.id, account.name, account.type, account.participation,
@@ -6289,6 +6311,8 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
         [request.domain],
       ).map(({ payload }) => JSON.parse(payload));
     }
+    case "listAccounts":
+      return listAccounts(request.budgetId);
     case "listAccountNavigation":
       return listAccountNavigation(request.budgetId);
     case "listPayees":

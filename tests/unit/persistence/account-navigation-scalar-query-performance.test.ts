@@ -9,6 +9,28 @@ const workerSource = fs.readFileSync(
   ),
   "utf8",
 );
+const runtimeSource = fs.readFileSync(
+  new URL(
+    "../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const sidebarSource = fs.readFileSync(
+  new URL("../../../apps/web/src/layouts/Sidebar.tsx", import.meta.url),
+  "utf8",
+);
+const routerSource = fs.readFileSync(
+  new URL("../../../apps/web/src/app/router.tsx", import.meta.url),
+  "utf8",
+);
+const scheduledMaintenanceSource = fs.readFileSync(
+  new URL(
+    "../../../apps/web/src/features/accounts/scheduledTransactionMaintenance.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 test("account navigation avoids joining and grouping every transaction", () => {
   const match = workerSource.match(
@@ -70,4 +92,50 @@ test("account navigation reuses the boundary-aware uncategorised predicate", () 
   assert.match(source, /category_split\.transfer_transaction_id IS NULL/);
   assert.match(source, /split_transfer_category_account\.participation = 'on-budget'/);
   assert.doesNotMatch(source, /amount < 0/);
+});
+
+
+test("account identity reads do not derive transaction navigation state", () => {
+  const match = workerSource.match(
+    /function listAccounts\(budgetId: string\)\s*\{([\s\S]*?)\n\}/,
+  );
+  assert.ok(match, "listAccounts should exist");
+  assert.match(match[1], /FROM local_accounts/);
+  assert.doesNotMatch(match[1], /local_transactions/);
+  assert.doesNotMatch(match[1], /local_transaction_splits/);
+
+  const runtimeListAccounts = runtimeSource.match(
+    /async listAccounts\(budgetId\)\s*\{([\s\S]*?)\n    \},/,
+  );
+  assert.ok(runtimeListAccounts, "runtime listAccounts should exist");
+  assert.match(runtimeListAccounts[1], /local\.listAccounts\(budgetId\)/);
+  assert.doesNotMatch(runtimeListAccounts[1], /listAccountNavigation/);
+});
+
+test("sidebar shares the reactive account navigation read instead of issuing its own", () => {
+  assert.match(sidebarSource, /useAccountNavigationQuery/);
+  assert.doesNotMatch(sidebarSource, /accountRegisterQueries\.getBudgetStatus\(/);
+  assert.doesNotMatch(sidebarSource, /accountRegisterQueries!?\.listAccountNavigation\(/);
+});
+
+
+test("startup prefetches cheap account identities before the workspace renders", () => {
+  const activation = routerSource.indexOf("await activateBudgetPersistence(budgetId,");
+  const identityPrefetch = routerSource.indexOf("await prefetchAccountIdentityQuery({ budgetId })");
+  const replicationNudge = routerSource.indexOf("nudgeActiveBudgetReplication()");
+  assert.ok(activation >= 0, "route startup should activate the budget");
+  assert.ok(identityPrefetch > activation, "account identities should load after local activation");
+  assert.ok(replicationNudge > identityPrefetch, "background convergence should start after critical identity loading");
+  assert.match(sidebarSource, /useAccountIdentityQuery/);
+  assert.match(sidebarSource, /setAccounts\(\[\.\.\.accountIdentityQuery\.data\]\)/);
+  assert.match(sidebarSource, /isNavigationSummaryPending \? "…" : formattedBalance/);
+});
+
+test("local-first scheduled maintenance skips capability probes and uses the cheap account list", () => {
+  assert.match(
+    scheduledMaintenanceSource,
+    /provider\.syncArchitecture !== "local-first-relay"/,
+  );
+  assert.doesNotMatch(scheduledMaintenanceSource, /getBudgetStatus\(/);
+  assert.match(scheduledMaintenanceSource, /listAccounts: \(\) => queries\.listAccounts\(budgetId\)/);
 });

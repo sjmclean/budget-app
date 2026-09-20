@@ -26,9 +26,11 @@ export async function generateDueScheduledTransactionsForBudget(
 ) {
   const queries = provider.accountRegisterQueries;
   const engine = provider.localBudgetEngine;
-  if (!queries || !engine) return generateDueScheduledTransactions(provider, { scope: budgetId });
-  const status = await queries.getBudgetStatus(budgetId).catch(() => null);
-  if (!status?.capabilities.accountRegisters) {
+  if (
+    provider.syncArchitecture !== "local-first-relay" ||
+    !queries ||
+    !engine
+  ) {
     return generateDueScheduledTransactions(provider, { scope: budgetId });
   }
   return generateDueScheduledTransactions(provider, {

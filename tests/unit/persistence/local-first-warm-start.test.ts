@@ -96,3 +96,25 @@ test("local-first timed restore points use the held tab lease as active budget",
   assert.match(restoreLifecycle, /getLocalFirstDatabaseTabOwnershipBudgetId\(\)/);
   assert.match(restoreLifecycle, /syncArchitecture === "local-first-relay"/);
 });
+
+
+test("initial route startup can defer convergence without changing normal reactivation", () => {
+  const lifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
+  const router = read("../../../apps/web/src/app/router.tsx");
+  assert.match(
+    lifecycle,
+    /options: \{ readonly deferBackgroundSync\?: boolean \} = \{\}/,
+  );
+  assert.match(
+    lifecycle,
+    /if \(!options\.deferBackgroundSync\)\s*\{\s*nudgeActiveBudgetReplication\(\);\s*\}/,
+  );
+  assert.match(
+    router,
+    /activateBudgetPersistence\(budgetId, \{\s*deferBackgroundSync: true,/,
+  );
+  assert.match(
+    router,
+    /prefetchAccountIdentityQuery\(\{ budgetId \}\)[\s\S]*nudgeActiveBudgetReplication\(\)/,
+  );
+});

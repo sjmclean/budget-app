@@ -1356,7 +1356,15 @@ export function createLocalBudgetRuntime(
     removeTransactionAttachment: publicOrdinaryCommands.removeTransactionAttachment,
     readTransactionAttachment: attachmentCommands.readTransactionAttachment,
     async listAccounts(budgetId) {
-      return (await client.listAccountNavigation(budgetId)).map(({ account }) => account);
+      const local = await syncThenDatabase(budgetId);
+      return (await local.listAccounts(budgetId)).map((row) => ({
+        id: row.id,
+        name: row.name,
+        type: row.type as never,
+        startingBalance: row.openingBalance / 100,
+        createdAt: row.createdAt,
+        closedAt: row.closedAt ?? undefined,
+      }));
     },
     async listAccountNavigation(budgetId) {
       const local = await syncThenDatabase(budgetId);

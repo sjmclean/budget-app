@@ -478,6 +478,11 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "listAccounts";
+      readonly budgetId: string;
+    }
+  | {
+      readonly requestId: string;
       readonly type: "listAccountNavigation";
       readonly budgetId: string;
     }
