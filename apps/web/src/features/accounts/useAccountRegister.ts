@@ -125,6 +125,16 @@ export function useAccountRegister(
   const sqlitePageRef = useRef<LoadedRegisterPage | null>(null);
   const appliedRevisionRef = useRef(0);
   const loadGenerationRef = useRef(0);
+  const claimedWarmBootstrapRef = useRef<{
+    readonly key: string;
+    readonly value: NonNullable<
+      ReturnType<
+        NonNullable<
+          NonNullable<typeof accountRegisterQueries>["consumePrefetchedAccountRegister"]
+        >
+      >
+    >;
+  } | null>(null);
 
   const data = useMemo<AccountRegisterView | null>(() => {
     if (storageMode !== "sqlite" || !sqlitePage) return legacyData;
@@ -161,17 +171,31 @@ export function useAccountRegister(
     setTotalTransactionCount(0);
     setHasMoreTransactions(false);
 
-    const warm = budgetId && accountRegisterQueries?.consumePrefetchedAccountRegister
-      ? accountRegisterQueries.consumePrefetchedAccountRegister({
-          budgetId,
-          accountId,
-          limit: 150,
-          offset: 0,
-          search: registerViewQuery.search ?? undefined,
-          categoryFilter: registerViewQuery.categoryFilter,
-          sort: registerViewQuery.sort,
-        })
-      : null;
+    const warmKey = JSON.stringify({
+      budgetId: budgetId ?? null,
+      accountId,
+      search: registerViewQuery.search ?? null,
+      categoryFilter: registerViewQuery.categoryFilter,
+      sort: registerViewQuery.sort,
+    });
+    const claimedWarm = claimedWarmBootstrapRef.current;
+    const warm = claimedWarm?.key === warmKey
+      ? claimedWarm.value
+      : budgetId && accountRegisterQueries?.consumePrefetchedAccountRegister
+        ? accountRegisterQueries.consumePrefetchedAccountRegister({
+            budgetId,
+            accountId,
+            limit: 150,
+            offset: 0,
+            search: registerViewQuery.search ?? undefined,
+            categoryFilter: registerViewQuery.categoryFilter,
+            sort: registerViewQuery.sort,
+          })
+        : null;
+
+    if (warm && claimedWarm?.key !== warmKey) {
+      claimedWarmBootstrapRef.current = { key: warmKey, value: warm };
+    }
 
     if (!warm) {
       setIsLoading(true);

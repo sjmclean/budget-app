@@ -65,7 +65,7 @@ test("register prefetch and navigation share one in-flight authoritative bootstr
   );
 });
 
-test("completed register prefetch is single-use, bounded, and revision guarded", () => {
+test("register navigation snapshots are single-use, bounded, and revision guarded", () => {
   assert.match(
     clientSource,
     /MAX_WARM_ACCOUNT_REGISTER_BOOTSTRAPS = 16/,
@@ -76,7 +76,7 @@ test("completed register prefetch is single-use, bounded, and revision guarded",
   );
   assert.match(
     clientSource,
-    /request\.startedRevision !== currentRevision\) return;/,
+    /if \(startedRevision === currentRevision\) \{\s*retainWarmAccountRegisterBootstrap\(key, result, currentRevision\);\s*\}/s,
   );
   assert.match(
     clientSource,
@@ -129,13 +129,56 @@ test("synchronous warm-cache reads bypass database ownership routing", () => {
 });
 
 
-test("owned sidebar prefetch retains the completed warm bootstrap", () => {
+test("owned sidebar prefetch shares the bootstrap path that retains navigation snapshots", () => {
   assert.match(
     clientSource,
     /key === "prefetchAccountRegister"[\s\S]*?prefetchAccountRegisterBootstrap\(input as [^)]*AccountTransactionQuery\)/,
   );
   assert.match(
     clientSource,
-    /async function prefetchAccountRegisterBootstrap[\s\S]*?retainWarmAccountRegisterBootstrap\(key, result, currentRevision\);/,
+    /async function prefetchAccountRegisterBootstrap[\s\S]*?await getOrStartAccountRegisterBootstrap\(input\)\.promise;/,
+  );
+  assert.match(
+    clientSource,
+    /function getOrStartAccountRegisterBootstrap[\s\S]*?retainWarmAccountRegisterBootstrap\(key, result, currentRevision\);/,
+  );
+});
+
+test("authoritative register reload reseeds the next navigation first paint", () => {
+  assert.match(
+    clientSource,
+    /getAccountRegisterBootstrap\(input\) \{\s*return loadAccountRegisterBootstrap\(input\);\s*\}/s,
+  );
+  assert.match(
+    clientSource,
+    /function loadAccountRegisterBootstrap[\s\S]*?return getOrStartAccountRegisterBootstrap\(input\)\.promise;/,
+  );
+  assert.match(
+    clientSource,
+    /const result = \{ summary, page \};[\s\S]*?retainWarmAccountRegisterBootstrap\(key, result, currentRevision\);[\s\S]*?return result;/,
+  );
+});
+
+
+test("register warm first paint survives strict mode layout-effect replay", () => {
+  const hookSource = readFileSync(
+    new URL(
+      "../../../apps/web/src/features/accounts/useAccountRegister.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(
+    hookSource,
+    /const claimedWarmBootstrapRef = useRef</,
+  );
+  assert.match(
+    hookSource,
+    /const claimedWarm = claimedWarmBootstrapRef\.current;[\s\S]*?claimedWarm\?\.key === warmKey\s*\? claimedWarm\.value/s,
+  );
+  assert.match(
+    hookSource,
+    /if \(warm && claimedWarm\?\.key !== warmKey\) \{\s*claimedWarmBootstrapRef\.current = \{ key: warmKey, value: warm \};\s*\}/s,
   );
 });

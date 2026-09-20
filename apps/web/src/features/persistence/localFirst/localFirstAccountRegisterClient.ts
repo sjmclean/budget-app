@@ -374,7 +374,13 @@ export function createLocalBudgetRuntime(
           includeTotalCount: needsFilteredCount,
         }),
       ]);
-      return { summary, page };
+      const result = { summary, page };
+      const currentRevision =
+        getPersistenceRevisionForInterest(accountRegisterInterest(input));
+      if (startedRevision === currentRevision) {
+        retainWarmAccountRegisterBootstrap(key, result, currentRevision);
+      }
+      return result;
     })().finally(() => {
       if (accountRegisterBootstrapInFlight.get(key)?.promise === promise) {
         accountRegisterBootstrapInFlight.delete(key);
@@ -395,14 +401,8 @@ export function createLocalBudgetRuntime(
   async function prefetchAccountRegisterBootstrap(
     input: AccountTransactionQuery,
   ): Promise<void> {
-    const key = accountRegisterBootstrapKey(input);
-    const request = getOrStartAccountRegisterBootstrap(input);
     try {
-      const result = await request.promise;
-      const currentRevision =
-        getPersistenceRevisionForInterest(accountRegisterInterest(input));
-      if (request.startedRevision !== currentRevision) return;
-      retainWarmAccountRegisterBootstrap(key, result, currentRevision);
+      await getOrStartAccountRegisterBootstrap(input).promise;
     } catch {
       // Prefetch is opportunistic; navigation will perform the authoritative read.
     }
