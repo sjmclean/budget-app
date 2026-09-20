@@ -182,3 +182,53 @@ test("register warm first paint survives strict mode layout-effect replay", () =
     /if \(warm && claimedWarm\?\.key !== warmKey\) \{\s*claimedWarmBootstrapRef\.current = \{ key: warmKey, value: warm \};\s*\}/s,
   );
 });
+
+
+test("account register bootstrap carries scheduled transactions for stable first paint", () => {
+  const hookSource = readFileSync(
+    new URL(
+      "../../../apps/web/src/features/accounts/useAccountRegister.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const pageSource = readFileSync(
+    new URL(
+      "../../../apps/web/src/pages/AccountRegisterPage.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const previewSource = readFileSync(
+    new URL(
+      "../../../apps/web/src/components/accounts/ScheduledTransactionsPreview.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(
+    clientSource,
+    /const \[summary, page, scheduledTransactions\] = await Promise\.all\(/,
+  );
+  assert.match(
+    clientSource,
+    /"scheduled-transactions"/,
+  );
+  assert.match(
+    hookSource,
+    /setScheduledTransactions\(warmScheduledTransactions\);/,
+  );
+  assert.match(
+    hookSource,
+    /setScheduledTransactions\(nextScheduledTransactions\);/,
+  );
+  assert.match(
+    pageSource,
+    /<ScheduledTransactionsPreview[\s\S]*?key=\{accountId\}[\s\S]*?initialSchedules=\{scheduledTransactions\}/,
+  );
+  assert.match(
+    previewSource,
+    /useState<ScheduledTransactionView\[\]>\(\(\) =>\s*\[\.\.\.\(initialSchedules \?\? \[\]\)\]/s,
+  );
+});
