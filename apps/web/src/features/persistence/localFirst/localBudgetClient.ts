@@ -51,6 +51,13 @@ function databaseFilePointerKey(budgetId: string): string {
   return `${LOCAL_DATABASE_FILE_KEY_PREFIX}${budgetId}`;
 }
 
+export function hasPublishedLocalBudgetDatabase(
+  storage: Pick<Storage, "getItem">,
+  budgetId: string,
+): boolean {
+  return Boolean(storage.getItem(databaseFilePointerKey(budgetId)));
+}
+
 function defaultFilePointerStorage(): LocalBudgetFilePointerStorage | null {
   try {
     if (!("localStorage" in globalThis)) return null;

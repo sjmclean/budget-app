@@ -12,7 +12,10 @@ import {
   type LocalBudgetOperationGroup,
   type LocalFirstStoredConflict,
 } from "./contracts";
-import { LocalBudgetDatabaseClient } from "./localBudgetClient";
+import {
+  LocalBudgetDatabaseClient,
+  hasPublishedLocalBudgetDatabase,
+} from "./localBudgetClient";
 import type {
   LocalTransactionAttachmentMutationPayload,
   LocalTransactionRecord,
@@ -48,7 +51,10 @@ import { resolveOwnedBudgetId } from "./budgetDatabaseOwnershipRouting";
 import { createRestorePointStore } from "../../budget/restorePointStore";
 import { restorePointCoordinator } from "../../budget/restorePointCoordinator";
 import type { RestorePointReason } from "../../budget/restorePointTypes";
-import { createRestorePointReplacement } from "./restorePointReplacement";
+import {
+  createRestorePointReplacement,
+  hasPendingRestoreJournal,
+} from "./restorePointReplacement";
 import { deriveTransactionChangeScope, mergePersistenceChangeScopes } from "./persistenceChangeImpact";
 import { LocalBudgetMutationContext } from "./engine/mutationContext";
 import { LocalBudgetCommandExecutor } from "./engine/localBudgetCommandExecutor";
@@ -202,13 +208,15 @@ export function createLocalBudgetRuntime(
     if (database && activeBudgetId === budgetId) return database;
     if (opening) return opening;
     opening = (async () => {
-      let remote = await relay.getBootstrap(budgetId).catch(() => null);
-      if (database && activeBudgetId) await captureOwnedRestorePoint(activeBudgetId, "before-switch");
+      if (database && activeBudgetId) {
+        await captureOwnedRestorePoint(activeBudgetId, "before-switch");
+      }
       await database?.close();
       database = null;
       activeBudgetId = null;
       activeSyncEpoch = null;
       activePulledCursor = 0;
+
       let cachedSyncEpoch = storage.getItem(
         `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
       );
@@ -216,12 +224,62 @@ export function createLocalBudgetRuntime(
         options.databaseFactory?.() ??
         new LocalBudgetDatabaseClient(undefined, storage);
       let oldGenerationProvenSafe = false;
+
       try {
-        const recovered = await createRestorePointReplacement({ database: next, relay, storage, deviceId }).recover(budgetId);
-        cachedSyncEpoch = storage.getItem(`${SYNC_EPOCH_KEY_PREFIX}${budgetId}`);
-        if (recovered) remote = await relay.getBootstrap(budgetId).catch(() => null);
+        const replacement = createRestorePointReplacement({
+          database: next,
+          relay,
+          storage,
+          deviceId,
+        });
+
+        if (hasPendingRestoreJournal(storage, budgetId)) {
+          await replacement.recover(budgetId);
+          cachedSyncEpoch = storage.getItem(
+            `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
+          );
+        } else if (
+          cachedSyncEpoch &&
+          hasPublishedLocalBudgetDatabase(storage, budgetId)
+        ) {
+          try {
+            await next.open({
+              budgetId,
+              syncEpoch: cachedSyncEpoch,
+              deviceId,
+            });
+            const syncState = await next.getSyncState();
+            if (syncState.baselineHash) {
+              activePulledCursor = syncState.pulledCursor;
+              database = next;
+              activeBudgetId = budgetId;
+              activeSyncEpoch = cachedSyncEpoch;
+              return next;
+            }
+            await next.close();
+          } catch (error) {
+            const code = (error as { code?: string }).code;
+            if (code === "SQLITE_DATABASE_BUSY") throw error;
+            if (code !== "STALE_SYNC_EPOCH") throw error;
+          }
+        }
+
+        let remote = await relay.getBootstrap(budgetId).catch(() => null);
+        const recovered = await replacement.recover(budgetId);
+        cachedSyncEpoch = storage.getItem(
+          `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
+        );
+        if (recovered) {
+          remote = await relay.getBootstrap(budgetId).catch(() => null);
+        }
         if (!remote && !cachedSyncEpoch) return null;
-        if (remote && (!remote.baseline || remote.schemaVersion !== LOCAL_BUDGET_SCHEMA_VERSION)) return null;
+        if (
+          remote &&
+          (!remote.baseline ||
+            remote.schemaVersion !== LOCAL_BUDGET_SCHEMA_VERSION)
+        ) {
+          return null;
+        }
         if (!remote) {
           if (!cachedSyncEpoch) return null;
           await next.open({
@@ -234,9 +292,6 @@ export function createLocalBudgetRuntime(
           activeBudgetId = budgetId;
           activeSyncEpoch = cachedSyncEpoch;
           return next;
-        }
-        if (!remote.baseline || remote.schemaVersion !== LOCAL_BUDGET_SCHEMA_VERSION) {
-          return null;
         }
 
         if (cachedSyncEpoch && cachedSyncEpoch !== remote.syncEpoch) {
@@ -279,12 +334,14 @@ export function createLocalBudgetRuntime(
               deviceId,
               database: next,
               relay,
-              localState: syncState.baselineHash ? {
-                budgetId,
-                syncEpoch: syncState.syncEpoch,
-                baselineHash: syncState.baselineHash,
-                pulledCursor: syncState.pulledCursor,
-              } : null,
+              localState: syncState.baselineHash
+                ? {
+                    budgetId,
+                    syncEpoch: syncState.syncEpoch,
+                    baselineHash: syncState.baselineHash,
+                    pulledCursor: syncState.pulledCursor,
+                  }
+                : null,
             });
             activePulledCursor = (await next.getSyncState()).pulledCursor;
           }
@@ -328,8 +385,6 @@ export function createLocalBudgetRuntime(
           throw error;
         }
       } finally {
-        // Unpublished workers must relinquish the pool on every failed open,
-        // stale-generation check, and bootstrap failure. Never hide close errors.
         if (database !== next) await next.close();
       }
     })().finally(() => {
@@ -354,8 +409,72 @@ export function createLocalBudgetRuntime(
     }
     const operation = tabSyncCoordinator.run(budgetId, async () => {
       const local = await requireDatabase(budgetId);
+      let syncState = await local.getSyncState();
+      const remote = await relay.getBootstrap(budgetId);
+
+      if (
+        !remote.baseline ||
+        remote.schemaVersion !== LOCAL_BUDGET_SCHEMA_VERSION
+      ) {
+        throw new Error("The relay does not contain a complete compatible budget baseline.");
+      }
+
+      const needsRebuild =
+        remote.syncEpoch !== activeSyncEpoch ||
+        syncState.baselineHash !== remote.baseline.manifest.contentHash ||
+        syncState.pulledCursor < remote.baseline.manifest.baseCursor;
+
+      if (needsRebuild) {
+        const pending = await local.readOutbox(0, 1);
+        if (
+          remote.syncEpoch !== activeSyncEpoch &&
+          pending.length > 0
+        ) {
+          throw Object.assign(
+            new Error(
+              "This device has unsynced local changes from the previous sync generation. " +
+              "They must be recovered explicitly before rebuilding from the relay.",
+            ),
+            { code: "UNSYNCED_LOCAL_CHANGES" },
+          );
+        }
+
+        if (remote.syncEpoch === activeSyncEpoch) {
+          await drainLocalOutbox(local, budgetId, activeSyncEpoch!);
+        }
+
+        const rebuilt = await bootstrapLocalBudget({
+          budgetId,
+          deviceId,
+          database: local,
+          relay,
+          localState: syncState.baselineHash
+            ? {
+                budgetId,
+                syncEpoch: syncState.syncEpoch,
+                baselineHash: syncState.baselineHash,
+                pulledCursor: syncState.pulledCursor,
+              }
+            : null,
+        });
+        if (!rebuilt.deviceState) {
+          throw new Error("The relay has no restorable baseline for this budget.");
+        }
+        activeSyncEpoch = rebuilt.deviceState.syncEpoch;
+        activePulledCursor = rebuilt.deviceState.pulledCursor;
+        storage.setItem(
+          `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
+          rebuilt.deviceState.syncEpoch,
+        );
+        syncState = await local.getSyncState();
+        publishBroadBudgetChange({
+          budgetId,
+          source: "replication",
+        });
+      }
+
       await drainLocalOutbox(local, budgetId, activeSyncEpoch!);
-      let cursor = (await local.getSyncState()).pulledCursor;
+      let cursor = syncState.pulledCursor;
       while (true) {
         let pulled;
         try {
@@ -369,24 +488,35 @@ export function createLocalBudgetRuntime(
           if ((error as { code?: string }).code !== "CURSOR_COMPACTED") {
             throw error;
           }
-          const syncState = await local.getSyncState();
+          const currentState = await local.getSyncState();
           const rebuilt = await bootstrapLocalBudget({
             budgetId,
             deviceId,
             database: local,
             relay,
-            localState: syncState.baselineHash ? {
-              budgetId,
-              syncEpoch: syncState.syncEpoch,
-              baselineHash: syncState.baselineHash,
-              pulledCursor: syncState.pulledCursor,
-            } : null,
+            localState: currentState.baselineHash
+              ? {
+                  budgetId,
+                  syncEpoch: currentState.syncEpoch,
+                  baselineHash: currentState.baselineHash,
+                  pulledCursor: currentState.pulledCursor,
+                }
+              : null,
           });
           if (!rebuilt.deviceState) {
             throw new Error("The compacted relay has no restorable baseline.");
           }
           cursor = rebuilt.deviceState.pulledCursor;
           activePulledCursor = cursor;
+          activeSyncEpoch = rebuilt.deviceState.syncEpoch;
+          storage.setItem(
+            `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
+            rebuilt.deviceState.syncEpoch,
+          );
+          publishBroadBudgetChange({
+            budgetId,
+            source: "replication",
+          });
           continue;
         }
         if (pulled.mutations.length > 0) {
@@ -420,9 +550,11 @@ export function createLocalBudgetRuntime(
   }
 
   async function syncThenDatabase(budgetId: string) {
-    await synchronise(budgetId);
-    return requireDatabase(budgetId);
+    const local = await requireDatabase(budgetId);
+    void synchronise(budgetId).catch(() => undefined);
+    return local;
   }
+
 
   const mutation = mutationContext.createMutation.bind(mutationContext);
 
@@ -907,6 +1039,7 @@ export function createLocalBudgetRuntime(
     publishLocalBaseline(budgetId: string): Promise<boolean>;
   } = {
     releaseLocalDatabase: () => releaseLocalDatabase(),
+    synchroniseLocalBudget: synchronise,
     getBudgetExportUrl: lifecycle.getBudgetExportUrl,
     listRestorePoints: (budgetId) => restorePoints.list(budgetId),
     createRestorePoint: captureOwnedRestorePoint,
@@ -1147,12 +1280,10 @@ export function createLocalBudgetRuntime(
       }));
     },
     async getCategoryGoal(input) {
-      await synchronise(input.budgetId);
-      return (await requireDatabase(input.budgetId)).getCategoryGoal(input.budgetId, input.categoryId);
+      return (await syncThenDatabase(input.budgetId)).getCategoryGoal(input.budgetId, input.categoryId);
     },
     async listCategoryGoals(input) {
-      await synchronise(input.budgetId);
-      return (await requireDatabase(input.budgetId)).listCategoryGoals(input.budgetId);
+      return (await syncThenDatabase(input.budgetId)).listCategoryGoals(input.budgetId);
     },
     createCategoryGoal: publicOrdinaryCommands.createCategoryGoal,
     updateCategoryGoal: publicOrdinaryCommands.updateCategoryGoal,
@@ -1160,8 +1291,7 @@ export function createLocalBudgetRuntime(
     replaceCategoryGoalHistoryState: publicOrdinaryCommands.replaceCategoryGoalHistoryState,
     createAccount: publicOrdinaryCommands.createAccount,
     async captureAccount(budgetId, accountId) {
-      await synchronise(budgetId);
-      return (await requireDatabase(budgetId)).readAccountForHistory(accountId);
+      return (await syncThenDatabase(budgetId)).readAccountForHistory(accountId);
     },
     replaceAccountHistoryState: publicOrdinaryCommands.replaceAccountHistoryState,
     replaceBudgetMonthHistoryState: publicOrdinaryCommands.replaceBudgetMonthHistoryState,
@@ -1169,7 +1299,7 @@ export function createLocalBudgetRuntime(
     setAccountClosed: publicOrdinaryCommands.setAccountClosed,
     deleteAccount: publicOrdinaryCommands.deleteAccount,
     async getBudgetMonthView(input) {
-      await synchronise(input.budgetId);
+      await syncThenDatabase(input.budgetId);
       return client.getLocalBudgetMonthView(input);
     },
     async getLocalBudgetMonthView(input) {
@@ -1288,8 +1418,7 @@ export function createLocalBudgetRuntime(
     deleteUnusedPayee: publicOrdinaryCommands.deleteUnusedPayee,
     mergePayees: publicOrdinaryCommands.mergePayees,
     async listTransactionTags(budgetId) {
-      await synchronise(budgetId);
-      return (await requireDatabase(budgetId)).listEntities<TransactionTagDefinition>("transactionTags");
+      return (await syncThenDatabase(budgetId)).listEntities<TransactionTagDefinition>("transactionTags");
     },
     replaceTransactionTags: publicOrdinaryCommands.replaceTransactionTags,
     replaceTransactionTagsHistoryState: publicOrdinaryCommands.replaceTransactionTagsHistoryState,
