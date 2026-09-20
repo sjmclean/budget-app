@@ -115,3 +115,15 @@ test("register navigation can synchronously consume a revision-valid warm bootst
     /hasLoadedDataRef\.current = true;\s*setIsLoading\(false\);/s,
   );
 });
+
+
+test("synchronous warm-cache reads bypass database ownership routing", () => {
+  assert.match(
+    clientSource,
+    /key === "consumePrefetchedAccountRegister"[\s\S]*?const method = value\.bind\(target\);/,
+  );
+  const directBindingIndex = clientSource.indexOf('key === "consumePrefetchedAccountRegister"');
+  const genericRoutingIndex = clientSource.indexOf("const budgetId = resolveOwnedBudgetId(key, args);");
+  assert.ok(directBindingIndex >= 0);
+  assert.ok(genericRoutingIndex > directBindingIndex);
+});
