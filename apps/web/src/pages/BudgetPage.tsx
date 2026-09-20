@@ -67,6 +67,7 @@ import {
 } from "../features/budget/BudgetWorkspaceGroup";
 import { CategoryGoalInspectorSection } from "../features/goals/CategoryGoalInspectorSection";
 import { OrganiseCategoriesDialog } from "../features/budget/OrganiseCategoriesDialog";
+import { BudgetVirtualizedGroupList } from "../features/budget/BudgetVirtualizedGroupList";
 const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
 const BUDGET_COLLAPSED_GROUPS_STORAGE_KEY_PREFIX =
   "budget-app.budget-collapsed-groups.v1";
@@ -910,41 +911,52 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           </WorkspaceStickyHeader>
 
           <Card className="budget-workspace-table-card">
-            {visibleCategoryGroups.map((group) => (
-                  <BudgetGroup
-                    key={group.id}
-                    group={group}
-                    currencyCode={data.currencyCode}
-                    selectedCategoryId={visibleSelectedCategory?.id ?? null}
-                    overassignedCategoryIds={overassignedCategoryIds}
-                    onSelectCategory={selectCategory}
-                    onOpenCategoryContextMenu={openBudgetContextMenu}
-                    onOpenCoverOverspending={openCoverOverspendingMenuFromRow}
-                    onAssignedChange={updateAssigned}
-                    onActivityClick={openActivityDrilldown}
-                    isBudgetColumnVisible={isBudgetColumnVisible}
-                    gridStyle={budgetGridStyle}
-                    isCreditCardPaymentGroup={isCreditCardPaymentGroup(group.id)}
-                    isArchivedCategoriesGroup={group.id === ARCHIVED_CATEGORIES_GROUP_ID}
-                    originalGroupByCategoryId={archivedCategorySourceGroupById}
-                    isCollapsed={
-                      group.id === ARCHIVED_CATEGORIES_GROUP_ID
-                        ? !archivedCategoriesExpanded
-                        : collapsedGroupIds.has(group.id)
+            <BudgetVirtualizedGroupList
+              groups={visibleCategoryGroups}
+              isGroupCollapsed={(group) =>
+                group.id === ARCHIVED_CATEGORIES_GROUP_ID
+                  ? !archivedCategoriesExpanded
+                  : collapsedGroupIds.has(group.id)
+              }
+              pinnedGroupIds={new Set([
+                ...(visibleSelectedGroup ? [visibleSelectedGroup.id] : []),
+                ...(categoryWindowGroup ? [categoryWindowGroup.id] : []),
+              ])}
+              renderGroup={(group) => (
+                <BudgetGroup
+                  group={group}
+                  currencyCode={data.currencyCode}
+                  selectedCategoryId={visibleSelectedCategory?.id ?? null}
+                  overassignedCategoryIds={overassignedCategoryIds}
+                  onSelectCategory={selectCategory}
+                  onOpenCategoryContextMenu={openBudgetContextMenu}
+                  onOpenCoverOverspending={openCoverOverspendingMenuFromRow}
+                  onAssignedChange={updateAssigned}
+                  onActivityClick={openActivityDrilldown}
+                  isBudgetColumnVisible={isBudgetColumnVisible}
+                  gridStyle={budgetGridStyle}
+                  isCreditCardPaymentGroup={isCreditCardPaymentGroup(group.id)}
+                  isArchivedCategoriesGroup={group.id === ARCHIVED_CATEGORIES_GROUP_ID}
+                  originalGroupByCategoryId={archivedCategorySourceGroupById}
+                  isCollapsed={
+                    group.id === ARCHIVED_CATEGORIES_GROUP_ID
+                      ? !archivedCategoriesExpanded
+                      : collapsedGroupIds.has(group.id)
+                  }
+                  onToggleCollapsed={() => {
+                    if (group.id === ARCHIVED_CATEGORIES_GROUP_ID) {
+                      setArchivedCategoriesExpanded((current) => {
+                        const next = !current;
+                        writeArchivedCategoriesExpanded(budgetId, next);
+                        return next;
+                      });
+                      return;
                     }
-                    onToggleCollapsed={() => {
-                      if (group.id === ARCHIVED_CATEGORIES_GROUP_ID) {
-                        setArchivedCategoriesExpanded((current) => {
-                          const next = !current;
-                          writeArchivedCategoriesExpanded(budgetId, next);
-                          return next;
-                        });
-                        return;
-                      }
-                      toggleBudgetGroup(group.id);
-                    }}
-                  />
-            ))}
+                    toggleBudgetGroup(group.id);
+                  }}
+                />
+              )}
+            />
           </Card>
         </main>
 

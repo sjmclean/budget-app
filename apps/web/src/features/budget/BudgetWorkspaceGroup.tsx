@@ -7,6 +7,7 @@ import { isCreditCardPaymentCategory } from "./creditCardPaymentCategories";
 import { formatMoney, getAvailableClass } from "./budgetMoneyDisplay";
 import { CategoryLabel } from "../icons/CategoryIcon";
 import { isMoneyNegative } from "./moneyMath";
+import { BudgetVirtualizedCategoryList } from "./BudgetVirtualizedCategoryList";
 
 export type BudgetColumnId = "category" | "assigned" | "activity" | "available";
 export type BudgetGridStyle = CSSProperties & {
@@ -541,51 +542,54 @@ export function BudgetGroup({
         ) : null}
       </div>
 
-      {!isCollapsed
-        ? group.categories.map((category) => {
-          const isOverassignedSource = overassignedCategoryIds.includes(
-            category.id,
-          );
+      {!isCollapsed ? (
+        <BudgetVirtualizedCategoryList
+          categories={group.categories}
+          pinnedCategoryId={selectedCategoryId}
+          renderCategory={(category) => {
+            const isOverassignedSource = overassignedCategoryIds.includes(
+              category.id,
+            );
 
-          return (
-            <BudgetCategoryRow
-              key={category.id}
-              category={category}
-              groupId={group.id}
-              currencyCode={currencyCode}
-              isSelected={selectedCategoryId === category.id}
-              isOverassignedSource={isOverassignedSource}
-              onSelect={() => onSelectCategory(category.id)}
-              onOpenCategoryContextMenu={
-                onOpenCategoryContextMenu
-                  ? (event) =>
-                      onOpenCategoryContextMenu({
-                        event,
-                        category,
-                        group: originalGroupByCategoryId.get(category.id) ?? group,
-                      })
-                  : undefined
-              }
-              onOpenCoverOverspending={
-                onOpenCoverOverspending
-                  ? (event) =>
-                      onOpenCoverOverspending({
-                        event,
-                        category,
-                      })
-                  : undefined
-              }
-              onAssignedChange={(value) => onAssignedChange(category.id, value)}
-              onActivityClick={() => onActivityClick(category.id)}
-              isBudgetColumnVisible={isBudgetColumnVisible}
-              gridStyle={gridStyle}
-              isCreditCardPaymentCategory={isCreditCardPaymentCategory(category.id)}
-              isArchivedCollection={isArchivedCategoriesGroup}
-              originalGroupName={originalGroupByCategoryId.get(category.id)?.name}
-            />
-          );
-          })
-        : null}
+            return (
+              <BudgetCategoryRow
+                category={category}
+                groupId={group.id}
+                currencyCode={currencyCode}
+                isSelected={selectedCategoryId === category.id}
+                isOverassignedSource={isOverassignedSource}
+                onSelect={() => onSelectCategory(category.id)}
+                onOpenCategoryContextMenu={
+                  onOpenCategoryContextMenu
+                    ? (event) =>
+                        onOpenCategoryContextMenu({
+                          event,
+                          category,
+                          group: originalGroupByCategoryId.get(category.id) ?? group,
+                        })
+                    : undefined
+                }
+                onOpenCoverOverspending={
+                  onOpenCoverOverspending
+                    ? (event) =>
+                        onOpenCoverOverspending({
+                          event,
+                          category,
+                        })
+                    : undefined
+                }
+                onAssignedChange={(value) => onAssignedChange(category.id, value)}
+                onActivityClick={() => onActivityClick(category.id)}
+                isBudgetColumnVisible={isBudgetColumnVisible}
+                gridStyle={gridStyle}
+                isCreditCardPaymentCategory={isCreditCardPaymentCategory(category.id)}
+                isArchivedCollection={isArchivedCategoriesGroup}
+                originalGroupName={originalGroupByCategoryId.get(category.id)?.name}
+              />
+            );
+          }}
+        />
+      ) : null}
     </section>
   );
 }
