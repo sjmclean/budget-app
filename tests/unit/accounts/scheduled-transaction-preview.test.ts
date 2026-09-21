@@ -10,6 +10,11 @@ import {
   writeScheduledPreviewDays,
 } from "../../../apps/web/src/features/accounts/scheduledTransactionPreview";
 import type { ScheduledTransactionView } from "../../../apps/web/src/features/accounts/scheduledTransactionTypes";
+import {
+  readWarmScheduledTransactionPreview,
+  retainScheduledTransactionPreview,
+} from "../../../apps/web/src/features/accounts/scheduledTransactionPreviewWarmCache";
+import { publishPersistenceChange } from "../../../apps/web/src/features/persistence/persistenceChangeBus";
 import { REGISTER_COLUMN_DEFINITIONS } from "../../../apps/web/src/features/accounts/registerColumns";
 import {
   createFixedBudgetScopedStorage,
@@ -228,4 +233,58 @@ test("budget-scoped preset preference defaults safely and round-trips", () => {
   );
   assert.equal(readScheduledPreviewDays(storage), 7);
   assert.equal(values.has(SCHEDULED_PREVIEW_DAYS_KEY), false);
+});
+
+
+test("scheduled preview warm cache reuses valid rows and invalidates on schedule publication", () => {
+  const budgetId = "scheduled-preview-warm-cache-test";
+  const accountId = "account-a";
+  const values = [schedule("warm-1", "2026-09-06")];
+
+  retainScheduledTransactionPreview(budgetId, accountId, values);
+  assert.deepEqual(
+    readWarmScheduledTransactionPreview(budgetId, accountId)?.map((item) => item.id),
+    ["warm-1"],
+  );
+
+  publishPersistenceChange({
+    source: "local",
+    scope: {
+      budgetId,
+      accountIds: [accountId],
+      domains: ["scheduled-transactions"],
+    },
+  });
+
+  assert.equal(readWarmScheduledTransactionPreview(budgetId, accountId), null);
+});
+
+test("sidebar warms scheduled preview and preview refresh retains authoritative rows", () => {
+  const sidebar = readFileSync(
+    new URL("../../../apps/web/src/layouts/Sidebar.tsx", import.meta.url),
+    "utf8",
+  );
+  const component = readFileSync(
+    new URL(
+      "../../../apps/web/src/components/accounts/ScheduledTransactionsPreview.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const cache = readFileSync(
+    new URL(
+      "../../../apps/web/src/features/accounts/scheduledTransactionPreviewWarmCache.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(sidebar, /prefetchScheduledTransactionPreview\(\{/);
+  assert.match(sidebar, /load: \(\) => scheduledTransactionsPersistence\.listByAccount\(account\.id\)/);
+  assert.match(sidebar, /onMouseEnter=\{\(\) => prefetchAccountDestination\(account\)\}/);
+  assert.match(sidebar, /onFocus=\{\(\) => prefetchAccountDestination\(account\)\}/);
+  assert.match(component, /readWarmScheduledTransactionPreview\(budgetId, accountId\)/);
+  assert.match(component, /retainScheduledTransactionPreview\(budgetId, accountId, items\)/);
+  assert.match(cache, /MAX_WARM_SCHEDULED_PREVIEWS = 16/);
+  assert.match(cache, /domains: \["scheduled-transactions"\]/);
 });
