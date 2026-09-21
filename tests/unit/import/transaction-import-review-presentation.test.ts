@@ -224,7 +224,7 @@ test("import review clearly separates bank source from proposed payee", () => {
   assert.match(dialog, />\s*Bank statement\s*</);
   assert.match(
     dialog,
-    /Will import as: \{candidate\.lifecycle\.proposal\.payee\}/,
+    /\{sourcePayee \|\| "Missing payee"\}[\s\S]*?Will import as: \{candidate\.lifecycle\.proposal\.payee\}/,
   );
   assert.doesNotMatch(dialog, />\s*Bank transaction\s*</);
 });
