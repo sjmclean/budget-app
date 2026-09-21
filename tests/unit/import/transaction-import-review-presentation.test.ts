@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import type { RegisterTransactionView } from "../../../apps/web/src/features/accounts/accountRegisterTypes.js";
@@ -208,4 +209,67 @@ test("switching and reset release manual ownership without losing the prepared s
   assert.deepEqual(reset.candidates[0], source);
   const importedAsNew = { ...second, status: "new" as const, selected: true, reviewDecision: "import-as-new" as const };
   assert.equal(getRegisterMatchOwnership({ candidates: [importedAsNew], processedCandidates: [] }).has("r2"), false);
+});
+
+
+test("import review clearly separates bank source from proposed payee", () => {
+  const dialog = readFileSync(
+    new URL(
+      "../../../apps/web/src/features/accounts/components/TransactionImportDialog.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(dialog, />\s*Bank statement\s*</);
+  assert.match(
+    dialog,
+    /Will import as: \{candidate\.lifecycle\.proposal\.payee\}/,
+  );
+  assert.doesNotMatch(dialog, />\s*Bank transaction\s*</);
+});
+
+test("manual new-transaction payee edit is authoritative over merchant inference", () => {
+  const dialog = readFileSync(
+    new URL(
+      "../../../apps/web/src/features/accounts/components/TransactionImportDialog.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const saveStart = dialog.indexOf("function saveTransactionEdit");
+  const saveEnd = dialog.indexOf(
+    "function removeHistoricalPayeeMapping",
+    saveStart,
+  );
+  const saveSource = dialog.slice(saveStart, saveEnd);
+
+  assert.match(
+    saveSource,
+    /const reviewedPayee = transferAccountName[\s\S]*?: payee;/,
+  );
+  assert.match(
+    saveSource,
+    /updateCandidateProposal\(candidate\.id, \{[\s\S]*?payee: reviewedPayee,/,
+  );
+  assert.doesNotMatch(
+    saveSource,
+    /buildTransactionImportMerchantProposal\(/,
+  );
+});
+
+test("recent imported register rows use warning treatment distinct from scheduled ghosts", () => {
+  const css = readFileSync(
+    new URL("../../../apps/web/src/styles/register.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    css,
+    /\.register-row-recent-imported:not\([\s\S]*?var\(--warning-bg\)[\s\S]*?var\(--warning\)/,
+  );
+  assert.match(
+    css,
+    /\.register-scheduled-ghost-row\s*\{[\s\S]*?var\(--surface-subtle\)/,
+  );
 });
