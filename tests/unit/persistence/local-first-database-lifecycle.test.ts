@@ -20,6 +20,7 @@ function harness(hooks: {
   open?: () => Promise<void>; sync?: () => Promise<void>; close?: () => Promise<void>;
   capture?: () => Promise<void>; deleteRelay?: () => Promise<void>; deleteFile?: () => Promise<void>;
   deleteRestorePoints?: () => Promise<void>;
+  ensureReady?: (budgetId: string) => Promise<void>;
 } = {}, options: { publishedPointers?: boolean } = {}) {
   const values = new Map([
     ["budget-app.local-first.device-id", "test-device"],
@@ -40,6 +41,7 @@ function harness(hooks: {
     tabSyncCoordinator: { run: async (_id, operation) => operation(), close() {} },
     restorePointStore: { list: async () => [{ syncEpoch: "epoch", localRevision: 0 }] as never,
       deleteBudget: async () => { await hooks.deleteRestorePoints?.(); } },
+    ensureBudgetPersistenceReady: hooks.ensureReady,
     databaseFactory: () => {
       let id = "";
       return {
@@ -74,6 +76,32 @@ test("published local SQLite serves a warm read while relay bootstrap is offline
   const { client, events } = harness();
   await client.listAccountNavigation("A");
   assert.deepEqual(events.slice(0, 2), ["open:A", "read:A"]);
+  await client.releaseLocalDatabase!();
+});
+
+test("foreground read awaits configured persistence readiness after suspension release", async () => {
+  let clientRef: ReturnType<typeof harness>["client"] | null = null;
+  const { client, events } = harness({
+    ensureReady: async (budgetId) => {
+      assert.equal(budgetId, "A");
+      assert.ok(clientRef);
+      await clientRef.activateLocalBudget!(budgetId);
+    },
+  });
+  clientRef = client;
+
+  await client.listAccountNavigation("A");
+  await client.releaseLocalDatabase!();
+
+  await client.listAccountNavigation("A");
+
+  assert.deepEqual(events, [
+    "open:A",
+    "read:A",
+    "close:A",
+    "open:A",
+    "read:A",
+  ]);
   await client.releaseLocalDatabase!();
 });
 

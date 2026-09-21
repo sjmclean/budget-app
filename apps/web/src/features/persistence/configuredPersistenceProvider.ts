@@ -7,6 +7,7 @@ import {
   createBudgetLifecycleControlPlaneClient,
   createLocalBudgetRuntime,
 } from "./localFirst";
+import { ensureActiveBudgetPersistenceReady } from "./budgetDatabaseLifecycle";
 
 /**
  * Creates the sole browser persistence runtime.
@@ -26,6 +27,7 @@ export function createConfiguredBudgetPersistenceProvider(
   const runtime = createLocalBudgetRuntime(lifecycle, {
     apiBaseUrl,
     restorePointBudgetName: (budgetId) => readBudgetRegistryIncludingDeleting(metadataStorage).find(({ id }) => id === budgetId)?.name,
+    ensureBudgetPersistenceReady: ensureActiveBudgetPersistenceReady,
   });
   const provider = createLocalDatabasePersistenceProvider({
     storage: metadataStorage,

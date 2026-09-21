@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T22:51:25.083Z",
+  "generatedAt": "2026-09-21T01:48:43.950Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -1431,12 +1431,12 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/configuredPersistenceProvider.ts",
-      "line": 18
+      "line": 19
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/configuredPersistenceProvider.ts",
-      "line": 42
+      "line": 44
     },
     {
       "kind": "persistenceBoundary",
@@ -1828,7 +1828,7 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts",
-      "line": 260,
+      "line": 261,
       "classification": "review-required"
     },
     {

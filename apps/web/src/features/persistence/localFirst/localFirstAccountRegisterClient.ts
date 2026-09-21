@@ -93,6 +93,7 @@ export interface LocalFirstRegisterRuntimeOptions {
   readonly tabSyncCoordinator?: LocalFirstTabSyncCoordinator;
   readonly restorePointStore?: Pick<ReturnType<typeof createRestorePointStore>, "list" | "deleteBudget">;
   readonly restorePointBudgetName?: (budgetId: string) => string | undefined;
+  readonly ensureBudgetPersistenceReady?: (budgetId: string) => Promise<void>;
 }
 
 const OUTBOX_PUSH_TARGET_BYTES = 32 * 1024 * 1024;
@@ -1667,6 +1668,17 @@ export function createLocalBudgetRuntime(
     reassignScheduledPayeeReferences: publicOrdinaryCommands.reassignScheduledPayeeReferences,
   };
   const ownership = createBudgetDatabaseOwnership(() => client.releaseLocalDatabase!());
+
+  async function runWithOwnershipReadiness<T>(
+    budgetId: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    if (ownership.isReleased()) {
+      await options.ensureBudgetPersistenceReady?.(budgetId);
+    }
+    return ownership.run(budgetId, operation);
+  }
+
   // The raw client is deliberately retained for nested calls. Wrapping those
   // calls again would deadlock the operation already holding the lease.
   const methods = new Map<PropertyKey, unknown>();
@@ -1714,7 +1726,7 @@ export function createLocalBudgetRuntime(
             ? ordinaryCommandHandlers.mutateCategory
             : ordinaryCommandHandlers.setCategoryAssignedValues;
           const handlerArgs = key === "executeCategoryWithPublication" ? args : [args[0]];
-          const invokeHandler = () => ownership.run(
+          const invokeHandler = () => runWithOwnershipReadiness(
             budgetId,
             () => Reflect.apply(handler.execute, handler, handlerArgs),
           ) as Promise<CommittedCommandHandlerResult<unknown>>;
@@ -1722,7 +1734,7 @@ export function createLocalBudgetRuntime(
         }
         if (isOrdinaryCommandMethod(key)) {
           const handler = ordinaryCommandHandlers[key];
-          const invokeHandler = () => ownership.run(
+          const invokeHandler = () => runWithOwnershipReadiness(
             budgetId,
             () => Reflect.apply(handler.execute, handler, args),
           ) as Promise<CommittedCommandHandlerResult<unknown>>;
@@ -1732,14 +1744,17 @@ export function createLocalBudgetRuntime(
         // Keep-local recovery has its own direct committed-result path and is
         // deliberately not admitted into the ordinary command registry.
         if (key === "resolveSyncConflict" && args[2] === "keep-local") {
-          const invokeRecovery = () => ownership.run(
+          const invokeRecovery = () => runWithOwnershipReadiness(
             budgetId,
             () => keepLocalRecovery(budgetId, args[1] as string),
           );
           return commandExecutor.execute(`${key}:${createRuntimeUuid()}`, { execute: invokeRecovery })
             .then(({ result }) => result);
         }
-        return ownership.run(budgetId, () => value.apply(target, args));
+        return runWithOwnershipReadiness(
+          budgetId,
+          () => value.apply(target, args),
+        );
       };
       methods.set(key, method);
       return method;
