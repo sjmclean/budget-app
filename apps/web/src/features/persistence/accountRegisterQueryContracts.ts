@@ -613,7 +613,6 @@ export interface AccountNavigation {
 export interface AccountRegisterBootstrap {
   readonly summary: AccountRegisterSummary;
   readonly page: AccountTransactionPage;
-  readonly scheduledTransactions: readonly ScheduledTransactionView[];
 }
 
 export interface TransactionTarget {
