@@ -10,6 +10,10 @@ import {
   type ScheduledPreviewDays,
 } from "../../features/accounts/scheduledTransactionPreview";
 import type { ScheduledTransactionView } from "../../features/accounts/scheduledTransactionTypes";
+import {
+  readWarmScheduledTransactionPreview,
+  retainScheduledTransactionPreview,
+} from "../../features/accounts/scheduledTransactionPreviewWarmCache";
 import { useScheduledTransactionHistory } from "../../features/accounts/useScheduledTransactionHistory";
 import { createFixedBudgetScopedStorage } from "../../features/budget/budgetDataScope";
 import { localCalendarDate } from "../../features/dates/localCalendarDate";
@@ -32,7 +36,6 @@ type ScheduledTransactionsPreviewProps = {
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
-  initialSchedules?: readonly ScheduledTransactionView[] | null;
 };
 
 export function ScheduledTransactionsPreview({
@@ -44,7 +47,6 @@ export function ScheduledTransactionsPreview({
   visibleColumnIds,
   rowStyle,
   layoutMode,
-  initialSchedules,
 }: ScheduledTransactionsPreviewProps) {
   const persistence = getBudgetPersistenceProvider().scheduledTransactions;
   const version = usePersistenceChange({ budgetId: budgetId ?? "legacy", accountId, domains: ["scheduled-transactions", "transactions"] });
@@ -60,7 +62,9 @@ export function ScheduledTransactionsPreview({
     storage ? readScheduledPreviewDays(storage) : 7,
   );
   const [schedules, setSchedules] = useState<ScheduledTransactionView[]>(() =>
-    [...(initialSchedules ?? [])],
+    budgetId
+      ? [...(readWarmScheduledTransactionPreview(budgetId, accountId) ?? [])]
+      : [],
   );
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,12 +80,16 @@ export function ScheduledTransactionsPreview({
   useEffect(() => {
     let live = true;
     void persistence.listByAccount(accountId).then((items) => {
-      if (live) setSchedules(items);
+      if (!live) return;
+      setSchedules(items);
+      if (budgetId) {
+        retainScheduledTransactionPreview(budgetId, accountId, items);
+      }
     });
     return () => {
       live = false;
     };
-  }, [accountId, persistence, version]);
+  }, [accountId, budgetId, persistence, version]);
 
   const today = localCalendarDate();
   const preview = useMemo(
