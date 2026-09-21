@@ -46,6 +46,7 @@ import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import { navigationModel, type NavigationIcon } from "./navigationModel";
 import { useAccountHistory } from "../features/accounts/useAccountHistory";
+import { prefetchScheduledTransactionPreview } from "../features/accounts/scheduledTransactionPreviewWarmCache";
 import {
   useAccountIdentityQuery,
   useAccountNavigationQuery,
@@ -105,6 +106,7 @@ export function Sidebar({
   const persistenceProvider = getBudgetPersistenceProvider();
   const accountsPersistence = persistenceProvider.accounts;
   const accountRegisterQueries = persistenceProvider.accountRegisterQueries;
+  const scheduledTransactionsPersistence = persistenceProvider.scheduledTransactions;
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const updateBudget = useBudgetRegistryStore((state) => state.updateBudget);
   const selectedBudgetId = useUIStore((state) => state.selectedBudgetId);
@@ -382,6 +384,25 @@ export function Sidebar({
     }
   }
 
+  function prefetchAccountDestination(account: SidebarAccount): void {
+    if (!activeBudgetId) return;
+
+    prefetchScheduledTransactionPreview({
+      budgetId: activeBudgetId,
+      accountId: account.id,
+      load: () => scheduledTransactionsPersistence.listByAccount(account.id),
+    });
+
+    accountRegisterQueries?.prefetchAccountRegister({
+      budgetId: activeBudgetId,
+      accountId: account.id,
+      limit: 150,
+      offset: 0,
+      categoryFilter: "all",
+      sort: { column: "date", direction: "descending" },
+    });
+  }
+
   function renderAccount(account: SidebarAccount) {
     const isMenuOpen = openMenuAccountId === account.id;
     const summary = accountSummaries[account.id];
@@ -397,28 +418,8 @@ export function Sidebar({
         <NavLink
           to={`/accounts/${account.id}`}
           className="account-link"
-          onMouseEnter={() => {
-            if (!activeBudgetId || !accountRegisterQueries) return;
-            accountRegisterQueries.prefetchAccountRegister({
-              budgetId: activeBudgetId,
-              accountId: account.id,
-              limit: 150,
-              offset: 0,
-              categoryFilter: "all",
-              sort: { column: "date", direction: "descending" },
-            });
-          }}
-          onFocus={() => {
-            if (!activeBudgetId || !accountRegisterQueries) return;
-            accountRegisterQueries.prefetchAccountRegister({
-              budgetId: activeBudgetId,
-              accountId: account.id,
-              limit: 150,
-              offset: 0,
-              categoryFilter: "all",
-              sort: { column: "date", direction: "descending" },
-            });
-          }}
+          onMouseEnter={() => prefetchAccountDestination(account)}
+          onFocus={() => prefetchAccountDestination(account)}
         >
           <span className="account-row-bullet" aria-hidden="true" />
           <span className="account-link-name">{account.name}</span>
