@@ -5844,9 +5844,9 @@ button.register-status:disabled {
 }
 
 .register-import-activity-badge-imported {
-  background: color-mix(in srgb, var(--accent-soft) 82%, var(--surface));
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-soft));
-  color: var(--accent-strong);
+  background: color-mix(in srgb, var(--warning-bg) 82%, var(--surface));
+  border-color: color-mix(in srgb, var(--warning) 34%, var(--border-soft));
+  color: var(--warning-text);
 }
 
 .register-import-activity-badge-matched {
@@ -5857,9 +5857,9 @@ button.register-status:disabled {
 
 .register-row-recent-imported:not(.register-row-selected),
 .register-row-recent-imported:not(.register-row-selected):hover {
-  background: color-mix(in srgb, var(--accent-soft) 42%, var(--surface));
+  background: color-mix(in srgb, var(--warning-bg) 72%, var(--surface));
   box-shadow: inset 3px 0 0
-    color-mix(in srgb, var(--accent) 58%, transparent);
+    color-mix(in srgb, var(--warning) 68%, transparent);
 }
 
 .register-row-recent-matched:not(.register-row-selected),
