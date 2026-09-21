@@ -30,7 +30,7 @@ This is an operational improvement to the existing development stack, not yet a 
 
 ---
 
-*Last reconciled: 21 September 2026 — codebase health, Node 24 and full adaptive/mobile audit added*
+*Last reconciled: 21 September 2026 — codebase health, Node 24, full adaptive/mobile audit and competitor-informed feature candidates added*
 
 Code baseline before roadmap-only documentation updates: `master` at `d917d709582f52e8cbf53a32211b36d68c4491af` (PR #83).
 
@@ -775,11 +775,20 @@ Overspending remains three separate concepts:
 ## Data portability
 
 - CSV export.
+- budget duplicate/clone;
+- Start Fresh from an existing budget while preserving selected structure such as accounts, categories, goals and schedules;
+- archive/trim-history workflows where safe and useful;
+- template-from-budget capability if user value justifies it.
+
+These lifecycle tools should build on existing backup/restore/export integrity rather than inventing alternate persistence paths.
 
 ## Transaction discovery
 
 - All Transactions.
-- richer saved search/filter workflows after the All Transactions model exists.
+- richer saved search/filter workflows after the All Transactions model exists;
+- **Saved Views / filter presets** for frequently reused transaction searches such as uncategorised, uncleared, large transactions, tags, payees, date periods or review queues.
+
+Saved Views should be built on the same query/filter model as All Transactions rather than becoming separate bespoke screens.
 
 ## Reporting
 
@@ -795,13 +804,16 @@ Outstanding:
 - dedicated Net Worth report;
 - dedicated Income & Expenses report;
 - broader reports;
-- saved report configurations.
+- saved report configurations;
+- **customisable reporting dashboards/widgets** as a later evolution of saved report configurations, so future reports do not become isolated dead-end screens;
+- optional financial-health metrics such as savings rate or Age-of-Money-style measures, only where the underlying definition is clear and useful.
 
 ## Rules and Automation
 
 - saved transaction rules;
 - payee/category automation;
-- workflow automation beyond Scheduled Transactions.
+- workflow automation beyond Scheduled Transactions;
+- ensure future automatic bank-feed ingestion, if ever added, feeds through the same proposal/matching/provenance pipeline rather than creating a second import architecture.
 
 ## Planning
 
@@ -813,7 +825,35 @@ Outstanding:
 
 - forecasting;
 - broader savings planning beyond category goals;
-- debt planning.
+- debt planning;
+- **multicurrency feasibility** as a deliberate future domain investigation before any implementation.
+
+Multicurrency would require explicit decisions for base currency, native account currency, transfers/conversion, historical exchange rates, reporting and import semantics. Do not add it casually as a display-only feature.
+
+## Additional Product Candidates from Competitor Review
+
+These are **candidates**, not near-term commitments. They should be considered when their owning area is reached and only promoted when user value justifies the complexity.
+
+### High-value candidates
+
+- **Scheduled Transaction Calendar** — owned by Scheduled Transactions UX.
+- **Account Groups / custom sidebar organisation** — evaluate during broader Register/navigation UX.
+- **Saved Views / filter presets** — after All Transactions.
+- **Custom report dashboards/widgets** — after the core dedicated reports and saved report configurations.
+- **Budget clone / Start Fresh / template workflows** — after core data portability and recovery UX are stable.
+- **Shared-budget activity history** — later multi-user productisation; expose who added/edited/covered/reconciled where audit/history data supports it.
+- **Developer API / CLI** — later power-user/self-hosting capability built on existing command/query boundaries and server control-plane architecture.
+- **Privacy / scramble mode** — low-cost future usability/privacy feature for screenshots, diagnostics and support.
+
+### Deliberate feasibility candidates
+
+- **Multicurrency** — investigate as a domain-level feature before implementation.
+- **Automatic bank sync** — later only; provider cost, credentials, pending/settled transitions, outages and duplicate identity make this materially more complex than file import.
+- **PWA/mobile-install experience** — evaluate after the full adaptive/mobile audit and responsive fixes; do not use installability as a substitute for a genuinely good mobile UX.
+
+### Product principle
+
+Competitor parity is not a goal by itself. Prefer features that reinforce the existing local-first architecture, reduce repetitive user work, improve financial understanding or make the application easier to operate. Avoid cloning features that create a second source of truth or a parallel workflow for an already-solved problem.
 
 ---
 
@@ -858,10 +898,14 @@ Later productisation includes:
 - user disable/delete/account lifecycle;
 - password/reset/recovery flows;
 - budget sharing/invitation UX where desired;
+- **shared-budget activity history / attribution** where history data can support who changed what;
 - authentication/authorisation hardening;
-- security review.
+- security review;
+- **Developer API / CLI** for supported automation, diagnostics, export/import and self-hosting workflows once the product command/query surface is stable.
 
 AI remains a much later consideration and should not precede stable core workflows and automation foundations.
+
+A lightweight **privacy/scramble mode** may be worthwhile earlier than AI: hide or deterministically replace sensitive balances/payees for screenshots, diagnostics and demonstrations without altering stored financial data.
 
 ---
 
@@ -914,10 +958,13 @@ Preserve:
 21. Saved filters/report configurations.
 22. Rules and automation.
 23. Forecasting / broader savings planning / debt planning.
-24. Review Overspending when its value justifies un-parking it.
-25. Broader maintainability.
-26. Production self-hosting / deployment refinement and multi-user productisation.
-27. Security / operational hardening and productisation.
+24. Evaluate account groups, scheduled calendar, Saved Views and budget lifecycle tools in their owning phases if not already completed.
+25. Multicurrency feasibility review and automatic-bank-sync feasibility only if user value justifies the domain/operational complexity.
+26. Review Overspending when its value justifies un-parking it.
+27. Broader maintainability.
+28. Production self-hosting / deployment refinement, multi-user productisation and shared activity history.
+29. Developer API / CLI and other power-user integration surfaces.
+30. Security / operational hardening and productisation.
 
 The order after the main UX tranche can move according to user value and dependencies. Completed persistence/performance architecture should not be reopened simply to create more engineering work.
 
@@ -976,6 +1023,8 @@ The first action remains an audit of the current implementation. Work should the
 
 The current roadmap already includes interaction polish, row focus/edit clarity, selection, bulk actions, search/filter ergonomics, keyboard navigation, pagination/load-more experience and high-value E2E coverage. Preserve the older roadmap's additional emphasis on transaction/contextual actions, empty states and workflow consistency.
 
+Also evaluate **Account Groups / custom sidebar organisation** as a bounded navigation feature: user-defined groups, reordering, collapse/expand and coherent placement of everyday, savings, debt, investment and tracking accounts. Do not let account grouping complicate the underlying account model unless the UX benefit requires it.
+
 ### Phase 3C — Register Customisation — OUTSTANDING
 
 Still outstanding. Existing technical customisation foundations should become a coherent user-facing Customize Register experience covering column visibility, display/density choices, persistence, reset/default behaviour, accessibility and keyboard compatibility.
@@ -1033,6 +1082,8 @@ This remains the outstanding broader overspending workflow and should stay parke
 ## Scheduled Transactions UX — PARTLY COMPLETE
 
 CSS/theme ownership is complete. Product UX remains later work: create/edit flow, recurrence language, due/overdue clarity, preview/entry relationship, Enter/Skip workflows and adaptive/mobile presentation.
+
+Add a **Scheduled Transaction Calendar** as a high-value candidate for this phase. It should reuse the existing schedule/preview/Enter/Skip model rather than introduce a second scheduling authority. The calendar should make upcoming income/bills, funding state, due/overdue state and actions such as Enter now, Skip and Edit schedule easy to understand on desktop and mobile.
 
 ## Shared application UX — OUTSTANDING
 
