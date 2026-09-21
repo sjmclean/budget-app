@@ -60,7 +60,10 @@ export function createBudgetDatabaseOwnership(close: () => Promise<void>) {
   return {
     isReleased: () => !accepting,
     run<T>(budgetId: string | undefined, operation: () => Promise<T>): Promise<T> {
-      if (!accepting) {
+      const reenteringSameBudget =
+        !accepting &&
+        Boolean(budgetId && entering?.budgetId === budgetId);
+      if (!accepting && !reenteringSameBudget) {
         return Promise.reject(databaseReleasedError());
       }
       if (selectedBudget && budgetId && selectedBudget !== budgetId) {
@@ -70,6 +73,10 @@ export function createBudgetDatabaseOwnership(close: () => Promise<void>) {
       }
       return enqueue(async () => {
         if (unsafeCleanup) throw unsafeCleanup;
+        if (!accepting) throw databaseReleasedError();
+        if (selectedBudget && budgetId && selectedBudget !== budgetId) {
+          throw databaseBudgetMismatchError(selectedBudget, budgetId);
+        }
         try { return await operation(); }
         catch (error) {
           if (["LOCAL_DATABASE_RELEASE_FAILED", "RESTORE_PENDING"].includes((error as { code?: string })?.code ?? "")) {
