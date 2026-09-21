@@ -10,6 +10,10 @@ import {
   type ScheduledPreviewDays,
 } from "../../features/accounts/scheduledTransactionPreview";
 import type { ScheduledTransactionView } from "../../features/accounts/scheduledTransactionTypes";
+import {
+  readWarmScheduledTransactionPreview,
+  retainScheduledTransactionPreview,
+} from "../../features/accounts/scheduledTransactionPreviewWarmCache";
 import { useScheduledTransactionHistory } from "../../features/accounts/useScheduledTransactionHistory";
 import { createFixedBudgetScopedStorage } from "../../features/budget/budgetDataScope";
 import { localCalendarDate } from "../../features/dates/localCalendarDate";
@@ -57,7 +61,11 @@ export function ScheduledTransactionsPreview({
   const [days, setDays] = useState<ScheduledPreviewDays>(() =>
     storage ? readScheduledPreviewDays(storage) : 7,
   );
-  const [schedules, setSchedules] = useState<ScheduledTransactionView[]>([]);
+  const [schedules, setSchedules] = useState<ScheduledTransactionView[]>(() =>
+    budgetId
+      ? [...(readWarmScheduledTransactionPreview(budgetId, accountId) ?? [])]
+      : [],
+  );
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { enterSchedule, skipSchedule } = useScheduledTransactionHistory(
@@ -72,12 +80,16 @@ export function ScheduledTransactionsPreview({
   useEffect(() => {
     let live = true;
     void persistence.listByAccount(accountId).then((items) => {
-      if (live) setSchedules(items);
+      if (!live) return;
+      setSchedules(items);
+      if (budgetId) {
+        retainScheduledTransactionPreview(budgetId, accountId, items);
+      }
     });
     return () => {
       live = false;
     };
-  }, [accountId, persistence, version]);
+  }, [accountId, budgetId, persistence, version]);
 
   const today = localCalendarDate();
   const preview = useMemo(

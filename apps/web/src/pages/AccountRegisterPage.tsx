@@ -1766,6 +1766,7 @@ export function AccountRegisterPage() {
 
         {activeRegisterView === "register" ? (
           <ScheduledTransactionsPreview
+            key={`${activeBudgetId ?? "legacy"}:${accountId}`}
             budgetId={activeBudgetId}
             accountId={accountId}
             currencyCode={data.currencyCode}
