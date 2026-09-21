@@ -421,7 +421,6 @@ export function AccountRegisterPage() {
     persistenceGateway.scheduledTransactions;
   const {
     data,
-    scheduledTransactions,
     isLoading,
     error,
     commitTransactionBatch,
@@ -1767,10 +1766,8 @@ export function AccountRegisterPage() {
 
         {activeRegisterView === "register" ? (
           <ScheduledTransactionsPreview
-            key={accountId}
             budgetId={activeBudgetId}
             accountId={accountId}
-            initialSchedules={scheduledTransactions}
             currencyCode={data.currencyCode}
             onViewAll={() => setActiveRegisterView("scheduled")}
             onEditSchedule={(scheduleId) => {
