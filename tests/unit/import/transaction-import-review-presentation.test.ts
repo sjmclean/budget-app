@@ -258,7 +258,7 @@ test("manual new-transaction payee edit is authoritative over merchant inference
   );
 });
 
-test("recent imported register rows use warning treatment distinct from scheduled ghosts", () => {
+test("recent import outcomes share one treatment and scheduled ghosts remain distinct", () => {
   const css = readFileSync(
     new URL("../../../apps/web/src/styles/register.css", import.meta.url),
     "utf8",
@@ -270,6 +270,18 @@ test("recent imported register rows use warning treatment distinct from schedule
   );
   assert.match(
     css,
-    /\.register-scheduled-ghost-row\s*\{[\s\S]*?var\(--surface-subtle\)/,
+    /\.register-row-recent-matched:not\([\s\S]*?var\(--warning-bg\)[\s\S]*?var\(--warning\)/,
+  );
+  assert.match(
+    css,
+    /\.register-import-activity-badge-matched\s*\{[\s\S]*?var\(--warning-bg\)[\s\S]*?var\(--warning\)/,
+  );
+  assert.match(
+    css,
+    /\.register-scheduled-ghost-row\s*\{[\s\S]*?var\(--accent-soft\)/,
+  );
+  assert.doesNotMatch(
+    css.match(/\.register-scheduled-ghost-row\s*\{[\s\S]*?\}/)?.[0] ?? "",
+    /var\(--surface-subtle\)/,
   );
 });
