@@ -5928,7 +5928,7 @@ button.register-status:disabled {
 
 .register-scheduled-ghost-row {
   border-bottom: 1px solid var(--border-soft);
-  background: color-mix(in srgb, var(--accent-soft) 24%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
   cursor: default;
 }
 
