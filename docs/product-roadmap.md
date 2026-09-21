@@ -680,7 +680,10 @@ Then review:
 - keyboard navigation;
 - pagination/load-more experience;
 - empty/loading/error states;
-- high-value E2E coverage.
+- high-value E2E coverage;
+- **Account Groups / custom sidebar organisation** as a bounded navigation feature, including user-defined groups, reordering and collapse/expand behaviour where it improves account organisation.
+
+Account grouping should remain a presentation/navigation concern unless a stronger domain requirement emerges.
 
 ---
 
@@ -735,7 +738,10 @@ Refine:
 - due/overdue clarity;
 - preview/entry relationship;
 - Enter/Skip workflows;
-- mobile/adaptive presentation.
+- mobile/adaptive presentation;
+- **Scheduled Transaction Calendar** showing upcoming scheduled income/bills, funding state and due/overdue status, with actions such as Enter now, Skip and Edit schedule.
+
+The calendar should reuse the existing schedule/preview/Enter/Skip model and must not create a second scheduling authority.
 
 ## Shared Application Polish
 
