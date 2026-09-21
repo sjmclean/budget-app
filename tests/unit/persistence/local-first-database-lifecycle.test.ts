@@ -331,3 +331,53 @@ test("concurrent same-budget ownership activation coalesces instead of invalidat
   await ownership.leave();
   assert.equal(closes, 3);
 });
+
+
+test("same-budget read waits for in-flight reactivation instead of surfacing released database", async () => {
+  const reactivationCloseStarted = deferred();
+  const allowReactivationClose = deferred();
+  let blockClose = false;
+  const events: string[] = [];
+  const ownership = createBudgetDatabaseOwnership(async () => {
+    events.push("close");
+    if (!blockClose) return;
+    reactivationCloseStarted.resolve();
+    await allowReactivationClose.promise;
+  });
+
+  await ownership.enter("A");
+  await ownership.leave();
+  assert.equal(ownership.isReleased(), true);
+
+  blockClose = true;
+  const reactivation = ownership.enter("A");
+  await reactivationCloseStarted.promise;
+
+  const read = ownership.run("A", async () => {
+    events.push("read");
+  });
+
+  allowReactivationClose.resolve();
+  await reactivation;
+  await read;
+
+  assert.equal(ownership.isReleased(), false);
+  assert.equal(events.at(-1), "read");
+
+  await ownership.leave();
+});
+
+test("released ownership still rejects reads without matching reactivation", async () => {
+  const ownership = createBudgetDatabaseOwnership(async () => undefined);
+  await ownership.enter("A");
+  await ownership.leave();
+
+  await assert.rejects(
+    ownership.run("A", async () => undefined),
+    { code: "BUDGET_DATABASE_RELEASED" },
+  );
+  await assert.rejects(
+    ownership.run("B", async () => undefined),
+    { code: "BUDGET_DATABASE_RELEASED" },
+  );
+});
