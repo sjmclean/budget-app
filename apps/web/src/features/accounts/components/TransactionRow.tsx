@@ -687,6 +687,7 @@ interface TransactionRowRendererProps {
   isSelected: boolean;
   isFocused: boolean;
   recentImportStatus?: RecentImportStatus | null;
+  isRecentImportHighlighted?: boolean;
   onSelectTransaction: (transactionId: string, event: MouseEvent<HTMLElement>) => void;
   onToggleTransactionSelection: (transactionId: string) => void;
   onEditTransaction: (
@@ -722,6 +723,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
   isSelected,
   isFocused,
   recentImportStatus,
+  isRecentImportHighlighted = false,
   onSelectTransaction,
   onToggleTransactionSelection,
   onEditTransaction,
@@ -751,7 +753,7 @@ const DesktopTransactionRow = memo(function DesktopTransactionRow({
           "register-row",
           isSelected ? "register-row-selected" : "",
           isFocused ? "register-row-focused" : "",
-          recentImportStatus
+          isRecentImportHighlighted && recentImportStatus
             ? `register-row-recent-${recentImportStatus}`
             : "",
           isUncategorised ? "register-row-uncategorised" : "",
@@ -896,6 +898,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
   isSelected,
   isFocused,
   recentImportStatus,
+  isRecentImportHighlighted = false,
   onSelectTransaction,
   onToggleTransactionSelection,
   onEditTransaction,
@@ -928,7 +931,7 @@ const CompactTransactionRow = memo(function CompactTransactionRow({
           "register-row-compact",
           isSelected ? "register-row-selected" : "",
           isFocused ? "register-row-focused" : "",
-          recentImportStatus
+          isRecentImportHighlighted && recentImportStatus
             ? `register-row-recent-${recentImportStatus}`
             : "",
           hasSplitLines && isSplitExpanded ? "register-row-compact-expanded" : "",
@@ -1118,6 +1121,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
   isSelected,
   isFocused,
   recentImportStatus,
+  isRecentImportHighlighted = false,
   onSelectTransaction,
   onToggleTransactionSelection,
   onEditTransaction,
@@ -1154,7 +1158,7 @@ const TabletTransactionRow = memo(function TabletTransactionRow({
           "register-row-tablet",
           isSelected ? "register-row-selected" : "",
           isFocused ? "register-row-focused" : "",
-          recentImportStatus
+          isRecentImportHighlighted && recentImportStatus
             ? `register-row-recent-${recentImportStatus}`
             : "",
           hasSplitLines && isSplitExpanded ? "register-row-tablet-expanded" : "",
@@ -1338,6 +1342,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
   isSelected,
   isFocused,
   recentImportStatus,
+  isRecentImportHighlighted = false,
   onSelectTransaction,
   onToggleTransactionSelection,
   onEditTransaction,
@@ -1370,7 +1375,7 @@ const MobileTransactionRow = memo(function MobileTransactionRow({
           "register-row-mobile",
           isSelected ? "register-row-selected" : "",
           isFocused ? "register-row-focused" : "",
-          recentImportStatus
+          isRecentImportHighlighted && recentImportStatus
             ? `register-row-recent-${recentImportStatus}`
             : "",
           hasSplitLines && isSplitExpanded ? "register-row-mobile-expanded" : "",
