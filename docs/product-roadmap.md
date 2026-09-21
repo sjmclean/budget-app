@@ -656,3 +656,193 @@ The older roadmap correctly regarded the foundational import programme as substa
 
 PR #80 improved review clarity and preserved reviewed payee edits. PR #83 established the intended recent-import badge/tint lifetime.
 
+**Status:** Foundational implementation complete. The remaining work is the bounded Import Workflow close-out review already defined above, including genuine-new-QIF acceptance and defect-focused fixes only.
+
+## Phase 3 — Product UX — ACTIVE NEXT PROGRAMME
+
+### Phase 3A — Transaction Entry UX — OUTSTANDING / NEXT MAJOR UX PHASE
+
+Retain the earlier audit scope and expand the current Phase 3A definition to explicitly include:
+
+- transaction creation and editing;
+- initial focus and focus restoration;
+- desktop field order and keyboard/Tab order;
+- Enter / Escape behaviour;
+- date entry;
+- payee selection and creation;
+- category selection and creation;
+- transfers/account selection;
+- inflow/outflow entry;
+- split transactions;
+- validation and save errors;
+- Save;
+- Save & Add Another;
+- Cancel;
+- post-save form reset;
+- create/edit consistency;
+- desktop layout;
+- mobile/adaptive amount-first layout;
+- accessibility;
+- underlying duplicated/fragile state or implementation discovered by the audit.
+
+The first action remains an audit of the current implementation. Work should then be split into bounded passes rather than one large PR.
+
+### Phase 3B — Broader Account Register UX — OUTSTANDING
+
+The current roadmap already includes interaction polish, row focus/edit clarity, selection, bulk actions, search/filter ergonomics, keyboard navigation, pagination/load-more experience and high-value E2E coverage. Preserve the older roadmap's additional emphasis on transaction/contextual actions, empty states and workflow consistency.
+
+### Phase 3C — Register Customisation — OUTSTANDING
+
+Still outstanding. Existing technical customisation foundations should become a coherent user-facing Customize Register experience covering column visibility, display/density choices, persistence, reset/default behaviour, accessibility and keyboard compatibility.
+
+### Phase 3D — Adaptive Register — OUTSTANDING
+
+Still outstanding. Theme/responsive infrastructure has improved, but the broader Register experience across large desktop, compact desktop, tablet and mobile remains a distinct product task.
+
+### Reconciliation — DEFERRED
+
+A full reconciliation workflow remains deferred and is not part of the immediate Register UX tranche.
+
+## Phase 4 — Theme consistency — COMPLETE FOR AGREED SCOPE
+
+Theme Passes 1–3.5 are considered complete for the agreed scope:
+
+- Theme Pass 1 — initial theme consistency;
+- Theme Pass 2 — visual consistency/remediation;
+- Theme Pass 3.1 — Scheduled Transactions CSS ownership;
+- Theme Pass 3.2 — Register header/floating UI ownership;
+- Theme Pass 3.3 — Budget theme ownership;
+- Theme Pass 3.4 — Budget responsive ownership / `!important` cleanup;
+- Theme Pass 3.5 — Blueprint Budget feature-selector reduction.
+
+Retired high-risk repair layers include `scheduledTransactionsTheme.css`, `registerHeaderFixes.css`, `darkThemePolish.css` and `budgetResponsivePolish.css`. Budget responsive layout no longer depends on inline-style-versus-`!important` fights, and Blueprint no longer directly owns Budget feature selectors.
+
+**Status:** Complete for product-blocking scope. Remaining `globals.css` / `register.css` debt belongs to later maintainability work.
+
+## Testing / CI infrastructure — STRONG BASELINE; EXPANSION OUTSTANDING
+
+The earlier roadmap recorded a required suite of 179/179 files and focused ownership regressions after the theme passes. Subsequent performance work added browser performance evidence, bundle budgets and exact-head CI/VM acceptance expectations.
+
+**Status:** Core CI baseline established. Browser/E2E expansion remains outstanding and should be added alongside the product flows it protects rather than pursued as an isolated test project. Priority workflows include transaction entry/editing, transfers, splits, Register customisation, Budget interactions, overspending, imports and destructive operations. Any recurring Cover Overspending Playwright setup flake should be hardened when reproduced.
+
+## Budget / Overspending — PARTLY COMPLETE
+
+### Budget Screen UX — OUTSTANDING
+
+Theme ownership, responsive ownership and Budget virtualization are complete foundations, but the broader Budget Screen UX review remains outstanding: hierarchy, editing, keyboard/focus flow, groups, large-budget usability, adaptive/mobile layout and selective E2E coverage.
+
+### Cover Overspending — IMPLEMENTED; DO NOT RE-OPEN AS AN UNFINISHED FEATURE
+
+The older roadmap described multi-source Cover Overspending as major outstanding work, including explicit source amounts and remaining-amount validation. Later work has superseded that status: the current roadmap records **Cover Overspending — implemented**.
+
+Treat its existing implementation as the baseline. Re-open it only for concrete defects or as part of a future bounded UX review.
+
+### Overspending policy/category settings — IMPLEMENTED
+
+Also recorded as implemented.
+
+### Review Overspending — PARKED
+
+This remains the outstanding broader overspending workflow and should stay parked unless evidence or user value makes it a priority.
+
+## Scheduled Transactions UX — PARTLY COMPLETE
+
+CSS/theme ownership is complete. Product UX remains later work: create/edit flow, recurrence language, due/overdue clarity, preview/entry relationship, Enter/Skip workflows and adaptive/mobile presentation.
+
+## Shared application UX — OUTSTANDING
+
+Preserve the earlier scope and the current roadmap's cross-cutting polish:
+
+- dialog consistency;
+- toast behaviour;
+- validation;
+- shared error/recovery presentation;
+- loading/empty/error states;
+- settings consistency;
+- attachment UX;
+- keyboard/accessibility;
+- responsive consistency.
+
+Do this after the major transaction/Register/Budget workflows rather than as abstract component cleanup first.
+
+## Settings UX — OUTSTANDING
+
+The earlier roadmap called for a dedicated Settings UX review. This was not explicitly retained as its own heading in the later roadmap, so it is restored here as a distinct product task under shared application polish.
+
+## Phase 5 — Browser / E2E expansion — PARTIAL / ONGOING
+
+Browser performance evidence exists and targeted regressions have grown, but workflow-level E2E coverage is not complete. Expand it incrementally alongside Phase 3 and later Budget/Settings work.
+
+## CSS consolidation — SUBSTANTIALLY IMPROVED; LATER MAINTAINABILITY
+
+The high-risk theme repair layers are gone. Remaining work is non-blocking:
+
+- reduce historical sections in `globals.css`;
+- move true feature ownership out of globals;
+- reduce `register.css` size/specificity;
+- extract genuinely shared styles/components;
+- remove residual stylesheet ordering dependencies.
+
+Do not resume broad CSS cleanup before the major product UX tranche unless current work exposes a concrete ownership problem.
+
+## Phase 7 — Broader maintainability — OUTSTANDING / LATER
+
+Still intentionally later than the important UX baselines. Use product work to expose real maintainability pain rather than starting another architecture-cleanup programme speculatively.
+
+## Phase 8 — Major product features — MIXED STATUS
+
+- CSV export — outstanding.
+- Actual Budget importer — **completed**; remove from the future-feature queue.
+- All Transactions — outstanding.
+- Net Worth — outstanding.
+- Income & Expenses — outstanding.
+- broader reports — outstanding.
+- saved filters/report configurations — outstanding.
+- rules / automation — outstanding.
+- forecasting — outstanding.
+- savings planning/goals — outstanding.
+- debt-management/planning — outstanding.
+
+The older ordering of CSV export then Actual Budget importer is therefore obsolete because Actual Budget import has already shipped.
+
+## Phase 9 — Self-host / deployment / multi-user — PARTIAL
+
+Initial development-service operability is now complete: the Budget App development stack runs under a persistent systemd user service with lingering enabled, so keeping PuTTY/SSH open is no longer required.
+
+The remaining self-hosting work is broader production-style deployment and operations: production serving, configuration, reverse proxying where useful, deployment/upgrades, backup/restore, diagnostics/observability, documentation and optional packaging. Multi-user support remains later productisation.
+
+## Phase 10 — Security / hardening — OUTSTANDING AS A LARGER PHASE
+
+Still later productisation work, alongside authentication/authorisation hardening, security review, backup/restore operational UX, deployment/upgrades, diagnostics, observability and operational documentation. Individual correctness/security defects should still be fixed immediately when discovered.
+
+# Reconciled Working Order
+
+Initial development-service hosting is already complete and should be treated as an established operating baseline, not a future item. Further low-risk deployment improvements may be taken opportunistically without blocking the active UX programme.
+
+The combined roadmap now resolves to:
+
+1. Import Workflow close-out review.
+2. Performance / navigation / tab-lifecycle close-out review.
+3. Fix only concrete defects found by those reviews.
+4. Phase 3A — Transaction Entry UX audit and bounded implementation passes.
+5. Phase 3B — broader Account Register UX.
+6. Budget Screen UX review.
+7. Shared application UX, including dialogs, toasts, validation, errors/recovery and attachments.
+8. Settings UX review.
+9. Phase 3C — Register customisation.
+10. Phase 3D — adaptive/responsive Register.
+11. Scheduled Transactions product UX.
+12. Targeted browser/E2E expansion alongside the workflows above.
+13. Targeted CSS/global cleanup only where product work exposes concrete debt.
+14. CSV export.
+15. All Transactions.
+16. Net Worth / Income & Expenses / broader reporting.
+17. Saved filters/report configurations.
+18. Rules and automation.
+19. Forecasting / savings / debt planning.
+20. Review Overspending when its value justifies un-parking it.
+21. Broader maintainability.
+22. Production self-hosting / deployment refinement and multi-user expansion.
+23. Security / operational hardening and productisation.
+
+This sequence supersedes the older roadmap wherever later completed work has changed status. In particular, Actual Budget import and Cover Overspending must not be accidentally reintroduced as unimplemented features.
