@@ -307,7 +307,6 @@ export function createLocalBudgetRuntime(
         "categories",
         "attachments",
         "payees",
-        "scheduled-transactions",
       ] as const,
     };
   }
@@ -368,20 +367,14 @@ export function createLocalBudgetRuntime(
       const needsFilteredCount =
         Boolean(input.search?.query.trim()) ||
         input.categoryFilter === "uncategorised";
-      const [summary, page, scheduledTransactions] = await Promise.all([
+      const [summary, page] = await Promise.all([
         local.getAccountSummary(input),
         local.queryTransactions({
           ...toLocalQuery(input),
           includeTotalCount: needsFilteredCount,
         }),
-        local.listEntities<ScheduledTransactionView>("scheduledTransactions")
-          .then((rows) => rows
-            .filter((row) => row.accountId === input.accountId)
-            .sort((left, right) =>
-              left.nextDueDate.localeCompare(right.nextDueDate) ||
-              left.id.localeCompare(right.id))),
       ]);
-      const result = { summary, page, scheduledTransactions };
+      const result = { summary, page };
       const currentRevision =
         getPersistenceRevisionForInterest(accountRegisterInterest(input));
       if (startedRevision === currentRevision) {
