@@ -217,6 +217,7 @@ Review:
 - source/date/amount format detection;
 - invalid-file/error presentation;
 - duplicate-file and already-imported behaviour.
+
 ### Review screen
 
 Verify:
@@ -436,6 +437,7 @@ Then review:
 ## Phase 3C — Register Customisation
 
 Build on the existing customisation foundations:
+
 - column visibility;
 - density/display choices;
 - persisted preferences;
