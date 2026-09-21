@@ -1975,21 +1975,19 @@ export function TransactionImportDialog({
       return;
     }
 
-    const built = buildTransactionImportMerchantProposal({
-      store: merchantKnowledgeRef.current,
-      rawPayee: payee,
-      transaction: candidate.parsed,
-      currentProposal: candidate.lifecycle.proposal,
-    });
-    const transferAccountName = built.proposal.transferAccountName ?? null;
+    const explicitTransfer = payee.match(/^Transfer:\s*(.+)$/i);
+    const transferAccountName = explicitTransfer?.[1]?.trim() || null;
+    const reviewedPayee = transferAccountName
+      ? `Transfer: ${transferAccountName}`
+      : payee;
     updateCandidateProposal(candidate.id, {
-      payee: built.proposal.payee,
+      payee: reviewedPayee,
       transferAccountName,
       categoryName:
         isSplitCategory
           ? candidate.lifecycle.proposal.categoryName
           : transferAccountName
-            ? built.proposal.categoryName
+            ? null
             : categoryName || null,
       memo,
       memoReviewed: true,
@@ -2002,7 +2000,7 @@ export function TransactionImportDialog({
     });
     setManualCandidateEdits((current) => {
       let next = current;
-      if (built.proposal.payee !== candidate.lifecycle.proposal.payee) {
+      if (reviewedPayee !== candidate.lifecycle.proposal.payee) {
         next = markImportReviewFieldEdited(next, candidate.id, "payee");
       }
       if (categoryName !== (candidate.lifecycle.proposal.categoryName ?? "")) {
@@ -2013,11 +2011,11 @@ export function TransactionImportDialog({
       }
       return next;
     });
-    if (built.proposal.payee !== candidate.lifecycle.proposal.payee) {
+    if (reviewedPayee !== candidate.lifecycle.proposal.payee) {
       void offerHistoricalPayeeUpdate(
         candidate.id,
         candidate.lifecycle.source.rawPayee,
-        built.proposal.payee,
+        reviewedPayee,
       );
     }
     setTransactionEditDraft(null);
@@ -3565,7 +3563,7 @@ export function TransactionImportDialog({
                     <div className="transaction-import-match-entry">
                       <span className="transaction-import-match-caption">
                         {hasMatch ? <b>A</b> : null}
-                        Bank transaction
+                        Bank statement
                       </span>
                       <div className="transaction-import-match-row transaction-import-match-row-imported">
                         <span className="transaction-import-match-date">
@@ -3576,7 +3574,7 @@ export function TransactionImportDialog({
                           {!hasManualProposalEdits &&
                           candidate.lifecycle.proposal.payee !== sourcePayee ? (
                             <small className="transaction-import-payee-alias-note">
-                              Imports as {candidate.lifecycle.proposal.payee}
+                              Will import as: {candidate.lifecycle.proposal.payee}
                             </small>
                           ) : null}
                         </strong>

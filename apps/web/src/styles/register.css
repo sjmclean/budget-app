@@ -5844,29 +5844,29 @@ button.register-status:disabled {
 }
 
 .register-import-activity-badge-imported {
-  background: color-mix(in srgb, var(--accent-soft) 82%, var(--surface));
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-soft));
-  color: var(--accent-strong);
+  background: color-mix(in srgb, var(--warning-bg) 82%, var(--surface));
+  border-color: color-mix(in srgb, var(--warning) 34%, var(--border-soft));
+  color: var(--warning-text);
 }
 
 .register-import-activity-badge-matched {
-  background: color-mix(in srgb, var(--positive) 10%, var(--surface));
-  border-color: color-mix(in srgb, var(--positive) 30%, var(--border-soft));
-  color: color-mix(in srgb, var(--positive) 82%, var(--text));
+  background: color-mix(in srgb, var(--warning-bg) 82%, var(--surface));
+  border-color: color-mix(in srgb, var(--warning) 34%, var(--border-soft));
+  color: var(--warning-text);
 }
 
 .register-row-recent-imported:not(.register-row-selected),
 .register-row-recent-imported:not(.register-row-selected):hover {
-  background: color-mix(in srgb, var(--accent-soft) 42%, var(--surface));
+  background: color-mix(in srgb, var(--warning-bg) 72%, var(--surface));
   box-shadow: inset 3px 0 0
-    color-mix(in srgb, var(--accent) 58%, transparent);
+    color-mix(in srgb, var(--warning) 68%, transparent);
 }
 
 .register-row-recent-matched:not(.register-row-selected),
 .register-row-recent-matched:not(.register-row-selected):hover {
-  background: color-mix(in srgb, var(--positive) 7%, var(--surface));
+  background: color-mix(in srgb, var(--warning-bg) 72%, var(--surface));
   box-shadow: inset 3px 0 0
-    color-mix(in srgb, var(--positive) 46%, transparent);
+    color-mix(in srgb, var(--warning) 68%, transparent);
 }
 
 .register-row-focused:not(.register-row-selected) {
@@ -5928,12 +5928,12 @@ button.register-status:disabled {
 
 .register-scheduled-ghost-row {
   border-bottom: 1px solid var(--border-soft);
-  background: color-mix(in srgb, var(--surface-subtle) 66%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
   cursor: default;
 }
 
 .register-scheduled-ghost-row:hover {
-  background: color-mix(in srgb, var(--surface-subtle) 66%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
 }
 
 .register-scheduled-ghost-row-compact {

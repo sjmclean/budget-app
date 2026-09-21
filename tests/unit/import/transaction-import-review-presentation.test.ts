@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import type { RegisterTransactionView } from "../../../apps/web/src/features/accounts/accountRegisterTypes.js";
@@ -208,4 +209,79 @@ test("switching and reset release manual ownership without losing the prepared s
   assert.deepEqual(reset.candidates[0], source);
   const importedAsNew = { ...second, status: "new" as const, selected: true, reviewDecision: "import-as-new" as const };
   assert.equal(getRegisterMatchOwnership({ candidates: [importedAsNew], processedCandidates: [] }).has("r2"), false);
+});
+
+
+test("import review clearly separates bank source from proposed payee", () => {
+  const dialog = readFileSync(
+    new URL(
+      "../../../apps/web/src/features/accounts/components/TransactionImportDialog.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(dialog, /Bank statement/);
+  assert.match(
+    dialog,
+    /\{sourcePayee \|\| "Missing payee"\}[\s\S]*?Will import as: \{candidate\.lifecycle\.proposal\.payee\}/,
+  );
+  assert.doesNotMatch(dialog, /Bank transaction/);
+});
+
+test("manual new-transaction payee edit is authoritative over merchant inference", () => {
+  const dialog = readFileSync(
+    new URL(
+      "../../../apps/web/src/features/accounts/components/TransactionImportDialog.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const saveStart = dialog.indexOf("function saveTransactionEdit");
+  const saveEnd = dialog.indexOf(
+    "function removeHistoricalPayeeMapping",
+    saveStart,
+  );
+  const saveSource = dialog.slice(saveStart, saveEnd);
+
+  assert.match(
+    saveSource,
+    /const reviewedPayee = transferAccountName[\s\S]*?: payee;/,
+  );
+  assert.match(
+    saveSource,
+    /updateCandidateProposal\(candidate\.id, \{[\s\S]*?payee: reviewedPayee,/,
+  );
+  assert.doesNotMatch(
+    saveSource,
+    /buildTransactionImportMerchantProposal\(/,
+  );
+});
+
+test("recent import outcomes share one treatment and scheduled ghosts remain distinct", () => {
+  const css = readFileSync(
+    new URL("../../../apps/web/src/styles/register.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    css,
+    /\.register-row-recent-imported:not\([\s\S]*?var\(--warning-bg\)[\s\S]*?var\(--warning\)/,
+  );
+  assert.match(
+    css,
+    /\.register-row-recent-matched:not\([\s\S]*?var\(--warning-bg\)[\s\S]*?var\(--warning\)/,
+  );
+  assert.match(
+    css,
+    /\.register-import-activity-badge-matched\s*\{[\s\S]*?var\(--warning-bg\)[\s\S]*?var\(--warning\)/,
+  );
+  assert.match(
+    css,
+    /\.register-scheduled-ghost-row\s*\{[\s\S]*?var\(--accent\) 14%[\s\S]*?var\(--surface\)/,
+  );
+  assert.doesNotMatch(
+    css.match(/\.register-scheduled-ghost-row\s*\{[\s\S]*?\}/)?.[0] ?? "",
+    /var\(--surface-subtle\)/,
+  );
 });
