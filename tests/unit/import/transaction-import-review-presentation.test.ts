@@ -278,7 +278,7 @@ test("recent import outcomes share one treatment and scheduled ghosts remain dis
   );
   assert.match(
     css,
-    /\.register-scheduled-ghost-row\s*\{[\s\S]*?var\(--accent\)[\s\S]*?var\(--surface\)/,
+    /\.register-scheduled-ghost-row\s*\{[\s\S]*?var\(--accent\) 14%[\s\S]*?var\(--surface\)/,
   );
   assert.doesNotMatch(
     css.match(/\.register-scheduled-ghost-row\s*\{[\s\S]*?\}/)?.[0] ?? "",
