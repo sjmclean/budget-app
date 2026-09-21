@@ -5933,7 +5933,7 @@ button.register-status:disabled {
 }
 
 .register-scheduled-ghost-row:hover {
-  background: color-mix(in srgb, var(--accent-soft) 24%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
 }
 
 .register-scheduled-ghost-row-compact {
