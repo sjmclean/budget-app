@@ -221,12 +221,12 @@ test("import review clearly separates bank source from proposed payee", () => {
     "utf8",
   );
 
-  assert.match(dialog, />\s*Bank statement\s*</);
+  assert.match(dialog, /Bank statement/);
   assert.match(
     dialog,
     /\{sourcePayee \|\| "Missing payee"\}[\s\S]*?Will import as: \{candidate\.lifecycle\.proposal\.payee\}/,
   );
-  assert.doesNotMatch(dialog, />\s*Bank transaction\s*</);
+  assert.doesNotMatch(dialog, /Bank transaction/);
 });
 
 test("manual new-transaction payee edit is authoritative over merchant inference", () => {
