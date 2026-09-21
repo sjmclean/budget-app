@@ -5928,12 +5928,12 @@ button.register-status:disabled {
 
 .register-scheduled-ghost-row {
   border-bottom: 1px solid var(--border-soft);
-  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
   cursor: default;
 }
 
 .register-scheduled-ghost-row:hover {
-  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
 }
 
 .register-scheduled-ghost-row-compact {
