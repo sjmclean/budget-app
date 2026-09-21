@@ -60,7 +60,11 @@ test("public facade dispatches through distinct internal handler objects", () =>
     runtimeSource,
     /key === "resolveSyncConflict" && args\[2\] === "keep-local"/,
   );
-  assert.match(runtimeSource, /const invokeRecovery = \(\) => ownership\.run/);
+  assert.match(
+    runtimeSource,
+    /async function runWithOwnershipReadiness<[\s\S]*?return ownership\.run\(budgetId, operation\);/,
+  );
+  assert.match(runtimeSource, /const invokeRecovery = \(\) => runWithOwnershipReadiness/);
   assert.doesNotMatch(registrySource, /resolveSyncConflict: \{ execute:/);
   assert.doesNotMatch(runtimeSource, /LocalBudgetCommandContext|createDomainCommandHandler|recordCommittedChange/);
   assert.match(runtimeSource, /\{ execute: invokeHandler \}/);
