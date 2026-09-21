@@ -436,3 +436,223 @@ Then review:
 ## Phase 3C — Register Customisation
 
 Build on the existing customisation foundations:
+- column visibility;
+- density/display choices;
+- persisted preferences;
+- reset/default behaviour;
+- accessibility;
+- keyboard compatibility.
+
+---
+
+## Phase 3D — Adaptive Register
+
+Refine one coherent Register model across:
+
+- large desktop;
+- compact desktop;
+- tablet;
+- mobile.
+
+Avoid separate feature sets for desktop and mobile unless genuinely necessary.
+
+---
+
+# Subsequent Product UX
+
+## Budget Screen UX
+
+Review:
+
+- visual hierarchy;
+- editing behaviour;
+- keyboard/focus flow;
+- category groups;
+- large-budget usability;
+- adaptive/mobile layout;
+- selective E2E coverage.
+
+Keep existing Budget virtualization.
+
+## Scheduled Transactions UX
+
+Refine:
+
+- create/edit flow;
+- recurrence language;
+- due/overdue clarity;
+- preview/entry relationship;
+- Enter/Skip workflows;
+- mobile/adaptive presentation.
+
+## Shared Application Polish
+
+Cross-cutting:
+
+- dialogs;
+- toasts;
+- validation;
+- errors and recovery;
+- loading/empty states;
+- settings consistency;
+- attachment UX;
+- keyboard/accessibility;
+- responsive consistency.
+
+---
+
+# Parked / Deferred
+
+Keep parked unless evidence makes one blocking:
+
+- Review Overspending.
+- Goal/Target consolidation.
+- Full reconciliation workflow.
+- Historical matched-transfer display issue if it becomes reproducible.
+
+Overspending remains three separate concepts:
+
+1. Cover Overspending — implemented.
+2. Overspending policy/category settings — implemented.
+3. Review Overspending — parked.
+
+---
+
+# Major Feature Backlog
+
+## Data portability
+
+- CSV export.
+
+## Transaction discovery
+
+- All Transactions.
+- richer saved search/filter workflows after the All Transactions model exists.
+
+## Reporting
+
+- Net Worth.
+- Income & Expenses.
+- broader reports.
+- saved report configurations.
+
+## Rules and Automation
+
+- saved transaction rules;
+- payee/category automation;
+- workflow automation beyond Scheduled Transactions.
+
+## Planning
+
+- forecasting;
+- savings planning;
+- debt planning.
+
+---
+
+# Self-Hosting, Deployment and Later Productisation
+
+## Initial development-service operability — COMPLETE
+
+Completed on 21 September 2026:
+
+- the existing `pnpm dev` stack is managed by a systemd user service;
+- frontend and backend no longer depend on an open PuTTY/SSH session;
+- the service can be started, stopped, restarted and inspected through `systemctl --user`;
+- stdout/stderr is available through the systemd journal;
+- `Restart=on-failure` provides basic process recovery;
+- `KillMode=control-group` keeps the Vite/backend child-process lifecycle under the same service;
+- lingering is enabled for `sjmclean`, so the user service manager can remain active without an SSH login and enabled services can start independently of an interactive session.
+
+This deliberately preserves the current development-mode architecture and does not attempt to solve production deployment yet.
+
+## Remaining self-hosting / deployment work — OUTSTANDING
+
+Progress this incrementally rather than as one large deployment rewrite. Remaining areas include:
+
+- production/self-hosted frontend serving rather than relying indefinitely on the Vite development server;
+- production server process configuration;
+- environment/configuration management;
+- stable hostnames/ports and, where useful, reverse proxying;
+- health/readiness integration with service management;
+- deployment/redeployment workflow;
+- upgrade procedure;
+- persistent/rotated operational logging where journal defaults are insufficient;
+- backup/restore operational UX;
+- diagnostics and observability;
+- operational documentation;
+- optional Docker/container packaging only if it provides concrete deployment value.
+
+After core single-user UX matures, later productisation also includes:
+
+- multi-user support;
+- authentication/authorisation hardening;
+- security review.
+
+AI remains a much later consideration and should not precede stable core workflows and automation foundations.
+
+---
+
+# Engineering Guardrails
+
+Preserve:
+
+- SQLite/OPFS is authoritative locally.
+- Exactly one intended physical SQLite worker.
+- Server remains relay/control plane.
+- Ordinary reads stay local.
+- Ordinary writes stay local-first.
+- Normal writes flow through the Local Budget Engine / command executor.
+- Canonical state + outbox commit atomically.
+- Conflict recovery remains separate.
+- No speculative financial cache as a second authority.
+- No retry loops, sleeps or timeout inflation as correctness mechanisms.
+- Prefer replace → migrate → prove → delete.
+- Warm caches must remain bounded and revision-valid.
+- Register remains the specialised owner of ordered deltas, pagination and running balances.
+- Generated architecture/audit outputs stay current.
+- Exact-head CI + VM/browser acceptance remains the merge gate for high-risk work.
+
+---
+
+# Updated Near-Term Sequence
+
+1. **Importer close-out review.**
+2. **Performance/navigation/tab-lifecycle close-out review.**
+3. Fix only concrete defects found by those reviews.
+4. Phase 3A — Transaction Entry UX.
+5. Phase 3B — broader Account Register UX.
+6. Phase 3C — Register customisation.
+7. Phase 3D — adaptive Register.
+8. Budget Screen UX.
+9. Scheduled Transactions UX.
+10. Shared application UX polish.
+11. CSV export.
+12. All Transactions.
+13. Net Worth / Income & Expenses / reporting.
+14. Saved filters, rules and automation.
+15. Forecasting / savings / debt planning.
+16. Production self-hosting / deployment refinement, multi-user, security and operations.
+
+The order after the main UX tranche can move according to user value and dependencies. Completed persistence/performance architecture should not be reopened simply to create more engineering work.
+
+---
+
+# Reconciled Legacy Roadmap Status
+
+*Reconciled against the earlier Phase 1–10 roadmap on 21 September 2026.*
+
+This section preserves the intent of the earlier roadmap while mapping it onto the current product state. Where later work has superseded an older “outstanding” item, the later state is authoritative.
+
+## Phase 1 — Correctness / data integrity — COMPLETE BASELINE
+
+The earlier roadmap already regarded Phase 1 as largely complete. That remains correct. The subsequent local-first persistence and command programme strengthened this baseline substantially: Local Budget Engine command boundaries, atomic canonical + outbox commits, serialized local commands, conflict recovery separation, one intended SQLite worker, suspension-safe ownership and foreground reacquisition are now established.
+
+**Status:** Complete as a standing P0 baseline. New integrity defects remain priority work, but no broad Phase 1 project is planned.
+
+## Phase 2 — Imports — SUBSTANTIALLY COMPLETE; CLOSE-OUT REVIEW ACTIVE
+
+The older roadmap correctly regarded the foundational import programme as substantially complete, but later work expanded it further. YNAB4, Actual Budget and bank transaction import infrastructure are now implemented, together with matching, provenance/fingerprints, payee/category inference, manual matching, split editing, tags, attachments, transfers and staged/session persistence.
+
+PR #80 improved review clarity and preserved reviewed payee edits. PR #83 established the intended recent-import badge/tint lifetime.
+
