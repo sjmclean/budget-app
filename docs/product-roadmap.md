@@ -217,3 +217,222 @@ Review:
 - source/date/amount format detection;
 - invalid-file/error presentation;
 - duplicate-file and already-imported behaviour.
+### Review screen
+
+Verify:
+
+- raw bank source is clearly distinguishable from proposed canonical transaction;
+- payee proposal;
+- category proposal;
+- transfers;
+- splits;
+- memo handling;
+- tags;
+- attachments;
+- cleared state where relevant;
+- new vs matched transactions;
+- manual Find Existing Transaction workflow;
+- ownership of manually matched transactions;
+- resetting/changing a match;
+- import-as-new after a suggested match.
+
+### Manual edits
+
+Confirm manual review decisions remain authoritative:
+
+- edited payee;
+- edited category;
+- edited memo;
+- edited splits;
+- transfer account;
+- manually created payees/categories;
+- matched-register edits.
+
+Automatic merchant/payee inference must not silently override a reviewed value.
+
+### Commit and post-import experience
+
+Verify:
+
+- atomic import commit;
+- imported transaction IDs are stable;
+- matched transaction updates are correct;
+- provenance/fingerprint data is preserved;
+- undo/history behaviour remains correct;
+- Imported / Matched badges apply to the correct rows;
+- row tint disappears after navigation away;
+- row tint expires after 15 minutes;
+- badges remain for the browser session;
+- a later import replaces the prior recent-import marker set.
+
+### Re-import behaviour
+
+Verify:
+
+- exact re-import;
+- overlapping import;
+- repeated source rows;
+- strong source IDs;
+- fallback source identity;
+- settlement-date tolerance where applicable;
+- manually edited historical transactions;
+- previously matched transactions.
+
+### Remaining manual acceptance item
+
+Retest QIF import with a genuinely new/unseen QIF file or isolated test budget, because the previously used QIF was already represented by import history.
+
+### Exit criteria
+
+Importer review is complete when:
+
+- no reviewed user value is unexpectedly rewritten;
+- no duplicate transaction is created in covered identity cases;
+- matched/new presentation is clear;
+- recent-import presentation expires correctly;
+- focused tests exist for any defect found.
+
+Do not redesign the importer merely for code cleanliness.
+
+---
+
+## Review B — Performance, Navigation and Tab Lifecycle
+
+Perform a focused browser/VM regression review of the final performance programme.
+
+### Startup
+
+Check:
+
+- initial shell appearance;
+- sidebar account identities;
+- account financial enrichment;
+- Budget first paint;
+- background sync does not block critical local UI.
+
+### Navigation
+
+Exercise repeatedly:
+
+- Budget → Account;
+- Account → Budget → Account;
+- Account → Account;
+- rapid account switching;
+- account hover/focus prefetch;
+- scheduled preview appearance.
+
+Look for:
+
+- loading flashes;
+- layout shifts;
+- stale account data;
+- duplicate reads;
+- visible pauses.
+
+### Register
+
+Review:
+
+- warm bootstrap;
+- authoritative refresh;
+- pagination;
+- load more;
+- running balances;
+- mutation deltas;
+- scheduled preview;
+- large registers;
+- search/filter/sort interactions.
+
+### Background / foreground lifecycle
+
+Exercise:
+
+- leave the Budget App browser tab;
+- return after suspension;
+- interact immediately;
+- Budget → Register immediately after resume;
+- Register → Budget immediately after resume;
+- repeated hide/show cycles;
+- two Budget App tabs where practical.
+
+There should be no recurrence of:
+
+`The active budget database has been released. Open a budget before using it.`
+
+### Architectural invariants
+
+Confirm through review/tests:
+
+- one physical SQLite worker;
+- one ownership boundary;
+- no second interactive state authority;
+- hidden tabs do not reopen SQLite just because a React query fires;
+- foreground reads wait on lifecycle readiness;
+- command serialization remains intact;
+- prefetch stays opportunistic rather than becoming a correctness mechanism;
+- bounded warm caches remain bounded.
+
+### Performance evidence
+
+Only reopen performance architecture if measurements show an actual regression.
+
+If future projection performance becomes materially problematic, preferred investigation order remains:
+
+1. bounded month-boundary account-balance checkpoints;
+2. cheaper bounded transaction/split extraction;
+3. pure projection-engine optimisation.
+
+Do not introduce a second financial cache or projection authority.
+
+---
+
+# Next Major UX Tranche
+
+After the two close-out reviews above:
+
+## Phase 3A — Transaction Entry UX
+
+Audit the existing transaction-entry implementation before changing it.
+
+Refine:
+
+- initial focus;
+- desktop field order;
+- Tab order;
+- keyboard-first entry;
+- date entry;
+- payee entry;
+- category entry;
+- transfer/account entry;
+- inflow/outflow entry;
+- split workflow;
+- validation;
+- Save;
+- Save & Add Another;
+- Cancel / Escape;
+- consistency between add and edit;
+- mobile amount-first workflow.
+
+If an old `ux/phase-3a-transaction-entry` branch exists, inspect it against current `master`. Preserve only meaningful current work; do not merge stale architecture accidentally.
+
+---
+
+## Phase 3B — Broader Account Register UX
+
+Then review:
+
+- interaction polish;
+- row focus/edit clarity;
+- selection;
+- bulk actions;
+- search/filter ergonomics;
+- keyboard navigation;
+- pagination/load-more experience;
+- empty/loading/error states;
+- high-value E2E coverage.
+
+---
+
+## Phase 3C — Register Customisation
+
+Build on the existing customisation foundations:
