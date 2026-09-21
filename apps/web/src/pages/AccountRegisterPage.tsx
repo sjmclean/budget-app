@@ -116,6 +116,13 @@ import { useDeveloperPerformanceMode } from "../features/settings/useDeveloperPe
 import { useRegisterMerchantIconsPreference } from "../features/settings/useRegisterMerchantIconsPreference";
 import { resolveRegisterPayee } from "../features/accounts/registerMerchantIcons";
 import {
+  RECENT_IMPORT_HIGHLIGHT_DURATION_MS,
+  consumeRecentImportHighlight,
+  createRecentImportActivity,
+  shouldActivateRecentImportHighlight,
+  type RecentImportActivity,
+} from "../features/accounts/recentImportActivity";
+import {
   buildRegisterPerformanceSnapshot,
   formatPerformanceMs,
   getPerformanceNow,
@@ -137,14 +144,6 @@ const TransactionTagManager = lazy(() =>
     default: module.TransactionTagManager,
   })),
 );
-
-interface RecentImportActivity {
-  readonly version: 1;
-  readonly budgetId: string;
-  readonly accountId: string;
-  readonly importedTransactionIds: readonly string[];
-  readonly matchedTransactionIds: readonly string[];
-}
 
 const RECENT_IMPORT_ACTIVITY_STORAGE_PREFIX =
   "budget-app.recent-import-activity.v1";
@@ -210,6 +209,12 @@ function readRecentImportActivity(
       matchedTransactionIds: [
         ...new Set(value.matchedTransactionIds as string[]),
       ],
+      highlightStartedAt:
+        typeof value.highlightStartedAt === "number" &&
+        Number.isFinite(value.highlightStartedAt)
+          ? value.highlightStartedAt
+          : undefined,
+      highlightPending: value.highlightPending === true,
     };
   } catch {
     return null;
@@ -561,35 +566,80 @@ export function AccountRegisterPage() {
     useState(false);
   const [isTransactionImportOpen, setIsTransactionImportOpen] = useState(false);
   const [isTransactionImportOpening, setIsTransactionImportOpening] = useState(false);
-  const [recentImportActivity, setRecentImportActivity] =
-    useState<RecentImportActivity | null>(() =>
+  const readScopedRecentImportActivity = useCallback(
+    () =>
       activeBudgetId
         ? readRecentImportActivity(activeBudgetId, accountId)
         : null,
-    );
+    [activeBudgetId, accountId],
+  );
+  const [recentImportActivity, setRecentImportActivity] =
+    useState<RecentImportActivity | null>(() => readScopedRecentImportActivity());
+  const [highlightedRecentImportActivity, setHighlightedRecentImportActivity] =
+    useState<RecentImportActivity | null>(() => {
+      const activity = readScopedRecentImportActivity();
+      return activity && shouldActivateRecentImportHighlight(activity)
+        ? activity
+        : null;
+    });
   const [registerContextMenuPosition, setRegisterContextMenuPosition] =
     useState<RegisterContextMenuPosition | null>(null);
+
   useEffect(() => {
-    setRecentImportActivity(
-      activeBudgetId
-        ? readRecentImportActivity(activeBudgetId, accountId)
-        : null,
+    const storedActivity = readScopedRecentImportActivity();
+    if (!storedActivity) {
+      setRecentImportActivity(null);
+      setHighlightedRecentImportActivity(null);
+      return;
+    }
+
+    if (shouldActivateRecentImportHighlight(storedActivity)) {
+      const consumedActivity = consumeRecentImportHighlight(storedActivity);
+      writeRecentImportActivity(consumedActivity);
+      setRecentImportActivity(consumedActivity);
+      setHighlightedRecentImportActivity(consumedActivity);
+      return;
+    }
+
+    setRecentImportActivity(storedActivity);
+    setHighlightedRecentImportActivity(null);
+  }, [readScopedRecentImportActivity]);
+
+  useEffect(() => {
+    const startedAt = highlightedRecentImportActivity?.highlightStartedAt;
+    if (typeof startedAt !== "number") {
+      return;
+    }
+
+    const remainingMs =
+      RECENT_IMPORT_HIGHLIGHT_DURATION_MS - (Date.now() - startedAt);
+    if (remainingMs <= 0) {
+      setHighlightedRecentImportActivity(null);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(
+      () => setHighlightedRecentImportActivity(null),
+      remainingMs,
     );
-  }, [activeBudgetId, accountId]);
+    return () => window.clearTimeout(timeoutId);
+  }, [highlightedRecentImportActivity]);
 
   const recentlyImportedTransactionIds = useMemo(
-    () =>
-      new Set(
-        recentImportActivity?.importedTransactionIds ?? [],
-      ),
+    () => new Set(recentImportActivity?.importedTransactionIds ?? []),
     [recentImportActivity],
   );
   const recentlyMatchedTransactionIds = useMemo(
-    () =>
-      new Set(
-        recentImportActivity?.matchedTransactionIds ?? [],
-      ),
+    () => new Set(recentImportActivity?.matchedTransactionIds ?? []),
     [recentImportActivity],
+  );
+  const highlightedRecentImportTransactionIds = useMemo(
+    () =>
+      new Set([
+        ...(highlightedRecentImportActivity?.importedTransactionIds ?? []),
+        ...(highlightedRecentImportActivity?.matchedTransactionIds ?? []),
+      ]),
+    [highlightedRecentImportActivity],
   );
 
   const [registerSearchDraft, setRegisterSearchDraft] = useState("");
@@ -2133,18 +2183,20 @@ export function AccountRegisterPage() {
                 return;
               }
 
-              const recentActivity: RecentImportActivity = {
-                version: 1,
+              const isCurrentRegister = activity.accountId === accountId;
+              const recentActivity = createRecentImportActivity({
                 budgetId: activeBudgetId,
                 accountId: activity.accountId,
                 importedTransactionIds: activity.importedTransactionIds,
                 matchedTransactionIds: activity.matchedTransactionIds,
-              };
+                highlightPending: !isCurrentRegister,
+              });
 
               writeRecentImportActivity(recentActivity);
 
-              if (activity.accountId === accountId) {
+              if (isCurrentRegister) {
                 setRecentImportActivity(recentActivity);
+                setHighlightedRecentImportActivity(recentActivity);
               }
             }}
             loadAccountTransactions={async (
@@ -2622,6 +2674,9 @@ export function AccountRegisterPage() {
                           ? "matched"
                           : null
                     }
+                    isRecentImportHighlighted={highlightedRecentImportTransactionIds.has(
+                      transaction.id,
+                    )}
                     onSelectTransaction={handleSelectTransaction}
                     onToggleTransactionSelection={
                       handleToggleTransactionSelection
