@@ -30,7 +30,7 @@ This is an operational improvement to the existing development stack, not yet a 
 
 ---
 
-*Last reconciled: 21 September 2026*
+*Last reconciled: 21 September 2026 — codebase health, Node 24 and full adaptive/mobile audit added*
 
 Code baseline before roadmap-only documentation updates: `master` at `d917d709582f52e8cbf53a32211b36d68c4491af` (PR #83).
 
@@ -38,7 +38,7 @@ Guiding sequence:
 
 **Correct → Reliable → Fast → Polished → Smart**
 
-The major persistence and performance programme is substantially complete. The next stage is product UX, but before beginning the next large UX tranche we should perform a bounded close-out review of the areas changed most heavily during the final performance/import work.
+The major persistence and performance programme is substantially complete. Before beginning the next large UX tranche, the repository will go through a bounded **Codebase Health and Scalability Close-Out**. This combines static/code health review, runtime/toolchain currency, full-application adaptive/mobile scalability review, and the existing importer/performance close-out reviews. The purpose is to remove proven residue and defects, reconcile the roadmap with what is already implemented, and establish a clean baseline before substantial new UX work.
 
 ## Current product state
 
@@ -197,9 +197,259 @@ Completed:
 
 ---
 
-# Immediate Close-Out Review
+# Immediate Codebase Health and Scalability Close-Out
 
-Before starting the next major UX phase, perform two bounded review tracks.
+Complete this bounded programme before the importer/performance close-out reviews and before Phase 3A implementation.
+
+The aim is **not** a speculative rewrite. Findings should be classified as:
+
+- proven defect;
+- obsolete/dead/backward-compatibility code;
+- stale or misleading documentation;
+- missing/inadequate test coverage;
+- bounded refactor opportunity;
+- roadmap/status mismatch;
+- future feature candidate;
+- intentional architecture that should be left alone.
+
+## Track 1 — Dead, Obsolete and Backward-Compatibility Code
+
+Audit for:
+
+- unused modules, exports, helpers and dependencies;
+- compatibility aliases whose callers can now use the canonical API directly;
+- retired persistence/provider vocabulary;
+- old route/API tombstones that no supported client still needs;
+- old migration paths that can be retired safely;
+- historical configuration switches no longer consumed by the runtime;
+- duplicated helpers and redundant abstraction layers;
+- stale tests that only protect removed architecture.
+
+Known candidates to verify include:
+
+- the backwards-compatible `isCanonicalBudgetStorageKey` alias;
+- old persistence-source/provider terminology;
+- retired hosted budget-domain API tombstones;
+- one-way legacy browser-storage migration code and its retirement criteria.
+
+Do not delete migration or compatibility code merely because it looks old. Removal requires proof that no supported stored data, runtime path or client still depends on it.
+
+## Track 2 — Documentation and Architecture Vocabulary
+
+Review:
+
+- root README;
+- documentation index;
+- canonical architecture documents;
+- architecture index classification;
+- generated persistence audit;
+- product roadmap;
+- operations/recovery documentation;
+- current self-hosted development-service instructions.
+
+Required cleanup includes:
+
+- add the product roadmap to the documentation index;
+- ensure every architecture document is clearly current, generated, historical or decision record;
+- remove stale IndexedDB-as-financial-authority wording;
+- correct the persistence audit generator's local-storage classification mismatch;
+- ensure generated audit output describes SQLite/OPFS authority accurately;
+- reconcile terminology such as local database, document replication, hosted/local-first and provider names with current responsibilities.
+
+## Track 3 — Tests and Verification Quality
+
+Audit:
+
+- whether tests protect current product behaviour rather than superseded architecture;
+- unit/integration/regression overlap;
+- browser/E2E gaps;
+- flaky setup/teardown;
+- fixed sleeps/timeouts used as correctness mechanisms;
+- direct engine calls in browser tests where a user-level workflow should also be covered;
+- reusable E2E fixtures for authentication/budget/account setup;
+- exact-head CI gates and failure diagnostics.
+
+Immediate test-quality candidate:
+
+- replace the Cover Overspending E2E fixed `waitForTimeout(750)` with an observable persisted/committed condition.
+
+Browser coverage should eventually include real user workflows for:
+
+- transaction creation/editing;
+- transfers;
+- splits;
+- imports;
+- Register customisation;
+- Budget interactions;
+- Settings/recovery;
+- reports;
+- permissions/user management;
+- suspension/resume and multi-tab lifecycle.
+
+## Track 4 — Bounded Refactor and Maintainability Review
+
+Inspect large/high-pressure modules and extract only where it improves the next product work.
+
+Current pressure points include:
+
+- `AccountRegisterPage.tsx`;
+- `RegisterTransactionEditor.tsx`;
+- `PayeeManagementPage.tsx`;
+- `SettingsPage.tsx`;
+- `ScheduledTransactionsPanel.tsx`;
+- `accountRegisterService.ts`;
+- `BudgetPage.tsx`;
+- `globals.css`;
+- `register.css`.
+
+Prefer feature-led extraction during Transaction Entry, Register, Settings and Budget work over a standalone large rewrite.
+
+Also review:
+
+- dependency/configuration drift;
+- workspace/package boundaries;
+- explicit versus transitive dependencies;
+- route/navigation integrity;
+- error semantics;
+- server/runtime configuration;
+- operational/security hygiene.
+
+Known bounded defect candidates to verify/fix include:
+
+- the Dashboard `/budgets` link currently relying on wildcard redirect instead of an intentional route;
+- unknown server exceptions defaulting to HTTP 400 rather than 500;
+- oversized request bodies returning a more appropriate HTTP status;
+- long-running in-memory login rate-limit bookkeeping;
+- User Management distinguishing authorization failure from server/load failure.
+
+## Track 5 — Runtime and Toolchain Currency: Node.js 24
+
+Evaluate moving the development/runtime/CI baseline from Node.js 22 to Node.js 24 LTS.
+
+Required validation:
+
+1. install/test with the current Node 24 LTS line;
+2. run `pnpm verify`;
+3. run the large projection/local-first performance benchmarks;
+4. verify `better-sqlite3`, Playwright, Vite, worker and server behaviour;
+5. update CI from Node 22 to Node 24 if validation passes;
+6. update the root `engines.node` policy;
+7. update developer documentation;
+8. update the VM NVM runtime;
+9. update the `budget-app-dev.service` PATH, which currently points at the Node 22 NVM directory;
+10. restart and re-verify the systemd development service.
+
+Do not make Node 24 adoption a blind version bump. Treat it as a bounded runtime migration with full verification evidence.
+
+## Track 6 — Full Application Adaptive / Mobile / UI Scalability Audit
+
+This is broader than the existing Adaptive Register task. Review the **entire product** before significant new UX work so new Transaction Entry/Register work is designed against real responsive constraints.
+
+Test representative widths and form factors:
+
+- large desktop;
+- normal desktop/laptop;
+- compact desktop;
+- tablet landscape;
+- tablet portrait;
+- narrow/mobile landscape;
+- mobile portrait;
+- increased browser zoom / larger text.
+
+Review across:
+
+- application shell/navigation;
+- Budget Manager;
+- Dashboard;
+- Budget workspace;
+- Account Register;
+- transaction creation/editing;
+- splits/transfers;
+- Scheduled Transactions;
+- import review;
+- Payee Management;
+- Settings;
+- Reports;
+- User Management;
+- dialogs;
+- menus/floating UI;
+- toasts/errors;
+- attachments.
+
+Evaluate:
+
+- layout overflow and clipping;
+- horizontal-scroll dependence;
+- information density;
+- table/column collapse strategy;
+- sticky/fixed positioning;
+- virtualisation at narrow widths;
+- touch targets and touch-only interaction;
+- hover-only assumptions;
+- keyboard/focus order;
+- soft-keyboard behaviour;
+- viewport-edge placement;
+- safe use of modals/sheets/menus;
+- truncation/wrapping;
+- text scaling;
+- portrait/landscape transitions;
+- large-data plus small-screen behaviour;
+- accessibility at each breakpoint.
+
+Deliverable:
+
+- a page/flow-by-flow adaptive UX findings matrix;
+- severity/priority for each issue;
+- a clear distinction between global responsive infrastructure and feature-specific fixes;
+- an implementation sequence feeding Phase 3A, 3B, Budget, Settings and reporting work.
+
+Later browser coverage should include real-device/browser validation, especially iOS Safari and Android Chromium, once the responsive fixes are implemented.
+
+## Track 7 — Roadmap and Feature Reconciliation
+
+Reconcile source code against roadmap status before adding new features.
+
+Already-existing foundations that must not be described as wholly future work include:
+
+- Reporting foundation;
+- Spending by Category report;
+- Budget vs Actual report;
+- Dashboard net-worth trend/monthly financial summary;
+- authentication and sessions;
+- multi-user account creation;
+- budget membership roles/authorization;
+- User Management;
+- category goal/target foundations;
+- restore points, backup/recovery and sync recovery infrastructure.
+
+Remain genuinely outstanding or incomplete:
+
+- dedicated Net Worth report;
+- dedicated Income & Expenses report;
+- broader reports/saved report configurations;
+- full multi-user productisation and role/member-management UX;
+- password/account lifecycle UX;
+- broader savings planning beyond existing category-goal foundations;
+- production deployment/productisation.
+
+## Codebase Health Exit Criteria
+
+This close-out is complete when:
+
+- every accepted defect has either been fixed or deliberately scheduled;
+- compatibility/dead-code candidates have evidence-backed dispositions;
+- canonical documentation matches current architecture;
+- generated persistence audit signals are trustworthy;
+- Node 24 has a documented adopt/defer decision backed by verification;
+- the full-app adaptive/mobile findings matrix exists;
+- roadmap feature statuses match the actual implementation;
+- no speculative architecture rewrite has been introduced.
+
+---
+
+# Subsystem Close-Out Reviews
+
+After the Codebase Health and Scalability Close-Out, perform the two bounded subsystem review tracks below.
 
 These are reviews of the finished systems, **not permission to redesign them without evidence**.
 
@@ -389,7 +639,7 @@ Do not introduce a second financial cache or projection authority.
 
 # Next Major UX Tranche
 
-After the two close-out reviews above:
+After the Codebase Health/Scalability close-out and the two subsystem close-out reviews above:
 
 ## Phase 3A — Transaction Entry UX
 
@@ -449,7 +699,7 @@ Build on the existing customisation foundations:
 
 ## Phase 3D — Adaptive Register
 
-Refine one coherent Register model across:
+Implement the Register-specific findings from the earlier **Full Application Adaptive / Mobile / UI Scalability Audit**. Refine one coherent Register model across:
 
 - large desktop;
 - compact desktop;
@@ -533,9 +783,18 @@ Overspending remains three separate concepts:
 
 ## Reporting
 
-- Net Worth.
-- Income & Expenses.
-- broader reports.
+Implemented foundations:
+
+- Reports framework/navigation;
+- Spending by Category report;
+- Budget vs Actual report;
+- Dashboard net-worth trend and monthly financial summary.
+
+Outstanding:
+
+- dedicated Net Worth report;
+- dedicated Income & Expenses report;
+- broader reports;
 - saved report configurations.
 
 ## Rules and Automation
@@ -546,8 +805,14 @@ Overspending remains three separate concepts:
 
 ## Planning
 
+Existing foundation:
+
+- category goal/target persistence and inspector/history foundations.
+
+Outstanding:
+
 - forecasting;
-- savings planning;
+- broader savings planning beyond category goals;
 - debt planning.
 
 ---
@@ -585,9 +850,14 @@ Progress this incrementally rather than as one large deployment rewrite. Remaini
 - operational documentation;
 - optional Docker/container packaging only if it provides concrete deployment value.
 
-After core single-user UX matures, later productisation also includes:
+Multi-user foundations already exist and should be treated as **partial**, not future-from-zero work. Existing foundations include authentication, sessions, administrator-created users, budget memberships/roles and User Management.
 
-- multi-user support;
+Later productisation includes:
+
+- member/role management UX;
+- user disable/delete/account lifecycle;
+- password/reset/recovery flows;
+- budget sharing/invitation UX where desired;
 - authentication/authorisation hardening;
 - security review.
 
@@ -614,27 +884,40 @@ Preserve:
 - Register remains the specialised owner of ordered deltas, pagination and running balances.
 - Generated architecture/audit outputs stay current.
 - Exact-head CI + VM/browser acceptance remains the merge gate for high-risk work.
+- Responsive/mobile behaviour is a product correctness concern, not a final cosmetic pass.
+- Runtime upgrades such as Node major changes require full verification rather than blind version bumps.
 
 ---
 
 # Updated Near-Term Sequence
 
-1. **Importer close-out review.**
-2. **Performance/navigation/tab-lifecycle close-out review.**
-3. Fix only concrete defects found by those reviews.
-4. Phase 3A — Transaction Entry UX.
-5. Phase 3B — broader Account Register UX.
-6. Phase 3C — Register customisation.
-7. Phase 3D — adaptive Register.
-8. Budget Screen UX.
-9. Scheduled Transactions UX.
-10. Shared application UX polish.
-11. CSV export.
-12. All Transactions.
-13. Net Worth / Income & Expenses / reporting.
-14. Saved filters, rules and automation.
-15. Forecasting / savings / debt planning.
-16. Production self-hosting / deployment refinement, multi-user, security and operations.
+1. **Codebase Health close-out — dead/compatibility code, documentation, tests, bounded refactors, bugs, dependency/configuration and operational hygiene.**
+2. **Node.js 24 validation and, if clean, runtime/CI/VM/systemd upgrade.**
+3. **Full Application Adaptive / Mobile / UI Scalability Audit.**
+4. Fix bounded defects/documentation/test issues proven by steps 1–3; record larger product findings in their owning phases.
+5. **Importer close-out review.**
+6. **Performance/navigation/tab-lifecycle close-out review.**
+7. Fix only concrete defects found by those subsystem reviews.
+8. Phase 3A — Transaction Entry UX, incorporating adaptive/mobile findings.
+9. Phase 3B — broader Account Register UX.
+10. Budget Screen UX review.
+11. Shared application UX, including dialogs, toasts, validation, errors/recovery and attachments.
+12. Settings UX review.
+13. Phase 3C — Register customisation.
+14. Phase 3D — adaptive Register implementation.
+15. Scheduled Transactions product UX.
+16. Targeted browser/E2E expansion alongside the workflows above.
+17. Targeted CSS/global cleanup only where product work exposes concrete debt.
+18. CSV export.
+19. All Transactions.
+20. Dedicated Net Worth / Income & Expenses / broader reporting.
+21. Saved filters/report configurations.
+22. Rules and automation.
+23. Forecasting / broader savings planning / debt planning.
+24. Review Overspending when its value justifies un-parking it.
+25. Broader maintainability.
+26. Production self-hosting / deployment refinement and multi-user productisation.
+27. Security / operational hardening and productisation.
 
 The order after the main UX tranche can move according to user value and dependencies. Completed persistence/performance architecture should not be reopened simply to create more engineering work.
 
@@ -789,20 +1072,27 @@ Do not resume broad CSS cleanup before the major product UX tranche unless curre
 
 ## Phase 7 — Broader maintainability — OUTSTANDING / LATER
 
-Still intentionally later than the important UX baselines. Use product work to expose real maintainability pain rather than starting another architecture-cleanup programme speculatively.
+A bounded Codebase Health close-out now occurs before Phase 3A to remove proven residue, correct documentation/test signals and identify defects. That does **not** turn into an open-ended refactor programme.
+
+Broader maintainability remains intentionally later than the important UX baselines. Use product work to expose real maintainability pain rather than starting another architecture-cleanup programme speculatively.
 
 ## Phase 8 — Major product features — MIXED STATUS
 
 - CSV export — outstanding.
 - Actual Budget importer — **completed**; remove from the future-feature queue.
 - All Transactions — outstanding.
-- Net Worth — outstanding.
-- Income & Expenses — outstanding.
+- Reporting foundation — implemented.
+- Spending by Category — implemented.
+- Budget vs Actual — implemented.
+- Dashboard net-worth/monthly financial summary — implemented.
+- dedicated Net Worth report — outstanding.
+- dedicated Income & Expenses report — outstanding.
 - broader reports — outstanding.
 - saved filters/report configurations — outstanding.
 - rules / automation — outstanding.
 - forecasting — outstanding.
-- savings planning/goals — outstanding.
+- category goal/target foundation — implemented/partial.
+- broader savings planning beyond category goals — outstanding.
 - debt-management/planning — outstanding.
 
 The older ordering of CSV export then Actual Budget importer is therefore obsolete because Actual Budget import has already shipped.
@@ -811,7 +1101,9 @@ The older ordering of CSV export then Actual Budget importer is therefore obsole
 
 Initial development-service operability is now complete: the Budget App development stack runs under a persistent systemd user service with lingering enabled, so keeping PuTTY/SSH open is no longer required.
 
-The remaining self-hosting work is broader production-style deployment and operations: production serving, configuration, reverse proxying where useful, deployment/upgrades, backup/restore, diagnostics/observability, documentation and optional packaging. Multi-user support remains later productisation.
+Multi-user foundations are also already implemented in part: authentication, sessions, administrator-created users, budget membership roles/authorization and a User Management page exist.
+
+The remaining self-hosting work is broader production-style deployment and operations: production serving, configuration, reverse proxying where useful, deployment/upgrades, backup/restore, diagnostics/observability, documentation and optional packaging. Remaining multi-user work is productisation/hardening rather than implementation from zero.
 
 ## Phase 10 — Security / hardening — OUTSTANDING AS A LARGER PHASE
 
@@ -823,28 +1115,32 @@ Initial development-service hosting is already complete and should be treated as
 
 The combined roadmap now resolves to:
 
-1. Import Workflow close-out review.
-2. Performance / navigation / tab-lifecycle close-out review.
-3. Fix only concrete defects found by those reviews.
-4. Phase 3A — Transaction Entry UX audit and bounded implementation passes.
-5. Phase 3B — broader Account Register UX.
-6. Budget Screen UX review.
-7. Shared application UX, including dialogs, toasts, validation, errors/recovery and attachments.
-8. Settings UX review.
-9. Phase 3C — Register customisation.
-10. Phase 3D — adaptive/responsive Register.
-11. Scheduled Transactions product UX.
-12. Targeted browser/E2E expansion alongside the workflows above.
-13. Targeted CSS/global cleanup only where product work exposes concrete debt.
-14. CSV export.
-15. All Transactions.
-16. Net Worth / Income & Expenses / broader reporting.
-17. Saved filters/report configurations.
-18. Rules and automation.
-19. Forecasting / savings / debt planning.
-20. Review Overspending when its value justifies un-parking it.
-21. Broader maintainability.
-22. Production self-hosting / deployment refinement and multi-user expansion.
-23. Security / operational hardening and productisation.
+1. Codebase Health close-out: obsolete/compatibility code, documentation, tests, bounded refactors, obvious defects, dependencies/configuration and operational/security hygiene.
+2. Node.js 24 validation and upgrade if the full verification/benchmark evidence is clean.
+3. Full Application Adaptive / Mobile / UI Scalability Audit.
+4. Fix bounded issues proven by the first three reviews; route larger findings into their owning product phases.
+5. Import Workflow close-out review.
+6. Performance / navigation / tab-lifecycle close-out review.
+7. Fix only concrete defects found by those subsystem reviews.
+8. Phase 3A — Transaction Entry UX audit and bounded implementation passes.
+9. Phase 3B — broader Account Register UX.
+10. Budget Screen UX review.
+11. Shared application UX, including dialogs, toasts, validation, errors/recovery and attachments.
+12. Settings UX review.
+13. Phase 3C — Register customisation.
+14. Phase 3D — adaptive/responsive Register implementation using the full-app audit findings.
+15. Scheduled Transactions product UX.
+16. Targeted browser/E2E expansion alongside the workflows above, including mobile/browser coverage where practical.
+17. Targeted CSS/global cleanup only where product work exposes concrete debt.
+18. CSV export.
+19. All Transactions.
+20. Dedicated Net Worth / Income & Expenses / broader reporting.
+21. Saved filters/report configurations.
+22. Rules and automation.
+23. Forecasting / broader savings planning / debt planning.
+24. Review Overspending when its value justifies un-parking it.
+25. Broader maintainability.
+26. Production self-hosting / deployment refinement and multi-user productisation.
+27. Security / operational hardening and productisation.
 
 This sequence supersedes the older roadmap wherever later completed work has changed status. In particular, Actual Budget import and Cover Overspending must not be accidentally reintroduced as unimplemented features.
