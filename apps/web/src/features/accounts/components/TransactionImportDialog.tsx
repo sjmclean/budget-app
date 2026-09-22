@@ -99,7 +99,10 @@ import {
   selectOwnedRegisterMatch,
   selectManualOwnedRegisterMatch,
 } from "../transactionImportReviewOwnership";
-import { getTransactionImportReviewPresentation } from "../transactionImportReviewPresentation";
+import {
+  getTransactionImportReviewPresentation,
+  getTransactionImportSecondaryRowKind,
+} from "../transactionImportReviewPresentation";
 import { applySourceMemoPreferenceToCandidate } from "../transactionImportReviewMemo";
 import {
   appendTransactionImportTrace,
@@ -1639,12 +1642,16 @@ export function TransactionImportDialog({
   function updateCandidateProposal(
     candidateId: string,
     updates: Partial<TransactionImportCandidate["lifecycle"]["proposal"]>,
+    options: { reviewAsNew?: boolean } = {},
   ) {
     setCandidates((current) =>
       current.map((candidate) =>
         candidate.id === candidateId
           ? {
               ...candidate,
+              ...(options.reviewAsNew && candidate.status === "new"
+                ? { reviewDecision: "import-as-new" as const }
+                : {}),
               lifecycle: {
                 ...candidate.lifecycle,
                 proposal: {
@@ -1980,24 +1987,35 @@ export function TransactionImportDialog({
     const reviewedPayee = transferAccountName
       ? `Transfer: ${transferAccountName}`
       : payee;
-    updateCandidateProposal(candidate.id, {
-      payee: reviewedPayee,
-      transferAccountName,
-      categoryName:
-        isSplitCategory
-          ? candidate.lifecycle.proposal.categoryName
-          : transferAccountName
-            ? null
-            : categoryName || null,
-      memo,
-      memoReviewed: true,
-      tagIds: [...draft.tagIds],
-      attachments: draft.attachments.map((attachment) => ({ ...attachment })),
-      splitLines: isSplitCategory ? reviewedSplitLines : undefined,
-      ...(isSplitCategory
-        ? { categoryName: "Split", transferAccountName: null }
-        : {}),
-    });
+    updateCandidateProposal(
+      candidate.id,
+      {
+        payee: reviewedPayee,
+        transferAccountName,
+        categoryName:
+          isSplitCategory
+            ? candidate.lifecycle.proposal.categoryName
+            : transferAccountName
+              ? null
+              : categoryName || null,
+        memo,
+        memoReviewed: true,
+        tagIds: [...draft.tagIds],
+        attachments: draft.attachments.map((attachment) => ({ ...attachment })),
+        splitLines: isSplitCategory ? reviewedSplitLines : undefined,
+        ...(isSplitCategory
+          ? { categoryName: "Split", transferAccountName: null }
+          : {}),
+      },
+      {
+        reviewAsNew:
+          candidate.status === "new" &&
+          getAvailableRegisterMatchCandidates(
+            candidate,
+            registerMatchOwnership,
+          ).length > 0,
+      },
+    );
     setManualCandidateEdits((current) => {
       let next = current;
       if (reviewedPayee !== candidate.lifecycle.proposal.payee) {
@@ -3505,20 +3523,15 @@ export function TransactionImportDialog({
                 ),
                 historicalUpdates: historicalRegisterPayeeUpdates,
               });
-              const manualEditsForCandidate =
-                manualCandidateEdits[candidate.id];
-              const hasManualProposalEdits = Boolean(
-                manualEditsForCandidate?.payee ||
-                  manualEditsForCandidate?.category ||
-                  manualEditsForCandidate?.memo ||
-                  candidate.lifecycle.proposal.tagIds?.length ||
-                  candidate.lifecycle.proposal.attachments?.length,
-              );
-              const showUnmatchedComparison =
-                !hasMatch &&
-                candidate.status !== "invalid" &&
-                (availableRegisterMatchCandidates.length > 0 ||
-                  hasManualProposalEdits);
+              const secondaryRowKind =
+                getTransactionImportSecondaryRowKind(
+                  candidate,
+                  availableRegisterMatchCandidates.length,
+                );
+              const visiblePossibleMatch =
+                secondaryRowKind === "possible-match"
+                  ? availableRegisterMatchCandidates[0]?.transaction
+                  : undefined;
               const activeProcessingCandidate =
                 processingCandidate?.id === candidate.id
                   ? processingCandidate
@@ -3571,12 +3584,7 @@ export function TransactionImportDialog({
                         </span>
                         <strong className="transaction-import-match-payee">
                           {sourcePayee || "Missing payee"}
-                          {!hasManualProposalEdits &&
-                          candidate.lifecycle.proposal.payee !== sourcePayee ? (
-                            <small className="transaction-import-payee-alias-note">
-                              Will import as: {candidate.lifecycle.proposal.payee}
-                            </small>
-                          ) : null}
+
                         </strong>
                         <span className="transaction-import-match-category">
                           {candidate.lifecycle.source.transferAccountName
@@ -3592,54 +3600,53 @@ export function TransactionImportDialog({
                       </div>
                     </div>
 
-                    {showUnmatchedComparison ? (
+                    {secondaryRowKind !== "none" ? (
                       <>
                         <div className="transaction-import-match-arrow" aria-hidden="true">↔</div>
                         <div className="transaction-import-match-entry">
                           <span className="transaction-import-match-caption">
                             <b>B</b>
-                            {availableRegisterMatchCandidates.length
+                            {secondaryRowKind === "possible-match"
                               ? "Possible register match"
                               : "Proposed transaction"}
                           </span>
                           <div className="transaction-import-match-row transaction-import-match-row-existing">
                             <span className="transaction-import-match-date">
                               {formatImportReviewDate(
-                                availableRegisterMatchCandidates[0]?.transaction.date ??
-                                  bankParsed.date,
+                                visiblePossibleMatch?.date ?? bankParsed.date,
                               )}
                             </span>
                             <strong className="transaction-import-match-payee">
-                              {availableRegisterMatchCandidates[0]?.transaction.payee ??
+                              {visiblePossibleMatch?.payee ??
                                 candidate.lifecycle.proposal.payee ??
                                 "Choose payee"}
                             </strong>
                             <span className="transaction-import-match-category">
-                              {availableRegisterMatchCandidates[0]?.transaction.category ??
+                              {visiblePossibleMatch?.category ??
                                 candidate.lifecycle.proposal.transferAccountName ??
                                 candidate.lifecycle.proposal.categoryName ??
                                 "Choose category"}
                             </span>
                             <span className="transaction-import-match-memo">
-                              {availableRegisterMatchCandidates[0]?.transaction.memo ??
+                              {visiblePossibleMatch?.memo ??
                                 candidate.lifecycle.proposal.memo ??
                                 "—"}
-                              {(availableRegisterMatchCandidates[0]?.transaction.tagIds?.length ??
+                              {(visiblePossibleMatch?.tagIds?.length ??
                                 candidate.lifecycle.proposal.tagIds?.length ??
                                 0) > 0 ? (
                                 <small>
-                                  Tags: {(availableRegisterMatchCandidates[0]?.transaction.tagIds ??
+                                  Tags: {(visiblePossibleMatch?.tagIds ??
                                     candidate.lifecycle.proposal.tagIds ??
                                     []).map((tagId) =>
                                       transactionTags.find((tag) => tag.id === tagId)?.name ?? tagId
                                     ).join(", ")}
                                 </small>
                               ) : null}
-                              {(availableRegisterMatchCandidates[0]?.transaction.attachmentCount ??
+                              {(visiblePossibleMatch?.attachmentCount ??
                                 candidate.lifecycle.proposal.attachments?.length ??
                                 0) > 0 ? (
                                 <small>
-                                  📎 {availableRegisterMatchCandidates[0]?.transaction.attachmentCount ??
+                                  📎 {visiblePossibleMatch?.attachmentCount ??
                                     candidate.lifecycle.proposal.attachments?.length ??
                                     0}
                                 </small>
@@ -3902,7 +3909,9 @@ export function TransactionImportDialog({
                   {candidate.status === "new" ||
                   candidate.status === "invalid" ? (
                     <div className="transaction-import-match-actions">
-                      {candidate.status === "new" && availableRegisterMatchCandidates.length ? (
+                      {candidate.status === "new" &&
+                      secondaryRowKind === "possible-match" &&
+                      visiblePossibleMatch ? (
                         <button
                           className="button button-primary"
                           type="button"
@@ -3910,7 +3919,7 @@ export function TransactionImportDialog({
                           onClick={() =>
                             selectManualRegisterTransaction(
                               candidate.id,
-                              availableRegisterMatchCandidates[0]!.transaction,
+                              visiblePossibleMatch,
                             )
                           }
                         >
@@ -3930,7 +3939,11 @@ export function TransactionImportDialog({
                         }
                         onClick={() => importCandidate(candidate.id)}
                       >
-                        {candidate.reconciliationKind === "transfer" ? "Import Transfer" : "Import"}
+                        {candidate.reconciliationKind === "transfer"
+                          ? "Import Transfer"
+                          : secondaryRowKind === "possible-match"
+                            ? "Import as New"
+                            : "Import"}
                       </button>
                       <button
                         className="button button-secondary"
