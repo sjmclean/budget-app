@@ -33,15 +33,36 @@ test("bank review row always renders immutable source values", () => {
   );
 });
 
-test("unmatched proposal row appears only for a real comparison", () => {
+test("review secondary row is driven by explicit possible-match/proposal presentation state", () => {
   assert.match(
     dialogSource,
-    /const showUnmatchedComparison =[\s\S]*?!hasMatch[\s\S]*?availableRegisterMatchCandidates\.length > 0[\s\S]*?hasManualProposalEdits/,
+    /getTransactionImportSecondaryRowKind\([\s\S]*?candidate,[\s\S]*?availableRegisterMatchCandidates\.length/,
   );
   assert.match(
     dialogSource,
-    /\{showUnmatchedComparison \? \(/,
+    /secondaryRowKind !== "none"/,
   );
+  assert.match(dialogSource, /"Possible register match"/);
+  assert.match(dialogSource, /"Proposed transaction"/);
+});
+
+test("editing a possible match rejects it for primary review without deleting match candidates", () => {
+  const saveStart = dialogSource.indexOf("function saveTransactionEdit");
+  const saveEnd = dialogSource.indexOf(
+    "function removeHistoricalPayeeMapping",
+    saveStart,
+  );
+  const saveSource = dialogSource.slice(saveStart, saveEnd);
+
+  assert.match(
+    saveSource,
+    /reviewAsNew:[\s\S]*?candidate\.status === "new"[\s\S]*?getAvailableRegisterMatchCandidates/,
+  );
+  assert.match(
+    dialogSource,
+    /secondaryRowKind === "possible-match"[\s\S]*?Use This Match/,
+  );
+  assert.match(dialogSource, /"Import as New"/);
 });
 
 test("manual match selection is the matched decision, not an intermediate confirmation", () => {
