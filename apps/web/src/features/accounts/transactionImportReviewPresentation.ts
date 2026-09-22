@@ -95,6 +95,16 @@ export function getTransactionImportReviewPresentation(
       subtext: candidate.reason || "Compare the bank and register transactions before accepting.",
     };
   }
+  if (candidate.reviewDecision === "import-as-new") {
+    return {
+      kind: "no-match",
+      title: "Ready to import",
+      subtext:
+        availableMatchCount > 0
+          ? "The possible match was rejected. Review the proposed transaction before importing."
+          : "Review the proposed transaction before importing.",
+    };
+  }
   if (availableMatchCount > 0) {
     return {
       kind: "possible-match",
