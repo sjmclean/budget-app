@@ -43,6 +43,15 @@ import { TransactionTagPicker } from "../../features/accounts/components/Transac
 import { localCalendarDate } from "../../features/dates/localCalendarDate";
 import { MoneyInput } from "../../features/money/MoneyInput";
 import { useScheduledTransactionHistory } from "../../features/accounts/useScheduledTransactionHistory";
+import { ScheduledTransactionDiscoveryDialog } from "./ScheduledTransactionDiscoveryDialog";
+import {
+  loadScheduledTransactionSuggestions,
+} from "../../features/accounts/loadScheduledTransactionDiscoveryEvidence";
+import type { ScheduledTransactionSuggestion } from "../../features/accounts/scheduledTransactionDiscovery";
+import {
+  ignoreScheduledTransactionSuggestion,
+  readIgnoredScheduledTransactionSuggestions,
+} from "../../features/accounts/scheduledTransactionDiscoveryPreferences";
 import {
   applyScheduledPayeeText,
   applyScheduledSavedPayee,
@@ -123,6 +132,10 @@ export function ScheduledTransactionsPanel({
   const dateFormat = useDateFormatPreference();
   const [scheduledTransactions, setScheduledTransactions] = useState<ScheduledTransactionView[]>([]);
   const [draft, setDraft] = useState<ScheduledFormDraft | null>(null);
+  const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
+  const [discoverySuggestions, setDiscoverySuggestions] = useState<ScheduledTransactionSuggestion[]>([]);
+  const [isDiscoveryLoading, setIsDiscoveryLoading] = useState(false);
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || !editScheduleId) return;
@@ -292,6 +305,58 @@ export function ScheduledTransactionsPanel({
     onDueCountChange?.(countDue(next));
   }
 
+  async function openScheduledDiscovery() {
+    setIsDiscoveryOpen(true);
+    setIsDiscoveryLoading(true);
+    setDiscoveryError(null);
+    try {
+      const ignoredFingerprints = readIgnoredScheduledTransactionSuggestions(
+        budgetId,
+        accountId,
+      );
+      setDiscoverySuggestions(
+        await loadScheduledTransactionSuggestions({
+          budgetId,
+          accountId,
+          asOfDate: localCalendarDate(),
+          existingSchedules: scheduledTransactions,
+          ignoredFingerprints,
+        }),
+      );
+    } catch (error) {
+      setDiscoverySuggestions([]);
+      setDiscoveryError(
+        error instanceof Error
+          ? error.message
+          : "Scheduled transaction suggestions could not be loaded.",
+      );
+    } finally {
+      setIsDiscoveryLoading(false);
+    }
+  }
+
+  function reviewScheduledSuggestion(suggestion: ScheduledTransactionSuggestion) {
+    setIsDiscoveryOpen(false);
+    setDraft(draftFromScheduledSuggestion(suggestion));
+  }
+
+  async function createScheduledSuggestion(suggestion: ScheduledTransactionSuggestion) {
+    await createSchedule(scheduledInputFromSuggestion(accountId, suggestion));
+    const next = await scheduledTransactionsPersistence.listByAccount(accountId);
+    setScheduledTransactions(next);
+    onDueCountChange?.(countDue(next));
+    setDiscoverySuggestions((current) =>
+      current.filter((entry) => entry.id !== suggestion.id),
+    );
+  }
+
+  function ignoreScheduledSuggestion(suggestion: ScheduledTransactionSuggestion) {
+    ignoreScheduledTransactionSuggestion(budgetId, accountId, suggestion.fingerprint);
+    setDiscoverySuggestions((current) =>
+      current.filter((entry) => entry.id !== suggestion.id),
+    );
+  }
+
   const isWorkspace = presentation === "workspace";
 
   return (
@@ -315,13 +380,22 @@ export function ScheduledTransactionsPanel({
         </div>
 
         {!draft ? (
-          <button
-            className="button button-primary scheduled-panel-add"
-            type="button"
-            onClick={() => setDraft(createEmptyDraft())}
-          >
-            Add scheduled
-          </button>
+          <div className="scheduled-panel-actions">
+            <button
+              className="button button-primary scheduled-panel-add"
+              type="button"
+              onClick={() => setDraft(createEmptyDraft())}
+            >
+              Add scheduled
+            </button>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() => void openScheduledDiscovery()}
+            >
+              Find Scheduled Transactions
+            </button>
+          </div>
         ) : null}
 
         <div className="scheduled-panel-list">
@@ -348,6 +422,19 @@ export function ScheduledTransactionsPanel({
           ) : null}
         </div>
       </div>
+
+      {isDiscoveryOpen ? (
+        <ScheduledTransactionDiscoveryDialog
+          suggestions={discoverySuggestions}
+          dateFormat={dateFormat}
+          isLoading={isDiscoveryLoading}
+          error={discoveryError}
+          onCreate={(suggestion) => void createScheduledSuggestion(suggestion)}
+          onReview={reviewScheduledSuggestion}
+          onIgnore={ignoreScheduledSuggestion}
+          onClose={() => setIsDiscoveryOpen(false)}
+        />
+      ) : null}
 
       {draft ? (
         <ScheduledForm
@@ -1244,6 +1331,81 @@ function createEmptyDraft(): ScheduledFormDraft {
     outflow: "",
     inflow: "",
     splitLines: undefined,
+  };
+}
+
+function draftFromScheduledSuggestion(
+  suggestion: ScheduledTransactionSuggestion,
+): ScheduledFormDraft {
+  const amount = suggestion.amount.suggested.toFixed(2);
+  return {
+    tagIds: [],
+    nextDueDate: suggestion.nextDueDate,
+    frequency: frequencyFromRecurrence(
+      suggestion.recurrenceInterval,
+      suggestion.recurrenceUnit,
+    ),
+    frequencyChoice: resolveFrequencyChoice(
+      true,
+      suggestion.recurrenceInterval,
+      suggestion.recurrenceUnit,
+    ),
+    isRecurring: true,
+    recurrenceKind: "rule",
+    specificDates: [],
+    specificDateIndex: 0,
+    specificInstalments: [],
+    attachments: [],
+    recurrenceInterval: suggestion.recurrenceInterval,
+    recurrenceUnit: suggestion.recurrenceUnit,
+    recurrenceAnchorDate: suggestion.nextDueDate,
+    recurrenceAnchorDay:
+      suggestion.recurrenceAnchorDay ??
+      Number.parseInt(suggestion.nextDueDate.slice(8, 10), 10),
+    monthDayPolicy: "same-day-number",
+    endCondition: "never",
+    endDate: "",
+    occurrenceCount: 12,
+    occurrencesCompleted: 0,
+    weekendPolicy: "same-day",
+    payee: suggestion.payee,
+    payeeId: suggestion.payeeId,
+    transferAccountId: undefined,
+    category: suggestion.category,
+    categoryId: suggestion.categoryId,
+    memo: "",
+    outflow: suggestion.direction === "outflow" ? amount : "",
+    inflow: suggestion.direction === "inflow" ? amount : "",
+    splitLines: undefined,
+  };
+}
+
+function scheduledInputFromSuggestion(
+  accountId: string,
+  suggestion: ScheduledTransactionSuggestion,
+): UpsertScheduledTransactionInput {
+  const draft = draftFromScheduledSuggestion(suggestion);
+  return {
+    accountId,
+    tagIds: [],
+    nextDueDate: draft.recurrenceAnchorDate,
+    frequency: draft.frequency,
+    recurrenceKind: "rule",
+    recurrenceInterval: draft.recurrenceInterval,
+    recurrenceUnit: draft.recurrenceUnit,
+    recurrenceAnchorDate: draft.recurrenceAnchorDate,
+    recurrenceAnchorDay: draft.recurrenceAnchorDay,
+    monthDayPolicy: draft.monthDayPolicy,
+    endCondition: "never",
+    occurrencesCompleted: 0,
+    weekendPolicy: "same-day",
+    payee: draft.payee,
+    payeeId: draft.payeeId,
+    category: draft.category,
+    categoryId: draft.categoryId,
+    memo: "",
+    outflow: storedMoneyValue(draft.outflow),
+    inflow: storedMoneyValue(draft.inflow),
   };
 }
 
