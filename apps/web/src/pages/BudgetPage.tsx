@@ -8,7 +8,7 @@ import {
 } from "react";
 import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, FileText, ListTree, Plus, Redo2, Settings2, Undo2 } from "lucide-react";
+import { CalendarDays, ListTree, Plus, Redo2, Undo2 } from "lucide-react";
 import { Card } from "../components/ui/Card";
 import "../styles/budgetWorkspace.css";
 import {
