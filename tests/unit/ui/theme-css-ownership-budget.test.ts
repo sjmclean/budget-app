@@ -107,7 +107,7 @@ test("Blueprint influences Budget through semantic workspace tokens instead of f
   assert.match(rule(budget, ".budget-workspace-group-header"), /var\(--workspace-group-header-background-start\)/);
   assert.match(rule(budget, ".budget-workspace-group-header"), /var\(--workspace-group-header-background-end\)/);
   assert.match(rule(budget, ".budget-workspace-group-header"), /var\(--workspace-group-header-border\)/);
-  assert.match(rule(budget, ".budget-month-panel"), /var\(--workspace-side-panel-background\)/);
+  assert.match(rule(budget, ".budget-category-details-panel"), /var\(--workspace-side-panel-background\)/);
   assert.equal(existsSync("apps/web/src/styles/budgetResponsivePolish.css"), false);
 });
 
