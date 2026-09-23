@@ -717,7 +717,18 @@ Avoid separate feature sets for desktop and mobile unless genuinely necessary.
 
 ## Budget Screen UX
 
-Review:
+Completed foundations:
+
+- horizontal year/month navigation and richer authoritative Ready to Assign summary;
+- adjacent-month Budget outlook using the authoritative next-month projection;
+- contextual Category Details panel that disappears when no category is selected;
+- Category Details tabs for Overview, Goal, Activity and Notes;
+- goal progress and editing through the existing goal subsystem;
+- recent category activity backed by the authoritative local SQLite drilldown;
+- generic transfer-aware category activity, including categorised transfers from on-budget accounts to off-budget/tracking accounts;
+- account-aware transfer labels such as `Transfer to <account>` / `Transfer from <account>`.
+
+Remaining review/work:
 
 - visual hierarchy;
 - editing behaviour;
@@ -725,7 +736,9 @@ Review:
 - category groups;
 - large-budget usability;
 - adaptive/mobile layout;
-- selective E2E coverage.
+- selective E2E coverage;
+- **wire the Category Details `Move Money` action to a real generic money-movement workflow**. It must support ordinary category-to-category movement rather than reusing Cover Overspending semantics, preserve the existing local-first command/history architecture, and include focused interaction/regression coverage before the disabled control is enabled;
+- **add Move Money history**. Reuse the existing undoable budget money-movement/Application History command path for undo/redo, and add a compact user-visible history of currently effective money movements. Each entry should record at minimum the date, amount, source category/categories and destination category. Undoing a move should remove its history entry; redoing it should restore the entry. Do not add separate "undone" audit events. History must be derived from the same successful money-movement command rather than maintained as a second financial authority.
 
 Keep existing Budget virtualization.
 
