@@ -738,7 +738,7 @@ Remaining review/work:
 - adaptive/mobile layout;
 - selective E2E coverage;
 - **wire the Category Details `Move Money` action to a real generic money-movement workflow**. It must support ordinary category-to-category movement rather than reusing Cover Overspending semantics, preserve the existing local-first command/history architecture, and include focused interaction/regression coverage before the disabled control is enabled;
-- **add Move Money history**. Reuse the existing undoable budget money-movement/Application History command path for undo/redo, and add a user-visible movement history/audit trail that records at minimum the budget month, amount, source category/categories and destination category. History must be derived from the same successful money-movement command rather than maintained as a second financial authority.
+- **add Move Money history**. Reuse the existing undoable budget money-movement/Application History command path for undo/redo, and add a compact user-visible history of currently effective money movements. Each entry should record at minimum the date, amount, source category/categories and destination category. Undoing a move should remove its history entry; redoing it should restore the entry. Do not add separate "undone" audit events. History must be derived from the same successful money-movement command rather than maintained as a second financial authority.
 
 Keep existing Budget virtualization.
 
