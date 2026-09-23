@@ -2349,25 +2349,25 @@
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/BudgetPage.tsx",
-      "line": 84,
+      "line": 85,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/BudgetPage.tsx",
-      "line": 112,
+      "line": 113,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/BudgetPage.tsx",
-      "line": 120,
+      "line": 121,
       "classification": "review-required"
     },
     {
       "kind": "localStorage",
       "path": "apps/web/src/pages/BudgetPage.tsx",
-      "line": 127,
+      "line": 128,
       "classification": "review-required"
     },
     {
