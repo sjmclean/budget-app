@@ -24,6 +24,7 @@ import {
   getPreviousBudgetMonth,
 } from "../features/budget/budgetMonthNavigation";
 import { useBudgetWorkspace } from "../features/budget/useBudgetWorkspace";
+import { useBudgetView } from "../features/budget/useBudgetView";
 import { useApplicationHistory } from "../features/history";
 import { prefetchBudgetMonthQuery } from "../features/persistence/reactiveQueries";
 import { readAuthoritativeBudgetSummary } from "../features/budget/authoritativeBudgetSummary";
@@ -34,6 +35,7 @@ import type {
   BudgetActivityDrilldownRow,
   BudgetCategoryGroupView,
   BudgetCategoryView,
+  BudgetMonthView,
 } from "../features/budget/budgetViewTypes";
 import { formatDateForDisplay } from "../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../features/settings/useDateFormatPreference";
@@ -42,6 +44,7 @@ import { useTableLayout, type TableColumnDefinition } from "../features/tableLay
 import { isCreditCardPaymentCategory, isCreditCardPaymentGroup } from "../features/budget/creditCardPaymentCategories";
 import { formatMoney, getAvailableClass } from "../features/budget/budgetMoneyDisplay";
 import { isMoneyNegative, isMoneyZero } from "../features/budget/moneyMath";
+import { resolveBudgetNextMonthOutlook } from "../features/budget/budgetNextMonthOutlook";
 import {
   ARCHIVED_CATEGORIES_GROUP_ID,
   buildArchivedCategoriesGroup,
@@ -134,6 +137,65 @@ const BUDGET_COLUMN_DEFINITIONS: readonly TableColumnDefinition<BudgetColumnId>[
   { id: "activity", label: "Activity", template: "7rem", widthRem: 7 },
   { id: "available", label: "Available", template: "7rem", widthRem: 7 },
 ];
+
+function BudgetNextMonthOutlook({
+  data,
+  isLoading,
+  error,
+  currencyCode,
+  onOpen,
+}: {
+  data: BudgetMonthView | null;
+  isLoading: boolean;
+  error: string | null;
+  currencyCode: string;
+  onOpen: () => void;
+}) {
+  const outlook = data
+    ? resolveBudgetNextMonthOutlook(data.readyToAssign)
+    : null;
+  const monthName = data?.monthLabel.split(" ")[0] ?? "Next month";
+  const statusClass = outlook
+    ? `budget-next-month-outlook-${outlook.status}`
+    : "budget-next-month-outlook-neutral";
+
+  let primary = "Calculating…";
+  let secondary = "Reading the next budget month.";
+
+  if (error) {
+    primary = "Outlook unavailable";
+    secondary = "Open the next month to review it.";
+  } else if (data && outlook) {
+    if (outlook.status === "balanced") {
+      primary = "Balanced";
+      secondary = `${formatMoney(0, currencyCode)} projected`;
+    } else if (outlook.status === "overbudget") {
+      primary = `${formatMoney(outlook.amount, currencyCode)} overbudget`;
+      secondary = "Based on your current budget";
+    } else {
+      primary = `${formatMoney(outlook.amount, currencyCode)} available`;
+      secondary = "Based on your current budget";
+    }
+  } else if (!isLoading) {
+    primary = "Outlook unavailable";
+    secondary = "Open the next month to review it.";
+  }
+
+  return (
+    <button
+      className={`budget-next-month-outlook ${statusClass}`}
+      type="button"
+      onClick={onOpen}
+      aria-label={`Open ${data?.monthLabel ?? "next month"} budget. ${primary}.`}
+    >
+      <span className="budget-next-month-outlook-kicker">Next month</span>
+      <span className="budget-next-month-outlook-label">{monthName} outlook</span>
+      <strong>{primary}</strong>
+      <span className="budget-next-month-outlook-support">{secondary}</span>
+      <span className="budget-next-month-outlook-arrow" aria-hidden="true">›</span>
+    </button>
+  );
+}
 
 function CategoryInspector({
   budgetId,
@@ -446,6 +508,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     openActivityDrilldown,
     closeActivityDrilldown,
   } = useBudgetWorkspace(budgetId, selectedMonth);
+
+  const nextMonth = getNextBudgetMonth(selectedMonth);
+  const nextMonthBudget = useBudgetView(budgetId, nextMonth);
 
   const applicationHistory = useApplicationHistory();
 
@@ -786,16 +851,17 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 </button>
               </nav>
 
-              <div
-                className={
-                  isBudgetOverassigned
-                    ? "budget-ready-summary budget-ready-summary-negative"
-                    : isMoneyZero(data.readyToAssign)
-                      ? "budget-ready-summary budget-ready-summary-neutral"
-                      : "budget-ready-summary budget-ready-summary-positive"
-                }
-                aria-label={`Ready to assign ${formatMoney(data.readyToAssign, data.currencyCode)}`}
-              >
+              <div className="budget-planning-summary-stack">
+                <div
+                  className={
+                    isBudgetOverassigned
+                      ? "budget-ready-summary budget-ready-summary-negative"
+                      : isMoneyZero(data.readyToAssign)
+                        ? "budget-ready-summary budget-ready-summary-neutral"
+                        : "budget-ready-summary budget-ready-summary-positive"
+                  }
+                  aria-label={`Ready to assign ${formatMoney(data.readyToAssign, data.currencyCode)}`}
+                >
                 <div className="budget-ready-summary-heading">
                   <span>Ready to Assign</span>
                   <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
@@ -824,6 +890,15 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   <span>Ready to Assign</span>
                   <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
                 </div>
+                </div>
+
+                <BudgetNextMonthOutlook
+                  data={nextMonthBudget.data}
+                  isLoading={nextMonthBudget.isLoading}
+                  error={nextMonthBudget.error}
+                  currencyCode={data.currencyCode}
+                  onOpen={() => setSelectedMonth(nextMonth)}
+                />
               </div>
 
               <nav className="budget-planning-tabs" aria-label="Budget workspace views">
