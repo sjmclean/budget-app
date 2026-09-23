@@ -4,7 +4,11 @@ import test from "node:test";
 
 import type { RegisterTransactionView } from "../../../apps/web/src/features/accounts/accountRegisterTypes.js";
 import type { TransactionImportCandidate } from "../../../apps/web/src/features/accounts/transactionImport.js";
-import { getTransactionImportReviewPresentation } from "../../../apps/web/src/features/accounts/transactionImportReviewPresentation.js";
+import {
+  getTransactionImportReviewPresentation,
+  getTransactionImportSecondaryRowKind,
+  hasTransactionImportProposalDifference,
+} from "../../../apps/web/src/features/accounts/transactionImportReviewPresentation.js";
 import {
   getEligibleManualRegisterMatches,
   getRegisterMatchOwnership,
@@ -58,6 +62,55 @@ test("presentation maps domain status and ownership-filtered alternative count o
   assert.equal(getTransactionImportReviewPresentation(candidate("possible"), 2).kind, "possible-match");
   assert.equal(getTransactionImportReviewPresentation(candidate("new"), 0).kind, "no-match");
   assert.equal(getTransactionImportReviewPresentation(candidate("invalid", "invalid"), 3).kind, "invalid");
+});
+
+test("learned proposal differences render as a proposed transaction without a register match", () => {
+  const learned = candidate("learned");
+  assert.equal(hasTransactionImportProposalDifference(learned), true);
+  assert.equal(getTransactionImportSecondaryRowKind(learned, 0), "proposal");
+
+  const unchanged: TransactionImportCandidate = {
+    ...learned,
+    lifecycle: {
+      ...learned.lifecycle,
+      source: {
+        ...learned.lifecycle.source,
+        importedCategoryName: "Groceries",
+      },
+      proposal: {
+        payee: learned.lifecycle.source.rawPayee,
+        categoryName: "Groceries",
+        transferAccountName: null,
+        memo: learned.lifecycle.source.memo,
+      },
+    },
+  };
+  assert.equal(hasTransactionImportProposalDifference(unchanged), false);
+  assert.equal(getTransactionImportSecondaryRowKind(unchanged, 0), "none");
+});
+
+test("editing a possible match converts the secondary row to the proposal while retaining match availability", () => {
+  const possible = candidate("possible");
+  assert.equal(getTransactionImportSecondaryRowKind(possible, 1), "possible-match");
+
+  const edited: TransactionImportCandidate = {
+    ...possible,
+    reviewDecision: "import-as-new",
+    lifecycle: {
+      ...possible.lifecycle,
+      proposal: {
+        ...possible.lifecycle.proposal,
+        payee: "STAN",
+        categoryName: "Streaming",
+      },
+    },
+  };
+
+  assert.equal(getTransactionImportSecondaryRowKind(edited, 1), "proposal");
+  const presentation = getTransactionImportReviewPresentation(edited, 1);
+  assert.equal(presentation.kind, "no-match");
+  assert.equal(presentation.title, "Ready to import");
+  assert.match(presentation.subtext, /possible match was rejected/i);
 });
 
 test("manual selection accepts same amount outside seven days and preserves proposal state", () => {
@@ -212,7 +265,7 @@ test("switching and reset release manual ownership without losing the prepared s
 });
 
 
-test("import review clearly separates bank source from proposed payee", () => {
+test("import review clearly separates immutable bank source from a full proposed transaction", () => {
   const dialog = readFileSync(
     new URL(
       "../../../apps/web/src/features/accounts/components/TransactionImportDialog.tsx",
@@ -222,10 +275,12 @@ test("import review clearly separates bank source from proposed payee", () => {
   );
 
   assert.match(dialog, /Bank statement/);
+  assert.match(dialog, /"Proposed transaction"/);
   assert.match(
     dialog,
-    /\{sourcePayee \|\| "Missing payee"\}[\s\S]*?Will import as: \{candidate\.lifecycle\.proposal\.payee\}/,
+    /candidate\.lifecycle\.proposal\.payee[\s\S]*?candidate\.lifecycle\.proposal\.categoryName/,
   );
+  assert.doesNotMatch(dialog, /Will import as:/);
   assert.doesNotMatch(dialog, /Bank transaction/);
 });
 
@@ -250,7 +305,7 @@ test("manual new-transaction payee edit is authoritative over merchant inference
   );
   assert.match(
     saveSource,
-    /updateCandidateProposal\(candidate\.id, \{[\s\S]*?payee: reviewedPayee,/,
+    /updateCandidateProposal\([\s\S]*?candidate\.id,[\s\S]*?payee: reviewedPayee,/,
   );
   assert.doesNotMatch(
     saveSource,

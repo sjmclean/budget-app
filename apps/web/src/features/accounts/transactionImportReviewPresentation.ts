@@ -14,6 +14,55 @@ export interface TransactionImportReviewPresentation {
   subtext: string;
 }
 
+export type TransactionImportSecondaryRowKind =
+  | "possible-match"
+  | "proposal"
+  | "none";
+
+function normaliseReviewText(value: string | null | undefined): string {
+  return (value ?? "").trim();
+}
+
+export function hasTransactionImportProposalDifference(
+  candidate: TransactionImportCandidate,
+): boolean {
+  const source = candidate.lifecycle.source;
+  const proposal = candidate.lifecycle.proposal;
+
+  return (
+    normaliseReviewText(source.rawPayee) !== normaliseReviewText(proposal.payee) ||
+    normaliseReviewText(source.importedCategoryName) !==
+      normaliseReviewText(proposal.categoryName) ||
+    normaliseReviewText(source.transferAccountName) !==
+      normaliseReviewText(proposal.transferAccountName) ||
+    normaliseReviewText(source.memo) !== normaliseReviewText(proposal.memo) ||
+    (proposal.tagIds?.length ?? 0) > 0 ||
+    (proposal.attachments?.length ?? 0) > 0 ||
+    (proposal.splitLines?.length ?? 0) > 0
+  );
+}
+
+export function getTransactionImportSecondaryRowKind(
+  candidate: TransactionImportCandidate,
+  availableMatchCount: number,
+): TransactionImportSecondaryRowKind {
+  if (candidate.status !== "new") {
+    return "none";
+  }
+
+  if (candidate.reviewDecision === "import-as-new") {
+    return "proposal";
+  }
+
+  if (availableMatchCount > 0) {
+    return "possible-match";
+  }
+
+  return hasTransactionImportProposalDifference(candidate)
+    ? "proposal"
+    : "none";
+}
+
 function isManuallySelectedMatch(candidate: TransactionImportCandidate): boolean {
   return (
     candidate.status === "exact-match" &&
@@ -44,6 +93,16 @@ export function getTransactionImportReviewPresentation(
       kind: "suggested-match",
       title: "Suggested match",
       subtext: candidate.reason || "Compare the bank and register transactions before accepting.",
+    };
+  }
+  if (candidate.reviewDecision === "import-as-new") {
+    return {
+      kind: "no-match",
+      title: "Ready to import",
+      subtext:
+        availableMatchCount > 0
+          ? "The possible match was rejected. Review the proposed transaction before importing."
+          : "Review the proposed transaction before importing.",
     };
   }
   if (availableMatchCount > 0) {
