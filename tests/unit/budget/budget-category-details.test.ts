@@ -29,10 +29,14 @@ test("Category Details exposes the agreed desktop information sections", () => {
     budgetPage,
     /type CategoryDetailsTab = "overview" \| "goal" \| "activity" \| "notes"/,
   );
-  assert.match(budgetPage, />Overview</);
-  assert.match(budgetPage, />Goal</);
-  assert.match(budgetPage, />Activity</);
-  assert.match(budgetPage, />Notes</);
+  assert.match(
+    budgetPage,
+    /(["overview", "goal", "activity", "notes"] as const).map/,
+  );
+  assert.match(
+    budgetPage,
+    /tab === "overview"[sS]*? "Overview"[sS]*tab === "goal"[sS]*? "Goal"[sS]*tab === "activity"[sS]*? "Activity"[sS]*: "Notes"/,
+  );
   assert.match(budgetPage, /<CategoryGoalInspectorSection/);
   assert.match(budgetPage, /onOpenActivity\(category\.id\)/);
   assert.match(budgetPage, /onOpenSettings\(category\.id\)/);
