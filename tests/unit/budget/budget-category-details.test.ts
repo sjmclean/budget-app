@@ -24,25 +24,29 @@ test("Budget only mounts Category Details when a category is selected", () => {
   );
 });
 
-test("Category Details follows the focused reference mockup hierarchy", () => {
-  assert.doesNotMatch(
+test("Category Details follows the rich reference mockup hierarchy", () => {
+  assert.match(
     budgetPage,
-    /CategoryDetailsTab|budget-category-details-tabs|CategoryGoalInspectorSection|budget-category-details-balance/,
+    /type CategoryDetailsTab = "overview" \| "goal" \| "activity" \| "notes"/,
   );
   assert.match(
     budgetPage,
     /<h2>Category Details<\/h2>[\s\S]*<h3>\{category\.name\}<\/h3>/,
   );
-  assert.match(budgetPage, /budget-category-details-financials/);
+  assert.match(budgetPage, /budget-category-details-tabs/);
+  assert.match(budgetPage, /"overview", "goal", "activity", "notes"/);
+  assert.match(budgetPage, /budget-category-details-summary-card/);
+  assert.match(budgetPage, />Available</);
   assert.match(budgetPage, />Assigned</);
   assert.match(budgetPage, />Activity</);
-  assert.match(budgetPage, />Available</);
-  assert.match(budgetPage, /budget-category-details-status-section/);
-  assert.match(budgetPage, />Status</);
-  assert.match(budgetPage, /budget-category-details-status-dot/);
-  assert.match(budgetPage, /budget-category-details-notes/);
-  assert.match(budgetPage, /Archive Category/);
-  assert.match(budgetPage, /Manage Category…/);
+  assert.match(budgetPage, /budget-category-details-goal-summary/);
+  assert.match(budgetPage, /Funding progress/);
+  assert.match(budgetPage, /Recent activity/);
+  assert.match(budgetPage, /View all activity/);
+  assert.match(budgetPage, /Cover Overspending/);
+  assert.match(budgetPage, /Move Money/);
+  assert.match(budgetPage, /Edit Goal|Set Goal/);
+  assert.match(budgetPage, /<CategoryGoalInspectorSection/);
 });
 
 test("Budget reclaims the permanent inspector width until details are open", () => {
@@ -52,7 +56,7 @@ test("Budget reclaims the permanent inspector width until details are open", () 
   );
   assert.match(
     budgetCss,
-    /\.budget-workspace-layout-details-open\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) 18rem/,
+    /\.budget-workspace-layout-details-open\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(19rem, 20\.5rem\)/,
   );
   assert.match(
     budgetCss,
