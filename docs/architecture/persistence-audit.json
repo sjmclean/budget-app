@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T01:48:43.950Z",
+  "generatedAt": "2026-09-23T07:03:39.964Z",
   "scope": [
     "apps/web/src",
     "apps/server/src"
@@ -12,7 +12,7 @@
     "reactiveUpdates": "persistence change bus publishes batched remote changes to React consumers"
   },
   "counts": {
-    "localStorage": 17,
+    "localStorage": 18,
     "indexedDB": 2,
     "replicationApi": 2,
     "persistenceBoundary": 69,
@@ -31,6 +31,7 @@
       "apps/web/src/features/accounts/accountRegisterPersistencePort.ts",
       "apps/web/src/features/accounts/accountRegisterService.ts",
       "apps/web/src/features/accounts/payeePersistencePort.ts",
+      "apps/web/src/features/accounts/scheduledTransactionDiscoveryPreferences.ts",
       "apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts",
       "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
       "apps/web/src/features/budget/categoryPersistencePort.ts",
@@ -541,6 +542,18 @@
       "path": "apps/web/src/features/accounts/registerSorting.ts",
       "line": 48,
       "classification": "ui-preference"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/scheduledTransactionDiscoveryPreferences.ts",
+      "line": 9,
+      "classification": "review-required"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/scheduledTransactionDiscoveryPreferences.ts",
+      "line": 30,
+      "classification": "review-required"
     },
     {
       "kind": "persistenceBoundary",
