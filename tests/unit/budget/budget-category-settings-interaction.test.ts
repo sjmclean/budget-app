@@ -130,7 +130,7 @@ test("cover draft survives switching to settings and back", async () => {
   }
 });
 
-test("category details matches the focused daily-budgeting contract", () => {
+test("category details keeps daily budgeting actions backed by existing workflows", () => {
   const details = page.slice(
     page.indexOf("function CategoryDetailsPanel"),
     page.indexOf("function BudgetActivityDrilldownModal"),
@@ -138,16 +138,15 @@ test("category details matches the focused daily-budgeting contract", () => {
   assert.match(details, /Assigned/);
   assert.match(details, /Activity/);
   assert.match(details, /Available/);
-  assert.match(
-    details,
-    /const statusLabel = isOverspent[\s\S]*"Overspent"[\s\S]*"Overbudgeted"[\s\S]*"On Budget"/,
-  );
-  assert.match(details, /budget-category-details-status-dot/);
-  assert.match(details, /Notes/);
-  assert.match(details, /Archive Category/);
-  assert.match(details, /Manage Category…/);
-  assert.match(details, /onSetCategoryArchived\(category\.id, !category\.isArchived\)/);
+  assert.match(details, /CategoryGoalInspectorSection/);
+  assert.match(details, /useCategoryActivityDrilldownQuery/);
+  assert.match(details, /onOpenActivity\(category\.id\)/);
   assert.match(details, /onOpenManageCategory\(category\.id\)/);
+  assert.match(details, /onOpenCoverOverspending\(category\.id\)/);
+  assert.match(details, /disabled=\{!canCoverOverspending\}/);
+  assert.match(details, /Move Money/);
+  assert.match(details, /title="Move Money is not yet available from Category Details\."/);
+  assert.doesNotMatch(details, /Next payment|View schedule/);
 });
 
 test("entry points target one ID-based category window with explicit tabs", () => {
