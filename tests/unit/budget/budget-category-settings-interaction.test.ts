@@ -130,7 +130,7 @@ test("cover draft survives switching to settings and back", async () => {
   }
 });
 
-test("category details overview retains financial and managed details without embedding category management", () => {
+test("category details matches the focused daily-budgeting contract", () => {
   const details = page.slice(
     page.indexOf("function CategoryDetailsPanel"),
     page.indexOf("function BudgetActivityDrilldownModal"),
@@ -140,15 +140,14 @@ test("category details overview retains financial and managed details without em
   assert.match(details, /Available/);
   assert.match(
     details,
-    /const statusLabel = isMoneyNegative\(category\.available\)[\s\S]*"Overspent"[\s\S]*"Overbudgeted"[\s\S]*"Available"/,
+    /const statusLabel = isOverspent[\s\S]*"Overspent"[\s\S]*"Overbudgeted"[\s\S]*"On Budget"/,
   );
-  assert.match(
-    details,
-    /budget-category-details-status">\{statusLabel\}<\/span>/,
-  );
-  assert.match(details, /Managed category/);
-  assert.doesNotMatch(details, /Archive category|Restore category/);
-  assert.doesNotMatch(details, /onOpenCategorySettings|onSetCategoryArchived/);
+  assert.match(details, /budget-category-details-status-dot/);
+  assert.match(details, /Notes/);
+  assert.match(details, /Archive Category/);
+  assert.match(details, /Manage Category…/);
+  assert.match(details, /onSetCategoryArchived\(category\.id, !category\.isArchived\)/);
+  assert.match(details, /onOpenManageCategory\(category\.id\)/);
 });
 
 test("entry points target one ID-based category window with explicit tabs", () => {
@@ -179,7 +178,7 @@ test("cover and settings workflows retain their existing callback contracts", ()
 test("Budget grid remains the same four columns", () => {
   const columns = page.slice(
     page.indexOf("const BUDGET_COLUMN_DEFINITIONS"),
-    page.indexOf("function CategoryInspector"),
+    page.indexOf("function BudgetNextMonthOutlook"),
   );
   assert.deepEqual([...columns.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]), [
     "category", "assigned", "activity", "available",
