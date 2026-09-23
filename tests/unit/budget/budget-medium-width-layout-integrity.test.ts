@@ -8,12 +8,12 @@ test("medium-width budget rules live with the Budget workspace owner", () => {
   assert.match(responsive, /\.budget-workspace-main\s*\{[\s\S]*container-name:\s*budget-workspace-main/);
 });
 
-test("medium-width budget keeps the summary beside the planning header", () => {
+test("medium-width budget keeps the month strip above the planning summary", () => {
   assert.match(
     responsive,
-    /@container budget-workspace-main \(min-width: 34rem\) and \(max-width: 44rem\)[\s\S]*grid-template-areas:[\s\S]*"title summary"[\s\S]*"month summary"[\s\S]*"tabs summary"/,
+    /@container budget-workspace-main \(min-width: 34rem\) and \(max-width: 44rem\)[\s\S]*grid-template-areas:[\s\S]*"months months"[\s\S]*"title summary"[\s\S]*"tabs summary"/,
   );
-  assert.match(responsive, /budget-ready-summary[\s\S]*width: min\(16rem, 100%\)/);
+  assert.match(responsive, /budget-planning-summary-stack[\s\S]*width: min\(16rem, 100%\)/);
 });
 
 test("medium-width budget compacts all four financial columns without changing phone rules", () => {

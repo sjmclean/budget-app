@@ -54,3 +54,23 @@ test("Budget column handles retain per-column reset wiring", () => {
     /<ColumnResizeHandle[\s\S]*onResizeStart=\{budgetTableLayout\.startColumnResize\}[\s\S]*onNudgeColumnWidth=\{budgetTableLayout\.nudgeColumnWidth\}[\s\S]*onResetColumnWidth=\{budgetTableLayout\.resetColumnWidth\}/,
   );
 });
+
+
+test("Budget header exposes a year strip with all twelve selectable months", () => {
+  assert.match(
+    budgetPageSource,
+    /<nav className="budget-year-month-navigation"[\s\S]*\{selectedYear\}[\s\S]*yearMonths\.map/,
+  );
+  assert.match(
+    budgetPageSource,
+    /BUDGET_MONTH_LABELS = \[[\s\S]*"Jan"[\s\S]*"Feb"[\s\S]*"Mar"[\s\S]*"Apr"[\s\S]*"May"[\s\S]*"Jun"[\s\S]*"Jul"[\s\S]*"Aug"[\s\S]*"Sep"[\s\S]*"Oct"[\s\S]*"Nov"[\s\S]*"Dec"/,
+  );
+  assert.match(
+    budgetPageSource,
+    /aria-current=\{isSelected \? "date" : undefined\}/,
+  );
+  assert.match(
+    budgetPageSource,
+    /<h1>\{data\.monthLabel\}<\/h1>[\s\S]*<span>Monthly Budget<\/span>/,
+  );
+});
