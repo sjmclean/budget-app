@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ScheduledTransactionSuggestion } from "../../features/accounts/scheduledTransactionDiscovery";
 import { formatDateForDisplay } from "../../features/settings/dateFormatting";
+import type { DateFormatPreference } from "../../features/settings/settingsPreferences";
 
 export function ScheduledTransactionDiscoveryDialog({
   suggestions,
@@ -13,7 +14,7 @@ export function ScheduledTransactionDiscoveryDialog({
   onClose,
 }: {
   suggestions: readonly ScheduledTransactionSuggestion[];
-  dateFormat: string;
+  dateFormat: DateFormatPreference;
   isLoading: boolean;
   error: string | null;
   onCreate: (suggestion: ScheduledTransactionSuggestion) => void;
