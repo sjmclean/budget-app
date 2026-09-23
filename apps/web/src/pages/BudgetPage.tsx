@@ -244,16 +244,7 @@ function CategoryDetailsPanel({
       aria-label={`Category details for ${category.name}`}
     >
       <header className="budget-category-details-header">
-        <div className="budget-category-details-identity">
-          <span className="budget-category-details-kicker">Category Details</span>
-          <h2>{category.name}</h2>
-          <p className="budget-category-details-group">
-            <span className="budget-category-details-group-swatch" aria-hidden="true" />
-            <span>{group.name}</span>
-            {category.isArchived ? <span> · Archived</span> : null}
-            {isCreditCardPaymentCategory ? <span> · Managed</span> : null}
-          </p>
-        </div>
+        <h2>Category Details</h2>
         <button
           className="budget-category-details-close"
           type="button"
@@ -266,6 +257,16 @@ function CategoryDetailsPanel({
       </header>
 
       <div className="budget-category-details-content">
+        <section className="budget-category-details-identity">
+          <h3>{category.name}</h3>
+          <p className="budget-category-details-group">
+            <span className="budget-category-details-group-swatch" aria-hidden="true" />
+            <span>{group.name}</span>
+            {category.isArchived ? <span> · Archived</span> : null}
+            {isCreditCardPaymentCategory ? <span> · Managed</span> : null}
+          </p>
+        </section>
+
         <section className="budget-category-details-financials" aria-label="Category amounts">
           <div className="budget-category-details-value-row">
             <span>Assigned</span>
@@ -513,7 +514,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     overassignedCategoryIds,
     selectCategory,
     updateAssigned,
-    assignGoalRecommendation,
     setCategoryOverspendingHandling,
     coverOverspending,
     renameCategory,
