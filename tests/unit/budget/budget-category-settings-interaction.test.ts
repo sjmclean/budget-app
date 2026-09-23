@@ -138,7 +138,14 @@ test("category details overview retains financial and managed details without em
   assert.match(details, /Assigned/);
   assert.match(details, /Activity/);
   assert.match(details, /Available/);
-  assert.match(details, /Status/);
+  assert.match(
+    details,
+    /const statusLabel = isMoneyNegative\(category\.available\)[\s\S]*"Overspent"[\s\S]*"Overbudgeted"[\s\S]*"Available"/,
+  );
+  assert.match(
+    details,
+    /budget-category-details-status">\{statusLabel\}<\/span>/,
+  );
   assert.match(details, /Managed category/);
   assert.doesNotMatch(details, /Archive category|Restore category/);
   assert.doesNotMatch(details, /onOpenCategorySettings|onSetCategoryArchived/);
