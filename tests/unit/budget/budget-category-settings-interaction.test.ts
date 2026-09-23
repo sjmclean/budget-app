@@ -130,18 +130,23 @@ test("cover draft survives switching to settings and back", async () => {
   }
 });
 
-test("inspector is read-only while retaining financial and managed details", () => {
-  const inspector = page.slice(
-    page.indexOf("function CategoryInspector"),
+test("category details keeps daily budgeting actions backed by existing workflows", () => {
+  const details = page.slice(
+    page.indexOf("function CategoryDetailsPanel"),
     page.indexOf("function BudgetActivityDrilldownModal"),
   );
-  assert.match(inspector, /Assigned/);
-  assert.match(inspector, /Activity/);
-  assert.match(inspector, /Available/);
-  assert.match(inspector, /Status/);
-  assert.match(inspector, /Managed category/);
-  assert.doesNotMatch(inspector, /Category Settings…|Archive category|Restore category/);
-  assert.doesNotMatch(inspector, /onOpenCategorySettings|onSetCategoryArchived/);
+  assert.match(details, /Assigned/);
+  assert.match(details, /Activity/);
+  assert.match(details, /Available/);
+  assert.match(details, /CategoryGoalInspectorSection/);
+  assert.match(details, /useCategoryActivityDrilldownQuery/);
+  assert.match(details, /onOpenActivity\(category\.id\)/);
+  assert.match(details, /onOpenManageCategory\(category\.id\)/);
+  assert.match(details, /onOpenCoverOverspending\(category\.id\)/);
+  assert.match(details, /disabled=\{!canCoverOverspending\}/);
+  assert.match(details, /Move Money/);
+  assert.match(details, /title="Move Money is not yet available from Category Details\."/);
+  assert.doesNotMatch(details, /Next payment|View schedule/);
 });
 
 test("entry points target one ID-based category window with explicit tabs", () => {
@@ -172,7 +177,7 @@ test("cover and settings workflows retain their existing callback contracts", ()
 test("Budget grid remains the same four columns", () => {
   const columns = page.slice(
     page.indexOf("const BUDGET_COLUMN_DEFINITIONS"),
-    page.indexOf("function CategoryInspector"),
+    page.indexOf("function BudgetNextMonthOutlook"),
   );
   assert.deepEqual([...columns.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]), [
     "category", "assigned", "activity", "available",

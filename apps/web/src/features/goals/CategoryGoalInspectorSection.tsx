@@ -1,4 +1,5 @@
 import React, { useEffect, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import type { CategoryGoalType } from "../../../../../packages/types/src/CategoryGoalType";
 import type { BudgetCategoryView } from "../budget/budgetViewTypes";
 import { formatMoney } from "../budget/budgetMoneyDisplay";
@@ -246,7 +247,7 @@ function CategoryGoalDialog({
     onClose();
   }
 
-  return (
+  return createPortal(
     <div className="app-dialog-backdrop" role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !saving) onClose();
     }}>
@@ -316,6 +317,7 @@ function CategoryGoalDialog({
           </div>
         </form>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }

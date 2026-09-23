@@ -123,9 +123,11 @@ test("Goal UI wiring uses MoneyInput, confirmation, and history facade without c
   assert.match(source, /categoryGoalHistory\.updateCategoryGoalConfiguration/);
   assert.match(source, /categoryGoalHistory\.deleteCategoryGoal/);
   assert.doesNotMatch(source, /replaceCategoryGoalHistoryState|accountRegisterQueries|local_category_goals/);
+  assert.match(source, /createPortal\(/);
+  assert.match(source, /document\.body/);
   const columns = budgetPage.slice(
     budgetPage.indexOf("const BUDGET_COLUMN_DEFINITIONS"),
-    budgetPage.indexOf("function CategoryInspector"),
+    budgetPage.indexOf("function BudgetNextMonthOutlook"),
   );
   assert.deepEqual([...columns.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]), [
     "category", "assigned", "activity", "available",

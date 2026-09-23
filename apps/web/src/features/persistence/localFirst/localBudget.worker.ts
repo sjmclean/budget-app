@@ -2822,10 +2822,16 @@ function getCategoryActivityDrilldown(
        SELECT transaction_row.id
        FROM local_transactions AS transaction_row
        JOIN local_accounts AS account ON account.id = transaction_row.account_id
+       LEFT JOIN local_accounts AS transfer_account
+         ON transfer_account.budget_id = transaction_row.budget_id
+        AND transfer_account.id = transaction_row.transfer_account_id
        WHERE transaction_row.budget_id = ?
          AND substr(transaction_row.date, 1, 7) = ?
          AND transaction_row.category_id = ?
-         AND transaction_row.transfer_account_id IS NULL
+         AND (
+           transaction_row.transfer_account_id IS NULL
+           OR transfer_account.participation = 'off-budget'
+         )
          AND NOT EXISTS (
            SELECT 1 FROM local_transaction_splits AS split
            WHERE split.transaction_id = transaction_row.id
@@ -2836,10 +2842,16 @@ function getCategoryActivityDrilldown(
        FROM local_transaction_splits AS split
        JOIN local_transactions AS parent ON parent.id = split.transaction_id
        JOIN local_accounts AS account ON account.id = parent.account_id
+       LEFT JOIN local_accounts AS split_transfer_account
+         ON split_transfer_account.budget_id = parent.budget_id
+        AND split_transfer_account.id = split.transfer_account_id
        WHERE parent.budget_id = ?
          AND substr(parent.date, 1, 7) = ?
          AND split.category_id = ?
-         AND split.transfer_account_id IS NULL
+         AND (
+           split.transfer_account_id IS NULL
+           OR split_transfer_account.participation = 'off-budget'
+         )
          AND parent.transfer_account_id IS NULL
          AND account.participation = 'on-budget'
      )`,
@@ -2867,15 +2879,29 @@ function getCategoryActivityDrilldown(
        SELECT transaction_row.id, transaction_row.id AS transactionId,
          NULL AS splitLineId, transaction_row.account_id AS accountId,
          account.name AS accountName, transaction_row.date,
-         COALESCE(transaction_row.payee_name, 'Unspecified payee') AS payee,
+         CASE
+           WHEN transaction_row.transfer_account_id IS NOT NULL
+             THEN CASE
+               WHEN transaction_row.amount < 0
+                 THEN 'Transfer to ' || COALESCE(transfer_account.name, 'account')
+               ELSE 'Transfer from ' || COALESCE(transfer_account.name, 'account')
+             END
+           ELSE COALESCE(NULLIF(transaction_row.payee_name, ''), 'Unspecified payee')
+         END AS payee,
          COALESCE(transaction_row.memo, '') AS memo,
          transaction_row.amount, 0 AS isSplit
        FROM local_transactions AS transaction_row
        JOIN local_accounts AS account ON account.id = transaction_row.account_id
+       LEFT JOIN local_accounts AS transfer_account
+         ON transfer_account.budget_id = transaction_row.budget_id
+        AND transfer_account.id = transaction_row.transfer_account_id
        WHERE transaction_row.budget_id = ?
          AND substr(transaction_row.date, 1, 7) = ?
          AND transaction_row.category_id = ?
-         AND transaction_row.transfer_account_id IS NULL
+         AND (
+           transaction_row.transfer_account_id IS NULL
+           OR transfer_account.participation = 'off-budget'
+         )
          AND NOT EXISTS (
            SELECT 1 FROM local_transaction_splits AS split
            WHERE split.transaction_id = transaction_row.id
@@ -2885,16 +2911,30 @@ function getCategoryActivityDrilldown(
        SELECT parent.id || ':' || split.id AS id, parent.id AS transactionId,
          split.id AS splitLineId, parent.account_id AS accountId,
          account.name AS accountName, parent.date,
-         COALESCE(parent.payee_name, 'Unspecified payee') AS payee,
+         CASE
+           WHEN split.transfer_account_id IS NOT NULL
+             THEN CASE
+               WHEN split.amount < 0
+                 THEN 'Transfer to ' || COALESCE(split_transfer_account.name, 'account')
+               ELSE 'Transfer from ' || COALESCE(split_transfer_account.name, 'account')
+             END
+           ELSE COALESCE(NULLIF(parent.payee_name, ''), 'Unspecified payee')
+         END AS payee,
          COALESCE(split.memo, parent.memo, '') AS memo,
          split.amount, 1 AS isSplit
        FROM local_transaction_splits AS split
        JOIN local_transactions AS parent ON parent.id = split.transaction_id
        JOIN local_accounts AS account ON account.id = parent.account_id
+       LEFT JOIN local_accounts AS split_transfer_account
+         ON split_transfer_account.budget_id = parent.budget_id
+        AND split_transfer_account.id = split.transfer_account_id
        WHERE parent.budget_id = ?
          AND substr(parent.date, 1, 7) = ?
          AND split.category_id = ?
-         AND split.transfer_account_id IS NULL
+         AND (
+           split.transfer_account_id IS NULL
+           OR split_transfer_account.participation = 'off-budget'
+         )
          AND parent.transfer_account_id IS NULL
          AND account.participation = 'on-budget'
      ) ORDER BY date, payee, transactionId, id LIMIT 2000`,
