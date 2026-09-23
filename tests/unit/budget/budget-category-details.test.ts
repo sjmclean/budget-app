@@ -24,22 +24,14 @@ test("Budget only mounts Category Details when a category is selected", () => {
   );
 });
 
-test("Category Details exposes the agreed desktop information sections", () => {
-  assert.match(
-    budgetPage,
-    /type CategoryDetailsTab = "overview" \| "goal" \| "activity" \| "notes"/,
-  );
-  assert.ok(
-    budgetPage.includes('(["overview", "goal", "activity", "notes"] as const).map'),
-  );
-  assert.ok(budgetPage.includes('tab === "overview"'));
-  assert.ok(budgetPage.includes('? "Overview"'));
-  assert.ok(budgetPage.includes('tab === "goal"'));
-  assert.ok(budgetPage.includes('? "Goal"'));
-  assert.ok(budgetPage.includes('tab === "activity"'));
-  assert.ok(budgetPage.includes('? "Activity"'));
-  assert.ok(budgetPage.includes(': "Notes"'));
+test("Category Details follows the stacked mockup hierarchy", () => {
+  assert.doesNotMatch(budgetPage, /CategoryDetailsTab|budget-category-details-tabs/);
+  assert.match(budgetPage, /budget-category-details-balance/);
+  assert.match(budgetPage, /budget-category-details-financials/);
   assert.match(budgetPage, /<CategoryGoalInspectorSection/);
+  assert.match(budgetPage, /budget-category-details-section-title[\s\S]*Activity/);
+  assert.match(budgetPage, /budget-category-details-section-title[\s\S]*Notes/);
+  assert.match(budgetPage, /Category Settings…/);
   assert.match(budgetPage, /onOpenActivity\(category\.id\)/);
   assert.match(budgetPage, /onOpenSettings\(category\.id\)/);
 });
@@ -51,7 +43,7 @@ test("Budget reclaims the permanent inspector width until details are open", () 
   );
   assert.match(
     budgetCss,
-    /\.budget-workspace-layout-details-open\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(18rem, 20rem\)/,
+    /\.budget-workspace-layout-details-open\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(21rem, 23rem\)/,
   );
   assert.match(
     budgetCss,
