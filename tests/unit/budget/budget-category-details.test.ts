@@ -24,16 +24,25 @@ test("Budget only mounts Category Details when a category is selected", () => {
   );
 });
 
-test("Category Details follows the stacked mockup hierarchy", () => {
-  assert.doesNotMatch(budgetPage, /CategoryDetailsTab|budget-category-details-tabs/);
-  assert.match(budgetPage, /budget-category-details-balance/);
+test("Category Details follows the focused reference mockup hierarchy", () => {
+  assert.doesNotMatch(
+    budgetPage,
+    /CategoryDetailsTab|budget-category-details-tabs|CategoryGoalInspectorSection|budget-category-details-balance/,
+  );
+  assert.match(
+    budgetPage,
+    /<h2>Category Details<\/h2>[\s\S]*<h3>\{category\.name\}<\/h3>/,
+  );
   assert.match(budgetPage, /budget-category-details-financials/);
-  assert.match(budgetPage, /<CategoryGoalInspectorSection/);
-  assert.match(budgetPage, /budget-category-details-section-title[\s\S]*Activity/);
-  assert.match(budgetPage, /budget-category-details-section-title[\s\S]*Notes/);
-  assert.match(budgetPage, /Category Settings…/);
-  assert.match(budgetPage, /onOpenActivity\(category\.id\)/);
-  assert.match(budgetPage, /onOpenSettings\(category\.id\)/);
+  assert.match(budgetPage, />Assigned</);
+  assert.match(budgetPage, />Activity</);
+  assert.match(budgetPage, />Available</);
+  assert.match(budgetPage, /budget-category-details-status-section/);
+  assert.match(budgetPage, />Status</);
+  assert.match(budgetPage, /budget-category-details-status-dot/);
+  assert.match(budgetPage, /budget-category-details-notes/);
+  assert.match(budgetPage, /Archive Category/);
+  assert.match(budgetPage, /Manage Category…/);
 });
 
 test("Budget reclaims the permanent inspector width until details are open", () => {
@@ -43,7 +52,7 @@ test("Budget reclaims the permanent inspector width until details are open", () 
   );
   assert.match(
     budgetCss,
-    /\.budget-workspace-layout-details-open\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(21rem, 23rem\)/,
+    /\.budget-workspace-layout-details-open\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) 18rem/,
   );
   assert.match(
     budgetCss,
