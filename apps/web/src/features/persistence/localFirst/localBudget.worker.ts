@@ -2879,7 +2879,15 @@ function getCategoryActivityDrilldown(
        SELECT transaction_row.id, transaction_row.id AS transactionId,
          NULL AS splitLineId, transaction_row.account_id AS accountId,
          account.name AS accountName, transaction_row.date,
-         COALESCE(transaction_row.payee_name, 'Unspecified payee') AS payee,
+         CASE
+           WHEN transaction_row.transfer_account_id IS NOT NULL
+             THEN CASE
+               WHEN transaction_row.amount < 0
+                 THEN 'Transfer to ' || COALESCE(transfer_account.name, 'account')
+               ELSE 'Transfer from ' || COALESCE(transfer_account.name, 'account')
+             END
+           ELSE COALESCE(NULLIF(transaction_row.payee_name, ''), 'Unspecified payee')
+         END AS payee,
          COALESCE(transaction_row.memo, '') AS memo,
          transaction_row.amount, 0 AS isSplit
        FROM local_transactions AS transaction_row
@@ -2903,7 +2911,15 @@ function getCategoryActivityDrilldown(
        SELECT parent.id || ':' || split.id AS id, parent.id AS transactionId,
          split.id AS splitLineId, parent.account_id AS accountId,
          account.name AS accountName, parent.date,
-         COALESCE(parent.payee_name, 'Unspecified payee') AS payee,
+         CASE
+           WHEN split.transfer_account_id IS NOT NULL
+             THEN CASE
+               WHEN split.amount < 0
+                 THEN 'Transfer to ' || COALESCE(split_transfer_account.name, 'account')
+               ELSE 'Transfer from ' || COALESCE(split_transfer_account.name, 'account')
+             END
+           ELSE COALESCE(NULLIF(parent.payee_name, ''), 'Unspecified payee')
+         END AS payee,
          COALESCE(split.memo, parent.memo, '') AS memo,
          split.amount, 1 AS isSplit
        FROM local_transaction_splits AS split
