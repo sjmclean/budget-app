@@ -23,14 +23,6 @@
   letter-spacing: -0.02em;
 }
 
-.budget-workspace-table-head {
-  font-weight: 700;
-  letter-spacing: 0.035em;
-}
-
-.budget-workspace-group-header {
-  font-weight: 700;
-}
 
 .budget-category-name {
   font-weight: 650;
@@ -125,9 +117,9 @@
 .budget-workspace-table-head {
   padding: 0.46rem 0.72rem;
   font-size: 0.72rem;
-  font-weight: 760;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.035em;
   border-bottom: 1px solid var(--border-soft);
   background: var(--workspace-table-head-background);
   color: var(--text-muted);
@@ -144,7 +136,7 @@
 .budget-workspace-group-header {
   padding: 0.64rem 0.72rem;
   font-size: 0.9rem;
-  font-weight: 780;
+  font-weight: 700;
   letter-spacing: 0.005em;
   border-top: 1px solid var(--workspace-group-header-border);
   border-bottom: 1px solid var(--workspace-group-header-border);
