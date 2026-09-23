@@ -2,6 +2,67 @@
   --workspace-content-gap: 1rem;
   min-width: 0;
   max-width: 100%;
+  font-kerning: normal;
+  font-feature-settings: "kern" 1, "tnum" 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-planning-title h1,
+.budget-ready-summary-heading strong,
+.budget-next-month-outlook strong,
+.budget-workspace-group-header,
+.budget-category-name,
+.assigned-button,
+.activity-drilldown-button,
+.available-pill {
+  text-rendering: optimizeLegibility;
+}
+
+.budget-planning-title h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.budget-workspace-table-head {
+  font-weight: 700;
+  letter-spacing: 0.035em;
+}
+
+.budget-workspace-group-header {
+  font-weight: 700;
+}
+
+.budget-category-name {
+  font-weight: 650;
+  letter-spacing: -0.008em;
+}
+
+.assigned-button,
+.activity-drilldown-button,
+.available-pill {
+  font-weight: 650;
+}
+
+.budget-ready-summary-heading span,
+.budget-ready-summary-total span {
+  font-weight: 700;
+}
+
+.budget-ready-summary-heading strong {
+  font-weight: 700;
+}
+
+.budget-ready-summary dt,
+.budget-next-month-outlook-kicker,
+.budget-next-month-outlook-label,
+.budget-next-month-outlook-support {
+  color: color-mix(in srgb, var(--text-muted) 88%, var(--text));
+}
+
+.budget-ready-summary dd,
+.budget-ready-summary-total strong,
+.budget-next-month-outlook strong {
+  font-weight: 650;
 }
 
 .budget-workspace-layout {
