@@ -8,7 +8,7 @@ import {
 } from "react";
 import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
-import { ListTree, Plus, Redo2, Undo2 } from "lucide-react";
+import { FileText, ListTree, Plus, Redo2, Settings2, Trash2, Undo2 } from "lucide-react";
 import { Card } from "../components/ui/Card";
 import "../styles/budgetWorkspace.css";
 import {
@@ -68,7 +68,6 @@ import {
   type BudgetColumnId,
   type BudgetGridStyle,
 } from "../features/budget/BudgetWorkspaceGroup";
-import { CategoryGoalInspectorSection } from "../features/goals/CategoryGoalInspectorSection";
 import { OrganiseCategoriesDialog } from "../features/budget/OrganiseCategoriesDialog";
 import { BudgetVirtualizedGroupList } from "../features/budget/BudgetVirtualizedGroupList";
 const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
@@ -204,35 +203,40 @@ function BudgetNextMonthOutlook({
 }
 
 function CategoryDetailsPanel({
-  budgetId,
   category,
   group,
   currencyCode,
   isOverassignedSource,
   isCreditCardPaymentCategory,
-  onAssignGoalRecommendation,
-  onOpenActivity,
-  onOpenSettings,
+  onOpenManageCategory,
+  onSetCategoryArchived,
   onClose,
 }: {
-  budgetId: string;
   category: BudgetCategoryView;
   group: BudgetCategoryGroupView;
   currencyCode: string;
   isOverassignedSource: boolean;
   isCreditCardPaymentCategory: boolean;
-  onAssignGoalRecommendation: ReturnType<typeof useBudgetWorkspace>["assignGoalRecommendation"];
-  onOpenActivity: (categoryId: string) => void;
-  onOpenSettings: (categoryId: string) => void;
+  onOpenManageCategory: (categoryId: string) => void;
+  onSetCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   onClose: () => void;
 }) {
-  const statusLabel = isMoneyNegative(category.available)
+  const isOverspent = isMoneyNegative(category.available);
+  const statusLabel = isOverspent
     ? "Overspent"
     : isOverassignedSource
       ? "Overbudgeted"
-      : "Available";
-  const categoryNote = category.note?.trim() ?? "";
-  const groupNote = group.note?.trim() ?? "";
+      : "On Budget";
+  const statusTone = isOverspent || isOverassignedSource ? "attention" : "positive";
+  const hasCategoryNote = Boolean(category.note?.trim());
+  const hasGroupNote = Boolean(group.note?.trim());
+  const noteSummary = hasCategoryNote && hasGroupNote
+    ? "This category and its group have notes."
+    : hasCategoryNote
+      ? "This category has notes."
+      : hasGroupNote
+        ? "This category group has notes."
+        : "No notes for this category.";
 
   return (
     <aside
@@ -243,10 +247,11 @@ function CategoryDetailsPanel({
         <div className="budget-category-details-identity">
           <span className="budget-category-details-kicker">Category Details</span>
           <h2>{category.name}</h2>
-          <p>
-            {group.name}
-            {category.isArchived ? " · Archived" : ""}
-            {isCreditCardPaymentCategory ? " · Managed" : ""}
+          <p className="budget-category-details-group">
+            <span className="budget-category-details-group-swatch" aria-hidden="true" />
+            <span>{group.name}</span>
+            {category.isArchived ? <span> · Archived</span> : null}
+            {isCreditCardPaymentCategory ? <span> · Managed</span> : null}
           </p>
         </div>
         <button
@@ -261,115 +266,66 @@ function CategoryDetailsPanel({
       </header>
 
       <div className="budget-category-details-content">
-        <section className="budget-category-details-balance" aria-label="Category balance">
-          <div>
+        <section className="budget-category-details-financials" aria-label="Category amounts">
+          <div className="budget-category-details-value-row">
+            <span>Assigned</span>
+            <strong>{formatMoney(category.assigned, currencyCode)}</strong>
+          </div>
+          <div className="budget-category-details-value-row">
+            <span>Activity</span>
+            <strong>{formatMoney(category.activity, currencyCode)}</strong>
+          </div>
+          <div className="budget-category-details-value-row">
             <span>Available</span>
             <strong className={getAvailableClass(category.available, isOverassignedSource)}>
               {formatMoney(category.available, currencyCode)}
             </strong>
           </div>
-          <span className="budget-category-details-status">{statusLabel}</span>
         </section>
 
-        <section className="budget-category-details-card budget-category-details-financials">
-          <div className="budget-category-details-section-title">
-            <div>
-              <span>Overview</span>
-              <p>This month</p>
-            </div>
-          </div>
-          <div className="budget-category-details-metrics">
-            <div>
-              <span>Assigned</span>
-              <strong>{formatMoney(category.assigned, currencyCode)}</strong>
-            </div>
-            <div>
-              <span>Activity</span>
-              <strong>{formatMoney(category.activity, currencyCode)}</strong>
-            </div>
-            <div>
-              <span>Available</span>
-              <strong className={getAvailableClass(category.available, isOverassignedSource)}>
-                {formatMoney(category.available, currencyCode)}
-              </strong>
-            </div>
-          </div>
+        <section className="budget-category-details-status-section" aria-label="Category status">
+          <span>Status</span>
+          <strong className={`budget-category-details-status budget-category-details-status-${statusTone}`}>
+            <span className="budget-category-details-status-dot" aria-hidden="true" />
+            {statusLabel}
+          </strong>
         </section>
+
+        <button
+          className="budget-category-details-notes"
+          type="button"
+          onClick={() => onOpenManageCategory(category.id)}
+        >
+          <span>
+            <strong>Notes</strong>
+            <small>{noteSummary}</small>
+          </span>
+          <FileText size={17} aria-hidden="true" />
+        </button>
 
         {!isCreditCardPaymentCategory ? (
-          <section className="budget-category-details-card budget-category-details-goal-card">
-            <CategoryGoalInspectorSection
-              budgetId={budgetId}
-              category={category}
-              currencyCode={currencyCode}
-              managed={false}
-              onAssignRecommendation={() => onAssignGoalRecommendation(category.id)}
-            />
-          </section>
+          <button
+            className="budget-category-details-archive"
+            type="button"
+            onClick={() => onSetCategoryArchived(category.id, !category.isArchived)}
+          >
+            <Trash2 size={16} aria-hidden="true" />
+            {category.isArchived ? "Restore Category" : "Archive Category"}
+          </button>
         ) : (
-          <section className="budget-category-details-card budget-category-details-managed">
-            <div className="budget-category-details-section-title">
-              <div>
-                <span>Managed category</span>
-                <p>Credit card payment funding</p>
-              </div>
-            </div>
-            <p>
-              This category tracks money reserved to pay this card and cannot be
-              renamed or archived.
-            </p>
-          </section>
+          <div className="budget-category-details-managed-note">
+            Managed credit card payment category
+          </div>
         )}
 
-        <section className="budget-category-details-card">
-          <div className="budget-category-details-section-title">
-            <div>
-              <span>Activity</span>
-              <p>Transactions this month</p>
-            </div>
-            <strong>{formatMoney(category.activity, currencyCode)}</strong>
-          </div>
-          <button
-            className="budget-category-details-row-action"
-            type="button"
-            onClick={() => onOpenActivity(category.id)}
-            disabled={category.activity === 0}
-          >
-            <span>
-              {category.activity === 0
-                ? "No activity this month"
-                : "View category activity"}
-            </span>
-            <span aria-hidden="true">›</span>
-          </button>
-        </section>
-
-        <section className="budget-category-details-card">
-          <div className="budget-category-details-section-title">
-            <div>
-              <span>Notes</span>
-              <p>Category and group context</p>
-            </div>
-          </div>
-          <div className="budget-category-details-note-block">
-            <span>Category note</span>
-            <p>{categoryNote || "No category note."}</p>
-          </div>
-          {groupNote ? (
-            <div className="budget-category-details-note-block">
-              <span>Group note</span>
-              <p>{groupNote}</p>
-            </div>
-          ) : null}
-        </section>
-
         {!isCreditCardPaymentCategory ? (
           <button
-            className="button button-secondary budget-category-details-settings"
+            className="button button-primary budget-category-details-manage"
             type="button"
-            onClick={() => onOpenSettings(category.id)}
+            onClick={() => onOpenManageCategory(category.id)}
           >
-            Category Settings…
+            <Settings2 size={16} aria-hidden="true" />
+            Manage Category…
           </button>
         ) : null}
       </div>
@@ -1137,15 +1093,13 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
         {visibleSelectedCategory && visibleSelectedGroup ? (
           <CategoryDetailsPanel
-            budgetId={budgetId}
             category={visibleSelectedCategory}
             group={visibleSelectedGroup}
             currencyCode={data.currencyCode}
             isOverassignedSource={selectedCategoryIsOverassignedSource}
             isCreditCardPaymentCategory={isCreditCardPaymentCategory(visibleSelectedCategory.id)}
-            onAssignGoalRecommendation={assignGoalRecommendation}
-            onOpenActivity={openActivityDrilldown}
-            onOpenSettings={openCategorySettings}
+            onOpenManageCategory={openCategorySettings}
+            onSetCategoryArchived={setCategoryArchived}
             onClose={clearSelection}
           />
         ) : null}
