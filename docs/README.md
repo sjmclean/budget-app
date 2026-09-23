@@ -10,6 +10,12 @@ This repository keeps a small set of current human-facing architecture documents
 - `import-and-data-integrity.md` — imports, reconciliation, provenance, matching, and commit guarantees.
 - `operations-and-recovery.md` — backup, restore, deletion, diagnostics, recovery, and operational integrity.
 
+## Product planning
+
+- `product-roadmap.md` — reconciled product roadmap showing completed work,
+  immediate UX phases, parked items, major feature backlog, and later
+  productisation work.
+
 ## Detailed architecture
 
 `architecture/` contains lower-level current subsystem contracts, generated
