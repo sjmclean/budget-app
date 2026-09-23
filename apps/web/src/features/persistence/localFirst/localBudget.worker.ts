@@ -2822,10 +2822,16 @@ function getCategoryActivityDrilldown(
        SELECT transaction_row.id
        FROM local_transactions AS transaction_row
        JOIN local_accounts AS account ON account.id = transaction_row.account_id
+       LEFT JOIN local_accounts AS transfer_account
+         ON transfer_account.budget_id = transaction_row.budget_id
+        AND transfer_account.id = transaction_row.transfer_account_id
        WHERE transaction_row.budget_id = ?
          AND substr(transaction_row.date, 1, 7) = ?
          AND transaction_row.category_id = ?
-         AND transaction_row.transfer_account_id IS NULL
+         AND (
+           transaction_row.transfer_account_id IS NULL
+           OR transfer_account.participation = 'off-budget'
+         )
          AND NOT EXISTS (
            SELECT 1 FROM local_transaction_splits AS split
            WHERE split.transaction_id = transaction_row.id
@@ -2836,10 +2842,16 @@ function getCategoryActivityDrilldown(
        FROM local_transaction_splits AS split
        JOIN local_transactions AS parent ON parent.id = split.transaction_id
        JOIN local_accounts AS account ON account.id = parent.account_id
+       LEFT JOIN local_accounts AS split_transfer_account
+         ON split_transfer_account.budget_id = parent.budget_id
+        AND split_transfer_account.id = split.transfer_account_id
        WHERE parent.budget_id = ?
          AND substr(parent.date, 1, 7) = ?
          AND split.category_id = ?
-         AND split.transfer_account_id IS NULL
+         AND (
+           split.transfer_account_id IS NULL
+           OR split_transfer_account.participation = 'off-budget'
+         )
          AND parent.transfer_account_id IS NULL
          AND account.participation = 'on-budget'
      )`,
@@ -2872,10 +2884,16 @@ function getCategoryActivityDrilldown(
          transaction_row.amount, 0 AS isSplit
        FROM local_transactions AS transaction_row
        JOIN local_accounts AS account ON account.id = transaction_row.account_id
+       LEFT JOIN local_accounts AS transfer_account
+         ON transfer_account.budget_id = transaction_row.budget_id
+        AND transfer_account.id = transaction_row.transfer_account_id
        WHERE transaction_row.budget_id = ?
          AND substr(transaction_row.date, 1, 7) = ?
          AND transaction_row.category_id = ?
-         AND transaction_row.transfer_account_id IS NULL
+         AND (
+           transaction_row.transfer_account_id IS NULL
+           OR transfer_account.participation = 'off-budget'
+         )
          AND NOT EXISTS (
            SELECT 1 FROM local_transaction_splits AS split
            WHERE split.transaction_id = transaction_row.id
@@ -2891,10 +2909,16 @@ function getCategoryActivityDrilldown(
        FROM local_transaction_splits AS split
        JOIN local_transactions AS parent ON parent.id = split.transaction_id
        JOIN local_accounts AS account ON account.id = parent.account_id
+       LEFT JOIN local_accounts AS split_transfer_account
+         ON split_transfer_account.budget_id = parent.budget_id
+        AND split_transfer_account.id = split.transfer_account_id
        WHERE parent.budget_id = ?
          AND substr(parent.date, 1, 7) = ?
          AND split.category_id = ?
-         AND split.transfer_account_id IS NULL
+         AND (
+           split.transfer_account_id IS NULL
+           OR split_transfer_account.participation = 'off-budget'
+         )
          AND parent.transfer_account_id IS NULL
          AND account.participation = 'on-budget'
      ) ORDER BY date, payee, transactionId, id LIMIT 2000`,
