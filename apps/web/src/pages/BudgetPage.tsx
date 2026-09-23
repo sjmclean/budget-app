@@ -8,7 +8,7 @@ import {
 } from "react";
 import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
-import { BarChart3, CalendarDays, ListTree, Plus, Redo2, Undo2 } from "lucide-react";
+import { ListTree, Plus, Redo2, Undo2 } from "lucide-react";
 import { Card } from "../components/ui/Card";
 import "../styles/budgetWorkspace.css";
 import {
@@ -19,6 +19,7 @@ import {
 } from "../components/workspace";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import {
+  addMonthsToBudgetMonth,
   getCurrentBudgetMonth,
   getNextBudgetMonth,
   getPreviousBudgetMonth,
@@ -137,6 +138,12 @@ const BUDGET_COLUMN_DEFINITIONS: readonly TableColumnDefinition<BudgetColumnId>[
   { id: "activity", label: "Activity", template: "7rem", widthRem: 7 },
   { id: "available", label: "Available", template: "7rem", widthRem: 7 },
 ];
+
+const BUDGET_MONTH_LABELS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+] as const;
+
 
 function BudgetNextMonthOutlook({
   data,
@@ -511,6 +518,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   const nextMonth = getNextBudgetMonth(selectedMonth);
   const nextMonthBudget = useBudgetView(budgetId, nextMonth);
+  const nextMonthOutlook = nextMonthBudget.data
+    ? resolveBudgetNextMonthOutlook(nextMonthBudget.data.readyToAssign)
+    : null;
 
   const applicationHistory = useApplicationHistory();
 
@@ -651,6 +661,11 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   const coverOptions = buildOverspendingCoverOptions(data.categoryGroups);
   const monthName = data.monthLabel.split(" ")[0] ?? data.monthLabel;
+  const selectedYear = Number(selectedMonth.slice(0, 4));
+  const yearMonths = BUDGET_MONTH_LABELS.map((label, monthIndex) => ({
+    label,
+    value: `${selectedYear}-${String(monthIndex + 1).padStart(2, "0")}`,
+  }));
   const carriedForward = authoritativeSummary.carriedForwardReadyToAssign;
   const previousOverspending = authoritativeSummary.previousOverspending;
   const incomeForMonth = authoritativeSummary.incomeForMonth;
@@ -799,57 +814,79 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
         >
           <WorkspaceStickyHeader className="budget-sticky-working-header">
             <section className="budget-planning-header" aria-label="Budget month workspace">
-              <div className="budget-planning-title">
-                <span className="budget-planning-icon" aria-hidden="true"><BarChart3 size={19} /></span>
-                <div>
-                  <h1>My Budget</h1>
-                  <span>Monthly Budget</span>
-                </div>
-              </div>
-
-              <nav className="budget-month-navigation" aria-label="Budget month navigation">
+              <nav className="budget-year-month-navigation" aria-label="Budget month navigation">
                 <button
-                  className="button button-secondary budget-month-step"
+                  className="budget-year-step"
                   type="button"
-                  onMouseEnter={() => prefetchMonth(getPreviousBudgetMonth(selectedMonth))}
-                  onFocus={() => prefetchMonth(getPreviousBudgetMonth(selectedMonth))}
+                  onMouseEnter={() => prefetchMonth(addMonthsToBudgetMonth(selectedMonth, -12))}
+                  onFocus={() => prefetchMonth(addMonthsToBudgetMonth(selectedMonth, -12))}
                   onClick={() =>
                     setSelectedMonth((currentMonth) =>
-                      getPreviousBudgetMonth(currentMonth),
+                      addMonthsToBudgetMonth(currentMonth, -12),
                     )
                   }
-                  aria-label="Go to previous budget month"
-                  title="Go to previous budget month"
+                  aria-label="Go to previous budget year"
+                  title="Go to previous budget year"
                 >
                   ‹
                 </button>
+                <span className="budget-year-label">{selectedYear}</span>
+                <div className="budget-month-strip">
+                  {yearMonths.map(({ label, value }) => {
+                    const isSelected = value === selectedMonth;
+                    const showWarning =
+                      value === nextMonth &&
+                      nextMonthOutlook?.status === "overbudget";
+
+                    return (
+                      <button
+                        className={
+                          isSelected
+                            ? "budget-month-chip budget-month-chip-active"
+                            : "budget-month-chip"
+                        }
+                        type="button"
+                        key={value}
+                        onMouseEnter={() => prefetchMonth(value)}
+                        onFocus={() => prefetchMonth(value)}
+                        onClick={() => setSelectedMonth(value)}
+                        aria-current={isSelected ? "date" : undefined}
+                        aria-label={`Open ${label} ${selectedYear} budget`}
+                      >
+                        <span>{label}</span>
+                        {showWarning ? (
+                          <span
+                            className="budget-month-chip-status"
+                            aria-label="Projected overbudget"
+                          />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
                 <button
-                  className="button button-secondary budget-month-current"
+                  className="budget-year-step"
                   type="button"
-                  onMouseEnter={() => prefetchMonth(getCurrentBudgetMonth())}
-                  onFocus={() => prefetchMonth(getCurrentBudgetMonth())}
-                  onClick={() => setSelectedMonth(getCurrentBudgetMonth())}
-                  title="Return to the current month"
-                >
-                  <CalendarDays size={16} aria-hidden="true" />
-                  {data.monthLabel}
-                </button>
-                <button
-                  className="button button-secondary budget-month-step"
-                  type="button"
-                  onMouseEnter={() => prefetchMonth(getNextBudgetMonth(selectedMonth))}
-                  onFocus={() => prefetchMonth(getNextBudgetMonth(selectedMonth))}
+                  onMouseEnter={() => prefetchMonth(addMonthsToBudgetMonth(selectedMonth, 12))}
+                  onFocus={() => prefetchMonth(addMonthsToBudgetMonth(selectedMonth, 12))}
                   onClick={() =>
                     setSelectedMonth((currentMonth) =>
-                      getNextBudgetMonth(currentMonth),
+                      addMonthsToBudgetMonth(currentMonth, 12),
                     )
                   }
-                  aria-label="Go to next budget month"
-                  title="Go to next budget month"
+                  aria-label="Go to next budget year"
+                  title="Go to next budget year"
                 >
                   ›
                 </button>
               </nav>
+
+              <div className="budget-planning-title">
+                <div>
+                  <h1>{data.monthLabel}</h1>
+                  <span>Monthly Budget</span>
+                </div>
+              </div>
 
               <div className="budget-planning-summary-stack">
                 <div
