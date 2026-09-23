@@ -130,18 +130,18 @@ test("cover draft survives switching to settings and back", async () => {
   }
 });
 
-test("inspector is read-only while retaining financial and managed details", () => {
-  const inspector = page.slice(
-    page.indexOf("function CategoryInspector"),
+test("category details overview retains financial and managed details without embedding category management", () => {
+  const details = page.slice(
+    page.indexOf("function CategoryDetailsPanel"),
     page.indexOf("function BudgetActivityDrilldownModal"),
   );
-  assert.match(inspector, /Assigned/);
-  assert.match(inspector, /Activity/);
-  assert.match(inspector, /Available/);
-  assert.match(inspector, /Status/);
-  assert.match(inspector, /Managed category/);
-  assert.doesNotMatch(inspector, /Category Settings…|Archive category|Restore category/);
-  assert.doesNotMatch(inspector, /onOpenCategorySettings|onSetCategoryArchived/);
+  assert.match(details, /Assigned/);
+  assert.match(details, /Activity/);
+  assert.match(details, /Available/);
+  assert.match(details, /Status/);
+  assert.match(details, /Managed category/);
+  assert.doesNotMatch(details, /Archive category|Restore category/);
+  assert.doesNotMatch(details, /onOpenCategorySettings|onSetCategoryArchived/);
 });
 
 test("entry points target one ID-based category window with explicit tabs", () => {
