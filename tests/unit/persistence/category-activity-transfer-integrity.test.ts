@@ -35,6 +35,16 @@ test("category activity drilldown mirrors off-budget transfer activity semantics
   assert.match(drilldown, /account\.participation = 'on-budget'/);
   assert.match(
     drilldown,
+    /WHEN transaction_row\.amount < 0[\s\S]*'Transfer to '[\s\S]*'Transfer from '/,
+  );
+  assert.match(
+    drilldown,
+    /WHEN split\.amount < 0[\s\S]*'Transfer to '[\s\S]*'Transfer from '/,
+  );
+  assert.match(drilldown, /transfer_account\.name/);
+  assert.match(drilldown, /split_transfer_account\.name/);
+  assert.match(
+    drilldown,
     /Category activity details do not reconcile with the budget engine/,
   );
 });
