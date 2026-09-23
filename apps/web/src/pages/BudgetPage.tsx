@@ -203,8 +203,6 @@ function BudgetNextMonthOutlook({
   );
 }
 
-type CategoryDetailsTab = "overview" | "goal" | "activity" | "notes";
-
 function CategoryDetailsPanel({
   budgetId,
   category,
@@ -228,12 +226,6 @@ function CategoryDetailsPanel({
   onOpenSettings: (categoryId: string) => void;
   onClose: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState<CategoryDetailsTab>("overview");
-
-  useEffect(() => {
-    setActiveTab("overview");
-  }, [category.id]);
-
   const statusLabel = isMoneyNegative(category.available)
     ? "Overspent"
     : isOverassignedSource
@@ -248,7 +240,7 @@ function CategoryDetailsPanel({
       aria-label={`Category details for ${category.name}`}
     >
       <header className="budget-category-details-header">
-        <div>
+        <div className="budget-category-details-identity">
           <span className="budget-category-details-kicker">Category Details</span>
           <h2>{category.name}</h2>
           <p>
@@ -268,145 +260,122 @@ function CategoryDetailsPanel({
         </button>
       </header>
 
-      <nav className="budget-category-details-tabs" aria-label="Category detail sections">
-        {(["overview", "goal", "activity", "notes"] as const).map((tab) => (
-          <button
-            className={
-              activeTab === tab
-                ? "budget-category-details-tab budget-category-details-tab-active"
-                : "budget-category-details-tab"
-            }
-            type="button"
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            aria-current={activeTab === tab ? "page" : undefined}
-          >
-            {tab === "overview"
-              ? "Overview"
-              : tab === "goal"
-                ? "Goal"
-                : tab === "activity"
-                  ? "Activity"
-                  : "Notes"}
-          </button>
-        ))}
-      </nav>
-
       <div className="budget-category-details-content">
-        {activeTab === "overview" ? (
-          <>
-            <div className="budget-category-details-metrics">
-              <div>
-                <span>Assigned</span>
-                <strong>{formatMoney(category.assigned, currencyCode)}</strong>
-              </div>
-              <div>
-                <span>Activity</span>
-                <strong>{formatMoney(category.activity, currencyCode)}</strong>
-              </div>
-              <div>
-                <span>Available</span>
-                <strong className={getAvailableClass(category.available, isOverassignedSource)}>
-                  {formatMoney(category.available, currencyCode)}
-                </strong>
-              </div>
-              <div>
-                <span>Status</span>
-                <strong>{statusLabel}</strong>
-              </div>
+        <section className="budget-category-details-balance" aria-label="Category balance">
+          <div>
+            <span>Available</span>
+            <strong className={getAvailableClass(category.available, isOverassignedSource)}>
+              {formatMoney(category.available, currencyCode)}
+            </strong>
+          </div>
+          <span className="budget-category-details-status">{statusLabel}</span>
+        </section>
+
+        <section className="budget-category-details-card budget-category-details-financials">
+          <div className="budget-category-details-section-title">
+            <div>
+              <span>Overview</span>
+              <p>This month</p>
             </div>
-
-            {isCreditCardPaymentCategory ? (
-              <div className="budget-category-details-note">
-                <strong>Managed category</strong>
-                <p>
-                  This category is created by credit card payment funding. It tracks
-                  money reserved to pay this card and cannot be renamed or archived.
-                </p>
-              </div>
-            ) : null}
-
-            <div className="budget-category-details-actions">
-              {category.activity !== 0 ? (
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  onClick={() => onOpenActivity(category.id)}
-                >
-                  View activity
-                </button>
-              ) : null}
-              {!isCreditCardPaymentCategory ? (
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  onClick={() => onOpenSettings(category.id)}
-                >
-                  Category settings
-                </button>
-              ) : null}
+          </div>
+          <div className="budget-category-details-metrics">
+            <div>
+              <span>Assigned</span>
+              <strong>{formatMoney(category.assigned, currencyCode)}</strong>
             </div>
-          </>
-        ) : null}
-
-        {activeTab === "goal" ? (
-          <CategoryGoalInspectorSection
-            budgetId={budgetId}
-            category={category}
-            currencyCode={currencyCode}
-            managed={isCreditCardPaymentCategory}
-            onAssignRecommendation={() => onAssignGoalRecommendation(category.id)}
-          />
-        ) : null}
-
-        {activeTab === "activity" ? (
-          <div className="budget-category-details-section">
-            <div className="budget-category-details-section-heading">
-              <span>Activity this month</span>
+            <div>
+              <span>Activity</span>
               <strong>{formatMoney(category.activity, currencyCode)}</strong>
             </div>
-            <p>
-              Open the existing transaction drilldown to review the transactions
-              contributing to this category&apos;s activity.
-            </p>
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={() => onOpenActivity(category.id)}
-              disabled={category.activity === 0}
-            >
-              {category.activity === 0 ? "No activity this month" : "View transactions"}
-            </button>
-          </div>
-        ) : null}
-
-        {activeTab === "notes" ? (
-          <div className="budget-category-details-section">
-            <div className="budget-category-details-note-block">
-              <span>Category note</span>
-              <p>{categoryNote || "No category note."}</p>
+            <div>
+              <span>Available</span>
+              <strong className={getAvailableClass(category.available, isOverassignedSource)}>
+                {formatMoney(category.available, currencyCode)}
+              </strong>
             </div>
+          </div>
+        </section>
+
+        {!isCreditCardPaymentCategory ? (
+          <section className="budget-category-details-card budget-category-details-goal-card">
+            <CategoryGoalInspectorSection
+              budgetId={budgetId}
+              category={category}
+              currencyCode={currencyCode}
+              managed={false}
+              onAssignRecommendation={() => onAssignGoalRecommendation(category.id)}
+            />
+          </section>
+        ) : (
+          <section className="budget-category-details-card budget-category-details-managed">
+            <div className="budget-category-details-section-title">
+              <div>
+                <span>Managed category</span>
+                <p>Credit card payment funding</p>
+              </div>
+            </div>
+            <p>
+              This category tracks money reserved to pay this card and cannot be
+              renamed or archived.
+            </p>
+          </section>
+        )}
+
+        <section className="budget-category-details-card">
+          <div className="budget-category-details-section-title">
+            <div>
+              <span>Activity</span>
+              <p>Transactions this month</p>
+            </div>
+            <strong>{formatMoney(category.activity, currencyCode)}</strong>
+          </div>
+          <button
+            className="budget-category-details-row-action"
+            type="button"
+            onClick={() => onOpenActivity(category.id)}
+            disabled={category.activity === 0}
+          >
+            <span>
+              {category.activity === 0
+                ? "No activity this month"
+                : "View category activity"}
+            </span>
+            <span aria-hidden="true">›</span>
+          </button>
+        </section>
+
+        <section className="budget-category-details-card">
+          <div className="budget-category-details-section-title">
+            <div>
+              <span>Notes</span>
+              <p>Category and group context</p>
+            </div>
+          </div>
+          <div className="budget-category-details-note-block">
+            <span>Category note</span>
+            <p>{categoryNote || "No category note."}</p>
+          </div>
+          {groupNote ? (
             <div className="budget-category-details-note-block">
               <span>Group note</span>
-              <p>{groupNote || "No group note."}</p>
+              <p>{groupNote}</p>
             </div>
-            {!isCreditCardPaymentCategory ? (
-              <button
-                className="button button-secondary"
-                type="button"
-                onClick={() => onOpenSettings(category.id)}
-              >
-                Edit category note
-              </button>
-            ) : null}
-          </div>
+          ) : null}
+        </section>
+
+        {!isCreditCardPaymentCategory ? (
+          <button
+            className="button button-secondary budget-category-details-settings"
+            type="button"
+            onClick={() => onOpenSettings(category.id)}
+          >
+            Category Settings…
+          </button>
         ) : null}
       </div>
     </aside>
   );
 }
-
-
 
 
 function BudgetActivityDrilldownModal({
