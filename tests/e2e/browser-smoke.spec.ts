@@ -47,7 +47,7 @@ test("real authentication, OPFS budget lifecycle, routing, and SQLite mutation s
 
   await page.getByRole("link", { name: "Budget", exact: true }).click();
   await expect(page).toHaveURL(/\/budget$/);
-  await expect(page.getByRole("heading", { name: "My Budget" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /\w+ \d{4}/ })).toBeVisible();
 
   await page.goto("/accounts");
   await expect(page).toHaveURL(/\/accounts$/);
