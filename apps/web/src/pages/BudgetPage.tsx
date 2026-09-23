@@ -51,7 +51,6 @@ import {
   buildArchivedCategoriesGroup,
   buildArchivedCategorySourceGroupMap,
   buildOverspendingCoverOptions,
-  countOverspentCategories,
   getActiveCategoryGroups,
 } from "../features/budget/budgetWorkspaceSelectors";
 import { buildBudgetInspectorState } from "../features/budget/budgetInspectorState";
@@ -204,7 +203,9 @@ function BudgetNextMonthOutlook({
   );
 }
 
-function CategoryInspector({
+type CategoryDetailsTab = "overview" | "goal" | "activity" | "notes";
+
+function CategoryDetailsPanel({
   budgetId,
   category,
   group,
@@ -212,108 +213,196 @@ function CategoryInspector({
   isOverassignedSource,
   isCreditCardPaymentCategory,
   onAssignGoalRecommendation,
+  onOpenActivity,
+  onOpenSettings,
+  onClose,
 }: {
   budgetId: string;
-  category: BudgetCategoryView | null;
-  group: BudgetCategoryGroupView | null;
+  category: BudgetCategoryView;
+  group: BudgetCategoryGroupView;
   currencyCode: string;
   isOverassignedSource: boolean;
   isCreditCardPaymentCategory: boolean;
   onAssignGoalRecommendation: ReturnType<typeof useBudgetWorkspace>["assignGoalRecommendation"];
+  onOpenActivity: (categoryId: string) => void;
+  onOpenSettings: (categoryId: string) => void;
+  onClose: () => void;
 }) {
-  if (!category || !group) {
-    return (
-      <Card className="budget-inspector-card">
-        <div className="panel-section-header">
-          <h2>Category Details</h2>
-          <p className="muted">Select a category to inspect it.</p>
-        </div>
+  const [activeTab, setActiveTab] = useState<CategoryDetailsTab>("overview");
 
-        <div className="inspector-empty">
-          Click a budget category to see details here.
-        </div>
-      </Card>
-    );
-  }
+  useEffect(() => {
+    setActiveTab("overview");
+  }, [category.id]);
 
   const statusLabel = isMoneyNegative(category.available)
     ? "Overspent"
     : isOverassignedSource
       ? "Overbudgeted"
       : "Available";
-  const hasCategoryNote = Boolean(category.note?.trim());
-  const hasGroupNote = Boolean(group.note?.trim());
+  const categoryNote = category.note?.trim() ?? "";
+  const groupNote = group.note?.trim() ?? "";
 
   return (
-    <Card className="budget-inspector-card">
-      <div className="panel-section-header category-inspector-header">
+    <aside
+      className="budget-category-details-panel"
+      aria-label={`Category details for ${category.name}`}
+    >
+      <header className="budget-category-details-header">
         <div>
+          <span className="budget-category-details-kicker">Category Details</span>
           <h2>{category.name}</h2>
-          <p className="muted">
+          <p>
             {group.name}
             {category.isArchived ? " · Archived" : ""}
             {isCreditCardPaymentCategory ? " · Managed" : ""}
           </p>
         </div>
-      </div>
+        <button
+          className="budget-category-details-close"
+          type="button"
+          onClick={onClose}
+          aria-label="Close category details"
+          title="Close category details"
+        >
+          ×
+        </button>
+      </header>
 
-      <div className="inspector-breakdown">
-        <div>
-          <span>Assigned</span>
-          <strong>{formatMoney(category.assigned, currencyCode)}</strong>
-        </div>
-        <div>
-          <span>Activity</span>
-          <strong>{formatMoney(category.activity, currencyCode)}</strong>
-        </div>
-        <div>
-          <span>Available</span>
-          <strong
-            className={getAvailableClass(
-              category.available,
-              isOverassignedSource,
-            )}
+      <nav className="budget-category-details-tabs" aria-label="Category detail sections">
+        {(["overview", "goal", "activity", "notes"] as const).map((tab) => (
+          <button
+            className={
+              activeTab === tab
+                ? "budget-category-details-tab budget-category-details-tab-active"
+                : "budget-category-details-tab"
+            }
+            type="button"
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            aria-current={activeTab === tab ? "page" : undefined}
           >
-            {formatMoney(category.available, currencyCode)}
-          </strong>
-        </div>
-        <div>
-          <span>Status</span>
-          <strong>{statusLabel}</strong>
-        </div>
+            {tab === "overview"
+              ? "Overview"
+              : tab === "goal"
+                ? "Goal"
+                : tab === "activity"
+                  ? "Activity"
+                  : "Notes"}
+          </button>
+        ))}
+      </nav>
+
+      <div className="budget-category-details-content">
+        {activeTab === "overview" ? (
+          <>
+            <div className="budget-category-details-metrics">
+              <div>
+                <span>Assigned</span>
+                <strong>{formatMoney(category.assigned, currencyCode)}</strong>
+              </div>
+              <div>
+                <span>Activity</span>
+                <strong>{formatMoney(category.activity, currencyCode)}</strong>
+              </div>
+              <div>
+                <span>Available</span>
+                <strong className={getAvailableClass(category.available, isOverassignedSource)}>
+                  {formatMoney(category.available, currencyCode)}
+                </strong>
+              </div>
+              <div>
+                <span>Status</span>
+                <strong>{statusLabel}</strong>
+              </div>
+            </div>
+
+            {isCreditCardPaymentCategory ? (
+              <div className="budget-category-details-note">
+                <strong>Managed category</strong>
+                <p>
+                  This category is created by credit card payment funding. It tracks
+                  money reserved to pay this card and cannot be renamed or archived.
+                </p>
+              </div>
+            ) : null}
+
+            <div className="budget-category-details-actions">
+              {category.activity !== 0 ? (
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => onOpenActivity(category.id)}
+                >
+                  View activity
+                </button>
+              ) : null}
+              {!isCreditCardPaymentCategory ? (
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => onOpenSettings(category.id)}
+                >
+                  Category settings
+                </button>
+              ) : null}
+            </div>
+          </>
+        ) : null}
+
+        {activeTab === "goal" ? (
+          <CategoryGoalInspectorSection
+            budgetId={budgetId}
+            category={category}
+            currencyCode={currencyCode}
+            managed={isCreditCardPaymentCategory}
+            onAssignRecommendation={() => onAssignGoalRecommendation(category.id)}
+          />
+        ) : null}
+
+        {activeTab === "activity" ? (
+          <div className="budget-category-details-section">
+            <div className="budget-category-details-section-heading">
+              <span>Activity this month</span>
+              <strong>{formatMoney(category.activity, currencyCode)}</strong>
+            </div>
+            <p>
+              Open the existing transaction drilldown to review the transactions
+              contributing to this category&apos;s activity.
+            </p>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() => onOpenActivity(category.id)}
+              disabled={category.activity === 0}
+            >
+              {category.activity === 0 ? "No activity this month" : "View transactions"}
+            </button>
+          </div>
+        ) : null}
+
+        {activeTab === "notes" ? (
+          <div className="budget-category-details-section">
+            <div className="budget-category-details-note-block">
+              <span>Category note</span>
+              <p>{categoryNote || "No category note."}</p>
+            </div>
+            <div className="budget-category-details-note-block">
+              <span>Group note</span>
+              <p>{groupNote || "No group note."}</p>
+            </div>
+            {!isCreditCardPaymentCategory ? (
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={() => onOpenSettings(category.id)}
+              >
+                Edit category note
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
-
-      <CategoryGoalInspectorSection
-        budgetId={budgetId}
-        category={category}
-        currencyCode={currencyCode}
-        managed={isCreditCardPaymentCategory}
-        onAssignRecommendation={() => onAssignGoalRecommendation(category.id)}
-      />
-
-      {hasCategoryNote || hasGroupNote ? (
-        <div className="inspector-note category-details-note-summary">
-          <h3>Notes</h3>
-          <p className="muted">
-            {hasCategoryNote && hasGroupNote
-              ? "This category and its group have notes."
-              : hasCategoryNote
-                ? "This category has notes."
-                : "This category group has notes."}
-          </p>
-        </div>
-      ) : null}
-
-      {isCreditCardPaymentCategory ? (
-        <div className="inspector-note category-details-note-summary">
-          <h3>Managed category</h3>
-          <p className="muted">
-            This category is created by credit card payment funding. It tracks
-            money reserved to pay this card and cannot be renamed or archived.
-          </p>
-        </div>
-      ) : null}
-    </Card>
+    </aside>
   );
 }
 
@@ -514,6 +603,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     isActivityDrilldownLoading,
     openActivityDrilldown,
     closeActivityDrilldown,
+    clearSelection,
   } = useBudgetWorkspace(budgetId, selectedMonth);
 
   const nextMonth = getNextBudgetMonth(selectedMonth);
@@ -656,8 +746,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   });
 
   const isBudgetOverassigned = isMoneyNegative(data.readyToAssign);
-
-  const overspentCount = countOverspentCategories(data.categoryGroups);
 
   const coverOptions = buildOverspendingCoverOptions(data.categoryGroups);
   const monthName = data.monthLabel.split(" ")[0] ?? data.monthLabel;
@@ -807,7 +895,13 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   return (
     <>
-      <WorkspaceLayout className="budget-workspace-screen budget-workspace-layout">
+      <WorkspaceLayout
+        className={
+          visibleSelectedCategory && visibleSelectedGroup
+            ? "budget-workspace-screen budget-workspace-layout budget-workspace-layout-details-open"
+            : "budget-workspace-screen budget-workspace-layout"
+        }
+      >
         <main
           className="budget-workspace-main"
           ref={budgetWorkspaceMainRef}
@@ -1072,48 +1166,20 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           </Card>
         </main>
 
-        <aside className="budget-month-panel">
-          <CategoryInspector
+        {visibleSelectedCategory && visibleSelectedGroup ? (
+          <CategoryDetailsPanel
             budgetId={budgetId}
             category={visibleSelectedCategory}
             group={visibleSelectedGroup}
             currencyCode={data.currencyCode}
             isOverassignedSource={selectedCategoryIsOverassignedSource}
-            isCreditCardPaymentCategory={
-              visibleSelectedCategory !== null &&
-              isCreditCardPaymentCategory(visibleSelectedCategory.id)
-            }
+            isCreditCardPaymentCategory={isCreditCardPaymentCategory(visibleSelectedCategory.id)}
             onAssignGoalRecommendation={assignGoalRecommendation}
+            onOpenActivity={openActivityDrilldown}
+            onOpenSettings={openCategorySettings}
+            onClose={clearSelection}
           />
-
-          <Card className="budget-health-card">
-            <div className="panel-section-header">
-              <h2>Budget Health</h2>
-              <p className="muted">Read-only summary</p>
-            </div>
-
-            <div className="health-row">
-              <span>Overspent categories</span>
-              <strong>{overspentCount}</strong>
-            </div>
-
-            <div className="health-row">
-              <span>Future months</span>
-              <strong>12 max</strong>
-            </div>
-
-            <div className="health-row">
-              <span>Status</span>
-              <strong>
-                {isBudgetOverassigned
-                  ? "Overassigned"
-                  : overspentCount > 0
-                    ? "Needs review"
-                    : "Good"}
-              </strong>
-            </div>
-          </Card>
-        </aside>
+        ) : null}
       </WorkspaceLayout>
 
       {isOrganiserOpen ? (
