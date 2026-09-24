@@ -37,7 +37,7 @@ test("medium-width budget keeps month title above the planning summary", () => {
 test("responsive month navigation keeps arrows fixed and removes outer months without scrolling", () => {
   assert.match(
     responsive,
-    /\.budget-year-month-navigation\s*\{[\s\S]*grid-template-columns:\s*2\.2rem minmax\(0, 1fr\) 2\.2rem/,
+    /\.budget-year-month-navigation\s*\{[\s\S]*grid-template-columns:\s*2\.2rem auto minmax\(0, 1fr\) 2\.2rem/,
   );
   assert.match(
     responsive,
