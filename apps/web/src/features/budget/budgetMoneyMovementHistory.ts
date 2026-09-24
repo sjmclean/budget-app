@@ -121,15 +121,26 @@ function deriveManualAssignmentRun(
     let matchedEnd = -1;
 
     for (let end = start; end < entries.length; end += 1) {
+      let entryDelta = 0;
       for (const change of entries[end]!.payload.changes) {
         const delta = normaliseMoney(
           change.finalAssigned - change.originalAssigned,
         );
-        runningDelta = normaliseMoney(runningDelta + delta);
+        entryDelta = normaliseMoney(entryDelta + delta);
         hasIncrease ||= delta > 0;
         hasDecrease ||= delta < 0;
       }
 
+      const nextRunningDelta = normaliseMoney(runningDelta + entryDelta);
+      if (
+        runningDelta !== 0 &&
+        nextRunningDelta !== 0 &&
+        Math.sign(runningDelta) !== Math.sign(nextRunningDelta)
+      ) {
+        break;
+      }
+
+      runningDelta = nextRunningDelta;
       if (runningDelta === 0 && hasIncrease && hasDecrease) {
         matchedEnd = end;
         break;
