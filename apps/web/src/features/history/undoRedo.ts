@@ -1,6 +1,14 @@
+export interface UndoRedoHistoryEntry {
+  readonly id: string;
+  readonly kind: string;
+  readonly occurredAt: string;
+  readonly payload: unknown;
+}
+
 export interface UndoableCommand<TContext> {
   id: string;
   label: string;
+  readonly historyEntry?: UndoRedoHistoryEntry | null;
   execute(context: TContext): void | Promise<void>;
   undo(context: TContext): void | Promise<void>;
   redo?(context: TContext): void | Promise<void>;
@@ -82,6 +90,7 @@ export class UndoRedoController<TContext = void> {
   private maxHistoryLength: number;
   private busy = false;
   private snapshot: UndoRedoSnapshot;
+  private effectiveHistoryEntries: readonly UndoRedoHistoryEntry[] = [];
 
   constructor(options: UndoRedoControllerOptions<TContext> = {}) {
     this.getContext = options.getContext;
@@ -91,6 +100,9 @@ export class UndoRedoController<TContext = void> {
   }
 
   getSnapshot = (): UndoRedoSnapshot => this.snapshot;
+
+  getEffectiveHistoryEntries = (): readonly UndoRedoHistoryEntry[] =>
+    this.effectiveHistoryEntries;
 
   subscribe = (listener: UndoRedoListener): (() => void) => {
     this.listeners.add(listener);
@@ -296,6 +308,9 @@ export class UndoRedoController<TContext = void> {
 
   private emit(): void {
     this.snapshot = this.createSnapshot();
+    this.effectiveHistoryEntries = this.undoStack
+      .map((command) => command.historyEntry ?? null)
+      .filter((entry): entry is UndoRedoHistoryEntry => entry !== null);
     for (const listener of this.listeners) {
       listener();
     }
