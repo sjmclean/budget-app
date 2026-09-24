@@ -79,6 +79,37 @@ function buildRegisterTransactionInput({
 
   const { parsedOutflow, parsedInflow, parsedSplitLines } = validation;
 
+  const transactionMonth = date.slice(0, 7);
+  const resolvedSplitLines = parsedSplitLines.map((line) => {
+    if (
+      line.categoryId !== "__ready_to_assign__" ||
+      line.inflow <= 0 ||
+      line.outflow > 0
+    ) {
+      return { ...line, incomeBudgetMonth: undefined };
+    }
+
+    const splitIncomeBudgetMonth = line.incomeBudgetMonth || transactionMonth;
+    if (
+      !validIncomeBudgetMonth(
+        splitIncomeBudgetMonth,
+        date,
+        latestIncomeBudgetMonth,
+      )
+    ) {
+      return null;
+    }
+
+    return {
+      ...line,
+      incomeBudgetMonth: splitIncomeBudgetMonth,
+    };
+  });
+
+  if (resolvedSplitLines.some((line) => line === null)) {
+    return null;
+  }
+
   const categoryName = category.trim();
   const categoryOption = findCategoryOption(categoryName, categoryOptions);
   const fallbackCategory =
@@ -95,7 +126,6 @@ function buildRegisterTransactionInput({
         (fallbackCategory === "Ready to Assign"
           ? "__ready_to_assign__"
           : undefined));
-  const transactionMonth = date.slice(0, 7);
   const resolvedIncomeBudgetMonth =
     categoryId === "__ready_to_assign__" &&
     parsedInflow > 0 &&
@@ -129,6 +159,9 @@ function buildRegisterTransactionInput({
     checkNumber: checkNumber.trim(),
     outflow: parsedOutflow,
     inflow: parsedInflow,
-    splitLines: parsedSplitLines.length > 0 ? parsedSplitLines : undefined,
+    splitLines:
+      resolvedSplitLines.length > 0
+        ? resolvedSplitLines
+        : undefined,
   };
 }
