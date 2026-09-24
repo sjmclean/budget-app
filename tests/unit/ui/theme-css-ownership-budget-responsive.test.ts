@@ -49,7 +49,7 @@ test("Budget owner contains medium, intermediate, and narrow responsive layouts"
   );
   assert.match(
     budget,
-    /@container budget-workspace-main \(min-width: 34rem\) and \(max-width: 44rem\)[\s\S]*\.budget-planning-summary-stack\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
+    /@container budget-workspace-main \(max-width: 33\.99rem\)[\s\S]*\.budget-planning-summary-stack\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
   assert.match(
     budget,

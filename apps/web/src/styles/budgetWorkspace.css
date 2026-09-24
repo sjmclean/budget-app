@@ -1,5 +1,6 @@
 .budget-workspace-screen {
   --workspace-content-gap: 1rem;
+  --budget-working-max-width: 72rem;
   min-width: 0;
   max-width: 100%;
   font-kerning: normal;
@@ -65,7 +66,9 @@
 }
 
 .budget-workspace-layout-details-open {
-  grid-template-columns: minmax(0, 1fr) minmax(19rem, 20.5rem);
+  grid-template-columns:
+    minmax(0, var(--budget-working-max-width))
+    minmax(19rem, 20.5rem);
 }
 
 .budget-workspace-main {
@@ -104,6 +107,17 @@
   );
   gap: 0.45rem;
   align-items: center;
+}
+
+/*
+ * Keep the money columns visually connected to the category they describe on
+ * wide screens. The separators are deliberately softer than the row borders so
+ * they aid scanning without turning the budget into a heavy spreadsheet grid.
+ */
+.budget-workspace-table-head > :nth-child(n + 2),
+.budget-workspace-group-header > :nth-child(n + 2),
+.budget-workspace-row > :nth-child(n + 2) {
+  border-left: 1px solid color-mix(in srgb, var(--border-soft) 78%, transparent);
 }
 
 .budget-category-details-panel {
@@ -1102,6 +1116,22 @@
   background: var(--page-bg);
 }
 
+/*
+ * Preserve a comfortable desktop reading width for the planning surface while
+ * allowing the year/month strip to continue using the full available width.
+ * Below this width the controls remain fluid and consume the available space.
+ */
+.budget-planning-title,
+.budget-planning-summary-stack,
+.budget-planning-tabs,
+.budget-planning-toolbar,
+.budget-sticky-working-header .budget-workspace-table-head,
+.budget-workspace-table-card {
+  width: min(100%, var(--budget-working-max-width));
+  max-width: var(--budget-working-max-width);
+  justify-self: start;
+}
+
 .budget-year-month-navigation {
   grid-area: months;
   min-width: 0;
@@ -1367,11 +1397,13 @@
   }
 }
 
-@container budget-workspace-main (min-width: 34rem) and (max-width: 44rem) {
+@container budget-workspace-main (max-width: 33.99rem) {
   .budget-planning-summary-stack {
     grid-template-columns: minmax(0, 1fr);
   }
+}
 
+@container budget-workspace-main (max-width: 44rem) {
   .budget-ready-summary {
     grid-template-columns: minmax(0, 1fr);
   }

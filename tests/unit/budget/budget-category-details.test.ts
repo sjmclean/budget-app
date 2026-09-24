@@ -49,14 +49,14 @@ test("Category Details follows the rich reference mockup hierarchy", () => {
   assert.match(budgetPage, /<CategoryGoalInspectorSection/);
 });
 
-test("Budget reclaims the permanent inspector width until details are open", () => {
+test("Budget keeps Category Details adjacent to the bounded working surface", () => {
   assert.match(
     budgetCss,
     /\.budget-workspace-layout\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
   assert.match(
     budgetCss,
-    /\.budget-workspace-layout-details-open\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(19rem, 20\.5rem\)/,
+    /\.budget-workspace-layout-details-open\s*\{[\s\S]*grid-template-columns:[\s\S]*minmax\(0, var\(--budget-working-max-width\)\)[\s\S]*minmax\(19rem, 20\.5rem\)/,
   );
   assert.match(
     budgetCss,
