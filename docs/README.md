@@ -12,9 +12,10 @@ This repository keeps a small set of current human-facing architecture documents
 
 ## Product planning
 
-- `product-roadmap.md` — reconciled product roadmap showing completed work,
-  immediate UX phases, parked items, major feature backlog, and later
-  productisation work.
+- `product-roadmap.md` — the **single authoritative roadmap** for product
+  status, priority and execution order. Supporting architecture/design
+  documents may add technical detail, but they do not define competing roadmap
+  sequences or status.
 
 ## Detailed architecture
 
