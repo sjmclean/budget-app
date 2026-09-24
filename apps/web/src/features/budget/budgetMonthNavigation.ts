@@ -41,6 +41,15 @@ export function getNextBudgetMonth(month: string): string {
   return addMonthsToBudgetMonth(month, 1);
 }
 
+export function getBudgetMonthWindow(month: string, radius = 5): string[] {
+  const normalisedRadius = Math.max(0, Math.floor(radius));
+
+  return Array.from(
+    { length: normalisedRadius * 2 + 1 },
+    (_, index) => addMonthsToBudgetMonth(month, index - normalisedRadius),
+  );
+}
+
 export function getCurrentBudgetMonth(now = new Date()): string {
   return `${now.getFullYear().toString().padStart(4, "0")}-${(
     now.getMonth() + 1
