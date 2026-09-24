@@ -65,3 +65,34 @@ retired replication infrastructure.
 
 Large historical or compatibility tables should not be retained indefinitely
 when they are no longer part of the runtime architecture.
+
+
+## Development service
+
+The current development stack is managed by the `budget-app-dev` systemd user
+service. User lingering is enabled for the development account, so the service
+does not depend on an open SSH/PuTTY session.
+
+Common commands:
+
+```bash
+systemctl --user status budget-app-dev
+systemctl --user restart budget-app-dev
+systemctl --user stop budget-app-dev
+systemctl --user start budget-app-dev
+journalctl --user -u budget-app-dev -f
+```
+
+Useful checks:
+
+```bash
+loginctl show-user sjmclean -p Linger
+ss -ltnp | grep -E ':3000|:5173'
+```
+
+Current development endpoints are frontend/Vite on port `5173` and the
+backend/server on port `3000`.
+
+This is a development-operability baseline, not a production deployment model.
+Production serving, reverse proxying, deployment automation, upgrade procedures,
+packaging and broader operational hardening remain roadmap work.
