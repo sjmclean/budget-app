@@ -56,15 +56,24 @@ test("Budget column handles retain per-column reset wiring", () => {
 });
 
 
-test("Budget header exposes a year strip with all twelve selectable months", () => {
+test("Budget header exposes month-step arrows, a year selector, and all twelve selectable months", () => {
   assert.match(
     budgetPageSource,
-    /<nav className="budget-year-month-navigation"[\s\S]*\{selectedYear\}[\s\S]*yearMonths\.map/,
+    /<nav className="budget-year-month-navigation"[\s\S]*aria-label="Budget year"[\s\S]*yearMonths\.map/,
   );
   assert.match(
     budgetPageSource,
     /BUDGET_MONTH_LABELS = \[[\s\S]*"Jan"[\s\S]*"Feb"[\s\S]*"Mar"[\s\S]*"Apr"[\s\S]*"May"[\s\S]*"Jun"[\s\S]*"Jul"[\s\S]*"Aug"[\s\S]*"Sep"[\s\S]*"Oct"[\s\S]*"Nov"[\s\S]*"Dec"/,
   );
+  assert.match(
+    budgetPageSource,
+    /className="budget-month-step"[\s\S]*getPreviousBudgetMonth\(currentMonth\)[\s\S]*aria-label="Go to previous budget month"[\s\S]*className="budget-month-step"[\s\S]*getNextBudgetMonth\(currentMonth\)[\s\S]*aria-label="Go to next budget month"/,
+  );
+  assert.doesNotMatch(
+    budgetPageSource,
+    /Go to (?:previous|next) budget year|addMonthsToBudgetMonth\(selectedMonth,\s*-?12\)/,
+  );
+  assert.match(budgetPageSource, /aria-label="Budget year"/);
   assert.match(
     budgetPageSource,
     /aria-current=\{isSelected \? "date" : undefined\}/,
