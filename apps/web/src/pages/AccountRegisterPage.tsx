@@ -2665,6 +2665,7 @@ export function AccountRegisterPage() {
                     visibleColumnIds={data.accountType === "Tracking" ? registerEditVisibleColumnIds.filter((columnId) => columnId !== "category") : registerEditVisibleColumnIds}
                     rowStyle={registerEditRowStyle}
                     layoutMode={registerLayoutMode}
+                    latestIncomeBudgetMonth={latestIncomeBudgetMonth}
                     editIntent={transactionEditIntent}
                   />
                 ) : (
