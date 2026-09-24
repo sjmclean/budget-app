@@ -366,6 +366,7 @@ function mapActualBudgetForLocalFirst(
           id: split.id,
           categoryId: split.categoryId ?? null,
           categoryName: split.category ?? null,
+          incomeBudgetMonth: split.incomeBudgetMonth ?? null,
           transferAccountId: null,
           transferTransactionId: null,
           memo: split.memo ?? null,
