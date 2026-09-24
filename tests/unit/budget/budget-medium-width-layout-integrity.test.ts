@@ -34,6 +34,17 @@ test("medium-width budget keeps month title above the planning summary", () => {
   );
 });
 
+test("medium-width month navigation keeps arrows fixed while only the month strip scrolls", () => {
+  assert.match(
+    responsive,
+    /@container budget-workspace-main \(max-width: 44rem\)[\s\S]*\.budget-year-month-navigation\s*\{[\s\S]*overflow:\s*hidden[\s\S]*\.budget-month-strip\s*\{[\s\S]*overflow-x:\s*auto/,
+  );
+  assert.doesNotMatch(
+    responsive,
+    /@container budget-workspace-main \(max-width: 44rem\)[\s\S]*\.budget-year-month-navigation\s*\{[^}]*overflow-x:\s*auto/,
+  );
+});
+
 test("budget planning cards stay side by side until the workspace is genuinely narrow", () => {
   assert.match(
     responsive,
