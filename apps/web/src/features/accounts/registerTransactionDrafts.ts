@@ -13,6 +13,7 @@ export interface RegisterTransactionDraftInput {
   payeeId?: string;
   transferAccountId?: string;
   category: string;
+  incomeBudgetMonth?: string;
   memo: string;
   checkNumber: string;
   outflow: string;
@@ -51,6 +52,7 @@ function buildRegisterTransactionInput({
   payeeId,
   transferAccountId,
   category,
+  incomeBudgetMonth,
   memo,
   checkNumber,
   outflow,
@@ -83,6 +85,28 @@ function buildRegisterTransactionInput({
     parsedOutflow === 0
       ? "Ready to Assign"
       : "Uncategorised";
+  const categoryId =
+    parsedSplitLines.length > 0
+      ? undefined
+      : (categoryOption?.id ??
+        (fallbackCategory === "Ready to Assign"
+          ? "__ready_to_assign__"
+          : undefined));
+  const transactionMonth = date.slice(0, 7);
+  const resolvedIncomeBudgetMonth =
+    categoryId === "__ready_to_assign__" &&
+    parsedInflow > 0 &&
+    parsedOutflow === 0
+      ? (incomeBudgetMonth || transactionMonth)
+      : undefined;
+
+  if (
+    resolvedIncomeBudgetMonth &&
+    (!/^\d{4}-(0[1-9]|1[0-2])$/.test(resolvedIncomeBudgetMonth) ||
+      resolvedIncomeBudgetMonth < transactionMonth)
+  ) {
+    return null;
+  }
 
   return {
     date,
@@ -93,13 +117,8 @@ function buildRegisterTransactionInput({
       parsedSplitLines.length > 0
         ? "Split"
         : (categoryOption?.name ?? (categoryName || fallbackCategory)),
-    categoryId:
-      parsedSplitLines.length > 0
-        ? undefined
-        : (categoryOption?.id ??
-          (fallbackCategory === "Ready to Assign"
-            ? "__ready_to_assign__"
-            : undefined)),
+    categoryId,
+    incomeBudgetMonth: resolvedIncomeBudgetMonth,
     memo: memo.trim(),
     checkNumber: checkNumber.trim(),
     outflow: parsedOutflow,
