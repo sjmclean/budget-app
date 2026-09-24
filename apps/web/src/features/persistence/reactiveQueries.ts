@@ -44,6 +44,21 @@ export const budgetMonthQuery = createReactiveQueryDefinition<
   load: (provider, input) => provider.categories.getBudgetMonthView(input),
 });
 
+export const budgetPlanningSummaryQuery = createReactiveQueryDefinition<
+  { readonly budgetId: string; readonly month: string },
+  BudgetMonthView
+>({
+  id: "budget-planning-summary",
+  key: ({ budgetId, month }) => `${budgetId}:${month}`,
+  // Future commitments can be changed from a different month, so this
+  // deliberately listens to the whole budget rather than one month.
+  interest: ({ budgetId }) => ({
+    budgetId,
+    domains: ["budget", "categories", "transactions", "goals"],
+  }),
+  load: (provider, input) => provider.categories.getBudgetMonthView(input),
+});
+
 export const financialOverviewQuery = createReactiveQueryDefinition<
   { readonly budgetId: string; readonly month: string },
   FinancialOverview
@@ -145,6 +160,24 @@ export function useBudgetMonthQuery(
     [budgetId, month],
   );
   return useReactiveQuery(budgetMonthQuery, provider, stableInput, { enabled });
+}
+
+export function useBudgetPlanningSummaryQuery(
+  input: { readonly budgetId: string; readonly month: string },
+  enabled = true,
+) {
+  const provider = getBudgetPersistenceProvider();
+  const { budgetId, month } = input;
+  const stableInput = useMemo(
+    () => ({ budgetId, month }),
+    [budgetId, month],
+  );
+  return useReactiveQuery(
+    budgetPlanningSummaryQuery,
+    provider,
+    stableInput,
+    { enabled },
+  );
 }
 
 export function useFinancialOverviewQuery(

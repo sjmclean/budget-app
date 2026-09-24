@@ -1914,3 +1914,104 @@
   width: 100%;
   pointer-events: none;
 }
+
+
+/* Future-month commitments reserve current Ready to Assign without hiding why. */
+.budget-future-commitment-warning {
+  grid-column: 1 / -1;
+  border: 1px solid color-mix(in srgb, var(--negative) 34%, var(--border));
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--negative-bg) 54%, var(--surface));
+  color: var(--text);
+  overflow: hidden;
+}
+
+.budget-future-commitment-warning-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+}
+
+.budget-future-commitment-warning-icon {
+  display: inline-grid;
+  place-items: center;
+  color: var(--negative);
+}
+
+.budget-future-commitment-warning-main strong {
+  color: var(--negative);
+  font-size: 0.82rem;
+}
+
+.budget-future-commitment-warning-main p {
+  margin: 0.16rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.budget-future-commitment-details-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.budget-future-commitment-details-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+.budget-future-commitment-details {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.7rem 0.9rem 0.8rem 2.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--negative) 18%, var(--border-soft));
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.budget-future-commitment-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.74rem;
+}
+
+.budget-future-commitment-detail-row span {
+  color: var(--text-muted);
+}
+
+.budget-future-commitment-detail-row strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-future-commitment-detail-total {
+  margin-top: 0.2rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.budget-future-commitment-detail-total strong {
+  color: var(--negative);
+}
+
+@container budget-workspace-main (max-width: 33.99rem) {
+  .budget-future-commitment-warning-main {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .budget-future-commitment-details-toggle {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .budget-future-commitment-details {
+    padding-left: 0.9rem;
+  }
+}

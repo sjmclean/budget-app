@@ -65,6 +65,7 @@ import {
   isCreditCardPaymentCategory,
   isCreditCardPaymentGroup,
 } from "../../budget/creditCardPaymentCategories";
+import { resolveFutureReadyToAssignPlan } from "../../budget/budgetFutureCommitments";
 
 type SqliteDatabase = {
   pointer: unknown;
@@ -2669,7 +2670,31 @@ function readBudgetMonth(month: string): BudgetMonthView | null {
   if (latestMonth && month >= latestMonth) {
     execute("DELETE FROM local_budget_projection_dirty WHERE budget_id = ?", [activeBudgetId]);
   }
-  return applyBudgetProjectionToSnapshot(snapshot, projection);
+  const projectedView = applyBudgetProjectionToSnapshot(snapshot, projection);
+  const futureCommitments = resultRows<{ month: string; assigned: number }>(
+    `SELECT month, SUM(assigned) AS assigned
+     FROM local_budget_assignments
+     WHERE budget_id = ? AND month > ?
+     GROUP BY month
+     HAVING SUM(assigned) <> 0
+     ORDER BY month`,
+    [activeBudgetId, month],
+  ).map(({ month: commitmentMonth, assigned }) => ({
+    month: commitmentMonth,
+    assigned,
+  }));
+  const futurePlan = resolveFutureReadyToAssignPlan(
+    projectedView.readyToAssign,
+    futureCommitments,
+  );
+
+  return {
+    ...projectedView,
+    planningReadyToAssign: futurePlan.planningReadyToAssign,
+    futureAssigned: futurePlan.futureAssigned,
+    futureOvercommitment: futurePlan.futureOvercommitment,
+    futureCommitments,
+  };
 }
 
 function getFinancialOverview(budgetId: string, month: string) {

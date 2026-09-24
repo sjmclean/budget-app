@@ -6,7 +6,7 @@ function nextMonth(month: string): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-test("Ready to Assign income can be budgeted into a future month and survives undo/redo", async ({ page }) => {
+test("Ready to Assign income uses its transaction month without exposing a Budget in selector", async ({ page }) => {
   await page.goto("/");
 
   const authenticationHeading = page.getByRole("heading", {
@@ -45,9 +45,7 @@ test("Ready to Assign income can be budgeted into a future month and survives un
   await page.getByPlaceholder("Inflow").fill("100.00");
   await page.getByPlaceholder("Inflow").press("Enter");
 
-  const budgetIn = page.getByLabel("Budget in month");
-  await expect(budgetIn).toBeVisible();
-  await budgetIn.selectOption(futureMonth);
+  await expect(page.getByLabel("Budget in month")).toHaveCount(0);
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText("Future Employer", { exact: true })).toBeVisible();
 
@@ -98,10 +96,10 @@ test("Ready to Assign income can be budgeted into a future month and survives un
   }
 
   await expect.poll(readEvidence).toEqual({
-    currentIncome: 0,
-    futureIncome: 100,
+    currentIncome: 100,
+    futureIncome: 0,
     futureReadyToAssign: 100,
-    incomeBudgetMonth: futureMonth,
+    incomeBudgetMonth: transactionMonth,
     transactionDate: expect.stringMatching(new RegExp(`^${transactionMonth}-`)),
   });
 
@@ -110,16 +108,16 @@ test("Ready to Assign income can be budgeted into a future month and survives un
     .getByRole("button", { name: "Undo", exact: true })
     .click();
   await expect(page.getByText("Future Employer", { exact: true })).toHaveCount(0);
-  await expect.poll(async () => (await readEvidence()).futureIncome).toBe(0);
+  await expect.poll(async () => (await readEvidence()).currentIncome).toBe(0);
 
   await page.getByRole("button", { name: "Register options" }).first().click();
   await page.getByRole("menuitem", { name: /Redo/ }).click();
   await expect(page.getByText("Future Employer", { exact: true })).toBeVisible();
   await expect.poll(readEvidence).toEqual({
-    currentIncome: 0,
-    futureIncome: 100,
+    currentIncome: 100,
+    futureIncome: 0,
     futureReadyToAssign: 100,
-    incomeBudgetMonth: futureMonth,
+    incomeBudgetMonth: transactionMonth,
     transactionDate: expect.stringMatching(new RegExp(`^${transactionMonth}-`)),
   });
 });
