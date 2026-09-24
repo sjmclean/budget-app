@@ -12,6 +12,7 @@ export type {
   UndoRedoListener,
   UndoRedoResult,
   UndoRedoSnapshot,
+  UndoRedoStackEntry,
 } from "./undoRedo";
 export {
   UndoRedoController,
