@@ -66,12 +66,23 @@ test("assignment persists and remains undoable after the Budget consumer disappe
   ));
   assert.equal(current().categoryGroups[0].categories[0].assigned, 50);
   assert.equal(service.getSnapshot("budget-a").undoLabel, "Change Groceries assignment");
+  assert.deepEqual(service.getEffectiveHistoryEntries("budget-a")[0]?.payload, {
+    month: "2026-08",
+    changes: [{
+      categoryId: "groceries",
+      categoryName: "Groceries",
+      originalAssigned: 60,
+      finalAssigned: 50,
+    }],
+  });
 
   // There is no mounted-page context in the harness; Undo resolves the service context again.
   await service.undo("budget-a");
   assert.equal(current().categoryGroups[0].categories[0].assigned, 60);
+  assert.equal(service.getEffectiveHistoryEntries("budget-a").length, 0);
   await service.redo("budget-a");
   assert.equal(current().categoryGroups[0].categories[0].assigned, 50);
+  assert.equal(service.getEffectiveHistoryEntries("budget-a").length, 1);
   assert.equal(writes(), 3);
 });
 
