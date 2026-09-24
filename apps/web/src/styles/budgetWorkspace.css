@@ -2015,3 +2015,167 @@
     padding-left: 0.9rem;
   }
 }
+
+
+/* Optional adaptive multi-month Budget planning view. */
+.budget-planning-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.budget-visible-month-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.18rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--surface);
+}
+
+.budget-visible-month-button {
+  width: 2.4rem;
+  height: 2.1rem;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0.48rem;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.budget-visible-month-button:hover:not(:disabled),
+.budget-visible-month-button:focus-visible {
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--accent-strong);
+}
+
+.budget-visible-month-button-active {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent-strong);
+}
+
+.budget-visible-month-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.32;
+}
+
+.budget-month-count-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.08rem;
+}
+
+.budget-workspace-screen-multi-month {
+  --budget-working-max-width: none;
+}
+
+.budget-workspace-screen-multi-month .budget-planning-title,
+.budget-workspace-screen-multi-month .budget-planning-toolbar,
+.budget-workspace-screen-multi-month .budget-multi-month-toolbar {
+  width: 100%;
+  max-width: none;
+}
+
+.budget-multi-month-toolbar {
+  grid-area: toolbar;
+  display: flex;
+  align-items: center;
+  padding-top: 0.05rem;
+}
+
+.budget-multi-month-grid {
+  --budget-visible-month-count: 2;
+  display: grid;
+  grid-template-columns:
+    repeat(var(--budget-visible-month-count), minmax(30rem, 1fr));
+  align-items: start;
+  gap: 0.8rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0 0.15rem 1rem;
+}
+
+.budget-multi-month-pane {
+  min-width: 0;
+}
+
+.budget-multi-month-pane-header {
+  min-height: 3.3rem;
+  display: flex;
+  align-items: flex-end;
+  padding: 0.3rem 0.15rem 0.45rem;
+}
+
+.budget-multi-month-pane-header h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+.budget-multi-month-pane-header span {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.budget-multi-month-pane > .budget-ready-summary {
+  width: 100%;
+  min-height: 8.2rem;
+  margin-bottom: 0.55rem;
+}
+
+.budget-multi-month-pane > .budget-workspace-table-head,
+.budget-multi-month-pane > .budget-workspace-table-card {
+  width: 100%;
+  max-width: none;
+}
+
+.budget-multi-month-pane > .budget-workspace-table-head {
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 0.65rem 0.65rem 0 0;
+  background: var(--surface);
+}
+
+.budget-multi-month-pane > .budget-workspace-table-card {
+  border-radius: 0 0 0.65rem 0.65rem;
+}
+
+.budget-multi-month-pane-loading .card {
+  min-height: 8rem;
+}
+
+@media (max-width: 1359px) {
+  .budget-visible-month-button:not(:first-child) {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .budget-planning-title {
+    align-items: center;
+  }
+
+  .budget-visible-month-toggle {
+    display: none;
+  }
+}
+
+
+/* Keep Category Details usable from the adaptive multi-month workspace. */
+.budget-workspace-screen-multi-month.budget-workspace-layout-details-open {
+  grid-template-columns: minmax(0, 1fr) minmax(19rem, 20.5rem);
+}
+
+.budget-workspace-screen-multi-month.budget-workspace-layout-details-open .budget-multi-month-grid {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}

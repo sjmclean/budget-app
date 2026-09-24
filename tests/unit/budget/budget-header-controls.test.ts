@@ -87,7 +87,7 @@ test("Budget header exposes rolling month navigation with a deliberate year sele
   );
   assert.match(
     budgetPageSource,
-    /<h1>\{data\.monthLabel\}<\/h1>/,
+    /<h1>[\s\S]*isMultiMonthView[\s\S]*formatBudgetMonthLabel\(visibleMonths\[visibleMonths\.length - 1\]![\s\S]*data\.monthLabel[\s\S]*<\/h1>/,
   );
   assert.doesNotMatch(
     budgetPageSource,
@@ -99,6 +99,30 @@ test("Budget header exposes rolling month navigation with a deliberate year sele
   );
   assert.match(
     budgetPageSource,
-    /<span>Monthly Budget<\/span>/,
+    /isMultiMonthView[\s\S]*\$\{visibleMonthCount\}-month planning view[\s\S]*"Monthly Budget"/,
+  );
+});
+
+
+test("Budget exposes persisted adaptive one-to-four month planning controls", () => {
+  assert.match(
+    budgetPageSource,
+    /\[1, 2, 3, 4\]\.map\(\(count\) =>/,
+  );
+  assert.match(
+    budgetPageSource,
+    /aria-label=\{\`Show \$\{count\} budget month/,
+  );
+  assert.match(
+    budgetPageSource,
+    /const visibleMonthCount = Math\.min\([\s\S]*preferredVisibleMonths,[\s\S]*visibleMonthCapacity/,
+  );
+  assert.match(
+    budgetPageSource,
+    /buildVisibleBudgetMonths\([\s\S]*selectedMonth,[\s\S]*visibleMonthCount/,
+  );
+  assert.match(
+    budgetPageSource,
+    /writePreferredVisibleBudgetMonths\(budgetId, count\)/,
   );
 });

@@ -11,7 +11,7 @@ const budgetCss = readFileSync(
   "utf8",
 );
 
-test("Budget only mounts Category Details when a category is selected", () => {
+test("Budget mounts Category Details whenever a category is selected", () => {
   assert.doesNotMatch(budgetPage, /<aside className="budget-month-panel"/);
   assert.doesNotMatch(budgetPage, /Budget Health/);
   assert.match(
@@ -78,5 +78,25 @@ test("Budget keeps Category Details adjacent to the bounded working surface", ()
   assert.match(
     budgetCss,
     /\.budget-category-details-panel\s*\{[\s\S]*position:\s*sticky;[\s\S]*var\(--workspace-side-panel-background\)/,
+  );
+});
+
+
+test("multi-month Budget promotes the clicked month and opens its category inspector", () => {
+  assert.match(
+    budgetPage,
+    /function selectVisibleMonthCategory\(month: string, categoryId: string\)[\s\S]*selectCategory\(categoryId\)[\s\S]*month !== selectedMonth[\s\S]*setSelectedMonth\(month\)/,
+  );
+  assert.match(
+    budgetPage,
+    /<BudgetMultiMonthPane[\s\S]*onSelectCategory=\{selectVisibleMonthCategory\}/,
+  );
+  assert.match(
+    budgetPage,
+    /<BudgetFutureMonthPane[\s\S]*onSelectCategory=\{selectVisibleMonthCategory\}/,
+  );
+  assert.match(
+    budgetCss,
+    /\.budget-workspace-screen-multi-month\.budget-workspace-layout-details-open\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(19rem, 20\.5rem\)/,
   );
 });
