@@ -785,6 +785,7 @@ function BudgetVisibleMonthToggle({
 function BudgetMultiMonthPane({
   data,
   updateAssigned,
+  overassignedCategoryIds,
   collapsedGroupIds,
   archivedCategoriesExpanded,
   onToggleGroup,
@@ -792,6 +793,7 @@ function BudgetMultiMonthPane({
 }: {
   data: BudgetMonthView;
   updateAssigned: (categoryId: string, value: number) => void;
+  overassignedCategoryIds: string[];
   collapsedGroupIds: ReadonlySet<string>;
   archivedCategoriesExpanded: boolean;
   onToggleGroup: (groupId: string) => void;
@@ -806,12 +808,6 @@ function BudgetMultiMonthPane({
   const groups = archivedGroup ? [...activeGroups, archivedGroup] : activeGroups;
   const originalGroupByCategoryId =
     buildArchivedCategorySourceGroupMap(data.categoryGroups);
-  const overassignedCategoryIds = data.readyToAssign < 0
-    ? data.categoryGroups
-        .flatMap((group) => group.categories)
-        .filter((category) => category.assigned > 0)
-        .map((category) => category.id)
-    : [];
   const gridStyle: BudgetGridStyle = {
     "--budget-grid-template-columns":
       "minmax(11rem, 1fr) minmax(5.5rem, 6.25rem) minmax(5.5rem, 6.25rem) minmax(5.5rem, 6.25rem)",
@@ -947,6 +943,7 @@ function BudgetFutureMonthPane({
     <BudgetMultiMonthPane
       data={workspace.data}
       updateAssigned={workspace.updateAssigned}
+      overassignedCategoryIds={workspace.overassignedCategoryIds}
       collapsedGroupIds={collapsedGroupIds}
       archivedCategoriesExpanded={archivedCategoriesExpanded}
       onToggleGroup={onToggleGroup}
@@ -1777,6 +1774,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
               <BudgetMultiMonthPane
                 data={data}
                 updateAssigned={updateAssigned}
+                overassignedCategoryIds={overassignedCategoryIds}
                 collapsedGroupIds={collapsedGroupIds}
                 archivedCategoriesExpanded={archivedCategoriesExpanded}
                 onToggleGroup={toggleBudgetGroup}
@@ -1858,7 +1856,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           )}
         </main>
 
-        {visibleSelectedCategory && visibleSelectedGroup ? (
+        {visibleSelectedCategory && visibleSelectedGroup && !isMultiMonthView ? (
           <CategoryDetailsPanel
             budgetId={budgetId}
             month={selectedMonth}
