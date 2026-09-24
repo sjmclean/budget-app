@@ -80,3 +80,19 @@ test("medium-width budget compacts all four financial columns without changing p
   assert.match(responsive, /@media \(max-width: 600px\)/);
   assert.doesNotMatch(responsive, /!important/);
 });
+
+
+test("multi-month Budget uses available wide-screen space without squeezing narrow layouts", () => {
+  assert.match(
+    responsive,
+    /\.budget-multi-month-grid\s*\{[\s\S]*repeat\(var\(--budget-visible-month-count\), minmax\(30rem, 1fr\)\)/,
+  );
+  assert.match(
+    responsive,
+    /\.budget-workspace-screen-multi-month\s*\{[\s\S]*--budget-working-max-width:\s*none/,
+  );
+  assert.match(
+    responsive,
+    /@media \(max-width: 1359px\)[\s\S]*budget-visible-month-button:not\(:first-child\)[\s\S]*display:\s*none/,
+  );
+});

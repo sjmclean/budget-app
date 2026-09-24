@@ -102,3 +102,27 @@ test("Budget header exposes rolling month navigation with a deliberate year sele
     /<span>Monthly Budget<\/span>/,
   );
 });
+
+
+test("Budget exposes persisted adaptive one-to-four month planning controls", () => {
+  assert.match(
+    budgetPageSource,
+    /\[1, 2, 3, 4\]\.map\(\(count\) =>/,
+  );
+  assert.match(
+    budgetPageSource,
+    /aria-label=\{\`Show \$\{count\} budget month/,
+  );
+  assert.match(
+    budgetPageSource,
+    /const visibleMonthCount = Math\.min\([\s\S]*preferredVisibleMonths,[\s\S]*visibleMonthCapacity/,
+  );
+  assert.match(
+    budgetPageSource,
+    /buildVisibleBudgetMonths\([\s\S]*selectedMonth,[\s\S]*visibleMonthCount/,
+  );
+  assert.match(
+    budgetPageSource,
+    /writePreferredVisibleBudgetMonths\(budgetId, count\)/,
+  );
+});
