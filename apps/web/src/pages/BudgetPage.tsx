@@ -1305,15 +1305,29 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                           <span>Available before future assignments</span>
                           <strong>{formatMoney(Math.max(0, data.readyToAssign), data.currencyCode)}</strong>
                         </div>
-                        {futureCommitments.map((commitment) => (
-                          <div
-                            className="budget-future-commitment-detail-row"
-                            key={commitment.month}
-                          >
-                            <span>Assigned in {formatBudgetMonthLabel(commitment.month)}</span>
-                            <strong>{formatMoney(commitment.assigned, data.currencyCode)}</strong>
-                          </div>
-                        ))}
+                        {futureCommitments.flatMap((commitment) => {
+                          const rows = [
+                            <div
+                              className="budget-future-commitment-detail-row"
+                              key={`${commitment.month}-assigned`}
+                            >
+                              <span>Assigned in {formatBudgetMonthLabel(commitment.month)}</span>
+                              <strong>{formatMoney(commitment.assigned, data.currencyCode)}</strong>
+                            </div>,
+                          ];
+                          if ((commitment.income ?? 0) !== 0) {
+                            rows.push(
+                              <div
+                                className="budget-future-commitment-detail-row"
+                                key={`${commitment.month}-income`}
+                              >
+                                <span>Income in {formatBudgetMonthLabel(commitment.month)}</span>
+                                <strong>{formatMoney(commitment.income ?? 0, data.currencyCode)}</strong>
+                              </div>,
+                            );
+                          }
+                          return rows;
+                        })}
                         <div className="budget-future-commitment-detail-row budget-future-commitment-detail-total">
                           <span>Overcommitted</span>
                           <strong>{formatMoney(futureOvercommitment, data.currencyCode)}</strong>

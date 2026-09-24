@@ -43,10 +43,16 @@ test("Income for Month options begin at the transaction month and respect the co
   assert.equal(validIncomeBudgetMonth("2027-01", "2026-09-24", "2026-12"), false);
 });
 
-test("ordinary Ready to Assign inflow defaults to its transaction month and accepts a valid future month", () => {
+test("ordinary Ready to Assign inflow stores no explicit month unless compatibility metadata points forward", () => {
   const current = buildNewRegisterTransactionInput(baseDraft());
   assert.equal(current?.categoryId, "__ready_to_assign__");
-  assert.equal(current?.incomeBudgetMonth, "2026-09");
+  assert.equal(current?.incomeBudgetMonth, undefined);
+
+  const sameMonth = buildNewRegisterTransactionInput({
+    ...baseDraft(),
+    incomeBudgetMonth: "2026-09",
+  });
+  assert.equal(sameMonth?.incomeBudgetMonth, undefined);
 
   const future = buildNewRegisterTransactionInput({
     ...baseDraft(),
@@ -55,24 +61,17 @@ test("ordinary Ready to Assign inflow defaults to its transaction month and acce
   assert.equal(future?.incomeBudgetMonth, "2026-11");
 });
 
-test("ordinary Ready to Assign inflow rejects backdated and out-of-range budget months", () => {
-  assert.equal(
-    buildNewRegisterTransactionInput({
-      ...baseDraft(),
-      incomeBudgetMonth: "2026-08",
-    }),
-    null,
-  );
-  assert.equal(
-    buildNewRegisterTransactionInput({
-      ...baseDraft(),
-      incomeBudgetMonth: "2027-01",
-    }),
-    null,
-  );
+test("stale hidden income allocation is cleared when a transaction moves to a later month", () => {
+  const moved = buildNewRegisterTransactionInput({
+    ...baseDraft(),
+    date: "2026-10-02",
+    incomeBudgetMonth: "2026-09",
+  });
+  assert.ok(moved);
+  assert.equal(moved.incomeBudgetMonth, undefined);
 });
 
-test("split Ready to Assign inflow defaults and validates Income for Month line by line", () => {
+test("split Ready to Assign inflow stores only explicit future compatibility metadata", () => {
   const splitBase = {
     ...baseDraft(),
     category: "Split",
@@ -88,7 +87,7 @@ test("split Ready to Assign inflow defaults and validates Income for Month line 
   };
 
   const current = buildNewRegisterTransactionInput(splitBase);
-  assert.equal(current?.splitLines?.[0]?.incomeBudgetMonth, "2026-09");
+  assert.equal(current?.splitLines?.[0]?.incomeBudgetMonth, undefined);
 
   const future = buildNewRegisterTransactionInput({
     ...splitBase,
@@ -99,14 +98,16 @@ test("split Ready to Assign inflow defaults and validates Income for Month line 
   });
   assert.equal(future?.splitLines?.[0]?.incomeBudgetMonth, "2026-12");
 
-  const invalid = buildNewRegisterTransactionInput({
+  const moved = buildNewRegisterTransactionInput({
     ...splitBase,
+    date: "2026-10-02",
     splitLines: [{
       ...splitBase.splitLines[0],
-      incomeBudgetMonth: "2027-01",
+      incomeBudgetMonth: "2026-09",
     }],
   });
-  assert.equal(invalid, null);
+  assert.ok(moved);
+  assert.equal(moved.splitLines?.[0]?.incomeBudgetMonth, undefined);
 });
 
 test("non-income split lines cannot retain a stale income budget month", () => {

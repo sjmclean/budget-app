@@ -2671,7 +2671,7 @@ function readBudgetMonth(month: string): BudgetMonthView | null {
     execute("DELETE FROM local_budget_projection_dirty WHERE budget_id = ?", [activeBudgetId]);
   }
   const projectedView = applyBudgetProjectionToSnapshot(snapshot, projection);
-  const futureCommitments = resultRows<{ month: string; assigned: number }>(
+  const futureAssignments = resultRows<{ month: string; assigned: number }>(
     `SELECT month, SUM(assigned) AS assigned
      FROM local_budget_assignments
      WHERE budget_id = ? AND month > ?
@@ -2679,9 +2679,69 @@ function readBudgetMonth(month: string): BudgetMonthView | null {
      HAVING SUM(assigned) <> 0
      ORDER BY month`,
     [activeBudgetId, month],
-  ).map(({ month: commitmentMonth, assigned }) => ({
+  );
+  const futureIncome = resultRows<{ month: string; amount: number }>(
+    `SELECT income_month AS month, SUM(amount) AS amount
+     FROM (
+       SELECT COALESCE(
+           transaction_row.income_budget_month,
+           substr(transaction_row.date, 1, 7)
+         ) AS income_month,
+         transaction_row.amount AS amount
+       FROM local_transactions AS transaction_row
+       JOIN local_accounts AS account
+         ON account.id = transaction_row.account_id
+        AND account.budget_id = transaction_row.budget_id
+       WHERE transaction_row.budget_id = ?
+         AND transaction_row.category_id = '__ready_to_assign__'
+         AND transaction_row.transfer_account_id IS NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM local_transaction_splits AS split
+           WHERE split.transaction_id = transaction_row.id
+         )
+         AND account.type <> 'tracking'
+         AND account.participation NOT IN ('tracking', 'off-budget')
+       UNION ALL
+       SELECT COALESCE(
+           split.income_budget_month,
+           substr(transaction_row.date, 1, 7)
+         ) AS income_month,
+         split.amount AS amount
+       FROM local_transaction_splits AS split
+       JOIN local_transactions AS transaction_row
+         ON transaction_row.id = split.transaction_id
+       JOIN local_accounts AS account
+         ON account.id = transaction_row.account_id
+        AND account.budget_id = transaction_row.budget_id
+       WHERE transaction_row.budget_id = ?
+         AND split.category_id = '__ready_to_assign__'
+         AND split.transfer_account_id IS NULL
+         AND transaction_row.transfer_account_id IS NULL
+         AND account.type <> 'tracking'
+         AND account.participation NOT IN ('tracking', 'off-budget')
+     )
+     WHERE income_month > ?
+     GROUP BY income_month
+     HAVING SUM(amount) <> 0
+     ORDER BY income_month`,
+    [activeBudgetId, activeBudgetId, month],
+  );
+  const futureIncomeByMonth = new Map(
+    futureIncome.map(({ month: incomeMonth, amount }) => [
+      incomeMonth,
+      amount / 100,
+    ]),
+  );
+  const futureMonthSet = new Set([
+    ...futureAssignments.map(({ month: assignmentMonth }) => assignmentMonth),
+    ...futureIncome.map(({ month: incomeMonth }) => incomeMonth),
+  ]);
+  const futureCommitments = [...futureMonthSet].sort().map((commitmentMonth) => ({
     month: commitmentMonth,
-    assigned,
+    assigned:
+      futureAssignments.find(({ month: assignmentMonth }) =>
+        assignmentMonth === commitmentMonth)?.assigned ?? 0,
+    income: futureIncomeByMonth.get(commitmentMonth) ?? 0,
   }));
   const futurePlan = resolveFutureReadyToAssignPlan(
     projectedView.readyToAssign,

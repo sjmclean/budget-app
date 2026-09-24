@@ -89,14 +89,11 @@ function buildRegisterTransactionInput({
       return { ...line, incomeBudgetMonth: undefined };
     }
 
-    const splitIncomeBudgetMonth = line.incomeBudgetMonth || transactionMonth;
-    if (
-      !validIncomeBudgetMonth(
-        splitIncomeBudgetMonth,
-        date,
-        latestIncomeBudgetMonth,
-      )
-    ) {
+    const splitIncomeBudgetMonth = line.incomeBudgetMonth;
+    if (!splitIncomeBudgetMonth || splitIncomeBudgetMonth <= transactionMonth) {
+      return { ...line, incomeBudgetMonth: undefined };
+    }
+    if (!validIncomeBudgetMonth(splitIncomeBudgetMonth, date)) {
       return null;
     }
 
@@ -129,20 +126,21 @@ function buildRegisterTransactionInput({
         (fallbackCategory === "Ready to Assign"
           ? "__ready_to_assign__"
           : undefined));
-  const resolvedIncomeBudgetMonth =
+  const requestedIncomeBudgetMonth =
     categoryId === "__ready_to_assign__" &&
     parsedInflow > 0 &&
     parsedOutflow === 0
-      ? (incomeBudgetMonth || transactionMonth)
+      ? incomeBudgetMonth
+      : undefined;
+  const resolvedIncomeBudgetMonth =
+    requestedIncomeBudgetMonth &&
+    requestedIncomeBudgetMonth > transactionMonth
+      ? requestedIncomeBudgetMonth
       : undefined;
 
   if (
     resolvedIncomeBudgetMonth &&
-    !validIncomeBudgetMonth(
-      resolvedIncomeBudgetMonth,
-      date,
-      latestIncomeBudgetMonth,
-    )
+    !validIncomeBudgetMonth(resolvedIncomeBudgetMonth, date)
   ) {
     return null;
   }

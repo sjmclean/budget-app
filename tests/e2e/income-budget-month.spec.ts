@@ -99,7 +99,7 @@ test("Ready to Assign income uses its transaction month without exposing a Budge
     currentIncome: 100,
     futureIncome: 0,
     futureReadyToAssign: 100,
-    incomeBudgetMonth: transactionMonth,
+    incomeBudgetMonth: null,
     transactionDate: expect.stringMatching(new RegExp(`^${transactionMonth}-`)),
   });
 
@@ -117,7 +117,7 @@ test("Ready to Assign income uses its transaction month without exposing a Budge
     currentIncome: 100,
     futureIncome: 0,
     futureReadyToAssign: 100,
-    incomeBudgetMonth: transactionMonth,
+    incomeBudgetMonth: null,
     transactionDate: expect.stringMatching(new RegExp(`^${transactionMonth}-`)),
   });
 });

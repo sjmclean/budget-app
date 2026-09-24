@@ -127,6 +127,7 @@ export interface BudgetMonthView {
   futureCommitments?: Array<{
     month: string;
     assigned: number;
+    income?: number;
   }>;
   /** Marks a month whose opening balances were generated from this source month. */
   rolloverSourceMonth?: string;
