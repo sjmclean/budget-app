@@ -13,7 +13,18 @@ test("medium-width budget keeps month title above the planning summary", () => {
     responsive,
     /\.budget-planning-header\s*\{[\s\S]*grid-template-areas:[\s\S]*"months"[\s\S]*"title"[\s\S]*"summary"[\s\S]*"tabs"[\s\S]*"toolbar"/,
   );
+});
+
+test("budget planning cards stay side by side until the workspace is genuinely narrow", () => {
   assert.match(
+    responsive,
+    /\.budget-planning-summary-stack\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(15rem, 18rem\)/,
+  );
+  assert.match(
+    responsive,
+    /@container budget-workspace-main \(max-width: 33\.99rem\)[\s\S]*\.budget-planning-summary-stack\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
+  );
+  assert.doesNotMatch(
     responsive,
     /@container budget-workspace-main \(min-width: 34rem\) and \(max-width: 44rem\)[\s\S]*\.budget-planning-summary-stack\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
