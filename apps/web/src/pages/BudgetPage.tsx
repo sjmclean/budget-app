@@ -19,6 +19,7 @@ import {
 } from "../components/workspace";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import {
+  addMonthsToBudgetMonth,
   getCurrentBudgetMonth,
   getNextBudgetMonth,
   getPreviousBudgetMonth,
@@ -861,10 +862,20 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     { length: 41 },
     (_, index) => selectedYear - 20 + index,
   );
-  const yearMonths = BUDGET_MONTH_LABELS.map((label, monthIndex) => ({
-    label,
-    value: `${selectedYear}-${String(monthIndex + 1).padStart(2, "0")}`,
-  }));
+  const navigationMonths = Array.from({ length: 11 }, (_, index) => {
+    const offset = index - 5;
+    const value = addMonthsToBudgetMonth(selectedMonth, offset);
+    const year = Number(value.slice(0, 4));
+    const monthIndex = Number(value.slice(5, 7)) - 1;
+
+    return {
+      label: BUDGET_MONTH_LABELS[monthIndex]!,
+      value,
+      year,
+      offset,
+      distance: Math.abs(offset),
+    };
+  });
   const carriedForward = authoritativeSummary.carriedForwardReadyToAssign;
   const previousOverspending = authoritativeSummary.previousOverspending;
   const incomeForMonth = authoritativeSummary.incomeForMonth;
@@ -1035,33 +1046,13 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 >
                   ‹
                 </button>
-                <label className="budget-year-picker">
-                  <span className="sr-only">Budget year</span>
-                  <select
-                    className="budget-year-select"
-                    value={selectedYear}
-                    onChange={(event) => {
-                      const nextYear = event.currentTarget.value;
-                      setSelectedMonth((currentMonth) =>
-                        `${nextYear}-${currentMonth.slice(5, 7)}`,
-                      );
-                    }}
-                    aria-label="Budget year"
-                    title="Select budget year"
-                  >
-                    {selectableYears.map((year) => (
-                      <option value={year} key={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-                </label>
                 <div className="budget-month-strip">
-                  {yearMonths.map(({ label, value }) => {
-                    const isSelected = value === selectedMonth;
+                  {navigationMonths.map(({ label, value, year, offset, distance }) => {
+                    const isSelected = offset === 0;
                     const showWarning =
                       value === nextMonth &&
                       nextMonthOutlook?.status === "overbudget";
+                    const showYear = isSelected || value.endsWith("-01");
 
                     return (
                       <button
@@ -1072,13 +1063,17 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                         }
                         type="button"
                         key={value}
+                        data-distance={distance}
                         onMouseEnter={() => prefetchMonth(value)}
                         onFocus={() => prefetchMonth(value)}
                         onClick={() => setSelectedMonth(value)}
                         aria-current={isSelected ? "date" : undefined}
-                        aria-label={`Open ${label} ${selectedYear} budget`}
+                        aria-label={`Open ${label} ${year} budget`}
                       >
-                        <span>{label}</span>
+                        <span className="budget-month-chip-label">{label}</span>
+                        {showYear ? (
+                          <span className="budget-month-chip-year">{year}</span>
+                        ) : null}
                         {showWarning ? (
                           <span
                             className="budget-month-chip-status"
@@ -1108,7 +1103,30 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
               <div className="budget-planning-title">
                 <div>
-                  <h1>{data.monthLabel}</h1>
+                  <div className="budget-planning-title-line">
+                    <h1>{monthName}</h1>
+                    <label className="budget-year-picker">
+                      <span className="sr-only">Budget year</span>
+                      <select
+                        className="budget-year-select"
+                        value={selectedYear}
+                        onChange={(event) => {
+                          const nextYear = event.currentTarget.value;
+                          setSelectedMonth((currentMonth) =>
+                            `${nextYear}-${currentMonth.slice(5, 7)}`,
+                          );
+                        }}
+                        aria-label="Budget year"
+                        title="Select budget year"
+                      >
+                        {selectableYears.map((year) => (
+                          <option value={year} key={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
                   <span>Monthly Budget</span>
                 </div>
               </div>
