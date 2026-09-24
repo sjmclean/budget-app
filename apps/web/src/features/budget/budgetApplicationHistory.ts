@@ -28,6 +28,7 @@ export function adaptBudgetCommandToApplicationHistory(
   return {
     id: command.id,
     get label() { return command.label; },
+    get historyEntry() { return command.historyEntry ?? null; },
     execute: (context) => command.execute(contextFor(context)),
     undo: (context) => command.undo(contextFor(context)),
     redo: command.redo
