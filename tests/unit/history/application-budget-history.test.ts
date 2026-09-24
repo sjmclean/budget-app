@@ -135,7 +135,7 @@ test("assignment execute, undo, and redo each notify the Budget-view refresh sub
   assert.equal(versions[2], versions[1]! + 1);
 });
 
-test("single and multi-source movements are persistent one-entry commands", async () => {
+test("single and multi-source movements are persistent one-entry commands with effective movement history", async () => {
   const { service, current } = harness();
   await service.execute("budget-a", adaptBudgetCommandToApplicationHistory(
     createMoveBudgetMoneyCommand({
@@ -143,6 +143,18 @@ test("single and multi-source movements are persistent one-entry commands", asyn
     }),
   ));
   assert.equal(service.getSnapshot("budget-a").undoDepth, 1);
+  assert.equal(service.getEffectiveHistoryEntries("budget-a").length, 1);
+  assert.deepEqual(
+    service.getEffectiveHistoryEntries("budget-a")[0]?.payload,
+    {
+      month: "2026-08",
+      currencyCode: "AUD",
+      amount: 10,
+      sources: [{ categoryId: "groceries", categoryName: "Groceries", amount: 10 }],
+      destinationCategoryId: "dining",
+      destinationCategoryName: "Dining",
+    },
+  );
 
   await service.execute("budget-a", adaptBudgetCommandToApplicationHistory(
     createMoveBudgetMoneyFromMultipleSourcesCommand({
@@ -151,15 +163,30 @@ test("single and multi-source movements are persistent one-entry commands", asyn
     }),
   ));
   assert.equal(service.getSnapshot("budget-a").undoDepth, 2);
+  assert.equal(service.getEffectiveHistoryEntries("budget-a").length, 2);
   assert.match(service.getSnapshot("budget-a").undoLabel ?? "", /from 2 categories to Dining/);
-  await service.undo("budget-a");
+
+  const undoResult = await service.undo("budget-a");
+  assert.equal(undoResult.performed, true);
   assert.equal(current().categoryGroups[0].categories.find(({ id }) => id === "dining")?.assigned, 10);
+  assert.equal(
+    service.getEffectiveHistoryEntries("budget-a").length,
+    1,
+    "undo removes the effective movement entry instead of adding an undone audit event",
+  );
+
+  const redoResult = await service.redo("budget-a");
+  assert.equal(redoResult.performed, true);
+  assert.equal(service.getEffectiveHistoryEntries("budget-a").length, 2);
+
+  await service.undo("budget-a");
   await service.execute("budget-a", adaptBudgetCommandToApplicationHistory(
     createMoveBudgetMoneyCommand({
       month: "2026-08", sourceCategoryId: "fuel", destinationCategoryId: "dining", amount: 1,
     }),
   ));
   assert.equal(service.getSnapshot("budget-a").redoDepth, 0);
+  assert.equal(service.getEffectiveHistoryEntries("budget-a").length, 2);
 });
 
 test("Budget and Register source wiring observes the same application history hook", () => {
