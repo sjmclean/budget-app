@@ -19,7 +19,6 @@ import {
 } from "../components/workspace";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import {
-  addMonthsToBudgetMonth,
   getCurrentBudgetMonth,
   getNextBudgetMonth,
   getPreviousBudgetMonth,
@@ -858,6 +857,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const coverOptions = buildOverspendingCoverOptions(data.categoryGroups);
   const monthName = data.monthLabel.split(" ")[0] ?? data.monthLabel;
   const selectedYear = Number(selectedMonth.slice(0, 4));
+  const selectableYears = Array.from(
+    { length: 41 },
+    (_, index) => selectedYear - 20 + index,
+  );
   const yearMonths = BUDGET_MONTH_LABELS.map((label, monthIndex) => ({
     label,
     value: `${selectedYear}-${String(monthIndex + 1).padStart(2, "0")}`,
@@ -1018,21 +1021,41 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             <section className="budget-planning-header" aria-label="Budget month workspace">
               <nav className="budget-year-month-navigation" aria-label="Budget month navigation">
                 <button
-                  className="budget-year-step"
+                  className="budget-month-step"
                   type="button"
-                  onMouseEnter={() => prefetchMonth(addMonthsToBudgetMonth(selectedMonth, -12))}
-                  onFocus={() => prefetchMonth(addMonthsToBudgetMonth(selectedMonth, -12))}
+                  onMouseEnter={() => prefetchMonth(getPreviousBudgetMonth(selectedMonth))}
+                  onFocus={() => prefetchMonth(getPreviousBudgetMonth(selectedMonth))}
                   onClick={() =>
                     setSelectedMonth((currentMonth) =>
-                      addMonthsToBudgetMonth(currentMonth, -12),
+                      getPreviousBudgetMonth(currentMonth),
                     )
                   }
-                  aria-label="Go to previous budget year"
-                  title="Go to previous budget year"
+                  aria-label="Go to previous budget month"
+                  title="Previous month"
                 >
                   ‹
                 </button>
-                <span className="budget-year-label">{selectedYear}</span>
+                <label className="budget-year-picker">
+                  <span className="sr-only">Budget year</span>
+                  <select
+                    className="budget-year-select"
+                    value={selectedYear}
+                    onChange={(event) => {
+                      const nextYear = event.currentTarget.value;
+                      setSelectedMonth((currentMonth) =>
+                        `${nextYear}-${currentMonth.slice(5, 7)}`,
+                      );
+                    }}
+                    aria-label="Budget year"
+                    title="Select budget year"
+                  >
+                    {selectableYears.map((year) => (
+                      <option value={year} key={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <div className="budget-month-strip">
                   {yearMonths.map(({ label, value }) => {
                     const isSelected = value === selectedMonth;
@@ -1067,17 +1090,17 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   })}
                 </div>
                 <button
-                  className="budget-year-step"
+                  className="budget-month-step"
                   type="button"
-                  onMouseEnter={() => prefetchMonth(addMonthsToBudgetMonth(selectedMonth, 12))}
-                  onFocus={() => prefetchMonth(addMonthsToBudgetMonth(selectedMonth, 12))}
+                  onMouseEnter={() => prefetchMonth(getNextBudgetMonth(selectedMonth))}
+                  onFocus={() => prefetchMonth(getNextBudgetMonth(selectedMonth))}
                   onClick={() =>
                     setSelectedMonth((currentMonth) =>
-                      addMonthsToBudgetMonth(currentMonth, 12),
+                      getNextBudgetMonth(currentMonth),
                     )
                   }
-                  aria-label="Go to next budget year"
-                  title="Go to next budget year"
+                  aria-label="Go to next budget month"
+                  title="Next month"
                 >
                   ›
                 </button>
