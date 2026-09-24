@@ -77,6 +77,10 @@ test("Budget header exposes rolling month navigation with a deliberate year sele
     budgetPageSource,
     /<nav className="budget-year-month-navigation"[\s\S]*aria-label="Budget year"[\s\S]*<div className="budget-month-strip">/,
   );
+  assert.doesNotMatch(
+    budgetPageSource,
+    /<span className="sr-only">Budget year<\/span>/,
+  );
   assert.match(
     budgetPageSource,
     /const firstSelectableYear = Math\.min\(1900, selectedYear\);[\s\S]*const lastSelectableYear = Math\.max\(2100, selectedYear\)/,
