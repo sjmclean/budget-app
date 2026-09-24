@@ -41,6 +41,12 @@ export type UndoRedoResult =
       error?: string;
     };
 
+export interface UndoRedoStackEntry {
+  readonly id: string;
+  readonly label: string;
+  readonly historyEntry: UndoRedoHistoryEntry | null;
+}
+
 export interface UndoRedoSnapshot {
   canUndo: boolean;
   canRedo: boolean;
@@ -103,6 +109,33 @@ export class UndoRedoController<TContext = void> {
 
   getEffectiveHistoryEntries = (): readonly UndoRedoHistoryEntry[] =>
     this.effectiveHistoryEntries;
+
+  getUndoStackEntries = (): readonly UndoRedoStackEntry[] =>
+    this.undoStack.map((command) => ({
+      id: command.id,
+      label: commandLabel(command),
+      historyEntry: command.historyEntry ?? null,
+    }));
+
+  replaceUndoTail(
+    commandIds: readonly string[],
+    replacement: UndoableCommand<TContext>,
+  ): boolean {
+    if (this.busy || commandIds.length === 0 || commandIds.length > this.undoStack.length) {
+      return false;
+    }
+
+    const start = this.undoStack.length - commandIds.length;
+    for (let index = 0; index < commandIds.length; index += 1) {
+      if (this.undoStack[start + index]?.id !== commandIds[index]) {
+        return false;
+      }
+    }
+
+    this.undoStack.splice(start, commandIds.length, replacement);
+    this.emit();
+    return true;
+  }
 
   subscribe = (listener: UndoRedoListener): (() => void) => {
     this.listeners.add(listener);
