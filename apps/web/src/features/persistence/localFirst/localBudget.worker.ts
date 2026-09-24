@@ -3313,6 +3313,7 @@ function getPersistedTransactionForVerification(
     rawPayeeName: string | null;
     categoryId: string | null;
     categoryName: string | null;
+    incomeBudgetMonth: string | null;
     transferAccountId: string | null;
     transferTransactionId: string | null;
     generatedFromSchedule: number;
