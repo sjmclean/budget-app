@@ -1050,7 +1050,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   ‹
                 </button>
                 <label className="budget-year-picker">
-                  <span className="sr-only">Budget year</span>
                   <select
                     className="budget-year-select"
                     value={selectedYear}
