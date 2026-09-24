@@ -87,7 +87,7 @@ test("Budget header exposes rolling month navigation with a deliberate year sele
   );
   assert.match(
     budgetPageSource,
-    /<h1>\{data\.monthLabel\}<\/h1>/,
+    /<h1>[\s\S]*isMultiMonthView[\s\S]*formatBudgetMonthLabel\(visibleMonths\[visibleMonths\.length - 1\]![\s\S]*data\.monthLabel[\s\S]*<\/h1>/,
   );
   assert.doesNotMatch(
     budgetPageSource,
@@ -99,7 +99,7 @@ test("Budget header exposes rolling month navigation with a deliberate year sele
   );
   assert.match(
     budgetPageSource,
-    /<span>Monthly Budget<\/span>/,
+    /isMultiMonthView[\s\S]*\$\{visibleMonthCount\}-month planning view[\s\S]*"Monthly Budget"/,
   );
 });
 
