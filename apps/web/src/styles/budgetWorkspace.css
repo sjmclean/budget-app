@@ -1008,8 +1008,8 @@
   place-items: center;
   align-self: center;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--positive-bg) 70%, var(--surface));
-  color: var(--positive);
+  background: var(--surface-subtle);
+  color: var(--text-muted);
 }
 
 .budget-next-month-outlook-kicker {
@@ -1073,15 +1073,13 @@
   line-height: 1;
 }
 
-.budget-next-month-outlook-balanced,
-.budget-next-month-outlook-available {
-  border-color: color-mix(in srgb, var(--positive) 24%, var(--border));
-  background: color-mix(in srgb, var(--positive-bg) 34%, var(--surface));
+.budget-next-month-outlook-neutral {
+  border-color: var(--border);
+  background: var(--surface);
 }
 
-.budget-next-month-outlook-balanced > strong,
-.budget-next-month-outlook-available > strong {
-  color: var(--positive);
+.budget-next-month-outlook-neutral > strong {
+  color: var(--text);
 }
 
 .budget-next-month-outlook-overbudget {
