@@ -1583,18 +1583,9 @@
     width: 100%;
   }
 
-  .budget-year-month-navigation {
-    overflow: hidden;
-  }
-
+  .budget-year-month-navigation,
   .budget-month-strip {
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-  }
-
-  .budget-month-strip::-webkit-scrollbar {
-    display: none;
+    overflow: hidden;
   }
 
   .budget-planning-toolbar {
