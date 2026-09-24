@@ -19,7 +19,7 @@ import {
 } from "../components/workspace";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import {
-  addMonthsToBudgetMonth,
+  getBudgetMonthWindow,
   getCurrentBudgetMonth,
   getNextBudgetMonth,
   getPreviousBudgetMonth,
@@ -862,20 +862,21 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     { length: 41 },
     (_, index) => selectedYear - 20 + index,
   );
-  const navigationMonths = Array.from({ length: 11 }, (_, index) => {
-    const offset = index - 5;
-    const value = addMonthsToBudgetMonth(selectedMonth, offset);
-    const year = Number(value.slice(0, 4));
-    const monthIndex = Number(value.slice(5, 7)) - 1;
+  const navigationMonths = getBudgetMonthWindow(selectedMonth).map(
+    (value, index) => {
+      const offset = index - 5;
+      const year = Number(value.slice(0, 4));
+      const monthIndex = Number(value.slice(5, 7)) - 1;
 
-    return {
-      label: BUDGET_MONTH_LABELS[monthIndex]!,
-      value,
-      year,
-      offset,
-      distance: Math.abs(offset),
-    };
-  });
+      return {
+        label: BUDGET_MONTH_LABELS[monthIndex]!,
+        value,
+        year,
+        offset,
+        distance: Math.abs(offset),
+      };
+    },
+  );
   const carriedForward = authoritativeSummary.carriedForwardReadyToAssign;
   const previousOverspending = authoritativeSummary.previousOverspending;
   const incomeForMonth = authoritativeSummary.incomeForMonth;
