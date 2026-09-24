@@ -809,45 +809,79 @@
 
 /* Budget planning header and responsive workspace layout. */
 .budget-ready-summary {
-  grid-area: summary;
-  justify-self: end;
-  width: min(20rem, 100%);
-  max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  padding: 0.88rem 0.95rem 0.78rem;
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.9fr) minmax(16rem, 1.1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid color-mix(in srgb, var(--positive) 26%, var(--border));
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--positive-bg) 62%, var(--surface)) 0%,
+      color-mix(in srgb, var(--positive-bg) 38%, var(--surface)) 100%
+    );
+  box-shadow: var(--shadow-sm);
+}
+
+.budget-ready-summary-primary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.budget-ready-summary-icon {
+  width: 3.4rem;
+  height: 3.4rem;
+  flex: 0 0 3.4rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--positive) 84%, var(--surface));
+  color: var(--surface);
+  box-shadow:
+    0 0 0 0.45rem color-mix(in srgb, var(--positive) 10%, transparent);
 }
 
 .budget-ready-summary-heading {
+  min-width: 0;
   display: grid;
-  gap: 0.12rem;
-  padding-bottom: 0.52rem;
+  gap: 0.2rem;
 }
 
 .budget-ready-summary-heading span {
-  font-size: 0.76rem;
+  color: var(--text);
+  font-size: 0.82rem;
   font-weight: 820;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.005em;
 }
 
 .budget-ready-summary-heading strong {
-  font-size: 1.82rem;
-  line-height: 1.05;
-  letter-spacing: -0.04em;
+  color: color-mix(in srgb, var(--positive) 86%, var(--text));
+  font-size: clamp(1.8rem, 3.2vw, 2.55rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
   font-variant-numeric: tabular-nums;
 }
 
-.budget-ready-summary dl {
+.budget-ready-summary-breakdown {
+  min-width: 0;
   display: grid;
-  gap: 0.3rem;
-  margin: 0.62rem 0 0;
+  gap: 0.35rem;
+  margin: 0;
+  padding-left: 1.1rem;
+  border-left: 1px solid color-mix(in srgb, var(--positive) 18%, var(--border-soft));
 }
 
-.budget-ready-summary dl > div {
+.budget-ready-summary-breakdown > div {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.9rem;
 }
 
 .budget-ready-summary dt,
@@ -867,41 +901,43 @@
   text-align: right;
 }
 
-.budget-ready-summary-total {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.8rem;
-  margin-top: 0.68rem;
-  padding-top: 0.62rem;
+.budget-ready-summary-negative {
+  border-color: color-mix(in srgb, var(--negative) 35%, var(--border));
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--negative-bg) 68%, var(--surface)) 0%,
+      color-mix(in srgb, var(--negative-bg) 44%, var(--surface)) 100%
+    );
 }
 
-.budget-ready-summary-total span {
-  font-size: 0.78rem;
-  font-weight: 820;
+.budget-ready-summary-negative .budget-ready-summary-icon {
+  background: color-mix(in srgb, var(--negative) 88%, var(--surface));
+  box-shadow:
+    0 0 0 0.45rem color-mix(in srgb, var(--negative) 10%, transparent);
 }
 
-.budget-ready-summary-total strong {
-  font-size: 0.94rem;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+.budget-ready-summary-negative .budget-ready-summary-heading strong,
+.budget-ready-summary-negative .budget-ready-summary-negative-value {
+  color: var(--negative);
 }
 
+.budget-ready-summary-negative .budget-ready-summary-breakdown {
+  border-left-color: color-mix(in srgb, var(--negative) 18%, var(--border-soft));
+}
+
+.budget-ready-summary-neutral {
+  border-color: color-mix(in srgb, var(--positive) 24%, var(--border));
+}
 
 .budget-planning-summary-stack {
   grid-area: summary;
-  justify-self: end;
-  width: min(20rem, 100%);
-  max-width: 100%;
   min-width: 0;
-  display: grid;
-  gap: 0.65rem;
-}
-
-.budget-planning-summary-stack .budget-ready-summary {
-  grid-area: auto;
-  justify-self: stretch;
   width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 18rem);
+  gap: 0.9rem;
+  align-items: stretch;
 }
 
 .budget-next-month-outlook {
@@ -909,7 +945,15 @@
   min-width: 0;
   width: 100%;
   display: grid;
-  gap: 0.12rem;
+  grid-template-columns: 2.8rem minmax(0, 1fr);
+  grid-template-areas:
+    "icon kicker"
+    "icon label"
+    "icon primary"
+    "icon support"
+    "assigned assigned";
+  align-content: start;
+  gap: 0.1rem 0.65rem;
   border: 1px solid var(--border);
   border-radius: 0.9rem;
   background: var(--surface);
@@ -917,13 +961,12 @@
   color: var(--text);
   cursor: pointer;
   font: inherit;
-  padding: 0.82rem 2.1rem 0.82rem 0.92rem;
+  padding: 0.85rem 2rem 0.75rem 0.9rem;
   text-align: left;
 }
 
 .budget-next-month-outlook:hover {
   border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
-  background: color-mix(in srgb, var(--surface-subtle) 56%, var(--surface));
 }
 
 .budget-next-month-outlook:focus-visible {
@@ -931,57 +974,88 @@
   outline-offset: 2px;
 }
 
+.budget-next-month-outlook-icon {
+  grid-area: icon;
+  width: 2.55rem;
+  height: 2.55rem;
+  display: inline-grid;
+  place-items: center;
+  align-self: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--positive-bg) 70%, var(--surface));
+  color: var(--positive);
+}
+
 .budget-next-month-outlook-kicker {
+  grid-area: kicker;
   color: var(--text-muted);
-  font-size: 0.68rem;
-  font-weight: 760;
-  letter-spacing: 0.035em;
+  font-size: 0.66rem;
+  font-weight: 780;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .budget-next-month-outlook-label {
-  color: var(--text-muted);
-  font-size: 0.76rem;
-  font-weight: 720;
+  grid-area: label;
+  color: color-mix(in srgb, var(--text-muted) 80%, var(--text));
+  font-size: 0.78rem;
+  font-weight: 760;
 }
 
-.budget-next-month-outlook strong {
-  margin-top: 0.18rem;
+.budget-next-month-outlook > strong {
+  grid-area: primary;
+  margin-top: 0.14rem;
   overflow-wrap: anywhere;
-  font-size: 1rem;
-  line-height: 1.15;
+  font-size: 1.15rem;
+  line-height: 1.12;
 }
 
 .budget-next-month-outlook-support {
-  margin-top: 0.08rem;
+  grid-area: support;
+  margin-top: 0.05rem;
   color: var(--text-muted);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   line-height: 1.3;
+}
+
+.budget-next-month-outlook-assigned {
+  grid-area: assigned;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.budget-next-month-outlook-assigned strong {
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 760;
 }
 
 .budget-next-month-outlook-arrow {
   position: absolute;
   top: 50%;
-  right: 0.78rem;
+  right: 0.7rem;
   transform: translateY(-50%);
   color: var(--accent-strong);
-  font-size: 1.65rem;
+  font-size: 1.55rem;
   line-height: 1;
 }
 
-.budget-next-month-outlook-balanced {
-  border-color: color-mix(in srgb, var(--positive) 24%, var(--border));
-  background: color-mix(in srgb, var(--positive-bg) 38%, var(--surface));
-}
-
-.budget-next-month-outlook-balanced strong,
-.budget-next-month-outlook-available strong {
-  color: var(--positive);
-}
-
+.budget-next-month-outlook-balanced,
 .budget-next-month-outlook-available {
-  border-color: color-mix(in srgb, var(--positive) 28%, var(--border));
-  background: color-mix(in srgb, var(--positive-bg) 44%, var(--surface));
+  border-color: color-mix(in srgb, var(--positive) 24%, var(--border));
+  background: color-mix(in srgb, var(--positive-bg) 34%, var(--surface));
+}
+
+.budget-next-month-outlook-balanced > strong,
+.budget-next-month-outlook-available > strong {
+  color: var(--positive);
 }
 
 .budget-next-month-outlook-overbudget {
@@ -989,24 +1063,29 @@
   background: color-mix(in srgb, var(--negative-bg) 52%, var(--surface));
 }
 
-.budget-next-month-outlook-overbudget strong {
+.budget-next-month-outlook-overbudget .budget-next-month-outlook-icon {
+  background: color-mix(in srgb, var(--negative-bg) 82%, var(--surface));
   color: var(--negative);
 }
 
+.budget-next-month-outlook-overbudget > strong {
+  color: var(--negative);
+}
 
 .budget-planning-header {
   width: 100%;
   max-width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(17rem, 20rem);
+  grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
-    "months months"
-    "title summary"
-    "tabs summary"
-    "toolbar toolbar";
+    "months"
+    "title"
+    "summary"
+    "tabs"
+    "toolbar";
   align-items: start;
-  gap: 0.65rem 1rem;
+  gap: 0.55rem;
   padding: 0.6rem 0.15rem 0.55rem;
   background: var(--page-bg);
 }
@@ -1138,15 +1217,6 @@
 
 .budget-planning-section-label {
   display: none;
-  grid-area: tabs;
-  align-self: end;
-  min-height: 2.15rem;
-  width: max-content;
-  border-bottom: 2px solid var(--accent);
-  color: var(--accent-strong);
-  font-size: 0.84rem;
-  font-weight: 780;
-  padding: 0.55rem 0.1rem 0.35rem;
 }
 
 .budget-planning-tabs {
@@ -1157,7 +1227,7 @@
   gap: 1.25rem;
   width: 100%;
   min-height: 2.35rem;
-  margin-top: 0.2rem;
+  margin-top: 0.05rem;
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -1186,14 +1256,12 @@
 
 .budget-planning-toolbar {
   grid-area: toolbar;
-  justify-self: end;
-  align-self: end;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 0.65rem;
-  padding-top: 0.15rem;
+  padding-top: 0.05rem;
 }
 
 .budget-planning-toolbar-left {
@@ -1255,18 +1323,8 @@
 }
 
 @container budget-workspace-main (min-width: 58rem) {
-  .budget-planning-header {
-    grid-template-columns: minmax(0, 1fr) minmax(31rem, 35rem);
-  }
-
   .budget-planning-summary-stack {
-    width: min(35rem, 100%);
-    grid-template-columns: minmax(18rem, 21rem) minmax(11rem, 1fr);
-    align-items: start;
-  }
-
-  .budget-next-month-outlook {
-    align-self: start;
+    grid-template-columns: minmax(0, 1fr) minmax(15rem, 18rem);
   }
 }
 
@@ -1298,24 +1356,19 @@
 }
 
 @container budget-workspace-main (min-width: 34rem) and (max-width: 44rem) {
-  .budget-planning-header {
-    grid-template-columns: minmax(0, 1fr) minmax(14rem, 16rem);
-    grid-template-areas:
-      "months months"
-      "title summary"
-      "tabs summary"
-      "toolbar toolbar";
-    gap: 0.55rem 0.75rem;
-  }
-
   .budget-planning-summary-stack {
-    justify-self: end;
-    width: min(16rem, 100%);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .budget-ready-summary {
-    justify-self: stretch;
-    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .budget-ready-summary-breakdown {
+    padding-top: 0.75rem;
+    padding-left: 0;
+    border-top: 1px solid color-mix(in srgb, var(--positive) 18%, var(--border-soft));
+    border-left: 0;
   }
 }
 
