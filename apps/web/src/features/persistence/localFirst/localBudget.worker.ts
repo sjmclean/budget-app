@@ -870,6 +870,49 @@ function backfillBudgetProjectionFacts(): void {
   }
 }
 
+function createProjectedFutureMonthSnapshot(
+  month: string,
+): BudgetMonthView | null {
+  const anchor = resultRows<{ month: string; payload: string }>(
+    `SELECT month, view_json AS payload
+     FROM local_budget_months
+     WHERE budget_id = ? AND month < ?
+     ORDER BY month DESC
+     LIMIT 1`,
+    [activeBudgetId, month],
+  )[0];
+  if (!anchor) return null;
+
+  const previous = JSON.parse(anchor.payload) as BudgetMonthView;
+  return {
+    ...previous,
+    monthLabel: longMonthLabel(month),
+    readyToAssign: 0,
+    carriedForwardReadyToAssign: 0,
+    previousOverspending: 0,
+    incomeForMonth: 0,
+    rolloverSourceMonth: anchor.month,
+    totalAssigned: 0,
+    totalActivity: 0,
+    totalAvailable: 0,
+    categoryGroups: previous.categoryGroups.map((group) => ({
+      ...group,
+      previousAvailable: 0,
+      assigned: 0,
+      activity: 0,
+      available: 0,
+      categories: group.categories.map((category) => ({
+        ...category,
+        previousAvailable: 0,
+        assigned: 0,
+        activity: 0,
+        available: 0,
+        isOverspent: false,
+      })),
+    })),
+  };
+}
+
 function readBudgetMonthSnapshot(month: string): unknown | null {
   const row = resultRows<{ payload: string }>(
     `SELECT view_json AS payload FROM local_budget_months
@@ -2333,7 +2376,9 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     throw workerError("BUDGET_MONTH_NOT_FOUND", `No budget month is available through ${targetMonth}.`);
   }
   const firstSnapshot = readBudgetMonthSnapshot(firstMonth) as BudgetMonthView | null;
-  const snapshot = readBudgetMonthSnapshot(targetMonth) as BudgetMonthView | null;
+  const snapshot =
+    (readBudgetMonthSnapshot(targetMonth) as BudgetMonthView | null) ??
+    createProjectedFutureMonthSnapshot(targetMonth);
   if (!firstSnapshot || !snapshot) {
     throw workerError("BUDGET_MONTH_NOT_FOUND", `Budget month ${targetMonth} is not available locally.`);
   }
@@ -2460,11 +2505,12 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
              'id', ordered_split.id,
              'categoryId', ordered_split.category_id,
              'transferAccountId', ordered_split.transfer_account_id,
+             'incomeBudgetMonth', ordered_split.income_budget_month,
              'amount', ordered_split.amount
            )
          )
          FROM (
-           SELECT id, category_id, transfer_account_id, amount
+           SELECT id, category_id, transfer_account_id, income_budget_month, amount
            FROM local_transaction_splits
            WHERE transaction_id = transaction_row.id
            ORDER BY id
@@ -2574,7 +2620,9 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
 }
 
 function readBudgetMonth(month: string): BudgetMonthView | null {
-  const snapshot = readBudgetMonthSnapshot(month) as BudgetMonthView | null;
+  const snapshot =
+    (readBudgetMonthSnapshot(month) as BudgetMonthView | null) ??
+    createProjectedFutureMonthSnapshot(month);
   if (!snapshot) return null;
   const cached = resultRows<{ projectionJson: string }>(
     `SELECT projection_json AS projectionJson
