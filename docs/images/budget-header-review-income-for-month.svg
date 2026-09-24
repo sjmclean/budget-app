@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="800" viewBox="0 0 1400 800" role="img" aria-labelledby="title desc">
+  <title id="title">Budget Header Review and Income for Month</title>
+  <desc id="desc">Design reference showing the proposed Budget header, suggested Next Month fields, and future Income for Month transaction control.</desc>
+  <defs>
+    <linearGradient id="ready" x1="0" x2="1">
+      <stop offset="0" stop-color="#e9f8ee"/>
+      <stop offset="1" stop-color="#f4fbf6"/>
+    </linearGradient>
+    <linearGradient id="warn" x1="0" x2="1">
+      <stop offset="0" stop-color="#fff1f0"/>
+      <stop offset="1" stop-color="#fff8f7"/>
+    </linearGradient>
+    <style>
+      text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill:#17213b; }
+      .muted { fill:#68758f; }
+      .small { font-size:16px; }
+      .tiny { font-size:13px; }
+      .label { font-size:18px; font-weight:700; }
+      .heading { font-size:34px; font-weight:800; }
+      .money { font-size:46px; font-weight:800; fill:#087d38; }
+      .warn { fill:#d62f22; }
+      .panel { fill:#fff; stroke:#d8e0ef; stroke-width:2; }
+      .callout { fill:#f7f9fd; stroke:#c8d6f1; stroke-width:2; }
+    </style>
+  </defs>
+  <rect width="1400" height="800" fill="#f5f7fb"/>
+  <text x="40" y="58" class="heading">Budget Header Review + Income for Month</text>
+  <text x="40" y="90" class="muted" font-size="20">Proposed UI/UX and architectural direction</text>
+
+  <rect x="40" y="125" width="860" height="615" rx="18" class="panel"/>
+  <rect x="65" y="150" width="810" height="48" rx="10" fill="#f9fbff" stroke="#e1e7f1"/>
+  <text x="86" y="181" class="label">2026</text>
+  <text x="180" y="181" class="small muted">Jan   Feb   Mar   Apr   May   Jun   Jul   Aug</text>
+  <rect x="610" y="158" width="60" height="32" rx="8" fill="#2f6fe4"/>
+  <text x="628" y="181" font-size="16" font-weight="700" fill="#fff">Sep</text>
+  <text x="690" y="181" class="small muted">Oct   Nov   Dec</text>
+
+  <text x="65" y="245" font-size="31" font-weight="800">September 2026</text>
+  <text x="65" y="272" class="small muted">Monthly Budget</text>
+
+  <rect x="65" y="300" width="560" height="185" rx="16" fill="url(#ready)" stroke="#8fd2a3" stroke-width="2"/>
+  <circle cx="120" cy="365" r="34" fill="#149247"/>
+  <text x="108" y="374" font-size="26" font-weight="800" fill="#fff">$</text>
+  <text x="170" y="345" class="label">Ready to Assign</text>
+  <text x="170" y="398" class="money">$0.00</text>
+  <line x1="355" y1="325" x2="355" y2="458" stroke="#c9dfcf" stroke-width="2"/>
+  <text x="385" y="345" class="small muted">Carried forward</text><text x="590" y="345" class="small" text-anchor="end">$0.00</text>
+  <text x="385" y="377" class="small muted">Previous overspending</text><text x="590" y="377" class="small" text-anchor="end">$0.00</text>
+  <text x="385" y="409" class="small muted">Income for September</text><text x="590" y="409" class="small" text-anchor="end">$4,582.36</text>
+  <text x="385" y="441" class="small muted">Assigned in September</text><text x="590" y="441" class="small" text-anchor="end">-$4,582.36</text>
+
+  <rect x="645" y="300" width="230" height="185" rx="16" fill="url(#warn)" stroke="#efb2ad" stroke-width="2"/>
+  <text x="670" y="330" class="tiny muted" font-weight="800">NEXT MONTH</text>
+  <text x="670" y="356" class="label">October outlook</text>
+  <text x="670" y="395" font-size="27" font-weight="800" class="warn">$62,895.84</text>
+  <text x="670" y="423" font-size="20" font-weight="800" class="warn">overbudget</text>
+  <line x1="670" y1="445" x2="850" y2="445" stroke="#efc7c2"/>
+  <text x="670" y="468" class="tiny muted">Assigned in October</text>
+  <text x="850" y="468" class="tiny" text-anchor="end">$0.00</text>
+
+  <text x="65" y="535" class="label" fill="#225fc6">Budget</text>
+  <line x1="65" y1="548" x2="112" y2="548" stroke="#2f6fe4" stroke-width="3"/>
+  <text x="135" y="535" class="label muted">Goals</text>
+  <rect x="65" y="575" width="810" height="140" rx="12" fill="#fbfcfe" stroke="#dfe5ef"/>
+  <text x="85" y="608" class="tiny muted" font-weight="800">CATEGORY</text>
+  <text x="570" y="608" class="tiny muted" font-weight="800">ASSIGNED</text>
+  <text x="675" y="608" class="tiny muted" font-weight="800">ACTIVITY</text>
+  <text x="785" y="608" class="tiny muted" font-weight="800">AVAILABLE</text>
+  <line x1="65" y1="620" x2="875" y2="620" stroke="#dfe5ef"/>
+  <text x="85" y="652" class="label">Main Expenses</text>
+  <text x="570" y="652" class="small">$2,800.19</text><text x="675" y="652" class="small">-$1,658.09</text><text x="785" y="652" class="small" fill="#087d38">$5,547.73</text>
+  <text x="105" y="690" class="small">Mortgage</text>
+  <text x="570" y="690" class="small">$1,600.00</text><text x="675" y="690" class="small">-$1,800.00</text><text x="785" y="690" class="small" fill="#087d38">$1,600.00</text>
+
+  <rect x="930" y="125" width="430" height="190" rx="16" class="callout"/>
+  <text x="955" y="160" class="label">Why this header works</text>
+  <text x="955" y="195" class="small">• Current month stays the primary focus.</text>
+  <text x="955" y="225" class="small">• Ready to Assign has stronger visual weight.</text>
+  <text x="955" y="255" class="small">• Next Month stays compact and subordinate.</text>
+  <text x="955" y="285" class="small">• Month title sits above both financial cards.</text>
+
+  <rect x="930" y="335" width="430" height="205" rx="16" fill="#fff6f5" stroke="#efb2ad" stroke-width="2"/>
+  <text x="955" y="370" class="label">Later Next Month review</text>
+  <text x="955" y="405" class="small">Candidate fields after Income for Month:</text>
+  <text x="975" y="438" class="small">• Income for October</text>
+  <text x="975" y="468" class="small">• Assigned in October</text>
+  <text x="975" y="498" class="small">• Available in October</text>
+  <text x="975" y="528" class="small">• Balanced / available / overbudget status</text>
+
+  <rect x="930" y="560" width="430" height="180" rx="16" class="callout"/>
+  <text x="955" y="595" class="label">Income for &lt;Month&gt;</text>
+  <text x="955" y="625" class="small muted">Keep the real transaction date, but let Ready</text>
+  <text x="955" y="650" class="small muted">to Assign income target another budget month.</text>
+  <rect x="955" y="675" width="170" height="42" rx="8" fill="#fff" stroke="#cbd5e5"/>
+  <text x="970" y="701" class="small">Budget in</text>
+  <rect x="1140" y="675" width="190" height="42" rx="8" fill="#fff" stroke="#cbd5e5"/>
+  <text x="1155" y="701" class="small">October 2026 ▾</text>
+</svg>
