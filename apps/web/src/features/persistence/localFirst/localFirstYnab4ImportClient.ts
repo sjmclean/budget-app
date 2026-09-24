@@ -150,6 +150,7 @@ export function createLocalFirstYnab4ImportClient(
             categoryId: row.categoryId,
             categoryName: row.categoryName ??
               (row.categoryId ? categoryNames.get(row.categoryId) ?? null : null),
+            incomeBudgetMonth: row.incomeBudgetMonth,
             transferAccountId: row.transferAccountId,
             transferTransactionId: row.transferTransactionId,
             splitLines: row.splitLines.map((split) => ({
