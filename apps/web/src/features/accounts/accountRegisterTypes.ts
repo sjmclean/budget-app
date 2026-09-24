@@ -48,6 +48,8 @@ export interface RegisterTransactionView {
   payeeId?: string;
   category: string;
   categoryId?: string;
+  /** Budget month receiving Ready to Assign income; transaction date remains unchanged. */
+  incomeBudgetMonth?: string;
   memo?: string;
   checkNumber?: string;
   inflow: number;
