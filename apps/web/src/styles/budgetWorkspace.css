@@ -1,5 +1,6 @@
 .budget-workspace-screen {
   --workspace-content-gap: 1rem;
+  --budget-working-max-width: 72rem;
   min-width: 0;
   max-width: 100%;
   font-kerning: normal;
@@ -65,7 +66,9 @@
 }
 
 .budget-workspace-layout-details-open {
-  grid-template-columns: minmax(0, 1fr) minmax(19rem, 20.5rem);
+  grid-template-columns:
+    minmax(0, var(--budget-working-max-width))
+    minmax(19rem, 20.5rem);
 }
 
 .budget-workspace-main {
@@ -1111,6 +1114,22 @@
   gap: 0.55rem;
   padding: 0.6rem 0.15rem 0.55rem;
   background: var(--page-bg);
+}
+
+/*
+ * Preserve a comfortable desktop reading width for the planning surface while
+ * allowing the year/month strip to continue using the full available width.
+ * Below this width the controls remain fluid and consume the available space.
+ */
+.budget-planning-title,
+.budget-planning-summary-stack,
+.budget-planning-tabs,
+.budget-planning-toolbar,
+.budget-sticky-working-header .budget-workspace-table-head,
+.budget-workspace-table-card {
+  width: min(100%, var(--budget-working-max-width));
+  max-width: var(--budget-working-max-width);
+  justify-self: start;
 }
 
 .budget-year-month-navigation {
