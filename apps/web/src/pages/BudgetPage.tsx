@@ -161,8 +161,8 @@ function BudgetNextMonthOutlook({
     ? resolveBudgetNextMonthOutlook(data.readyToAssign)
     : null;
   const monthName = data?.monthLabel.split(" ")[0] ?? "Next month";
-  const statusClass = outlook
-    ? `budget-next-month-outlook-${outlook.status}`
+  const statusClass = outlook?.status === "overbudget"
+    ? "budget-next-month-outlook-overbudget"
     : "budget-next-month-outlook-neutral";
 
   let primary = "Calculating…";
