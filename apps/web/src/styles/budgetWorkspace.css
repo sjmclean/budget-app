@@ -106,6 +106,17 @@
   align-items: center;
 }
 
+/*
+ * Keep the money columns visually connected to the category they describe on
+ * wide screens. The separators are deliberately softer than the row borders so
+ * they aid scanning without turning the budget into a heavy spreadsheet grid.
+ */
+.budget-workspace-table-head > :nth-child(n + 2),
+.budget-workspace-group-header > :nth-child(n + 2),
+.budget-workspace-row > :nth-child(n + 2) {
+  border-left: 1px solid color-mix(in srgb, var(--border-soft) 78%, transparent);
+}
+
 .budget-category-details-panel {
   position: sticky;
   top: 1rem;
@@ -1367,11 +1378,13 @@
   }
 }
 
-@container budget-workspace-main (min-width: 34rem) and (max-width: 44rem) {
+@container budget-workspace-main (max-width: 33.99rem) {
   .budget-planning-summary-stack {
     grid-template-columns: minmax(0, 1fr);
   }
+}
 
+@container budget-workspace-main (max-width: 44rem) {
   .budget-ready-summary {
     grid-template-columns: minmax(0, 1fr);
   }
