@@ -65,6 +65,7 @@ import {
   isCreditCardPaymentCategory,
   isCreditCardPaymentGroup,
 } from "../../budget/creditCardPaymentCategories";
+import { resolveFutureReadyToAssignPlan } from "../../budget/budgetFutureCommitments";
 
 type SqliteDatabase = {
   pointer: unknown;
@@ -115,7 +116,7 @@ let replacement: {
   receivedBytes: number;
 } | null = null;
 
-const BUDGET_PROJECTION_ENGINE_VERSION = 5;
+const BUDGET_PROJECTION_ENGINE_VERSION = 6;
 
 function safeFilename(budgetId: string): string {
   return `/budget-${encodeURIComponent(budgetId).replaceAll("%", "_")}.sqlite3`;
@@ -436,6 +437,16 @@ function initialiseSchema(): void {
   }
   if (!transactionColumns.has("raw_payee_name")) {
     execute("ALTER TABLE local_transactions ADD COLUMN raw_payee_name TEXT");
+  }
+  if (!transactionColumns.has("income_budget_month")) {
+    execute("ALTER TABLE local_transactions ADD COLUMN income_budget_month TEXT");
+  }
+  const splitColumns = new Set(
+    resultRows<{ name: string }>("PRAGMA table_info(local_transaction_splits)")
+      .map(({ name }) => name),
+  );
+  if (!splitColumns.has("income_budget_month")) {
+    execute("ALTER TABLE local_transaction_splits ADD COLUMN income_budget_month TEXT");
   }
   const payeeColumns = new Set(
     resultRows<{ name: string }>("PRAGMA table_info(local_payees)").map(({ name }) => name),
@@ -858,6 +869,49 @@ function backfillBudgetProjectionFacts(): void {
     execute("ROLLBACK");
     throw error;
   }
+}
+
+function createProjectedFutureMonthSnapshot(
+  month: string,
+): BudgetMonthView | null {
+  const anchor = resultRows<{ month: string; payload: string }>(
+    `SELECT month, view_json AS payload
+     FROM local_budget_months
+     WHERE budget_id = ? AND month < ?
+     ORDER BY month DESC
+     LIMIT 1`,
+    [activeBudgetId, month],
+  )[0];
+  if (!anchor) return null;
+
+  const previous = JSON.parse(anchor.payload) as BudgetMonthView;
+  return {
+    ...previous,
+    monthLabel: longMonthLabel(month),
+    readyToAssign: 0,
+    carriedForwardReadyToAssign: 0,
+    previousOverspending: 0,
+    incomeForMonth: 0,
+    rolloverSourceMonth: anchor.month,
+    totalAssigned: 0,
+    totalActivity: 0,
+    totalAvailable: 0,
+    categoryGroups: previous.categoryGroups.map((group) => ({
+      ...group,
+      previousAvailable: 0,
+      assigned: 0,
+      activity: 0,
+      available: 0,
+      categories: group.categories.map((category) => ({
+        ...category,
+        previousAvailable: 0,
+        assigned: 0,
+        activity: 0,
+        available: 0,
+        isOverspent: false,
+      })),
+    })),
+  };
 }
 
 function readBudgetMonthSnapshot(month: string): unknown | null {
@@ -1747,14 +1801,15 @@ function upsertTransaction(transaction: LocalTransactionRecord): void {
   for (const split of transaction.splitLines) {
     execute(
       `INSERT INTO local_transaction_splits(
-         transaction_id, id, category_id, category_name, transfer_account_id,
-         transfer_transaction_id, memo, amount
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         transaction_id, id, category_id, category_name, income_budget_month,
+         transfer_account_id, transfer_transaction_id, memo, amount
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         transaction.id,
         split.id,
         split.categoryId,
         split.categoryName,
+        split.incomeBudgetMonth,
         split.transferAccountId,
         split.transferTransactionId,
         split.memo,
@@ -2322,7 +2377,9 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     throw workerError("BUDGET_MONTH_NOT_FOUND", `No budget month is available through ${targetMonth}.`);
   }
   const firstSnapshot = readBudgetMonthSnapshot(firstMonth) as BudgetMonthView | null;
-  const snapshot = readBudgetMonthSnapshot(targetMonth) as BudgetMonthView | null;
+  const snapshot =
+    (readBudgetMonthSnapshot(targetMonth) as BudgetMonthView | null) ??
+    createProjectedFutureMonthSnapshot(targetMonth);
   if (!firstSnapshot || !snapshot) {
     throw workerError("BUDGET_MONTH_NOT_FOUND", `Budget month ${targetMonth} is not available locally.`);
   }
@@ -2432,6 +2489,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     date: string;
     categoryId: string | null;
     transferAccountId: string | null;
+    incomeBudgetMonth: string | null;
     amount: number;
     splitsJson: string;
   }>(
@@ -2440,6 +2498,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
        transaction_row.date,
        transaction_row.category_id AS categoryId,
        transaction_row.transfer_account_id AS transferAccountId,
+       transaction_row.income_budget_month AS incomeBudgetMonth,
        transaction_row.amount,
        COALESCE((
          SELECT json_group_array(
@@ -2447,11 +2506,12 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
              'id', ordered_split.id,
              'categoryId', ordered_split.category_id,
              'transferAccountId', ordered_split.transfer_account_id,
+             'incomeBudgetMonth', ordered_split.income_budget_month,
              'amount', ordered_split.amount
            )
          )
          FROM (
-           SELECT id, category_id, transfer_account_id, amount
+           SELECT id, category_id, transfer_account_id, income_budget_month, amount
            FROM local_transaction_splits
            WHERE transaction_id = transaction_row.id
            ORDER BY id
@@ -2469,11 +2529,13 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     date: transaction.date,
     categoryId: transaction.categoryId,
     transferAccountId: transaction.transferAccountId,
+    incomeBudgetMonth: transaction.incomeBudgetMonth,
     amount: transaction.amount,
     splits: JSON.parse(transaction.splitsJson) as {
       id: string;
       categoryId: string | null;
       transferAccountId: string | null;
+      incomeBudgetMonth: string | null;
       amount: number;
     }[],
   }));
@@ -2488,20 +2550,26 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
   );
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const currentFirstIncome = transactions.reduce((total, transaction) => {
-    if (transaction.date.slice(0, 7) !== firstMonth) return total;
     if (accountById.get(transaction.accountId)?.participation !== "on-budget") return total;
     if (transaction.transferAccountId) return total;
     if (transaction.splits.length > 0) {
       return total + transaction.splits.reduce(
         (sum, split) => sum + (
-          split.categoryId === "__ready_to_assign__" && !split.transferAccountId
+          split.categoryId === "__ready_to_assign__" &&
+          !split.transferAccountId &&
+          (split.incomeBudgetMonth ?? transaction.date.slice(0, 7)) === firstMonth
             ? split.amount
             : 0
         ),
         0,
       );
     }
-    return total + (transaction.categoryId === "__ready_to_assign__" ? transaction.amount : 0);
+    return total + (
+      transaction.categoryId === "__ready_to_assign__" &&
+      (transaction.incomeBudgetMonth ?? transaction.date.slice(0, 7)) === firstMonth
+        ? transaction.amount
+        : 0
+    );
   }, 0);
   const currentFirstAssigned = assignments
     .filter(({ month }) => month === firstMonth)
@@ -2516,7 +2584,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
   }, 0);
   const snapshotIncome = Number.isFinite(firstSnapshot.incomeForMonth)
     ? toMinorUnits(firstSnapshot.incomeForMonth ?? 0)
-    : currentFirstIncome;
+    : dirtyMonth === firstMonth ? 0 : currentFirstIncome;
   const snapshotAssigned = Number.isFinite(firstSnapshot.totalAssigned)
     ? toMinorUnits(firstSnapshot.totalAssigned)
     : currentFirstAssigned;
@@ -2553,7 +2621,9 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
 }
 
 function readBudgetMonth(month: string): BudgetMonthView | null {
-  const snapshot = readBudgetMonthSnapshot(month) as BudgetMonthView | null;
+  const snapshot =
+    (readBudgetMonthSnapshot(month) as BudgetMonthView | null) ??
+    createProjectedFutureMonthSnapshot(month);
   if (!snapshot) return null;
   const cached = resultRows<{ projectionJson: string }>(
     `SELECT projection_json AS projectionJson
@@ -2600,7 +2670,91 @@ function readBudgetMonth(month: string): BudgetMonthView | null {
   if (latestMonth && month >= latestMonth) {
     execute("DELETE FROM local_budget_projection_dirty WHERE budget_id = ?", [activeBudgetId]);
   }
-  return applyBudgetProjectionToSnapshot(snapshot, projection);
+  const projectedView = applyBudgetProjectionToSnapshot(snapshot, projection);
+  const futureAssignments = resultRows<{ month: string; assigned: number }>(
+    `SELECT month, SUM(assigned) AS assigned
+     FROM local_budget_assignments
+     WHERE budget_id = ? AND month > ?
+     GROUP BY month
+     HAVING SUM(assigned) <> 0
+     ORDER BY month`,
+    [activeBudgetId, month],
+  );
+  const futureIncome = resultRows<{ month: string; amount: number }>(
+    `SELECT income_month AS month, SUM(amount) AS amount
+     FROM (
+       SELECT COALESCE(
+           transaction_row.income_budget_month,
+           substr(transaction_row.date, 1, 7)
+         ) AS income_month,
+         transaction_row.amount AS amount
+       FROM local_transactions AS transaction_row
+       JOIN local_accounts AS account
+         ON account.id = transaction_row.account_id
+        AND account.budget_id = transaction_row.budget_id
+       WHERE transaction_row.budget_id = ?
+         AND transaction_row.category_id = '__ready_to_assign__'
+         AND transaction_row.transfer_account_id IS NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM local_transaction_splits AS split
+           WHERE split.transaction_id = transaction_row.id
+         )
+         AND account.type <> 'tracking'
+         AND account.participation NOT IN ('tracking', 'off-budget')
+       UNION ALL
+       SELECT COALESCE(
+           split.income_budget_month,
+           substr(transaction_row.date, 1, 7)
+         ) AS income_month,
+         split.amount AS amount
+       FROM local_transaction_splits AS split
+       JOIN local_transactions AS transaction_row
+         ON transaction_row.id = split.transaction_id
+       JOIN local_accounts AS account
+         ON account.id = transaction_row.account_id
+        AND account.budget_id = transaction_row.budget_id
+       WHERE transaction_row.budget_id = ?
+         AND split.category_id = '__ready_to_assign__'
+         AND split.transfer_account_id IS NULL
+         AND transaction_row.transfer_account_id IS NULL
+         AND account.type <> 'tracking'
+         AND account.participation NOT IN ('tracking', 'off-budget')
+     )
+     WHERE income_month > ?
+     GROUP BY income_month
+     HAVING SUM(amount) <> 0
+     ORDER BY income_month`,
+    [activeBudgetId, activeBudgetId, month],
+  );
+  const futureIncomeByMonth = new Map(
+    futureIncome.map(({ month: incomeMonth, amount }) => [
+      incomeMonth,
+      amount / 100,
+    ]),
+  );
+  const futureMonthSet = new Set([
+    ...futureAssignments.map(({ month: assignmentMonth }) => assignmentMonth),
+    ...futureIncome.map(({ month: incomeMonth }) => incomeMonth),
+  ]);
+  const futureCommitments = [...futureMonthSet].sort().map((commitmentMonth) => ({
+    month: commitmentMonth,
+    assigned:
+      futureAssignments.find(({ month: assignmentMonth }) =>
+        assignmentMonth === commitmentMonth)?.assigned ?? 0,
+    income: futureIncomeByMonth.get(commitmentMonth) ?? 0,
+  }));
+  const futurePlan = resolveFutureReadyToAssignPlan(
+    projectedView.readyToAssign,
+    futureCommitments,
+  );
+
+  return {
+    ...projectedView,
+    planningReadyToAssign: futurePlan.planningReadyToAssign,
+    futureAssigned: futurePlan.futureAssigned,
+    futureOvercommitment: futurePlan.futureOvercommitment,
+    futureCommitments,
+  };
 }
 
 function getFinancialOverview(budgetId: string, month: string) {
@@ -3066,6 +3220,7 @@ function queryTransactions(query: LocalTransactionQuery) {
     rawPayeeName: string | null;
     categoryId: string | null;
     categoryName: string | null;
+    incomeBudgetMonth: string | null;
     transferAccountId: string | null;
     transferAccountName: string | null;
     transferAccountParticipation: "on-budget" | "off-budget" | null;
@@ -3083,6 +3238,7 @@ function queryTransactions(query: LocalTransactionQuery) {
        transaction_row.raw_payee_name AS rawPayeeName,
        transaction_row.category_id AS categoryId,
        ${categoryNameExpression} AS categoryName,
+       transaction_row.income_budget_month AS incomeBudgetMonth,
        transaction_row.transfer_account_id AS transferAccountId,
        transfer_account.name AS transferAccountName,
        transfer_account.participation AS transferAccountParticipation,
@@ -3118,6 +3274,7 @@ function queryTransactions(query: LocalTransactionQuery) {
       id: string;
       categoryId: string | null;
       categoryName: string | null;
+      incomeBudgetMonth: string | null;
       transferAccountId: string | null;
       transferAccountName: string | null;
       transferAccountParticipation: "on-budget" | "off-budget" | null;
@@ -3128,6 +3285,7 @@ function queryTransactions(query: LocalTransactionQuery) {
       `SELECT split.transaction_id AS transactionId, split.id,
          split.category_id AS categoryId,
          COALESCE(category_record.name, split.category_name) AS categoryName,
+         split.income_budget_month AS incomeBudgetMonth,
          split.transfer_account_id AS transferAccountId,
          transfer_account.name AS transferAccountName,
          transfer_account.participation AS transferAccountParticipation,
@@ -3207,7 +3365,7 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
     memo: string | null; checkNumber: string | null; clearedStatus: string;
     payeeId: string | null; payeeName: string | null; rawPayeeName: string | null;
     categoryId: string | null;
-    categoryName: string | null; transferAccountId: string | null;
+    categoryName: string | null; incomeBudgetMonth: string | null; transferAccountId: string | null;
     transferTransactionId: string | null; generatedFromSchedule: number;
     scheduledTransactionId: string | null; scheduledOccurrenceDate: string | null;
     updatedAt: string;
@@ -3220,6 +3378,7 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
        transaction_row.raw_payee_name AS rawPayeeName,
        transaction_row.category_id AS categoryId,
        COALESCE(category_record.name, transaction_row.category_name) AS categoryName,
+       transaction_row.income_budget_month AS incomeBudgetMonth,
        transaction_row.transfer_account_id AS transferAccountId,
        transaction_row.transfer_transaction_id AS transferTransactionId,
        transaction_row.generated_from_schedule AS generatedFromSchedule,
@@ -3240,6 +3399,7 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
     splitLines: resultRows(
       `SELECT split.id, split.category_id AS categoryId,
          COALESCE(category_record.name, split.category_name) AS categoryName,
+         split.income_budget_month AS incomeBudgetMonth,
          transfer_account_id AS transferAccountId,
          transfer_transaction_id AS transferTransactionId, memo, amount
        FROM local_transaction_splits AS split
@@ -3287,6 +3447,7 @@ function getPersistedTransactionForVerification(
     rawPayeeName: string | null;
     categoryId: string | null;
     categoryName: string | null;
+    incomeBudgetMonth: string | null;
     transferAccountId: string | null;
     transferTransactionId: string | null;
     generatedFromSchedule: number;
@@ -3299,6 +3460,7 @@ function getPersistedTransactionForVerification(
        cleared_status AS clearedStatus, payee_id AS payeeId,
        payee_name AS payeeName, raw_payee_name AS rawPayeeName,
        category_id AS categoryId, category_name AS categoryName,
+       income_budget_month AS incomeBudgetMonth,
        transfer_account_id AS transferAccountId,
        transfer_transaction_id AS transferTransactionId,
        generated_from_schedule AS generatedFromSchedule,
@@ -3318,6 +3480,7 @@ function getPersistedTransactionForVerification(
     splitLines: resultRows(
       `SELECT id, category_id AS categoryId,
          category_name AS categoryName,
+         income_budget_month AS incomeBudgetMonth,
          transfer_account_id AS transferAccountId,
          transfer_transaction_id AS transferTransactionId,
          memo, amount
@@ -3510,6 +3673,7 @@ function applyTransactionBatchInCurrentTransaction(
     rawPayeeName: transaction.rawPayeeName ?? null,
     categoryId: transaction.categoryId,
     categoryName: transaction.categoryName,
+    incomeBudgetMonth: transaction.incomeBudgetMonth,
     transferAccountId: transaction.transferAccountId,
     transferTransactionId: transaction.transferTransactionId,
     generatedFromSchedule: transaction.generatedFromSchedule,
@@ -3520,6 +3684,7 @@ function applyTransactionBatchInCurrentTransaction(
         id: line.id,
         categoryId: line.categoryId,
         categoryName: line.categoryName,
+        incomeBudgetMonth: line.incomeBudgetMonth,
         transferAccountId: line.transferAccountId,
         transferTransactionId: line.transferTransactionId,
         memo: line.memo,

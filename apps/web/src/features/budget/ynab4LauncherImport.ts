@@ -1276,12 +1276,14 @@ export function toSqliteImportTransaction(
     categoryName: transaction.transferAccountId
       ? "Transfer"
       : transaction.category ?? null,
+    incomeBudgetMonth: transaction.incomeBudgetMonth ?? null,
     transferAccountId: transaction.transferAccountId ?? null,
     transferTransactionId: transaction.transferTransactionId ?? null,
     splitLines: (transaction.splitLines ?? []).map((line) => ({
       id: line.id,
       categoryId: line.categoryId ?? null,
       categoryName: line.transferAccountId ? "Transfer" : line.category ?? null,
+      incomeBudgetMonth: line.incomeBudgetMonth ?? null,
       transferAccountId: line.transferAccountId ?? null,
       transferTransactionId: line.transferTransactionId ?? null,
       memo: line.memo ?? null,

@@ -6336,3 +6336,54 @@ button.register-status:disabled {
 .transaction-import-transaction-editor .register-autocomplete-popup {
   z-index: 1200;
 }
+
+
+/* Income for Month allocation */
+.register-income-budget-month-panel {
+  display: grid;
+  min-width: var(--register-table-min-width, 100%);
+  padding: 0.42rem 0.72rem;
+  border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--accent-soft) 58%, var(--surface));
+}
+
+.register-income-budget-month {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 720;
+}
+
+.register-income-budget-month select {
+  min-width: 10.5rem;
+  color: var(--text);
+  font-weight: 560;
+}
+
+.register-split-income-budget-month {
+  grid-column: 2 / -1;
+  justify-self: start;
+  margin-top: 0.12rem;
+}
+
+.register-split-compact-line > .register-split-income-budget-month {
+  margin-left: 2.15rem;
+}
+
+@media (max-width: 680px) {
+  .register-income-budget-month-panel {
+    min-width: 0;
+    padding-inline: 0.65rem;
+  }
+
+  .mobile-transaction-field.register-income-budget-month {
+    display: grid;
+  }
+
+  .mobile-transaction-field.register-income-budget-month select {
+    width: 100%;
+    min-width: 0;
+  }
+}

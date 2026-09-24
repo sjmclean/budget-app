@@ -6,6 +6,7 @@ export interface SplitLineDraft {
   id: string;
   category: string;
   categoryId?: string;
+  incomeBudgetMonth?: string;
   transferAccountId?: string;
   transferAccountParticipation?: "on-budget" | "off-budget";
   transferTransactionId?: string;
@@ -41,6 +42,7 @@ export function splitDraftsFromTransaction(
     id: line.id,
     category: line.category,
     categoryId: line.categoryId,
+    incomeBudgetMonth: line.incomeBudgetMonth,
     transferAccountId: line.transferAccountId,
     transferAccountParticipation: line.transferAccountParticipation,
     transferTransactionId: line.transferTransactionId,
@@ -59,16 +61,22 @@ export function buildSplitLines(
       const categoryName = line.category.trim();
       const categoryOption = findCategoryOption(categoryName, categoryOptions);
 
+      const categoryId = categoryOption?.id ?? line.categoryId;
+      const inflow = parseRegisterMoney(line.inflow);
       return {
         id: line.id,
         category: categoryOption?.name ?? categoryName,
-        categoryId: categoryOption?.id ?? line.categoryId,
+        categoryId,
+        incomeBudgetMonth:
+          categoryId === "__ready_to_assign__" && inflow > 0
+            ? line.incomeBudgetMonth
+            : undefined,
         transferAccountId: line.transferAccountId,
         transferAccountParticipation: line.transferAccountParticipation,
         transferTransactionId: line.transferTransactionId,
         memo: line.memo.trim(),
         outflow: parseRegisterMoney(line.outflow),
-        inflow: parseRegisterMoney(line.inflow),
+        inflow,
       };
     })
     .filter(

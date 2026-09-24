@@ -121,6 +121,7 @@ export const LOCAL_REGISTER_SCHEMA_SQL = `
     raw_payee_name TEXT,
     category_id TEXT,
     category_name TEXT,
+    income_budget_month TEXT,
     transfer_account_id TEXT,
     transfer_transaction_id TEXT,
     generated_from_schedule INTEGER NOT NULL DEFAULT 0,
@@ -147,6 +148,7 @@ export const LOCAL_REGISTER_SCHEMA_SQL = `
     id TEXT NOT NULL,
     category_id TEXT,
     category_name TEXT,
+    income_budget_month TEXT,
     transfer_account_id TEXT,
     transfer_transaction_id TEXT,
     memo TEXT,
@@ -251,6 +253,7 @@ export interface LocalTransactionSplitRecord {
   readonly id: string;
   readonly categoryId: string | null;
   readonly categoryName: string | null;
+  readonly incomeBudgetMonth: string | null;
   readonly transferAccountId: string | null;
   readonly transferTransactionId: string | null;
   readonly memo: string | null;
@@ -278,6 +281,7 @@ export interface LocalTransactionRecord {
   readonly rawPayeeName?: string | null;
   readonly categoryId: string | null;
   readonly categoryName: string | null;
+  readonly incomeBudgetMonth: string | null;
   readonly transferAccountId: string | null;
   readonly transferTransactionId: string | null;
   readonly generatedFromSchedule: boolean;
@@ -293,9 +297,9 @@ export const LOCAL_TRANSACTION_UPSERT_SQL = `
   INSERT INTO local_transactions(
     id, budget_id, account_id, date, amount, memo, check_number,
     cleared_status, payee_id, payee_name, raw_payee_name, category_id, category_name,
-    transfer_account_id, transfer_transaction_id, generated_from_schedule,
+    income_budget_month, transfer_account_id, transfer_transaction_id, generated_from_schedule,
     scheduled_transaction_id, scheduled_occurrence_date, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(id) DO UPDATE SET
     account_id = excluded.account_id,
     date = excluded.date,
@@ -308,6 +312,7 @@ export const LOCAL_TRANSACTION_UPSERT_SQL = `
     raw_payee_name = excluded.raw_payee_name,
     category_id = excluded.category_id,
     category_name = excluded.category_name,
+    income_budget_month = excluded.income_budget_month,
     transfer_account_id = excluded.transfer_account_id,
     transfer_transaction_id = excluded.transfer_transaction_id,
     generated_from_schedule = excluded.generated_from_schedule,
@@ -333,6 +338,7 @@ export function localTransactionUpsertBindings(
     transaction.rawPayeeName ?? null,
     transaction.categoryId,
     transaction.categoryName,
+    transaction.incomeBudgetMonth,
     transaction.transferAccountId,
     transaction.transferTransactionId,
     transaction.generatedFromSchedule ? 1 : 0,

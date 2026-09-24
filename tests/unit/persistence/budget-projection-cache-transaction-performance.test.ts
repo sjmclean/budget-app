@@ -63,3 +63,22 @@ test("projection cache month upserts occur inside the cache rebuild transaction"
   assert.ok(loop > begin, "projection month writes should follow BEGIN IMMEDIATE");
   assert.ok(commit > loop, "projection month writes should finish before COMMIT");
 });
+
+
+test("future budget reads derive a non-persisted structural snapshot from the latest prior month", () => {
+  assert.match(
+    source,
+    /function createProjectedFutureMonthSnapshot\([\s\S]*?WHERE budget_id = \? AND month < \?[\s\S]*?ORDER BY month DESC[\s\S]*?LIMIT 1/,
+    "future projection should use the latest persisted month as its structural template",
+  );
+  assert.match(
+    source,
+    /const snapshot =[\s\S]*?readBudgetMonthSnapshot\(targetMonth\)[\s\S]*?createProjectedFutureMonthSnapshot\(targetMonth\)/,
+    "projection diagnostics should accept a derived future-month snapshot",
+  );
+  assert.match(
+    source,
+    /function readBudgetMonth\(month: string\)[\s\S]*?readBudgetMonthSnapshot\(month\)[\s\S]*?createProjectedFutureMonthSnapshot\(month\)/,
+    "ordinary future-month reads should use the same derived projection path",
+  );
+});

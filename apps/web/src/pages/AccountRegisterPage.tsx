@@ -114,6 +114,8 @@ import { formatDateForDisplay } from "../features/settings/dateFormatting";
 import { useDateFormatPreference } from "../features/settings/useDateFormatPreference";
 import { useDeveloperPerformanceMode } from "../features/settings/useDeveloperPerformanceMode";
 import { useRegisterMerchantIconsPreference } from "../features/settings/useRegisterMerchantIconsPreference";
+import { readSettingsPreferences } from "../features/settings/settingsPreferences";
+import { latestAllowedIncomeBudgetMonth } from "../features/accounts/incomeBudgetMonth";
 import { resolveRegisterPayee } from "../features/accounts/registerMerchantIcons";
 import {
   RECENT_IMPORT_HIGHLIGHT_DURATION_MS,
@@ -394,6 +396,10 @@ export function AccountRegisterPage() {
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
   const payeeHistory = usePayeeHistory(activeBudgetId);
   const currentBudgetMonth = useCurrentBudgetMonth();
+  const latestIncomeBudgetMonth = latestAllowedIncomeBudgetMonth(
+    currentBudgetMonth,
+    readSettingsPreferences(getActiveKeyValueStorage()).budget.futureMonthLimit,
+  );
   const { canUndo, canRedo, undoLabel, redoLabel, undoDepth, redoDepth, isBusy: isHistoryBusy, execute: executeHistory, undo, redo } = useApplicationHistory();
   const undoTitle = canUndo && undoLabel ? `Undo ${undoLabel}` : "Nothing to undo";
   const redoTitle = canRedo && redoLabel ? `Redo ${redoLabel}` : "Nothing to redo";
@@ -2577,6 +2583,7 @@ export function AccountRegisterPage() {
               visibleColumnIds={data.accountType === "Tracking" ? registerEntryVisibleColumnIds.filter((columnId) => columnId !== "category") : registerEntryVisibleColumnIds}
               rowStyle={registerEntryRowStyle}
               layoutMode={registerLayoutMode}
+              latestIncomeBudgetMonth={latestIncomeBudgetMonth}
               onCreateCategory={createInlineCategory}
               onSave={async (input, targetAccountId) => {
                 await addTransaction(input, targetAccountId);
@@ -2658,6 +2665,7 @@ export function AccountRegisterPage() {
                     visibleColumnIds={data.accountType === "Tracking" ? registerEditVisibleColumnIds.filter((columnId) => columnId !== "category") : registerEditVisibleColumnIds}
                     rowStyle={registerEditRowStyle}
                     layoutMode={registerLayoutMode}
+                    latestIncomeBudgetMonth={latestIncomeBudgetMonth}
                     editIntent={transactionEditIntent}
                   />
                 ) : (

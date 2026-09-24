@@ -30,8 +30,8 @@ test("budget projection hydrates split facts inside the transaction range query"
 
   assert.match(
     body,
-    /json_object\([\s\S]*?'id'[\s\S]*?'categoryId'[\s\S]*?'transferAccountId'[\s\S]*?'amount'/,
-    "projection split JSON should contain every engine-required split fact",
+    /json_object\([\s\S]*?'id'[\s\S]*?'categoryId'[\s\S]*?'transferAccountId'[\s\S]*?'incomeBudgetMonth'[\s\S]*?'amount'/,
+    "projection split JSON should contain category, transfer, income-month, and amount facts",
   );
 
   assert.match(

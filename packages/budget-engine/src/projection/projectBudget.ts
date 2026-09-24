@@ -31,6 +31,8 @@ export interface BudgetProjectionSplitFact {
   readonly id: string;
   readonly categoryId: string | null;
   readonly transferAccountId?: string | null;
+  /** Explicit budget month for Ready to Assign income; transaction date remains authoritative for cash flow. */
+  readonly incomeBudgetMonth?: string | null;
   /** Signed integer minor units. */
   readonly amount: number;
 }
@@ -41,6 +43,8 @@ export interface BudgetProjectionTransactionFact {
   readonly date: string;
   readonly categoryId: string | null;
   readonly transferAccountId?: string | null;
+  /** Explicit budget month for Ready to Assign income; transaction date remains authoritative for cash flow. */
+  readonly incomeBudgetMonth?: string | null;
   readonly amount: number;
   readonly splits?: readonly BudgetProjectionSplitFact[];
 }
@@ -497,7 +501,13 @@ function indexActivity(
       // category on the on-budget leg. The reciprocal off-budget leg was
       // already excluded above.
       if (target.participation === "off-budget") {
-        addActivity(month, transaction.categoryId, null, transaction.amount);
+        addActivity(
+          month,
+          transaction.categoryId,
+          null,
+          transaction.amount,
+          transaction.incomeBudgetMonth,
+        );
       }
       continue;
     }
@@ -521,28 +531,40 @@ function indexActivity(
             ? null
             : split.transferAccountId,
           split.amount,
+          split.incomeBudgetMonth,
         );
       }
       if (sum(splits.map(({ amount }) => amount)) !== transaction.amount) {
         throw new Error(`Split transaction ${transaction.id} does not conserve its parent amount.`);
       }
     } else {
-      addActivity(month, transaction.categoryId, null, transaction.amount);
+      addActivity(
+        month,
+        transaction.categoryId,
+        null,
+        transaction.amount,
+        transaction.incomeBudgetMonth,
+      );
     }
   }
   return { byMonthCategory, incomeByMonth };
 
   function addActivity(
-    month: string,
+    transactionMonth: string,
     categoryId: string | null,
     transferAccountId: string | null | undefined,
     amount: number,
+    incomeBudgetMonth?: string | null,
   ) {
     if (!categoryId || transferAccountId) return;
     if (categoryId === readyToAssignCategoryId) {
+      const month = incomeBudgetMonth
+        ? requireIncomeBudgetMonth(incomeBudgetMonth, transactionMonth)
+        : transactionMonth;
       incomeByMonth.set(month, (incomeByMonth.get(month) ?? 0) + amount);
       return;
     }
+    const month = transactionMonth;
     if (!categoryById.has(categoryId)) {
       throw new Error(`Transaction activity references unknown category ${categoryId}.`);
     }
@@ -550,6 +572,19 @@ function indexActivity(
     byCategory.set(categoryId, (byCategory.get(categoryId) ?? 0) + amount);
     byMonthCategory.set(month, byCategory);
   }
+}
+
+function requireIncomeBudgetMonth(
+  value: string,
+  transactionMonth: string,
+): string {
+  requireMonth(value);
+  if (value < transactionMonth) {
+    throw new Error(
+      `Income budget month ${value} cannot be earlier than transaction month ${transactionMonth}.`,
+    );
+  }
+  return value;
 }
 
 function validateInput(input: BudgetProjectionInput): void {

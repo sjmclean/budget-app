@@ -143,6 +143,14 @@ export function mapYnab4Transaction(
     }),
     `transaction ${sourceEntityLabel(transaction, index)}`,
   );
+  const date = requireYnab4Date(
+    firstString(
+      transaction.date,
+      transaction.dateString,
+      transaction.acceptedDate,
+    ),
+    `transaction ${sourceEntityLabel(transaction, index)}`,
+  );
   const transferAccountId = mappedId(
     maps.accountIdBySourceId,
     transaction.targetAccountId,
@@ -164,7 +172,8 @@ export function mapYnab4Transaction(
       : null;
   const categoryId = isTrackingAccount
     ? null
-    : sourceCategoryKind === "income"
+    : sourceCategoryKind === "immediate-income" ||
+        sourceCategoryKind === "deferred-income"
       ? READY_TO_ASSIGN_CATEGORY_ID
       : sourceCategoryKind === "split"
         ? null
@@ -173,6 +182,7 @@ export function mapYnab4Transaction(
     toRecords(transaction.subTransactions),
     maps,
     isTrackingAccount,
+    date,
   );
   const hasSplitLines = Boolean(splitLines && splitLines.length > 0);
   const transferAccountType = transferAccountId
@@ -200,14 +210,7 @@ export function mapYnab4Transaction(
         transaction.id,
         transaction.transactionId,
       ) ?? `imported-transaction-${index}`,
-    date: requireYnab4Date(
-      firstString(
-        transaction.date,
-        transaction.dateString,
-        transaction.acceptedDate,
-      ),
-      `transaction ${sourceEntityLabel(transaction, index)}`,
-    ),
+    date,
     ...(importedFlagTagId ? { tagIds: [importedFlagTagId] } : {}),
     attachmentCount: 0,
     attachments: [],
@@ -233,6 +236,13 @@ export function mapYnab4Transaction(
       : transferAccountId && !isCategorisedOffBudgetTransfer
         ? undefined
         : categoryId ?? undefined,
+    incomeBudgetMonth:
+      !isTrackingAccount &&
+      !hasSplitLines &&
+      !transferAccountId &&
+      sourceCategoryKind === "deferred-income"
+        ? nextBudgetMonth(date)
+        : undefined,
     memo:
       firstString(transaction.memo, transaction.note, transaction.notes) ??
       undefined,
@@ -266,6 +276,7 @@ export function mapYnab4SplitLines(
   lines: RecordMap[],
   maps: Ynab4TransactionIdentityMaps,
   suppressBudgetCategories = false,
+  transactionDate?: string,
 ): RegisterTransactionView["splitLines"] {
   const activeLines = lines.filter((line) => !isYnab4Tombstone(line));
   if (activeLines.length === 0) return undefined;
@@ -292,7 +303,9 @@ export function mapYnab4SplitLines(
     const lineId = firstString(line.entityId, line.id) ?? `split-${index}`;
     const categoryId = suppressBudgetCategories || transferAccountId
       ? null
-      : sourceCategoryKind === "income" || sourceCategoryKind === "split"
+      : sourceCategoryKind === "immediate-income" ||
+          sourceCategoryKind === "deferred-income" ||
+          sourceCategoryKind === "split"
         ? READY_TO_ASSIGN_CATEGORY_ID
         : resolveYnab4CategoryId(
             maps,
@@ -315,6 +328,13 @@ export function mapYnab4SplitLines(
         suppressBudgetCategories || transferAccountId
           ? undefined
           : categoryId ?? undefined,
+      incomeBudgetMonth:
+        !suppressBudgetCategories &&
+        !transferAccountId &&
+        sourceCategoryKind === "deferred-income" &&
+        transactionDate
+          ? nextBudgetMonth(transactionDate)
+          : undefined,
       memo: firstString(line.memo, line.note, line.notes) ?? undefined,
       inflow: amount > 0 ? amount : 0,
       outflow: amount < 0 ? Math.abs(amount) : 0,
@@ -408,18 +428,28 @@ function normaliseClearedState(row: RecordMap): Ynab4ClearedState {
   return "uncleared";
 }
 
-type Ynab4CategoryKind = "split" | "income" | "ordinary";
+type Ynab4CategoryKind =
+  | "split"
+  | "immediate-income"
+  | "deferred-income"
+  | "ordinary";
 
 function ynab4CategoryKind(...values: unknown[]): Ynab4CategoryKind {
   const sourceCategoryId = firstString(...values);
   if (sourceCategoryId === YNAB4_SPLIT_CATEGORY_ID) return "split";
-  if (
-    sourceCategoryId === YNAB4_IMMEDIATE_INCOME_CATEGORY_ID ||
-    sourceCategoryId === YNAB4_DEFERRED_INCOME_CATEGORY_ID
-  ) {
-    return "income";
+  if (sourceCategoryId === YNAB4_IMMEDIATE_INCOME_CATEGORY_ID) {
+    return "immediate-income";
+  }
+  if (sourceCategoryId === YNAB4_DEFERRED_INCOME_CATEGORY_ID) {
+    return "deferred-income";
   }
   return "ordinary";
+}
+
+function nextBudgetMonth(date: string): string {
+  const [year, month] = date.slice(0, 7).split("-").map(Number);
+  const next = new Date(Date.UTC(year!, month!, 1));
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 function requireMappedYnab4Account(

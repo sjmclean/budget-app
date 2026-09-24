@@ -19,13 +19,14 @@ function transaction(id: string, accountId: string, amount: number, partnerId: s
     id, budgetId, accountId, date: "2026-08-19", amount,
     memo: `memo-${id}`, checkNumber: "42", clearedStatus: "cleared",
     payeeId: "payee-1", payeeName: "Transfer", rawPayeeName: "RAW TRANSFER",
-    categoryId: null, categoryName: null,
+    categoryId: null, categoryName: null, incomeBudgetMonth: null,
     transferAccountId: accountId === "account-a" ? "account-b" : "account-a",
     transferTransactionId: partnerId,
     generatedFromSchedule: true, scheduledTransactionId: "schedule-1",
     scheduledOccurrenceDate: "2026-08-19",
     splitLines: id === "transaction-a" ? [{
       id: "split-1", categoryId: "category-1", categoryName: "Groceries",
+      incomeBudgetMonth: null,
       transferAccountId: null, transferTransactionId: null, memo: "split memo", amount: -250,
     }] : [],
     tagIds: id === "transaction-a" ? ["tag-2", "tag-1"] : [],
@@ -51,9 +52,9 @@ function openDatabase() {
 function writeTransaction(db: Database.Database, value: LocalTransactionRecord) {
   db.prepare(LOCAL_TRANSACTION_UPSERT_SQL).run(...localTransactionUpsertBindings(value));
   for (const split of value.splitLines) db.prepare(
-    `INSERT INTO local_transaction_splits(transaction_id,id,category_id,category_name,transfer_account_id,transfer_transaction_id,memo,amount)
-     VALUES(?,?,?,?,?,?,?,?)`,
-  ).run(value.id, split.id, split.categoryId, split.categoryName, split.transferAccountId, split.transferTransactionId, split.memo, split.amount);
+    `INSERT INTO local_transaction_splits(transaction_id,id,category_id,category_name,income_budget_month,transfer_account_id,transfer_transaction_id,memo,amount)
+     VALUES(?,?,?,?,?,?,?,?,?)`,
+  ).run(value.id, split.id, split.categoryId, split.categoryName, split.incomeBudgetMonth, split.transferAccountId, split.transferTransactionId, split.memo, split.amount);
   for (const tagId of value.tagIds) db.prepare("INSERT INTO local_transaction_tags VALUES(?,?)").run(value.id, tagId);
   for (const provenance of value.importProvenance) db.prepare(
     "INSERT INTO local_transaction_import_provenance VALUES(?,?,?,?,?)",
@@ -66,11 +67,13 @@ function capture(db: Database.Database): TransactionHistorySnapshot {
     const row = db.prepare(`SELECT id,budget_id AS budgetId,account_id AS accountId,date,amount,memo,
       check_number AS checkNumber,cleared_status AS clearedStatus,payee_id AS payeeId,payee_name AS payeeName,
       raw_payee_name AS rawPayeeName,category_id AS categoryId,category_name AS categoryName,
+      income_budget_month AS incomeBudgetMonth,
       transfer_account_id AS transferAccountId,transfer_transaction_id AS transferTransactionId,
       generated_from_schedule AS generatedFromSchedule,scheduled_transaction_id AS scheduledTransactionId,
       scheduled_occurrence_date AS scheduledOccurrenceDate,updated_at AS updatedAt FROM local_transactions WHERE id=?`).get(id) as any;
     row.generatedFromSchedule = Boolean(row.generatedFromSchedule);
     row.splitLines = db.prepare(`SELECT id,category_id AS categoryId,category_name AS categoryName,
+      income_budget_month AS incomeBudgetMonth,
       transfer_account_id AS transferAccountId,transfer_transaction_id AS transferTransactionId,memo,amount
       FROM local_transaction_splits WHERE transaction_id=? ORDER BY id`).all(id);
     row.tagIds = (db.prepare("SELECT tag_id AS tagId FROM local_transaction_tags WHERE transaction_id=? ORDER BY tag_id").all(id) as any[]).map(({ tagId }) => tagId);
@@ -168,6 +171,7 @@ test("client-built scheduled occurrence equals its physical SQLite graph", () =>
       rawPayeeName: null,
       categoryId: "category-1",
       categoryName: "Groceries",
+      incomeBudgetMonth: null,
       transferAccountId: null,
       transferTransactionId: null,
       generatedFromSchedule: true,
@@ -208,6 +212,62 @@ test("client-built scheduled occurrence equals its physical SQLite graph", () =>
       true,
       "legacy omitted raw payee state should match SQLite's canonical null",
     );
+  } finally {
+    db.close();
+  }
+});
+
+test("physical SQLite history round-trips parent and split Income for Month", () => {
+  const db = openDatabase();
+  try {
+    const parent: LocalTransactionRecord = {
+      ...transaction("income-parent", "account-a", 10000, "unused"),
+      categoryId: "__ready_to_assign__",
+      categoryName: "Ready to Assign",
+      incomeBudgetMonth: "2026-09",
+      transferAccountId: null,
+      transferTransactionId: null,
+      generatedFromSchedule: false,
+      scheduledTransactionId: null,
+      scheduledOccurrenceDate: null,
+      splitLines: [],
+      tagIds: [],
+      importProvenance: [],
+    };
+    const split: LocalTransactionRecord = {
+      ...parent,
+      id: "income-split",
+      categoryId: null,
+      categoryName: "Split",
+      incomeBudgetMonth: null,
+      splitLines: [{
+        id: "income-line",
+        categoryId: "__ready_to_assign__",
+        categoryName: "Ready to Assign",
+        incomeBudgetMonth: "2026-10",
+        transferAccountId: null,
+        transferTransactionId: null,
+        memo: null,
+        amount: 10000,
+      }],
+    };
+
+    writeTransaction(db, parent);
+    writeTransaction(db, split);
+    const snapshot = capture(db);
+
+    assert.equal(
+      snapshot.transactions.find(({ id }) => id === parent.id)?.incomeBudgetMonth,
+      "2026-09",
+    );
+    assert.equal(
+      snapshot.transactions.find(({ id }) => id === split.id)?.splitLines[0]?.incomeBudgetMonth,
+      "2026-10",
+    );
+
+    db.prepare("DELETE FROM local_transactions WHERE budget_id=?").run(budgetId);
+    restore(db, snapshot);
+    assert.equal(transactionHistorySnapshotsEqual(capture(db), snapshot), true);
   } finally {
     db.close();
   }

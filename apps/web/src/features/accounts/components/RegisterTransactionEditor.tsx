@@ -51,6 +51,7 @@ import {
 } from "../registerTransactionDrafts";
 import type { BudgetCategoryOption } from "../../budget/budgetViewTypes";
 import { MoneyInput } from "../../money/MoneyInput";
+import { IncomeBudgetMonthSelect } from "./IncomeBudgetMonthSelect";
 import {
   getTransactionFieldEditBehaviour,
   type TransactionEditableField,
@@ -78,6 +79,7 @@ export function TransactionEntryRow({
   visibleColumnIds,
   rowStyle,
   layoutMode,
+  latestIncomeBudgetMonth,
   onCreateCategory,
   onCreatePayee,
 }: {
@@ -91,6 +93,7 @@ export function TransactionEntryRow({
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
+  latestIncomeBudgetMonth: string;
   onSave: (
     input: NewRegisterTransactionInput,
     accountId: string,
@@ -110,6 +113,9 @@ export function TransactionEntryRow({
   const [payeeId, setPayeeId] = useState<string | undefined>(undefined);
   const [transferAccountId, setTransferAccountId] = useState<string | undefined>(undefined);
   const [category, setCategory] = useState("");
+  const [incomeBudgetMonth, setIncomeBudgetMonth] = useState(
+    initialDate.slice(0, 7),
+  );
   const [memo, setMemo] = useState("");
   const [checkNumber, setCheckNumber] = useState("");
   const [outflow, setOutflow] = useState("");
@@ -148,6 +154,32 @@ export function TransactionEntryRow({
     };
   }, []);
 
+  useEffect(() => {
+    const transactionMonth = date.slice(0, 7);
+    setIncomeBudgetMonth((current) => {
+      if (current < transactionMonth) return transactionMonth;
+      if (
+        current > latestIncomeBudgetMonth &&
+        transactionMonth <= latestIncomeBudgetMonth
+      ) {
+        return transactionMonth;
+      }
+      return current;
+    });
+  }, [date, latestIncomeBudgetMonth]);
+
+  const entryCategoryId = findCategoryOption(category, categoryOptions)?.id;
+  const showIncomeBudgetMonth =
+    splitLines.length === 0 &&
+    parseRegisterMoney(inflow) > 0 &&
+    parseRegisterMoney(outflow) === 0 &&
+    !transferAccountId &&
+    (
+      entryCategoryId === "__ready_to_assign__" ||
+      category.trim().length === 0 ||
+      category.trim().toLocaleLowerCase() === "ready to assign"
+    );
+
   function buildInput(): NewRegisterTransactionInput | null {
     return buildNewRegisterTransactionInput({
       date,
@@ -155,6 +187,10 @@ export function TransactionEntryRow({
       payeeId,
       transferAccountId,
       category,
+      incomeBudgetMonth: showIncomeBudgetMonth
+        ? incomeBudgetMonth
+        : undefined,
+      latestIncomeBudgetMonth,
       memo,
       checkNumber,
       outflow,
@@ -169,6 +205,7 @@ export function TransactionEntryRow({
     setPayeeId(undefined);
     setTransferAccountId(undefined);
     setCategory("");
+    setIncomeBudgetMonth(date.slice(0, 7));
     setMemo("");
     setCheckNumber("");
     setOutflow("");
@@ -724,6 +761,15 @@ export function TransactionEntryRow({
               {mobileCategoryLabel || "Choose a category"} <span aria-hidden="true">›</span>
             </strong>
           </button>
+          {showIncomeBudgetMonth ? (
+            <IncomeBudgetMonthSelect
+              transactionDate={date}
+              latestAllowedMonth={latestIncomeBudgetMonth}
+              value={incomeBudgetMonth}
+              onChange={setIncomeBudgetMonth}
+              className="mobile-transaction-field"
+            />
+          ) : null}
           <button
             className="mobile-transaction-field mobile-transaction-choice"
             type="button"
@@ -904,6 +950,17 @@ export function TransactionEntryRow({
         })}
       </div>
 
+      {showIncomeBudgetMonth ? (
+        <div className="register-income-budget-month-panel" style={rowStyle}>
+          <IncomeBudgetMonthSelect
+            transactionDate={date}
+            latestAllowedMonth={latestIncomeBudgetMonth}
+            value={incomeBudgetMonth}
+            onChange={setIncomeBudgetMonth}
+          />
+        </div>
+      ) : null}
+
       {splitLines.length === 0 ? (
         <div className="register-entry-actions-panel register-entry-actions-panel-commit-only">
           {saveError ? (
@@ -947,6 +1004,8 @@ export function TransactionEntryRow({
         currencyCode={currencyCode}
         visibleColumnIds={visibleColumnIds}
         rowStyle={rowStyle}
+        transactionDate={date}
+        latestIncomeBudgetMonth={latestIncomeBudgetMonth}
         layoutMode={layoutMode}
         onCreateCategory={onCreateCategory}
       >
@@ -1008,6 +1067,7 @@ export function TransactionEditRow({
   visibleColumnIds,
   rowStyle,
   layoutMode,
+  latestIncomeBudgetMonth,
   editIntent,
   onCreatePayee,
 }: {
@@ -1023,6 +1083,7 @@ export function TransactionEditRow({
     payeeId?: string;
     category: string;
     categoryId?: string;
+    incomeBudgetMonth?: string;
     transferAccountId?: string;
     memo?: string;
     checkNumber?: string;
@@ -1036,6 +1097,7 @@ export function TransactionEditRow({
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
+  latestIncomeBudgetMonth: string;
   editIntent: TransactionEditIntent;
   onCreatePayee?: (name: string) => Promise<PayeeView>;
 }) {
@@ -1053,6 +1115,9 @@ export function TransactionEditRow({
       transaction.category,
       initialSplitLines.length,
     ),
+  );
+  const [incomeBudgetMonth, setIncomeBudgetMonth] = useState(
+    transaction.incomeBudgetMonth ?? transaction.date.slice(0, 7),
   );
   const [memo, setMemo] = useState(transaction.memo ?? "");
   const [checkNumber, setCheckNumber] = useState(transaction.checkNumber ?? "");
@@ -1085,6 +1150,34 @@ export function TransactionEditRow({
     getTransactionFieldEditBehaviour(editIntent, "outflow");
   const inflowEditBehaviour =
     getTransactionFieldEditBehaviour(editIntent, "inflow");
+
+  useEffect(() => {
+    const transactionMonth = date.slice(0, 7);
+    setIncomeBudgetMonth((current) => {
+      if (current < transactionMonth) return transactionMonth;
+      if (
+        current > latestIncomeBudgetMonth &&
+        transactionMonth <= latestIncomeBudgetMonth
+      ) {
+        return transactionMonth;
+      }
+      return current;
+    });
+  }, [date, latestIncomeBudgetMonth]);
+
+  const editCategoryId = findCategoryOption(category, categoryOptions)?.id;
+  const showIncomeBudgetMonth =
+    splitLines.length === 0 &&
+    parseRegisterMoney(inflow) > 0 &&
+    parseRegisterMoney(outflow) === 0 &&
+    !transferAccountId &&
+    (
+      editCategoryId === "__ready_to_assign__" ||
+      transaction.categoryId === "__ready_to_assign__" &&
+        category.trim().toLocaleLowerCase() ===
+          transaction.category.trim().toLocaleLowerCase() ||
+      category.trim().toLocaleLowerCase() === "ready to assign"
+    );
 
   function handleInitialTextFocus(
     field: TransactionEditableField,
@@ -1139,6 +1232,10 @@ export function TransactionEditRow({
       payeeId,
       transferAccountId,
       category,
+      incomeBudgetMonth: showIncomeBudgetMonth
+        ? incomeBudgetMonth
+        : undefined,
+      latestIncomeBudgetMonth,
       memo,
       checkNumber,
       outflow,
@@ -1286,6 +1383,16 @@ export function TransactionEditRow({
           placeholder="Inflow"
         />
       </div>
+      {showIncomeBudgetMonth ? (
+        <div className="register-income-budget-month-panel" style={rowStyle}>
+          <IncomeBudgetMonthSelect
+            transactionDate={date}
+            latestAllowedMonth={latestIncomeBudgetMonth}
+            value={incomeBudgetMonth}
+            onChange={setIncomeBudgetMonth}
+          />
+        </div>
+      ) : null}
       {splitLines.length > 0 ? (
         <RegisterSplitEditor
           splitLines={splitLines}
@@ -1296,6 +1403,8 @@ export function TransactionEditRow({
           currencyCode={currencyCode}
           visibleColumnIds={visibleColumnIds}
           rowStyle={rowStyle}
+          transactionDate={date}
+          latestIncomeBudgetMonth={latestIncomeBudgetMonth}
           layoutMode={layoutMode}
         >
           {saveError ? (

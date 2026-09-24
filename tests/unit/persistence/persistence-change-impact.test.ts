@@ -8,7 +8,7 @@ function transaction(overrides: Partial<LocalTransactionRecord> = {}): LocalTran
     id: "tx-1", budgetId: "budget-a", accountId: "account-a", date: "2026-09-10",
     amount: -1000, memo: null, checkNumber: null, clearedStatus: "uncleared",
     payeeId: null, payeeName: null, categoryId: "groceries", categoryName: "Groceries",
-    transferAccountId: null, transferTransactionId: null, generatedFromSchedule: false,
+    incomeBudgetMonth: null, transferAccountId: null, transferTransactionId: null, generatedFromSchedule: false,
     scheduledTransactionId: null, scheduledOccurrenceDate: null, splitLines: [], tagIds: [],
     importProvenance: [], updatedAt: "2026-09-16T00:00:00.000Z", ...overrides,
   };
@@ -24,6 +24,41 @@ test("transaction transition invalidates old and new account, month, category an
   assert.deepEqual(scope.months, ["2026-09", "2026-10"]);
   assert.deepEqual(scope.categoryIds, ["dining", "groceries"]);
   assert.deepEqual(scope.transactionIds, ["tx-1"]);
+});
+
+test("income allocation changes invalidate both transaction and allocated budget months", () => {
+  const scope = deriveTransactionChangeScope({
+    budgetId: "budget-a",
+    before: [transaction({ incomeBudgetMonth: "2026-10" })],
+    after: [transaction({ incomeBudgetMonth: "2026-11" })],
+  });
+
+  assert.deepEqual(scope.months, ["2026-09", "2026-10", "2026-11"]);
+  assert.deepEqual(scope.transactionIds, ["tx-1"]);
+});
+
+test("split income allocation contributes its budget month to invalidation", () => {
+  const scope = deriveTransactionChangeScope({
+    budgetId: "budget-a",
+    after: [
+      transaction({
+        categoryId: null,
+        categoryName: "Split",
+        splitLines: [{
+          id: "income",
+          categoryId: "__ready_to_assign__",
+          categoryName: "Ready to Assign",
+          incomeBudgetMonth: "2026-10",
+          transferAccountId: null,
+          transferTransactionId: null,
+          memo: null,
+          amount: 1000,
+        }],
+      }),
+    ],
+  });
+
+  assert.deepEqual(scope.months, ["2026-09", "2026-10"]);
 });
 
 test("delete uses the old entity and restore uses the restored entity", () => {

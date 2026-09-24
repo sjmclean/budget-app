@@ -89,6 +89,65 @@ test("maps ordinary transactions, balances, categories, payees, and flags", () =
   assert.equal(income?.inflow, 25.05);
 });
 
+test("migrates YNAB4 deferred income to the following budget month without changing its date", () => {
+  const registers = mapYnab4Transactions({
+    accounts,
+    maps,
+    currencyCode: "AUD",
+    importedFlagTagIdByColour: new Map(),
+    transactions: [{
+      entityId: "deferred-income",
+      accountId: "source-checking",
+      date: "2026-01-31",
+      amount: 125,
+      categoryId: "Category/__DeferredIncome__",
+    }],
+  });
+
+  const transaction = registers.checking.transactions[0];
+  assert.equal(transaction?.date, "2026-01-31");
+  assert.equal(transaction?.categoryId, "__ready_to_assign__");
+  assert.equal(transaction?.incomeBudgetMonth, "2026-02");
+  assert.equal(transaction?.inflow, 125);
+});
+
+test("migrates deferred Ready to Assign split income line-by-line", () => {
+  const registers = mapYnab4Transactions({
+    accounts,
+    maps,
+    currencyCode: "AUD",
+    importedFlagTagIdByColour: new Map(),
+    transactions: [{
+      entityId: "split-deferred-income",
+      accountId: "source-checking",
+      date: "2026-12-20",
+      amount: 300,
+      categoryId: "Category/__Split__",
+      subTransactions: [
+        {
+          entityId: "deferred-line",
+          amount: 200,
+          categoryId: "Category/__DeferredIncome__",
+        },
+        {
+          entityId: "immediate-line",
+          amount: 100,
+          categoryId: "Category/__ImmediateIncome__",
+        },
+      ],
+    }],
+  });
+
+  const transaction = registers.checking.transactions[0];
+  const deferred = transaction?.splitLines?.find(({ id }) => id === "deferred-line");
+  const immediate = transaction?.splitLines?.find(({ id }) => id === "immediate-line");
+  assert.equal(transaction?.date, "2026-12-20");
+  assert.equal(deferred?.categoryId, "__ready_to_assign__");
+  assert.equal(deferred?.incomeBudgetMonth, "2027-01");
+  assert.equal(immediate?.categoryId, "__ready_to_assign__");
+  assert.equal(immediate?.incomeBudgetMonth, undefined);
+});
+
 test("preserves cleared, reconciled, and uncleared state independently of accepted", () => {
   const sourceStates = [
     { id: "cleared", cleared: "Cleared", accepted: true, expectedCleared: true, expectedReconciled: false },
