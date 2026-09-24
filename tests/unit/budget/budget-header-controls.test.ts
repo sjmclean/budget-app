@@ -56,14 +56,42 @@ test("Budget column handles retain per-column reset wiring", () => {
 });
 
 
-test("Budget header exposes a year strip with all twelve selectable months", () => {
+test("Budget header exposes rolling month navigation with a deliberate year selector", () => {
   assert.match(
     budgetPageSource,
-    /<nav className="budget-year-month-navigation"[\s\S]*\{selectedYear\}[\s\S]*yearMonths\.map/,
+    /const navigationMonths = getBudgetMonthWindow\(selectedMonth\)\.map/,
   );
   assert.match(
     budgetPageSource,
-    /BUDGET_MONTH_LABELS = \[[\s\S]*"Jan"[\s\S]*"Feb"[\s\S]*"Mar"[\s\S]*"Apr"[\s\S]*"May"[\s\S]*"Jun"[\s\S]*"Jul"[\s\S]*"Aug"[\s\S]*"Sep"[\s\S]*"Oct"[\s\S]*"Nov"[\s\S]*"Dec"/,
+    /className="budget-month-step"[\s\S]*getPreviousBudgetMonth\(currentMonth\)[\s\S]*aria-label="Go to previous budget month"[\s\S]*className="budget-month-step"[\s\S]*getNextBudgetMonth\(currentMonth\)[\s\S]*aria-label="Go to next budget month"/,
+  );
+  assert.doesNotMatch(
+    budgetPageSource,
+    /Go to (?:previous|next) budget year|yearMonths\.map|addMonthsToBudgetMonth\(selectedMonth,\s*-?12\)/,
+  );
+  assert.match(
+    budgetPageSource,
+    /showYear = value\.endsWith\("-01"\) && year !== selectedYear/,
+  );
+  assert.match(
+    budgetPageSource,
+    /<nav className="budget-year-month-navigation"[\s\S]*aria-label="Budget year"[\s\S]*<div className="budget-month-strip">/,
+  );
+  assert.doesNotMatch(
+    budgetPageSource,
+    /<span className="sr-only">Budget year<\/span>/,
+  );
+  assert.match(
+    budgetPageSource,
+    /const firstSelectableYear = Math\.min\(1900, selectedYear\);[\s\S]*const lastSelectableYear = Math\.max\(2100, selectedYear\)/,
+  );
+  assert.match(
+    budgetPageSource,
+    /<h1>\{data\.monthLabel\}<\/h1>/,
+  );
+  assert.doesNotMatch(
+    budgetPageSource,
+    /budget-planning-title-line/,
   );
   assert.match(
     budgetPageSource,
@@ -71,6 +99,6 @@ test("Budget header exposes a year strip with all twelve selectable months", () 
   );
   assert.match(
     budgetPageSource,
-    /<h1>\{data\.monthLabel\}<\/h1>[\s\S]*<span>Monthly Budget<\/span>/,
+    /<span>Monthly Budget<\/span>/,
   );
 });

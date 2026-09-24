@@ -24,6 +24,17 @@ test("next month outlook classifies authoritative Ready to Assign states", () =>
   });
 });
 
+test("next month outlook uses neutral presentation unless the outlook is negative", () => {
+  assert.match(
+    budgetPageSource,
+    /const statusClass = outlook\?\.status === "overbudget"[\s\S]*budget-next-month-outlook-overbudget[\s\S]*budget-next-month-outlook-neutral/,
+  );
+  assert.doesNotMatch(
+    budgetPageSource,
+    /budget-next-month-outlook-\$\{outlook\.status\}/,
+  );
+});
+
 test("Budget page reads the adjacent month through the existing Budget view query", () => {
   assert.match(
     budgetPageSource,

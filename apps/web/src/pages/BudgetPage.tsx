@@ -19,7 +19,7 @@ import {
 } from "../components/workspace";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
 import {
-  addMonthsToBudgetMonth,
+  getBudgetMonthWindow,
   getCurrentBudgetMonth,
   getNextBudgetMonth,
   getPreviousBudgetMonth,
@@ -161,8 +161,8 @@ function BudgetNextMonthOutlook({
     ? resolveBudgetNextMonthOutlook(data.readyToAssign)
     : null;
   const monthName = data?.monthLabel.split(" ")[0] ?? "Next month";
-  const statusClass = outlook
-    ? `budget-next-month-outlook-${outlook.status}`
+  const statusClass = outlook?.status === "overbudget"
+    ? "budget-next-month-outlook-overbudget"
     : "budget-next-month-outlook-neutral";
 
   let primary = "Calculating…";
@@ -858,10 +858,27 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const coverOptions = buildOverspendingCoverOptions(data.categoryGroups);
   const monthName = data.monthLabel.split(" ")[0] ?? data.monthLabel;
   const selectedYear = Number(selectedMonth.slice(0, 4));
-  const yearMonths = BUDGET_MONTH_LABELS.map((label, monthIndex) => ({
-    label,
-    value: `${selectedYear}-${String(monthIndex + 1).padStart(2, "0")}`,
-  }));
+  const firstSelectableYear = Math.min(1900, selectedYear);
+  const lastSelectableYear = Math.max(2100, selectedYear);
+  const selectableYears = Array.from(
+    { length: lastSelectableYear - firstSelectableYear + 1 },
+    (_, index) => firstSelectableYear + index,
+  );
+  const navigationMonths = getBudgetMonthWindow(selectedMonth).map(
+    (value, index) => {
+      const offset = index - 5;
+      const year = Number(value.slice(0, 4));
+      const monthIndex = Number(value.slice(5, 7)) - 1;
+
+      return {
+        label: BUDGET_MONTH_LABELS[monthIndex]!,
+        value,
+        year,
+        offset,
+        distance: Math.abs(offset),
+      };
+    },
+  );
   const carriedForward = authoritativeSummary.carriedForwardReadyToAssign;
   const previousOverspending = authoritativeSummary.previousOverspending;
   const incomeForMonth = authoritativeSummary.incomeForMonth;
@@ -1018,27 +1035,47 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             <section className="budget-planning-header" aria-label="Budget month workspace">
               <nav className="budget-year-month-navigation" aria-label="Budget month navigation">
                 <button
-                  className="budget-year-step"
+                  className="budget-month-step"
                   type="button"
-                  onMouseEnter={() => prefetchMonth(addMonthsToBudgetMonth(selectedMonth, -12))}
-                  onFocus={() => prefetchMonth(addMonthsToBudgetMonth(selectedMonth, -12))}
+                  onMouseEnter={() => prefetchMonth(getPreviousBudgetMonth(selectedMonth))}
+                  onFocus={() => prefetchMonth(getPreviousBudgetMonth(selectedMonth))}
                   onClick={() =>
                     setSelectedMonth((currentMonth) =>
-                      addMonthsToBudgetMonth(currentMonth, -12),
+                      getPreviousBudgetMonth(currentMonth),
                     )
                   }
-                  aria-label="Go to previous budget year"
-                  title="Go to previous budget year"
+                  aria-label="Go to previous budget month"
+                  title="Previous month"
                 >
                   ‹
                 </button>
-                <span className="budget-year-label">{selectedYear}</span>
+                <label className="budget-year-picker">
+                  <select
+                    className="budget-year-select"
+                    value={selectedYear}
+                    onChange={(event) => {
+                      const nextYear = event.currentTarget.value;
+                      setSelectedMonth((currentMonth) =>
+                        `${nextYear}-${currentMonth.slice(5, 7)}`,
+                      );
+                    }}
+                    aria-label="Budget year"
+                    title="Select budget year"
+                  >
+                    {selectableYears.map((year) => (
+                      <option value={year} key={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <div className="budget-month-strip">
-                  {yearMonths.map(({ label, value }) => {
-                    const isSelected = value === selectedMonth;
+                  {navigationMonths.map(({ label, value, year, offset, distance }) => {
+                    const isSelected = offset === 0;
                     const showWarning =
                       value === nextMonth &&
                       nextMonthOutlook?.status === "overbudget";
+                    const showYear = value.endsWith("-01") && year !== selectedYear;
 
                     return (
                       <button
@@ -1049,13 +1086,17 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                         }
                         type="button"
                         key={value}
+                        data-distance={distance}
                         onMouseEnter={() => prefetchMonth(value)}
                         onFocus={() => prefetchMonth(value)}
                         onClick={() => setSelectedMonth(value)}
                         aria-current={isSelected ? "date" : undefined}
-                        aria-label={`Open ${label} ${selectedYear} budget`}
+                        aria-label={`Open ${label} ${year} budget`}
                       >
-                        <span>{label}</span>
+                        <span className="budget-month-chip-label">{label}</span>
+                        {showYear ? (
+                          <span className="budget-month-chip-year">{year}</span>
+                        ) : null}
                         {showWarning ? (
                           <span
                             className="budget-month-chip-status"
@@ -1067,17 +1108,17 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   })}
                 </div>
                 <button
-                  className="budget-year-step"
+                  className="budget-month-step"
                   type="button"
-                  onMouseEnter={() => prefetchMonth(addMonthsToBudgetMonth(selectedMonth, 12))}
-                  onFocus={() => prefetchMonth(addMonthsToBudgetMonth(selectedMonth, 12))}
+                  onMouseEnter={() => prefetchMonth(getNextBudgetMonth(selectedMonth))}
+                  onFocus={() => prefetchMonth(getNextBudgetMonth(selectedMonth))}
                   onClick={() =>
                     setSelectedMonth((currentMonth) =>
-                      addMonthsToBudgetMonth(currentMonth, 12),
+                      getNextBudgetMonth(currentMonth),
                     )
                   }
-                  aria-label="Go to next budget year"
-                  title="Go to next budget year"
+                  aria-label="Go to next budget month"
+                  title="Next month"
                 >
                   ›
                 </button>
