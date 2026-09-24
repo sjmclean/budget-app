@@ -851,6 +851,7 @@
   min-width: 0;
   display: grid;
   gap: 0.2rem;
+  border-bottom: 0;
 }
 
 .budget-ready-summary-heading span {
@@ -915,6 +916,17 @@
   background: color-mix(in srgb, var(--negative) 88%, var(--surface));
   box-shadow:
     0 0 0 0.45rem color-mix(in srgb, var(--negative) 10%, transparent);
+}
+
+.budget-ready-summary-positive .budget-ready-summary-heading span,
+.budget-ready-summary-neutral .budget-ready-summary-heading span,
+.budget-ready-summary-negative .budget-ready-summary-heading span {
+  color: var(--text);
+}
+
+.budget-ready-summary-positive .budget-ready-summary-heading strong,
+.budget-ready-summary-neutral .budget-ready-summary-heading strong {
+  color: color-mix(in srgb, var(--positive) 86%, var(--text));
 }
 
 .budget-ready-summary-negative .budget-ready-summary-heading strong,
