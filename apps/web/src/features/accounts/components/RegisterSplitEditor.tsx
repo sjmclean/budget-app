@@ -459,6 +459,10 @@ export function RegisterSplitEditor({
                               value,
                               categoryOptions,
                             )?.id,
+                            incomeBudgetMonth:
+                              findCategoryOption(value, categoryOptions)?.id === "__ready_to_assign__"
+                                ? item.incomeBudgetMonth ?? transactionDate?.slice(0, 7)
+                                : undefined,
                           }
                         : item,
                     ),
@@ -491,7 +495,13 @@ export function RegisterSplitEditor({
                   setSplitLines((current) =>
                     current.map((item) =>
                       item.id === line.id
-                        ? { ...item, outflow: value === 0 ? "" : value.toFixed(2), inflow: value > 0 ? "" : item.inflow }
+                        ? {
+                            ...item,
+                            outflow: value === 0 ? "" : value.toFixed(2),
+                            inflow: value > 0 ? "" : item.inflow,
+                            incomeBudgetMonth:
+                              value > 0 ? undefined : item.incomeBudgetMonth,
+                          }
                         : item,
                     ),
                   )
@@ -509,7 +519,16 @@ export function RegisterSplitEditor({
                   setSplitLines((current) =>
                     current.map((item) =>
                       item.id === line.id
-                        ? { ...item, inflow: value === 0 ? "" : value.toFixed(2), outflow: value > 0 ? "" : item.outflow }
+                        ? {
+                            ...item,
+                            inflow: value === 0 ? "" : value.toFixed(2),
+                            outflow: value > 0 ? "" : item.outflow,
+                            incomeBudgetMonth:
+                              value > 0 &&
+                              (item.categoryId ?? findCategoryOption(item.category, categoryOptions)?.id) === "__ready_to_assign__"
+                                ? item.incomeBudgetMonth ?? transactionDate?.slice(0, 7)
+                                : undefined,
+                          }
                         : item,
                     ),
                   )
@@ -632,6 +651,10 @@ export function RegisterSplitEditor({
                           category: value,
                           categoryId: findCategoryOption(value, categoryOptions)
                             ?.id,
+                          incomeBudgetMonth:
+                            findCategoryOption(value, categoryOptions)?.id === "__ready_to_assign__"
+                              ? item.incomeBudgetMonth ?? transactionDate?.slice(0, 7)
+                              : undefined,
                         }
                       : item,
                   ),
@@ -664,7 +687,13 @@ export function RegisterSplitEditor({
               setSplitLines((current) =>
                 current.map((item) =>
                   item.id === line.id
-                    ? { ...item, outflow: value === 0 ? "" : value.toFixed(2), inflow: value > 0 ? "" : item.inflow }
+                    ? {
+                        ...item,
+                        outflow: value === 0 ? "" : value.toFixed(2),
+                        inflow: value > 0 ? "" : item.inflow,
+                        incomeBudgetMonth:
+                          value > 0 ? undefined : item.incomeBudgetMonth,
+                      }
                     : item,
                 ),
               )
@@ -682,7 +711,16 @@ export function RegisterSplitEditor({
               setSplitLines((current) =>
                 current.map((item) =>
                   item.id === line.id
-                    ? { ...item, inflow: value === 0 ? "" : value.toFixed(2), outflow: value > 0 ? "" : item.outflow }
+                    ? {
+                        ...item,
+                        inflow: value === 0 ? "" : value.toFixed(2),
+                        outflow: value > 0 ? "" : item.outflow,
+                        incomeBudgetMonth:
+                          value > 0 &&
+                          (item.categoryId ?? findCategoryOption(item.category, categoryOptions)?.id) === "__ready_to_assign__"
+                            ? item.incomeBudgetMonth ?? transactionDate?.slice(0, 7)
+                            : undefined,
+                      }
                     : item,
                 ),
               )
