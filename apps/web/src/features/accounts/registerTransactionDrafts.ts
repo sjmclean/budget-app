@@ -6,6 +6,7 @@ import type { BudgetCategoryOption } from "../budget/budgetViewTypes";
 import { findCategoryOption } from "./registerCategoryMatching";
 import { type SplitLineDraft } from "./registerSplitDrafts";
 import { validateRegisterTransactionDraft } from "./registerTransactionValidation";
+import { validIncomeBudgetMonth } from "./incomeBudgetMonth";
 
 export interface RegisterTransactionDraftInput {
   date: string;
@@ -14,6 +15,7 @@ export interface RegisterTransactionDraftInput {
   transferAccountId?: string;
   category: string;
   incomeBudgetMonth?: string;
+  latestIncomeBudgetMonth?: string;
   memo: string;
   checkNumber: string;
   outflow: string;
@@ -53,6 +55,7 @@ function buildRegisterTransactionInput({
   transferAccountId,
   category,
   incomeBudgetMonth,
+  latestIncomeBudgetMonth,
   memo,
   checkNumber,
   outflow,
@@ -102,8 +105,11 @@ function buildRegisterTransactionInput({
 
   if (
     resolvedIncomeBudgetMonth &&
-    (!/^\d{4}-(0[1-9]|1[0-2])$/.test(resolvedIncomeBudgetMonth) ||
-      resolvedIncomeBudgetMonth < transactionMonth)
+    !validIncomeBudgetMonth(
+      resolvedIncomeBudgetMonth,
+      date,
+      latestIncomeBudgetMonth,
+    )
   ) {
     return null;
   }
