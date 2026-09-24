@@ -139,4 +139,19 @@ test("moves money from multiple categories and keeps effective history aligned w
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   await expect(page.getByLabel(`Available for ${names.target}: $100.00`)).toBeVisible();
   await expect(details.getByText(movementRoute, { exact: true })).toBeVisible();
+
+  await assign(page, names.source20, "20");
+  await assign(page, names.target, "110");
+
+  const manualRoute = `${names.source20} → ${names.target}`;
+  const manualMovementRow = details
+    .locator(".budget-category-details-movement-row")
+    .filter({ hasText: manualRoute });
+  await expect(manualMovementRow).toBeVisible();
+  await expect(manualMovementRow).toContainText("$10.00");
+
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(manualMovementRow).toBeHidden();
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect(manualMovementRow).toBeVisible();
 });
