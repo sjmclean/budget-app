@@ -39,6 +39,7 @@ export interface SqliteImportTransaction {
   readonly rawPayeeName: string | null;
   readonly categoryId: string | null;
   readonly categoryName: string | null;
+  readonly incomeBudgetMonth: string | null;
   readonly transferAccountId: string | null;
   readonly transferTransactionId: string | null;
   readonly splitLines: readonly SqliteImportSplitLine[];
