@@ -75,7 +75,7 @@ test("Budget header exposes rolling month navigation with a deliberate year sele
   );
   assert.match(
     budgetPageSource,
-    /<div className="budget-planning-title-line">[\s\S]*<h1>\{monthName\}<\/h1>[\s\S]*aria-label="Budget year"/,
+    /<div className="budget-planning-title-line">[\s\S]*<h1 aria-label=\{data\.monthLabel\}>\{monthName\}<\/h1>[\s\S]*aria-label="Budget year"/,
   );
   assert.match(
     budgetPageSource,
