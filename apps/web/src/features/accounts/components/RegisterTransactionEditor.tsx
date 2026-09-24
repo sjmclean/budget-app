@@ -950,6 +950,17 @@ export function TransactionEntryRow({
         })}
       </div>
 
+      {showIncomeBudgetMonth ? (
+        <div className="register-income-budget-month-panel" style={rowStyle}>
+          <IncomeBudgetMonthSelect
+            transactionDate={date}
+            latestAllowedMonth={latestIncomeBudgetMonth}
+            value={incomeBudgetMonth}
+            onChange={setIncomeBudgetMonth}
+          />
+        </div>
+      ) : null}
+
       {splitLines.length === 0 ? (
         <div className="register-entry-actions-panel register-entry-actions-panel-commit-only">
           {saveError ? (
@@ -1372,16 +1383,6 @@ export function TransactionEditRow({
           placeholder="Inflow"
         />
       </div>
-      {showIncomeBudgetMonth ? (
-        <div className="register-income-budget-month-panel" style={rowStyle}>
-          <IncomeBudgetMonthSelect
-            transactionDate={date}
-            latestAllowedMonth={latestIncomeBudgetMonth}
-            value={incomeBudgetMonth}
-            onChange={setIncomeBudgetMonth}
-          />
-        </div>
-      ) : null}
       {showIncomeBudgetMonth ? (
         <div className="register-income-budget-month-panel" style={rowStyle}>
           <IncomeBudgetMonthSelect
