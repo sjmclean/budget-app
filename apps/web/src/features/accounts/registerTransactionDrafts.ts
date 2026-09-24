@@ -109,6 +109,9 @@ function buildRegisterTransactionInput({
   if (resolvedSplitLines.some((line) => line === null)) {
     return null;
   }
+  const validatedSplitLines = resolvedSplitLines.filter(
+    (line): line is NonNullable<typeof line> => line !== null,
+  );
 
   const categoryName = category.trim();
   const categoryOption = findCategoryOption(categoryName, categoryOptions);
@@ -160,8 +163,8 @@ function buildRegisterTransactionInput({
     outflow: parsedOutflow,
     inflow: parsedInflow,
     splitLines:
-      resolvedSplitLines.length > 0
-        ? resolvedSplitLines
+      validatedSplitLines.length > 0
+        ? validatedSplitLines
         : undefined,
   };
 }
