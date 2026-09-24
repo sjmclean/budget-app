@@ -764,7 +764,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     : null;
 
   const applicationHistory = useApplicationHistory();
-  const moneyMovementHistory = useBudgetMoneyMovementHistory(budgetId);
+  const moneyMovementHistory = useBudgetMoneyMovementHistory(
+    budgetId,
+    data?.currencyCode,
+  );
 
   function prefetchMonth(month: string) {
     void prefetchBudgetMonthQuery({ budgetId, month }).catch(() => undefined);
