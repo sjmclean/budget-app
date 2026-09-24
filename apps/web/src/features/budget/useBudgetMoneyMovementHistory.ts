@@ -1,12 +1,11 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { applicationHistory } from "../history";
-import {
-  isBudgetMoneyMovementHistoryEntry,
-  type BudgetMoneyMovementHistoryEntry,
-} from "./budgetMoneyMovement";
+import type { BudgetMoneyMovementHistoryEntry } from "./budgetMoneyMovement";
+import { deriveBudgetMoneyMovementHistory } from "./budgetMoneyMovementHistory";
 
 export function useBudgetMoneyMovementHistory(
   budgetId: string | null | undefined,
+  currencyCode: string | null | undefined,
 ): readonly BudgetMoneyMovementHistoryEntry[] {
   const subscribe = useCallback(
     (listener: () => void) => applicationHistory.subscribe(budgetId, listener),
@@ -19,7 +18,7 @@ export function useBudgetMoneyMovementHistory(
   const entries = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   return useMemo(
-    () => entries.filter(isBudgetMoneyMovementHistoryEntry),
-    [entries],
+    () => deriveBudgetMoneyMovementHistory(entries, currencyCode),
+    [entries, currencyCode],
   );
 }
