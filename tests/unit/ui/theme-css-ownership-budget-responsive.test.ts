@@ -45,7 +45,11 @@ test("Budget owner consumes dynamic layout variables for the aligned grid family
 test("Budget owner contains medium, intermediate, and narrow responsive layouts", () => {
   assert.match(
     budget,
-    /@container budget-workspace-main \(min-width: 34rem\) and \(max-width: 44rem\)[\s\S]*"title summary"[\s\S]*width:\s*min\(16rem, 100%\)/,
+    /\.budget-planning-header\s*\{[\s\S]*grid-template-areas:[\s\S]*"months"[\s\S]*"title"[\s\S]*"summary"[\s\S]*"tabs"[\s\S]*"toolbar"/,
+  );
+  assert.match(
+    budget,
+    /@container budget-workspace-main \(min-width: 34rem\) and \(max-width: 44rem\)[\s\S]*\.budget-planning-summary-stack\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
   assert.match(
     budget,
