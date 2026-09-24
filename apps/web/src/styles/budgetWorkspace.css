@@ -1134,7 +1134,7 @@
   grid-area: months;
   min-width: 0;
   display: grid;
-  grid-template-columns: 2.2rem minmax(0, 1fr) 2.2rem;
+  grid-template-columns: 2.2rem auto minmax(0, 1fr) 2.2rem;
   align-items: center;
   gap: 0.55rem;
   padding: 0.15rem 0 0.55rem;
@@ -1271,13 +1271,6 @@
   min-width: 0;
   align-self: start;
   padding-top: 0.25rem;
-}
-
-.budget-planning-title-line {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  min-width: 0;
 }
 
 .budget-planning-title h1 {
@@ -1724,7 +1717,7 @@
 
   .budget-year-month-navigation {
     width: 100%;
-    grid-template-columns: 2.1rem minmax(0, 1fr) 2.1rem;
+    grid-template-columns: 2.1rem auto minmax(0, 1fr) 2.1rem;
     gap: 0.35rem;
     padding-bottom: 0.4rem;
     overflow: hidden;
