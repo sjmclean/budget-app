@@ -1,6 +1,6 @@
 # Product Roadmap
 
-*Last reconciled: 24 September 2026 against `master` at `7a637a4cd631e9199dae1ca9c4c55be315f7e64b`.*
+*Last reconciled: 24 September 2026 against `master` at `eaee3903a90613674c2266e7119854ad7e84abf8`.*
 
 This is the **single authoritative product roadmap** for Budget App.
 
@@ -199,7 +199,7 @@ Detailed operational reference:
 This is the **only active ordering list**. Deal with item **1** first unless a
 blocking correctness/security defect requires immediate interruption.
 
-## 1 — Budget: wire Move Money + user-visible movement history — ACTIVE / NEXT
+## 1 — Budget: wire Move Money + user-visible movement history — COMPLETE
 
 The Category Details `Move Money` control is deliberately disabled today.
 
@@ -222,7 +222,7 @@ Requirements:
 - focused unit/integration/browser regression coverage before enabling the
   Category Details action.
 
-## 2 — Budget: complete Income for <Month> end-to-end — PLANNED
+## 2 — Budget: complete Income for <Month> end-to-end — ACTIVE / NEXT
 
 The domain has long contained month-level income concepts, but the current
 authoritative local-first projection still derives Ready to Assign income from
