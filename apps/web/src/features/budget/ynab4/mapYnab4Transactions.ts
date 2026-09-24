@@ -303,7 +303,9 @@ export function mapYnab4SplitLines(
     const lineId = firstString(line.entityId, line.id) ?? `split-${index}`;
     const categoryId = suppressBudgetCategories || transferAccountId
       ? null
-      : sourceCategoryKind === "income" || sourceCategoryKind === "split"
+      : sourceCategoryKind === "immediate-income" ||
+          sourceCategoryKind === "deferred-income" ||
+          sourceCategoryKind === "split"
         ? READY_TO_ASSIGN_CATEGORY_ID
         : resolveYnab4CategoryId(
             maps,
