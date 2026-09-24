@@ -55,7 +55,6 @@ function buildRegisterTransactionInput({
   transferAccountId,
   category,
   incomeBudgetMonth,
-  latestIncomeBudgetMonth,
   memo,
   checkNumber,
   outflow,
