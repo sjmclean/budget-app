@@ -2,6 +2,8 @@ export interface RegisterSplitLineView {
   id: string;
   category: string;
   categoryId?: string;
+  /** Budget month receiving Ready to Assign income; transaction date remains unchanged. */
+  incomeBudgetMonth?: string;
   memo?: string;
   inflow: number;
   outflow: number;
@@ -86,6 +88,8 @@ export interface NewRegisterTransactionInput {
   rawPayee?: string;
   category: string;
   categoryId?: string;
+  /** Budget month receiving Ready to Assign income; transaction date remains unchanged. */
+  incomeBudgetMonth?: string;
   transferAccountId?: string;
   memo?: string;
   checkNumber?: string;
@@ -108,6 +112,8 @@ export interface UpdateRegisterTransactionInput {
   rawPayee?: string;
   category: string;
   categoryId?: string;
+  /** Budget month receiving Ready to Assign income; transaction date remains unchanged. */
+  incomeBudgetMonth?: string;
   transferAccountId?: string;
   memo?: string;
   checkNumber?: string;
