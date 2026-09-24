@@ -1105,7 +1105,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
               <div className="budget-planning-title">
                 <div>
                   <div className="budget-planning-title-line">
-                    <h1>{monthName}</h1>
+                    <h1 aria-label={data.monthLabel}>{monthName}</h1>
                     <label className="budget-year-picker">
                       <span className="sr-only">Budget year</span>
                       <select
