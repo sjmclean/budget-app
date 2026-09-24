@@ -69,7 +69,10 @@ import {
   type BudgetGridStyle,
 } from "../features/budget/BudgetWorkspaceGroup";
 import { OrganiseCategoriesDialog } from "../features/budget/OrganiseCategoriesDialog";
+import { BudgetMoveMoneyDialog } from "../features/budget/BudgetMoveMoneyDialog";
 import { BudgetVirtualizedGroupList } from "../features/budget/BudgetVirtualizedGroupList";
+import { useBudgetMoneyMovementHistory } from "../features/budget/useBudgetMoneyMovementHistory";
+import type { BudgetMoneyMovementHistoryEntry } from "../features/budget/budgetMoneyMovement";
 import { CategoryGoalInspectorSection } from "../features/goals/CategoryGoalInspectorSection";
 const BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX = "budget-app.budget-table-layout.v1";
 const BUDGET_COLLAPSED_GROUPS_STORAGE_KEY_PREFIX =
@@ -228,6 +231,8 @@ function CategoryDetailsPanel({
   onOpenActivity,
   onOpenManageCategory,
   onOpenCoverOverspending,
+  onOpenMoveMoney,
+  movementHistory,
   onClose,
 }: {
   budgetId: string;
@@ -241,6 +246,8 @@ function CategoryDetailsPanel({
   onOpenActivity: (categoryId: string) => void;
   onOpenManageCategory: (categoryId: string) => void;
   onOpenCoverOverspending: (categoryId: string) => void;
+  onOpenMoveMoney: (categoryId: string) => void;
+  movementHistory: readonly BudgetMoneyMovementHistoryEntry[];
   onClose: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<CategoryDetailsTab>("overview");
@@ -264,6 +271,7 @@ function CategoryDetailsPanel({
     isMoneyNegative(category.available);
   const goalTarget = goal?.goal.targetAmount ?? 0;
   const goalProgress = goal?.percentComplete ?? 0;
+  const recentMovements = movementHistory.slice(-5).reverse();
 
   return (
     <aside
@@ -407,6 +415,37 @@ function CategoryDetailsPanel({
               ) : null}
             </section>
 
+            <section className="budget-category-details-movements">
+              <div className="budget-category-details-section-heading">
+                <strong>Money movements</strong>
+              </div>
+              {recentMovements.length > 0 ? (
+                <div className="budget-category-details-movement-list">
+                  {recentMovements.map((entry) => (
+                    <div className="budget-category-details-movement-row" key={entry.id}>
+                      <span>
+                        {formatDateForDisplay(entry.occurredAt, dateFormat, "short")}
+                      </span>
+                      <span className="budget-category-details-movement-route">
+                        {entry.payload.sources
+                          .map((source) => source.categoryName)
+                          .join(" + ")}
+                        {" → "}
+                        {entry.payload.destinationCategoryName}
+                      </span>
+                      <strong>
+                        {formatMoney(entry.payload.amount, entry.payload.currencyCode)}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="budget-category-details-empty">
+                  No effective money movements this month.
+                </p>
+              )}
+            </section>
+
             {!isCreditCardPaymentCategory ? (
               <section className="budget-category-details-actions">
                 <strong>Actions</strong>
@@ -421,8 +460,9 @@ function CategoryDetailsPanel({
                 <button
                   className="button button-secondary"
                   type="button"
-                  disabled
-                  title="Move Money is not yet available from Category Details."
+                  onClick={() => onOpenMoveMoney(category.id)}
+                  disabled={category.isArchived}
+                  title={category.isArchived ? "Restore this category before moving money." : undefined}
                 >
                   Move Money
                 </button>
@@ -686,6 +726,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     readArchivedCategoriesExpanded(budgetId),
   );
   const [isOrganiserOpen, setIsOrganiserOpen] = useState(false);
+  const [moveMoneyDestinationCategoryId, setMoveMoneyDestinationCategoryId] =
+    useState<string | null>(null);
 
   const {
     data,
@@ -699,6 +741,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     assignGoalRecommendation,
     setCategoryOverspendingHandling,
     coverOverspending,
+    moveMoney,
     renameCategory,
     setCategoryArchived,
     moveCategory,
@@ -721,6 +764,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     : null;
 
   const applicationHistory = useApplicationHistory();
+  const moneyMovementHistory = useBudgetMoneyMovementHistory(budgetId);
 
   function prefetchMonth(month: string) {
     void prefetchBudgetMonthQuery({ budgetId, month }).catch(() => undefined);
@@ -879,7 +923,20 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
       };
     },
   );
-  const carriedForward = authoritativeSummary.carriedForwardReadyToAssign;
+  const selectedCategoryMovementHistory = visibleSelectedCategory
+    ? moneyMovementHistory.filter(
+        (entry) =>
+          entry.payload.month === selectedMonth &&
+          (
+            entry.payload.destinationCategoryId === visibleSelectedCategory.id ||
+            entry.payload.sources.some(
+              (source) => source.categoryId === visibleSelectedCategory.id,
+            )
+          ),
+      )
+    : [];
+
+    const carriedForward = authoritativeSummary.carriedForwardReadyToAssign;
   const previousOverspending = authoritativeSummary.previousOverspending;
   const incomeForMonth = authoritativeSummary.incomeForMonth;
 
@@ -1329,10 +1386,25 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             onOpenActivity={openActivityDrilldown}
             onOpenManageCategory={openCategorySettings}
             onOpenCoverOverspending={openCoverOverspendingMenu}
+            onOpenMoveMoney={setMoveMoneyDestinationCategoryId}
+            movementHistory={selectedCategoryMovementHistory}
             onClose={clearSelection}
           />
         ) : null}
       </WorkspaceLayout>
+
+      {moveMoneyDestinationCategoryId ? (
+        <BudgetMoveMoneyDialog
+          groups={data.categoryGroups}
+          initialDestinationCategoryId={moveMoneyDestinationCategoryId}
+          currencyCode={data.currencyCode}
+          onClose={() => setMoveMoneyDestinationCategoryId(null)}
+          onMoveMoney={(input) => {
+            setMoveMoneyDestinationCategoryId(null);
+            moveMoney(input);
+          }}
+        />
+      ) : null}
 
       {isOrganiserOpen ? (
         <OrganiseCategoriesDialog
