@@ -145,3 +145,24 @@ test("an insertion beyond a temporarily incomplete boundary is left to authorita
   assert.equal(result.refillLimit, 1);
   assert.equal(result.refillOffset, 149);
 });
+
+
+test("SQLite register mapping preserves split Income for Month", () => {
+  const source: AccountTransactionRow = {
+    ...row("split-income", "2026-09-24", 10000),
+    categoryName: "Split",
+    splitLines: [{
+      id: "income-line",
+      categoryId: "__ready_to_assign__",
+      categoryName: "Ready to Assign",
+      incomeBudgetMonth: "2026-10",
+      transferAccountId: null,
+      transferTransactionId: null,
+      memo: null,
+      amount: 10000,
+    }],
+  };
+
+  const mapped = mapSqliteTransactions([source], 10000);
+  assert.equal(mapped[0]?.splitLines?.[0]?.incomeBudgetMonth, "2026-10");
+});

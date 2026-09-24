@@ -977,6 +977,7 @@ export function mapSqliteTransactions(
                 ? formatTransferPayee(readTransferAccountName(line))
                 : line.categoryName ?? "Uncategorised",
               categoryId: line.categoryId ?? undefined,
+              incomeBudgetMonth: line.incomeBudgetMonth ?? undefined,
               memo: line.memo ?? undefined,
               inflow: amount > 0 ? amount : 0,
               outflow: amount < 0 ? -amount : 0,

@@ -71,6 +71,7 @@ export interface AccountTransactionSplitRow {
   readonly id: string;
   readonly categoryId: string | null;
   readonly categoryName: string | null;
+  readonly incomeBudgetMonth?: string | null;
   readonly transferAccountId: string | null;
   readonly transferAccountParticipation?: "on-budget" | "off-budget" | null;
   readonly transferTransactionId: string | null;
