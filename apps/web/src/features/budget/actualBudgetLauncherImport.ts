@@ -393,6 +393,7 @@ function mapActualBudgetForLocalFirst(
         rawPayeeName: transaction.payee ?? null,
         categoryId: transaction.categoryId ?? null,
         categoryName: transaction.category ?? null,
+        incomeBudgetMonth: transaction.incomeBudgetMonth ?? null,
         transferAccountId: transaction.transferAccountId ?? null,
         transferTransactionId: null,
         generatedFromSchedule: false,
