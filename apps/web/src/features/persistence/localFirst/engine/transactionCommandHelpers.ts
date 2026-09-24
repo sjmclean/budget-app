@@ -22,6 +22,10 @@ export async function transactionRecord(id: string, input: TransactionWriteInput
     payeeName: input.payeeName ?? null, rawPayeeName: input.rawPayee ?? existing?.rawPayeeName ?? null,
     categoryId: input.categoryId ?? null,
     categoryName: input.categoryName?.trim() || (existing?.categoryId === input.categoryId ? existing?.categoryName : null) || (input.transferAccountId ? "Transfer" : null),
+    incomeBudgetMonth:
+      input.incomeBudgetMonth ??
+      (existing?.categoryId === input.categoryId ? existing?.incomeBudgetMonth : null) ??
+      null,
     transferAccountId: input.transferAccountId ?? existing?.transferAccountId ?? null,
     transferTransactionId: existing?.transferTransactionId ?? null,
     generatedFromSchedule: input.generatedFromSchedule ?? existing?.generatedFromSchedule ?? false,
@@ -30,6 +34,7 @@ export async function transactionRecord(id: string, input: TransactionWriteInput
     splitLines: (input.splitLines ?? []).map((split) => ({
       id: split.id, categoryId: split.categoryId ?? null,
       categoryName: split.transferAccountId ? "Transfer" : split.categoryName?.trim() || null,
+      incomeBudgetMonth: split.incomeBudgetMonth ?? null,
       transferAccountId: split.transferAccountId ?? null,
       transferTransactionId: split.transferTransactionId ?? null,
       memo: split.memo ?? null, amount: split.amount,
