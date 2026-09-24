@@ -3,6 +3,7 @@ export type {
   UndoRedoAction,
   UndoRedoControllerOptions,
   UndoRedoFailureReason,
+  UndoRedoHistoryEntry,
   UndoRedoKeyboardAction,
   UndoRedoKeyboardActions,
   UndoRedoKeyboardEventLike,
