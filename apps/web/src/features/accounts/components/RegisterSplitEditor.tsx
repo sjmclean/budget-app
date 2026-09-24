@@ -20,6 +20,7 @@ import {
 } from "../registerSplitDrafts";
 import { findCategoryOption } from "../registerCategoryMatching";
 import { MoneyInput } from "../../money/MoneyInput";
+import { IncomeBudgetMonthSelect } from "./IncomeBudgetMonthSelect";
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -38,6 +39,8 @@ export function RegisterSplitEditor({
   visibleColumnIds,
   rowStyle,
   layoutMode,
+  transactionDate,
+  latestIncomeBudgetMonth,
   onCreateCategory,
   children,
 }: {
@@ -52,6 +55,8 @@ export function RegisterSplitEditor({
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
+  transactionDate: string;
+  latestIncomeBudgetMonth: string;
   onCreateCategory?: (
     input: RegisterInlineCategoryCreateInput,
   ) => Promise<BudgetCategoryOption>;
@@ -83,6 +88,37 @@ export function RegisterSplitEditor({
         : visibleColumnIds.includes("outflow")
           ? "outflow"
           : "inflow";
+
+  function isReadyToAssignIncome(line: SplitLineDraft): boolean {
+    const categoryId =
+      line.categoryId ?? findCategoryOption(line.category, categoryOptions)?.id;
+    return (
+      categoryId === "__ready_to_assign__" &&
+      parseRegisterMoney(line.inflow) > 0 &&
+      parseRegisterMoney(line.outflow) === 0
+    );
+  }
+
+  function renderIncomeBudgetMonth(line: SplitLineDraft) {
+    if (!isReadyToAssignIncome(line)) return null;
+    return (
+      <IncomeBudgetMonthSelect
+        transactionDate={transactionDate}
+        latestAllowedMonth={latestIncomeBudgetMonth}
+        value={line.incomeBudgetMonth ?? transactionDate.slice(0, 7)}
+        onChange={(value) =>
+          setSplitLines((current) =>
+            current.map((item) =>
+              item.id === line.id
+                ? { ...item, incomeBudgetMonth: value }
+                : item,
+            ),
+          )
+        }
+        className="register-split-income-budget-month"
+      />
+    );
+  }
 
   function renderSplitRemoveButton(line: SplitLineDraft) {
     return (
@@ -158,6 +194,10 @@ export function RegisterSplitEditor({
                       category: value,
                       categoryId: findCategoryOption(value, categoryOptions)
                         ?.id,
+                      incomeBudgetMonth:
+                        findCategoryOption(value, categoryOptions)?.id === "__ready_to_assign__"
+                          ? item.incomeBudgetMonth ?? transactionDate.slice(0, 7)
+                          : undefined,
                     }
                   : item,
               ),
@@ -203,7 +243,12 @@ export function RegisterSplitEditor({
             setSplitLines((current) =>
               current.map((item) =>
                 item.id === line.id
-                  ? { ...item, outflow: value === 0 ? "" : value.toFixed(2), inflow: value > 0 ? "" : item.inflow }
+                  ? {
+                      ...item,
+                      outflow: value === 0 ? "" : value.toFixed(2),
+                      inflow: value > 0 ? "" : item.inflow,
+                      incomeBudgetMonth: value > 0 ? undefined : item.incomeBudgetMonth,
+                    }
                   : item,
               ),
             )
@@ -228,7 +273,16 @@ export function RegisterSplitEditor({
             setSplitLines((current) =>
               current.map((item) =>
                 item.id === line.id
-                  ? { ...item, inflow: value === 0 ? "" : value.toFixed(2), outflow: value > 0 ? "" : item.outflow }
+                  ? {
+                      ...item,
+                      inflow: value === 0 ? "" : value.toFixed(2),
+                      outflow: value > 0 ? "" : item.outflow,
+                      incomeBudgetMonth:
+                        value > 0 &&
+                        (item.categoryId ?? findCategoryOption(item.category, categoryOptions)?.id) === "__ready_to_assign__"
+                          ? item.incomeBudgetMonth ?? transactionDate.slice(0, 7)
+                          : undefined,
+                    }
                   : item,
               ),
             )
@@ -462,6 +516,7 @@ export function RegisterSplitEditor({
                 onMoneyKeyDown={(event) => addSplitOnTab(event, line)}
               />
             </div>
+            {renderIncomeBudgetMonth(line)}
           </div>
         ))}
 
@@ -633,6 +688,7 @@ export function RegisterSplitEditor({
             placeholder="Inflow"
             onMoneyKeyDown={(event) => addSplitOnTab(event, line)}
           />
+          {renderIncomeBudgetMonth(line)}
         </div>
       ))}
 
