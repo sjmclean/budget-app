@@ -145,7 +145,12 @@ test("category details keeps daily budgeting actions backed by existing workflow
   assert.match(details, /onOpenCoverOverspending\(category\.id\)/);
   assert.match(details, /disabled=\{!canCoverOverspending\}/);
   assert.match(details, /Move Money/);
-  assert.match(details, /title="Move Money is not yet available from Category Details\."/);
+  assert.match(details, /onOpenMoveMoney\(category\.id\)/);
+  assert.match(details, /disabled=\{category\.isArchived\}/);
+  assert.doesNotMatch(
+    details,
+    /Move Money is not yet available from Category Details\./,
+  );
   assert.doesNotMatch(details, /Next payment|View schedule/);
 });
 
