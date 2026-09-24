@@ -842,24 +842,30 @@ function BudgetMultiMonthPane({
             <strong>{formatMoney(planningReadyToAssign, data.currencyCode)}</strong>
           </div>
         </div>
-        <dl className="budget-ready-summary-breakdown">
-          <div>
-            <dt>Carried forward</dt>
-            <dd>{formatMoney(summary.carriedForwardReadyToAssign, data.currencyCode)}</dd>
-          </div>
-          <div>
-            <dt>Previous overspending</dt>
-            <dd>{formatMoney(summary.previousOverspending, data.currencyCode)}</dd>
-          </div>
-          <div>
-            <dt>Income for {monthName}</dt>
-            <dd>{formatMoney(summary.incomeForMonth, data.currencyCode)}</dd>
-          </div>
-          <div>
-            <dt>Assigned in {monthName}</dt>
-            <dd>{formatMoney(-data.totalAssigned, data.currencyCode)}</dd>
-          </div>
-        </dl>
+        {summary ? (
+          <dl className="budget-ready-summary-breakdown">
+            <div>
+              <dt>Carried forward</dt>
+              <dd>{formatMoney(summary.carriedForwardReadyToAssign, data.currencyCode)}</dd>
+            </div>
+            <div>
+              <dt>Previous overspending</dt>
+              <dd>{formatMoney(summary.previousOverspending, data.currencyCode)}</dd>
+            </div>
+            <div>
+              <dt>Income for {monthName}</dt>
+              <dd>{formatMoney(summary.incomeForMonth, data.currencyCode)}</dd>
+            </div>
+            <div>
+              <dt>Assigned in {monthName}</dt>
+              <dd>{formatMoney(-data.totalAssigned, data.currencyCode)}</dd>
+            </div>
+          </dl>
+        ) : (
+          <p className="budget-multi-month-summary-unavailable">
+            Budget breakdown unavailable for this month.
+          </p>
+        )}
       </div>
 
       <div className="budget-workspace-table-head" style={gridStyle}>
