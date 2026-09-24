@@ -1,4 +1,5 @@
-import type { UndoableCommand } from "../history";
+import type { UndoableCommand, UndoRedoHistoryEntry } from "../history";
+import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 import type {
   BudgetCategoryAssignedValue,
   BudgetMoneyMovementContext,
@@ -15,6 +16,27 @@ export interface BudgetAssignmentChange {
 export interface BudgetAssignmentChangesCommandInput {
   month: string;
   changes: BudgetAssignmentChange[];
+}
+
+export interface BudgetAssignmentHistoryChange {
+  readonly categoryId: string;
+  readonly categoryName: string;
+  readonly originalAssigned: number;
+  readonly finalAssigned: number;
+}
+
+export interface BudgetAssignmentHistoryEntry extends UndoRedoHistoryEntry {
+  readonly kind: "budget-assignment-changes";
+  readonly payload: {
+    readonly month: string;
+    readonly changes: readonly BudgetAssignmentHistoryChange[];
+  };
+}
+
+export function isBudgetAssignmentHistoryEntry(
+  entry: UndoRedoHistoryEntry,
+): entry is BudgetAssignmentHistoryEntry {
+  return entry.kind === "budget-assignment-changes";
 }
 
 function validateMonth(month: string): void {
@@ -75,9 +97,15 @@ export function createBudgetAssignmentChangesCommand(
     (change) => normaliseMoney(change.originalAssigned) !== normaliseMoney(change.finalAssigned),
   );
 
+  let historyEntry: BudgetAssignmentHistoryEntry | null = null;
+  const commandId = `budget-assignment-changes:${createRuntimeUuid()}`;
+
   return {
-    id: `budget-assignment-changes:${input.month}:${Date.now()}`,
+    id: commandId,
     label: createLabel(meaningfulChanges),
+    get historyEntry() {
+      return historyEntry;
+    },
     async execute(context) {
       validateMonth(input.month);
       validateChanges(meaningfulChanges);
@@ -85,6 +113,20 @@ export function createBudgetAssignmentChangesCommand(
         month: input.month,
         assignments: toAssignments(meaningfulChanges, "finalAssigned"),
       });
+      historyEntry = {
+        id: commandId,
+        kind: "budget-assignment-changes",
+        occurredAt: new Date().toISOString(),
+        payload: {
+          month: input.month,
+          changes: meaningfulChanges.map((change) => ({
+            categoryId: change.categoryId,
+            categoryName: change.categoryName,
+            originalAssigned: normaliseMoney(change.originalAssigned),
+            finalAssigned: normaliseMoney(change.finalAssigned),
+          })),
+        },
+      };
     },
     async undo(context) {
       await context.setCategoryAssignedValues({
