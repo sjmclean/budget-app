@@ -2372,6 +2372,18 @@
     },
     {
       "kind": "localStorage",
+      "path": "apps/web/src/pages/BudgetPage.tsx",
+      "line": 147,
+      "classification": "review-required"
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/pages/BudgetPage.tsx",
+      "line": 156,
+      "classification": "review-required"
+    },
+    {
+      "kind": "localStorage",
       "path": "apps/web/src/pages/PayeeManagementPage.tsx",
       "line": 82,
       "classification": "review-required"
