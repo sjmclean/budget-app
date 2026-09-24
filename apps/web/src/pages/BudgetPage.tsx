@@ -132,7 +132,7 @@ function writeArchivedCategoriesExpanded(budgetId: string, isExpanded: boolean) 
 }
 
 const BUDGET_COLUMN_DEFINITIONS: readonly TableColumnDefinition<BudgetColumnId>[] = [
-  { id: "category", label: "Category", template: "minmax(15rem, 1fr)", widthRem: 15 },
+  { id: "category", label: "Category", template: "minmax(15rem, 42rem)", widthRem: 15 },
   { id: "assigned", label: "Assigned", template: "7rem", widthRem: 7 },
   { id: "activity", label: "Activity", template: "7rem", widthRem: 7 },
   { id: "available", label: "Available", template: "7rem", widthRem: 7 },
