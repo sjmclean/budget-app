@@ -783,7 +783,10 @@ function BudgetVisibleMonthToggle({
 }
 
 function BudgetMultiMonthPane({
+  month,
   data,
+  selectedCategoryId,
+  onSelectCategory,
   updateAssigned,
   overassignedCategoryIds,
   collapsedGroupIds,
@@ -791,7 +794,10 @@ function BudgetMultiMonthPane({
   onToggleGroup,
   onToggleArchived,
 }: {
+  month: string;
   data: BudgetMonthView;
+  selectedCategoryId: string | null;
+  onSelectCategory: (month: string, categoryId: string) => void;
   updateAssigned: (categoryId: string, value: number) => void;
   overassignedCategoryIds: string[];
   collapsedGroupIds: ReadonlySet<string>;
@@ -889,9 +895,9 @@ function BudgetMultiMonthPane({
             <BudgetGroup
               group={group}
               currencyCode={data.currencyCode}
-              selectedCategoryId={null}
+              selectedCategoryId={selectedCategoryId}
               overassignedCategoryIds={overassignedCategoryIds}
-              onSelectCategory={() => undefined}
+              onSelectCategory={(categoryId) => onSelectCategory(month, categoryId)}
               onAssignedChange={updateAssigned}
               onActivityClick={() => undefined}
               isBudgetColumnVisible={() => true}
@@ -922,6 +928,8 @@ function BudgetMultiMonthPane({
 function BudgetFutureMonthPane({
   budgetId,
   month,
+  selectedCategoryId,
+  onSelectCategory,
   collapsedGroupIds,
   archivedCategoriesExpanded,
   onToggleGroup,
@@ -929,6 +937,8 @@ function BudgetFutureMonthPane({
 }: {
   budgetId: string;
   month: string;
+  selectedCategoryId: string | null;
+  onSelectCategory: (month: string, categoryId: string) => void;
   collapsedGroupIds: ReadonlySet<string>;
   archivedCategoriesExpanded: boolean;
   onToggleGroup: (groupId: string) => void;
@@ -947,7 +957,10 @@ function BudgetFutureMonthPane({
 
   return (
     <BudgetMultiMonthPane
+      month={month}
       data={workspace.data}
+      selectedCategoryId={selectedCategoryId}
+      onSelectCategory={onSelectCategory}
       updateAssigned={workspace.updateAssigned}
       overassignedCategoryIds={workspace.overassignedCategoryIds}
       collapsedGroupIds={collapsedGroupIds}
@@ -1123,6 +1136,13 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   function changeVisibleMonthCount(count: number) {
     setPreferredVisibleMonths(count);
     writePreferredVisibleBudgetMonths(budgetId, count);
+  }
+
+  function selectVisibleMonthCategory(month: string, categoryId: string) {
+    selectCategory(categoryId);
+    if (month !== selectedMonth) {
+      setSelectedMonth(month);
+    }
   }
 
   function toggleBudgetGroup(groupId: string) {
@@ -1406,7 +1426,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           "budget-workspace-screen",
           "budget-workspace-layout",
           isMultiMonthView ? "budget-workspace-screen-multi-month" : "",
-          visibleSelectedCategory && visibleSelectedGroup && !isMultiMonthView
+          visibleSelectedCategory && visibleSelectedGroup
             ? "budget-workspace-layout-details-open"
             : "",
         ].filter(Boolean).join(" ")}
@@ -1780,7 +1800,10 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
               style={{ "--budget-visible-month-count": visibleMonthCount } as CSSProperties}
             >
               <BudgetMultiMonthPane
+                month={selectedMonth}
                 data={data}
+                selectedCategoryId={visibleSelectedCategory?.id ?? null}
+                onSelectCategory={selectVisibleMonthCategory}
                 updateAssigned={updateAssigned}
                 overassignedCategoryIds={overassignedCategoryIds}
                 collapsedGroupIds={collapsedGroupIds}
@@ -1799,6 +1822,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   key={month}
                   budgetId={budgetId}
                   month={month}
+                  selectedCategoryId={null}
+                  onSelectCategory={selectVisibleMonthCategory}
                   collapsedGroupIds={collapsedGroupIds}
                   archivedCategoriesExpanded={archivedCategoriesExpanded}
                   onToggleGroup={toggleBudgetGroup}
@@ -1864,7 +1889,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           )}
         </main>
 
-        {visibleSelectedCategory && visibleSelectedGroup && !isMultiMonthView ? (
+        {visibleSelectedCategory && visibleSelectedGroup ? (
           <CategoryDetailsPanel
             budgetId={budgetId}
             month={selectedMonth}
