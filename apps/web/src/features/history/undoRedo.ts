@@ -121,7 +121,12 @@ export class UndoRedoController<TContext = void> {
     commandIds: readonly string[],
     replacement: UndoableCommand<TContext>,
   ): boolean {
-    if (this.busy || commandIds.length === 0 || commandIds.length > this.undoStack.length) {
+    if (
+      this.busy ||
+      this.redoStack.length > 0 ||
+      commandIds.length === 0 ||
+      commandIds.length > this.undoStack.length
+    ) {
       return false;
     }
 
