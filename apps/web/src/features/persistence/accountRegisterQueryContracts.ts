@@ -658,6 +658,7 @@ export interface TransactionWriteInput extends TransactionTarget {
   readonly rawPayee?: string;
   readonly categoryId?: string;
   readonly categoryName?: string;
+  readonly incomeBudgetMonth?: string;
   readonly memo?: string;
   readonly checkNumber?: string;
   readonly payeeName?: string;
@@ -673,6 +674,7 @@ export interface TransactionSplitWriteInput {
   readonly id: string;
   readonly categoryId?: string;
   readonly categoryName?: string;
+  readonly incomeBudgetMonth?: string;
   readonly transferAccountId?: string;
   readonly transferTransactionId?: string;
   readonly memo?: string;
