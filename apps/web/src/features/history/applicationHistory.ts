@@ -21,6 +21,8 @@ export interface ApplicationHistoryServiceOptions<TContext> {
 
 export type ApplicationHistoryActionListener = (result: UndoRedoResult) => void;
 
+const EMPTY_EFFECTIVE_HISTORY_ENTRIES: readonly UndoRedoHistoryEntry[] = [];
+
 const EMPTY_SNAPSHOT: UndoRedoSnapshot = {
   canUndo: false,
   canRedo: false,
@@ -113,9 +115,10 @@ export class ApplicationHistoryService<TContext> {
     budgetId: string | null | undefined,
   ): readonly UndoRedoHistoryEntry[] {
     if (!budgetId?.trim()) {
-      return [];
+      return EMPTY_EFFECTIVE_HISTORY_ENTRIES;
     }
-    return this.controllers.get(budgetId.trim())?.getEffectiveHistoryEntries() ?? [];
+    return this.controllers.get(budgetId.trim())?.getEffectiveHistoryEntries() ??
+      EMPTY_EFFECTIVE_HISTORY_ENTRIES;
   }
 
   getSnapshot(budgetId: string | null | undefined): UndoRedoSnapshot {
