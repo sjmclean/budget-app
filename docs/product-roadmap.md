@@ -739,6 +739,14 @@ Remaining review/work:
 - selective E2E coverage;
 - **wire the Category Details `Move Money` action to a real generic money-movement workflow**. It must support ordinary category-to-category movement rather than reusing Cover Overspending semantics, preserve the existing local-first command/history architecture, and include focused interaction/regression coverage before the disabled control is enabled;
 - **add Move Money history**. Reuse the existing undoable budget money-movement/Application History command path for undo/redo, and add a compact user-visible history of currently effective money movements. Each entry should record at minimum the date, amount, source category/categories and destination category. Undoing a move should remove its history entry; redoing it should restore the entry. Do not add separate "undone" audit events. History must be derived from the same successful money-movement command rather than maintained as a second financial authority.
+- **complete Income for <Month> end-to-end**. Preserve the real transaction date for account balance, reconciliation and cash-flow history while allowing Ready to Assign income to be allocated to a user-selected budget month. Add an explicit local-first, projection-authoritative income-allocation fact rather than changing transaction dates or creating fake future transactions. Wire persistence, projection invalidation/cache behaviour, transaction and split editing, import migration (including YNAB4 deferred-income semantics), delete/edit handling, undo/redo and regression coverage. The UX should expose a clear `Budget in` month selector for Ready to Assign income, with safe rules for current/future months and split income.
+- **review/revisit the Budget header information architecture after Income for <Month> is complete**. Reassess the Ready to Assign breakdown and Next Month card against the richer future-income model. Candidate Next Month content is `Income for <month>`, `Assigned in <month>`, `Available in <month>` and the resulting projected Ready to Assign / balanced / overbudget state. Do not show future `Activity` unless the product deliberately introduces projected/scheduled activity semantics. Revalidate desktop, tablet and mobile hierarchy rather than adding fields simply because space is available.
+
+### Budget header design reference
+
+The current visual direction deliberately keeps the selected month title above the financial cards, gives Ready to Assign a stronger coloured treatment, and keeps Next Month compact and subordinate. The reference below also documents the later Income for <Month> and header-review questions.
+
+![Budget header review and Income for Month design reference](images/budget-header-review-income-for-month.jpg)
 
 Keep existing Budget virtualization.
 
