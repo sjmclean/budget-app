@@ -858,9 +858,11 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const coverOptions = buildOverspendingCoverOptions(data.categoryGroups);
   const monthName = data.monthLabel.split(" ")[0] ?? data.monthLabel;
   const selectedYear = Number(selectedMonth.slice(0, 4));
+  const firstSelectableYear = Math.min(1900, selectedYear);
+  const lastSelectableYear = Math.max(2100, selectedYear);
   const selectableYears = Array.from(
-    { length: 41 },
-    (_, index) => selectedYear - 20 + index,
+    { length: lastSelectableYear - firstSelectableYear + 1 },
+    (_, index) => firstSelectableYear + index,
   );
   const navigationMonths = getBudgetMonthWindow(selectedMonth).map(
     (value, index) => {
@@ -1047,13 +1049,34 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 >
                   ‹
                 </button>
+                <label className="budget-year-picker">
+                  <span className="sr-only">Budget year</span>
+                  <select
+                    className="budget-year-select"
+                    value={selectedYear}
+                    onChange={(event) => {
+                      const nextYear = event.currentTarget.value;
+                      setSelectedMonth((currentMonth) =>
+                        `${nextYear}-${currentMonth.slice(5, 7)}`,
+                      );
+                    }}
+                    aria-label="Budget year"
+                    title="Select budget year"
+                  >
+                    {selectableYears.map((year) => (
+                      <option value={year} key={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <div className="budget-month-strip">
                   {navigationMonths.map(({ label, value, year, offset, distance }) => {
                     const isSelected = offset === 0;
                     const showWarning =
                       value === nextMonth &&
                       nextMonthOutlook?.status === "overbudget";
-                    const showYear = isSelected || value.endsWith("-01");
+                    const showYear = value.endsWith("-01") && year !== selectedYear;
 
                     return (
                       <button
@@ -1104,30 +1127,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
               <div className="budget-planning-title">
                 <div>
-                  <div className="budget-planning-title-line">
-                    <h1 aria-label={data.monthLabel}>{monthName}</h1>
-                    <label className="budget-year-picker">
-                      <span className="sr-only">Budget year</span>
-                      <select
-                        className="budget-year-select"
-                        value={selectedYear}
-                        onChange={(event) => {
-                          const nextYear = event.currentTarget.value;
-                          setSelectedMonth((currentMonth) =>
-                            `${nextYear}-${currentMonth.slice(5, 7)}`,
-                          );
-                        }}
-                        aria-label="Budget year"
-                        title="Select budget year"
-                      >
-                        {selectableYears.map((year) => (
-                          <option value={year} key={year}>
-                            {year}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
+                  <h1>{data.monthLabel}</h1>
                   <span>Monthly Budget</span>
                 </div>
               </div>
