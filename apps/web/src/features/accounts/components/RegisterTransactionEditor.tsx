@@ -993,6 +993,8 @@ export function TransactionEntryRow({
         currencyCode={currencyCode}
         visibleColumnIds={visibleColumnIds}
         rowStyle={rowStyle}
+        transactionDate={date}
+        latestIncomeBudgetMonth={latestIncomeBudgetMonth}
         layoutMode={layoutMode}
         onCreateCategory={onCreateCategory}
       >
@@ -1400,8 +1402,6 @@ export function TransactionEditRow({
           currencyCode={currencyCode}
           visibleColumnIds={visibleColumnIds}
           rowStyle={rowStyle}
-          transactionDate={date}
-          latestIncomeBudgetMonth={latestIncomeBudgetMonth}
           transactionDate={date}
           latestIncomeBudgetMonth={latestIncomeBudgetMonth}
           layoutMode={layoutMode}
