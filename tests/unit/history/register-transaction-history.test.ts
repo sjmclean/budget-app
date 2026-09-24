@@ -22,6 +22,7 @@ function record(id: string, overrides: Partial<LocalTransactionRecord> = {}): Lo
     memo: "before", checkNumber: null, clearedStatus: "uncleared",
     payeeId: "payee-1", payeeName: "Woolworths", rawPayeeName: "WOOLWORTHS 123",
     categoryId: "category-1", categoryName: "Groceries",
+    incomeBudgetMonth: null,
     transferAccountId: null, transferTransactionId: null,
     generatedFromSchedule: false, scheduledTransactionId: null, scheduledOccurrenceDate: null,
     splitLines: [], tagIds: ["tag-1"],
@@ -151,6 +152,90 @@ test("add, edit split conversion, clear and move preserve stable history states"
   await service.execute(budgetId, createMoveTransactionsCommand({ sourceAccountId: "account-a", targetAccountId: "account-b", transactionIds: ["stable-id"] }));
   assert.equal(records.get("stable-id")!.accountId, "account-b");
   await service.undo(budgetId); assert.equal(records.get("stable-id")!.accountId, "account-a");
+});
+
+test("Income for Month survives transaction history undo and redo for parent and split income", async () => {
+  const parent = record("parent-income", {
+    amount: 100,
+    categoryId: "__ready_to_assign__",
+    categoryName: "Ready to Assign",
+    incomeBudgetMonth: "2026-09",
+  });
+  const split = record("split-income", {
+    amount: 100,
+    categoryId: null,
+    categoryName: "Split",
+    incomeBudgetMonth: null,
+    splitLines: [{
+      id: "income-line",
+      categoryId: "__ready_to_assign__",
+      categoryName: "Ready to Assign",
+      incomeBudgetMonth: "2026-09",
+      transferAccountId: null,
+      transferTransactionId: null,
+      memo: null,
+      amount: 100,
+    }],
+  });
+  const { service, records } = harness([parent, split]);
+
+  await service.execute(budgetId, createEditTransactionCommand({
+    transactionId: "parent-income",
+    write: {
+      budgetId,
+      accountId: "account-a",
+      date: "2026-09-20",
+      amount: 100,
+      categoryId: "__ready_to_assign__",
+      categoryName: "Ready to Assign",
+      incomeBudgetMonth: "2026-10",
+      splitLines: [],
+      tagIds: [],
+    },
+  }));
+  assert.equal(records.get("parent-income")?.incomeBudgetMonth, "2026-10");
+  await service.undo(budgetId);
+  assert.equal(records.get("parent-income")?.incomeBudgetMonth, "2026-09");
+  await service.redo(budgetId);
+  assert.equal(records.get("parent-income")?.incomeBudgetMonth, "2026-10");
+
+  await service.execute(budgetId, createEditTransactionCommand({
+    transactionId: "split-income",
+    write: {
+      budgetId,
+      accountId: "account-a",
+      date: "2026-09-20",
+      amount: 100,
+      categoryId: null,
+      categoryName: "Split",
+      incomeBudgetMonth: null,
+      splitLines: [{
+        id: "income-line",
+        categoryId: "__ready_to_assign__",
+        categoryName: "Ready to Assign",
+        incomeBudgetMonth: "2026-11",
+        transferAccountId: null,
+        transferTransactionId: null,
+        memo: null,
+        amount: 100,
+      }],
+      tagIds: [],
+    },
+  }));
+  assert.equal(
+    records.get("split-income")?.splitLines[0]?.incomeBudgetMonth,
+    "2026-11",
+  );
+  await service.undo(budgetId);
+  assert.equal(
+    records.get("split-income")?.splitLines[0]?.incomeBudgetMonth,
+    "2026-09",
+  );
+  await service.redo(budgetId);
+  assert.equal(
+    records.get("split-income")?.splitLines[0]?.incomeBudgetMonth,
+    "2026-11",
+  );
 });
 
 test("bulk clear and bulk move are one entry and conflicting state rejects unsafe undo", async () => {
