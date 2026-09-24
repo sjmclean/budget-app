@@ -71,11 +71,23 @@ test("Budget header exposes rolling month navigation with a deliberate year sele
   );
   assert.match(
     budgetPageSource,
-    /showYear = isSelected \|\| value\.endsWith\("-01"\)/,
+    /showYear = value\.endsWith\("-01"\) && year !== selectedYear/,
   );
   assert.match(
     budgetPageSource,
-    /<div className="budget-planning-title-line">[\s\S]*<h1 aria-label=\{data\.monthLabel\}>\{monthName\}<\/h1>[\s\S]*aria-label="Budget year"/,
+    /<nav className="budget-year-month-navigation"[\s\S]*aria-label="Budget year"[\s\S]*<div className="budget-month-strip">/,
+  );
+  assert.match(
+    budgetPageSource,
+    /const firstSelectableYear = Math\.min\(1900, selectedYear\);[\s\S]*const lastSelectableYear = Math\.max\(2100, selectedYear\)/,
+  );
+  assert.match(
+    budgetPageSource,
+    /<h1>\{data\.monthLabel\}<\/h1>/,
+  );
+  assert.doesNotMatch(
+    budgetPageSource,
+    /budget-planning-title-line/,
   );
   assert.match(
     budgetPageSource,
