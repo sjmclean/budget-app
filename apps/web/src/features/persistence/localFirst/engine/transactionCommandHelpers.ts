@@ -4,6 +4,43 @@ import type { LocalBudgetMutation, LocalBudgetOperationGroup } from "../contract
 import type { LocalBudgetDatabaseClient } from "../localBudgetClient";
 import type { LocalTransactionRecord } from "../registerSchema";
 
+const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
+const BUDGET_MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+function normaliseIncomeBudgetMonth(input: {
+  readonly categoryId: string | null;
+  readonly amount: number;
+  readonly transferAccountId: string | null;
+  readonly transactionDate: string;
+  readonly requested?: string | null;
+  readonly existing?: string | null;
+}): string | null {
+  if (
+    input.categoryId !== READY_TO_ASSIGN_CATEGORY_ID ||
+    input.amount <= 0 ||
+    input.transferAccountId
+  ) {
+    return null;
+  }
+
+  const value = input.requested ?? input.existing ?? null;
+  if (value === null) return null;
+
+  const transactionMonth = input.transactionDate.slice(0, 7);
+  if (
+    !BUDGET_MONTH_PATTERN.test(value) ||
+    !BUDGET_MONTH_PATTERN.test(transactionMonth)
+  ) {
+    throw new Error("Income budget month must use YYYY-MM.");
+  }
+  if (value < transactionMonth) {
+    throw new Error(
+      `Income budget month ${value} cannot be earlier than transaction month ${transactionMonth}.`,
+    );
+  }
+  return value;
+}
+
 export type CreateTransactionMutation = (
   budgetId: string,
   domain: LocalBudgetMutation["domain"],
@@ -15,30 +52,54 @@ export type CreateTransactionMutation = (
 ) => LocalBudgetMutation;
 
 export async function transactionRecord(id: string, input: TransactionWriteInput, existing?: LocalTransactionRecord | null): Promise<LocalTransactionRecord> {
+  const categoryId = input.categoryId ?? null;
+  const transferAccountId =
+    input.transferAccountId ?? existing?.transferAccountId ?? null;
+  const incomeBudgetMonth = normaliseIncomeBudgetMonth({
+    categoryId,
+    amount: input.amount,
+    transferAccountId,
+    transactionDate: input.date,
+    requested: input.incomeBudgetMonth,
+    existing:
+      existing?.categoryId === categoryId
+        ? existing.incomeBudgetMonth
+        : null,
+  });
+
   return {
     id, budgetId: input.budgetId, accountId: input.accountId, date: input.date, amount: input.amount,
     memo: input.memo ?? null, checkNumber: input.checkNumber ?? null,
     clearedStatus: existing?.clearedStatus ?? "uncleared", payeeId: input.payeeId ?? null,
     payeeName: input.payeeName ?? null, rawPayeeName: input.rawPayee ?? existing?.rawPayeeName ?? null,
-    categoryId: input.categoryId ?? null,
+    categoryId,
     categoryName: input.categoryName?.trim() || (existing?.categoryId === input.categoryId ? existing?.categoryName : null) || (input.transferAccountId ? "Transfer" : null),
-    incomeBudgetMonth:
-      input.incomeBudgetMonth ??
-      (existing?.categoryId === input.categoryId ? existing?.incomeBudgetMonth : null) ??
-      null,
-    transferAccountId: input.transferAccountId ?? existing?.transferAccountId ?? null,
+    incomeBudgetMonth,
+    transferAccountId,
     transferTransactionId: existing?.transferTransactionId ?? null,
     generatedFromSchedule: input.generatedFromSchedule ?? existing?.generatedFromSchedule ?? false,
     scheduledTransactionId: input.scheduledTransactionId ?? existing?.scheduledTransactionId ?? null,
     scheduledOccurrenceDate: input.scheduledOccurrenceDate ?? existing?.scheduledOccurrenceDate ?? null,
-    splitLines: (input.splitLines ?? []).map((split) => ({
-      id: split.id, categoryId: split.categoryId ?? null,
-      categoryName: split.transferAccountId ? "Transfer" : split.categoryName?.trim() || null,
-      incomeBudgetMonth: split.incomeBudgetMonth ?? null,
-      transferAccountId: split.transferAccountId ?? null,
-      transferTransactionId: split.transferTransactionId ?? null,
-      memo: split.memo ?? null, amount: split.amount,
-    })),
+    splitLines: (input.splitLines ?? []).map((split) => {
+      const splitCategoryId = split.categoryId ?? null;
+      const splitTransferAccountId = split.transferAccountId ?? null;
+      return {
+        id: split.id,
+        categoryId: splitCategoryId,
+        categoryName: split.transferAccountId ? "Transfer" : split.categoryName?.trim() || null,
+        incomeBudgetMonth: normaliseIncomeBudgetMonth({
+          categoryId: splitCategoryId,
+          amount: split.amount,
+          transferAccountId: splitTransferAccountId,
+          transactionDate: input.date,
+          requested: split.incomeBudgetMonth,
+        }),
+        transferAccountId: splitTransferAccountId,
+        transferTransactionId: split.transferTransactionId ?? null,
+        memo: split.memo ?? null,
+        amount: split.amount,
+      };
+    }),
     tagIds: input.tagIds ?? [], importProvenance: existing?.importProvenance ?? [],
     updatedAt: new Date().toISOString(),
   };
