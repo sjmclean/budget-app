@@ -746,7 +746,7 @@ Remaining review/work:
 
 The current visual direction deliberately keeps the selected month title above the financial cards, gives Ready to Assign a stronger coloured treatment, and keeps Next Month compact and subordinate. The reference below also documents the later Income for <Month> and header-review questions.
 
-![Budget header review and Income for Month design reference](images/budget-header-review-income-for-month.jpg)
+![Budget header review and Income for Month design reference](images/budget-header-review-income-for-month.svg)
 
 Keep existing Budget virtualization.
 
