@@ -79,6 +79,26 @@ test("transaction edit row resolves shared behaviour for every editable field", 
   assert.doesNotMatch(editorSource, /autoFocusField/);
 });
 
+test("Income for Month renders once on each transaction editor surface", () => {
+  const selectorCount = editorSource.match(/<IncomeBudgetMonthSelect/g)?.length ?? 0;
+  assert.equal(
+    selectorCount,
+    3,
+    "entry mobile, entry desktop, and edit desktop should each render one selector",
+  );
+
+  assert.match(
+    editorSource,
+    /showIncomeBudgetMonth \? \([\s\S]*?register-entry-actions-panel/,
+    "desktop entry should expose Income for Month before commit actions",
+  );
+  assert.doesNotMatch(
+    editorSource,
+    /\) : null\}\s*\{showIncomeBudgetMonth \? \(/,
+    "the edit row must not render duplicate adjacent Income for Month panels",
+  );
+});
+
 test("memo and check number consume replacement selection only once per edit row", () => {
   assert.match(editorSource, /consumedTextSelections/);
   assert.match(
