@@ -6,6 +6,7 @@ import {
   type UndoRedoController,
   type UndoRedoResult,
   type UndoRedoSnapshot,
+  type UndoRedoHistoryEntry,
 } from "./undoRedo";
 
 export interface ApplicationHistoryContext {
@@ -106,6 +107,15 @@ export class ApplicationHistoryService<TContext> {
       flushes?.delete(flush);
       if (flushes?.size === 0) this.pendingFlushes.delete(key);
     };
+  }
+
+  getEffectiveHistoryEntries(
+    budgetId: string | null | undefined,
+  ): readonly UndoRedoHistoryEntry[] {
+    if (!budgetId?.trim()) {
+      return [];
+    }
+    return this.controllers.get(budgetId.trim())?.getEffectiveHistoryEntries() ?? [];
   }
 
   getSnapshot(budgetId: string | null | undefined): UndoRedoSnapshot {
