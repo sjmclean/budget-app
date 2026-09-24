@@ -58,6 +58,7 @@ export interface SqliteImportSplitLine {
   readonly id: string;
   readonly categoryId: string | null;
   readonly categoryName: string | null;
+  readonly incomeBudgetMonth: string | null;
   readonly transferAccountId: string | null;
   readonly transferTransactionId: string | null;
   readonly memo: string | null;
