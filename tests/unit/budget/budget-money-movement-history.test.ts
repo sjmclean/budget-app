@@ -148,6 +148,31 @@ test("explicit Move Money history is preserved and never re-derived", () => {
   assert.deepEqual(deriveBudgetMoneyMovementHistory([explicit], "AUD"), [explicit]);
 });
 
+test("manual history does not invent a transfer when unmatched Ready to Assign changes dominate the sequence", () => {
+  const entries = [
+    assignmentEntry("edit-1", [{
+      categoryId: "dining",
+      categoryName: "Dining",
+      originalAssigned: 20,
+      finalAssigned: 40,
+    }]),
+    assignmentEntry("edit-2", [{
+      categoryId: "groceries",
+      categoryName: "Groceries",
+      originalAssigned: 100,
+      finalAssigned: 70,
+    }]),
+    assignmentEntry("edit-3", [{
+      categoryId: "fuel",
+      categoryName: "Fuel",
+      originalAssigned: 10,
+      finalAssigned: 20,
+    }]),
+  ];
+
+  assert.deepEqual(deriveBudgetMoneyMovementHistory(entries, "AUD"), []);
+});
+
 test("manual assignment history without a currency is not presented as a movement", () => {
   const entries = [
     assignmentEntry("edit-1", [{
