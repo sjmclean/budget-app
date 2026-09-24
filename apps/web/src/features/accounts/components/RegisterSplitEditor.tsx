@@ -55,8 +55,8 @@ export function RegisterSplitEditor({
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
-  transactionDate: string;
-  latestIncomeBudgetMonth: string;
+  transactionDate?: string;
+  latestIncomeBudgetMonth?: string;
   onCreateCategory?: (
     input: RegisterInlineCategoryCreateInput,
   ) => Promise<BudgetCategoryOption>;
@@ -100,7 +100,11 @@ export function RegisterSplitEditor({
   }
 
   function renderIncomeBudgetMonth(line: SplitLineDraft) {
-    if (!isReadyToAssignIncome(line)) return null;
+    if (
+      !isReadyToAssignIncome(line) ||
+      !transactionDate ||
+      !latestIncomeBudgetMonth
+    ) return null;
     return (
       <IncomeBudgetMonthSelect
         transactionDate={transactionDate}
@@ -196,7 +200,7 @@ export function RegisterSplitEditor({
                         ?.id,
                       incomeBudgetMonth:
                         findCategoryOption(value, categoryOptions)?.id === "__ready_to_assign__"
-                          ? item.incomeBudgetMonth ?? transactionDate.slice(0, 7)
+                          ? item.incomeBudgetMonth ?? transactionDate?.slice(0, 7)
                           : undefined,
                     }
                   : item,
@@ -280,7 +284,7 @@ export function RegisterSplitEditor({
                       incomeBudgetMonth:
                         value > 0 &&
                         (item.categoryId ?? findCategoryOption(item.category, categoryOptions)?.id) === "__ready_to_assign__"
-                          ? item.incomeBudgetMonth ?? transactionDate.slice(0, 7)
+                          ? item.incomeBudgetMonth ?? transactionDate?.slice(0, 7)
                           : undefined,
                     }
                   : item,
