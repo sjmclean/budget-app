@@ -1693,43 +1693,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   </button>
                 </div>
               </div>
-            </section>
-
-            <div
-              className="budget-workspace-table-head"
-              style={budgetGridStyle}
-            >
-              {budgetTableLayout.visibleColumns.map((column) => (
-                <span
-                  className={`table-layout-resizable-head-cell budget-column-${column.id}`}
-                  key={column.id}
-                >
-                  {column.id === "category" ? (
-                    <span className="budget-category-header-label">
-                      <span>{column.label}</span>
-                      <button
-                        className="budget-category-add-button"
-                        type="button"
-                        onClick={() => void handleCreateCategory()}
-                        aria-label="Add category"
-                        title="Add category"
-                      >
-                        <Plus size={14} aria-hidden="true" />
-                      </button>
-                    </span>
-                  ) : (
-                    column.label
-                  )}
-                  <ColumnResizeHandle
-                    columnId={column.id}
-                    label={column.label}
-                    onResizeStart={budgetTableLayout.startColumnResize}
-                    onNudgeColumnWidth={budgetTableLayout.nudgeColumnWidth}
-                    onResetColumnWidth={budgetTableLayout.resetColumnWidth}
-                  />
-                </span>
-              ))}
-            </div>
                 </>
               ) : (
                 <div className="budget-multi-month-toolbar">
@@ -1764,6 +1727,45 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   </div>
                 </div>
               )}
+            </section>
+
+            {!isMultiMonthView ? (
+              <div
+                className="budget-workspace-table-head"
+                style={budgetGridStyle}
+              >
+                {budgetTableLayout.visibleColumns.map((column) => (
+                  <span
+                    className={`table-layout-resizable-head-cell budget-column-${column.id}`}
+                    key={column.id}
+                  >
+                    {column.id === "category" ? (
+                      <span className="budget-category-header-label">
+                        <span>{column.label}</span>
+                        <button
+                          className="budget-category-add-button"
+                          type="button"
+                          onClick={() => void handleCreateCategory()}
+                          aria-label="Add category"
+                          title="Add category"
+                        >
+                          <Plus size={14} aria-hidden="true" />
+                        </button>
+                      </span>
+                    ) : (
+                      column.label
+                    )}
+                    <ColumnResizeHandle
+                      columnId={column.id}
+                      label={column.label}
+                      onResizeStart={budgetTableLayout.startColumnResize}
+                      onNudgeColumnWidth={budgetTableLayout.nudgeColumnWidth}
+                      onResetColumnWidth={budgetTableLayout.resetColumnWidth}
+                    />
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </WorkspaceStickyHeader>
 
           {isMultiMonthView ? (
