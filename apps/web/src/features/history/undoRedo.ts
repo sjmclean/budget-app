@@ -1,6 +1,14 @@
+export interface UndoRedoHistoryEntry {
+  readonly id: string;
+  readonly kind: string;
+  readonly occurredAt: string;
+  readonly payload: unknown;
+}
+
 export interface UndoableCommand<TContext> {
   id: string;
   label: string;
+  readonly historyEntry?: UndoRedoHistoryEntry | null;
   execute(context: TContext): void | Promise<void>;
   undo(context: TContext): void | Promise<void>;
   redo?(context: TContext): void | Promise<void>;
@@ -32,6 +40,12 @@ export type UndoRedoResult =
       label?: string;
       error?: string;
     };
+
+export interface UndoRedoStackEntry {
+  readonly id: string;
+  readonly label: string;
+  readonly historyEntry: UndoRedoHistoryEntry | null;
+}
 
 export interface UndoRedoSnapshot {
   canUndo: boolean;
@@ -82,6 +96,7 @@ export class UndoRedoController<TContext = void> {
   private maxHistoryLength: number;
   private busy = false;
   private snapshot: UndoRedoSnapshot;
+  private effectiveHistoryEntries: readonly UndoRedoHistoryEntry[] = [];
 
   constructor(options: UndoRedoControllerOptions<TContext> = {}) {
     this.getContext = options.getContext;
@@ -91,6 +106,41 @@ export class UndoRedoController<TContext = void> {
   }
 
   getSnapshot = (): UndoRedoSnapshot => this.snapshot;
+
+  getEffectiveHistoryEntries = (): readonly UndoRedoHistoryEntry[] =>
+    this.effectiveHistoryEntries;
+
+  getUndoStackEntries = (): readonly UndoRedoStackEntry[] =>
+    this.undoStack.map((command) => ({
+      id: command.id,
+      label: commandLabel(command),
+      historyEntry: command.historyEntry ?? null,
+    }));
+
+  replaceUndoTail(
+    commandIds: readonly string[],
+    replacement: UndoableCommand<TContext>,
+  ): boolean {
+    if (
+      this.busy ||
+      this.redoStack.length > 0 ||
+      commandIds.length === 0 ||
+      commandIds.length > this.undoStack.length
+    ) {
+      return false;
+    }
+
+    const start = this.undoStack.length - commandIds.length;
+    for (let index = 0; index < commandIds.length; index += 1) {
+      if (this.undoStack[start + index]?.id !== commandIds[index]) {
+        return false;
+      }
+    }
+
+    this.undoStack.splice(start, commandIds.length, replacement);
+    this.emit();
+    return true;
+  }
 
   subscribe = (listener: UndoRedoListener): (() => void) => {
     this.listeners.add(listener);
@@ -296,6 +346,9 @@ export class UndoRedoController<TContext = void> {
 
   private emit(): void {
     this.snapshot = this.createSnapshot();
+    this.effectiveHistoryEntries = this.undoStack
+      .map((command) => command.historyEntry ?? null)
+      .filter((entry): entry is UndoRedoHistoryEntry => entry !== null);
     for (const listener of this.listeners) {
       listener();
     }

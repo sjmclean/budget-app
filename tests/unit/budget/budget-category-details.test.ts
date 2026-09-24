@@ -45,6 +45,23 @@ test("Category Details follows the rich reference mockup hierarchy", () => {
   assert.match(budgetPage, /View all activity/);
   assert.match(budgetPage, /Cover Overspending/);
   assert.match(budgetPage, /Move Money/);
+  assert.match(
+    budgetPage,
+    /onClick=\{\(\) => onOpenMoveMoney\(category\.id\)\}[\s\S]*Move Money/,
+  );
+  assert.doesNotMatch(
+    budgetPage,
+    /Move Money is not yet available from Category Details/,
+  );
+  assert.match(budgetPage, /Money movements/);
+  assert.match(
+    budgetPage,
+    /movementHistory=\{selectedCategoryMovementHistory\}/,
+  );
+  assert.match(
+    budgetPage,
+    /<BudgetMoveMoneyDialog[\s\S]*onMoveMoney=\{\(input\) => \{[\s\S]*moveMoney\(input\)/,
+  );
   assert.match(budgetPage, /Edit Goal|Set Goal/);
   assert.match(budgetPage, /<CategoryGoalInspectorSection/);
 });

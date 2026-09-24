@@ -128,6 +128,46 @@ test("multi-source movement conserves assigned money in one assignment batch", a
   assert.equal(current.readyToAssign, 0);
 });
 
+test("multi-source movement exposes one effective history record after successful execution", async () => {
+  let current = view();
+  const context: BudgetMoneyMovementContext = {
+    getBudgetMonthView() {
+      return current;
+    },
+    setCategoryAssignedValues({ assignments }) {
+      current = applyCategoryAssignedValues(current, assignments);
+      return current;
+    },
+  };
+
+  const command = createMoveBudgetMoneyFromMultipleSourcesCommand({
+    month: "2026-08",
+    destinationCategoryId: "dining",
+    sources: [
+      { categoryId: "groceries", amount: 20 },
+      { categoryId: "fuel", amount: 10 },
+    ],
+  });
+
+  assert.equal(command.historyEntry, null);
+  await command.execute(context);
+
+  assert.equal(command.historyEntry?.kind, "budget-money-movement");
+  assert.match(command.historyEntry?.id ?? "", /^move-budget-money:/);
+  assert.match(command.historyEntry?.occurredAt ?? "", /^\d{4}-\d{2}-\d{2}T/);
+  assert.deepEqual(command.historyEntry?.payload, {
+    month: "2026-08",
+    currencyCode: "AUD",
+    amount: 30,
+    sources: [
+      { categoryId: "groceries", categoryName: "Groceries", amount: 20 },
+      { categoryId: "fuel", categoryName: "Fuel", amount: 10 },
+    ],
+    destinationCategoryId: "dining",
+    destinationCategoryName: "Dining Out",
+  });
+});
+
 test("multi-source movement undo restores every source and destination together", async () => {
   let current = view();
   let writeCount = 0;

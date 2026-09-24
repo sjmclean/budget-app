@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import {
   adaptBudgetCommandToApplicationHistory,
+  executeApplicationBudgetAssignmentChanges,
 } from "../../../apps/web/src/features/budget/budgetApplicationHistory.ts";
 import { createBudgetAssignmentChangesCommand } from "../../../apps/web/src/features/budget/budgetAssignmentEditing.ts";
 import {
@@ -13,9 +14,14 @@ import {
 import type { BudgetMonthView } from "../../../apps/web/src/features/budget/budgetViewTypes.ts";
 import {
   ApplicationHistoryService,
+  applicationHistory,
   type ApplicationHistoryContext,
 } from "../../../apps/web/src/features/history/applicationHistory.ts";
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.ts";
+import {
+  configureBudgetPersistenceProvider,
+  resetBudgetPersistenceProvider,
+} from "../../../apps/web/src/features/persistence/budgetPersistenceProviderFactory.ts";
 import { subscribePersistenceChanges } from "../../../apps/web/src/features/persistence/persistenceChangeBus.ts";
 import { notifyLocalFirstMutationCommitted } from "../../../apps/web/src/features/persistence/localFirst/mutationEvents.ts";
 import { resolveBudgetWorkspaceData } from "../../../apps/web/src/features/budget/useBudgetWorkspace.ts";
@@ -66,12 +72,23 @@ test("assignment persists and remains undoable after the Budget consumer disappe
   ));
   assert.equal(current().categoryGroups[0].categories[0].assigned, 50);
   assert.equal(service.getSnapshot("budget-a").undoLabel, "Change Groceries assignment");
+  assert.deepEqual(service.getEffectiveHistoryEntries("budget-a")[0]?.payload, {
+    month: "2026-08",
+    changes: [{
+      categoryId: "groceries",
+      categoryName: "Groceries",
+      originalAssigned: 60,
+      finalAssigned: 50,
+    }],
+  });
 
   // There is no mounted-page context in the harness; Undo resolves the service context again.
   await service.undo("budget-a");
   assert.equal(current().categoryGroups[0].categories[0].assigned, 60);
+  assert.equal(service.getEffectiveHistoryEntries("budget-a").length, 0);
   await service.redo("budget-a");
   assert.equal(current().categoryGroups[0].categories[0].assigned, 50);
+  assert.equal(service.getEffectiveHistoryEntries("budget-a").length, 1);
   assert.equal(writes(), 3);
 });
 
@@ -135,7 +152,110 @@ test("assignment execute, undo, and redo each notify the Budget-view refresh sub
   assert.equal(versions[2], versions[1]! + 1);
 });
 
-test("single and multi-source movements are persistent one-entry commands", async () => {
+test("balanced manual assignment edits collapse into one atomic application-history action", async () => {
+  const budgetId = "budget-manual-collapse";
+  let current = initialView();
+  let writes = 0;
+  const budgetView = {
+    getBudgetMonthView: async () => current,
+    setCategoryAssignedValues: async (input: { assignments: { categoryId: string; assigned: number }[] }) => {
+      writes += 1;
+      current = applyCategoryAssignedValues(current, input.assignments);
+      return current;
+    },
+  };
+
+  configureBudgetPersistenceProvider({
+    budgetView,
+  } as unknown as BudgetPersistenceProvider);
+
+  try {
+    await executeApplicationBudgetAssignmentChanges(budgetId, {
+      month: "2026-08",
+      changes: [{
+        categoryId: "groceries",
+        categoryName: "Groceries",
+        originalAssigned: 60,
+        finalAssigned: 50,
+      }],
+    });
+    assert.equal(applicationHistory.getSnapshot(budgetId).undoDepth, 1);
+
+    await executeApplicationBudgetAssignmentChanges(budgetId, {
+      month: "2026-08",
+      changes: [{
+        categoryId: "dining",
+        categoryName: "Dining",
+        originalAssigned: 0,
+        finalAssigned: 10,
+      }],
+    });
+
+    assert.equal(applicationHistory.getSnapshot(budgetId).undoDepth, 1);
+    assert.match(
+      applicationHistory.getSnapshot(budgetId).undoLabel ?? "",
+      /Move money from Groceries to Dining/,
+    );
+    assert.equal(current.readyToAssign, 0);
+    assert.equal(
+      current.categoryGroups[0].categories.find(({ id }) => id === "groceries")?.assigned,
+      50,
+    );
+    assert.equal(
+      current.categoryGroups[0].categories.find(({ id }) => id === "dining")?.assigned,
+      10,
+    );
+
+    const [entry] = applicationHistory.getEffectiveHistoryEntries(budgetId);
+    assert.equal(entry?.kind, "budget-assignment-changes");
+    assert.deepEqual(entry?.payload, {
+      month: "2026-08",
+      changes: [
+        {
+          categoryId: "groceries",
+          categoryName: "Groceries",
+          originalAssigned: 60,
+          finalAssigned: 50,
+        },
+        {
+          categoryId: "dining",
+          categoryName: "Dining",
+          originalAssigned: 0,
+          finalAssigned: 10,
+        },
+      ],
+    });
+
+    await applicationHistory.undo(budgetId);
+    assert.equal(applicationHistory.getSnapshot(budgetId).redoDepth, 1);
+    assert.equal(current.readyToAssign, 0);
+    assert.equal(
+      current.categoryGroups[0].categories.find(({ id }) => id === "groceries")?.assigned,
+      60,
+    );
+    assert.equal(
+      current.categoryGroups[0].categories.find(({ id }) => id === "dining")?.assigned,
+      0,
+    );
+
+    await applicationHistory.redo(budgetId);
+    assert.equal(current.readyToAssign, 0);
+    assert.equal(
+      current.categoryGroups[0].categories.find(({ id }) => id === "groceries")?.assigned,
+      50,
+    );
+    assert.equal(
+      current.categoryGroups[0].categories.find(({ id }) => id === "dining")?.assigned,
+      10,
+    );
+    assert.equal(writes, 4);
+  } finally {
+    applicationHistory.destroy(budgetId);
+    resetBudgetPersistenceProvider();
+  }
+});
+
+test("single and multi-source movements are persistent one-entry commands with effective movement history", async () => {
   const { service, current } = harness();
   await service.execute("budget-a", adaptBudgetCommandToApplicationHistory(
     createMoveBudgetMoneyCommand({
@@ -143,6 +263,18 @@ test("single and multi-source movements are persistent one-entry commands", asyn
     }),
   ));
   assert.equal(service.getSnapshot("budget-a").undoDepth, 1);
+  assert.equal(service.getEffectiveHistoryEntries("budget-a").length, 1);
+  assert.deepEqual(
+    service.getEffectiveHistoryEntries("budget-a")[0]?.payload,
+    {
+      month: "2026-08",
+      currencyCode: "AUD",
+      amount: 10,
+      sources: [{ categoryId: "groceries", categoryName: "Groceries", amount: 10 }],
+      destinationCategoryId: "dining",
+      destinationCategoryName: "Dining",
+    },
+  );
 
   await service.execute("budget-a", adaptBudgetCommandToApplicationHistory(
     createMoveBudgetMoneyFromMultipleSourcesCommand({
@@ -151,15 +283,30 @@ test("single and multi-source movements are persistent one-entry commands", asyn
     }),
   ));
   assert.equal(service.getSnapshot("budget-a").undoDepth, 2);
+  assert.equal(service.getEffectiveHistoryEntries("budget-a").length, 2);
   assert.match(service.getSnapshot("budget-a").undoLabel ?? "", /from 2 categories to Dining/);
-  await service.undo("budget-a");
+
+  const undoResult = await service.undo("budget-a");
+  assert.equal(undoResult.performed, true);
   assert.equal(current().categoryGroups[0].categories.find(({ id }) => id === "dining")?.assigned, 10);
+  assert.equal(
+    service.getEffectiveHistoryEntries("budget-a").length,
+    1,
+    "undo removes the effective movement entry instead of adding an undone audit event",
+  );
+
+  const redoResult = await service.redo("budget-a");
+  assert.equal(redoResult.performed, true);
+  assert.equal(service.getEffectiveHistoryEntries("budget-a").length, 2);
+
+  await service.undo("budget-a");
   await service.execute("budget-a", adaptBudgetCommandToApplicationHistory(
     createMoveBudgetMoneyCommand({
       month: "2026-08", sourceCategoryId: "fuel", destinationCategoryId: "dining", amount: 1,
     }),
   ));
   assert.equal(service.getSnapshot("budget-a").redoDepth, 0);
+  assert.equal(service.getEffectiveHistoryEntries("budget-a").length, 2);
 });
 
 test("Budget and Register source wiring observes the same application history hook", () => {

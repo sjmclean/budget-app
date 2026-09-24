@@ -1,4 +1,5 @@
-import type { UndoableCommand } from "../history";
+import type { UndoableCommand, UndoRedoHistoryEntry } from "../history";
+import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 import type {
   BudgetCategoryGroupView,
   BudgetCategoryView,
@@ -36,6 +37,32 @@ export interface BudgetMoneyMovementContext {
     month: string;
     assignments: BudgetCategoryAssignedValue[];
   }): BudgetMonthView | Promise<BudgetMonthView>;
+}
+
+export interface BudgetMoneyMovementHistorySource {
+  readonly categoryId: string;
+  readonly categoryName: string;
+  readonly amount: number;
+}
+
+export interface BudgetMoneyMovementHistoryPayload {
+  readonly month: string;
+  readonly currencyCode: string;
+  readonly amount: number;
+  readonly sources: readonly BudgetMoneyMovementHistorySource[];
+  readonly destinationCategoryId: string;
+  readonly destinationCategoryName: string;
+}
+
+export interface BudgetMoneyMovementHistoryEntry extends UndoRedoHistoryEntry {
+  readonly kind: "budget-money-movement";
+  readonly payload: BudgetMoneyMovementHistoryPayload;
+}
+
+export function isBudgetMoneyMovementHistoryEntry(
+  entry: UndoRedoHistoryEntry,
+): entry is BudgetMoneyMovementHistoryEntry {
+  return entry.kind === "budget-money-movement";
 }
 
 export interface BudgetViewMoneyMovementContextOptions {
@@ -372,13 +399,16 @@ export function createMoveBudgetMoneyFromMultipleSourcesCommand(
 ): UndoableCommand<BudgetMoneyMovementContext> {
   let capture: MultiSourceMoneyMovementCapture | null = null;
   let label = "Move budget money between categories";
+  let historyEntry: BudgetMoneyMovementHistoryEntry | null = null;
+  const commandId = `move-budget-money:${createRuntimeUuid()}`;
 
   return {
-    id: `move-budget-money:${input.month}:${input.destinationCategoryId}:${input.sources
-      .map((source) => `${source.categoryId}:${source.amount}`)
-      .join("|")}`,
+    id: commandId,
     get label() {
       return label;
+    },
+    get historyEntry() {
+      return historyEntry;
     },
     async execute(context) {
       validateMultiSourceMoveInput(input);
@@ -404,6 +434,23 @@ export function createMoveBudgetMoneyFromMultipleSourcesCommand(
         currencyCode: nextCapture.currencyCode,
         destinationCategoryName: nextCapture.destinationCategoryName,
       });
+      historyEntry = {
+        id: commandId,
+        kind: "budget-money-movement",
+        occurredAt: new Date().toISOString(),
+        payload: {
+          month: input.month,
+          currencyCode: nextCapture.currencyCode,
+          amount: movedTotal,
+          sources: nextCapture.sources.map((source) => ({
+            categoryId: source.categoryId,
+            categoryName: source.categoryName,
+            amount: source.amount,
+          })),
+          destinationCategoryId: nextCapture.destinationCategoryId,
+          destinationCategoryName: nextCapture.destinationCategoryName,
+        },
+      };
     },
     async undo(context) {
       if (!capture) {

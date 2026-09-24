@@ -480,6 +480,49 @@
   font-size: 0.68rem;
 }
 
+.budget-category-details-movements {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.budget-category-details-movement-list {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.budget-category-details-movement-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 0.72rem;
+}
+
+.budget-category-details-movement-row:last-child {
+  border-bottom: 0;
+}
+
+.budget-category-details-movement-row > span:first-child {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-category-details-movement-route {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.budget-category-details-movement-row > strong {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .budget-category-details-actions {
   display: grid;
   gap: 0.42rem;

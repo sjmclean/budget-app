@@ -6,6 +6,8 @@ import {
   type UndoRedoController,
   type UndoRedoResult,
   type UndoRedoSnapshot,
+  type UndoRedoHistoryEntry,
+  type UndoRedoStackEntry,
 } from "./undoRedo";
 
 export interface ApplicationHistoryContext {
@@ -19,6 +21,8 @@ export interface ApplicationHistoryServiceOptions<TContext> {
 }
 
 export type ApplicationHistoryActionListener = (result: UndoRedoResult) => void;
+
+const EMPTY_EFFECTIVE_HISTORY_ENTRIES: readonly UndoRedoHistoryEntry[] = [];
 
 const EMPTY_SNAPSHOT: UndoRedoSnapshot = {
   canUndo: false,
@@ -106,6 +110,34 @@ export class ApplicationHistoryService<TContext> {
       flushes?.delete(flush);
       if (flushes?.size === 0) this.pendingFlushes.delete(key);
     };
+  }
+
+  getUndoStackEntries(
+    budgetId: string | null | undefined,
+  ): readonly UndoRedoStackEntry[] {
+    if (!budgetId?.trim()) {
+      return [];
+    }
+    return this.controllers.get(budgetId.trim())?.getUndoStackEntries() ?? [];
+  }
+
+  replaceUndoTail(
+    budgetId: string,
+    commandIds: readonly string[],
+    replacement: UndoableCommand<TContext>,
+  ): boolean {
+    const key = requireBudgetId(budgetId);
+    return this.controllerFor(key).replaceUndoTail(commandIds, replacement);
+  }
+
+  getEffectiveHistoryEntries(
+    budgetId: string | null | undefined,
+  ): readonly UndoRedoHistoryEntry[] {
+    if (!budgetId?.trim()) {
+      return EMPTY_EFFECTIVE_HISTORY_ENTRIES;
+    }
+    return this.controllers.get(budgetId.trim())?.getEffectiveHistoryEntries() ??
+      EMPTY_EFFECTIVE_HISTORY_ENTRIES;
   }
 
   getSnapshot(budgetId: string | null | undefined): UndoRedoSnapshot {

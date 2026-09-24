@@ -3,6 +3,7 @@ export type {
   UndoRedoAction,
   UndoRedoControllerOptions,
   UndoRedoFailureReason,
+  UndoRedoHistoryEntry,
   UndoRedoKeyboardAction,
   UndoRedoKeyboardActions,
   UndoRedoKeyboardEventLike,
@@ -11,6 +12,7 @@ export type {
   UndoRedoListener,
   UndoRedoResult,
   UndoRedoSnapshot,
+  UndoRedoStackEntry,
 } from "./undoRedo";
 export {
   UndoRedoController,

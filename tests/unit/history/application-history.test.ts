@@ -107,6 +107,61 @@ test("new execution clears redo and history remains bounded", async () => {
   assert.equal(service.getSnapshot("budget-a").redoDepth, 0);
 });
 
+test("can replace an already-executed adjacent tail with one atomic undo command", async () => {
+  const { service, valuesByBudget } = createHarness();
+  await service.execute("budget-a", command("a", 1));
+  await service.execute("budget-a", command("b", 2));
+
+  const replaced = service.replaceUndoTail(
+    "budget-a",
+    ["a", "b"],
+    {
+      id: "ab",
+      label: "Change a and b",
+      execute(context) {
+        context.values.set("a", 1);
+        context.values.set("b", 2);
+      },
+      undo(context) {
+        context.values.delete("a");
+        context.values.delete("b");
+      },
+      redo(context) {
+        context.values.set("a", 1);
+        context.values.set("b", 2);
+      },
+    },
+  );
+
+  assert.equal(replaced, true);
+  assert.equal(service.getSnapshot("budget-a").undoDepth, 1);
+  assert.equal(service.getSnapshot("budget-a").undoLabel, "Change a and b");
+
+  await service.undo("budget-a");
+  assert.equal(valuesByBudget.get("budget-a")?.has("a"), false);
+  assert.equal(valuesByBudget.get("budget-a")?.has("b"), false);
+
+  await service.redo("budget-a");
+  assert.equal(valuesByBudget.get("budget-a")?.get("a"), 1);
+  assert.equal(valuesByBudget.get("budget-a")?.get("b"), 2);
+});
+
+test("undo-tail replacement fails closed when the requested commands are not the exact suffix", async () => {
+  const { service } = createHarness();
+  await service.execute("budget-a", command("a", 1));
+  await service.execute("budget-a", command("b", 2));
+
+  const replaced = service.replaceUndoTail(
+    "budget-a",
+    ["a"],
+    command("replacement", 3),
+  );
+
+  assert.equal(replaced, false);
+  assert.equal(service.getSnapshot("budget-a").undoDepth, 2);
+  assert.equal(service.getSnapshot("budget-a").undoLabel, "Change b");
+});
+
 test("destroy removes a deleted budget's stack", async () => {
   const { service } = createHarness();
   await service.execute("budget-a", command("a", 1));

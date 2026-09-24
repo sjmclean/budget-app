@@ -49,6 +49,13 @@ interface UseBudgetWorkspaceState {
       amount: number;
     }[];
   }) => void;
+  moveMoney: (input: {
+    destinationCategoryId: string;
+    sources: {
+      categoryId: string;
+      amount: number;
+    }[];
+  }) => void;
   renameCategory: (categoryId: string, name: string) => void;
   setCategoryArchived: (categoryId: string, isArchived: boolean) => void;
   moveCategory: (categoryId: string, direction: "up" | "down") => void;
@@ -509,6 +516,40 @@ export function useBudgetWorkspace(
     });
   }
 
+  function moveMoney(input: {
+    destinationCategoryId: string;
+    sources: {
+      categoryId: string;
+      amount: number;
+    }[];
+  }) {
+    setLastEditedCategoryId(input.destinationCategoryId);
+    setSaveError(null);
+
+    const workspaceIdentity = workspaceIdentityRef.current;
+    const mutationVersion = ++mutationVersionRef.current;
+
+    void executeApplicationBudgetMoneyMovementFromMultipleSources(budgetId, {
+      month,
+      destinationCategoryId: input.destinationCategoryId,
+      sources: input.sources,
+    }).then((result) => {
+      if (
+        !isWorkspaceCurrent(workspaceIdentity) ||
+        mutationVersionRef.current !== mutationVersion
+      ) {
+        return;
+      }
+
+      if (result.performed) {
+        setSelectedCategoryId(input.destinationCategoryId);
+        return;
+      }
+
+      setSaveError(result.error ?? "Failed to move money.");
+    });
+  }
+
   function renameCategory(categoryId: string, name: string) {
     runWorkspaceMutation(
       () => categoryHistory.renameCategory({ categoryId, name }),
@@ -709,6 +750,7 @@ export function useBudgetWorkspace(
     assignGoalRecommendation,
     setCategoryOverspendingHandling,
     coverOverspending,
+    moveMoney,
     renameCategory,
     setCategoryArchived,
     moveCategory,
