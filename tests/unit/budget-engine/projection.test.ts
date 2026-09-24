@@ -165,6 +165,82 @@ test("keeps Ready to Assign internally consistent across months", () => {
   assert.equal(february.readyToAssign, 3_100);
 });
 
+test("projects Ready to Assign income into an explicit future budget month without changing transaction month", () => {
+  const result = projectBudget(baseInput({
+    fromMonth: "2026-01",
+    throughMonth: "2026-02",
+    transactions: [
+      {
+        id: "future-income",
+        accountId: "cash",
+        date: "2026-01-15",
+        categoryId: "__ready_to_assign__",
+        incomeBudgetMonth: "2026-02",
+        amount: 2_500,
+      },
+    ],
+  }));
+
+  const january = result.months[0]!;
+  const february = result.months[1]!;
+  assert.equal(january.income, 0);
+  assert.equal(january.readyToAssign, 0);
+  assert.equal(february.income, 2_500);
+  assert.equal(february.readyToAssign, 2_500);
+});
+
+test("supports split Ready to Assign income allocated to a future month", () => {
+  const result = projectBudget(baseInput({
+    fromMonth: "2026-01",
+    throughMonth: "2026-02",
+    transactions: [
+      {
+        id: "split-income",
+        accountId: "cash",
+        date: "2026-01-20",
+        categoryId: null,
+        amount: 3_000,
+        splits: [
+          {
+            id: "future-income-line",
+            categoryId: "__ready_to_assign__",
+            incomeBudgetMonth: "2026-02",
+            amount: 2_000,
+          },
+          {
+            id: "current-income-line",
+            categoryId: "__ready_to_assign__",
+            amount: 1_000,
+          },
+        ],
+      },
+    ],
+  }));
+
+  assert.equal(result.months[0]!.income, 1_000);
+  assert.equal(result.months[1]!.income, 2_000);
+});
+
+test("rejects an income budget month earlier than the source transaction month", () => {
+  assert.throws(
+    () => projectBudget(baseInput({
+      fromMonth: "2026-01",
+      throughMonth: "2026-02",
+      transactions: [
+        {
+          id: "backdated-income",
+          accountId: "cash",
+          date: "2026-02-01",
+          categoryId: "__ready_to_assign__",
+          incomeBudgetMonth: "2026-01",
+          amount: 100,
+        },
+      ],
+    })),
+    /cannot be earlier than transaction month/,
+  );
+});
+
 test("treats transfers between on-budget accounts as budget-neutral", () => {
   const result = projectBudget(baseInput({
     transactions: [
