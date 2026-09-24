@@ -11,12 +11,12 @@ const budgetCss = readFileSync(
   "utf8",
 );
 
-test("Budget only mounts Category Details when a category is selected", () => {
+test("Budget only mounts Category Details for a selected category in single-month mode", () => {
   assert.doesNotMatch(budgetPage, /<aside className="budget-month-panel"/);
   assert.doesNotMatch(budgetPage, /Budget Health/);
   assert.match(
     budgetPage,
-    /visibleSelectedCategory && visibleSelectedGroup \? \([\s\S]*<CategoryDetailsPanel/,
+    /visibleSelectedCategory && visibleSelectedGroup && !isMultiMonthView \? \([\s\S]*<CategoryDetailsPanel/,
   );
   assert.match(
     budgetPage,
