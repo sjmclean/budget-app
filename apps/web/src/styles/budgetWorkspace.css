@@ -2168,3 +2168,14 @@
     display: none;
   }
 }
+
+
+/* Keep Category Details usable from the adaptive multi-month workspace. */
+.budget-workspace-screen-multi-month.budget-workspace-layout-details-open {
+  grid-template-columns: minmax(0, 1fr) minmax(19rem, 20.5rem);
+}
+
+.budget-workspace-screen-multi-month.budget-workspace-layout-details-open .budget-multi-month-grid {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
