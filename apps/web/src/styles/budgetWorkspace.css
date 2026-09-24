@@ -1560,52 +1560,63 @@
 
   .budget-planning-summary-stack {
     width: 100%;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.5rem;
   }
 
   .budget-ready-summary {
     width: 100%;
     min-height: 4.35rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.7rem;
     border-radius: 0.75rem;
-    padding: 0.65rem 0.8rem;
+    padding: 0.72rem 0.8rem;
     box-shadow: none;
   }
 
+  .budget-ready-summary-primary {
+    gap: 0.7rem;
+  }
+
+  .budget-ready-summary-icon {
+    width: 2.8rem;
+    height: 2.8rem;
+    flex-basis: 2.8rem;
+  }
+
   .budget-ready-summary-heading {
-    height: auto;
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.35rem 0.75rem;
-    padding: 0 0 0.45rem;
-    border-bottom: 1px solid
-      color-mix(in srgb, var(--accent) 20%, var(--border-soft));
+    display: grid;
+    gap: 0.12rem;
+    padding: 0;
+    border: 0;
   }
 
   .budget-ready-summary-heading span {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
   }
 
   .budget-ready-summary-heading strong {
     max-width: 100%;
-    margin-left: auto;
     overflow: visible;
-    font-size: clamp(1.25rem, 7vw, 1.65rem);
+    font-size: clamp(1.45rem, 8vw, 1.9rem);
     text-overflow: clip;
     white-space: nowrap;
   }
 
-  .budget-ready-summary dl {
-    display: grid;
+  .budget-ready-summary-breakdown {
     gap: 0.25rem;
-    margin-top: 0.5rem;
+    margin: 0;
+    padding: 0.6rem 0 0;
+    border-top: 1px solid color-mix(in srgb, var(--positive) 18%, var(--border-soft));
+    border-left: 0;
   }
 
-  .budget-ready-summary-total {
-    display: flex;
-    margin-top: 0.5rem;
-    padding-top: 0.5rem;
+  .budget-ready-summary-negative .budget-ready-summary-breakdown {
+    border-top-color: color-mix(in srgb, var(--negative) 18%, var(--border-soft));
+  }
+
+  .budget-next-month-outlook {
+    min-height: 6.2rem;
   }
 
   .budget-year-month-navigation {
