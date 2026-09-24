@@ -8,7 +8,7 @@ import {
 } from "react";
 import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, ListTree, Plus, Redo2, Undo2 } from "lucide-react";
+import { CalendarDays, CircleAlert, CircleCheck, CircleDollarSign, ListTree, Plus, Redo2, Undo2 } from "lucide-react";
 import { Card } from "../components/ui/Card";
 import "../styles/budgetWorkspace.css";
 import {
@@ -174,7 +174,7 @@ function BudgetNextMonthOutlook({
   } else if (data && outlook) {
     if (outlook.status === "balanced") {
       primary = "Balanced";
-      secondary = `${formatMoney(0, currencyCode)} projected`;
+      secondary = "Based on your current budget";
     } else if (outlook.status === "overbudget") {
       primary = `${formatMoney(outlook.amount, currencyCode)} overbudget`;
       secondary = "Based on your current budget";
@@ -187,6 +187,8 @@ function BudgetNextMonthOutlook({
     secondary = "Open the next month to review it.";
   }
 
+  const StatusIcon = outlook?.status === "overbudget" ? CircleAlert : CircleCheck;
+
   return (
     <button
       className={`budget-next-month-outlook ${statusClass}`}
@@ -194,10 +196,19 @@ function BudgetNextMonthOutlook({
       onClick={onOpen}
       aria-label={`Open ${data?.monthLabel ?? "next month"} budget. ${primary}.`}
     >
+      <span className="budget-next-month-outlook-icon" aria-hidden="true">
+        <StatusIcon size={22} />
+      </span>
       <span className="budget-next-month-outlook-kicker">Next month</span>
       <span className="budget-next-month-outlook-label">{monthName} outlook</span>
       <strong>{primary}</strong>
       <span className="budget-next-month-outlook-support">{secondary}</span>
+      {data ? (
+        <span className="budget-next-month-outlook-assigned">
+          <span>Assigned in {monthName}</span>
+          <strong>{formatMoney(data.totalAssigned, currencyCode)}</strong>
+        </span>
+      ) : null}
       <span className="budget-next-month-outlook-arrow" aria-hidden="true">›</span>
     </button>
   );
@@ -1090,34 +1101,35 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   }
                   aria-label={`Ready to assign ${formatMoney(data.readyToAssign, data.currencyCode)}`}
                 >
-                <div className="budget-ready-summary-heading">
-                  <span>Ready to Assign</span>
-                  <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
-                </div>
-                <dl>
-                  <div>
-                    <dt>Carried forward</dt>
-                    <dd>{formatMoney(carriedForward, data.currencyCode)}</dd>
+                  <div className="budget-ready-summary-primary">
+                    <span className="budget-ready-summary-icon" aria-hidden="true">
+                      <CircleDollarSign size={30} />
+                    </span>
+                    <div className="budget-ready-summary-heading">
+                      <span>Ready to Assign</span>
+                      <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
+                    </div>
                   </div>
-                  <div>
-                    <dt>Previous overspending</dt>
-                    <dd className="budget-ready-summary-negative-value">
-                      {formatMoney(previousOverspending, data.currencyCode)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Income for {monthName}</dt>
-                    <dd>{formatMoney(incomeForMonth, data.currencyCode)}</dd>
-                  </div>
-                  <div>
-                    <dt>Assigned in {monthName}</dt>
-                    <dd>{formatMoney(-data.totalAssigned, data.currencyCode)}</dd>
-                  </div>
-                </dl>
-                <div className="budget-ready-summary-total">
-                  <span>Ready to Assign</span>
-                  <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
-                </div>
+                  <dl className="budget-ready-summary-breakdown">
+                    <div>
+                      <dt>Carried forward</dt>
+                      <dd>{formatMoney(carriedForward, data.currencyCode)}</dd>
+                    </div>
+                    <div>
+                      <dt>Previous overspending</dt>
+                      <dd className="budget-ready-summary-negative-value">
+                        {formatMoney(previousOverspending, data.currencyCode)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Income for {monthName}</dt>
+                      <dd>{formatMoney(incomeForMonth, data.currencyCode)}</dd>
+                    </div>
+                    <div>
+                      <dt>Assigned in {monthName}</dt>
+                      <dd>{formatMoney(-data.totalAssigned, data.currencyCode)}</dd>
+                    </div>
+                  </dl>
                 </div>
 
                 <BudgetNextMonthOutlook
