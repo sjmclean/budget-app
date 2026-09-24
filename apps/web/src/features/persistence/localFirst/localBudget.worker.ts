@@ -3105,6 +3105,7 @@ function queryTransactions(query: LocalTransactionQuery) {
        transaction_row.raw_payee_name AS rawPayeeName,
        transaction_row.category_id AS categoryId,
        ${categoryNameExpression} AS categoryName,
+       transaction_row.income_budget_month AS incomeBudgetMonth,
        transaction_row.transfer_account_id AS transferAccountId,
        transfer_account.name AS transferAccountName,
        transfer_account.participation AS transferAccountParticipation,
@@ -3140,6 +3141,7 @@ function queryTransactions(query: LocalTransactionQuery) {
       id: string;
       categoryId: string | null;
       categoryName: string | null;
+      incomeBudgetMonth: string | null;
       transferAccountId: string | null;
       transferAccountName: string | null;
       transferAccountParticipation: "on-budget" | "off-budget" | null;
