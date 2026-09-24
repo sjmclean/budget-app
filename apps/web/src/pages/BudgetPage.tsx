@@ -936,7 +936,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
       )
     : [];
 
-    const carriedForward = authoritativeSummary.carriedForwardReadyToAssign;
+  const carriedForward = authoritativeSummary.carriedForwardReadyToAssign;
   const previousOverspending = authoritativeSummary.previousOverspending;
   const incomeForMonth = authoritativeSummary.incomeForMonth;
 
