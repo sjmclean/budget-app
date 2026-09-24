@@ -1757,9 +1757,9 @@ function upsertTransaction(transaction: LocalTransactionRecord): void {
   for (const split of transaction.splitLines) {
     execute(
       `INSERT INTO local_transaction_splits(
-         transaction_id, id, category_id, category_name, transfer_account_id,
-         transfer_transaction_id, memo, amount
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         transaction_id, id, category_id, category_name, income_budget_month,
+         transfer_account_id, transfer_transaction_id, memo, amount
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         transaction.id,
         split.id,
