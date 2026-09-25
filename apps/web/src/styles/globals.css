@@ -78,19 +78,18 @@
 :root[data-theme="blueprint"] {
   color-scheme: light;
 
-  /* Crisp white working surfaces on a soft blue planning canvas. */
-  --page-bg: #eaf3ff;
+  --page-bg: #f4f9ff;
   --surface: #ffffff;
-  --surface-subtle: #f3f7fd;
-  --border: #c7d6e9;
-  --border-soft: #dce6f3;
+  --surface-subtle: #f1f5fb;
+  --border: #cfd9e8;
+  --border-soft: #e2e8f2;
 
   --text: #14213d;
-  --text-muted: #5d6f8b;
+  --text-muted: #60708a;
 
   --accent: #1769e0;
   --accent-strong: #0b4fb8;
-  --accent-soft: #e4efff;
+  --accent-soft: #e9f1ff;
   --accent-contrast: #ffffff;
 
   --positive: #15803d;
@@ -113,45 +112,33 @@
 }
 
 :root[data-theme="blueprint"] body {
-  background: var(--page-bg);
+  background: #f4f9ff;
 }
 
 :root[data-theme="blueprint"] .app-shell {
-  background:
-    radial-gradient(
-      circle at 15% 4%,
-      rgba(255, 255, 255, 0.96) 0,
-      rgba(255, 255, 255, 0.48) 22rem,
-      transparent 43rem
-    ),
-    radial-gradient(
-      circle at 88% 8%,
-      rgba(202, 226, 255, 0.62) 0,
-      rgba(222, 237, 255, 0.34) 24rem,
-      transparent 48rem
-    ),
-    linear-gradient(
-      135deg,
-      #f7fbff 0%,
-      #eef6ff 42%,
-      #e5f1ff 72%,
-      #dcecff 100%
-    );
+  background: #f4f9ff;
 }
 
 :root[data-theme="blueprint"] .app-content {
   background:
     radial-gradient(
-      ellipse at 92% 100%,
-      rgba(190, 219, 255, 0.34) 0,
-      rgba(216, 234, 255, 0.2) 26rem,
-      transparent 47rem
+      ellipse at 118% 112%,
+      rgba(186, 216, 252, 0.28) 0 28%,
+      transparent 28.6%
+    ),
+    radial-gradient(
+      ellipse at 116% 112%,
+      transparent 0 35%,
+      rgba(199, 224, 253, 0.22) 35.6% 47%,
+      transparent 47.6%
     ),
     linear-gradient(
-      135deg,
-      rgba(249, 252, 255, 0.78) 0%,
-      rgba(237, 246, 255, 0.82) 52%,
-      rgba(225, 239, 255, 0.9) 100%
+      104deg,
+      #fbfdff 0%,
+      #f8fbff 30%,
+      #f2f8ff 55%,
+      #eaf4ff 78%,
+      #e3f0ff 100%
     );
 }
 
@@ -162,8 +149,7 @@
 :root[data-theme="blueprint"] .sidebar,
 :root[data-theme="blueprint"] .app-sidebar,
 :root[data-theme="blueprint"] .navigation-sidebar {
-  background: #ffffff;
-  border-color: color-mix(in srgb, var(--border-soft) 82%, #c9ddf7);
+  background: color-mix(in srgb, var(--surface) 97%, var(--accent-soft));
 }
 
 * {
