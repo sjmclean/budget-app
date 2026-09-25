@@ -5,6 +5,7 @@ import {
   useState,
   type CSSProperties,
   type MouseEvent,
+  type ReactNode,
 } from "react";
 import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
@@ -779,7 +780,7 @@ function BudgetMultiMonthPane({
   archivedCategoriesExpanded: boolean;
   onToggleGroup: (groupId: string) => void;
   onToggleArchived: () => void;
-  toolbar?: React.ReactNode;
+  toolbar?: ReactNode;
 }) {
   const summary = readAuthoritativeBudgetSummary(data);
   const planningReadyToAssign =
