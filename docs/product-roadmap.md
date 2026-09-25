@@ -1,6 +1,6 @@
 # Product Roadmap
 
-*Last reconciled: 24 September 2026 against `master` at `eaee3903a90613674c2266e7119854ad7e84abf8`.*
+*Last reconciled: 24 September 2026 against `master` at `76475ce84c010a066155fbb2e7d4be79338891f6`.*
 
 This is the **single authoritative product roadmap** for Budget App.
 
@@ -125,7 +125,7 @@ Completed Budget UX foundations now include:
 - refreshed Budget planning header with month title above summary cards;
 - coloured, higher-emphasis Ready to Assign summary;
 - compact Next Month card showing authoritative status and next-month Assigned;
-- contextual Category Details panel instead of a permanently empty inspector;
+- contextual Category Details panel, with permanent-inspector information architecture now under active review;
 - Category Details tabs for Overview, Goal, Activity and Notes;
 - goal progress/editing through the existing goal subsystem;
 - category recent activity through the authoritative SQLite drilldown;
@@ -133,13 +133,19 @@ Completed Budget UX foundations now include:
   transfers;
 - account-aware transfer labels such as `Transfer to <account>`;
 - no-selection full-width Budget table;
-- existing Budget virtualization retained.
+- existing Budget virtualization retained;
+- optional adaptive multi-month Budget planning view with 1–4 consecutive months on sufficiently wide screens;
+- per-budget persisted visible-month preference with automatic width-based fallback;
+- editable month panes with month-aware Category Details selection.
 
 Recent completed work:
 
 - PR #87 — next-month Budget outlook;
 - PR #88 — contextual Category Details;
-- PR #90 — refreshed Budget planning header.
+- PR #90 — refreshed Budget planning header;
+- PR #94 — Move Money + effective movement history;
+- PR #95 — forward-aware Ready to Assign / future-month planning semantics;
+- PR #96 — adaptive 1–4 month Budget planning view.
 
 Design reference:
 
@@ -199,92 +205,45 @@ Detailed operational reference:
 This is the **only active ordering list**. Deal with item **1** first unless a
 blocking correctness/security defect requires immediate interruption.
 
-## 1 — Budget: wire Move Money + user-visible movement history — COMPLETE
+## 1 — Budget: multi-month polish + inspector information architecture — ACTIVE / NEXT
 
-The Category Details `Move Money` control is deliberately disabled today.
+PR #96 established the adaptive 1–4 month Budget planning view. Complete a
+bounded polish and information-architecture pass before moving on.
 
-Implement a real generic category-to-category money-movement workflow using the
-existing local-first money-movement/Application History command path.
+Primary multi-month touch-ups:
 
-Requirements:
+- fix text wrapping, clipping and awkward line breaks in month summaries,
+  table headings and category rows;
+- tighten alignment, spacing and density across 2-, 3- and 4-month layouts;
+- verify column widths and month-card proportions across large desktop sizes;
+- keep month headers and financial summaries visually aligned with their month
+  tables;
+- preserve useful horizontal scrolling when the inspector consumes width rather
+  than crushing month columns;
+- verify long category/group names and larger browser text/zoom;
+- retain the existing one-month experience without regression.
 
-- ordinary source → destination category movement;
-- amount entry and validation;
-- no reuse of Cover Overspending semantics as the generic workflow;
-- support multi-source movement where the UX calls for it;
-- preserve local-first command/history architecture;
-- undo removes the effective movement/history entry;
-- redo restores it;
-- compact user-visible history of currently effective movements;
-- history records at minimum date, amount, source category/categories and
-  destination category;
-- no separate "undone" audit event;
-- focused unit/integration/browser regression coverage before enabling the
-  Category Details action.
+Category Details / inspector decision:
 
-## 2 — Budget: complete Income for <Month> end-to-end — ACTIVE / NEXT
+- evaluate making the desktop Category Details inspector permanently present
+  rather than appearing only after category selection;
+- if adopted, use a stable right-side inspector column with an informative
+  no-selection state;
+- avoid Budget layout jumps when selecting/clearing categories;
+- retain exact month + category context in multi-month mode;
+- define what happens when a later visible month is selected without confusing
+  the active-month navigation model;
+- keep tablet/mobile behaviour adaptive rather than forcing a permanent desktop
+  panel into narrow layouts;
+- preserve keyboard/focus accessibility and existing Category Details actions.
 
-The domain has long contained month-level income concepts, but the current
-authoritative local-first projection still derives Ready to Assign income from
-the transaction's calendar month.
+Do not turn this into a broad Budget redesign. Treat PR #96 as the baseline and
+fix concrete usability/presentation issues observed in VM/browser acceptance.
 
-Complete the intended YNAB4-style capability where money received today can be
-designated as income for another budget month without falsifying the
-transaction date.
+## 2 — Budget: finish Category Details responsive behaviour + focused acceptance coverage — PLANNED
 
-Architecture requirements:
-
-- preserve the real transaction date for account balance, reconciliation and
-  cash-flow history;
-- introduce an explicit projection-authoritative, local-first income-allocation
-  fact;
-- do not change the transaction date to simulate deferral;
-- do not create fake future transactions;
-- support ordinary and split Ready to Assign income;
-- define valid destination-month rules;
-- projection cache invalidation must remain correct;
-- editing/deleting the source transaction must update/remove the allocation
-  safely;
-- undo/redo must include the allocation;
-- YNAB4 deferred-income import semantics should migrate into the same native
-  representation rather than remain a special imported-only path;
-- add regression coverage for current-month and future-month income allocation.
-
-UX requirement:
-
-- Ready to Assign income transaction editing should expose a clear
-  **Budget in** month selector.
-
-Relevant historical decision reference:
-
-- [ADR-004 Limited Future Budgeting](adr/ADR-004-limited-future-budgeting.md)
-
-## 3 — Budget: revisit header information architecture after Income for <Month> — PLANNED
-
-Do this **after item 2**, because future-month income materially changes what the
-Next Month summary can truthfully display.
-
-Review:
-
-- Ready to Assign hierarchy and breakdown;
-- Next Month hierarchy and density;
-- whether to display:
-  - Income for <month>;
-  - Assigned in <month>;
-  - Available in <month>;
-  - resulting Ready to Assign / balanced / overbudget state;
-- do **not** show future Activity unless the product deliberately introduces
-  projected/scheduled activity semantics;
-- desktop/tablet/mobile behaviour;
-- accessibility and focus order;
-- whether any information is redundant.
-
-Use the current header implementation and the design-reference graphic above as
-the starting point rather than redesigning from scratch.
-
-## 4 — Budget: finish Category Details responsive behaviour + focused acceptance coverage — PLANNED
-
-Desktop Category Details is implemented. Complete the deferred adaptive layer:
+Complete the adaptive layer after the desktop inspector information
+architecture is settled:
 
 - tablet overlay drawer;
 - mobile full-screen sheet;
@@ -294,11 +253,10 @@ Desktop Category Details is implemented. Complete the deferred adaptive layer:
 - browser acceptance coverage for:
   - goal dialog layering;
   - categorised on-budget → off-budget transfer activity;
-  - Category Details open/close and responsive presentation.
+  - Category Details open/close and responsive presentation;
+  - multi-month selection and inspector month context.
 
-Keep the existing desktop contextual-panel behavior.
-
-## 5 — Import workflow close-out review — PLANNED
+## 3 — Import workflow close-out review — PLANNED
 
 Perform the bounded review already agreed for the completed importer.
 
@@ -318,7 +276,7 @@ Verify:
 Fix only concrete defects found. Do not redesign the importer merely for code
 cleanliness.
 
-## 6 — Performance/navigation/tab-lifecycle close-out review — PLANNED
+## 4 — Performance/navigation/tab-lifecycle close-out review — PLANNED
 
 Regression-review the finished performance programme in the VM/browser:
 
@@ -338,7 +296,7 @@ Regression-review the finished performance programme in the VM/browser:
 Use measured evidence. Do not introduce a second cache/authority or retries/sleeps
 for correctness.
 
-## 7 — Full-application adaptive/mobile/UI scalability audit — PLANNED
+## 5 — Full-application adaptive/mobile/UI scalability audit — PLANNED
 
 Review the entire product at representative desktop, tablet and mobile widths,
 including larger browser zoom/text.
@@ -365,7 +323,7 @@ Audit:
 Produce a page/flow findings matrix with severity, owner and implementation
 sequence. Route feature-specific findings into their owning roadmap item.
 
-## 8 — Transaction Entry UX — PLANNED
+## 6 — Transaction Entry UX — PLANNED
 
 Audit first, then improve in bounded passes:
 
@@ -382,7 +340,31 @@ Audit first, then improve in bounded passes:
 - accessibility;
 - high-value browser coverage.
 
-## 9 — Broader Account Register UX — PLANNED
+## 7 — Account Reconciliation workflow — PLANNED
+
+Promote reconciliation from parked work into the active queue as a core Account
+Register capability.
+
+Define and implement:
+
+- account selection and reconciliation entry point;
+- statement/end date and statement balance;
+- cleared/reconciled running difference;
+- clear visibility of candidate uncleared transactions;
+- mark/unmark transactions during a reconciliation session;
+- safe completion semantics when the difference is non-zero;
+- atomic commit of reconciled state;
+- undo/history semantics;
+- behaviour for starting balances, transfers, splits and previously reconciled
+  transactions;
+- editing/deleting reconciled transactions and historical reconciliation
+  visibility;
+- focused unit/integration/browser coverage.
+
+Use the existing cleared/reconciled transaction-state foundations rather than
+creating a second accounting model.
+
+## 8 — Broader Account Register UX — PLANNED
 
 Review:
 
@@ -396,7 +378,7 @@ Review:
 - Account Groups / custom sidebar organisation as a presentation/navigation
   feature.
 
-## 10 — Register Customisation + Adaptive Register — PLANNED
+## 9 — Register Customisation + Adaptive Register — PLANNED
 
 Build a coherent user-facing customization experience around existing
 foundations:
@@ -410,7 +392,7 @@ foundations:
 
 Then implement Register-specific adaptive/mobile findings from item 7.
 
-## 11 — Scheduled Transactions product UX — PLANNED
+## 10 — Scheduled Transactions product UX — PLANNED
 
 Review/refine:
 
@@ -427,7 +409,7 @@ High-value planned candidate within this workstream:
 - Scheduled Transaction Calendar using the existing schedule/preview/Enter/Skip
   authority, showing upcoming income/bills, funding state and due/overdue status.
 
-## 12 — Shared application polish + Settings UX — PLANNED
+## 11 — Shared application polish + Settings UX — PLANNED
 
 Cross-cutting polish after the major workflows:
 
@@ -444,7 +426,7 @@ Cross-cutting polish after the major workflows:
 Also perform the dedicated Settings UX review that was present in the older
 roadmap and should remain explicit.
 
-## 13 — Codebase health / runtime close-out — PLANNED, BOUNDED
+## 12 — Codebase health / runtime close-out — PLANNED, BOUNDED
 
 Do not turn this into another architecture rewrite.
 
@@ -569,7 +551,6 @@ found.
 Keep parked unless evidence or user value changes the priority:
 
 - Review Overspending;
-- full reconciliation workflow;
 - goal/target consolidation beyond current working foundations;
 - historical matched-transfer display issue if it becomes reproducible;
 - payee merge undo/redo;
@@ -638,6 +619,9 @@ exposes debt.
 - contextual Category Details.
 - transfer-aware category activity.
 - refreshed planning header.
+- Move Money with effective movement history.
+- forward-aware Ready to Assign / future planning.
+- adaptive 1–4 month Budget planning view.
 
 ## Scheduled Transaction discovery — COMPLETE V1
 
