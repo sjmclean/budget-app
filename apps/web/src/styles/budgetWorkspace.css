@@ -1362,7 +1362,7 @@
   grid-area: months;
   min-width: 0;
   display: grid;
-  grid-template-columns: 2.2rem auto minmax(0, 1fr) 2.2rem;
+  grid-template-columns: 2.2rem auto minmax(0, 1fr) 2.2rem auto;
   align-items: center;
   gap: 0.55rem;
   padding: 0.15rem 0 0.55rem;
@@ -2443,4 +2443,100 @@
  * from the remaining Budget workspace width rather than layered underneath it. */
 .budget-workspace-screen-multi-month.budget-workspace-layout-details-open {
   grid-template-columns: minmax(0, 1fr) minmax(19rem, 20.5rem);
+}
+
+
+.budget-year-month-navigation > .budget-visible-month-control {
+  align-self: center;
+  justify-self: end;
+  padding-left: 0.35rem;
+}
+
+.budget-workspace-screen-multi-month .budget-planning-header {
+  gap: 0.35rem;
+  padding-top: 0.45rem;
+}
+
+.budget-multi-month-pane-header {
+  position: relative;
+  min-height: 3.6rem;
+  align-items: stretch;
+  padding: 0.45rem 0.2rem 0.55rem 0.75rem;
+}
+
+.budget-multi-month-pane-header::before {
+  content: "";
+  position: absolute;
+  inset: 0.45rem auto 0.55rem 0.15rem;
+  width: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 72%, var(--text-muted));
+}
+
+.budget-multi-month-pane-active .budget-multi-month-pane-header::before {
+  background: var(--accent);
+}
+
+.budget-multi-month-pane-heading {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.budget-multi-month-pane-heading > div {
+  min-width: 0;
+}
+
+.budget-multi-month-pane-header h2 {
+  font-size: 1.28rem;
+  letter-spacing: -0.02em;
+}
+
+.budget-active-month-badge,
+.budget-health-month-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--accent-strong);
+  font-size: 0.66rem;
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.budget-active-month-badge {
+  min-height: 1.7rem;
+  padding: 0.28rem 0.55rem;
+}
+
+.budget-health-month-badge {
+  min-height: 1.65rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.budget-health-card-header {
+  align-items: center;
+}
+
+@media (max-width: 1200px) {
+  .budget-health-month-badge {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .budget-year-month-navigation {
+    grid-template-columns: 2.1rem auto minmax(0, 1fr) 2.1rem;
+  }
+
+  .budget-year-month-navigation > .budget-visible-month-control {
+    display: none;
+  }
 }
