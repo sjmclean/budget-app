@@ -120,6 +120,87 @@
   border-left: 1px solid color-mix(in srgb, var(--border-soft) 78%, transparent);
 }
 
+.budget-inspector-column {
+  position: relative;
+  min-width: 0;
+  min-height: 100%;
+}
+
+.budget-health-card {
+  position: absolute;
+  inset: 0 0 auto;
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.95rem 1rem;
+  border: var(--workspace-side-panel-border);
+  border-radius: 0.9rem;
+  background: var(--workspace-side-panel-background);
+  box-shadow: var(--workspace-side-panel-shadow);
+}
+
+.budget-health-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.budget-health-card-header > div {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.budget-health-card-header span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.budget-health-card-header strong {
+  color: var(--text);
+  font-size: 0.96rem;
+  line-height: 1.2;
+}
+
+.budget-health-list {
+  display: grid;
+  gap: 0.48rem;
+}
+
+.budget-health-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.75rem;
+  min-width: 0;
+  padding-top: 0.48rem;
+  border-top: 1px solid var(--border-soft);
+  font-size: 0.75rem;
+}
+
+.budget-health-row span {
+  min-width: 0;
+  color: var(--text-muted);
+}
+
+.budget-health-row strong {
+  min-width: 0;
+  max-width: 11rem;
+  color: var(--text);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.budget-health-row-warning strong {
+  color: var(--negative);
+}
+
+.budget-inspector-category-slot {
+  box-sizing: border-box;
+  padding-top: var(--budget-inspector-category-offset, 0px);
+}
+
 .budget-category-details-panel {
   position: sticky;
   top: 1rem;
@@ -130,6 +211,10 @@
   border-radius: 0.9rem;
   background: var(--workspace-side-panel-background);
   box-shadow: var(--workspace-side-panel-shadow);
+}
+
+.budget-inspector-category-slot .budget-category-details-panel {
+  position: static;
 }
 
 .budget-category-details-panel-empty {
@@ -1562,6 +1647,20 @@
   .budget-workspace-layout,
   .budget-workspace-layout-details-open {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .budget-inspector-column {
+    display: grid;
+    gap: 0.75rem;
+    min-height: 0;
+  }
+
+  .budget-health-card {
+    position: static;
+  }
+
+  .budget-inspector-category-slot {
+    padding-top: 0;
   }
 
   .budget-category-details-panel {
