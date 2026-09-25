@@ -93,6 +93,18 @@ test("multi-month Budget uses available wide-screen space without squeezing narr
   );
   assert.match(
     responsive,
-    /@media \(max-width: 1359px\)[\s\S]*budget-visible-month-button:not\(:first-child\)[\s\S]*display:\s*none/,
+    /\.budget-visible-month-control\s*\{[\s\S]*display:\s*inline-flex/,
+  );
+  assert.match(
+    responsive,
+    /\.budget-multi-month-pane > \.budget-ready-summary\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
+  );
+  assert.match(
+    responsive,
+    /\.budget-multi-month-pane > \.budget-ready-summary \.budget-ready-summary-breakdown\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/,
+  );
+  assert.match(
+    responsive,
+    /\.budget-multi-month-toolbar-slot\s*\{[\s\S]*min-height:\s*2\.9rem/,
   );
 });
