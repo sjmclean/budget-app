@@ -136,3 +136,11 @@ test("multi-month Budget uses one compact month-count selector", () => {
     /<select[\s\S]*className="budget-visible-month-select"[\s\S]*value=\{visibleCount\}[\s\S]*disabled=\{count > capacity\}/,
   );
 });
+
+
+test("Budget hides the month selector when only one month fits", () => {
+  assert.match(
+    budgetPageSource,
+    /visibleMonthCapacity > 1 \? \([\s\S]*<BudgetVisibleMonthToggle/,
+  );
+});
