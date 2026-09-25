@@ -942,7 +942,7 @@ function BudgetMultiMonthPane({
       aria-label={`${data.monthLabel} budget`}
     >
       <header className="budget-multi-month-pane-header">
-        <div className="budget-multi-month-pane-heading">
+        <div ref={healthAnchorRef} className="budget-multi-month-pane-heading">
           <div>
             <h2>{data.monthLabel}</h2>
             <span>Monthly Budget</span>
@@ -954,7 +954,6 @@ function BudgetMultiMonthPane({
       </header>
 
       <div
-        ref={healthAnchorRef}
         className={
           isMoneyNegative(planningReadyToAssign)
             ? "budget-ready-summary budget-ready-summary-negative"
