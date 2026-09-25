@@ -319,6 +319,7 @@ function BudgetHealthCard({
             <strong>{monthLabel}</strong>
           </div>
         </div>
+        <span className="budget-health-month-badge">{monthLabel}</span>
       </header>
 
       <div className="budget-health-list">
@@ -883,6 +884,7 @@ function BudgetMultiMonthPane({
   toolbar,
   healthAnchorRef,
   categoryAnchorRef,
+  isActiveMonth = false,
 }: {
   month: string;
   data: BudgetMonthView;
@@ -897,6 +899,7 @@ function BudgetMultiMonthPane({
   toolbar?: ReactNode;
   healthAnchorRef?: RefObject<HTMLDivElement | null>;
   categoryAnchorRef?: RefObject<HTMLDivElement | null>;
+  isActiveMonth?: boolean;
 }) {
   const summary = readAuthoritativeBudgetSummary(data);
   const planningReadyToAssign =
@@ -915,11 +918,22 @@ function BudgetMultiMonthPane({
   };
 
   return (
-    <section className="budget-multi-month-pane" aria-label={`${data.monthLabel} budget`}>
+    <section
+      className={[
+        "budget-multi-month-pane",
+        isActiveMonth ? "budget-multi-month-pane-active" : "",
+      ].filter(Boolean).join(" ")}
+      aria-label={`${data.monthLabel} budget`}
+    >
       <header className="budget-multi-month-pane-header">
-        <div>
-          <h2>{data.monthLabel}</h2>
-          <span>Monthly Budget</span>
+        <div className="budget-multi-month-pane-heading">
+          <div>
+            <h2>{data.monthLabel}</h2>
+            <span>Monthly Budget</span>
+          </div>
+          {isActiveMonth ? (
+            <span className="budget-active-month-badge">Active month</span>
+          ) : null}
         </div>
       </header>
 
@@ -1702,21 +1716,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 >
                   ›
                 </button>
-              </nav>
-
-              <div className="budget-planning-title">
-                <div>
-                  <h1>
-                    {isMultiMonthView
-                      ? `${data.monthLabel} – ${formatBudgetMonthLabel(visibleMonths[visibleMonths.length - 1]!)}`
-                      : data.monthLabel}
-                  </h1>
-                  <span>
-                    {isMultiMonthView
-                      ? `${visibleMonthCount}-month planning view`
-                      : "Monthly Budget"}
-                  </span>
-                </div>
                 {visibleMonthCapacity > 1 ? (
                   <BudgetVisibleMonthToggle
                     visibleCount={visibleMonthCount}
@@ -1724,7 +1723,16 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                     onChange={changeVisibleMonthCount}
                   />
                 ) : null}
-              </div>
+              </nav>
+
+              {!isMultiMonthView ? (
+                <div className="budget-planning-title">
+                  <div>
+                    <h1>{data.monthLabel}</h1>
+                    <span>Monthly Budget</span>
+                  </div>
+                </div>
+              ) : null}
 
               {!isMultiMonthView ? (
                 <>
@@ -1950,6 +1958,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
               <BudgetMultiMonthPane
                 month={selectedMonth}
                 data={data}
+                isActiveMonth
                 healthAnchorRef={budgetHealthAnchorRef}
                 categoryAnchorRef={budgetCategoryAnchorRef}
                 selectedCategoryId={visibleSelectedCategory?.id ?? null}
