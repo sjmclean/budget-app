@@ -7,6 +7,7 @@ import {
   type MouseEvent,
   type ReactNode,
   type RefObject,
+  type UIEvent,
 } from "react";
 import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
@@ -288,11 +289,35 @@ function BudgetHealthCard({
   futureOvercommitment: number;
 }) {
   return (
-    <section className="budget-health-card" aria-label={`Budget health for ${monthLabel}`}>
+    <section
+      className={[
+        "budget-health-card",
+        overspentCategoryCount > 0 ||
+        nextMonthStatus === "overbudget" ||
+        futureOvercommitment > 0
+          ? "budget-health-card-warning"
+          : "budget-health-card-clear",
+      ].join(" ")}
+      aria-label={`Budget health for ${monthLabel}`}
+    >
       <header className="budget-health-card-header">
-        <div>
-          <span>Budget Health</span>
-          <strong>{monthLabel}</strong>
+        <div className="budget-health-card-title">
+          <span
+            className="budget-health-card-icon"
+            aria-hidden="true"
+          >
+            {overspentCategoryCount > 0 ||
+            nextMonthStatus === "overbudget" ||
+            futureOvercommitment > 0 ? (
+              <CircleAlert size={17} />
+            ) : (
+              <CircleCheck size={17} />
+            )}
+          </span>
+          <div>
+            <span>Budget Health</span>
+            <strong>{monthLabel}</strong>
+          </div>
         </div>
       </header>
 
@@ -1283,6 +1308,21 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     }
   }
 
+  function syncVisibleMonthTableScroll(event: UIEvent<HTMLDivElement>) {
+    const source = event.target;
+    if (!(source instanceof HTMLElement)) return;
+    if (!source.classList.contains("budget-workspace-table-card")) return;
+
+    const grid = event.currentTarget;
+    for (const table of grid.querySelectorAll<HTMLElement>(
+      ".budget-workspace-table-card",
+    )) {
+      if (table !== source && table.scrollTop !== source.scrollTop) {
+        table.scrollTop = source.scrollTop;
+      }
+    }
+  }
+
   function toggleBudgetGroup(groupId: string) {
     setCollapsedGroupIds((current) => {
       const next = new Set(current);
@@ -1905,6 +1945,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             <div
               className="budget-multi-month-grid"
               style={{ "--budget-visible-month-count": visibleMonthCount } as CSSProperties}
+              onScrollCapture={syncVisibleMonthTableScroll}
             >
               <BudgetMultiMonthPane
                 month={selectedMonth}
