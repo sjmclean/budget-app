@@ -1091,6 +1091,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     readPreferredVisibleBudgetMonths(budgetId),
   );
   const [visibleMonthCapacity, setVisibleMonthCapacity] = useState(1);
+  const [inspectorHealthOffset, setInspectorHealthOffset] = useState(0);
   const [inspectorCategoryOffset, setInspectorCategoryOffset] = useState(0);
 
   const {
@@ -1245,14 +1246,24 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
     const updateInspectorAlignment = () => {
       const layoutTop = layout.getBoundingClientRect().top;
+      const healthAnchor = workspace.querySelector<HTMLElement>(
+        ".budget-multi-month-pane > .budget-ready-summary, .budget-planning-summary-stack",
+      );
       const tableHead = workspace.querySelector<HTMLElement>(
         ".budget-multi-month-pane > .budget-workspace-table-head, :scope > .budget-workspace-table-head",
       );
-      if (!tableHead) return;
 
-      setInspectorCategoryOffset(
-        Math.max(0, tableHead.getBoundingClientRect().top - layoutTop),
-      );
+      if (healthAnchor) {
+        setInspectorHealthOffset(
+          Math.max(0, healthAnchor.getBoundingClientRect().top - layoutTop),
+        );
+      }
+
+      if (tableHead) {
+        setInspectorCategoryOffset(
+          Math.max(0, tableHead.getBoundingClientRect().top - layoutTop),
+        );
+      }
     };
 
     updateInspectorAlignment();
@@ -2035,7 +2046,13 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           )}
         </main>
 
-        <aside className="budget-inspector-column" aria-label="Budget inspector">
+        <aside
+          className="budget-inspector-column"
+          aria-label="Budget inspector"
+          style={{
+            "--budget-inspector-health-offset": `${inspectorHealthOffset}px`,
+          } as CSSProperties}
+        >
           <BudgetHealthCard
             monthLabel={data.monthLabel}
             currencyCode={data.currencyCode}
