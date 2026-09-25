@@ -120,18 +120,22 @@ test("Budget keeps a permanent desktop Category Details column with an empty sta
   );
 });
 
-test("visible month capacity measures the workspace after reserving the inspector", () => {
+test("visible month capacity measures the already-reserved Budget workspace width", () => {
   assert.match(
     budgetPage,
-    /layoutWidth - inspectorWidth - \(inspectorWidth > 0 \? columnGap : 0\)/,
+    /const availableWorkspaceWidth = workspace\.getBoundingClientRect\(\)\.width/,
   );
   assert.match(
     budgetPage,
-    /const observer = new ResizeObserver\(updateCapacity\)[\s\S]*observer\.observe\(layout\)[\s\S]*observer\.observe\(inspector\)/,
+    /const observer = new ResizeObserver\(updateCapacity\)[\s\S]*observer\.observe\(workspace\)[\s\S]*observer\.observe\(layout\)/,
   );
   assert.match(
     budgetPage,
     /visibleBudgetMonthCapacity\(availableWorkspaceWidth\)/,
+  );
+  assert.doesNotMatch(
+    budgetPage,
+    /layoutWidth - inspectorWidth/,
   );
 });
 
@@ -155,7 +159,11 @@ test("permanent Budget inspector shows health above table-aligned Category Detai
   );
   assert.match(
     budgetPage,
-    /tableHead\.getBoundingClientRect\(\)\.top - layoutTop/,
+    /budgetHealthAnchorRef\.current[\s\S]*budgetCategoryAnchorRef\.current/,
+  );
+  assert.match(
+    budgetPage,
+    /healthAnchor\.getBoundingClientRect\(\)\.top - layoutTop[\s\S]*categoryAnchor\.getBoundingClientRect\(\)\.top - layoutTop/,
   );
   assert.match(
     budgetPage,
@@ -167,6 +175,6 @@ test("permanent Budget inspector shows health above table-aligned Category Detai
   );
   assert.match(
     budgetCss,
-    /\.budget-inspector-category-slot\s*\{[\s\S]*padding-top:\s*var\(--budget-inspector-category-offset/,
+    /\.budget-inspector-category-slot\s*\{[\s\S]*position:\s*absolute[\s\S]*var\(--budget-inspector-category-offset/,
   );
 });
