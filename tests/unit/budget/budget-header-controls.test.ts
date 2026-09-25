@@ -87,7 +87,11 @@ test("Budget header exposes rolling month navigation with a deliberate year sele
   );
   assert.match(
     budgetPageSource,
-    /<h1>[\s\S]*isMultiMonthView[\s\S]*formatBudgetMonthLabel\(visibleMonths\[visibleMonths\.length - 1\]![\s\S]*data\.monthLabel[\s\S]*<\/h1>/,
+    /!isMultiMonthView \? \([\s\S]*<h1>\{data\.monthLabel\}<\/h1>[\s\S]*<span>Monthly Budget<\/span>/,
+  );
+  assert.doesNotMatch(
+    budgetPageSource,
+    /\$\{data\.monthLabel\} – \$\{formatBudgetMonthLabel/,
   );
   assert.doesNotMatch(
     budgetPageSource,
@@ -97,9 +101,9 @@ test("Budget header exposes rolling month navigation with a deliberate year sele
     budgetPageSource,
     /aria-current=\{isSelected \? "date" : undefined\}/,
   );
-  assert.match(
+  assert.doesNotMatch(
     budgetPageSource,
-    /isMultiMonthView[\s\S]*\$\{visibleMonthCount\}-month planning view[\s\S]*"Monthly Budget"/,
+    /\$\{visibleMonthCount\}-month planning view/,
   );
 });
 
@@ -154,5 +158,39 @@ test("multi-month Budget synchronizes visible month table scrolling", () => {
   assert.match(
     budgetPageSource,
     /className="budget-multi-month-grid"[\s\S]*onScrollCapture=\{syncVisibleMonthTableScroll\}/,
+  );
+});
+
+
+test("multi-month Budget promotes each pane heading and marks the active month", () => {
+  assert.match(
+    budgetPageSource,
+    /budget-multi-month-pane-heading[\s\S]*<h2>\{data\.monthLabel\}<\/h2>[\s\S]*Monthly Budget/,
+  );
+  assert.match(
+    budgetPageSource,
+    /isActiveMonth \? \([\s\S]*budget-active-month-badge[\s\S]*Active month/,
+  );
+  assert.match(
+    budgetPageSource,
+    /<BudgetMultiMonthPane[\s\S]*month=\{selectedMonth\}[\s\S]*isActiveMonth/,
+  );
+});
+
+test("month count control lives with month navigation rather than the redundant multi-month title", () => {
+  assert.match(
+    budgetPageSource,
+    /<nav className="budget-year-month-navigation"[\s\S]*<BudgetVisibleMonthToggle/,
+  );
+  assert.match(
+    budgetPageSource,
+    /!isMultiMonthView \? \([\s\S]*className="budget-planning-title"/,
+  );
+});
+
+test("Budget Health identifies the active inspector month in its header", () => {
+  assert.match(
+    budgetPageSource,
+    /budget-health-card-header[\s\S]*budget-health-month-badge[\s\S]*\{monthLabel\}/,
   );
 });
