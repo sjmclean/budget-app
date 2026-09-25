@@ -161,9 +161,9 @@ function writePreferredVisibleBudgetMonths(budgetId: string, count: number) {
 }
 
 function visibleBudgetMonthCapacity(workspaceWidth: number): number {
-  if (workspaceWidth >= 2560) return 4;
-  if (workspaceWidth >= 1920) return 3;
-  if (workspaceWidth >= 1360) return 2;
+  if (workspaceWidth >= 1960) return 4;
+  if (workspaceWidth >= 1470) return 3;
+  if (workspaceWidth >= 975) return 2;
   return 1;
 }
 
@@ -1114,11 +1114,24 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
   useEffect(() => {
     const workspace = budgetWorkspaceMainRef.current;
-    if (!workspace) return;
+    const layout = workspace?.parentElement;
+    if (!workspace || !layout) return;
 
     const updateCapacity = () => {
-      const width = workspace.getBoundingClientRect().width;
-      setVisibleMonthCapacity(visibleBudgetMonthCapacity(width));
+      const layoutWidth = layout.getBoundingClientRect().width;
+      const inspector = layout.querySelector<HTMLElement>(
+        ".budget-category-details-panel",
+      );
+      const inspectorWidth = inspector?.getBoundingClientRect().width ?? 0;
+      const columnGap = Number.parseFloat(getComputedStyle(layout).columnGap) || 0;
+      const availableWorkspaceWidth = Math.max(
+        0,
+        layoutWidth - inspectorWidth - (inspectorWidth > 0 ? columnGap : 0),
+      );
+
+      setVisibleMonthCapacity(
+        visibleBudgetMonthCapacity(availableWorkspaceWidth),
+      );
     };
 
     updateCapacity();
@@ -1129,7 +1142,11 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     }
 
     const observer = new ResizeObserver(updateCapacity);
-    observer.observe(workspace);
+    observer.observe(layout);
+    const inspector = layout.querySelector<HTMLElement>(
+      ".budget-category-details-panel",
+    );
+    if (inspector) observer.observe(inspector);
     return () => observer.disconnect();
   }, []);
 
