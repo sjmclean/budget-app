@@ -162,18 +162,30 @@ test("multi-month Budget synchronizes visible month table scrolling", () => {
 });
 
 
-test("multi-month Budget promotes each pane heading and marks the active month", () => {
+test("multi-month Budget marks the actual current calendar month, not the selected pane", () => {
   assert.match(
     budgetPageSource,
     /budget-multi-month-pane-heading[\s\S]*<h2>\{data\.monthLabel\}<\/h2>[\s\S]*Monthly Budget/,
   );
   assert.match(
     budgetPageSource,
-    /isActiveMonth \? \([\s\S]*budget-active-month-badge[\s\S]*Active month/,
+    /isCurrentMonth \? \([\s\S]*budget-current-month-badge[\s\S]*Current month/,
   );
   assert.match(
     budgetPageSource,
-    /<BudgetMultiMonthPane[\s\S]*month=\{selectedMonth\}[\s\S]*isActiveMonth/,
+    /const currentBudgetMonth = getCurrentBudgetMonth\(\)/,
+  );
+  assert.match(
+    budgetPageSource,
+    /<BudgetMultiMonthPane[\s\S]*month=\{selectedMonth\}[\s\S]*isCurrentMonth=\{selectedMonth === currentBudgetMonth\}/,
+  );
+  assert.match(
+    budgetPageSource,
+    /<BudgetFutureMonthPane[\s\S]*isCurrentMonth=\{month === currentBudgetMonth\}/,
+  );
+  assert.doesNotMatch(
+    budgetPageSource,
+    /Active month/,
   );
 });
 
@@ -188,9 +200,28 @@ test("month count control lives with month navigation rather than the redundant 
   );
 });
 
-test("Budget Health identifies the active inspector month in its header", () => {
+test("Budget Health identifies the selected inspector month in its header", () => {
   assert.match(
     budgetPageSource,
     /budget-health-card-header[\s\S]*budget-health-month-badge[\s\S]*\{monthLabel\}/,
+  );
+});
+
+
+test("Budget Health uses a prominent current-month overspending summary", () => {
+  assert.match(
+    budgetPageSource,
+    /budget-health-summary[\s\S]*categories overspent[\s\S]*formatMoney\(overspentAmount, currencyCode\)[\s\S]*Total overspending this month/,
+  );
+  assert.match(
+    budgetPageSource,
+    /budget-health-list[\s\S]*nextMonthLabel[\s\S]*Future funding/,
+  );
+});
+
+test("Category Details uses the shared inspector header hierarchy", () => {
+  assert.match(
+    budgetPageSource,
+    /budget-category-details-header-copy[\s\S]*Inspector[\s\S]*Category Details/,
   );
 });
