@@ -1307,7 +1307,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     observer.observe(healthAnchor);
     observer.observe(categoryAnchor);
     return () => observer.disconnect();
-  }, [visibleMonthCount, selectedMonth]);
+  }, [visibleMonthCount, selectedMonth, isLoading]);
   const visibleMonths = buildVisibleBudgetMonths(
     selectedMonth,
     visibleMonthCount,
