@@ -309,9 +309,9 @@ function BudgetHealthCard({
             {overspentCategoryCount > 0 ||
             nextMonthStatus === "overbudget" ||
             futureOvercommitment > 0 ? (
-              <CircleAlert size={17} />
+              <CircleAlert size={18} />
             ) : (
-              <CircleCheck size={17} />
+              <CircleCheck size={18} />
             )}
           </span>
           <div>
@@ -322,16 +322,34 @@ function BudgetHealthCard({
         <span className="budget-health-month-badge">{monthLabel}</span>
       </header>
 
-      <div className="budget-health-list">
-        <div className={overspentCategoryCount > 0 ? "budget-health-row budget-health-row-warning" : "budget-health-row"}>
-          <span>Overspent categories</span>
+      <div className="budget-health-summary">
+        <span className="budget-health-summary-icon" aria-hidden="true">
+          {overspentCategoryCount > 0 ? (
+            <CircleAlert size={24} />
+          ) : (
+            <CircleCheck size={24} />
+          )}
+        </span>
+        <div className="budget-health-summary-copy">
+          <span>
+            {overspentCategoryCount > 0
+              ? `${overspentCategoryCount} categories overspent`
+              : "No overspent categories"}
+          </span>
           <strong>
             {overspentCategoryCount > 0
-              ? `${overspentCategoryCount} · ${formatMoney(overspentAmount, currencyCode)}`
-              : "None"}
+              ? formatMoney(overspentAmount, currencyCode)
+              : "On track"}
           </strong>
+          <small>
+            {overspentCategoryCount > 0
+              ? "Total overspending this month"
+              : "No current category overspending"}
+          </small>
         </div>
+      </div>
 
+      <div className="budget-health-list">
         <div className={nextMonthStatus === "overbudget" ? "budget-health-row budget-health-row-warning" : "budget-health-row"}>
           <span>{nextMonthLabel}</span>
           <strong>
@@ -440,7 +458,10 @@ function CategoryDetailsPanel({
       aria-label={`Category details for ${category.name}`}
     >
       <header className="budget-category-details-header">
-        <h2>Category Details</h2>
+        <div className="budget-category-details-header-copy">
+          <span>Inspector</span>
+          <h2>Category Details</h2>
+        </div>
         <button
           className="budget-category-details-close"
           type="button"
@@ -884,7 +905,7 @@ function BudgetMultiMonthPane({
   toolbar,
   healthAnchorRef,
   categoryAnchorRef,
-  isActiveMonth = false,
+  isCurrentMonth = false,
 }: {
   month: string;
   data: BudgetMonthView;
@@ -899,7 +920,7 @@ function BudgetMultiMonthPane({
   toolbar?: ReactNode;
   healthAnchorRef?: RefObject<HTMLDivElement | null>;
   categoryAnchorRef?: RefObject<HTMLDivElement | null>;
-  isActiveMonth?: boolean;
+  isCurrentMonth?: boolean;
 }) {
   const summary = readAuthoritativeBudgetSummary(data);
   const planningReadyToAssign =
@@ -921,7 +942,7 @@ function BudgetMultiMonthPane({
     <section
       className={[
         "budget-multi-month-pane",
-        isActiveMonth ? "budget-multi-month-pane-active" : "",
+        isCurrentMonth ? "budget-multi-month-pane-current" : "",
       ].filter(Boolean).join(" ")}
       aria-label={`${data.monthLabel} budget`}
     >
@@ -931,8 +952,8 @@ function BudgetMultiMonthPane({
             <h2>{data.monthLabel}</h2>
             <span>Monthly Budget</span>
           </div>
-          {isActiveMonth ? (
-            <span className="budget-active-month-badge">Active month</span>
+          {isCurrentMonth ? (
+            <span className="budget-current-month-badge">Current month</span>
           ) : null}
         </div>
       </header>
@@ -1046,6 +1067,7 @@ function BudgetFutureMonthPane({
   archivedCategoriesExpanded,
   onToggleGroup,
   onToggleArchived,
+  isCurrentMonth,
 }: {
   budgetId: string;
   month: string;
@@ -1055,6 +1077,7 @@ function BudgetFutureMonthPane({
   archivedCategoriesExpanded: boolean;
   onToggleGroup: (groupId: string) => void;
   onToggleArchived: () => void;
+  isCurrentMonth: boolean;
 }) {
   const workspace = useBudgetWorkspace(budgetId, month);
 
@@ -1079,6 +1102,7 @@ function BudgetFutureMonthPane({
       archivedCategoriesExpanded={archivedCategoriesExpanded}
       onToggleGroup={onToggleGroup}
       onToggleArchived={onToggleArchived}
+      isCurrentMonth={isCurrentMonth}
     />
   );
 }
@@ -1121,6 +1145,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const [selectedMonth, setSelectedMonth] = useState(() =>
     getCurrentBudgetMonth(),
   );
+  const currentBudgetMonth = getCurrentBudgetMonth();
   const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(() =>
     readCollapsedBudgetGroupIds(budgetId),
   );
@@ -1958,7 +1983,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
               <BudgetMultiMonthPane
                 month={selectedMonth}
                 data={data}
-                isActiveMonth
+                isCurrentMonth={selectedMonth === currentBudgetMonth}
                 healthAnchorRef={budgetHealthAnchorRef}
                 categoryAnchorRef={budgetCategoryAnchorRef}
                 selectedCategoryId={visibleSelectedCategory?.id ?? null}
@@ -2031,6 +2056,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                       return next;
                     });
                   }}
+                  isCurrentMonth={month === currentBudgetMonth}
                 />
               ))}
             </div>
