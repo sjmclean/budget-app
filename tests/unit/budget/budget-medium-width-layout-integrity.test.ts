@@ -139,3 +139,30 @@ test("narrow Budget layouts return to normal document scrolling", () => {
     /@media \(max-width: 1024px\)[\s\S]*\.budget-workspace-screen\s*\{[\s\S]*height:\s*auto[\s\S]*overflow:\s*visible/,
   );
 });
+
+
+test("Budget table scrollbars stay functional without visible scrollbar chrome", () => {
+  assert.match(
+    responsive,
+    /\.budget-workspace-table-card\s*\{[\s\S]*overflow-y:\s*auto[\s\S]*scrollbar-width:\s*none/,
+  );
+  assert.match(
+    responsive,
+    /\.budget-workspace-table-card::-webkit-scrollbar\s*\{[\s\S]*width:\s*0[\s\S]*height:\s*0/,
+  );
+});
+
+test("Budget planning header reads as one continuous surface", () => {
+  assert.match(
+    responsive,
+    /\.budget-sticky-working-header\s*\{[\s\S]*background:\s*transparent/,
+  );
+  assert.match(
+    responsive,
+    /\.budget-sticky-working-header::before\s*\{[\s\S]*box-shadow:\s*none/,
+  );
+  assert.match(
+    responsive,
+    /\.budget-planning-header\s*\{[\s\S]*background:\s*transparent/,
+  );
+});
