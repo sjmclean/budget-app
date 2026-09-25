@@ -178,3 +178,11 @@ test("permanent Budget inspector shows health above table-aligned Category Detai
     /\.budget-inspector-category-slot\s*\{[\s\S]*position:\s*absolute[\s\S]*var\(--budget-inspector-category-offset/,
   );
 });
+
+
+test("Budget inspector alignment reruns after the loading render mounts its anchors", () => {
+  assert.match(
+    budgetPage,
+    /useEffect\(\(\) => \{[\s\S]*budgetHealthAnchorRef\.current[\s\S]*budgetCategoryAnchorRef\.current[\s\S]*\}, \[visibleMonthCount, selectedMonth, isLoading\]\)/,
+  );
+});
