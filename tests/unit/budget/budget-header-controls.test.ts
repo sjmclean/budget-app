@@ -111,7 +111,7 @@ test("Budget exposes persisted adaptive one-to-four month planning controls", ()
   );
   assert.match(
     budgetPageSource,
-    /aria-label=\{\`Show \$\{count\} budget month/,
+    /className="budget-visible-month-select"[\s\S]*aria-label="Visible budget months"/,
   );
   assert.match(
     budgetPageSource,
@@ -124,5 +124,15 @@ test("Budget exposes persisted adaptive one-to-four month planning controls", ()
   assert.match(
     budgetPageSource,
     /writePreferredVisibleBudgetMonths\(budgetId, count\)/,
+  );
+});
+
+
+test("multi-month Budget uses one compact month-count selector", () => {
+  assert.doesNotMatch(budgetPageSource, /BudgetMonthCountIcon/);
+  assert.doesNotMatch(budgetPageSource, /budget-visible-month-button/);
+  assert.match(
+    budgetPageSource,
+    /<select[\s\S]*className="budget-visible-month-select"[\s\S]*value=\{visibleCount\}[\s\S]*disabled=\{count > capacity\}/,
   );
 });
