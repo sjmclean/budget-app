@@ -135,3 +135,39 @@ test("visible month capacity measures the workspace after reserving the inspecto
     /visibleBudgetMonthCapacity\(availableWorkspaceWidth\)/,
   );
 });
+
+
+test("permanent Budget inspector shows health above table-aligned Category Details", () => {
+  assert.match(
+    budgetPage,
+    /function BudgetHealthCard\([\s\S]*Overspent categories[\s\S]*Future funding/,
+  );
+  assert.match(
+    budgetPage,
+    /overspentCategories = data[\s\S]*category\.isOverspent[\s\S]*Math\.abs\(category\.available\)/,
+  );
+  assert.match(
+    budgetPage,
+    /nextMonthStatus=[\s\S]*nextMonthBudget\.error[\s\S]*nextMonthOutlook\?\.status/,
+  );
+  assert.match(
+    budgetPage,
+    /futureOvercommitment=\{futureOvercommitment\}/,
+  );
+  assert.match(
+    budgetPage,
+    /tableHead\.getBoundingClientRect\(\)\.top - layoutTop/,
+  );
+  assert.match(
+    budgetPage,
+    /--budget-inspector-category-offset/,
+  );
+  assert.match(
+    budgetCss,
+    /\.budget-health-card\s*\{[\s\S]*position:\s*absolute/,
+  );
+  assert.match(
+    budgetCss,
+    /\.budget-inspector-category-slot\s*\{[\s\S]*padding-top:\s*var\(--budget-inspector-category-offset/,
+  );
+});
