@@ -282,7 +282,7 @@ function BudgetHealthCard({
   overspentCategoryCount: number;
   overspentAmount: number;
   nextMonthLabel: string;
-  nextMonthStatus: "overbudget" | "balanced" | "available" | "loading";
+  nextMonthStatus: "overbudget" | "balanced" | "available" | "loading" | "unavailable";
   nextMonthAmount: number;
   futureOvercommitment: number;
 }) {
@@ -310,11 +310,13 @@ function BudgetHealthCard({
           <strong>
             {nextMonthStatus === "loading"
               ? "Checking…"
-              : nextMonthStatus === "overbudget"
-                ? `${formatMoney(nextMonthAmount, currencyCode)} overbudget`
-                : nextMonthStatus === "balanced"
-                  ? "Balanced"
-                  : "Not overbudget"}
+              : nextMonthStatus === "unavailable"
+                ? "Unavailable"
+                : nextMonthStatus === "overbudget"
+                  ? `${formatMoney(nextMonthAmount, currencyCode)} overbudget`
+                  : nextMonthStatus === "balanced"
+                    ? "Balanced"
+                    : "Not overbudget"}
           </strong>
         </div>
 
@@ -2041,7 +2043,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             nextMonthStatus={
               nextMonthBudget.isLoading
                 ? "loading"
-                : (nextMonthOutlook?.status ?? "loading")
+                : nextMonthBudget.error
+                  ? "unavailable"
+                  : (nextMonthOutlook?.status ?? "unavailable")
             }
             nextMonthAmount={nextMonthOutlook?.amount ?? 0}
             futureOvercommitment={futureOvercommitment}
