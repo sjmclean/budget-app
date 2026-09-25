@@ -132,6 +132,32 @@
   box-shadow: var(--workspace-side-panel-shadow);
 }
 
+.budget-category-details-panel-empty {
+  min-height: 12rem;
+}
+
+.budget-category-details-empty-state {
+  display: grid;
+  gap: 0.45rem;
+  place-items: center;
+  min-height: 11rem;
+  padding: 1.4rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.budget-category-details-empty-state strong {
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.budget-category-details-empty-state p {
+  max-width: 15rem;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
 .budget-category-details-header {
   display: flex;
   align-items: center;
@@ -1543,6 +1569,10 @@
     max-height: none;
   }
 
+  .budget-category-details-panel-empty {
+    display: none;
+  }
+
   .app-content-drawer .budget-sticky-working-header .workspace-header {
     padding-left: 3rem;
   }
@@ -2185,18 +2215,14 @@
     align-items: center;
   }
 
-  .budget-visible-month-toggle {
+  .budget-visible-month-control {
     display: none;
   }
 }
 
 
-/* Keep Category Details usable from the adaptive multi-month workspace. */
+/* Category Details is a permanent desktop column; month capacity is measured
+ * from the remaining Budget workspace width rather than layered underneath it. */
 .budget-workspace-screen-multi-month.budget-workspace-layout-details-open {
   grid-template-columns: minmax(0, 1fr) minmax(19rem, 20.5rem);
-}
-
-.budget-workspace-screen-multi-month.budget-workspace-layout-details-open .budget-multi-month-grid {
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
 }
