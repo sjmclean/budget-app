@@ -93,13 +93,18 @@
   min-height: 0;
   overflow-x: auto;
   overflow-y: auto;
-  overscroll-behavior-x: contain;
+  overscroll-behavior: contain;
   border-top: 0;
   border-radius: 0 0 0.65rem 0.65rem;
   padding: 0;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
   border-color: var(--border);
   background: var(--surface);
+}
+
+.budget-workspace-table-card::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .budget-workspace-table-head,
@@ -134,6 +139,14 @@
   min-height: 0;
   max-height: 100%;
   overflow: hidden;
+  padding-left: 0.7rem;
+  border-left: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent);
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--surface-subtle) 42%, transparent) 0,
+      transparent 2.5rem
+    );
 }
 
 .budget-health-card {
@@ -150,6 +163,48 @@
   border-radius: 0.9rem;
   background: var(--workspace-side-panel-background);
   box-shadow: var(--workspace-side-panel-shadow);
+  overflow: hidden;
+}
+
+.budget-health-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--positive);
+}
+
+.budget-health-card-warning::before {
+  background: var(--negative);
+}
+
+.budget-health-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.budget-health-card-title > div {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.budget-health-card-icon {
+  display: inline-grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--positive-bg) 78%, var(--surface));
+  color: var(--positive);
+}
+
+.budget-health-card-warning .budget-health-card-icon {
+  background: color-mix(in srgb, var(--negative-bg) 82%, var(--surface));
+  color: var(--negative);
 }
 
 .budget-health-card-header {
@@ -160,8 +215,7 @@
 }
 
 .budget-health-card-header > div {
-  display: grid;
-  gap: 0.18rem;
+  min-width: 0;
 }
 
 .budget-health-card-header span {
@@ -226,6 +280,7 @@
   max-height: calc(100vh - 2rem);
   overflow: auto;
   border: var(--workspace-side-panel-border);
+  border-top: 3px solid color-mix(in srgb, var(--accent) 70%, var(--border));
   border-radius: 0.9rem;
   background: var(--workspace-side-panel-background);
   box-shadow: var(--workspace-side-panel-shadow);
@@ -783,7 +838,7 @@
   display: grid;
   gap: 0;
   padding: 0;
-  background: var(--page-bg);
+  background: transparent;
 }
 
 .budget-sticky-working-header::before {
@@ -793,8 +848,8 @@
   z-index: -1;
   pointer-events: none;
   background: var(--page-bg);
-  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent);
-  box-shadow: 0 0.45rem 1rem rgba(15, 23, 42, 0.08);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
+  box-shadow: none;
 }
 
 .budget-sticky-working-header > * {
@@ -1284,7 +1339,7 @@
   align-items: start;
   gap: 0.55rem;
   padding: 0.6rem 0.15rem 0.55rem;
-  background: var(--page-bg);
+  background: transparent;
 }
 
 /*
@@ -1688,6 +1743,9 @@
     min-height: 0;
     max-height: none;
     overflow: visible;
+    padding-left: 0;
+    border-left: 0;
+    background: none;
   }
 
   .budget-health-card {
