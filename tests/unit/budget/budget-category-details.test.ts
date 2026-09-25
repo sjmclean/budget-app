@@ -206,3 +206,19 @@ test("Budget Health matches the compact inspector mockup without displacing Cate
     /budget-health-list[\s\S]*Overspent categories[\s\S]*Future funding/,
   );
 });
+
+
+test("Budget Health summary follows any warning state, not only overspending", () => {
+  assert.match(
+    budgetPage,
+    /overspentCategoryCount > 0 \|\|[\s\S]*nextMonthStatus === "overbudget" \|\|[\s\S]*futureOvercommitment > 0/,
+  );
+  assert.match(
+    budgetPage,
+    /nextMonthStatus === "overbudget"[\s\S]*\$\{nextMonthLabel\} needs attention[\s\S]*formatMoney\(nextMonthAmount, currencyCode\)[\s\S]*overbudget next month/,
+  );
+  assert.match(
+    budgetPage,
+    /futureOvercommitment > 0[\s\S]*Future funding needs attention[\s\S]*formatMoney\(futureOvercommitment, currencyCode\)[\s\S]*overcommitted/,
+  );
+});
