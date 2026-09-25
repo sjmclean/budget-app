@@ -1233,6 +1233,11 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     return () => observer.disconnect();
   }, []);
 
+  const visibleMonthCount = Math.min(
+    preferredVisibleMonths,
+    visibleMonthCapacity,
+  );
+
   useEffect(() => {
     const workspace = budgetWorkspaceMainRef.current;
     const layout = workspace?.parentElement;
@@ -1262,11 +1267,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     observer.observe(layout);
     return () => observer.disconnect();
   }, [visibleMonthCount, selectedMonth]);
-
-  const visibleMonthCount = Math.min(
-    preferredVisibleMonths,
-    visibleMonthCapacity,
-  );
   const visibleMonths = buildVisibleBudgetMonths(
     selectedMonth,
     visibleMonthCount,
@@ -1679,11 +1679,13 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                       : "Monthly Budget"}
                   </span>
                 </div>
-                <BudgetVisibleMonthToggle
-                  visibleCount={visibleMonthCount}
-                  capacity={visibleMonthCapacity}
-                  onChange={changeVisibleMonthCount}
-                />
+                {visibleMonthCapacity > 1 ? (
+                  <BudgetVisibleMonthToggle
+                    visibleCount={visibleMonthCount}
+                    capacity={visibleMonthCapacity}
+                    onChange={changeVisibleMonthCount}
+                  />
+                ) : null}
               </div>
 
               {!isMultiMonthView ? (
