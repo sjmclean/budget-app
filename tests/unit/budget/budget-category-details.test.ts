@@ -186,3 +186,23 @@ test("Budget inspector alignment reruns after the loading render mounts its anch
     /useEffect\(\(\) => \{[\s\S]*budgetHealthAnchorRef\.current[\s\S]*budgetCategoryAnchorRef\.current[\s\S]*\}, \[visibleMonthCount, selectedMonth, isLoading\]\)/,
   );
 });
+
+
+test("Budget Health matches the compact inspector mockup without displacing Category Details", () => {
+  assert.match(
+    budgetPage,
+    /budget-health-card-header[\s\S]*Budget Health[\s\S]*budget-health-month-badge/,
+  );
+  assert.match(
+    budgetPage,
+    /budget-health-overview[\s\S]*categories overspent[\s\S]*formatMoney\(overspentAmount, currencyCode\)/,
+  );
+  assert.match(
+    budgetPage,
+    /<div ref=\{healthAnchorRef\} className="budget-multi-month-pane-heading">/,
+  );
+  assert.match(
+    budgetPage,
+    /budget-health-list[\s\S]*Overspent categories[\s\S]*Future funding/,
+  );
+});
