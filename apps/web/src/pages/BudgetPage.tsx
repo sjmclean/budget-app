@@ -160,10 +160,10 @@ function writePreferredVisibleBudgetMonths(budgetId: string, count: number) {
   );
 }
 
-function visibleBudgetMonthCapacity(viewportWidth: number): number {
-  if (viewportWidth >= 2560) return 4;
-  if (viewportWidth >= 1920) return 3;
-  if (viewportWidth >= 1360) return 2;
+function visibleBudgetMonthCapacity(workspaceWidth: number): number {
+  if (workspaceWidth >= 2560) return 4;
+  if (workspaceWidth >= 1920) return 3;
+  if (workspaceWidth >= 1360) return 2;
   return 1;
 }
 
@@ -266,6 +266,26 @@ function BudgetNextMonthOutlook({
 }
 
 type CategoryDetailsTab = "overview" | "goal" | "activity" | "notes";
+
+function BudgetCategoryDetailsEmptyState() {
+  return (
+    <aside
+      className="budget-category-details-panel budget-category-details-panel-empty"
+      aria-label="Category details"
+    >
+      <header className="budget-category-details-header">
+        <h2>Category Details</h2>
+      </header>
+      <div className="budget-category-details-empty-state">
+        <strong>Select a category</strong>
+        <p>
+          Category details, activity, goals, notes and money-movement actions
+          will appear here.
+        </p>
+      </div>
+    </aside>
+  );
+}
 
 function CategoryDetailsPanel({
   budgetId,
@@ -1004,11 +1024,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const [preferredVisibleMonths, setPreferredVisibleMonths] = useState(() =>
     readPreferredVisibleBudgetMonths(budgetId),
   );
-  const [visibleMonthCapacity, setVisibleMonthCapacity] = useState(() =>
-    typeof window === "undefined"
-      ? 1
-      : visibleBudgetMonthCapacity(window.innerWidth),
-  );
+  const [visibleMonthCapacity, setVisibleMonthCapacity] = useState(1);
 
   const {
     data,
@@ -1097,11 +1113,24 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   }, [budgetId]);
 
   useEffect(() => {
-    const updateCapacity = () =>
-      setVisibleMonthCapacity(visibleBudgetMonthCapacity(window.innerWidth));
+    const workspace = budgetWorkspaceMainRef.current;
+    if (!workspace) return;
+
+    const updateCapacity = () => {
+      const width = workspace.getBoundingClientRect().width;
+      setVisibleMonthCapacity(visibleBudgetMonthCapacity(width));
+    };
+
     updateCapacity();
-    window.addEventListener("resize", updateCapacity);
-    return () => window.removeEventListener("resize", updateCapacity);
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateCapacity);
+      return () => window.removeEventListener("resize", updateCapacity);
+    }
+
+    const observer = new ResizeObserver(updateCapacity);
+    observer.observe(workspace);
+    return () => observer.disconnect();
   }, []);
 
   const visibleMonthCount = Math.min(
@@ -1407,9 +1436,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           "budget-workspace-screen",
           "budget-workspace-layout",
           isMultiMonthView ? "budget-workspace-screen-multi-month" : "",
-          visibleSelectedCategory && visibleSelectedGroup
-            ? "budget-workspace-layout-details-open"
-            : "",
+          "budget-workspace-layout-details-open",
         ].filter(Boolean).join(" ")}
       >
         <main
@@ -1893,7 +1920,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             movementHistory={selectedCategoryMovementHistory}
             onClose={clearSelection}
           />
-        ) : null}
+        ) : (
+          <BudgetCategoryDetailsEmptyState />
+        )}
       </WorkspaceLayout>
 
       {moveMoneyDestinationCategoryId ? (
