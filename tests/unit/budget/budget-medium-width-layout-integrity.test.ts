@@ -108,3 +108,34 @@ test("multi-month Budget uses available wide-screen space without squeezing narr
     /\.budget-multi-month-toolbar-slot\s*\{[\s\S]*min-height:\s*2\.9rem/,
   );
 });
+
+
+test("desktop Budget keeps planning chrome fixed and scrolls only table bodies", () => {
+  assert.match(
+    responsive,
+    /\.budget-workspace-screen\s*\{[\s\S]*height:\s*calc\(100dvh - 1rem\)[\s\S]*overflow:\s*hidden/,
+  );
+  assert.match(
+    responsive,
+    /\.budget-workspace-main\s*\{[\s\S]*grid-template-rows:\s*auto minmax\(0, 1fr\)[\s\S]*overflow:\s*hidden/,
+  );
+  assert.match(
+    responsive,
+    /\.budget-workspace-table-card\s*\{[\s\S]*overflow-y:\s*auto/,
+  );
+  assert.match(
+    responsive,
+    /\.budget-multi-month-pane\s*\{[\s\S]*grid-template-rows:\s*auto auto auto auto minmax\(0, 1fr\)[\s\S]*overflow:\s*hidden/,
+  );
+  assert.match(
+    responsive,
+    /\.budget-multi-month-pane > \.budget-workspace-table-card\s*\{[\s\S]*overflow-y:\s*auto/,
+  );
+});
+
+test("narrow Budget layouts return to normal document scrolling", () => {
+  assert.match(
+    responsive,
+    /@media \(max-width: 1024px\)[\s\S]*\.budget-workspace-screen\s*\{[\s\S]*height:\s*auto[\s\S]*overflow:\s*visible/,
+  );
+});
