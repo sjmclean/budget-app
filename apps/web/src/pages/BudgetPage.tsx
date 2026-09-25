@@ -6,6 +6,7 @@ import {
   type CSSProperties,
   type MouseEvent,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
@@ -855,6 +856,8 @@ function BudgetMultiMonthPane({
   onToggleGroup,
   onToggleArchived,
   toolbar,
+  healthAnchorRef,
+  categoryAnchorRef,
 }: {
   month: string;
   data: BudgetMonthView;
@@ -867,6 +870,8 @@ function BudgetMultiMonthPane({
   onToggleGroup: (groupId: string) => void;
   onToggleArchived: () => void;
   toolbar?: ReactNode;
+  healthAnchorRef?: RefObject<HTMLDivElement | null>;
+  categoryAnchorRef?: RefObject<HTMLDivElement | null>;
 }) {
   const summary = readAuthoritativeBudgetSummary(data);
   const planningReadyToAssign =
@@ -894,6 +899,7 @@ function BudgetMultiMonthPane({
       </header>
 
       <div
+        ref={healthAnchorRef}
         className={
           isMoneyNegative(planningReadyToAssign)
             ? "budget-ready-summary budget-ready-summary-negative"
@@ -941,7 +947,7 @@ function BudgetMultiMonthPane({
         {toolbar ?? null}
       </div>
 
-      <div className="budget-workspace-table-head" style={gridStyle}>
+      <div ref={categoryAnchorRef} className="budget-workspace-table-head" style={gridStyle}>
         {BUDGET_COLUMN_DEFINITIONS.map((column) => (
           <span className={`budget-column-${column.id}`} key={column.id}>
             {column.label}
@@ -1159,6 +1165,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   }
 
   const budgetWorkspaceMainRef = useRef<HTMLElement | null>(null);
+  const budgetHealthAnchorRef = useRef<HTMLDivElement | null>(null);
+  const budgetCategoryAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const budgetTableLayout = useTableLayout({
     storageKeyPrefix: BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
@@ -1202,17 +1210,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     if (!workspace || !layout) return;
 
     const updateCapacity = () => {
-      const layoutWidth = layout.getBoundingClientRect().width;
-      const inspector = layout.querySelector<HTMLElement>(
-        ".budget-category-details-panel",
-      );
-      const inspectorWidth = inspector?.getBoundingClientRect().width ?? 0;
-      const columnGap = Number.parseFloat(getComputedStyle(layout).columnGap) || 0;
-      const availableWorkspaceWidth = Math.max(
-        0,
-        layoutWidth - inspectorWidth - (inspectorWidth > 0 ? columnGap : 0),
-      );
-
+      const availableWorkspaceWidth = workspace.getBoundingClientRect().width;
       setVisibleMonthCapacity(
         visibleBudgetMonthCapacity(availableWorkspaceWidth),
       );
@@ -1226,11 +1224,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     }
 
     const observer = new ResizeObserver(updateCapacity);
+    observer.observe(workspace);
     observer.observe(layout);
-    const inspector = layout.querySelector<HTMLElement>(
-      ".budget-category-details-panel",
-    );
-    if (inspector) observer.observe(inspector);
     return () => observer.disconnect();
   }, []);
 
@@ -1242,28 +1237,18 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   useEffect(() => {
     const workspace = budgetWorkspaceMainRef.current;
     const layout = workspace?.parentElement;
-    if (!workspace || !layout) return;
+    const healthAnchor = budgetHealthAnchorRef.current;
+    const categoryAnchor = budgetCategoryAnchorRef.current;
+    if (!workspace || !layout || !healthAnchor || !categoryAnchor) return;
 
     const updateInspectorAlignment = () => {
       const layoutTop = layout.getBoundingClientRect().top;
-      const healthAnchor = workspace.querySelector<HTMLElement>(
-        ".budget-multi-month-pane > .budget-ready-summary, .budget-planning-summary-stack",
+      setInspectorHealthOffset(
+        Math.max(0, healthAnchor.getBoundingClientRect().top - layoutTop),
       );
-      const tableHead = workspace.querySelector<HTMLElement>(
-        ".budget-multi-month-pane > .budget-workspace-table-head, :scope > .budget-workspace-table-head",
+      setInspectorCategoryOffset(
+        Math.max(0, categoryAnchor.getBoundingClientRect().top - layoutTop),
       );
-
-      if (healthAnchor) {
-        setInspectorHealthOffset(
-          Math.max(0, healthAnchor.getBoundingClientRect().top - layoutTop),
-        );
-      }
-
-      if (tableHead) {
-        setInspectorCategoryOffset(
-          Math.max(0, tableHead.getBoundingClientRect().top - layoutTop),
-        );
-      }
     };
 
     updateInspectorAlignment();
@@ -1276,6 +1261,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     const observer = new ResizeObserver(updateInspectorAlignment);
     observer.observe(workspace);
     observer.observe(layout);
+    observer.observe(healthAnchor);
+    observer.observe(categoryAnchor);
     return () => observer.disconnect();
   }, [visibleMonthCount, selectedMonth]);
   const visibleMonths = buildVisibleBudgetMonths(
@@ -1701,7 +1688,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
               {!isMultiMonthView ? (
                 <>
-              <div className="budget-planning-summary-stack">
+              <div ref={budgetHealthAnchorRef} className="budget-planning-summary-stack">
                 <div
                   className={
                     isBudgetOverassigned
@@ -1876,6 +1863,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
 
             {!isMultiMonthView ? (
               <div
+                ref={budgetCategoryAnchorRef}
                 className="budget-workspace-table-head"
                 style={budgetGridStyle}
               >
@@ -1921,6 +1909,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
               <BudgetMultiMonthPane
                 month={selectedMonth}
                 data={data}
+                healthAnchorRef={budgetHealthAnchorRef}
+                categoryAnchorRef={budgetCategoryAnchorRef}
                 selectedCategoryId={visibleSelectedCategory?.id ?? null}
                 onSelectCategory={selectVisibleMonthCategory}
                 updateAssigned={updateAssigned}
@@ -2051,6 +2041,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           aria-label="Budget inspector"
           style={{
             "--budget-inspector-health-offset": `${inspectorHealthOffset}px`,
+            "--budget-inspector-category-offset": `${inspectorCategoryOffset}px`,
           } as CSSProperties}
         >
           <BudgetHealthCard
@@ -2069,10 +2060,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             nextMonthAmount={nextMonthOutlook?.amount ?? 0}
             futureOvercommitment={futureOvercommitment}
           />
-          <div
-            className="budget-inspector-category-slot"
-            style={{ "--budget-inspector-category-offset": `${inspectorCategoryOffset}px` } as CSSProperties}
-          >
+          <div className="budget-inspector-category-slot">
             {visibleSelectedCategory && visibleSelectedGroup ? (
               <CategoryDetailsPanel
                 budgetId={budgetId}
