@@ -11,7 +11,7 @@ import {
 } from "react";
 import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, CircleAlert, CircleCheck, CircleDollarSign, ListTree, Plus, Redo2, Undo2 } from "lucide-react";
+import { Activity, CalendarDays, CircleAlert, CircleCheck, CircleDollarSign, Info, ListTree, Plus, Redo2, Undo2 } from "lucide-react";
 import { Card } from "../components/ui/Card";
 import "../styles/budgetWorkspace.css";
 import {
@@ -302,25 +302,41 @@ function BudgetHealthCard({
     >
       <header className="budget-health-card-header">
         <div className="budget-health-card-title">
-          <span
-            className="budget-health-card-icon"
-            aria-hidden="true"
-          >
-            {overspentCategoryCount > 0 ||
-            nextMonthStatus === "overbudget" ||
-            futureOvercommitment > 0 ? (
-              <CircleAlert size={17} />
-            ) : (
-              <CircleCheck size={17} />
-            )}
-          </span>
-          <div>
-            <span>Budget Health</span>
-            <strong>{monthLabel}</strong>
-          </div>
+          <strong>Budget Health</strong>
+          <Info size={13} aria-hidden="true" />
         </div>
         <span className="budget-health-month-badge">{monthLabel}</span>
       </header>
+
+      <div className="budget-health-overview">
+        <span
+          className={
+            overspentCategoryCount > 0
+              ? "budget-health-overview-icon budget-health-overview-icon-warning"
+              : "budget-health-overview-icon"
+          }
+          aria-hidden="true"
+        >
+          {overspentCategoryCount > 0 ? (
+            <Activity size={22} />
+          ) : (
+            <CircleCheck size={22} />
+          )}
+        </span>
+        <div className="budget-health-overview-copy">
+          <span>
+            {overspentCategoryCount > 0
+              ? `${overspentCategoryCount} categories overspent`
+              : "No categories overspent"}
+          </span>
+          <strong>
+            {overspentCategoryCount > 0
+              ? formatMoney(overspentAmount, currencyCode)
+              : "On track"}
+          </strong>
+          <small>{overspentCategoryCount > 0 ? "overspent" : "this month"}</small>
+        </div>
+      </div>
 
       <div className="budget-health-list">
         <div className={overspentCategoryCount > 0 ? "budget-health-row budget-health-row-warning" : "budget-health-row"}>
