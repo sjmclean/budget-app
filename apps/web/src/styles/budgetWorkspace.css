@@ -3,6 +3,9 @@
   --budget-working-max-width: 72rem;
   min-width: 0;
   max-width: 100%;
+  height: calc(100dvh - 1rem);
+  max-height: calc(100dvh - 1rem);
+  overflow: hidden;
   font-kerning: normal;
   font-feature-settings: "kern" 1, "tnum" 1;
   font-variant-numeric: tabular-nums;
@@ -62,7 +65,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--workspace-content-gap);
-  align-items: start;
+  align-items: stretch;
 }
 
 .budget-workspace-layout-details-open {
@@ -73,8 +76,12 @@
 
 .budget-workspace-main {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 0;
   min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
   container-name: budget-workspace-main;
   container-type: inline-size;
 }
@@ -83,8 +90,9 @@
   position: relative;
   z-index: 0;
   max-width: 100%;
+  min-height: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
   overscroll-behavior-x: contain;
   border-top: 0;
   border-radius: 0 0 0.65rem 0.65rem;
@@ -123,12 +131,17 @@
 .budget-inspector-column {
   position: relative;
   min-width: 0;
-  min-height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .budget-health-card {
   position: absolute;
-  inset: 0 0 auto;
+  inset:
+    var(--budget-inspector-health-offset, 0px)
+    0
+    auto;
   display: grid;
   gap: 0.75rem;
   min-width: 0;
@@ -198,6 +211,9 @@
 
 .budget-inspector-category-slot {
   box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   padding-top: var(--budget-inspector-category-offset, 0px);
 }
 
@@ -215,6 +231,7 @@
 
 .budget-inspector-category-slot .budget-category-details-panel {
   position: static;
+  max-height: 100%;
 }
 
 .budget-category-details-panel-empty {
@@ -1644,9 +1661,23 @@
 }
 
 @media (max-width: 1024px) {
+  .budget-workspace-screen {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
   .budget-workspace-layout,
   .budget-workspace-layout-details-open {
     grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .budget-workspace-main {
+    display: grid;
+    grid-template-rows: none;
+    max-height: none;
+    overflow: visible;
   }
 
   .budget-inspector-column {
@@ -2218,15 +2249,22 @@
   display: grid;
   grid-template-columns:
     repeat(var(--budget-visible-month-count), minmax(30rem, 1fr));
-  align-items: start;
+  align-items: stretch;
   gap: 0.8rem;
   width: 100%;
   min-width: 0;
-  padding: 0 0.15rem 1rem;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 0.15rem;
 }
 
 .budget-multi-month-pane {
+  display: grid;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
   min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .budget-multi-month-pane-header {
@@ -2302,6 +2340,8 @@
 }
 
 .budget-multi-month-pane > .budget-workspace-table-card {
+  min-height: 0;
+  overflow-y: auto;
   border-radius: 0 0 0.65rem 0.65rem;
 }
 
