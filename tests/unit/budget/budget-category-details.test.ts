@@ -13,7 +13,6 @@ const budgetCss = readFileSync(
 
 test("Budget mounts Category Details whenever a category is selected", () => {
   assert.doesNotMatch(budgetPage, /<aside className="budget-month-panel"/);
-  assert.doesNotMatch(budgetPage, /Budget Health/);
   assert.match(
     budgetPage,
     /visibleSelectedCategory && visibleSelectedGroup \? \([\s\S]*<CategoryDetailsPanel/,
@@ -98,5 +97,128 @@ test("multi-month Budget promotes the clicked month and opens its category inspe
   assert.match(
     budgetCss,
     /\.budget-workspace-screen-multi-month\.budget-workspace-layout-details-open\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(19rem, 20\.5rem\)/,
+  );
+});
+
+
+test("Budget keeps a permanent desktop Category Details column with an empty state", () => {
+  assert.match(
+    budgetPage,
+    /"budget-workspace-layout-details-open"/,
+  );
+  assert.match(
+    budgetPage,
+    /function BudgetCategoryDetailsEmptyState\(\)[\s\S]*<h2>Category Details<\/h2>[\s\S]*Select a category/,
+  );
+  assert.match(
+    budgetPage,
+    /visibleSelectedCategory && visibleSelectedGroup \? \([\s\S]*<CategoryDetailsPanel[\s\S]*\) : \([\s\S]*<BudgetCategoryDetailsEmptyState \/>/,
+  );
+  assert.match(
+    budgetCss,
+    /@media \(max-width: 1024px\)[\s\S]*\.budget-category-details-panel-empty\s*\{[\s\S]*display:\s*none/,
+  );
+});
+
+test("visible month capacity measures the already-reserved Budget workspace width", () => {
+  assert.match(
+    budgetPage,
+    /const availableWorkspaceWidth = workspace\.getBoundingClientRect\(\)\.width/,
+  );
+  assert.match(
+    budgetPage,
+    /const observer = new ResizeObserver\(updateCapacity\)[\s\S]*observer\.observe\(workspace\)[\s\S]*observer\.observe\(layout\)/,
+  );
+  assert.match(
+    budgetPage,
+    /visibleBudgetMonthCapacity\(availableWorkspaceWidth\)/,
+  );
+  assert.doesNotMatch(
+    budgetPage,
+    /layoutWidth - inspectorWidth/,
+  );
+});
+
+
+test("permanent Budget inspector shows health above table-aligned Category Details", () => {
+  assert.match(
+    budgetPage,
+    /function BudgetHealthCard\([\s\S]*Overspent categories[\s\S]*Future funding/,
+  );
+  assert.match(
+    budgetPage,
+    /overspentCategories = data[\s\S]*category\.isOverspent[\s\S]*Math\.abs\(category\.available\)/,
+  );
+  assert.match(
+    budgetPage,
+    /nextMonthStatus=[\s\S]*nextMonthBudget\.error[\s\S]*nextMonthOutlook\?\.status/,
+  );
+  assert.match(
+    budgetPage,
+    /futureOvercommitment=\{futureOvercommitment\}/,
+  );
+  assert.match(
+    budgetPage,
+    /budgetHealthAnchorRef\.current[\s\S]*budgetCategoryAnchorRef\.current/,
+  );
+  assert.match(
+    budgetPage,
+    /healthAnchor\.getBoundingClientRect\(\)\.top - layoutTop[\s\S]*categoryAnchor\.getBoundingClientRect\(\)\.top - layoutTop/,
+  );
+  assert.match(
+    budgetPage,
+    /--budget-inspector-category-offset/,
+  );
+  assert.match(
+    budgetCss,
+    /\.budget-health-card\s*\{[\s\S]*position:\s*absolute/,
+  );
+  assert.match(
+    budgetCss,
+    /\.budget-inspector-category-slot\s*\{[\s\S]*position:\s*absolute[\s\S]*var\(--budget-inspector-category-offset/,
+  );
+});
+
+
+test("Budget inspector alignment reruns after the loading render mounts its anchors", () => {
+  assert.match(
+    budgetPage,
+    /useEffect\(\(\) => \{[\s\S]*budgetHealthAnchorRef\.current[\s\S]*budgetCategoryAnchorRef\.current[\s\S]*\}, \[visibleMonthCount, selectedMonth, isLoading\]\)/,
+  );
+});
+
+
+test("Budget Health matches the compact inspector mockup without displacing Category Details", () => {
+  assert.match(
+    budgetPage,
+    /budget-health-card-header[\s\S]*Budget Health[\s\S]*budget-health-month-badge/,
+  );
+  assert.match(
+    budgetPage,
+    /budget-health-overview[\s\S]*categories overspent[\s\S]*formatMoney\(overspentAmount, currencyCode\)/,
+  );
+  assert.match(
+    budgetPage,
+    /<div ref=\{healthAnchorRef\} className="budget-multi-month-pane-heading">/,
+  );
+  assert.match(
+    budgetPage,
+    /budget-health-list[\s\S]*Overspent categories[\s\S]*Future funding/,
+  );
+});
+
+
+test("Budget Health summary follows any warning state, not only overspending", () => {
+  assert.match(
+    budgetPage,
+    /overspentCategoryCount > 0 \|\|[\s\S]*nextMonthStatus === "overbudget" \|\|[\s\S]*futureOvercommitment > 0/,
+  );
+  assert.match(
+    budgetPage,
+    /nextMonthStatus === "overbudget"[\s\S]*\$\{nextMonthLabel\} needs attention[\s\S]*formatMoney\(nextMonthAmount, currencyCode\)[\s\S]*overbudget next month/,
+  );
+  assert.match(
+    budgetPage,
+    /futureOvercommitment > 0[\s\S]*Future funding needs attention[\s\S]*formatMoney\(futureOvercommitment, currencyCode\)[\s\S]*overcommitted/,
   );
 });

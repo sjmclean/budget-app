@@ -3,6 +3,9 @@
   --budget-working-max-width: 72rem;
   min-width: 0;
   max-width: 100%;
+  height: calc(100dvh - 1rem);
+  max-height: calc(100dvh - 1rem);
+  overflow: hidden;
   font-kerning: normal;
   font-feature-settings: "kern" 1, "tnum" 1;
   font-variant-numeric: tabular-nums;
@@ -62,7 +65,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--workspace-content-gap);
-  align-items: start;
+  align-items: stretch;
 }
 
 .budget-workspace-layout-details-open {
@@ -73,8 +76,12 @@
 
 .budget-workspace-main {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 0;
   min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
   container-name: budget-workspace-main;
   container-type: inline-size;
 }
@@ -83,15 +90,21 @@
   position: relative;
   z-index: 0;
   max-width: 100%;
+  min-height: 0;
   overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-top: 0;
   border-radius: 0 0 0.65rem 0.65rem;
   padding: 0;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
   border-color: var(--border);
   background: var(--surface);
+}
+
+.budget-workspace-table-card::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .budget-workspace-table-head,
@@ -120,6 +133,189 @@
   border-left: 1px solid color-mix(in srgb, var(--border-soft) 78%, transparent);
 }
 
+.budget-inspector-column {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  padding-left: 0.7rem;
+  border-left: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent);
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--surface-subtle) 42%, transparent) 0,
+      transparent 2.5rem
+    );
+}
+
+.budget-health-card {
+  position: absolute;
+  inset:
+    var(--budget-inspector-health-offset, 0px)
+    0
+    auto;
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.95rem 1rem;
+  border: var(--workspace-side-panel-border);
+  border-radius: 0.9rem;
+  background: var(--workspace-side-panel-background);
+  box-shadow: var(--workspace-side-panel-shadow);
+  overflow: hidden;
+}
+
+.budget-health-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--positive);
+}
+
+.budget-health-card-warning::before {
+  background: var(--negative);
+}
+
+.budget-health-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  min-width: 0;
+  color: var(--text);
+}
+
+.budget-health-card-title strong {
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.2;
+}
+
+.budget-health-card-title svg {
+  color: var(--text-muted);
+}
+
+.budget-health-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.budget-health-card-header > div {
+  min-width: 0;
+}
+
+.budget-health-card-header span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.budget-health-overview {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0.15rem 0 0.25rem;
+}
+
+.budget-health-overview-icon {
+  width: 2.55rem;
+  height: 2.55rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--positive-bg) 82%, var(--surface));
+  color: var(--positive);
+  box-shadow: inset 0 0 0 0.32rem color-mix(in srgb, var(--positive-bg) 45%, transparent);
+}
+
+.budget-health-overview-icon-warning {
+  background: color-mix(in srgb, var(--positive-bg) 78%, var(--surface));
+  color: color-mix(in srgb, var(--positive) 86%, var(--text));
+}
+
+.budget-health-overview-copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.02rem;
+}
+
+.budget-health-overview-copy > span {
+  color: var(--text);
+  font-size: 0.7rem;
+  font-weight: 720;
+}
+
+.budget-health-overview-copy > strong {
+  min-width: 0;
+  color: var(--negative);
+  font-size: 1.28rem;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+.budget-health-card-clear .budget-health-overview-copy > strong {
+  color: var(--positive);
+}
+
+.budget-health-overview-copy > small {
+  color: var(--negative);
+  font-size: 0.66rem;
+  font-weight: 720;
+}
+
+.budget-health-card-clear .budget-health-overview-copy > small {
+  color: var(--text-muted);
+}
+
+.budget-health-list {
+  display: grid;
+  gap: 0.34rem;
+}
+
+.budget-health-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.75rem;
+  min-width: 0;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--border-soft);
+  font-size: 0.75rem;
+}
+
+.budget-health-row span {
+  min-width: 0;
+  color: var(--text-muted);
+}
+
+.budget-health-row strong {
+  min-width: 0;
+  max-width: 11rem;
+  color: var(--text);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.budget-health-row-warning strong {
+  color: var(--negative);
+}
+
+.budget-inspector-category-slot {
+  position: absolute;
+  inset:
+    var(--budget-inspector-category-offset, 0px)
+    0
+    0;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .budget-category-details-panel {
   position: sticky;
   top: 1rem;
@@ -127,9 +323,41 @@
   max-height: calc(100vh - 2rem);
   overflow: auto;
   border: var(--workspace-side-panel-border);
+  border-top: 3px solid color-mix(in srgb, var(--accent) 70%, var(--border));
   border-radius: 0.9rem;
   background: var(--workspace-side-panel-background);
   box-shadow: var(--workspace-side-panel-shadow);
+}
+
+.budget-inspector-category-slot .budget-category-details-panel {
+  position: static;
+  max-height: 100%;
+}
+
+.budget-category-details-panel-empty {
+  min-height: 12rem;
+}
+
+.budget-category-details-empty-state {
+  display: grid;
+  gap: 0.45rem;
+  place-items: center;
+  min-height: 11rem;
+  padding: 1.4rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.budget-category-details-empty-state strong {
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.budget-category-details-empty-state p {
+  max-width: 15rem;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
 }
 
 .budget-category-details-header {
@@ -653,7 +881,7 @@
   display: grid;
   gap: 0;
   padding: 0;
-  background: var(--page-bg);
+  background: transparent;
 }
 
 .budget-sticky-working-header::before {
@@ -663,8 +891,8 @@
   z-index: -1;
   pointer-events: none;
   background: var(--page-bg);
-  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent);
-  box-shadow: 0 0.45rem 1rem rgba(15, 23, 42, 0.08);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
+  box-shadow: none;
 }
 
 .budget-sticky-working-header > * {
@@ -1154,7 +1382,7 @@
   align-items: start;
   gap: 0.55rem;
   padding: 0.6rem 0.15rem 0.55rem;
-  background: var(--page-bg);
+  background: transparent;
 }
 
 /*
@@ -1177,7 +1405,7 @@
   grid-area: months;
   min-width: 0;
   display: grid;
-  grid-template-columns: 2.2rem auto minmax(0, 1fr) 2.2rem;
+  grid-template-columns: 2.2rem auto minmax(0, 1fr) 2.2rem auto;
   align-items: center;
   gap: 0.55rem;
   padding: 0.15rem 0 0.55rem;
@@ -1533,14 +1761,68 @@
 }
 
 @media (max-width: 1024px) {
+  .budget-workspace-screen {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
   .budget-workspace-layout,
   .budget-workspace-layout-details-open {
     grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .budget-workspace-main {
+    display: grid;
+    grid-template-rows: none;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .budget-inspector-column {
+    display: grid;
+    gap: 0.75rem;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+    padding-left: 0;
+    border-left: 0;
+    background: none;
+  }
+
+  .budget-health-card {
+    position: static;
+  }
+
+  .budget-inspector-category-slot {
+    position: static;
+    height: auto;
+    overflow: visible;
+  }
+
+  .budget-multi-month-grid,
+  .budget-multi-month-pane {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .budget-multi-month-pane {
+    display: grid;
+    grid-template-rows: none;
+  }
+
+  .budget-multi-month-pane > .budget-workspace-table-card {
+    overflow-y: hidden;
   }
 
   .budget-category-details-panel {
     position: static;
     max-height: none;
+  }
+
+  .budget-category-details-panel-empty {
+    display: none;
   }
 
   .app-content-drawer .budget-sticky-working-header .workspace-header {
@@ -2025,50 +2307,38 @@
   gap: 1rem;
 }
 
-.budget-visible-month-toggle {
+.budget-visible-month-control {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.18rem;
-  border: 1px solid var(--border);
-  border-radius: 0.65rem;
-  background: var(--surface);
-}
-
-.budget-visible-month-button {
-  width: 2.4rem;
-  height: 2.1rem;
-  display: inline-grid;
-  place-items: center;
-  border: 0;
-  border-radius: 0.48rem;
-  background: transparent;
+  gap: 0.45rem;
+  min-width: 0;
   color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.budget-visible-month-select {
+  min-width: 3.7rem;
+  min-height: 2.1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
+  padding: 0.2rem 1.5rem 0.2rem 0.55rem;
 }
 
-.budget-visible-month-button:hover:not(:disabled),
-.budget-visible-month-button:focus-visible {
-  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
-  color: var(--accent-strong);
+.budget-visible-month-select:hover,
+.budget-visible-month-select:focus-visible {
+  border-color: var(--accent);
 }
 
-.budget-visible-month-button-active {
-  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
-  color: var(--accent-strong);
-}
-
-.budget-visible-month-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.32;
-}
-
-.budget-month-count-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.08rem;
+.budget-visible-month-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .budget-workspace-screen-multi-month {
@@ -2076,17 +2346,24 @@
 }
 
 .budget-workspace-screen-multi-month .budget-planning-title,
-.budget-workspace-screen-multi-month .budget-planning-toolbar,
-.budget-workspace-screen-multi-month .budget-multi-month-toolbar {
+.budget-workspace-screen-multi-month .budget-planning-toolbar {
   width: 100%;
   max-width: none;
 }
 
+.budget-multi-month-toolbar-slot {
+  position: relative;
+  min-height: 2.9rem;
+  margin-bottom: 0.45rem;
+}
+
 .budget-multi-month-toolbar {
-  grid-area: toolbar;
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  padding-top: 0.05rem;
+  min-height: 2.9rem;
+  padding: 0.2rem 0;
 }
 
 .budget-multi-month-grid {
@@ -2094,15 +2371,22 @@
   display: grid;
   grid-template-columns:
     repeat(var(--budget-visible-month-count), minmax(30rem, 1fr));
-  align-items: start;
+  align-items: stretch;
   gap: 0.8rem;
   width: 100%;
   min-width: 0;
-  padding: 0 0.15rem 1rem;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 0.15rem;
 }
 
 .budget-multi-month-pane {
+  display: grid;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
   min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .budget-multi-month-pane-header {
@@ -2128,8 +2412,40 @@
 
 .budget-multi-month-pane > .budget-ready-summary {
   width: 100%;
-  min-height: 8.2rem;
-  margin-bottom: 0.55rem;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+  margin-bottom: 0;
+  padding: 0.9rem 1rem;
+}
+
+.budget-multi-month-pane > .budget-ready-summary .budget-ready-summary-primary,
+.budget-multi-month-pane > .budget-ready-summary .budget-ready-summary-heading {
+  min-width: 0;
+}
+
+.budget-multi-month-pane > .budget-ready-summary .budget-ready-summary-heading strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  line-height: 1.05;
+}
+
+.budget-multi-month-pane > .budget-ready-summary .budget-ready-summary-breakdown {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 0.9rem;
+  min-width: 0;
+}
+
+.budget-multi-month-pane > .budget-ready-summary .budget-ready-summary-breakdown > div {
+  min-width: 0;
+}
+
+.budget-multi-month-pane > .budget-ready-summary .budget-ready-summary-breakdown dt,
+.budget-multi-month-pane > .budget-ready-summary .budget-ready-summary-breakdown dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .budget-multi-month-pane > .budget-workspace-table-head,
@@ -2146,6 +2462,8 @@
 }
 
 .budget-multi-month-pane > .budget-workspace-table-card {
+  min-height: 0;
+  overflow-y: auto;
   border-radius: 0 0 0.65rem 0.65rem;
 }
 
@@ -2153,29 +2471,115 @@
   min-height: 8rem;
 }
 
-@media (max-width: 1359px) {
-  .budget-visible-month-button:not(:first-child) {
-    display: none;
-  }
-}
-
 @media (max-width: 600px) {
   .budget-planning-title {
     align-items: center;
   }
 
-  .budget-visible-month-toggle {
+  .budget-visible-month-control {
     display: none;
   }
 }
 
 
-/* Keep Category Details usable from the adaptive multi-month workspace. */
+/* Category Details is a permanent desktop column; month capacity is measured
+ * from the remaining Budget workspace width rather than layered underneath it. */
 .budget-workspace-screen-multi-month.budget-workspace-layout-details-open {
   grid-template-columns: minmax(0, 1fr) minmax(19rem, 20.5rem);
 }
 
-.budget-workspace-screen-multi-month.budget-workspace-layout-details-open .budget-multi-month-grid {
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
+
+.budget-year-month-navigation > .budget-visible-month-control {
+  align-self: center;
+  justify-self: end;
+  padding-left: 0.35rem;
+}
+
+.budget-workspace-screen-multi-month .budget-planning-header {
+  gap: 0.35rem;
+  padding-top: 0.45rem;
+}
+
+.budget-multi-month-pane-header {
+  position: relative;
+  min-height: 3.6rem;
+  align-items: stretch;
+  padding: 0.45rem 0.2rem 0.55rem 0.75rem;
+}
+
+.budget-multi-month-pane-header::before {
+  content: "";
+  position: absolute;
+  inset: 0.45rem auto 0.55rem 0.15rem;
+  width: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 72%, var(--text-muted));
+}
+
+.budget-multi-month-pane-current .budget-multi-month-pane-header::before {
+  background: var(--accent);
+}
+
+.budget-multi-month-pane-heading {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.budget-multi-month-pane-heading > div {
+  min-width: 0;
+}
+
+.budget-multi-month-pane-header h2 {
+  font-size: 1.28rem;
+  letter-spacing: -0.02em;
+}
+
+.budget-current-month-badge,
+.budget-health-month-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--accent-strong);
+  font-size: 0.66rem;
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.budget-current-month-badge {
+  min-height: 1.7rem;
+  padding: 0.28rem 0.55rem;
+}
+
+.budget-health-month-badge {
+  min-height: 1.65rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.budget-health-card-header {
+  align-items: center;
+}
+
+@media (max-width: 1200px) {
+  .budget-health-month-badge {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .budget-year-month-navigation {
+    grid-template-columns: 2.1rem auto minmax(0, 1fr) 2.1rem;
+  }
+
+  .budget-year-month-navigation > .budget-visible-month-control {
+    display: none;
+  }
 }

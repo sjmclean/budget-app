@@ -78,7 +78,7 @@
 :root[data-theme="blueprint"] {
   color-scheme: light;
 
-  --page-bg: #f5f8fd;
+  --page-bg: #f4f9ff;
   --surface: #ffffff;
   --surface-subtle: #f1f5fb;
   --border: #cfd9e8;
@@ -112,9 +112,34 @@
 }
 
 :root[data-theme="blueprint"] body {
+  background: #f4f9ff;
+}
+
+:root[data-theme="blueprint"] .app-shell {
+  background: #f4f9ff;
+}
+
+:root[data-theme="blueprint"] .app-content {
   background:
-    radial-gradient(circle at 15% 0%, rgba(23, 105, 224, 0.045), transparent 28rem),
-    var(--page-bg);
+    radial-gradient(
+      ellipse at 118% 112%,
+      rgba(186, 216, 252, 0.28) 0 28%,
+      transparent 28.6%
+    ),
+    radial-gradient(
+      ellipse at 116% 112%,
+      transparent 0 35%,
+      rgba(199, 224, 253, 0.22) 35.6% 47%,
+      transparent 47.6%
+    ),
+    linear-gradient(
+      104deg,
+      #fbfdff 0%,
+      #f8fbff 30%,
+      #f2f8ff 55%,
+      #eaf4ff 78%,
+      #e3f0ff 100%
+    );
 }
 
 :root[data-theme="blueprint"] .button-primary {

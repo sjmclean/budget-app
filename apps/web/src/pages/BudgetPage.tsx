@@ -5,10 +5,13 @@ import {
   useState,
   type CSSProperties,
   type MouseEvent,
+  type ReactNode,
+  type RefObject,
+  type UIEvent,
 } from "react";
 import { promptDialog } from "../features/ui/appDialogService";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, CircleAlert, CircleCheck, CircleDollarSign, ListTree, Plus, Redo2, Undo2 } from "lucide-react";
+import { Activity, CalendarDays, CircleAlert, CircleCheck, CircleDollarSign, Info, ListTree, Plus, Redo2, Undo2 } from "lucide-react";
 import { Card } from "../components/ui/Card";
 import "../styles/budgetWorkspace.css";
 import {
@@ -159,10 +162,10 @@ function writePreferredVisibleBudgetMonths(budgetId: string, count: number) {
   );
 }
 
-function visibleBudgetMonthCapacity(viewportWidth: number): number {
-  if (viewportWidth >= 2560) return 4;
-  if (viewportWidth >= 1920) return 3;
-  if (viewportWidth >= 1360) return 2;
+function visibleBudgetMonthCapacity(workspaceWidth: number): number {
+  if (workspaceWidth >= 1960) return 4;
+  if (workspaceWidth >= 1470) return 3;
+  if (workspaceWidth >= 975) return 2;
   return 1;
 }
 
@@ -265,6 +268,153 @@ function BudgetNextMonthOutlook({
 }
 
 type CategoryDetailsTab = "overview" | "goal" | "activity" | "notes";
+
+function BudgetHealthCard({
+  monthLabel,
+  currencyCode,
+  overspentCategoryCount,
+  overspentAmount,
+  nextMonthLabel,
+  nextMonthStatus,
+  nextMonthAmount,
+  futureOvercommitment,
+}: {
+  monthLabel: string;
+  currencyCode: string;
+  overspentCategoryCount: number;
+  overspentAmount: number;
+  nextMonthLabel: string;
+  nextMonthStatus: "overbudget" | "balanced" | "available" | "loading" | "unavailable";
+  nextMonthAmount: number;
+  futureOvercommitment: number;
+}) {
+  return (
+    <section
+      className={[
+        "budget-health-card",
+        overspentCategoryCount > 0 ||
+        nextMonthStatus === "overbudget" ||
+        futureOvercommitment > 0
+          ? "budget-health-card-warning"
+          : "budget-health-card-clear",
+      ].join(" ")}
+      aria-label={`Budget health for ${monthLabel}`}
+    >
+      <header className="budget-health-card-header">
+        <div className="budget-health-card-title">
+          <strong>Budget Health</strong>
+          <Info size={13} aria-hidden="true" />
+        </div>
+        <span className="budget-health-month-badge">{monthLabel}</span>
+      </header>
+
+      <div className="budget-health-overview">
+        <span
+          className={
+            overspentCategoryCount > 0 ||
+            nextMonthStatus === "overbudget" ||
+            futureOvercommitment > 0
+              ? "budget-health-overview-icon budget-health-overview-icon-warning"
+              : "budget-health-overview-icon"
+          }
+          aria-hidden="true"
+        >
+          {overspentCategoryCount > 0 ||
+          nextMonthStatus === "overbudget" ||
+          futureOvercommitment > 0 ? (
+            <Activity size={22} />
+          ) : (
+            <CircleCheck size={22} />
+          )}
+        </span>
+        <div className="budget-health-overview-copy">
+          <span>
+            {overspentCategoryCount > 0
+              ? `${overspentCategoryCount} categories overspent`
+              : nextMonthStatus === "overbudget"
+                ? `${nextMonthLabel} needs attention`
+                : futureOvercommitment > 0
+                  ? "Future funding needs attention"
+                  : "No budget warnings"}
+          </span>
+          <strong>
+            {overspentCategoryCount > 0
+              ? formatMoney(overspentAmount, currencyCode)
+              : nextMonthStatus === "overbudget"
+                ? formatMoney(nextMonthAmount, currencyCode)
+                : futureOvercommitment > 0
+                  ? formatMoney(futureOvercommitment, currencyCode)
+                  : "On track"}
+          </strong>
+          <small>
+            {overspentCategoryCount > 0
+              ? "overspent"
+              : nextMonthStatus === "overbudget"
+                ? "overbudget next month"
+                : futureOvercommitment > 0
+                  ? "overcommitted"
+                  : "this month"}
+          </small>
+        </div>
+      </div>
+
+      <div className="budget-health-list">
+        <div className={overspentCategoryCount > 0 ? "budget-health-row budget-health-row-warning" : "budget-health-row"}>
+          <span>Overspent categories</span>
+          <strong>
+            {overspentCategoryCount > 0
+              ? `${overspentCategoryCount} · ${formatMoney(overspentAmount, currencyCode)}`
+              : "None"}
+          </strong>
+        </div>
+
+        <div className={nextMonthStatus === "overbudget" ? "budget-health-row budget-health-row-warning" : "budget-health-row"}>
+          <span>{nextMonthLabel}</span>
+          <strong>
+            {nextMonthStatus === "loading"
+              ? "Checking…"
+              : nextMonthStatus === "unavailable"
+                ? "Unavailable"
+                : nextMonthStatus === "overbudget"
+                  ? `${formatMoney(nextMonthAmount, currencyCode)} overbudget`
+                  : nextMonthStatus === "balanced"
+                    ? "Balanced"
+                    : "Not overbudget"}
+          </strong>
+        </div>
+
+        <div className={futureOvercommitment > 0 ? "budget-health-row budget-health-row-warning" : "budget-health-row"}>
+          <span>Future funding</span>
+          <strong>
+            {futureOvercommitment > 0
+              ? `${formatMoney(futureOvercommitment, currencyCode)} overcommitted`
+              : "No overcommitment"}
+          </strong>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BudgetCategoryDetailsEmptyState() {
+  return (
+    <aside
+      className="budget-category-details-panel budget-category-details-panel-empty"
+      aria-label="Category details"
+    >
+      <header className="budget-category-details-header">
+        <h2>Category Details</h2>
+      </header>
+      <div className="budget-category-details-empty-state">
+        <strong>Select a category</strong>
+        <p>
+          Category details, activity, goals, notes and money-movement actions
+          will appear here.
+        </p>
+      </div>
+    </aside>
+  );
+}
 
 function CategoryDetailsPanel({
   budgetId,
@@ -728,57 +878,31 @@ function BudgetActivityDrilldownModal({
   );
 }
 
-function BudgetMonthCountIcon({ count }: { count: number }) {
-  return (
-    <span className="budget-month-count-icon" aria-hidden="true">
-      {Array.from({ length: count }, (_, index) => (
-        <CalendarDays size={count >= 3 ? 12 : 15} key={index} />
-      ))}
-    </span>
-  );
-}
-
 function BudgetVisibleMonthToggle({
-  preferredCount,
+  visibleCount,
   capacity,
   onChange,
 }: {
-  preferredCount: number;
+  visibleCount: number;
   capacity: number;
   onChange: (count: number) => void;
 }) {
   return (
-    <div
-      className="budget-visible-month-toggle"
-      role="group"
-      aria-label="Visible budget months"
-    >
-      {[1, 2, 3, 4].map((count) => {
-        const isAvailable = count <= capacity;
-        return (
-          <button
-            className={
-              preferredCount === count
-                ? "budget-visible-month-button budget-visible-month-button-active"
-                : "budget-visible-month-button"
-            }
-            type="button"
-            key={count}
-            disabled={!isAvailable}
-            onClick={() => onChange(count)}
-            aria-pressed={preferredCount === count}
-            aria-label={`Show ${count} budget month${count === 1 ? "" : "s"}`}
-            title={
-              isAvailable
-                ? `Show ${count} month${count === 1 ? "" : "s"}`
-                : `${count}-month view needs a wider screen`
-            }
-          >
-            <BudgetMonthCountIcon count={count} />
-          </button>
-        );
-      })}
-    </div>
+    <label className="budget-visible-month-control">
+      <span>Months</span>
+      <select
+        className="budget-visible-month-select"
+        value={visibleCount}
+        onChange={(event) => onChange(Number(event.target.value))}
+        aria-label="Visible budget months"
+      >
+        {[1, 2, 3, 4].map((count) => (
+          <option key={count} value={count} disabled={count > capacity}>
+            {count}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -793,6 +917,10 @@ function BudgetMultiMonthPane({
   archivedCategoriesExpanded,
   onToggleGroup,
   onToggleArchived,
+  toolbar,
+  healthAnchorRef,
+  categoryAnchorRef,
+  isCurrentMonth = false,
 }: {
   month: string;
   data: BudgetMonthView;
@@ -804,6 +932,10 @@ function BudgetMultiMonthPane({
   archivedCategoriesExpanded: boolean;
   onToggleGroup: (groupId: string) => void;
   onToggleArchived: () => void;
+  toolbar?: ReactNode;
+  healthAnchorRef?: RefObject<HTMLDivElement | null>;
+  categoryAnchorRef?: RefObject<HTMLDivElement | null>;
+  isCurrentMonth?: boolean;
 }) {
   const summary = readAuthoritativeBudgetSummary(data);
   const planningReadyToAssign =
@@ -822,11 +954,22 @@ function BudgetMultiMonthPane({
   };
 
   return (
-    <section className="budget-multi-month-pane" aria-label={`${data.monthLabel} budget`}>
+    <section
+      className={[
+        "budget-multi-month-pane",
+        isCurrentMonth ? "budget-multi-month-pane-current" : "",
+      ].filter(Boolean).join(" ")}
+      aria-label={`${data.monthLabel} budget`}
+    >
       <header className="budget-multi-month-pane-header">
-        <div>
-          <h2>{data.monthLabel}</h2>
-          <span>Monthly Budget</span>
+        <div ref={healthAnchorRef} className="budget-multi-month-pane-heading">
+          <div>
+            <h2>{data.monthLabel}</h2>
+            <span>Monthly Budget</span>
+          </div>
+          {isCurrentMonth ? (
+            <span className="budget-current-month-badge">Current month</span>
+          ) : null}
         </div>
       </header>
 
@@ -874,7 +1017,11 @@ function BudgetMultiMonthPane({
         )}
       </div>
 
-      <div className="budget-workspace-table-head" style={gridStyle}>
+      <div className="budget-multi-month-toolbar-slot">
+        {toolbar ?? null}
+      </div>
+
+      <div ref={categoryAnchorRef} className="budget-workspace-table-head" style={gridStyle}>
         {BUDGET_COLUMN_DEFINITIONS.map((column) => (
           <span className={`budget-column-${column.id}`} key={column.id}>
             {column.label}
@@ -934,6 +1081,7 @@ function BudgetFutureMonthPane({
   archivedCategoriesExpanded,
   onToggleGroup,
   onToggleArchived,
+  isCurrentMonth,
 }: {
   budgetId: string;
   month: string;
@@ -943,6 +1091,7 @@ function BudgetFutureMonthPane({
   archivedCategoriesExpanded: boolean;
   onToggleGroup: (groupId: string) => void;
   onToggleArchived: () => void;
+  isCurrentMonth: boolean;
 }) {
   const workspace = useBudgetWorkspace(budgetId, month);
 
@@ -967,6 +1116,7 @@ function BudgetFutureMonthPane({
       archivedCategoriesExpanded={archivedCategoriesExpanded}
       onToggleGroup={onToggleGroup}
       onToggleArchived={onToggleArchived}
+      isCurrentMonth={isCurrentMonth}
     />
   );
 }
@@ -1009,6 +1159,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const [selectedMonth, setSelectedMonth] = useState(() =>
     getCurrentBudgetMonth(),
   );
+  const currentBudgetMonth = getCurrentBudgetMonth();
   const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(() =>
     readCollapsedBudgetGroupIds(budgetId),
   );
@@ -1023,11 +1174,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const [preferredVisibleMonths, setPreferredVisibleMonths] = useState(() =>
     readPreferredVisibleBudgetMonths(budgetId),
   );
-  const [visibleMonthCapacity, setVisibleMonthCapacity] = useState(() =>
-    typeof window === "undefined"
-      ? 1
-      : visibleBudgetMonthCapacity(window.innerWidth),
-  );
+  const [visibleMonthCapacity, setVisibleMonthCapacity] = useState(1);
+  const [inspectorHealthOffset, setInspectorHealthOffset] = useState(0);
+  const [inspectorCategoryOffset, setInspectorCategoryOffset] = useState(0);
 
   const {
     data,
@@ -1067,6 +1216,22 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     ? resolveBudgetNextMonthOutlook(nextMonthBudget.data.readyToAssign)
     : null;
 
+  const overspentCategories = data
+    ? data.categoryGroups
+        .flatMap((group) => group.categories)
+        .filter(
+          (category) =>
+            !category.isArchived &&
+            !isCreditCardPaymentCategory(category.id) &&
+            category.isOverspent &&
+            isMoneyNegative(category.available),
+        )
+    : [];
+  const overspentAmount = overspentCategories.reduce(
+    (total, category) => total + Math.abs(category.available),
+    0,
+  );
+
   const applicationHistory = useApplicationHistory();
   const moneyMovementHistory = useBudgetMoneyMovementHistory(
     budgetId,
@@ -1078,6 +1243,8 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   }
 
   const budgetWorkspaceMainRef = useRef<HTMLElement | null>(null);
+  const budgetHealthAnchorRef = useRef<HTMLDivElement | null>(null);
+  const budgetCategoryAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const budgetTableLayout = useTableLayout({
     storageKeyPrefix: BUDGET_TABLE_LAYOUT_STORAGE_KEY_PREFIX,
@@ -1116,17 +1283,66 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   }, [budgetId]);
 
   useEffect(() => {
-    const updateCapacity = () =>
-      setVisibleMonthCapacity(visibleBudgetMonthCapacity(window.innerWidth));
+    const workspace = budgetWorkspaceMainRef.current;
+    const layout = workspace?.parentElement;
+    if (!workspace || !layout) return;
+
+    const updateCapacity = () => {
+      const availableWorkspaceWidth = workspace.getBoundingClientRect().width;
+      setVisibleMonthCapacity(
+        visibleBudgetMonthCapacity(availableWorkspaceWidth),
+      );
+    };
+
     updateCapacity();
-    window.addEventListener("resize", updateCapacity);
-    return () => window.removeEventListener("resize", updateCapacity);
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateCapacity);
+      return () => window.removeEventListener("resize", updateCapacity);
+    }
+
+    const observer = new ResizeObserver(updateCapacity);
+    observer.observe(workspace);
+    observer.observe(layout);
+    return () => observer.disconnect();
   }, []);
 
   const visibleMonthCount = Math.min(
     preferredVisibleMonths,
     visibleMonthCapacity,
   );
+
+  useEffect(() => {
+    const workspace = budgetWorkspaceMainRef.current;
+    const layout = workspace?.parentElement;
+    const healthAnchor = budgetHealthAnchorRef.current;
+    const categoryAnchor = budgetCategoryAnchorRef.current;
+    if (!workspace || !layout || !healthAnchor || !categoryAnchor) return;
+
+    const updateInspectorAlignment = () => {
+      const layoutTop = layout.getBoundingClientRect().top;
+      setInspectorHealthOffset(
+        Math.max(0, healthAnchor.getBoundingClientRect().top - layoutTop),
+      );
+      setInspectorCategoryOffset(
+        Math.max(0, categoryAnchor.getBoundingClientRect().top - layoutTop),
+      );
+    };
+
+    updateInspectorAlignment();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateInspectorAlignment);
+      return () => window.removeEventListener("resize", updateInspectorAlignment);
+    }
+
+    const observer = new ResizeObserver(updateInspectorAlignment);
+    observer.observe(workspace);
+    observer.observe(layout);
+    observer.observe(healthAnchor);
+    observer.observe(categoryAnchor);
+    return () => observer.disconnect();
+  }, [visibleMonthCount, selectedMonth, isLoading]);
   const visibleMonths = buildVisibleBudgetMonths(
     selectedMonth,
     visibleMonthCount,
@@ -1142,6 +1358,21 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     selectCategory(categoryId);
     if (month !== selectedMonth) {
       setSelectedMonth(month);
+    }
+  }
+
+  function syncVisibleMonthTableScroll(event: UIEvent<HTMLDivElement>) {
+    const source = event.target;
+    if (!(source instanceof HTMLElement)) return;
+    if (!source.classList.contains("budget-workspace-table-card")) return;
+
+    const grid = event.currentTarget;
+    for (const table of grid.querySelectorAll<HTMLElement>(
+      ".budget-workspace-table-card",
+    )) {
+      if (table !== source && table.scrollTop !== source.scrollTop) {
+        table.scrollTop = source.scrollTop;
+      }
     }
   }
 
@@ -1426,9 +1657,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           "budget-workspace-screen",
           "budget-workspace-layout",
           isMultiMonthView ? "budget-workspace-screen-multi-month" : "",
-          visibleSelectedCategory && visibleSelectedGroup
-            ? "budget-workspace-layout-details-open"
-            : "",
+          "budget-workspace-layout-details-open",
         ].filter(Boolean).join(" ")}
       >
         <main
@@ -1526,31 +1755,27 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 >
                   ›
                 </button>
+                {visibleMonthCapacity > 1 ? (
+                  <BudgetVisibleMonthToggle
+                    visibleCount={visibleMonthCount}
+                    capacity={visibleMonthCapacity}
+                    onChange={changeVisibleMonthCount}
+                  />
+                ) : null}
               </nav>
 
-              <div className="budget-planning-title">
-                <div>
-                  <h1>
-                    {isMultiMonthView
-                      ? `${data.monthLabel} – ${formatBudgetMonthLabel(visibleMonths[visibleMonths.length - 1]!)}`
-                      : data.monthLabel}
-                  </h1>
-                  <span>
-                    {isMultiMonthView
-                      ? `${visibleMonthCount}-month planning view`
-                      : "Monthly Budget"}
-                  </span>
+              {!isMultiMonthView ? (
+                <div className="budget-planning-title">
+                  <div>
+                    <h1>{data.monthLabel}</h1>
+                    <span>Monthly Budget</span>
+                  </div>
                 </div>
-                <BudgetVisibleMonthToggle
-                  preferredCount={preferredVisibleMonths}
-                  capacity={visibleMonthCapacity}
-                  onChange={changeVisibleMonthCount}
-                />
-              </div>
+              ) : null}
 
               {!isMultiMonthView ? (
                 <>
-              <div className="budget-planning-summary-stack">
+              <div ref={budgetHealthAnchorRef} className="budget-planning-summary-stack">
                 <div
                   className={
                     isBudgetOverassigned
@@ -1720,43 +1945,12 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 </div>
               </div>
                 </>
-              ) : (
-                <div className="budget-multi-month-toolbar">
-                  <div className="budget-planning-toolbar-left">
-                    <button className="button button-secondary" type="button" onClick={() => setIsOrganiserOpen(true)}>
-                      <ListTree size={17} aria-hidden="true" />
-                      Organise Categories
-                    </button>
-                    <button className="button button-secondary" type="button" disabled title="Auto Assign is not yet available">
-                      Auto Assign
-                    </button>
-                    <button
-                      className="button button-secondary budget-history-icon-button"
-                      type="button"
-                      onClick={() => void applicationHistory.undo()}
-                      disabled={!applicationHistory.canUndo}
-                      aria-label="Undo"
-                      title="Undo"
-                    >
-                      <Undo2 size={18} aria-hidden="true" />
-                    </button>
-                    <button
-                      className="button button-secondary budget-history-icon-button"
-                      type="button"
-                      onClick={() => void applicationHistory.redo()}
-                      disabled={!applicationHistory.canRedo}
-                      aria-label="Redo"
-                      title="Redo"
-                    >
-                      <Redo2 size={18} aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-              )}
+              ) : null}
             </section>
 
             {!isMultiMonthView ? (
               <div
+                ref={budgetCategoryAnchorRef}
                 className="budget-workspace-table-head"
                 style={budgetGridStyle}
               >
@@ -1798,10 +1992,14 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
             <div
               className="budget-multi-month-grid"
               style={{ "--budget-visible-month-count": visibleMonthCount } as CSSProperties}
+              onScrollCapture={syncVisibleMonthTableScroll}
             >
               <BudgetMultiMonthPane
                 month={selectedMonth}
                 data={data}
+                isCurrentMonth={selectedMonth === currentBudgetMonth}
+                healthAnchorRef={budgetHealthAnchorRef}
+                categoryAnchorRef={budgetCategoryAnchorRef}
                 selectedCategoryId={visibleSelectedCategory?.id ?? null}
                 onSelectCategory={selectVisibleMonthCategory}
                 updateAssigned={updateAssigned}
@@ -1816,6 +2014,44 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                     return next;
                   });
                 }}
+                toolbar={
+                  <div
+                    className="budget-multi-month-toolbar"
+                    style={{
+                      width: `calc(${visibleMonthCount * 100}% + ${(visibleMonthCount - 1) * 0.8}rem)`,
+                    }}
+                  >
+                    <div className="budget-planning-toolbar-left">
+                      <button className="button button-secondary" type="button" onClick={() => setIsOrganiserOpen(true)}>
+                        <ListTree size={17} aria-hidden="true" />
+                        Organise Categories
+                      </button>
+                      <button className="button button-secondary" type="button" disabled title="Auto Assign is not yet available">
+                        Auto Assign
+                      </button>
+                      <button
+                        className="button button-secondary budget-history-icon-button"
+                        type="button"
+                        onClick={() => void applicationHistory.undo()}
+                        disabled={!applicationHistory.canUndo}
+                        aria-label="Undo"
+                        title="Undo"
+                      >
+                        <Undo2 size={18} aria-hidden="true" />
+                      </button>
+                      <button
+                        className="button button-secondary budget-history-icon-button"
+                        type="button"
+                        onClick={() => void applicationHistory.redo()}
+                        disabled={!applicationHistory.canRedo}
+                        aria-label="Redo"
+                        title="Redo"
+                      >
+                        <Redo2 size={18} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                }
               />
               {visibleMonths.slice(1).map((month) => (
                 <BudgetFutureMonthPane
@@ -1834,6 +2070,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                       return next;
                     });
                   }}
+                  isCurrentMonth={month === currentBudgetMonth}
                 />
               ))}
             </div>
@@ -1889,24 +2126,53 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           )}
         </main>
 
-        {visibleSelectedCategory && visibleSelectedGroup ? (
-          <CategoryDetailsPanel
-            budgetId={budgetId}
-            month={selectedMonth}
-            category={visibleSelectedCategory}
-            group={visibleSelectedGroup}
+        <aside
+          className="budget-inspector-column"
+          aria-label="Budget inspector"
+          style={{
+            "--budget-inspector-health-offset": `${inspectorHealthOffset}px`,
+            "--budget-inspector-category-offset": `${inspectorCategoryOffset}px`,
+          } as CSSProperties}
+        >
+          <BudgetHealthCard
+            monthLabel={data.monthLabel}
             currencyCode={data.currencyCode}
-            isOverassignedSource={selectedCategoryIsOverassignedSource}
-            isCreditCardPaymentCategory={isCreditCardPaymentCategory(visibleSelectedCategory.id)}
-            onAssignGoalRecommendation={assignGoalRecommendation}
-            onOpenActivity={openActivityDrilldown}
-            onOpenManageCategory={openCategorySettings}
-            onOpenCoverOverspending={openCoverOverspendingMenu}
-            onOpenMoveMoney={setMoveMoneyDestinationCategoryId}
-            movementHistory={selectedCategoryMovementHistory}
-            onClose={clearSelection}
+            overspentCategoryCount={overspentCategories.length}
+            overspentAmount={overspentAmount}
+            nextMonthLabel={nextMonthBudget.data?.monthLabel ?? formatBudgetMonthLabel(nextMonth)}
+            nextMonthStatus={
+              nextMonthBudget.isLoading
+                ? "loading"
+                : nextMonthBudget.error
+                  ? "unavailable"
+                  : (nextMonthOutlook?.status ?? "unavailable")
+            }
+            nextMonthAmount={nextMonthOutlook?.amount ?? 0}
+            futureOvercommitment={futureOvercommitment}
           />
-        ) : null}
+          <div className="budget-inspector-category-slot">
+            {visibleSelectedCategory && visibleSelectedGroup ? (
+              <CategoryDetailsPanel
+                budgetId={budgetId}
+                month={selectedMonth}
+                category={visibleSelectedCategory}
+                group={visibleSelectedGroup}
+                currencyCode={data.currencyCode}
+                isOverassignedSource={selectedCategoryIsOverassignedSource}
+                isCreditCardPaymentCategory={isCreditCardPaymentCategory(visibleSelectedCategory.id)}
+                onAssignGoalRecommendation={assignGoalRecommendation}
+                onOpenActivity={openActivityDrilldown}
+                onOpenManageCategory={openCategorySettings}
+                onOpenCoverOverspending={openCoverOverspendingMenu}
+                onOpenMoveMoney={setMoveMoneyDestinationCategoryId}
+                movementHistory={selectedCategoryMovementHistory}
+                onClose={clearSelection}
+              />
+            ) : (
+              <BudgetCategoryDetailsEmptyState />
+            )}
+          </div>
+        </aside>
       </WorkspaceLayout>
 
       {moveMoneyDestinationCategoryId ? (
