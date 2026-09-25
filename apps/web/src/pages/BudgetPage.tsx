@@ -309,9 +309,9 @@ function BudgetHealthCard({
             {overspentCategoryCount > 0 ||
             nextMonthStatus === "overbudget" ||
             futureOvercommitment > 0 ? (
-              <CircleAlert size={18} />
+              <CircleAlert size={17} />
             ) : (
-              <CircleCheck size={18} />
+              <CircleCheck size={17} />
             )}
           </span>
           <div>
@@ -322,34 +322,16 @@ function BudgetHealthCard({
         <span className="budget-health-month-badge">{monthLabel}</span>
       </header>
 
-      <div className="budget-health-summary">
-        <span className="budget-health-summary-icon" aria-hidden="true">
-          {overspentCategoryCount > 0 ? (
-            <CircleAlert size={24} />
-          ) : (
-            <CircleCheck size={24} />
-          )}
-        </span>
-        <div className="budget-health-summary-copy">
-          <span>
-            {overspentCategoryCount > 0
-              ? `${overspentCategoryCount} categories overspent`
-              : "No overspent categories"}
-          </span>
+      <div className="budget-health-list">
+        <div className={overspentCategoryCount > 0 ? "budget-health-row budget-health-row-warning" : "budget-health-row"}>
+          <span>Overspent categories</span>
           <strong>
             {overspentCategoryCount > 0
-              ? formatMoney(overspentAmount, currencyCode)
-              : "On track"}
+              ? `${overspentCategoryCount} · ${formatMoney(overspentAmount, currencyCode)}`
+              : "None"}
           </strong>
-          <small>
-            {overspentCategoryCount > 0
-              ? "Total overspending this month"
-              : "No current category overspending"}
-          </small>
         </div>
-      </div>
 
-      <div className="budget-health-list">
         <div className={nextMonthStatus === "overbudget" ? "budget-health-row budget-health-row-warning" : "budget-health-row"}>
           <span>{nextMonthLabel}</span>
           <strong>
@@ -458,10 +440,7 @@ function CategoryDetailsPanel({
       aria-label={`Category details for ${category.name}`}
     >
       <header className="budget-category-details-header">
-        <div className="budget-category-details-header-copy">
-          <span>Inspector</span>
-          <h2>Category Details</h2>
-        </div>
+        <h2>Category Details</h2>
         <button
           className="budget-category-details-close"
           type="button"
