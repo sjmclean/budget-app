@@ -144,3 +144,15 @@ test("Budget hides the month selector when only one month fits", () => {
     /visibleMonthCapacity > 1 \? \([\s\S]*<BudgetVisibleMonthToggle/,
   );
 });
+
+
+test("multi-month Budget synchronizes visible month table scrolling", () => {
+  assert.match(
+    budgetPageSource,
+    /function syncVisibleMonthTableScroll\(event: UIEvent<HTMLDivElement>\)[\s\S]*budget-workspace-table-card[\s\S]*table\.scrollTop = source\.scrollTop/,
+  );
+  assert.match(
+    budgetPageSource,
+    /className="budget-multi-month-grid"[\s\S]*onScrollCapture=\{syncVisibleMonthTableScroll\}/,
+  );
+});
