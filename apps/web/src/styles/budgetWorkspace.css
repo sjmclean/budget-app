@@ -1684,6 +1684,8 @@
     display: grid;
     gap: 0.75rem;
     min-height: 0;
+    max-height: none;
+    overflow: visible;
   }
 
   .budget-health-card {
@@ -1691,7 +1693,24 @@
   }
 
   .budget-inspector-category-slot {
+    height: auto;
+    overflow: visible;
     padding-top: 0;
+  }
+
+  .budget-multi-month-grid,
+  .budget-multi-month-pane {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .budget-multi-month-pane {
+    display: grid;
+    grid-template-rows: none;
+  }
+
+  .budget-multi-month-pane > .budget-workspace-table-card {
+    overflow-y: hidden;
   }
 
   .budget-category-details-panel {
