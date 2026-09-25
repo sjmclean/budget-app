@@ -210,11 +210,13 @@
 }
 
 .budget-inspector-category-slot {
-  box-sizing: border-box;
-  height: 100%;
+  position: absolute;
+  inset:
+    var(--budget-inspector-category-offset, 0px)
+    0
+    0;
   min-height: 0;
   overflow: hidden;
-  padding-top: var(--budget-inspector-category-offset, 0px);
 }
 
 .budget-category-details-panel {
@@ -1693,9 +1695,9 @@
   }
 
   .budget-inspector-category-slot {
+    position: static;
     height: auto;
     overflow: visible;
-    padding-top: 0;
   }
 
   .budget-multi-month-grid,
