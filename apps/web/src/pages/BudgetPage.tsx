@@ -311,13 +311,17 @@ function BudgetHealthCard({
       <div className="budget-health-overview">
         <span
           className={
-            overspentCategoryCount > 0
+            overspentCategoryCount > 0 ||
+            nextMonthStatus === "overbudget" ||
+            futureOvercommitment > 0
               ? "budget-health-overview-icon budget-health-overview-icon-warning"
               : "budget-health-overview-icon"
           }
           aria-hidden="true"
         >
-          {overspentCategoryCount > 0 ? (
+          {overspentCategoryCount > 0 ||
+          nextMonthStatus === "overbudget" ||
+          futureOvercommitment > 0 ? (
             <Activity size={22} />
           ) : (
             <CircleCheck size={22} />
@@ -327,14 +331,30 @@ function BudgetHealthCard({
           <span>
             {overspentCategoryCount > 0
               ? `${overspentCategoryCount} categories overspent`
-              : "No categories overspent"}
+              : nextMonthStatus === "overbudget"
+                ? `${nextMonthLabel} needs attention`
+                : futureOvercommitment > 0
+                  ? "Future funding needs attention"
+                  : "No budget warnings"}
           </span>
           <strong>
             {overspentCategoryCount > 0
               ? formatMoney(overspentAmount, currencyCode)
-              : "On track"}
+              : nextMonthStatus === "overbudget"
+                ? formatMoney(nextMonthAmount, currencyCode)
+                : futureOvercommitment > 0
+                  ? formatMoney(futureOvercommitment, currencyCode)
+                  : "On track"}
           </strong>
-          <small>{overspentCategoryCount > 0 ? "overspent" : "this month"}</small>
+          <small>
+            {overspentCategoryCount > 0
+              ? "overspent"
+              : nextMonthStatus === "overbudget"
+                ? "overbudget next month"
+                : futureOvercommitment > 0
+                  ? "overcommitted"
+                  : "this month"}
+          </small>
         </div>
       </div>
 
