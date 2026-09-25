@@ -728,57 +728,31 @@ function BudgetActivityDrilldownModal({
   );
 }
 
-function BudgetMonthCountIcon({ count }: { count: number }) {
-  return (
-    <span className="budget-month-count-icon" aria-hidden="true">
-      {Array.from({ length: count }, (_, index) => (
-        <CalendarDays size={count >= 3 ? 12 : 15} key={index} />
-      ))}
-    </span>
-  );
-}
-
 function BudgetVisibleMonthToggle({
-  preferredCount,
+  visibleCount,
   capacity,
   onChange,
 }: {
-  preferredCount: number;
+  visibleCount: number;
   capacity: number;
   onChange: (count: number) => void;
 }) {
   return (
-    <div
-      className="budget-visible-month-toggle"
-      role="group"
-      aria-label="Visible budget months"
-    >
-      {[1, 2, 3, 4].map((count) => {
-        const isAvailable = count <= capacity;
-        return (
-          <button
-            className={
-              preferredCount === count
-                ? "budget-visible-month-button budget-visible-month-button-active"
-                : "budget-visible-month-button"
-            }
-            type="button"
-            key={count}
-            disabled={!isAvailable}
-            onClick={() => onChange(count)}
-            aria-pressed={preferredCount === count}
-            aria-label={`Show ${count} budget month${count === 1 ? "" : "s"}`}
-            title={
-              isAvailable
-                ? `Show ${count} month${count === 1 ? "" : "s"}`
-                : `${count}-month view needs a wider screen`
-            }
-          >
-            <BudgetMonthCountIcon count={count} />
-          </button>
-        );
-      })}
-    </div>
+    <label className="budget-visible-month-control">
+      <span>Months</span>
+      <select
+        className="budget-visible-month-select"
+        value={visibleCount}
+        onChange={(event) => onChange(Number(event.target.value))}
+        aria-label="Visible budget months"
+      >
+        {[1, 2, 3, 4].map((count) => (
+          <option key={count} value={count} disabled={count > capacity}>
+            {count}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -793,6 +767,7 @@ function BudgetMultiMonthPane({
   archivedCategoriesExpanded,
   onToggleGroup,
   onToggleArchived,
+  toolbar,
 }: {
   month: string;
   data: BudgetMonthView;
@@ -804,6 +779,7 @@ function BudgetMultiMonthPane({
   archivedCategoriesExpanded: boolean;
   onToggleGroup: (groupId: string) => void;
   onToggleArchived: () => void;
+  toolbar?: React.ReactNode;
 }) {
   const summary = readAuthoritativeBudgetSummary(data);
   const planningReadyToAssign =
@@ -872,6 +848,10 @@ function BudgetMultiMonthPane({
             Budget breakdown unavailable for this month.
           </p>
         )}
+      </div>
+
+      <div className="budget-multi-month-toolbar-slot">
+        {toolbar ?? null}
       </div>
 
       <div className="budget-workspace-table-head" style={gridStyle}>
@@ -1542,7 +1522,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   </span>
                 </div>
                 <BudgetVisibleMonthToggle
-                  preferredCount={preferredVisibleMonths}
+                  visibleCount={visibleMonthCount}
                   capacity={visibleMonthCapacity}
                   onChange={changeVisibleMonthCount}
                 />
@@ -1720,39 +1700,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                 </div>
               </div>
                 </>
-              ) : (
-                <div className="budget-multi-month-toolbar">
-                  <div className="budget-planning-toolbar-left">
-                    <button className="button button-secondary" type="button" onClick={() => setIsOrganiserOpen(true)}>
-                      <ListTree size={17} aria-hidden="true" />
-                      Organise Categories
-                    </button>
-                    <button className="button button-secondary" type="button" disabled title="Auto Assign is not yet available">
-                      Auto Assign
-                    </button>
-                    <button
-                      className="button button-secondary budget-history-icon-button"
-                      type="button"
-                      onClick={() => void applicationHistory.undo()}
-                      disabled={!applicationHistory.canUndo}
-                      aria-label="Undo"
-                      title="Undo"
-                    >
-                      <Undo2 size={18} aria-hidden="true" />
-                    </button>
-                    <button
-                      className="button button-secondary budget-history-icon-button"
-                      type="button"
-                      onClick={() => void applicationHistory.redo()}
-                      disabled={!applicationHistory.canRedo}
-                      aria-label="Redo"
-                      title="Redo"
-                    >
-                      <Redo2 size={18} aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-              )}
+              ) : null}
             </section>
 
             {!isMultiMonthView ? (
@@ -1816,6 +1764,44 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                     return next;
                   });
                 }}
+                toolbar={
+                  <div
+                    className="budget-multi-month-toolbar"
+                    style={{
+                      width: `calc(${visibleMonthCount * 100}% + ${(visibleMonthCount - 1) * 0.8}rem)`,
+                    }}
+                  >
+                    <div className="budget-planning-toolbar-left">
+                      <button className="button button-secondary" type="button" onClick={() => setIsOrganiserOpen(true)}>
+                        <ListTree size={17} aria-hidden="true" />
+                        Organise Categories
+                      </button>
+                      <button className="button button-secondary" type="button" disabled title="Auto Assign is not yet available">
+                        Auto Assign
+                      </button>
+                      <button
+                        className="button button-secondary budget-history-icon-button"
+                        type="button"
+                        onClick={() => void applicationHistory.undo()}
+                        disabled={!applicationHistory.canUndo}
+                        aria-label="Undo"
+                        title="Undo"
+                      >
+                        <Undo2 size={18} aria-hidden="true" />
+                      </button>
+                      <button
+                        className="button button-secondary budget-history-icon-button"
+                        type="button"
+                        onClick={() => void applicationHistory.redo()}
+                        disabled={!applicationHistory.canRedo}
+                        aria-label="Redo"
+                        title="Redo"
+                      >
+                        <Redo2 size={18} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                }
               />
               {visibleMonths.slice(1).map((month) => (
                 <BudgetFutureMonthPane
