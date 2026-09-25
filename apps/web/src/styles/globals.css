@@ -78,18 +78,19 @@
 :root[data-theme="blueprint"] {
   color-scheme: light;
 
-  --page-bg: #f5f8fd;
+  /* Crisp white working surfaces on a soft blue planning canvas. */
+  --page-bg: #edf5ff;
   --surface: #ffffff;
-  --surface-subtle: #f1f5fb;
-  --border: #cfd9e8;
-  --border-soft: #e2e8f2;
+  --surface-subtle: #f4f8ff;
+  --border: #c9d8eb;
+  --border-soft: #dde8f6;
 
   --text: #14213d;
-  --text-muted: #60708a;
+  --text-muted: #5d6f8b;
 
   --accent: #1769e0;
   --accent-strong: #0b4fb8;
-  --accent-soft: #e9f1ff;
+  --accent-soft: #e4efff;
   --accent-contrast: #ffffff;
 
   --positive: #15803d;
@@ -113,8 +114,19 @@
 
 :root[data-theme="blueprint"] body {
   background:
-    radial-gradient(circle at 15% 0%, rgba(23, 105, 224, 0.045), transparent 28rem),
+    radial-gradient(circle at 16% 0%, rgba(23, 105, 224, 0.09), transparent 34rem),
+    radial-gradient(circle at 88% 18%, rgba(101, 163, 245, 0.055), transparent 30rem),
     var(--page-bg);
+}
+
+:root[data-theme="blueprint"] .app-shell {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--page-bg) 96%, #ffffff) 0%,
+      var(--page-bg) 48%,
+      color-mix(in srgb, var(--page-bg) 92%, var(--accent-soft)) 100%
+    );
 }
 
 :root[data-theme="blueprint"] .button-primary {
@@ -124,7 +136,8 @@
 :root[data-theme="blueprint"] .sidebar,
 :root[data-theme="blueprint"] .app-sidebar,
 :root[data-theme="blueprint"] .navigation-sidebar {
-  background: color-mix(in srgb, var(--surface) 97%, var(--accent-soft));
+  background: color-mix(in srgb, var(--surface) 98%, var(--accent-soft));
+  border-color: color-mix(in srgb, var(--border-soft) 88%, var(--accent-soft));
 }
 
 * {
