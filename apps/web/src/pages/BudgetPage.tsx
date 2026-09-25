@@ -267,6 +267,70 @@ function BudgetNextMonthOutlook({
 
 type CategoryDetailsTab = "overview" | "goal" | "activity" | "notes";
 
+function BudgetHealthCard({
+  monthLabel,
+  currencyCode,
+  overspentCategoryCount,
+  overspentAmount,
+  nextMonthLabel,
+  nextMonthStatus,
+  nextMonthAmount,
+  futureOvercommitment,
+}: {
+  monthLabel: string;
+  currencyCode: string;
+  overspentCategoryCount: number;
+  overspentAmount: number;
+  nextMonthLabel: string;
+  nextMonthStatus: "overbudget" | "balanced" | "available" | "loading";
+  nextMonthAmount: number;
+  futureOvercommitment: number;
+}) {
+  return (
+    <section className="budget-health-card" aria-label={`Budget health for ${monthLabel}`}>
+      <header className="budget-health-card-header">
+        <div>
+          <span>Budget Health</span>
+          <strong>{monthLabel}</strong>
+        </div>
+      </header>
+
+      <div className="budget-health-list">
+        <div className={overspentCategoryCount > 0 ? "budget-health-row budget-health-row-warning" : "budget-health-row"}>
+          <span>Overspent categories</span>
+          <strong>
+            {overspentCategoryCount > 0
+              ? `${overspentCategoryCount} · ${formatMoney(overspentAmount, currencyCode)}`
+              : "None"}
+          </strong>
+        </div>
+
+        <div className={nextMonthStatus === "overbudget" ? "budget-health-row budget-health-row-warning" : "budget-health-row"}>
+          <span>{nextMonthLabel}</span>
+          <strong>
+            {nextMonthStatus === "loading"
+              ? "Checking…"
+              : nextMonthStatus === "overbudget"
+                ? `${formatMoney(nextMonthAmount, currencyCode)} overbudget`
+                : nextMonthStatus === "balanced"
+                  ? "Balanced"
+                  : "Not overbudget"}
+          </strong>
+        </div>
+
+        <div className={futureOvercommitment > 0 ? "budget-health-row budget-health-row-warning" : "budget-health-row"}>
+          <span>Future funding</span>
+          <strong>
+            {futureOvercommitment > 0
+              ? `${formatMoney(futureOvercommitment, currencyCode)} overcommitted`
+              : "No overcommitment"}
+          </strong>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function BudgetCategoryDetailsEmptyState() {
   return (
     <aside
@@ -1025,6 +1089,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     readPreferredVisibleBudgetMonths(budgetId),
   );
   const [visibleMonthCapacity, setVisibleMonthCapacity] = useState(1);
+  const [inspectorCategoryOffset, setInspectorCategoryOffset] = useState(0);
 
   const {
     data,
@@ -1063,6 +1128,22 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const nextMonthOutlook = nextMonthBudget.data
     ? resolveBudgetNextMonthOutlook(nextMonthBudget.data.readyToAssign)
     : null;
+
+  const overspentCategories = data
+    ? data.categoryGroups
+        .flatMap((group) => group.categories)
+        .filter(
+          (category) =>
+            !category.isArchived &&
+            !isCreditCardPaymentCategory(category.id) &&
+            category.isOverspent &&
+            isMoneyNegative(category.available),
+        )
+    : [];
+  const overspentAmount = overspentCategories.reduce(
+    (total, category) => total + Math.abs(category.available),
+    0,
+  );
 
   const applicationHistory = useApplicationHistory();
   const moneyMovementHistory = useBudgetMoneyMovementHistory(
@@ -1149,6 +1230,36 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     if (inspector) observer.observe(inspector);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const workspace = budgetWorkspaceMainRef.current;
+    const layout = workspace?.parentElement;
+    if (!workspace || !layout) return;
+
+    const updateInspectorAlignment = () => {
+      const layoutTop = layout.getBoundingClientRect().top;
+      const tableHead = workspace.querySelector<HTMLElement>(
+        ".budget-multi-month-pane > .budget-workspace-table-head, :scope > .budget-workspace-table-head",
+      );
+      if (!tableHead) return;
+
+      setInspectorCategoryOffset(
+        Math.max(0, tableHead.getBoundingClientRect().top - layoutTop),
+      );
+    };
+
+    updateInspectorAlignment();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateInspectorAlignment);
+      return () => window.removeEventListener("resize", updateInspectorAlignment);
+    }
+
+    const observer = new ResizeObserver(updateInspectorAlignment);
+    observer.observe(workspace);
+    observer.observe(layout);
+    return () => observer.disconnect();
+  }, [visibleMonthCount, selectedMonth]);
 
   const visibleMonthCount = Math.min(
     preferredVisibleMonths,
@@ -1920,26 +2031,47 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
           )}
         </main>
 
-        {visibleSelectedCategory && visibleSelectedGroup ? (
-          <CategoryDetailsPanel
-            budgetId={budgetId}
-            month={selectedMonth}
-            category={visibleSelectedCategory}
-            group={visibleSelectedGroup}
+        <aside className="budget-inspector-column" aria-label="Budget inspector">
+          <BudgetHealthCard
+            monthLabel={data.monthLabel}
             currencyCode={data.currencyCode}
-            isOverassignedSource={selectedCategoryIsOverassignedSource}
-            isCreditCardPaymentCategory={isCreditCardPaymentCategory(visibleSelectedCategory.id)}
-            onAssignGoalRecommendation={assignGoalRecommendation}
-            onOpenActivity={openActivityDrilldown}
-            onOpenManageCategory={openCategorySettings}
-            onOpenCoverOverspending={openCoverOverspendingMenu}
-            onOpenMoveMoney={setMoveMoneyDestinationCategoryId}
-            movementHistory={selectedCategoryMovementHistory}
-            onClose={clearSelection}
+            overspentCategoryCount={overspentCategories.length}
+            overspentAmount={overspentAmount}
+            nextMonthLabel={nextMonthBudget.data?.monthLabel ?? formatBudgetMonthLabel(nextMonth)}
+            nextMonthStatus={
+              nextMonthBudget.isLoading
+                ? "loading"
+                : (nextMonthOutlook?.status ?? "loading")
+            }
+            nextMonthAmount={nextMonthOutlook?.amount ?? 0}
+            futureOvercommitment={futureOvercommitment}
           />
-        ) : (
-          <BudgetCategoryDetailsEmptyState />
-        )}
+          <div
+            className="budget-inspector-category-slot"
+            style={{ "--budget-inspector-category-offset": `${inspectorCategoryOffset}px` } as CSSProperties}
+          >
+            {visibleSelectedCategory && visibleSelectedGroup ? (
+              <CategoryDetailsPanel
+                budgetId={budgetId}
+                month={selectedMonth}
+                category={visibleSelectedCategory}
+                group={visibleSelectedGroup}
+                currencyCode={data.currencyCode}
+                isOverassignedSource={selectedCategoryIsOverassignedSource}
+                isCreditCardPaymentCategory={isCreditCardPaymentCategory(visibleSelectedCategory.id)}
+                onAssignGoalRecommendation={assignGoalRecommendation}
+                onOpenActivity={openActivityDrilldown}
+                onOpenManageCategory={openCategorySettings}
+                onOpenCoverOverspending={openCoverOverspendingMenu}
+                onOpenMoveMoney={setMoveMoneyDestinationCategoryId}
+                movementHistory={selectedCategoryMovementHistory}
+                onClose={clearSelection}
+              />
+            ) : (
+              <BudgetCategoryDetailsEmptyState />
+            )}
+          </div>
+        </aside>
       </WorkspaceLayout>
 
       {moveMoneyDestinationCategoryId ? (
