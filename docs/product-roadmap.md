@@ -1,6 +1,6 @@
 # Product Roadmap
 
-*Last reconciled: 24 September 2026 against `master` at `76475ce84c010a066155fbb2e7d4be79338891f6`.*
+*Last reconciled: 25 September 2026 against `master` at `156998c43d4946e310cb1ee8139f1b1a72eeb283`.*
 
 This is the **single authoritative product roadmap** for Budget App.
 
@@ -125,7 +125,7 @@ Completed Budget UX foundations now include:
 - refreshed Budget planning header with month title above summary cards;
 - coloured, higher-emphasis Ready to Assign summary;
 - compact Next Month card showing authoritative status and next-month Assigned;
-- contextual Category Details panel, with permanent-inspector information architecture now under active review;
+- permanent desktop Category Details inspector with stable no-selection state;
 - Category Details tabs for Overview, Goal, Activity and Notes;
 - goal progress/editing through the existing goal subsystem;
 - category recent activity through the authoritative SQLite drilldown;
@@ -136,7 +136,10 @@ Completed Budget UX foundations now include:
 - existing Budget virtualization retained;
 - optional adaptive multi-month Budget planning view with 1–4 consecutive months on sufficiently wide screens;
 - per-budget persisted visible-month preference with automatic width-based fallback;
-- editable month panes with month-aware Category Details selection.
+- editable month panes with month-aware Category Details selection;
+- synchronized multi-month table scrolling with hidden scrollbar chrome;
+- compact Budget Health summary aligned to the month/table hierarchy;
+- Blueprint blue-white workspace canvas treatment.
 
 Recent completed work:
 
@@ -145,7 +148,8 @@ Recent completed work:
 - PR #90 — refreshed Budget planning header;
 - PR #94 — Move Money + effective movement history;
 - PR #95 — forward-aware Ready to Assign / future-month planning semantics;
-- PR #96 — adaptive 1–4 month Budget planning view.
+- PR #96 — adaptive 1–4 month Budget planning view;
+- PR #98 — multi-month polish, permanent inspector, Budget Health, synchronized scrolling and Blueprint canvas.
 
 Design reference:
 
@@ -205,40 +209,51 @@ Detailed operational reference:
 This is the **only active ordering list**. Deal with item **1** first unless a
 blocking correctness/security defect requires immediate interruption.
 
-## 1 — Budget: multi-month polish + inspector information architecture — ACTIVE / NEXT
+## 1 — Budget: explicit Income for Month model — ACTIVE / NEXT
 
-PR #96 established the adaptive 1–4 month Budget planning view. Complete a
-bounded polish and information-architecture pass before moving on.
+Revisit the current global Ready to Assign / future-income model and prototype a
+deliberately simple YNAB4-style income assignment flow.
 
-Primary multi-month touch-ups:
+Product direction to preserve:
 
-- fix text wrapping, clipping and awkward line breaks in month summaries,
-  table headings and category rows;
-- tighten alignment, spacing and density across 2-, 3- and 4-month layouts;
-- verify column widths and month-card proportions across large desktop sizes;
-- keep month headers and financial summaries visually aligned with their month
-  tables;
-- preserve useful horizontal scrolling when the inspector consumes width rather
-  than crushing month columns;
-- verify long category/group names and larger browser text/zoom;
-- retain the existing one-month experience without regression.
+- genuine income should require an explicit choice between two special income
+  destinations tied to the transaction date:
+  - **Income for <transaction month>**;
+  - **Income for <following month>**;
+- the user must explicitly choose which of those two months the income funds;
+  do not silently infer or automatically defer income;
+- do not expose arbitrary third/fourth/future-month income destinations in the
+  normal transaction-entry flow;
+- the two-month constraint should intentionally support budgeting the current
+  month or getting one month ahead without turning income entry into long-range
+  forecasting;
+- longer-term holding should remain an explicit budgeting decision, for example
+  through a holding/deferred category and later movement when appropriate;
+- preserve the distinction between genuine income, category refunds/inflows and
+  transfers;
+- preserve imported YNAB4 deferred-income intent where authoritative source data
+  already supplies it.
 
-Category Details / inspector decision:
+Before implementation, work through concrete scenarios and settle engine
+semantics for:
 
-- evaluate making the desktop Category Details inspector permanently present
-  rather than appearing only after category selection;
-- if adopted, use a stable right-side inspector column with an informative
-  no-selection state;
-- avoid Budget layout jumps when selecting/clearing categories;
-- retain exact month + category context in multi-month mode;
-- define what happens when a later visible month is selected without confusing
-  the active-month navigation model;
-- keep tablet/mobile behaviour adaptive rather than forcing a permanent desktop
-  panel into narrow layouts;
-- preserve keyboard/focus accessibility and existing Category Details actions.
+- income received and budgeted in the same month;
+- income received this month but designated for next month;
+- unassigned money/carry-forward across month boundaries;
+- future-month category assignments;
+- changing an existing income transaction from this month to next month and
+  vice versa;
+- deletion/editing/undo-redo of income transactions;
+- interaction with overspending and month rollover;
+- migration of existing native income transactions that currently have no
+  explicit income-month choice;
+- whether the existing global-pool/future-commitment presentation should be
+  removed or redefined once explicit Income for Month is authoritative.
 
-Do not turn this into a broad Budget redesign. Treat PR #96 as the baseline and
-fix concrete usability/presentation issues observed in VM/browser acceptance.
+Use the existing internal `incomeBudgetMonth`/YNAB4 import foundations where
+appropriate, but do not assume the current implementation semantics are the
+desired product contract. Define the user-facing model first, then adjust the
+engine and migration path with focused correctness tests.
 
 ## 2 — Budget: finish Category Details responsive behaviour + focused acceptance coverage — PLANNED
 
