@@ -100,3 +100,38 @@ test("multi-month Budget promotes the clicked month and opens its category inspe
     /\.budget-workspace-screen-multi-month\.budget-workspace-layout-details-open\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(19rem, 20\.5rem\)/,
   );
 });
+
+
+test("Budget keeps a permanent desktop Category Details column with an empty state", () => {
+  assert.match(
+    budgetPage,
+    /"budget-workspace-layout-details-open"/,
+  );
+  assert.match(
+    budgetPage,
+    /function BudgetCategoryDetailsEmptyState\(\)[\s\S]*<h2>Category Details<\/h2>[\s\S]*Select a category/,
+  );
+  assert.match(
+    budgetPage,
+    /visibleSelectedCategory && visibleSelectedGroup \? \([\s\S]*<CategoryDetailsPanel[\s\S]*\) : \([\s\S]*<BudgetCategoryDetailsEmptyState \/>/,
+  );
+  assert.match(
+    budgetCss,
+    /@media \(max-width: 1024px\)[\s\S]*\.budget-category-details-panel-empty\s*\{[\s\S]*display:\s*none/,
+  );
+});
+
+test("visible month capacity measures the workspace after reserving the inspector", () => {
+  assert.match(
+    budgetPage,
+    /layoutWidth - inspectorWidth - \(inspectorWidth > 0 \? columnGap : 0\)/,
+  );
+  assert.match(
+    budgetPage,
+    /const observer = new ResizeObserver\(updateCapacity\)[\s\S]*observer\.observe\(layout\)[\s\S]*observer\.observe\(inspector\)/,
+  );
+  assert.match(
+    budgetPage,
+    /visibleBudgetMonthCapacity\(availableWorkspaceWidth\)/,
+  );
+});
