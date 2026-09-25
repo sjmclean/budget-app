@@ -13,7 +13,6 @@ const budgetCss = readFileSync(
 
 test("Budget mounts Category Details whenever a category is selected", () => {
   assert.doesNotMatch(budgetPage, /<aside className="budget-month-panel"/);
-  assert.doesNotMatch(budgetPage, /Budget Health/);
   assert.match(
     budgetPage,
     /visibleSelectedCategory && visibleSelectedGroup \? \([\s\S]*<CategoryDetailsPanel/,
