@@ -259,6 +259,42 @@ export function ScheduledTransactionsPanel({
       }
     }
 
+    const hasParentSplit = Boolean(draft.splitLines?.length);
+    const isOrdinaryParentCategoryInflow =
+      !draft.transferAccountId &&
+      !hasParentSplit &&
+      draft.incomeBudgetMonthOffset === undefined &&
+      Boolean(draft.categoryId) &&
+      inflow > 0 &&
+      outflow === 0;
+    const resolvedParentInflowClassification =
+      draft.incomeBudgetMonthOffset !== undefined
+        ? "income" as const
+        : isOrdinaryParentCategoryInflow
+          ? draft.inflowClassification === "income"
+            ? "income" as const
+            : "category-inflow" as const
+          : undefined;
+    const resolvedSplitLines = draft.splitLines?.map((line) => {
+      const isOrdinaryCategoryInflow =
+        !line.transferAccountId &&
+        line.incomeBudgetMonthOffset === undefined &&
+        Boolean(line.categoryId) &&
+        line.inflow > 0 &&
+        line.outflow === 0;
+      return {
+        ...line,
+        inflowClassification:
+          line.incomeBudgetMonthOffset !== undefined
+            ? "income" as const
+            : isOrdinaryCategoryInflow
+              ? line.inflowClassification === "income"
+                ? "income" as const
+                : "category-inflow" as const
+              : undefined,
+      };
+    });
+
     const input: UpsertScheduledTransactionInput = {
       id: draft.id,
       accountId,
@@ -285,11 +321,11 @@ export function ScheduledTransactionsPanel({
       category: draft.category.trim(),
       categoryId: draft.categoryId,
       incomeBudgetMonthOffset: draft.incomeBudgetMonthOffset,
-      inflowClassification: draft.inflowClassification,
+      inflowClassification: resolvedParentInflowClassification,
       memo: draft.memo.trim(),
       outflow,
       inflow,
-      splitLines: draft.splitLines,
+      splitLines: resolvedSplitLines,
       attachments: draft.attachments,
     };
 
@@ -558,6 +594,18 @@ function ScheduledForm({
       ...draft,
       outflow: value === 0 ? "" : value.toFixed(2),
       inflow: value > 0 ? "" : draft.inflow,
+      category:
+        value > 0 && draft.incomeBudgetMonthOffset !== undefined
+          ? ""
+          : draft.category,
+      categoryId:
+        value > 0 && draft.incomeBudgetMonthOffset !== undefined
+          ? undefined
+          : draft.categoryId,
+      incomeBudgetMonthOffset:
+        value > 0 ? undefined : draft.incomeBudgetMonthOffset,
+      inflowClassification:
+        value > 0 ? undefined : draft.inflowClassification,
     });
   }
 
@@ -566,6 +614,14 @@ function ScheduledForm({
       ...draft,
       inflow: value === 0 ? "" : value.toFixed(2),
       outflow: value > 0 ? "" : draft.outflow,
+      inflowClassification:
+        value > 0 &&
+        draft.incomeBudgetMonthOffset === undefined &&
+        draft.categoryId
+          ? draft.inflowClassification === "income"
+            ? "income"
+            : "category-inflow"
+          : draft.inflowClassification,
     });
   }
 
@@ -945,6 +1001,28 @@ function ScheduledForm({
                 </button>
               </div>
             )}
+            {!isSplitEditorOpen &&
+            !draft.transferAccountId &&
+            draft.incomeBudgetMonthOffset === undefined &&
+            Boolean(draft.categoryId) &&
+            storedMoneyValue(draft.inflow) > 0 &&
+            storedMoneyValue(draft.outflow) === 0 ? (
+              <label className="scheduled-income-toggle">
+                <input
+                  type="checkbox"
+                  checked={draft.inflowClassification === "income"}
+                  onChange={(event) =>
+                    setDraft({
+                      ...draft,
+                      inflowClassification: event.target.checked
+                        ? "income"
+                        : "category-inflow",
+                    })
+                  }
+                />
+                Count as income
+              </label>
+            ) : null}
             {isSplitEditorOpen ? (
               <ScheduledSplitEditor
                 splitLines={draft.splitLines ?? []}
@@ -1190,18 +1268,70 @@ function ScheduledSplitEditor({
           <MoneyInput
             value={line.outflow}
             placeholder="Outflow"
-            onCommit={(outflow) => updateLine(line.id, { outflow, inflow: outflow > 0 ? 0 : line.inflow })}
+            onCommit={(outflow) =>
+              updateLine(line.id, {
+                outflow,
+                inflow: outflow > 0 ? 0 : line.inflow,
+                category:
+                  outflow > 0 && line.incomeBudgetMonthOffset !== undefined
+                    ? ""
+                    : line.category,
+                categoryId:
+                  outflow > 0 && line.incomeBudgetMonthOffset !== undefined
+                    ? undefined
+                    : line.categoryId,
+                incomeBudgetMonthOffset:
+                  outflow > 0 ? undefined : line.incomeBudgetMonthOffset,
+                inflowClassification:
+                  outflow > 0 ? undefined : line.inflowClassification,
+              })
+            }
             validate={(amount) => amount >= 0}
             emptyWhenZero
           />
           <MoneyInput
             value={line.inflow}
             placeholder="Inflow"
-            onCommit={(inflow) => updateLine(line.id, { inflow, outflow: inflow > 0 ? 0 : line.outflow })}
+            onCommit={(inflow) =>
+              updateLine(line.id, {
+                inflow,
+                outflow: inflow > 0 ? 0 : line.outflow,
+                inflowClassification:
+                  inflow > 0 &&
+                  line.incomeBudgetMonthOffset === undefined &&
+                  line.categoryId
+                    ? line.inflowClassification === "income"
+                      ? "income"
+                      : "category-inflow"
+                    : line.inflowClassification,
+              })
+            }
             validate={(amount) => amount >= 0}
             emptyWhenZero
           />
-          <button className="scheduled-split-remove" type="button" aria-label="Remove split line" onClick={() => onChange(splitLines.filter((candidate) => candidate.id !== line.id))}>×</button>
+          {line.income > 0 &&
+          line.outflow === 0 &&
+          !line.transferAccountId &&
+          line.incomeBudgetMonthOffset === undefined &&
+          Boolean(line.categoryId) ? (
+            <label className="scheduled-split-income-toggle">
+              <input
+                type="checkbox"
+                checked={line.inflowClassification === "income"}
+                onChange={(event) =>
+                  updateLine(line.id, {
+                    inflowClassification: event.target.checked
+                      ? "income"
+                      : "category-inflow",
+                  })
+                }
+              />
+              Count as income
+            </label>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+                    <button className="scheduled-split-remove" type="button" aria-label="Remove split line" onClick={() => onChange(splitLines.filter((candidate) => candidate.id !== line.id))}>×</button>
         </div>
       ))}
       {!balanceStatus.isBalanced ? (
