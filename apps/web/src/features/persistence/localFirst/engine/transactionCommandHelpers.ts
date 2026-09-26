@@ -5,43 +5,6 @@ import type { LocalBudgetDatabaseClient } from "../localBudgetClient";
 import type { LocalTransactionRecord } from "../registerSchema";
 import { requireCanonicalInflowSemantics } from "../../../accounts/incomeTransactionSemantics";
 
-const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
-const BUDGET_MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
-
-function normaliseIncomeBudgetMonth(input: {
-  readonly categoryId: string | null;
-  readonly amount: number;
-  readonly transferAccountId: string | null;
-  readonly transactionDate: string;
-  readonly requested?: string | null;
-  readonly existing?: string | null;
-}): string | null {
-  if (
-    input.categoryId !== READY_TO_ASSIGN_CATEGORY_ID ||
-    input.amount <= 0 ||
-    input.transferAccountId
-  ) {
-    return null;
-  }
-
-  const value = input.requested ?? input.existing ?? null;
-  if (value === null) return null;
-
-  const transactionMonth = input.transactionDate.slice(0, 7);
-  if (
-    !BUDGET_MONTH_PATTERN.test(value) ||
-    !BUDGET_MONTH_PATTERN.test(transactionMonth)
-  ) {
-    throw new Error("Income budget month must use YYYY-MM.");
-  }
-  if (value < transactionMonth) {
-    throw new Error(
-      `Income budget month ${value} cannot be earlier than transaction month ${transactionMonth}.`,
-    );
-  }
-  return value;
-}
-
 function normaliseInflowMetadata(input: {
   readonly categoryId: string | null;
   readonly amount: number;
@@ -52,10 +15,7 @@ function normaliseInflowMetadata(input: {
   readonly existingIncomeBudgetMonth?: string | null;
   readonly existingClassification?: import("../../../accounts/incomeTransactionSemantics").InflowClassification | null;
 }) {
-  const isLegacyReadyToAssign =
-    input.categoryId === READY_TO_ASSIGN_CATEGORY_ID;
   const requiresCanonicalValidation =
-    !isLegacyReadyToAssign &&
     input.amount > 0 &&
     !input.transferAccountId &&
     input.categoryId !== null;
@@ -108,15 +68,8 @@ function normaliseInflowMetadata(input: {
   }
 
   return {
-    incomeBudgetMonth: normaliseIncomeBudgetMonth({
-      categoryId: input.categoryId,
-      amount: input.amount,
-      transferAccountId: input.transferAccountId,
-      transactionDate: input.transactionDate,
-      requested: input.requestedIncomeBudgetMonth,
-      existing: input.existingIncomeBudgetMonth,
-    }),
-    inflowClassification: input.existingClassification ?? null,
+    incomeBudgetMonth: null,
+    inflowClassification: null,
   };
 }
 
