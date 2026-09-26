@@ -2775,6 +2775,9 @@ function getFinancialOverview(budgetId: string, month: string) {
     netWorthTrend,
     monthlySnapshot: {
       income: flow.income / 100,
+      generalIncome: flow.generalIncome / 100,
+      countedCategoryIncome: flow.countedCategoryIncome / 100,
+      categoryInflows: flow.categoryInflows / 100,
       expenses: flow.expenses / 100,
       savings: (flow.income - flow.expenses) / 100,
       readyToAssign: budgetView.readyToAssign,
