@@ -133,10 +133,7 @@ export function buildSplitLines(
         id: line.id,
         category: categoryOption?.name ?? categoryName,
         categoryId,
-        incomeBudgetMonth:
-          categoryId === "__ready_to_assign__" && inflow > 0
-            ? line.incomeBudgetMonth
-            : undefined,
+        incomeBudgetMonth: undefined,
         transferAccountId: line.transferAccountId,
         transferAccountParticipation: line.transferAccountParticipation,
         transferTransactionId: line.transferTransactionId,
