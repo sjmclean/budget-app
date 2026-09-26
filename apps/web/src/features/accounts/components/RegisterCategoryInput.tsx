@@ -81,7 +81,10 @@ export function RegisterCategoryInput({
     }>
   > => {
     const categorySuggestions = categoryOptions
-      .filter((category) => !category.isArchived)
+      .filter(
+        (category) =>
+          !category.isArchived && category.id !== "__ready_to_assign__",
+      )
       .map((category) => ({
         id: category.id,
         value: category.name,
