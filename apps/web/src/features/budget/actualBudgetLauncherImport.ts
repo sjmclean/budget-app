@@ -885,12 +885,13 @@ function resolveActualTransactionCategory(
 
   if (maps.readyToAssignCategorySourceIds.has(sourceCategoryId)) {
     return {
-      categoryId: READY_TO_ASSIGN_CATEGORY_ID,
-      categoryName: READY_TO_ASSIGN_CATEGORY_NAME,
+      categoryId: undefined,
+      categoryName: "Uncategorised",
+      isIncome: true,
     };
   }
 
-  return { categoryId: undefined, categoryName: "Uncategorised" };
+  return { categoryId: undefined, categoryName: "Uncategorised", isIncome: false };
 }
 
 function mapActualRegisterTransaction(
