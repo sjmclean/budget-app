@@ -176,6 +176,30 @@
   white-space: nowrap;
 }
 
+.register-inflow-income-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.register-inflow-income-toggle input[type="checkbox"] {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.register-inflow-income-toggle-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
 .register-selection-bar {
   min-height: 2.25rem;
   border-bottom: 1px solid var(--border-soft);
@@ -2676,6 +2700,24 @@ button.register-status:disabled {
 .register-split-allocation-category .category-input,
 .register-split-allocation-category input {
   min-width: 0;
+}
+
+.register-split-category-inline {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.register-split-category-inline .register-combobox,
+.register-split-category-inline .category-input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.register-split-category-inline .register-split-income-toggle {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .register-split-allocation-line input {

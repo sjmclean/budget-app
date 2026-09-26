@@ -31,6 +31,8 @@ import type {
   RegisterTransactionView,
 } from "../accountRegisterTypes";
 import {
+  applySplitCategoryChoice,
+  applySplitDraftSign,
   createSplitLineDraft,
   getSplitBalanceStatus,
   isSplitDraftBalanced,
@@ -51,7 +53,10 @@ import {
 } from "../registerTransactionDrafts";
 import type { BudgetCategoryOption } from "../../budget/budgetViewTypes";
 import { MoneyInput } from "../../money/MoneyInput";
-import { IncomeBudgetMonthSelect } from "./IncomeBudgetMonthSelect";
+import {
+  registerIncomeCategoryChoices,
+  registerIncomeCategoryValue,
+} from "../registerIncomeCategoryChoices";
 import {
   getTransactionFieldEditBehaviour,
   type TransactionEditableField,
@@ -79,7 +84,6 @@ export function TransactionEntryRow({
   visibleColumnIds,
   rowStyle,
   layoutMode,
-  latestIncomeBudgetMonth,
   onCreateCategory,
   onCreatePayee,
 }: {
@@ -93,7 +97,6 @@ export function TransactionEntryRow({
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
-  latestIncomeBudgetMonth: string;
   onSave: (
     input: NewRegisterTransactionInput,
     accountId: string,
@@ -113,13 +116,12 @@ export function TransactionEntryRow({
   const [payeeId, setPayeeId] = useState<string | undefined>(undefined);
   const [transferAccountId, setTransferAccountId] = useState<string | undefined>(undefined);
   const [category, setCategory] = useState("");
-  const [incomeBudgetMonth, setIncomeBudgetMonth] = useState(
-    initialDate.slice(0, 7),
-  );
   const [memo, setMemo] = useState("");
   const [checkNumber, setCheckNumber] = useState("");
   const [outflow, setOutflow] = useState("");
   const [inflow, setInflow] = useState("");
+  const [countCategoryInflowAsIncome, setCountCategoryInflowAsIncome] =
+    useState(false);
   const [splitLines, setSplitLines] = useState<SplitLineDraft[]>([]);
   const [mobileFlow, setMobileFlow] = useState<"expense" | "income">("expense");
   const [mobileStep, setMobileStep] = useState<"amount" | "details">("amount");
@@ -154,31 +156,20 @@ export function TransactionEntryRow({
     };
   }, []);
 
-  useEffect(() => {
-    const transactionMonth = date.slice(0, 7);
-    setIncomeBudgetMonth((current) => {
-      if (current < transactionMonth) return transactionMonth;
-      if (
-        current > latestIncomeBudgetMonth &&
-        transactionMonth <= latestIncomeBudgetMonth
-      ) {
-        return transactionMonth;
-      }
-      return current;
-    });
-  }, [date, latestIncomeBudgetMonth]);
+  const incomeCategoryOptions =
+    splitLines.length === 0 && !transferAccountId
+      ? registerIncomeCategoryChoices(date)
+      : [];
 
-  const entryCategoryId = findCategoryOption(category, categoryOptions)?.id;
-  const showIncomeBudgetMonth =
+  const directCategoryInflowOption =
     splitLines.length === 0 &&
-    parseRegisterMoney(inflow) > 0 &&
-    parseRegisterMoney(outflow) === 0 &&
     !transferAccountId &&
-    (
-      entryCategoryId === "__ready_to_assign__" ||
-      category.trim().length === 0 ||
-      category.trim().toLocaleLowerCase() === "ready to assign"
-    );
+    parseRegisterMoney(inflow) > 0 &&
+    parseRegisterMoney(outflow) === 0
+      ? findCategoryOption(category, categoryOptions)
+      : undefined;
+  const showCountCategoryInflowAsIncome =
+    Boolean(directCategoryInflowOption);
 
   function buildInput(): NewRegisterTransactionInput | null {
     return buildNewRegisterTransactionInput({
@@ -187,14 +178,11 @@ export function TransactionEntryRow({
       payeeId,
       transferAccountId,
       category,
-      incomeBudgetMonth: showIncomeBudgetMonth
-        ? incomeBudgetMonth
-        : undefined,
-      latestIncomeBudgetMonth,
-      memo,
+          memo,
       checkNumber,
       outflow,
       inflow,
+      countCategoryInflowAsIncome,
       splitLines,
       categoryOptions,
     });
@@ -205,11 +193,11 @@ export function TransactionEntryRow({
     setPayeeId(undefined);
     setTransferAccountId(undefined);
     setCategory("");
-    setIncomeBudgetMonth(date.slice(0, 7));
     setMemo("");
     setCheckNumber("");
     setOutflow("");
     setInflow("");
+    setCountCategoryInflowAsIncome(false);
     setSplitLines([]);
   }
 
@@ -225,6 +213,15 @@ export function TransactionEntryRow({
     }
 
     setCategory(value);
+  }
+
+  function handleTransferAccountChange(accountId?: string) {
+    setTransferAccountId(accountId);
+    if (accountId) {
+      setCategory("");
+      setCountCategoryInflowAsIncome(false);
+      setSplitLines([]);
+    }
   }
 
   async function save() {
@@ -377,6 +374,11 @@ export function TransactionEntryRow({
     const visibleCategories = categoryOptions
       .filter((option) => !option.isArchived)
       .filter((option) => !searchTerm || `${option.groupName} ${option.name}`.toLocaleLowerCase().includes(searchTerm));
+    const visibleIncomeCategories = incomeCategoryOptions.filter(
+      (option) =>
+        !searchTerm ||
+        option.value.toLocaleLowerCase().includes(searchTerm),
+    );
     const selectableAccounts = [currentAccount, ...transferAccounts]
       .filter((account, index, accounts) => accounts.findIndex((candidate) => candidate.id === account.id) === index)
       .filter((account) => !searchTerm || account.name.toLocaleLowerCase().includes(searchTerm));
@@ -473,7 +475,7 @@ export function TransactionEntryRow({
 
                         if (choice.kind === "transfer") {
                           setPayeeId(undefined);
-                          setTransferAccountId(choice.accountId);
+                          handleTransferAccountChange(choice.accountId);
                         } else {
                           setPayeeId(choice.payeeId);
                           setTransferAccountId(undefined);
@@ -505,7 +507,7 @@ export function TransactionEntryRow({
                       onClick={() => {
                         setPayee(`Transfer: ${account.name}`);
                         setPayeeId(undefined);
-                        setTransferAccountId(account.id);
+                        handleTransferAccountChange(account.id);
                         setMobilePicker(null);
                         setMobileSearch("");
                       }}
@@ -543,6 +545,39 @@ export function TransactionEntryRow({
 
           {mobilePicker === "category" || mobilePicker === "split-category" ? (
             <div className="mobile-picker-list mobile-category-picker-list">
+              {visibleIncomeCategories.length > 0 ? (
+                <div>
+                  <h3>Special</h3>
+                  {visibleIncomeCategories.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => {
+                        if (mobilePicker === "split-category" && activeSplitId) {
+                          setSplitLines((lines) => lines.map((line) =>
+                            line.id === activeSplitId
+                              ? applySplitCategoryChoice(
+                                  line,
+                                  option.value,
+                                  categoryOptions,
+                                  date,
+                                )
+                              : line,
+                          ));
+                          setMobilePicker("splits");
+                        } else {
+                          handleCategoryChange(option.value);
+                          setSplitLines([]);
+                          setMobilePicker(null);
+                        }
+                        setMobileSearch("");
+                      }}
+                    >
+                      <span>{option.value}</span><span aria-hidden="true">›</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               {visibleCategories.map((option, index) => (
                 <div key={option.id}>
                   {index === 0 || visibleCategories[index - 1]?.groupName !== option.groupName ? (
@@ -550,9 +585,16 @@ export function TransactionEntryRow({
                   ) : null}
                   <button type="button" onClick={() => {
                     if (mobilePicker === "split-category" && activeSplitId) {
-                      setSplitLines((lines) => lines.map((line) => line.id === activeSplitId
-                        ? { ...line, category: option.name, categoryId: option.id }
-                        : line));
+                      setSplitLines((lines) => lines.map((line) =>
+                        line.id === activeSplitId
+                          ? applySplitCategoryChoice(
+                              line,
+                              option.name,
+                              categoryOptions,
+                              date,
+                            )
+                          : line,
+                      ));
                       setMobilePicker("splits");
                     } else {
                       setCategory(option.name);
@@ -565,7 +607,10 @@ export function TransactionEntryRow({
                   </button>
                 </div>
               ))}
-              {visibleCategories.length === 0 ? <p className="mobile-picker-empty">No matching categories.</p> : null}
+              {visibleCategories.length === 0 &&
+              visibleIncomeCategories.length === 0 ? (
+                <p className="mobile-picker-empty">No matching categories.</p>
+              ) : null}
             </div>
           ) : null}
 
@@ -623,10 +668,10 @@ export function TransactionEntryRow({
                       onClick={() => {
                         setSplitLines((lines) => lines.map((candidate) => {
                           if (candidate.id !== line.id) return candidate;
-                          const amount = candidate.outflow || candidate.inflow;
-                          return lineIsInflow
-                            ? { ...candidate, outflow: amount, inflow: "" }
-                            : { ...candidate, outflow: "", inflow: amount };
+                          return applySplitDraftSign(
+                            candidate,
+                            lineIsInflow ? "outflow" : "inflow",
+                          );
                         }));
                         setMobilePositiveSplitIds((current) => {
                           const next = new Set(current);
@@ -761,15 +806,6 @@ export function TransactionEntryRow({
               {mobileCategoryLabel || "Choose a category"} <span aria-hidden="true">›</span>
             </strong>
           </button>
-          {showIncomeBudgetMonth ? (
-            <IncomeBudgetMonthSelect
-              transactionDate={date}
-              latestAllowedMonth={latestIncomeBudgetMonth}
-              value={incomeBudgetMonth}
-              onChange={setIncomeBudgetMonth}
-              className="mobile-transaction-field"
-            />
-          ) : null}
           <button
             className="mobile-transaction-field mobile-transaction-choice"
             type="button"
@@ -778,6 +814,21 @@ export function TransactionEntryRow({
             <span>Account</span>
             <strong>{selectedAccountName} <span aria-hidden="true">›</span></strong>
           </button>
+          {showCountCategoryInflowAsIncome ? (
+            <label className="mobile-transaction-field register-inflow-income-toggle">
+              <span>Income</span>
+              <span className="register-inflow-income-toggle-control">
+                <input
+                  type="checkbox"
+                  checked={countCategoryInflowAsIncome}
+                  onChange={(event) =>
+                    setCountCategoryInflowAsIncome(event.target.checked)
+                  }
+                />
+                Count this inflow as income
+              </span>
+            </label>
+          ) : null}
           <label className="mobile-transaction-field">
             <span>Memo</span>
             <input
@@ -864,7 +915,7 @@ export function TransactionEntryRow({
                 setTransferAccountId(undefined);
                 }}
                 onPayeeIdChange={setPayeeId}
-                onTransferAccountIdChange={setTransferAccountId}
+                onTransferAccountIdChange={handleTransferAccountChange}
                 onSelection={(value) => {
                   const selected = payeeOptions.find((option) => option.name === value);
                   if ((!category || category === "Uncategorised") && selected?.defaultCategoryName) {
@@ -885,6 +936,7 @@ export function TransactionEntryRow({
                 value={category}
                 onChange={handleCategoryChange}
                 categoryOptions={categoryOptions}
+                specialOptions={incomeCategoryOptions}
                 onCreateCategory={onCreateCategory}
               />
             );
@@ -950,19 +1002,24 @@ export function TransactionEntryRow({
         })}
       </div>
 
-      {showIncomeBudgetMonth ? (
-        <div className="register-income-budget-month-panel" style={rowStyle}>
-          <IncomeBudgetMonthSelect
-            transactionDate={date}
-            latestAllowedMonth={latestIncomeBudgetMonth}
-            value={incomeBudgetMonth}
-            onChange={setIncomeBudgetMonth}
-          />
-        </div>
-      ) : null}
-
       {splitLines.length === 0 ? (
-        <div className="register-entry-actions-panel register-entry-actions-panel-commit-only">
+        <div className={`register-entry-actions-panel ${
+          showCountCategoryInflowAsIncome
+            ? ""
+            : "register-entry-actions-panel-commit-only"
+        }`}>
+          {showCountCategoryInflowAsIncome ? (
+            <label className="register-inflow-income-toggle">
+              <input
+                type="checkbox"
+                checked={countCategoryInflowAsIncome}
+                onChange={(event) =>
+                  setCountCategoryInflowAsIncome(event.target.checked)
+                }
+              />
+              Count this inflow as income
+            </label>
+          ) : null}
           {saveError ? (
             <p className="register-category-create-error" role="alert">
               {saveError}
@@ -1005,7 +1062,6 @@ export function TransactionEntryRow({
         visibleColumnIds={visibleColumnIds}
         rowStyle={rowStyle}
         transactionDate={date}
-        latestIncomeBudgetMonth={latestIncomeBudgetMonth}
         layoutMode={layoutMode}
         onCreateCategory={onCreateCategory}
       >
@@ -1067,7 +1123,6 @@ export function TransactionEditRow({
   visibleColumnIds,
   rowStyle,
   layoutMode,
-  latestIncomeBudgetMonth,
   editIntent,
   onCreatePayee,
 }: {
@@ -1097,7 +1152,6 @@ export function TransactionEditRow({
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
-  latestIncomeBudgetMonth: string;
   editIntent: TransactionEditIntent;
   onCreatePayee?: (name: string) => Promise<PayeeView>;
 }) {
@@ -1110,14 +1164,23 @@ export function TransactionEditRow({
     transaction.transferAccountId,
   );
   const initialSplitLines = splitDraftsFromTransaction(transaction);
+  const initialIncomeCategory =
+    initialSplitLines.length === 0 &&
+    transaction.inflow > 0 &&
+    !transaction.transferAccountId &&
+    transaction.inflowClassification === "income" &&
+    !transaction.categoryId
+      ? registerIncomeCategoryValue(
+          transaction.date,
+          transaction.incomeBudgetMonth ?? transaction.date.slice(0, 7),
+        )
+      : null;
   const [category, setCategory] = useState(
-    resolveRegisterTransactionEditCategory(
-      transaction.category,
-      initialSplitLines.length,
-    ),
-  );
-  const [incomeBudgetMonth, setIncomeBudgetMonth] = useState(
-    transaction.incomeBudgetMonth ?? transaction.date.slice(0, 7),
+    initialIncomeCategory ??
+      resolveRegisterTransactionEditCategory(
+        transaction.category,
+        initialSplitLines.length,
+      ),
   );
   const [memo, setMemo] = useState(transaction.memo ?? "");
   const [checkNumber, setCheckNumber] = useState(transaction.checkNumber ?? "");
@@ -1127,6 +1190,11 @@ export function TransactionEditRow({
   const [inflow, setInflow] = useState(
     transaction.inflow ? transaction.inflow.toFixed(2) : "",
   );
+  const [countCategoryInflowAsIncome, setCountCategoryInflowAsIncome] =
+    useState(
+      Boolean(transaction.categoryId) &&
+      transaction.inflowClassification === "income",
+    );
   const [splitLines, setSplitLines] = useState<SplitLineDraft[]>(
     initialSplitLines,
   );
@@ -1151,33 +1219,20 @@ export function TransactionEditRow({
   const inflowEditBehaviour =
     getTransactionFieldEditBehaviour(editIntent, "inflow");
 
-  useEffect(() => {
-    const transactionMonth = date.slice(0, 7);
-    setIncomeBudgetMonth((current) => {
-      if (current < transactionMonth) return transactionMonth;
-      if (
-        current > latestIncomeBudgetMonth &&
-        transactionMonth <= latestIncomeBudgetMonth
-      ) {
-        return transactionMonth;
-      }
-      return current;
-    });
-  }, [date, latestIncomeBudgetMonth]);
+  const editIncomeCategoryOptions =
+    splitLines.length === 0 && !transferAccountId
+      ? registerIncomeCategoryChoices(date)
+      : [];
 
-  const editCategoryId = findCategoryOption(category, categoryOptions)?.id;
-  const showIncomeBudgetMonth =
+  const editDirectCategoryInflowOption =
     splitLines.length === 0 &&
-    parseRegisterMoney(inflow) > 0 &&
-    parseRegisterMoney(outflow) === 0 &&
     !transferAccountId &&
-    (
-      editCategoryId === "__ready_to_assign__" ||
-      transaction.categoryId === "__ready_to_assign__" &&
-        category.trim().toLocaleLowerCase() ===
-          transaction.category.trim().toLocaleLowerCase() ||
-      category.trim().toLocaleLowerCase() === "ready to assign"
-    );
+    parseRegisterMoney(inflow) > 0 &&
+    parseRegisterMoney(outflow) === 0
+      ? findCategoryOption(category, categoryOptions)
+      : undefined;
+  const showEditCountCategoryInflowAsIncome =
+    Boolean(editDirectCategoryInflowOption);
 
   function handleInitialTextFocus(
     field: TransactionEditableField,
@@ -1210,6 +1265,15 @@ export function TransactionEditRow({
     setCategory(value);
   }
 
+  function handleTransferAccountChange(accountId?: string) {
+    setTransferAccountId(accountId);
+    if (accountId) {
+      setCategory("");
+      setCountCategoryInflowAsIncome(false);
+      setSplitLines([]);
+    }
+  }
+
   function toggleSplitEditor() {
     setSplitLines((current) => {
       if (current.length > 0) {
@@ -1232,14 +1296,11 @@ export function TransactionEditRow({
       payeeId,
       transferAccountId,
       category,
-      incomeBudgetMonth: showIncomeBudgetMonth
-        ? incomeBudgetMonth
-        : undefined,
-      latestIncomeBudgetMonth,
-      memo,
+          memo,
       checkNumber,
       outflow,
       inflow,
+      countCategoryInflowAsIncome,
       splitLines,
       categoryOptions,
     });
@@ -1315,7 +1376,7 @@ export function TransactionEditRow({
           setTransferAccountId(undefined);
           }}
           onPayeeIdChange={setPayeeId}
-          onTransferAccountIdChange={setTransferAccountId}
+          onTransferAccountIdChange={handleTransferAccountChange}
           onSelection={(value) => {
             const selected = payeeOptions.find((option) => option.name === value);
             if ((!category || category === "Uncategorised") && selected?.defaultCategoryName) {
@@ -1332,6 +1393,7 @@ export function TransactionEditRow({
           value={category}
           onChange={handleCategoryChange}
           categoryOptions={categoryOptions}
+          specialOptions={editIncomeCategoryOptions}
           autoFocus={categoryEditBehaviour.autoFocus}
           selectOnInitialFocus={categoryEditBehaviour.selectOnInitialFocus}
           openOnFocus={categoryEditBehaviour.openOnFocus}
@@ -1383,16 +1445,6 @@ export function TransactionEditRow({
           placeholder="Inflow"
         />
       </div>
-      {showIncomeBudgetMonth ? (
-        <div className="register-income-budget-month-panel" style={rowStyle}>
-          <IncomeBudgetMonthSelect
-            transactionDate={date}
-            latestAllowedMonth={latestIncomeBudgetMonth}
-            value={incomeBudgetMonth}
-            onChange={setIncomeBudgetMonth}
-          />
-        </div>
-      ) : null}
       {splitLines.length > 0 ? (
         <RegisterSplitEditor
           splitLines={splitLines}
@@ -1404,8 +1456,7 @@ export function TransactionEditRow({
           visibleColumnIds={visibleColumnIds}
           rowStyle={rowStyle}
           transactionDate={date}
-          latestIncomeBudgetMonth={latestIncomeBudgetMonth}
-          layoutMode={layoutMode}
+            layoutMode={layoutMode}
         >
           {saveError ? (
             <p className="register-category-create-error" role="alert">
@@ -1445,6 +1496,18 @@ export function TransactionEditRow({
             className="register-edit-actions register-edit-commit-actions"
             style={{ gridColumn: editActionGridColumn }}
           >
+            {showEditCountCategoryInflowAsIncome ? (
+              <label className="register-inflow-income-toggle">
+                <input
+                  type="checkbox"
+                  checked={countCategoryInflowAsIncome}
+                  onChange={(event) =>
+                    setCountCategoryInflowAsIncome(event.target.checked)
+                  }
+                />
+                Count this inflow as income
+              </label>
+            ) : null}
             <button
               className="button button-primary"
               type="button"

@@ -1,12 +1,18 @@
 import type { RegisterSplitLineView, RegisterTransactionView } from "./accountRegisterTypes";
 import type { BudgetCategoryOption } from "../budget/budgetViewTypes";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
+import {
+  registerIncomeCategoryValue,
+  resolveRegisterIncomeCategoryChoice,
+} from "./registerIncomeCategoryChoices";
 
 export interface SplitLineDraft {
   id: string;
   category: string;
   categoryId?: string;
   incomeBudgetMonth?: string;
+  inflowClassification?: "income" | "category-inflow";
+  countCategoryInflowAsIncome?: boolean;
   transferAccountId?: string;
   transferAccountParticipation?: "on-budget" | "off-budget";
   transferTransactionId?: string;
@@ -31,6 +37,60 @@ export function createSplitLineDraft(): SplitLineDraft {
   };
 }
 
+export function applySplitCategoryChoice(
+  line: SplitLineDraft,
+  value: string,
+  categoryOptions: BudgetCategoryOption[],
+  transactionDate: string,
+): SplitLineDraft {
+  const incomeChoice = resolveRegisterIncomeCategoryChoice(
+    value,
+    transactionDate,
+  );
+  if (incomeChoice) {
+    return {
+      ...line,
+      category: incomeChoice.value,
+      categoryId: undefined,
+      incomeBudgetMonth: incomeChoice.incomeBudgetMonth,
+      inflowClassification: "income",
+      countCategoryInflowAsIncome: false,
+    };
+  }
+
+  const categoryOption = findCategoryOption(value, categoryOptions);
+  return {
+    ...line,
+    category: value,
+    categoryId: categoryOption?.id,
+    incomeBudgetMonth: undefined,
+    inflowClassification: undefined,
+    countCategoryInflowAsIncome: false,
+  };
+}
+
+export function applySplitDraftSign(
+  line: SplitLineDraft,
+  sign: "inflow" | "outflow",
+): SplitLineDraft {
+  const amount = line.outflow || line.inflow;
+  const clearSyntheticIncomeCategory =
+    sign === "outflow" &&
+    line.inflowClassification === "income" &&
+    !line.categoryId;
+
+  return {
+    ...line,
+    category: clearSyntheticIncomeCategory ? "" : line.category,
+    outflow: sign === "outflow" ? amount : "",
+    inflow: sign === "inflow" ? amount : "",
+    incomeBudgetMonth: undefined,
+    inflowClassification: undefined,
+    countCategoryInflowAsIncome: false,
+  };
+}
+
+
 function createLocalId(): string {
   return `split-${createRuntimeUuid()}`;
 }
@@ -38,18 +98,37 @@ function createLocalId(): string {
 export function splitDraftsFromTransaction(
   transaction: RegisterTransactionView,
 ): SplitLineDraft[] {
-  return (transaction.splitLines ?? []).map((line) => ({
+  return (transaction.splitLines ?? []).map((line) => {
+    const isGeneralIncome =
+      line.inflow > 0 &&
+      !line.transferAccountId &&
+      line.inflowClassification === "income" &&
+      !line.categoryId;
+    const incomeCategory = isGeneralIncome
+      ? registerIncomeCategoryValue(
+          transaction.date,
+          line.incomeBudgetMonth ?? transaction.date.slice(0, 7),
+        )
+      : null;
+    return {
     id: line.id,
-    category: line.category,
-    categoryId: line.categoryId,
-    incomeBudgetMonth: line.incomeBudgetMonth,
+    category: incomeCategory ?? line.category,
+    categoryId: incomeCategory ? undefined : line.categoryId,
+    incomeBudgetMonth: incomeCategory
+      ? line.incomeBudgetMonth ?? transaction.date.slice(0, 7)
+      : line.incomeBudgetMonth,
+    inflowClassification: incomeCategory ? "income" : line.inflowClassification,
+    countCategoryInflowAsIncome:
+      Boolean(line.categoryId) &&
+      line.inflowClassification === "income",
     transferAccountId: line.transferAccountId,
     transferAccountParticipation: line.transferAccountParticipation,
     transferTransactionId: line.transferTransactionId,
     memo: line.memo ?? "",
     outflow: line.outflow ? line.outflow.toFixed(2) : "",
     inflow: line.inflow ? line.inflow.toFixed(2) : "",
-  }));
+    };
+  });
 }
 
 export function buildSplitLines(
@@ -67,10 +146,7 @@ export function buildSplitLines(
         id: line.id,
         category: categoryOption?.name ?? categoryName,
         categoryId,
-        incomeBudgetMonth:
-          categoryId === "__ready_to_assign__" && inflow > 0
-            ? line.incomeBudgetMonth
-            : undefined,
+        incomeBudgetMonth: undefined,
         transferAccountId: line.transferAccountId,
         transferAccountParticipation: line.transferAccountParticipation,
         transferTransactionId: line.transferTransactionId,

@@ -8,7 +8,10 @@ import { reconcileRegisterDelta, type LoadedRegisterPage } from "./registerDelta
 import type { AccountTransactionRow } from "../../../../../packages/application/src/accountRegister/AccountRegisterQueryPort";
 import { generateDueScheduledTransactionsForBudget } from "./scheduledTransactionMaintenance";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
-import { resolveRegisterTransactionCategory } from "./registerCategoryMatching";
+import {
+  resolveRegisterSplitCategory,
+  resolveRegisterTransactionCategory,
+} from "./registerCategoryMatching";
 import { getRegisterLoadMoreContinuation } from "./registerPagination";
 import {
   calculateAttachmentContentHash,
@@ -948,9 +951,13 @@ export function mapSqliteTransactions(
         categoryId: row.categoryId,
         categoryName: row.categoryName,
         transferAccountId: row.transferAccountId,
+        date: row.date,
+        incomeBudgetMonth: row.incomeBudgetMonth,
+        inflowClassification: row.inflowClassification,
       }),
       categoryId: row.categoryId ?? undefined,
       incomeBudgetMonth: row.incomeBudgetMonth ?? undefined,
+      inflowClassification: row.inflowClassification ?? undefined,
       memo: row.memo ?? undefined,
       checkNumber: row.checkNumber ?? undefined,
       inflow: amount > 0 ? amount : 0,
@@ -975,9 +982,17 @@ export function mapSqliteTransactions(
               id: line.id,
               category: line.transferAccountId
                 ? formatTransferPayee(readTransferAccountName(line))
-                : line.categoryName ?? "Uncategorised",
+                : resolveRegisterSplitCategory({
+                    categoryId: line.categoryId,
+                    categoryName: line.categoryName,
+                    transferAccountId: line.transferAccountId,
+                    date: row.date,
+                    incomeBudgetMonth: line.incomeBudgetMonth,
+                    inflowClassification: line.inflowClassification,
+                  }),
               categoryId: line.categoryId ?? undefined,
               incomeBudgetMonth: line.incomeBudgetMonth ?? undefined,
+              inflowClassification: line.inflowClassification ?? undefined,
               memo: line.memo ?? undefined,
               inflow: amount > 0 ? amount : 0,
               outflow: amount < 0 ? -amount : 0,
@@ -1022,8 +1037,12 @@ export function toTransactionWriteInput(
     payeeId: input.payeeId,
     rawPayee: input.rawPayee,
     categoryId: input.categoryId,
-    categoryName: input.category,
+    categoryName:
+      input.inflowClassification === "income" && !input.categoryId
+        ? undefined
+        : input.category,
     incomeBudgetMonth: input.incomeBudgetMonth,
+    inflowClassification: input.inflowClassification,
     transferAccountId: input.transferAccountId,
     memo: input.memo,
     checkNumber: input.checkNumber,
@@ -1041,8 +1060,12 @@ export function toTransactionWriteInput(
     splitLines: (input.splitLines ?? []).map((line) => ({
       id: line.id,
       categoryId: line.categoryId,
-      categoryName: line.category,
+      categoryName:
+        line.inflowClassification === "income" && !line.categoryId
+          ? undefined
+          : line.category,
       incomeBudgetMonth: line.incomeBudgetMonth,
+      inflowClassification: line.inflowClassification,
       transferAccountId: line.transferAccountId,
       transferTransactionId: line.transferTransactionId,
       memo: line.memo,

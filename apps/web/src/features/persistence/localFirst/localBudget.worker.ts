@@ -115,7 +115,7 @@ let replacement: {
   receivedBytes: number;
 } | null = null;
 
-const BUDGET_PROJECTION_ENGINE_VERSION = 6;
+const BUDGET_PROJECTION_ENGINE_VERSION = 7;
 
 function safeFilename(budgetId: string): string {
   return `/budget-${encodeURIComponent(budgetId).replaceAll("%", "_")}.sqlite3`;
@@ -2611,9 +2611,11 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
         : 0
     );
   }, 0);
-  const snapshotIncome = Number.isFinite(firstSnapshot.incomeForMonth)
-    ? toMinorUnits(firstSnapshot.incomeForMonth ?? 0)
-    : dirtyMonth === firstMonth ? 0 : currentFirstIncome;
+  const snapshotIncome = dirtyMonth === firstMonth
+    ? currentFirstIncome
+    : Number.isFinite(firstSnapshot.incomeForMonth)
+      ? toMinorUnits(firstSnapshot.incomeForMonth ?? 0)
+      : currentFirstIncome;
   const snapshotAssigned = Number.isFinite(firstSnapshot.totalAssigned)
     ? toMinorUnits(firstSnapshot.totalAssigned)
     : currentFirstAssigned;
@@ -2657,7 +2659,12 @@ function readBudgetMonth(month: string): BudgetMonthView | null {
   const cached = resultRows<{ projectionJson: string }>(
     `SELECT projection_json AS projectionJson
      FROM local_budget_projection_cache
-     WHERE budget_id = ? AND month = ? AND engine_version = ?`,
+     WHERE budget_id = ? AND month = ? AND engine_version = ?
+       AND NOT EXISTS (
+         SELECT 1 FROM local_budget_projection_dirty AS dirty
+         WHERE dirty.budget_id = local_budget_projection_cache.budget_id
+           AND dirty.earliest_month <= local_budget_projection_cache.month
+       )`,
     [activeBudgetId, month, BUDGET_PROJECTION_ENGINE_VERSION],
   )[0];
   let projection: LocalBudgetProjectionDiagnostic["projection"];

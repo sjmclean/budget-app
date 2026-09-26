@@ -40,6 +40,7 @@ export interface SqliteImportTransaction {
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly incomeBudgetMonth: string | null;
+  readonly inflowClassification?: "income" | "category-inflow" | null;
   readonly transferAccountId: string | null;
   readonly transferTransactionId: string | null;
   readonly splitLines: readonly SqliteImportSplitLine[];
@@ -59,6 +60,7 @@ export interface SqliteImportSplitLine {
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly incomeBudgetMonth: string | null;
+  readonly inflowClassification?: "income" | "category-inflow" | null;
   readonly transferAccountId: string | null;
   readonly transferTransactionId: string | null;
   readonly memo: string | null;

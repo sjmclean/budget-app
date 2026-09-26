@@ -1,4 +1,5 @@
 import type { BudgetCategoryOption } from "../budget/budgetViewTypes";
+import { registerIncomeCategoryValue } from "./registerIncomeCategoryChoices";
 
 export const SPLIT_CATEGORY_LABEL = "Split...";
 
@@ -7,17 +8,65 @@ export function resolveRegisterTransactionCategory(input: {
   categoryId?: string | null;
   categoryName?: string | null;
   transferAccountId?: string | null;
+  date?: string | null;
+  incomeBudgetMonth?: string | null;
+  inflowClassification?: "income" | "category-inflow" | null;
 }): string {
   if (input.splitLineCount > 0) {
     return SPLIT_CATEGORY_LABEL;
+  }
+
+  if (input.transferAccountId) {
+    return "Transfer";
+  }
+
+  if (
+    input.date &&
+    input.inflowClassification === "income" &&
+    !input.categoryId
+  ) {
+    return (
+      registerIncomeCategoryValue(
+        input.date,
+        input.incomeBudgetMonth ?? undefined,
+      ) ?? "Uncategorised"
+    );
   }
 
   if (input.categoryId) {
     return input.categoryName?.trim() || "Uncategorised";
   }
 
+  return "Uncategorised";
+}
+
+export function resolveRegisterSplitCategory(input: {
+  categoryId?: string | null;
+  categoryName?: string | null;
+  transferAccountId?: string | null;
+  date?: string | null;
+  incomeBudgetMonth?: string | null;
+  inflowClassification?: "income" | "category-inflow" | null;
+}): string {
   if (input.transferAccountId) {
     return "Transfer";
+  }
+
+  if (
+    input.date &&
+    input.inflowClassification === "income" &&
+    !input.categoryId
+  ) {
+    return (
+      registerIncomeCategoryValue(
+        input.date,
+        input.incomeBudgetMonth ?? undefined,
+      ) ?? "Uncategorised"
+    );
+  }
+
+  if (input.categoryId) {
+    return input.categoryName?.trim() || "Uncategorised";
   }
 
   return "Uncategorised";

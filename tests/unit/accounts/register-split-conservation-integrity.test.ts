@@ -121,6 +121,20 @@ test("category attention is sign-symmetric and excludes zero-value and off-budge
   );
 });
 
+test("canonical general income does not receive uncategorised attention", () => {
+  assert.equal(
+    isUncategorisedRegisterTransaction(row({
+      outflow: 0,
+      inflow: 100,
+      category: "Income for September 2026",
+      categoryId: undefined,
+      incomeBudgetMonth: "2026-09",
+      inflowClassification: "income",
+    })),
+    false,
+  );
+});
+
 test("transfer attention follows the budget boundary and never display text", () => {
   assert.equal(isUncategorisedRegisterTransaction(row({
     payee: "Transfer: Savings",
@@ -188,7 +202,7 @@ test("split attention examines every financially relevant line", () => {
   })), true);
 });
 
-test("new inflows default to Ready to Assign without recategorising imported unresolved edits", () => {
+test("new parent inflows stay uncategorised until income is explicitly selected", () => {
   const common = {
     date: "2026-08-15", payee: "Employer", memo: "", checkNumber: "",
     outflow: "", inflow: "100.00", splitLines: [],
@@ -197,20 +211,55 @@ test("new inflows default to Ready to Assign without recategorising imported unr
       groupName: "Income", archived: false,
     }],
   };
-  assert.equal(
-    buildNewRegisterTransactionInput({ ...common, category: "" })?.categoryId,
-    "__ready_to_assign__",
-  );
+
+  const uncategorised = buildNewRegisterTransactionInput({
+    ...common,
+    category: "",
+  });
+  assert.equal(uncategorised?.category, "Uncategorised");
+  assert.equal(uncategorised?.categoryId, undefined);
+  assert.equal(uncategorised?.inflowClassification, undefined);
+
+  const explicitIncome = buildNewRegisterTransactionInput({
+    ...common,
+    category: "Income for August 2026",
+  });
+  assert.equal(explicitIncome?.categoryId, undefined);
+  assert.equal(explicitIncome?.incomeBudgetMonth, "2026-08");
+  assert.equal(explicitIncome?.inflowClassification, "income");
+
   const edited = buildUpdateRegisterTransactionInput({
     ...common, id: "imported-income", category: "Uncategorised",
   });
   assert.equal(edited?.category, "Uncategorised");
   assert.equal(edited?.categoryId, undefined);
+});
+
+test("canonical general income renders as its synthetic Register category", () => {
   assert.equal(
-    buildUpdateRegisterTransactionInput({
-      ...common, id: "imported-income", category: "Ready to Assign",
-    })?.categoryId,
-    "__ready_to_assign__",
+    resolveRegisterTransactionCategory({
+      splitLineCount: 0,
+      categoryId: null,
+      categoryName: null,
+      transferAccountId: null,
+      date: "2026-09-26",
+      incomeBudgetMonth: "2026-09",
+      inflowClassification: "income",
+    }),
+    "Income for September 2026",
+  );
+
+  assert.equal(
+    resolveRegisterTransactionCategory({
+      splitLineCount: 0,
+      categoryId: null,
+      categoryName: null,
+      transferAccountId: null,
+      date: "2026-09-26",
+      incomeBudgetMonth: "2026-10",
+      inflowClassification: "income",
+    }),
+    "Income for October 2026",
   );
 });
 

@@ -34,6 +34,7 @@ test("persisted SQLite filter, navigation, dashboard and TypeScript classificati
     const rows = [
       ["u-out","checking",-100,null,null,null,null],
       ["u-in","checking",100,null,null,null,null],
+      ["canonical-income","checking",100,null,null,null,null],
       ["cat-in","checking",100,"income","Income",null,null],
       ["rta","checking",100,"__ready_to_assign__","Ready to Assign",null,null],
       ["zero","checking",0,null,null,null,null],
@@ -61,6 +62,11 @@ test("persisted SQLite filter, navigation, dashboard and TypeScript classificati
     for (const [id, accountId, amount, categoryId, categoryName, transferAccountId, transferTransactionId] of rows) {
       insert.run({ id, budget: BUDGET, account: accountId, amount, categoryId, categoryName, transferAccountId, transferTransactionId });
     }
+    db.prepare(
+      `UPDATE local_transactions
+       SET income_budget_month = ?, inflow_classification = ?
+       WHERE id = ?`,
+    ).run("2026-08", "income", "canonical-income");
     const split = db.prepare(`INSERT INTO local_transaction_splits(
       transaction_id,id,category_id,category_name,transfer_account_id,transfer_transaction_id,memo,amount
     ) VALUES(?,?,?,?,?,?,NULL,?)`);
@@ -117,7 +123,9 @@ test("persisted SQLite filter, navigation, dashboard and TypeScript classificati
         }>;
       return {
         id,date:"2026-08-15",attachmentCount:0,payee:"Example",
-        category:categoryName ?? "Uncategorised",categoryId:categoryId ?? undefined,
+        category:categoryName ?? (id === "canonical-income" ? "Income for August 2026" : "Uncategorised"),categoryId:categoryId ?? undefined,
+        incomeBudgetMonth:id === "canonical-income" ? "2026-08" : undefined,
+        inflowClassification:id === "canonical-income" ? "income" : undefined,
         inflow:amount>0?amount/100:0,outflow:amount<0?-amount/100:0,
         runningBalance:0,cleared:false,reconciled:false,
         transferAccountId:transferAccountId ?? undefined,

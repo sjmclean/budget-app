@@ -13,10 +13,11 @@ function hasRealCategory(categoryId: string | undefined): boolean {
 function lineNeedsCategory(
   line: Pick<
     RegisterSplitLineView,
-    "categoryId" | "inflow" | "outflow" | "transferAccountId" | "transferTransactionId" | "transferAccountParticipation"
+    "categoryId" | "inflowClassification" | "inflow" | "outflow" | "transferAccountId" | "transferTransactionId" | "transferAccountParticipation"
   >,
 ): boolean {
   if (line.inflow === 0 && line.outflow === 0) return false;
+  if (line.inflowClassification === "income" && line.inflow > 0 && !line.categoryId) return false;
   if (hasRealCategory(line.categoryId)) return false;
   if (!line.transferAccountId || !line.transferTransactionId) return true;
   return line.transferAccountParticipation !== "on-budget";
@@ -54,6 +55,13 @@ export function isUncategorisedRegisterTransaction(
     return splitLines.some(lineNeedsCategory);
   }
 
+  if (
+    transaction.inflowClassification === "income" &&
+    transaction.inflow > 0 &&
+    !transaction.categoryId
+  ) {
+    return false;
+  }
   if (hasRealCategory(transaction.categoryId)) return false;
   if (!isTransferRegisterTransaction(transaction)) return true;
 

@@ -7,6 +7,10 @@ import { findCategoryOption } from "./registerCategoryMatching";
 import { type SplitLineDraft } from "./registerSplitDrafts";
 import { validateRegisterTransactionDraft } from "./registerTransactionValidation";
 import { validIncomeBudgetMonth } from "./incomeBudgetMonth";
+import {
+  isRegisterIncomeCategoryValue,
+  resolveRegisterIncomeCategoryChoice,
+} from "./registerIncomeCategoryChoices";
 
 export interface RegisterTransactionDraftInput {
   date: string;
@@ -14,12 +18,11 @@ export interface RegisterTransactionDraftInput {
   payeeId?: string;
   transferAccountId?: string;
   category: string;
-  incomeBudgetMonth?: string;
-  latestIncomeBudgetMonth?: string;
   memo: string;
   checkNumber: string;
   outflow: string;
   inflow: string;
+  countCategoryInflowAsIncome?: boolean;
   splitLines: SplitLineDraft[];
   categoryOptions: BudgetCategoryOption[];
   requireCompleteSplitDrafts?: boolean;
@@ -31,7 +34,7 @@ export function buildNewRegisterTransactionInput(
   const input = buildRegisterTransactionInput({
     ...draft,
     requireCompleteSplitDrafts: true,
-  }, true);
+  });
   return input ? input : null;
 }
 
@@ -44,7 +47,7 @@ export function buildUpdateRegisterTransactionInput({
   const input = buildRegisterTransactionInput({
     ...draft,
     requireCompleteSplitDrafts: false,
-  }, false);
+  });
   return input ? { id, ...input } : null;
 }
 
@@ -54,15 +57,15 @@ function buildRegisterTransactionInput({
   payeeId,
   transferAccountId,
   category,
-  incomeBudgetMonth,
   memo,
   checkNumber,
   outflow,
   inflow,
+  countCategoryInflowAsIncome = false,
   splitLines,
   categoryOptions,
   requireCompleteSplitDrafts = true,
-}: RegisterTransactionDraftInput, defaultBlankInflowToReadyToAssign: boolean): Omit<UpdateRegisterTransactionInput, "id"> | null {
+}: RegisterTransactionDraftInput): Omit<UpdateRegisterTransactionInput, "id"> | null {
   const validation = validateRegisterTransactionDraft({
     payee,
     outflow,
@@ -78,27 +81,46 @@ function buildRegisterTransactionInput({
 
   const { parsedOutflow, parsedInflow, parsedSplitLines } = validation;
 
-  const transactionMonth = date.slice(0, 7);
+  const splitDraftById = new Map(splitLines.map((line) => [line.id, line]));
   const resolvedSplitLines = parsedSplitLines.map((line) => {
-    if (
-      line.categoryId !== "__ready_to_assign__" ||
-      line.inflow <= 0 ||
-      line.outflow > 0
-    ) {
-      return { ...line, incomeBudgetMonth: undefined };
-    }
+    const sourceDraft = splitDraftById.get(line.id);
+    const isPositiveInflow =
+      line.inflow > 0 &&
+      line.outflow === 0 &&
+      !line.transferAccountId;
+    const splitIncomeCategoryChoice = isPositiveInflow
+      ? resolveRegisterIncomeCategoryChoice(line.category, date)
+      : null;
 
-    const splitIncomeBudgetMonth = line.incomeBudgetMonth;
-    if (!splitIncomeBudgetMonth || splitIncomeBudgetMonth <= transactionMonth) {
-      return { ...line, incomeBudgetMonth: undefined };
-    }
-    if (!validIncomeBudgetMonth(splitIncomeBudgetMonth, date)) {
+    if (
+      !splitIncomeCategoryChoice &&
+      isRegisterIncomeCategoryValue(line.category)
+    ) {
       return null;
     }
 
+    if (splitIncomeCategoryChoice) {
+      return {
+        ...line,
+        category: splitIncomeCategoryChoice.value,
+        categoryId: undefined,
+        incomeBudgetMonth: splitIncomeCategoryChoice.incomeBudgetMonth,
+        inflowClassification: "income" as const,
+      };
+    }
+
+    const isOrdinaryPositiveCategoryInflow =
+      isPositiveInflow &&
+      Boolean(line.categoryId);
+
     return {
       ...line,
-      incomeBudgetMonth: splitIncomeBudgetMonth,
+      incomeBudgetMonth: undefined,
+      inflowClassification: isOrdinaryPositiveCategoryInflow
+        ? sourceDraft?.countCategoryInflowAsIncome
+          ? "income" as const
+          : "category-inflow" as const
+        : undefined,
     };
   });
 
@@ -110,31 +132,37 @@ function buildRegisterTransactionInput({
   );
 
   const categoryName = category.trim();
-  const categoryOption = findCategoryOption(categoryName, categoryOptions);
-  const fallbackCategory =
-    defaultBlankInflowToReadyToAssign &&
-    categoryName.length === 0 &&
+  const incomeCategoryChoice =
+    parsedSplitLines.length === 0 &&
+    !transferAccountId &&
     parsedInflow > 0 &&
     parsedOutflow === 0
-      ? "Ready to Assign"
-      : "Uncategorised";
+      ? resolveRegisterIncomeCategoryChoice(categoryName, date)
+      : null;
+  if (
+    !incomeCategoryChoice &&
+    isRegisterIncomeCategoryValue(categoryName)
+  ) {
+    return null;
+  }
+  const categoryOption = incomeCategoryChoice
+    ? undefined
+    : findCategoryOption(categoryName, categoryOptions);
+  const fallbackCategory = "Uncategorised";
   const categoryId =
-    parsedSplitLines.length > 0
+    parsedSplitLines.length > 0 || incomeCategoryChoice
       ? undefined
-      : (categoryOption?.id ??
-        (fallbackCategory === "Ready to Assign"
-          ? "__ready_to_assign__"
-          : undefined));
-  const requestedIncomeBudgetMonth =
-    categoryId === "__ready_to_assign__" &&
+      : categoryOption?.id;
+  const resolvedIncomeBudgetMonth = incomeCategoryChoice?.incomeBudgetMonth;
+  const directCategoryInflowClassification =
+    parsedSplitLines.length === 0 &&
+    !transferAccountId &&
     parsedInflow > 0 &&
-    parsedOutflow === 0
-      ? incomeBudgetMonth
-      : undefined;
-  const resolvedIncomeBudgetMonth =
-    requestedIncomeBudgetMonth &&
-    requestedIncomeBudgetMonth > transactionMonth
-      ? requestedIncomeBudgetMonth
+    parsedOutflow === 0 &&
+    categoryOption
+      ? countCategoryInflowAsIncome
+        ? "income" as const
+        : "category-inflow" as const
       : undefined;
 
   if (
@@ -152,9 +180,12 @@ function buildRegisterTransactionInput({
     category:
       parsedSplitLines.length > 0
         ? "Split"
-        : (categoryOption?.name ?? (categoryName || fallbackCategory)),
+        : incomeCategoryChoice?.value ??
+          (categoryOption?.name ?? (categoryName || fallbackCategory)),
     categoryId,
     incomeBudgetMonth: resolvedIncomeBudgetMonth,
+    inflowClassification:
+      incomeCategoryChoice ? "income" : directCategoryInflowClassification,
     memo: memo.trim(),
     checkNumber: checkNumber.trim(),
     outflow: parsedOutflow,

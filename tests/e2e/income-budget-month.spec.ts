@@ -6,7 +6,7 @@ function nextMonth(month: string): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-test("Ready to Assign income uses its transaction month without exposing a Budget in selector", async ({ page }) => {
+test("explicit Register income choice uses its transaction month without a separate Budget in selector", async ({ page }) => {
   await page.goto("/");
 
   const authenticationHeading = page.getByRole("heading", {
@@ -40,14 +40,26 @@ test("Ready to Assign income uses its transaction month without exposing a Budge
   );
   const futureMonth = nextMonth(transactionMonth);
 
+  const incomeChoiceLabel = await page.evaluate((month) => {
+    const [year, monthNumber] = month.split("-").map(Number);
+    return `Income for ${new Intl.DateTimeFormat("en-AU", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(Date.UTC(year!, monthNumber! - 1, 1)))}`;
+  }, transactionMonth);
+
   await page.getByRole("button", { name: "Add transaction" }).click();
   await page.getByPlaceholder("Payee").fill("Future Employer");
   await page.getByPlaceholder("Inflow").fill("100.00");
   await page.getByPlaceholder("Inflow").press("Enter");
+  await page.getByPlaceholder("Category").fill(incomeChoiceLabel);
+  await page.getByRole("option", { name: incomeChoiceLabel }).click();
 
   await expect(page.getByLabel("Budget in month")).toHaveCount(0);
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText("Future Employer", { exact: true })).toBeVisible();
+  await expect(page.getByText(incomeChoiceLabel, { exact: true })).toBeVisible();
 
   const accountId = new URL(page.url()).pathname.split("/").at(-1)!;
   async function readEvidence() {
@@ -85,6 +97,7 @@ test("Ready to Assign income uses its transaction month without exposing a Budge
 
         return {
           currentIncome: current.incomeForMonth,
+          currentReadyToAssign: current.readyToAssign,
           futureIncome: future.incomeForMonth,
           futureReadyToAssign: future.readyToAssign,
           incomeBudgetMonth: row?.incomeBudgetMonth ?? null,
@@ -97,9 +110,10 @@ test("Ready to Assign income uses its transaction month without exposing a Budge
 
   await expect.poll(readEvidence).toEqual({
     currentIncome: 100,
+    currentReadyToAssign: 100,
     futureIncome: 0,
     futureReadyToAssign: 100,
-    incomeBudgetMonth: null,
+    incomeBudgetMonth: transactionMonth,
     transactionDate: expect.stringMatching(new RegExp(`^${transactionMonth}-`)),
   });
 
@@ -113,11 +127,13 @@ test("Ready to Assign income uses its transaction month without exposing a Budge
   await page.getByRole("button", { name: "Register options" }).first().click();
   await page.getByRole("menuitem", { name: /Redo/ }).click();
   await expect(page.getByText("Future Employer", { exact: true })).toBeVisible();
+  await expect(page.getByText(incomeChoiceLabel, { exact: true })).toBeVisible();
   await expect.poll(readEvidence).toEqual({
     currentIncome: 100,
+    currentReadyToAssign: 100,
     futureIncome: 0,
     futureReadyToAssign: 100,
-    incomeBudgetMonth: null,
+    incomeBudgetMonth: transactionMonth,
     transactionDate: expect.stringMatching(new RegExp(`^${transactionMonth}-`)),
   });
 });
