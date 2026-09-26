@@ -45,11 +45,15 @@ function scheduledRegisterWrite(budgetId: string, accountId: string, schedule: S
   const input = scheduledTransactionToRegisterInput(schedule);
   return { budgetId, accountId, date: input.date, amount: Math.round((input.inflow - input.outflow) * 100),
     payeeId: input.payeeId, payeeName: input.payee, transferAccountId: input.transferAccountId,
-    categoryId: input.categoryId, categoryName: input.category, memo: input.memo, tagIds: input.tagIds,
+    categoryId: input.categoryId, categoryName: input.category,
+    incomeBudgetMonth: input.incomeBudgetMonth,
+    inflowClassification: input.inflowClassification,
+    memo: input.memo, tagIds: input.tagIds,
     generatedFromSchedule: true, scheduledTransactionId: schedule.id,
     scheduledOccurrenceDate: input.scheduledOccurrenceDate,
     splitLines: (input.splitLines ?? []).map((line) => ({ id: line.id, categoryId: line.categoryId,
-      categoryName: line.category, transferAccountId: line.transferAccountId,
+      categoryName: line.category, incomeBudgetMonth: line.incomeBudgetMonth,
+      inflowClassification: line.inflowClassification, transferAccountId: line.transferAccountId,
       transferTransactionId: line.transferTransactionId, memo: line.memo,
       amount: Math.round((line.inflow - line.outflow) * 100) })) };
 }
