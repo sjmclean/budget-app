@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildNewRegisterTransactionInput } from "../../../apps/web/src/features/accounts/registerTransactionDrafts";
 
-function draft(category: string, inflow = "100.00") {
+function draft(
+  category: string,
+  inflow = "100.00",
+  countCategoryInflowAsIncome = false,
+) {
   return {
     date: "2026-09-26",
     payee: "Employer",
@@ -11,6 +15,7 @@ function draft(category: string, inflow = "100.00") {
     checkNumber: "",
     outflow: "",
     inflow,
+    countCategoryInflowAsIncome,
     splitLines: [],
     categoryOptions: [
       {
@@ -61,4 +66,37 @@ test("synthetic income cannot target an arbitrary later month", () => {
     buildNewRegisterTransactionInput(draft("Income for November 2026")),
     null,
   );
+});
+
+
+test("ordinary positive category inflow defaults to category-inflow", () => {
+  const input = buildNewRegisterTransactionInput(draft("Groceries"));
+  assert.ok(input);
+  assert.equal(input.categoryId, "groceries");
+  assert.equal(input.incomeBudgetMonth, undefined);
+  assert.equal(input.inflowClassification, "category-inflow");
+});
+
+test("ordinary positive category inflow can explicitly count as income", () => {
+  const input = buildNewRegisterTransactionInput(draft("Groceries", "100.00", true));
+  assert.ok(input);
+  assert.equal(input.categoryId, "groceries");
+  assert.equal(input.incomeBudgetMonth, undefined);
+  assert.equal(input.inflowClassification, "income");
+});
+
+test("uncategorised positive inflow never gains a direct-category classification", () => {
+  const input = buildNewRegisterTransactionInput(draft("", "100.00", true));
+  assert.ok(input);
+  assert.equal(input.categoryId, undefined);
+  assert.equal(input.inflowClassification, undefined);
+});
+
+test("transfer inflow never gains an income classification", () => {
+  const input = buildNewRegisterTransactionInput({
+    ...draft("Groceries", "100.00", true),
+    transferAccountId: "savings",
+  });
+  assert.ok(input);
+  assert.equal(input.inflowClassification, undefined);
 });
