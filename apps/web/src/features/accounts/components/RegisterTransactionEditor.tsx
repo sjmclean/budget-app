@@ -40,6 +40,7 @@ import {
   type SplitLineDraft,
 } from "../registerSplitDrafts";
 import {
+  findCategoryOption,
   isSplitCategoryValue,
   resolveRegisterTransactionEditCategory,
   SPLIT_CATEGORY_LABEL,
@@ -119,6 +120,8 @@ export function TransactionEntryRow({
   const [checkNumber, setCheckNumber] = useState("");
   const [outflow, setOutflow] = useState("");
   const [inflow, setInflow] = useState("");
+  const [countCategoryInflowAsIncome, setCountCategoryInflowAsIncome] =
+    useState(false);
   const [splitLines, setSplitLines] = useState<SplitLineDraft[]>([]);
   const [mobileFlow, setMobileFlow] = useState<"expense" | "income">("expense");
   const [mobileStep, setMobileStep] = useState<"amount" | "details">("amount");
@@ -158,6 +161,17 @@ export function TransactionEntryRow({
       ? registerIncomeCategoryChoices(date)
       : [];
 
+  const directCategoryInflowOption =
+    splitLines.length === 0 &&
+    !transferAccountId &&
+    parseRegisterMoney(inflow) > 0 &&
+    parseRegisterMoney(outflow) === 0
+      ? findCategoryOption(category, categoryOptions)
+      : undefined;
+  const showCountCategoryInflowAsIncome =
+    Boolean(directCategoryInflowOption) &&
+    directCategoryInflowOption?.id !== "__ready_to_assign__";
+
   function buildInput(): NewRegisterTransactionInput | null {
     return buildNewRegisterTransactionInput({
       date,
@@ -170,6 +184,7 @@ export function TransactionEntryRow({
       checkNumber,
       outflow,
       inflow,
+      countCategoryInflowAsIncome,
       splitLines,
       categoryOptions,
     });
@@ -184,6 +199,7 @@ export function TransactionEntryRow({
     setCheckNumber("");
     setOutflow("");
     setInflow("");
+    setCountCategoryInflowAsIncome(false);
     setSplitLines([]);
   }
 
@@ -773,6 +789,21 @@ export function TransactionEntryRow({
             <span>Account</span>
             <strong>{selectedAccountName} <span aria-hidden="true">›</span></strong>
           </button>
+          {showCountCategoryInflowAsIncome ? (
+            <label className="mobile-transaction-field register-inflow-income-toggle">
+              <span>Income</span>
+              <span className="register-inflow-income-toggle-control">
+                <input
+                  type="checkbox"
+                  checked={countCategoryInflowAsIncome}
+                  onChange={(event) =>
+                    setCountCategoryInflowAsIncome(event.target.checked)
+                  }
+                />
+                Count this inflow as income
+              </span>
+            </label>
+          ) : null}
           <label className="mobile-transaction-field">
             <span>Memo</span>
             <input
@@ -947,7 +978,23 @@ export function TransactionEntryRow({
       </div>
 
       {splitLines.length === 0 ? (
-        <div className="register-entry-actions-panel register-entry-actions-panel-commit-only">
+        <div className={`register-entry-actions-panel ${
+          showCountCategoryInflowAsIncome
+            ? ""
+            : "register-entry-actions-panel-commit-only"
+        }`}>
+          {showCountCategoryInflowAsIncome ? (
+            <label className="register-inflow-income-toggle">
+              <input
+                type="checkbox"
+                checked={countCategoryInflowAsIncome}
+                onChange={(event) =>
+                  setCountCategoryInflowAsIncome(event.target.checked)
+                }
+              />
+              Count this inflow as income
+            </label>
+          ) : null}
           {saveError ? (
             <p className="register-category-create-error" role="alert">
               {saveError}
@@ -1123,6 +1170,11 @@ export function TransactionEditRow({
   const [inflow, setInflow] = useState(
     transaction.inflow ? transaction.inflow.toFixed(2) : "",
   );
+  const [countCategoryInflowAsIncome, setCountCategoryInflowAsIncome] =
+    useState(
+      Boolean(transaction.categoryId) &&
+      transaction.inflowClassification === "income",
+    );
   const [splitLines, setSplitLines] = useState<SplitLineDraft[]>(
     initialSplitLines,
   );
@@ -1151,6 +1203,17 @@ export function TransactionEditRow({
     splitLines.length === 0 && !transferAccountId
       ? registerIncomeCategoryChoices(date)
       : [];
+
+  const editDirectCategoryInflowOption =
+    splitLines.length === 0 &&
+    !transferAccountId &&
+    parseRegisterMoney(inflow) > 0 &&
+    parseRegisterMoney(outflow) === 0
+      ? findCategoryOption(category, categoryOptions)
+      : undefined;
+  const showEditCountCategoryInflowAsIncome =
+    Boolean(editDirectCategoryInflowOption) &&
+    editDirectCategoryInflowOption?.id !== "__ready_to_assign__";
 
   function handleInitialTextFocus(
     field: TransactionEditableField,
@@ -1210,6 +1273,7 @@ export function TransactionEditRow({
       checkNumber,
       outflow,
       inflow,
+      countCategoryInflowAsIncome,
       splitLines,
       categoryOptions,
     });
@@ -1406,6 +1470,18 @@ export function TransactionEditRow({
             className="register-edit-actions register-edit-commit-actions"
             style={{ gridColumn: editActionGridColumn }}
           >
+            {showEditCountCategoryInflowAsIncome ? (
+              <label className="register-inflow-income-toggle">
+                <input
+                  type="checkbox"
+                  checked={countCategoryInflowAsIncome}
+                  onChange={(event) =>
+                    setCountCategoryInflowAsIncome(event.target.checked)
+                  }
+                />
+                Count this inflow as income
+              </label>
+            ) : null}
             <button
               className="button button-primary"
               type="button"
