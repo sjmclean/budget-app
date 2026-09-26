@@ -193,7 +193,9 @@ function createFixture(options: ProjectionBenchmarkOptions): BenchmarkFixture {
         id,
         accountId: account.id,
         date: `${month}-${day}`,
-        categoryId: "__ready_to_assign__",
+        categoryId: null,
+        incomeBudgetMonth: month,
+        inflowClassification: "income",
         amount: 45_000 + (index % 7) * 1_000,
       });
       continue;
@@ -611,7 +613,6 @@ export async function runProjectionBenchmark(
     budgetId: fixture.budgetId,
     fromMonth: fixture.months[0]!,
     throughMonth: fixture.months.at(-1)!,
-    readyToAssignCategoryId: "__ready_to_assign__",
     openingReadyToAssign: 0,
     openingPreviousOverspending: 0,
     openingAvailableByCategoryId: {},
@@ -670,7 +671,6 @@ export async function runProjectionBenchmark(
         budgetId: fixture.budgetId,
         fromMonth: firstMonth,
         throughMonth: targetMonth,
-        readyToAssignCategoryId: "__ready_to_assign__",
         creditCardPolicy: Object.keys(replayPaymentCategories).length > 0
           ? "payment-funding"
           : "manual",
