@@ -7,6 +7,7 @@ import { findCategoryOption } from "./registerCategoryMatching";
 import { type SplitLineDraft } from "./registerSplitDrafts";
 import { validateRegisterTransactionDraft } from "./registerTransactionValidation";
 import { validIncomeBudgetMonth } from "./incomeBudgetMonth";
+import { resolveRegisterIncomeCategoryChoice } from "./registerIncomeCategoryChoices";
 
 export interface RegisterTransactionDraftInput {
   date: string;
@@ -31,7 +32,7 @@ export function buildNewRegisterTransactionInput(
   const input = buildRegisterTransactionInput({
     ...draft,
     requireCompleteSplitDrafts: true,
-  }, true);
+  });
   return input ? input : null;
 }
 
@@ -44,7 +45,7 @@ export function buildUpdateRegisterTransactionInput({
   const input = buildRegisterTransactionInput({
     ...draft,
     requireCompleteSplitDrafts: false,
-  }, false);
+  });
   return input ? { id, ...input } : null;
 }
 
@@ -62,7 +63,7 @@ function buildRegisterTransactionInput({
   splitLines,
   categoryOptions,
   requireCompleteSplitDrafts = true,
-}: RegisterTransactionDraftInput, defaultBlankInflowToReadyToAssign: boolean): Omit<UpdateRegisterTransactionInput, "id"> | null {
+}: RegisterTransactionDraftInput): Omit<UpdateRegisterTransactionInput, "id"> | null {
   const validation = validateRegisterTransactionDraft({
     payee,
     outflow,
@@ -110,32 +111,23 @@ function buildRegisterTransactionInput({
   );
 
   const categoryName = category.trim();
-  const categoryOption = findCategoryOption(categoryName, categoryOptions);
-  const fallbackCategory =
-    defaultBlankInflowToReadyToAssign &&
-    categoryName.length === 0 &&
+  const incomeCategoryChoice =
+    parsedSplitLines.length === 0 &&
     parsedInflow > 0 &&
     parsedOutflow === 0
-      ? "Ready to Assign"
-      : "Uncategorised";
+      ? resolveRegisterIncomeCategoryChoice(categoryName, date)
+      : null;
+  const categoryOption = incomeCategoryChoice
+    ? undefined
+    : findCategoryOption(categoryName, categoryOptions);
+  const fallbackCategory = "Uncategorised";
   const categoryId =
-    parsedSplitLines.length > 0
+    parsedSplitLines.length > 0 || incomeCategoryChoice
       ? undefined
-      : (categoryOption?.id ??
-        (fallbackCategory === "Ready to Assign"
-          ? "__ready_to_assign__"
-          : undefined));
-  const requestedIncomeBudgetMonth =
-    categoryId === "__ready_to_assign__" &&
-    parsedInflow > 0 &&
-    parsedOutflow === 0
-      ? incomeBudgetMonth
-      : undefined;
-  const resolvedIncomeBudgetMonth =
-    requestedIncomeBudgetMonth &&
-    requestedIncomeBudgetMonth > transactionMonth
-      ? requestedIncomeBudgetMonth
-      : undefined;
+      : categoryOption?.id === "__ready_to_assign__"
+        ? undefined
+        : categoryOption?.id;
+  const resolvedIncomeBudgetMonth = incomeCategoryChoice?.incomeBudgetMonth;
 
   if (
     resolvedIncomeBudgetMonth &&
@@ -152,9 +144,11 @@ function buildRegisterTransactionInput({
     category:
       parsedSplitLines.length > 0
         ? "Split"
-        : (categoryOption?.name ?? (categoryName || fallbackCategory)),
+        : incomeCategoryChoice?.value ??
+          (categoryOption?.name ?? (categoryName || fallbackCategory)),
     categoryId,
     incomeBudgetMonth: resolvedIncomeBudgetMonth,
+    inflowClassification: incomeCategoryChoice ? "income" : undefined,
     memo: memo.trim(),
     checkNumber: checkNumber.trim(),
     outflow: parsedOutflow,
