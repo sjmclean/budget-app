@@ -436,6 +436,7 @@ function CategoryDetailsPanel({
 }) {
   const [activeTab, setActiveTab] = useState<CategoryDetailsTab>("overview");
   const dateFormat = useDateFormatPreference();
+  const selectedMonthLabel = formatBudgetMonthLabel(month);
   const activityQuery = useCategoryActivityDrilldownQuery({
     budgetId,
     month,
@@ -586,7 +587,7 @@ function CategoryDetailsPanel({
                   ))}
                 </div>
               ) : (
-                <p className="budget-category-details-empty">No activity this month.</p>
+                <p className="budget-category-details-empty">No activity in {selectedMonthLabel}.</p>
               )}
               {category.activity !== 0 ? (
                 <button
@@ -625,7 +626,7 @@ function CategoryDetailsPanel({
                 </div>
               ) : (
                 <p className="budget-category-details-empty">
-                  No effective money movements this month.
+                  No effective money movements in {selectedMonthLabel}.
                 </p>
               )}
             </section>
@@ -677,7 +678,7 @@ function CategoryDetailsPanel({
         {activeTab === "activity" ? (
           <section className="budget-category-details-tab-panel">
             <div className="budget-category-details-section-heading">
-              <strong>Activity this month</strong>
+              <strong>Activity in {selectedMonthLabel}</strong>
               <span>{formatMoney(category.activity, currencyCode)}</span>
             </div>
             {activityQuery.status === "loading" ? (
@@ -700,7 +701,7 @@ function CategoryDetailsPanel({
                 ))}
               </div>
             ) : (
-              <p className="budget-category-details-empty">No activity this month.</p>
+              <p className="budget-category-details-empty">No activity in {selectedMonthLabel}.</p>
             )}
             {category.activity !== 0 ? (
               <button
@@ -853,7 +854,7 @@ function BudgetActivityDrilldownModal({
           </>
         ) : (
           <div className="budget-activity-empty">
-            No register activity was found for this category in this month.
+            No register activity was found for this category in {drilldown.monthLabel}.
           </div>
         )}
 
@@ -997,7 +998,7 @@ function BudgetMultiMonthPane({
           </dl>
         ) : (
           <p className="budget-multi-month-summary-unavailable">
-            Budget breakdown unavailable for this month.
+            Budget breakdown unavailable for {data.monthLabel}.
           </p>
         )}
       </div>
