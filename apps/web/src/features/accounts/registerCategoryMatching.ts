@@ -40,6 +40,38 @@ export function resolveRegisterTransactionCategory(input: {
   return "Uncategorised";
 }
 
+export function resolveRegisterSplitCategory(input: {
+  categoryId?: string | null;
+  categoryName?: string | null;
+  transferAccountId?: string | null;
+  date?: string | null;
+  incomeBudgetMonth?: string | null;
+  inflowClassification?: "income" | "category-inflow" | null;
+}): string {
+  if (input.transferAccountId) {
+    return "Transfer";
+  }
+
+  if (
+    input.date &&
+    input.inflowClassification === "income" &&
+    !input.categoryId
+  ) {
+    return (
+      registerIncomeCategoryValue(
+        input.date,
+        input.incomeBudgetMonth ?? undefined,
+      ) ?? "Uncategorised"
+    );
+  }
+
+  if (input.categoryId) {
+    return input.categoryName?.trim() || "Uncategorised";
+  }
+
+  return "Uncategorised";
+}
+
 export function resolveRegisterTransactionEditCategory(
   category: string,
   splitLineCount: number,
