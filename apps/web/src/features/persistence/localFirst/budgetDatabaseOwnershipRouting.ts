@@ -56,7 +56,6 @@ const FIRST_ARGUMENT_OBJECT_BUDGET_METHODS = new Set([
   "getTransactionsByIds",
   "setAccountClosed",
   "getBudgetMonthView",
-  "getBudgetProjectionDiagnostic",
   "getLocalBudgetMonthView",
   "setCategoryAssignedValues",
   "executeAssignmentsWithPublication",
