@@ -40,7 +40,6 @@ import {
   type SplitLineDraft,
 } from "../registerSplitDrafts";
 import {
-  findCategoryOption,
   isSplitCategoryValue,
   resolveRegisterTransactionEditCategory,
   SPLIT_CATEGORY_LABEL,
