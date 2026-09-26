@@ -25,3 +25,52 @@ test("transaction batch verification compares parent and split Income for Month"
     "post-write verification must include Income for Month metadata",
   );
 });
+
+
+import { mapSqliteTransactions } from "../../../apps/web/src/features/accounts/useAccountRegister.js";
+
+test("canonical split income maps back to Income for Month in the Register", () => {
+  const [transaction] = mapSqliteTransactions([
+    {
+      id: "transaction-1",
+      date: "2026-09-26",
+      amount: 12000,
+      memo: null,
+      checkNumber: null,
+      clearedStatus: "uncleared",
+      payeeId: null,
+      payeeName: "Employer",
+      categoryId: null,
+      categoryName: null,
+      transferAccountId: null,
+      transferTransactionId: null,
+      splitLines: [
+        {
+          id: "income-line",
+          categoryId: null,
+          categoryName: null,
+          incomeBudgetMonth: "2026-09",
+          inflowClassification: "income",
+          transferAccountId: null,
+          transferTransactionId: null,
+          memo: null,
+          amount: 10000,
+        },
+        {
+          id: "fuel-line",
+          categoryId: "fuel",
+          categoryName: "Fuel",
+          incomeBudgetMonth: null,
+          inflowClassification: "category-inflow",
+          transferAccountId: null,
+          transferTransactionId: null,
+          memo: null,
+          amount: 2000,
+        },
+      ],
+    },
+  ], 12000);
+
+  assert.equal(transaction?.splitLines?.[0]?.category, "Income for September 2026");
+  assert.equal(transaction?.splitLines?.[1]?.category, "Fuel");
+});
