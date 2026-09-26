@@ -85,7 +85,10 @@ test("maps ordinary transactions, balances, categories, payees, and flags", () =
   assert.deepEqual(expense?.tagIds, ["red-flag"]);
 
   const income = register.transactions.find((row) => row.id === "txn-2");
-  assert.equal(income?.categoryId, "__ready_to_assign__");
+  assert.equal(income?.category, "Income for January 2026");
+  assert.equal(income?.categoryId, undefined);
+  assert.equal(income?.incomeBudgetMonth, "2026-01");
+  assert.equal(income?.inflowClassification, "income");
   assert.equal(income?.inflow, 25.05);
 });
 
@@ -106,12 +109,14 @@ test("migrates YNAB4 deferred income to the following budget month without chang
 
   const transaction = registers.checking.transactions[0];
   assert.equal(transaction?.date, "2026-01-31");
-  assert.equal(transaction?.categoryId, "__ready_to_assign__");
+  assert.equal(transaction?.category, "Income for February 2026");
+  assert.equal(transaction?.categoryId, undefined);
   assert.equal(transaction?.incomeBudgetMonth, "2026-02");
+  assert.equal(transaction?.inflowClassification, "income");
   assert.equal(transaction?.inflow, 125);
 });
 
-test("migrates deferred Ready to Assign split income line-by-line", () => {
+test("migrates split income directly to canonical current and following months", () => {
   const registers = mapYnab4Transactions({
     accounts,
     maps,
@@ -142,10 +147,14 @@ test("migrates deferred Ready to Assign split income line-by-line", () => {
   const deferred = transaction?.splitLines?.find(({ id }) => id === "deferred-line");
   const immediate = transaction?.splitLines?.find(({ id }) => id === "immediate-line");
   assert.equal(transaction?.date, "2026-12-20");
-  assert.equal(deferred?.categoryId, "__ready_to_assign__");
+  assert.equal(deferred?.category, "Income for January 2027");
+  assert.equal(deferred?.categoryId, undefined);
   assert.equal(deferred?.incomeBudgetMonth, "2027-01");
-  assert.equal(immediate?.categoryId, "__ready_to_assign__");
-  assert.equal(immediate?.incomeBudgetMonth, undefined);
+  assert.equal(deferred?.inflowClassification, "income");
+  assert.equal(immediate?.category, "Income for December 2026");
+  assert.equal(immediate?.categoryId, undefined);
+  assert.equal(immediate?.incomeBudgetMonth, "2026-12");
+  assert.equal(immediate?.inflowClassification, "income");
 });
 
 test("preserves cleared, reconciled, and uncleared state independently of accepted", () => {
