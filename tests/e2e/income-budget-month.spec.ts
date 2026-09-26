@@ -59,6 +59,7 @@ test("explicit Register income choice uses its transaction month without a separ
   await expect(page.getByLabel("Budget in month")).toHaveCount(0);
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText("Future Employer", { exact: true })).toBeVisible();
+  await expect(page.getByText(incomeChoiceLabel, { exact: true })).toBeVisible();
 
   const accountId = new URL(page.url()).pathname.split("/").at(-1)!;
   async function readEvidence() {
@@ -124,6 +125,7 @@ test("explicit Register income choice uses its transaction month without a separ
   await page.getByRole("button", { name: "Register options" }).first().click();
   await page.getByRole("menuitem", { name: /Redo/ }).click();
   await expect(page.getByText("Future Employer", { exact: true })).toBeVisible();
+  await expect(page.getByText(incomeChoiceLabel, { exact: true })).toBeVisible();
   await expect.poll(readEvidence).toEqual({
     currentIncome: 100,
     futureIncome: 0,
