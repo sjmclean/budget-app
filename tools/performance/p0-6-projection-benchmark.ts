@@ -265,6 +265,8 @@ function initialiseDatabase(database: Database.Database): void {
       date TEXT NOT NULL,
       category_id TEXT,
       transfer_account_id TEXT,
+      income_budget_month TEXT,
+      inflow_classification TEXT,
       amount INTEGER NOT NULL
     );
     CREATE INDEX local_transactions_register
@@ -276,6 +278,8 @@ function initialiseDatabase(database: Database.Database): void {
       id TEXT NOT NULL,
       category_id TEXT,
       transfer_account_id TEXT,
+      income_budget_month TEXT,
+      inflow_classification TEXT,
       amount INTEGER NOT NULL,
       PRIMARY KEY (transaction_id, id)
     );
@@ -303,10 +307,10 @@ function seedDatabase(database: Database.Database, fixture: BenchmarkFixture): v
     "INSERT INTO local_budget_assignments(budget_id,month,category_id,assigned) VALUES(?,?,?,?)",
   );
   const insertTransaction = database.prepare(
-    "INSERT INTO local_transactions(id,budget_id,account_id,date,category_id,transfer_account_id,amount) VALUES(?,?,?,?,?,?,?)",
+    "INSERT INTO local_transactions(id,budget_id,account_id,date,category_id,transfer_account_id,income_budget_month,inflow_classification,amount) VALUES(?,?,?,?,?,?,?,?,?)",
   );
   const insertSplit = database.prepare(
-    "INSERT INTO local_transaction_splits(transaction_id,id,category_id,transfer_account_id,amount) VALUES(?,?,?,?,?)",
+    "INSERT INTO local_transaction_splits(transaction_id,id,category_id,transfer_account_id,income_budget_month,inflow_classification,amount) VALUES(?,?,?,?,?,?,?)",
   );
 
   database.transaction(() => {
@@ -343,6 +347,8 @@ function seedDatabase(database: Database.Database, fixture: BenchmarkFixture): v
         transaction.date,
         transaction.categoryId,
         transaction.transferAccountId ?? null,
+        transaction.incomeBudgetMonth ?? null,
+        transaction.inflowClassification ?? null,
         transaction.amount,
       );
       for (const split of transaction.splits ?? []) {
@@ -351,6 +357,8 @@ function seedDatabase(database: Database.Database, fixture: BenchmarkFixture): v
           split.id,
           split.categoryId,
           split.transferAccountId ?? null,
+          split.incomeBudgetMonth ?? null,
+          split.inflowClassification ?? null,
           split.amount,
         );
       }
@@ -415,6 +423,8 @@ function extractFacts(
        transaction_row.date,
        transaction_row.category_id AS categoryId,
        transaction_row.transfer_account_id AS transferAccountId,
+       transaction_row.income_budget_month AS incomeBudgetMonth,
+       transaction_row.inflow_classification AS inflowClassification,
        transaction_row.amount,
        COALESCE((
          SELECT json_group_array(
@@ -422,11 +432,13 @@ function extractFacts(
              'id', ordered_split.id,
              'categoryId', ordered_split.category_id,
              'transferAccountId', ordered_split.transfer_account_id,
+             'incomeBudgetMonth', ordered_split.income_budget_month,
+             'inflowClassification', ordered_split.inflow_classification,
              'amount', ordered_split.amount
            )
          )
          FROM (
-           SELECT id, category_id, transfer_account_id, amount
+           SELECT id, category_id, transfer_account_id, income_budget_month, inflow_classification, amount
            FROM local_transaction_splits
            WHERE transaction_id = transaction_row.id
            ORDER BY id
@@ -446,6 +458,8 @@ function extractFacts(
     date: string;
     categoryId: string | null;
     transferAccountId: string | null;
+    incomeBudgetMonth: string | null;
+    inflowClassification: "income" | "category-inflow" | null;
     amount: number;
     splitsJson: string;
   }>;
@@ -458,11 +472,15 @@ function extractFacts(
     date: transaction.date,
     categoryId: transaction.categoryId,
     transferAccountId: transaction.transferAccountId,
+    incomeBudgetMonth: transaction.incomeBudgetMonth,
+    inflowClassification: transaction.inflowClassification,
     amount: transaction.amount,
     splits: JSON.parse(transaction.splitsJson) as Array<{
       id: string;
       categoryId: string | null;
       transferAccountId: string | null;
+      incomeBudgetMonth: string | null;
+      inflowClassification: "income" | "category-inflow" | null;
       amount: number;
     }>,
   }));
