@@ -166,7 +166,7 @@ test("typing preserves category while transfer selection clears category and inc
   assert.equal(transfer.categoryId, undefined);
   assert.equal(transfer.incomeBudgetMonthOffset, undefined);
   assert.equal(transfer.inflowClassification, undefined);
-  assert.deepEqual(transfer.splitLines, []);
+  assert.equal(transfer.splitLines, undefined);
 });
 
 test("scheduled auto-focus leaves payee suggestions collapsed", () => {
