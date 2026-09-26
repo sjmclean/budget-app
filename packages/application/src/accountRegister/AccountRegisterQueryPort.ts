@@ -44,6 +44,7 @@ export interface AccountTransactionRow {
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly incomeBudgetMonth?: string | null;
+  readonly inflowClassification?: "income" | "category-inflow" | null;
   readonly transferAccountId: string | null;
   readonly transferAccountParticipation?: "on-budget" | "off-budget" | null;
   readonly transferTransactionId: string | null;
@@ -72,6 +73,7 @@ export interface AccountTransactionSplitRow {
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly incomeBudgetMonth?: string | null;
+  readonly inflowClassification?: "income" | "category-inflow" | null;
   readonly transferAccountId: string | null;
   readonly transferAccountParticipation?: "on-budget" | "off-budget" | null;
   readonly transferTransactionId: string | null;
