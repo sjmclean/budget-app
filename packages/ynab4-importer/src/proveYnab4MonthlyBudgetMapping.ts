@@ -23,7 +23,7 @@ export type Ynab4BudgetMonthProof = {
     assigned: Ynab4MonthlyBudgetProofStatus;
     activity: Ynab4MonthlyBudgetProofStatus;
     income: Ynab4MonthlyBudgetProofStatus;
-    readyToBudget: Ynab4MonthlyBudgetProofStatus;
+    readyToAssign: Ynab4MonthlyBudgetProofStatus;
   };
   notes: string[];
 };
@@ -141,13 +141,13 @@ export function proveYnab4MonthlyBudgetMapping(
         assigned: categoryRows.length > 0 ? "derived" : "missing",
         activity: "derived",
         income: "derived",
-        readyToBudget: "blocked",
+        readyToAssign: "blocked",
       },
       notes: [
         "YNAB4 monthlyBudget.month maps directly to budget_months.month after YYYY-MM normalization.",
         "budget_months.assigned should be derived from the sum of monthlySubCategoryBudgets.budgeted for the month.",
         "budget_months.activity should be derived from imported transactions for the same month, not copied from monthlyBudget rows.",
-        "budget_months.income and ready_to_budget require a separate Income for Month / Income for Next Month proof before writes.",
+        "budget_months.income and ready_to_assign require a separate Income for Month / Income for Next Month proof before writes.",
       ],
     });
   }
@@ -172,7 +172,7 @@ export function proveYnab4MonthlyBudgetMapping(
 
   const monthValues = budgetMonthProofs.map((proof) => proof.appMonth).sort();
   const blockers = [
-    "budget_months.income and ready_to_budget still need Income for Month / Income for Next Month proof.",
+    "budget_months.income and ready_to_assign still need Income for Month / Income for Next Month proof.",
     "category_months.activity must be derived from imported transaction activity and validated against monthly history.",
     "category_months.previous_available and available must be derived across month boundaries and validated before writes.",
   ];
