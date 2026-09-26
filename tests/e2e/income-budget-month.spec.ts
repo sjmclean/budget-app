@@ -97,6 +97,7 @@ test("explicit Register income choice uses its transaction month without a separ
 
         return {
           currentIncome: current.incomeForMonth,
+          currentReadyToAssign: current.readyToAssign,
           futureIncome: future.incomeForMonth,
           futureReadyToAssign: future.readyToAssign,
           incomeBudgetMonth: row?.incomeBudgetMonth ?? null,
@@ -109,6 +110,7 @@ test("explicit Register income choice uses its transaction month without a separ
 
   await expect.poll(readEvidence).toEqual({
     currentIncome: 100,
+    currentReadyToAssign: 100,
     futureIncome: 0,
     futureReadyToAssign: 100,
     incomeBudgetMonth: transactionMonth,
@@ -128,6 +130,7 @@ test("explicit Register income choice uses its transaction month without a separ
   await expect(page.getByText(incomeChoiceLabel, { exact: true })).toBeVisible();
   await expect.poll(readEvidence).toEqual({
     currentIncome: 100,
+    currentReadyToAssign: 100,
     futureIncome: 0,
     futureReadyToAssign: 100,
     incomeBudgetMonth: transactionMonth,
