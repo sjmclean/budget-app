@@ -2,6 +2,7 @@ import { ReportCard } from "./components/ReportCard";
 import { reportCards } from "./reportCatalogue";
 import { SpendingByCategoryReport } from "./reports/SpendingByCategoryReport";
 import { BudgetVsActualReport } from "./reports/BudgetVsActualReport";
+import { IncomeExpensesReport } from "./reports/IncomeExpensesReport";
 import { useReportsViewModel } from "./hooks/useReportsViewModel";
 
 export function ReportsPage() {
@@ -24,6 +25,7 @@ export function ReportsPage() {
         ))}
       </section>
 
+      <IncomeExpensesReport viewModel={reportsViewModel} />
       <SpendingByCategoryReport viewModel={reportsViewModel} />
       <BudgetVsActualReport viewModel={reportsViewModel} />
     </div>
