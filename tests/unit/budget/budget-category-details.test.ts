@@ -143,7 +143,7 @@ test("visible month capacity measures the already-reserved Budget workspace widt
 test("permanent Budget inspector shows health above table-aligned Category Details", () => {
   assert.match(
     budgetPage,
-    /function BudgetHealthCard\([\s\S]*Overspent categories[\s\S]*Future funding/,
+    /function BudgetHealthCard\([\s\S]*Overspent categories[\s\S]*nextMonthLabel/,
   );
   assert.match(
     budgetPage,
@@ -153,9 +153,9 @@ test("permanent Budget inspector shows health above table-aligned Category Detai
     budgetPage,
     /nextMonthStatus=[\s\S]*nextMonthBudget\.error[\s\S]*nextMonthOutlook\?\.status/,
   );
-  assert.match(
+  assert.doesNotMatch(
     budgetPage,
-    /futureOvercommitment=\{futureOvercommitment\}/,
+    /futureOvercommitment|Future funding/,
   );
   assert.match(
     budgetPage,
