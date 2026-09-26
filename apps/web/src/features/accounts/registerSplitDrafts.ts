@@ -72,6 +72,28 @@ export function applySplitCategoryChoice(
   };
 }
 
+export function applySplitDraftSign(
+  line: SplitLineDraft,
+  sign: "inflow" | "outflow",
+): SplitLineDraft {
+  const amount = line.outflow || line.inflow;
+  const clearSyntheticIncomeCategory =
+    sign === "outflow" &&
+    line.inflowClassification === "income" &&
+    !line.categoryId;
+
+  return {
+    ...line,
+    category: clearSyntheticIncomeCategory ? "" : line.category,
+    outflow: sign === "outflow" ? amount : "",
+    inflow: sign === "inflow" ? amount : "",
+    incomeBudgetMonth: undefined,
+    inflowClassification: undefined,
+    countCategoryInflowAsIncome: false,
+  };
+}
+
+
 function createLocalId(): string {
   return `split-${createRuntimeUuid()}`;
 }
