@@ -4,6 +4,8 @@ export interface ScheduledPayeeDraftState {
   transferAccountId?: string;
   category?: string;
   categoryId?: string;
+  incomeBudgetMonthOffset?: 0 | 1;
+  inflowClassification?: "income" | "category-inflow";
   splitLines?: readonly unknown[];
 }
 
@@ -55,7 +57,13 @@ export function applyScheduledSavedPayee<
   );
 
   return category
-    ? { ...next, category: category.name, categoryId: category.id }
+    ? {
+        ...next,
+        category: category.name,
+        categoryId: category.id,
+        incomeBudgetMonthOffset: undefined,
+        inflowClassification: undefined,
+      }
     : next;
 }
 
@@ -68,5 +76,10 @@ export function applyScheduledTransferAccount<
     ...current,
     transferAccountId,
     payeeId: undefined,
+    category: "",
+    categoryId: undefined,
+    incomeBudgetMonthOffset: undefined,
+    inflowClassification: undefined,
+    splitLines: [],
   };
 }
