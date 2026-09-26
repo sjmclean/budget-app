@@ -58,3 +58,30 @@ test("runtime source contains no arbitrary-future income month APIs", () => {
     `Arbitrary-future income API found in runtime source: ${violations.join(", ")}`,
   );
 });
+
+
+test("runtime source contains no pre-canonical ready-to-budget income model", () => {
+  const legacySymbols = [
+    "readyToBudget",
+    "calculateReadyToBudget",
+    "addIncomeToBudgetMonth",
+    "postIncomeToReadyToBudget",
+  ];
+
+  const violations = sourceRoots
+    .flatMap(walk)
+    .flatMap((path) => {
+      const source = readFileSync(path, "utf8");
+      return legacySymbols
+        .filter((symbol) => source.includes(symbol))
+        .map((symbol) =>
+          `${relative(root, path).replaceAll("\\", "/")}: ${symbol}`,
+        );
+    });
+
+  assert.deepEqual(
+    violations,
+    [],
+    `Pre-canonical Ready to Budget model found in runtime source: ${violations.join(", ")}`,
+  );
+});
