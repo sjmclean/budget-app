@@ -154,10 +154,7 @@ export function TransactionEntryRow({
   }, []);
 
   const incomeCategoryOptions =
-    splitLines.length === 0 &&
-    parseRegisterMoney(inflow) > 0 &&
-    parseRegisterMoney(outflow) === 0 &&
-    !transferAccountId
+    splitLines.length === 0 && !transferAccountId
       ? registerIncomeCategoryChoices(date)
       : [];
 
@@ -1151,10 +1148,7 @@ export function TransactionEditRow({
     getTransactionFieldEditBehaviour(editIntent, "inflow");
 
   const editIncomeCategoryOptions =
-    splitLines.length === 0 &&
-    parseRegisterMoney(inflow) > 0 &&
-    parseRegisterMoney(outflow) === 0 &&
-    !transferAccountId
+    splitLines.length === 0 && !transferAccountId
       ? registerIncomeCategoryChoices(date)
       : [];
 
