@@ -227,13 +227,13 @@ function BudgetNextMonthOutlook({
   } else if (data && outlook) {
     if (outlook.status === "balanced") {
       primary = "Balanced";
-      secondary = "Based on your current budget";
+      secondary = `Based on ${monthName}'s budget`;
     } else if (outlook.status === "overbudget") {
       primary = `${formatMoney(outlook.amount, currencyCode)} overbudget`;
-      secondary = "Based on your current budget";
+      secondary = `Based on ${monthName}'s budget`;
     } else {
       primary = `${formatMoney(outlook.amount, currencyCode)} available`;
-      secondary = "Based on your current budget";
+      secondary = `Based on ${monthName}'s budget`;
     }
   } else if (!isLoading) {
     primary = "Outlook unavailable";
@@ -348,7 +348,7 @@ function BudgetHealthCard({
               ? "overspent"
               : nextMonthStatus === "overbudget"
                 ? "overbudget next month"
-                : "this month"}
+                : monthLabel}
           </small>
         </div>
       </div>
