@@ -83,26 +83,70 @@ function buildRegisterTransactionInput({
   const { parsedOutflow, parsedInflow, parsedSplitLines } = validation;
 
   const transactionMonth = date.slice(0, 7);
+  const splitDraftById = new Map(splitLines.map((line) => [line.id, line]));
   const resolvedSplitLines = parsedSplitLines.map((line) => {
-    if (
-      line.categoryId !== "__ready_to_assign__" ||
-      line.inflow <= 0 ||
-      line.outflow > 0
-    ) {
-      return { ...line, incomeBudgetMonth: undefined };
-    }
+    const sourceDraft = splitDraftById.get(line.id);
+    const isPositiveInflow =
+      line.inflow > 0 &&
+      line.outflow === 0 &&
+      !line.transferAccountId;
+    const splitIncomeCategoryChoice = isPositiveInflow
+      ? resolveRegisterIncomeCategoryChoice(line.category, date)
+      : null;
 
-    const splitIncomeBudgetMonth = line.incomeBudgetMonth;
-    if (!splitIncomeBudgetMonth || splitIncomeBudgetMonth <= transactionMonth) {
-      return { ...line, incomeBudgetMonth: undefined };
-    }
-    if (!validIncomeBudgetMonth(splitIncomeBudgetMonth, date)) {
+    if (
+      !splitIncomeCategoryChoice &&
+      isRegisterIncomeCategoryValue(line.category)
+    ) {
       return null;
     }
 
+    if (splitIncomeCategoryChoice) {
+      return {
+        ...line,
+        category: splitIncomeCategoryChoice.value,
+        categoryId: undefined,
+        incomeBudgetMonth: splitIncomeCategoryChoice.incomeBudgetMonth,
+        inflowClassification: "income" as const,
+      };
+    }
+
+    if (
+      line.categoryId === "__ready_to_assign__" &&
+      isPositiveInflow
+    ) {
+      const splitIncomeBudgetMonth =
+        line.incomeBudgetMonth ?? transactionMonth;
+      if (!validIncomeBudgetMonth(splitIncomeBudgetMonth, date)) {
+        return null;
+      }
+      const incomeCategoryChoice = resolveRegisterIncomeCategoryChoice(
+        `__income_for__:${splitIncomeBudgetMonth}`,
+        date,
+      );
+      if (!incomeCategoryChoice) return null;
+      return {
+        ...line,
+        category: incomeCategoryChoice.value,
+        categoryId: undefined,
+        incomeBudgetMonth: incomeCategoryChoice.incomeBudgetMonth,
+        inflowClassification: "income" as const,
+      };
+    }
+
+    const isOrdinaryPositiveCategoryInflow =
+      isPositiveInflow &&
+      Boolean(line.categoryId) &&
+      line.categoryId !== "__ready_to_assign__";
+
     return {
       ...line,
-      incomeBudgetMonth: splitIncomeBudgetMonth,
+      incomeBudgetMonth: undefined,
+      inflowClassification: isOrdinaryPositiveCategoryInflow
+        ? sourceDraft?.countCategoryInflowAsIncome
+          ? "income" as const
+          : "category-inflow" as const
+        : undefined,
     };
   });
 
