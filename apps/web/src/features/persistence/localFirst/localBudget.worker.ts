@@ -115,7 +115,7 @@ let replacement: {
   receivedBytes: number;
 } | null = null;
 
-const BUDGET_PROJECTION_ENGINE_VERSION = 6;
+const BUDGET_PROJECTION_ENGINE_VERSION = 7;
 
 function safeFilename(budgetId: string): string {
   return `/budget-${encodeURIComponent(budgetId).replaceAll("%", "_")}.sqlite3`;
