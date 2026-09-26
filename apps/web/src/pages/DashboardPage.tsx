@@ -109,7 +109,10 @@ export function DashboardPage() {
             <Card className="financial-overview-month-card">
               <p className="eyebrow">This Month</p>
               <div className="financial-overview-metric-list">
-                <MetricRow label="Income" value={formatMoney(summary.monthlySnapshot.income)} />
+                <MetricRow label="Income" value={formatMoney(summary.monthlySnapshot.income)} emphasis />
+                <MetricRow label="General income" value={formatMoney(summary.monthlySnapshot.generalIncome)} />
+                <MetricRow label="Counted category income" value={formatMoney(summary.monthlySnapshot.countedCategoryIncome)} />
+                <MetricRow label="Category inflows" value={formatMoney(summary.monthlySnapshot.categoryInflows)} />
                 <MetricRow label="Expenses" value={formatMoney(summary.monthlySnapshot.expenses)} />
                 <MetricRow label="Savings" value={formatMoney(summary.monthlySnapshot.savings)} emphasis />
                 <MetricRow label="Ready to Assign" value={formatMoney(summary.monthlySnapshot.readyToAssign)} />
