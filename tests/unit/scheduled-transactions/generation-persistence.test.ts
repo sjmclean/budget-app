@@ -311,3 +311,84 @@ test("blank positive scheduled inflow is uncategorised unless explicit income in
   assert.equal(scheduled.incomeBudgetMonthOffset, undefined);
   assert.equal(scheduled.inflowClassification, undefined);
 });
+
+
+test("scheduled ordinary category inflow materialises its explicit classification unchanged", () => {
+  const transaction = scheduledTransactionToRegisterInput({
+    id: "category-inflow",
+    accountId: "checking",
+    nextDueDate: "2026-09-26",
+    frequency: "monthly",
+    payee: "Refund",
+    category: "Groceries",
+    categoryId: "groceries",
+    inflowClassification: "category-inflow",
+    outflow: 0,
+    inflow: 25,
+    createdAt: "created",
+    updatedAt: "updated",
+  });
+
+  assert.equal(transaction.categoryId, "groceries");
+  assert.equal(transaction.incomeBudgetMonth, undefined);
+  assert.equal(transaction.inflowClassification, "category-inflow");
+});
+
+test("scheduled ordinary category inflow can explicitly count as income", () => {
+  const transaction = scheduledTransactionToRegisterInput({
+    id: "category-income",
+    accountId: "checking",
+    nextDueDate: "2026-09-26",
+    frequency: "monthly",
+    payee: "Refund",
+    category: "Groceries",
+    categoryId: "groceries",
+    inflowClassification: "income",
+    outflow: 0,
+    inflow: 25,
+    createdAt: "created",
+    updatedAt: "updated",
+  });
+
+  assert.equal(transaction.categoryId, "groceries");
+  assert.equal(transaction.incomeBudgetMonth, undefined);
+  assert.equal(transaction.inflowClassification, "income");
+});
+
+test("scheduled split income resolves relative month intent per line", () => {
+  const transaction = scheduledTransactionToRegisterInput({
+    id: "split-income",
+    accountId: "checking",
+    nextDueDate: "2026-12-20",
+    frequency: "monthly",
+    payee: "Employer",
+    category: "Split",
+    outflow: 0,
+    inflow: 300,
+    splitLines: [
+      {
+        id: "current",
+        category: "Income for transaction month",
+        incomeBudgetMonthOffset: 0,
+        inflowClassification: "income",
+        outflow: 0,
+        inflow: 100,
+      },
+      {
+        id: "following",
+        category: "Income for following month",
+        incomeBudgetMonthOffset: 1,
+        inflowClassification: "income",
+        outflow: 0,
+        inflow: 200,
+      },
+    ],
+    createdAt: "created",
+    updatedAt: "updated",
+  });
+
+  assert.equal(transaction.splitLines?.[0]?.incomeBudgetMonth, "2026-12");
+  assert.equal(transaction.splitLines?.[0]?.inflowClassification, "income");
+  assert.equal(transaction.splitLines?.[1]?.incomeBudgetMonth, "2027-01");
+  assert.equal(transaction.splitLines?.[1]?.inflowClassification, "income");
+});
