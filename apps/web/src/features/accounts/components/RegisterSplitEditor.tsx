@@ -145,7 +145,7 @@ export function RegisterSplitEditor({
             )
           }
         />
-        Count this inflow as income
+        Count as income
       </label>
     );
   }
@@ -466,14 +466,17 @@ export function RegisterSplitEditor({
             {renderSplitRemoveButton(line)}
 
             <div className="register-split-compact-main">
-              <RegisterCategoryInput
-                value={line.category}
-                onChange={(value) => updateSplitCategory(line.id, value)}
-                categoryOptions={categoryOptions}
-                specialOptions={splitIncomeCategoryOptions()}
-                includeSplitOption={false}
-              />
-  
+              <div className="register-split-category-inline">
+                <RegisterCategoryInput
+                  value={line.category}
+                  onChange={(value) => updateSplitCategory(line.id, value)}
+                  categoryOptions={categoryOptions}
+                  specialOptions={splitIncomeCategoryOptions()}
+                  includeSplitOption={false}
+                />
+                {renderCountAsIncomeToggle(line)}
+              </div>
+
               <input
                 value={line.memo}
                 onChange={(event) =>
@@ -651,14 +654,16 @@ export function RegisterSplitEditor({
           </div>
 
           <div className="register-split-allocation-category">
-            <RegisterCategoryInput
-              value={line.category}
-              onChange={(value) => updateSplitCategory(line.id, value)}
-              categoryOptions={categoryOptions}
-              specialOptions={splitIncomeCategoryOptions()}
-              includeSplitOption={false}
-            />
-            {renderCountAsIncomeToggle(line)}
+            <div className="register-split-category-inline">
+              <RegisterCategoryInput
+                value={line.category}
+                onChange={(value) => updateSplitCategory(line.id, value)}
+                categoryOptions={categoryOptions}
+                specialOptions={splitIncomeCategoryOptions()}
+                includeSplitOption={false}
+              />
+              {renderCountAsIncomeToggle(line)}
+            </div>
           </div>
 
           <input
