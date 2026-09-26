@@ -116,7 +116,7 @@ export const budgetMonths = sqliteTable("budget_months", {
   income: integer("income").notNull(),
   assigned: integer("assigned").notNull(),
   activity: integer("activity").notNull(),
-  readyToBudget: integer("ready_to_budget").notNull(),
+  readyToAssign: integer("ready_to_assign").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull()
 });
