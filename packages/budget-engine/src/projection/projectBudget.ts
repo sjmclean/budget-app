@@ -594,19 +594,6 @@ function requireExplicitIncomeBudgetMonth(
   return value;
 }
 
-function requireIncomeBudgetMonth(
-  value: string,
-  transactionMonth: string,
-): string {
-  requireMonth(value);
-  if (value < transactionMonth) {
-    throw new Error(
-      `Income budget month ${value} cannot be earlier than transaction month ${transactionMonth}.`,
-    );
-  }
-  return value;
-}
-
 function validateInput(input: BudgetProjectionInput): void {
   requireMonth(input.fromMonth);
   requireMonth(input.throughMonth);
