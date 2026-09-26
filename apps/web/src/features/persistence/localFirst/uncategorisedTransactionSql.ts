@@ -16,7 +16,7 @@ export function uncategorisedTransactionPredicate(
         )
         AND ${alias}.category_id IS NULL
         AND NOT (
-          ${alias}.inflow_classification = 'income'
+          COALESCE(${alias}.inflow_classification, '') = 'income'
           AND ${alias}.amount > 0
         )
         AND (
@@ -36,7 +36,7 @@ export function uncategorisedTransactionPredicate(
           AND category_split.amount <> 0
           AND category_split.category_id IS NULL
           AND NOT (
-            category_split.inflow_classification = 'income'
+            COALESCE(category_split.inflow_classification, '') = 'income'
             AND category_split.amount > 0
           )
           AND (
