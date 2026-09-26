@@ -18,7 +18,6 @@ export interface RegisterTransactionDraftInput {
   payeeId?: string;
   transferAccountId?: string;
   category: string;
-  latestIncomeBudgetMonth?: string;
   memo: string;
   checkNumber: string;
   outflow: string;
