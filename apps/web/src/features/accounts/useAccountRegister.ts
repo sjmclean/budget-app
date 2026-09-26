@@ -8,7 +8,10 @@ import { reconcileRegisterDelta, type LoadedRegisterPage } from "./registerDelta
 import type { AccountTransactionRow } from "../../../../../packages/application/src/accountRegister/AccountRegisterQueryPort";
 import { generateDueScheduledTransactionsForBudget } from "./scheduledTransactionMaintenance";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
-import { resolveRegisterTransactionCategory } from "./registerCategoryMatching";
+import {
+  resolveRegisterSplitCategory,
+  resolveRegisterTransactionCategory,
+} from "./registerCategoryMatching";
 import { getRegisterLoadMoreContinuation } from "./registerPagination";
 import {
   calculateAttachmentContentHash,
@@ -979,7 +982,14 @@ export function mapSqliteTransactions(
               id: line.id,
               category: line.transferAccountId
                 ? formatTransferPayee(readTransferAccountName(line))
-                : line.categoryName ?? "Uncategorised",
+                : resolveRegisterSplitCategory({
+                    categoryId: line.categoryId,
+                    categoryName: line.categoryName,
+                    transferAccountId: line.transferAccountId,
+                    date: row.date,
+                    incomeBudgetMonth: line.incomeBudgetMonth,
+                    inflowClassification: line.inflowClassification,
+                  }),
               categoryId: line.categoryId ?? undefined,
               incomeBudgetMonth: line.incomeBudgetMonth ?? undefined,
               inflowClassification: line.inflowClassification ?? undefined,
