@@ -43,7 +43,6 @@ export function RegisterSplitEditor({
   rowStyle,
   layoutMode,
   transactionDate,
-  latestIncomeBudgetMonth,
   onCreateCategory,
   children,
 }: {
@@ -492,7 +491,7 @@ export function RegisterSplitEditor({
                 specialOptions={splitIncomeCategoryOptions()}
                 includeSplitOption={false}
               />
-
+  
               <input
                 value={line.memo}
                 onChange={(event) =>
@@ -522,6 +521,12 @@ export function RegisterSplitEditor({
                             inflow: value > 0 ? "" : item.inflow,
                             incomeBudgetMonth:
                               value > 0 ? undefined : item.incomeBudgetMonth,
+                            inflowClassification: value > 0
+                              ? undefined
+                              : item.inflowClassification,
+                            countCategoryInflowAsIncome: value > 0
+                              ? false
+                              : item.countCategoryInflowAsIncome,
                           }
                         : item,
                     ),
@@ -546,8 +551,12 @@ export function RegisterSplitEditor({
                             outflow: value > 0 ? "" : item.outflow,
                             incomeBudgetMonth:
                               value > 0 &&
-                              (item.categoryId ?? findCategoryOption(item.category, categoryOptions)?.id) === "__ready_to_assign__"
-                                ? item.incomeBudgetMonth ?? transactionDate?.slice(0, 7)
+                              transactionDate &&
+                              resolveRegisterIncomeCategoryChoice(
+                                item.category,
+                                transactionDate,
+                              )
+                                ? item.incomeBudgetMonth
                                 : undefined,
                           }
                         : item,
@@ -560,8 +569,7 @@ export function RegisterSplitEditor({
                 onMoneyKeyDown={(event) => addSplitOnTab(event, line)}
               />
             </div>
-            {renderCountAsIncomeToggle(line)}
-          </div>
+            </div>
         ))}
 
         <div className="register-split-compact-footer">
@@ -668,6 +676,7 @@ export function RegisterSplitEditor({
               specialOptions={splitIncomeCategoryOptions()}
               includeSplitOption={false}
             />
+            {renderCountAsIncomeToggle(line)}
           </div>
 
           <input
@@ -698,6 +707,12 @@ export function RegisterSplitEditor({
                         inflow: value > 0 ? "" : item.inflow,
                         incomeBudgetMonth:
                           value > 0 ? undefined : item.incomeBudgetMonth,
+                        inflowClassification: value > 0
+                          ? undefined
+                          : item.inflowClassification,
+                        countCategoryInflowAsIncome: value > 0
+                          ? false
+                          : item.countCategoryInflowAsIncome,
                       }
                     : item,
                 ),
@@ -722,8 +737,12 @@ export function RegisterSplitEditor({
                         outflow: value > 0 ? "" : item.outflow,
                         incomeBudgetMonth:
                           value > 0 &&
-                          (item.categoryId ?? findCategoryOption(item.category, categoryOptions)?.id) === "__ready_to_assign__"
-                            ? item.incomeBudgetMonth ?? transactionDate?.slice(0, 7)
+                          transactionDate &&
+                          resolveRegisterIncomeCategoryChoice(
+                            item.category,
+                            transactionDate,
+                          )
+                            ? item.incomeBudgetMonth
                             : undefined,
                       }
                     : item,
