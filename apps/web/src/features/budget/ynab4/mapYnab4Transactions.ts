@@ -10,8 +10,6 @@ import type { TransactionTagColour } from "../../tags/transactionTagTypes";
 import { decodeYnabAmount } from "../../../../../../packages/ynab4-importer/src/money/decodeYnabAmount";
 import { isYnab4Tombstone } from "./ynab4RecordState";
 
-const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
-const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
 const YNAB4_SPLIT_CATEGORY_ID = "Category/__Split__";
 const YNAB4_IMMEDIATE_INCOME_CATEGORY_ID = "Category/__ImmediateIncome__";
 const YNAB4_DEFERRED_INCOME_CATEGORY_ID = "Category/__DeferredIncome__";
@@ -172,12 +170,11 @@ export function mapYnab4Transaction(
       : null;
   const categoryId = isTrackingAccount
     ? null
-    : sourceCategoryKind === "immediate-income" ||
+    : sourceCategoryKind === "split" ||
+        sourceCategoryKind === "immediate-income" ||
         sourceCategoryKind === "deferred-income"
-      ? READY_TO_ASSIGN_CATEGORY_ID
-      : sourceCategoryKind === "split"
-        ? null
-        : mappedCategoryId;
+      ? null
+      : mappedCategoryId;
   const splitLines = mapYnab4SplitLines(
     toRecords(transaction.subTransactions),
     maps,
@@ -227,10 +224,13 @@ export function mapYnab4Transaction(
         ? "Split"
         : transferAccountId && !isCategorisedOffBudgetTransfer
           ? "Transfer"
-          : categoryId
-            ? maps.categoryNameById.get(categoryId) ??
-              READY_TO_ASSIGN_CATEGORY_NAME
-            : "Uncategorised",
+          : sourceCategoryKind === "immediate-income"
+            ? incomeCategoryLabel(date.slice(0, 7))
+            : sourceCategoryKind === "deferred-income"
+              ? incomeCategoryLabel(nextBudgetMonth(date))
+              : categoryId
+                ? maps.categoryNameById.get(categoryId) ?? "Uncategorised"
+                : "Uncategorised",
     categoryId: isTrackingAccount || hasSplitLines
       ? undefined
       : transferAccountId && !isCategorisedOffBudgetTransfer
@@ -240,8 +240,24 @@ export function mapYnab4Transaction(
       !isTrackingAccount &&
       !hasSplitLines &&
       !transferAccountId &&
-      sourceCategoryKind === "deferred-income"
-        ? nextBudgetMonth(date)
+      amount > 0 &&
+      sourceCategoryKind === "immediate-income"
+        ? date.slice(0, 7)
+        : !isTrackingAccount &&
+            !hasSplitLines &&
+            !transferAccountId &&
+            amount > 0 &&
+            sourceCategoryKind === "deferred-income"
+          ? nextBudgetMonth(date)
+          : undefined,
+    inflowClassification:
+      !isTrackingAccount &&
+      !hasSplitLines &&
+      !transferAccountId &&
+      amount > 0 &&
+      (sourceCategoryKind === "immediate-income" ||
+        sourceCategoryKind === "deferred-income")
+        ? "income"
         : undefined,
     memo:
       firstString(transaction.memo, transaction.note, transaction.notes) ??
@@ -306,7 +322,7 @@ export function mapYnab4SplitLines(
       : sourceCategoryKind === "immediate-income" ||
           sourceCategoryKind === "deferred-income" ||
           sourceCategoryKind === "split"
-        ? READY_TO_ASSIGN_CATEGORY_ID
+        ? null
         : resolveYnab4CategoryId(
             maps,
             line,
@@ -320,10 +336,13 @@ export function mapYnab4SplitLines(
           : "Uncategorised"
         : transferAccountId
           ? "Transfer"
-          : categoryId
-            ? maps.categoryNameById.get(categoryId) ??
-              READY_TO_ASSIGN_CATEGORY_NAME
-            : "Uncategorised",
+          : sourceCategoryKind === "immediate-income" && transactionDate
+            ? incomeCategoryLabel(transactionDate.slice(0, 7))
+            : sourceCategoryKind === "deferred-income" && transactionDate
+              ? incomeCategoryLabel(nextBudgetMonth(transactionDate))
+              : categoryId
+                ? maps.categoryNameById.get(categoryId) ?? "Uncategorised"
+                : "Uncategorised",
       categoryId:
         suppressBudgetCategories || transferAccountId
           ? undefined
@@ -331,9 +350,24 @@ export function mapYnab4SplitLines(
       incomeBudgetMonth:
         !suppressBudgetCategories &&
         !transferAccountId &&
-        sourceCategoryKind === "deferred-income" &&
+        amount > 0 &&
+        sourceCategoryKind === "immediate-income" &&
         transactionDate
-          ? nextBudgetMonth(transactionDate)
+          ? transactionDate.slice(0, 7)
+          : !suppressBudgetCategories &&
+              !transferAccountId &&
+              amount > 0 &&
+              sourceCategoryKind === "deferred-income" &&
+              transactionDate
+            ? nextBudgetMonth(transactionDate)
+            : undefined,
+      inflowClassification:
+        !suppressBudgetCategories &&
+        !transferAccountId &&
+        amount > 0 &&
+        (sourceCategoryKind === "immediate-income" ||
+          sourceCategoryKind === "deferred-income")
+          ? "income"
           : undefined,
       memo: firstString(line.memo, line.note, line.notes) ?? undefined,
       inflow: amount > 0 ? amount : 0,
@@ -450,6 +484,15 @@ function nextBudgetMonth(date: string): string {
   const [year, month] = date.slice(0, 7).split("-").map(Number);
   const next = new Date(Date.UTC(year!, month!, 1));
   return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function incomeCategoryLabel(month: string): string {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return `Income for ${new Intl.DateTimeFormat("en-AU", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, monthNumber - 1, 1)))}`;
 }
 
 function requireMappedYnab4Account(
