@@ -1,5 +1,4 @@
 export * from "./importYnab4.js";
-export * from "./Ynab4DatabaseImportService.js";
 export * from "./analyzeYnab4Package.js";
 export * from "./package/discoverPackage.js";
 export * from "./package/readBudget.js";
