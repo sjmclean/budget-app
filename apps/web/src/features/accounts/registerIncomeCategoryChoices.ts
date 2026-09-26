@@ -48,3 +48,11 @@ export function registerIncomeCategoryValue(
     )?.value ?? null
   );
 }
+
+export function isRegisterIncomeCategoryValue(value: string): boolean {
+  const normalised = value.trim().toLocaleLowerCase();
+  return (
+    normalised.startsWith(INCOME_CATEGORY_PREFIX) ||
+    normalised.startsWith("income for ")
+  );
+}
