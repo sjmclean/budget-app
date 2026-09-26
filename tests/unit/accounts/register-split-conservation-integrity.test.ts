@@ -121,6 +121,20 @@ test("category attention is sign-symmetric and excludes zero-value and off-budge
   );
 });
 
+test("canonical general income does not receive uncategorised attention", () => {
+  assert.equal(
+    isUncategorisedRegisterTransaction(row({
+      outflow: 0,
+      inflow: 100,
+      category: "Income for September 2026",
+      categoryId: undefined,
+      incomeBudgetMonth: "2026-09",
+      inflowClassification: "income",
+    })),
+    false,
+  );
+});
+
 test("transfer attention follows the budget boundary and never display text", () => {
   assert.equal(isUncategorisedRegisterTransaction(row({
     payee: "Transfer: Savings",
