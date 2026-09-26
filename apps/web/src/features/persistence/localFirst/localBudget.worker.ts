@@ -2571,10 +2571,6 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
               split.inflowClassification === "income" &&
               split.categoryId === null &&
               split.incomeBudgetMonth === firstMonth
-            ) ||
-            (
-              split.categoryId === "__ready_to_assign__" &&
-              (split.incomeBudgetMonth ?? transaction.date.slice(0, 7)) === firstMonth
             )
           ) &&
           !split.transferAccountId
@@ -2590,10 +2586,6 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
           transaction.inflowClassification === "income" &&
           transaction.categoryId === null &&
           transaction.incomeBudgetMonth === firstMonth
-        ) ||
-        (
-          transaction.categoryId === "__ready_to_assign__" &&
-          (transaction.incomeBudgetMonth ?? transaction.date.slice(0, 7)) === firstMonth
         )
       )
         ? transaction.amount
@@ -2633,7 +2625,6 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     fromMonth: firstMonth,
     throughMonth: targetMonth,
     targetMonth,
-    readyToAssignCategoryId: "__ready_to_assign__",
     openingReadyToAssign,
     openingPreviousOverspending: snapshotPreviousOverspending,
     openingAvailableByCategoryId,
