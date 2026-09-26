@@ -121,41 +121,6 @@
   ],
   "findings": [
     {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 402
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 405
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 491
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 496
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 508
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 519
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 531
-    },
-    {
       "kind": "localStorage",
       "path": "apps/web/src/app/errors/appErrorDiagnostics.ts",
       "line": 25,
@@ -2452,6 +2417,41 @@
       "path": "apps/web/src/stores/uiStore.ts",
       "line": 83,
       "classification": "ui-preference"
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 402
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 405
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 491
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 496
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 508
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 519
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 531
     }
   ]
 }
