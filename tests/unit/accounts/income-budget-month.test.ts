@@ -85,7 +85,7 @@ test("parent income rejects a stale or arbitrary synthetic month after the date 
   );
 });
 
-test("legacy split Ready to Assign income canonicalises to explicit current-month income", () => {
+test("native Register rejects legacy split Ready to Assign income", () => {
   const splitBase = {
     ...baseDraft(),
     category: "Split",
@@ -100,34 +100,7 @@ test("legacy split Ready to Assign income canonicalises to explicit current-mont
     }],
   };
 
-  const current = buildNewRegisterTransactionInput(splitBase);
-  assert.equal(current?.splitLines?.[0]?.category, "Income for September 2026");
-  assert.equal(current?.splitLines?.[0]?.categoryId, undefined);
-  assert.equal(current?.splitLines?.[0]?.incomeBudgetMonth, "2026-09");
-  assert.equal(current?.splitLines?.[0]?.inflowClassification, "income");
-
-  assert.equal(
-    buildNewRegisterTransactionInput({
-      ...splitBase,
-      splitLines: [{
-        ...splitBase.splitLines[0],
-        incomeBudgetMonth: "2026-12",
-      }],
-    }),
-    null,
-  );
-
-  assert.equal(
-    buildNewRegisterTransactionInput({
-      ...splitBase,
-      date: "2026-10-02",
-      splitLines: [{
-        ...splitBase.splitLines[0],
-        incomeBudgetMonth: "2026-09",
-      }],
-    }),
-    null,
-  );
+  assert.equal(buildNewRegisterTransactionInput(splitBase), null);
 });
 
 test("non-income split lines cannot retain a stale income budget month", () => {
