@@ -3,6 +3,7 @@ import { resolveActiveBudget } from "../../../features/budget/activeBudget";
 import { getCurrentBudgetMonth } from "../../../features/budget/budgetMonthNavigation";
 import {
   useBudgetMonthQuery,
+  useFinancialOverviewQuery,
   useMonthlyCategoryTransactionsQuery,
   useMonthlySpendingQuery,
 } from "../../../features/persistence/reactiveQueries";
@@ -28,6 +29,10 @@ export function useReportsViewModel() {
     Boolean(activeBudget),
   );
   const spendingQuery = useMonthlySpendingQuery(
+    { budgetId, month },
+    Boolean(activeBudget),
+  );
+  const financialOverviewQuery = useFinancialOverviewQuery(
     { budgetId, month },
     Boolean(activeBudget),
   );
@@ -86,11 +91,13 @@ export function useReportsViewModel() {
     data === undefined && (status === "idle" || status === "loading");
   const isLoading = Boolean(activeBudget) && (
     isInitial(budgetQuery.status, budgetQuery.data) ||
-    isInitial(spendingQuery.status, spendingQuery.data)
+    isInitial(spendingQuery.status, spendingQuery.data) ||
+    isInitial(financialOverviewQuery.status, financialOverviewQuery.data)
   );
   const error =
     (budgetQuery.data === undefined ? budgetQuery.error : null) ??
     (spendingQuery.data === undefined ? spendingQuery.error : null) ??
+    (financialOverviewQuery.data === undefined ? financialOverviewQuery.error : null) ??
     (selectedTransactionsQuery.data === undefined
       ? selectedTransactionsQuery.error
       : null);
@@ -108,6 +115,7 @@ export function useReportsViewModel() {
     totalSpending,
     budgetVsActualRows,
     budgetVsActualTotals,
+    financialOverview: financialOverviewQuery.data ?? null,
     isLoading,
     error,
     formatMoney: (amount: number) => formatCurrency(amount, currencyCode),
