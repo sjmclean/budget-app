@@ -83,7 +83,6 @@ export function TransactionEntryRow({
   visibleColumnIds,
   rowStyle,
   layoutMode,
-  latestIncomeBudgetMonth,
   onCreateCategory,
   onCreatePayee,
 }: {
@@ -97,7 +96,6 @@ export function TransactionEntryRow({
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
-  latestIncomeBudgetMonth: string;
   onSave: (
     input: NewRegisterTransactionInput,
     accountId: string,
@@ -180,8 +178,7 @@ export function TransactionEntryRow({
       payeeId,
       transferAccountId,
       category,
-      latestIncomeBudgetMonth,
-      memo,
+          memo,
       checkNumber,
       outflow,
       inflow,
@@ -1068,7 +1065,6 @@ export function TransactionEntryRow({
         visibleColumnIds={visibleColumnIds}
         rowStyle={rowStyle}
         transactionDate={date}
-        latestIncomeBudgetMonth={latestIncomeBudgetMonth}
         layoutMode={layoutMode}
         onCreateCategory={onCreateCategory}
       >
@@ -1130,7 +1126,6 @@ export function TransactionEditRow({
   visibleColumnIds,
   rowStyle,
   layoutMode,
-  latestIncomeBudgetMonth,
   editIntent,
   onCreatePayee,
 }: {
@@ -1160,7 +1155,6 @@ export function TransactionEditRow({
   visibleColumnIds: readonly RegisterColumnId[];
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
-  latestIncomeBudgetMonth: string;
   editIntent: TransactionEditIntent;
   onCreatePayee?: (name: string) => Promise<PayeeView>;
 }) {
@@ -1311,8 +1305,7 @@ export function TransactionEditRow({
       payeeId,
       transferAccountId,
       category,
-      latestIncomeBudgetMonth,
-      memo,
+          memo,
       checkNumber,
       outflow,
       inflow,
@@ -1472,8 +1465,7 @@ export function TransactionEditRow({
           visibleColumnIds={visibleColumnIds}
           rowStyle={rowStyle}
           transactionDate={date}
-          latestIncomeBudgetMonth={latestIncomeBudgetMonth}
-          layoutMode={layoutMode}
+            layoutMode={layoutMode}
         >
           {saveError ? (
             <p className="register-category-create-error" role="alert">
