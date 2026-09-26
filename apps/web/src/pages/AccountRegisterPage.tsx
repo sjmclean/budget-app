@@ -91,6 +91,7 @@ import {
 import { getBudgetPersistenceProvider } from "../features/persistence";
 import { getActiveKeyValueStorage } from "../features/persistence/activeKeyValueStorage";
 import { resolveActiveBudgetId } from "../features/budget/activeBudget";
+import { useCurrentBudgetMonth } from "../features/budget/useCurrentBudgetMonth";
 import { useApplicationHistory } from "../features/history";
 import { setTransactionTagsCommand } from "../features/history/commands/management/tagCommands";
 import type {
@@ -392,6 +393,7 @@ export function AccountRegisterPage() {
   const budgets = useBudgetRegistryStore((state) => state.budgets);
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
   const payeeHistory = usePayeeHistory(activeBudgetId);
+  const currentBudgetMonth = useCurrentBudgetMonth();
   const { canUndo, canRedo, undoLabel, redoLabel, undoDepth, redoDepth, isBusy: isHistoryBusy, execute: executeHistory, undo, redo } = useApplicationHistory();
   const undoTitle = canUndo && undoLabel ? `Undo ${undoLabel}` : "Nothing to undo";
   const redoTitle = canRedo && redoLabel ? `Redo ${redoLabel}` : "Nothing to redo";
