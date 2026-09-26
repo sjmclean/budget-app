@@ -1,6 +1,6 @@
 import { BudgetMonth } from "../../../types/src/BudgetMonth.js";
 import { CategoryMonth } from "../../../types/src/CategoryMonth.js";
-import { calculateReadyToBudget } from "../calculations/calculateReadyToBudget.js";
+import { calculateReadyToAssign } from "../calculations/calculateReadyToAssign.js";
 
 export function leaveOverspent(
   nextBudgetMonth: BudgetMonth,
@@ -16,7 +16,7 @@ export function leaveOverspent(
   return {
     ...nextBudgetMonth,
     income: updatedIncome,
-    readyToBudget: calculateReadyToBudget(updatedIncome, nextBudgetMonth.assigned),
+    readyToAssign: calculateReadyToAssign(updatedIncome, nextBudgetMonth.assigned),
     updatedAt: new Date()
   };
 }
