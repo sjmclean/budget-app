@@ -9,8 +9,6 @@ import { firstYnabDisplayAmount } from "../../../../../../packages/ynab4-importe
 
 import { isYnab4Tombstone } from "./ynab4RecordState";
 
-const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
-
 type RecordMap = Record<string, unknown>;
 
 export interface Ynab4BudgetMonthIdentity {
@@ -136,7 +134,7 @@ export function mapYnab4BudgetMonths(
       firstYnabDisplayAmount(
         monthlyBudget.incomeForMonth,
         monthlyBudget.income,
-      ) ?? buildYnab4ReadyToAssignIncomeForMonth(input.registers, month);
+      ) ?? buildYnab4IncomeForMonth(input.registers, month);
     const readyToAssign =
       firstYnabDisplayAmount(
         monthlyBudget.availableToBudget,
@@ -180,11 +178,18 @@ function buildYnab4ReadyToAssignIncomeForMonth(
       if (transaction.date.slice(0, 7) !== month || transaction.transferAccountId) continue;
       if (transaction.splitLines?.length) {
         for (const split of transaction.splitLines) {
-          if (split.categoryId === READY_TO_ASSIGN_CATEGORY_ID && !split.transferAccountId) {
+          if (
+            split.inflowClassification === "income" &&
+            split.incomeBudgetMonth === month &&
+            !split.transferAccountId
+          ) {
             income += split.inflow - split.outflow;
           }
         }
-      } else if (transaction.categoryId === READY_TO_ASSIGN_CATEGORY_ID) {
+      } else if (
+        transaction.inflowClassification === "income" &&
+        transaction.incomeBudgetMonth === month
+      ) {
         income += transaction.inflow - transaction.outflow;
       }
     }
@@ -312,7 +317,7 @@ function addBudgetActivity(
   categoryId: string | undefined,
   amount: number,
 ): void {
-  if (!categoryId || categoryId === READY_TO_ASSIGN_CATEGORY_ID) return;
+  if (!categoryId) return;
 
   const byCategory =
     activityByMonthCategory.get(month) ?? new Map<string, number>();
