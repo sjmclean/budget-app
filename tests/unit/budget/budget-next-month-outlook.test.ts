@@ -110,4 +110,8 @@ test("Budget detail copy is scoped to the selected budget month", () => {
   assert.match(budgetPageSource, /No activity in \{selectedMonthLabel\}/);
   assert.match(budgetPageSource, /No effective money movements in \{selectedMonthLabel\}/);
   assert.match(budgetPageSource, /Budget breakdown unavailable for \{data\.monthLabel\}/);
+  assert.match(
+    budgetPageSource,
+    /drilldown\s*\?\s*\`No register activity was found for this category in \$\{drilldown\.monthLabel\}\.\`/,
+  );
 });
