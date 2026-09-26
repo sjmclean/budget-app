@@ -20,7 +20,10 @@ import {
 } from "../registerSplitDrafts";
 import { findCategoryOption } from "../registerCategoryMatching";
 import { MoneyInput } from "../../money/MoneyInput";
-import { IncomeBudgetMonthSelect } from "./IncomeBudgetMonthSelect";
+import {
+  registerIncomeCategoryChoices,
+  resolveRegisterIncomeCategoryChoice,
+} from "../registerIncomeCategoryChoices";
 
 function formatMoney(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-AU", {
@@ -89,38 +92,80 @@ export function RegisterSplitEditor({
           ? "outflow"
           : "inflow";
 
-  function isReadyToAssignIncome(line: SplitLineDraft): boolean {
-    const categoryId =
-      line.categoryId ?? findCategoryOption(line.category, categoryOptions)?.id;
-    return (
-      categoryId === "__ready_to_assign__" &&
-      parseRegisterMoney(line.inflow) > 0 &&
-      parseRegisterMoney(line.outflow) === 0
+  function splitIncomeCategoryOptions() {
+    return transactionDate
+      ? registerIncomeCategoryChoices(transactionDate)
+      : [];
+  }
+
+  function updateSplitCategory(lineId: string, value: string) {
+    setSplitLines((current) =>
+      current.map((item) => {
+        if (item.id !== lineId) return item;
+
+        const incomeChoice = transactionDate
+          ? resolveRegisterIncomeCategoryChoice(value, transactionDate)
+          : null;
+        if (incomeChoice) {
+          return {
+            ...item,
+            category: incomeChoice.value,
+            categoryId: undefined,
+            incomeBudgetMonth: incomeChoice.incomeBudgetMonth,
+            inflowClassification: "income",
+            countCategoryInflowAsIncome: false,
+          };
+        }
+
+        const categoryOption = findCategoryOption(value, categoryOptions);
+        return {
+          ...item,
+          category: value,
+          categoryId:
+            categoryOption?.id === "__ready_to_assign__"
+              ? undefined
+              : categoryOption?.id,
+          incomeBudgetMonth: undefined,
+          inflowClassification: undefined,
+          countCategoryInflowAsIncome: false,
+        };
+      }),
     );
   }
 
-  function renderIncomeBudgetMonth(line: SplitLineDraft) {
-    if (
-      !isReadyToAssignIncome(line) ||
-      !transactionDate ||
-      !latestIncomeBudgetMonth
-    ) return null;
+  function isOrdinaryPositiveCategoryInflow(line: SplitLineDraft): boolean {
+    const categoryOption = findCategoryOption(line.category, categoryOptions);
     return (
-      <IncomeBudgetMonthSelect
-        transactionDate={transactionDate}
-        latestAllowedMonth={latestIncomeBudgetMonth}
-        value={line.incomeBudgetMonth ?? transactionDate.slice(0, 7)}
-        onChange={(value) =>
-          setSplitLines((current) =>
-            current.map((item) =>
-              item.id === line.id
-                ? { ...item, incomeBudgetMonth: value }
-                : item,
-            ),
-          )
-        }
-        className="register-split-income-budget-month"
-      />
+      parseRegisterMoney(line.inflow) > 0 &&
+      parseRegisterMoney(line.outflow) === 0 &&
+      !line.transferAccountId &&
+      Boolean(categoryOption) &&
+      categoryOption?.id !== "__ready_to_assign__"
+    );
+  }
+
+  function renderCountAsIncomeToggle(line: SplitLineDraft) {
+    if (!isOrdinaryPositiveCategoryInflow(line)) return null;
+    return (
+      <label className="register-inflow-income-toggle register-split-income-toggle">
+        <input
+          type="checkbox"
+          checked={Boolean(line.countCategoryInflowAsIncome)}
+          onChange={(event) =>
+            setSplitLines((current) =>
+              current.map((item) =>
+                item.id === line.id
+                  ? {
+                      ...item,
+                      countCategoryInflowAsIncome: event.target.checked,
+                    }
+                  : item,
+              ),
+            )
+          }
+        />
+        Count this inflow as income
+      </label>
     );
   }
 
@@ -189,25 +234,9 @@ export function RegisterSplitEditor({
         line,
         <RegisterCategoryInput
           value={line.category}
-          onChange={(value) =>
-            setSplitLines((current) =>
-              current.map((item) =>
-                item.id === line.id
-                  ? {
-                      ...item,
-                      category: value,
-                      categoryId: findCategoryOption(value, categoryOptions)
-                        ?.id,
-                      incomeBudgetMonth:
-                        findCategoryOption(value, categoryOptions)?.id === "__ready_to_assign__"
-                          ? item.incomeBudgetMonth ?? transactionDate?.slice(0, 7)
-                          : undefined,
-                    }
-                  : item,
-              ),
-            )
-          }
+          onChange={(value) => updateSplitCategory(line.id, value)}
           categoryOptions={categoryOptions}
+          specialOptions={splitIncomeCategoryOptions()}
           includeSplitOption={false}
           onCreateCategory={onCreateCategory}
         />,
@@ -252,6 +281,12 @@ export function RegisterSplitEditor({
                       outflow: value === 0 ? "" : value.toFixed(2),
                       inflow: value > 0 ? "" : item.inflow,
                       incomeBudgetMonth: value > 0 ? undefined : item.incomeBudgetMonth,
+                      inflowClassification: value > 0
+                        ? undefined
+                        : item.inflowClassification,
+                      countCategoryInflowAsIncome: value > 0
+                        ? false
+                        : item.countCategoryInflowAsIncome,
                     }
                   : item,
               ),
@@ -283,8 +318,12 @@ export function RegisterSplitEditor({
                       outflow: value > 0 ? "" : item.outflow,
                       incomeBudgetMonth:
                         value > 0 &&
-                        (item.categoryId ?? findCategoryOption(item.category, categoryOptions)?.id) === "__ready_to_assign__"
-                          ? item.incomeBudgetMonth ?? transactionDate?.slice(0, 7)
+                        transactionDate &&
+                        resolveRegisterIncomeCategoryChoice(
+                          item.category,
+                          transactionDate,
+                        )
+                          ? item.incomeBudgetMonth
                           : undefined,
                     }
                   : item,
@@ -448,27 +487,9 @@ export function RegisterSplitEditor({
             <div className="register-split-compact-main">
               <RegisterCategoryInput
                 value={line.category}
-                onChange={(value) =>
-                  setSplitLines((current) =>
-                    current.map((item) =>
-                      item.id === line.id
-                        ? {
-                            ...item,
-                            category: value,
-                            categoryId: findCategoryOption(
-                              value,
-                              categoryOptions,
-                            )?.id,
-                            incomeBudgetMonth:
-                              findCategoryOption(value, categoryOptions)?.id === "__ready_to_assign__"
-                                ? item.incomeBudgetMonth ?? transactionDate?.slice(0, 7)
-                                : undefined,
-                          }
-                        : item,
-                    ),
-                  )
-                }
+                onChange={(value) => updateSplitCategory(line.id, value)}
                 categoryOptions={categoryOptions}
+                specialOptions={splitIncomeCategoryOptions()}
                 includeSplitOption={false}
               />
 
@@ -539,7 +560,7 @@ export function RegisterSplitEditor({
                 onMoneyKeyDown={(event) => addSplitOnTab(event, line)}
               />
             </div>
-            {renderIncomeBudgetMonth(line)}
+            {renderCountAsIncomeToggle(line)}
           </div>
         ))}
 
@@ -642,25 +663,9 @@ export function RegisterSplitEditor({
           <div className="register-split-allocation-category">
             <RegisterCategoryInput
               value={line.category}
-              onChange={(value) =>
-                setSplitLines((current) =>
-                  current.map((item) =>
-                    item.id === line.id
-                      ? {
-                          ...item,
-                          category: value,
-                          categoryId: findCategoryOption(value, categoryOptions)
-                            ?.id,
-                          incomeBudgetMonth:
-                            findCategoryOption(value, categoryOptions)?.id === "__ready_to_assign__"
-                              ? item.incomeBudgetMonth ?? transactionDate?.slice(0, 7)
-                              : undefined,
-                        }
-                      : item,
-                  ),
-                )
-              }
+              onChange={(value) => updateSplitCategory(line.id, value)}
               categoryOptions={categoryOptions}
+              specialOptions={splitIncomeCategoryOptions()}
               includeSplitOption={false}
             />
           </div>
@@ -730,7 +735,7 @@ export function RegisterSplitEditor({
             placeholder="Inflow"
             onMoneyKeyDown={(event) => addSplitOnTab(event, line)}
           />
-          {renderIncomeBudgetMonth(line)}
+          {renderCountAsIncomeToggle(line)}
         </div>
       ))}
 
