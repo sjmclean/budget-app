@@ -4,9 +4,11 @@ import { test } from "node:test";
 import {
   generateDueScheduledTransactions,
 } from "../../../apps/web/src/features/accounts/scheduledTransactionGenerationService.ts";
+import { scheduledTransactionToRegisterInput } from "../../../apps/web/src/features/accounts/scheduledTransactionToRegisterInput.ts";
 import type {
   RegisterTransactionView,
 } from "../../../apps/web/src/features/accounts/accountRegisterTypes.ts";
+import { buildScheduledTransaction } from "../../../apps/web/src/features/accounts/scheduledTransactionLifecycle.ts";
 import type {
   BudgetPersistenceProvider,
 } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.ts";
@@ -248,4 +250,64 @@ test("a heuristic duplicate is not repaired as a generated occurrence", async ()
 
   const remaining = await scheduledTransactions.listByAccount("checking");
   assert.equal(remaining[0]?.nextDueDate, "2026-08-20");
+});
+
+
+test("scheduled general income resolves transaction-month intent at materialisation time", () => {
+  const transaction = scheduledTransactionToRegisterInput({
+    id: "income-current",
+    accountId: "checking",
+    nextDueDate: "2026-12-20",
+    frequency: "monthly",
+    payee: "Employer",
+    category: "Income for transaction month",
+    inflowClassification: "income",
+    incomeBudgetMonthOffset: 0,
+    outflow: 0,
+    inflow: 100,
+    createdAt: "created",
+    updatedAt: "updated",
+  });
+
+  assert.equal(transaction.categoryId, undefined);
+  assert.equal(transaction.incomeBudgetMonth, "2026-12");
+  assert.equal(transaction.inflowClassification, "income");
+});
+
+test("scheduled general income resolves following-month intent across year boundary", () => {
+  const transaction = scheduledTransactionToRegisterInput({
+    id: "income-following",
+    accountId: "checking",
+    nextDueDate: "2026-12-20",
+    frequency: "monthly",
+    payee: "Employer",
+    category: "Income for following month",
+    inflowClassification: "income",
+    incomeBudgetMonthOffset: 1,
+    outflow: 0,
+    inflow: 100,
+    createdAt: "created",
+    updatedAt: "updated",
+  });
+
+  assert.equal(transaction.categoryId, undefined);
+  assert.equal(transaction.incomeBudgetMonth, "2027-01");
+  assert.equal(transaction.inflowClassification, "income");
+});
+
+test("blank positive scheduled inflow is uncategorised unless explicit income intent exists", () => {
+  const scheduled = buildScheduledTransaction({
+    accountId: "checking",
+    nextDueDate: "2026-10-01",
+    frequency: "monthly",
+    payee: "Deposit",
+    category: "",
+    outflow: 0,
+    inflow: 50,
+  }, { id: "uncategorised", now: "created" });
+
+  assert.equal(scheduled.category, "Uncategorised");
+  assert.equal(scheduled.categoryId, undefined);
+  assert.equal(scheduled.incomeBudgetMonthOffset, undefined);
+  assert.equal(scheduled.inflowClassification, undefined);
 });
