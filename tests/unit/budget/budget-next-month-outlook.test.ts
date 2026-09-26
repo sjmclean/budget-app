@@ -102,3 +102,12 @@ test("Budget status copy follows the selected month instead of assuming the pres
   assert.doesNotMatch(budgetPageSource, /: "this month"\}/);
   assert.match(budgetPageSource, /: monthLabel\}/);
 });
+
+
+test("Budget detail copy is scoped to the selected budget month", () => {
+  assert.match(budgetPageSource, /const selectedMonthLabel = formatBudgetMonthLabel\(month\)/);
+  assert.match(budgetPageSource, /Activity in \{selectedMonthLabel\}/);
+  assert.match(budgetPageSource, /No activity in \{selectedMonthLabel\}/);
+  assert.match(budgetPageSource, /No effective money movements in \{selectedMonthLabel\}/);
+  assert.match(budgetPageSource, /Budget breakdown unavailable for \{data\.monthLabel\}/);
+});
