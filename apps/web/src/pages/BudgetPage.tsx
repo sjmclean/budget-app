@@ -32,7 +32,6 @@ import { useBudgetView } from "../features/budget/useBudgetView";
 import { useApplicationHistory } from "../features/history";
 import {
   prefetchBudgetMonthQuery,
-  useBudgetPlanningSummaryQuery,
   useCategoryActivityDrilldownQuery,
 } from "../features/persistence/reactiveQueries";
 import { readAuthoritativeBudgetSummary } from "../features/budget/authoritativeBudgetSummary";
@@ -277,7 +276,6 @@ function BudgetHealthCard({
   nextMonthLabel,
   nextMonthStatus,
   nextMonthAmount,
-  futureOvercommitment,
 }: {
   monthLabel: string;
   currencyCode: string;
@@ -286,15 +284,13 @@ function BudgetHealthCard({
   nextMonthLabel: string;
   nextMonthStatus: "overbudget" | "balanced" | "available" | "loading" | "unavailable";
   nextMonthAmount: number;
-  futureOvercommitment: number;
 }) {
   return (
     <section
       className={[
         "budget-health-card",
         overspentCategoryCount > 0 ||
-        nextMonthStatus === "overbudget" ||
-        futureOvercommitment > 0
+        nextMonthStatus === "overbudget"
           ? "budget-health-card-warning"
           : "budget-health-card-clear",
       ].join(" ")}
@@ -312,16 +308,14 @@ function BudgetHealthCard({
         <span
           className={
             overspentCategoryCount > 0 ||
-            nextMonthStatus === "overbudget" ||
-            futureOvercommitment > 0
+            nextMonthStatus === "overbudget"
               ? "budget-health-overview-icon budget-health-overview-icon-warning"
               : "budget-health-overview-icon"
           }
           aria-hidden="true"
         >
           {overspentCategoryCount > 0 ||
-          nextMonthStatus === "overbudget" ||
-          futureOvercommitment > 0 ? (
+          nextMonthStatus === "overbudget" ? (
             <Activity size={22} />
           ) : (
             <CircleCheck size={22} />
@@ -333,27 +327,21 @@ function BudgetHealthCard({
               ? `${overspentCategoryCount} categories overspent`
               : nextMonthStatus === "overbudget"
                 ? `${nextMonthLabel} needs attention`
-                : futureOvercommitment > 0
-                  ? "Future funding needs attention"
-                  : "No budget warnings"}
+                : "No budget warnings"}
           </span>
           <strong>
             {overspentCategoryCount > 0
               ? formatMoney(overspentAmount, currencyCode)
               : nextMonthStatus === "overbudget"
                 ? formatMoney(nextMonthAmount, currencyCode)
-                : futureOvercommitment > 0
-                  ? formatMoney(futureOvercommitment, currencyCode)
-                  : "On track"}
+                : "On track"}
           </strong>
           <small>
             {overspentCategoryCount > 0
               ? "overspent"
               : nextMonthStatus === "overbudget"
                 ? "overbudget next month"
-                : futureOvercommitment > 0
-                  ? "overcommitted"
-                  : "this month"}
+                : "this month"}
           </small>
         </div>
       </div>
@@ -383,14 +371,6 @@ function BudgetHealthCard({
           </strong>
         </div>
 
-        <div className={futureOvercommitment > 0 ? "budget-health-row budget-health-row-warning" : "budget-health-row"}>
-          <span>Future funding</span>
-          <strong>
-            {futureOvercommitment > 0
-              ? `${formatMoney(futureOvercommitment, currencyCode)} overcommitted`
-              : "No overcommitment"}
-          </strong>
-        </div>
       </div>
     </section>
   );
@@ -938,8 +918,7 @@ function BudgetMultiMonthPane({
   isCurrentMonth?: boolean;
 }) {
   const summary = readAuthoritativeBudgetSummary(data);
-  const planningReadyToAssign =
-    data.planningReadyToAssign ?? data.readyToAssign;
+  const planningReadyToAssign = data.readyToAssign;
   const monthName = data.monthLabel.split(" ")[0] ?? data.monthLabel;
   const activeGroups = getActiveCategoryGroups(data.categoryGroups);
   const archivedGroup = buildArchivedCategoriesGroup(data.categoryGroups);
@@ -1169,8 +1148,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   const [isOrganiserOpen, setIsOrganiserOpen] = useState(false);
   const [moveMoneyDestinationCategoryId, setMoveMoneyDestinationCategoryId] =
     useState<string | null>(null);
-  const [futureCommitmentsExpanded, setFutureCommitmentsExpanded] =
-    useState(false);
   const [preferredVisibleMonths, setPreferredVisibleMonths] = useState(() =>
     readPreferredVisibleBudgetMonths(budgetId),
   );
@@ -1206,10 +1183,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     clearSelection,
   } = useBudgetWorkspace(budgetId, selectedMonth);
 
-  const planningSummaryQuery = useBudgetPlanningSummaryQuery({
-    budgetId,
-    month: selectedMonth,
-  });
   const nextMonth = getNextBudgetMonth(selectedMonth);
   const nextMonthBudget = useBudgetView(budgetId, nextMonth);
   const nextMonthOutlook = nextMonthBudget.data
@@ -1466,12 +1439,7 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
     overassignedCategoryIds,
   });
 
-  const planningSummary = planningSummaryQuery.data ?? data;
-  const displayedReadyToAssign =
-    planningSummary.planningReadyToAssign ?? data.readyToAssign;
-  const futureAssigned = planningSummary.futureAssigned ?? 0;
-  const futureOvercommitment = planningSummary.futureOvercommitment ?? 0;
-  const futureCommitments = planningSummary.futureCommitments ?? [];
+  const displayedReadyToAssign = data.readyToAssign;
   const isBudgetOverassigned = isMoneyNegative(displayedReadyToAssign);
 
   const coverOptions = buildOverspendingCoverOptions(data.categoryGroups);
@@ -1814,12 +1782,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                       <dt>Assigned in {monthName}</dt>
                       <dd>{formatMoney(-data.totalAssigned, data.currencyCode)}</dd>
                     </div>
-                    {futureAssigned > 0 ? (
-                      <div>
-                        <dt>Assigned in future months</dt>
-                        <dd>{formatMoney(-futureAssigned, data.currencyCode)}</dd>
-                      </div>
-                    ) : null}
                   </dl>
                 </div>
 
@@ -1831,72 +1793,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   onOpen={() => setSelectedMonth(nextMonth)}
                 />
 
-                {futureOvercommitment > 0 ? (
-                  <section
-                    className="budget-future-commitment-warning"
-                    aria-label="Future assignments warning"
-                  >
-                    <div className="budget-future-commitment-warning-main">
-                      <span className="budget-future-commitment-warning-icon" aria-hidden="true">
-                        <CircleAlert size={20} />
-                      </span>
-                      <div>
-                        <strong>
-                          Future assignments exceed available funds by{" "}
-                          {formatMoney(futureOvercommitment, data.currencyCode)}
-                        </strong>
-                        <p>
-                          You have assigned more in future months than is currently
-                          available in {monthName}.
-                        </p>
-                      </div>
-                      <button
-                        className="budget-future-commitment-details-toggle"
-                        type="button"
-                        onClick={() => setFutureCommitmentsExpanded((current) => !current)}
-                        aria-expanded={futureCommitmentsExpanded}
-                      >
-                        {futureCommitmentsExpanded ? "Hide details" : "View details"}
-                      </button>
-                    </div>
-
-                    {futureCommitmentsExpanded ? (
-                      <div className="budget-future-commitment-details">
-                        <div className="budget-future-commitment-detail-row">
-                          <span>Available before future assignments</span>
-                          <strong>{formatMoney(Math.max(0, data.readyToAssign), data.currencyCode)}</strong>
-                        </div>
-                        {futureCommitments.flatMap((commitment) => {
-                          const rows = [
-                            <div
-                              className="budget-future-commitment-detail-row"
-                              key={`${commitment.month}-assigned`}
-                            >
-                              <span>Assigned in {formatBudgetMonthLabel(commitment.month)}</span>
-                              <strong>{formatMoney(commitment.assigned, data.currencyCode)}</strong>
-                            </div>,
-                          ];
-                          if ((commitment.income ?? 0) !== 0) {
-                            rows.push(
-                              <div
-                                className="budget-future-commitment-detail-row"
-                                key={`${commitment.month}-income`}
-                              >
-                                <span>Income in {formatBudgetMonthLabel(commitment.month)}</span>
-                                <strong>{formatMoney(commitment.income ?? 0, data.currencyCode)}</strong>
-                              </div>,
-                            );
-                          }
-                          return rows;
-                        })}
-                        <div className="budget-future-commitment-detail-row budget-future-commitment-detail-total">
-                          <span>Overcommitted</span>
-                          <strong>{formatMoney(futureOvercommitment, data.currencyCode)}</strong>
-                        </div>
-                      </div>
-                    ) : null}
-                  </section>
-                ) : null}
               </div>
 
               <nav className="budget-planning-tabs" aria-label="Budget workspace views">
@@ -2148,7 +2044,6 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   : (nextMonthOutlook?.status ?? "unavailable")
             }
             nextMonthAmount={nextMonthOutlook?.amount ?? 0}
-            futureOvercommitment={futureOvercommitment}
           />
           <div className="budget-inspector-category-slot">
             {visibleSelectedCategory && visibleSelectedGroup ? (
