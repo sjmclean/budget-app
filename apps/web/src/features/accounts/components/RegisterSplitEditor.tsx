@@ -12,6 +12,7 @@ import type { RegisterColumnId } from "./TransactionRow";
 import type { RegisterLayoutMode } from "../registerLayoutMode";
 import type { BudgetCategoryOption } from "../../budget/budgetViewTypes";
 import {
+  applySplitCategoryChoice,
   createSplitLineDraft,
   getSplitBalanceStatus,
   parseRegisterMoney,
@@ -98,37 +99,18 @@ export function RegisterSplitEditor({
   }
 
   function updateSplitCategory(lineId: string, value: string) {
+    if (!transactionDate) return;
     setSplitLines((current) =>
-      current.map((item) => {
-        if (item.id !== lineId) return item;
-
-        const incomeChoice = transactionDate
-          ? resolveRegisterIncomeCategoryChoice(value, transactionDate)
-          : null;
-        if (incomeChoice) {
-          return {
-            ...item,
-            category: incomeChoice.value,
-            categoryId: undefined,
-            incomeBudgetMonth: incomeChoice.incomeBudgetMonth,
-            inflowClassification: "income",
-            countCategoryInflowAsIncome: false,
-          };
-        }
-
-        const categoryOption = findCategoryOption(value, categoryOptions);
-        return {
-          ...item,
-          category: value,
-          categoryId:
-            categoryOption?.id === "__ready_to_assign__"
-              ? undefined
-              : categoryOption?.id,
-          incomeBudgetMonth: undefined,
-          inflowClassification: undefined,
-          countCategoryInflowAsIncome: false,
-        };
-      }),
+      current.map((item) =>
+        item.id === lineId
+          ? applySplitCategoryChoice(
+              item,
+              value,
+              categoryOptions,
+              transactionDate,
+            )
+          : item,
+      ),
     );
   }
 
