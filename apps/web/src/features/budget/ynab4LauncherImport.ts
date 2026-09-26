@@ -113,8 +113,6 @@ export {
   type Ynab4LauncherImportRecord,
 } from "./ynab4/finaliseYnab4Import";
 
-const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
-const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
 const YNAB4_SPLIT_CATEGORY_ID = "Category/__Split__";
 const YNAB4_IMMEDIATE_INCOME_CATEGORY_ID = "Category/__ImmediateIncome__";
 const YNAB4_DEFERRED_INCOME_CATEGORY_ID = "Category/__DeferredIncome__";
@@ -1929,17 +1927,19 @@ function mapPayees(payees: RecordMap[], maps: ImportMaps, nowIso: string): Payee
     maps.payeeKnowledgeAudit.defaults.sourcePayeesWithDefaultCategory += 1;
     const special = sourceCategoryId === YNAB4_IMMEDIATE_INCOME_CATEGORY_ID ||
       sourceCategoryId === YNAB4_DEFERRED_INCOME_CATEGORY_ID;
-    const categoryId = special
-      ? READY_TO_ASSIGN_CATEGORY_ID
-      : maps.categoryIdBySourceId.get(sourceCategoryId);
-    const categoryName = special
-      ? READY_TO_ASSIGN_CATEGORY_NAME
-      : categoryId ? maps.categoryNameById.get(categoryId) : undefined;
+    if (special) {
+      // Payee defaults currently reference real categories only. Preserve no
+      // pseudo-category: scheduled/transaction income intent is represented
+      // explicitly at the transaction level.
+      maps.payeeKnowledgeAudit.defaults.specialDefaultCategoryMappings += 1;
+      continue;
+    }
+    const categoryId = maps.categoryIdBySourceId.get(sourceCategoryId);
+    const categoryName = categoryId ? maps.categoryNameById.get(categoryId) : undefined;
     if (categoryId && categoryName) {
       entry.payee.defaultCategoryId = categoryId;
       entry.payee.defaultCategoryName = categoryName;
       maps.payeeKnowledgeAudit.defaults.importedPayeeDefaultCategories += 1;
-      if (special) maps.payeeKnowledgeAudit.defaults.specialDefaultCategoryMappings += 1;
     } else {
       maps.payeeKnowledgeAudit.defaults.unresolvedDefaultCategories += 1;
       addPayeeKnowledgeDiagnostic(maps, {
@@ -2091,11 +2091,11 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
         : null;
     const categoryId = isTrackingAccount
       ? null
-      : sourceCategoryKind === "income"
-        ? READY_TO_ASSIGN_CATEGORY_ID
-        : sourceCategoryKind === "split"
-          ? null
-          : mappedCategoryId;
+      : sourceCategoryKind === "split" ||
+          sourceCategoryKind === "immediate-income" ||
+          sourceCategoryKind === "deferred-income"
+        ? null
+        : mappedCategoryId;
     const isCategorisedOffBudgetTransfer = Boolean(
       transferAccountId && categoryId && transferAccountType === "tracking",
     );
@@ -2130,15 +2130,41 @@ function mapScheduledTransactions(transactions: RecordMap[], maps: ImportMaps, n
           ? "Split"
           : transferAccountId && !isCategorisedOffBudgetTransfer
             ? "Transfer"
-            : categoryId
-              ? maps.categoryNameById.get(categoryId) ??
-                READY_TO_ASSIGN_CATEGORY_NAME
-              : "Uncategorised",
+            : sourceCategoryKind === "immediate-income" && amount > 0
+              ? "Income for transaction month"
+              : sourceCategoryKind === "deferred-income" && amount > 0
+                ? "Income for following month"
+                : categoryId
+                  ? maps.categoryNameById.get(categoryId) ?? "Uncategorised"
+                  : "Uncategorised",
       categoryId: isTrackingAccount || (splitLines && splitLines.length > 0)
         ? undefined
         : transferAccountId && !isCategorisedOffBudgetTransfer
           ? undefined
           : categoryId ?? undefined,
+      incomeBudgetMonthOffset:
+        !isTrackingAccount &&
+        !transferAccountId &&
+        !(splitLines && splitLines.length > 0) &&
+        amount > 0 &&
+        sourceCategoryKind === "immediate-income"
+          ? 0
+          : !isTrackingAccount &&
+              !transferAccountId &&
+              !(splitLines && splitLines.length > 0) &&
+              amount > 0 &&
+              sourceCategoryKind === "deferred-income"
+            ? 1
+            : undefined,
+      inflowClassification:
+        !isTrackingAccount &&
+        !transferAccountId &&
+        !(splitLines && splitLines.length > 0) &&
+        amount > 0 &&
+        (sourceCategoryKind === "immediate-income" ||
+          sourceCategoryKind === "deferred-income")
+          ? "income"
+          : undefined,
       memo: firstString(transaction.memo, transaction.note, transaction.notes) ?? undefined,
       outflow: amount < 0 ? Math.abs(amount) : 0,
       inflow: amount > 0 ? amount : 0,
@@ -2153,7 +2179,7 @@ function mapScheduledSplitLines(
   lines: RecordMap[],
   maps: ImportMaps,
   suppressBudgetCategories = false,
-): RegisterTransactionView["splitLines"] {
+): ScheduledTransactionView["splitLines"] {
   const activeLines = lines.filter((line) => !isYnab4Tombstone(line));
   if (activeLines.length === 0) return undefined;
   return activeLines.map((line, index) => {
@@ -2177,8 +2203,10 @@ function mapScheduledSplitLines(
       firstString(line.entityId, line.id) ?? `scheduled-split-${index}`;
     const categoryId = suppressBudgetCategories || transferAccountId
       ? null
-      : sourceCategoryKind === "income" || sourceCategoryKind === "split"
-        ? READY_TO_ASSIGN_CATEGORY_ID
+      : sourceCategoryKind === "immediate-income" ||
+          sourceCategoryKind === "deferred-income" ||
+          sourceCategoryKind === "split"
+        ? null
         : resolveYnab4CategoryId(
             maps,
             line,
@@ -2192,14 +2220,37 @@ function mapScheduledSplitLines(
           : "Uncategorised"
         : transferAccountId
           ? "Transfer"
-          : categoryId
-            ? maps.categoryNameById.get(categoryId) ??
-              READY_TO_ASSIGN_CATEGORY_NAME
-            : "Uncategorised",
+          : sourceCategoryKind === "immediate-income" && amount > 0
+            ? "Income for transaction month"
+            : sourceCategoryKind === "deferred-income" && amount > 0
+              ? "Income for following month"
+              : categoryId
+                ? maps.categoryNameById.get(categoryId) ?? "Uncategorised"
+                : "Uncategorised",
       categoryId:
         suppressBudgetCategories || transferAccountId
           ? undefined
           : categoryId ?? undefined,
+      incomeBudgetMonthOffset:
+        !suppressBudgetCategories &&
+        !transferAccountId &&
+        amount > 0 &&
+        sourceCategoryKind === "immediate-income"
+          ? 0
+          : !suppressBudgetCategories &&
+              !transferAccountId &&
+              amount > 0 &&
+              sourceCategoryKind === "deferred-income"
+            ? 1
+            : undefined,
+      inflowClassification:
+        !suppressBudgetCategories &&
+        !transferAccountId &&
+        amount > 0 &&
+        (sourceCategoryKind === "immediate-income" ||
+          sourceCategoryKind === "deferred-income")
+          ? "income"
+          : undefined,
       memo: firstString(line.memo, line.note, line.notes) ?? undefined,
       inflow: amount > 0 ? amount : 0,
       outflow: amount < 0 ? Math.abs(amount) : 0,
@@ -2288,16 +2339,20 @@ function isTransferPayee(payee: RecordMap, name: string): boolean {
   return Boolean(firstString(payee.targetAccountId, payee.transferAccountId)) || name.toLowerCase().startsWith("transfer:");
 }
 
-type Ynab4CategoryKind = "split" | "income" | "ordinary";
+type Ynab4CategoryKind =
+  | "split"
+  | "immediate-income"
+  | "deferred-income"
+  | "ordinary";
 
 function ynab4CategoryKind(...values: unknown[]): Ynab4CategoryKind {
   const sourceCategoryId = firstString(...values);
   if (sourceCategoryId === YNAB4_SPLIT_CATEGORY_ID) return "split";
-  if (
-    sourceCategoryId === YNAB4_IMMEDIATE_INCOME_CATEGORY_ID ||
-    sourceCategoryId === YNAB4_DEFERRED_INCOME_CATEGORY_ID
-  ) {
-    return "income";
+  if (sourceCategoryId === YNAB4_IMMEDIATE_INCOME_CATEGORY_ID) {
+    return "immediate-income";
+  }
+  if (sourceCategoryId === YNAB4_DEFERRED_INCOME_CATEGORY_ID) {
+    return "deferred-income";
   }
   return "ordinary";
 }
