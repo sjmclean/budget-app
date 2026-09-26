@@ -118,7 +118,7 @@ export interface LocalBudgetRuntimeClient extends AccountRegisterQueryPort {
     readonly month: string;
   }): Promise<BudgetMonthView>;
 
-  getBudgetProjectionDiagnostic(input: {
+  getBudgetProjectionDiagnostic?(input: {
     readonly budgetId: string;
     readonly month: string;
   }): Promise<import("./localFirst/sqliteBudgetProjectionAdapter").LocalBudgetProjectionDiagnostic>;
