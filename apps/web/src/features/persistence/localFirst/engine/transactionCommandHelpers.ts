@@ -52,6 +52,13 @@ function normaliseInflowMetadata(input: {
   readonly existingIncomeBudgetMonth?: string | null;
   readonly existingClassification?: import("../../../accounts/incomeTransactionSemantics").InflowClassification | null;
 }) {
+  const isLegacyReadyToAssign =
+    input.categoryId === READY_TO_ASSIGN_CATEGORY_ID;
+  const requiresCanonicalValidation =
+    !isLegacyReadyToAssign &&
+    input.amount > 0 &&
+    !input.transferAccountId &&
+    input.categoryId !== null;
   const hasRequestedCanonicalMetadata =
     input.requestedClassification !== undefined ||
     (
@@ -62,7 +69,11 @@ function normaliseInflowMetadata(input: {
     input.existingClassification !== undefined &&
     input.existingClassification !== null;
 
-  if (hasRequestedCanonicalMetadata || hasExistingCanonicalMetadata) {
+  if (
+    requiresCanonicalValidation ||
+    hasRequestedCanonicalMetadata ||
+    hasExistingCanonicalMetadata
+  ) {
     const requestedIncomeBudgetMonth =
       input.requestedIncomeBudgetMonth !== undefined
         ? input.requestedIncomeBudgetMonth
