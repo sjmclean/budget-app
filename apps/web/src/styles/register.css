@@ -2702,6 +2702,24 @@ button.register-status:disabled {
   min-width: 0;
 }
 
+.register-split-category-inline {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.register-split-category-inline .register-combobox,
+.register-split-category-inline .category-input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.register-split-category-inline .register-split-income-toggle {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .register-split-allocation-line input {
   min-width: 0;
   width: 100%;
