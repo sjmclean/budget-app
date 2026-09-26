@@ -81,9 +81,6 @@ function buildRegisterTransactionInput({
 
   const { parsedOutflow, parsedInflow, parsedSplitLines } = validation;
 
-  if (parsedSplitLines.some((line) => line.categoryId === "__ready_to_assign__")) {
-    return null;
-  }
   const splitDraftById = new Map(splitLines.map((line) => [line.id, line]));
   const resolvedSplitLines = parsedSplitLines.map((line) => {
     const sourceDraft = splitDraftById.get(line.id);
@@ -114,8 +111,7 @@ function buildRegisterTransactionInput({
 
     const isOrdinaryPositiveCategoryInflow =
       isPositiveInflow &&
-      Boolean(line.categoryId) &&
-      line.categoryId !== "__ready_to_assign__";
+      Boolean(line.categoryId);
 
     return {
       ...line,
@@ -152,9 +148,6 @@ function buildRegisterTransactionInput({
   const categoryOption = incomeCategoryChoice
     ? undefined
     : findCategoryOption(categoryName, categoryOptions);
-  if (categoryOption?.id === "__ready_to_assign__") {
-    return null;
-  }
   const fallbackCategory = "Uncategorised";
   const categoryId =
     parsedSplitLines.length > 0 || incomeCategoryChoice
