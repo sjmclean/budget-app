@@ -1,5 +1,5 @@
 export * from "./calculations/calculateAvailable.js";
-export * from "./calculations/calculateReadyToBudget.js";
+export * from "./calculations/calculateReadyToAssign.js";
 export * from "./calculations/calculateAccountBalance.js";
 export * from "./calculations/calculateCategoryActivity.js";
 export * from "./calculations/calculateClearedBalance.js";
@@ -15,7 +15,7 @@ export * from "./services/createTransaction.js";
 export * from "./services/createTransfer.js";
 export * from "./services/createBudgetMonth.js";
 export * from "./services/createCategoryMonth.js";
-export * from "./services/addIncomeToBudgetMonth.js";
+export * from "./services/addIncomeForBudgetMonth.js";
 export * from "./services/assignToCategoryMonth.js";
 export * from "./services/applyActivityToCategoryMonth.js";
 export * from "./services/rolloverBudgetMonth.js";
