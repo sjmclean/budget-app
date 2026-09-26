@@ -28,13 +28,13 @@ test("persisted SQLite filter, navigation, dashboard and TypeScript classificati
 
     const insert = db.prepare(`INSERT INTO local_transactions(
       id,budget_id,account_id,date,amount,cleared_status,category_id,category_name,
-      income_budget_month,inflow_classification,transfer_account_id,transfer_transaction_id,generated_from_schedule,updated_at
+      transfer_account_id,transfer_transaction_id,generated_from_schedule,updated_at
     ) VALUES(@id,@budget,@account,'2026-08-15',@amount,'uncleared',@categoryId,@categoryName,
-      @incomeBudgetMonth,@inflowClassification,@transferAccountId,@transferTransactionId,0,'2026-08-15T00:00:00Z')`);
+      @transferAccountId,@transferTransactionId,0,'2026-08-15T00:00:00Z')`);
     const rows = [
       ["u-out","checking",-100,null,null,null,null],
-      ["u-in","checking",100,null,null,null,null,null,null],
-      ["canonical-income","checking",100,null,null,"2026-08","income",null,null],
+      ["u-in","checking",100,null,null,null,null],
+      ["canonical-income","checking",100,null,null,null,null],
       ["cat-in","checking",100,"income","Income",null,null],
       ["rta","checking",100,"__ready_to_assign__","Ready to Assign",null,null],
       ["zero","checking",0,null,null,null,null],
@@ -59,9 +59,14 @@ test("persisted SQLite filter, navigation, dashboard and TypeScript classificati
       ["split-cross-cat","checking",-100,null,"Split",null,null],
       ["split-cross-no","checking",-100,null,"Split",null,null],
     ] as const;
-    for (const [id, accountId, amount, categoryId, categoryName, incomeBudgetMonth, inflowClassification, transferAccountId, transferTransactionId] of rows) {
-      insert.run({ id, budget: BUDGET, account: accountId, amount, categoryId, categoryName, incomeBudgetMonth, inflowClassification, transferAccountId, transferTransactionId });
+    for (const [id, accountId, amount, categoryId, categoryName, transferAccountId, transferTransactionId] of rows) {
+      insert.run({ id, budget: BUDGET, account: accountId, amount, categoryId, categoryName, transferAccountId, transferTransactionId });
     }
+    db.prepare(
+      `UPDATE local_transactions
+       SET income_budget_month = ?, inflow_classification = ?
+       WHERE id = ?`,
+    ).run("2026-08", "income", "canonical-income");
     const split = db.prepare(`INSERT INTO local_transaction_splits(
       transaction_id,id,category_id,category_name,transfer_account_id,transfer_transaction_id,memo,amount
     ) VALUES(?,?,?,?,?,?,NULL,?)`);
@@ -109,7 +114,7 @@ test("persisted SQLite filter, navigation, dashboard and TypeScript classificati
       ["checking","on-budget"],["credit","on-budget"],
       ["savings","on-budget"],["tracking","off-budget"],
     ] as const);
-    const hydrated = rows.map(([id, accountId, amount, categoryId, categoryName, incomeBudgetMonth, inflowClassification, transferAccountId, transferTransactionId]) => {
+    const hydrated = rows.map(([id, accountId, amount, categoryId, categoryName, transferAccountId, transferTransactionId]) => {
       const splitRows = db.prepare(`SELECT id,category_id AS categoryId,category_name AS category,
         transfer_account_id AS transferAccountId,transfer_transaction_id AS transferTransactionId,amount
         FROM local_transaction_splits WHERE transaction_id=?`).all(id) as Array<{
@@ -118,9 +123,9 @@ test("persisted SQLite filter, navigation, dashboard and TypeScript classificati
         }>;
       return {
         id,date:"2026-08-15",attachmentCount:0,payee:"Example",
-        category:categoryName ?? (inflowClassification === "income" ? "Income for August 2026" : "Uncategorised"),categoryId:categoryId ?? undefined,
-        incomeBudgetMonth:incomeBudgetMonth ?? undefined,
-        inflowClassification:inflowClassification ?? undefined,
+        category:categoryName ?? (id === "canonical-income" ? "Income for August 2026" : "Uncategorised"),categoryId:categoryId ?? undefined,
+        incomeBudgetMonth:id === "canonical-income" ? "2026-08" : undefined,
+        inflowClassification:id === "canonical-income" ? "income" : undefined,
         inflow:amount>0?amount/100:0,outflow:amount<0?-amount/100:0,
         runningBalance:0,cleared:false,reconciled:false,
         transferAccountId:transferAccountId ?? undefined,
