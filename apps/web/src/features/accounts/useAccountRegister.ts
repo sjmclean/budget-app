@@ -951,6 +951,7 @@ export function mapSqliteTransactions(
       }),
       categoryId: row.categoryId ?? undefined,
       incomeBudgetMonth: row.incomeBudgetMonth ?? undefined,
+      inflowClassification: row.inflowClassification ?? undefined,
       memo: row.memo ?? undefined,
       checkNumber: row.checkNumber ?? undefined,
       inflow: amount > 0 ? amount : 0,
@@ -978,6 +979,7 @@ export function mapSqliteTransactions(
                 : line.categoryName ?? "Uncategorised",
               categoryId: line.categoryId ?? undefined,
               incomeBudgetMonth: line.incomeBudgetMonth ?? undefined,
+              inflowClassification: line.inflowClassification ?? undefined,
               memo: line.memo ?? undefined,
               inflow: amount > 0 ? amount : 0,
               outflow: amount < 0 ? -amount : 0,
@@ -1022,8 +1024,12 @@ export function toTransactionWriteInput(
     payeeId: input.payeeId,
     rawPayee: input.rawPayee,
     categoryId: input.categoryId,
-    categoryName: input.category,
+    categoryName:
+      input.inflowClassification === "income" && !input.categoryId
+        ? undefined
+        : input.category,
     incomeBudgetMonth: input.incomeBudgetMonth,
+    inflowClassification: input.inflowClassification,
     transferAccountId: input.transferAccountId,
     memo: input.memo,
     checkNumber: input.checkNumber,
@@ -1041,8 +1047,12 @@ export function toTransactionWriteInput(
     splitLines: (input.splitLines ?? []).map((line) => ({
       id: line.id,
       categoryId: line.categoryId,
-      categoryName: line.category,
+      categoryName:
+        line.inflowClassification === "income" && !line.categoryId
+          ? undefined
+          : line.category,
       incomeBudgetMonth: line.incomeBudgetMonth,
+      inflowClassification: line.inflowClassification,
       transferAccountId: line.transferAccountId,
       transferTransactionId: line.transferTransactionId,
       memo: line.memo,
