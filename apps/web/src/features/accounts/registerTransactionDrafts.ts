@@ -23,6 +23,7 @@ export interface RegisterTransactionDraftInput {
   checkNumber: string;
   outflow: string;
   inflow: string;
+  countCategoryInflowAsIncome?: boolean;
   splitLines: SplitLineDraft[];
   categoryOptions: BudgetCategoryOption[];
   requireCompleteSplitDrafts?: boolean;
@@ -61,6 +62,7 @@ function buildRegisterTransactionInput({
   checkNumber,
   outflow,
   inflow,
+  countCategoryInflowAsIncome = false,
   splitLines,
   categoryOptions,
   requireCompleteSplitDrafts = true,
@@ -135,6 +137,17 @@ function buildRegisterTransactionInput({
         ? undefined
         : categoryOption?.id;
   const resolvedIncomeBudgetMonth = incomeCategoryChoice?.incomeBudgetMonth;
+  const directCategoryInflowClassification =
+    parsedSplitLines.length === 0 &&
+    !transferAccountId &&
+    parsedInflow > 0 &&
+    parsedOutflow === 0 &&
+    categoryOption &&
+    categoryOption.id !== "__ready_to_assign__"
+      ? countCategoryInflowAsIncome
+        ? "income" as const
+        : "category-inflow" as const
+      : undefined;
 
   if (
     resolvedIncomeBudgetMonth &&
@@ -155,7 +168,8 @@ function buildRegisterTransactionInput({
           (categoryOption?.name ?? (categoryName || fallbackCategory)),
     categoryId,
     incomeBudgetMonth: resolvedIncomeBudgetMonth,
-    inflowClassification: incomeCategoryChoice ? "income" : undefined,
+    inflowClassification:
+      incomeCategoryChoice ? "income" : directCategoryInflowClassification,
     memo: memo.trim(),
     checkNumber: checkNumber.trim(),
     outflow: parsedOutflow,
