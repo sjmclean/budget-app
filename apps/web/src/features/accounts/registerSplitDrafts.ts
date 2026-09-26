@@ -62,10 +62,7 @@ export function applySplitCategoryChoice(
   return {
     ...line,
     category: value,
-    categoryId:
-      categoryOption?.id === "__ready_to_assign__"
-        ? undefined
-        : categoryOption?.id,
+    categoryId: categoryOption?.id,
     incomeBudgetMonth: undefined,
     inflowClassification: undefined,
     countCategoryInflowAsIncome: false,
@@ -105,13 +102,8 @@ export function splitDraftsFromTransaction(
     const isGeneralIncome =
       line.inflow > 0 &&
       !line.transferAccountId &&
-      (
-        (
-          line.inflowClassification === "income" &&
-          !line.categoryId
-        ) ||
-        line.categoryId === "__ready_to_assign__"
-      );
+      line.inflowClassification === "income" &&
+      !line.categoryId;
     const incomeCategory = isGeneralIncome
       ? registerIncomeCategoryValue(
           transaction.date,
@@ -128,7 +120,6 @@ export function splitDraftsFromTransaction(
     inflowClassification: incomeCategory ? "income" : line.inflowClassification,
     countCategoryInflowAsIncome:
       Boolean(line.categoryId) &&
-      line.categoryId !== "__ready_to_assign__" &&
       line.inflowClassification === "income",
     transferAccountId: line.transferAccountId,
     transferAccountParticipation: line.transferAccountParticipation,
