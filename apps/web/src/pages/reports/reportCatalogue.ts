@@ -17,8 +17,8 @@ export const reportCards: ReportCardDefinition[] = [
   },
   {
     title: "Income & Expenses",
-    description: "Review income, expenses, and surplus for a period.",
-    status: "coming-soon",
+    description: "Review canonical income, ordinary category inflows, expenses, and savings.",
+    status: "available",
   },
   {
     title: "Net Worth",
