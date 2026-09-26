@@ -79,6 +79,21 @@ test("transaction edit row resolves shared behaviour for every editable field", 
   assert.doesNotMatch(editorSource, /autoFocusField/);
 });
 
+test("synthetic income choices are available before an amount is entered", () => {
+  assert.match(
+    editorSource,
+    /const incomeCategoryOptions =\s*splitLines\.length === 0 && !transferAccountId\s*\? registerIncomeCategoryChoices\(date\)/,
+  );
+  assert.match(
+    editorSource,
+    /const editIncomeCategoryOptions =\s*splitLines\.length === 0 && !transferAccountId\s*\? registerIncomeCategoryChoices\(date\)/,
+  );
+  assert.doesNotMatch(
+    editorSource,
+    /incomeCategoryOptions =[\s\S]{0,180}parseRegisterMoney\(inflow\)/,
+  );
+});
+
 test("parent transaction editors use synthetic income category choices instead of a separate month selector", () => {
   assert.doesNotMatch(editorSource, /<IncomeBudgetMonthSelect/);
   assert.match(editorSource, /registerIncomeCategoryChoices\(date\)/);
