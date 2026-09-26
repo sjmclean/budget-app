@@ -662,14 +662,14 @@
 
 .scheduled-split-editor-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1.25fr) minmax(120px, 1fr) 110px 110px 32px;
+  grid-template-columns: minmax(150px, 1.25fr) minmax(120px, 1fr) 110px 110px minmax(110px, auto) 32px;
   align-items: center;
   gap: 8px;
 }
 
 .scheduled-split-allocation-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1.25fr) minmax(120px, 1fr) 110px 110px 32px;
+  grid-template-columns: minmax(150px, 1.25fr) minmax(120px, 1fr) 110px 110px minmax(110px, auto) 32px;
   gap: 8px;
   min-height: 20px;
   margin-top: -7px;
@@ -711,7 +711,7 @@
 @media (max-width: 900px) {
   .scheduled-split-editor-row,
   .scheduled-split-allocation-row {
-    grid-template-columns: minmax(140px, 1fr) minmax(100px, 0.8fr) 90px 90px 32px;
+    grid-template-columns: minmax(140px, 1fr) minmax(100px, 0.8fr) 90px 90px minmax(100px, auto) 32px;
   }
 }
 
@@ -968,4 +968,19 @@
   .scheduled-discovery-actions .button {
     width: 100%;
   }
+}
+
+
+.scheduled-income-toggle,
+.scheduled-split-income-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.scheduled-income-toggle input,
+.scheduled-split-income-toggle input {
+  margin: 0;
 }
