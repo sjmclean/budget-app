@@ -918,7 +918,6 @@ function BudgetMultiMonthPane({
   isCurrentMonth?: boolean;
 }) {
   const summary = readAuthoritativeBudgetSummary(data);
-  const planningReadyToAssign = data.readyToAssign;
   const monthName = data.monthLabel.split(" ")[0] ?? data.monthLabel;
   const activeGroups = getActiveCategoryGroups(data.categoryGroups);
   const archivedGroup = buildArchivedCategoriesGroup(data.categoryGroups);
@@ -954,9 +953,9 @@ function BudgetMultiMonthPane({
 
       <div
         className={
-          isMoneyNegative(planningReadyToAssign)
+          isMoneyNegative(data.readyToAssign)
             ? "budget-ready-summary budget-ready-summary-negative"
-            : isMoneyZero(planningReadyToAssign)
+            : isMoneyZero(data.readyToAssign)
               ? "budget-ready-summary budget-ready-summary-neutral"
               : "budget-ready-summary budget-ready-summary-positive"
         }
@@ -967,7 +966,7 @@ function BudgetMultiMonthPane({
           </span>
           <div className="budget-ready-summary-heading">
             <span>Ready to Assign</span>
-            <strong>{formatMoney(planningReadyToAssign, data.currencyCode)}</strong>
+            <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
           </div>
         </div>
         {summary ? (
