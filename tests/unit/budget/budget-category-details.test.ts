@@ -143,7 +143,7 @@ test("visible month capacity measures the already-reserved Budget workspace widt
 test("permanent Budget inspector shows health above table-aligned Category Details", () => {
   assert.match(
     budgetPage,
-    /function BudgetHealthCard\([\s\S]*Overspent categories[\s\S]*Future funding/,
+    /function BudgetHealthCard\([\s\S]*Overspent categories[\s\S]*nextMonthLabel/,
   );
   assert.match(
     budgetPage,
@@ -153,9 +153,9 @@ test("permanent Budget inspector shows health above table-aligned Category Detai
     budgetPage,
     /nextMonthStatus=[\s\S]*nextMonthBudget\.error[\s\S]*nextMonthOutlook\?\.status/,
   );
-  assert.match(
+  assert.doesNotMatch(
     budgetPage,
-    /futureOvercommitment=\{futureOvercommitment\}/,
+    /futureOvercommitment|Future funding/,
   );
   assert.match(
     budgetPage,
@@ -203,7 +203,7 @@ test("Budget Health matches the compact inspector mockup without displacing Cate
   );
   assert.match(
     budgetPage,
-    /budget-health-list[\s\S]*Overspent categories[\s\S]*Future funding/,
+    /budget-health-list[\s\S]*Overspent categories[\s\S]*Not overbudget/,
   );
 });
 
@@ -211,14 +211,11 @@ test("Budget Health matches the compact inspector mockup without displacing Cate
 test("Budget Health summary follows any warning state, not only overspending", () => {
   assert.match(
     budgetPage,
-    /overspentCategoryCount > 0 \|\|[\s\S]*nextMonthStatus === "overbudget" \|\|[\s\S]*futureOvercommitment > 0/,
+    /overspentCategoryCount > 0 \|\|[\s\S]*nextMonthStatus === "overbudget"/,
   );
   assert.match(
     budgetPage,
     /nextMonthStatus === "overbudget"[\s\S]*\$\{nextMonthLabel\} needs attention[\s\S]*formatMoney\(nextMonthAmount, currencyCode\)[\s\S]*overbudget next month/,
   );
-  assert.match(
-    budgetPage,
-    /futureOvercommitment > 0[\s\S]*Future funding needs attention[\s\S]*formatMoney\(futureOvercommitment, currencyCode\)[\s\S]*overcommitted/,
-  );
+  assert.doesNotMatch(budgetPage, /Future funding|futureOvercommitment/);
 });

@@ -117,18 +117,6 @@ export interface BudgetMonthView {
   previousOverspending?: number;
   /** Net Ready to Assign income recorded in this month. */
   incomeForMonth?: number;
-  /** Ready to Assign remaining after assignments already made in later months. */
-  planningReadyToAssign?: number;
-  /** Net amount assigned in months after this month. */
-  futureAssigned?: number;
-  /** Amount by which later-month assignments exceed money available in this month. */
-  futureOvercommitment?: number;
-  /** Month-level assignment totals used to explain future commitments. */
-  futureCommitments?: Array<{
-    month: string;
-    assigned: number;
-    income?: number;
-  }>;
   /** Marks a month whose opening balances were generated from this source month. */
   rolloverSourceMonth?: string;
   totalAssigned: number;
