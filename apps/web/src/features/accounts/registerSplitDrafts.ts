@@ -1,7 +1,10 @@
 import type { RegisterSplitLineView, RegisterTransactionView } from "./accountRegisterTypes";
 import type { BudgetCategoryOption } from "../budget/budgetViewTypes";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
-import { registerIncomeCategoryValue } from "./registerIncomeCategoryChoices";
+import {
+  registerIncomeCategoryValue,
+  resolveRegisterIncomeCategoryChoice,
+} from "./registerIncomeCategoryChoices";
 
 export interface SplitLineDraft {
   id: string;
@@ -31,6 +34,41 @@ export function createSplitLineDraft(): SplitLineDraft {
     memo: "",
     outflow: "",
     inflow: "",
+  };
+}
+
+export function applySplitCategoryChoice(
+  line: SplitLineDraft,
+  value: string,
+  categoryOptions: BudgetCategoryOption[],
+  transactionDate: string,
+): SplitLineDraft {
+  const incomeChoice = resolveRegisterIncomeCategoryChoice(
+    value,
+    transactionDate,
+  );
+  if (incomeChoice) {
+    return {
+      ...line,
+      category: incomeChoice.value,
+      categoryId: undefined,
+      incomeBudgetMonth: incomeChoice.incomeBudgetMonth,
+      inflowClassification: "income",
+      countCategoryInflowAsIncome: false,
+    };
+  }
+
+  const categoryOption = findCategoryOption(value, categoryOptions);
+  return {
+    ...line,
+    category: value,
+    categoryId:
+      categoryOption?.id === "__ready_to_assign__"
+        ? undefined
+        : categoryOption?.id,
+    incomeBudgetMonth: undefined,
+    inflowClassification: undefined,
+    countCategoryInflowAsIncome: false,
   };
 }
 
