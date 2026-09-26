@@ -736,7 +736,6 @@ export function RegisterSplitEditor({
             placeholder="Inflow"
             onMoneyKeyDown={(event) => addSplitOnTab(event, line)}
           />
-          {renderCountAsIncomeToggle(line)}
         </div>
       ))}
 
