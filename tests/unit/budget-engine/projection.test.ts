@@ -69,6 +69,76 @@ function category(
   return result;
 }
 
+test("projects canonical general income for the transaction or following month", () => {
+  const result = projectBudget(baseInput({
+    fromMonth: "2026-01",
+    throughMonth: "2026-02",
+    transactions: [
+      {
+        id: "current-income",
+        accountId: "cash",
+        date: "2026-01-05",
+        categoryId: null,
+        incomeBudgetMonth: "2026-01",
+        inflowClassification: "income",
+        amount: 1_000,
+      },
+      {
+        id: "next-income",
+        accountId: "cash",
+        date: "2026-01-20",
+        categoryId: null,
+        incomeBudgetMonth: "2026-02",
+        inflowClassification: "income",
+        amount: 2_000,
+      },
+    ],
+  }));
+
+  assert.equal(result.months[0]!.income, 1_000);
+  assert.equal(result.months[0]!.readyToAssign, 1_000);
+  assert.equal(result.months[1]!.income, 2_000);
+  assert.equal(result.months[1]!.carriedForwardReadyToAssign, 1_000);
+  assert.equal(result.months[1]!.readyToAssign, 3_000);
+});
+
+test("rejects canonical general income outside the current-or-next-month window", () => {
+  assert.throws(
+    () => projectBudget(baseInput({
+      fromMonth: "2026-01",
+      throughMonth: "2026-03",
+      transactions: [{
+        id: "too-far-ahead",
+        accountId: "cash",
+        date: "2026-01-05",
+        categoryId: null,
+        incomeBudgetMonth: "2026-03",
+        inflowClassification: "income",
+        amount: 1_000,
+      }],
+    })),
+    /transaction month .* or following month/,
+  );
+});
+
+test("direct-category income remains category activity and does not enter the general pool", () => {
+  const result = projectBudget(baseInput({
+    transactions: [{
+      id: "preallocated-salary",
+      accountId: "cash",
+      date: "2026-01-05",
+      categoryId: "groceries",
+      inflowClassification: "income",
+      amount: 500,
+    }],
+  }));
+
+  assert.equal(result.months[0]!.income, 0);
+  assert.equal(result.months[0]!.readyToAssign, 0);
+  assert.equal(category(result, "2026-01", "groceries").activity, 500);
+  assert.equal(category(result, "2026-01", "groceries").available, 500);
+});
+
 test("projects financial values exactly in integer minor units", () => {
   const result = projectBudget(baseInput({
     openingReadyToAssign: 1_000,
