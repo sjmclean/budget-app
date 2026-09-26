@@ -1147,7 +1147,10 @@ export function TransactionEditRow({
     transaction.inflow > 0 &&
     !transaction.transferAccountId &&
     (
-      transaction.inflowClassification === "income" ||
+      (
+        transaction.inflowClassification === "income" &&
+        !transaction.categoryId
+      ) ||
       transaction.categoryId === "__ready_to_assign__"
     )
       ? registerIncomeCategoryValue(
