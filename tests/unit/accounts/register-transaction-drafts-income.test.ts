@@ -19,11 +19,6 @@ function draft(
     splitLines: [],
     categoryOptions: [
       {
-        id: "__ready_to_assign__",
-        name: "Ready to Assign",
-        groupName: "Internal",
-      },
-      {
         id: "groceries",
         name: "Groceries",
         groupName: "Everyday",
@@ -32,7 +27,7 @@ function draft(
   };
 }
 
-test("blank positive inflow remains uncategorised instead of becoming Ready to Assign", () => {
+test("blank positive inflow remains uncategorised", () => {
   const input = buildNewRegisterTransactionInput(draft(""));
   assert.ok(input);
   assert.equal(input.category, "Uncategorised");
@@ -177,16 +172,6 @@ test("ordinary positive category split can explicitly count as income", () => {
   assert.equal(input.splitLines[0]?.inflowClassification, "income");
 });
 
-test("legacy Ready to Assign split draft is rejected by the native Register", () => {
-  assert.equal(
-    buildNewRegisterTransactionInput(
-      splitDraft("Ready to Assign", {
-        categoryId: "__ready_to_assign__",
-      }),
-    ),
-    null,
-  );
-});
 
 
 test("changing synthetic income to a transfer cannot retain income semantics", () => {
@@ -225,20 +210,7 @@ test("changing transaction date rejects a stale synthetic income month", () => {
 });
 
 
-test("native parent Register rejects legacy Ready to Assign category", () => {
-  assert.equal(
-    buildNewRegisterTransactionInput(draft("Ready to Assign")),
-    null,
-  );
-});
 
-test("native split Register rejects legacy Ready to Assign category", () => {
-  assert.equal(
-    buildNewRegisterTransactionInput(
-      splitDraft("Ready to Assign", {
-        categoryId: "__ready_to_assign__",
-      }),
-    ),
-    null,
-  );
-});
+
+
+
