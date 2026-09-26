@@ -6,7 +6,6 @@ import type { BudgetCategoryOption } from "../budget/budgetViewTypes";
 import { findCategoryOption } from "./registerCategoryMatching";
 import { type SplitLineDraft } from "./registerSplitDrafts";
 import { validateRegisterTransactionDraft } from "./registerTransactionValidation";
-import { validIncomeBudgetMonth } from "./incomeBudgetMonth";
 import {
   isRegisterIncomeCategoryValue,
   resolveRegisterIncomeCategoryChoice,
@@ -164,13 +163,6 @@ function buildRegisterTransactionInput({
         ? "income" as const
         : "category-inflow" as const
       : undefined;
-
-  if (
-    resolvedIncomeBudgetMonth &&
-    !validIncomeBudgetMonth(resolvedIncomeBudgetMonth, date)
-  ) {
-    return null;
-  }
 
   return {
     date,
