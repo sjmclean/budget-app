@@ -672,9 +672,29 @@ export function TransactionEntryRow({
                         setSplitLines((lines) => lines.map((candidate) => {
                           if (candidate.id !== line.id) return candidate;
                           const amount = candidate.outflow || candidate.inflow;
-                          return lineIsInflow
-                            ? { ...candidate, outflow: amount, inflow: "" }
-                            : { ...candidate, outflow: "", inflow: amount };
+                          if (lineIsInflow) {
+                            return {
+                              ...candidate,
+                              category:
+                                candidate.inflowClassification === "income" &&
+                                !candidate.categoryId
+                                  ? ""
+                                  : candidate.category,
+                              outflow: amount,
+                              inflow: "",
+                              incomeBudgetMonth: undefined,
+                              inflowClassification: undefined,
+                              countCategoryInflowAsIncome: false,
+                            };
+                          }
+                          return {
+                            ...candidate,
+                            outflow: "",
+                            inflow: amount,
+                            incomeBudgetMonth: undefined,
+                            inflowClassification: undefined,
+                            countCategoryInflowAsIncome: false,
+                          };
                         }));
                         setMobilePositiveSplitIds((current) => {
                           const next = new Set(current);
