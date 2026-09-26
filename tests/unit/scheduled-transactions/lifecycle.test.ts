@@ -107,7 +107,7 @@ describe("scheduled transaction lifecycle", () => {
     assert.equal(updated?.splitLines?.[1]?.inflow, 40);
   });
 
-  it("normalises empty categories according to transaction direction", async () => {
+  it("normalises empty categories to uncategorised without inventing income intent", async () => {
     const service = createScheduledHarness();
     const income = await createSchedule(service, {
       payee: "Income",
@@ -115,7 +115,9 @@ describe("scheduled transaction lifecycle", () => {
       outflow: 0,
       inflow: 100,
     });
-    assert.equal(income.category, "Ready to Assign");
+    assert.equal(income.category, "Uncategorised");
+    assert.equal(income.incomeBudgetMonthOffset, undefined);
+    assert.equal(income.inflowClassification, undefined);
 
     const expense = await createSchedule(service, {
       payee: "Expense",
