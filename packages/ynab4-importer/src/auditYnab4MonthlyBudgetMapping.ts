@@ -91,7 +91,7 @@ export function auditYnab4MonthlyBudgetMapping(
       sampleFields: monthFieldNames,
       notes: [
         "Each YNAB4 monthly budget should map to one budget_month row.",
-        "Month identity, income, assigned totals, activity, and ready-to-budget semantics must be proven before import writes.",
+        "Month identity, income, assigned totals, activity, and ready-to-assign semantics must be proven before import writes.",
         hasIncomeLikeField
           ? "Income-like fields are present and need explicit mapping."
           : "No obvious income field was detected in the sampled monthly budget rows; income may need to be derived from transactions or another structure.",
@@ -130,8 +130,8 @@ export function auditYnab4MonthlyBudgetMapping(
       ],
     },
     {
-      ynab4Area: "overspending-and-ready-to-budget",
-      destination: "budget_months.ready_to_budget and category_months.available",
+      ynab4Area: "overspending-and-ready-to-assign",
+      destination: "budget_months.ready_to_assign and category_months.available",
       status: "blocked",
       count: monthlyBudgets.length,
       sampleFields: monthFieldNames,
