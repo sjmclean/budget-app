@@ -1,5 +1,4 @@
 export enum InflowDestination {
-  ReadyToBudget = "ReadyToBudget",
-  BufferFund = "BufferFund",
+  GeneralIncome = "GeneralIncome",
   Category = "Category"
 }
