@@ -97,3 +97,34 @@ test("payee reference no-match allocates no group, mutation, batch, or scope", a
   assert.equal(h.allocated.length, 0); assert.equal(h.committed.length, 0); assert.equal(h.batches.length, 0);
   assert.deepEqual(renamed.change.domains, []); assert.deepEqual(reassigned.change.domains, []);
 });
+
+
+test("entering scheduled following-month income persists canonical resolved income metadata", async () => {
+  const schedule = buildScheduledTransaction(input({
+    frequency: "once",
+    nextDueDate: "2026-12-20",
+    recurrenceAnchorDate: "2026-12-20",
+    payee: "Employer",
+    payeeId: undefined,
+    category: "Income for following month",
+    categoryId: undefined,
+    incomeBudgetMonthOffset: 1,
+    inflowClassification: "income",
+    outflow: 0,
+    inflow: 100,
+  }), { id: "income-schedule", now: "created" });
+
+  const h = harness([schedule]);
+  const result = await h.commands.enterScheduledTransaction({
+    budgetId,
+    accountId: "account",
+    schedule,
+    transactionId: "income-transaction",
+    createTransaction: true,
+  });
+
+  const transaction = result.result.transaction?.transactions[0];
+  assert.equal(transaction?.categoryId, null);
+  assert.equal(transaction?.incomeBudgetMonth, "2027-01");
+  assert.equal(transaction?.inflowClassification, "income");
+});
