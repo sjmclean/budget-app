@@ -15,7 +15,6 @@ export interface RegisterTransactionDraftInput {
   payeeId?: string;
   transferAccountId?: string;
   category: string;
-  incomeBudgetMonth?: string;
   latestIncomeBudgetMonth?: string;
   memo: string;
   checkNumber: string;
@@ -55,7 +54,6 @@ function buildRegisterTransactionInput({
   payeeId,
   transferAccountId,
   category,
-  incomeBudgetMonth,
   memo,
   checkNumber,
   outflow,
