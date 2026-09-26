@@ -138,8 +138,9 @@ test("financial overview excludes transfer portions of split inflows", () => {
 
     const insertSplit = database.prepare(`
       INSERT INTO local_transaction_splits (
-        transaction_id, id, transfer_account_id, amount
-      ) VALUES (?, ?, ?, ?)
+        transaction_id, id, category_id, inflow_classification,
+        transfer_account_id, amount
+      ) VALUES (?, ?, ?, ?, ?, ?)
     `);
 
     insertSplit.run(
