@@ -583,6 +583,9 @@ export interface FinancialOverview {
   }[];
   readonly monthlySnapshot: {
     readonly income: number;
+    readonly generalIncome: number;
+    readonly countedCategoryIncome: number;
+    readonly categoryInflows: number;
     readonly expenses: number;
     readonly savings: number;
     readonly readyToAssign: number;

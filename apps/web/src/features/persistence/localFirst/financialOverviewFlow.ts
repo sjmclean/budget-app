@@ -1,5 +1,8 @@
 export interface FinancialOverviewFlow {
   readonly income: number;
+  readonly generalIncome: number;
+  readonly countedCategoryIncome: number;
+  readonly categoryInflows: number;
   readonly expenses: number;
 }
 
@@ -15,10 +18,32 @@ export function readFinancialOverviewFlow(
 ): FinancialOverviewFlow {
   return query<FinancialOverviewFlow>(
     `SELECT
-       COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
+       COALESCE(SUM(
+         CASE WHEN amount > 0 AND inflowClassification = 'income'
+           THEN amount ELSE 0 END
+       ), 0) AS income,
+       COALESCE(SUM(
+         CASE WHEN amount > 0
+           AND inflowClassification = 'income'
+           AND categoryId IS NULL
+           THEN amount ELSE 0 END
+       ), 0) AS generalIncome,
+       COALESCE(SUM(
+         CASE WHEN amount > 0
+           AND inflowClassification = 'income'
+           AND categoryId IS NOT NULL
+           THEN amount ELSE 0 END
+       ), 0) AS countedCategoryIncome,
+       COALESCE(SUM(
+         CASE WHEN amount > 0 AND inflowClassification = 'category-inflow'
+           THEN amount ELSE 0 END
+       ), 0) AS categoryInflows,
        COALESCE(SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END), 0) AS expenses
      FROM (
-       SELECT transaction_row.amount AS amount
+       SELECT
+         transaction_row.amount AS amount,
+         transaction_row.category_id AS categoryId,
+         transaction_row.inflow_classification AS inflowClassification
        FROM local_transactions AS transaction_row
        WHERE transaction_row.budget_id = ?
          AND substr(transaction_row.date, 1, 7) = ?
@@ -51,7 +76,10 @@ export function readFinancialOverviewFlow(
 
        UNION ALL
 
-       SELECT split.amount AS amount
+       SELECT
+         split.amount AS amount,
+         split.category_id AS categoryId,
+         split.inflow_classification AS inflowClassification
        FROM local_transaction_splits AS split
        JOIN local_transactions AS parent
          ON parent.id = split.transaction_id
@@ -81,5 +109,11 @@ export function readFinancialOverviewFlow(
          ) NOT LIKE '%credit card payment%'
      ) AS financial_flow`,
     [budgetId, month, budgetId, month],
-  )[0] ?? { income: 0, expenses: 0 };
+  )[0] ?? {
+    income: 0,
+    generalIncome: 0,
+    countedCategoryIncome: 0,
+    categoryInflows: 0,
+    expenses: 0,
+  };
 }
