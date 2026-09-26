@@ -104,6 +104,15 @@ test("obsolete parallel budget-income service files stay removed", () => {
     "packages/budget-engine/src/services/leaveOverspent.ts",
     "packages/budget-engine/src/services/budgetEngineScenario.ts",
     "packages/types/src/InflowDestination.ts",
+    "packages/types/src/BudgetMonth.ts",
+    "packages/types/src/CategoryMonth.ts",
+    "packages/repository/src/BudgetMonthRepository.ts",
+    "packages/repository/src/SqliteBudgetMonthRepository.ts",
+    "packages/repository/src/CategoryMonthRepository.ts",
+    "packages/repository/src/SqliteCategoryMonthRepository.ts",
+    "packages/ynab4-importer/src/Ynab4DatabaseImportService.ts",
+    "packages/ynab4-importer/src/auditYnab4MonthlyBudgetMapping.ts",
+    "packages/ynab4-importer/src/proveYnab4MonthlyBudgetMapping.ts",
   ];
 
   const violations = legacyPaths.filter((path) =>
