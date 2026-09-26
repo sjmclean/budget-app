@@ -34,9 +34,6 @@ import { isMoneyNegative, normaliseMoney } from "./moneyMath";
 import { applyCategoryEntities, syncCategoryEntities } from "./categoryEntities.js";
 import { readBudgetMonthEntity, writeBudgetMonthEntity } from "./entities/budgetMonthEntity.js";
 
-const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
-const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
-
 export interface BudgetViewServiceDependencies {
   budgetActivity: BudgetActivityPersistencePort;
   storage: KeyValueStoragePort;
@@ -474,7 +471,7 @@ async function applyRegisterActivity(
         const splitCategoryId = resolveStoredCategoryId(splitLine, categoryLookup);
         const splitAmount = splitLine.inflow - splitLine.outflow;
 
-        if (isReadyToAssignCategoryReference(splitLine, splitCategoryKey)) {
+        if (isGeneralIncomeCategoryReference(splitLine, splitCategoryKey)) {
           readyToAssignIncome += splitAmount;
           continue;
         }
@@ -523,7 +520,7 @@ async function applyRegisterActivity(
       continue;
     }
 
-    if (isReadyToAssignCategoryReference(transaction, categoryKey)) {
+    if (isGeneralIncomeCategoryReference(transaction, categoryKey)) {
       readyToAssignIncome += amount;
       continue;
     }
@@ -647,7 +644,7 @@ async function createCategoryActivityDrilldown(
         const splitCategoryKey = normaliseCategoryKey(splitLine.category);
         const splitCategoryId = resolveStoredCategoryId(splitLine, categoryLookup);
 
-        if (isReadyToAssignCategoryReference(splitLine, splitCategoryKey)) {
+        if (isGeneralIncomeCategoryReference(splitLine, splitCategoryKey)) {
           continue;
         }
 
@@ -696,7 +693,7 @@ async function createCategoryActivityDrilldown(
       continue;
     }
 
-    if (isReadyToAssignCategoryReference(transaction, categoryKey)) {
+    if (isGeneralIncomeCategoryReference(transaction, categoryKey)) {
       continue;
     }
 
@@ -766,13 +763,13 @@ function resolveStoredCategoryId(
   return categoryLookup.get(normaliseCategoryKey(item.category));
 }
 
-function isReadyToAssignCategoryReference(
+function isGeneralIncomeCategoryReference(
   item: { category: string; categoryId?: string },
   categoryKey: string,
 ): boolean {
   return (
-    Boolean(item.categoryId && isReadyToAssignCategory(normaliseCategoryKey(item.categoryId))) ||
-    isReadyToAssignCategory(categoryKey)
+    Boolean(item.categoryId && isGeneralIncomeCategory(normaliseCategoryKey(item.categoryId))) ||
+    isGeneralIncomeCategory(categoryKey)
   );
 }
 
@@ -784,13 +781,8 @@ function isTransferCategory(categoryKey: string): boolean {
   return ["transfer", "accounttransfer"].includes(categoryKey);
 }
 
-function isReadyToAssignCategory(categoryKey: string): boolean {
-  return [
-    normaliseCategoryKey(READY_TO_ASSIGN_CATEGORY_ID),
-    normaliseCategoryKey(READY_TO_ASSIGN_CATEGORY_NAME),
-    "incomeforthismonth",
-    "income",
-  ].includes(categoryKey);
+function isGeneralIncomeCategory(categoryKey: string): boolean {
+  return ["incomeforthismonth", "income"].includes(categoryKey);
 }
 
 function applyStoredSettings(
@@ -909,23 +901,15 @@ function createUniqueCategoryIdentifier(
 }
 
 function getCategoryOptions(view: BudgetMonthView): BudgetCategoryOption[] {
-  return [
-    {
-      id: READY_TO_ASSIGN_CATEGORY_ID,
-      name: READY_TO_ASSIGN_CATEGORY_NAME,
-      groupId: "__income__",
-      groupName: "Income",
-    },
-    ...view.categoryGroups.flatMap((group) =>
-      group.categories.map((category) => ({
-        id: category.id,
-        name: category.name,
-        groupId: group.id,
-        groupName: group.name,
-        isArchived: category.isArchived,
-      })),
-    ),
-  ];
+  return view.categoryGroups.flatMap((group) =>
+    group.categories.map((category) => ({
+      id: category.id,
+      name: category.name,
+      groupId: group.id,
+      groupName: group.name,
+      isArchived: category.isArchived,
+    })),
+  );
 }
 
 function findCategoryLocation(view: BudgetMonthView, categoryId: string): CategoryLocation | null {
