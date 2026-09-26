@@ -1,6 +1,6 @@
 import { BudgetMonth } from "../../../types/src/BudgetMonth.js";
 import { CategoryMonth } from "../../../types/src/CategoryMonth.js";
-import { calculateReadyToBudget } from "../calculations/calculateReadyToBudget.js";
+import { calculateReadyToAssign } from "../calculations/calculateReadyToAssign.js";
 
 export interface BudgetEngineSnapshot {
   budgetMonth: BudgetMonth;
@@ -14,7 +14,7 @@ export function recalculateBudgetMonth(snapshot: BudgetEngineSnapshot): BudgetMo
     ...snapshot.budgetMonth,
     assigned,
     activity,
-    readyToBudget: calculateReadyToBudget(snapshot.budgetMonth.income, assigned),
+    readyToAssign: calculateReadyToAssign(snapshot.budgetMonth.income, assigned),
     updatedAt: new Date()
   };
 }
