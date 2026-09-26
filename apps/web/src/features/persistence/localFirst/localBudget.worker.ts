@@ -2611,9 +2611,11 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
         : 0
     );
   }, 0);
-  const snapshotIncome = Number.isFinite(firstSnapshot.incomeForMonth)
-    ? toMinorUnits(firstSnapshot.incomeForMonth ?? 0)
-    : dirtyMonth === firstMonth ? 0 : currentFirstIncome;
+  const snapshotIncome = dirtyMonth === firstMonth
+    ? currentFirstIncome
+    : Number.isFinite(firstSnapshot.incomeForMonth)
+      ? toMinorUnits(firstSnapshot.incomeForMonth ?? 0)
+      : currentFirstIncome;
   const snapshotAssigned = Number.isFinite(firstSnapshot.totalAssigned)
     ? toMinorUnits(firstSnapshot.totalAssigned)
     : currentFirstAssigned;
