@@ -1,6 +1,6 @@
 # Product Roadmap
 
-*Last reconciled: 25 September 2026 against `master` at `156998c43d4946e310cb1ee8139f1b1a72eeb283`.*
+*Last reconciled: 26 September 2026 against `master` at `727df1e061556983a2207222d176ea9c2c5acefd`.*
 
 This is the **single authoritative product roadmap** for Budget App.
 
@@ -147,7 +147,6 @@ Recent completed work:
 - PR #88 — contextual Category Details;
 - PR #90 — refreshed Budget planning header;
 - PR #94 — Move Money + effective movement history;
-- PR #95 — forward-aware Ready to Assign / future-month planning semantics;
 - PR #96 — adaptive 1–4 month Budget planning view;
 - PR #98 — multi-month polish, permanent inspector, Budget Health, synchronized scrolling and Blueprint canvas.
 
@@ -209,51 +208,56 @@ Detailed operational reference:
 This is the **only active ordering list**. Deal with item **1** first unless a
 blocking correctness/security defect requires immediate interruption.
 
-## 1 — Budget: explicit Income for Month model — ACTIVE / NEXT
+## 1 — Budget: explicit monthly income model — ACTIVE / NEXT
 
-Revisit the current global Ready to Assign / future-income model and prototype a
-deliberately simple YNAB4-style income assignment flow.
+Replace the current Ready to Assign transaction pseudo-category and
+future-commitment/global-pool behaviour with the accepted explicit monthly
+income model.
 
-Product direction to preserve:
+Authoritative product contract:
 
-- genuine income should require an explicit choice between two special income
-  destinations tied to the transaction date:
-  - **Income for <transaction month>**;
-  - **Income for <following month>**;
-- the user must explicitly choose which of those two months the income funds;
-  do not silently infer or automatically defer income;
-- do not expose arbitrary third/fourth/future-month income destinations in the
-  normal transaction-entry flow;
-- the two-month constraint should intentionally support budgeting the current
-  month or getting one month ahead without turning income entry into long-range
-  forecasting;
-- longer-term holding should remain an explicit budgeting decision, for example
-  through a holding/deferred category and later movement when appropriate;
-- preserve the distinction between genuine income, category refunds/inflows and
-  transfers;
-- preserve imported YNAB4 deferred-income intent where authoritative source data
-  already supplies it.
+- a transaction dated in month M offers exactly two synthetic general-income
+  category choices:
+  - **Income for M**;
+  - **Income for M+1**;
+- choosing one records the income budget month explicitly; there is no second
+  month selector and no null-as-current-month shorthand;
+- general income first becomes available to budget in its designated month;
+- money left unbudgeted at month end carries forward chronologically and is
+  shown as money not budgeted in the previous month, not as new income;
+- normal category Available balances continue to carry forward;
+- arbitrary future assignments are removed; the normal editable planning
+  horizon is current month plus immediately following month;
+- longer-term earmarking happens through ordinary user-defined categories;
+- a positive inflow directly to a normal category is a category inflow/refund
+  by default and exposes a contextual **Count this inflow as income** control;
+- Income for Month choices imply income automatically;
+- scheduled general income stores relative occurrence-month/following-month
+  intent;
+- YNAB4 ImmediateIncome and DeferredIncome map to the same canonical model;
+- ordinary unreviewed bank inflows must not silently become general income;
+- reports consume explicit income classification rather than infer income from
+  every positive external amount.
 
-Before implementation, work through concrete scenarios and settle engine
-semantics for:
+There are no production-user compatibility requirements for the superseded
+native model. Remove obsolete code, tests and documentation instead of
+preserving dual semantics.
 
-- income received and budgeted in the same month;
-- income received this month but designated for next month;
-- unassigned money/carry-forward across month boundaries;
-- future-month category assignments;
-- changing an existing income transaction from this month to next month and
-  vice versa;
-- deletion/editing/undo-redo of income transactions;
-- interaction with overspending and month rollover;
-- migration of existing native income transactions that currently have no
-  explicit income-month choice;
-- whether the existing global-pool/future-commitment presentation should be
-  removed or redefined once explicit Income for Month is authoritative.
+Implementation sequence:
 
-Use the existing internal `incomeBudgetMonth`/YNAB4 import foundations where
-appropriate, but do not assume the current implementation semantics are the
-desired product contract. Define the user-facing model first, then adjust the
-engine and migration path with focused correctness tests.
+1. canonical transaction/split income destination and reporting classification;
+2. remove forward reservation / future commitment semantics;
+3. rebuild Register entry/edit and split UX around synthetic Income for Month
+   choices and contextual direct-category income classification;
+4. extend scheduled transactions and import review;
+5. update Budget header/navigation and reporting;
+6. delete remaining obsolete compatibility code and run full VM/browser
+   acceptance.
+
+Authoritative references:
+
+- [Explicit Monthly Income Model](explicit-monthly-income.md)
+- [ADR-009 Explicit Monthly Income](adr/ADR-009-explicit-monthly-income.md)
 
 ## 2 — Budget: finish Category Details responsive behaviour + focused acceptance coverage — PLANNED
 
@@ -635,7 +639,6 @@ exposes debt.
 - transfer-aware category activity.
 - refreshed planning header.
 - Move Money with effective movement history.
-- forward-aware Ready to Assign / future planning.
 - adaptive 1–4 month Budget planning view.
 
 ## Scheduled Transaction discovery — COMPLETE V1
@@ -688,7 +691,8 @@ priority:
 - [Architecture index](architecture/README.md)
 - [Performance finalisation](architecture/performance-finalisation.md)
 - [Application history](architecture/application-history.md)
-- [ADR-004 Limited Future Budgeting](adr/ADR-004-limited-future-budgeting.md)
+- [Explicit Monthly Income Model](explicit-monthly-income.md)
+- [ADR-009 Explicit Monthly Income](adr/ADR-009-explicit-monthly-income.md)
 - [ADR-005 Explicit Overspending](adr/ADR-005-explicit-overspending.md)
 - [ADR-008 Persistent Undo/Redo](adr/ADR-008-persistent-undo-redo.md)
 
