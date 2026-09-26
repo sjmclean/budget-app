@@ -52,21 +52,47 @@ function normaliseInflowMetadata(input: {
   readonly existingIncomeBudgetMonth?: string | null;
   readonly existingClassification?: import("../../../accounts/incomeTransactionSemantics").InflowClassification | null;
 }) {
-  const hasCanonicalMetadata =
+  const hasRequestedCanonicalMetadata =
     input.requestedClassification !== undefined ||
     (
       input.categoryId === null &&
       input.requestedIncomeBudgetMonth !== undefined
     );
+  const hasExistingCanonicalMetadata =
+    input.existingClassification !== undefined &&
+    input.existingClassification !== null;
 
-  if (hasCanonicalMetadata) {
+  if (hasRequestedCanonicalMetadata || hasExistingCanonicalMetadata) {
+    const requestedIncomeBudgetMonth =
+      input.requestedIncomeBudgetMonth !== undefined
+        ? input.requestedIncomeBudgetMonth
+        : input.existingIncomeBudgetMonth ?? null;
+    const requestedClassification =
+      input.requestedClassification !== undefined
+        ? input.requestedClassification
+        : input.existingClassification ?? null;
+
+    if (
+      !hasRequestedCanonicalMetadata &&
+      (input.amount <= 0 || input.transferAccountId)
+    ) {
+      return requireCanonicalInflowSemantics({
+        date: input.transactionDate,
+        amount: input.amount,
+        categoryId: input.categoryId,
+        transferAccountId: input.transferAccountId,
+        incomeBudgetMonth: null,
+        inflowClassification: null,
+      });
+    }
+
     return requireCanonicalInflowSemantics({
       date: input.transactionDate,
       amount: input.amount,
       categoryId: input.categoryId,
       transferAccountId: input.transferAccountId,
-      incomeBudgetMonth: input.requestedIncomeBudgetMonth ?? null,
-      inflowClassification: input.requestedClassification ?? null,
+      incomeBudgetMonth: requestedIncomeBudgetMonth,
+      inflowClassification: requestedClassification,
     });
   }
 
