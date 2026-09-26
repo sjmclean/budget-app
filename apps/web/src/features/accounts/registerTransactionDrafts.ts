@@ -82,6 +82,9 @@ function buildRegisterTransactionInput({
   const { parsedOutflow, parsedInflow, parsedSplitLines } = validation;
 
   const transactionMonth = date.slice(0, 7);
+  if (parsedSplitLines.some((line) => line.categoryId === "__ready_to_assign__")) {
+    return null;
+  }
   const splitDraftById = new Map(splitLines.map((line) => [line.id, line]));
   const resolvedSplitLines = parsedSplitLines.map((line) => {
     const sourceDraft = splitDraftById.get(line.id);
@@ -106,29 +109,6 @@ function buildRegisterTransactionInput({
         category: splitIncomeCategoryChoice.value,
         categoryId: undefined,
         incomeBudgetMonth: splitIncomeCategoryChoice.incomeBudgetMonth,
-        inflowClassification: "income" as const,
-      };
-    }
-
-    if (
-      line.categoryId === "__ready_to_assign__" &&
-      isPositiveInflow
-    ) {
-      const splitIncomeBudgetMonth =
-        line.incomeBudgetMonth ?? transactionMonth;
-      if (!validIncomeBudgetMonth(splitIncomeBudgetMonth, date)) {
-        return null;
-      }
-      const incomeCategoryChoice = resolveRegisterIncomeCategoryChoice(
-        `__income_for__:${splitIncomeBudgetMonth}`,
-        date,
-      );
-      if (!incomeCategoryChoice) return null;
-      return {
-        ...line,
-        category: incomeCategoryChoice.value,
-        categoryId: undefined,
-        incomeBudgetMonth: incomeCategoryChoice.incomeBudgetMonth,
         inflowClassification: "income" as const,
       };
     }
@@ -173,21 +153,21 @@ function buildRegisterTransactionInput({
   const categoryOption = incomeCategoryChoice
     ? undefined
     : findCategoryOption(categoryName, categoryOptions);
+  if (categoryOption?.id === "__ready_to_assign__") {
+    return null;
+  }
   const fallbackCategory = "Uncategorised";
   const categoryId =
     parsedSplitLines.length > 0 || incomeCategoryChoice
       ? undefined
-      : categoryOption?.id === "__ready_to_assign__"
-        ? undefined
-        : categoryOption?.id;
+      : categoryOption?.id;
   const resolvedIncomeBudgetMonth = incomeCategoryChoice?.incomeBudgetMonth;
   const directCategoryInflowClassification =
     parsedSplitLines.length === 0 &&
     !transferAccountId &&
     parsedInflow > 0 &&
     parsedOutflow === 0 &&
-    categoryOption &&
-    categoryOption.id !== "__ready_to_assign__"
+    categoryOption
       ? countCategoryInflowAsIncome
         ? "income" as const
         : "category-inflow" as const
