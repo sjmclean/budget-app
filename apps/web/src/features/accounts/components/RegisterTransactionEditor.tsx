@@ -32,6 +32,7 @@ import type {
 } from "../accountRegisterTypes";
 import {
   applySplitCategoryChoice,
+  applySplitDraftSign,
   createSplitLineDraft,
   getSplitBalanceStatus,
   isSplitDraftBalanced,
@@ -671,30 +672,10 @@ export function TransactionEntryRow({
                       onClick={() => {
                         setSplitLines((lines) => lines.map((candidate) => {
                           if (candidate.id !== line.id) return candidate;
-                          const amount = candidate.outflow || candidate.inflow;
-                          if (lineIsInflow) {
-                            return {
-                              ...candidate,
-                              category:
-                                candidate.inflowClassification === "income" &&
-                                !candidate.categoryId
-                                  ? ""
-                                  : candidate.category,
-                              outflow: amount,
-                              inflow: "",
-                              incomeBudgetMonth: undefined,
-                              inflowClassification: undefined,
-                              countCategoryInflowAsIncome: false,
-                            };
-                          }
-                          return {
-                            ...candidate,
-                            outflow: "",
-                            inflow: amount,
-                            incomeBudgetMonth: undefined,
-                            inflowClassification: undefined,
-                            countCategoryInflowAsIncome: false,
-                          };
+                          return applySplitDraftSign(
+                            candidate,
+                            lineIsInflow ? "outflow" : "inflow",
+                          );
                         }));
                         setMobilePositiveSplitIds((current) => {
                           const next = new Set(current);
