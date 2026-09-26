@@ -7,7 +7,10 @@ import { findCategoryOption } from "./registerCategoryMatching";
 import { type SplitLineDraft } from "./registerSplitDrafts";
 import { validateRegisterTransactionDraft } from "./registerTransactionValidation";
 import { validIncomeBudgetMonth } from "./incomeBudgetMonth";
-import { resolveRegisterIncomeCategoryChoice } from "./registerIncomeCategoryChoices";
+import {
+  isRegisterIncomeCategoryValue,
+  resolveRegisterIncomeCategoryChoice,
+} from "./registerIncomeCategoryChoices";
 
 export interface RegisterTransactionDraftInput {
   date: string;
@@ -115,6 +118,12 @@ function buildRegisterTransactionInput({
     parsedOutflow === 0
       ? resolveRegisterIncomeCategoryChoice(categoryName, date)
       : null;
+  if (
+    !incomeCategoryChoice &&
+    isRegisterIncomeCategoryValue(categoryName)
+  ) {
+    return null;
+  }
   const categoryOption = incomeCategoryChoice
     ? undefined
     : findCategoryOption(categoryName, categoryOptions);
