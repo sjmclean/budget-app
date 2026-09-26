@@ -340,7 +340,7 @@ test("rejects an income budget month earlier than the source transaction month",
         },
       ],
     })),
-    /cannot be earlier than transaction month/,
+    /must be transaction month .* or following month/,
   );
 });
 
