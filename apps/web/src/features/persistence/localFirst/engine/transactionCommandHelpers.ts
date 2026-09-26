@@ -157,6 +157,10 @@ export async function transactionRecord(id: string, input: TransactionWriteInput
     splitLines: (input.splitLines ?? []).map((split) => {
       const splitCategoryId = split.categoryId ?? null;
       const splitTransferAccountId = split.transferAccountId ?? null;
+      const existingSplit = existing?.splitLines.find(
+        (candidate) => candidate.id === split.id,
+      );
+      const sameSplitCategory = existingSplit?.categoryId === splitCategoryId;
       return {
         id: split.id,
         categoryId: splitCategoryId,
@@ -168,6 +172,12 @@ export async function transactionRecord(id: string, input: TransactionWriteInput
           transactionDate: input.date,
           requestedIncomeBudgetMonth: split.incomeBudgetMonth,
           requestedClassification: split.inflowClassification,
+          existingIncomeBudgetMonth: sameSplitCategory
+            ? existingSplit?.incomeBudgetMonth ?? null
+            : null,
+          existingClassification: sameSplitCategory
+            ? existingSplit?.inflowClassification ?? null
+            : null,
         }),
         transferAccountId: splitTransferAccountId,
         transferTransactionId: split.transferTransactionId ?? null,
