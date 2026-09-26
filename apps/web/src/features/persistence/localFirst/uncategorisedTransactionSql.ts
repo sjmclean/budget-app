@@ -15,6 +15,10 @@ export function uncategorisedTransactionPredicate(
           WHERE category_split.transaction_id = ${alias}.id
         )
         AND ${alias}.category_id IS NULL
+        AND NOT (
+          ${alias}.inflow_classification = 'income'
+          AND ${alias}.amount > 0
+        )
         AND (
           ${alias}.transfer_account_id IS NULL
           OR ${alias}.transfer_transaction_id IS NULL
@@ -31,6 +35,10 @@ export function uncategorisedTransactionPredicate(
         WHERE category_split.transaction_id = ${alias}.id
           AND category_split.amount <> 0
           AND category_split.category_id IS NULL
+          AND NOT (
+            category_split.inflow_classification = 'income'
+            AND category_split.amount > 0
+          )
           AND (
             category_split.transfer_account_id IS NULL
             OR category_split.transfer_transaction_id IS NULL
