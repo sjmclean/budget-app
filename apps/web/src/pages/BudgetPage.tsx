@@ -212,6 +212,7 @@ function BudgetNextMonthOutlook({
   const outlook = data
     ? resolveBudgetNextMonthOutlook(data.readyToAssign)
     : null;
+  const summary = data ? readAuthoritativeBudgetSummary(data) : null;
   const monthName = data?.monthLabel.split(" ")[0] ?? "Next month";
   const statusClass = outlook?.status === "overbudget"
     ? "budget-next-month-outlook-overbudget"
@@ -252,13 +253,19 @@ function BudgetNextMonthOutlook({
         <StatusIcon size={22} />
       </span>
       <span className="budget-next-month-outlook-kicker">Next month</span>
-      <span className="budget-next-month-outlook-label">{monthName} outlook</span>
+      <span className="budget-next-month-outlook-label">Ready to Assign in {monthName}</span>
       <strong>{primary}</strong>
       <span className="budget-next-month-outlook-support">{secondary}</span>
-      {data ? (
-        <span className="budget-next-month-outlook-assigned">
-          <span>Assigned in {monthName}</span>
-          <strong>{formatMoney(data.totalAssigned, currencyCode)}</strong>
+      {data && summary ? (
+        <span className="budget-next-month-outlook-breakdown">
+          <span>
+            <span>Income for {monthName}</span>
+            <strong>{formatMoney(summary.incomeForMonth, currencyCode)}</strong>
+          </span>
+          <span>
+            <span>Assigned in {monthName}</span>
+            <strong>{formatMoney(-data.totalAssigned, currencyCode)}</strong>
+          </span>
         </span>
       ) : null}
       <span className="budget-next-month-outlook-arrow" aria-hidden="true">›</span>
@@ -965,7 +972,7 @@ function BudgetMultiMonthPane({
             <CircleDollarSign size={26} />
           </span>
           <div className="budget-ready-summary-heading">
-            <span>Ready to Assign</span>
+            <span>Ready to Assign in {monthName}</span>
             <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
           </div>
         </div>
@@ -1751,14 +1758,14 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                         ? "budget-ready-summary budget-ready-summary-neutral"
                         : "budget-ready-summary budget-ready-summary-positive"
                   }
-                  aria-label={`Ready to assign ${formatMoney(displayedReadyToAssign, data.currencyCode)}`}
+                  aria-label={`Ready to assign in ${monthName}: ${formatMoney(displayedReadyToAssign, data.currencyCode)}`}
                 >
                   <div className="budget-ready-summary-primary">
                     <span className="budget-ready-summary-icon" aria-hidden="true">
                       <CircleDollarSign size={30} />
                     </span>
                     <div className="budget-ready-summary-heading">
-                      <span>Ready to Assign</span>
+                      <span>Ready to Assign in {monthName}</span>
                       <strong>{formatMoney(displayedReadyToAssign, data.currencyCode)}</strong>
                     </div>
                   </div>
