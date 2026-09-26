@@ -182,3 +182,30 @@ test("register warm first paint survives strict mode layout-effect replay", () =
     /if \(warm && claimedWarm\?\.key !== warmKey\) \{\s*claimedWarmBootstrapRef\.current = \{ key: warmKey, value: warm \};\s*\}/s,
   );
 });
+
+test("account register mapping preserves canonical inflow classification", () => {
+  const hookSource = readFileSync(
+    new URL(
+      "../../../apps/web/src/features/accounts/useAccountRegister.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(
+    hookSource,
+    /inflowClassification: row\.inflowClassification \?\? undefined/,
+  );
+  assert.match(
+    hookSource,
+    /inflowClassification: line\.inflowClassification \?\? undefined/,
+  );
+  assert.match(
+    hookSource,
+    /inflowClassification: input\.inflowClassification/,
+  );
+  assert.match(
+    hookSource,
+    /line\.inflowClassification === "income" && !line\.categoryId/,
+  );
+});
