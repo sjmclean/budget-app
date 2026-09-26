@@ -150,13 +150,23 @@ test("manual category overrides remain until another saved payee is explicitly s
   assert.equal(next.categoryId, "category-food");
 });
 
-test("typing and transfer selection do not apply a payee default category", () => {
-  const current = draft({ category: "Bills", categoryId: "category-bills" });
-  assert.equal(applyScheduledPayeeText(current, "Free text").category, "Bills");
+test("typing preserves category while transfer selection clears category and income intent", () => {
+  const current = draft({
+    category: "Income for following month",
+    incomeBudgetMonthOffset: 1,
+    inflowClassification: "income",
+  });
   assert.equal(
-    applyScheduledTransferAccount(current, "account-savings").category,
-    "Bills",
+    applyScheduledPayeeText(current, "Free text").category,
+    "Income for following month",
   );
+
+  const transfer = applyScheduledTransferAccount(current, "account-savings");
+  assert.equal(transfer.category, "");
+  assert.equal(transfer.categoryId, undefined);
+  assert.equal(transfer.incomeBudgetMonthOffset, undefined);
+  assert.equal(transfer.inflowClassification, undefined);
+  assert.equal(transfer.splitLines, undefined);
 });
 
 test("scheduled auto-focus leaves payee suggestions collapsed", () => {
@@ -233,4 +243,27 @@ test("scheduled attachment surface uses theme tokens", () => {
   assert.match(section, /background:\s*var\(--surface\)/);
   assert.match(section, /color:\s*var\(--text\)/);
   assert.doesNotMatch(section, /background:\s*#fff/);
+});
+
+
+test("saved payee category defaults clear scheduled income intent", () => {
+  const current = draft({
+    category: "Income for following month",
+    incomeBudgetMonthOffset: 1,
+    inflowClassification: "income",
+  });
+
+  const next = applyScheduledSavedPayee(
+    current,
+    "payee-known",
+    "Known Payee",
+    "category-food",
+    "Food",
+    [{ id: "category-food", name: "Food" }],
+  );
+
+  assert.equal(next.category, "Food");
+  assert.equal(next.categoryId, "category-food");
+  assert.equal(next.incomeBudgetMonthOffset, undefined);
+  assert.equal(next.inflowClassification, undefined);
 });

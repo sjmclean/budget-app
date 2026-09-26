@@ -15,7 +15,7 @@ import type { ScheduledTransactionView } from "../scheduledTransactionTypes.js";
 export const SCHEDULED_TRANSACTION_ENTITY_INDEX_KEY = "budget-app.entity-replication.v1/scheduled-transaction-index";
 export const SCHEDULED_TRANSACTION_ENTITY_RECORD_PREFIX = "budget-app.entity-replication.v1/scheduled-transaction/";
 
-export type ScheduledTransactionEntityFields = Omit<ScheduledTransactionView, "id" | "endDate" | "occurrenceCount" | "payeeId" | "categoryId" | "splitLines" | "specificDates" | "specificDateIndex" | "specificInstalments"> & {
+export type ScheduledTransactionEntityFields = Omit<ScheduledTransactionView, "id" | "endDate" | "occurrenceCount" | "payeeId" | "categoryId" | "splitLines" | "specificDates" | "specificDateIndex" | "specificInstalments" | "incomeBudgetMonthOffset" | "inflowClassification"> & {
   endDate: string | null;
   occurrenceCount: number | null;
   payeeId: string | null;
@@ -24,6 +24,8 @@ export type ScheduledTransactionEntityFields = Omit<ScheduledTransactionView, "i
   specificDates: string[] | null;
   specificDateIndex: number | null;
   specificInstalments: NonNullable<ScheduledTransactionView["specificInstalments"]> | null;
+  incomeBudgetMonthOffset: NonNullable<ScheduledTransactionView["incomeBudgetMonthOffset"]> | null;
+  inflowClassification: NonNullable<ScheduledTransactionView["inflowClassification"]> | null;
 };
 
 function validFields(fields: Readonly<Record<string, unknown>>): fields is ScheduledTransactionEntityFields {
@@ -43,6 +45,12 @@ function validFields(fields: Readonly<Record<string, unknown>>): fields is Sched
     typeof fields.occurrencesCompleted === "number" && typeof fields.weekendPolicy === "string" &&
     typeof fields.payee === "string" && (fields.payeeId === null || typeof fields.payeeId === "string") &&
     typeof fields.category === "string" && (fields.categoryId === null || typeof fields.categoryId === "string") &&
+    (fields.incomeBudgetMonthOffset === null ||
+      fields.incomeBudgetMonthOffset === 0 ||
+      fields.incomeBudgetMonthOffset === 1) &&
+    (fields.inflowClassification === null ||
+      fields.inflowClassification === "income" ||
+      fields.inflowClassification === "category-inflow") &&
     typeof fields.memo === "string" && typeof fields.outflow === "number" && typeof fields.inflow === "number" &&
     (fields.splitLines === null || Array.isArray(fields.splitLines)) &&
     typeof fields.createdAt === "string" && typeof fields.updatedAt === "string";
@@ -92,6 +100,8 @@ function entityValues(transaction: ScheduledTransactionView): ScheduledTransacti
     specificDates: source.specificDates ? [...source.specificDates] : null,
     specificDateIndex: source.specificDateIndex ?? null,
     specificInstalments: source.specificInstalments?.map((instalment) => ({ ...instalment })) ?? null,
+    incomeBudgetMonthOffset: source.incomeBudgetMonthOffset ?? null,
+    inflowClassification: source.inflowClassification ?? null,
     attachments: (source.attachments ?? []).map((attachment) => ({ ...attachment })),
   };
 }
@@ -129,6 +139,8 @@ export function projectScheduledTransaction(entity: ReplicatedEntity<ScheduledTr
     payeeId: values.payeeId ?? undefined, categoryId: values.categoryId ?? undefined, splitLines: values.splitLines ?? undefined,
     specificDates: values.specificDates ?? undefined, specificDateIndex: values.specificDateIndex ?? undefined,
     specificInstalments: values.specificInstalments ?? undefined,
+    incomeBudgetMonthOffset: values.incomeBudgetMonthOffset ?? undefined,
+    inflowClassification: values.inflowClassification ?? undefined,
   };
 }
 

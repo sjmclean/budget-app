@@ -1560,16 +1560,13 @@ export function createLocalBudgetRuntime(
     },
     async getBudgetCategoryOptions(input) {
       const view = await client.getBudgetMonthView(input);
-      return [{
-        id: "__ready_to_assign__", name: "Ready to Assign",
-        groupId: "__income__", groupName: "Income",
-      }, ...view.categoryGroups.flatMap((group) => group.categories.map((category) => ({
+      return view.categoryGroups.flatMap((group) => group.categories.map((category) => ({
         id: category.id,
         name: category.name,
         groupId: group.id,
         groupName: group.name,
         isArchived: category.isArchived,
-      })))];
+      }))); 
     },
     async getFinancialOverview(budgetId, month) {
       return (await syncThenDatabase(budgetId)).getFinancialOverview(budgetId, month);

@@ -2,11 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  incomeBudgetMonthOptions,
-  latestAllowedIncomeBudgetMonth,
-  validIncomeBudgetMonth,
-} from "../../../apps/web/src/features/accounts/incomeBudgetMonth.js";
-import {
   buildNewRegisterTransactionInput,
 } from "../../../apps/web/src/features/accounts/registerTransactionDrafts.js";
 
@@ -23,20 +18,8 @@ function baseDraft() {
     inflow: "100.00",
     splitLines: [],
     categoryOptions,
-    latestIncomeBudgetMonth: "2026-12",
   };
 }
-
-test("Income for Month options begin at the transaction month and respect the configured future limit", () => {
-  assert.equal(latestAllowedIncomeBudgetMonth("2026-09", 3), "2026-12");
-  assert.deepEqual(
-    incomeBudgetMonthOptions("2026-11-15", "2026-12").map(({ value }) => value),
-    ["2026-11", "2026-12"],
-  );
-  assert.equal(validIncomeBudgetMonth("2026-10", "2026-09-24", "2026-12"), true);
-  assert.equal(validIncomeBudgetMonth("2026-08", "2026-09-24", "2026-12"), false);
-  assert.equal(validIncomeBudgetMonth("2027-01", "2026-09-24", "2026-12"), false);
-});
 
 test("parent inflow requires an explicit synthetic income choice", () => {
   const uncategorised = buildNewRegisterTransactionInput(baseDraft());

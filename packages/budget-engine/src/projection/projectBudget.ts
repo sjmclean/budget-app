@@ -55,7 +55,6 @@ export interface BudgetProjectionInput {
   readonly budgetId: string;
   readonly fromMonth: string;
   readonly throughMonth: string;
-  readonly readyToAssignCategoryId?: string;
   readonly openingReadyToAssign?: number;
   /** Non-carried overspending already resolved into the opening month. */
   readonly openingPreviousOverspending?: number;
@@ -106,8 +105,6 @@ export interface BudgetProjectionResult {
   readonly months: readonly BudgetMonthProjection[];
 }
 
-const DEFAULT_READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
-
 /**
  * Pure, deterministic budget projection. Inputs are canonical facts and every
  * monetary value is an integer number of minor units.
@@ -117,14 +114,11 @@ export function projectBudget(input: BudgetProjectionInput): BudgetProjectionRes
   const months = enumerateMonths(input.fromMonth, input.throughMonth);
   const accountById = new Map(input.accounts.map((account) => [account.id, account]));
   const categoryById = new Map(input.categories.map((category) => [category.id, category]));
-  const readyToAssignCategoryId =
-    input.readyToAssignCategoryId ?? DEFAULT_READY_TO_ASSIGN_CATEGORY_ID;
   const assignmentByMonthCategory = indexAssignments(input.assignments, categoryById);
   const activity = indexActivity(
     input.transactions,
     accountById,
     categoryById,
-    readyToAssignCategoryId,
   );
   const paymentFundingState = (input.creditCardPolicy ?? "manual") === "payment-funding"
     ? {
@@ -189,7 +183,6 @@ export function projectBudget(input: BudgetProjectionInput): BudgetProjectionRes
         activityByCategoryId,
         accountById,
         categoryById,
-        readyToAssignCategoryId,
       );
     }
     const categories = input.categories.map((category) => {
@@ -287,7 +280,6 @@ function applyCreditCardPaymentFunding(
   activityByCategoryId: Map<string, number>,
   accountById: ReadonlyMap<string, BudgetProjectionAccountFact>,
   categoryById: ReadonlyMap<string, BudgetProjectionCategoryFact>,
-  readyToAssignCategoryId: string,
 ): void {
   if ((input.creditCardPolicy ?? "manual") !== "payment-funding") return;
   const paymentCategories = input.paymentCategoryIdByAccountId ?? {};
@@ -384,7 +376,7 @@ function applyCreditCardPaymentFunding(
     account: BudgetProjectionAccountFact,
     debtCreated = 0,
   ) {
-    if (!categoryId || categoryId === readyToAssignCategoryId || !categoryById.has(categoryId)) return;
+    if (!categoryId || !categoryById.has(categoryId)) return;
     const before = runningAvailable.get(categoryId) ?? 0;
     if (account.type === "credit-card") {
       const paymentCategoryId = paymentCategories[account.id];
@@ -479,7 +471,6 @@ function indexActivity(
   transactions: readonly BudgetProjectionTransactionFact[],
   accountById: ReadonlyMap<string, BudgetProjectionAccountFact>,
   categoryById: ReadonlyMap<string, BudgetProjectionCategoryFact>,
-  readyToAssignCategoryId: string,
 ) {
   const byMonthCategory = new Map<string, Map<string, number>>();
   const incomeByMonth = new Map<string, number>();
@@ -576,13 +567,6 @@ function indexActivity(
       return;
     }
     if (!categoryId) return;
-    if (categoryId === readyToAssignCategoryId) {
-      const month = incomeBudgetMonth
-        ? requireIncomeBudgetMonth(incomeBudgetMonth, transactionMonth)
-        : transactionMonth;
-      incomeByMonth.set(month, (incomeByMonth.get(month) ?? 0) + amount);
-      return;
-    }
     const month = transactionMonth;
     if (!categoryById.has(categoryId)) {
       throw new Error(`Transaction activity references unknown category ${categoryId}.`);
@@ -605,19 +589,6 @@ function requireExplicitIncomeBudgetMonth(
   if (value !== transactionMonth && value !== followingMonth) {
     throw new Error(
       `Income budget month ${value} must be transaction month ${transactionMonth} or following month ${followingMonth}.`,
-    );
-  }
-  return value;
-}
-
-function requireIncomeBudgetMonth(
-  value: string,
-  transactionMonth: string,
-): string {
-  requireMonth(value);
-  if (value < transactionMonth) {
-    throw new Error(
-      `Income budget month ${value} cannot be earlier than transaction month ${transactionMonth}.`,
     );
   }
   return value;

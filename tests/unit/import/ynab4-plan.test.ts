@@ -287,3 +287,100 @@ test("rejects invalid scheduled transaction references and required fields", () 
     /Invalid or missing YNAB4 date/,
   );
 });
+
+
+test("maps YNAB4 scheduled income to relative canonical intent without an RTA category", () => {
+  const plan = buildYnab4LauncherImportPlan(
+    createBudget(),
+    {
+      accounts: [{
+        entityId: "source-checking",
+        accountName: "Checking",
+        onBudget: true,
+      }],
+      masterCategories: [],
+      payees: [],
+      transactions: [],
+      scheduledTransactions: [
+        {
+          entityId: "income-current",
+          accountId: "source-checking",
+          nextDueDate: "2026-12-20",
+          amount: 100,
+          categoryId: "Category/__ImmediateIncome__",
+        },
+        {
+          entityId: "income-following",
+          accountId: "source-checking",
+          nextDueDate: "2026-12-21",
+          amount: 200,
+          categoryId: "Category/__DeferredIncome__",
+        },
+        {
+          entityId: "income-split",
+          accountId: "source-checking",
+          nextDueDate: "2026-12-22",
+          amount: 300,
+          categoryId: "Category/__Split__",
+          subTransactions: [
+            {
+              entityId: "split-current",
+              amount: 100,
+              categoryId: "Category/__ImmediateIncome__",
+            },
+            {
+              entityId: "split-following",
+              amount: 200,
+              categoryId: "Category/__DeferredIncome__",
+            },
+          ],
+        },
+      ],
+      monthlyBudgets: [],
+    },
+    new Date("2026-07-20T00:00:00.000Z"),
+  );
+
+  const current = plan.scheduledTransactions.find(({ id }) => id === "income-current");
+  assert.equal(current?.category, "Income for transaction month");
+  assert.equal(current?.categoryId, undefined);
+  assert.equal(current?.incomeBudgetMonthOffset, 0);
+  assert.equal(current?.inflowClassification, "income");
+
+  const following = plan.scheduledTransactions.find(({ id }) => id === "income-following");
+  assert.equal(following?.category, "Income for following month");
+  assert.equal(following?.categoryId, undefined);
+  assert.equal(following?.incomeBudgetMonthOffset, 1);
+  assert.equal(following?.inflowClassification, "income");
+
+  const split = plan.scheduledTransactions.find(({ id }) => id === "income-split");
+  assert.equal(split?.splitLines?.[0]?.categoryId, undefined);
+  assert.equal(split?.splitLines?.[0]?.incomeBudgetMonthOffset, 0);
+  assert.equal(split?.splitLines?.[0]?.inflowClassification, "income");
+  assert.equal(split?.splitLines?.[1]?.categoryId, undefined);
+  assert.equal(split?.splitLines?.[1]?.incomeBudgetMonthOffset, 1);
+  assert.equal(split?.splitLines?.[1]?.inflowClassification, "income");
+});
+
+test("does not convert YNAB4 income payee defaults into a pseudo-category", () => {
+  const plan = buildYnab4LauncherImportPlan(
+    createBudget(),
+    {
+      accounts: [],
+      masterCategories: [],
+      payees: [{
+        entityId: "income-payee",
+        name: "Employer",
+        autoFillCategoryId: "Category/__ImmediateIncome__",
+      }],
+      transactions: [],
+      scheduledTransactions: [],
+      monthlyBudgets: [],
+    },
+    new Date("2026-07-20T00:00:00.000Z"),
+  );
+
+  const payee = plan.payees[0];
+  assert.equal(payee?.defaultCategoryId, undefined);
+  assert.equal(payee?.defaultCategoryName, undefined);
+});

@@ -43,8 +43,6 @@ export const ACTUAL_BUDGET_LAUNCHER_IMPORT_STORAGE_PREFIX =
 
 const ACCOUNTS_STORAGE_KEY = "budget-app.accounts.v1";
 const BUDGET_VIEW_STORAGE_PREFIX = "budget-app.budget-view.v1";
-const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
-const READY_TO_ASSIGN_CATEGORY_NAME = "Ready to Assign";
 
 export interface ActualBudgetLauncherImportRecord {
   budgetId: string;
@@ -871,9 +869,9 @@ function createEmptyRegister(account: SidebarAccount, currencyCode: string): Acc
 function resolveActualTransactionCategory(
   sourceCategoryId: string | null | undefined,
   maps: ActualImportMaps,
-): { categoryId: string | undefined; categoryName: string } {
+): { categoryId: string | undefined; categoryName: string; isIncome: boolean } {
   if (!sourceCategoryId) {
-    return { categoryId: undefined, categoryName: "Uncategorised" };
+    return { categoryId: undefined, categoryName: "Uncategorised", isIncome: false };
   }
 
   const mappedCategoryId = maps.categoryIdBySourceId.get(sourceCategoryId);
@@ -881,17 +879,19 @@ function resolveActualTransactionCategory(
     return {
       categoryId: mappedCategoryId,
       categoryName: maps.categoryNameById.get(mappedCategoryId) ?? "Uncategorised",
+      isIncome: false,
     };
   }
 
   if (maps.readyToAssignCategorySourceIds.has(sourceCategoryId)) {
     return {
-      categoryId: READY_TO_ASSIGN_CATEGORY_ID,
-      categoryName: READY_TO_ASSIGN_CATEGORY_NAME,
+      categoryId: undefined,
+      categoryName: "Uncategorised",
+      isIncome: true,
     };
   }
 
-  return { categoryId: undefined, categoryName: "Uncategorised" };
+  return { categoryId: undefined, categoryName: "Uncategorised", isIncome: false };
 }
 
 function mapActualRegisterTransaction(
@@ -923,6 +923,14 @@ function mapActualRegisterTransaction(
     categoryId: splitLines.length > 0 || transferAccountId
       ? undefined
       : resolvedCategory.categoryId,
+    incomeBudgetMonth:
+      splitLines.length === 0 && !transferAccountId && resolvedCategory.isIncome && amount > 0
+        ? (transaction.date ?? "1970-01-01").slice(0, 7)
+        : undefined,
+    inflowClassification:
+      splitLines.length === 0 && !transferAccountId && resolvedCategory.isIncome && amount > 0
+        ? "income"
+        : undefined,
     memo: transaction.memo ?? undefined,
     inflow: amount > 0 ? amount : 0,
     outflow: amount < 0 ? Math.abs(amount) : 0,
@@ -945,6 +953,12 @@ function mapActualSplitLines(
       id: line.id || `${transaction.id}-split-${index + 1}`,
       category: resolvedCategory.categoryName,
       categoryId: resolvedCategory.categoryId,
+      incomeBudgetMonth:
+        resolvedCategory.isIncome && amount > 0
+          ? (transaction.date ?? "1970-01-01").slice(0, 7)
+          : undefined,
+      inflowClassification:
+        resolvedCategory.isIncome && amount > 0 ? "income" : undefined,
       memo: line.memo ?? undefined,
       inflow: amount > 0 ? amount : 0,
       outflow: amount < 0 ? Math.abs(amount) : 0,
@@ -975,7 +989,7 @@ function recalculateRegister(register: AccountRegisterView): void {
   register.unclearedBalance = roundMoney(register.workingBalance - register.clearedBalance);
 }
 
-function buildActualReadyToAssignIncomeByMonthFromRegisters(
+function buildActualIncomeByMonthFromRegisters(
   registers: Record<string, AccountRegisterView>,
 ): Map<string, number> {
   const result = new Map<string, number>();
@@ -992,10 +1006,16 @@ function buildActualReadyToAssignIncomeByMonthFromRegisters(
 
       if (transaction.splitLines?.length) {
         amount = transaction.splitLines.reduce((sum, line) => {
-          if (line.categoryId !== READY_TO_ASSIGN_CATEGORY_ID) return sum;
+          if (
+            line.inflowClassification !== "income" ||
+            line.incomeBudgetMonth !== month
+          ) return sum;
           return sum + line.inflow - line.outflow;
         }, 0);
-      } else if (transaction.categoryId === READY_TO_ASSIGN_CATEGORY_ID) {
+      } else if (
+        transaction.inflowClassification === "income" &&
+        transaction.incomeBudgetMonth === month
+      ) {
         amount = transaction.inflow - transaction.outflow;
       }
 
@@ -1028,7 +1048,7 @@ function mapActualBudgetMonthViews(
   }
 
   const activityByMonthCategory = buildActualActivityByMonthCategoryFromRegisters(registers);
-  const readyToAssignIncomeByMonth = buildActualReadyToAssignIncomeByMonthFromRegisters(registers);
+  const incomeByMonth = buildActualIncomeByMonthFromRegisters(registers);
   const budgetDataByMonthCategory = buildActualBudgetDataByMonthCategory(preview, maps.categoryIdBySourceId);
   const views = new Map<string, BudgetMonthView>();
 
@@ -1084,7 +1104,7 @@ function mapActualBudgetMonthViews(
     const totalAssigned = roundMoney(groups.reduce((sum, group) => sum + group.assigned, 0));
     const totalActivity = roundMoney(groups.reduce((sum, group) => sum + group.activity, 0));
     const totalAvailable = normaliseMoney(groups.reduce((sum, group) => sum + group.available, 0));
-    const incomeForMonth = roundMoney(readyToAssignIncomeByMonth.get(month) ?? 0);
+    const incomeForMonth = roundMoney(incomeByMonth.get(month) ?? 0);
     const carriedForwardReadyToAssign = previousReadyToAssign;
     const readyToAssign = normaliseMoney(
       carriedForwardReadyToAssign +
@@ -1155,7 +1175,7 @@ function buildActualActivityByMonthCategoryFromRegisters(
 
       if (transaction.splitLines?.length) {
         for (const splitLine of transaction.splitLines) {
-          if (!splitLine.categoryId || splitLine.categoryId === READY_TO_ASSIGN_CATEGORY_ID) continue;
+          if (!splitLine.categoryId) continue;
           const amount = splitLine.inflow - splitLine.outflow;
           byCategory.set(splitLine.categoryId, roundMoney((byCategory.get(splitLine.categoryId) ?? 0) + amount));
         }
@@ -1163,7 +1183,7 @@ function buildActualActivityByMonthCategoryFromRegisters(
         continue;
       }
 
-      if (!transaction.categoryId || transaction.categoryId === READY_TO_ASSIGN_CATEGORY_ID) continue;
+      if (!transaction.categoryId) continue;
       const amount = transaction.inflow - transaction.outflow;
       byCategory.set(transaction.categoryId, roundMoney((byCategory.get(transaction.categoryId) ?? 0) + amount));
       result.set(month, byCategory);

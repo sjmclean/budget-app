@@ -4,6 +4,8 @@ export interface ScheduledPayeeDraftState {
   transferAccountId?: string;
   category?: string;
   categoryId?: string;
+  incomeBudgetMonthOffset?: 0 | 1;
+  inflowClassification?: "income" | "category-inflow";
   splitLines?: readonly unknown[];
 }
 
@@ -54,9 +56,19 @@ export function applyScheduledSavedPayee<
       option.isArchived !== true,
   );
 
-  return category
-    ? { ...next, category: category.name, categoryId: category.id }
-    : next;
+  if (!category) return next;
+
+  const {
+    incomeBudgetMonthOffset: _incomeBudgetMonthOffset,
+    inflowClassification: _inflowClassification,
+    ...withoutIncomeIntent
+  } = next;
+
+  return {
+    ...withoutIncomeIntent,
+    category: category.name,
+    categoryId: category.id,
+  } as TState;
 }
 
 export function applyScheduledTransferAccount<
@@ -64,9 +76,19 @@ export function applyScheduledTransferAccount<
 >(current: TState, transferAccountId: string | undefined): TState {
   if (!transferAccountId) return current;
 
+  const {
+    categoryId: _categoryId,
+    incomeBudgetMonthOffset: _incomeBudgetMonthOffset,
+    inflowClassification: _inflowClassification,
+    splitLines: _splitLines,
+    ...withoutCategoryMetadata
+  } = current;
+
   return {
-    ...current,
+    ...withoutCategoryMetadata,
     transferAccountId,
     payeeId: undefined,
-  };
+    ...("category" in current ? { category: "" } : {}),
+    ...("splitLines" in current ? { splitLines: [] } : {}),
+  } as TState;
 }

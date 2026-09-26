@@ -927,21 +927,6 @@ export function verifyImportCommitPlan(
         continue;
       }
 
-      if (line.category === "Ready to Assign") {
-        if (
-          line.categoryId !== "__ready_to_assign__" ||
-          line.inflow <= 0 ||
-          line.outflow !== 0
-        ) {
-          addIssue({
-            code: "invalid-split",
-            transactionId: transaction.id,
-            message: `${splitLabel} uses Ready to Assign incorrectly.`,
-          });
-        }
-        continue;
-      }
-
       const byName = categoryByName.get(
         line.category.trim().toLocaleLowerCase(),
       );
@@ -1011,18 +996,7 @@ export function verifyImportCommitPlan(
       continue;
     }
 
-    if (transaction.category === "Ready to Assign") {
-      if (
-        transaction.categoryId !== "__ready_to_assign__" ||
-        transaction.inflow <= 0 ||
-        transaction.outflow !== 0
-      ) {
-        addIssue({
-          code: "invalid-category-reference",
-          message: `Addition ${index + 1} uses Ready to Assign incorrectly.`,
-        });
-      }
-    } else if (transaction.category !== "Uncategorised") {
+    if (transaction.category !== "Uncategorised") {
       const byName = categoryByName.get(transaction.category.trim().toLocaleLowerCase());
       const byId = transaction.categoryId ? categoryById.get(transaction.categoryId) : undefined;
       if (!byName || !byId || byName.id !== byId.id) {
@@ -1061,8 +1035,7 @@ export function verifyImportCommitPlan(
     if (
       !isVerifiedSplit &&
       transaction.category !== "Transfer" &&
-      transaction.category !== "Uncategorised" &&
-      transaction.category !== "Ready to Assign"
+      transaction.category !== "Uncategorised"
     ) {
       const byName = categoryByName.get(
         transaction.category.trim().toLocaleLowerCase(),

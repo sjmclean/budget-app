@@ -9,8 +9,10 @@ const baseWrite = {
   accountId: "checking",
   date: "2026-09-24",
   amount: 10000,
-  categoryId: "__ready_to_assign__",
-  categoryName: "Ready to Assign",
+  categoryId: undefined,
+  categoryName: "Uncategorised",
+  incomeBudgetMonth: "2026-10",
+  inflowClassification: "income",
 };
 
 function existingIncome(overrides: Partial<LocalTransactionRecord> = {}): LocalTransactionRecord {
@@ -26,10 +28,10 @@ function existingIncome(overrides: Partial<LocalTransactionRecord> = {}): LocalT
     payeeId: null,
     payeeName: "Employer",
     rawPayeeName: null,
-    categoryId: "__ready_to_assign__",
-    categoryName: "Ready to Assign",
-    incomeBudgetMonth: "2026-11",
-    inflowClassification: null,
+    categoryId: null,
+    categoryName: "Uncategorised",
+    incomeBudgetMonth: "2026-10",
+    inflowClassification: "income",
     transferAccountId: null,
     transferTransactionId: null,
     generatedFromSchedule: false,
@@ -49,16 +51,17 @@ test("persistence retains a valid Income for Month through unrelated edits", asy
     { ...baseWrite, memo: "updated" },
     existingIncome(),
   );
-  assert.equal(record.incomeBudgetMonth, "2026-11");
+  assert.equal(record.incomeBudgetMonth, "2026-10");
 });
 
-test("persistence clears stale income allocation when the transaction is no longer Ready to Assign income", async () => {
+test("persistence clears stale income allocation when the transaction is no longer canonical general income", async () => {
   const expense = await transactionRecord(
     "income",
     {
       ...baseWrite,
       amount: -10000,
-      incomeBudgetMonth: "2026-11",
+      incomeBudgetMonth: undefined,
+      inflowClassification: undefined,
     },
     existingIncome(),
   );
@@ -71,6 +74,8 @@ test("persistence clears stale income allocation when the transaction is no long
         ...baseWrite,
         categoryId: "salary-adjustment",
         categoryName: "Salary adjustment",
+        incomeBudgetMonth: undefined,
+        inflowClassification: undefined,
       },
       existingIncome(),
     ),
@@ -83,6 +88,7 @@ test("persistence clears stale income allocation when the transaction is no long
       ...baseWrite,
       categoryId: "salary-adjustment",
       categoryName: "Salary adjustment",
+      incomeBudgetMonth: undefined,
       inflowClassification: "category-inflow",
     },
     existingIncome(),
@@ -95,7 +101,8 @@ test("persistence clears stale income allocation when the transaction is no long
     {
       ...baseWrite,
       transferAccountId: "savings",
-      incomeBudgetMonth: "2026-11",
+      incomeBudgetMonth: undefined,
+      inflowClassification: undefined,
     },
     existingIncome(),
   );
@@ -108,18 +115,18 @@ test("persistence rejects backdated or malformed Income for Month values", async
       ...baseWrite,
       incomeBudgetMonth: "2026-08",
     }),
-    /cannot be earlier than transaction month/,
+    /transaction month or the following month/,
   );
   await assert.rejects(
     () => transactionRecord("income", {
       ...baseWrite,
       incomeBudgetMonth: "September 2026",
     }),
-    /must use YYYY-MM/,
+    /transaction month or the following month/,
   );
 });
 
-test("split persistence keeps legacy RTA allocation isolated from canonical category inflows", async () => {
+test("split persistence keeps canonical general income isolated from category inflows", async () => {
   const record = await transactionRecord("split", {
     budgetId: "budget-a",
     accountId: "checking",
@@ -128,9 +135,10 @@ test("split persistence keeps legacy RTA allocation isolated from canonical cate
     splitLines: [
       {
         id: "future-income",
-        categoryId: "__ready_to_assign__",
-        categoryName: "Ready to Assign",
-        incomeBudgetMonth: "2026-12",
+        categoryId: undefined,
+        categoryName: "Uncategorised",
+        incomeBudgetMonth: "2026-10",
+        inflowClassification: "income",
         amount: 10000,
       },
       {
@@ -143,8 +151,8 @@ test("split persistence keeps legacy RTA allocation isolated from canonical cate
     ],
   });
 
-  assert.equal(record.splitLines[0]?.incomeBudgetMonth, "2026-12");
-  assert.equal(record.splitLines[0]?.inflowClassification, null);
+  assert.equal(record.splitLines[0]?.incomeBudgetMonth, "2026-10");
+  assert.equal(record.splitLines[0]?.inflowClassification, "income");
   assert.equal(record.splitLines[1]?.incomeBudgetMonth, null);
   assert.equal(record.splitLines[1]?.inflowClassification, "category-inflow");
 

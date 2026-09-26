@@ -38,6 +38,8 @@ function balancedSplitLines(): RegisterSplitLineView[] {
       memo: "Food",
       outflow: 100,
       inflow: 0,
+      incomeBudgetMonth: undefined,
+      inflowClassification: undefined,
     },
     {
       id: "split-household",
@@ -46,6 +48,8 @@ function balancedSplitLines(): RegisterSplitLineView[] {
       memo: "Cleaning",
       outflow: 30,
       inflow: 0,
+      incomeBudgetMonth: undefined,
+      inflowClassification: undefined,
     },
     {
       id: "split-medical",
@@ -54,6 +58,8 @@ function balancedSplitLines(): RegisterSplitLineView[] {
       memo: "Pharmacy",
       outflow: 20,
       inflow: 0,
+      incomeBudgetMonth: undefined,
+      inflowClassification: undefined,
     },
   ];
 }

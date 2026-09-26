@@ -62,7 +62,7 @@ test("bank import preserves a reviewed spending category on an inflow refund", (
   assert.equal(transaction.categoryId, "groceries");
 });
 
-test("bank import keeps uncategorised positive income as Ready to Assign", () => {
+test("bank import keeps uncategorised positive inflow uncategorised", () => {
   const candidate: TransactionImportCandidate = {
     id: "row-3",
     parsed: {
@@ -106,6 +106,6 @@ test("bank import keeps uncategorised positive income as Ready to Assign", () =>
   assert.ok(transaction);
   assert.equal(transaction.inflow, 1000);
   assert.equal(transaction.outflow, 0);
-  assert.equal(transaction.category, "Ready to Assign");
-  assert.equal(transaction.categoryId, "__ready_to_assign__");
+  assert.equal(transaction.category, "Uncategorised");
+  assert.equal(transaction.categoryId, undefined);
 });
