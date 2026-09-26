@@ -862,7 +862,9 @@ function BudgetActivityDrilldownModal({
           </>
         ) : (
           <div className="budget-activity-empty">
-            No register activity was found for this category in {drilldown.monthLabel}.
+            {drilldown
+              ? `No register activity was found for this category in ${drilldown.monthLabel}.`
+              : "No register activity was found for this category."}
           </div>
         )}
 
