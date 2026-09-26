@@ -134,7 +134,9 @@ test("moves money from multiple categories and keeps effective history aligned w
   await expect(page.getByLabel(`Available for ${names.target}: $0.00`)).toBeVisible();
   await expect(page.getByLabel(`Available for ${names.source20}: $50.00`)).toBeVisible();
   await expect(page.getByLabel(`Available for ${names.source80}: $120.00`)).toBeVisible();
-  await expect(details.getByText("No effective money movements this month.")).toBeVisible();
+  await expect(
+    details.getByText(/^No effective money movements in .+\.$/),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   await expect(page.getByLabel(`Available for ${names.target}: $100.00`)).toBeVisible();

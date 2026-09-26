@@ -46,18 +46,72 @@ test("Budget page reads the adjacent month through the existing Budget view quer
   );
 });
 
-test("Budget page preserves the current-month breakdown and compact next-month summary", () => {
+test("Budget page presents Ready to Assign and income as month-scoped values", () => {
   assert.match(budgetPageSource, /className="budget-ready-summary-primary"/);
   assert.match(budgetPageSource, /className="budget-ready-summary-breakdown"/);
-  assert.match(budgetPageSource, />Carried forward</);
-  assert.match(budgetPageSource, />Previous overspending</);
+  assert.match(budgetPageSource, /Ready to Assign in \{monthName\}/);
+  assert.match(budgetPageSource, /Carried into \{monthName\}/);
+  assert.match(budgetPageSource, /Previous-month overspending/);
   assert.match(budgetPageSource, /Income for \{monthName\}/);
   assert.match(budgetPageSource, /Assigned in \{monthName\}/);
   assert.match(
     budgetPageSource,
-    /budget-next-month-outlook-assigned[\s\S]*Assigned in \{monthName\}[\s\S]*data\.totalAssigned/,
+    /budget-next-month-outlook-breakdown[\s\S]*Carried into \{monthName\}[\s\S]*summary\.carriedForwardReadyToAssign[\s\S]*Previous-month overspending[\s\S]*summary\.previousOverspending[\s\S]*Income for \{monthName\}[\s\S]*summary\.incomeForMonth[\s\S]*Assigned in \{monthName\}[\s\S]*data\.totalAssigned/,
   );
   assert.match(budgetPageSource, /Balanced/);
   assert.match(budgetPageSource, /overbudget/);
   assert.match(budgetPageSource, /available/);
+});
+
+
+test("Budget page keeps the adaptive one-to-four month planning view", () => {
+  assert.match(
+    budgetPageSource,
+    /\{\[1, 2, 3, 4\]\.map\(\(count\) =>/,
+  );
+  assert.match(
+    budgetPageSource,
+    /if \(workspaceWidth >= 1960\) return 4;[\s\S]*if \(workspaceWidth >= 1470\) return 3;[\s\S]*if \(workspaceWidth >= 975\) return 2;/,
+  );
+});
+
+
+test("future month panes write assignments through their own month workspace", () => {
+  assert.match(
+    budgetPageSource,
+    /function BudgetFutureMonthPane[\s\S]*useBudgetWorkspace\(budgetId, month\)[\s\S]*updateAssigned=\{workspace\.updateAssigned\}/,
+  );
+});
+
+
+test("Budget summary preserves the authoritative monthly Ready to Assign equation", () => {
+  assert.match(
+    budgetPageSource,
+    /Carried into \{monthName\}[\s\S]*Previous-month overspending[\s\S]*Income for \{monthName\}[\s\S]*Assigned in \{monthName\}/,
+  );
+  assert.match(
+    budgetPageSource,
+    /Assigned in \{monthName\}[\s\S]*formatMoney\(-data\.totalAssigned, data\.currencyCode\)/,
+  );
+});
+
+
+test("Budget status copy follows the selected month instead of assuming the present month", () => {
+  assert.doesNotMatch(budgetPageSource, /Based on your current budget/);
+  assert.match(budgetPageSource, /Based on \$\{monthName\}'s budget/);
+  assert.doesNotMatch(budgetPageSource, /: "this month"\}/);
+  assert.match(budgetPageSource, /: monthLabel\}/);
+});
+
+
+test("Budget detail copy is scoped to the selected budget month", () => {
+  assert.match(budgetPageSource, /const selectedMonthLabel = formatBudgetMonthLabel\(month\)/);
+  assert.match(budgetPageSource, /Activity in \{selectedMonthLabel\}/);
+  assert.match(budgetPageSource, /No activity in \{selectedMonthLabel\}/);
+  assert.match(budgetPageSource, /No effective money movements in \{selectedMonthLabel\}/);
+  assert.match(budgetPageSource, /Budget breakdown unavailable for \{data\.monthLabel\}/);
+  assert.match(
+    budgetPageSource,
+    /drilldown\s*\?\s*\`No register activity was found for this category in \$\{drilldown\.monthLabel\}\.\`/,
+  );
 });

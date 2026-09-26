@@ -263,6 +263,36 @@ test("future assignments do not reserve Ready to Assign from earlier months", ()
   assert.equal(february.readyToAssign, 300);
 });
 
+
+test("multi-month future assignments stay scoped to their own budget month", () => {
+  const result = projectBudget(baseInput({
+    fromMonth: "2026-01",
+    throughMonth: "2026-04",
+    openingReadyToAssign: 4_000,
+    assignments: [
+      { month: "2026-03", categoryId: "groceries", amount: 900 },
+      { month: "2026-04", categoryId: "groceries", amount: 600 },
+    ],
+  }));
+
+  const [january, february, march, april] = result.months;
+
+  assert.equal(january!.assigned, 0);
+  assert.equal(january!.readyToAssign, 4_000);
+
+  assert.equal(february!.carriedForwardReadyToAssign, 4_000);
+  assert.equal(february!.assigned, 0);
+  assert.equal(february!.readyToAssign, 4_000);
+
+  assert.equal(march!.carriedForwardReadyToAssign, 4_000);
+  assert.equal(march!.assigned, 900);
+  assert.equal(march!.readyToAssign, 3_100);
+
+  assert.equal(april!.carriedForwardReadyToAssign, 3_100);
+  assert.equal(april!.assigned, 600);
+  assert.equal(april!.readyToAssign, 2_500);
+});
+
 test("projects Ready to Assign income into an explicit future budget month without changing transaction month", () => {
   const result = projectBudget(baseInput({
     fromMonth: "2026-01",

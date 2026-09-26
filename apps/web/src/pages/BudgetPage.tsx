@@ -212,6 +212,7 @@ function BudgetNextMonthOutlook({
   const outlook = data
     ? resolveBudgetNextMonthOutlook(data.readyToAssign)
     : null;
+  const summary = data ? readAuthoritativeBudgetSummary(data) : null;
   const monthName = data?.monthLabel.split(" ")[0] ?? "Next month";
   const statusClass = outlook?.status === "overbudget"
     ? "budget-next-month-outlook-overbudget"
@@ -226,13 +227,13 @@ function BudgetNextMonthOutlook({
   } else if (data && outlook) {
     if (outlook.status === "balanced") {
       primary = "Balanced";
-      secondary = "Based on your current budget";
+      secondary = `Based on ${monthName}'s budget`;
     } else if (outlook.status === "overbudget") {
       primary = `${formatMoney(outlook.amount, currencyCode)} overbudget`;
-      secondary = "Based on your current budget";
+      secondary = `Based on ${monthName}'s budget`;
     } else {
       primary = `${formatMoney(outlook.amount, currencyCode)} available`;
-      secondary = "Based on your current budget";
+      secondary = `Based on ${monthName}'s budget`;
     }
   } else if (!isLoading) {
     primary = "Outlook unavailable";
@@ -252,13 +253,27 @@ function BudgetNextMonthOutlook({
         <StatusIcon size={22} />
       </span>
       <span className="budget-next-month-outlook-kicker">Next month</span>
-      <span className="budget-next-month-outlook-label">{monthName} outlook</span>
+      <span className="budget-next-month-outlook-label">Ready to Assign in {monthName}</span>
       <strong>{primary}</strong>
       <span className="budget-next-month-outlook-support">{secondary}</span>
-      {data ? (
-        <span className="budget-next-month-outlook-assigned">
-          <span>Assigned in {monthName}</span>
-          <strong>{formatMoney(data.totalAssigned, currencyCode)}</strong>
+      {data && summary ? (
+        <span className="budget-next-month-outlook-breakdown">
+          <span>
+            <span>Carried into {monthName}</span>
+            <strong>{formatMoney(summary.carriedForwardReadyToAssign, currencyCode)}</strong>
+          </span>
+          <span>
+            <span>Previous-month overspending</span>
+            <strong>{formatMoney(summary.previousOverspending, currencyCode)}</strong>
+          </span>
+          <span>
+            <span>Income for {monthName}</span>
+            <strong>{formatMoney(summary.incomeForMonth, currencyCode)}</strong>
+          </span>
+          <span>
+            <span>Assigned in {monthName}</span>
+            <strong>{formatMoney(-data.totalAssigned, currencyCode)}</strong>
+          </span>
         </span>
       ) : null}
       <span className="budget-next-month-outlook-arrow" aria-hidden="true">›</span>
@@ -341,7 +356,7 @@ function BudgetHealthCard({
               ? "overspent"
               : nextMonthStatus === "overbudget"
                 ? "overbudget next month"
-                : "this month"}
+                : monthLabel}
           </small>
         </div>
       </div>
@@ -429,6 +444,7 @@ function CategoryDetailsPanel({
 }) {
   const [activeTab, setActiveTab] = useState<CategoryDetailsTab>("overview");
   const dateFormat = useDateFormatPreference();
+  const selectedMonthLabel = formatBudgetMonthLabel(month);
   const activityQuery = useCategoryActivityDrilldownQuery({
     budgetId,
     month,
@@ -579,7 +595,7 @@ function CategoryDetailsPanel({
                   ))}
                 </div>
               ) : (
-                <p className="budget-category-details-empty">No activity this month.</p>
+                <p className="budget-category-details-empty">No activity in {selectedMonthLabel}.</p>
               )}
               {category.activity !== 0 ? (
                 <button
@@ -618,7 +634,7 @@ function CategoryDetailsPanel({
                 </div>
               ) : (
                 <p className="budget-category-details-empty">
-                  No effective money movements this month.
+                  No effective money movements in {selectedMonthLabel}.
                 </p>
               )}
             </section>
@@ -670,7 +686,7 @@ function CategoryDetailsPanel({
         {activeTab === "activity" ? (
           <section className="budget-category-details-tab-panel">
             <div className="budget-category-details-section-heading">
-              <strong>Activity this month</strong>
+              <strong>Activity in {selectedMonthLabel}</strong>
               <span>{formatMoney(category.activity, currencyCode)}</span>
             </div>
             {activityQuery.status === "loading" ? (
@@ -693,7 +709,7 @@ function CategoryDetailsPanel({
                 ))}
               </div>
             ) : (
-              <p className="budget-category-details-empty">No activity this month.</p>
+              <p className="budget-category-details-empty">No activity in {selectedMonthLabel}.</p>
             )}
             {category.activity !== 0 ? (
               <button
@@ -846,7 +862,9 @@ function BudgetActivityDrilldownModal({
           </>
         ) : (
           <div className="budget-activity-empty">
-            No register activity was found for this category in this month.
+            {drilldown
+              ? `No register activity was found for this category in ${drilldown.monthLabel}.`
+              : "No register activity was found for this category."}
           </div>
         )}
 
@@ -965,18 +983,18 @@ function BudgetMultiMonthPane({
             <CircleDollarSign size={26} />
           </span>
           <div className="budget-ready-summary-heading">
-            <span>Ready to Assign</span>
+            <span>Ready to Assign in {monthName}</span>
             <strong>{formatMoney(data.readyToAssign, data.currencyCode)}</strong>
           </div>
         </div>
         {summary ? (
           <dl className="budget-ready-summary-breakdown">
             <div>
-              <dt>Carried forward</dt>
+              <dt>Carried into {monthName}</dt>
               <dd>{formatMoney(summary.carriedForwardReadyToAssign, data.currencyCode)}</dd>
             </div>
             <div>
-              <dt>Previous overspending</dt>
+              <dt>Previous-month overspending</dt>
               <dd>{formatMoney(summary.previousOverspending, data.currencyCode)}</dd>
             </div>
             <div>
@@ -990,7 +1008,7 @@ function BudgetMultiMonthPane({
           </dl>
         ) : (
           <p className="budget-multi-month-summary-unavailable">
-            Budget breakdown unavailable for this month.
+            Budget breakdown unavailable for {data.monthLabel}.
           </p>
         )}
       </div>
@@ -1751,24 +1769,24 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                         ? "budget-ready-summary budget-ready-summary-neutral"
                         : "budget-ready-summary budget-ready-summary-positive"
                   }
-                  aria-label={`Ready to assign ${formatMoney(displayedReadyToAssign, data.currencyCode)}`}
+                  aria-label={`Ready to assign in ${monthName}: ${formatMoney(displayedReadyToAssign, data.currencyCode)}`}
                 >
                   <div className="budget-ready-summary-primary">
                     <span className="budget-ready-summary-icon" aria-hidden="true">
                       <CircleDollarSign size={30} />
                     </span>
                     <div className="budget-ready-summary-heading">
-                      <span>Ready to Assign</span>
+                      <span>Ready to Assign in {monthName}</span>
                       <strong>{formatMoney(displayedReadyToAssign, data.currencyCode)}</strong>
                     </div>
                   </div>
                   <dl className="budget-ready-summary-breakdown">
                     <div>
-                      <dt>Carried forward</dt>
+                      <dt>Carried into {monthName}</dt>
                       <dd>{formatMoney(carriedForward, data.currencyCode)}</dd>
                     </div>
                     <div>
-                      <dt>Previous overspending</dt>
+                      <dt>Previous-month overspending</dt>
                       <dd className="budget-ready-summary-negative-value">
                         {formatMoney(previousOverspending, data.currencyCode)}
                       </dd>

@@ -1248,7 +1248,7 @@
     "icon label"
     "icon primary"
     "icon support"
-    "assigned assigned";
+    "breakdown breakdown";
   align-content: start;
   gap: 0.1rem 0.65rem;
   border: 1px solid var(--border);
@@ -1315,12 +1315,10 @@
   line-height: 1.3;
 }
 
-.budget-next-month-outlook-assigned {
-  grid-area: assigned;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.7rem;
+.budget-next-month-outlook-breakdown {
+  grid-area: breakdown;
+  display: grid;
+  gap: 0.3rem;
   margin-top: 0.55rem;
   padding-top: 0.55rem;
   border-top: 1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);
@@ -1328,7 +1326,14 @@
   font-size: 0.7rem;
 }
 
-.budget-next-month-outlook-assigned strong {
+.budget-next-month-outlook-breakdown > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.budget-next-month-outlook-breakdown strong {
   color: var(--text);
   font-size: 0.72rem;
   font-weight: 760;
@@ -2198,8 +2203,7 @@
 }
 
 
-/* Future-month commitments reserve current Ready to Assign without hiding why. */
-/* Optional adaptive multi-month Budget planning view. */
+/* Adaptive multi-month Budget planning view. Future-month assignments remain scoped to their own month. */
 .budget-planning-title {
   display: flex;
   align-items: flex-start;
