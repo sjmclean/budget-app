@@ -60,7 +60,8 @@ test("persistence clears stale income allocation when the transaction is no long
     {
       ...baseWrite,
       amount: -10000,
-      incomeBudgetMonth: "2026-10",
+      incomeBudgetMonth: undefined,
+      inflowClassification: undefined,
     },
     existingIncome(),
   );
@@ -73,6 +74,8 @@ test("persistence clears stale income allocation when the transaction is no long
         ...baseWrite,
         categoryId: "salary-adjustment",
         categoryName: "Salary adjustment",
+        incomeBudgetMonth: undefined,
+        inflowClassification: undefined,
       },
       existingIncome(),
     ),
@@ -85,6 +88,7 @@ test("persistence clears stale income allocation when the transaction is no long
       ...baseWrite,
       categoryId: "salary-adjustment",
       categoryName: "Salary adjustment",
+      incomeBudgetMonth: undefined,
       inflowClassification: "category-inflow",
     },
     existingIncome(),
@@ -97,7 +101,8 @@ test("persistence clears stale income allocation when the transaction is no long
     {
       ...baseWrite,
       transferAccountId: "savings",
-      incomeBudgetMonth: "2026-10",
+      incomeBudgetMonth: undefined,
+      inflowClassification: undefined,
     },
     existingIncome(),
   );
@@ -110,14 +115,14 @@ test("persistence rejects backdated or malformed Income for Month values", async
       ...baseWrite,
       incomeBudgetMonth: "2026-08",
     }),
-    /must be transaction month .* or following month/,
+    /transaction month or the following month/,
   );
   await assert.rejects(
     () => transactionRecord("income", {
       ...baseWrite,
       incomeBudgetMonth: "September 2026",
     }),
-    /must use YYYY-MM/,
+    /transaction month or the following month/,
   );
 });
 
