@@ -27,7 +27,11 @@ import {
   resolveOccurrenceDate,
   resolveRecurrence,
 } from "../../features/accounts/scheduledTransactionRecurrence";
-import type { RegisterSplitLineView } from "../../features/accounts/accountRegisterTypes";
+import type { ScheduledSplitLineView } from "../../features/accounts/scheduledTransactionTypes";
+import {
+  resolveScheduledIncomeCategoryChoice,
+  scheduledIncomeCategoryChoices,
+} from "../../features/accounts/scheduledIncomeCategoryChoices";
 import { getSplitBalanceStatus } from "../../features/accounts/registerSplitDrafts";
 import { getBudgetPersistenceProvider } from "../../features/persistence";
 import { usePersistenceChange } from "../../features/persistence/persistenceChangeBus";
@@ -103,6 +107,8 @@ interface ScheduledFormDraft {
   transferAccountId?: string;
   category: string;
   categoryId?: string;
+  incomeBudgetMonthOffset?: 0 | 1;
+  inflowClassification?: "income" | "category-inflow";
   memo: string;
   outflow: string;
   inflow: string;
@@ -216,6 +222,14 @@ export function ScheduledTransactionsPanel({
       return;
     }
 
+    if (
+      draft.incomeBudgetMonthOffset !== undefined &&
+      (draft.transferAccountId || inflow <= 0 || outflow > 0)
+    ) {
+      await alertDialog({ message: "Scheduled income requires a positive inflow and cannot be a transfer." });
+      return;
+    }
+
     if (draft.splitLines && draft.splitLines.length > 0) {
       const distinctInstalmentAmounts = new Set(
         specificInstalments.map((instalment) => (instalment.inflow > 0 ? instalment.inflow : instalment.outflow).toFixed(2)),
@@ -224,7 +238,12 @@ export function ScheduledTransactionsPanel({
         await alertDialog({ message: "Variable-amount instalments cannot share one split allocation. Use separate schedules if split amounts also vary." });
         return;
       }
-      const invalidSplit = draft.splitLines.some((line) => !line.category.trim() || (line.outflow <= 0 && line.inflow <= 0));
+      const invalidSplit = draft.splitLines.some((line) =>
+        !line.category.trim() ||
+        (line.outflow <= 0 && line.inflow <= 0) ||
+        (line.incomeBudgetMonthOffset !== undefined &&
+          (line.transferAccountId || line.inflow <= 0 || line.outflow > 0))
+      );
       if (invalidSplit) {
         await alertDialog({ message: "Each split line needs a category and an amount." });
         return;
@@ -265,6 +284,8 @@ export function ScheduledTransactionsPanel({
       transferAccountId: draft.transferAccountId,
       category: draft.category.trim(),
       categoryId: draft.categoryId,
+      incomeBudgetMonthOffset: draft.incomeBudgetMonthOffset,
+      inflowClassification: draft.inflowClassification,
       memo: draft.memo.trim(),
       outflow,
       inflow,
@@ -889,8 +910,17 @@ function ScheduledForm({
                     value={draft.category}
                     onChange={(event) => {
                       const category = event.target.value;
-                      const categoryId = categoryOptions.find((option) => option.name === category)?.id;
-                      setDraft({ ...draft, category, categoryId });
+                      const incomeChoice = resolveScheduledIncomeCategoryChoice(category);
+                      const categoryId = incomeChoice
+                        ? undefined
+                        : categoryOptions.find((option) => option.name === category)?.id;
+                      setDraft({
+                        ...draft,
+                        category,
+                        categoryId,
+                        incomeBudgetMonthOffset: incomeChoice?.incomeBudgetMonthOffset,
+                        inflowClassification: incomeChoice ? "income" : undefined,
+                      });
                     }}
                     placeholder="Category"
                     list="scheduled-category-options"
@@ -900,7 +930,14 @@ function ScheduledForm({
                   className="button button-secondary"
                   type="button"
                   onClick={() => {
-                    setDraft({ ...draft, category: "Split", categoryId: undefined, splitLines: [createScheduledSplitLine()] });
+                    setDraft({
+                      ...draft,
+                      category: "Split",
+                      categoryId: undefined,
+                      incomeBudgetMonthOffset: undefined,
+                      inflowClassification: undefined,
+                      splitLines: [createScheduledSplitLine()],
+                    });
                     setIsSplitEditorOpen(true);
                   }}
                 >
@@ -912,12 +949,22 @@ function ScheduledForm({
               <ScheduledSplitEditor
                 splitLines={draft.splitLines ?? []}
                 categoryOptions={categoryOptions}
-                onChange={(splitLines) => setDraft({ ...draft, splitLines, category: "Split", categoryId: undefined })}
+                onChange={(splitLines) => setDraft({
+                  ...draft,
+                  splitLines,
+                  category: "Split",
+                  categoryId: undefined,
+                  incomeBudgetMonthOffset: undefined,
+                  inflowClassification: undefined,
+                })}
                 parentOutflow={storedMoneyValue(draft.outflow)}
                 parentInflow={storedMoneyValue(draft.inflow)}
               />
             ) : null}
             <datalist id="scheduled-category-options">
+              {scheduledIncomeCategoryChoices().map((choice) => (
+                <option key={choice.value} value={choice.value} label="Special" />
+              ))}
               {categoryOptions.map((category) => (
                 <option key={category.id} value={category.name} label={category.groupName} />
               ))}
@@ -1096,9 +1143,9 @@ function ScheduledSplitEditor({
   parentOutflow,
   parentInflow,
 }: {
-  splitLines: RegisterSplitLineView[];
+  splitLines: ScheduledSplitLineView[];
   categoryOptions: BudgetCategoryOption[];
-  onChange: (splitLines: RegisterSplitLineView[]) => void;
+  onChange: (splitLines: ScheduledSplitLineView[]) => void;
   parentOutflow: number;
   parentInflow: number;
 }) {
@@ -1111,7 +1158,7 @@ function ScheduledSplitEditor({
     splitInflow,
   });
 
-  function updateLine(id: string, changes: Partial<RegisterSplitLineView>) {
+  function updateLine(id: string, changes: Partial<ScheduledSplitLineView>) {
     onChange(splitLines.map((line) => line.id === id ? { ...line, ...changes } : line));
   }
 
@@ -1128,9 +1175,14 @@ function ScheduledSplitEditor({
             placeholder="Category"
             onChange={(event) => {
               const category = event.target.value;
+              const incomeChoice = resolveScheduledIncomeCategoryChoice(category);
               updateLine(line.id, {
                 category,
-                categoryId: categoryOptions.find((option) => option.name === category)?.id,
+                categoryId: incomeChoice
+                  ? undefined
+                  : categoryOptions.find((option) => option.name === category)?.id,
+                incomeBudgetMonthOffset: incomeChoice?.incomeBudgetMonthOffset,
+                inflowClassification: incomeChoice ? "income" : undefined,
               });
             }}
           />
@@ -1327,6 +1379,8 @@ function createEmptyDraft(): ScheduledFormDraft {
     transferAccountId: undefined,
     category: "",
     categoryId: undefined,
+    incomeBudgetMonthOffset: undefined,
+    inflowClassification: undefined,
     memo: "",
     outflow: "",
     inflow: "",
@@ -1373,6 +1427,8 @@ function draftFromScheduledSuggestion(
     transferAccountId: undefined,
     category: suggestion.category,
     categoryId: suggestion.categoryId,
+    incomeBudgetMonthOffset: undefined,
+    inflowClassification: undefined,
     memo: "",
     outflow: suggestion.direction === "outflow" ? amount : "",
     inflow: suggestion.direction === "inflow" ? amount : "",
@@ -1447,6 +1503,8 @@ function draftFromScheduled(transaction: ScheduledTransactionView): ScheduledFor
     transferAccountId: transaction.transferAccountId,
     category: transaction.category,
     categoryId: transaction.categoryId,
+    incomeBudgetMonthOffset: transaction.incomeBudgetMonthOffset,
+    inflowClassification: transaction.inflowClassification,
     memo: transaction.memo ?? "",
     outflow: transaction.outflow ? transaction.outflow.toFixed(2) : "",
     inflow: transaction.inflow ? transaction.inflow.toFixed(2) : "",
@@ -1531,7 +1589,7 @@ function resolveFrequencyChoice(
   return "custom";
 }
 
-function createScheduledSplitLine(): RegisterSplitLineView {
+function createScheduledSplitLine(): ScheduledSplitLineView {
   return {
     id: `scheduled-split-${createRuntimeUuid()}`,
     category: "",
