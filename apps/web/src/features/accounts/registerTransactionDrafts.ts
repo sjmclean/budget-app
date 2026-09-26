@@ -160,6 +160,7 @@ function buildRegisterTransactionInput({
   const categoryName = category.trim();
   const incomeCategoryChoice =
     parsedSplitLines.length === 0 &&
+    !transferAccountId &&
     parsedInflow > 0 &&
     parsedOutflow === 0
       ? resolveRegisterIncomeCategoryChoice(categoryName, date)
