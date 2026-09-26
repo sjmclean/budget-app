@@ -218,6 +218,15 @@ export function TransactionEntryRow({
     setCategory(value);
   }
 
+  function handleTransferAccountChange(accountId?: string) {
+    setTransferAccountId(accountId);
+    if (accountId) {
+      setCategory("");
+      setCountCategoryInflowAsIncome(false);
+      setSplitLines([]);
+    }
+  }
+
   async function save() {
     const input = buildInput();
 
@@ -472,7 +481,7 @@ export function TransactionEntryRow({
 
                         if (choice.kind === "transfer") {
                           setPayeeId(undefined);
-                          setTransferAccountId(choice.accountId);
+                          handleTransferAccountChange(choice.accountId);
                         } else {
                           setPayeeId(choice.payeeId);
                           setTransferAccountId(undefined);
@@ -504,7 +513,7 @@ export function TransactionEntryRow({
                       onClick={() => {
                         setPayee(`Transfer: ${account.name}`);
                         setPayeeId(undefined);
-                        setTransferAccountId(account.id);
+                        handleTransferAccountChange(account.id);
                         setMobilePicker(null);
                         setMobileSearch("");
                       }}
@@ -912,7 +921,7 @@ export function TransactionEntryRow({
                 setTransferAccountId(undefined);
                 }}
                 onPayeeIdChange={setPayeeId}
-                onTransferAccountIdChange={setTransferAccountId}
+                onTransferAccountIdChange={handleTransferAccountChange}
                 onSelection={(value) => {
                   const selected = payeeOptions.find((option) => option.name === value);
                   if ((!category || category === "Uncategorised") && selected?.defaultCategoryName) {
@@ -1271,6 +1280,15 @@ export function TransactionEditRow({
     setCategory(value);
   }
 
+  function handleTransferAccountChange(accountId?: string) {
+    setTransferAccountId(accountId);
+    if (accountId) {
+      setCategory("");
+      setCountCategoryInflowAsIncome(false);
+      setSplitLines([]);
+    }
+  }
+
   function toggleSplitEditor() {
     setSplitLines((current) => {
       if (current.length > 0) {
@@ -1374,7 +1392,7 @@ export function TransactionEditRow({
           setTransferAccountId(undefined);
           }}
           onPayeeIdChange={setPayeeId}
-          onTransferAccountIdChange={setTransferAccountId}
+          onTransferAccountIdChange={handleTransferAccountChange}
           onSelection={(value) => {
             const selected = payeeOptions.find((option) => option.name === value);
             if ((!category || category === "Uncategorised") && selected?.defaultCategoryName) {
