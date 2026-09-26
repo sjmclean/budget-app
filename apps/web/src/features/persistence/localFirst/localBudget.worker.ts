@@ -441,12 +441,18 @@ function initialiseSchema(): void {
   if (!transactionColumns.has("income_budget_month")) {
     execute("ALTER TABLE local_transactions ADD COLUMN income_budget_month TEXT");
   }
+  if (!transactionColumns.has("inflow_classification")) {
+    execute("ALTER TABLE local_transactions ADD COLUMN inflow_classification TEXT");
+  }
   const splitColumns = new Set(
     resultRows<{ name: string }>("PRAGMA table_info(local_transaction_splits)")
       .map(({ name }) => name),
   );
   if (!splitColumns.has("income_budget_month")) {
     execute("ALTER TABLE local_transaction_splits ADD COLUMN income_budget_month TEXT");
+  }
+  if (!splitColumns.has("inflow_classification")) {
+    execute("ALTER TABLE local_transaction_splits ADD COLUMN inflow_classification TEXT");
   }
   const payeeColumns = new Set(
     resultRows<{ name: string }>("PRAGMA table_info(local_payees)").map(({ name }) => name),
@@ -1802,14 +1808,15 @@ function upsertTransaction(transaction: LocalTransactionRecord): void {
     execute(
       `INSERT INTO local_transaction_splits(
          transaction_id, id, category_id, category_name, income_budget_month,
-         transfer_account_id, transfer_transaction_id, memo, amount
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         inflow_classification, transfer_account_id, transfer_transaction_id, memo, amount
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         transaction.id,
         split.id,
         split.categoryId,
         split.categoryName,
         split.incomeBudgetMonth,
+        split.inflowClassification ?? null,
         split.transferAccountId,
         split.transferTransactionId,
         split.memo,
@@ -2490,6 +2497,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     categoryId: string | null;
     transferAccountId: string | null;
     incomeBudgetMonth: string | null;
+    inflowClassification: "income" | "category-inflow" | null;
     amount: number;
     splitsJson: string;
   }>(
@@ -2499,6 +2507,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
        transaction_row.category_id AS categoryId,
        transaction_row.transfer_account_id AS transferAccountId,
        transaction_row.income_budget_month AS incomeBudgetMonth,
+       transaction_row.inflow_classification AS inflowClassification,
        transaction_row.amount,
        COALESCE((
          SELECT json_group_array(
@@ -2507,11 +2516,12 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
              'categoryId', ordered_split.category_id,
              'transferAccountId', ordered_split.transfer_account_id,
              'incomeBudgetMonth', ordered_split.income_budget_month,
+             'inflowClassification', ordered_split.inflow_classification,
              'amount', ordered_split.amount
            )
          )
          FROM (
-           SELECT id, category_id, transfer_account_id, income_budget_month, amount
+           SELECT id, category_id, transfer_account_id, income_budget_month, inflow_classification, amount
            FROM local_transaction_splits
            WHERE transaction_id = transaction_row.id
            ORDER BY id
@@ -2530,12 +2540,14 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     categoryId: transaction.categoryId,
     transferAccountId: transaction.transferAccountId,
     incomeBudgetMonth: transaction.incomeBudgetMonth,
+    inflowClassification: transaction.inflowClassification,
     amount: transaction.amount,
     splits: JSON.parse(transaction.splitsJson) as {
       id: string;
       categoryId: string | null;
       transferAccountId: string | null;
       incomeBudgetMonth: string | null;
+      inflowClassification: "income" | "category-inflow" | null;
       amount: number;
     }[],
   }));
@@ -2555,9 +2567,18 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     if (transaction.splits.length > 0) {
       return total + transaction.splits.reduce(
         (sum, split) => sum + (
-          split.categoryId === "__ready_to_assign__" &&
-          !split.transferAccountId &&
-          (split.incomeBudgetMonth ?? transaction.date.slice(0, 7)) === firstMonth
+          (
+            (
+              split.inflowClassification === "income" &&
+              split.categoryId === null &&
+              split.incomeBudgetMonth === firstMonth
+            ) ||
+            (
+              split.categoryId === "__ready_to_assign__" &&
+              (split.incomeBudgetMonth ?? transaction.date.slice(0, 7)) === firstMonth
+            )
+          ) &&
+          !split.transferAccountId
             ? split.amount
             : 0
         ),
@@ -2565,8 +2586,17 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
       );
     }
     return total + (
-      transaction.categoryId === "__ready_to_assign__" &&
-      (transaction.incomeBudgetMonth ?? transaction.date.slice(0, 7)) === firstMonth
+      (
+        (
+          transaction.inflowClassification === "income" &&
+          transaction.categoryId === null &&
+          transaction.incomeBudgetMonth === firstMonth
+        ) ||
+        (
+          transaction.categoryId === "__ready_to_assign__" &&
+          (transaction.incomeBudgetMonth ?? transaction.date.slice(0, 7)) === firstMonth
+        )
+      )
         ? transaction.amount
         : 0
     );
@@ -3221,6 +3251,7 @@ function queryTransactions(query: LocalTransactionQuery) {
     categoryId: string | null;
     categoryName: string | null;
     incomeBudgetMonth: string | null;
+    inflowClassification: "income" | "category-inflow" | null;
     transferAccountId: string | null;
     transferAccountName: string | null;
     transferAccountParticipation: "on-budget" | "off-budget" | null;
@@ -3239,6 +3270,7 @@ function queryTransactions(query: LocalTransactionQuery) {
        transaction_row.category_id AS categoryId,
        ${categoryNameExpression} AS categoryName,
        transaction_row.income_budget_month AS incomeBudgetMonth,
+       transaction_row.inflow_classification AS inflowClassification,
        transaction_row.transfer_account_id AS transferAccountId,
        transfer_account.name AS transferAccountName,
        transfer_account.participation AS transferAccountParticipation,
@@ -3275,6 +3307,7 @@ function queryTransactions(query: LocalTransactionQuery) {
       categoryId: string | null;
       categoryName: string | null;
       incomeBudgetMonth: string | null;
+      inflowClassification: "income" | "category-inflow" | null;
       transferAccountId: string | null;
       transferAccountName: string | null;
       transferAccountParticipation: "on-budget" | "off-budget" | null;
@@ -3286,6 +3319,7 @@ function queryTransactions(query: LocalTransactionQuery) {
          split.category_id AS categoryId,
          COALESCE(category_record.name, split.category_name) AS categoryName,
          split.income_budget_month AS incomeBudgetMonth,
+         split.inflow_classification AS inflowClassification,
          split.transfer_account_id AS transferAccountId,
          transfer_account.name AS transferAccountName,
          transfer_account.participation AS transferAccountParticipation,
@@ -3365,7 +3399,8 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
     memo: string | null; checkNumber: string | null; clearedStatus: string;
     payeeId: string | null; payeeName: string | null; rawPayeeName: string | null;
     categoryId: string | null;
-    categoryName: string | null; incomeBudgetMonth: string | null; transferAccountId: string | null;
+    categoryName: string | null; incomeBudgetMonth: string | null;
+    inflowClassification: "income" | "category-inflow" | null; transferAccountId: string | null;
     transferTransactionId: string | null; generatedFromSchedule: number;
     scheduledTransactionId: string | null; scheduledOccurrenceDate: string | null;
     updatedAt: string;
@@ -3379,6 +3414,7 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
        transaction_row.category_id AS categoryId,
        COALESCE(category_record.name, transaction_row.category_name) AS categoryName,
        transaction_row.income_budget_month AS incomeBudgetMonth,
+       transaction_row.inflow_classification AS inflowClassification,
        transaction_row.transfer_account_id AS transferAccountId,
        transaction_row.transfer_transaction_id AS transferTransactionId,
        transaction_row.generated_from_schedule AS generatedFromSchedule,
@@ -3400,6 +3436,7 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
       `SELECT split.id, split.category_id AS categoryId,
          COALESCE(category_record.name, split.category_name) AS categoryName,
          split.income_budget_month AS incomeBudgetMonth,
+         split.inflow_classification AS inflowClassification,
          transfer_account_id AS transferAccountId,
          transfer_transaction_id AS transferTransactionId, memo, amount
        FROM local_transaction_splits AS split
@@ -3448,6 +3485,7 @@ function getPersistedTransactionForVerification(
     categoryId: string | null;
     categoryName: string | null;
     incomeBudgetMonth: string | null;
+    inflowClassification: "income" | "category-inflow" | null;
     transferAccountId: string | null;
     transferTransactionId: string | null;
     generatedFromSchedule: number;
@@ -3461,6 +3499,7 @@ function getPersistedTransactionForVerification(
        payee_name AS payeeName, raw_payee_name AS rawPayeeName,
        category_id AS categoryId, category_name AS categoryName,
        income_budget_month AS incomeBudgetMonth,
+       inflow_classification AS inflowClassification,
        transfer_account_id AS transferAccountId,
        transfer_transaction_id AS transferTransactionId,
        generated_from_schedule AS generatedFromSchedule,
@@ -3481,6 +3520,7 @@ function getPersistedTransactionForVerification(
       `SELECT id, category_id AS categoryId,
          category_name AS categoryName,
          income_budget_month AS incomeBudgetMonth,
+         inflow_classification AS inflowClassification,
          transfer_account_id AS transferAccountId,
          transfer_transaction_id AS transferTransactionId,
          memo, amount
