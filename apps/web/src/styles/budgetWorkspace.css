@@ -2203,7 +2203,7 @@
 }
 
 
-/* Future-month commitments reserve current Ready to Assign without hiding why. */
+/* Adaptive multi-month Budget planning view. Future-month assignments remain scoped to their own month. */
 /* Optional adaptive multi-month Budget planning view. */
 .budget-planning-title {
   display: flex;
