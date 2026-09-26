@@ -225,3 +225,22 @@ test("changing transaction date rejects a stale synthetic income month", () => {
 
   assert.equal(input, null);
 });
+
+
+test("native parent Register rejects legacy Ready to Assign category", () => {
+  assert.equal(
+    buildNewRegisterTransactionInput(draft("Ready to Assign")),
+    null,
+  );
+});
+
+test("native split Register rejects legacy Ready to Assign category", () => {
+  assert.equal(
+    buildNewRegisterTransactionInput(
+      splitDraft("Ready to Assign", {
+        categoryId: "__ready_to_assign__",
+      }),
+    ),
+    null,
+  );
+});
