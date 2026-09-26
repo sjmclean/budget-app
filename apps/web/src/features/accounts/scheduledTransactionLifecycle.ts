@@ -369,10 +369,7 @@ function normaliseScheduledCategory(
     return category;
   }
 
-  return input.inflow > 0 &&
-    input.outflow === 0
-    ? "Ready to Assign"
-    : "Uncategorised";
+  return "Uncategorised";
 }
 
 function normaliseTagIds(
