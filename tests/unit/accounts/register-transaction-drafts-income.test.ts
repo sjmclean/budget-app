@@ -189,3 +189,39 @@ test("legacy Ready to Assign split income canonicalises to explicit current-mont
   assert.equal(input.splitLines[0]?.incomeBudgetMonth, "2026-09");
   assert.equal(input.splitLines[0]?.inflowClassification, "income");
 });
+
+
+test("changing synthetic income to a transfer cannot retain income semantics", () => {
+  const input = buildNewRegisterTransactionInput({
+    ...draft("Income for September 2026"),
+    transferAccountId: "savings",
+  });
+
+  assert.equal(input, null);
+});
+
+test("changing synthetic income to an outflow rejects the stale synthetic category", () => {
+  const input = buildNewRegisterTransactionInput({
+    ...draft("Income for September 2026", ""),
+    outflow: "100.00",
+  });
+
+  assert.equal(input, null);
+});
+
+test("changing synthetic income to an ordinary category clears income month semantics", () => {
+  const input = buildNewRegisterTransactionInput(draft("Groceries"));
+  assert.ok(input);
+  assert.equal(input.categoryId, "groceries");
+  assert.equal(input.incomeBudgetMonth, undefined);
+  assert.equal(input.inflowClassification, "category-inflow");
+});
+
+test("changing transaction date rejects a stale synthetic income month", () => {
+  const input = buildNewRegisterTransactionInput({
+    ...draft("Income for September 2026"),
+    date: "2026-10-01",
+  });
+
+  assert.equal(input, null);
+});
