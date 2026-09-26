@@ -119,8 +119,7 @@ export function RegisterSplitEditor({
       parseRegisterMoney(line.inflow) > 0 &&
       parseRegisterMoney(line.outflow) === 0 &&
       !line.transferAccountId &&
-      Boolean(categoryOption) &&
-      categoryOption?.id !== "__ready_to_assign__"
+      Boolean(categoryOption)
     );
   }
 
