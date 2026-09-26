@@ -3,6 +3,7 @@ import { createRuntimeUuid } from "../../../ids/createRuntimeUuid";
 import type { LocalBudgetMutation, LocalBudgetOperationGroup } from "../contracts";
 import type { LocalBudgetDatabaseClient } from "../localBudgetClient";
 import type { LocalTransactionRecord } from "../registerSchema";
+import { requireCanonicalInflowSemantics } from "../../../accounts/incomeTransactionSemantics";
 
 const READY_TO_ASSIGN_CATEGORY_ID = "__ready_to_assign__";
 const BUDGET_MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -41,6 +42,84 @@ function normaliseIncomeBudgetMonth(input: {
   return value;
 }
 
+function normaliseInflowMetadata(input: {
+  readonly categoryId: string | null;
+  readonly amount: number;
+  readonly transferAccountId: string | null;
+  readonly transactionDate: string;
+  readonly requestedIncomeBudgetMonth?: string | null;
+  readonly requestedClassification?: import("../../../accounts/incomeTransactionSemantics").InflowClassification | null;
+  readonly existingIncomeBudgetMonth?: string | null;
+  readonly existingClassification?: import("../../../accounts/incomeTransactionSemantics").InflowClassification | null;
+}) {
+  const isLegacyReadyToAssign =
+    input.categoryId === READY_TO_ASSIGN_CATEGORY_ID;
+  const requiresCanonicalValidation =
+    !isLegacyReadyToAssign &&
+    input.amount > 0 &&
+    !input.transferAccountId &&
+    input.categoryId !== null;
+  const hasRequestedCanonicalMetadata =
+    input.requestedClassification !== undefined ||
+    (
+      input.categoryId === null &&
+      input.requestedIncomeBudgetMonth !== undefined
+    );
+  const hasExistingCanonicalMetadata =
+    input.existingClassification !== undefined &&
+    input.existingClassification !== null;
+
+  if (
+    requiresCanonicalValidation ||
+    hasRequestedCanonicalMetadata ||
+    hasExistingCanonicalMetadata
+  ) {
+    const requestedIncomeBudgetMonth =
+      input.requestedIncomeBudgetMonth !== undefined
+        ? input.requestedIncomeBudgetMonth
+        : input.existingIncomeBudgetMonth ?? null;
+    const requestedClassification =
+      input.requestedClassification !== undefined
+        ? input.requestedClassification
+        : input.existingClassification ?? null;
+
+    if (
+      !hasRequestedCanonicalMetadata &&
+      (input.amount <= 0 || input.transferAccountId)
+    ) {
+      return requireCanonicalInflowSemantics({
+        date: input.transactionDate,
+        amount: input.amount,
+        categoryId: input.categoryId,
+        transferAccountId: input.transferAccountId,
+        incomeBudgetMonth: null,
+        inflowClassification: null,
+      });
+    }
+
+    return requireCanonicalInflowSemantics({
+      date: input.transactionDate,
+      amount: input.amount,
+      categoryId: input.categoryId,
+      transferAccountId: input.transferAccountId,
+      incomeBudgetMonth: requestedIncomeBudgetMonth,
+      inflowClassification: requestedClassification,
+    });
+  }
+
+  return {
+    incomeBudgetMonth: normaliseIncomeBudgetMonth({
+      categoryId: input.categoryId,
+      amount: input.amount,
+      transferAccountId: input.transferAccountId,
+      transactionDate: input.transactionDate,
+      requested: input.requestedIncomeBudgetMonth,
+      existing: input.existingIncomeBudgetMonth,
+    }),
+    inflowClassification: input.existingClassification ?? null,
+  };
+}
+
 export type CreateTransactionMutation = (
   budgetId: string,
   domain: LocalBudgetMutation["domain"],
@@ -55,15 +134,20 @@ export async function transactionRecord(id: string, input: TransactionWriteInput
   const categoryId = input.categoryId ?? null;
   const transferAccountId =
     input.transferAccountId ?? existing?.transferAccountId ?? null;
-  const incomeBudgetMonth = normaliseIncomeBudgetMonth({
+  const inflowMetadata = normaliseInflowMetadata({
     categoryId,
     amount: input.amount,
     transferAccountId,
     transactionDate: input.date,
-    requested: input.incomeBudgetMonth,
-    existing:
+    requestedIncomeBudgetMonth: input.incomeBudgetMonth,
+    requestedClassification: input.inflowClassification,
+    existingIncomeBudgetMonth:
       existing?.categoryId === categoryId
         ? existing.incomeBudgetMonth
+        : null,
+    existingClassification:
+      existing?.categoryId === categoryId
+        ? existing.inflowClassification ?? null
         : null,
   });
 
@@ -74,7 +158,8 @@ export async function transactionRecord(id: string, input: TransactionWriteInput
     payeeName: input.payeeName ?? null, rawPayeeName: input.rawPayee ?? existing?.rawPayeeName ?? null,
     categoryId,
     categoryName: input.categoryName?.trim() || (existing?.categoryId === input.categoryId ? existing?.categoryName : null) || (input.transferAccountId ? "Transfer" : null),
-    incomeBudgetMonth,
+    incomeBudgetMonth: inflowMetadata.incomeBudgetMonth,
+    inflowClassification: inflowMetadata.inflowClassification,
     transferAccountId,
     transferTransactionId: existing?.transferTransactionId ?? null,
     generatedFromSchedule: input.generatedFromSchedule ?? existing?.generatedFromSchedule ?? false,
@@ -83,16 +168,27 @@ export async function transactionRecord(id: string, input: TransactionWriteInput
     splitLines: (input.splitLines ?? []).map((split) => {
       const splitCategoryId = split.categoryId ?? null;
       const splitTransferAccountId = split.transferAccountId ?? null;
+      const existingSplit = existing?.splitLines.find(
+        (candidate) => candidate.id === split.id,
+      );
+      const sameSplitCategory = existingSplit?.categoryId === splitCategoryId;
       return {
         id: split.id,
         categoryId: splitCategoryId,
         categoryName: split.transferAccountId ? "Transfer" : split.categoryName?.trim() || null,
-        incomeBudgetMonth: normaliseIncomeBudgetMonth({
+        ...normaliseInflowMetadata({
           categoryId: splitCategoryId,
           amount: split.amount,
           transferAccountId: splitTransferAccountId,
           transactionDate: input.date,
-          requested: split.incomeBudgetMonth,
+          requestedIncomeBudgetMonth: split.incomeBudgetMonth,
+          requestedClassification: split.inflowClassification,
+          existingIncomeBudgetMonth: sameSplitCategory
+            ? existingSplit?.incomeBudgetMonth ?? null
+            : null,
+          existingClassification: sameSplitCategory
+            ? existingSplit?.inflowClassification ?? null
+            : null,
         }),
         transferAccountId: splitTransferAccountId,
         transferTransactionId: split.transferTransactionId ?? null,

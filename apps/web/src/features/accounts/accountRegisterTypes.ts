@@ -1,9 +1,13 @@
+import type { InflowClassification } from "./incomeTransactionSemantics";
+
 export interface RegisterSplitLineView {
   id: string;
   category: string;
   categoryId?: string;
-  /** Budget month receiving Ready to Assign income; transaction date remains unchanged. */
+  /** Explicit month when general income first becomes budgetable. */
   incomeBudgetMonth?: string;
+  /** Reporting treatment for a positive inflow. */
+  inflowClassification?: InflowClassification;
   memo?: string;
   inflow: number;
   outflow: number;
@@ -48,8 +52,10 @@ export interface RegisterTransactionView {
   payeeId?: string;
   category: string;
   categoryId?: string;
-  /** Budget month receiving Ready to Assign income; transaction date remains unchanged. */
+  /** Explicit month when general income first becomes budgetable. */
   incomeBudgetMonth?: string;
+  /** Reporting treatment for a positive inflow. */
+  inflowClassification?: InflowClassification;
   memo?: string;
   checkNumber?: string;
   inflow: number;
@@ -90,8 +96,10 @@ export interface NewRegisterTransactionInput {
   rawPayee?: string;
   category: string;
   categoryId?: string;
-  /** Budget month receiving Ready to Assign income; transaction date remains unchanged. */
+  /** Explicit month when general income first becomes budgetable. */
   incomeBudgetMonth?: string;
+  /** Reporting treatment for a positive inflow. */
+  inflowClassification?: InflowClassification;
   transferAccountId?: string;
   memo?: string;
   checkNumber?: string;
@@ -114,8 +122,10 @@ export interface UpdateRegisterTransactionInput {
   rawPayee?: string;
   category: string;
   categoryId?: string;
-  /** Budget month receiving Ready to Assign income; transaction date remains unchanged. */
+  /** Explicit month when general income first becomes budgetable. */
   incomeBudgetMonth?: string;
+  /** Reporting treatment for a positive inflow. */
+  inflowClassification?: InflowClassification;
   transferAccountId?: string;
   memo?: string;
   checkNumber?: string;

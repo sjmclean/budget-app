@@ -1,3 +1,5 @@
+import type { InflowClassification } from "../../accounts/incomeTransactionSemantics";
+
 export const LOCAL_REGISTER_SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS local_accounts (
     id TEXT PRIMARY KEY,
@@ -122,6 +124,7 @@ export const LOCAL_REGISTER_SCHEMA_SQL = `
     category_id TEXT,
     category_name TEXT,
     income_budget_month TEXT,
+    inflow_classification TEXT CHECK(inflow_classification IN ('income', 'category-inflow')),
     transfer_account_id TEXT,
     transfer_transaction_id TEXT,
     generated_from_schedule INTEGER NOT NULL DEFAULT 0,
@@ -149,6 +152,7 @@ export const LOCAL_REGISTER_SCHEMA_SQL = `
     category_id TEXT,
     category_name TEXT,
     income_budget_month TEXT,
+    inflow_classification TEXT CHECK(inflow_classification IN ('income', 'category-inflow')),
     transfer_account_id TEXT,
     transfer_transaction_id TEXT,
     memo TEXT,
@@ -254,6 +258,7 @@ export interface LocalTransactionSplitRecord {
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly incomeBudgetMonth: string | null;
+  readonly inflowClassification: InflowClassification | null;
   readonly transferAccountId: string | null;
   readonly transferTransactionId: string | null;
   readonly memo: string | null;
@@ -282,6 +287,7 @@ export interface LocalTransactionRecord {
   readonly categoryId: string | null;
   readonly categoryName: string | null;
   readonly incomeBudgetMonth: string | null;
+  readonly inflowClassification: InflowClassification | null;
   readonly transferAccountId: string | null;
   readonly transferTransactionId: string | null;
   readonly generatedFromSchedule: boolean;
@@ -297,9 +303,9 @@ export const LOCAL_TRANSACTION_UPSERT_SQL = `
   INSERT INTO local_transactions(
     id, budget_id, account_id, date, amount, memo, check_number,
     cleared_status, payee_id, payee_name, raw_payee_name, category_id, category_name,
-    income_budget_month, transfer_account_id, transfer_transaction_id, generated_from_schedule,
+    income_budget_month, inflow_classification, transfer_account_id, transfer_transaction_id, generated_from_schedule,
     scheduled_transaction_id, scheduled_occurrence_date, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(id) DO UPDATE SET
     account_id = excluded.account_id,
     date = excluded.date,
@@ -313,6 +319,7 @@ export const LOCAL_TRANSACTION_UPSERT_SQL = `
     category_id = excluded.category_id,
     category_name = excluded.category_name,
     income_budget_month = excluded.income_budget_month,
+    inflow_classification = excluded.inflow_classification,
     transfer_account_id = excluded.transfer_account_id,
     transfer_transaction_id = excluded.transfer_transaction_id,
     generated_from_schedule = excluded.generated_from_schedule,
@@ -339,6 +346,7 @@ export function localTransactionUpsertBindings(
     transaction.categoryId,
     transaction.categoryName,
     transaction.incomeBudgetMonth,
+    transaction.inflowClassification ?? null,
     transaction.transferAccountId,
     transaction.transferTransactionId,
     transaction.generatedFromSchedule ? 1 : 0,

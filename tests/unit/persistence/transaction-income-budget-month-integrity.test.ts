@@ -29,6 +29,7 @@ function existingIncome(overrides: Partial<LocalTransactionRecord> = {}): LocalT
     categoryId: "__ready_to_assign__",
     categoryName: "Ready to Assign",
     incomeBudgetMonth: "2026-11",
+    inflowClassification: null,
     transferAccountId: null,
     transferTransactionId: null,
     generatedFromSchedule: false,
@@ -63,17 +64,31 @@ test("persistence clears stale income allocation when the transaction is no long
   );
   assert.equal(expense.incomeBudgetMonth, null);
 
+  await assert.rejects(
+    () => transactionRecord(
+      "income",
+      {
+        ...baseWrite,
+        categoryId: "salary-adjustment",
+        categoryName: "Salary adjustment",
+      },
+      existingIncome(),
+    ),
+    /requires an explicit inflow classification/,
+  );
+
   const recategorised = await transactionRecord(
     "income",
     {
       ...baseWrite,
       categoryId: "salary-adjustment",
       categoryName: "Salary adjustment",
-      incomeBudgetMonth: "2026-11",
+      inflowClassification: "category-inflow",
     },
     existingIncome(),
   );
   assert.equal(recategorised.incomeBudgetMonth, null);
+  assert.equal(recategorised.inflowClassification, "category-inflow");
 
   const transfer = await transactionRecord(
     "income",
@@ -104,7 +119,7 @@ test("persistence rejects backdated or malformed Income for Month values", async
   );
 });
 
-test("split persistence applies the same Income for Month invariants", async () => {
+test("split persistence keeps legacy RTA allocation isolated from canonical category inflows", async () => {
   const record = await transactionRecord("split", {
     budgetId: "budget-a",
     accountId: "checking",
@@ -119,15 +134,35 @@ test("split persistence applies the same Income for Month invariants", async () 
         amount: 10000,
       },
       {
-        id: "expense",
+        id: "refund",
         categoryId: "groceries",
         categoryName: "Groceries",
-        incomeBudgetMonth: "2026-12",
+        inflowClassification: "category-inflow",
         amount: 5000,
       },
     ],
   });
 
   assert.equal(record.splitLines[0]?.incomeBudgetMonth, "2026-12");
+  assert.equal(record.splitLines[0]?.inflowClassification, null);
   assert.equal(record.splitLines[1]?.incomeBudgetMonth, null);
+  assert.equal(record.splitLines[1]?.inflowClassification, "category-inflow");
+
+  await assert.rejects(
+    () => transactionRecord("invalid-split", {
+      budgetId: "budget-a",
+      accountId: "checking",
+      date: "2026-09-24",
+      amount: 5000,
+      splitLines: [
+        {
+          id: "unclassified",
+          categoryId: "groceries",
+          categoryName: "Groceries",
+          amount: 5000,
+        },
+      ],
+    }),
+    /requires an explicit inflow classification/,
+  );
 });

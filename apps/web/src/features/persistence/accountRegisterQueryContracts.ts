@@ -33,6 +33,7 @@ import type {
 import type { ImportHistorySnapshot, TransactionHistorySnapshot } from "./localFirst/registerSchema";
 import type { CategoryGoal } from "../../../../../packages/types/src/CategoryGoal";
 import type { ReplicationConflict } from "./conflictResolution";
+import type { InflowClassification } from "../accounts/incomeTransactionSemantics";
 
 export interface LocalBudgetSynchronisationResult {
   readonly generationId: string;
@@ -659,6 +660,7 @@ export interface TransactionWriteInput extends TransactionTarget {
   readonly categoryId?: string;
   readonly categoryName?: string;
   readonly incomeBudgetMonth?: string;
+  readonly inflowClassification?: InflowClassification;
   readonly memo?: string;
   readonly checkNumber?: string;
   readonly payeeName?: string;
@@ -675,6 +677,7 @@ export interface TransactionSplitWriteInput {
   readonly categoryId?: string;
   readonly categoryName?: string;
   readonly incomeBudgetMonth?: string;
+  readonly inflowClassification?: InflowClassification;
   readonly transferAccountId?: string;
   readonly transferTransactionId?: string;
   readonly memo?: string;
