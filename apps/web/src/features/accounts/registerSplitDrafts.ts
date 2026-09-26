@@ -1,12 +1,15 @@
 import type { RegisterSplitLineView, RegisterTransactionView } from "./accountRegisterTypes";
 import type { BudgetCategoryOption } from "../budget/budgetViewTypes";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
+import { registerIncomeCategoryValue } from "./registerIncomeCategoryChoices";
 
 export interface SplitLineDraft {
   id: string;
   category: string;
   categoryId?: string;
   incomeBudgetMonth?: string;
+  inflowClassification?: "income" | "category-inflow";
+  countCategoryInflowAsIncome?: boolean;
   transferAccountId?: string;
   transferAccountParticipation?: "on-budget" | "off-budget";
   transferTransactionId?: string;
@@ -38,18 +41,43 @@ function createLocalId(): string {
 export function splitDraftsFromTransaction(
   transaction: RegisterTransactionView,
 ): SplitLineDraft[] {
-  return (transaction.splitLines ?? []).map((line) => ({
+  return (transaction.splitLines ?? []).map((line) => {
+    const isGeneralIncome =
+      line.inflow > 0 &&
+      !line.transferAccountId &&
+      (
+        (
+          line.inflowClassification === "income" &&
+          !line.categoryId
+        ) ||
+        line.categoryId === "__ready_to_assign__"
+      );
+    const incomeCategory = isGeneralIncome
+      ? registerIncomeCategoryValue(
+          transaction.date,
+          line.incomeBudgetMonth ?? transaction.date.slice(0, 7),
+        )
+      : null;
+    return {
     id: line.id,
-    category: line.category,
-    categoryId: line.categoryId,
-    incomeBudgetMonth: line.incomeBudgetMonth,
+    category: incomeCategory ?? line.category,
+    categoryId: incomeCategory ? undefined : line.categoryId,
+    incomeBudgetMonth: incomeCategory
+      ? line.incomeBudgetMonth ?? transaction.date.slice(0, 7)
+      : line.incomeBudgetMonth,
+    inflowClassification: incomeCategory ? "income" : line.inflowClassification,
+    countCategoryInflowAsIncome:
+      Boolean(line.categoryId) &&
+      line.categoryId !== "__ready_to_assign__" &&
+      line.inflowClassification === "income",
     transferAccountId: line.transferAccountId,
     transferAccountParticipation: line.transferAccountParticipation,
     transferTransactionId: line.transferTransactionId,
     memo: line.memo ?? "",
     outflow: line.outflow ? line.outflow.toFixed(2) : "",
     inflow: line.inflow ? line.inflow.toFixed(2) : "",
-  }));
+    };
+  });
 }
 
 export function buildSplitLines(
