@@ -50,13 +50,13 @@ test("Budget page presents Ready to Assign and income as month-scoped values", (
   assert.match(budgetPageSource, /className="budget-ready-summary-primary"/);
   assert.match(budgetPageSource, /className="budget-ready-summary-breakdown"/);
   assert.match(budgetPageSource, /Ready to Assign in \{monthName\}/);
-  assert.match(budgetPageSource, />Carried forward</);
-  assert.match(budgetPageSource, />Previous overspending</);
+  assert.match(budgetPageSource, /Carried into \{monthName\}/);
+  assert.match(budgetPageSource, /Previous-month overspending/);
   assert.match(budgetPageSource, /Income for \{monthName\}/);
   assert.match(budgetPageSource, /Assigned in \{monthName\}/);
   assert.match(
     budgetPageSource,
-    /budget-next-month-outlook-breakdown[\s\S]*Income for \{monthName\}[\s\S]*summary\.incomeForMonth[\s\S]*Assigned in \{monthName\}[\s\S]*data\.totalAssigned/,
+    /budget-next-month-outlook-breakdown[\s\S]*Carried into \{monthName\}[\s\S]*summary\.carriedForwardReadyToAssign[\s\S]*Previous-month overspending[\s\S]*summary\.previousOverspending[\s\S]*Income for \{monthName\}[\s\S]*summary\.incomeForMonth[\s\S]*Assigned in \{monthName\}[\s\S]*data\.totalAssigned/,
   );
   assert.match(budgetPageSource, /Balanced/);
   assert.match(budgetPageSource, /overbudget/);
@@ -87,7 +87,7 @@ test("future month panes write assignments through their own month workspace", (
 test("Budget summary preserves the authoritative monthly Ready to Assign equation", () => {
   assert.match(
     budgetPageSource,
-    /Carried forward[\s\S]*Previous overspending[\s\S]*Income for \{monthName\}[\s\S]*Assigned in \{monthName\}/,
+    /Carried into \{monthName\}[\s\S]*Previous-month overspending[\s\S]*Income for \{monthName\}[\s\S]*Assigned in \{monthName\}/,
   );
   assert.match(
     budgetPageSource,
