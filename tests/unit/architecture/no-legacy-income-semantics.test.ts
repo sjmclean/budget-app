@@ -63,6 +63,9 @@ test("runtime source contains no arbitrary-future income month APIs", () => {
 test("runtime source contains no pre-canonical ready-to-budget income model", () => {
   const legacySymbols = [
     "readyToBudget",
+    "ready_to_budget",
+    "ReadyToBudget",
+    "BufferFund",
     "calculateReadyToBudget",
     "addIncomeToBudgetMonth",
     "postIncomeToReadyToBudget",
