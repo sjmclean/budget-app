@@ -252,3 +252,43 @@ test("changing a classified split inflow into an outflow clears inherited metada
   assert.equal(updated.splitLines[0]?.incomeBudgetMonth, null);
   assert.equal(updated.splitLines[0]?.inflowClassification, null);
 });
+
+test("new positive direct-category inflow requires explicit classification", async () => {
+  await assert.rejects(
+    () => transactionRecord(
+      "new-category-inflow",
+      {
+        budgetId: "budget-1",
+        accountId: "checking",
+        date: "2026-09-25",
+        amount: 5_000,
+        categoryId: "groceries",
+        categoryName: "Groceries",
+      },
+    ),
+    /requires an explicit inflow classification/,
+  );
+});
+
+test("new positive direct-category split requires explicit classification", async () => {
+  await assert.rejects(
+    () => transactionRecord(
+      "new-split-inflow",
+      {
+        budgetId: "budget-1",
+        accountId: "checking",
+        date: "2026-09-25",
+        amount: 5_000,
+        splitLines: [
+          {
+            id: "refund",
+            categoryId: "groceries",
+            categoryName: "Groceries",
+            amount: 5_000,
+          },
+        ],
+      },
+    ),
+    /requires an explicit inflow classification/,
+  );
+});
