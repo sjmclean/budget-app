@@ -14,6 +14,8 @@ Examples include:
 - category assignments;
 - overspending policies;
 - transactions and splits;
+- explicit general-income budget month;
+- explicit income/reporting classification for direct-category inflows;
 - transfer relationships;
 - credit-card payment relationships.
 
@@ -27,11 +29,52 @@ The engine derives:
 - overspending;
 - monthly totals;
 - income;
-- Ready to Assign;
+- Available to Budget;
+- money not budgeted in the previous month;
 - rollover;
 - credit-card funding behaviour.
 
 Derived values are not independent persisted financial authorities.
+
+## Monthly income and Available to Budget
+
+General income is assigned explicitly to exactly one budget month.
+
+For a transaction dated in month M, the only valid general-income destinations
+are M and M+1.
+
+The month-level budget pool projects chronologically:
+
+```text
+Available to Budget(M) =
+    Not Budgeted in M-1
+  + Income for M
+  + previous-month overspending adjustment
+  - assignments made in M
+```
+
+Money left unbudgeted at month end carries forward into the next month. It is
+not counted again as income.
+
+Positive category Available balances also carry forward independently.
+
+Arbitrary distant-future assignments and backwards reservation of earlier money
+against later assignments are not part of the financial model.
+
+See [Explicit Monthly Income Model](explicit-monthly-income.md).
+
+## Income reporting
+
+Budget destination and reporting classification are separate facts.
+
+A general **Income for <month>** transaction is income automatically.
+
+A positive inflow directly to a normal category may represent either genuine
+income or a refund/category inflow. Canonical transaction/split data must record
+that distinction explicitly. Reports must not infer genuine income from
+`amount > 0` alone.
+
+Transfers are not income.
 
 ## Projection
 
@@ -47,6 +90,9 @@ It:
 - applies transaction and transfer rules;
 - handles category rollover;
 - applies credit-card policy.
+
+Persistence and UI layers must not reproduce financial arithmetic
+independently.
 
 ## Overspending policies
 
@@ -79,4 +125,4 @@ committed.
 Reports consume canonical or projected financial data.
 
 A report may calculate presentation-specific aggregates, but it must not define
-a competing version of budgeting policy.
+a competing version of budgeting policy or transaction classification.
