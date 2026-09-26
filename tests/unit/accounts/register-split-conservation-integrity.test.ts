@@ -188,7 +188,7 @@ test("split attention examines every financially relevant line", () => {
   })), true);
 });
 
-test("new inflows default to Ready to Assign without recategorising imported unresolved edits", () => {
+test("new parent inflows stay uncategorised until income is explicitly selected", () => {
   const common = {
     date: "2026-08-15", payee: "Employer", memo: "", checkNumber: "",
     outflow: "", inflow: "100.00", splitLines: [],
@@ -197,21 +197,28 @@ test("new inflows default to Ready to Assign without recategorising imported unr
       groupName: "Income", archived: false,
     }],
   };
-  assert.equal(
-    buildNewRegisterTransactionInput({ ...common, category: "" })?.categoryId,
-    "__ready_to_assign__",
-  );
+
+  const uncategorised = buildNewRegisterTransactionInput({
+    ...common,
+    category: "",
+  });
+  assert.equal(uncategorised?.category, "Uncategorised");
+  assert.equal(uncategorised?.categoryId, undefined);
+  assert.equal(uncategorised?.inflowClassification, undefined);
+
+  const explicitIncome = buildNewRegisterTransactionInput({
+    ...common,
+    category: "Income for August 2026",
+  });
+  assert.equal(explicitIncome?.categoryId, undefined);
+  assert.equal(explicitIncome?.incomeBudgetMonth, "2026-08");
+  assert.equal(explicitIncome?.inflowClassification, "income");
+
   const edited = buildUpdateRegisterTransactionInput({
     ...common, id: "imported-income", category: "Uncategorised",
   });
   assert.equal(edited?.category, "Uncategorised");
   assert.equal(edited?.categoryId, undefined);
-  assert.equal(
-    buildUpdateRegisterTransactionInput({
-      ...common, id: "imported-income", category: "Ready to Assign",
-    })?.categoryId,
-    "__ready_to_assign__",
-  );
 });
 
 test("split structure takes precedence over a missing parent category", () => {
