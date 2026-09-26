@@ -167,7 +167,7 @@ export function mapYnab4BudgetMonths(
   return views;
 }
 
-function buildYnab4ReadyToAssignIncomeForMonth(
+function buildYnab4IncomeForMonth(
   registers: Record<string, AccountRegisterView>,
   month: string,
 ): number {
