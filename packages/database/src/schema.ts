@@ -109,29 +109,6 @@ export const scheduledTransactionSplitLines = sqliteTable("scheduled_transaction
   sortOrder: integer("sort_order").notNull()
 });
 
-export const budgetMonths = sqliteTable("budget_months", {
-  id: text("id").primaryKey(),
-  budgetId: text("budget_id").notNull(),
-  month: text("month").notNull(),
-  income: integer("income").notNull(),
-  assigned: integer("assigned").notNull(),
-  activity: integer("activity").notNull(),
-  readyToAssign: integer("ready_to_assign").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull()
-});
-
-export const categoryMonths = sqliteTable("category_months", {
-  id: text("id").primaryKey(),
-  budgetMonthId: text("budget_month_id").notNull(),
-  categoryId: text("category_id").notNull(),
-  previousAvailable: integer("previous_available").notNull(),
-  assigned: integer("assigned").notNull(),
-  activity: integer("activity").notNull(),
-  available: integer("available").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull()
-});
 
 export const domainEvents = sqliteTable("domain_events", {
   id: text("id").primaryKey(),
