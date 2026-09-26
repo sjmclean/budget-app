@@ -121,29 +121,6 @@ CREATE TABLE IF NOT EXISTS split_transaction_lines (
       sort_order INTEGER NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS budget_months (
-      id TEXT PRIMARY KEY,
-      budget_id TEXT NOT NULL,
-      month TEXT NOT NULL,
-      income INTEGER NOT NULL,
-      assigned INTEGER NOT NULL,
-      activity INTEGER NOT NULL,
-      ready_to_assign INTEGER NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS category_months (
-      id TEXT PRIMARY KEY,
-      budget_month_id TEXT NOT NULL,
-      category_id TEXT NOT NULL,
-      previous_available INTEGER NOT NULL,
-      assigned INTEGER NOT NULL,
-      activity INTEGER NOT NULL,
-      available INTEGER NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
 
     CREATE TABLE IF NOT EXISTS domain_events (
       id TEXT PRIMARY KEY,
@@ -598,9 +575,6 @@ CREATE TABLE IF NOT EXISTS split_transaction_lines (
     CREATE INDEX IF NOT EXISTS idx_scheduled_budget_due ON scheduled_transactions(budget_id, next_due_date);
     CREATE INDEX IF NOT EXISTS idx_scheduled_account_id ON scheduled_transactions(account_id);
     CREATE INDEX IF NOT EXISTS idx_scheduled_category_id ON scheduled_transactions(category_id);
-    CREATE INDEX IF NOT EXISTS idx_budget_months_budget_month ON budget_months(budget_id, month);
-    CREATE INDEX IF NOT EXISTS idx_category_months_budget_month_id ON category_months(budget_month_id);
-    CREATE INDEX IF NOT EXISTS idx_category_months_category_id ON category_months(category_id);
     CREATE INDEX IF NOT EXISTS idx_domain_events_budget_time ON domain_events(budget_id, occurred_at);
 
     CREATE INDEX IF NOT EXISTS idx_transaction_flags_transaction_id ON transaction_flags(transaction_id);
