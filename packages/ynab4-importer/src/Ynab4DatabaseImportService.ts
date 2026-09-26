@@ -328,7 +328,7 @@ export class Ynab4DatabaseImportService {
           income: 0,
           assigned: 0,
           activity: 0,
-          readyToBudget: 0,
+          readyToAssign: 0,
           createdAt: now,
           updatedAt: now
         }).run();
