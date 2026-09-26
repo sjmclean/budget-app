@@ -82,3 +82,17 @@ test("future budget reads derive a non-persisted structural snapshot from the la
     "ordinary future-month reads should use the same derived projection path",
   );
 });
+
+test("dirty projection months bypass otherwise current-version cache rows", () => {
+  const match = source.match(
+    /function readBudgetMonth\([\s\S]*?\n\}/,
+  );
+
+  assert.ok(match, "readBudgetMonth should exist");
+
+  assert.match(
+    match[0],
+    /NOT EXISTS \([\s\S]*?local_budget_projection_dirty[\s\S]*?dirty\.earliest_month <= local_budget_projection_cache\.month/,
+    "a cache row must not be served when a dirty boundary reaches that month",
+  );
+});
