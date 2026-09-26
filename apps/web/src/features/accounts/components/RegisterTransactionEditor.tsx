@@ -31,6 +31,7 @@ import type {
   RegisterTransactionView,
 } from "../accountRegisterTypes";
 import {
+  applySplitCategoryChoice,
   createSplitLineDraft,
   getSplitBalanceStatus,
   isSplitDraftBalanced,
@@ -541,7 +542,7 @@ export function TransactionEntryRow({
 
           {mobilePicker === "category" || mobilePicker === "split-category" ? (
             <div className="mobile-picker-list mobile-category-picker-list">
-              {mobilePicker === "category" && visibleIncomeCategories.length > 0 ? (
+              {visibleIncomeCategories.length > 0 ? (
                 <div>
                   <h3>Special</h3>
                   {visibleIncomeCategories.map((option) => (
@@ -549,9 +550,23 @@ export function TransactionEntryRow({
                       key={option.id}
                       type="button"
                       onClick={() => {
-                        handleCategoryChange(option.value);
-                        setSplitLines([]);
-                        setMobilePicker(null);
+                        if (mobilePicker === "split-category" && activeSplitId) {
+                          setSplitLines((lines) => lines.map((line) =>
+                            line.id === activeSplitId
+                              ? applySplitCategoryChoice(
+                                  line,
+                                  option.value,
+                                  categoryOptions,
+                                  date,
+                                )
+                              : line,
+                          ));
+                          setMobilePicker("splits");
+                        } else {
+                          handleCategoryChange(option.value);
+                          setSplitLines([]);
+                          setMobilePicker(null);
+                        }
                         setMobileSearch("");
                       }}
                     >
@@ -567,9 +582,16 @@ export function TransactionEntryRow({
                   ) : null}
                   <button type="button" onClick={() => {
                     if (mobilePicker === "split-category" && activeSplitId) {
-                      setSplitLines((lines) => lines.map((line) => line.id === activeSplitId
-                        ? { ...line, category: option.name, categoryId: option.id }
-                        : line));
+                      setSplitLines((lines) => lines.map((line) =>
+                        line.id === activeSplitId
+                          ? applySplitCategoryChoice(
+                              line,
+                              option.name,
+                              categoryOptions,
+                              date,
+                            )
+                          : line,
+                      ));
                       setMobilePicker("splits");
                     } else {
                       setCategory(option.name);
@@ -583,7 +605,7 @@ export function TransactionEntryRow({
                 </div>
               ))}
               {visibleCategories.length === 0 &&
-              (mobilePicker !== "category" || visibleIncomeCategories.length === 0) ? (
+              visibleIncomeCategories.length === 0 ? (
                 <p className="mobile-picker-empty">No matching categories.</p>
               ) : null}
             </div>
