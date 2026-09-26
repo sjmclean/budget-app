@@ -177,17 +177,15 @@ test("ordinary positive category split can explicitly count as income", () => {
   assert.equal(input.splitLines[0]?.inflowClassification, "income");
 });
 
-test("legacy Ready to Assign split income canonicalises to explicit current-month income", () => {
-  const input = buildNewRegisterTransactionInput(
-    splitDraft("Ready to Assign", {
-      categoryId: "__ready_to_assign__",
-    }),
+test("legacy Ready to Assign split draft is rejected by the native Register", () => {
+  assert.equal(
+    buildNewRegisterTransactionInput(
+      splitDraft("Ready to Assign", {
+        categoryId: "__ready_to_assign__",
+      }),
+    ),
+    null,
   );
-  assert.ok(input?.splitLines);
-  assert.equal(input.splitLines[0]?.category, "Income for September 2026");
-  assert.equal(input.splitLines[0]?.categoryId, undefined);
-  assert.equal(input.splitLines[0]?.incomeBudgetMonth, "2026-09");
-  assert.equal(input.splitLines[0]?.inflowClassification, "income");
 });
 
 
