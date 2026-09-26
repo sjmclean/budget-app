@@ -9,7 +9,6 @@ export * from "./Account.js";
 export * from "./Payee.js";
 export * from "./ClearedStatus.js";
 export * from "./TransactionType.js";
-export * from "./InflowDestination.js";
 export * from "./Transaction.js";
 export * from "./SplitTransactionLine.js";
 export * from "./Reconciliation.js";
