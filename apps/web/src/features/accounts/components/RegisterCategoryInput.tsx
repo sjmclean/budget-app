@@ -36,6 +36,7 @@ export function RegisterCategoryInput({
   value,
   onChange,
   categoryOptions,
+  specialOptions = [],
   includeSplitOption = true,
   autoFocus = false,
   selectOnInitialFocus = autoFocus,
@@ -48,6 +49,7 @@ export function RegisterCategoryInput({
   value: string;
   onChange: (value: string) => void;
   categoryOptions: BudgetCategoryOption[];
+  specialOptions?: readonly { id: string; value: string }[];
   includeSplitOption?: boolean;
   autoFocus?: boolean;
   selectOnInitialFocus?: boolean;
@@ -102,9 +104,16 @@ export function RegisterCategoryInput({
           },
         ]
       : [];
+    const specialSuggestions = specialOptions.map((option, index) => ({
+      id: option.id,
+      value: option.value,
+      label: "Special",
+      metadata: { label: "Special", type: "special" as const },
+      ranking: { priority: index + 1 },
+    }));
 
-    return [...splitSuggestion, ...categorySuggestions];
-  }, [categoryOptions, includeSplitOption]);
+    return [...splitSuggestion, ...specialSuggestions, ...categorySuggestions];
+  }, [categoryOptions, includeSplitOption, specialOptions]);
 
   const categoryGroups = useMemo(() => {
     const groups = new Map<
@@ -137,12 +146,18 @@ export function RegisterCategoryInput({
   }, [categoryOptions]);
 
   const trimmedValue = value.trim();
-  const hasExactCategoryMatch = categoryOptions.some(
-    (category) =>
-      !category.isArchived &&
-      normaliseCategoryName(category.name) ===
+  const hasExactCategoryMatch =
+    categoryOptions.some(
+      (category) =>
+        !category.isArchived &&
+        normaliseCategoryName(category.name) ===
+          normaliseCategoryName(trimmedValue),
+    ) ||
+    specialOptions.some(
+      (option) =>
+        normaliseCategoryName(option.value) ===
         normaliseCategoryName(trimmedValue),
-  );
+    );
   const canCreateCategory =
     Boolean(onCreateCategory) &&
     trimmedValue.length > 0 &&
