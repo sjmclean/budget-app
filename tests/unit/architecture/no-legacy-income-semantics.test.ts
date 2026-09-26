@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
 import test from "node:test";
 
@@ -86,5 +86,33 @@ test("runtime source contains no pre-canonical ready-to-budget income model", ()
     violations,
     [],
     `Pre-canonical Ready to Budget model found in runtime source: ${violations.join(", ")}`,
+  );
+});
+
+
+test("obsolete parallel budget-income service files stay removed", () => {
+  const legacyPaths = [
+    "packages/application/src/BudgetApplicationService.ts",
+    "packages/application/src/TransactionApplicationService.ts",
+    "packages/budget-engine/src/calculations/calculateReadyToBudget.ts",
+    "packages/budget-engine/src/calculations/calculateReadyToAssign.ts",
+    "packages/budget-engine/src/services/addIncomeToBudgetMonth.ts",
+    "packages/budget-engine/src/services/addIncomeForBudgetMonth.ts",
+    "packages/budget-engine/src/services/createBudgetMonth.ts",
+    "packages/budget-engine/src/services/assignToCategoryMonth.ts",
+    "packages/budget-engine/src/services/rolloverBudgetMonth.ts",
+    "packages/budget-engine/src/services/leaveOverspent.ts",
+    "packages/budget-engine/src/services/budgetEngineScenario.ts",
+    "packages/types/src/InflowDestination.ts",
+  ];
+
+  const violations = legacyPaths.filter((path) =>
+    existsSync(resolve(root, path)),
+  );
+
+  assert.deepEqual(
+    violations,
+    [],
+    `Obsolete parallel budget-income service files found: ${violations.join(", ")}`,
   );
 });
