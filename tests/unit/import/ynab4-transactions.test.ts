@@ -409,7 +409,7 @@ test("rejects missing dates and amounts instead of fabricating defaults", () => 
 });
 
 
-test("imports known deleted-category references as uncategorised, never Ready to Assign", () => {
+test("imports known deleted-category references as uncategorised", () => {
   const warnings: string[] = [];
   const deletedCategoryMaps = {
     ...maps,
