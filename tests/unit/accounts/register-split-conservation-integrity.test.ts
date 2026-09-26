@@ -221,6 +221,34 @@ test("new parent inflows stay uncategorised until income is explicitly selected"
   assert.equal(edited?.categoryId, undefined);
 });
 
+test("canonical general income renders as its synthetic Register category", () => {
+  assert.equal(
+    resolveRegisterTransactionCategory({
+      splitLineCount: 0,
+      categoryId: null,
+      categoryName: null,
+      transferAccountId: null,
+      date: "2026-09-26",
+      incomeBudgetMonth: "2026-09",
+      inflowClassification: "income",
+    }),
+    "Income for September 2026",
+  );
+
+  assert.equal(
+    resolveRegisterTransactionCategory({
+      splitLineCount: 0,
+      categoryId: null,
+      categoryName: null,
+      transferAccountId: null,
+      date: "2026-09-26",
+      incomeBudgetMonth: "2026-10",
+      inflowClassification: "income",
+    }),
+    "Income for October 2026",
+  );
+});
+
 test("split structure takes precedence over a missing parent category", () => {
   assert.equal(
     resolveRegisterTransactionCategory({
