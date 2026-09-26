@@ -85,7 +85,7 @@ test("parent income rejects a stale or arbitrary synthetic month after the date 
   );
 });
 
-test("split Ready to Assign inflow stores only explicit future compatibility metadata", () => {
+test("legacy split Ready to Assign income canonicalises to explicit current-month income", () => {
   const splitBase = {
     ...baseDraft(),
     category: "Split",
@@ -101,27 +101,33 @@ test("split Ready to Assign inflow stores only explicit future compatibility met
   };
 
   const current = buildNewRegisterTransactionInput(splitBase);
-  assert.equal(current?.splitLines?.[0]?.incomeBudgetMonth, undefined);
+  assert.equal(current?.splitLines?.[0]?.category, "Income for September 2026");
+  assert.equal(current?.splitLines?.[0]?.categoryId, undefined);
+  assert.equal(current?.splitLines?.[0]?.incomeBudgetMonth, "2026-09");
+  assert.equal(current?.splitLines?.[0]?.inflowClassification, "income");
 
-  const future = buildNewRegisterTransactionInput({
-    ...splitBase,
-    splitLines: [{
-      ...splitBase.splitLines[0],
-      incomeBudgetMonth: "2026-12",
-    }],
-  });
-  assert.equal(future?.splitLines?.[0]?.incomeBudgetMonth, "2026-12");
+  assert.equal(
+    buildNewRegisterTransactionInput({
+      ...splitBase,
+      splitLines: [{
+        ...splitBase.splitLines[0],
+        incomeBudgetMonth: "2026-12",
+      }],
+    }),
+    null,
+  );
 
-  const moved = buildNewRegisterTransactionInput({
-    ...splitBase,
-    date: "2026-10-02",
-    splitLines: [{
-      ...splitBase.splitLines[0],
-      incomeBudgetMonth: "2026-09",
-    }],
-  });
-  assert.ok(moved);
-  assert.equal(moved.splitLines?.[0]?.incomeBudgetMonth, undefined);
+  assert.equal(
+    buildNewRegisterTransactionInput({
+      ...splitBase,
+      date: "2026-10-02",
+      splitLines: [{
+        ...splitBase.splitLines[0],
+        incomeBudgetMonth: "2026-09",
+      }],
+    }),
+    null,
+  );
 });
 
 test("non-income split lines cannot retain a stale income budget month", () => {
