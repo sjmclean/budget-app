@@ -1309,7 +1309,7 @@ function ScheduledSplitEditor({
             validate={(amount) => amount >= 0}
             emptyWhenZero
           />
-          {line.income > 0 &&
+          {line.inflow > 0 &&
           line.outflow === 0 &&
           !line.transferAccountId &&
           line.incomeBudgetMonthOffset === undefined &&
