@@ -59,7 +59,6 @@ export function RegisterSplitEditor({
   rowStyle: CSSProperties;
   layoutMode: RegisterLayoutMode;
   transactionDate?: string;
-  latestIncomeBudgetMonth?: string;
   onCreateCategory?: (
     input: RegisterInlineCategoryCreateInput,
   ) => Promise<BudgetCategoryOption>;
