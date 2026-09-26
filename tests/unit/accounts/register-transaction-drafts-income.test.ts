@@ -100,3 +100,92 @@ test("transfer inflow never gains an income classification", () => {
   assert.ok(input);
   assert.equal(input.inflowClassification, undefined);
 });
+
+
+function splitDraft(
+  category: string,
+  options: {
+    readonly countCategoryInflowAsIncome?: boolean;
+    readonly categoryId?: string;
+    readonly incomeBudgetMonth?: string;
+  } = {},
+) {
+  return {
+    ...draft("Split"),
+    splitLines: [{
+      id: "split-1",
+      category,
+      categoryId: options.categoryId,
+      incomeBudgetMonth: options.incomeBudgetMonth,
+      countCategoryInflowAsIncome: options.countCategoryInflowAsIncome,
+      memo: "",
+      outflow: "",
+      inflow: "100.00",
+    }],
+  };
+}
+
+test("synthetic current-month split income maps to canonical general income", () => {
+  const input = buildNewRegisterTransactionInput(
+    splitDraft("Income for September 2026"),
+  );
+  assert.ok(input?.splitLines);
+  assert.equal(input.splitLines[0]?.categoryId, undefined);
+  assert.equal(input.splitLines[0]?.incomeBudgetMonth, "2026-09");
+  assert.equal(input.splitLines[0]?.inflowClassification, "income");
+});
+
+test("synthetic following-month split income maps to canonical general income", () => {
+  const input = buildNewRegisterTransactionInput(
+    splitDraft("Income for October 2026"),
+  );
+  assert.ok(input?.splitLines);
+  assert.equal(input.splitLines[0]?.categoryId, undefined);
+  assert.equal(input.splitLines[0]?.incomeBudgetMonth, "2026-10");
+  assert.equal(input.splitLines[0]?.inflowClassification, "income");
+});
+
+test("synthetic split income rejects an arbitrary later month", () => {
+  assert.equal(
+    buildNewRegisterTransactionInput(
+      splitDraft("Income for November 2026"),
+    ),
+    null,
+  );
+});
+
+test("ordinary positive category split defaults to category-inflow", () => {
+  const input = buildNewRegisterTransactionInput(
+    splitDraft("Groceries", { categoryId: "groceries" }),
+  );
+  assert.ok(input?.splitLines);
+  assert.equal(input.splitLines[0]?.categoryId, "groceries");
+  assert.equal(input.splitLines[0]?.incomeBudgetMonth, undefined);
+  assert.equal(input.splitLines[0]?.inflowClassification, "category-inflow");
+});
+
+test("ordinary positive category split can explicitly count as income", () => {
+  const input = buildNewRegisterTransactionInput(
+    splitDraft("Groceries", {
+      categoryId: "groceries",
+      countCategoryInflowAsIncome: true,
+    }),
+  );
+  assert.ok(input?.splitLines);
+  assert.equal(input.splitLines[0]?.categoryId, "groceries");
+  assert.equal(input.splitLines[0]?.incomeBudgetMonth, undefined);
+  assert.equal(input.splitLines[0]?.inflowClassification, "income");
+});
+
+test("legacy Ready to Assign split income canonicalises to explicit current-month income", () => {
+  const input = buildNewRegisterTransactionInput(
+    splitDraft("Ready to Assign", {
+      categoryId: "__ready_to_assign__",
+    }),
+  );
+  assert.ok(input?.splitLines);
+  assert.equal(input.splitLines[0]?.category, "Income for September 2026");
+  assert.equal(input.splitLines[0]?.categoryId, undefined);
+  assert.equal(input.splitLines[0]?.incomeBudgetMonth, "2026-09");
+  assert.equal(input.splitLines[0]?.inflowClassification, "income");
+});
