@@ -74,6 +74,7 @@ test("legacy Ready to Assign split readback hydrates to explicit Income for Mont
   const [line] = splitDraftsFromTransaction({
     id: "transaction-1",
     date: "2026-09-26",
+    attachmentCount: 0,
     payee: "Employer",
     category: "Split...",
     memo: "",
@@ -82,6 +83,7 @@ test("legacy Ready to Assign split readback hydrates to explicit Income for Mont
     outflow: 0,
     runningBalance: 100,
     cleared: false,
+    reconciled: false,
     splitLines: [{
       id: "legacy-income",
       category: "Ready to Assign",
