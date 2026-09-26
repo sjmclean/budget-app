@@ -81,7 +81,6 @@ function buildRegisterTransactionInput({
 
   const { parsedOutflow, parsedInflow, parsedSplitLines } = validation;
 
-  const transactionMonth = date.slice(0, 7);
   if (parsedSplitLines.some((line) => line.categoryId === "__ready_to_assign__")) {
     return null;
   }
