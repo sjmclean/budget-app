@@ -46,6 +46,7 @@ test("object-first methods use their declared budgetId property", () => {
     "addTransaction",
     "setTransactionsCleared",
     "getBudgetMonthView",
+    "getBudgetProjectionDiagnostic",
     "getLocalBudgetMonthView",
     "replaceScheduledTransactionHistoryState",
   ]) {
