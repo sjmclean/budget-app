@@ -235,3 +235,90 @@ test("financial overview distinguishes general income, counted category income, 
     database.close();
   }
 });
+
+
+test("financial overview classifies split category inflows independently", () => {
+  const database = new Database(":memory:");
+
+  try {
+    database.exec(`
+      CREATE TABLE local_transactions (
+        id TEXT PRIMARY KEY,
+        budget_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        memo TEXT,
+        payee_name TEXT,
+        category_id TEXT,
+        inflow_classification TEXT,
+        transfer_account_id TEXT
+      );
+
+      CREATE TABLE local_transaction_splits (
+        transaction_id TEXT NOT NULL,
+        id TEXT NOT NULL,
+        category_id TEXT,
+        inflow_classification TEXT,
+        transfer_account_id TEXT,
+        amount INTEGER NOT NULL,
+        PRIMARY KEY(transaction_id, id)
+      );
+    `);
+
+    database.prepare(`
+      INSERT INTO local_transactions (
+        id, budget_id, date, amount, memo, payee_name,
+        category_id, inflow_classification, transfer_account_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      "mixed-split-parent",
+      "budget-1",
+      "2026-08-20",
+      3_000,
+      "",
+      "Mixed inflows",
+      null,
+      null,
+      null,
+    );
+
+    const insertSplit = database.prepare(`
+      INSERT INTO local_transaction_splits (
+        transaction_id, id, category_id, inflow_classification,
+        transfer_account_id, amount
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    insertSplit.run(
+      "mixed-split-parent",
+      "counted-category-income",
+      "groceries",
+      "income",
+      null,
+      2_000,
+    );
+    insertSplit.run(
+      "mixed-split-parent",
+      "ordinary-refund",
+      "groceries",
+      "category-inflow",
+      null,
+      1_000,
+    );
+
+    const flow = readFinancialOverviewFlow(
+      <T>(sql: string, bind: readonly unknown[] = []) =>
+        database.prepare(sql).all(...bind) as T[],
+      "budget-1",
+      "2026-08",
+    );
+
+    assert.equal(flow.income, 2_000);
+    assert.equal(flow.generalIncome, 0);
+    assert.equal(flow.countedCategoryIncome, 2_000);
+    assert.equal(flow.categoryInflows, 1_000);
+    assert.equal(flow.expenses, 0);
+  } finally {
+    database.close();
+  }
+});
