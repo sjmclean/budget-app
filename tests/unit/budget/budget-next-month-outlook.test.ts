@@ -74,3 +74,11 @@ test("Budget page keeps the adaptive one-to-four month planning view", () => {
     /if \(workspaceWidth >= 1960\) return 4;[\s\S]*if \(workspaceWidth >= 1470\) return 3;[\s\S]*if \(workspaceWidth >= 975\) return 2;/,
   );
 });
+
+
+test("future month panes write assignments through their own month workspace", () => {
+  assert.match(
+    budgetPageSource,
+    /function BudgetFutureMonthPane[\s\S]*useBudgetWorkspace\(budgetId, month\)[\s\S]*updateAssigned=\{workspace\.updateAssigned\}/,
+  );
+});
