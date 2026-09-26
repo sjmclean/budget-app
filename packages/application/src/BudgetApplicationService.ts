@@ -2,7 +2,7 @@ import { BudgetMonth } from "../../types/src/BudgetMonth.js";
 import { CategoryMonth } from "../../types/src/CategoryMonth.js";
 import { createBudgetMonth } from "../../budget-engine/src/services/createBudgetMonth.js";
 import { createCategoryMonth } from "../../budget-engine/src/services/createCategoryMonth.js";
-import { addIncomeToBudgetMonth } from "../../budget-engine/src/services/addIncomeToBudgetMonth.js";
+import { addIncomeForBudgetMonth } from "../../budget-engine/src/services/addIncomeForBudgetMonth.js";
 import { assignToCategoryMonth } from "../../budget-engine/src/services/assignToCategoryMonth.js";
 import { rolloverBudgetMonth } from "../../budget-engine/src/services/rolloverBudgetMonth.js";
 import { BudgetMonthRepository } from "../../repository/src/BudgetMonthRepository.js";
@@ -32,9 +32,9 @@ export class BudgetApplicationService {
     return categoryMonth;
   }
 
-  async postIncomeToReadyToBudget(budgetId: string, month: string, amount: number): Promise<BudgetMonth> {
+  async postIncomeToReadyToAssign(budgetId: string, month: string, amount: number): Promise<BudgetMonth> {
     const budgetMonth = await this.createMonth(budgetId, month);
-    const updated = addIncomeToBudgetMonth(budgetMonth, amount);
+    const updated = addIncomeForBudgetMonth(budgetMonth, amount);
     await this.budgetMonthRepo.update(updated);
     return updated;
   }
