@@ -43,6 +43,12 @@ function validFields(fields: Readonly<Record<string, unknown>>): fields is Sched
     typeof fields.occurrencesCompleted === "number" && typeof fields.weekendPolicy === "string" &&
     typeof fields.payee === "string" && (fields.payeeId === null || typeof fields.payeeId === "string") &&
     typeof fields.category === "string" && (fields.categoryId === null || typeof fields.categoryId === "string") &&
+    (fields.incomeBudgetMonthOffset === undefined ||
+      fields.incomeBudgetMonthOffset === 0 ||
+      fields.incomeBudgetMonthOffset === 1) &&
+    (fields.inflowClassification === undefined ||
+      fields.inflowClassification === "income" ||
+      fields.inflowClassification === "category-inflow") &&
     typeof fields.memo === "string" && typeof fields.outflow === "number" && typeof fields.inflow === "number" &&
     (fields.splitLines === null || Array.isArray(fields.splitLines)) &&
     typeof fields.createdAt === "string" && typeof fields.updatedAt === "string";
